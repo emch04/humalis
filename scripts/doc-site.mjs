@@ -183,7 +183,7 @@ const sortie = [
   '    apercu :',
   '        description "Le guide complet de Humalis : de l’installation au serveur, chaque construction du langage avec un exemple vérifié." en anglais "The complete Humalis guide: from installation to the server, every construct of the language with a checked example."',
   '    ligne avec style "doc" :',
-  '        menu avec style "doc-sommaire" :',
+  '        menu vertical avec style "doc-sommaire" :',
   ...pages.map((p) => `            lien ${guillemets(p.titreFr)} en anglais ${guillemets(p.titreEn)} vers ${guillemets(p.nom)}`),
   '        bloc avec style "doc-contenu" :',
   '            sous page',

@@ -490,53 +490,82 @@ page "installer" a l'adresse "/installer" :
                 lien "Ouvrir le bac à sable →" en anglais "Open the playground →" vers "bac_a_sable" avec style "button button-primary"
                 lien "Voir les exemples" en anglais "See the examples" vers "exemples" avec style "button button-secondary"
 
-page "nouveautes" a l'adresse "/nouveautes" :
+page "nouveautes" a l'adresse "/nouveautes" sans pied :
     apercu :
         titre "Nouveautés" en anglais "What’s new"
         description "Ce qui change dans Humalis, version après version : nouvelles constructions du langage, corrections et améliorations." en anglais "What changes in Humalis, release after release: new language constructs, fixes and improvements."
-    ligne avec style "install-hero nouveautes-entete" :
-        colonne avec style "install-hero-texte" et animation montee :
-            texte "Journal des versions" en anglais "Release notes" avec style "eyebrow"
-            titre "Les {accent "nouveautés."}" en anglais "What’s {accent "new."}" avec style "install-titre"
-            texte "Ce qui change dans le langage et son compilateur, de la plus récente version à la première. Pour mettre à jour : {code "npm install -g humalis"}." en anglais "What changes in the language and its compiler, from the latest release to the first. To update: {code "npm install -g humalis"}." avec style "hero-intro"
-    bloc avec style "install-section frise" et animation montee au defilement et en cascade :
-        bloc avec style "version version-recente" :
-            ligne avec style "version-tete" :
-                texte "1.1.0" sans traduction avec style "version-numero"
-                texte "Dernière version" en anglais "Latest" avec style "pastille pastille-vive"
-                texte "30 octobre 2026" en anglais "October 30, 2026" avec style "version-date"
-            soustitre "Écrire une documentation, animer le code" en anglais "Write documentation, animate code"
-            liste :
-                texte "Les listes ({code "liste :"}, {code "liste numerotee :"}), les tableaux ({code "tableau"}, {code "colonnes"}, {code "rangee"}), le code dans une phrase ({code "{code "…"}"}) et les blocs de code colorés avec un bouton Copier." en anglais "Lists ({code "liste :"}, {code "liste numerotee :"}), tables ({code "tableau"}, {code "colonnes"}, {code "rangee"}), code in a sentence ({code "{code "…"}"}) and coloured code blocks with a Copy button."
-                texte "{code "avec animation frappe"} : un bloc de code s’écrit lettre par lettre, au chargement ou quand il arrive à l’écran." en anglais "{code "avec animation frappe"}: a code block types itself letter by letter, on load or when it scrolls into view."
-                texte "{code "changer x par champ "…""} et {code "ajouter champ "…" à liste"} : la valeur d’un champ dans une variable ou une liste." en anglais "{code "changer x par champ "…""} and {code "ajouter champ "…" à liste"}: a field’s value into a variable or a list."
-                texte "{code "{accent "…"}"} met un mot en valeur ; {code "sans traduction"} garde un nom propre identique dans toutes les langues." en anglais "{code "{accent "…"}"} highlights a word; {code "sans traduction"} keeps a proper noun the same in every language."
-                texte "{code "menu repliable"}, {code "basculer theme"}, {code "si theme est sombre"}, l’animation {code "en cascade"} et le lien « Aller au contenu » automatique." en anglais "{code "menu repliable"}, {code "basculer theme"}, {code "si theme est sombre"}, the {code "en cascade"} animation and the automatic “Skip to content” link."
-                texte "Les sous-titres prennent seuls le bon niveau dans une carte ; les ancres de l’en-tête et du pied sont vérifiées." en anglais "Subtitles get the right level on their own inside a card; header and footer anchors are checked."
-                texte "Le compilateur fonctionne aussi dans le navigateur : c’est lui qui fait tourner le bac à sable." en anglais "The compiler also runs in the browser: it powers the playground."
-        bloc avec style "version" :
-            ligne avec style "version-tete" :
-                texte "1.0.4" sans traduction avec style "version-numero"
-                texte "30 octobre 2026" en anglais "October 30, 2026" avec style "version-date"
-            soustitre "La Licence Humalis" en anglais "The Humalis License"
-            liste :
-                texte "Humalis passe sous sa propre licence, la Licence Humalis 1.0 : l’utiliser est libre, le revendre ne l’est pas." en anglais "Humalis moves to its own license, the Humalis License 1.0: using it is free, reselling it is not."
-        bloc avec style "version" :
-            ligne avec style "version-tete" :
-                texte "1.0.1 – 1.0.3" sans traduction avec style "version-numero"
-                texte "30 octobre 2026" en anglais "October 30, 2026" avec style "version-date"
-            soustitre "Le logo partout" en anglais "The logo everywhere"
-            liste :
-                texte "Le logo s’affiche dans la présentation sur npm et sur GitHub, en thème clair comme en thème sombre." en anglais "The logo shows in the README on npm and GitHub, in light and dark themes."
-        bloc avec style "version" :
-            ligne avec style "version-tete" :
-                texte "1.0.0" sans traduction avec style "version-numero"
-                texte "30 octobre 2026" en anglais "October 30, 2026" avec style "version-date"
-            soustitre "La première version" en anglais "The first release"
-            liste :
-                texte "Un langage en français et son compilateur, pour cinq cibles : web, statique, mobile, bureau et serveur." en anglais "A language in French and its compiler, for five targets: web, static, mobile, desktop and server."
-                texte "Les commandes {code "nouveau"}, {code "developper"}, {code "compile"} et {code "verifier"}, et des messages d’erreur en français qui expliquent comment corriger." en anglais "The {code "nouveau"}, {code "developper"}, {code "compile"} and {code "verifier"} commands, and error messages that explain how to fix things."
-                texte "Un guide complet en français et en anglais." en anglais "A complete guide in French and English."
+    # La frise défile seule à gauche ; la colonne de droite ne bouge pas.
+    ligne avec style "nouveautes-corps" :
+        colonne avec style "nouveautes-fil" :
+            colonne avec style "install-hero-texte" et animation montee :
+                texte "Journal des versions" en anglais "Release notes" avec style "eyebrow"
+                titre "Les {accent "nouveautés."}" en anglais "What’s {accent "new."}" avec style "install-titre"
+                texte "Ce qui change dans le langage et son compilateur, de la plus récente version à la première. Pour mettre à jour : {code "npm install -g humalis"}." en anglais "What changes in the language and its compiler, from the latest release to the first. To update: {code "npm install -g humalis"}." avec style "hero-intro"
+            colonne avec style "frise" et animation montee au defilement et en cascade :
+                bloc avec style "version version-recente" :
+                    ligne avec style "version-tete" :
+                        texte "1.1.0" sans traduction avec style "version-numero"
+                        texte "Dernière version" en anglais "Latest" avec style "pastille pastille-vive"
+                        texte "30 octobre 2026" en anglais "October 30, 2026" avec style "version-date"
+                    soustitre "Écrire une documentation, animer le code" en anglais "Write documentation, animate code"
+                    liste :
+                        texte "Les listes ({code "liste :"}, {code "liste numerotee :"}), les tableaux ({code "tableau"}, {code "colonnes"}, {code "rangee"}), le code dans une phrase ({code "{code "…"}"}) et les blocs de code colorés avec un bouton Copier." en anglais "Lists ({code "liste :"}, {code "liste numerotee :"}), tables ({code "tableau"}, {code "colonnes"}, {code "rangee"}), code in a sentence ({code "{code "…"}"}) and coloured code blocks with a Copy button."
+                        texte "{code "avec animation frappe"} : un bloc de code s’écrit lettre par lettre, au chargement ou quand il arrive à l’écran." en anglais "{code "avec animation frappe"}: a code block types itself letter by letter, on load or when it scrolls into view."
+                        texte "{code "changer x par champ "…""} et {code "ajouter champ "…" à liste"} : la valeur d’un champ dans une variable ou une liste." en anglais "{code "changer x par champ "…""} and {code "ajouter champ "…" à liste"}: a field’s value into a variable or a list."
+                        texte "{code "{accent "…"}"} met un mot en valeur ; {code "sans traduction"} garde un nom propre identique dans toutes les langues." en anglais "{code "{accent "…"}"} highlights a word; {code "sans traduction"} keeps a proper noun the same in every language."
+                        texte "{code "menu repliable"}, {code "basculer theme"}, {code "si theme est sombre"}, l’animation {code "en cascade"} et le lien « Aller au contenu » automatique." en anglais "{code "menu repliable"}, {code "basculer theme"}, {code "si theme est sombre"}, the {code "en cascade"} animation and the automatic “Skip to content” link."
+                        texte "Les sous-titres prennent seuls le bon niveau dans une carte ; les ancres de l’en-tête et du pied sont vérifiées." en anglais "Subtitles get the right level on their own inside a card; header and footer anchors are checked."
+                        texte "Le compilateur fonctionne aussi dans le navigateur : c’est lui qui fait tourner le bac à sable." en anglais "The compiler also runs in the browser: it powers the playground."
+                bloc avec style "version" :
+                    ligne avec style "version-tete" :
+                        texte "1.0.4" sans traduction avec style "version-numero"
+                        texte "30 octobre 2026" en anglais "October 30, 2026" avec style "version-date"
+                    soustitre "La Licence Humalis" en anglais "The Humalis License"
+                    liste :
+                        texte "Humalis passe sous sa propre licence, la Licence Humalis 1.0 : l’utiliser est libre, le revendre ne l’est pas." en anglais "Humalis moves to its own license, the Humalis License 1.0: using it is free, reselling it is not."
+                bloc avec style "version" :
+                    ligne avec style "version-tete" :
+                        texte "1.0.1 – 1.0.3" sans traduction avec style "version-numero"
+                        texte "30 octobre 2026" en anglais "October 30, 2026" avec style "version-date"
+                    soustitre "Le logo partout" en anglais "The logo everywhere"
+                    liste :
+                        texte "Le logo s’affiche dans la présentation sur npm et sur GitHub, en thème clair comme en thème sombre." en anglais "The logo shows in the README on npm and GitHub, in light and dark themes."
+                bloc avec style "version" :
+                    ligne avec style "version-tete" :
+                        texte "1.0.0" sans traduction avec style "version-numero"
+                        texte "30 octobre 2026" en anglais "October 30, 2026" avec style "version-date"
+                    soustitre "La première version" en anglais "The first release"
+                    liste :
+                        texte "Un langage en français et son compilateur, pour cinq cibles : web, statique, mobile, bureau et serveur." en anglais "A language in French and its compiler, for five targets: web, static, mobile, desktop and server."
+                        texte "Les commandes {code "nouveau"}, {code "developper"}, {code "compile"} et {code "verifier"}, et des messages d’erreur en français qui expliquent comment corriger." en anglais "The {code "nouveau"}, {code "developper"}, {code "compile"} and {code "verifier"} commands, and error messages that explain how to fix things."
+                        texte "Un guide complet en français et en anglais." en anglais "A complete guide in French and English."
+        colonne avec style "nouveautes-aside" et animation montee au defilement et en cascade :
+            bloc avec style "aside-carte aside-vive" :
+                texte "Version actuelle" en anglais "Current version" avec style "aside-etiquette"
+                texte "1.1.0" sans traduction avec style "aside-version"
+                texte "Pour mettre à jour Humalis sur ta machine :" en anglais "To update Humalis on your machine:"
+                ligne avec style "install-command" :
+                    texte "npm install -g humalis" sans traduction avec style "install-code"
+                    bouton "Copier" en anglais "Copy" avec nom "copier-mise-a-jour" et style "copy-button"
+                quand l'utilisateur clique sur "copier-mise-a-jour" :
+                    copier "npm install -g humalis" avec message "Commande copiée" en anglais "Command copied"
+            bloc avec style "aside-carte" :
+                texte "En bref" en anglais "At a glance" avec style "aside-etiquette"
+                ligne avec style "aside-chiffres" :
+                    colonne avec style "aside-chiffre" :
+                        texte "6" sans traduction avec style "aside-nombre"
+                        texte "versions" sans traduction
+                    colonne avec style "aside-chiffre" :
+                        texte "5" sans traduction avec style "aside-nombre"
+                        texte "cibles" en anglais "targets"
+                    colonne avec style "aside-chiffre" :
+                        texte "2" sans traduction avec style "aside-nombre"
+                        texte "langues" en anglais "languages"
+            bloc avec style "aside-carte" :
+                texte "Suivre les versions" en anglais "Follow the releases" avec style "aside-etiquette"
+                lien "Le code sur GitHub ↗" en anglais "The code on GitHub ↗" vers "https://github.com/emch04/humalis" avec nouvel onglet
+                lien "Le paquet sur npm ↗" en anglais "The package on npm ↗" vers "https://www.npmjs.com/package/humalis" avec nouvel onglet
+                lien "Lire la documentation →" en anglais "Read the docs →" vers "documentation"
 
 page "mentions_legales" a l'adresse "/mentions-legales" :
     apercu :
@@ -544,7 +573,17 @@ page "mentions_legales" a l'adresse "/mentions-legales" :
     bloc avec style "page-intro" :
         titre "Mentions légales" en anglais "Legal notice"
         texte "Dernière mise à jour : 30 octobre 2026." en anglais "Last updated: October 30, 2026."
-    bloc avec style "page-section legal" et animation montee au defilement et en cascade :
+    grille avec colonnes 3 et style "page-section legal-resume" et animation montee au defilement et en cascade :
+        bloc avec style "legal-point" et effet leve :
+            soustitre "Éditeur" en anglais "Publisher"
+            texte "emch04, auteur de Humalis, à titre non professionnel." en anglais "emch04, the author of Humalis, as a private individual."
+        bloc avec style "legal-point" et effet leve :
+            soustitre "Licence" en anglais "License"
+            texte "Licence Humalis 1.0 : utiliser est libre, revendre ne l’est pas." en anglais "Humalis License 1.0: using is free, reselling is not."
+        bloc avec style "legal-point" et effet leve :
+            soustitre "Contact" sans traduction
+            texte "Par un ticket sur GitHub, pour toute question sur le site." en anglais "Through a GitHub issue, for any question about the website."
+    grille avec colonnes 2 et style "page-section legal" et animation montee au defilement et en cascade :
         bloc avec style "legal-bloc" :
             soustitre "Éditeur du site" en anglais "Publisher"
             texte "Ce site est édité par emch04, auteur de Humalis, à titre non professionnel. Comme la loi le permet à un particulier (article 6, III, 2 de la loi n° 2004-575 du 21 juin 2004), son identité n’est pas publiée ici : elle a été communiquée à l’hébergeur." en anglais "This website is published by emch04, the author of Humalis, as a private individual. As French law allows for individuals (article 6, III, 2 of law no. 2004-575 of June 21, 2004), their identity is not published here: it has been given to the host."
@@ -579,7 +618,7 @@ page "confidentialite" a l'adresse "/confidentialite" :
         bloc avec style "legal-point" et effet leve :
             soustitre "Ton code reste chez toi" en anglais "Your code stays with you"
             texte "Le bac à sable compile dans ton navigateur : ton code n’est envoyé nulle part." en anglais "The playground compiles in your browser: your code is sent nowhere."
-    bloc avec style "page-section legal" et animation montee au defilement et en cascade :
+    grille avec colonnes 2 et style "page-section legal" et animation montee au defilement et en cascade :
         bloc avec style "legal-bloc" :
             soustitre "Ce que ton navigateur garde" en anglais "What your browser keeps"
             texte "Deux préférences sont gardées dans ton navigateur (le stockage local), seulement pour se souvenir de tes choix : {code "humalis-theme"} (thème clair ou sombre) et {code "humalis-langue"} (français ou anglais). Elles ne quittent jamais ton appareil. Tu peux les effacer à tout moment dans les réglages de ton navigateur." en anglais "Two preferences are kept in your browser (local storage), only to remember your choices: {code "humalis-theme"} (light or dark theme) and {code "humalis-langue"} (French or English). They never leave your device. You can erase them at any time in your browser settings."
