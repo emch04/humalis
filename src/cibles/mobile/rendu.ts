@@ -17,7 +17,7 @@ const SANS_STYLE = new Set(['sur', 'degrade', 'colle', 'animation', 'duree', 'de
  * et « effet » sont sans effet sur le téléphone.
  */
 function ouvrirAnime(options: Option[]): string {
-  const animation = options.find((o) => o.nom === 'animation' && o.valeur !== 'defilement');
+  const animation = options.find((o) => o.nom === 'animation' && o.valeur !== 'defilement' && o.valeur !== 'cascade');
   if (!animation) return '';
   const duree = MILLISECONDES.duree[options.find((o) => o.nom === 'duree')?.valeur ?? 'moyenne'] ?? 300;
   const delai = options.find((o) => o.nom === 'delai');

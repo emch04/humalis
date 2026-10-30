@@ -257,6 +257,7 @@ page "accueil" :
 - Une animation sans nom : il manque le nom de l’animation
 - « duree » ou « delai » sans animation : donne l’attente d’une animation
 - « au defilement » sans animation : « au defilement » suit le nom d’une animation
+- « en cascade » sur un simple élément : il s’écrit sur un bloc
 - Une animation sur un champ : pas d’animation sur un champ
 - Trop d’éléments animés au défilement : trop de mouvement
 - Une image sans description : décrivez l’image pour les personnes

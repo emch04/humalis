@@ -719,6 +719,8 @@ class Construction {
       options.push('erreur' in option ? { nom: s.propriete, valeur: s.valeur } : { nom: option.propriete, valeur: option.valeur });
       // « animation montee au defilement » : la marque que lit l'observateur du défilement.
       if (s.defilement) options.push({ nom: 'animation', valeur: 'defilement' });
+      // « … et en cascade » : les enfants du bloc s'animent, l'un après l'autre.
+      if (s.cascade) options.push({ nom: 'animation', valeur: 'cascade' });
     }
     return { options, reglages: reglages as Reglages };
   }
@@ -749,6 +751,8 @@ class Construction {
   /** Un bloc de mise en page, ou un bloc d'éléments d'écran avec son état caché. */
   private bloc(instruction: Extract<Instruction, { type: 'Bloc' }>, gestionnaires: Gestionnaire[], groupe?: { etat: string; index: number }): NoeudVue {
     const { options, reglages } = this.separer(instruction.styles);
+    // « menu repliable » : la marque que lisent le CSS et le bouton « Menu ».
+    if (instruction.repliable) options.push({ nom: 'menu', valeur: 'repliable' });
     const noeud: Extract<NoeudVue, { type: 'bloc' }> = {
       type: 'bloc',
       genre: instruction.genre,

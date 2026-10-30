@@ -162,3 +162,33 @@ describe('mouvement — mobile', () => {
     expect(mobile(p('>titre "a"')).has('humalis/mouvement.tsx')).toBe(false);
   });
 });
+
+// Manque n° 5 du site public : « avec animation montee au defilement et en cascade » sur un bloc.
+describe('les apparitions en cascade', () => {
+  const source = p('>titre "a"', '>grille avec animation montee au defilement et en cascade :', '>>texte "Un"', '>>texte "Deux"', '>>texte "Trois"');
+
+  it('est lu sur un bloc', () => {
+    expect(erreurs(source)).toEqual([]);
+    const bloc = corps(source)[1] as unknown as { styles: { propriete: string; cascade?: boolean }[] };
+    expect(bloc.styles.find((s) => s.propriete === 'animation')?.cascade).toBe(true);
+  });
+
+  it('est refusé sur un simple élément', () => {
+    expect(erreurs(p('>titre "a" avec animation montee au defilement et en cascade')).join('\n')).toMatch(/cascade.*bloc/);
+  });
+
+  it('web : les enfants du bloc apparaissent l’un après l’autre, sans mouvement si on le demande', () => {
+    const fichiers = web(source);
+    const code = [...fichiers.values()].join('\n');
+    expect(code).toContain('humalis-animation-cascade');
+    const css = fichiers.get('src/humalis/styles.css')!;
+    expect(css).toContain('.humalis-animation-cascade.humalis-animation-montee > *');
+    expect(css).toContain('.humalis-animation-cascade > :nth-child(2) { --humalis-delai: 80ms; }');
+    expect(mouvementHorsBloc(css)).toEqual([]);
+  });
+
+  it('mobile : le bloc s’anime en entier', () => {
+    const mobile = [...genererProjetMobile(compile(source), { nom: 'e', source: 'e.humalis' }).values()].join('\n');
+    expect(mobile).not.toContain('cascade');
+  });
+});

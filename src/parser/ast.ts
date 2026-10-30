@@ -721,6 +721,8 @@ export interface Bloc {
   ancre?: string;
   /** « avec nom "catalogue" » : pour viser le bloc (« quand l'utilisateur arrive en bas de "catalogue" »). */
   nom?: string;
+  /** « menu repliable : » : sur un petit écran, les liens se cachent derrière un bouton « Menu ». */
+  repliable?: boolean;
   corps: Instruction[];
   ligne: number;
 }
@@ -813,6 +815,8 @@ export interface Style {
   texte?: LitteralChaine;
   /** « animation montee au defilement » : l'animation attend que l'élément entre à l'écran. */
   defilement?: boolean;
+  /** « … au defilement et en cascade » : les enfants du bloc apparaissent l'un après l'autre. */
+  cascade?: boolean;
 }
 
 export type NomAction =

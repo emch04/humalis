@@ -155,6 +155,10 @@ ${fonctions.join('\n')}`,
   const emploie = (motif: RegExp) => scriptsDesPages.some((contenu) => motif.test(contenu));
   const interactions = { pressePapier: emploie(/\b(copier|partager)\(/), fenetres: emploie(/\bfenetre\(/), questions: emploie(/\bconfirmer\(/), bas: emploie(/\bonbas:/) };
   fichiers.set('humalis/humalis.js', humalisJs(options.source, pagesFichiers, serveur, session, bascule ? modeTheme ?? '' : undefined, usage, application.langues, interactions));
+  // « menu repliable » : un seul écouteur pour tous les menus, ceux du HTML de départ comme ceux redessinés.
+  if ([...fichiers.values()].some((contenu) => contenu.includes('humalis-menu-bouton'))) {
+    fichiers.set('humalis/humalis.js', `${fichiers.get('humalis/humalis.js')!}\n${MENU_REPLIABLE_JS}`);
+  }
   // L'observateur des animations « au defilement », seulement si une page en a : il pose humalis-js au chargement.
   if (animeAuDefilement([...fichiers.values()])) {
     fichiers.set('humalis/humalis.js', `${fichiers.get('humalis/humalis.js')!}\n// Les animations « au defilement » attendent que l'élément entre à l'écran.\n${OBSERVATEUR_DEFILEMENT}\nobserverLeDefilement();\n`);
@@ -1195,4 +1199,16 @@ const themeJs = (defaut: string) => `
     // « theme est sombre » est relu : la page est redessinée.
     actualiser();
   }
+`;
+
+/** « menu repliable » : le bouton « Menu » ouvre et ferme les liens ; un lien choisi referme le menu. */
+const MENU_REPLIABLE_JS = `// Les menus repliables : le bouton « Menu » d'un petit écran.
+document.addEventListener('click', (evenement) => {
+  const cible = evenement.target instanceof Element ? evenement.target : null;
+  const menu = cible?.closest('.humalis-menu-repliable');
+  if (!menu || !cible.closest('.humalis-menu-bouton, a')) return;
+  const ouvrir = cible.closest('.humalis-menu-bouton') !== null && !menu.hasAttribute('data-ouvert');
+  menu.toggleAttribute('data-ouvert', ouvrir);
+  menu.querySelector(':scope > .humalis-menu-bouton')?.setAttribute('aria-expanded', String(ouvrir));
+});
 `;

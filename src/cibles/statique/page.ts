@@ -949,7 +949,9 @@ ${prise}${code}}
             break;
           }
           const balise = BALISES_BLOC[noeud.genre] ?? 'div';
-          this.ecrireGroupe(e, noeud.corps, `creer('${balise}', { class: ${chaine(classesDuBloc(noeud))} }, ...`, '),');
+          // « menu repliable » : le bouton « Menu » en premier enfant (l'écouteur est dans humalis.js).
+          const bouton = estRepliable(noeud) ? `creer('button', { type: 'button', class: 'humalis-menu-bouton', 'aria-expanded': 'false' }, 'Menu'), ` : '';
+          this.ecrireGroupe(e, noeud.corps, `creer('${balise}', { class: ${chaine(classesDuBloc(noeud))} }, ${bouton}...`, '),');
           // « arrive en bas de » ce bloc : la sentinelle observée et le vrai bouton « Voir plus », tant que la condition est vraie.
           const bas = noeud.id !== undefined ? this.basDesBlocs.get(noeud.id) : undefined;
           if (bas) {
@@ -1186,6 +1188,7 @@ ${prise}${code}}
           }
           const balise = BALISES_BLOC[noeud.genre] ?? 'div';
           lignes.push(`<${balise}${attributs([['class', classesDuBloc(noeud)]])}>`);
+          if (estRepliable(noeud)) lignes.push('<button type="button" class="humalis-menu-bouton" aria-expanded="false">Menu</button>');
           this.ecrireGroupeHtml(noeud.corps, env, lignes);
           lignes.push(`</${balise}>`);
           const bas = noeud.id !== undefined ? this.basDesBlocs.get(noeud.id) : undefined;
@@ -1525,6 +1528,9 @@ ${prise}${code}}
     }
   }
 }
+
+/** « menu repliable » : un bouton « Menu » le replie sur un petit écran. */
+const estRepliable = (noeud: { options: { nom: string; valeur: string }[] }) => noeud.options.some((o) => o.nom === 'menu' && o.valeur === 'repliable');
 
 /** Les blocs d'éléments d'écran, décrits par widgets.ts. */
 const COMPOSITES = new Set<string>(['onglets', 'deroulant', 'accordeon', 'carrousel', 'filAriane']);

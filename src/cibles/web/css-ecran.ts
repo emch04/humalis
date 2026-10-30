@@ -42,6 +42,13 @@ export function cssEcran(codes: string[]): string {
     regles.push('.humalis-aller-au-contenu { position: absolute; left: 0.5rem; top: -4rem; z-index: 1000; padding: 0.5rem 1rem; border-radius: 0.5rem; background: Canvas; color: CanvasText; }');
     regles.push('.humalis-aller-au-contenu:focus { top: 0.5rem; }');
   }
+  // « menu repliable » : sur un petit écran, les liens attendent le bouton « Menu ».
+  if (codes.some((c) => c.includes('humalis-menu-repliable'))) {
+    regles.push('.humalis-menu-bouton { display: none; }');
+    regles.push(
+      '@media (max-width: 720px) { .humalis-menu-repliable { flex-direction: column; align-items: stretch; } .humalis-menu-bouton { display: inline-flex; align-self: flex-start; } .humalis-menu-repliable:not([data-ouvert]) > :not(.humalis-menu-bouton) { display: none; } }',
+    );
+  }
   if (codes.some((c) => /humalis-pied\b/.test(c))) regles.push('.humalis-pied { padding: 1.5rem 1rem; margin-top: 2rem; border-top: 1px solid rgb(138 138 144 / 0.4); }');
   if (utilises.size === 0 && regles.length === 0) return '';
   const media: string[] = [];

@@ -67,6 +67,15 @@ export function cssMouvement(codes: string[]): string {
       regles.push(`${selecteur}:hover, ${selecteur}:focus-within, ${selecteur}:active { transform: scale(1.03); }`);
     }
   }
+  // « en cascade » : le bloc reste en place, ses enfants s'animent l'un après l'autre (80 ms d'écart).
+  if (utilisees.has('animation-cascade')) {
+    regles.push('.humalis-animation-cascade.humalis-animation-cascade { animation: none; }');
+    for (const valeur of Object.keys(ENTREES).filter((v) => utilisees.has(`animation-${v}`))) {
+      regles.push(`.humalis-animation-cascade.humalis-animation-${valeur} > * { animation: humalis-${valeur} var(--humalis-duree, 300ms) ease-out var(--humalis-delai, 0ms) backwards; }`);
+    }
+    for (let rang = 2; rang <= 12; rang++) regles.push(`.humalis-animation-cascade > :nth-child(${rang}) { --humalis-delai: ${(rang - 1) * 80}ms; }`);
+    regles.push('.humalis-animation-cascade:not([data-humalis-vu]) > * { animation: none; }');
+  }
   if (regles.length === 0) return '';
   return `\n/* Le mouvement : seulement si l'appareil ne demande pas de réduire les animations. */\n${REQUETE_MOUVEMENT} {\n${regles.map((r) => `  ${r}`).join('\n')}\n}\n`;
 }

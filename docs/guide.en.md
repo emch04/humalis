@@ -399,6 +399,10 @@ a light (`clair`) and dark (`sombre`) value; `police titres` is the headings
 font. Humalis checks contrast: a text colour too pale for its background is
 reported at compile time.
 
+A font can be shipped with the site, without relying on an outside service:
+`police titres "Space Grotesk" depuis "./polices/space-grotesk.woff2"` (`.woff2`,
+`.woff`, `.ttf` or `.otf` files).
+
 Visitors can also switch themes. `basculer theme` ("toggle theme") switches to
 the opposite of the theme being shown, and `si theme est sombre :` (or `clair`)
 reacts to the theme on screen:
@@ -519,6 +523,18 @@ page "menu" :
 `fil d'Ariane` is a breadcrumb. In a `menu`, the link to the current page is
 marked as active.
 
+A `menu repliable :` (collapsible menu) folds behind a "Menu" button on a small
+screen (phone); choosing a link closes it. On a large screen it stays open:
+
+```humalis
+page "home" :
+    menu repliable :
+        lien "Home" vers "home"
+        lien "The menu" vers "home"
+        lien "Book" vers "home"
+    titre "Home"
+```
+
 ---
 
 ## 8. Images, sound and motion
@@ -563,6 +579,18 @@ Animations: `apparition` (fade in), `montee` (slide up), `agrandissement`
 (grow); `au defilement` plays it when scrolled into view. Hover effects:
 `agrandi` (grow), `leve` (lift). Humalis respects the person's "reduce motion"
 setting.
+
+On a block, `et en cascade` ("and in a cascade") makes its children appear one
+after another:
+
+```humalis
+page "home" :
+    titre "Our dishes"
+    grille avec animation montee au defilement et en cascade :
+        texte "Soup of the day"
+        texte "Risotto"
+        texte "Apple pie"
+```
 
 ---
 

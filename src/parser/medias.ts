@@ -27,7 +27,10 @@ export function analyserOptionMedia(flux: FluxTokens, nom: string): Style | unde
     const valeur = flux.avancer().valeur;
     if (estLeMot(flux.actuel(), 'defilement')) {
       flux.avancer();
-      return { propriete: 'animation', valeur, defilement: true };
+      // « … au defilement et en cascade » : les enfants du bloc, l'un après l'autre.
+      const enCascade = flux.actuel().valeur === 'et' && estLeMot(flux.regarder(1), 'en') && estLeMot(flux.regarder(2), 'cascade');
+      if (enCascade) for (let i = 0; i < 3; i++) flux.avancer();
+      return { propriete: 'animation', valeur, defilement: true, ...(enCascade ? { cascade: true } : {}) };
     }
     return { propriete: 'animation', valeur };
   }
