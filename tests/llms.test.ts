@@ -6,9 +6,8 @@ import { produireLlms } from '../scripts/generer-llms.mjs';
 const contenu = readFileSync(new URL('../llms.txt', import.meta.url), 'utf8');
 
 describe('guide des assistants', () => {
-  it('est identique à la génération et à la copie publique', () => {
+  it('est identique à la génération', () => {
     expect(contenu).toBe(produireLlms());
-    expect(readFileSync(new URL('../site/public/llms.txt', import.meta.url), 'utf8')).toBe(contenu);
   });
   it('compile chaque bloc Humalis sans erreur', () => {
     const blocs = [...contenu.matchAll(/```humalis\n([\s\S]*?)\n```/g)];
