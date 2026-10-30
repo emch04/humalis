@@ -4,6 +4,7 @@
 utiliser style "./site.css"
 utiliser composant "DemoCode" depuis "./composants/DemoCode"
 utiliser composant "EditeurHumalis" depuis "./composants/EditeurHumalis"
+utiliser fichier "./apprendre.humalis"
 
 site :
     nom "Humalis"
@@ -32,10 +33,10 @@ entete avec colle et style "site-header" :
         lien "humalis" en anglais "humalis" vers "accueil" avec style "brand"
         menu repliable avec style "nav-links" :
             lien "Accueil" en anglais "Home" vers "accueil"
-            lien "Apprendre" en anglais "Learn" vers "accueil#apprendre"
-            lien "Exemples" en anglais "Examples" vers "accueil#exemples"
+            lien "Apprendre" en anglais "Learn" vers "apprendre"
+            lien "Exemples" en anglais "Examples" vers "exemples"
             lien "Bac à sable" en anglais "Playground" vers "bac_a_sable"
-            lien "Installer" en anglais "Install" vers "accueil#installer"
+            lien "Installer" en anglais "Install" vers "installer"
         ligne avec style "utility" :
             # « FR / EN » : la langue choisie en gras, l'autre se choisit d'un clic.
             ligne avec style "language" :
@@ -66,10 +67,10 @@ pied avec style "site-footer" :
     ligne avec style "footer-grid" :
         lien "humalis" en anglais "humalis" vers "accueil" avec style "brand"
         ligne avec style "footer-links" :
-            lien "Apprendre" en anglais "Learn" vers "accueil#apprendre"
-            lien "Exemples" en anglais "Examples" vers "accueil#exemples"
+            lien "Apprendre" en anglais "Learn" vers "apprendre"
+            lien "Exemples" en anglais "Examples" vers "exemples"
             lien "Bac à sable" en anglais "Playground" vers "bac_a_sable"
-            lien "Installer" en anglais "Install" vers "accueil#installer"
+            lien "Installer" en anglais "Install" vers "installer"
             lien "Licence Humalis" en anglais "Humalis License" vers "https://github.com/emch04/humalis/blob/main/LICENSE" avec nouvel onglet
         texte "Fait avec Humalis" en anglais "Made with Humalis" avec style "footer-note"
 
@@ -84,7 +85,7 @@ page "accueil" :
                 texte "Un seul langage, en français, pour le web, le mobile, le bureau et le serveur. Tu écris une fois. Humalis donne vie à ton idée partout." en anglais "One language, in French, for web, mobile, desktop and server. Write once. Humalis brings your idea to life everywhere." avec style "hero-intro"
                 ligne avec style "hero-actions" :
                     lien "Essayer maintenant →" en anglais "Try it now →" vers "bac_a_sable" avec style "button button-primary"
-                    lien "Lire le guide" en anglais "Read the guide" vers "accueil#apprendre" avec style "button button-secondary"
+                    lien "Lire le guide" en anglais "Read the guide" vers "apprendre" avec style "button button-secondary"
                 ligne avec ancre "installer" et style "install-command" :
                     texte "npm install -g humalis" en anglais "npm install -g humalis" avec style "install-code"
                     bouton "Copier" en anglais "Copy" avec nom "copier" et style "copy-button"
@@ -167,7 +168,7 @@ page "accueil" :
                     texte "texte Bienvenue !" en anglais "texte Welcome!" avec style "mini-code"
                 soustitre "Apprendre" en anglais "Learn"
                 texte "Un parcours clair, du premier mot à ta première application." en anglais "A clear path from your first word to your first app."
-                lien "Voir le concept ↗" en anglais "Explore the concept ↗" vers "accueil#apprendre"
+                lien "Voir le concept ↗" en anglais "Explore the concept ↗" vers "apprendre"
             bloc avec ancre "exemples" et style "page-card" :
                 bloc avec style "page-mini mini-examples" :
                     texte "Des idées à explorer" en anglais "Ideas to explore" avec style "mini-title"
@@ -182,7 +183,7 @@ page "accueil" :
                             texte "D" en anglais "D"
                 soustitre "Exemples" en anglais "Examples"
                 texte "Des projets concrets pour découvrir ce que Humalis peut faire." en anglais "Real projects to discover what Humalis can do."
-                lien "Voir le concept ↗" en anglais "Explore the concept ↗" vers "accueil#exemples"
+                lien "Voir le concept ↗" en anglais "Explore the concept ↗" vers "exemples"
             bloc avec ancre "bac-a-sable" et style "page-card" :
                 bloc avec style "page-mini mini-sandbox" :
                     texte "page carte :" en anglais "page card :" avec style "mini-code"
@@ -197,10 +198,90 @@ page "accueil" :
             texte "Une phrase suffit pour commencer. La suite t’appartient." en anglais "One sentence is enough to start. The rest is yours."
             lien "Essayer maintenant →" en anglais "Try it now →" vers "accueil#accueil" avec style "button button-primary"
 
-page "bac_a_sable" a l'adresse "/bac-a-sable" :
+page "bac_a_sable" a l'adresse "/bac-a-sable" avec filtre exemple :
     apercu :
         description "Essaie Humalis dans ton navigateur : écris du code en français et vois le site apparaître au fil de la frappe." en anglais "Try Humalis in your browser: write code in French and watch the site appear as you type."
     bloc avec style "page-intro" :
         titre "Bac à sable" en anglais "Playground"
         texte "Écris du Humalis à gauche : le site apparaît à droite, au fil de la frappe. Tout se passe dans ton navigateur." en anglais "Write Humalis on the left: the site appears on the right as you type. Everything runs in your browser."
-    EditeurHumalis
+    EditeurHumalis avec exemple exemple
+
+page "exemples" a l'adresse "/exemples" :
+    apercu :
+        description "Des applications écrites en Humalis : boutique, formulaire, restaurant, liste de tâches. Ouvre chacune dans le bac à sable." en anglais "Apps written in Humalis: shop, form, restaurant, to-do list. Open each one in the playground."
+    bloc avec style "page-intro" :
+        titre "Exemples" en anglais "Examples"
+        texte "Des applications complètes, écrites en quelques lignes. Ouvre-les dans le bac à sable pour les modifier." en anglais "Complete apps, written in a few lines. Open them in the playground to change them."
+    bloc avec style "page-section" :
+        grille avec colonnes 3 et style "feature-grid" et animation montee au defilement et en cascade :
+            bloc avec style "feature-card exemple-card" :
+                icone "panier" avec decoratif
+                soustitre "Boutique" en anglais "Shop"
+                texte "Une liste de produits et un bouton qui répond." en anglais "A product list and a button that answers."
+                lien "Essayer →" en anglais "Try it →" vers "bac_a_sable" avec exemple "boutique" et style "exemple-lien"
+            bloc avec style "feature-card exemple-card" :
+                icone "plus_cercle" avec decoratif
+                soustitre "Compteur" en anglais "Counter"
+                texte "Une variable qui change à chaque clic." en anglais "A variable that changes on every click."
+                lien "Essayer →" en anglais "Try it →" vers "bac_a_sable" avec exemple "compteur" et style "exemple-lien"
+            bloc avec style "feature-card exemple-card" :
+                icone "courrier" avec decoratif
+                soustitre "Formulaire" en anglais "Form"
+                texte "Des champs obligatoires, vérifiés avant l’envoi." en anglais "Required fields, checked before sending."
+                lien "Essayer →" en anglais "Try it →" vers "bac_a_sable" avec exemple "formulaire" et style "exemple-lien"
+            bloc avec style "feature-card exemple-card" :
+                icone "couverts" avec decoratif
+                soustitre "Restaurant" en anglais "Restaurant"
+                texte "Un thème à ses couleurs, une grille de plats." en anglais "A theme in its own colours, a grid of dishes."
+                lien "Essayer →" en anglais "Try it →" vers "bac_a_sable" avec exemple "restaurant" et style "exemple-lien"
+            bloc avec style "feature-card exemple-card" :
+                icone "coche" avec decoratif
+                soustitre "Liste de tâches" en anglais "To-do list"
+                texte "Ajouter, compter et retirer des éléments d’une liste." en anglais "Add, count and remove items in a list."
+                lien "Essayer →" en anglais "Try it →" vers "bac_a_sable" avec exemple "taches" et style "exemple-lien"
+            bloc avec style "feature-card exemple-card" :
+                icone "globe" avec decoratif
+                soustitre "Site bilingue" en anglais "Bilingual site"
+                texte "Un site en français et en anglais, avec le sélecteur de langue." en anglais "A site in French and English, with the language switcher."
+                lien "Essayer →" en anglais "Try it →" vers "bac_a_sable" avec exemple "bilingue" et style "exemple-lien"
+
+page "installer" a l'adresse "/installer" :
+    apercu :
+        description "Installe Humalis en une commande, crée ton premier projet et lance-le dans ton navigateur en quelques minutes." en anglais "Install Humalis with one command, create your first project and run it in your browser within minutes."
+    bloc avec style "page-intro" :
+        titre "Installer Humalis" en anglais "Install Humalis"
+        texte "Il te faut Node.js 24 ou plus récent. Ensuite, trois commandes suffisent." en anglais "You need Node.js 24 or later. Then three commands are enough."
+    bloc avec style "page-section etapes" :
+        bloc avec style "etape" :
+            soustitre "1. Installer le langage" en anglais "1. Install the language"
+            ligne avec style "install-command" :
+                texte "npm install -g humalis" en anglais "npm install -g humalis" avec style "install-code"
+                bouton "Copier" en anglais "Copy" avec nom "copier-installer" et style "copy-button"
+                quand l'utilisateur clique sur "copier-installer" :
+                    copier "npm install -g humalis" avec message "Commande copiée" en anglais "Command copied"
+        bloc avec style "etape" :
+            soustitre "2. Créer ton projet" en anglais "2. Create your project"
+            ligne avec style "install-command" :
+                texte "humalis nouveau mon-projet" en anglais "humalis nouveau my-project" avec style "install-code"
+                bouton "Copier" en anglais "Copy" avec nom "copier-nouveau" et style "copy-button"
+                quand l'utilisateur clique sur "copier-nouveau" :
+                    copier "humalis nouveau mon-projet" avec message "Commande copiée" en anglais "Command copied"
+        bloc avec style "etape" :
+            soustitre "3. Le voir dans ton navigateur" en anglais "3. See it in your browser"
+            ligne avec style "install-command" :
+                texte "cd mon-projet && humalis developper" en anglais "cd my-project && humalis developper" avec style "install-code"
+                bouton "Copier" en anglais "Copy" avec nom "copier-developper" et style "copy-button"
+                quand l'utilisateur clique sur "copier-developper" :
+                    copier "cd mon-projet && humalis developper" avec message "Commande copiée" en anglais "Command copied"
+            texte "Ton site s’ouvre et se met à jour à chaque enregistrement. Quand il te plaît, compile-le pour le web, le mobile, le bureau ou le serveur." en anglais "Your site opens and updates every time you save. When you like it, compile it for the web, mobile, desktop or server."
+        ligne avec style "hero-actions" :
+            lien "Lire le guide" en anglais "Read the guide" vers "apprendre" avec style "button button-primary"
+            lien "Voir Humalis sur npm" en anglais "See Humalis on npm" vers "https://www.npmjs.com/package/humalis" avec nouvel onglet et style "button button-secondary"
+
+page "introuvable" :
+    bloc avec style "page-intro introuvable" :
+        titre "Cette page n’existe pas" en anglais "This page does not exist"
+        texte "Le lien est peut-être ancien, ou l’adresse a une faute de frappe." en anglais "The link may be old, or the address may have a typo."
+        ligne avec style "hero-actions" :
+            lien "Retour à l’accueil" en anglais "Back to home" vers "accueil" avec style "button button-primary"
+            lien "Lire le guide" en anglais "Read the guide" vers "apprendre" avec style "button button-secondary"

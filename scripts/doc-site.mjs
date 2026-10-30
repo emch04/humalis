@@ -1,0 +1,189 @@
+// Transforme le guide (docs/guide.md et docs/guide.en.md) en pages Humalis
+// pour le site public : site-public/apprendre.humalis. Un chapitre « ## N. … »
+// devient une sous-page de « apprendre », avec ses deux langues :
+// « si langue est anglais : » (le guide anglais) / « sinon : » (le guide français).
+//
+// Le guide reste la seule source : on le modifie, puis on relance
+//   npm run site:doc
+import { readFileSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+const racine = fileURLToPath(new URL('..', import.meta.url));
+const lire = (chemin) => readFileSync(racine + chemin, 'utf8');
+
+/** Les chapitres « ## N. Titre » d'un guide, avec leurs lignes. */
+function chapitres(texte) {
+  const resultat = [];
+  let courant = null;
+  for (const ligne of texte.split('\n')) {
+    const titre = /^## (?:(\d+)\. )?(.+)$/.exec(ligne);
+    if (titre) {
+      courant = { numero: titre[1] ? Number(titre[1]) : null, titre: titre[2].trim(), lignes: [] };
+      resultat.push(courant);
+    } else if (courant) courant.lignes.push(ligne);
+  }
+  return resultat.filter((c) => c.numero !== null || /keywords at a glance/i.test(c.titre));
+}
+
+/** Un texte Humalis entre guillemets : \" pour un guillemet. */
+const guillemets = (texte) => `"${texte.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+
+/**
+ * Le Markdown d'une phrase en texte Humalis : `code` → {code "…"},
+ * **gras** → {accent "…"}, [texte](lien) → texte. Les accolades du texte
+ * ordinaire (qui liraient une variable) sont écrites dans un {code "…"}.
+ */
+function phrase(markdown) {
+  const morceaux = [];
+  let reste = markdown.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+  const motif = /`([^`]+)`|\*\*([^*]+)\*\*/;
+  for (;;) {
+    const trouve = motif.exec(reste);
+    if (!trouve) break;
+    morceaux.push(texteSimple(reste.slice(0, trouve.index)));
+    if (trouve[1] !== undefined) morceaux.push(`{code ${guillemets(trouve[1])}}`);
+    else morceaux.push(`{accent ${guillemets(trouve[2])}}`);
+    reste = reste.slice(trouve.index + trouve[0].length);
+  }
+  morceaux.push(texteSimple(reste));
+  return `"${morceaux.join('')}"`;
+}
+
+/** Un morceau de texte sans mise en forme : guillemets échappés, accolades montrées comme du code. */
+const texteSimple = (texte) =>
+  texte
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/[{}]/g, (accolade) => `{code "${accolade}"}`);
+
+/** Les cellules d'une ligne de tableau Markdown. */
+const cellules = (ligne) =>
+  ligne
+    .trim()
+    .replace(/^\||\|$/g, '')
+    .split(/(?<!\\)\|/)
+    .map((c) => c.trim().replace(/\\\|/g, '|'));
+
+/** Les lignes Humalis d'un chapitre, décalées de `retrait` espaces. */
+function corps(lignes, retrait) {
+  const sortie = [];
+  const ecrire = (ligne) => sortie.push(' '.repeat(retrait) + ligne);
+  let i = 0;
+  let paragraphe = [];
+  const finirParagraphe = () => {
+    if (paragraphe.length) ecrire(`texte ${phrase(paragraphe.join(' '))}`);
+    paragraphe = [];
+  };
+  while (i < lignes.length) {
+    const ligne = lignes[i];
+    if (/^```/.test(ligne)) {
+      finirParagraphe();
+      const langage = ligne.slice(3).trim().split(/\s+/)[0];
+      const nom = langage === 'humalis' ? 'humalis' : langage === 'sh' || langage === 'bash' ? 'terminal' : langage ? 'texte' : '';
+      ecrire(nom ? `code ${nom} :` : 'code :');
+      i++;
+      while (i < lignes.length && !/^```/.test(lignes[i])) {
+        sortie.push(lignes[i] === '' ? '' : ' '.repeat(retrait + 4) + lignes[i]);
+        i++;
+      }
+      i++;
+      continue;
+    }
+    if (/^### /.test(ligne)) {
+      finirParagraphe();
+      ecrire(`soustitre ${phrase(ligne.slice(4).trim())}`);
+    } else if (/^\|/.test(ligne)) {
+      finirParagraphe();
+      const entete = cellules(ligne);
+      i += 2;
+      const rangees = [];
+      while (i < lignes.length && /^\|/.test(lignes[i])) rangees.push(cellules(lignes[i++]));
+      ecrire(`tableau ${guillemets(entete.filter(Boolean).join(', ') || 'Tableau')} :`);
+      ecrire(`    colonnes ${entete.map((c) => phrase(c || ' ')).join(', ')}`);
+      for (const r of rangees) ecrire(`    rangee ${r.map((c) => phrase(c || ' ')).join(', ')}`);
+      continue;
+    } else if (/^\s*(- |\d+\. )/.test(ligne)) {
+      finirParagraphe();
+      const numerotee = /^\s*\d+\. /.test(ligne);
+      ecrire(numerotee ? 'liste numerotee :' : 'liste :');
+      while (i < lignes.length && /\S/.test(lignes[i]) && !/^```|^#|^\|/.test(lignes[i])) {
+        const element = [lignes[i].replace(/^\s*(- |\d+\. )/, '')];
+        i++;
+        while (i < lignes.length && /^\s{2,}\S/.test(lignes[i]) && !/^\s*(- |\d+\. )/.test(lignes[i])) element.push(lignes[i++].trim());
+        ecrire(`    texte ${phrase(element.join(' '))}`);
+      }
+      continue;
+    } else if (/^---\s*$/.test(ligne) || ligne.trim() === '') {
+      finirParagraphe();
+    } else {
+      paragraphe.push(ligne.trim());
+    }
+    i++;
+  }
+  finirParagraphe();
+  return sortie;
+}
+
+/** Une adresse lisible : « 4. Les éléments » → « elements ». */
+const adresse = (titre) =>
+  titre
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/^(les?|la|l')\s*/, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+
+const fr = chapitres(lire('docs/guide.md'));
+const en = chapitres(lire('docs/guide.en.md'));
+const pages = en.map((chapitreEn, index) => {
+  const chapitreFr = fr[index] ?? { numero: null, titre: 'Les mots-clés de Humalis en anglais', lignes: ['Cette page présente les mots-clés de Humalis aux personnes qui lisent le guide en anglais.'] };
+  const numero = chapitreEn.numero ?? index + 1;
+  return {
+    nom: `apprendre_${numero}`,
+    adresse: `/apprendre/${adresse(chapitreFr.titre)}`,
+    titreFr: chapitreFr.numero ? `${numero}. ${chapitreFr.titre}` : chapitreFr.titre,
+    titreEn: chapitreEn.numero ? `${numero}. ${chapitreEn.titre}` : chapitreEn.titre,
+    fr: chapitreFr.lignes,
+    en: chapitreEn.lignes,
+  };
+});
+
+const sortie = [
+  '# Produit par scripts/doc-site.mjs depuis docs/guide.md et docs/guide.en.md :',
+  '# ne pas modifier à la main. Pour changer la documentation, modifier le guide,',
+  '# puis lancer « npm run site:doc ».',
+  '',
+  'page "apprendre" a l\'adresse "/apprendre" :',
+  '    apercu :',
+  '        description "Le guide complet de Humalis : de l’installation au serveur, chaque construction du langage avec un exemple vérifié." en anglais "The complete Humalis guide: from installation to the server, every construct of the language with a checked example."',
+  '    ligne avec style "doc" :',
+  '        menu avec style "doc-sommaire" :',
+  ...pages.map((p) => `            lien ${guillemets(p.titreFr)} en anglais ${guillemets(p.titreEn)} vers ${guillemets(p.nom)}`),
+  '        bloc avec style "doc-contenu" :',
+  '            sous page',
+  '',
+  'page "apprendre_sommaire" dans "apprendre" adresse "/apprendre" :',
+  '    titre "Apprendre Humalis" en anglais "Learn Humalis"',
+  '    texte "Le guide complet du langage, du premier titre jusqu’au serveur. Chaque exemple est vérifié par le compilateur : s’il est écrit ici, il marche." en anglais "The complete guide to the language, from the first title to the server. Every example is checked by the compiler: if it is written here, it works."',
+  '    liste numerotee :',
+  ...pages.map((p) => `        lien ${guillemets(p.titreFr)} en anglais ${guillemets(p.titreEn)} vers ${guillemets(p.nom)}`),
+];
+pages.forEach((p, index) => {
+  const precedente = pages[index - 1];
+  const suivante = pages[index + 1];
+  sortie.push(
+    '',
+    `page ${guillemets(p.nom)} dans "apprendre" adresse ${guillemets(p.adresse)} :`,
+    `    titre ${guillemets(p.titreFr)} en anglais ${guillemets(p.titreEn)}`,
+    '    si langue est anglais :',
+    ...corps(p.en, 8),
+    '    sinon :',
+    ...corps(p.fr, 8),
+    '    ligne avec style "doc-suite" :',
+    ...(precedente ? [`        lien ${guillemets('← ' + precedente.titreFr)} en anglais ${guillemets('← ' + precedente.titreEn)} vers ${guillemets(precedente.nom)}`] : []),
+    ...(suivante ? [`        lien ${guillemets(suivante.titreFr + ' →')} en anglais ${guillemets(suivante.titreEn + ' →')} vers ${guillemets(suivante.nom)}`] : []),
+  );
+});
+writeFileSync(racine + 'site-public/apprendre.humalis', sortie.join('\n') + '\n');
+console.log(`site-public/apprendre.humalis : ${pages.length} chapitres.`);
