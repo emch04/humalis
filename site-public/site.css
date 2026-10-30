@@ -154,7 +154,7 @@ html[data-theme=clair] a.exemple-lien{color:#4d6a00}
 .footer-titre{margin:0 0 4px;font:700 12px/1.4 'Inter',system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
 .footer-col a{font-size:14px;color:var(--muted);transition:color .2s}
 .footer-col a:hover{color:var(--text)}
-.site-footer>.footer-bas{display:flex!important;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-top:48px;padding-top:20px;padding-bottom:28px;border-top:1px solid var(--line);padding-left:max(24px,calc((100vw - 1200px)/2));padding-right:max(24px,calc((100vw - 1200px)/2))}
+.site-footer>.footer-bas{display:flex!important;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-top:48px;padding-top:20px;padding-bottom:28px;padding-left:max(24px,calc((100vw - 1200px)/2));padding-right:max(24px,calc((100vw - 1200px)/2))}
 .footer-bas p{margin:0;font-size:13px;color:var(--faint)}
 @media(max-width:860px){.site-footer>.footer-grid{grid-template-columns:repeat(3,1fr)}.footer-marque{grid-column:1/-1}}
 @media(max-width:520px){.site-footer>.footer-grid{grid-template-columns:1fr 1fr;gap:28px}.site-footer>.footer-bas{padding-left:16px;padding-right:16px}}
