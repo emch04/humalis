@@ -1012,7 +1012,7 @@ ${prise}${code}}
       (lucideIcone ? `icone(${chaine(lucideIcone)}, 'humalis-icone'), ` : '') +
       (this.textesChanges.has(noeud.id)
         ? `textes[${chaine(noeud.id)}] ?? ${contenuJs(noeud.contenu, this.contexte)}`
-        : contenuJs(noeud.contenu, this.contexte));
+        : this.contenuAccentJs(noeud.contenu, noeud.genre));
 
     switch (noeud.genre) {
       case 'titre':
@@ -1233,6 +1233,25 @@ ${prise}${code}}
     } catch {
       return undefined;
     }
+  }
+
+  private contenuAccentJs(valeur: Valeur, genre: string): string {
+    if (valeur.type !== 'texte' || !['titre', 'soustitre', 'texte'].includes(genre)) return contenuJs(valeur, this.contexte);
+    const parties = (liste: typeof valeur.parties) => liste.map((p) => 'texte' in p
+      ? p.accent ? `creer('span', { class: 'humalis-accent' }, ${chaine(p.texte)})` : chaine(p.texte)
+      : contenuJs({ type: 'texte', parties: [p] }, this.contexte)).join(', ');
+    const accent = (liste: typeof valeur.parties) => liste.some((p) => 'accent' in p && p.accent);
+    if (!accent(valeur.parties) && !valeur.versions?.some((v) => accent(v.parties))) return contenuJs(valeur, this.contexte);
+    if (valeur.versions) return `...(${valeur.versions.slice(1).map((v) => `langue() === ${chaine(v.code)} ? [${parties(v.parties)}] : `).join('')}[${parties(valeur.versions[0].parties)}])`;
+    return parties(valeur.parties);
+  }
+
+  private contenuAccentHtml(valeur: Valeur, genre: string, env: Environnement): string {
+    if (valeur.type !== 'texte' || !['titre', 'soustitre', 'texte'].includes(genre) || !valeur.parties.some((p) => 'accent' in p && p.accent)) return echapperTexte(texteDe(valeur, env, this.contexte.champs));
+    return valeur.parties.map((p) => {
+      const texte = echapperTexte('texte' in p ? p.texte : texteDe({ type: 'texte', parties: [p] }, env, this.contexte.champs));
+      return 'accent' in p && p.accent ? `<span class="humalis-accent">${texte}</span>` : texte;
+    }).join('');
   }
 
   private texteInitial(valeur: Valeur, env: Environnement): string {
@@ -1500,7 +1519,7 @@ ${prise}${code}}
     const commun = (avant: [string, string | undefined][] = []) =>
       attributs([...avant, ['data-humalis', noeud.id], ['class', classes], ...(noeud.annonce ? ([['aria-live', 'polite'], ['aria-atomic', 'true']] as [string, string][]) : []), ...attributsRaccourci(noeud)]);
     const lucideHtml = noeud.reglages?.icone ? chercherIcone(noeud.reglages.icone)?.lucide : undefined;
-    const contenu = (lucideHtml ? iconeHtml(lucideHtml, 'humalis-icone') : '') + echapperTexte(texteDe(noeud.contenu, env, this.contexte.champs));
+    const contenu = (lucideHtml ? iconeHtml(lucideHtml, 'humalis-icone') : '') + this.contenuAccentHtml(noeud.contenu, noeud.genre, env);
     switch (noeud.genre) {
       case 'titre':
       case 'soustitre': {

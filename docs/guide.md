@@ -175,6 +175,16 @@ page "carte" :
 l'ordre des niveaux, sans en sauter : les lecteurs d'écran s'en servent pour
 parcourir la page.
 
+Dans un `titre`, un `soustitre` ou un `texte`, `{accent "…"}` met quelques mots
+en valeur avec la couleur de marque. Le texte reste lisible normalement par les
+lecteurs d'écran et dans le titre de l'onglet.
+
+```humalis
+page "offre" :
+    titre "Une offre {accent "simple"}"
+    texte "Prix : {accent "gratuit"} pour toujours"
+```
+
 ### Image
 
 ```humalis

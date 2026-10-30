@@ -952,6 +952,9 @@ function styles(formulaires = false, blocs = false, theme?: ThemeRI, codes: stri
       `titre: { fontSize: 28, fontWeight: '700', color: '${encre}', marginVertical: 12 },`,
       `sousTitre: { fontSize: 22, fontWeight: '700', color: '${encre}', marginVertical: 10 },`,
       `texte: { fontSize: 16, lineHeight: 24, color: '${encre}', marginVertical: 6 },`,
+      ...(codes.some((c) => c.includes('s.accent')) ? [theme?.couleurs.some((c) => c.nom === 'marque')
+        ? `accent: { color: '${theme.couleurs.find((c) => c.nom === 'marque')![mode === 'clair' ? 'clair' : 'sombre']}' },`
+        : `accent: { fontWeight: '700' },`] : []),
       `bouton: { alignSelf: 'flex-start', paddingVertical: 8, paddingHorizontal: 16, marginVertical: 4, borderWidth: 1, borderColor: '${encre}', borderRadius: 6 },`,
       `texteBouton: { fontSize: 16, color: '${encre}' },`,
       `lien: { alignSelf: 'flex-start', fontSize: 16, color: '${bleu}', marginVertical: 12, textDecorationLine: 'underline' },`,

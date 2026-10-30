@@ -136,13 +136,16 @@ function elementMobile(el: ElementProduit): string {
   const options = stylesDe(el.options);
   // Le texte posé sur un fond prend la couleur d'encre de ce fond.
   const encres = el.options.filter((o) => o.nom === 'fond').map((o) => camel(`encre_${o.valeur}`));
+  const contenu = ['titre', 'soustitre', 'texte'].includes(el.genre)
+    ? el.contenu.replace(/<span className="humalis-accent">/g, '<Text style={s.accent}>').replace(/<\/span>/g, '</Text>')
+    : el.contenu;
 
   switch (el.genre) {
     case 'titre':
     case 'soustitre':
-      return `<Text ${id} accessibilityRole="header" ${style([el.niveau === 1 ? 'titre' : 'sousTitre', ...options, ...encres])}${evenements}>${el.contenu}</Text>`;
+      return `<Text ${id} accessibilityRole="header" ${style([el.niveau === 1 ? 'titre' : 'sousTitre', ...options, ...encres])}${evenements}>${contenu}</Text>`;
     case 'texte':
-      return `<Text ${id} ${style(['texte', ...options, ...encres])}${evenements}>${el.contenu}</Text>`;
+      return `<Text ${id} ${style(['texte', ...options, ...encres])}${evenements}>${contenu}</Text>`;
     case 'bouton': {
       // Le fond, la bordure et la position vont au bouton ; la couleur et la taille, à son texte.
       const duBouton = el.options.filter((o) => ['fond', 'bordure', 'position'].includes(o.nom)).map(nomStyle);

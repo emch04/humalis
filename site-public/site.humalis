@@ -3,6 +3,7 @@
 # Les classes CSS donnent la mise en page ; seule la démonstration animée utilise React.
 utiliser style "./site.css"
 utiliser composant "DemoCode" depuis "./composants/DemoCode"
+utiliser composant "EditeurHumalis" depuis "./composants/EditeurHumalis"
 
 site :
     nom "Humalis"
@@ -33,7 +34,7 @@ entete avec colle et style "site-header" :
             lien "Accueil" en anglais "Home" vers "accueil"
             lien "Apprendre" en anglais "Learn" vers "accueil#apprendre"
             lien "Exemples" en anglais "Examples" vers "accueil#exemples"
-            lien "Bac à sable" en anglais "Playground" vers "accueil#bac-a-sable"
+            lien "Bac à sable" en anglais "Playground" vers "bac_a_sable"
             lien "Installer" en anglais "Install" vers "accueil#installer"
         ligne avec style "utility" :
             # « FR / EN » : la langue choisie en gras, l'autre se choisit d'un clic.
@@ -67,7 +68,7 @@ pied avec style "site-footer" :
         ligne avec style "footer-links" :
             lien "Apprendre" en anglais "Learn" vers "accueil#apprendre"
             lien "Exemples" en anglais "Examples" vers "accueil#exemples"
-            lien "Bac à sable" en anglais "Playground" vers "accueil#bac-a-sable"
+            lien "Bac à sable" en anglais "Playground" vers "bac_a_sable"
             lien "Installer" en anglais "Install" vers "accueil#installer"
             lien "Licence Humalis" en anglais "Humalis License" vers "https://github.com/emch04/humalis/blob/main/LICENSE" avec nouvel onglet
         texte "Fait avec Humalis" en anglais "Made with Humalis" avec style "footer-note"
@@ -79,10 +80,10 @@ page "accueil" :
         ligne avec style "hero-grid" :
             colonne avec style "hero-copy" :
                 texte "Le code prend la parole" en anglais "Code finds its voice" avec style "eyebrow"
-                titre "Écris ton application comme une phrase." en anglais "Write your app like a sentence." avec style "hero-title"
+                titre "Écris ton application comme une {accent "phrase."}" en anglais "Write your app like a {accent "sentence."}" avec style "hero-title"
                 texte "Un seul langage, en français, pour le web, le mobile, le bureau et le serveur. Tu écris une fois. Humalis donne vie à ton idée partout." en anglais "One language, in French, for web, mobile, desktop and server. Write once. Humalis brings your idea to life everywhere." avec style "hero-intro"
                 ligne avec style "hero-actions" :
-                    lien "Essayer maintenant →" en anglais "Try it now →" vers "accueil#bac-a-sable" avec style "button button-primary"
+                    lien "Essayer maintenant →" en anglais "Try it now →" vers "bac_a_sable" avec style "button button-primary"
                     lien "Lire le guide" en anglais "Read the guide" vers "accueil#apprendre" avec style "button button-secondary"
                 ligne avec ancre "installer" et style "install-command" :
                     texte "npm install -g humalis" en anglais "npm install -g humalis" avec style "install-code"
@@ -189,9 +190,17 @@ page "accueil" :
                     texte "bouton Entrer" en anglais "bouton Enter" avec style "mini-code"
                 soustitre "Bac à sable" en anglais "Playground"
                 texte "Un éditeur et son aperçu pour essayer une idée tout de suite." en anglais "An editor and preview to try an idea right away."
-                lien "Voir le concept ↗" en anglais "Explore the concept ↗" vers "accueil#bac-a-sable"
+                lien "Voir le concept ↗" en anglais "Explore the concept ↗" vers "bac_a_sable"
     bloc avec style "final-call" :
         colonne avec style "call-panel" :
             soustitre "Ta première application en cinq minutes." en anglais "Your first app in five minutes."
             texte "Une phrase suffit pour commencer. La suite t’appartient." en anglais "One sentence is enough to start. The rest is yours."
             lien "Essayer maintenant →" en anglais "Try it now →" vers "accueil#accueil" avec style "button button-primary"
+
+page "bac_a_sable" a l'adresse "/bac-a-sable" :
+    apercu :
+        description "Essaie Humalis dans ton navigateur : écris du code en français et vois le site apparaître au fil de la frappe." en anglais "Try Humalis in your browser: write code in French and watch the site appear as you type."
+    bloc avec style "page-intro" :
+        titre "Bac à sable" en anglais "Playground"
+        texte "Écris du Humalis à gauche : le site apparaît à droite, au fil de la frappe. Tout se passe dans ton navigateur." en anglais "Write Humalis on the left: the site appears on the right as you type. Everything runs in your browser."
+    EditeurHumalis

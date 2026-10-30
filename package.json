@@ -22,7 +22,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc",
+    "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc && rolldown dist/navigateur.js --format esm --minify --file dist/navigateur.js",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "essai:web": "node scripts/essai-web.mjs",
@@ -74,6 +74,7 @@
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
+    "rolldown": "1.2.4",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   }

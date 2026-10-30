@@ -1637,6 +1637,9 @@ class AnalysePage {
   private typeDe(expression: Expression): TypeValeur {
     switch (expression.type) {
       case 'Chaine':
+        if ([expression.parties, ...(expression.versions?.map((v) => v.parties) ?? [])].some((parties) => parties.some((p) => p.type === 'accent')) && !['titre', 'soustitre', 'texte'].includes(this.elementEnCours ?? '')) {
+          this.erreur('accent s’emploie seulement dans un titre, un soustitre ou un texte.', expression.ligne);
+        }
         this.interpolations(expression);
         this.versionsLues(expression);
         return TEXTE;

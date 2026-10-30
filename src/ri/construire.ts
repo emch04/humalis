@@ -882,6 +882,7 @@ function traduireValeur(expression: Expression, analyse: ResultatAnalyse): Valeu
       const parties = (liste: PartieChaine[]): PartiesTexte =>
         liste.map((p) => {
           if (p.type === 'texte') return { texte: p.valeur };
+          if (p.type === 'accent') return { texte: p.valeur, accent: true };
           const format = analyse.formats.get(p);
           const pluriel = analyse.pluriels.get(p);
           return {
