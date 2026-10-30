@@ -1,7 +1,7 @@
 import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { VOCABULAIRE } from '../src/vocabulaire/table.ts';
-import { ENTREES_ERREURS } from '../site/src/contenu/erreurs.ts';
+import { ENTREES_ERREURS } from '../catalogue/erreurs.ts';
 
 const racine = new URL('../', import.meta.url);
 const exemple = VOCABULAIRE.find((entree) => entree.concept === 'structure.page')?.exemple;
@@ -16,5 +16,4 @@ export function produireLlms() {
 if (process.argv[1] && fileURLToPath(import.meta.url) === fileURLToPath(new URL(process.argv[1], 'file://'))) {
   const contenu = produireLlms();
   writeFileSync(new URL('llms.txt', racine), contenu);
-  writeFileSync(new URL('site/public/llms.txt', racine), contenu);
 }

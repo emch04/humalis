@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { ENTREES_ERREURS } from '../src/contenu/erreurs';
-import { diagnostiquer as diagnostiquerActuel, formater } from '../src/contenu/verification';
+import { ENTREES_ERREURS } from '../catalogue/erreurs';
+import { diagnostiquer as diagnostiquerActuel, formater } from '../catalogue/verification';
 
 const diagnostiquer = (source: string) => diagnostiquerActuel(source).filter((d) => d.categorie !== 'accessibilite');
 const diagnosticsDe = (entree: { id: string }, source: string) => entree.id.startsWith('accessibilite-') ? diagnostiquerActuel(source).filter((d) => d.categorie === 'accessibilite') : diagnostiquer(source);
@@ -12,7 +12,7 @@ const messageDe = (entree: { id: string }, source: string) => {
   return premier ? formater(premier) : null;
 };
 
-const lire = (chemin: string) => readFileSync(fileURLToPath(new URL(`../../${chemin}`, import.meta.url)), 'utf8');
+const lire = (chemin: string) => readFileSync(fileURLToPath(new URL(`../${chemin}`, import.meta.url)), 'utf8');
 const compter = (source: string, motif: RegExp) => (source.match(motif) ?? []).length;
 
 describe('catalogue des erreurs', () => {
