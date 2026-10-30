@@ -1,0 +1,36 @@
+# La politique de confidentialité.
+
+page "confidentialite" a l'adresse "/confidentialite" :
+    apercu :
+        description "Ce que le site de Humalis fait de tes données : pas de compte, pas de cookie, pas de mesure d’audience." en anglais "What the Humalis website does with your data: no account, no cookie, no analytics."
+    bloc avec style "page-intro" :
+        titre "Confidentialité" en anglais "Privacy"
+        texte "En bref : ce site ne te demande rien, ne te suit pas et ne pose aucun cookie." en anglais "In short: this website asks you for nothing, does not track you and sets no cookie."
+    grille avec colonnes 3 et style "page-section legal-resume" et animation montee au defilement et en cascade :
+        bloc avec style "legal-point" et effet leve :
+            soustitre "Aucun compte" en anglais "No account"
+            texte "Ni inscription, ni formulaire : le site ne collecte pas de données personnelles." en anglais "No sign-up, no form: the website collects no personal data."
+        bloc avec style "legal-point" et effet leve :
+            soustitre "Aucun cookie" en anglais "No cookie"
+            texte "Ni mesure d’audience, ni publicité, ni pistage d’aucune sorte." en anglais "No analytics, no advertising, no tracking of any kind."
+        bloc avec style "legal-point" et effet leve :
+            soustitre "Ton code reste chez toi" en anglais "Your code stays with you"
+            texte "Le bac à sable compile dans ton navigateur : ton code n’est envoyé nulle part." en anglais "The playground compiles in your browser: your code is sent nowhere."
+    grille avec colonnes 2 et style "page-section legal" et animation montee au defilement et en cascade :
+        bloc avec style "legal-bloc" :
+            soustitre "Ce que ton navigateur garde" en anglais "What your browser keeps"
+            texte "Deux préférences sont gardées dans ton navigateur (le stockage local), seulement pour se souvenir de tes choix : {code "humalis-theme"} (thème clair ou sombre) et {code "humalis-langue"} (français ou anglais). Elles ne quittent jamais ton appareil. Tu peux les effacer à tout moment dans les réglages de ton navigateur." en anglais "Two preferences are kept in your browser (local storage), only to remember your choices: {code "humalis-theme"} (light or dark theme) and {code "humalis-langue"} (French or English). They never leave your device. You can erase them at any time in your browser settings."
+        bloc avec style "legal-bloc" :
+            soustitre "Les services extérieurs" en anglais "Outside services"
+            texte "Le bac à sable télécharge le compilateur depuis jsDelivr, un réseau de diffusion public. Comme tout serveur, jsDelivr voit l’adresse IP de ton navigateur ; il a sa propre politique de confidentialité." en anglais "The playground downloads the compiler from jsDelivr, a public content network. Like any server, jsDelivr sees your browser’s IP address; it has its own privacy policy."
+            lien "Politique de confidentialité de jsDelivr ↗" en anglais "jsDelivr privacy policy ↗" vers "https://www.jsdelivr.com/terms/privacy-policy-jsdelivr-net" avec nouvel onglet
+            texte "L’hébergeur du site garde, comme tous les hébergeurs, des journaux techniques (adresse IP, page demandée, date) pour la sécurité et le bon fonctionnement du service." en anglais "Like every host, the website’s host keeps technical logs (IP address, requested page, date) for security and to keep the service running."
+        bloc avec style "legal-bloc" :
+            soustitre "Tes droits" en anglais "Your rights"
+            texte "Le règlement général sur la protection des données (RGPD) te donne le droit d’accéder à tes données, de les faire corriger ou effacer. Le site ne garde aucune donnée sur toi ; pour les journaux techniques, adresse-toi à l’hébergeur. Tu peux aussi saisir la CNIL." en anglais "The General Data Protection Regulation (GDPR) gives you the right to access your data, and to have it corrected or erased. The website keeps no data about you; for technical logs, contact the host. You can also contact the CNIL, the French data protection authority."
+            lien "cnil.fr ↗" sans traduction vers "https://www.cnil.fr" avec nouvel onglet
+        bloc avec style "legal-bloc" :
+            soustitre "Une question ?" en anglais "A question?"
+            texte "Ouvre un ticket sur GitHub. Cette page sera mise à jour si le site change." en anglais "Open an issue on GitHub. This page will be updated if the website changes."
+            texte "Dernière mise à jour : 30 octobre 2026." en anglais "Last updated: October 30, 2026."
+        lien "Voir les mentions légales →" en anglais "See the legal notice →" vers "mentions_legales" avec style "button button-secondary"

@@ -1,0 +1,9 @@
+# La page introuvable (adresse inconnue).
+
+page "introuvable" :
+    bloc avec style "page-intro introuvable" :
+        titre "Cette page n’existe pas" en anglais "This page does not exist"
+        texte "Le lien est peut-être ancien, ou l’adresse a une faute de frappe." en anglais "The link may be old, or the address may have a typo."
+        ligne avec style "hero-actions" :
+            lien "Retour à l’accueil" en anglais "Back to home" vers "accueil" avec style "button button-primary"
+            lien "Lire la documentation" en anglais "Read the docs" vers "documentation" avec style "button button-secondary"

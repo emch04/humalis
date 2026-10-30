@@ -1,0 +1,32 @@
+# Le bac à sable : l'éditeur (composant React EditeurHumalis) et la suite.
+
+page "bac_a_sable" a l'adresse "/bac-a-sable" avec filtre exemple :
+    apercu :
+        titre "Bac à sable" en anglais "Playground"
+        description "Essaie Humalis dans ton navigateur : écris du code en français et vois le site apparaître au fil de la frappe." en anglais "Try Humalis in your browser: write code in French and watch the site appear as you type."
+    ligne avec style "bac-entete" et animation montee :
+        colonne avec style "bac-entete-texte" :
+            texte "Rien à installer" en anglais "Nothing to install" avec style "eyebrow"
+            titre "Bac à {accent "sable."}" en anglais "{accent "Playground."}" avec style "install-titre"
+            texte "Écris du Humalis à gauche : le site apparaît à droite, au fil de la frappe. Choisis un exemple pour partir de quelque chose, ou efface tout et commence par une phrase." en anglais "Write Humalis on the left: the site appears on the right as you type. Pick an example to start from something, or clear everything and begin with one sentence." avec style "hero-intro"
+        colonne avec style "bac-astuces" et animation montee au defilement et en cascade :
+            texte "Tab ajoute quatre espaces : c’est l’indentation de Humalis." en anglais "Tab adds four spaces: that is Humalis indentation." avec style "bac-astuce"
+            texte "Les erreurs s’affichent sous l’éditeur, en français, avec la ligne." en anglais "Errors show below the editor, with the line number." avec style "bac-astuce"
+            texte "Tout reste dans ton navigateur : ton code n’est envoyé nulle part." en anglais "Everything stays in your browser: your code is sent nowhere." avec style "bac-astuce"
+    EditeurHumalis avec exemple exemple
+    bloc avec style "install-section" :
+        colonne avec style "section-heading" :
+            soustitre "Et maintenant ?" en anglais "What next?"
+        grille avec colonnes 3 et style "bac-suite" et animation montee au defilement et en cascade :
+            bloc avec style "install-carte" et effet leve :
+                soustitre "Apprendre le langage" en anglais "Learn the language" avec niveau 3
+                texte "Chaque construction de Humalis, avec un exemple vérifié." en anglais "Every Humalis construct, with a checked example."
+                lien "Lire la documentation →" en anglais "Read the docs →" vers "documentation" avec style "exemple-lien"
+            bloc avec style "install-carte" et effet leve :
+                soustitre "Partir d’un exemple" en anglais "Start from an example" avec niveau 3
+                texte "Six applications complètes à ouvrir et à modifier." en anglais "Six complete apps to open and change."
+                lien "Voir les exemples →" en anglais "See the examples →" vers "exemples" avec style "exemple-lien"
+            bloc avec style "install-carte" et effet leve :
+                soustitre "Travailler sur ta machine" en anglais "Work on your machine" avec niveau 3
+                texte "Trois commandes pour créer ton projet et le voir vivre." en anglais "Three commands to create your project and see it live."
+                lien "Installer Humalis →" en anglais "Install Humalis →" vers "installer" avec style "exemple-lien"

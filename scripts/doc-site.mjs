@@ -1,5 +1,5 @@
 // Transforme le guide (docs/guide.md et docs/guide.en.md) en pages Humalis
-// pour le site public : site-public/documentation.humalis. Un chapitre « ## N. … »
+// pour le site public : site-public/pages/documentation.humalis. Un chapitre « ## N. … »
 // devient une sous-page de « documentation », avec ses deux langues :
 // « si langue est anglais : » (le guide anglais) / « sinon : » (le guide français).
 //
@@ -213,5 +213,5 @@ pages.forEach((p, index) => {
     ...(suivante ? [`        lien ${guillemets(suivante.titreFr + ' →')} en anglais ${guillemets(suivante.titreEn + ' →')} vers ${guillemets(suivante.nom)}`] : []),
   );
 });
-writeFileSync(racine + 'site-public/documentation.humalis', sortie.join('\n') + '\n');
-console.log(`site-public/documentation.humalis : ${pages.length} chapitres.`);
+writeFileSync(racine + 'site-public/pages/documentation.humalis', sortie.join('\n') + '\n');
+console.log(`site-public/pages/documentation.humalis : ${pages.length} chapitres.`);
