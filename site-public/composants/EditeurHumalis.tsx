@@ -25,6 +25,7 @@ const ADRESSE_COMPILATEUR = EN_LOCAL ? '/navigateur.js' : 'https://cdn.jsdelivr.
 
 const EXEMPLES = [
   {
+    id: 'boutique',
     nom: { fr: 'Boutique', en: 'Shop' },
     code: `page "boutique" :
     titre "Nos produits"
@@ -36,6 +37,7 @@ const EXEMPLES = [
         afficher "Merci pour ta commande !"`,
   },
   {
+    id: 'compteur',
     nom: { fr: 'Compteur', en: 'Counter' },
     code: `page "compteur" :
     variable clics = 0
@@ -46,6 +48,7 @@ const EXEMPLES = [
         changer clics par clics + 1`,
   },
   {
+    id: 'formulaire',
     nom: { fr: 'Formulaire', en: 'Form' },
     code: `page "contact" :
     titre "Nous écrire"
@@ -56,6 +59,68 @@ const EXEMPLES = [
         bouton "Envoyer"
     quand le formulaire "message" est soumis :
         afficher reussite "Message envoyé"`,
+  },
+  {
+    id: 'restaurant',
+    nom: { fr: 'Restaurant', en: 'Restaurant' },
+    code: `theme :
+    couleur marque clair "#9a3412" sombre "#fdba74"
+    police titres "Georgia"
+
+page "accueil" :
+    titre "Le Comptoir" avec couleur marque
+    texte "Une cuisine de saison, au cœur de la ville."
+    section :
+        soustitre "Nos plats"
+        grille avec colonnes 3 et espacement moyenne :
+            bloc avec ombre legere et bordure douce et remplissage moyenne :
+                soustitre "Risotto" avec niveau 3
+                texte "Champignons et parmesan, 16 €"
+            bloc avec ombre legere et bordure douce et remplissage moyenne :
+                soustitre "Tarte fine" avec niveau 3
+                texte "Légumes du marché, 14 €"
+            bloc avec ombre legere et bordure douce et remplissage moyenne :
+                soustitre "Poisson du jour" avec niveau 3
+                texte "Selon la pêche, 19 €"
+    bouton "Réserver une table" avec fond marque
+    quand l'utilisateur clique sur "Réserver une table" :
+        afficher reussite "À bientôt au Comptoir !"`,
+  },
+  {
+    id: 'taches',
+    nom: { fr: 'Tâches', en: 'To-do list' },
+    code: `page "taches" :
+    variable taches = ["Acheter du pain", "Appeler Sam"]
+    variable numero = 0
+    calcul combien = nombre de taches
+    titre "Mes tâches"
+    texte "{combien} tâches à faire"
+    bouton "Ajouter une tâche"
+    quand l'utilisateur clique sur "Ajouter une tâche" :
+        changer numero par numero + 1
+        ajouter "Tâche n° {numero}" à taches
+    pour chaque t dans taches :
+        ligne :
+            texte t
+            bouton "Fait"
+            quand l'utilisateur clique sur "Fait" :
+                retirer t de taches
+                afficher reussite "Bravo !"`,
+  },
+  {
+    id: 'bilingue',
+    nom: { fr: 'Bilingue', en: 'Bilingual' },
+    code: `langues :
+    francais
+    anglais
+
+page "accueil" :
+    selecteur de langue
+    titre "Bienvenue" en anglais "Welcome"
+    texte "Ce site parle français et anglais." en anglais "This site speaks French and English."
+    bouton "Dire bonjour" en anglais "Say hello"
+    quand l'utilisateur clique sur "Dire bonjour" :
+        afficher "Bonjour !" en anglais "Hello!"`,
   },
 ];
 
@@ -124,10 +189,11 @@ function useLangue(): 'fr' | 'en' {
   return langue;
 }
 
-export default function EditeurHumalis() {
+/** `exemple` : l'exemple à ouvrir (« /bac-a-sable?exemple=restaurant »), sinon le premier. */
+export default function EditeurHumalis({ exemple }: { exemple?: string | null }) {
   const langue = useLangue();
   const t = TEXTES[langue];
-  const [source, definirSource] = useState(EXEMPLES[0].code);
+  const [source, definirSource] = useState((EXEMPLES.find((e) => e.id === exemple) ?? EXEMPLES[0]).code);
   // On attend une courte pause dans la frappe avant de recompiler.
   const [aCompiler, definirACompiler] = useState(source);
   useEffect(() => {
@@ -150,7 +216,7 @@ export default function EditeurHumalis() {
       <div className="bac-exemples" role="group" aria-label={t.exemples}>
         <span className="bac-exemples-titre">{t.exemples}</span>
         {EXEMPLES.map((exemple) => (
-          <button key={exemple.nom.fr} type="button" className="bac-exemple" aria-pressed={source === exemple.code} onClick={() => definirSource(exemple.code)}>
+          <button key={exemple.id} type="button" className="bac-exemple" aria-pressed={source === exemple.code} onClick={() => definirSource(exemple.code)}>
             {exemple.nom[langue]}
           </button>
         ))}

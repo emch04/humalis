@@ -40,6 +40,7 @@
     "essai:desktop": "node scripts/essai-desktop.mjs",
     "essai:formulaire": "node scripts/essai-formulaire.mjs",
     "essai:vitrine": "node scripts/essai-vitrine.mjs",
+    "site:doc": "node scripts/doc-site.mjs",
     "llms": "node --disable-warning=ExperimentalWarning --experimental-loader ./scripts/charger-typescript.mjs scripts/generer-llms.mjs",
     "essai:medias": "node scripts/essai-medias.mjs",
     "essai:interactions": "node scripts/essai-interactions.mjs",
