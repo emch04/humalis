@@ -72,6 +72,18 @@ const e = (
 const p = (texte: string): string => texte.replace(/^\n/, '').replace(/\n\s*$/, '');
 
 export const ENTREES_ERREURS: readonly EntreeErreur[] = [
+  e('accent-sans-guillemets', 'ecriture', 'Texte accentué sans guillemets',
+    'Le morceau à mettre en valeur doit être écrit entre guillemets.',
+    'Écris {accent "mot"} à l’intérieur du texte.',
+    'page "a" :\n    titre "Un {accent mot}"',
+    'page "a" :\n    titre "Un {accent "mot"}"',
+    'accent attend un texte entre guillemets'),
+  e('accent-hors-texte', 'sens', 'Accent hors d’un texte de page',
+    'La mise en valeur est réservée aux titres, sous-titres et textes.',
+    'Place le morceau dans un titre, un soustitre ou un texte.',
+    'page "a" :\n    titre "Accueil"\n    bouton "Un {accent "mot"}"',
+    'page "a" :\n    titre "Accueil"\n    texte "Un {accent "mot"}"',
+    'accent s’emploie seulement'),
   e('accessibilite-texte-vide', 'sens', 'Un élément sans texte', 'Un bouton, un lien ou un champ doit avoir un nom lisible.', 'Écris un libellé entre guillemets.', 'page "a" :\n    titre "A"\n    bouton ""', 'page "a" :\n    titre "A"\n    bouton "Continuer"', "n'a pas de texte"),
   e('accessibilite-champ-sans-lettre', 'avertissement', 'Un libellé sans lettre', 'Le signe seul ne nomme pas le champ.', 'Écris le nom du champ.', 'page "a" :\n    titre "A"\n    champ texte ":"', 'page "a" :\n    titre "A"\n    champ texte "Nom"', 'ne contient aucune lettre', { gravite: 'avertissement' }),
   e('accessibilite-champ-double', 'avertissement', 'Deux champs de même nom', 'Un lecteur d’écran ne peut pas les distinguer.', 'Donne un nom différent à chaque champ.', 'page "a" :\n    titre "A"\n    formulaire "contact" :\n        champ texte "Nom"\n        champ texte "Nom"', 'page "a" :\n    titre "A"\n    formulaire "contact" :\n        champ texte "Nom"\n        champ texte "Prénom"', 'deux champs du même formulaire', { gravite: 'avertissement' }),

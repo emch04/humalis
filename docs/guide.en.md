@@ -186,6 +186,15 @@ page "menu" :
 Keep the levels in order, without skipping: screen readers use them to move
 through the page.
 
+In a `titre`, `soustitre`, or `texte`, `{accent "…"}` highlights a few words
+with the brand color. Screen readers and the browser tab still get plain text.
+
+```humalis
+page "offer" :
+    titre "A {accent "simple"} offer"
+    texte "Price: {accent "free"} forever"
+```
+
 ### Image
 
 ```humalis

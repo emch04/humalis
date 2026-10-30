@@ -15,7 +15,7 @@ export type TokenType =
   | 'FIN_FICHIER';
 
 export interface PartieChaine {
-  type: 'texte' | 'variable';
+  type: 'texte' | 'variable' | 'accent';
   valeur: string;
 }
 

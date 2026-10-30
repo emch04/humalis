@@ -184,7 +184,7 @@ export interface LangueRI {
 }
 
 /** Les parties d'un texte : du texte écrit, ou une valeur lue. */
-export type PartiesTexte = ({ texte: string } | PartieVariable)[];
+export type PartiesTexte = ({ texte: string; accent?: true } | PartieVariable)[];
 
 /** Les paramètres donnés à une page cible : « avec id p.id ». */
 export type ArgumentsPage = { nom: string; valeur: Valeur }[];

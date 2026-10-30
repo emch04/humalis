@@ -212,6 +212,16 @@ function texteTS(parties: PartiesTexte, contexte: Contexte, langue?: string): st
 
 /** Le contenu d'un élément dans du JSX : `Bienvenue`, `{nom}`, `{panier.join(', ')}`. */
 export function contenuJSX(valeur: Valeur, contexte: Contexte): string {
+  if (valeur.type === 'texte' && (valeur.parties.some((p) => 'accent' in p && p.accent) || valeur.versions?.some((v) => v.parties.some((p) => 'accent' in p && p.accent)))) {
+    const enfants = (parties: PartiesTexte) => parties.map((p) => {
+      if ('texte' in p) return p.accent
+        ? `<span className="humalis-accent">{${chaine(p.texte)}}</span>`
+        : `{${chaine(p.texte)}}`;
+      return contenuJSX({ type: 'texte', parties: [p] }, contexte);
+    }).join('');
+    if (valeur.versions) return valeur.versions.map((v) => `{langue === ${chaine(v.code)} && <>${enfants(v.parties)}</>}`).join('');
+    return enfants(valeur.parties);
+  }
   if (valeur.type === 'texte' && !valeur.versions && valeur.parties.every((p) => 'texte' in p)) {
     const texte = valeur.parties.map((p) => ('texte' in p ? p.texte : '')).join('');
     // Les caractères qui ont un sens en JSX passent par une chaîne.

@@ -60,7 +60,12 @@ function decouperChaine(
         );
       }
       i++;
-      parties.push({ type: 'variable', valeur: nomVariable.trim() });
+      const accent = /^accent\b(.*)$/s.exec(nomVariable.trim());
+      if (accent) {
+        const contenu = /^\s*"([\s\S]*)"\s*$/.exec(accent[1]);
+        if (!contenu) throw new ErreurLexicale('accent attend un texte entre guillemets : {accent "mot"}.', ligne, colonne);
+        parties.push({ type: 'accent', valeur: contenu[1] });
+      } else parties.push({ type: 'variable', valeur: nomVariable.trim() });
       continue;
     }
     tampon += valeur[i];
@@ -188,7 +193,8 @@ export function analyser(source: string): Token[] {
         const debut = i;
         i++;
         let valeur = '';
-        while (i < ligne.length && ligne[i] !== '"') {
+        let profondeur = 0;
+        while (i < ligne.length && (ligne[i] !== '"' || (profondeur > 0 && ligne.indexOf('}', i + 1) >= 0))) {
           // \" écrit un guillemet dans le texte ; tout autre antislash reste tel quel
           // (« \\ » aussi, en entier : un texte peut finir par lui, comme avant).
           if (ligne[i] === '\\' && ligne[i + 1] === '\\') {
@@ -197,6 +203,8 @@ export function analyser(source: string): Token[] {
             continue;
           }
           if (ligne[i] === '\\' && ligne[i + 1] === '"') i++;
+          if (ligne[i] === '{') profondeur++;
+          if (ligne[i] === '}' && profondeur > 0) profondeur--;
           valeur += ligne[i];
           i++;
         }

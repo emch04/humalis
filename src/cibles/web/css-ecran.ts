@@ -35,6 +35,7 @@ export function reglagesUtilises(codes: string[]): Set<string> {
 export function cssEcran(codes: string[]): string {
   const utilises = reglagesUtilises(codes);
   const regles: string[] = [];
+  if (codes.some((c) => c.includes('humalis-accent'))) regles.push('.humalis-accent { color: var(--humalis-marque, currentColor); }');
   // L'en-tête et le pied communs : hors de la page, sur toute la largeur.
   if (codes.some((c) => /humalis-entete\b/.test(c))) {
     regles.push('.humalis-entete { padding: 0.75rem 1rem; border-bottom: 1px solid rgb(138 138 144 / 0.4); }');

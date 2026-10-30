@@ -27,6 +27,8 @@ page "accueil" :
 
 ## Messages d’erreur
 
+- Texte accentué sans guillemets : accent attend un texte entre guillemets
+- Accent hors d’un texte de page : accent s’emploie seulement
 - Un élément sans texte : n'a pas de texte
 - Un libellé sans lettre : ne contient aucune lettre
 - Deux champs de même nom : deux champs du même formulaire

@@ -99,5 +99,5 @@ export function estSelecteurLangue(flux: FluxTokens): boolean {
 
 /** Le texte écrit, interpolations comprises (« {n article} dans le panier ») : la clé d'une traduction. */
 export function texteSource(parties: PartieChaine[]): string {
-  return parties.map((p) => (p.type === 'texte' ? p.valeur : `{${p.valeur}}`)).join('');
+  return parties.map((p) => (p.type === 'variable' ? `{${p.valeur}}` : p.valeur)).join('');
 }
