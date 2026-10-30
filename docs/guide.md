@@ -371,6 +371,10 @@ page "accueil" :
 Humalis vérifie le contraste : une couleur de texte trop pâle sur le fond est
 signalée à la compilation.
 
+Une police peut être livrée avec le site, sans dépendre d'un service extérieur :
+`police titres "Space Grotesk" depuis "./polices/space-grotesk.woff2"` (fichiers
+`.woff2`, `.woff`, `.ttf` ou `.otf`).
+
 Le visiteur peut aussi passer d'un thème à l'autre. `basculer theme` passe au
 thème inverse de celui qu'on voit, et `si theme est sombre :` (ou `clair`)
 réagit au thème affiché :
@@ -482,6 +486,18 @@ page "carte" :
 
 Dans un `menu`, le lien de la page où l'on est est marqué comme actif.
 
+Un `menu repliable :` se range derrière un bouton « Menu » sur un petit écran
+(téléphone) ; un lien choisi referme le menu. Sur grand écran, il reste ouvert :
+
+```humalis
+page "accueil" :
+    menu repliable :
+        lien "Accueil" vers "accueil"
+        lien "La carte" vers "accueil"
+        lien "Réserver" vers "accueil"
+    titre "Accueil"
+```
+
 ---
 
 ## 8. Images, sons et mouvement
@@ -525,6 +541,17 @@ page "accueil" :
 Les animations : `apparition`, `montee`, `agrandissement`. Les effets au
 survol : `agrandi`, `leve`. Humalis respecte le réglage « réduire les
 animations » de la personne.
+
+Sur un bloc, `et en cascade` fait apparaître ses enfants l'un après l'autre :
+
+```humalis
+page "accueil" :
+    titre "Nos plats"
+    grille avec animation montee au defilement et en cascade :
+        texte "Soupe du jour"
+        texte "Risotto"
+        texte "Tarte aux pommes"
+```
 
 ---
 

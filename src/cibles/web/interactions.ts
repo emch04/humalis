@@ -43,6 +43,7 @@ export function fichiersDesInteractions(codes: string[], plateforme: Plateforme 
   if (emploie('fenetre')) fichiers.set('fenetre.tsx', plateforme === 'web' ? FENETRE_TSX : FENETRE_MOBILE);
   if (emploie('voir-plus')) fichiers.set('voir-plus.ts', plateforme === 'web' ? VOIR_PLUS_TS : VOIR_PLUS_MOBILE);
   if (emploie('deplacer')) fichiers.set('deplacer.ts', plateforme === 'web' ? DEPLACER_TS : DEPLACER_MOBILE);
+  if (emploie('menu')) fichiers.set('menu.ts', MENU_TS);
   return fichiers;
 }
 
@@ -50,6 +51,7 @@ export function fichiersDesInteractions(codes: string[], plateforme: Plateforme 
 export const OUTILS_INTERACTIONS: Record<string, string[]> = {
   temps: ['useActuel', 'useMinuterie', 'usePlanifier', 'useMouvementReduit', 'useThemeSombre', 'useQuandChange', 'useQuandPause', 'useDerniere'],
   'presse-papier': ['copier', 'partager', 'adresseAbsolue'],
+  menu: ['menuRepliable'],
   clavier: ['useRaccourcis', 'correspond', 'cliquer', 'focaliser'],
   confirmation: ['confirmer', 'useConfirmer'],
   fenetre: ['Fenetre'],
@@ -63,7 +65,9 @@ export function importsDesInteractions(code: string, dossier: string, outils: Re
   for (const [fichier, noms] of Object.entries(outils)) {
     // « confirmer » vient de useConfirmer() quand la page le déclare (le téléphone).
     const declares = new Set([...code.matchAll(/\bconst (\w+) = use\w+\(/g)].map((m) => m[1]));
-    const employes = noms.filter((n) => !declares.has(n) && new RegExp(n === 'Fenetre' ? '<Fenetre\\b' : `\\b${n}\\(`).test(code));
+    // Fenetre est un composant ; menuRepliable est passé tel quel à onClick.
+    const motif = (n: string) => (n === 'Fenetre' ? '<Fenetre\\b' : n === 'menuRepliable' ? '\\{menuRepliable\\}' : `\\b${n}\\(`);
+    const employes = noms.filter((n) => !declares.has(n) && new RegExp(motif(n)).test(code));
     if (employes.length) lignes.push(`import { ${employes.join(', ')} } from '${dossier}/${fichier}';`);
   }
   return lignes;
@@ -1092,3 +1096,19 @@ const CSS_DEPLACER = `.humalis-liste-deplacable { list-style: none; margin: 0; p
 .humalis-insertion-avant { box-shadow: 0 -3px 0 var(--humalis-bleu); }
 .humalis-insertion-apres { box-shadow: 0 3px 0 var(--humalis-bleu); }
 ${CSS_CACHE}`;
+
+/** `src/humalis/menu.ts` : « menu repliable », le bouton « Menu » d'un petit écran. */
+const MENU_TS = `/**
+ * « menu repliable » : le bouton « Menu » ouvre et ferme les liens (visible
+ * seulement sur un petit écran, par le CSS) ; un lien choisi referme le menu.
+ */
+export function menuRepliable(evenement: { target: EventTarget; currentTarget: EventTarget }): void {
+  const menu = evenement.currentTarget as HTMLElement;
+  const cible = evenement.target as Element;
+  const bouton = menu.querySelector(':scope > .humalis-menu-bouton');
+  const ouvrir = cible.closest('.humalis-menu-bouton') !== null && !menu.hasAttribute('data-ouvert');
+  if (!ouvrir && cible.closest('.humalis-menu-bouton, a') === null) return;
+  menu.toggleAttribute('data-ouvert', ouvrir);
+  bouton?.setAttribute('aria-expanded', String(ouvrir));
+}
+`;

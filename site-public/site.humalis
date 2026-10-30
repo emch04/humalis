@@ -16,8 +16,9 @@ traductions anglais :
 
 theme :
     couleur marque clair "#c1e928" sombre "#d7ff3a"
-    police titres "Space Grotesk"
-    police texte "Inter"
+    police titres "Space Grotesk" depuis "./polices/space-grotesk.woff2"
+    police texte "Inter" depuis "./polices/inter.woff2"
+    police code "JetBrains Mono" depuis "./polices/jetbrains-mono.woff2"
     mode sombre
     largeur large
 
@@ -28,7 +29,7 @@ langues :
 entete avec colle et style "site-header" :
     ligne avec style "nav-row" :
         lien "humalis" en anglais "humalis" vers "accueil" avec style "brand"
-        ligne avec style "nav-links" :
+        menu repliable avec style "nav-links" :
             lien "Accueil" en anglais "Home" vers "accueil"
             lien "Apprendre" en anglais "Learn" vers "accueil#apprendre"
             lien "Exemples" en anglais "Examples" vers "accueil#exemples"
@@ -75,7 +76,7 @@ page "accueil" :
             soustitre "Un fichier, cinq cibles." en anglais "One file, five targets."
             texte "Ton idée commence dans un fichier .humalis. Le compilateur prépare le reste, sans te faire réécrire chaque application." en anglais "Your idea starts in a .humalis file. The compiler prepares the rest, without making you rewrite every app."
         texte "application.humalis" en anglais "application.humalis" avec style "source-file"
-        grille avec colonnes 5 et style "target-diagram" :
+        grille avec colonnes 5 et style "target-diagram" et animation montee au defilement et en cascade :
             bloc avec style "target-card" :
                 soustitre "Web" en anglais "Web"
                 texte "Application React" en anglais "React app"
@@ -95,7 +96,7 @@ page "accueil" :
         colonne avec style "section-heading" :
             soustitre "De l’idée au concret." en anglais "From idea to reality."
             texte "Des outils pour construire une vraie application, tout en gardant des mots que tu comprends." en anglais "Tools to build a real app, using words you understand."
-        grille avec colonnes 3 et style "feature-grid" :
+        grille avec colonnes 3 et style "feature-grid" et animation montee au defilement et en cascade :
             bloc avec style "feature-card" :
                 soustitre "Pages et formulaires" en anglais "Pages and forms"
                 texte "Crée des écrans et recueille les réponses de tes visiteurs." en anglais "Build screens and collect responses from your visitors."

@@ -107,6 +107,21 @@ page "accueil" :
     titre "Le Fleuve" avec animation montee au defilement
 `),
     '« au defilement » suit le nom d’une animation'),
+  e('cascade-hors-bloc', 'sens', '« en cascade » sur un simple élément',
+    '« en cascade » fait apparaître les enfants d’un bloc l’un après l’autre : un titre ou un texte seul n’a pas d’enfants à faire apparaître.',
+    'Mets « en cascade » sur le bloc qui contient les éléments : une grille, une ligne, une colonne, une section ou un bloc.',
+    p(`
+page "accueil" :
+    titre "Nos plats" avec animation montee au defilement et en cascade
+`),
+    p(`
+page "accueil" :
+    titre "Nos plats"
+    grille avec animation montee au defilement et en cascade :
+        texte "Soupe"
+        texte "Salade"
+`),
+    'il s’écrit sur un bloc'),
   e('animation-champ', 'sens', 'Une animation sur un champ',
     'Un champ qui bouge pendant qu’on écrit dedans gêne la saisie, surtout avec une loupe d’écran ou un lecteur d’écran. Humalis refuse l’animation sur un champ et dans un formulaire.',
     'Retire l’animation du champ ; anime plutôt le titre ou le bloc qui entoure le formulaire.',

@@ -36,6 +36,9 @@ export function verifierMouvement(styles: Style[], genre: string, dansFormulaire
     s.erreur('« au defilement » suit le nom d’une animation : « animation montee au defilement ».', ligne);
     return false;
   }
+  if (animation.cascade && !['bloc', 'section', 'ligne', 'colonne', 'grille'].includes(genre)) {
+    s.erreur('« en cascade » fait apparaître les enfants d’un bloc l’un après l’autre : il s’écrit sur un bloc (section, bloc, ligne, colonne ou grille).', ligne);
+  }
   if (genre === 'champ' || genre === 'formulaire' || dansFormulaire) {
     s.erreur('pas d’animation sur un champ, ni dans un formulaire : un champ qui bouge pendant qu’on écrit gêne la saisie.', ligne);
   }
