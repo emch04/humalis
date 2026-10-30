@@ -485,3 +485,20 @@ describe('les textes d\'une branche « si langue est … »', () => {
     expect(avertissements('    texte "Salut"\n    si langue est anglais :\n        texte "Hello"\n').join('\n')).toMatch(/« Salut » n'a pas de version anglaise/);
   });
 });
+
+describe('un titre dans chaque branche « si langue est … »', () => {
+  const avertissements = (corps: string) =>
+    compiler(`langues :\n    francais\n    anglais\n\npage "a" :\n${corps}`).diagnostics.filter((d) => d.gravite === 'avertissement').map((d) => d.message);
+
+  it('ne compte qu’un titre principal : un seul s’affiche à la fois', () => {
+    expect(avertissements('    si langue est anglais :\n        titre "Welcome"\n    sinon :\n        titre "Bienvenue"\n').join('\n')).not.toMatch(/plusieurs titres principaux/);
+  });
+
+  it('deux titres dans la même branche restent signalés', () => {
+    expect(avertissements('    si langue est anglais :\n        titre "Welcome"\n        titre "Again"\n    sinon :\n        titre "Bienvenue"\n').join('\n')).toMatch(/plusieurs titres principaux/);
+  });
+
+  it('un titre avant la condition et un autre dedans restent signalés', () => {
+    expect(avertissements('    titre "Accueil" en anglais "Home"\n    si langue est anglais :\n        titre "Welcome"\n    sinon :\n        titre "Bienvenue"\n').join('\n')).toMatch(/plusieurs titres principaux/);
+  });
+});

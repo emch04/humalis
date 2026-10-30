@@ -73,7 +73,16 @@ export function verifierAccessibilite(page: Page, theme: ReadonlyMap<string, { c
         parcours(instruction.corps, champs);
       }
       else if (instruction.type === 'Bloc' || instruction.type === 'Boucle') parcours(instruction.corps, champs);
-      else if (instruction.type === 'Condition') { parcours(instruction.alors, champs); parcours(instruction.sinon, champs); }
+      else if (instruction.type === 'Condition') {
+        // Les deux branches s'excluent (« si langue est anglais » / « sinon ») : un titre dans
+        // chacune ne fait qu'un titre affiché. On garde le plus grand des deux comptes.
+        const avant = titres;
+        parcours(instruction.alors, champs);
+        const apresAlors = titres;
+        titres = avant;
+        parcours(instruction.sinon, champs);
+        titres = Math.max(titres, apresAlors);
+      }
     }
   };
   parcours(page.corps);
