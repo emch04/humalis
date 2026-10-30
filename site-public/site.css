@@ -158,3 +158,19 @@ html[data-theme=clair] a.exemple-lien{color:#4d6a00}
 .footer-bas p{margin:0;font-size:13px;color:var(--faint)}
 @media(max-width:860px){.site-footer>.footer-grid{grid-template-columns:repeat(3,1fr)}.footer-marque{grid-column:1/-1}}
 @media(max-width:520px){.site-footer>.footer-grid{grid-template-columns:1fr 1fr;gap:28px}.site-footer>.footer-bas{padding-left:16px;padding-right:16px}}
+/* Documentation : la page ne défile plus. Le sommaire et le chapitre ont chacun leur propre défilement,
+   limité à leur zone, sous l'en-tête. Le chapitre (recréé à chaque page) repart toujours du haut. */
+html:has(.doc),body:has(.doc){height:100%;overflow:hidden}
+.doc{height:calc(100dvh - var(--entete));overflow:hidden;padding-right:0!important}
+.doc-sommaire{position:static;height:100%}
+.doc-contenu{height:100%;max-width:none;min-width:0;padding:0!important;overflow:hidden}
+.doc-contenu>.humalis-sous-page{height:100%;overflow-y:auto;overscroll-behavior:contain;box-sizing:border-box;padding:48px max(24px,calc((100vw - 1200px)/2)) 96px 4px}
+.doc-contenu>.humalis-sous-page>*{max-width:760px}
+@media(max-width:700px){.doc-contenu>.humalis-sous-page{padding:28px 16px 72px 2px}}
+@media(max-width:600px){.doc-contenu>.humalis-sous-page{padding:24px 12px 72px 0}}
+/* Les barres de défilement de la documentation : fines, aux couleurs du site */
+.doc-sommaire,.doc-contenu>.humalis-sous-page{scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+.doc-sommaire::-webkit-scrollbar,.doc-contenu>.humalis-sous-page::-webkit-scrollbar{width:8px}
+.doc-sommaire::-webkit-scrollbar-track,.doc-contenu>.humalis-sous-page::-webkit-scrollbar-track{background:transparent}
+.doc-sommaire::-webkit-scrollbar-thumb,.doc-contenu>.humalis-sous-page::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px;border:2px solid transparent;background-clip:padding-box}
+.doc-sommaire::-webkit-scrollbar-thumb:hover,.doc-contenu>.humalis-sous-page::-webkit-scrollbar-thumb:hover{background:var(--faint);background-clip:padding-box}
