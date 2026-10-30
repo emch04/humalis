@@ -28,7 +28,7 @@ body{background:var(--bg)!important;color:var(--text)!important;font-family:Inte
 .site-header>.nav-row,.site-footer>.footer-grid,.humalis-page>.humalis-bloc{padding-left:max(24px,calc((100vw - 1200px)/2));padding-right:max(24px,calc((100vw - 1200px)/2))}
 .site-header{background:var(--glass)!important}.nav-row{display:flex!important;justify-content:space-between;gap:20px}.nav-links{display:flex!important;flex-wrap:wrap}.utility{display:flex!important;margin-left:auto;align-items:center}.utility select{background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:7px}.site-header .brand,.site-footer .brand{color:var(--text);font-size:25px}.site-header .brand:before,.site-footer .brand:before{content:"";width:32px;height:32px;background:var(--lime);mask:url('/logo.png') center/contain no-repeat}
 .hero-grid,.target-diagram,.feature-grid,.errors-layout,.page-grid{display:grid!important}.hero-copy{display:flex!important;align-items:flex-start}.hero-title{font-size:clamp(52px,5.55vw,84px);line-height:1.02;margin:27px 0 24px;max-width:680px}.hero-intro{font-size:18px;line-height:1.65;color:var(--muted);max-width:535px}.hero-actions{display:flex!important}.install-command{display:flex!important}.install-code{margin:0;font:12px 'JetBrains Mono',monospace;color:var(--muted)}.copy-button,.icon-button{margin:0}.eyebrow:before{content:"";width:7px;height:7px;border-radius:50%;background:var(--lime);box-shadow:0 0 12px var(--lime)}
-.section-heading{display:block!important}.target-section>.source-file{position:relative;left:auto;top:auto;transform:none;width:max-content;margin:0 auto -8px;z-index:1}.target-diagram{padding-top:40px}.target-card:before{top:-20px}.target-card h2{font-size:19px;margin:36px 0 5px}.target-card h2:before{content:"◇";display:block;color:var(--lime);font-size:28px;margin-bottom:12px}.feature-card h2{font-size:22px;margin:48px 0 8px}.feature-card h2:before{content:"✦";display:block;color:var(--lime);font-size:28px;margin-bottom:16px}.feature-card p,.target-card p{color:var(--muted)}
+.section-heading{display:block!important}.target-section>.source-file{position:relative;left:auto;top:auto;transform:none;width:max-content;margin:0 auto -8px;z-index:1}.target-diagram{padding-top:40px}.target-card:before{top:-20px}.target-card h2{font-size:19px;margin:36px 0 5px}.target-card h2:before{content:none}.feature-card h2{font-size:22px;margin:48px 0 8px}.feature-card h2:before{content:none}.feature-card p,.target-card p{color:var(--muted)}
 .terminal{display:block!important}.terminal-top{margin:0}.terminal-command,.terminal-error,.terminal-hint{font:13px/1.8 'JetBrains Mono',monospace;padding:0 25px;margin:0}.terminal-command{padding-top:24px;color:#dfe3d9}.terminal-error{color:#f0bbb1;margin-top:17px}.terminal-hint{color:#bbc6a6;padding-bottom:24px;margin-top:12px}.page-card{padding-bottom:22px}.page-card>h2,.page-card>p,.page-card>a{margin-left:25px;margin-right:25px}.page-card>h2{font-size:25px;margin-top:20px;margin-bottom:6px}.page-card>p{font-size:13px;color:var(--muted)}.page-card>a{display:inline-block;font-size:12px;font-weight:700;margin-top:14px}.page-mini{padding:20px}.mini-learn{display:block}.mini-code{margin:8px 0}.mini-gallery{display:grid!important}.mini-tile{display:grid;place-items:center;color:var(--lime)}.mini-sandbox{display:block}.final-call .call-panel{display:flex;align-items:center}.call-panel h2{font-size:clamp(40px,5vw,66px)}.footer-grid{display:flex!important}.footer-note{margin:0}.site-footer{background:var(--bg)}
 @media(max-width:1050px){.hero-grid{grid-template-columns:1fr}.target-diagram{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:700px){.site-header>.nav-row,.site-footer>.footer-grid,.humalis-page>.humalis-bloc{padding-left:16px;padding-right:16px}.nav-links{display:none!important}.hero-grid,.errors-layout,.feature-grid,.page-grid{grid-template-columns:1fr}.target-diagram{grid-template-columns:repeat(2,1fr)}.hero-copy{align-items:flex-start}.hero-title{font-size:clamp(46px,11vw,66px)}.utility .github-link{display:none}.demo-grid{grid-template-columns:1fr}.page-mini{height:190px}}
@@ -44,3 +44,22 @@ a.button-secondary{background:var(--surface);color:var(--text)}
 @media(max-width:720px){.nav-links.humalis-menu-repliable{display:flex!important;flex-direction:column;align-items:flex-start;position:static;background:none;border:0;padding:0;gap:4px;margin-left:auto}.nav-links.humalis-menu-repliable[data-ouvert]{position:absolute;top:60px;left:16px;right:16px;padding:12px 16px;background:var(--surface);border:1px solid var(--line);border-radius:14px;z-index:20}.nav-links.humalis-menu-repliable[data-ouvert] .humalis-menu-bouton{align-self:flex-end}}
 /* Les lueurs décoratives ne doivent jamais faire glisser la page sur le côté */
 html,body{overflow-x:clip}
+/* L'en-tête comme dans la maquette : « FR / EN » et le bouton de thème en icône seule */
+.language{display:flex;align-items:center;gap:4px;font-size:11px;font-weight:700;letter-spacing:.03em;white-space:nowrap}
+.language p{margin:0}
+.lang-actif{color:var(--text)}
+.lang-sep{color:var(--faint)}
+button.lang-choix{all:unset;cursor:pointer;color:var(--faint);font-size:11px;font-weight:700;letter-spacing:.03em}
+button.lang-choix:hover{color:var(--text)}
+button.lang-choix:focus-visible{outline:2px solid var(--lime);outline-offset:2px;border-radius:3px}
+button.icon-button{width:36px;height:36px;padding:0;display:grid;place-items:center;font-size:0;line-height:0;gap:0}
+button.icon-button svg{width:17px;height:17px}
+/* Une icône par carte, comme dans la maquette */
+.target-card .humalis-icone,.feature-card .humalis-icone{width:28px;height:28px;color:var(--lime);margin-bottom:14px;flex:none}
+/* L'en-tête placé comme dans la maquette : le logo à gauche, les liens serrés à droite, puis FR / EN, le thème et GitHub */
+.site-header.humalis-entete{padding:0}
+.site-header .nav-row{height:74px;justify-content:flex-start;gap:34px}
+.site-header .nav-links{margin-left:auto;gap:25px;flex-wrap:nowrap}
+.site-header .utility{margin-left:0;gap:13px}
+@media(max-width:1050px){.site-header .nav-row{gap:18px}.site-header .nav-links{gap:14px}}
+@media(max-width:720px){.site-header .nav-row{height:66px}}
