@@ -63,3 +63,5 @@ button.icon-button svg{width:17px;height:17px}
 .site-header .utility{margin-left:0;gap:13px}
 @media(max-width:1050px){.site-header .nav-row{gap:18px}.site-header .nav-links{gap:14px}}
 @media(max-width:720px){.site-header .nav-row{height:66px}}
+/* L’icône du thème bien au centre de son carré : le nom caché ne doit pas faire une deuxième ligne */
+button.icon-button{display:inline-flex;align-items:center;justify-content:center}
