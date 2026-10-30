@@ -504,8 +504,19 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
             colonne avec style "frise" et animation montee au defilement et en cascade :
                 bloc avec style "version version-recente" :
                     ligne avec style "version-tete" :
-                        texte "1.1.0" sans traduction avec style "version-numero"
+                        texte "1.2.0" sans traduction avec style "version-numero"
                         texte "Dernière version" en anglais "Latest" avec style "pastille pastille-vive"
+                        texte "30 octobre 2026" en anglais "October 30, 2026" avec style "version-date"
+                    soustitre "Des menus et des titres mieux rangés" en anglais "Better menus and headings"
+                    liste :
+                        texte "{code "menu vertical :"} range les liens en colonne, sans jamais ouvrir une deuxième colonne : un sommaire de hauteur limitée défile." en anglais "{code "menu vertical :"} stacks the links in a column and never starts a second one: a table of contents with a limited height scrolls."
+                        texte "Le bouton d’un {code "menu repliable"} devient une icône burger, en croix quand le menu est ouvert ; un toucher à côté ou la touche Échap referment le menu." en anglais "The button of a {code "menu repliable"} becomes a burger icon, a cross while the menu is open; tapping outside or pressing Escape closes it."
+                        texte "Dans une {code "section"}, le premier sous-titre la titre et les autres descendent d’un niveau, même rangés dans des cartes." en anglais "In a {code "section"}, the first subtitle titles it and the others go down one level, even inside cards."
+                        texte "Un titre dans chaque branche de {code "si langue est …"} ne compte qu’une fois." en anglais "A title in each branch of {code "si langue est …"} counts only once."
+                        texte "Corrections : le style du menu sur le téléphone, et la remise en haut de la page quand c’est la zone sous l’en-tête qui défile." en anglais "Fixes: the menu style on phones, and scrolling back to the top when the area under the header is what scrolls."
+                bloc avec style "version" :
+                    ligne avec style "version-tete" :
+                        texte "1.1.0" sans traduction avec style "version-numero"
                         texte "30 octobre 2026" en anglais "October 30, 2026" avec style "version-date"
                     soustitre "Écrire une documentation, animer le code" en anglais "Write documentation, animate code"
                     liste :
@@ -542,7 +553,7 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
         colonne avec style "nouveautes-aside" et animation montee au defilement et en cascade :
             bloc avec style "aside-carte aside-vive" :
                 texte "Version actuelle" en anglais "Current version" avec style "aside-etiquette"
-                texte "1.1.0" sans traduction avec style "aside-version"
+                texte "1.2.0" sans traduction avec style "aside-version"
                 texte "Pour mettre à jour Humalis sur ta machine :" en anglais "To update Humalis on your machine:"
                 ligne avec style "install-command" :
                     texte "npm install -g humalis" sans traduction avec style "install-code"
@@ -553,7 +564,7 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
                 texte "En bref" en anglais "At a glance" avec style "aside-etiquette"
                 ligne avec style "aside-chiffres" :
                     colonne avec style "aside-chiffre" :
-                        texte "6" sans traduction avec style "aside-nombre"
+                        texte "7" sans traduction avec style "aside-nombre"
                         texte "versions" sans traduction
                     colonne avec style "aside-chiffre" :
                         texte "5" sans traduction avec style "aside-nombre"
