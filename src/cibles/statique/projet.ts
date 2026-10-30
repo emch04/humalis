@@ -45,6 +45,12 @@ export interface OptionsStatique {
   images?: Map<string, string>;
   /** L'adresse publique du site (--adresse), à la place de celle du bloc « site ». */
   adresse?: string;
+  /**
+   * Le mode développement : les fichiers du projet, tels que compilerProjet
+   * les rend. Chaque élément porte alors son fichier et sa ligne
+   * (data-humalis-source) ; absent, rien n'est ajouté.
+   */
+  sources?: readonly string[];
 }
 
 /** Le fichier qui marque un dossier produit par Humalis (voir la commande compile). */
@@ -72,6 +78,7 @@ export function genererProjetStatique(application: Application, options: Options
     composants: new Map(application.composants.map((c) => [c.nom, c])),
     medias: options.medias,
     ...(application.langues ? { langues: application.langues } : {}),
+    ...(options.sources ? { reperes: options.sources } : {}),
   };
   const langue = application.langues?.[0].code;
 

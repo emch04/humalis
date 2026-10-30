@@ -1972,6 +1972,14 @@ For web and static, `--adresse https://…` gives the site's final address
 (sitemap, share links). For desktop, `--serveur https://…` gives the address
 of the server the application calls.
 
+With `humalis developper`, every element of the page carries its Humalis
+file and line: in the browser's inspector, a heading shows for example
+`data-humalis-source="pages/accueil.humalis:12"` (the path starts from the
+main file, the line is the one in that file). Hold the Alt key (Option on
+Mac) and hover over an element: a small label shows the same reference next
+to the cursor. `humalis compile` adds none of this: the published site stays
+identical.
+
 ### Error messages
 
 Messages are in French, with the line number, and often suggest the fix:
