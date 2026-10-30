@@ -5,8 +5,8 @@
 page "documentation" a l'adresse "/documentation" sans pied :
     apercu :
         description "Le guide complet de Humalis : de l’installation au serveur, chaque construction du langage avec un exemple vérifié." en anglais "The complete Humalis guide: from installation to the server, every construct of the language with a checked example."
-    ligne avec style "doc" :
-        menu vertical avec style "doc-sommaire" :
+    ligne avec style "doc" et hauteur ecran :
+        menu vertical avec style "doc-sommaire" et defilement interne :
             lien "1. Installer et créer un projet" en anglais "1. Install and create a project" vers "documentation_1"
             lien "2. Les règles d'écriture" en anglais "2. Writing rules" vers "documentation_2"
             lien "3. Les pages" en anglais "3. Pages" vers "documentation_3"
@@ -482,6 +482,7 @@ page "documentation_5" dans "documentation" adresse "/documentation/styles" :
                 titre "Welcome" avec style "big"
                 bouton "Confirm" avec fond vert et style "main"
         texte "CSS can also come from a file: {code "utiliser style "./theme.css""} at the top of the file. CSS applies to the web, static and desktop targets; mobile only translates named styles (colour, background, size, position, border)."
+        texte "{code "humalis verifier"} warns when a class used with {code "avec style"} is missing from the project's CSS and suggests a close name. It also warns when an {code "!important"} rule targets a {code ".humalis-…"} class: remove {code "!important"} or use your own class."
     sinon :
         texte "Les options d'un élément s'écrivent après {code "avec"}, reliées par {code "et"}."
         code humalis :
@@ -513,6 +514,7 @@ page "documentation_5" dans "documentation" adresse "/documentation/styles" :
                 titre "Bienvenue" avec style "grand"
                 bouton "Valider" avec fond vert et style "principal"
         texte "Le CSS peut aussi venir d'un fichier : {code "utiliser style "./theme.css""} en haut du fichier. Le CSS s'applique au web, au statique et au desktop ; le mobile ne traduit que les styles nommés (couleur, fond, taille, position, bordure)."
+        texte "{code "humalis verifier"} avertit si une classe donnée par {code "avec style"} est absente du CSS du projet et propose un nom proche. Il avertit aussi si une règle {code "!important"} cible une classe {code ".humalis-…"} : retirez {code "!important"} ou utilisez votre propre classe."
     ligne avec style "doc-suite" :
         lien "← 4. Les éléments" en anglais "← 4. Elements" vers "documentation_4"
         lien "6. La mise en page →" en anglais "6. Layout →" vers "documentation_6"

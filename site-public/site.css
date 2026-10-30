@@ -24,14 +24,14 @@ html{overflow-x:clip}
 :root, html[data-theme=sombre]{--bg:#0b0b0c;--surface:#141517;--surface2:#1b1d1f;--text:#f7f8f3;--muted:#b7bab3;--faint:#878b84;--line:#333632;--lime:#d7ff3a;--lime-text:#172000;--glass:rgba(11,11,12,.82);--shadow:rgba(0,0,0,.42);--preview:#f8f8f4;--preview-text:#171a15}
 html[data-theme=clair]{color-scheme:light;--bg:#f7f8f3;--surface:#fff;--surface2:#eceee8;--text:#151714;--muted:#454a42;--faint:#646a60;--line:#c9cdc4;--lime:#c1e928;--lime-text:#172000;--glass:rgba(247,248,243,.85);--shadow:rgba(45,52,34,.12);--preview:#fff;--preview-text:#171a15}
 body{background:var(--bg)!important;color:var(--text)!important;font-family:Inter,system-ui,sans-serif!important}
-.humalis-page{max-width:none!important;margin:0!important;padding:0!important}
+#racine .humalis-page{max-width:none;margin:0;padding:0}
 .site-header>.nav-row,.site-footer>.footer-grid,.humalis-page>.humalis-bloc{padding-left:max(24px,calc((100vw - 1200px)/2));padding-right:max(24px,calc((100vw - 1200px)/2))}
 .site-header{background:var(--glass)!important}.nav-row{display:flex!important;justify-content:space-between;gap:20px}.nav-links{display:flex!important;flex-wrap:wrap}.utility{display:flex!important;margin-left:auto;align-items:center}.utility select{background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:7px}.site-header .brand,.site-footer .brand{color:var(--text);font-size:25px}.site-header .brand:before,.site-footer .brand:before{content:"";width:32px;height:32px;background:var(--lime);mask:url('/logo.png') center/contain no-repeat}
 .hero-grid,.target-diagram,.feature-grid,.errors-layout,.page-grid{display:grid!important}.hero-copy{display:flex!important;align-items:flex-start}.hero-title{font-size:clamp(52px,5.55vw,84px);line-height:1.02;margin:27px 0 24px;max-width:680px}.hero-intro{font-size:18px;line-height:1.65;color:var(--muted);max-width:535px}.hero-actions{display:flex!important}.install-command{display:flex!important}.install-code{margin:0;font:12px 'JetBrains Mono',monospace;color:var(--muted)}.copy-button,.icon-button{margin:0}.eyebrow:before{content:"";width:7px;height:7px;border-radius:50%;background:var(--lime);box-shadow:0 0 12px var(--lime)}
 .section-heading{display:block!important}.target-section>.source-file{position:relative;left:auto;top:auto;transform:none;width:max-content;margin:0 auto -8px;z-index:1}.target-diagram{padding-top:40px}.target-card:before{top:-20px}.target-card :is(h2,h3){font-size:19px;margin:36px 0 5px}.target-card :is(h2,h3):before{content:none}.feature-card :is(h2,h3){font-size:22px;margin:48px 0 8px}.feature-card :is(h2,h3):before{content:none}.feature-card p,.target-card p{color:var(--muted)}
 .terminal{display:block!important}.terminal-top{margin:0}.terminal-command,.terminal-error,.terminal-hint{font:13px/1.8 'JetBrains Mono',monospace;padding:0 25px;margin:0}.terminal-command{padding-top:24px;color:#dfe3d9}.terminal-error{color:#f0bbb1;margin-top:17px}.terminal-hint{color:#bbc6a6;padding-bottom:24px;margin-top:12px}.page-card{padding-bottom:22px}.page-card>:is(h2,h3),.page-card>p,.page-card>a{margin-left:25px;margin-right:25px}.page-card>:is(h2,h3){font-size:25px;margin-top:20px;margin-bottom:6px}.page-card>p{font-size:13px;color:var(--muted)}.page-card>a{display:inline-block;font-size:12px;font-weight:700;margin-top:14px}.page-mini{padding:20px}.mini-learn{display:block}.mini-code{margin:8px 0}.mini-gallery{display:grid!important}.mini-tile{display:grid;place-items:center;color:var(--lime)}.mini-sandbox{display:block}.final-call .call-panel{display:flex;align-items:center}.call-panel h2{font-size:clamp(40px,5vw,66px)}.footer-grid{display:flex!important}.footer-note{margin:0}.site-footer{background:var(--bg)}
 @media(max-width:1050px){.hero-grid{grid-template-columns:1fr}.target-diagram{grid-template-columns:repeat(3,1fr)}}
-@media(max-width:700px){.site-header>.nav-row,.site-footer>.footer-grid,.humalis-page>.humalis-bloc{padding-left:16px;padding-right:16px}.nav-links{display:none!important}.hero-grid,.errors-layout,.feature-grid,.page-grid{grid-template-columns:1fr}.target-diagram{grid-template-columns:repeat(2,1fr)}.hero-copy{align-items:flex-start}.hero-title{font-size:clamp(46px,11vw,66px)}.utility .github-link{display:none}.demo-grid{grid-template-columns:1fr}.page-mini{height:190px}}
+@media(max-width:700px){.site-header>.nav-row,.site-footer>.footer-grid,.humalis-page>.humalis-bloc{padding-left:16px;padding-right:16px}.hero-grid,.errors-layout,.feature-grid,.page-grid{grid-template-columns:1fr}.target-diagram{grid-template-columns:repeat(2,1fr)}.hero-copy{align-items:flex-start}.hero-title{font-size:clamp(46px,11vw,66px)}.utility .github-link{display:none}.demo-grid{grid-template-columns:1fr}.page-mini{height:190px}}
 
 /* Corrections après l'essai dans le navigateur */
 .site-header .brand:before,.site-footer .brand:before{background:var(--lime);-webkit-mask:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%20width%3D%22100%22%20height%3D%22100%22%3E%3Crect%20x%3D%2218%22%20y%3D%2222%22%20width%3D%2244%22%20height%3D%2212%22%20rx%3D%226%22%20fill%3D%22%23121212%22/%3E%3Ccircle%20cx%3D%2271%22%20cy%3D%2223.2%22%20r%3D%223.2%22%20fill%3D%22%23121212%22/%3E%3Ccircle%20cx%3D%2271%22%20cy%3D%2232.8%22%20r%3D%223.2%22%20fill%3D%22%23121212%22/%3E%3Crect%20x%3D%2234%22%20y%3D%2244%22%20width%3D%2248%22%20height%3D%2212%22%20rx%3D%226%22%20fill%3D%22%23121212%22/%3E%3Crect%20x%3D%2234%22%20y%3D%2266%22%20width%3D%2230%22%20height%3D%2212%22%20rx%3D%226%22%20fill%3D%22%23121212%22/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%20width%3D%22100%22%20height%3D%22100%22%3E%3Crect%20x%3D%2218%22%20y%3D%2222%22%20width%3D%2244%22%20height%3D%2212%22%20rx%3D%226%22%20fill%3D%22%23121212%22/%3E%3Ccircle%20cx%3D%2271%22%20cy%3D%2223.2%22%20r%3D%223.2%22%20fill%3D%22%23121212%22/%3E%3Ccircle%20cx%3D%2271%22%20cy%3D%2232.8%22%20r%3D%223.2%22%20fill%3D%22%23121212%22/%3E%3Crect%20x%3D%2234%22%20y%3D%2244%22%20width%3D%2248%22%20height%3D%2212%22%20rx%3D%226%22%20fill%3D%22%23121212%22/%3E%3Crect%20x%3D%2234%22%20y%3D%2266%22%20width%3D%2230%22%20height%3D%2212%22%20rx%3D%226%22%20fill%3D%22%23121212%22/%3E%3C/svg%3E") center/contain no-repeat}
@@ -41,7 +41,6 @@ a.button-primary{background:var(--lime);border-color:var(--lime);color:var(--lim
 a.button-secondary{background:var(--surface);color:var(--text)}
 /* Le menu repliable (« menu repliable ») : le bouton « Menu » du petit écran */
 .humalis-menu-bouton{min-height:36px;padding:0 14px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--text);font-weight:600;font-size:13px;cursor:pointer}
-@media(max-width:720px){.nav-links.humalis-menu-repliable{display:flex!important;flex-direction:column;align-items:flex-start;position:static;background:none;border:0;padding:0;gap:4px;margin-left:auto}.nav-links.humalis-menu-repliable[data-ouvert]{position:absolute;top:60px;left:16px;right:16px;padding:12px 16px;background:var(--surface);border:1px solid var(--line);border-radius:14px;z-index:20}.nav-links.humalis-menu-repliable[data-ouvert] .humalis-menu-bouton{align-self:flex-end}}
 /* Les lueurs décoratives ne doivent jamais faire glisser la page sur le côté */
 html,body{overflow-x:clip}
 /* L'en-tête comme dans la maquette : « FR / EN » et le bouton de thème en icône seule */
@@ -164,10 +163,10 @@ html:has(.doc),body:has(.doc){height:100%;overflow:hidden}
 .doc{height:calc(100dvh - var(--entete));overflow:hidden;padding-right:0!important}
 .doc-sommaire{position:static;height:100%}
 .doc-contenu{height:100%;max-width:none;min-width:0;padding:0!important;overflow:hidden}
-.doc-contenu>.humalis-sous-page{height:100%;overflow-y:auto;overscroll-behavior:contain;box-sizing:border-box;padding:56px max(24px,calc((100vw - 1200px)/2)) 96px 4px!important}
+#racine .doc-contenu>.humalis-sous-page{height:100%;overflow-y:auto;overscroll-behavior:contain;box-sizing:border-box;padding:56px max(24px,calc((100vw - 1200px)/2)) 96px 4px}
 .doc-contenu>.humalis-sous-page>*{max-width:760px}
-@media(max-width:700px){.doc-contenu>.humalis-sous-page{padding:40px 16px 72px 2px!important}}
-@media(max-width:600px){.doc-contenu>.humalis-sous-page{padding:32px 12px 72px 0!important}}
+@media(max-width:700px){#racine .doc-contenu>.humalis-sous-page{padding:40px 16px 72px 2px}}
+@media(max-width:600px){#racine .doc-contenu>.humalis-sous-page{padding:32px 12px 72px 0}}
 /* Les barres de défilement de la documentation : fines, aux couleurs du site */
 .doc-sommaire,.doc-contenu>.humalis-sous-page{scrollbar-width:thin;scrollbar-color:var(--line) transparent}
 .doc-sommaire::-webkit-scrollbar,.doc-contenu>.humalis-sous-page::-webkit-scrollbar{width:8px}
@@ -343,17 +342,11 @@ html[data-theme=clair] .cible-code{color:#5c7a00}
 .version li p{margin:0}
 .version li{margin:0}.version ul{gap:7px}@media(max-width:760px){.version ul{gap:9px}}
 
-/* ─── Le cadre du site : l'en-tête reste fixe, seule la zone sous lui défile (avec sa propre barre).
-   La page entière ne bouge jamais ; la racine est la zone qui défile (le compilateur la remet en haut
-   à chaque changement de page). ─── */
-:root{--entete-site:75px}
-@media(max-width:700px){:root{--entete-site:67px}}
-html,body{height:100%;overflow:hidden}
-#racine{position:fixed;top:var(--entete-site);left:0;right:0;bottom:0;overflow-y:auto;overflow-x:clip;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+/* La zone qui défile sous l'en-tête fixe (« entete avec fixe ») : une barre fine aux couleurs du site. */
+#racine{scrollbar-width:thin;scrollbar-color:var(--line) transparent}
 #racine::-webkit-scrollbar{width:9px}
 #racine::-webkit-scrollbar-thumb{background:var(--line);border-radius:9px;border:2px solid transparent;background-clip:padding-box}
 #racine::-webkit-scrollbar-thumb:hover{background:var(--faint);background-clip:padding-box}
-#racine>.site-header{position:fixed!important;top:0;left:0;right:0;height:var(--entete-site);z-index:60}
 
 /* Pages légales : les blocs sur deux colonnes, le lien final sur toute la largeur */
 .legal{grid-template-columns:repeat(2,minmax(0,1fr));max-width:none;gap:18px;align-items:stretch}
@@ -379,22 +372,27 @@ html,body{height:100%;overflow:hidden}
 @media(max-width:980px){.nouveautes-corps{grid-template-columns:1fr}.nouveautes-aside{position:static;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}}
 @media(max-width:760px){.legal{grid-template-columns:1fr}}
 
-/* ─── Le menu sur téléphone : un bouton burger aligné à droite de l'en-tête, et un panneau qui
-   descend du haut, collé sous l'en-tête sur toute la largeur, avec un voile sur le reste. ─── */
+/* ─── Le menu sur téléphone : un bouton burger à droite de l'en-tête ; ouvert, un panneau descend sous
+   l'en-tête, à la hauteur de ses liens, et la page en dessous est floutée (un toucher la referme). ─── */
 @media(max-width:720px){
-  .site-header .nav-row{gap:10px!important}
+  .site-header .nav-row{gap:10px}
   .site-header .brand{margin-right:auto}
-  .site-header .utility{margin-left:0!important}
-  .site-header .nav-links.humalis-menu-repliable{order:3;display:flex!important;flex:none;margin:0!important;padding:0!important;position:static;background:none;border:0;box-shadow:none}
-  .site-header .humalis-menu-bouton{display:inline-flex!important;align-items:center;justify-content:center;width:40px;height:40px;margin:0;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--text);cursor:pointer}
-  .site-header .humalis-menu-bouton:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+  .site-header .nav-row .utility{margin-left:0}
+  .site-header .nav-row .nav-links.humalis-menu-repliable{order:3;display:flex;flex:none;margin:0;padding:0;position:static;background:none;border:0;box-shadow:none}
+  .site-header .nav-links .humalis-menu-bouton{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;margin:0;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--text);cursor:pointer}
+  .site-header .nav-links .humalis-menu-bouton:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
   /* Le flou de l'en-tête ferait du panneau un enfant de l'en-tête : on le retire quand le menu est ouvert. */
-  .site-header:has(.nav-links[data-ouvert]){backdrop-filter:none!important;background:var(--bg)!important}
-  .site-header .nav-links.humalis-menu-repliable[data-ouvert]{position:fixed!important;top:var(--entete-site);left:0;right:0;z-index:90;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px!important;padding:12px 16px 18px!important;max-height:calc(100dvh - var(--entete-site));overflow-y:auto;background:var(--bg)!important;border-bottom:1px solid var(--line);border-radius:0 0 22px 22px;box-shadow:0 24px 50px rgba(8,9,10,.25),0 0 0 100vmax rgba(8,9,10,.45)!important}
+  #racine .site-header:has(.nav-links[data-ouvert]){backdrop-filter:none;background:var(--bg)}
+  #racine .site-header:has(.nav-links[data-ouvert]) .utility{margin-right:50px}
+  .site-header .nav-row .nav-links.humalis-menu-repliable[data-ouvert]{position:fixed;top:var(--humalis-hauteur-entete,67px);left:0;right:0;z-index:90;display:flex;flex-direction:column;align-items:stretch;gap:0;padding:4px 20px 12px;max-height:calc(100dvh - var(--humalis-hauteur-entete,67px));overflow-y:auto;background:var(--bg);border-bottom:1px solid var(--line);border-radius:0 0 20px 20px;box-shadow:0 18px 40px rgba(8,9,10,.18)}
   /* Le bouton reste à sa place dans l'en-tête, en croix. */
-  .site-header .nav-links[data-ouvert]>.humalis-menu-bouton{position:fixed;top:calc((var(--entete-site) - 40px) / 2);right:16px;z-index:91}
-  .site-header .nav-links[data-ouvert]>a{display:flex;align-items:center;min-height:52px;padding:0 16px;border:1px solid var(--line);border-radius:14px;background:var(--surface);font-size:16px!important;font-weight:600;color:var(--text)!important}
-  .site-header .nav-links[data-ouvert]>a.humalis-actif{border-color:var(--lime);box-shadow:inset 3px 0 0 var(--lime)}
+  .site-header .nav-links[data-ouvert]>.humalis-menu-bouton{position:fixed;top:calc((var(--humalis-hauteur-entete,67px) - 40px) / 2);right:16px;z-index:91}
+  .site-header .nav-row .nav-links[data-ouvert]>a{display:flex;align-items:center;justify-content:space-between;min-height:52px;padding:0 4px;border-bottom:1px solid var(--line);font:600 17px/1.3 'Inter',system-ui,sans-serif;color:var(--text)}
+  .site-header .nav-row .nav-links[data-ouvert]>a:last-child{border-bottom:0}
+  .site-header .nav-row .nav-links[data-ouvert]>a:after{content:"→";font-size:16px;color:var(--faint)}
+  .site-header .nav-row .nav-links[data-ouvert]>a.humalis-actif,.site-header .nav-row .nav-links[data-ouvert]>a.humalis-actif:after{color:var(--lime)}
+  html[data-theme=clair] .site-header .nav-row .nav-links[data-ouvert]>a.humalis-actif,html[data-theme=clair] .site-header .nav-row .nav-links[data-ouvert]>a.humalis-actif:after{color:#4d6a00}
+  .site-header:has(.nav-links[data-ouvert]):after{content:"";position:fixed;top:var(--humalis-hauteur-entete,67px);left:0;right:0;bottom:0;z-index:80;background:rgba(8,9,10,.28);backdrop-filter:blur(8px)}
 }
 @media(max-width:720px) and (prefers-reduced-motion:no-preference){
   .site-header .nav-links[data-ouvert]{animation:menu-descend .22s ease-out}
@@ -410,7 +408,7 @@ html,body{height:100%;overflow:hidden}
 
 /* Nouveautés, version finale : la page tient dans l'écran ; la frise défile seule à gauche,
    la colonne de droite (version, en bref, suivre) ne bouge jamais. */
-.nouveautes-corps{display:grid!important;grid-template-columns:minmax(0,1fr) 320px;gap:40px;align-items:start;height:calc(100dvh - var(--entete-site));overflow:hidden;padding:0 max(24px,calc((100vw - 1200px)/2))!important;box-sizing:border-box}
+.nouveautes-corps{display:grid!important;grid-template-columns:minmax(0,1fr) 320px;gap:40px;align-items:start;height:calc(100dvh - var(--humalis-hauteur-entete,75px));overflow:hidden;padding:0 max(24px,calc((100vw - 1200px)/2))!important;box-sizing:border-box}
 .nouveautes-fil{height:100%;overflow-y:auto;overscroll-behavior:contain;display:flex!important;flex-direction:column;align-items:stretch;gap:36px;padding:56px 14px 80px 0;box-sizing:border-box;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
 .nouveautes-fil::-webkit-scrollbar{width:8px}
 .nouveautes-fil::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px}
@@ -424,27 +422,6 @@ html,body{height:100%;overflow:hidden}
   .nouveautes-corps>.nouveautes-aside{padding:0 0 56px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
 }
 .aside-carte .install-command{flex-wrap:nowrap}.aside-carte .install-code{flex:1;min-width:0;overflow-wrap:anywhere}.aside-carte .copy-button{flex:none}
-@media(max-width:720px){.site-header:has(.nav-links[data-ouvert]) .utility{margin-right:50px!important}}
-/* Le menu du téléphone, version finale : un panneau qui descend du haut et prend tout l'écran sous
-   l'en-tête ; les liens se suivent du haut en bas, en grandes lignes faciles à toucher. */
-@media(max-width:720px){
-  .site-header .nav-links.humalis-menu-repliable[data-ouvert]{bottom:0;display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:0!important;padding:8px 20px 32px!important;max-height:none;height:calc(100dvh - var(--entete-site));border-radius:0;border-bottom:0;box-shadow:none!important}
-  .site-header .nav-links[data-ouvert]>a{min-height:64px;padding:0 4px;border:0;border-bottom:1px solid var(--line);border-radius:0;background:none;font-family:'Space Grotesk',system-ui,sans-serif;font-size:26px!important;font-weight:700;letter-spacing:-.03em;justify-content:space-between}
-  .site-header .nav-links[data-ouvert]>a:after{content:"→";font-size:20px;color:var(--faint)}
-  .site-header .nav-links[data-ouvert]>a.humalis-actif{border-color:var(--line);box-shadow:none;color:var(--lime)!important}
-  .site-header .nav-links[data-ouvert]>a.humalis-actif:after{color:var(--lime)}
-  html[data-theme=clair] .site-header .nav-links[data-ouvert]>a.humalis-actif{color:#4d6a00!important}
-}
-@media(max-width:720px) and (prefers-reduced-motion:no-preference){
-  .site-header .nav-links[data-ouvert]{animation:menu-plein .3s cubic-bezier(.2,.8,.2,1)}
-}
-@keyframes menu-plein{from{opacity:0;clip-path:inset(0 0 100% 0)}to{opacity:1;clip-path:inset(0 0 0 0)}}
-/* Le menu du téléphone, ajusté : le panneau ne prend que la hauteur de ses liens, des liens de taille
-   normale, et la page en dessous floutée (un toucher sur le flou referme le menu). */
-@media(max-width:720px){
-  .site-header .nav-links.humalis-menu-repliable[data-ouvert]{bottom:auto;height:auto;max-height:calc(100dvh - var(--entete-site));padding:4px 20px 12px!important;border-bottom:1px solid var(--line);border-radius:0 0 20px 20px;box-shadow:0 18px 40px rgba(8,9,10,.18)!important}
-  .site-header .nav-links[data-ouvert]>a{min-height:52px;font-family:'Inter',system-ui,sans-serif;font-size:17px!important;font-weight:600;letter-spacing:0}
-  .site-header .nav-links[data-ouvert]>a:last-child{border-bottom:0}
-  .site-header .nav-links[data-ouvert]>a:after{font-size:16px}
-  .site-header:has(.nav-links[data-ouvert]):after{content:"";position:fixed;top:var(--entete-site);left:0;right:0;bottom:0;z-index:80;background:rgba(8,9,10,.28);backdrop-filter:blur(8px)}
-}
+
+
+
