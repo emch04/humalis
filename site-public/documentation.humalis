@@ -223,6 +223,16 @@ page "documentation_4" dans "documentation" adresse "/documentation/elements" :
                 soustitre "Desserts" avec niveau 3
                 texte "Apple pie, vanilla ice cream."
         texte "{code "soustitre"} (subtitle) opens a part of the page (level 2 by default, up to 6). Keep the levels in order, without skipping: screen readers use them to move through the page."
+        texte "Inside a block placed under a subtitle, a {code "soustitre"} goes down one level on its own: a card in a section becomes level 3. {code "avec niveau"} (with level) still lets you choose."
+        code humalis :
+            page "home" :
+                titre "Home"
+                section :
+                    soustitre "Our pages"
+                    grille :
+                        bloc :
+                            soustitre "Examples"
+                            texte "Six apps to try."
         texte "In a {code "titre"}, {code "soustitre"}, or {code "texte"}, {code "{accent "…"}"} highlights a few words with the brand color. Screen readers and the browser tab still get plain text."
         code humalis :
             page "offer" :
@@ -250,6 +260,13 @@ page "documentation_4" dans "documentation" adresse "/documentation/elements" :
                 code humalis :
                     page "home" :
                         titre "Welcome"
+        texte "{code "avec animation frappe"} (\"with typing animation\") writes the code letter by letter, with a cursor; {code "avec animation frappe au defilement"} waits until the block scrolls into view. The real code stays in place while it types (screen readers, Copy button), and it shows at once if the person asked to reduce motion. On a phone, the code shows in full."
+        code humalis :
+            page "home" :
+                code humalis avec animation frappe :
+                    page "shop" :
+                        titre "Our products"
+                        bouton "Order"
         soustitre "Table"
         texte "A table has a caption, columns, and rows of equal width. A translation may follow each cell."
         code humalis :
@@ -322,6 +339,16 @@ page "documentation_4" dans "documentation" adresse "/documentation/elements" :
                 soustitre "Les desserts" avec niveau 3
                 texte "Tarte aux pommes, glace vanille."
         texte "{code "soustitre"} ouvre une partie de la page (niveau 2 par défaut, jusqu'à 6). Garde l'ordre des niveaux, sans en sauter : les lecteurs d'écran s'en servent pour parcourir la page."
+        texte "Dans un bloc placé sous un sous-titre, un {code "soustitre"} descend d'un niveau tout seul : la carte d'une section devient un niveau 3. {code "avec niveau"} reste possible pour choisir soi-même."
+        code humalis :
+            page "accueil" :
+                titre "Accueil"
+                section :
+                    soustitre "Nos pages"
+                    grille :
+                        bloc :
+                            soustitre "Exemples"
+                            texte "Six applications à essayer."
         texte "Dans un {code "titre"}, un {code "soustitre"} ou un {code "texte"}, {code "{accent "…"}"} met quelques mots en valeur avec la couleur de marque. Le texte reste lisible normalement par les lecteurs d'écran et dans le titre de l'onglet."
         code humalis :
             page "offre" :
@@ -349,6 +376,13 @@ page "documentation_4" dans "documentation" adresse "/documentation/elements" :
                 code humalis :
                     page "accueil" :
                         titre "Bienvenue"
+        texte "{code "avec animation frappe"} écrit le code lettre par lettre, avec un curseur ; {code "avec animation frappe au defilement"} attend que le bloc arrive à l'écran. Le vrai code reste en place pendant la frappe (lecteurs d'écran, bouton Copier), et il s'affiche tout de suite si la personne a demandé de réduire les animations. Sur le téléphone, le code s'affiche entier."
+        code humalis :
+            page "accueil" :
+                code humalis avec animation frappe :
+                    page "boutique" :
+                        titre "Nos produits"
+                        bouton "Commander"
         soustitre "Tableau"
         texte "Un tableau a une légende, des colonnes et des rangées de même largeur. Une traduction peut suivre chaque cellule."
         code humalis :
@@ -722,7 +756,7 @@ page "documentation_7" dans "documentation" adresse "/documentation/elements-d-e
                     lien "Home" vers "home"
                     texte "The menu"
                 titre "The menu"
-        texte "{code "fil d'Ariane"} is a breadcrumb. In a {code "menu"}, the link to the current page is marked as active."
+        texte "{code "fil d'Ariane"} is a breadcrumb. In a {code "menu"}, the link to the current page is marked as active. The links of a menu wrap when space runs out. A menu that your CSS turns into a column ({code "flex-direction: column"}) keeps that wrapping: add {code "flex-wrap: nowrap"} so it scrolls instead of starting a second column."
         texte "A {code "menu repliable :"} (collapsible menu) folds behind a \"Menu\" button on a small screen (phone); choosing a link closes it. On a large screen it stays open:"
         code humalis :
             page "home" :
@@ -783,7 +817,7 @@ page "documentation_7" dans "documentation" adresse "/documentation/elements-d-e
                     lien "Accueil" vers "accueil"
                     texte "La carte"
                 titre "La carte"
-        texte "Dans un {code "menu"}, le lien de la page où l'on est est marqué comme actif."
+        texte "Dans un {code "menu"}, le lien de la page où l'on est est marqué comme actif. Les liens d'un menu passent à la ligne quand la place manque. Un menu que ton CSS met en colonne ({code "flex-direction: column"}) garde ce retour à la ligne : ajoute {code "flex-wrap: nowrap"} pour qu'il défile au lieu d'ouvrir une deuxième colonne."
         texte "Un {code "menu repliable :"} se range derrière un bouton « Menu » sur un petit écran (téléphone) ; un lien choisi referme le menu. Sur grand écran, il reste ouvert :"
         code humalis :
             page "accueil" :
@@ -1482,7 +1516,7 @@ page "documentation_14" dans "documentation" adresse "/documentation/evenements"
 
 page "documentation_15" dans "documentation" adresse "/documentation/actions" :
     apercu :
-        description "Guide de Humalis, 15. Les actions : Les actions s'écrivent dans un événement." en anglais "Humalis guide, 15. Actions: Actions are written inside an event."
+        description "Les actions s'écrivent dans un événement. Dans une action, champ \"Libellé\" lit ce que la personne a saisi au moment du clic. Un champ nombre donne un…" en anglais "Actions are written inside an event. Inside an action, champ \"Label\" reads what the person entered when they click. A number field yields a number, a…"
     titre "15. Les actions" en anglais "15. Actions"
     si langue est anglais :
         texte "Actions are written inside an event."
@@ -1492,8 +1526,10 @@ page "documentation_15" dans "documentation" adresse "/documentation/actions" :
             rangee "{code "afficher erreur "…""}", "shows an error message"
             rangee "{code "montrer "name""}, {code "cacher "name""}", "shows or hides an element"
             rangee "{code "changer x par …"}", "changes a variable"
+            rangee "{code "changer x par champ "Label""}", "reads a field's current value into a variable"
             rangee "{code "changer texte de "name" par "…""}", "changes an element's text"
             rangee "{code "ajouter … à list"}, {code "retirer … de list"}", "changes a list"
+            rangee "{code "ajouter champ "Label" à list"}", "adds a field's current value to a list"
             rangee "{code "rediriger vers "page""}", "goes to a page"
             rangee "{code "revenir vers "page""}", "goes back, or to that page"
             rangee "{code "envoyer requete vers "…""}", "calls a server (see the server)"
@@ -1511,6 +1547,19 @@ page "documentation_15" dans "documentation" adresse "/documentation/actions" :
 
             page "thanks" :
                 titre "Thank you!"
+        texte "Inside an action, {code "champ "Label""} reads what the person entered when they click. A number field yields a number, a checkbox yields true or false, and other fields yield text. Use the base language label even when the field has a translation."
+        code humalis :
+            page "tasks" :
+                variable tasks = ["Buy bread"]
+                variable latest = ""
+                champ "New task"
+                bouton "Add"
+                quand l'utilisateur clique sur "Add" :
+                    ajouter champ "New task" à tasks
+                    changer latest par champ "New task"
+                texte "Latest added: {latest}"
+                pour chaque task dans tasks :
+                    texte task
     sinon :
         texte "Les actions s'écrivent dans un événement."
         tableau "Action, Effet" :
@@ -1519,8 +1568,10 @@ page "documentation_15" dans "documentation" adresse "/documentation/actions" :
             rangee "{code "afficher erreur "…""}", "un message d'erreur"
             rangee "{code "montrer "nom""}, {code "cacher "nom""}", "fait apparaître ou disparaître un élément"
             rangee "{code "changer x par …"}", "change une variable"
+            rangee "{code "changer x par champ "Libellé""}", "prend la valeur actuelle d'un champ"
             rangee "{code "changer texte de "nom" par "…""}", "change le texte d'un élément"
             rangee "{code "ajouter … à liste"}, {code "retirer … de liste"}", "modifie une liste"
+            rangee "{code "ajouter champ "Libellé" à liste"}", "ajoute la valeur actuelle d'un champ"
             rangee "{code "rediriger vers "page""}", "va à une page"
             rangee "{code "revenir vers "page""}", "revient en arrière, ou va à cette page"
             rangee "{code "envoyer requete vers "…""}", "appelle un serveur (voir le serveur)"
@@ -1538,6 +1589,19 @@ page "documentation_15" dans "documentation" adresse "/documentation/actions" :
 
             page "merci" :
                 titre "Merci !"
+        texte "Dans une action, {code "champ "Libellé""} lit ce que la personne a saisi au moment du clic. Un champ nombre donne un nombre, une case à cocher donne vrai ou faux, et les autres champs donnent du texte. Le libellé est celui de la langue de base, même si le champ a une traduction."
+        code humalis :
+            page "taches" :
+                variable taches = ["Acheter du pain"]
+                variable dernier = ""
+                champ "Nouvelle tâche"
+                bouton "Ajouter"
+                quand l'utilisateur clique sur "Ajouter" :
+                    ajouter champ "Nouvelle tâche" à taches
+                    changer dernier par champ "Nouvelle tâche"
+                texte "Dernière ajoutée : {dernier}"
+                pour chaque t dans taches :
+                    texte t
     ligne avec style "doc-suite" :
         lien "← 14. Les événements" en anglais "← 14. Events" vers "documentation_14"
         lien "16. Les messages, les fenêtres et les questions →" en anglais "16. Messages, dialogs and questions →" vers "documentation_16"
@@ -2536,6 +2600,7 @@ page "documentation_28" dans "documentation" adresse "/documentation/plusieurs-l
         liste :
             texte "{code "langues :"} lists the languages ({code "francais"}, {code "anglais"}…)."
             texte "{code "en francais "…""} gives another language's version of a text."
+            texte "{code "sans traduction"} (\"without translation\") keeps the same text in every language, for a proper noun: {code "lien "GitHub" sans traduction vers "https://github.com""}."
             texte "{code "traductions francais :"} translates a repeated text once."
             texte "{code "selecteur de langue"} shows the language switcher; {code "changer langue par anglais"} and {code "si langue est anglais :"} are used in events."
             texte "The message of {code "copier"} is translated like any other text: {code "copier code avec message "Copied" en francais "Copié""}."
@@ -2564,6 +2629,7 @@ page "documentation_28" dans "documentation" adresse "/documentation/plusieurs-l
                 lien "Retour à l'accueil" en anglais "Back to home" vers "accueil"
         liste :
             texte "{code "en anglais "…""} donne la version d'un texte."
+            texte "{code "sans traduction"} garde le même texte dans toutes les langues, pour un nom propre : {code "lien "GitHub" sans traduction vers "https://github.com""}."
             texte "{code "traductions anglais :"} traduit une seule fois un texte répété."
             texte "{code "selecteur de langue"} affiche le choix de la langue ; {code "changer langue par anglais"} et {code "si langue est anglais :"} s'utilisent dans les événements."
             texte "Le message de {code "copier"} se traduit comme les autres textes : {code "copier code avec message "Copié" en anglais "Copied""}."
