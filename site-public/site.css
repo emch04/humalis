@@ -164,10 +164,10 @@ html:has(.doc),body:has(.doc){height:100%;overflow:hidden}
 .doc{height:calc(100dvh - var(--entete));overflow:hidden;padding-right:0!important}
 .doc-sommaire{position:static;height:100%}
 .doc-contenu{height:100%;max-width:none;min-width:0;padding:0!important;overflow:hidden}
-.doc-contenu>.humalis-sous-page{height:100%;overflow-y:auto;overscroll-behavior:contain;box-sizing:border-box;padding:48px max(24px,calc((100vw - 1200px)/2)) 96px 4px}
+.doc-contenu>.humalis-sous-page{height:100%;overflow-y:auto;overscroll-behavior:contain;box-sizing:border-box;padding:56px max(24px,calc((100vw - 1200px)/2)) 96px 4px!important}
 .doc-contenu>.humalis-sous-page>*{max-width:760px}
-@media(max-width:700px){.doc-contenu>.humalis-sous-page{padding:28px 16px 72px 2px}}
-@media(max-width:600px){.doc-contenu>.humalis-sous-page{padding:24px 12px 72px 0}}
+@media(max-width:700px){.doc-contenu>.humalis-sous-page{padding:40px 16px 72px 2px!important}}
+@media(max-width:600px){.doc-contenu>.humalis-sous-page{padding:32px 12px 72px 0!important}}
 /* Les barres de défilement de la documentation : fines, aux couleurs du site */
 .doc-sommaire,.doc-contenu>.humalis-sous-page{scrollbar-width:thin;scrollbar-color:var(--line) transparent}
 .doc-sommaire::-webkit-scrollbar,.doc-contenu>.humalis-sous-page::-webkit-scrollbar{width:8px}
