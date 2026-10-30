@@ -44,3 +44,28 @@ describe('le niveau automatique des sous-titres', () => {
     expect(genererProjetStatique(application!, { nom: 'a', source: 'a.humalis' }).get('index.html')).toMatch(/<h3[^>]*>Exemples<\/h3>/);
   });
 });
+
+describe('la règle de la section', () => {
+  it('le premier sous-titre d’une section la titre ; les cartes à côté descendent d’un niveau', () => {
+    const code = web('page "accueil" :\n    titre "Accueil"\n    section :\n        colonne :\n            soustitre "Nos cibles"\n            texte "Cinq cibles."\n        grille :\n            bloc :\n                soustitre "Web"\n            bloc :\n                soustitre "Mobile"\n');
+    expect(code).toMatch(/<h2[^>]*>Nos cibles<\/h2>/);
+    expect(code).toMatch(/<h3[^>]*>Web<\/h3>/);
+    expect(code).toMatch(/<h3[^>]*>Mobile<\/h3>/);
+  });
+
+  it('les autres sous-titres directs de la section descendent aussi', () => {
+    const code = web('page "accueil" :\n    titre "Accueil"\n    section :\n        soustitre "Partie"\n        soustitre "Détail"\n');
+    expect(code).toMatch(/<h2[^>]*>Partie<\/h2>/);
+    expect(code).toMatch(/<h3[^>]*>Détail<\/h3>/);
+  });
+
+  it('une section suivante repart au niveau 2', () => {
+    const code = web('page "accueil" :\n    titre "Accueil"\n    section :\n        soustitre "Un"\n    section :\n        soustitre "Deux"\n');
+    expect(code).toMatch(/<h2[^>]*>Deux<\/h2>/);
+  });
+
+  it('« avec niveau » garde le dernier mot', () => {
+    const code = web('page "accueil" :\n    titre "Accueil"\n    section :\n        soustitre "Partie"\n        soustitre "Autre" avec niveau 2\n');
+    expect(code).toMatch(/<h2[^>]*>Autre<\/h2>/);
+  });
+});

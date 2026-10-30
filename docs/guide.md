@@ -176,8 +176,10 @@ l'ordre des niveaux, sans en sauter : les lecteurs d'écran s'en servent pour
 parcourir la page.
 
 Dans un bloc placé sous un sous-titre, un `soustitre` descend d'un niveau tout
-seul : la carte d'une section devient un niveau 3. `avec niveau` reste possible
-pour choisir soi-même.
+seul : la carte d'une section devient un niveau 3. Dans une `section`, le premier
+sous-titre est le titre de la section, même rangé dans son propre bloc ; tous les
+autres sous-titres de la section descendent d'un niveau. `avec niveau` reste
+possible pour choisir soi-même.
 
 ```humalis
 page "accueil" :
@@ -573,13 +575,23 @@ page "carte" :
 ```
 
 Dans un `menu`, le lien de la page où l'on est est marqué comme actif.
-Les liens d'un menu passent à la ligne quand la place manque. Un menu que ton
-CSS met en colonne (`flex-direction: column`) garde ce retour à la ligne :
-ajoute `flex-wrap: nowrap` pour qu'il défile au lieu d'ouvrir une deuxième
-colonne.
+Les liens d'un menu passent à la ligne quand la place manque. Un `menu
+vertical :` range ses liens en colonne, sans jamais ouvrir une deuxième colonne :
+un sommaire de hauteur limitée défile. Il se combine avec `repliable`
+(`menu vertical repliable :`).
 
-Un `menu repliable :` se range derrière un bouton « Menu » sur un petit écran
-(téléphone) ; un lien choisi referme le menu. Sur grand écran, il reste ouvert :
+```humalis
+page "guide" :
+    titre "Le guide"
+    menu vertical :
+        lien "Installer" vers "guide"
+        lien "Les pages" vers "guide"
+```
+
+Un `menu repliable :` se range derrière un bouton burger (nommé « Menu » pour les
+lecteurs d'écran) sur un petit écran (téléphone) ; l'icône devient une croix
+quand le menu est ouvert. Un lien choisi, un toucher à côté ou la touche Échap
+referment le menu. Sur grand écran, il reste ouvert :
 
 ```humalis
 page "accueil" :

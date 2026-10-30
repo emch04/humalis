@@ -653,7 +653,9 @@ export function Defilement() {
   const { pathname, hash } = useLocation();
   useEffect(() => {
     if (!hash) {
+      // La fenêtre, et la racine si le CSS du site en fait la zone qui défile (en-tête fixe au-dessus).
       window.scrollTo(0, 0);
+      document.getElementById('racine')?.scrollTo(0, 0);
       return;
     }
     const id = decodeURIComponent(hash.slice(1));

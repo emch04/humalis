@@ -980,7 +980,7 @@ ${prise}${code}}
           }
           const balise = BALISES_BLOC[noeud.genre] ?? 'div';
           // « menu repliable » : le bouton « Menu » en premier enfant (l'écouteur est dans humalis.js).
-          const bouton = estRepliable(noeud) ? `creer('button', { type: 'button', class: 'humalis-menu-bouton', 'aria-expanded': 'false' }, 'Menu'), ` : '';
+          const bouton = estRepliable(noeud) ? `creer('button', { type: 'button', class: 'humalis-menu-bouton', 'aria-expanded': 'false', 'aria-label': 'Menu' }, creer('span', { class: 'humalis-menu-icone', 'aria-hidden': 'true' })), ` : '';
           this.ecrireGroupe(e, noeud.corps, `creer('${balise}', { class: ${chaine(classesDuBloc(noeud))} }, ${bouton}...`, '),');
           // « arrive en bas de » ce bloc : la sentinelle observée et le vrai bouton « Voir plus », tant que la condition est vraie.
           const bas = noeud.id !== undefined ? this.basDesBlocs.get(noeud.id) : undefined;
@@ -1251,7 +1251,7 @@ ${prise}${code}}
           }
           const balise = BALISES_BLOC[noeud.genre] ?? 'div';
           lignes.push(`<${balise}${attributs([['class', classesDuBloc(noeud)]])}>`);
-          if (estRepliable(noeud)) lignes.push('<button type="button" class="humalis-menu-bouton" aria-expanded="false">Menu</button>');
+          if (estRepliable(noeud)) lignes.push('<button type="button" class="humalis-menu-bouton" aria-expanded="false" aria-label="Menu"><span class="humalis-menu-icone" aria-hidden="true"></span></button>');
           this.ecrireGroupeHtml(noeud.corps, env, lignes);
           lignes.push(`</${balise}>`);
           const bas = noeud.id !== undefined ? this.basDesBlocs.get(noeud.id) : undefined;

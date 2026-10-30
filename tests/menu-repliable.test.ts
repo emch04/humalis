@@ -26,7 +26,7 @@ describe('menu repliable', () => {
     const fichiers = genererProjetWeb(compiler(source).application!, { nom: 'a', adresse: 'https://a.fr', source: 'a.humalis' });
     const page = [...fichiers.entries()].find(([n]) => n.endsWith('P.tsx'))![1];
     expect(page).toContain('humalis-menu-repliable');
-    expect(page).toContain('<button type="button" className="humalis-menu-bouton" aria-expanded="false">Menu</button>');
+    expect(page).toContain('<button type="button" className="humalis-menu-bouton" aria-expanded="false" aria-label="Menu"><span className="humalis-menu-icone" aria-hidden="true"></span></button>');
     expect(page).toContain('onClick={menuRepliable}');
     expect(fichiers.get('src/humalis/menu.ts')).toContain('export function menuRepliable');
     expect(fichiers.get('src/humalis/styles.css')).toContain('.humalis-menu-repliable:not([data-ouvert]) > :not(.humalis-menu-bouton)');
@@ -35,8 +35,32 @@ describe('menu repliable', () => {
   it('statique : le même bouton, et un écouteur dans humalis.js', () => {
     const fichiers = genererProjetStatique(compiler(source).application!, { nom: 'a', source: 'a.humalis' });
     const tout = [...fichiers.values()].join('\n');
-    expect(fichiers.get('index.html')).toContain('<button type="button" class="humalis-menu-bouton" aria-expanded="false">Menu</button>');
+    expect(fichiers.get('index.html')).toContain('<button type="button" class="humalis-menu-bouton" aria-expanded="false" aria-label="Menu"><span class="humalis-menu-icone" aria-hidden="true"></span></button>');
+    expect(tout).toContain("'aria-label': 'Menu'");
+    expect(tout).toContain('.humalis-menu-icone');
     expect(tout).toContain('humalis-menu-bouton');
     expect(tout).toContain('.humalis-menu-repliable:not([data-ouvert]) > :not(.humalis-menu-bouton)');
+  });
+});
+
+describe('le bouton du menu repliable', () => {
+  it('est une icône burger qui devient une croix quand le menu est ouvert', () => {
+    const css = genererProjetWeb(compiler(source).application!, { nom: 'a', adresse: 'https://a.fr', source: 'a.humalis' }).get('src/humalis/styles.css')!;
+    expect(css).toContain('.humalis-menu-icone');
+    expect(css).toContain('.humalis-menu-bouton[aria-expanded="true"] .humalis-menu-icone');
+  });
+});
+
+describe('fermer le menu repliable', () => {
+  it('web : un clic à côté ou la touche Échap referment le menu', () => {
+    const menu = genererProjetWeb(compiler(source).application!, { nom: 'a', adresse: 'https://a.fr', source: 'a.humalis' }).get('src/humalis/menu.ts')!;
+    expect(menu).toContain("'Escape'");
+    expect(menu).toContain("addEventListener('keydown'");
+  });
+
+  it('statique : pareil, avec l’écouteur commun', () => {
+    const tout = [...genererProjetStatique(compiler(source).application!, { nom: 'a', source: 'a.humalis' }).values()].join('\n');
+    expect(tout).toContain("'Escape'");
+    expect(tout).toContain("document.addEventListener('keydown'");
   });
 });

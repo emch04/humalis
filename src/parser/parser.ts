@@ -906,7 +906,7 @@ function estBlocMiseEnPage(flux: FluxTokens): boolean {
   return (
     (suivant.type === 'PONCTUATION' && suivant.valeur === ':') ||
     (suivant.type === 'MOT_CLE' && suivant.valeur === 'avec') ||
-    (genre === 'menu' && estLeMot(suivant, 'repliable')) ||
+    (genre === 'menu' && (estLeMot(suivant, 'repliable') || estLeMot(suivant, 'vertical'))) ||
     ((genre === 'section' || GENRES_AVEC_TITRE.includes(genre)) && suivant.type === 'CHAINE')
   );
 }
@@ -917,8 +917,13 @@ function analyserBlocMiseEnPage(flux: FluxTokens): Bloc {
   if (filAriane) flux.avancer();
   const genre: GenreBloc = filAriane ? 'filAriane' : GENRES_BLOC.find((g) => estLeMot(debut, g))!;
   // « menu repliable : » : sur un petit écran, un bouton « Menu » ouvre et ferme les liens.
-  const repliable = genre === 'menu' && estLeMot(flux.actuel(), 'repliable');
-  if (repliable) flux.avancer();
+  // « menu vertical : » : les liens en colonne. Les deux se combinent, dans n'importe quel ordre.
+  let repliable = false;
+  let vertical = false;
+  while (genre === 'menu' && (estLeMot(flux.actuel(), 'repliable') || estLeMot(flux.actuel(), 'vertical'))) {
+    if (estLeMot(flux.avancer(), 'repliable')) repliable = true;
+    else vertical = true;
+  }
   // Le titre d'une section devient son premier élément : un « titre » comme les autres.
   const titre: Instruction[] = [];
   let titreBloc: Expression | undefined;
@@ -950,7 +955,7 @@ function analyserBlocMiseEnPage(flux: FluxTokens): Bloc {
     } while (flux.accepter('MOT_CLE', 'et'));
   }
   flux.attendre('PONCTUATION', ':', `deux-points à la fin de la ligne « ${genre} », puis son contenu en dessous, décalé`);
-  return { type: 'Bloc', genre, styles, classes, ...(titreBloc ? { titre: titreBloc } : {}), ...(ancre !== undefined ? { ancre } : {}), ...(nom !== undefined ? { nom } : {}), ...(repliable ? { repliable } : {}), corps: [...titre, ...analyserBloc(flux)], ligne: debut.ligne };
+  return { type: 'Bloc', genre, styles, classes, ...(titreBloc ? { titre: titreBloc } : {}), ...(ancre !== undefined ? { ancre } : {}), ...(nom !== undefined ? { nom } : {}), ...(repliable ? { repliable } : {}), ...(vertical ? { vertical } : {}), corps: [...titre, ...analyserBloc(flux)], ligne: debut.ligne };
 }
 
 function lireNombre(flux: FluxTokens, description: string): number {

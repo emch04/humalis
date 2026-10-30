@@ -187,8 +187,10 @@ Keep the levels in order, without skipping: screen readers use them to move
 through the page.
 
 Inside a block placed under a subtitle, a `soustitre` goes down one level on its
-own: a card in a section becomes level 3. `avec niveau` (with level) still lets
-you choose.
+own: a card in a section becomes level 3. In a `section`, the first subtitle is
+the section's title, even when it sits in its own block; every other subtitle of
+the section goes down one level. `avec niveau` (with level) still lets you
+choose.
 
 ```humalis
 page "home" :
@@ -608,12 +610,23 @@ page "menu" :
 ```
 
 `fil d'Ariane` is a breadcrumb. In a `menu`, the link to the current page is
-marked as active. The links of a menu wrap when space runs out. A menu that
-your CSS turns into a column (`flex-direction: column`) keeps that wrapping: add
-`flex-wrap: nowrap` so it scrolls instead of starting a second column.
+marked as active. The links of a menu wrap when space runs out. A `menu
+vertical :` stacks its links in a column and never starts a second column: a
+table of contents with a limited height scrolls. It combines with `repliable`
+(`menu vertical repliable :`).
 
-A `menu repliable :` (collapsible menu) folds behind a "Menu" button on a small
-screen (phone); choosing a link closes it. On a large screen it stays open:
+```humalis
+page "guide" :
+    titre "The guide"
+    menu vertical :
+        lien "Install" vers "guide"
+        lien "Pages" vers "guide"
+```
+
+A `menu repliable :` (collapsible menu) folds behind a burger button (named
+"Menu" for screen readers) on a small screen (phone); the icon turns into a cross
+while the menu is open. Choosing a link, tapping outside or pressing Escape
+closes it. On a large screen it stays open:
 
 ```humalis
 page "home" :

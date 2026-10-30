@@ -188,6 +188,12 @@ describe('filtres d\'adresse — web', () => {
     expect(fichiers.get('src/humalis/navigation.tsx')).toContain('export function changerFiltre');
     expect(fichiers.get('src/main.tsx')).toContain('<Defilement />');
   });
+
+  it('remet en haut la fenêtre et la racine, si le CSS du site en fait la zone qui défile', () => {
+    const navigation = fichiers.get('src/humalis/navigation.tsx')!;
+    expect(navigation).toContain('window.scrollTo(0, 0);');
+    expect(navigation).toContain("document.getElementById('racine')?.scrollTo(0, 0);");
+  });
 });
 
 describe('ancres', () => {
