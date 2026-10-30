@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { AIDE_REPERES } from '../cibles/commun/reperes.js';
 
 export function dependances(fichier: string, source: string): string[] {
   return [...source.matchAll(/^\s*utiliser\s+(?:fichier|style)\s+"([^"]+)"/gmu)]
@@ -63,7 +64,8 @@ export async function developper(fichier: string, port: number): Promise<number>
     reponse.setHeader('Access-Control-Allow-Origin', '*');
     if (requete.url === '/diagnostics.js') {
       reponse.setHeader('Content-Type', 'text/javascript');
-      reponse.end(`let panneau=document.createElement('pre');panneau.style='position:fixed;inset:0 0 auto;z-index:999999;background:#420;color:white;padding:1rem;white-space:pre-wrap;display:none';document.body.append(panneau);setInterval(async()=>{let e=await(await fetch('http://localhost:${port + 1}/diagnostics')).text();panneau.textContent=e;panneau.style.display=e?'block':'none'},500);`);
+      // L'aide Alt + survol (le fichier et la ligne Humalis d'un élément), puis le panneau des erreurs.
+      reponse.end(AIDE_REPERES + `let panneau=document.createElement('pre');panneau.style='position:fixed;inset:0 0 auto;z-index:999999;background:#420;color:white;padding:1rem;white-space:pre-wrap;display:none';document.body.append(panneau);setInterval(async()=>{let e=await(await fetch('http://localhost:${port + 1}/diagnostics')).text();panneau.textContent=e;panneau.style.display=e?'block':'none'},500);`);
     } else { reponse.setHeader('Content-Type', 'text/plain; charset=utf-8'); reponse.end(erreur); }
   });
   try { await new Promise<void>((ok, echec) => serveur!.once('error', echec).listen(port + 1, '127.0.0.1', ok)); }

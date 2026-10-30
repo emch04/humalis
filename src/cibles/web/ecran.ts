@@ -16,6 +16,7 @@ import { type Contexte, typeTS, typeDe, expression, contenuJSX, condition, fiche
 import { importsDesInteractions, decrireTouches } from './interactions.js';
 import { colorerCodeHumalis } from '../commun/colorerCode.js';
 import { attributsFrappe } from '../commun/mouvement.js';
+import { repereSource, attributSourceJsx, marquerBalise } from '../commun/reperes.js';
 
 /** Une variable de boucle, passée au gestionnaire d'un événement écrit dans la boucle. */
 interface Parametre {
@@ -378,6 +379,8 @@ export interface ContexteApplication {
   publication?: { site?: SiteRI; adresse: string };
   /** Les langues du site (bloc « langues ») : les textes à versions passent par t(). */
   langues?: LangueRI[];
+  /** Le mode développement : les fichiers du projet ; chaque élément porte son repère (data-humalis-source). */
+  reperes?: readonly string[];
 }
 
 /**
@@ -1781,7 +1784,7 @@ class GenerateurEcran {
               break;
             }
             const balise = noeud.genre === 'liste' ? 'ul' : 'ol';
-            e.ligne(`<${balise} className="humalis-liste">`);
+            e.ligne(this.marquer(`<${balise} className="humalis-liste">`, noeud.ligne));
             e.indenter(() => noeud.corps.forEach((enfant) => {
               if (enfant.type === 'repetition') {
                 this.listeEnCours = noeud.genre as 'liste' | 'listeNumerotee';
@@ -1800,7 +1803,7 @@ class GenerateurEcran {
             this.ecrireComposite(e, noeud);
             break;
           }
-          e.ligne(this.rendu.bloc.ouvrir(noeud.genre, noeud.options, noeud.classes, noeud.ancre));
+          e.ligne(this.marquer(this.rendu.bloc.ouvrir(noeud.genre, noeud.options, noeud.classes, noeud.ancre), noeud.ligne));
           // Des variables dans le bloc : écrites comme dans une condition.
           e.indenter(() =>
             noeud.corps.some((n) => n.type === 'locale') ? this.ecrireGroupe(e, noeud.corps) : this.ecrireVue(e, noeud.corps),
@@ -1830,7 +1833,7 @@ class GenerateurEcran {
 
         case 'formulaire': {
           const ecrire = () => {
-            e.ligne(this.rendu.formulaire.ouvrir(noeud.id, this.formulaires.get(noeud.id)?.soumission));
+            e.ligne(this.marquer(this.rendu.formulaire.ouvrir(noeud.id, this.formulaires.get(noeud.id)?.soumission), noeud.ligne));
             // Des variables dans le bloc : écrites comme dans une condition.
             e.indenter(() =>
               noeud.corps.some((n) => n.type === 'locale') ? this.ecrireGroupe(e, noeud.corps) : this.ecrireVue(e, noeud.corps),
@@ -2046,6 +2049,12 @@ class GenerateurEcran {
     };
   }
 
+  /** Le mode développement (le web seulement) : la balise ouvrante porte le fichier et la ligne Humalis. */
+  private marquer(balise: string, ligne: number): string {
+    const repere = this.application.reperes && !this.application.rendu ? repereSource(ligne, this.application.reperes) : undefined;
+    return repere === undefined ? balise : marquerBalise(balise, attributSourceJsx(repere));
+  }
+
   private ecrireElement(e: Ecrivain, noeud: Extract<NoeudVue, { type: 'element' }>): void {
     const parAttribut = new Map(this.attributs.get(noeud.id) ?? []);
     // Dans un formulaire : un bouton sans clic propre l'envoie, une saisie d'une ligne aussi (touche du clavier).
@@ -2085,7 +2094,7 @@ class GenerateurEcran {
     const source = texteLitteral(noeud.contenu);
     const variable = this.contexte.champs.get(noeud.id) ?? '';
     const ouvert = this.ouvertes.get(noeud.id);
-    const balise = this.rendu.element({
+    const balise = this.marquer(this.rendu.element({
       genre: noeud.genre,
       id: noeud.id,
       options: noeud.options,
@@ -2121,7 +2130,7 @@ class GenerateurEcran {
       },
       envoie: noeud.genre === 'bouton' && formulaire !== undefined && !aSonClic,
       ...(noeud.image ? { image: this.image(noeud.image, noeud.contenu) } : {}),
-    });
+    }), noeud.ligne);
 
     if (this.montres.has(noeud.id) || this.caches.has(noeud.id)) {
       e.ligne(`{visibilite[${chaine(noeud.id)}] && ${balise}}`);

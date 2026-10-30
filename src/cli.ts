@@ -173,11 +173,16 @@ function compile(arguments_: string[]): number {
   if (!images) return 1;
   const medias = lireMedias(application, chemin);
   if (!medias) return 1;
-  const optionsWeb = { nom, adresse: adresse ?? 'http://localhost', source: basename(chemin), fichiersStyle, composantsReact, polices, images, medias };
+  // --diagnostics-port n'est passé que par « humalis developper » : le mode développement, où chaque
+  // élément porte son fichier et sa ligne Humalis (data-humalis-source). Jamais dans une compilation normale.
+  const portDiagnostics = option(arguments_, 'diagnostics-port');
+  const optionsWeb = {
+    nom, adresse: adresse ?? 'http://localhost', source: basename(chemin), fichiersStyle, composantsReact, polices, images, medias,
+    ...(portDiagnostics !== undefined ? { sources: fichiersDuProjet } : {}),
+  };
   const fichiers = composants
     ? genererComposantsWeb(application, optionsWeb)
     : genererProjetWeb(application, optionsWeb);
-  const portDiagnostics = option(arguments_, 'diagnostics-port');
   if (portDiagnostics !== undefined && fichiers.has('index.html')) {
     const index = fichiers.get('index.html')!;
     fichiers.set('index.html', index.replace('</body>', `<script type="module" src="http://localhost:${portDiagnostics}/diagnostics.js"></script></body>`));

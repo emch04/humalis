@@ -1884,6 +1884,14 @@ Pour le web et le statique, `--adresse https://…` donne l'adresse finale du
 site (plan du site, liens de partage). Pour le desktop, `--serveur https://…`
 donne l'adresse du serveur que l'application appelle.
 
+Avec `humalis developper`, chaque élément de la page porte son fichier
+Humalis et sa ligne : dans l'inspecteur du navigateur, un titre montre par
+exemple `data-humalis-source="pages/accueil.humalis:12"` (le chemin part du
+fichier principal, la ligne est celle de ce fichier). Tiens la touche Alt
+(Option sur Mac) et survole un élément : une petite étiquette affiche ce
+même repère près du curseur. `humalis compile` n'ajoute rien de tout cela :
+le site publié reste identique.
+
 ### Les messages d'erreur
 
 Les messages sont en français, avec la ligne, et proposent souvent la

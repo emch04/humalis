@@ -11,6 +11,7 @@ import { verificationsDuChamp, messageEnCode, libellesEnLangues, messageEnLangue
 import { sousActions } from '../../ri/actions.js';
 import { colorerCodeHumalis } from '../commun/colorerCode.js';
 import { attributsFrappe } from '../commun/mouvement.js';
+import { repereSource } from '../commun/reperes.js';
 import { arbreWidget, arbreComposite, initiales, type AideWidget, type AideComposite, type Enfant } from './widgets.js';
 import { iconeHtml, etoilesHtml } from './html-elements.js';
 import { appelGraphique, htmlGraphique } from './graphique.js';
@@ -51,6 +52,8 @@ export interface ContexteSite {
   medias?: Map<string, InfoMedia>;
   /** Les langues du site (bloc « langues ») : le HTML de départ est dans la première. */
   langues?: LangueRI[];
+  /** Le mode développement : les fichiers du projet ; chaque élément porte son repère (data-humalis-source). */
+  reperes?: readonly string[];
 }
 
 export interface PageStatique {
@@ -964,7 +967,7 @@ ${prise}${code}}
         case 'bloc': {
           if (noeud.genre === 'liste' || noeud.genre === 'listeNumerotee') {
             const balise = noeud.genre === 'liste' ? 'ul' : 'ol';
-            e.ligne(`creer('${balise}', { class: 'humalis-liste' },`);
+            e.ligne(`creer('${balise}', { ${this.repereObjetJs(noeud.ligne)}class: 'humalis-liste' },`);
             e.indenter(() => noeud.corps.forEach((enfant) => {
               if (enfant.type === 'repetition') {
                 const debut = `...${expressionJs(enfant.liste, this.contexte)}.flatMap((${nomJs(enfant.variable)}) => `;
@@ -981,7 +984,7 @@ ${prise}${code}}
           const balise = BALISES_BLOC[noeud.genre] ?? 'div';
           // « menu repliable » : le bouton « Menu » en premier enfant (l'écouteur est dans humalis.js).
           const bouton = estRepliable(noeud) ? `creer('button', { type: 'button', class: 'humalis-menu-bouton', 'aria-expanded': 'false', 'aria-label': 'Menu' }, creer('span', { class: 'humalis-menu-icone', 'aria-hidden': 'true' })), ` : '';
-          this.ecrireGroupe(e, noeud.corps, `creer('${balise}', { class: ${chaine(classesDuBloc(noeud))} }, ${bouton}...`, '),');
+          this.ecrireGroupe(e, noeud.corps, `creer('${balise}', { ${this.repereObjetJs(noeud.ligne)}class: ${chaine(classesDuBloc(noeud))} }, ${bouton}...`, '),');
           // « arrive en bas de » ce bloc : la sentinelle observée et le vrai bouton « Voir plus », tant que la condition est vraie.
           const bas = noeud.id !== undefined ? this.basDesBlocs.get(noeud.id) : undefined;
           if (bas) {
@@ -995,7 +998,7 @@ ${prise}${code}}
         case 'formulaire': {
           // Entrée ou le bouton envoient le formulaire, sans recharger la page.
           const soumission = this.formulaires.get(noeud.id)?.soumission ?? '() => {}';
-          const ouverture = `creer('form', { 'data-humalis': ${chaine(noeud.id)}, class: 'humalis-formulaire', novalidate: true, onsubmit: ${soumission} }, ...`;
+          const ouverture = `creer('form', { ${this.repereObjetJs(noeud.ligne)}'data-humalis': ${chaine(noeud.id)}, class: 'humalis-formulaire', novalidate: true, onsubmit: ${soumission} }, ...`;
           if (this.montres.has(noeud.id) || this.caches.has(noeud.id)) {
             this.ecrireGroupe(e, noeud.corps, `...(visibilite[${chaine(noeud.id)}] ? [${ouverture}`, ')] : []),');
           } else {
@@ -1018,7 +1021,7 @@ ${prise}${code}}
   /** `creer('p', { … }, contenu)`. */
   private elementJs(noeud: Element): string {
     const commun = (avant: [string, string][] = []): [string, string][] => {
-      const liste: [string, string][] = [...avant, ["'data-humalis'", chaine(noeud.id)]];
+      const liste: [string, string][] = [...this.repereJs(noeud.ligne), ...avant, ["'data-humalis'", chaine(noeud.id)]];
       const classes = this.classes(noeud);
       if (classes) liste.push(['class', chaine(classes)]);
       // « avec annonce » : un lecteur d'écran lit l'élément quand il change.
@@ -1099,7 +1102,7 @@ ${prise}${code}}
         const parmi = saisie?.parmi ? expressionJs(saisie.parmi, this.contexte) : '[]';
         const radio = `creer('input', { type: 'radio', name: ${chaine(noeud.id)}, value: valeur, checked: ${variable} === valeur, oninput: () => { ${variable} = valeur; } })`;
         const classes = this.classes(noeud);
-        const groupe: [string, string][] = [["'data-humalis'", chaine(noeud.id)], ['class', chaine(classes ? `${classes} humalis-choix` : 'humalis-choix')]];
+        const groupe: [string, string][] = [...this.repereJs(noeud.ligne), ["'data-humalis'", chaine(noeud.id)], ['class', chaine(classes ? `${classes} humalis-choix` : 'humalis-choix')]];
         return `creer('fieldset', ${objet(groupe)}, creer('legend', {}, ${libelle}), ...${parmi}.map((valeur) => creer('label', {}, ${radio}, valeur)))`;
       }
       case 'liste': {
@@ -1227,7 +1230,7 @@ ${prise}${code}}
         case 'bloc': {
           if (noeud.genre === 'liste' || noeud.genre === 'listeNumerotee') {
             const balise = noeud.genre === 'liste' ? 'ul' : 'ol';
-            lignes.push(`<${balise} class="humalis-liste">`);
+            lignes.push(`<${balise}${attributs([this.repereHtml(noeud.ligne)])} class="humalis-liste">`);
             for (const enfant of noeud.corps) {
               if (enfant.type === 'repetition') {
                 const valeurs = evaluer(enfant.liste, env);
@@ -1250,7 +1253,7 @@ ${prise}${code}}
             break;
           }
           const balise = BALISES_BLOC[noeud.genre] ?? 'div';
-          lignes.push(`<${balise}${attributs([['class', classesDuBloc(noeud)]])}>`);
+          lignes.push(`<${balise}${attributs([this.repereHtml(noeud.ligne), ['class', classesDuBloc(noeud)]])}>`);
           if (estRepliable(noeud)) lignes.push('<button type="button" class="humalis-menu-bouton" aria-expanded="false" aria-label="Menu"><span class="humalis-menu-icone" aria-hidden="true"></span></button>');
           this.ecrireGroupeHtml(noeud.corps, env, lignes);
           lignes.push(`</${balise}>`);
@@ -1264,7 +1267,7 @@ ${prise}${code}}
         case 'formulaire': {
           // Un formulaire que l'on montre est caché au départ.
           if (this.montres.has(noeud.id)) break;
-          lignes.push(`<form${attributs([['data-humalis', noeud.id], ['class', 'humalis-formulaire'], ['novalidate', 'true']])}>`);
+          lignes.push(`<form${attributs([this.repereHtml(noeud.ligne), ['data-humalis', noeud.id], ['class', 'humalis-formulaire'], ['novalidate', 'true']])}>`);
           this.ecrireGroupeHtml(noeud.corps, env, lignes);
           lignes.push('</form>');
           break;
@@ -1542,7 +1545,7 @@ ${prise}${code}}
     const saisie = noeud.saisie;
     const sorte = saisie?.sorte ?? 'texte';
     const libelle = saisie?.obligatoire ? `<span>${contenu}${ETOILE_HTML}</span>` : contenu;
-    const base: [string, string | undefined][] = [['data-humalis', noeud.id], ['class', classes]];
+    const base: [string, string | undefined][] = [this.repereHtml(noeud.ligne), ['data-humalis', noeud.id], ['class', classes]];
     const options = (liste: [string, string | undefined][]) => [
       ...liste,
       ['required', saisie?.obligatoire ? 'true' : undefined] as [string, string | undefined],
@@ -1561,7 +1564,7 @@ ${prise}${code}}
         const radios = parmi()
           .map((v) => `<label><input${attributs([['type', 'radio'], ['name', noeud.id], ['value', v]])}>${echapperTexte(v)}</label>`)
           .join('');
-        return `<fieldset${attributs([['data-humalis', noeud.id], ['class', classes ? `${classes} humalis-choix` : 'humalis-choix']])}><legend>${libelle}</legend>${radios}</fieldset>`;
+        return `<fieldset${attributs([this.repereHtml(noeud.ligne), ['data-humalis', noeud.id], ['class', classes ? `${classes} humalis-choix` : 'humalis-choix']])}><legend>${libelle}</legend>${radios}</fieldset>`;
       }
       case 'liste': {
         const choix = parmi().map((v) => `<option${attributs([['value', v]])}>${echapperTexte(v)}</option>`).join('');
@@ -1577,10 +1580,26 @@ ${prise}${code}}
     }
   }
 
+  /** Le mode développement : le fichier et la ligne Humalis de l'élément, en HTML (attributs() l'échappe ; absent sans le mode). */
+  private repereHtml(ligne: number): [string, string | undefined] {
+    return ['data-humalis-source', this.site.reperes ? repereSource(ligne, this.site.reperes) : undefined];
+  }
+
+  /** Le même repère pour creer() : rien sans le mode. */
+  private repereJs(ligne: number): [string, string][] {
+    const repere = this.site.reperes ? repereSource(ligne, this.site.reperes) : undefined;
+    return repere === undefined ? [] : [["'data-humalis-source'", chaine(repere)]];
+  }
+
+  /** `'data-humalis-source': '…', ` au début d'un objet d'attributs écrit à la main. */
+  private repereObjetJs(ligne: number): string {
+    return this.repereJs(ligne).map(([nom, valeur]) => `${nom}: ${valeur}, `).join('');
+  }
+
   private elementHtml(noeud: Element, env: Environnement): string {
     const classes = this.classes(noeud) || undefined;
     const commun = (avant: [string, string | undefined][] = []) =>
-      attributs([...avant, ['data-humalis', noeud.id], ['class', classes], ...(noeud.annonce ? ([['aria-live', 'polite'], ['aria-atomic', 'true']] as [string, string][]) : []), ...attributsRaccourci(noeud)]);
+      attributs([this.repereHtml(noeud.ligne), ...avant, ['data-humalis', noeud.id], ['class', classes], ...(noeud.annonce ? ([['aria-live', 'polite'], ['aria-atomic', 'true']] as [string, string][]) : []), ...attributsRaccourci(noeud)]);
     const lucideHtml = noeud.reglages?.icone ? chercherIcone(noeud.reglages.icone)?.lucide : undefined;
     const contenu = (lucideHtml ? iconeHtml(lucideHtml, 'humalis-icone') : '') + this.contenuAccentHtml(noeud.contenu, noeud.genre, env);
     switch (noeud.genre) {

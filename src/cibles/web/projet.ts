@@ -38,6 +38,12 @@ export interface OptionsWeb {
   medias?: Map<string, InfoMedia>;
   /** Le logo et l'image de partage du bloc « site », lus par la commande, en base 64. */
   images?: Map<string, string>;
+  /**
+   * Le mode développement (« humalis developper ») : les fichiers du projet,
+   * tels que compilerProjet les rend. Chaque élément porte alors son fichier
+   * et sa ligne (data-humalis-source) ; absent, rien n'est ajouté.
+   */
+  sources?: readonly string[];
 }
 
 /** « ./themes/clair.css » → « clair.css ». */
@@ -104,6 +110,7 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
     // Le bloc « site » ou un « apercu » : chaque page pose ses balises de partage.
     ...(application.site || application.ecrans.some((e) => e.apercu) ? { publication: { site: application.site, adresse: options.adresse } } : {}),
     ...(application.langues ? { langues: application.langues } : {}),
+    ...(options.sources ? { reperes: options.sources } : {}),
   };
   let session = false;
   for (const c of application.composants) {
