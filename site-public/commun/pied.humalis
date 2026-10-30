@@ -1,0 +1,31 @@
+# Le pied de page commun : la marque, une colonne par rôle, puis la ligne des mentions.
+
+pied avec style "site-footer" :
+    ligne avec style "footer-grid" :
+        colonne avec style "footer-marque" :
+            lien "humalis" en anglais "humalis" vers "accueil" avec style "brand"
+            texte "Le langage de programmation qui s’écrit en français, de la page web au serveur." en anglais "The programming language you write in French, from the web page to the server."
+        colonne avec style "footer-col" :
+            texte "Découvrir" en anglais "Discover" avec style "footer-titre"
+            lien "Accueil" en anglais "Home" vers "accueil"
+            lien "Exemples" en anglais "Examples" vers "exemples"
+            lien "Bac à sable" en anglais "Playground" vers "bac_a_sable"
+        colonne avec style "footer-col" :
+            texte "Documentation" en anglais "Documentation" avec style "footer-titre"
+            lien "Installer" en anglais "Install" vers "installer"
+            lien "Sommaire" en anglais "Contents" vers "documentation"
+            lien "Premiers pas" en anglais "First steps" vers "documentation_1"
+            lien "Les commandes" en anglais "Commands" vers "documentation_32"
+            lien "Nouveautés" en anglais "What’s new" vers "nouveautes"
+        colonne avec style "footer-col" :
+            texte "Projet" en anglais "Project" avec style "footer-titre"
+            lien "GitHub" sans traduction vers "https://github.com/emch04/humalis" avec nouvel onglet
+            lien "Signaler un problème" en anglais "Report an issue" vers "https://github.com/emch04/humalis/issues" avec nouvel onglet
+            lien "Paquet npm" en anglais "npm package" vers "https://www.npmjs.com/package/humalis" avec nouvel onglet
+            lien "Licence Humalis" en anglais "Humalis License" vers "https://github.com/emch04/humalis/blob/main/LICENSE" avec nouvel onglet
+    ligne avec style "footer-bas" :
+        texte "© 2026 Les auteurs de Humalis. Tous droits réservés." en anglais "© 2026 The Humalis authors. All rights reserved."
+        ligne avec style "footer-legal" :
+            lien "Mentions légales" en anglais "Legal notice" vers "mentions_legales"
+            lien "Confidentialité" en anglais "Privacy" vers "confidentialite"
+        texte "Ce site est écrit en Humalis." en anglais "This site is written in Humalis."

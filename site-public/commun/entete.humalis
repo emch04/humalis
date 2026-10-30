@@ -1,0 +1,36 @@
+# L'en-tête commun à toutes les pages : la marque, le menu (repliable sur téléphone), la langue et le thème.
+
+entete avec colle et style "site-header" :
+    ligne avec style "nav-row" :
+        lien "humalis" en anglais "humalis" vers "accueil" avec style "brand"
+        menu repliable avec style "nav-links" :
+            lien "Accueil" en anglais "Home" vers "accueil"
+            lien "Documentation" en anglais "Documentation" vers "documentation"
+            lien "Exemples" en anglais "Examples" vers "exemples"
+            lien "Bac à sable" en anglais "Playground" vers "bac_a_sable"
+            lien "Installer" en anglais "Install" vers "installer"
+        ligne avec style "utility" :
+            # « FR / EN » : la langue choisie en gras, l'autre se choisit d'un clic.
+            ligne avec style "language" :
+                si langue est anglais :
+                    bouton "FR" en anglais "FR" avec nom "vers-francais" et style "lang-choix"
+                    texte "/" en anglais "/" avec style "lang-sep"
+                    texte "EN" en anglais "EN" avec style "lang-actif"
+                    quand l'utilisateur clique sur "vers-francais" :
+                        changer langue par francais
+                sinon :
+                    texte "FR" en anglais "FR" avec style "lang-actif"
+                    texte "/" en anglais "/" avec style "lang-sep"
+                    bouton "EN" en anglais "EN" avec nom "vers-anglais" et style "lang-choix"
+                    quand l'utilisateur clique sur "vers-anglais" :
+                        changer langue par anglais
+            # Le thème : une icône seule, la lune en sombre, le soleil en clair.
+            si theme est sombre :
+                bouton "Passer au thème clair" en anglais "Switch to light theme" avec icone "lune" et nom "theme-sombre" et style "icon-button"
+                quand l'utilisateur clique sur "theme-sombre" :
+                    basculer theme
+            sinon :
+                bouton "Passer au thème sombre" en anglais "Switch to dark theme" avec icone "soleil" et nom "theme-clair" et style "icon-button"
+                quand l'utilisateur clique sur "theme-clair" :
+                    basculer theme
+            lien "GitHub ↗" en anglais "GitHub ↗" vers "https://github.com/emch04/humalis" avec nouvel onglet et style "github-link"

@@ -1,0 +1,36 @@
+# Les mentions légales.
+
+page "mentions_legales" a l'adresse "/mentions-legales" :
+    apercu :
+        description "Les mentions légales du site de Humalis : éditeur, hébergeur, licence et propriété intellectuelle." en anglais "The legal notice of the Humalis website: publisher, host, license and intellectual property."
+    bloc avec style "page-intro" :
+        titre "Mentions légales" en anglais "Legal notice"
+        texte "Dernière mise à jour : 30 octobre 2026." en anglais "Last updated: October 30, 2026."
+    grille avec colonnes 3 et style "page-section legal-resume" et animation montee au defilement et en cascade :
+        bloc avec style "legal-point" et effet leve :
+            soustitre "Éditeur" en anglais "Publisher"
+            texte "emch04, auteur de Humalis, à titre non professionnel." en anglais "emch04, the author of Humalis, as a private individual."
+        bloc avec style "legal-point" et effet leve :
+            soustitre "Licence" en anglais "License"
+            texte "Licence Humalis 1.0 : utiliser est libre, revendre ne l’est pas." en anglais "Humalis License 1.0: using is free, reselling is not."
+        bloc avec style "legal-point" et effet leve :
+            soustitre "Contact" sans traduction
+            texte "Par un ticket sur GitHub, pour toute question sur le site." en anglais "Through a GitHub issue, for any question about the website."
+    grille avec colonnes 2 et style "page-section legal" et animation montee au defilement et en cascade :
+        bloc avec style "legal-bloc" :
+            soustitre "Éditeur du site" en anglais "Publisher"
+            texte "Ce site est édité par emch04, auteur de Humalis, à titre non professionnel. Comme la loi le permet à un particulier (article 6, III, 2 de la loi n° 2004-575 du 21 juin 2004), son identité n’est pas publiée ici : elle a été communiquée à l’hébergeur." en anglais "This website is published by emch04, the author of Humalis, as a private individual. As French law allows for individuals (article 6, III, 2 of law no. 2004-575 of June 21, 2004), their identity is not published here: it has been given to the host."
+            texte "Pour toute question, ouvre un ticket sur GitHub." en anglais "For any question, open an issue on GitHub."
+            lien "github.com/emch04/humalis/issues ↗" sans traduction vers "https://github.com/emch04/humalis/issues" avec nouvel onglet
+        bloc avec style "legal-bloc" :
+            soustitre "Hébergement" en anglais "Hosting"
+            texte "Le nom, l’adresse et le téléphone de l’hébergeur seront indiqués ici à la mise en ligne du site." en anglais "The host’s name, address and phone number will be given here when the website goes live."
+        bloc avec style "legal-bloc" :
+            soustitre "Propriété intellectuelle" en anglais "Intellectual property"
+            texte "Le langage Humalis, son compilateur et ce site sont distribués sous la Licence Humalis 1.0. © 2026 Les auteurs de Humalis. Tous droits réservés, sauf ce que la licence permet." en anglais "The Humalis language, its compiler and this website are distributed under the Humalis License 1.0. © 2026 The Humalis authors. All rights reserved, except what the license allows."
+            texte "Les polices Space Grotesk, Inter et JetBrains Mono sont utilisées sous la licence SIL Open Font License 1.1." en anglais "The Space Grotesk, Inter and JetBrains Mono fonts are used under the SIL Open Font License 1.1."
+            lien "Lire la Licence Humalis ↗" en anglais "Read the Humalis License ↗" vers "https://github.com/emch04/humalis/blob/main/LICENSE" avec nouvel onglet
+        bloc avec style "legal-bloc" :
+            soustitre "Responsabilité" en anglais "Liability"
+            texte "Les informations de ce site sont fournies telles quelles. L’éditeur fait de son mieux pour qu’elles soient exactes et à jour, sans pouvoir le garantir. Les liens vers d’autres sites (GitHub, npm) mènent vers des services qui ont leurs propres conditions." en anglais "The information on this website is provided as is. The publisher does their best to keep it accurate and up to date, without being able to guarantee it. Links to other websites (GitHub, npm) lead to services that have their own terms."
+        lien "Voir la politique de confidentialité →" en anglais "See the privacy policy →" vers "confidentialite" avec style "button button-secondary"
