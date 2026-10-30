@@ -1,0 +1,166 @@
+# Site public de Humalis. Les métadonnées et le thème précèdent les langues.
+# L'en-tête et le pied sont communs ; la page accueil suit les sections de la maquette.
+# Les classes CSS donnent la mise en page ; seule la démonstration animée utilise React.
+utiliser style "./site.css"
+utiliser composant "DemoCode" depuis "./composants/DemoCode"
+
+site :
+    nom "Humalis"
+    logo "./logo.png"
+    description "Humalis, le langage en français qui transforme un seul fichier en applications web, mobile, bureau, site statique et serveur."
+
+traductions anglais :
+    "Humalis" : "Humalis"
+    "Écris ton application comme une phrase avec Humalis : découvre le langage, ses cinq cibles et ses possibilités." : "Write your app like a sentence with Humalis: discover the language, its five targets and what it can do."
+    "Humalis, le langage en français qui transforme un seul fichier en applications web, mobile, bureau, site statique et serveur." : "Humalis, the French language that turns one file into web, mobile, desktop, static site and server applications."
+
+theme :
+    couleur marque clair "#c1e928" sombre "#d7ff3a"
+    police titres "Space Grotesk"
+    police texte "Inter"
+    mode sombre
+    largeur large
+
+langues :
+    francais
+    anglais
+
+entete avec colle et style "site-header" :
+    ligne avec style "nav-row" :
+        lien "humalis" en anglais "humalis" vers "accueil" avec style "brand"
+        ligne avec style "nav-links" :
+            lien "Accueil" en anglais "Home" vers "accueil"
+            lien "Apprendre" en anglais "Learn" vers "accueil#apprendre"
+            lien "Exemples" en anglais "Examples" vers "accueil#exemples"
+            lien "Bac à sable" en anglais "Playground" vers "accueil#bac-a-sable"
+            lien "Installer" en anglais "Install" vers "accueil#installer"
+        ligne avec style "utility" :
+            selecteur de langue
+            bouton "Changer de thème" en anglais "Change theme" avec nom "theme-toggle" et style "icon-button"
+            lien "GitHub ↗" en anglais "GitHub ↗" vers "https://github.com/emch04/humalis" avec nouvel onglet et style "github-link"
+    quand l'utilisateur clique sur "theme-toggle" :
+        changer theme par clair
+
+pied avec style "site-footer" :
+    ligne avec style "footer-grid" :
+        lien "humalis" en anglais "humalis" vers "accueil" avec style "brand"
+        ligne avec style "footer-links" :
+            lien "Apprendre" en anglais "Learn" vers "accueil#apprendre"
+            lien "Exemples" en anglais "Examples" vers "accueil#exemples"
+            lien "Bac à sable" en anglais "Playground" vers "accueil#bac-a-sable"
+            lien "Installer" en anglais "Install" vers "accueil#installer"
+            lien "Licence Humalis" en anglais "Humalis License" vers "https://github.com/emch04/humalis/blob/main/LICENSE" avec nouvel onglet
+        texte "Fait avec Humalis" en anglais "Made with Humalis" avec style "footer-note"
+
+page "accueil" :
+    apercu :
+        description "Écris ton application comme une phrase avec Humalis : découvre le langage, ses cinq cibles et ses possibilités."
+    bloc avec ancre "accueil" et style "hero" :
+        ligne avec style "hero-grid" :
+            colonne avec style "hero-copy" :
+                texte "Le code prend la parole" en anglais "Code finds its voice" avec style "eyebrow"
+                titre "Écris ton application comme une phrase." en anglais "Write your app like a sentence." avec style "hero-title"
+                texte "Un seul langage, en français, pour le web, le mobile, le bureau et le serveur. Tu écris une fois. Humalis donne vie à ton idée partout." en anglais "One language, in French, for web, mobile, desktop and server. Write once. Humalis brings your idea to life everywhere." avec style "hero-intro"
+                ligne avec style "hero-actions" :
+                    lien "Essayer maintenant →" en anglais "Try it now →" vers "accueil#bac-a-sable" avec style "button button-primary"
+                    lien "Lire le guide" en anglais "Read the guide" vers "accueil#apprendre" avec style "button button-secondary"
+                ligne avec ancre "installer" et style "install-command" :
+                    texte "npm install -g humalis" en anglais "npm install -g humalis" avec style "install-code"
+                    bouton "Copier" en anglais "Copy" avec nom "copier" et style "copy-button"
+                quand l'utilisateur clique sur "copier" :
+                    copier "npm install -g humalis" avec message "Commande copiée"
+            DemoCode
+    bloc avec style "section target-section" :
+        colonne avec style "section-heading" :
+            soustitre "Un fichier, cinq cibles." en anglais "One file, five targets."
+            texte "Ton idée commence dans un fichier .humalis. Le compilateur prépare le reste, sans te faire réécrire chaque application." en anglais "Your idea starts in a .humalis file. The compiler prepares the rest, without making you rewrite every app."
+        texte "application.humalis" en anglais "application.humalis" avec style "source-file"
+        grille avec colonnes 5 et style "target-diagram" :
+            bloc avec style "target-card" :
+                soustitre "Web" en anglais "Web"
+                texte "Application React" en anglais "React app"
+            bloc avec style "target-card" :
+                soustitre "Mobile" en anglais "Mobile"
+                texte "Application Expo" en anglais "Expo app"
+            bloc avec style "target-card" :
+                soustitre "Bureau" en anglais "Desktop"
+                texte "Application Electron" en anglais "Electron app"
+            bloc avec style "target-card" :
+                soustitre "Statique" en anglais "Static"
+                texte "Site prêt à publier" en anglais "Ready-to-publish site"
+            bloc avec style "target-card" :
+                soustitre "Serveur" en anglais "Server"
+                texte "Serveur Node" en anglais "Node server"
+    bloc avec style "section features" :
+        colonne avec style "section-heading" :
+            soustitre "De l’idée au concret." en anglais "From idea to reality."
+            texte "Des outils pour construire une vraie application, tout en gardant des mots que tu comprends." en anglais "Tools to build a real app, using words you understand."
+        grille avec colonnes 3 et style "feature-grid" :
+            bloc avec style "feature-card" :
+                soustitre "Pages et formulaires" en anglais "Pages and forms"
+                texte "Crée des écrans et recueille les réponses de tes visiteurs." en anglais "Build screens and collect responses from your visitors."
+            bloc avec style "feature-card" :
+                soustitre "Données et serveur" en anglais "Data and server"
+                texte "Relie ton interface à la logique qui fait fonctionner ton projet." en anglais "Connect your interface to the logic behind your project."
+            bloc avec style "feature-card" :
+                soustitre "Plusieurs langues" en anglais "Multiple languages"
+                texte "Adapte les textes de ton application à ceux qui l’utilisent." en anglais "Adapt your app's text to the people using it."
+            bloc avec style "feature-card" :
+                soustitre "Graphiques et cartes" en anglais "Charts and maps"
+                texte "Rends tes informations faciles à lire et à explorer." en anglais "Make your information easy to read and explore."
+            bloc avec style "feature-card" :
+                soustitre "Accessibilité vérifiée" en anglais "Accessibility checks"
+                texte "Des repères pour créer des interfaces que chacun peut utiliser." en anglais "Guidance for building interfaces everyone can use."
+            bloc avec style "feature-card" :
+                soustitre "Erreurs en français" en anglais "Errors in French"
+                texte "Comprends ce qui bloque et trouve rapidement comment avancer." en anglais "Understand what's wrong and quickly find a way forward."
+    bloc avec style "section errors-layout" :
+        colonne avec style "section-heading" :
+            soustitre "Des erreurs qui t’aident." en anglais "Errors that help you."
+            texte "Quand une lettre dérape, le message te montre où regarder et te propose une piste claire." en anglais "When a letter goes astray, the message shows where to look and gives you a clear hint."
+        colonne avec style "terminal" :
+            texte "Terminal · compilation" en anglais "Terminal · compilation" avec style "terminal-top"
+            texte "$ humalis compile boutique.humalis" en anglais "$ humalis compile boutique.humalis" avec style "terminal-command"
+            texte "Erreur, ligne 3 : la variable « totl » n'est pas déclarée. Peut-être « total » ?" en anglais "Error, line 3: variable ‘totl’ is not declared. Did you mean ‘total’?" avec style "terminal-error"
+            texte "↳ Vérifie l’orthographe du nom de la variable." en anglais "↳ Check the spelling of the variable name." avec style "terminal-hint"
+    bloc avec style "section more-pages" :
+        colonne avec style "section-heading" :
+            soustitre "Un site pour aller plus loin." en anglais "A site to go further."
+            texte "Une vue sur les pages qui accompagneront tes premières lignes de code." en anglais "A look at the pages that will guide your first lines of code."
+        grille avec colonnes 3 et style "page-grid" :
+            bloc avec ancre "apprendre" et style "page-card" :
+                bloc avec style "page-mini mini-learn" :
+                    texte "Tes premiers pas" en anglais "Your first steps" avec style "mini-title"
+                    texte "page bonjour :" en anglais "page hello :" avec style "mini-code"
+                    texte "texte Bienvenue !" en anglais "texte Welcome!" avec style "mini-code"
+                soustitre "Apprendre" en anglais "Learn"
+                texte "Un parcours clair, du premier mot à ta première application." en anglais "A clear path from your first word to your first app."
+                lien "Voir le concept ↗" en anglais "Explore the concept ↗" vers "accueil#apprendre"
+            bloc avec ancre "exemples" et style "page-card" :
+                bloc avec style "page-mini mini-examples" :
+                    texte "Des idées à explorer" en anglais "Ideas to explore" avec style "mini-title"
+                    grille avec colonnes 2 et style "mini-gallery" :
+                        bloc avec style "mini-tile" :
+                            texte "A" en anglais "A"
+                        bloc avec style "mini-tile" :
+                            texte "B" en anglais "B"
+                        bloc avec style "mini-tile" :
+                            texte "C" en anglais "C"
+                        bloc avec style "mini-tile" :
+                            texte "D" en anglais "D"
+                soustitre "Exemples" en anglais "Examples"
+                texte "Des projets concrets pour découvrir ce que Humalis peut faire." en anglais "Real projects to discover what Humalis can do."
+                lien "Voir le concept ↗" en anglais "Explore the concept ↗" vers "accueil#exemples"
+            bloc avec ancre "bac-a-sable" et style "page-card" :
+                bloc avec style "page-mini mini-sandbox" :
+                    texte "page carte :" en anglais "page card :" avec style "mini-code"
+                    texte "titre Bonjour" en anglais "titre Hello" avec style "mini-code"
+                    texte "bouton Entrer" en anglais "bouton Enter" avec style "mini-code"
+                soustitre "Bac à sable" en anglais "Playground"
+                texte "Un éditeur et son aperçu pour essayer une idée tout de suite." en anglais "An editor and preview to try an idea right away."
+                lien "Voir le concept ↗" en anglais "Explore the concept ↗" vers "accueil#bac-a-sable"
+    bloc avec style "final-call" :
+        colonne avec style "call-panel" :
+            soustitre "Ta première application en cinq minutes." en anglais "Your first app in five minutes."
+            texte "Une phrase suffit pour commencer. La suite t’appartient." en anglais "One sentence is enough to start. The rest is yours."
+            lien "Essayer maintenant →" en anglais "Try it now →" vers "accueil#accueil" avec style "button button-primary"

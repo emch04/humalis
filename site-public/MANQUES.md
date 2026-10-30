@@ -1,0 +1,24 @@
+# Manques rencontrés pour la page d’accueil
+
+La page et tous ses textes visibles sont écrits en Humalis, avec leurs versions anglaises. La maquette validée reste la référence visuelle. Les écarts ci-dessous sont explicites.
+
+| Ce que je voulais écrire | Contournement et effet | Syntaxe Humalis proposée |
+| --- | --- | --- |
+| Une démonstration où le code se tape progressivement et où l’aperçu se construit au même rythme. | `DemoCode.tsx` gère la minuterie et synchronise l’aperçu. Le reste de la page reste en Humalis. Son code montré est en français même quand l’interface passe en anglais : c’est un exemple du langage. | `demonstration code "…" avec frappe et apercu "…"` avec étapes déclaratives. |
+| Mettre un soulignement seulement sous « phrase. » dans le titre traduit. | Le titre est un seul élément Humalis. Le trait localisé sous le mot est absent ; le grand titre et la couleur restent. | `titre : texte "Écris…" ; accent "phrase." en anglais "sentence."` |
+| Composer un lien ou un bouton avec un SVG décoratif, une icône et un nom accessible différents du texte. | Les flèches des actions sont des caractères ; les pictogrammes des cartes sont des formes CSS. Les icônes exactes de la maquette et certaines étiquettes ARIA ne sont pas reproduites. | `lien "Essayer maintenant" ... avec icone "fleche_droite" et description "…"` ; prise en charge équivalente pour les boutons. |
+| Donner un `id` arbitraire à un conteneur et poser un lien de saut « Aller au contenu » vers le `<main>`. | Les ancres Humalis relient les sections utiles, mais le lien de saut au contenu principal n’a pas été ajouté. | `contenu principal avec ancre "contenu"` et `lien de saut "Aller au contenu" vers "contenu"`. |
+| Basculer le thème selon le thème actuel. | Le bouton Humalis passe au thème clair. La comparaison `si theme est sombre` échoue au compilateur ; il ne rebascule pas vers sombre. | `si theme est sombre : changer theme par clair ; sinon : changer theme par sombre`, ou `basculer theme`. |
+| Faire un menu mobile repliable avec `aria-expanded` et fermeture au clic d’un lien. | Sur mobile, les liens d’en-tête sont masqués et les liens de section restent accessibles par la page et le pied ; aucun menu repliable n’est présent. | `menu navigation avec bouton "Ouvrir le menu" et refermer apres navigation`. |
+| Faire apparaître chaque section au défilement, allumer les cinq cibles successivement et incliner les cartes selon la souris. | CSS conserve les survols, transitions et le fond animé ; ces trois interactions avancées de la maquette sont absentes. | `avec animation apparition au defilement et delai 80 ms`, `avec animation en cascade`, `avec effet suit pointeur`. |
+| Dessiner les miniatures des trois futures pages avec des éléments purement décoratifs et un extrait de code contenant des guillemets. | Les miniatures sont simplifiées avec des blocs Humalis et du CSS. Les extraits omettent les guillemets, car les chaînes littérales avec guillemets internes ont été rejetées dans `texte`. | `code "page \"bonjour\" :"` avec échappement explicite ou un bloc `extrait code :`. |
+| Obtenir des titres de cartes en `<h3>` après les titres de section. | `soustitre` produit ici des `<h2>` ; le CSS en réduit la taille. La hiérarchie visuelle est proche, la hiérarchie HTML diffère. | `titre niveau 3 "Web" en anglais "Web"`. |
+| Charger exactement les trois polices Google de la maquette hors ligne. | Aucune police n’a été téléchargée, conformément à la consigne sans réseau. Le CSS emploie les noms Inter, Space Grotesk et JetBrains Mono avec des polices système de repli. | Une déclaration `police "…" depuis "./…"` avec fichiers de police locaux. |
+| Afficher « Copié ! » dans la langue courante après copie. | L’action Humalis affiche « Commande copiée » en français. `en anglais` sur `copier … avec message` est refusé par le compilateur. | `copier … avec message "Commande copiée" en anglais "Command copied"`. |
+| Fournir une adresse canonique publique réelle pour le prérendu. | L’adresse finale n’a pas été donnée ; le compilateur avertit que le prérendu et le plan du site utilisent `http://localhost`. Le fichier compile sans erreur. | Une adresse de publication à renseigner dans `site :` quand elle sera connue. |
+
+## Vérification
+
+`node dist/cli.js verifier site-public/site.humalis` : aucune erreur ni avertissement. `node dist/cli.js compile site-public/site.humalis --cible web --sortie /tmp/humalis-site-public` : projet de 29 fichiers produit, avec seulement l’avertissement d’adresse ci-dessus. Aucun essai navigateur ni installation du projet produit n’a été fait.
+
+Trois mutations temporaires ont été détectées par `verifier` (suppression des deux-points de `page`, mot-clé `titre` mal écrit, mot-clé `langues` mal écrit), puis le fichier initial a été remis en place et revérifié. Une mutation d’ancre dans l’en-tête n’a pas été détectée par le vérificateur ; ce contrôle doit être renforcé côté compilateur.
