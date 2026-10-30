@@ -20,6 +20,8 @@ coverage/
 __pycache__/
 *.pyc
 .claude/worktrees/
+# Réglages locaux de l'application Claude (chemins de la machine) : jamais dans le dépôt public.
+.claude/launch.json
 
 # Les consignes locales de Claude restent sur la machine
 CLAUDE.md
