@@ -41,8 +41,9 @@ function phrase(markdown) {
     const trouve = motif.exec(reste);
     if (!trouve) break;
     morceaux.push(texteSimple(reste.slice(0, trouve.index)));
-    if (trouve[1] !== undefined) morceaux.push(`{code ${guillemets(trouve[1])}}`);
-    else morceaux.push(`{accent ${guillemets(trouve[2])}}`);
+    // Le contenu d'un {code "…"} ou d'un {accent "…"} est recopié tel quel jusqu'au premier "}.
+    if (trouve[1] !== undefined) morceaux.push(`{code "${trouve[1]}"}`);
+    else morceaux.push(`{accent "${trouve[2]}"}`);
     reste = reste.slice(trouve.index + trouve[0].length);
   }
   morceaux.push(texteSimple(reste));
@@ -124,6 +125,27 @@ function corps(lignes, retrait) {
   return sortie;
 }
 
+/** La description d'un chapitre (aperçu de partage) : son premier paragraphe, en texte simple. */
+function description(lignes) {
+  const debut = lignes.findIndex((l) => /^[\p{L}*`]/u.test(l.trim()) && !/^(- |\d+\. |\||#)/.test(l.trim()));
+  if (debut < 0) return '';
+  // Le premier paragraphe, et les suivants tant que la phrase est trop courte pour un aperçu.
+  const paragraphe = [];
+  for (let i = debut; i < lignes.length && (lignes[i].trim() !== '' || paragraphe.join(' ').length < 60); i++) {
+    if (/^```/.test(lignes[i])) while (++i < lignes.length && !/^```/.test(lignes[i]));
+    else if (lignes[i].trim() !== '' && !/^(- |\d+\. |\||#|---)/.test(lignes[i].trim())) paragraphe.push(lignes[i].trim());
+  }
+  let texte = paragraphe.join(' ').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').replace(/[`*{}]/g, '');
+  if (texte.length > 160) texte = texte.slice(0, 157).replace(/\s+\S*$/, '') + '…';
+  return texte;
+}
+
+/** La description d'un chapitre, précédée de son titre quand elle est trop courte pour un aperçu. */
+const apercu = (lignes, titre, deuxPoints) => {
+  const texte = description(lignes);
+  return texte.length >= 60 ? texte : texte ? `${titre}${deuxPoints}${texte}` : `${titre}.`;
+};
+
 /** Une adresse lisible : « 4. Les éléments » → « elements ». */
 const adresse = (titre) =>
   titre
@@ -137,7 +159,7 @@ const adresse = (titre) =>
 const fr = chapitres(lire('docs/guide.md'));
 const en = chapitres(lire('docs/guide.en.md'));
 const pages = en.map((chapitreEn, index) => {
-  const chapitreFr = fr[index] ?? { numero: null, titre: 'Les mots-clés de Humalis en anglais', lignes: ['Cette page présente les mots-clés de Humalis aux personnes qui lisent le guide en anglais.'] };
+  const chapitreFr = fr[index] ?? { numero: null, titre: 'Les mots-clés de Humalis en anglais', lignes: ['Cette page présente les mots-clés français de Humalis, avec leur sens, aux personnes qui lisent le guide en anglais.'] };
   const numero = chapitreEn.numero ?? index + 1;
   return {
     nom: `apprendre_${numero}`,
@@ -175,6 +197,8 @@ pages.forEach((p, index) => {
   sortie.push(
     '',
     `page ${guillemets(p.nom)} dans "apprendre" adresse ${guillemets(p.adresse)} :`,
+    '    apercu :',
+    `        description ${guillemets(apercu(p.fr, `Guide de Humalis, ${p.titreFr}`, ' : '))} en anglais ${guillemets(apercu(p.en, `Humalis guide, ${p.titreEn}`, ': '))}`,
     `    titre ${guillemets(p.titreFr)} en anglais ${guillemets(p.titreEn)}`,
     '    si langue est anglais :',
     ...corps(p.en, 8),

@@ -27,36 +27,73 @@ const EXEMPLES = [
   {
     id: 'boutique',
     nom: { fr: 'Boutique', en: 'Shop' },
-    code: `page "boutique" :
-    titre "Nos produits"
-    variable produits = ["Livre", "Stylo", "Cahier"]
-    pour chaque nom dans produits :
-        texte nom
-    bouton "Commander"
+    code: `theme :
+    couleur marque "#0f766e"
+    mode clair
+
+style :
+    body { background: #f4f7f6; }
+    .vitrine { max-width: 760px; margin: 0 auto; padding: 2.5rem 1rem; }
+    .produit { background: #fff; border-radius: 1rem; padding: 1.5rem 1rem; text-align: center; font-weight: 600; box-shadow: 0 6px 20px rgb(15 118 110 / 0.08); }
+    .commander { display: block; margin: 2rem auto 0; padding: 0.85rem 1.8rem; border: 0; border-radius: 999px; font-weight: 700; }
+
+page "boutique" :
+    bloc avec style "vitrine" :
+        titre "Nos produits" avec couleur marque
+        texte "Livraison offerte dès 30 €."
+        variable produits = ["Livre", "Stylo", "Cahier"]
+        grille avec colonnes 3 et espacement moyenne :
+            pour chaque nom dans produits :
+                texte nom avec style "produit"
+        bouton "Commander" avec fond marque et texte blanc et style "commander"
     quand l'utilisateur clique sur "Commander" :
-        afficher "Merci pour ta commande !"`,
+        afficher reussite "Merci pour ta commande !"`,
   },
   {
     id: 'compteur',
     nom: { fr: 'Compteur', en: 'Counter' },
-    code: `page "compteur" :
+    code: `theme :
+    couleur marque "#4338ca"
+    mode clair
+
+style :
+    body { background: #eef0fb; }
+    .carte { max-width: 360px; margin: 3rem auto; padding: 2rem; background: #fff; border-radius: 1.25rem; text-align: center; box-shadow: 0 12px 32px rgb(67 56 202 / 0.12); }
+    .nombre { font-size: 4rem; font-weight: 800; margin: 0.5rem 0; color: #4338ca; }
+    .cliquer { padding: 0.8rem 2rem; border: 0; border-radius: 999px; font-weight: 700; }
+
+page "compteur" :
     variable clics = 0
-    titre "Compteur"
-    texte "Tu as cliqué {clics} fois"
-    bouton "Cliquer"
+    bloc avec style "carte" :
+        titre "Compteur"
+        texte "{clics}" avec style "nombre"
+        texte "clics jusqu'ici"
+        bouton "Cliquer" avec fond marque et texte blanc et style "cliquer"
     quand l'utilisateur clique sur "Cliquer" :
         changer clics par clics + 1`,
   },
   {
     id: 'formulaire',
     nom: { fr: 'Formulaire', en: 'Form' },
-    code: `page "contact" :
-    titre "Nous écrire"
-    formulaire "message" :
-        champ "Nom" avec obligatoire
-        champ email "Email" avec obligatoire
-        champ texte long "Message"
-        bouton "Envoyer"
+    code: `theme :
+    couleur marque "#be185d"
+    mode clair
+
+style :
+    body { background: #fdf2f6; }
+    .carte { max-width: 480px; margin: 2.5rem auto; padding: 2rem; background: #fff; border-radius: 1.25rem; box-shadow: 0 12px 32px rgb(190 24 93 / 0.10); }
+    .carte input, .carte textarea { width: 100%; padding: 0.7rem 0.8rem; border: 1px solid #e7d3dc; border-radius: 0.6rem; font: inherit; box-sizing: border-box; }
+    .carte button { width: 100%; margin-top: 0.5rem; padding: 0.8rem; border: 0; border-radius: 0.6rem; font-weight: 700; }
+
+page "contact" :
+    bloc avec style "carte" :
+        titre "Nous écrire" avec couleur marque
+        texte "Réponse sous 24 heures."
+        formulaire "message" :
+            champ "Nom" avec obligatoire
+            champ email "Email" avec obligatoire
+            champ texte long "Message"
+            bouton "Envoyer" avec fond marque et texte blanc
     quand le formulaire "message" est soumis :
         afficher reussite "Message envoyé"`,
   },
@@ -64,48 +101,75 @@ const EXEMPLES = [
     id: 'restaurant',
     nom: { fr: 'Restaurant', en: 'Restaurant' },
     code: `theme :
-    couleur marque clair "#9a3412" sombre "#fdba74"
+    couleur marque "#9a3412"
     police titres "Georgia"
+    mode clair
+
+style :
+    body { background: #fbf7f2; }
+    .entete { text-align: center; padding: 2.5rem 1rem 1.5rem; }
+    .entete h1 { font-size: 2.6rem; margin: 0; letter-spacing: -0.02em; }
+    .entete p { color: #78716c; margin: 0.5rem 0 0; }
+    .plat { background: #fff; border-radius: 1rem; padding: 1.25rem; box-shadow: 0 8px 24px rgb(120 53 15 / 0.08); }
+    .plat h3 { margin: 0 0 0.25rem; }
+    .prix { color: #9a3412; font-weight: 700; margin: 0.5rem 0 0; }
+    .reserver { display: block; margin: 2rem auto; padding: 0.85rem 1.6rem; border-radius: 999px; border: 0; font-weight: 700; }
 
 page "accueil" :
-    titre "Le Comptoir" avec couleur marque
-    texte "Une cuisine de saison, au cœur de la ville."
+    bloc avec style "entete" :
+        titre "Le Comptoir" avec couleur marque
+        texte "Une cuisine de saison, au cœur de la ville."
     section :
         soustitre "Nos plats"
         grille avec colonnes 3 et espacement moyenne :
-            bloc avec ombre legere et bordure douce et remplissage moyenne :
+            bloc avec style "plat" :
                 soustitre "Risotto" avec niveau 3
-                texte "Champignons et parmesan, 16 €"
-            bloc avec ombre legere et bordure douce et remplissage moyenne :
+                texte "Champignons et parmesan"
+                texte "16 €" avec style "prix"
+            bloc avec style "plat" :
                 soustitre "Tarte fine" avec niveau 3
-                texte "Légumes du marché, 14 €"
-            bloc avec ombre legere et bordure douce et remplissage moyenne :
+                texte "Légumes du marché"
+                texte "14 €" avec style "prix"
+            bloc avec style "plat" :
                 soustitre "Poisson du jour" avec niveau 3
-                texte "Selon la pêche, 19 €"
-    bouton "Réserver une table" avec fond marque
+                texte "Selon la pêche"
+                texte "19 €" avec style "prix"
+    bouton "Réserver une table" avec fond marque et texte blanc et style "reserver"
     quand l'utilisateur clique sur "Réserver une table" :
         afficher reussite "À bientôt au Comptoir !"`,
   },
   {
     id: 'taches',
     nom: { fr: 'Tâches', en: 'To-do list' },
-    code: `page "taches" :
+    code: `theme :
+    couleur marque "#1d4ed8"
+    mode clair
+
+style :
+    body { background: #f1f5fb; }
+    .carte { max-width: 520px; margin: 2.5rem auto; padding: 2rem; background: #fff; border-radius: 1.25rem; box-shadow: 0 12px 32px rgb(29 78 216 / 0.10); }
+    .tache { justify-content: space-between; align-items: center; padding: 0.6rem 0; border-bottom: 1px solid #e5e9f2; }
+    .tache p { margin: 0; }
+    .ajouter { margin-bottom: 1rem; padding: 0.7rem 1.4rem; border: 0; border-radius: 999px; font-weight: 700; }
+
+page "taches" :
     variable taches = ["Acheter du pain", "Appeler Sam"]
     variable numero = 0
     calcul combien = nombre de taches
-    titre "Mes tâches"
-    texte "{combien} tâches à faire"
-    bouton "Ajouter une tâche"
+    bloc avec style "carte" :
+        titre "Mes tâches" avec couleur marque
+        texte "{combien} tâches à faire"
+        bouton "Ajouter une tâche" avec fond marque et texte blanc et style "ajouter"
+        pour chaque t dans taches :
+            ligne avec style "tache" :
+                texte t
+                bouton "Fait"
+                quand l'utilisateur clique sur "Fait" :
+                    retirer t de taches
+                    afficher reussite "Bravo !"
     quand l'utilisateur clique sur "Ajouter une tâche" :
         changer numero par numero + 1
-        ajouter "Tâche n° {numero}" à taches
-    pour chaque t dans taches :
-        ligne :
-            texte t
-            bouton "Fait"
-            quand l'utilisateur clique sur "Fait" :
-                retirer t de taches
-                afficher reussite "Bravo !"`,
+        ajouter "Tâche n° {numero}" à taches`,
   },
   {
     id: 'bilingue',
@@ -114,11 +178,23 @@ page "accueil" :
     francais
     anglais
 
+theme :
+    couleur marque "#b45309"
+    mode clair
+
+style :
+    body { background: linear-gradient(160deg, #fff7ed, #fef3c7); min-height: 100vh; }
+    .accueil { max-width: 560px; margin: 0 auto; padding: 3rem 1rem; text-align: center; }
+    .accueil h1 { font-size: 2.8rem; margin: 1.5rem 0 0.5rem; }
+    .accueil select { padding: 0.4rem 0.8rem; border: 1px solid #f3d9b1; border-radius: 999px; background: #fff; font: inherit; }
+    .bonjour { margin-top: 1.5rem; padding: 0.8rem 1.8rem; border: 0; border-radius: 999px; font-weight: 700; }
+
 page "accueil" :
-    selecteur de langue
-    titre "Bienvenue" en anglais "Welcome"
-    texte "Ce site parle français et anglais." en anglais "This site speaks French and English."
-    bouton "Dire bonjour" en anglais "Say hello"
+    bloc avec style "accueil" :
+        selecteur de langue
+        titre "Bienvenue" en anglais "Welcome" avec couleur marque
+        texte "Ce site parle français et anglais." en anglais "This site speaks French and English."
+        bouton "Dire bonjour" en anglais "Say hello" avec fond marque et texte blanc et style "bonjour"
     quand l'utilisateur clique sur "Dire bonjour" :
         afficher "Bonjour !" en anglais "Hello!"`,
   },

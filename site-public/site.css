@@ -126,3 +126,11 @@ html[data-theme=clair] a.exemple-lien{color:#4d6a00}
 .etape h2{margin:0 0 14px;font-family:'Space Grotesk',system-ui,sans-serif;font-size:20px}
 .etape p{color:var(--muted);margin:14px 0 0}
 .introuvable{min-height:50vh}
+/* Documentation : le bouton « Copier » des blocs de code, lisible sur leur fond sombre */
+.doc-contenu .humalis-bloc-code-conteneur{margin:0 0 20px}
+.doc-contenu .humalis-bloc-code-conteneur .humalis-bloc-code{margin:0;padding-right:96px}
+.doc-contenu .humalis-bloc-code-conteneur button{top:10px;right:10px;padding:5px 12px;border:1px solid #3b3e37;border-radius:8px;background:#1b1d1f;color:#e9ecef;font:600 12px/1.4 'Inter',system-ui,sans-serif;cursor:pointer;transition:background .15s,border-color .15s}
+.doc-contenu .humalis-bloc-code-conteneur button:hover{background:#26292b;border-color:var(--lime)}
+.doc-contenu .humalis-bloc-code-conteneur button:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+/* La légende d'un tableau reste lue par les lecteurs d'écran, sans s'afficher (elle répète les colonnes) */
+.doc-contenu caption{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
