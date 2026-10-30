@@ -1,6 +1,6 @@
 {
   "name": "humalis",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Un seul langage, en français, pour créer une application complète : web, mobile, desktop et serveur",
   "type": "module",
   "bin": {
