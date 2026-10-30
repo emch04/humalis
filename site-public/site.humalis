@@ -78,6 +78,7 @@ pied avec style "site-footer" :
             lien "Sommaire" en anglais "Contents" vers "documentation"
             lien "Premiers pas" en anglais "First steps" vers "documentation_1"
             lien "Les commandes" en anglais "Commands" vers "documentation_32"
+            lien "Nouveautés" en anglais "What’s new" vers "nouveautes"
         colonne avec style "footer-col" :
             texte "Projet" en anglais "Project" avec style "footer-titre"
             lien "GitHub" sans traduction vers "https://github.com/emch04/humalis" avec nouvel onglet
@@ -244,53 +245,140 @@ page "accueil" :
 
 page "bac_a_sable" a l'adresse "/bac-a-sable" avec filtre exemple :
     apercu :
-        description "Essaie Humalis dans ton navigateur : écris du code en français et vois le site apparaître au fil de la frappe." en anglais "Try Humalis in your browser: write code in French and watch the site appear as you type."
-    bloc avec style "page-intro" :
         titre "Bac à sable" en anglais "Playground"
-        texte "Écris du Humalis à gauche : le site apparaît à droite, au fil de la frappe. Tout se passe dans ton navigateur." en anglais "Write Humalis on the left: the site appears on the right as you type. Everything runs in your browser."
+        description "Essaie Humalis dans ton navigateur : écris du code en français et vois le site apparaître au fil de la frappe." en anglais "Try Humalis in your browser: write code in French and watch the site appear as you type."
+    ligne avec style "bac-entete" et animation montee :
+        colonne avec style "bac-entete-texte" :
+            texte "Rien à installer" en anglais "Nothing to install" avec style "eyebrow"
+            titre "Bac à {accent "sable."}" en anglais "{accent "Playground."}" avec style "install-titre"
+            texte "Écris du Humalis à gauche : le site apparaît à droite, au fil de la frappe. Choisis un exemple pour partir de quelque chose, ou efface tout et commence par une phrase." en anglais "Write Humalis on the left: the site appears on the right as you type. Pick an example to start from something, or clear everything and begin with one sentence." avec style "hero-intro"
+        colonne avec style "bac-astuces" et animation montee au defilement et en cascade :
+            texte "Tab ajoute quatre espaces : c’est l’indentation de Humalis." en anglais "Tab adds four spaces: that is Humalis indentation." avec style "bac-astuce"
+            texte "Les erreurs s’affichent sous l’éditeur, en français, avec la ligne." en anglais "Errors show below the editor, with the line number." avec style "bac-astuce"
+            texte "Tout reste dans ton navigateur : ton code n’est envoyé nulle part." en anglais "Everything stays in your browser: your code is sent nowhere." avec style "bac-astuce"
     EditeurHumalis avec exemple exemple
+    bloc avec style "install-section" :
+        colonne avec style "section-heading" :
+            soustitre "Et maintenant ?" en anglais "What next?"
+        grille avec colonnes 3 et style "bac-suite" et animation montee au defilement et en cascade :
+            bloc avec style "install-carte" et effet leve :
+                soustitre "Apprendre le langage" en anglais "Learn the language" avec niveau 3
+                texte "Chaque construction de Humalis, avec un exemple vérifié." en anglais "Every Humalis construct, with a checked example."
+                lien "Lire la documentation →" en anglais "Read the docs →" vers "documentation" avec style "exemple-lien"
+            bloc avec style "install-carte" et effet leve :
+                soustitre "Partir d’un exemple" en anglais "Start from an example" avec niveau 3
+                texte "Six applications complètes à ouvrir et à modifier." en anglais "Six complete apps to open and change."
+                lien "Voir les exemples →" en anglais "See the examples →" vers "exemples" avec style "exemple-lien"
+            bloc avec style "install-carte" et effet leve :
+                soustitre "Travailler sur ta machine" en anglais "Work on your machine" avec niveau 3
+                texte "Trois commandes pour créer ton projet et le voir vivre." en anglais "Three commands to create your project and see it live."
+                lien "Installer Humalis →" en anglais "Install Humalis →" vers "installer" avec style "exemple-lien"
 
 page "exemples" a l'adresse "/exemples" :
     apercu :
-        description "Des applications écrites en Humalis : boutique, formulaire, restaurant, liste de tâches. Ouvre chacune dans le bac à sable." en anglais "Apps written in Humalis: shop, form, restaurant, to-do list. Open each one in the playground."
-    bloc avec style "page-intro" :
         titre "Exemples" en anglais "Examples"
-        texte "Des applications complètes, écrites en quelques lignes. Ouvre-les dans le bac à sable pour les modifier." en anglais "Complete apps, written in a few lines. Open them in the playground to change them."
-    bloc avec style "page-section" :
-        grille avec colonnes 3 et style "feature-grid" et animation montee au defilement et en cascade :
-            bloc avec style "feature-card exemple-card" :
-                icone "panier" avec decoratif
-                soustitre "Boutique" en anglais "Shop"
-                texte "Une liste de produits et un bouton qui répond." en anglais "A product list and a button that answers."
-                lien "Essayer →" en anglais "Try it →" vers "bac_a_sable" avec exemple "boutique" et style "exemple-lien"
-            bloc avec style "feature-card exemple-card" :
-                icone "plus_cercle" avec decoratif
-                soustitre "Compteur" en anglais "Counter"
-                texte "Une variable qui change à chaque clic." en anglais "A variable that changes on every click."
-                lien "Essayer →" en anglais "Try it →" vers "bac_a_sable" avec exemple "compteur" et style "exemple-lien"
-            bloc avec style "feature-card exemple-card" :
-                icone "courrier" avec decoratif
-                soustitre "Formulaire" en anglais "Form"
-                texte "Des champs obligatoires, vérifiés avant l’envoi." en anglais "Required fields, checked before sending."
-                lien "Essayer →" en anglais "Try it →" vers "bac_a_sable" avec exemple "formulaire" et style "exemple-lien"
-            bloc avec style "feature-card exemple-card" :
-                icone "couverts" avec decoratif
-                soustitre "Restaurant" en anglais "Restaurant"
-                texte "Un thème à ses couleurs, une grille de plats." en anglais "A theme in its own colours, a grid of dishes."
-                lien "Essayer →" en anglais "Try it →" vers "bac_a_sable" avec exemple "restaurant" et style "exemple-lien"
-            bloc avec style "feature-card exemple-card" :
-                icone "coche" avec decoratif
-                soustitre "Liste de tâches" en anglais "To-do list"
-                texte "Ajouter, compter et retirer des éléments d’une liste." en anglais "Add, count and remove items in a list."
-                lien "Essayer →" en anglais "Try it →" vers "bac_a_sable" avec exemple "taches" et style "exemple-lien"
-            bloc avec style "feature-card exemple-card" :
-                icone "globe" avec decoratif
-                soustitre "Site bilingue" en anglais "Bilingual site"
-                texte "Un site en français et en anglais, avec le sélecteur de langue." en anglais "A site in French and English, with the language switcher."
-                lien "Essayer →" en anglais "Try it →" vers "bac_a_sable" avec exemple "bilingue" et style "exemple-lien"
+        description "Des applications écrites en Humalis : boutique, formulaire, restaurant, liste de tâches. Ouvre chacune dans le bac à sable." en anglais "Apps written in Humalis: shop, form, restaurant, to-do list. Open each one in the playground."
+    ligne avec style "install-hero" :
+        colonne avec style "install-hero-texte" et animation montee :
+            texte "Six applications à ouvrir" en anglais "Six apps to open" avec style "eyebrow"
+            titre "Des {accent "exemples"} qui tiennent en quelques lignes." en anglais "{accent "Examples"} that fit in a few lines." avec style "install-titre"
+            texte "Chaque exemple est une vraie application, écrite en Humalis. Ouvre-le dans le bac à sable, change une phrase, et regarde le résultat changer avec toi." en anglais "Each example is a real app, written in Humalis. Open it in the playground, change one sentence, and watch the result change with you." avec style "hero-intro"
+            ligne avec style "install-pastilles" :
+                texte "100 % Humalis" sans traduction avec style "pastille"
+                texte "Modifiables en direct" en anglais "Editable live" avec style "pastille"
+                texte "Moins de 30 lignes" en anglais "Under 30 lines" avec style "pastille"
+        bloc avec style "install-terminal" et animation agrandissement :
+            ligne avec style "pane-top" :
+                texte "compteur.humalis" sans traduction
+            code humalis avec animation frappe :
+                page "compteur" :
+                    variable clics = 0
+                    titre "Compteur"
+                    texte "Tu as cliqué {clics} fois"
+                    bouton "Cliquer"
+                    quand l'utilisateur clique sur "Cliquer" :
+                        changer clics par clics + 1
+    bloc avec style "install-section" :
+        colonne avec style "section-heading" :
+            soustitre "Choisis, ouvre, modifie." en anglais "Pick, open, change."
+        grille avec colonnes 3 et style "exemples-grille" et animation montee au defilement et en cascade :
+            bloc avec style "exemple-carte ex-boutique" et effet leve :
+                bloc avec style "exemple-vignette" :
+                    texte "boutique.humalis" sans traduction avec style "vignette-fichier"
+                    texte "pour chaque nom dans produits :" sans traduction avec style "vignette-code"
+                colonne avec style "exemple-corps" :
+                    soustitre "Boutique" en anglais "Shop" avec niveau 3
+                    texte "Une liste de produits et un bouton qui répond." en anglais "A product list and a button that answers."
+                    ligne avec style "exemple-tags" :
+                    texte "Listes" en anglais "Lists" avec style "tag"
+                    texte "Boucle" en anglais "Loop" avec style "tag"
+                    lien "Ouvrir dans le bac à sable →" en anglais "Open in the playground →" vers "bac_a_sable" avec exemple "boutique" et style "exemple-lien"
+            bloc avec style "exemple-carte ex-compteur" et effet leve :
+                bloc avec style "exemple-vignette" :
+                    texte "compteur.humalis" sans traduction avec style "vignette-fichier"
+                    texte "changer clics par clics + 1" sans traduction avec style "vignette-code"
+                colonne avec style "exemple-corps" :
+                    soustitre "Compteur" en anglais "Counter" avec niveau 3
+                    texte "Une variable qui change à chaque clic." en anglais "A variable that changes on every click."
+                    ligne avec style "exemple-tags" :
+                    texte "Variables" en anglais "Variables" avec style "tag"
+                    texte "Clic" en anglais "Click" avec style "tag"
+                    lien "Ouvrir dans le bac à sable →" en anglais "Open in the playground →" vers "bac_a_sable" avec exemple "compteur" et style "exemple-lien"
+            bloc avec style "exemple-carte ex-formulaire" et effet leve :
+                bloc avec style "exemple-vignette" :
+                    texte "formulaire.humalis" sans traduction avec style "vignette-fichier"
+                    texte "champ email \"Email\" avec obligatoire" sans traduction avec style "vignette-code"
+                colonne avec style "exemple-corps" :
+                    soustitre "Formulaire" en anglais "Form" avec niveau 3
+                    texte "Des champs obligatoires, vérifiés avant l’envoi." en anglais "Required fields, checked before sending."
+                    ligne avec style "exemple-tags" :
+                    texte "Formulaire" en anglais "Form" avec style "tag"
+                    texte "Validation" en anglais "Validation" avec style "tag"
+                    lien "Ouvrir dans le bac à sable →" en anglais "Open in the playground →" vers "bac_a_sable" avec exemple "formulaire" et style "exemple-lien"
+            bloc avec style "exemple-carte ex-restaurant" et effet leve :
+                bloc avec style "exemple-vignette" :
+                    texte "restaurant.humalis" sans traduction avec style "vignette-fichier"
+                    texte "couleur marque \"#9a3412\"" sans traduction avec style "vignette-code"
+                colonne avec style "exemple-corps" :
+                    soustitre "Restaurant" en anglais "Restaurant" avec niveau 3
+                    texte "Un thème à ses couleurs, une grille de plats." en anglais "A theme in its own colours, a grid of dishes."
+                    ligne avec style "exemple-tags" :
+                    texte "Thème" en anglais "Theme" avec style "tag"
+                    texte "Grille" en anglais "Grid" avec style "tag"
+                    texte "CSS" en anglais "CSS" avec style "tag"
+                    lien "Ouvrir dans le bac à sable →" en anglais "Open in the playground →" vers "bac_a_sable" avec exemple "restaurant" et style "exemple-lien"
+            bloc avec style "exemple-carte ex-taches" et effet leve :
+                bloc avec style "exemple-vignette" :
+                    texte "taches.humalis" sans traduction avec style "vignette-fichier"
+                    texte "retirer t de taches" sans traduction avec style "vignette-code"
+                colonne avec style "exemple-corps" :
+                    soustitre "Liste de tâches" en anglais "To-do list" avec niveau 3
+                    texte "Ajouter, compter et retirer des éléments d’une liste." en anglais "Add, count and remove items in a list."
+                    ligne avec style "exemple-tags" :
+                    texte "Listes" en anglais "Lists" avec style "tag"
+                    texte "Calcul" en anglais "Count" avec style "tag"
+                    lien "Ouvrir dans le bac à sable →" en anglais "Open in the playground →" vers "bac_a_sable" avec exemple "taches" et style "exemple-lien"
+            bloc avec style "exemple-carte ex-bilingue" et effet leve :
+                bloc avec style "exemple-vignette" :
+                    texte "bilingue.humalis" sans traduction avec style "vignette-fichier"
+                    texte "titre \"Bienvenue\" en anglais \"Welcome\"" sans traduction avec style "vignette-code"
+                colonne avec style "exemple-corps" :
+                    soustitre "Site bilingue" en anglais "Bilingual site" avec niveau 3
+                    texte "Un site en français et en anglais, avec le sélecteur de langue." en anglais "A site in French and English, with the language switcher."
+                    ligne avec style "exemple-tags" :
+                    texte "Langues" en anglais "Languages" avec style "tag"
+                    lien "Ouvrir dans le bac à sable →" en anglais "Open in the playground →" vers "bac_a_sable" avec exemple "bilingue" et style "exemple-lien"
+    bloc avec style "install-section" :
+        bloc avec style "call-panel" et animation agrandissement au defilement :
+            soustitre "À toi d’écrire le tien." en anglais "Now write your own."
+            texte "Pars d’une page vide et d’une phrase : le bac à sable te montre le résultat aussitôt." en anglais "Start from an empty page and one sentence: the playground shows you the result right away."
+            ligne avec style "hero-actions" :
+                lien "Ouvrir le bac à sable →" en anglais "Open the playground →" vers "bac_a_sable" avec style "button button-primary"
+                lien "Lire la documentation" en anglais "Read the docs" vers "documentation" avec style "button button-secondary"
 
 page "installer" a l'adresse "/installer" :
     apercu :
+        titre "Installer Humalis" en anglais "Install Humalis"
         description "Installe Humalis en une commande, crée ton premier projet et lance-le dans ton navigateur en quelques minutes." en anglais "Install Humalis with one command, create your first project and run it in your browser within minutes."
     # En haut : le texte à gauche, la session complète qui se tape à droite.
     ligne avec style "install-hero" :
@@ -401,6 +489,54 @@ page "installer" a l'adresse "/installer" :
             ligne avec style "hero-actions" :
                 lien "Ouvrir le bac à sable →" en anglais "Open the playground →" vers "bac_a_sable" avec style "button button-primary"
                 lien "Voir les exemples" en anglais "See the examples" vers "exemples" avec style "button button-secondary"
+
+page "nouveautes" a l'adresse "/nouveautes" :
+    apercu :
+        titre "Nouveautés" en anglais "What’s new"
+        description "Ce qui change dans Humalis, version après version : nouvelles constructions du langage, corrections et améliorations." en anglais "What changes in Humalis, release after release: new language constructs, fixes and improvements."
+    ligne avec style "install-hero nouveautes-entete" :
+        colonne avec style "install-hero-texte" et animation montee :
+            texte "Journal des versions" en anglais "Release notes" avec style "eyebrow"
+            titre "Les {accent "nouveautés."}" en anglais "What’s {accent "new."}" avec style "install-titre"
+            texte "Ce qui change dans le langage et son compilateur, de la plus récente version à la première. Pour mettre à jour : {code "npm install -g humalis"}." en anglais "What changes in the language and its compiler, from the latest release to the first. To update: {code "npm install -g humalis"}." avec style "hero-intro"
+    bloc avec style "install-section frise" et animation montee au defilement et en cascade :
+        bloc avec style "version version-recente" :
+            ligne avec style "version-tete" :
+                texte "1.1.0" sans traduction avec style "version-numero"
+                texte "Dernière version" en anglais "Latest" avec style "pastille pastille-vive"
+                texte "30 octobre 2026" en anglais "October 30, 2026" avec style "version-date"
+            soustitre "Écrire une documentation, animer le code" en anglais "Write documentation, animate code"
+            liste :
+                texte "Les listes ({code "liste :"}, {code "liste numerotee :"}), les tableaux ({code "tableau"}, {code "colonnes"}, {code "rangee"}), le code dans une phrase ({code "{code "…"}"}) et les blocs de code colorés avec un bouton Copier." en anglais "Lists ({code "liste :"}, {code "liste numerotee :"}), tables ({code "tableau"}, {code "colonnes"}, {code "rangee"}), code in a sentence ({code "{code "…"}"}) and coloured code blocks with a Copy button."
+                texte "{code "avec animation frappe"} : un bloc de code s’écrit lettre par lettre, au chargement ou quand il arrive à l’écran." en anglais "{code "avec animation frappe"}: a code block types itself letter by letter, on load or when it scrolls into view."
+                texte "{code "changer x par champ "…""} et {code "ajouter champ "…" à liste"} : la valeur d’un champ dans une variable ou une liste." en anglais "{code "changer x par champ "…""} and {code "ajouter champ "…" à liste"}: a field’s value into a variable or a list."
+                texte "{code "{accent "…"}"} met un mot en valeur ; {code "sans traduction"} garde un nom propre identique dans toutes les langues." en anglais "{code "{accent "…"}"} highlights a word; {code "sans traduction"} keeps a proper noun the same in every language."
+                texte "{code "menu repliable"}, {code "basculer theme"}, {code "si theme est sombre"}, l’animation {code "en cascade"} et le lien « Aller au contenu » automatique." en anglais "{code "menu repliable"}, {code "basculer theme"}, {code "si theme est sombre"}, the {code "en cascade"} animation and the automatic “Skip to content” link."
+                texte "Les sous-titres prennent seuls le bon niveau dans une carte ; les ancres de l’en-tête et du pied sont vérifiées." en anglais "Subtitles get the right level on their own inside a card; header and footer anchors are checked."
+                texte "Le compilateur fonctionne aussi dans le navigateur : c’est lui qui fait tourner le bac à sable." en anglais "The compiler also runs in the browser: it powers the playground."
+        bloc avec style "version" :
+            ligne avec style "version-tete" :
+                texte "1.0.4" sans traduction avec style "version-numero"
+                texte "30 octobre 2026" en anglais "October 30, 2026" avec style "version-date"
+            soustitre "La Licence Humalis" en anglais "The Humalis License"
+            liste :
+                texte "Humalis passe sous sa propre licence, la Licence Humalis 1.0 : l’utiliser est libre, le revendre ne l’est pas." en anglais "Humalis moves to its own license, the Humalis License 1.0: using it is free, reselling it is not."
+        bloc avec style "version" :
+            ligne avec style "version-tete" :
+                texte "1.0.1 – 1.0.3" sans traduction avec style "version-numero"
+                texte "30 octobre 2026" en anglais "October 30, 2026" avec style "version-date"
+            soustitre "Le logo partout" en anglais "The logo everywhere"
+            liste :
+                texte "Le logo s’affiche dans la présentation sur npm et sur GitHub, en thème clair comme en thème sombre." en anglais "The logo shows in the README on npm and GitHub, in light and dark themes."
+        bloc avec style "version" :
+            ligne avec style "version-tete" :
+                texte "1.0.0" sans traduction avec style "version-numero"
+                texte "30 octobre 2026" en anglais "October 30, 2026" avec style "version-date"
+            soustitre "La première version" en anglais "The first release"
+            liste :
+                texte "Un langage en français et son compilateur, pour cinq cibles : web, statique, mobile, bureau et serveur." en anglais "A language in French and its compiler, for five targets: web, static, mobile, desktop and server."
+                texte "Les commandes {code "nouveau"}, {code "developper"}, {code "compile"} et {code "verifier"}, et des messages d’erreur en français qui expliquent comment corriger." en anglais "The {code "nouveau"}, {code "developper"}, {code "compile"} and {code "verifier"} commands, and error messages that explain how to fix things."
+                texte "Un guide complet en français et en anglais." en anglais "A complete guide in French and English."
 
 page "mentions_legales" a l'adresse "/mentions-legales" :
     apercu :
