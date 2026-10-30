@@ -86,7 +86,7 @@ pied avec style "site-footer" :
             lien "Paquet npm" en anglais "npm package" vers "https://www.npmjs.com/package/humalis" avec nouvel onglet
             lien "Licence Humalis" en anglais "Humalis License" vers "https://github.com/emch04/humalis/blob/main/LICENSE" avec nouvel onglet
     ligne avec style "footer-bas" :
-        texte "© 2026 Les auteurs de Humalis · créé par emch04" en anglais "© 2026 The Humalis authors · created by emch04"
+        texte "© 2026 Les auteurs de Humalis. Tous droits réservés." en anglais "© 2026 The Humalis authors. All rights reserved."
         texte "Ce site est écrit en Humalis." en anglais "This site is written in Humalis."
 
 page "accueil" :
