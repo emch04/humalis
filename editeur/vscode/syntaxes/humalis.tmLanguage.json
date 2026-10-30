@@ -4,6 +4,9 @@
   "scopeName": "source.humalis",
   "patterns": [
     {
+      "include": "#blocCode"
+    },
+    {
       "include": "#blocStyle"
     },
     {
@@ -29,6 +32,19 @@
     }
   ],
   "repository": {
+    "blocCode": {
+      "begin": "^([ ]*)(code)(?:[ ]+[\\p{L}][\\p{L}0-9_]*)?[ ]*(:)[ ]*$",
+      "beginCaptures": {
+        "2": {
+          "name": "support.function.humalis"
+        },
+        "3": {
+          "name": "punctuation.separator.humalis"
+        }
+      },
+      "end": "^(?!\\1[ ]+|[ ]*$)",
+      "contentName": "string.unquoted.humalis"
+    },
     "blocStyle": {
       "begin": "^(style)\\s*(:)\\s*$",
       "beginCaptures": {
@@ -99,7 +115,7 @@
     },
     "contextuel": {
       "name": "support.function.humalis",
-      "match": "(?<![\\p{L}0-9_])(?i:[iîï]nf[eéèêë]r[iîï][eéèêë][uùûü]r[eéèêë]s|s[uùûü]p[eéèêë]r[iîï][eéèêë][uùûü]r[eéèêë]s|[uùûü]t[iîï]l[iîï]s[aàâä]t[eéèêë][uùûü]r|f[oôö]rm[uùûü]l[aàâä][iîï]r[eéèêë]|[iîï]nf[eéèêë]r[iîï][eéèêë][uùûü]r[eéèêë]|[iîï]nf[eéèêë]r[iîï][eéèêë][uùûü]rs|s[oôö][uùûü]st[iîï]tr[eéèêë]s|s[uùûü]p[eéèêë]r[iîï][eéèêë][uùûü]r[eéèêë]|s[uùûü]p[eéèêë]r[iîï][eéèêë][uùûü]rs|[iîï]nf[eéèêë]r[iîï][eéèêë][uùûü]r|r[eéèêë]d[iîï]r[iîï]g[eéèêë]r|s[oôö][uùûü]st[iîï]tr[eéèêë]|s[uùûü]p[eéèêë]r[iîï][eéèêë][uùûü]r|s[uùûü]rv[oôö]l[eéèêë]nt|[aàâä]ff[iîï][cç]h[eéèêë]r|[uùûü]t[iîï]l[iîï]s[eéèêë]r|[aàâä]j[oôö][uùûü]t[eéèêë]r|[cç]h[aàâä]ng[eéèêë]r|[cç]l[iîï]q[uùûü][eéèêë]s|[eéèêë]nv[oôö]y[eéèêë]r|m[oôö]ntr[eéèêë]r|r[eéèêë]q[uùûü][eéèêë]t[eéèêë]|r[eéèêë]t[iîï]r[eéèêë]r|s[uùûü]rv[oôö]l[eéèêë]|b[oôö][uùûü]t[oôö]n|[cç][aàâä][cç]h[eéèêë]r|[cç][aàâä]l[cç][uùûü]l|[cç]h[aàâä]q[uùûü][eéèêë]|[cç]h[aàâä]rg[eéèêë]|[cç]l[iîï]q[uùûü][eéèêë]|[eéèêë]g[aàâä]l[eéèêë]s|[eéèêë]rr[eéèêë][uùûü]r|n[oôö]mbr[eéèêë]|s[oôö][uùûü]m[iîï]s|[cç]h[aàâä]mp|[eéèêë]g[aàâä]l[eéèêë]|[eéèêë]g[aàâä][uùûü]x|[iîï]m[aàâä]g[eéèêë]|styl[eéèêë]|t[eéèêë]xt[eéèêë]|t[iîï]tr[eéèêë]|[eéèêë]g[aàâä]l|l[iîï][eéèêë]n|v[iîï]d[eéèêë]|s[uùûü]r)(?![\\p{L}0-9_])"
+      "match": "(?<![\\p{L}0-9_])(?i:[iîï]nf[eéèêë]r[iîï][eéèêë][uùûü]r[eéèêë]s|s[uùûü]p[eéèêë]r[iîï][eéèêë][uùûü]r[eéèêë]s|[uùûü]t[iîï]l[iîï]s[aàâä]t[eéèêë][uùûü]r|f[oôö]rm[uùûü]l[aàâä][iîï]r[eéèêë]|[iîï]nf[eéèêë]r[iîï][eéèêë][uùûü]r[eéèêë]|[iîï]nf[eéèêë]r[iîï][eéèêë][uùûü]rs|s[oôö][uùûü]st[iîï]tr[eéèêë]s|s[uùûü]p[eéèêë]r[iîï][eéèêë][uùûü]r[eéèêë]|s[uùûü]p[eéèêë]r[iîï][eéèêë][uùûü]rs|[iîï]nf[eéèêë]r[iîï][eéèêë][uùûü]r|r[eéèêë]d[iîï]r[iîï]g[eéèêë]r|s[oôö][uùûü]st[iîï]tr[eéèêë]|s[uùûü]p[eéèêë]r[iîï][eéèêë][uùûü]r|s[uùûü]rv[oôö]l[eéèêë]nt|[aàâä]ff[iîï][cç]h[eéèêë]r|t[aàâä]bl[eéèêë][aàâä][uùûü]x|[uùûü]t[iîï]l[iîï]s[eéèêë]r|[aàâä]j[oôö][uùûü]t[eéèêë]r|[cç]h[aàâä]ng[eéèêë]r|[cç]l[iîï]q[uùûü][eéèêë]s|[eéèêë]nv[oôö]y[eéèêë]r|m[oôö]ntr[eéèêë]r|r[eéèêë]q[uùûü][eéèêë]t[eéèêë]|r[eéèêë]t[iîï]r[eéèêë]r|s[uùûü]rv[oôö]l[eéèêë]|t[aàâä]bl[eéèêë][aàâä][uùûü]|b[oôö][uùûü]t[oôö]n|[cç][aàâä][cç]h[eéèêë]r|[cç][aàâä]l[cç][uùûü]l|[cç]h[aàâä]q[uùûü][eéèêë]|[cç]h[aàâä]rg[eéèêë]|[cç]l[iîï]q[uùûü][eéèêë]|[eéèêë]g[aàâä]l[eéèêë]s|[eéèêë]rr[eéèêë][uùûü]r|l[iîï]st[eéèêë]s|n[oôö]mbr[eéèêë]|s[oôö][uùûü]m[iîï]s|[cç]h[aàâä]mp|[eéèêë]g[aàâä]l[eéèêë]|[eéèêë]g[aàâä][uùûü]x|[iîï]m[aàâä]g[eéèêë]|l[iîï]st[eéèêë]|styl[eéèêë]|t[eéèêë]xt[eéèêë]|t[iîï]tr[eéèêë]|[eéèêë]g[aàâä]l|l[iîï][eéèêë]n|v[iîï]d[eéèêë]|s[uùûü]r)(?![\\p{L}0-9_])"
     },
     "nombre": {
       "name": "constant.numeric.humalis",

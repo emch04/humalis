@@ -184,7 +184,7 @@ export interface LangueRI {
 }
 
 /** Les parties d'un texte : du texte écrit, ou une valeur lue. */
-export type PartiesTexte = ({ texte: string; accent?: true } | PartieVariable)[];
+export type PartiesTexte = ({ texte: string; accent?: true; code?: true } | PartieVariable)[];
 
 /** Les paramètres donnés à une page cible : « avec id p.id ». */
 export type ArgumentsPage = { nom: string; valeur: Valeur }[];
@@ -304,6 +304,8 @@ export interface GraphiqueRI {
 }
 
 export type NoeudVue =
+  | { type: 'codeDocumentation'; langage?: string; code: string; ligne: number }
+  | { type: 'tableauDocumentation'; legende: Valeur; colonnes: Valeur[]; rangees: Valeur[][]; ligne: number }
   | {
       type: 'element';
       /** Identifiant stable : c'est par lui que les gestionnaires visent l'élément. */

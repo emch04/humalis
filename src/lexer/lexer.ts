@@ -31,6 +31,21 @@ function motColle(ligne: string, debut: number, premier: string): string | null 
   return null;
 }
 
+/**
+ * Le guillemet qui ferme un {code "…"} ou un {accent "…"} commencé à `debut` : le premier « "} »
+ * où les accolades du contenu sont équilibrées ({code "{accent "…"}"}), sinon le premier « "} »
+ * ({code "{"}). -1 s'il n'y en a pas.
+ */
+function finDuMorceau(texte: string, debut: number): number {
+  let profondeur = 0;
+  for (let j = debut; j < texte.length; j++) {
+    if (texte.startsWith('"}', j) && profondeur <= 0) return j;
+    if (texte[j] === '{') profondeur++;
+    if (texte[j] === '}') profondeur--;
+  }
+  return texte.indexOf('"}', debut);
+}
+
 function decouperChaine(
   valeur: string,
   ligne: number,
@@ -48,6 +63,13 @@ function decouperChaine(
       }
       i++;
       let nomVariable = '';
+      // {code "…"} et {accent "…"} : le morceau va jusqu'au premier « "} ».
+      const morceau = /^(code|accent)\s*"/.exec(valeur.slice(i));
+      const finMorceau = morceau ? finDuMorceau(valeur, i + morceau[0].length) : -1;
+      if (finMorceau >= 0) {
+        nomVariable = valeur.slice(i, finMorceau + 1);
+        i = finMorceau + 1;
+      }
       while (i < valeur.length && valeur[i] !== '}') {
         nomVariable += valeur[i];
         i++;
@@ -65,6 +87,10 @@ function decouperChaine(
         const contenu = /^\s*"([\s\S]*)"\s*$/.exec(accent[1]);
         if (!contenu) throw new ErreurLexicale('accent attend un texte entre guillemets : {accent "mot"}.', ligne, colonne);
         parties.push({ type: 'accent', valeur: contenu[1] });
+      } else if (/^code\s+\S/s.test(nomVariable.trim())) {
+        const contenu = /^code\s+"([\s\S]*)"\s*$/.exec(nomVariable.trim());
+        if (!contenu) throw new ErreurLexicale('code attend un texte entre guillemets : {code "titre"}.', ligne, colonne);
+        parties.push({ type: 'code', valeur: contenu[1] });
       } else parties.push({ type: 'variable', valeur: nomVariable.trim() });
       continue;
     }
@@ -88,10 +114,52 @@ export function analyser(source: string): Token[] {
     const ligne = lignes[numLigne];
     let i = 0;
 
+    const codeBrut = /^( *)(code)(?: +([\p{L}][\p{L}0-9_]*))? *: *$/u.exec(ligne);
+    if (codeBrut) {
+      const contenu: string[] = [];
+      const indentation = codeBrut[1].length;
+      if (indentation % 4 !== 0) throw new ErreurLexicale('indentation incohérente : un multiple de 4 est attendu', numLigne + 1, 1);
+      const niveau = indentation / 4;
+      const courant = pile[pile.length - 1];
+      if (niveau > courant + 1) throw new ErreurLexicale('indentation incohérente : un seul niveau à la fois', numLigne + 1, 1);
+      if (niveau === courant + 1) {
+        pile.push(niveau);
+        tokens.push({ type: 'INDENT', valeur: '', ligne: numLigne + 1, colonne: 1 });
+      } else while (pile.length > 1 && pile[pile.length - 1] > niveau) {
+        pile.pop();
+        tokens.push({ type: 'DEDENT', valeur: '', ligne: numLigne + 1, colonne: 1 });
+      }
+      if (pile[pile.length - 1] !== niveau) throw new ErreurLexicale('indentation incohérente : ce niveau ne correspond à aucun bloc ouvert', numLigne + 1, 1);
+      while (numLigne + 1 < lignes.length) {
+        const suivante = lignes[numLigne + 1];
+        const marge = suivante.length - suivante.trimStart().length;
+        if (suivante.trim() !== '' && marge <= indentation) break;
+        contenu.push(lignes[++numLigne]);
+      }
+      while (contenu.length && contenu[contenu.length - 1].trim() === '') contenu.pop();
+      const marge = Math.min(...contenu.filter((l) => l.trim() !== '').map((l) => l.length - l.trimStart().length));
+      const brut = contenu.map((l) => l.slice(Math.min(marge, l.length - l.trimStart().length))).join('\n');
+      const ligneDebut = numLigne - contenu.length + 1;
+      tokens.push(
+        { type: 'MOT_CLE', valeur: 'code', ligne: ligneDebut, colonne: indentation + 1, reserve: false, original: 'code' },
+        ...(codeBrut[3] ? [{ type: 'IDENTIFIANT' as const, valeur: codeBrut[3], ligne: ligneDebut, colonne: indentation + 6 }] : []),
+        { type: 'PONCTUATION', valeur: ':', ligne: ligneDebut, colonne: ligne.indexOf(':') + 1 },
+        { type: 'FIN_LIGNE', valeur: '', ligne: ligneDebut, colonne: ligne.length + 1 },
+        { type: 'CODE_BRUT', valeur: brut, ligne: ligneDebut + 1, colonne: 1 },
+        { type: 'FIN_LIGNE', valeur: '', ligne: numLigne + 1, colonne: 1 },
+      );
+      continue;
+    }
+
     // « style : » au début d'une ligne, hors de tout bloc : les lignes
     // indentées qui suivent sont du CSS, recopié tel quel. Il contient des
     // {, des : et des # qui ne doivent pas être lus comme du Humalis.
-    if (pile.length === 1 && /^style\s*:\s*$/i.test(ligne)) {
+    if (/^style\s*:\s*$/i.test(ligne)) {
+      // Juste après un bloc de haut de fichier (« theme : »), ce bloc se ferme ici.
+      while (pile.length > 1) {
+        pile.pop();
+        tokens.push({ type: 'DEDENT', valeur: '', ligne: numLigne + 1, colonne: 1 });
+      }
       const debut = numLigne;
       const contenu: string[] = [];
       while (numLigne + 1 < lignes.length && (lignes[numLigne + 1].trim() === '' || /^\s/.test(lignes[numLigne + 1]))) {
@@ -195,6 +263,15 @@ export function analyser(source: string): Token[] {
         let valeur = '';
         let profondeur = 0;
         while (i < ligne.length && (ligne[i] !== '"' || (profondeur > 0 && ligne.indexOf('}', i + 1) >= 0))) {
+          // {code "…"} et {accent "…"} : recopiés tels quels jusqu'au premier « "} »
+          // (accolades, guillemets et antislashs compris).
+          const morceau = /^\{(code|accent)\s*"/.exec(ligne.slice(i));
+          const fin = morceau ? finDuMorceau(ligne, i + morceau[0].length) : -1;
+          if (fin >= 0) {
+            valeur += ligne.slice(i, fin + 2);
+            i = fin + 2;
+            continue;
+          }
           // \" écrit un guillemet dans le texte ; tout autre antislash reste tel quel
           // (« \\ » aussi, en entier : un texte peut finir par lui, comme avant).
           if (ligne[i] === '\\' && ligne[i + 1] === '\\') {

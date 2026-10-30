@@ -16,7 +16,7 @@ export function avertirNomsDuLangage(programme: Programme): Diagnostic[] {
 
   const avertir = (nom: string, ligne: number) => {
     const canonique = formeCanonique(nom);
-    if (canonique && MOTS_CONTEXTUELS.has(canonique)) {
+    if (canonique && canonique !== 'liste' && MOTS_CONTEXTUELS.has(canonique)) {
       diagnostics.push({
         gravite: 'avertissement',
         message: `la variable « ${nom} » porte le nom d'un mot du langage ; c'est permis, mais cela peut prêter à confusion.`,

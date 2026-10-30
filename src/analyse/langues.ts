@@ -80,8 +80,18 @@ function textesDesOptions(instruction: Instruction, vus: LitteralChaine[]): void
   }
 }
 
-/** Les textes que la personne voit : contenus d'éléments, titres de blocs, messages, aperçu. */
-function textesVisibles(instructions: Instruction[], vus: LitteralChaine[]): void {
+/** « si langue est anglais : » (ou « n'est pas ») : ses deux branches sont chacune écrites dans une seule langue. */
+const testeLaLangue = (instruction: Instruction): boolean => {
+  if (instruction.type !== 'Condition') return false;
+  const test = instruction.test;
+  return test.type === 'Comparaison' && test.gauche.type === 'Reference' && test.gauche.nom === 'langue' && test.droite?.type === 'Reference' && langueDuMot(test.droite.nom) !== undefined;
+};
+
+/**
+ * Les textes que la personne voit : contenus d'éléments, titres de blocs, messages, aperçu.
+ * Ceux d'une branche « si langue est … » vont aussi dans `uneLangue` : ils n'ont pas à être traduits.
+ */
+function textesVisibles(instructions: Instruction[], vus: LitteralChaine[], uneLangue?: Set<LitteralChaine>): void {
   const ajouter = (e: Expression | undefined) => {
     if (e?.type === 'Chaine') vus.push(e);
   };
@@ -107,9 +117,15 @@ function textesVisibles(instructions: Instruction[], vus: LitteralChaine[]): voi
     if (instruction.type === 'Bloc') ajouter(instruction.titre);
     for (const cle of ['corps', 'alors', 'sinon'] as const) {
       const enfants = (instruction as Partial<Record<typeof cle, Instruction[]>>)[cle];
-      if (Array.isArray(enfants)) textesVisibles(enfants, vus);
+      if (!Array.isArray(enfants)) continue;
+      if (cle !== 'corps' && uneLangue && testeLaLangue(instruction)) {
+        const dedans: LitteralChaine[] = [];
+        textesVisibles(enfants, dedans, uneLangue);
+        for (const texte of dedans) uneLangue.add(texte);
+        vus.push(...dedans);
+      } else textesVisibles(enfants, vus, uneLangue);
     }
-    if (instruction.type === 'Selon') for (const cas of instruction.cas) textesVisibles(cas.corps, vus);
+    if (instruction.type === 'Selon') for (const cas of instruction.cas) textesVisibles(cas.corps, vus, uneLangue);
   }
 }
 
@@ -250,13 +266,14 @@ export function analyserLangues(programme: Programme, diagnostics: Diagnostic[])
 
   // Les textes visibles : ceux des pages, des options et du bloc « site ».
   const visibles: LitteralChaine[] = [];
+  const uneLangue = new Set<LitteralChaine>();
   const pages: Page[] = programme.pages;
   for (const page of pages) {
-    textesVisibles(page.corps, visibles);
-    if (page.apercu) textesVisibles([page.apercu], visibles);
+    textesVisibles(page.corps, visibles, uneLangue);
+    if (page.apercu) textesVisibles([page.apercu], visibles, uneLangue);
   }
-  for (const disposition of [programme.entete, programme.pied]) if (disposition) textesVisibles(disposition.corps, visibles);
-  for (const composant of programme.composants) textesVisibles(composant.corps, visibles);
+  for (const disposition of [programme.entete, programme.pied]) if (disposition) textesVisibles(disposition.corps, visibles, uneLangue);
+  for (const composant of programme.composants) textesVisibles(composant.corps, visibles, uneLangue);
   for (const cle of ['nom', 'description'] as const) {
     const valeur = programme.site?.[cle];
     if (valeur !== undefined) visibles.push(programme.site?.textes?.[cle] ? plat(programme.site.textes[cle]!) : litteralDe(valeur, programme.site?.lignes[cle] ?? programme.site!.ligne));
@@ -307,7 +324,7 @@ export function analyserLangues(programme: Programme, diagnostics: Diagnostic[])
 
   // Les textes visibles sans version dans une langue déclarée.
   for (const texte of visibles) {
-    if (!aDesLettres(texte.parties)) continue;
+    if (!aDesLettres(texte.parties) || uneLangue.has(texte)) continue;
     const cle = texteSource(texte.parties);
     for (const langue of autres) {
       const ecrite = texte.versions?.some((v) => langueDuMot(v.langue) === langue);

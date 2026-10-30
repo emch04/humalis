@@ -72,6 +72,48 @@ const e = (
 const p = (texte: string): string => texte.replace(/^\n/, '').replace(/\n\s*$/, '');
 
 export const ENTREES_ERREURS: readonly EntreeErreur[] = [
+  e('code-ligne-guillemets', 'ecriture', 'Code dans une phrase sans guillemets',
+    'Le code affiché dans une phrase est un texte entre guillemets.',
+    'Écris {code "titre"}.',
+    'page "a" :\n    titre "A"\n    texte "Écris {code titre}."',
+    'page "a" :\n    titre "A"\n    texte "Écris {code "titre"}."',
+    'code attend un texte entre guillemets'),
+  e('tableau-contenu', 'grammaire', 'Une ligne inconnue dans un tableau',
+    'Un tableau contient une ligne colonnes puis des rangées.',
+    'Utilise colonnes ou rangee dans le tableau.',
+    'page "a" :\n    titre "A"\n    tableau "Détails" :\n        texte "Nom"',
+    'page "a" :\n    titre "A"\n    tableau "Détails" :\n        colonnes "Nom"\n        rangee "Livre"',
+    'un tableau contient « colonnes » et « rangee »'),
+  e('tableau-syntaxe', 'grammaire', 'Deux-points après un tableau',
+    'La légende est suivie de deux-points.',
+    'Ajoute deux-points après la légende.',
+    'page "a" :\n    titre "A"\n    tableau "Détails"',
+    'page "a" :\n    titre "A"\n    tableau "Détails" :\n        colonnes "Nom"\n        rangee "Livre"',
+    'deux-points après la légende du tableau', { sites: 0 }),
+  e('code-bloc-place', 'sens', 'Bloc de code dans un événement',
+    'Un exemple de code appartient à la page.',
+    'Place le bloc dans la page.',
+    'page "a" :\n    titre "A"\n    bouton "Voir"\n    quand utilisateur clique sur "Voir" :\n        code :\n            texte "exemple"',
+    'page "a" :\n    titre "A"\n    code :\n        texte "exemple"',
+    'un bloc de code se place dans une page'),
+  e('tableau-legende', 'sens', 'Tableau sans légende',
+    'Un tableau doit annoncer son contenu.',
+    'Ajoute une légende entre guillemets.',
+    'page "a" :\n    titre "A"\n    tableau :\n        colonnes "Nom"\n        rangee "Livre"',
+    'page "a" :\n    titre "A"\n    tableau "Produits" :\n        colonnes "Nom"\n        rangee "Livre"',
+    'un tableau attend une légende'),
+  e('tableau-colonnes', 'sens', 'Tableau sans colonnes',
+    'Les en-têtes définissent le nombre de cellules des rangées.',
+    'Ajoute une ligne colonnes.',
+    'page "a" :\n    titre "A"\n    tableau "Produits" :',
+    'page "a" :\n    titre "A"\n    tableau "Produits" :\n        colonnes "Nom"\n        rangee "Livre"',
+    'un tableau attend une ligne « colonnes »'),
+  e('tableau-largeur', 'sens', 'Rangée de mauvaise largeur',
+    'Chaque rangée doit avoir autant de cellules que de colonnes.',
+    'Ajoute la cellule manquante.',
+    'page "a" :\n    titre "A"\n    tableau "Produits" :\n        colonnes "Nom", "Prix"\n        rangee "Livre"',
+    'page "a" :\n    titre "A"\n    tableau "Produits" :\n        colonnes "Nom", "Prix"\n        rangee "Livre", "10"',
+    'la rangée a 1 cellules'),
   e('accent-sans-guillemets', 'ecriture', 'Texte accentué sans guillemets',
     'Le morceau à mettre en valeur doit être écrit entre guillemets.',
     'Écris {accent "mot"} à l’intérieur du texte.',
@@ -119,7 +161,7 @@ page "accueil" :
 page "accueil" :
     titre "Bienvenue"
 `),
-    'un multiple de 4 est attendu'),
+    'un multiple de 4 est attendu', { sites: 2 }),
   e('indentation-saut', 'ecriture', 'Un bloc qui descend de deux niveaux d’un coup',
     'Quand une ligne se termine par deux-points, la suivante se décale d’un seul niveau, pas de deux.',
     'Décale la ligne de 4 espaces seulement par rapport à la ligne qui ouvre le bloc.',
@@ -128,7 +170,7 @@ page "accueil" :
 page "accueil" :
     titre "Bienvenue"
 `),
-    'un seul niveau à la fois'),
+    'un seul niveau à la fois', { sites: 2 }),
   e('indentation-bloc', 'ecriture', 'Un niveau qui ne ferme aucun bloc',
     'Quand on remonte d’un niveau, la ligne doit retrouver le niveau d’un bloc déjà ouvert. Avec la règle « 4 espaces, un niveau à la fois », cette situation ne peut pas se produire en pratique : le message existe par sécurité.',
     'Si tu le vois un jour, c’est une vraie surprise : préviens-nous.',
@@ -141,7 +183,7 @@ page "accueil" :
     titre "Bienvenue"
 `),
     'ce niveau ne correspond à aucun bloc ouvert',
-    { atteignable: false }),
+    { atteignable: false, sites: 2 }),
   e('chaine-non-fermee', 'ecriture', 'Un guillemet oublié',
     'Un texte commence et se termine par un guillemet. Ici, le guillemet de fin manque, donc Humalis ne sait pas où le texte s’arrête.',
     'Ajoute le guillemet fermant avant la fin de la ligne.',
@@ -205,7 +247,8 @@ page "accueil" :
     'En attendant, utilise un mot déjà disponible : ici, un texte.',
     p(`
 page "accueil" :
-    tableau "Détails"
+    si non vrai :
+        texte "Détails"
 `),
     p(`
 page "accueil" :

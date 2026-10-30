@@ -327,3 +327,17 @@ describe('si theme est sombre', () => {
     expect(statique).toContain('const themeSombre = ');
   });
 });
+
+describe('le contraste avec un seul mode', () => {
+  const avertissements = (source: string) => compiler(source).diagnostics.filter((d) => d.gravite === 'avertissement').map((d) => d.message);
+  const page = 'page "a" :\n    titre "A" avec couleur marque\n    bouton "B" avec fond marque et texte blanc\n';
+
+  it('« mode clair » ne vérifie pas les couleurs en mode sombre', () => {
+    expect(avertissements(`theme :\n    couleur marque "#9a3412"\n    mode clair\n\n${page}`).join('\n')).not.toMatch(/sombre/);
+  });
+
+  it('un bouton qui change le thème garde la vérification des deux modes', () => {
+    const source = `theme :\n    couleur marque "#9a3412"\n    mode clair\n\n${page}    bouton "Thème"\n    quand l'utilisateur clique sur "Thème" :\n        basculer theme\n`;
+    expect(avertissements(source).join('\n')).toMatch(/mode sombre/);
+  });
+});

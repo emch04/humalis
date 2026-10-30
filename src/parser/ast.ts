@@ -300,6 +300,8 @@ export interface SousPage {
 }
 
 export type Instruction =
+  | CodeDocumentation
+  | TableauDocumentation
   | DeclarationVariable
   | Affectation
   | ModificationListe
@@ -680,7 +682,25 @@ export interface Formulaire {
 }
 
 /** Les blocs de mise en page : ils regroupent des éléments, que le CSS met en forme. */
+export interface CodeDocumentation {
+  type: 'CodeDocumentation';
+  langage?: string;
+  code: string;
+  ligne: number;
+}
+
+/** Les colonnes et les rangées d'un tableau de documentation. */
+export interface TableauDocumentation {
+  type: 'TableauDocumentation';
+  legende?: Expression;
+  colonnes: Expression[];
+  rangees: Expression[][];
+  ligne: number;
+}
+
 export type GenreBloc =
+  | 'liste'
+  | 'listeNumerotee'
   | 'section'
   | 'bloc'
   | 'ligne'

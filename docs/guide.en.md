@@ -195,6 +195,55 @@ page "offer" :
     texte "Price: {accent "free"} forever"
 ```
 
+### Lists
+
+`liste :` makes bullets; `liste numerotee :` numbers each item. Each instruction in the block becomes one item.
+
+```humalis
+page "guide" :
+    liste :
+        texte "Install Node.js"
+        texte "Create the project"
+    liste numerotee :
+        texte "Write the file"
+        texte "Compile"
+```
+
+### Code within a sentence
+
+In text, `{code "…"}` displays a short piece of code in a monospace font.
+
+```humalis
+page "guide" :
+    texte "Write {code "titre"} to add a heading."
+```
+
+### Code block
+
+`code language :` copies the indented lines without interpreting them; the language is optional.
+
+```humalis
+page "guide" :
+    code humalis :
+        page "home" :
+            titre "Welcome"
+```
+
+### Table
+
+A table has a caption, columns, and rows of equal width. A translation may follow each cell.
+
+```humalis
+langues :
+    francais
+    anglais
+
+page "guide" :
+    tableau "Commands" en anglais "Commands" :
+        colonnes "Command", "Role" en anglais "Role"
+        rangee "humalis compile", "builds the project" en anglais "builds the project"
+```
+
 ### Image
 
 ```humalis

@@ -104,6 +104,9 @@ page "accueil" :
 page "accueil" :
     titre "Bienvenue"
     texte "Ceci est la page d'accueil"
+    tableau "Exemples" :
+        colonnes "Élément"
+        rangee "texte"
 `)),
   programme('elements-soustitre', bloc(`
 page "carte" :

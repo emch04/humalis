@@ -212,10 +212,11 @@ function texteTS(parties: PartiesTexte, contexte: Contexte, langue?: string): st
 
 /** Le contenu d'un élément dans du JSX : `Bienvenue`, `{nom}`, `{panier.join(', ')}`. */
 export function contenuJSX(valeur: Valeur, contexte: Contexte): string {
-  if (valeur.type === 'texte' && (valeur.parties.some((p) => 'accent' in p && p.accent) || valeur.versions?.some((v) => v.parties.some((p) => 'accent' in p && p.accent)))) {
+  if (valeur.type === 'texte' && (valeur.parties.some((p) => 'texte' in p && (p.accent || p.code)) || valeur.versions?.some((v) => v.parties.some((p) => 'texte' in p && (p.accent || p.code))))) {
     const enfants = (parties: PartiesTexte) => parties.map((p) => {
       if ('texte' in p) return p.accent
         ? `<span className="humalis-accent">{${chaine(p.texte)}}</span>`
+        : p.code ? `<code className="humalis-code-ligne">{${chaine(p.texte)}}</code>`
         : `{${chaine(p.texte)}}`;
       return contenuJSX({ type: 'texte', parties: [p] }, contexte);
     }).join('');

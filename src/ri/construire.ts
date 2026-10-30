@@ -369,6 +369,14 @@ class Construction {
           noeuds.push(instruction.genre === 'carte' ? this.carte(instruction, gestionnaires) : this.bloc(instruction, gestionnaires));
           break;
 
+        case 'CodeDocumentation':
+          noeuds.push({ type: 'codeDocumentation', ...(instruction.langage ? { langage: instruction.langage } : {}), code: instruction.code, ligne: instruction.ligne });
+          break;
+
+        case 'TableauDocumentation':
+          noeuds.push({ type: 'tableauDocumentation', legende: this.valeur(instruction.legende!), colonnes: instruction.colonnes.map((c) => this.valeur(c)), rangees: instruction.rangees.map((r) => r.map((c) => this.valeur(c))), ligne: instruction.ligne });
+          break;
+
         case 'Formulaire':
           noeuds.push({
             type: 'formulaire',
@@ -883,6 +891,7 @@ function traduireValeur(expression: Expression, analyse: ResultatAnalyse): Valeu
         liste.map((p) => {
           if (p.type === 'texte') return { texte: p.valeur };
           if (p.type === 'accent') return { texte: p.valeur, accent: true };
+          if (p.type === 'code') return { texte: p.valeur, code: true };
           const format = analyse.formats.get(p);
           const pluriel = analyse.pluriels.get(p);
           return {

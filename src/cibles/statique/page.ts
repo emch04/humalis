@@ -9,6 +9,7 @@ import { verificationsDuChamp, messageEnCode, libellesEnLangues, type MessageEnL
  * script doivent donner exactement la même page.
  */
 import { sousActions } from '../../ri/actions.js';
+import { colorerCodeHumalis } from '../commun/colorerCode.js';
 import { arbreWidget, arbreComposite, initiales, type AideWidget, type AideComposite, type Enfant } from './widgets.js';
 import { iconeHtml, etoilesHtml } from './html-elements.js';
 import { appelGraphique, htmlGraphique } from './graphique.js';
@@ -943,7 +944,28 @@ ${prise}${code}}
         case 'graphique':
           e.ligne(`${appelGraphique(noeud, (v) => expressionJs(v, this.contexte))},`);
           break;
+        case 'codeDocumentation':
+          e.ligne(`creer('div', { class: 'humalis-bloc-code-conteneur' }, creer('pre', { class: 'humalis-bloc-code', 'data-langage': ${chaine(noeud.langage ?? '')} }, (() => { const code = document.createElement('code'); code.innerHTML = ${chaine(colorerCodeHumalis(noeud.code, noeud.langage))}; return code; })()), creer('button', { type: 'button', onclick: () => copier(${chaine(noeud.code)}) }, ${this.site.langues ? "langue() === 'en' ? 'Copy' : 'Copier'" : "'Copier'"})),`);
+          break;
+        case 'tableauDocumentation': {
+          const cellule = (valeur: Valeur, balise: string) => `creer('${balise}', {}, ${this.contenuAccentJs(valeur, 'texte')})`;
+          const rang = (valeurs: Valeur[], balise: string) => `creer('tr', {}, ${valeurs.map((v) => cellule(v, balise)).join(', ')})`;
+          e.ligne(`creer('div', { class: 'humalis-tableau-conteneur' }, creer('table', {}, creer('caption', {}, ${this.contenuAccentJs(noeud.legende, 'texte')}), creer('thead', {}, ${rang(noeud.colonnes, 'th')}), creer('tbody', {}, ${noeud.rangees.map((r) => rang(r, 'td')).join(', ')}))),`);
+          break;
+        }
         case 'bloc': {
+          if (noeud.genre === 'liste' || noeud.genre === 'listeNumerotee') {
+            const balise = noeud.genre === 'liste' ? 'ul' : 'ol';
+            e.ligne(`creer('${balise}', { class: 'humalis-liste' },`);
+            e.indenter(() => noeud.corps.forEach((enfant) => {
+              if (enfant.type === 'repetition') {
+                const debut = `...${expressionJs(enfant.liste, this.contexte)}.flatMap((${nomJs(enfant.variable)}) => `;
+                e.bloc(`${debut}[`, () => this.ecrireGroupe(e, enfant.corps, "creer('li', {}, ...", '),'), ']),');
+              } else this.ecrireGroupe(e, [enfant], "creer('li', {}, ...", '),');
+            }));
+            e.ligne('),');
+            break;
+          }
           if (COMPOSITES.has(noeud.genre)) {
             this.ecrireEnfantJs(e, arbreComposite(this.aideComposite(noeud, this.environnement())));
             break;
@@ -1181,7 +1203,38 @@ ${prise}${code}}
         case 'graphique':
           lignes.push(htmlGraphique(noeud, (v) => this.initial(v, env), (v) => this.texteInitial(v, env)));
           break;
+        case 'codeDocumentation':
+          lignes.push(`<div class="humalis-bloc-code-conteneur"><pre class="humalis-bloc-code" data-langage="${echapperTexte(noeud.langage ?? '')}"><code>${colorerCodeHumalis(noeud.code, noeud.langage)}</code></pre><button type="button">Copier</button></div>`);
+          break;
+        case 'tableauDocumentation': {
+          const cellule = (v: Valeur, balise: string) => `<${balise}>${this.contenuAccentHtml(v, 'texte', env)}</${balise}>`;
+          lignes.push('<div class="humalis-tableau-conteneur"><table>');
+          lignes.push(`<caption>${this.contenuAccentHtml(noeud.legende, 'texte', env)}</caption><thead><tr>${noeud.colonnes.map((v) => cellule(v, 'th')).join('')}</tr></thead><tbody>`);
+          for (const rangee of noeud.rangees) lignes.push(`<tr>${rangee.map((v) => cellule(v, 'td')).join('')}</tr>`);
+          lignes.push('</tbody></table></div>');
+          break;
+        }
         case 'bloc': {
+          if (noeud.genre === 'liste' || noeud.genre === 'listeNumerotee') {
+            const balise = noeud.genre === 'liste' ? 'ul' : 'ol';
+            lignes.push(`<${balise} class="humalis-liste">`);
+            for (const enfant of noeud.corps) {
+              if (enfant.type === 'repetition') {
+                const valeurs = evaluer(enfant.liste, env);
+                for (const valeur of Array.isArray(valeurs) ? valeurs : []) {
+                  lignes.push('<li>');
+                  this.ecrireGroupeHtml(enfant.corps, env.enfant().definir(enfant.variable, valeur), lignes);
+                  lignes.push('</li>');
+                }
+                continue;
+              }
+              lignes.push('<li>');
+              this.ecrireGroupeHtml([enfant], env, lignes);
+              lignes.push('</li>');
+            }
+            lignes.push(`</${balise}>`);
+            break;
+          }
           if (COMPOSITES.has(noeud.genre)) {
             this.ecrireEnfantHtml(arbreComposite(this.aideComposite(noeud, env)), env, lignes);
             break;
@@ -1238,19 +1291,19 @@ ${prise}${code}}
   private contenuAccentJs(valeur: Valeur, genre: string): string {
     if (valeur.type !== 'texte' || !['titre', 'soustitre', 'texte'].includes(genre)) return contenuJs(valeur, this.contexte);
     const parties = (liste: typeof valeur.parties) => liste.map((p) => 'texte' in p
-      ? p.accent ? `creer('span', { class: 'humalis-accent' }, ${chaine(p.texte)})` : chaine(p.texte)
+      ? p.accent ? `creer('span', { class: 'humalis-accent' }, ${chaine(p.texte)})` : p.code ? `creer('code', { class: 'humalis-code-ligne' }, ${chaine(p.texte)})` : chaine(p.texte)
       : contenuJs({ type: 'texte', parties: [p] }, this.contexte)).join(', ');
-    const accent = (liste: typeof valeur.parties) => liste.some((p) => 'accent' in p && p.accent);
+    const accent = (liste: typeof valeur.parties) => liste.some((p) => 'texte' in p && (p.accent || p.code));
     if (!accent(valeur.parties) && !valeur.versions?.some((v) => accent(v.parties))) return contenuJs(valeur, this.contexte);
     if (valeur.versions) return `...(${valeur.versions.slice(1).map((v) => `langue() === ${chaine(v.code)} ? [${parties(v.parties)}] : `).join('')}[${parties(valeur.versions[0].parties)}])`;
     return parties(valeur.parties);
   }
 
   private contenuAccentHtml(valeur: Valeur, genre: string, env: Environnement): string {
-    if (valeur.type !== 'texte' || !['titre', 'soustitre', 'texte'].includes(genre) || !valeur.parties.some((p) => 'accent' in p && p.accent)) return echapperTexte(texteDe(valeur, env, this.contexte.champs));
+    if (valeur.type !== 'texte' || !['titre', 'soustitre', 'texte'].includes(genre) || !valeur.parties.some((p) => 'texte' in p && (p.accent || p.code))) return echapperTexte(texteDe(valeur, env, this.contexte.champs));
     return valeur.parties.map((p) => {
       const texte = echapperTexte('texte' in p ? p.texte : texteDe({ type: 'texte', parties: [p] }, env, this.contexte.champs));
-      return 'accent' in p && p.accent ? `<span class="humalis-accent">${texte}</span>` : texte;
+      return 'texte' in p && p.accent ? `<span class="humalis-accent">${texte}</span>` : 'texte' in p && p.code ? `<code class="humalis-code-ligne">${texte}</code>` : texte;
     }).join('');
   }
 

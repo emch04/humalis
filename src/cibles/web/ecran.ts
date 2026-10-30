@@ -13,6 +13,7 @@ import type { CarteProduite } from './carte.js';
 import { baliseGraphique } from './graphique.js';
 import { type Contexte, typeTS, typeDe, expression, contenuJSX, condition, ficheAvec } from './valeurs.js';
 import { importsDesInteractions, decrireTouches } from './interactions.js';
+import { colorerCodeHumalis } from '../commun/colorerCode.js';
 
 /** Une variable de boucle, passée au gestionnaire d'un événement écrit dans la boucle. */
 interface Parametre {
@@ -392,6 +393,7 @@ export function genererFonctions(fonctions: FonctionRI[], application: ContexteA
 }
 
 class GenerateurEcran {
+  private listeEnCours?: 'liste' | 'listeNumerotee';
   private readonly contexte: Contexte = { types: new Map(), champs: new Map(), sortes: new Map() };
   /** Les champs qui ont une sorte ou des options, et le libellé de chaque champ (pour les messages). */
   private readonly saisies = new Map<string, Saisie>();
@@ -613,6 +615,9 @@ class GenerateurEcran {
   private recenser(noeuds: NoeudVue[], boucles: Parametre[], formulaire?: string): void {
     for (const noeud of noeuds) {
       switch (noeud.type) {
+        case 'codeDocumentation':
+          this.besoins.messages = true;
+          break;
         case 'element':
           if (noeud.genre === 'champ') {
             const libelle = texteDeBase(noeud.contenu) ?? noeud.id;
@@ -1603,6 +1608,42 @@ class GenerateurEcran {
   private ecrireVue(e: Ecrivain, noeuds: NoeudVue[]): void {
     for (const noeud of noeuds) {
       switch (noeud.type) {
+        case 'tableauDocumentation':
+          if (this.application.rendu) {
+            const mobile = (valeur: Valeur) => contenuJSX(valeur, this.contexte)
+              .replace(/<code className="humalis-code-ligne">/g, '<Text style={{ fontFamily: "monospace" }}>')
+              .replace(/<span className="humalis-accent">/g, '<Text style={s.accent}>')
+              .replace(/<\/(code|span)>/g, '</Text>');
+            e.ligne('<ScrollView horizontal><View>');
+            e.ligne(`<Text>${mobile(noeud.legende)}</Text>`);
+            for (const ligne of [noeud.colonnes, ...noeud.rangees]) {
+              e.ligne('<View style={{ flexDirection: "row" }}>');
+              for (const cellule of ligne) e.ligne(`<Text style={{ minWidth: 120 }}>${mobile(cellule)}</Text>`);
+              e.ligne('</View>');
+            }
+            e.ligne('</View></ScrollView>');
+          } else {
+            e.ligne('<div className="humalis-tableau-conteneur"><table><caption>');
+            e.ligne(contenuJSX(noeud.legende, this.contexte));
+            e.ligne('</caption><thead><tr>');
+            for (const cellule of noeud.colonnes) e.ligne(`<th scope="col">${contenuJSX(cellule, this.contexte)}</th>`);
+            e.ligne('</tr></thead><tbody>');
+            for (const ligne of noeud.rangees) {
+              e.ligne('<tr>');
+              for (const cellule of ligne) e.ligne(`<td>${contenuJSX(cellule, this.contexte)}</td>`);
+              e.ligne('</tr>');
+            }
+            e.ligne('</tbody></table></div>');
+          }
+          break;
+        case 'codeDocumentation':
+          if (this.application.rendu) e.ligne(`<ScrollView horizontal><Text style={{ fontFamily: 'monospace' }}>{${chaine(noeud.code)}}</Text></ScrollView>`);
+          else {
+            const copie = this.application.langues ? `t({ fr: 'Copié', en: 'Copied' })` : `'Copié'`;
+            const libelle = this.application.langues ? `{t({ fr: 'Copier', en: 'Copy' })}` : 'Copier';
+            e.ligne(`<div className="humalis-bloc-code-conteneur"><pre className="humalis-bloc-code" data-langage=${chaine(noeud.langage ?? '')}><code dangerouslySetInnerHTML={{ __html: ${chaine(colorerCodeHumalis(noeud.code, noeud.langage))} }} /></pre><button type="button" onClick={() => void copier(${chaine(noeud.code)}, afficherMessage, ${copie})}>${libelle}</button></div>`);
+          }
+          break;
         case 'element':
           this.ecrireElement(e, noeud);
           break;
@@ -1668,7 +1709,11 @@ class GenerateurEcran {
             e.ligne(`{${liste}.map((${variable}, ${index}) => (`);
             e.indenter(() => {
               e.ligne(`<Fragment key={${index}}>`);
-              e.indenter(() => this.ecrireVue(e, contenu));
+              e.indenter(() => {
+                if (this.listeEnCours) e.ligne(this.application.rendu ? `<View style={{ flexDirection: "row" }}><Text>${this.listeEnCours === 'liste' ? '•' : `{${index} + 1}.`}</Text>` : '<li>');
+                this.ecrireVue(e, contenu);
+                if (this.listeEnCours) e.ligne(this.application.rendu ? '</View>' : '</li>');
+              });
               e.ligne('</Fragment>');
             });
             e.ligne('))}');
@@ -1712,6 +1757,40 @@ class GenerateurEcran {
         }
 
         case 'bloc':
+          if (noeud.genre === 'liste' || noeud.genre === 'listeNumerotee') {
+            if (this.application.rendu) {
+              e.ligne('<View>');
+              e.indenter(() => noeud.corps.forEach((enfant, index) => {
+                if (enfant.type === 'repetition') {
+                  this.listeEnCours = noeud.genre as 'liste' | 'listeNumerotee';
+                  this.ecrireVue(e, [enfant]);
+                  this.listeEnCours = undefined;
+                  return;
+                }
+                e.ligne('<View style={{ flexDirection: "row" }}>');
+                e.ligne(`<Text>${noeud.genre === 'liste' ? '•' : `${index + 1}.`}</Text>`);
+                this.ecrireVue(e, [enfant]);
+                e.ligne('</View>');
+              }));
+              e.ligne('</View>');
+              break;
+            }
+            const balise = noeud.genre === 'liste' ? 'ul' : 'ol';
+            e.ligne(`<${balise} className="humalis-liste">`);
+            e.indenter(() => noeud.corps.forEach((enfant) => {
+              if (enfant.type === 'repetition') {
+                this.listeEnCours = noeud.genre as 'liste' | 'listeNumerotee';
+                this.ecrireVue(e, [enfant]);
+                this.listeEnCours = undefined;
+                return;
+              }
+              e.ligne('<li>');
+              e.indenter(() => this.ecrireVue(e, [enfant]));
+              e.ligne('</li>');
+            }));
+            e.ligne(`</${balise}>`);
+            break;
+          }
           if (COMPOSITES.has(noeud.genre)) {
             this.ecrireComposite(e, noeud);
             break;

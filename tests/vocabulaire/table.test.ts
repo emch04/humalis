@@ -129,7 +129,7 @@ describe('la table de vocabulaire : les mots réservés (décision Q2)', () => {
 describe('la table remplace la liste du lexer, sans rien casser', () => {
   it('les mots-clés pris en charge sont exactement les anciens, plus « par », « composant », « serveur » et « rien »', () => {
     const supportes = VOCABULAIRE.filter((e) => e.statut === 'supporte' && estMotCleDuLexer(e)).map((e) => e.mot);
-    expect([...new Set(supportes)].sort()).toEqual([...ANCIENS_MOTS_CLES, 'par', 'composant', 'serveur', 'rien', 'soustitre'].sort());
+    expect([...new Set(supportes)].sort()).toEqual([...ANCIENS_MOTS_CLES, 'par', 'composant', 'serveur', 'rien', 'soustitre', 'liste', 'tableau'].sort());
   });
 
   it('les mots des composants, du partage et du serveur sont pris en charge mais ne sont pas des mots-clés du lexer', () => {
@@ -170,12 +170,12 @@ describe('la table remplace la liste du lexer, sans rien casser', () => {
 
   it('MOTS_CLES contient les anciens mots, « par » et les mots réservés prévus', () => {
     expect([...MOTS_CLES].sort()).toEqual(
-      [...ANCIENS_MOTS_CLES, 'par', 'composant', 'serveur', 'non', 'rien', 'soustitre'].sort(),
+      [...ANCIENS_MOTS_CLES, 'par', 'composant', 'serveur', 'non', 'rien', 'soustitre', 'liste', 'tableau'].sort(),
     );
   });
 
   it('les variantes du lexer sont exactement les anciennes', () => {
-    expect([...VARIANTES.entries()].sort()).toEqual([...ANCIENNES_VARIANTES, ['soustitres', 'soustitre'] as [string, string]].sort());
+    expect([...VARIANTES.entries()].sort()).toEqual([...ANCIENNES_VARIANTES, ['soustitres', 'soustitre'] as [string, string], ['listes', 'liste'] as [string, string], ['tableaux', 'tableau'] as [string, string]].sort());
   });
 
   it('les mots de liaison sont les anciens, plus « au » et « aux » (décision Q3)', () => {

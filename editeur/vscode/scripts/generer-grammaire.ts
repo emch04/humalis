@@ -83,6 +83,7 @@ const grammaire = {
   name: 'Humalis',
   scopeName: 'source.humalis',
   patterns: [
+    { include: '#blocCode' },
     { include: '#blocStyle' },
     { include: '#commentaire' },
     { include: '#chaine' },
@@ -93,6 +94,15 @@ const grammaire = {
     { include: '#ponctuation' },
   ],
   repository: {
+    blocCode: {
+      begin: '^([ ]*)(code)(?:[ ]+[\\p{L}][\\p{L}0-9_]*)?[ ]*(:)[ ]*$',
+      beginCaptures: {
+        '2': { name: 'support.function.humalis' },
+        '3': { name: 'punctuation.separator.humalis' },
+      },
+      end: '^(?!\\1[ ]+|[ ]*$)',
+      contentName: 'string.unquoted.humalis',
+    },
     // « style : » en haut du fichier : les lignes indentées sont du CSS,
     // recopié tel quel par le compilateur (décision W8).
     blocStyle: {
@@ -116,6 +126,8 @@ const grammaire = {
       beginCaptures: { '0': { name: 'punctuation.definition.string.begin.humalis' } },
       endCaptures: { '0': { name: 'punctuation.definition.string.end.humalis' } },
       patterns: [
+        { match: '\\\\\\\\' },
+        { name: 'constant.character.escape.humalis', match: '\\\\"' },
         {
           match: '(\\{)([^}"]*)(\\})',
           captures: {

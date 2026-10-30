@@ -90,6 +90,7 @@ export const MESSAGES: Versions[] = [
   { fr: 'Aller au contenu', en: 'Skip to content' },
   { fr: 'Fermer', en: 'Close' },
   { fr: 'Copié', en: 'Copied' },
+  { fr: 'Copier', en: 'Copy' },
   { fr: 'Copie impossible.', en: 'Could not copy.' },
   { fr: 'Lien copié : il ne reste qu’à le coller.', en: 'Link copied: paste it wherever you like.' },
   { fr: 'Texte copié : il ne reste qu’à le coller.', en: 'Text copied: paste it wherever you like.' },

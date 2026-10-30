@@ -165,6 +165,8 @@ export interface SignalerGraphique extends Signaler {
   listeEcrite(expression: Expression): LitteralListe | undefined;
   /** Une couleur de base ou du thème, ou l'erreur à signaler. */
   couleur(nom: string): { erreur: string } | { nom: string; clair: string; sombre: string };
+  /** Les modes que l'application peut montrer. */
+  modes: readonly ('clair' | 'sombre')[];
 }
 
 /** « ventes » ou « la liste » : pour les messages. */
@@ -234,7 +236,7 @@ function verifierReglagesGraphique(g: Graphique, s: SignalerGraphique): void {
         s.erreur(couleur.erreur, ligne);
         continue;
       }
-      const mode = (['clair', 'sombre'] as const).find((m) => contraste(couleur[m], FOND_PAGE[m]) < 3);
+      const mode = s.modes.find((m) => contraste(couleur[m], FOND_PAGE[m]) < 3);
       if (mode) {
         const rapport = contraste(couleur[mode], FOND_PAGE[mode]).toFixed(1).replace('.', ',');
         s.avertissement(
