@@ -3,7 +3,7 @@ import { robotsTxt, manifeste, fichiersDuSite, balisesIcone, estExterne } from '
 import { sousActions } from '../../ri/actions.js';
 import { cssEcran } from './css-ecran.js';
 import { cssElements } from './css-elements.js';
-import { cssMouvement, animeAuDefilement, MOUVEMENT_WEB, NETTOYAGE_PRERENDU } from '../commun/mouvement.js';
+import { cssMouvement, animeAuDefilement, MOUVEMENT_WEB, NETTOYAGE_PRERENDU, ENTETE_WEB, suitLEntete } from '../commun/mouvement.js';
 import type { InfoMedia } from '../../ri/medias.js';
 import { fichiersDesElements, dependancesDesElements, dependancesDeDeveloppement } from './widgets.js';
 import { fichiersGraphique, cssGraphique } from './graphique.js';
@@ -219,6 +219,9 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
   // L'observateur des animations « au defilement », seulement si une page en a.
   const defilementAnime = animeAuDefilement(codes);
   if (defilementAnime) fichiers.set('src/humalis/mouvement.ts', MOUVEMENT_WEB);
+  // « entete avec fixe », « hauteur ecran » : la hauteur de l'en-tête, suivie par un petit script.
+  const enteteSuivie = suitLEntete(codes);
+  if (enteteSuivie) fichiers.set('src/humalis/entete.ts', ENTETE_WEB);
 
   // Le CSS de l'utilisateur, recopié tel quel (décision W8), chargé après
   // celui de Humalis pour pouvoir le redéfinir.
@@ -256,6 +259,7 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
       dispositions,
       utiliseDefilement,
       defilementAnime,
+      enteteSuivie,
     ),
   );
 
@@ -573,6 +577,7 @@ function mainTsx(
   dispositions: { entete?: string; pied?: string } = {},
   defilement = false,
   mouvement = false,
+  entete = false,
 ): string {
   const imports = routes.map((r) => `import ${r.composant} from './pages/${r.composant}';`).join('\n');
   // Les pages qui ont le même en-tête et le même pied partagent une disposition ; une sous-page suit son parent.
@@ -600,7 +605,7 @@ import { Messages } from './humalis/messages';${defilement ? "\nimport { Defilem
 ${session ? "import { Session } from './humalis/session';\n" : ''}${partage ? "import { Partage } from './humalis/partage';\n" : ''}${routes.some((r) => r.reservee) ? "import { Reservee } from './humalis/reservee';\n" : ''}${introuvable ? `import ${introuvable} from './pages/${introuvable}';` : "import Introuvable from './Introuvable';"}
 ${dispositions.entete || dispositions.pied ? "import Disposition from './Disposition';\n" : ''}${imports}
 import './humalis/styles.css';
-${mouvement ? "import { observerLeDefilement } from './humalis/mouvement';\n" : ''}${feuilles.map((f) => `import './styles/${f}';\n`).join('')}
+${mouvement ? "import { observerLeDefilement } from './humalis/mouvement';\n" : ''}${entete ? "import { suivreLaHauteurDeLEntete } from './humalis/entete';\n" : ''}${feuilles.map((f) => `import './styles/${f}';\n`).join('')}
 // Un hébergeur statique sert /documentation/index.html pour /documentation/ :
 // le routeur lit l'adresse sans « index.html », comme le dossier.
 if (/\\/index\\.html$/.test(location.pathname)) {
@@ -616,7 +621,7 @@ ${routesTsx}
     </BrowserRouter>
   </StrictMode>,
 );
-${mouvement ? '\n// Les animations « au defilement » attendent que l\'élément entre à l\'écran.\nobserverLeDefilement();\n' : ''}`;
+${mouvement ? '\n// Les animations « au defilement » attendent que l\'élément entre à l\'écran.\nobserverLeDefilement();\n' : ''}${entete ? '\n// « entete avec fixe », « hauteur ecran » : la hauteur de l\'en-tête.\nsuivreLaHauteurDeLEntete();\n' : ''}`;
 }
 
 /**

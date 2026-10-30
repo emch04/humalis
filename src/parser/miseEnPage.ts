@@ -77,7 +77,7 @@ export interface Lecteur {
 }
 
 const APPAREILS = ['telephone', 'tablette', 'ordinateur'];
-const DRAPEAUX = ['modifiable', 'ouvert', 'plusieurs', 'pourcentage', 'boucle'];
+const DRAPEAUX = ['modifiable', 'ouvert', 'plusieurs', 'pourcentage', 'boucle', 'fixe'];
 
 /** « sur telephone : », « sur tablette ou ordinateur : » (en tête de ligne, suivi d'un appareil). */
 export function estSurAppareil(flux: FluxTokens): boolean {

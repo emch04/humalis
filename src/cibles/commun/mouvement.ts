@@ -246,6 +246,38 @@ ${OBSERVATEUR_DEFILEMENT.replace('function observerLeDefilement() {', 'export fu
   .replace('const noeud = parcours.currentNode;', 'const noeud = parcours.currentNode as Text;')}
 `;
 
+/**
+ * La hauteur de l'en-tête fixe ou collé, gardée dans --humalis-hauteur-entete : « entete avec fixe »
+ * place la zone qui défile dessous, « hauteur ecran » s'en sert pour remplir l'écran.
+ */
+export const SUIVI_ENTETE = `function suivreLaHauteurDeLEntete() {
+  const entete = () => document.querySelector('header.humalis-fixe-oui, header.humalis-colle-haut');
+  const regler = () => {
+    const e = entete();
+    document.documentElement.style.setProperty('--humalis-hauteur-entete', e ? e.offsetHeight + 'px' : '0px');
+  };
+  regler();
+  addEventListener('resize', regler);
+  if (!('ResizeObserver' in window)) return;
+  const observateur = new ResizeObserver(regler);
+  const suivre = () => {
+    const e = entete();
+    if (e) observateur.observe(e);
+    regler();
+  };
+  suivre();
+  // L'en-tête peut apparaître après le chargement (le web le dessine après le script).
+  new MutationObserver(suivre).observe(document.body, { childList: true, subtree: true });
+}`;
+
+/** Vrai si une page a besoin de la hauteur de l'en-tête. */
+export const suitLEntete = (codes: string[]): boolean => codes.some((c) => c.includes('humalis-fixe-oui') || c.includes('humalis-hauteur-ecran'));
+
+/** src/humalis/entete.ts du web et du desktop : le même script, typé. */
+export const ENTETE_WEB = `// Produit par Humalis : la hauteur de l'en-tête, pour « entete avec fixe » et « hauteur ecran ».
+${SUIVI_ENTETE.replace('function suivreLaHauteurDeLEntete() {', 'export function suivreLaHauteurDeLEntete(): void {').replace("const entete = () => document.querySelector(", "const entete = () => document.querySelector<HTMLElement>(")}
+`;
+
 /** Le prérendu capture la page après le script : il retire les marques du mouvement (rien de caché sans JavaScript). */
 export const NETTOYAGE_PRERENDU = `  // Le script du mouvement marque la page (humalis-js, data-humalis-vu) : le HTML prérendu ne garde aucune de ces marques.
   transformHtml: (html) => html.replace(/(<html[^>]*class="[^"]*)\\bhumalis-js\\b/, '$1').replace(/ data-humalis-vu=""/g, '').replace(/ data-humalis-tape="[a-z-]*"/g, '').replace(/<code class="humalis-frappe-copie"[\\s\\S]*?<\\/code>/g, ''),

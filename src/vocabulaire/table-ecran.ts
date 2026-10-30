@@ -147,6 +147,10 @@ export const ENTREES_ECRAN: readonly EntreeVocabulaire[] = [
   style('ombre', 'Une ombre sous l’élément : aucune, legere, moyenne ou forte.', PAGE('    bloc avec ombre legere :\n        texte "Poisson braisé"'), 'box-shadow', 'StyleSheet shadow* et elevation'),
   style('degrade', 'Un fond en dégradé entre deux couleurs : « degrade bleu vers violet », puis au besoin vertical ou horizontal (diagonal sinon).', PAGE('    bloc avec degrade bleu vers violet :\n        titre "Réservez" avec texte blanc'), 'linear-gradient', 'LinearGradient (expo-linear-gradient)', undefined, 'Deux couleurs seulement (de base ou du thème) ; un dégradé plus fin s’écrit en CSS.'),
   style('colle', 'L’élément reste collé en haut de l’écran quand on défile ; « colle en bas » le colle en bas.', PAGE('    bloc avec colle :\n        texte "Toujours visible"'), 'position: sticky', null, undefined, 'Sur le téléphone, seuls l’en-tête et le pied de page restent collés ; ailleurs, un avertissement le dit.'),
+  // ─── Défilement et hauteur (plan, apparence sans CSS) ────────────────
+  style('defilement', 'Le bloc défile seul, avec sa propre barre, sans faire bouger le reste de la page : « defilement interne ».', PAGE('    ligne avec hauteur ecran :\n        colonne avec defilement interne :\n            texte "Un long chapitre."'), 'overflow-y: auto', null, [...BLOCS, 'menu'], 'Sur le téléphone, toute la page défile : un avertissement le dit.'),
+  style('hauteur', 'Le bloc prend toute la hauteur de l’écran, sous l’en-tête : « hauteur ecran ».', PAGE('    ligne avec hauteur ecran :\n        colonne avec defilement interne :\n            texte "Un long chapitre."'), 'height: 100dvh', null, BLOCS, 'Sur le téléphone, toute la page défile : un avertissement le dit.'),
+  { ...style('fixe', 'L’en-tête ne bouge jamais : seule la zone en dessous défile, avec sa barre (« entete avec fixe : »).', 'entete avec fixe :\n    lien "Accueil" vers "accueil"\n\npage "accueil" :\n    titre "Accueil"', 'position: fixed', null, ['entete'], 'Seulement sur l’en-tête. Sur le téléphone, l’en-tête reste en haut comme avec « colle ».'), valeurLibre: true },
   style('sur', 'Dans un bloc « sur telephone : », les appareils où le contenu s’affiche.', PAGE('    sur telephone :\n        texte "Petit écran"'), 'display', 'SurAppareil (largeur de la fenêtre)', ['appareil']),
 
   // ─── La publication (plan 2026-10-30-qualite-publication, parties 3 à 5) ──
@@ -462,6 +466,8 @@ export const ENTREES_ECRAN: readonly EntreeVocabulaire[] = [
   valeur('forte', ['ombre'], 'Une ombre marquée.', PAGE('    bloc avec ombre forte :\n        texte "a"'), ['fort']),
   valeur('douce', ['bordure', 'transition'], 'Des coins légèrement arrondis ; pour une transition, des changements adoucis (200 ms).', PAGE('    bloc avec bordure douce :\n        texte "a"'), ['doux']),
   valeur('ronde', ['bordure'], 'Une forme ronde : un cercle pour un élément carré.', PAGE('    bloc avec bordure ronde :\n        texte "a"'), ['rond']),
+  valeur('interne', ['defilement'], 'Le bloc a son propre défilement : « defilement interne ».', PAGE('    colonne avec defilement interne :\n        texte "a"')),
+  valeur('ecran', ['hauteur'], 'La hauteur de l’écran, moins celle de l’en-tête : « hauteur ecran ».', PAGE('    ligne avec hauteur ecran :\n        texte "a"'), [], 'écran'),
   valeur('haut', ['colle'], 'Collé en haut de l’écran (par défaut).', PAGE('    bloc avec colle :\n        texte "a"')),
   valeur('bas', ['colle'], 'Collé en bas de l’écran : « colle en bas ».', PAGE('    bloc avec colle en bas :\n        texte "a"')),
   valeur('telephone', ['sur'], 'Un écran de moins de 640 pixels de large.', PAGE('    sur telephone :\n        texte "a"'), ['telephones'], 'téléphone'),

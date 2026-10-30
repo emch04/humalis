@@ -146,7 +146,8 @@ page "accueil" :
 - Un nom de classe CSS sans guillemets : il manque le nom de la classe CSS entre guillemets
 - « utiliser » sans « style » : il manque « style » après « utiliser »
 - Un chemin de fichier CSS sans guillemets : il manque le chemin du fichier CSS entre guillemets
-- Une classe CSS définie nulle part : n'est définie dans aucun bloc style
+- Un style CSS introuvable : n'est défini dans aucun CSS du projet
+- Une règle CSS écrase un style Humalis : le CSS écrase « humalis-page »
 - Une option de variable inconnue : n'est pas une option de variable
 - Un mot après « memorisee en » qui n’est pas « secret » : est attendu après « memorisee en »
 - Une variable en haut du fichier sans « avec partagee » : ajoutez « avec partagee »

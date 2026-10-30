@@ -231,7 +231,7 @@ function modesVus(programme: Programme): readonly ('clair' | 'sombre')[] {
   return JSON.stringify(programme).includes('"action":"changerTheme"') ? ['clair', 'sombre'] : [mode];
 }
 
-export function analyserSens(programme: Programme): ResultatAnalyse {
+export function analyserSens(programme: Programme, classesCss?: Set<string>): ResultatAnalyse {
   const resultat: ResultatAnalyse = {
     diagnostics: [],
     elements: new Map(),
@@ -278,12 +278,10 @@ export function analyserSens(programme: Programme): ResultatAnalyse {
   filtresDesPages.clear();
   for (const p of programme.pages) filtresDesPages.set(p.nom, p.filtres ?? []);
 
-  // Les classes définies dans les blocs « style : ». Avec un fichier CSS
-  // séparé, que l'analyse ne lit pas, on ne vérifie rien.
-  const classes =
-    programme.fichiersStyle.length > 0
-      ? undefined
-      : new Set(programme.styles.flatMap((b) => [...b.css.matchAll(/\.(-?[_a-zA-Z][\w-]*)/g)].map((m) => m[1])));
+  // Un fichier CSS déclaré mais illisible rend la vérification des noms incertaine.
+  const classes = classesCss ?? (programme.fichiersStyle.length > 0
+    ? undefined
+    : new Set(programme.styles.flatMap((b) => [...b.css.matchAll(/\.(-?[_a-zA-Z][\w-]*)/g)].map((m) => m[1]))));
 
   // Les variables du haut du fichier sont partagées entre les pages : on
   // les analyse une fois, puis chaque page les voit (portée « application »).
@@ -1126,7 +1124,7 @@ class AnalysePage {
     }
     for (const classe of element.classes) {
       if (this.classesDefinies && !this.classesDefinies.has(classe)) {
-        this.avertissement(`la classe CSS « ${classe} » n'est définie dans aucun bloc style.`, element.ligne);
+        this.avertissement(`le style « ${classe} » n'est défini dans aucun CSS du projet.${proposerNom(classe, this.classesDefinies)}`, element.ligne);
       }
     }
     verifierElementEcran(element, this.signaler());
@@ -1316,7 +1314,7 @@ class AnalysePage {
     }
     for (const classe of bloc.classes) {
       if (this.classesDefinies && !this.classesDefinies.has(classe)) {
-        this.avertissement(`la classe CSS « ${classe} » n'est définie dans aucun bloc style.`, bloc.ligne);
+        this.avertissement(`le style « ${classe} » n'est défini dans aucun CSS du projet.${proposerNom(classe, this.classesDefinies)}`, bloc.ligne);
       }
     }
     verifierBlocEcran(bloc, this.pileBlocs[this.pileBlocs.length - 1], this.signaler());
