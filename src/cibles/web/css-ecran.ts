@@ -48,9 +48,17 @@ export function cssEcran(codes: string[]): string {
     regles.push('.humalis-aller-au-contenu { position: absolute; left: 0.5rem; top: -4rem; z-index: 1000; padding: 0.5rem 1rem; border-radius: 0.5rem; background: Canvas; color: CanvasText; }');
     regles.push('.humalis-aller-au-contenu:focus { top: 0.5rem; }');
   }
+  // « menu vertical » : les liens en colonne, qui ne passent jamais sur une deuxième colonne
+  // (un sommaire de hauteur limitée défile au lieu de s'étaler).
+  if (codes.some((c) => c.includes('humalis-menu-vertical'))) regles.push('.humalis-menu-vertical { flex-direction: column; flex-wrap: nowrap; align-items: stretch; }');
   // « menu repliable » : sur un petit écran, les liens attendent le bouton « Menu ».
   if (codes.some((c) => c.includes('humalis-menu-repliable'))) {
     regles.push('.humalis-menu-bouton { display: none; }');
+    // L'icône burger : trois traits (le trait du milieu et ses deux ombres), une croix quand le menu est ouvert.
+    regles.push('.humalis-menu-bouton { align-items: center; justify-content: center; width: 2.5rem; height: 2.5rem; padding: 0; }');
+    regles.push('.humalis-menu-icone { position: relative; display: block; width: 1.125rem; height: 2px; border-radius: 2px; background: currentColor; box-shadow: 0 -6px 0 currentColor, 0 6px 0 currentColor; }');
+    regles.push('.humalis-menu-bouton[aria-expanded="true"] .humalis-menu-icone { box-shadow: none; transform: rotate(45deg); }');
+    regles.push('.humalis-menu-bouton[aria-expanded="true"] .humalis-menu-icone::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: currentColor; transform: rotate(-90deg); }');
     regles.push(
       '@media (max-width: 720px) { .humalis-menu-repliable { flex-direction: column; align-items: stretch; } .humalis-menu-bouton { display: inline-flex; align-self: flex-start; } .humalis-menu-repliable:not([data-ouvert]) > :not(.humalis-menu-bouton) { display: none; } }',
     );

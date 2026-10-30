@@ -1211,4 +1211,19 @@ document.addEventListener('click', (evenement) => {
   menu.toggleAttribute('data-ouvert', ouvrir);
   menu.querySelector(':scope > .humalis-menu-bouton')?.setAttribute('aria-expanded', String(ouvrir));
 });
+// Un clic à côté d'un menu ouvert, ou la touche Échap, le referme.
+const fermerLesMenus = (garder) => {
+  for (const menu of document.querySelectorAll('.humalis-menu-repliable[data-ouvert]')) {
+    if (garder && menu.contains(garder)) continue;
+    menu.removeAttribute('data-ouvert');
+    menu.querySelector(':scope > .humalis-menu-bouton')?.setAttribute('aria-expanded', 'false');
+  }
+};
+document.addEventListener('click', (evenement) => fermerLesMenus(evenement.target instanceof Node ? evenement.target : null), true);
+document.addEventListener('keydown', (evenement) => {
+  if (evenement.key !== 'Escape') return;
+  const ouvert = document.querySelector('.humalis-menu-repliable[data-ouvert] > .humalis-menu-bouton');
+  fermerLesMenus(null);
+  ouvert?.focus();
+});
 `;

@@ -761,6 +761,8 @@ class Construction {
     const { options, reglages } = this.separer(instruction.styles);
     // « menu repliable » : la marque que lisent le CSS et le bouton « Menu ».
     if (instruction.repliable) options.push({ nom: 'menu', valeur: 'repliable' });
+    // « menu vertical » : la colonne que lit le CSS.
+    if (instruction.vertical) options.push({ nom: 'menu', valeur: 'vertical' });
     const noeud: Extract<NoeudVue, { type: 'bloc' }> = {
       type: 'bloc',
       genre: instruction.genre,

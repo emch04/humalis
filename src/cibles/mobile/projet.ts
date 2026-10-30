@@ -980,6 +980,9 @@ function styles(formulaires = false, blocs = false, theme?: ThemeRI, codes: stri
             `colonne: { gap: 12 },`,
             `grille: { gap: 16 },`,
             `menu: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12 },`,
+            // « menu vertical » : une colonne ; « menu repliable » n'a pas de style propre sur le téléphone.
+            `menuVertical: { flexDirection: 'column', flexWrap: 'nowrap', alignItems: 'stretch' },`,
+            `menuRepliable: {},`,
           ]
         : []),
     ];

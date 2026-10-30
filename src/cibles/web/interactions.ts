@@ -1110,5 +1110,19 @@ export function menuRepliable(evenement: { target: EventTarget; currentTarget: E
   if (!ouvrir && cible.closest('.humalis-menu-bouton, a') === null) return;
   menu.toggleAttribute('data-ouvert', ouvrir);
   bouton?.setAttribute('aria-expanded', String(ouvrir));
+  if (!ouvrir) return;
+  // Ouvert : un clic à côté, ou la touche Échap, le referme (et Échap rend le focus au bouton).
+  const fermer = (e: Event) => {
+    if (e instanceof KeyboardEvent ? e.key !== 'Escape' : menu.contains(e.target as Node)) return;
+    menu.removeAttribute('data-ouvert');
+    bouton?.setAttribute('aria-expanded', 'false');
+    if (e instanceof KeyboardEvent) (bouton as HTMLElement | null)?.focus();
+    document.removeEventListener('click', fermer, true);
+    document.removeEventListener('keydown', fermer);
+  };
+  setTimeout(() => {
+    document.addEventListener('click', fermer, true);
+    document.addEventListener('keydown', fermer);
+  });
 }
 `;

@@ -307,7 +307,7 @@ export const RENDU_WEB: Rendu = {
       const balise = genre === 'section' ? 'section' : genre === 'menu' ? 'nav' : 'div';
       // « menu repliable » : le bouton « Menu » du petit écran (src/humalis/menu.ts).
       const repliable = options.some((o) => o.nom === 'menu' && o.valeur === 'repliable');
-      return `<${balise} className="${toutes.join(' ')}"${ancre !== undefined ? ` id=${JSON.stringify(ancre)}` : ''}${repliable ? ' onClick={menuRepliable}' : ''}>${repliable ? '<button type="button" className="humalis-menu-bouton" aria-expanded="false">Menu</button>' : ''}`;
+      return `<${balise} className="${toutes.join(' ')}"${ancre !== undefined ? ` id=${JSON.stringify(ancre)}` : ''}${repliable ? ' onClick={menuRepliable}' : ''}>${repliable ? '<button type="button" className="humalis-menu-bouton" aria-expanded="false" aria-label="Menu"><span className="humalis-menu-icone" aria-hidden="true"></span></button>' : ''}`;
     },
     fermer: (genre) => (genre === 'section' ? '</section>' : genre === 'menu' ? '</nav>' : '</div>'),
   },

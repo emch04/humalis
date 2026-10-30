@@ -745,6 +745,8 @@ export interface Bloc {
   nom?: string;
   /** « menu repliable : » : sur un petit écran, les liens se cachent derrière un bouton « Menu ». */
   repliable?: boolean;
+  /** « menu vertical : » : les liens en colonne, sans passer sur une deuxième colonne. */
+  vertical?: boolean;
   corps: Instruction[];
   ligne: number;
 }
