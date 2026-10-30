@@ -93,6 +93,14 @@ Un texte qui s'affiche s'écrit entre guillemets : `titre "Bienvenue"`. Sans
 guillemets, c'est un nom de variable : `texte prenom` affiche ce que contient
 la variable `prenom`.
 
+Pour mettre un guillemet dans un texte, écris `\"` :
+
+```humalis
+page "citation" :
+    titre "Une citation"
+    texte "Elle a dit \"bonjour\" en entrant."
+```
+
 ### Les accents sont permis, jamais obligatoires
 
 `si age est supérieur ou égal à 18` et `si age est superieur ou egal a 18` se
@@ -363,10 +371,31 @@ page "accueil" :
 Humalis vérifie le contraste : une couleur de texte trop pâle sur le fond est
 signalée à la compilation.
 
+Le visiteur peut aussi passer d'un thème à l'autre. `basculer theme` passe au
+thème inverse de celui qu'on voit, et `si theme est sombre :` (ou `clair`)
+réagit au thème affiché :
+
+```humalis
+theme :
+    mode automatique
+
+page "accueil" :
+    titre "Accueil"
+    bouton "Changer de thème"
+    quand l'utilisateur clique sur "Changer de thème" :
+        basculer theme
+    si theme est sombre :
+        texte "Bonne soirée"
+    sinon :
+        texte "Bonne journée"
+```
+
 ### L'en-tête et le pied communs
 
 `entete :` et `pied :` s'affichent sur toutes les pages. Une page peut s'en
-passer avec `sans entete` ou `sans pied`.
+passer avec `sans entete` ou `sans pied`. Avec un en-tête, Humalis ajoute seul
+un lien « Aller au contenu », caché tant que le clavier ne l'atteint pas : il
+permet de sauter l'en-tête.
 
 ```humalis
 entete avec colle :
@@ -1537,6 +1566,8 @@ page "catalogue" :
 - `traductions anglais :` traduit une seule fois un texte répété.
 - `selecteur de langue` affiche le choix de la langue ; `changer langue par
   anglais` et `si langue est anglais :` s'utilisent dans les événements.
+- Le message de `copier` se traduit comme les autres textes :
+  `copier code avec message "Copié" en anglais "Copied"`.
 - Humalis signale à la compilation tout texte qui n'a pas sa traduction. Les
   messages de Humalis (champ obligatoire, chargement…) suivent la langue.
 

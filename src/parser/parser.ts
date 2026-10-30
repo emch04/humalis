@@ -1326,6 +1326,19 @@ function analyserComparaison(flux: FluxTokens): Comparaison {
     return { type: 'Comparaison', gauche: { type: 'MouvementReduit', ligne: debut.ligne }, operateur: pas ? 'faux' : 'vrai', ligne: debut.ligne };
   }
 
+  // « theme est sombre », « theme est clair » (et « theme n'est pas sombre ») : le thème affiché.
+  if (
+    estLeMot(flux.actuel(), 'theme') &&
+    flux.regarder(1).type === 'MOT_CLE' &&
+    flux.regarder(1).valeur === 'est' &&
+    (estLeMot(flux.regarder(2 + pas), 'sombre') || estLeMot(flux.regarder(2 + pas), 'clair'))
+  ) {
+    const debut = flux.avancer();
+    for (let i = 0; i < 1 + pas; i++) flux.avancer();
+    const sombre = estLeMot(flux.avancer(), 'sombre');
+    return { type: 'Comparaison', gauche: { type: 'ThemeSombre', ligne: debut.ligne }, operateur: sombre !== Boolean(pas) ? 'vrai' : 'faux', ligne: debut.ligne };
+  }
+
   const gauche = analyserOperande(flux);
   // « panier contient "Livre" », « nom contient "Liv" ».
   if (estLeMot(flux.actuel(), 'contient')) {

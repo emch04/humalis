@@ -57,6 +57,7 @@ export function typeDe(valeur: Valeur, contexte: Contexte): TypeValeur {
     case 'utilisateur':
     case 'etatRequete':
     case 'mouvementReduit':
+    case 'themeSombre':
       return { genre: 'booleen' };
     case 'erreurRequete':
       return { genre: 'texte' };
@@ -171,6 +172,9 @@ export function expression(valeur: Valeur, contexte: Contexte): string {
     case 'mouvementReduit':
       // « réduire les animations » du système, suivi en direct (src/humalis/temps.ts).
       return 'mouvementReduit';
+    case 'themeSombre':
+      // Le thème affiché, suivi en direct (src/humalis/temps.ts).
+      return 'themeSombre';
     case 'etatRequete':
       // L'état de la requête de la variable (src/humalis/serveur.ts) : chargement, erreur ou introuvable.
       return `${camel(valeur.variable)}Req.statut === '${valeur.etat}'`;

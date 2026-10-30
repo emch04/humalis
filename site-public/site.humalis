@@ -39,7 +39,7 @@ entete avec colle et style "site-header" :
             bouton "Changer de thème" en anglais "Change theme" avec nom "theme-toggle" et style "icon-button"
             lien "GitHub ↗" en anglais "GitHub ↗" vers "https://github.com/emch04/humalis" avec nouvel onglet et style "github-link"
     quand l'utilisateur clique sur "theme-toggle" :
-        changer theme par clair
+        basculer theme
 
 pied avec style "site-footer" :
     ligne avec style "footer-grid" :
@@ -68,7 +68,7 @@ page "accueil" :
                     texte "npm install -g humalis" en anglais "npm install -g humalis" avec style "install-code"
                     bouton "Copier" en anglais "Copy" avec nom "copier" et style "copy-button"
                 quand l'utilisateur clique sur "copier" :
-                    copier "npm install -g humalis" avec message "Commande copiée"
+                    copier "npm install -g humalis" avec message "Commande copiée" en anglais "Command copied"
             DemoCode
     bloc avec style "section target-section" :
         colonne avec style "section-heading" :

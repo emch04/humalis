@@ -261,3 +261,69 @@ describe('le thème — changé depuis l’en-tête commun', () => {
     expect(genererProjetMobile(application, { nom: 'e', source: 'e.humalis' }).has('humalis/theme.ts')).toBe(true);
   });
 });
+
+// Manque n° 1 du site public : « basculer theme » passe au thème inverse de celui qu'on voit.
+describe('basculer theme', () => {
+  const source = programme('theme :', '>mode sombre', '', 'page "p" :', '>titre "a"', '>bouton "Thème"', '>quand l\'utilisateur clique sur "Thème" :', '>>basculer theme');
+
+  it('est accepté, et seulement dans un événement', () => {
+    expect(erreurs(source)).toEqual([]);
+    expect(erreurs(programme('page "p" :', '>titre "a"', '>basculer theme')).join('\n')).toMatch(/événement/);
+  });
+
+  it('web : appelle definirTheme(\'bascule\'), qui choisit l’inverse du thème affiché', () => {
+    const fichiers = genererProjetWeb(compiler(source).application!, { nom: 'a', adresse: 'https://a.fr', source: 'a.humalis' });
+    const page = [...fichiers.entries()].find(([n]) => n.endsWith('P.tsx'))![1];
+    expect(page).toContain("definirTheme('bascule');");
+    const theme = fichiers.get('src/humalis/theme.ts')!;
+    expect(theme).toContain("'bascule'");
+    expect(theme).toContain('prefers-color-scheme: dark');
+  });
+
+  it('statique et mobile : la même bascule', () => {
+    const { application } = compiler(source);
+    const statique = [...genererProjetStatique(application!, { nom: 'a', source: 'a.humalis' }).values()].join('\n');
+    expect(statique).toContain("definirTheme('bascule')");
+    expect(statique).toContain("theme === 'bascule'");
+    const mobile = [...genererProjetMobile(application!, { nom: 'a', source: 'a.humalis' }).values()].join('\n');
+    expect(mobile).toContain("definirTheme('bascule')");
+    expect(mobile).toContain("demande === 'bascule'");
+  });
+});
+
+// Manque n° 1 du site public : « si theme est sombre : » lit le thème affiché, suivi en direct.
+describe('si theme est sombre', () => {
+  const source = programme(
+    'theme :', '>mode automatique', '',
+    'page "p" :', '>titre "a"',
+    '>si theme est sombre :', '>>texte "Nuit"',
+    '>si theme est clair :', '>>texte "Jour"',
+    '>si theme n\'est pas sombre :', '>>texte "Pas nuit"',
+    '>bouton "B"', '>quand l\'utilisateur clique sur "B" :', '>>si theme est sombre :', '>>>changer theme par clair', '>>sinon :', '>>>changer theme par sombre',
+  );
+
+  it('est accepté dans la page et dans un événement', () => {
+    expect(erreurs(source)).toEqual([]);
+  });
+
+  it('une variable nommée theme se compare toujours comme avant', () => {
+    expect(erreurs(programme('page "p" :', '>titre "a"', '>variable theme = "x"', '>si theme est egal a "x" :', '>>texte "ok"'))).toEqual([]);
+  });
+
+  it('web et mobile : un crochet suivi en direct', () => {
+    const fichiers = genererProjetWeb(compiler(source).application!, { nom: 'a', adresse: 'https://a.fr', source: 'a.humalis' });
+    const page = [...fichiers.entries()].find(([n]) => n.endsWith('P.tsx'))![1];
+    expect(page).toContain('const themeSombre = useThemeSombre();');
+    expect(page).toContain('themeSombre');
+    expect(page).toContain('!themeSombre');
+    expect(fichiers.get('src/humalis/temps.ts')).toContain('export function useThemeSombre');
+    const mobile = genererProjetMobile(compiler(source).application!, { nom: 'a', source: 'a.humalis' });
+    expect([...mobile.values()].join('\n')).toContain('useColorScheme');
+  });
+
+  it('statique : themeSombre(), relu à chaque dessin', () => {
+    const statique = [...genererProjetStatique(compiler(source).application!, { nom: 'a', source: 'a.humalis' }).values()].join('\n');
+    expect(statique).toContain('themeSombre()');
+    expect(statique).toContain('const themeSombre = ');
+  });
+});

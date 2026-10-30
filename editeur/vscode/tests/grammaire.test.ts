@@ -114,3 +114,18 @@ describe('grammaire : bloc style (CSS)', () => {
     expect(lignes[2].some((j) => j.portees.includes('source.css.embedded.humalis'))).toBe(false);
   });
 });
+
+describe('grammaire : guillemets dans un texte', () => {
+  it('\\" reste dans le texte et ne le ferme pas', async () => {
+    const [ligne] = await colorier('titre "Le mot \\"page\\" ici"');
+    expect(porteeDe(jetonDe(ligne, '\\"'))).toBe('constant.character.escape.humalis');
+    expect(porteeDe(jetonDe(ligne, ' ici'))).toBe('string.quoted.double.humalis');
+  });
+});
+
+describe('grammaire : un texte qui finit par deux antislashs', () => {
+  it('se ferme bien sur son guillemet', async () => {
+    const [ligne] = await colorier('texte "a\\\\" bouton');
+    expect(porteeDe(jetonDe(ligne, 'bouton'))).not.toBe('string.quoted.double.humalis');
+  });
+});

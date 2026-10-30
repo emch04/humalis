@@ -48,7 +48,7 @@ export function fichiersDesInteractions(codes: string[], plateforme: Plateforme 
 
 /** Les outils de chaque fichier, pour écrire les imports d'une page. */
 export const OUTILS_INTERACTIONS: Record<string, string[]> = {
-  temps: ['useActuel', 'useMinuterie', 'usePlanifier', 'useMouvementReduit', 'useQuandChange', 'useQuandPause', 'useDerniere'],
+  temps: ['useActuel', 'useMinuterie', 'usePlanifier', 'useMouvementReduit', 'useThemeSombre', 'useQuandChange', 'useQuandPause', 'useDerniere'],
   'presse-papier': ['copier', 'partager', 'adresseAbsolue'],
   clavier: ['useRaccourcis', 'correspond', 'cliquer', 'focaliser'],
   confirmation: ['confirmer', 'useConfirmer'],
@@ -77,7 +77,7 @@ export function importsDesInteractions(code: string, dossier: string, outils: Re
 function tempsTs(plateforme: Plateforme): string {
   const web = plateforme === 'web';
   return `import { useCallback, useEffect, useLayoutEffect, useRef, useState${web ? ', useSyncExternalStore' : ''} } from 'react';
-${web ? '' : "import { AccessibilityInfo, AppState } from 'react-native';\n"}
+${web ? '' : "import { AccessibilityInfo, AppState, useColorScheme } from 'react-native';\n"}
 /**
  * Les dernières valeurs de la page, pour ce qui s'exécute plus tard (une
  * minuterie lancée par un clic, le bouton d'un message) : sans cela, il
@@ -204,6 +204,28 @@ export function useMouvementReduit(): boolean {
     // Le prérendu n'écrit aucun mouvement.
     () => false,
   );
+}
+
+/** « theme est sombre » : le thème affiché (choix du visiteur ou du projet, sinon le système), suivi en direct. */
+export function useThemeSombre(): boolean {
+  return useSyncExternalStore(
+    (changement) => {
+      const media = window.matchMedia('(prefers-color-scheme: dark)');
+      media.addEventListener('change', changement);
+      const observateur = new MutationObserver(changement);
+      observateur.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+      return () => {
+        media.removeEventListener('change', changement);
+        observateur.disconnect();
+      };
+    },
+    () => {
+      const choisi = document.documentElement.dataset.theme;
+      return choisi ? choisi === 'sombre' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+    },
+    // Le prérendu ne connaît pas le thème du visiteur.
+    () => false,
+  );
 }`
     : `/** « mouvement est reduit » : la personne a demandé à son téléphone de réduire les animations, suivi en direct. */
 export function useMouvementReduit(): boolean {
@@ -214,6 +236,11 @@ export function useMouvementReduit(): boolean {
     return () => abonnement.remove();
   }, []);
   return reduit;
+}
+
+/** « theme est sombre » : le thème affiché par le téléphone, suivi en direct. */
+export function useThemeSombre(): boolean {
+  return useColorScheme() === 'dark';
 }`
 }
 

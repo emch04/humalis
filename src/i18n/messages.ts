@@ -87,6 +87,7 @@ export const MESSAGES: Versions[] = [
   { fr: "Choisissez d'abord un fichier.", en: 'Choose a file first.' },
   { fr: 'AAAA-MM-JJ', en: 'YYYY-MM-DD' },
   { fr: 'Fermer le message', en: 'Close the message' },
+  { fr: 'Aller au contenu', en: 'Skip to content' },
   { fr: 'Fermer', en: 'Close' },
   { fr: 'Copié', en: 'Copied' },
   { fr: 'Copie impossible.', en: 'Could not copy.' },

@@ -645,7 +645,12 @@ class Construction {
           break;
 
         case 'Copier':
-          actions.push({ type: 'copie', valeur: this.valeur(instruction.valeur), message: instruction.message === undefined ? 'Copié' : instruction.message });
+          actions.push({
+            type: 'copie',
+            valeur: this.valeur(instruction.valeur),
+            message: instruction.message === undefined ? 'Copié' : instruction.message,
+            ...(instruction.texte ? { texte: this.valeur(instruction.texte) } : {}),
+          });
           break;
 
         case 'Partager': {
@@ -839,7 +844,7 @@ class Construction {
       case 'changerTheme': {
         const texte = this.valeur(action.arguments[0]);
         const valeur = texte.type === 'texte' && 'texte' in texte.parties[0] ? texte.parties[0].texte : 'automatique';
-        return { type: 'theme', valeur: valeur as 'clair' | 'sombre' | 'automatique' };
+        return { type: 'theme', valeur: valeur as 'clair' | 'sombre' | 'automatique' | 'bascule' };
       }
       case 'revenir': {
         const vers = action.arguments[0];
@@ -968,6 +973,8 @@ function traduireValeur(expression: Expression, analyse: ResultatAnalyse): Valeu
       return { type: 'erreurRequete', variable: expression.variable };
     case 'MouvementReduit':
       return { type: 'mouvementReduit' };
+    case 'ThemeSombre':
+      return { type: 'themeSombre' };
   }
 }
 

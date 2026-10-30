@@ -14,6 +14,7 @@ import type { Token } from '../lexer/types.js';
 import { normaliser } from '../lexer/motsCles.js';
 import type { FluxTokens } from './fluxTokens.js';
 import { ErreurSyntaxique } from './erreurs.js';
+import { lireVersions } from './langues.js';
 import type {
   ArgumentPage,
   Comparaison,
@@ -170,8 +171,11 @@ function analyserCopier(flux: FluxTokens, outils: OutilsParser): Copier {
   if (flux.verifier('MOT_CLE', 'avec') && estLeMot(flux.regarder(1), 'message')) {
     flux.avancer();
     flux.avancer();
-    const message = flux.attendre('CHAINE', undefined, 'le texte du message entre guillemets (copier code avec message "Code copié")').valeur;
-    return { type: 'Copier', valeur, message, ligne: debut.ligne };
+    const jeton = flux.attendre('CHAINE', undefined, 'le texte du message entre guillemets (copier code avec message "Code copié")');
+    // « avec message "Copié" en anglais "Copied" » : les versions écrites à côté.
+    const versions = lireVersions(flux);
+    const texte = versions ? { texte: { type: 'Chaine' as const, parties: jeton.parties ?? [], versions, ligne: jeton.ligne } } : {};
+    return { type: 'Copier', valeur, message: jeton.valeur, ...texte, ligne: debut.ligne };
   }
   if (estLeMot(flux.actuel(), 'sans') && estLeMot(flux.regarder(1), 'message')) {
     flux.avancer();

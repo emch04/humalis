@@ -1309,7 +1309,7 @@ class AnalysePage {
 
       case 'changerTheme': {
         const valeur = texteLitteral(action.arguments[0]);
-        if (valeur === undefined || !['clair', 'sombre', 'automatique'].includes(valeur)) {
+        if (valeur === undefined || !['clair', 'sombre', 'automatique', 'bascule'].includes(valeur)) {
           this.erreur(`« changer theme par … » prend clair, sombre ou automatique (ici : « ${valeur ?? '?'} »).`, action.ligne);
         }
         return;
@@ -1737,6 +1737,7 @@ class AnalysePage {
         this.usagesEtat.push({ nom: expression.variable, ligne: expression.ligne, mot: 'erreur de' });
         return TEXTE;
       case 'MouvementReduit':
+      case 'ThemeSombre':
         return BOOLEEN;
       case 'EtatUtilisateur':
         this.litLaSession = true;

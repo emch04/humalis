@@ -1107,10 +1107,12 @@ l'écraser.
 /** « changer theme par sombre » sur le téléphone : le réglage de l'application, pour cette session. */
 const THEME_MOBILE = `import { Appearance } from 'react-native';
 
-export type Theme = 'clair' | 'sombre' | 'automatique';
+export type Theme = 'clair' | 'sombre' | 'automatique' | 'bascule';
 
 /** Change le thème de l'application (le choix n'est pas gardé après la fermeture). */
-export function definirTheme(theme: Theme): void {
+export function definirTheme(demande: Theme): void {
+  // « basculer theme » : l'inverse du thème affiché.
+  const theme = demande === 'bascule' ? (Appearance.getColorScheme() === 'dark' ? 'clair' : 'sombre') : demande;
   Appearance.setColorScheme(theme === 'clair' ? 'light' : theme === 'sombre' ? 'dark' : 'unspecified');
 }
 `;

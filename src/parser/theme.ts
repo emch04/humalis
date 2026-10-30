@@ -110,14 +110,23 @@ export function analyserTheme(flux: FluxTokens): Theme {
   return theme;
 }
 
-/** « changer theme par sombre » (ou par "sombre") : le choix du visiteur, gardé par son appareil. */
+/** « basculer theme » : le thème inverse de celui qu'on voit. */
+const estBasculerTheme = (flux: FluxTokens) => estLeMot(flux.actuel(), 'basculer') && estLeMot(flux.regarder(1), 'theme');
+
+/** « changer theme par sombre » (ou par "sombre") : le choix du visiteur, gardé par son appareil ; ou « basculer theme ». */
 export function estChangerTheme(flux: FluxTokens): boolean {
+  if (estBasculerTheme(flux)) return true;
   if (!(flux.verifier('MOT_CLE', 'changer') && estLeMot(flux.regarder(1), 'theme') && flux.regarder(2).valeur === 'par')) return false;
   const valeur = flux.regarder(3);
   return valeur.type === 'CHAINE' || (estMot(valeur) && MODES.includes(normaliser(valeur.valeur)));
 }
 
 export function analyserChangerTheme(flux: FluxTokens): Action {
+  if (estBasculerTheme(flux)) {
+    const debut = flux.avancer();
+    const mot = flux.avancer();
+    return { type: 'Action', action: 'changerTheme', arguments: [{ type: 'Chaine', parties: [{ type: 'texte', valeur: 'bascule' }], ligne: mot.ligne }], ligne: debut.ligne };
+  }
   const debut = flux.avancer();
   flux.avancer();
   flux.avancer();

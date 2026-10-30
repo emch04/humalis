@@ -652,7 +652,9 @@ ${prise}${code}}
           break;
         case 'copie':
           // « copier code » : le résultat est dit à la personne, sauf « sans message ».
-          e.ligne(`await copier(${this.enTexte(action.valeur)}${action.message === null ? ', null' : action.message === 'Copié' ? '' : `, ${chaine(action.message)}`});`);
+          e.ligne(
+            `await copier(${this.enTexte(action.valeur)}${action.message === null ? ', null' : action.texte ? `, ${x(action.texte)}` : action.message === 'Copié' ? '' : `, ${chaine(action.message)}`});`,
+          );
           break;
         case 'partage': {
           // La feuille de partage du système ; sans elle, le lien (ou le texte) est copié.
@@ -1553,6 +1555,7 @@ const OUTILS_PAGE = [
   'afficherMessage',
   'planifier',
   'mouvementReduit',
+  'themeSombre',
   'copier',
   'partager',
   'derniereRequete',

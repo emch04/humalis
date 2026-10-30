@@ -153,6 +153,9 @@ export function expressionJs(valeur: Valeur, contexte: ContexteJs): string {
     case 'mouvementReduit':
       // « réduire les animations » du système (humalis.js), relu à chaque dessin.
       return 'mouvementReduit()';
+    case 'themeSombre':
+      // Le thème affiché (humalis.js), relu à chaque dessin.
+      return 'themeSombre()';
     case 'etatRequete':
     case 'erreurRequete':
       // Les sources ne sont pas encore produites pour le site statique : l'analyse de la cible les refuse avant.
@@ -384,8 +387,9 @@ export function evaluer(valeur: Valeur, env: Environnement): unknown {
     }
     case 'utilisateur':
     case 'etatRequete':
-    // Le HTML de départ n'écrit aucun mouvement.
+    // Le HTML de départ n'écrit aucun mouvement, et ne connaît pas le thème du visiteur.
     case 'mouvementReduit':
+    case 'themeSombre':
       return false;
     case 'erreurRequete':
       return '';

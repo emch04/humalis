@@ -134,14 +134,23 @@ export const SCRIPT_THEME =
 /** `src/humalis/theme.ts` du projet web : « changer theme par … ». */
 export function themeTs(defaut: 'clair' | 'sombre' | undefined): string {
   return `/** Le thème choisi par le visiteur (« changer theme par sombre »), gardé dans le navigateur. */
-export type Theme = 'clair' | 'sombre' | 'automatique';
+export type Theme = 'clair' | 'sombre' | 'automatique' | 'bascule';
 
 const CLE = '${CLE_THEME}';
 /** Le mode du projet quand le visiteur n'a rien choisi (bloc « theme : »). */
 const PAR_DEFAUT: 'clair' | 'sombre' | undefined = ${defaut ? `'${defaut}'` : 'undefined'};
 
-export function definirTheme(theme: Theme): void {
+/** Le thème affiché : le choix du visiteur ou du projet, sinon celui du système. */
+function themeAffiche(): 'clair' | 'sombre' {
+  const choisi = document.documentElement.dataset.theme;
+  if (choisi === 'clair' || choisi === 'sombre') return choisi;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'sombre' : 'clair';
+}
+
+export function definirTheme(demande: Theme): void {
   const racine = document.documentElement;
+  // « basculer theme » : l'inverse de ce qu'on voit.
+  const theme = demande === 'bascule' ? (themeAffiche() === 'sombre' ? 'clair' : 'sombre') : demande;
   try {
     if (theme === 'automatique') localStorage.removeItem(CLE);
     else localStorage.setItem(CLE, theme);

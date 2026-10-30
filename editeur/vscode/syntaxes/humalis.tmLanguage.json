@@ -67,6 +67,13 @@
       },
       "patterns": [
         {
+          "match": "\\\\\\\\"
+        },
+        {
+          "name": "constant.character.escape.humalis",
+          "match": "\\\\\""
+        },
+        {
           "match": "(\\{)([^}\"]*)(\\})",
           "captures": {
             "1": {
