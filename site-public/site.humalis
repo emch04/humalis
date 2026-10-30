@@ -237,7 +237,7 @@ page "accueil" :
         colonne avec style "call-panel" :
             soustitre "Ta première application en cinq minutes." en anglais "Your first app in five minutes."
             texte "Une phrase suffit pour commencer. La suite t’appartient." en anglais "One sentence is enough to start. The rest is yours."
-            lien "Essayer maintenant →" en anglais "Try it now →" vers "accueil#accueil" avec style "button button-primary"
+            lien "Essayer maintenant →" en anglais "Try it now →" vers "bac_a_sable" avec style "button button-primary"
 
 page "bac_a_sable" a l'adresse "/bac-a-sable" avec filtre exemple :
     apercu :
@@ -289,35 +289,115 @@ page "exemples" a l'adresse "/exemples" :
 page "installer" a l'adresse "/installer" :
     apercu :
         description "Installe Humalis en une commande, crée ton premier projet et lance-le dans ton navigateur en quelques minutes." en anglais "Install Humalis with one command, create your first project and run it in your browser within minutes."
-    bloc avec style "page-intro" :
-        titre "Installer Humalis" en anglais "Install Humalis"
-        texte "Il te faut Node.js 24 ou plus récent. Ensuite, trois commandes suffisent." en anglais "You need Node.js 24 or later. Then three commands are enough."
-    bloc avec style "page-section etapes" :
-        bloc avec style "etape" :
-            soustitre "1. Installer le langage" en anglais "1. Install the language"
-            ligne avec style "install-command" :
-                texte "npm install -g humalis" en anglais "npm install -g humalis" avec style "install-code"
-                bouton "Copier" en anglais "Copy" avec nom "copier-installer" et style "copy-button"
+    # En haut : le texte à gauche, la session complète qui se tape à droite.
+    ligne avec style "install-hero" :
+        colonne avec style "install-hero-texte" et animation montee :
+            texte "Prêt en une minute" en anglais "Ready in a minute" avec style "eyebrow"
+            titre "Installer {accent "Humalis."}" en anglais "Install {accent "Humalis."}" avec style "install-titre"
+            texte "Une commande pour le langage, une pour ton projet, une pour le voir vivre dans ton navigateur. Rien d’autre à configurer." en anglais "One command for the language, one for your project, one to see it come alive in your browser. Nothing else to configure." avec style "hero-intro"
+            ligne avec style "install-pastilles" :
+                texte "Node.js 24 ou plus" en anglais "Node.js 24 or later" avec style "pastille"
+                texte "macOS, Windows, Linux" sans traduction avec style "pastille"
+                texte "Gratuit" en anglais "Free" avec style "pastille"
+            ligne avec style "hero-actions" :
+                lien "Commencer →" en anglais "Get started →" vers "#etapes" avec style "button button-primary"
+                lien "Lire la documentation" en anglais "Read the docs" vers "documentation" avec style "button button-secondary"
+        bloc avec style "install-terminal" et animation agrandissement :
+            ligne avec style "pane-top" :
+                texte "terminal" sans traduction
+            code terminal avec animation frappe :
+                $ npm install -g humalis
+                $ humalis nouveau mon-projet
+                $ cd mon-projet
+                $ humalis developper
+                  Le site est prêt : il se met à jour à chaque enregistrement.
+
+    # Les trois étapes, côte à côte.
+    bloc avec ancre "etapes" et style "install-section" :
+        colonne avec style "section-heading" :
+            soustitre "Trois commandes, et c’est parti." en anglais "Three commands, and you’re off."
+        grille avec colonnes 3 et style "install-etapes" et animation montee au defilement et en cascade :
+            bloc avec style "install-etape" et effet leve :
+                texte "01" avec style "etape-numero"
+                soustitre "Installer le langage" en anglais "Install the language" avec niveau 3
+                texte "Une seule fois sur ta machine : la commande humalis devient disponible partout." en anglais "Once on your machine: the humalis command becomes available everywhere."
+                ligne avec style "install-command" :
+                    texte "npm install -g humalis" sans traduction avec style "install-code"
+                    bouton "Copier" en anglais "Copy" avec nom "copier-installer" et style "copy-button"
                 quand l'utilisateur clique sur "copier-installer" :
                     copier "npm install -g humalis" avec message "Commande copiée" en anglais "Command copied"
-        bloc avec style "etape" :
-            soustitre "2. Créer ton projet" en anglais "2. Create your project"
-            ligne avec style "install-command" :
-                texte "humalis nouveau mon-projet" en anglais "humalis nouveau my-project" avec style "install-code"
-                bouton "Copier" en anglais "Copy" avec nom "copier-nouveau" et style "copy-button"
+            bloc avec style "install-etape" et effet leve :
+                texte "02" avec style "etape-numero"
+                soustitre "Créer ton projet" en anglais "Create your project" avec niveau 3
+                texte "Un dossier avec ton premier fichier .humalis, prêt à être modifié." en anglais "A folder with your first .humalis file, ready to edit."
+                ligne avec style "install-command" :
+                    texte "humalis nouveau mon-projet" en anglais "humalis nouveau my-project" avec style "install-code"
+                    bouton "Copier" en anglais "Copy" avec nom "copier-nouveau" et style "copy-button"
                 quand l'utilisateur clique sur "copier-nouveau" :
                     copier "humalis nouveau mon-projet" avec message "Commande copiée" en anglais "Command copied"
-        bloc avec style "etape" :
-            soustitre "3. Le voir dans ton navigateur" en anglais "3. See it in your browser"
-            ligne avec style "install-command" :
-                texte "cd mon-projet && humalis developper" en anglais "cd my-project && humalis developper" avec style "install-code"
-                bouton "Copier" en anglais "Copy" avec nom "copier-developper" et style "copy-button"
+            bloc avec style "install-etape" et effet leve :
+                texte "03" avec style "etape-numero"
+                soustitre "Le voir vivre" en anglais "See it come alive" avec niveau 3
+                texte "Ton site s’ouvre et se met à jour à chaque enregistrement." en anglais "Your site opens and updates every time you save."
+                ligne avec style "install-command" :
+                    texte "cd mon-projet && humalis developper" en anglais "cd my-project && humalis developper" avec style "install-code"
+                    bouton "Copier" en anglais "Copy" avec nom "copier-developper" et style "copy-button"
                 quand l'utilisateur clique sur "copier-developper" :
                     copier "cd mon-projet && humalis developper" avec message "Commande copiée" en anglais "Command copied"
-            texte "Ton site s’ouvre et se met à jour à chaque enregistrement. Quand il te plaît, compile-le pour le web, le mobile, le bureau ou le serveur." en anglais "Your site opens and updates every time you save. When you like it, compile it for the web, mobile, desktop or server."
-        ligne avec style "hero-actions" :
-            lien "Lire la documentation" en anglais "Read the docs" vers "documentation" avec style "button button-primary"
-            lien "Voir Humalis sur npm" en anglais "See Humalis on npm" vers "https://www.npmjs.com/package/humalis" avec nouvel onglet et style "button button-secondary"
+
+    # Ensuite : une commande par cible.
+    bloc avec style "install-section" :
+        colonne avec style "section-heading" :
+            soustitre "Puis choisis ta cible." en anglais "Then pick your target."
+            texte "Le même fichier devient un site, une application ou un serveur." en anglais "The same file becomes a website, an app or a server."
+        grille avec colonnes 5 et style "install-cibles" et animation montee au defilement et en cascade :
+            bloc avec style "install-cible" et effet leve :
+                soustitre "Web" sans traduction avec niveau 3
+                texte "--cible web" sans traduction avec style "cible-code"
+            bloc avec style "install-cible" et effet leve :
+                soustitre "Statique" en anglais "Static" avec niveau 3
+                texte "--cible statique" sans traduction avec style "cible-code"
+            bloc avec style "install-cible" et effet leve :
+                soustitre "Mobile" sans traduction avec niveau 3
+                texte "--cible mobile" sans traduction avec style "cible-code"
+            bloc avec style "install-cible" et effet leve :
+                soustitre "Bureau" en anglais "Desktop" avec niveau 3
+                texte "--cible desktop" sans traduction avec style "cible-code"
+            bloc avec style "install-cible" et effet leve :
+                soustitre "Serveur" en anglais "Server" avec niveau 3
+                texte "--cible serveur" sans traduction avec style "cible-code"
+        ligne avec style "install-command install-command-large" :
+            texte "humalis compile mon-projet.humalis --cible web --sortie mon-site" en anglais "humalis compile my-project.humalis --cible web --sortie my-site" avec style "install-code"
+            bouton "Copier" en anglais "Copy" avec nom "copier-compile" et style "copy-button"
+        quand l'utilisateur clique sur "copier-compile" :
+            copier "humalis compile mon-projet.humalis --cible web --sortie mon-site" avec message "Commande copiée" en anglais "Command copied"
+
+    # Vérifier et se faire aider.
+    grille avec colonnes 2 et style "install-section install-aide" et animation montee au defilement et en cascade :
+        bloc avec style "install-carte" :
+            soustitre "Vérifier avant de compiler" en anglais "Check before you compile" avec niveau 3
+            texte "Humalis relit ton fichier et t’explique chaque erreur en français, avec la ligne et une piste pour la corriger." en anglais "Humalis reads your file and explains every error, with the line and a hint to fix it."
+            ligne avec style "install-command" :
+                texte "humalis verifier mon-projet.humalis" en anglais "humalis verifier my-project.humalis" avec style "install-code"
+                bouton "Copier" en anglais "Copy" avec nom "copier-verifier" et style "copy-button"
+            quand l'utilisateur clique sur "copier-verifier" :
+                copier "humalis verifier mon-projet.humalis" avec message "Commande copiée" en anglais "Command copied"
+        bloc avec style "install-carte" :
+            soustitre "Un souci ?" en anglais "Something wrong?" avec niveau 3
+            liste :
+                texte "Vérifie ta version de Node.js avec {code "node -v"} : il faut 24 ou plus." en anglais "Check your Node.js version with {code "node -v"}: you need 24 or later."
+                texte "Si {code "npm install -g"} refuse d’écrire, installe Node.js avec un gestionnaire de versions comme nvm." en anglais "If {code "npm install -g"} cannot write, install Node.js with a version manager such as nvm."
+                texte "Toujours bloqué ? Décris le problème sur GitHub." en anglais "Still stuck? Describe the problem on GitHub."
+            lien "Signaler un problème ↗" en anglais "Report an issue ↗" vers "https://github.com/emch04/humalis/issues" avec nouvel onglet et style "button button-secondary"
+
+    # L'appel final.
+    bloc avec style "install-section" :
+        bloc avec style "call-panel" et animation agrandissement au defilement :
+            soustitre "Ton idée mérite d’exister." en anglais "Your idea deserves to exist."
+            texte "Essaie Humalis sans rien installer, directement dans ton navigateur." en anglais "Try Humalis without installing anything, right in your browser."
+            ligne avec style "hero-actions" :
+                lien "Ouvrir le bac à sable →" en anglais "Open the playground →" vers "bac_a_sable" avec style "button button-primary"
+                lien "Voir les exemples" en anglais "See the examples" vers "exemples" avec style "button button-secondary"
 
 page "introuvable" :
     bloc avec style "page-intro introuvable" :
