@@ -5,7 +5,7 @@ Humalis est un langage en français. Un fichier .humalis décrit des pages, des 
 ## Grammaire en une page
 
 - Une page commence par `page "nom" :`. Son contenu est indenté de 4 espaces ; chaque bloc ajoute 4 espaces.
-- Les éléments d’écran pris en charge : titre, texte, image, bouton, lien, champ, formulaire, section, bloc, ligne, colonne, grille, sous-titre, fenêtre, menu, icône, badge, avatar, progression, chargement, étoiles, compteur, code QR, onglets, onglet, déroulant, accordéon, carrousel, fil d’Ariane, audio, fichier, carte, marqueur, graphique, série, sélecteur. Leur texte s’écrit entre guillemets.
+- Les éléments d’écran pris en charge : titre, texte, image, bouton, lien, champ, formulaire, section, bloc, ligne, colonne, grille, sous-titre, liste, tableau, fenêtre, menu, icône, badge, avatar, progression, chargement, étoiles, compteur, code QR, onglets, onglet, déroulant, accordéon, carrousel, fil d’Ariane, audio, fichier, carte, marqueur, graphique, série, sélecteur. Leur texte s’écrit entre guillemets.
 - Déclare une valeur avec `variable nom = valeur` ; une condition commence par `si ... :`.
 - Les événements pris en charge : quand, utilisateur, clique, sur, survole, charge, soumis, ecrit, arrête d’écrire, appuie, arrive en bas de, l’ordre de … change. Écris l’événement sous l’élément visé, puis l’action dans son bloc.
 - Les actions prises en charge : afficher, erreur, montrer, cacher, changer, rediriger, ajouter, retirer, envoyer, requête, connecter, déconnecter, revenir, réussite, avertissement, pendant, disparaître, action, après, toutes, copier, partager, confirmer.
@@ -27,6 +27,13 @@ page "accueil" :
 
 ## Messages d’erreur
 
+- Code dans une phrase sans guillemets : code attend un texte entre guillemets
+- Une ligne inconnue dans un tableau : un tableau contient « colonnes » et « rangee »
+- Deux-points après un tableau : deux-points après la légende du tableau
+- Bloc de code dans un événement : un bloc de code se place dans une page
+- Tableau sans légende : un tableau attend une légende
+- Tableau sans colonnes : un tableau attend une ligne « colonnes »
+- Rangée de mauvaise largeur : la rangée a 1 cellules
 - Texte accentué sans guillemets : accent attend un texte entre guillemets
 - Accent hors d’un texte de page : accent s’emploie seulement
 - Un élément sans texte : n'a pas de texte

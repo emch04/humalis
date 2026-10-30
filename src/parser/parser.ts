@@ -490,6 +490,43 @@ function analyserBloc(flux: FluxTokens): Instruction[] {
 }
 
 function analyserInstruction(flux: FluxTokens): Instruction {
+  if (estLeMot(flux.actuel(), 'tableau') && (flux.regarder(1).type === 'CHAINE' || flux.regarder(1).valeur === ':')) {
+    const debut = flux.avancer();
+    const legende = flux.verifier('PONCTUATION', ':') ? undefined : analyserValeur(flux);
+    flux.attendre('PONCTUATION', ':', 'deux-points après la légende du tableau');
+    flux.sauterFinsDeLigne();
+    const colonnes: Expression[] = [];
+    const rangees: Expression[][] = [];
+    if (flux.accepter('INDENT')) {
+      flux.sauterFinsDeLigne();
+      while (!flux.verifier('DEDENT') && !flux.estFini()) {
+        const genre = flux.avancer();
+        if (!estLeMot(genre, 'colonnes') && !estLeMot(genre, 'rangee')) throw new ErreurSyntaxique('un tableau contient « colonnes » et « rangee ».', genre.ligne);
+        const cellules = [analyserValeur(flux)];
+        while (flux.accepter('PONCTUATION', ',')) cellules.push(analyserValeur(flux));
+        if (estLeMot(genre, 'colonnes')) colonnes.push(...cellules);
+        else rangees.push(cellules);
+        flux.sauterFinsDeLigne();
+      }
+      flux.accepter('DEDENT');
+    }
+    return { type: 'TableauDocumentation', ...(legende ? { legende } : {}), colonnes, rangees, ligne: debut.ligne };
+  }
+  if (estLeMot(flux.actuel(), 'liste') && (flux.regarder(1).valeur === ':' || (estLeMot(flux.regarder(1), 'numerotee') && flux.regarder(2).valeur === ':'))) {
+    const debut = flux.avancer();
+    const numerotee = estLeMot(flux.actuel(), 'numerotee');
+    if (numerotee) flux.avancer();
+    flux.attendre('PONCTUATION', ':', 'deux-points après « liste »');
+    return { type: 'Bloc', genre: numerotee ? 'listeNumerotee' : 'liste', styles: [], classes: [], corps: analyserBloc(flux), ligne: debut.ligne };
+  }
+  if (estLeMot(flux.actuel(), 'code') && (flux.regarder(1).valeur === ':' || flux.regarder(2).valeur === ':')) {
+    const debut = flux.avancer();
+    const langage = flux.verifier('PONCTUATION', ':') ? undefined : flux.avancer().valeur;
+    flux.attendre('PONCTUATION', ':', 'deux-points après « code »');
+    flux.accepter('FIN_LIGNE');
+    const code = flux.attendre('CODE_BRUT', undefined, 'les lignes du bloc de code').valeur;
+    return { type: 'CodeDocumentation', ...(langage ? { langage } : {}), code, ligne: debut.ligne };
+  }
   if (estLeMot(flux.actuel(), 'en') && estLeMot(flux.regarder(1), 'supposant')) {
     const debut = flux.avancer();
     for (const motAttendu of ['supposant', 'que', 'ca', 'marche']) {

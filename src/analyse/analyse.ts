@@ -151,6 +151,8 @@ export interface ResultatAnalyse {
   pagesDispositions: Map<Disposition, Page>;
   /** Leurs couleurs claire et sombre, pour avertir d'un texte qui se verrait mal. */
   valeursTheme: Map<string, { clair: string; sombre: string }>;
+  /** Les modes que l'application peut montrer : un seul avec « mode clair » ou « mode sombre » sans bouton qui change le thème. */
+  modesVus: readonly ('clair' | 'sombre')[];
   /** L'identifiant de chaque fenêtre (« fenetre_details »). */
   fenetres: Map<Fenetre, string>;
   /** L'identifiant de chaque bloc nommé (« bloc_catalogue »), par nom. */
@@ -218,6 +220,16 @@ type Place =
  * modifie pas l'arbre et collecte toutes les erreurs au lieu de
  * s'arrêter à la première.
  */
+/**
+ * Les modes que l'application peut montrer. « mode clair » ou « mode sombre » n'en laisse qu'un,
+ * sauf si un bouton change le thème (« changer theme par … », « basculer theme »).
+ */
+function modesVus(programme: Programme): readonly ('clair' | 'sombre')[] {
+  const mode = programme.theme?.mode?.valeur;
+  if (mode !== 'clair' && mode !== 'sombre') return ['clair', 'sombre'];
+  return JSON.stringify(programme).includes('"action":"changerTheme"') ? ['clair', 'sombre'] : [mode];
+}
+
 export function analyserSens(programme: Programme): ResultatAnalyse {
   const resultat: ResultatAnalyse = {
     diagnostics: [],
@@ -246,6 +258,7 @@ export function analyserSens(programme: Programme): ResultatAnalyse {
     fenetres: new Map(),
     blocsNommes: new Map(),
     valeursTheme: new Map((programme.theme?.couleurs ?? []).map((c) => [c.nom, { clair: c.clair, sombre: c.sombre ?? c.clair }])),
+    modesVus: modesVus(programme),
     langues: { langues: [], traductions: new Map() },
     referencesLangue: new Map(),
     changementsLangue: new Map(),
@@ -342,7 +355,7 @@ export function analyserSens(programme: Programme): ResultatAnalyse {
 
   for (const page of programme.pages) {
     new AnalysePage(page, nomsPages, resultat, classes, partages, composants, [], liens, fonctions).analyser();
-    resultat.diagnostics.push(...verifierAccessibilite(page, resultat.valeursTheme));
+    resultat.diagnostics.push(...verifierAccessibilite(page, resultat.valeursTheme, resultat.modesVus));
     for (const [sans, genre] of [[page.sansEntete, 'entete'], [page.sansPied, 'pied']] as const) {
       if (sans && !programme[genre]) {
         resultat.diagnostics.push({
@@ -810,6 +823,21 @@ class AnalysePage {
         this.blocMiseEnPage(instruction, contexte, place);
         return;
 
+      case 'CodeDocumentation':
+        if (contexte === 'evenement') this.erreur('un bloc de code se place dans une page.', instruction.ligne);
+        return;
+
+      case 'TableauDocumentation':
+        if (!instruction.legende) this.erreur('un tableau attend une légende entre guillemets : tableau "Commandes" :', instruction.ligne);
+        if (instruction.colonnes.length === 0) this.erreur('un tableau attend une ligne « colonnes ».', instruction.ligne);
+        for (const rangee of instruction.rangees) {
+          if (instruction.colonnes.length > 0 && rangee.length !== instruction.colonnes.length) this.erreur(`la rangée a ${rangee.length} cellules, mais le tableau a ${instruction.colonnes.length} colonnes.`, rangee[0]?.ligne ?? instruction.ligne);
+        }
+        if (instruction.legende) this.typeDe(instruction.legende);
+        instruction.colonnes.forEach((cellule) => this.typeDe(cellule));
+        instruction.rangees.flat().forEach((cellule) => this.typeDe(cellule));
+        return;
+
       case 'Action':
         this.action(instruction, contexte);
         if (instruction.message) {
@@ -1243,6 +1271,7 @@ class AnalysePage {
         const valeur = this.resultat.valeursTheme.get(option.valeur) ?? COULEURS_CSS[option.valeur];
         return { nom: option.valeur, clair: valeur.clair, sombre: valeur.sombre };
       },
+      modes: this.resultat.modesVus,
     });
   }
 
@@ -1251,7 +1280,7 @@ class AnalysePage {
     if (propriete !== 'couleur' && propriete !== 'texte') return;
     const couleur = this.resultat.valeursTheme.get(valeur);
     if (!couleur) return;
-    for (const mode of ['clair', 'sombre'] as const) {
+    for (const mode of this.resultat.modesVus) {
       const rapport = contraste(couleur[mode], FOND_PAGE[mode]);
       if (rapport < 3) {
         this.avertissement(

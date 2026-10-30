@@ -91,3 +91,11 @@ describe('CSS — cible web', () => {
     expect(main).toContain("import './styles/theme.css';");
   });
 });
+
+describe('un bloc « style : » après un bloc « theme : »', () => {
+  it('est lu comme du CSS (le bloc du thème se ferme avant)', () => {
+    const { diagnostics, application } = compiler('theme :\n    mode clair\n\nstyle :\n    .a { color: red; }\n\npage "a" :\n    titre "A" avec style "a"\n');
+    expect(diagnostics.filter((d) => d.gravite === 'erreur')).toEqual([]);
+    expect(application!.css.join('\n')).toContain('.a { color: red; }');
+  });
+});

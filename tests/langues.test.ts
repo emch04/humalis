@@ -472,3 +472,16 @@ describe('langues — le nom d’un fichier son ne se traduit pas', () => {
     expect(r.diagnostics.map((d) => d.message).join('\n')).not.toMatch(/« extrait\.mp3 » n'a pas de version anglaise/);
   });
 });
+
+describe('les textes d\'une branche « si langue est … »', () => {
+  const avertissements = (corps: string) =>
+    compiler(`langues :\n    francais\n    anglais\n\npage "a" :\n    titre "A" en anglais "A"\n${corps}`).diagnostics.filter((d) => d.gravite === 'avertissement').map((d) => d.message);
+
+  it('sont déjà dans leur langue : aucune version à ajouter', () => {
+    expect(avertissements('    si langue est anglais :\n        texte "Hello"\n    sinon :\n        texte "Bonjour"\n')).toEqual([]);
+  });
+
+  it('un texte hors de la branche demande toujours sa version', () => {
+    expect(avertissements('    texte "Salut"\n    si langue est anglais :\n        texte "Hello"\n').join('\n')).toMatch(/« Salut » n'a pas de version anglaise/);
+  });
+});

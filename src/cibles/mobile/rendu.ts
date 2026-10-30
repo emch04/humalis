@@ -137,7 +137,7 @@ function elementMobile(el: ElementProduit): string {
   // Le texte posé sur un fond prend la couleur d'encre de ce fond.
   const encres = el.options.filter((o) => o.nom === 'fond').map((o) => camel(`encre_${o.valeur}`));
   const contenu = ['titre', 'soustitre', 'texte'].includes(el.genre)
-    ? el.contenu.replace(/<span className="humalis-accent">/g, '<Text style={s.accent}>').replace(/<\/span>/g, '</Text>')
+    ? el.contenu.replace(/<span className="humalis-accent">/g, '<Text style={s.accent}>').replace(/<code className="humalis-code-ligne">/g, '<Text style={{ fontFamily: "monospace" }}>').replace(/<\/(span|code)>/g, '</Text>')
     : el.contenu;
 
   switch (el.genre) {

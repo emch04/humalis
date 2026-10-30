@@ -4,6 +4,15 @@ import { colorier, jetonDe, porteeDe } from './aide-grammaire.js';
 const RESERVE = 'keyword.control.humalis';
 const CONTEXTUEL = 'support.function.humalis';
 
+describe('grammaire : bloc de code brut', () => {
+  it('garde les lignes du bloc comme du texte puis revient à Humalis', async () => {
+    const lignes = await colorier('page "a" :\n    code humalis :\n        texte "incomplet\n        # brut\n    titre "Après"');
+    expect(porteeDe(jetonDe(lignes[2], 'texte'))).toBe('string.unquoted.humalis');
+    expect(porteeDe(jetonDe(lignes[3], '# brut'))).toBe('string.unquoted.humalis');
+    expect(porteeDe(jetonDe(lignes[4], 'titre'))).toBe(CONTEXTUEL);
+  });
+});
+
 async function portee(source: string, mot: string): Promise<string | undefined> {
   const [ligne] = await colorier(source);
   return porteeDe(jetonDe(ligne, mot));

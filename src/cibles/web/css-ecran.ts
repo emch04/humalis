@@ -36,6 +36,11 @@ export function cssEcran(codes: string[]): string {
   const utilises = reglagesUtilises(codes);
   const regles: string[] = [];
   if (codes.some((c) => c.includes('humalis-accent'))) regles.push('.humalis-accent { color: var(--humalis-marque, currentColor); }');
+  if (codes.some((c) => c.includes('humalis-code-ligne'))) regles.push('.humalis-code-ligne { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; padding: 0.1em 0.25em; border-radius: 0.2em; background: rgb(127 127 127 / 0.12); }');
+  if (codes.some((c) => c.includes('humalis-bloc-code'))) regles.push('.humalis-bloc-code-conteneur { position: relative; max-width: 100%; overflow-x: auto; } .humalis-bloc-code { overflow-x: auto; padding: 1rem; border-radius: 0.5rem; background: rgb(127 127 127 / 0.12); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre; } .humalis-bloc-code-conteneur button { position: absolute; top: 0.5rem; right: 0.5rem; }');
+  if (codes.some((c) => c.includes('humalis-code-mot'))) regles.push('.humalis-code-mot { color: #7348c3; font-weight: 600; } .humalis-code-texte { color: #147d50; } .humalis-code-commentaire { color: #68717d; } .humalis-code-nombre { color: #b25215; }');
+  if (codes.some((c) => c.includes('humalis-tableau-conteneur'))) regles.push('.humalis-tableau-conteneur { max-width: 100%; overflow-x: auto; } .humalis-tableau-conteneur table { border-collapse: collapse; width: 100%; } .humalis-tableau-conteneur th, .humalis-tableau-conteneur td { border: 1px solid rgb(127 127 127 / 0.3); padding: 0.5rem; text-align: left; } .humalis-tableau-conteneur caption { text-align: left; font-weight: 700; margin-bottom: 0.5rem; }');
+  if (codes.some((c) => c.includes('humalis-liste'))) regles.push('.humalis-liste { padding-inline-start: 1.5rem; } .humalis-liste > li { margin-block: 0.35rem; }');
   // L'en-tête et le pied communs : hors de la page, sur toute la largeur.
   if (codes.some((c) => /humalis-entete\b/.test(c))) {
     regles.push('.humalis-entete { padding: 0.75rem 1rem; border-bottom: 1px solid rgb(138 138 144 / 0.4); }');

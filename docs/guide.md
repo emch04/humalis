@@ -185,6 +185,55 @@ page "offre" :
     texte "Prix : {accent "gratuit"} pour toujours"
 ```
 
+### Listes
+
+`liste :` crée des puces ; `liste numerotee :` numérote chaque élément. Chaque instruction du bloc devient une entrée.
+
+```humalis
+page "guide" :
+    liste :
+        texte "Installer Node.js"
+        texte "Créer le projet"
+    liste numerotee :
+        texte "Écrire le fichier"
+        texte "Compiler"
+```
+
+### Code dans une phrase
+
+Dans un texte, `{code "…"}` affiche un court morceau de code à chasse fixe.
+
+```humalis
+page "guide" :
+    texte "Écris {code "titre"} pour donner un titre."
+```
+
+### Bloc de code
+
+`code langage :` recopie les lignes indentées sans les interpréter ; le langage est facultatif.
+
+```humalis
+page "guide" :
+    code humalis :
+        page "accueil" :
+            titre "Bienvenue"
+```
+
+### Tableau
+
+Un tableau a une légende, des colonnes et des rangées de même largeur. Une traduction peut suivre chaque cellule.
+
+```humalis
+langues :
+    francais
+    anglais
+
+page "guide" :
+    tableau "Les commandes" en anglais "Commands" :
+        colonnes "Commande", "Rôle" en anglais "Role"
+        rangee "humalis compile", "produit le projet" en anglais "builds the project"
+```
+
 ### Image
 
 ```humalis

@@ -9,7 +9,7 @@ const SEUIL_GRAND = 3;
 const motsVides = new Set(['image', 'photo']);
 
 /** Vérifications qui demandent une intention explicite de l'auteur. */
-export function verifierAccessibilite(page: Page, theme: ReadonlyMap<string, { clair: string; sombre: string }>): Diagnostic[] {
+export function verifierAccessibilite(page: Page, theme: ReadonlyMap<string, { clair: string; sombre: string }>, modes: readonly ('clair' | 'sombre')[] = ['clair', 'sombre']): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
   const signaler = (gravite: Diagnostic['gravite'], message: string, ligne: number) =>
     diagnostics.push({ gravite, categorie: 'accessibilite', message, ligne });
@@ -65,7 +65,7 @@ export function verifierAccessibilite(page: Page, theme: ReadonlyMap<string, { c
           if (niveau > niveauPrecedent + 1) signaler('avertissement', `ce sous-titre fait un saut de niveau : après ${niveauPrecedent}, écrivez un niveau ${niveauPrecedent + 1}.`, element.ligne);
           niveauPrecedent = niveau;
         }
-        if (['texte', 'titre', 'bouton', 'lien', 'champ'].includes(element.element)) verifierContraste(element, theme, signaler);
+        if (['texte', 'titre', 'bouton', 'lien', 'champ'].includes(element.element)) verifierContraste(element, theme, modes, signaler);
       } else if (instruction.type === 'Formulaire') parcours(instruction.corps, new Map());
       else if (instruction.type === 'Evenement') {
         if (instruction.genre === 'survol') survols.push({ cible: instruction.cible, ligne: instruction.ligne });
@@ -80,17 +80,19 @@ export function verifierAccessibilite(page: Page, theme: ReadonlyMap<string, { c
   for (const survol of survols) {
     if (!clics.has(survol.cible)) signaler('avertissement', 'ce survol n’a pas d’action au clic : le clavier et les écrans tactiles ne peuvent pas le déclencher.', survol.ligne);
   }
-  if (titres === 0) signaler('avertissement', `la page « ${page.nom} » n'a pas de titre principal. Ajoutez « titre "…" ».`, page.ligne);
+  // Une page qui montre ses sous-pages (« sous page ») laisse le titre principal à chacune d'elles.
+  const montreSesSousPages = JSON.stringify(page.corps).includes('"type":"SousPage"');
+  if (titres === 0 && !montreSesSousPages) signaler('avertissement', `la page « ${page.nom} » n'a pas de titre principal. Ajoutez « titre "…" ».`, page.ligne);
   return diagnostics;
 }
 
-function verifierContraste(element: Element, theme: ReadonlyMap<string, { clair: string; sombre: string }>, signaler: (gravite: Diagnostic['gravite'], message: string, ligne: number) => void): void {
+function verifierContraste(element: Element, theme: ReadonlyMap<string, { clair: string; sombre: string }>, modes: readonly ('clair' | 'sombre')[], signaler: (gravite: Diagnostic['gravite'], message: string, ligne: number) => void): void {
   const valeur = (nom: string) => element.styles.find((s) => s.propriete === nom)?.valeur;
   const couleur = valeur('couleur') ?? valeur('texte');
   const fond = valeur('fond');
   if (!couleur && !fond) return;
   const seuil = valeur('taille') === 'grande' ? SEUIL_GRAND : SEUIL_NORMAL;
-  for (const mode of ['clair', 'sombre'] as const) {
+  for (const mode of modes) {
     const hex = (nom: string) => theme.get(nom)?.[mode] ?? COULEURS_CSS[nom]?.[mode];
     const fondHex = fond ? hex(fond) : FOND_PAGE[mode];
     const encreHex = couleur ? hex(couleur) : fondHex ? encreSur(fondHex) : undefined;

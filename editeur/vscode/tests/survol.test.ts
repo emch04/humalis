@@ -41,7 +41,7 @@ describe('survoler : un mot du vocabulaire', () => {
     const source = 'page "a" :\n    tableau "x"\n';
     const texte = survoler(indexDe(source), 2, 7)!.markdown;
     expect(texte).toContain('**tableau**');
-    expect(texte).toContain('Prévu : pas encore disponible.');
+    expect(texte).not.toContain('Prévu : pas encore disponible.');
     expect(texte).not.toContain('étape');
   });
 

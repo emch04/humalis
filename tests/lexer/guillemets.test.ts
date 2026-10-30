@@ -29,3 +29,39 @@ describe('les guillemets dans un texte', () => {
     expect(statique).toMatch(/Le mot (&quot;|")page(&quot;|")/);
   });
 });
+
+describe('les accolades dans un {code "…"}', () => {
+  const parties = (source: string) => analyser(source).find((t) => t.type === 'CHAINE')!.parties;
+
+  it('une accolade entre guillemets ne ferme pas le morceau de code', () => {
+    expect(parties('texte "Écris {code "{prenom}"} ici"')).toContainEqual({ type: 'code', valeur: '{prenom}' });
+    expect(parties('texte "a {code "}"} b {code "{"} c"')).toEqual([
+      { type: 'texte', valeur: 'a ' },
+      { type: 'code', valeur: '}' },
+      { type: 'texte', valeur: ' b ' },
+      { type: 'code', valeur: '{' },
+      { type: 'texte', valeur: ' c' },
+    ]);
+  });
+
+  it('une variable dans un texte reste une variable', () => {
+    expect(parties('texte "Bonjour {prenom} !"')).toContainEqual({ type: 'variable', valeur: 'prenom' });
+  });
+});
+
+describe('un {code "…"} est recopié tel quel', () => {
+  const parties = (source: string) => analyser(source).find((t) => t.type === 'CHAINE')!.parties;
+
+  it('guillemets et antislashs compris, jusqu\'au premier "}', () => {
+    expect(parties('texte "Écris {code "\\""} pour un guillemet."')).toContainEqual({ type: 'code', valeur: '\\"' });
+    expect(parties('texte "{code "a "b" c"} fin"')).toContainEqual({ type: 'code', valeur: 'a "b" c' });
+  });
+});
+
+describe('un {code "…"} qui contient des accolades', () => {
+  const parties = (source: string) => analyser(source).find((t) => t.type === 'CHAINE')!.parties;
+
+  it('peut montrer un {accent "…"} entier', () => {
+    expect(parties('texte "Écris {code "{accent "mot"}"} ici"')).toContainEqual({ type: 'code', valeur: '{accent "mot"}' });
+  });
+});

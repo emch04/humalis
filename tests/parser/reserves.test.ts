@@ -46,9 +46,7 @@ describe('parser — les 19 mots réservés (décision Q2)', () => {
 
 describe('parser — mots prévus', () => {
   it('dit qu’un mot prévu n’est pas encore disponible', () => {
-    expect(() => corps(page('tableau "Détails"'))).toThrow(
-      /« tableau » n’est pas encore disponible : ce mot est prévu dans le vocabulaire, mais le compilateur ne le comprend pas encore\.$/,
-    );
+    expect(() => corps(page('tableau "Détails"'))).toThrow(/deux-points après la légende du tableau/);
   });
 
   it('dit qu’un mot réservé prévu n’est pas encore disponible là où une valeur est attendue', () => {

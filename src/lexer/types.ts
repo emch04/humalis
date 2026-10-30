@@ -8,6 +8,7 @@ export type TokenType =
   | 'LIAISON'
   /** Le contenu d'un bloc « style : », recopié tel quel. */
   | 'CSS'
+  | 'CODE_BRUT'
   | 'PONCTUATION'
   | 'INDENT'
   | 'DEDENT'
@@ -15,7 +16,7 @@ export type TokenType =
   | 'FIN_FICHIER';
 
 export interface PartieChaine {
-  type: 'texte' | 'variable' | 'accent';
+  type: 'texte' | 'variable' | 'accent' | 'code';
   valeur: string;
 }
 
