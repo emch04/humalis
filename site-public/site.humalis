@@ -141,23 +141,23 @@ page "accueil" :
         grille avec colonnes 5 et style "target-diagram" et animation montee au defilement et en cascade :
             bloc avec style "target-card" :
                 icone "globe" avec decoratif
-                soustitre "Web" en anglais "Web"
+                soustitre "Web" en anglais "Web" avec niveau 3
                 texte "Application React" en anglais "React app"
             bloc avec style "target-card" :
                 icone "mobile" avec decoratif
-                soustitre "Mobile" en anglais "Mobile"
+                soustitre "Mobile" en anglais "Mobile" avec niveau 3
                 texte "Application Expo" en anglais "Expo app"
             bloc avec style "target-card" :
                 icone "ordinateur" avec decoratif
-                soustitre "Bureau" en anglais "Desktop"
+                soustitre "Bureau" en anglais "Desktop" avec niveau 3
                 texte "Application Electron" en anglais "Electron app"
             bloc avec style "target-card" :
                 icone "document" avec decoratif
-                soustitre "Statique" en anglais "Static"
+                soustitre "Statique" en anglais "Static" avec niveau 3
                 texte "Site prêt à publier" en anglais "Ready-to-publish site"
             bloc avec style "target-card" :
                 icone "bouclier" avec decoratif
-                soustitre "Serveur" en anglais "Server"
+                soustitre "Serveur" en anglais "Server" avec niveau 3
                 texte "Serveur Node" en anglais "Node server"
     bloc avec style "section features" :
         colonne avec style "section-heading" :
@@ -166,27 +166,27 @@ page "accueil" :
         grille avec colonnes 3 et style "feature-grid" et animation montee au defilement et en cascade :
             bloc avec style "feature-card" :
                 icone "document" avec decoratif
-                soustitre "Pages et formulaires" en anglais "Pages and forms"
+                soustitre "Pages et formulaires" en anglais "Pages and forms" avec niveau 3
                 texte "Crée des écrans et recueille les réponses de tes visiteurs." en anglais "Build screens and collect responses from your visitors."
             bloc avec style "feature-card" :
                 icone "dossier" avec decoratif
-                soustitre "Données et serveur" en anglais "Data and server"
+                soustitre "Données et serveur" en anglais "Data and server" avec niveau 3
                 texte "Relie ton interface à la logique qui fait fonctionner ton projet." en anglais "Connect your interface to the logic behind your project."
             bloc avec style "feature-card" :
                 icone "globe" avec decoratif
-                soustitre "Plusieurs langues" en anglais "Multiple languages"
+                soustitre "Plusieurs langues" en anglais "Multiple languages" avec niveau 3
                 texte "Adapte les textes de ton application à ceux qui l’utilisent." en anglais "Adapt your app's text to the people using it."
             bloc avec style "feature-card" :
                 icone "carte" avec decoratif
-                soustitre "Graphiques et cartes" en anglais "Charts and maps"
+                soustitre "Graphiques et cartes" en anglais "Charts and maps" avec niveau 3
                 texte "Rends tes informations faciles à lire et à explorer." en anglais "Make your information easy to read and explore."
             bloc avec style "feature-card" :
                 icone "oeil" avec decoratif
-                soustitre "Accessibilité vérifiée" en anglais "Accessibility checks"
+                soustitre "Accessibilité vérifiée" en anglais "Accessibility checks" avec niveau 3
                 texte "Des repères pour créer des interfaces que chacun peut utiliser." en anglais "Guidance for building interfaces everyone can use."
             bloc avec style "feature-card" :
                 icone "alerte" avec decoratif
-                soustitre "Erreurs en français" en anglais "Errors in French"
+                soustitre "Erreurs en français" en anglais "Errors in French" avec niveau 3
                 texte "Comprends ce qui bloque et trouve rapidement comment avancer." en anglais "Understand what's wrong and quickly find a way forward."
     bloc avec style "section errors-layout" :
         colonne avec style "section-heading" :
@@ -207,7 +207,7 @@ page "accueil" :
                     texte "Tes premiers pas" en anglais "Your first steps" avec style "mini-title"
                     texte "page bonjour :" en anglais "page hello :" avec style "mini-code"
                     texte "texte Bienvenue !" en anglais "texte Welcome!" avec style "mini-code"
-                soustitre "Documentation" en anglais "Documentation"
+                soustitre "Documentation" en anglais "Documentation" avec niveau 3
                 texte "Un parcours clair, du premier mot à ta première application." en anglais "A clear path from your first word to your first app."
                 lien "Lire la documentation ↗" en anglais "Read the docs ↗" vers "documentation"
             bloc avec ancre "exemples" et style "page-card" :
@@ -222,7 +222,7 @@ page "accueil" :
                             texte "C" en anglais "C"
                         bloc avec style "mini-tile" :
                             texte "D" en anglais "D"
-                soustitre "Exemples" en anglais "Examples"
+                soustitre "Exemples" en anglais "Examples" avec niveau 3
                 texte "Des projets concrets pour découvrir ce que Humalis peut faire." en anglais "Real projects to discover what Humalis can do."
                 lien "Voir le concept ↗" en anglais "Explore the concept ↗" vers "exemples"
             bloc avec ancre "bac-a-sable" et style "page-card" :
@@ -230,7 +230,7 @@ page "accueil" :
                     texte "page carte :" en anglais "page card :" avec style "mini-code"
                     texte "titre Bonjour" en anglais "titre Hello" avec style "mini-code"
                     texte "bouton Entrer" en anglais "bouton Enter" avec style "mini-code"
-                soustitre "Bac à sable" en anglais "Playground"
+                soustitre "Bac à sable" en anglais "Playground" avec niveau 3
                 texte "Un éditeur et son aperçu pour essayer une idée tout de suite." en anglais "An editor and preview to try an idea right away."
                 lien "Voir le concept ↗" en anglais "Explore the concept ↗" vers "bac_a_sable"
     bloc avec style "final-call" :
