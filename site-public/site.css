@@ -280,3 +280,64 @@ html[data-theme=clair] .cible-code{color:#5c7a00}
 .footer-legal a{font-size:13px;color:var(--faint)}
 .footer-legal a:hover{color:var(--text)}
 @media(max-width:760px){.legal-resume{grid-template-columns:1fr}}
+
+/* ─── Bac à sable : un en-tête avec des astuces, l'éditeur plus grand, puis la suite ─── */
+.bac-entete{display:grid!important;grid-template-columns:minmax(0,1.3fr) minmax(0,.7fr);gap:48px;align-items:end;padding:72px max(24px,calc((100vw - 1200px)/2)) 32px}
+.bac-entete-texte{display:flex!important;flex-direction:column;align-items:flex-start}
+.bac-entete .install-titre{margin:20px 0 16px}
+.bac-astuces{display:grid!important;gap:10px}
+.bac-astuce{margin:0;display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--surface);font-size:13.5px;line-height:1.5;color:var(--muted)}
+.bac-astuce:before{content:"";flex:none;width:8px;height:8px;margin-top:6px;border-radius:50%;background:var(--lime);box-shadow:0 0 10px var(--lime)}
+.bac{padding-bottom:40px}
+.bac-panneaux{min-height:600px;gap:18px}
+.bac-panneau{border-radius:20px;box-shadow:0 24px 70px var(--shadow)}
+.bac-source,.bac-cadre{min-height:540px}
+.bac-panneau:first-child{border-color:#2a2c2c;background:#0e0f10}
+.bac-panneau:first-child .bac-etiquette{display:flex;align-items:center;gap:10px;color:#9ca09a;border-color:#2a2c2c;font-family:'JetBrains Mono',ui-monospace,monospace;letter-spacing:0}
+.bac-panneau:first-child .bac-etiquette:before{content:"";width:8px;height:8px;border-radius:50%;background:#ff5f57;box-shadow:13px 0 #febc2e,26px 0 #28c840;margin-right:26px}
+.bac-panneau:last-child .bac-etiquette{display:flex;align-items:center;gap:10px}
+.bac-panneau:last-child .bac-etiquette:after{content:"";flex:1;height:22px;margin-left:8px;border-radius:7px;background:var(--surface2)}
+.bac-suite{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+
+/* ─── Exemples : des cartes avec une vignette aux couleurs de l'exemple ─── */
+.exemples-grille{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+.exemple-carte{--teinte:#d7ff3a;position:relative;display:flex!important;flex-direction:column;border:1px solid var(--line);border-radius:22px;background:var(--surface);overflow:hidden}
+.ex-boutique{--teinte:#14b8a6}.ex-compteur{--teinte:#818cf8}.ex-formulaire{--teinte:#f472b6}.ex-restaurant{--teinte:#fb923c}.ex-taches{--teinte:#60a5fa}.ex-bilingue{--teinte:#fbbf24}
+.exemple-vignette{position:relative;display:flex!important;flex-direction:column;justify-content:flex-end;gap:8px;min-height:150px;padding:20px;background:radial-gradient(circle at 85% 0%,color-mix(in srgb,var(--teinte) 55%,transparent),transparent 60%),linear-gradient(160deg,#141516,#0d0e0f);overflow:hidden}
+.exemple-vignette:before{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);background-size:22px 22px;mask-image:linear-gradient(180deg,#000,transparent);-webkit-mask-image:linear-gradient(180deg,#000,transparent)}
+.vignette-fichier{position:relative;margin:0;align-self:flex-start;padding:4px 9px;border-radius:7px;background:rgba(255,255,255,.08);color:#c9ccc4;font:11px 'JetBrains Mono',ui-monospace,monospace}
+.vignette-code{position:relative;margin:0;color:var(--teinte);font:13px/1.5 'JetBrains Mono',ui-monospace,monospace;overflow-wrap:anywhere}
+.exemple-corps{display:flex!important;flex-direction:column;align-items:flex-start;gap:10px;padding:22px 22px 24px;flex:1}
+.exemple-corps h3{margin:0;font-family:'Space Grotesk',system-ui,sans-serif;font-size:21px;letter-spacing:-.02em}
+.exemple-corps>p{margin:0;color:var(--muted);font-size:14.5px;line-height:1.6}
+.exemple-tags{display:flex!important;flex-wrap:wrap;gap:6px}
+.tag{margin:0;padding:3px 9px;border-radius:99px;border:1px solid var(--line);font-size:11.5px;font-weight:600;color:var(--muted)}
+.exemple-corps .exemple-lien{margin-top:auto;padding-top:6px}
+@media (prefers-reduced-motion:no-preference){
+  .exemple-carte{transition:transform .25s ease,box-shadow .25s ease,border-color .25s ease}
+  .exemple-carte:hover{border-color:color-mix(in srgb,var(--teinte) 60%,var(--line));box-shadow:0 22px 60px var(--shadow),0 0 0 1px color-mix(in srgb,var(--teinte) 30%,transparent)}
+  .exemple-vignette:after{content:"";position:absolute;inset:-40% -60%;background:linear-gradient(110deg,transparent 40%,rgba(255,255,255,.10) 50%,transparent 60%);transform:translateX(-60%);transition:transform .9s ease}
+  .exemple-carte:hover .exemple-vignette:after{transform:translateX(60%)}
+}
+
+/* ─── Nouveautés : une frise verticale, la dernière version mise en avant ─── */
+.nouveautes-entete{grid-template-columns:minmax(0,1fr)!important;padding-bottom:24px!important}
+.frise{position:relative;display:grid!important;gap:18px;max-width:880px;padding-left:max(48px,calc((100vw - 1200px)/2 + 28px))!important}
+.frise:before{content:"";position:absolute;top:8px;bottom:96px;left:max(30px,calc((100vw - 1200px)/2 + 10px));width:2px;border-radius:2px;background:linear-gradient(180deg,var(--lime),var(--line) 40%)}
+.version{position:relative;display:flex!important;flex-direction:column;gap:12px;padding:26px 28px;border:1px solid var(--line);border-radius:20px;background:var(--surface)}
+.version:before{content:"";position:absolute;top:30px;left:-26px;width:12px;height:12px;border-radius:50%;background:var(--surface);border:2px solid var(--line)}
+.version-recente{border-color:color-mix(in srgb,var(--lime) 55%,var(--line));box-shadow:0 0 0 1px rgba(215,255,58,.12),0 24px 70px var(--shadow)}
+.version-recente:before{background:var(--lime);border-color:var(--lime);box-shadow:0 0 16px var(--lime)}
+.version-tete{display:flex!important;flex-wrap:wrap;align-items:center;gap:10px}
+.version-numero{margin:0;font:700 26px/1 'Space Grotesk',system-ui,sans-serif;letter-spacing:-.03em}
+.version-date{margin:0 0 0 auto;font-size:13px;color:var(--faint)}
+.pastille-vive{background:var(--lime);border-color:var(--lime);color:#121212}
+.version h2{margin:0;font-family:'Space Grotesk',system-ui,sans-serif;font-size:20px;letter-spacing:-.02em}
+.version ul{margin:0;padding-left:20px;display:grid;gap:8px}
+.version li{color:var(--muted);font-size:15px;line-height:1.65}
+.version .humalis-code-ligne,.hero-intro .humalis-code-ligne{font:.86em 'JetBrains Mono',ui-monospace,monospace;background:var(--surface2);border:1px solid var(--line);border-radius:6px;padding:1px 6px}
+@media (prefers-reduced-motion:no-preference){.version-recente:before{animation:version-pouls 2.4s ease-in-out infinite}}
+@keyframes version-pouls{50%{box-shadow:0 0 0 7px rgba(215,255,58,.12),0 0 16px var(--lime)}}
+@media(max-width:980px){.bac-entete{grid-template-columns:1fr;align-items:start}.exemples-grille{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){.bac-entete{padding:44px 16px 20px}.bac-suite,.exemples-grille{grid-template-columns:1fr}.frise{padding-left:44px!important}.frise:before{left:26px}.version{padding:22px}.version-date{margin-left:0}}
+.version li p{margin:0}
