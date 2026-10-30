@@ -115,7 +115,7 @@ html[data-theme=clair] .bac-erreur{color:#b3261e}
 .doc-suite{display:flex!important;justify-content:space-between;gap:16px;margin-top:48px;padding-top:24px;border-top:1px solid var(--line)}
 .doc-suite a{font-weight:600;color:var(--text)}
 /* Le sommaire reste une colonne verticale fixe, qui défile seule : le texte défile à côté sans l'entraîner */
-.doc-sommaire{overscroll-behavior:contain;scrollbar-width:thin;flex-wrap:nowrap!important;overflow-x:hidden}.doc-sommaire a{flex-shrink:0}
+.doc-sommaire{overscroll-behavior:contain;scrollbar-width:thin;overflow-x:hidden}.doc-sommaire a{flex-shrink:0}
 @media(max-width:1000px){.doc{grid-template-columns:200px minmax(0,1fr);gap:28px;padding-left:20px;padding-right:20px}.doc-sommaire a{font-size:12.5px;padding:6px 8px}}
 @media(max-width:600px){.doc{grid-template-columns:150px minmax(0,1fr);gap:16px;padding:24px 12px 72px}.doc-sommaire{top:84px;max-height:calc(100vh - 100px);padding-right:4px}.doc-sommaire a{font-size:11.5px;padding:5px 6px}.doc-contenu p,.doc-contenu li{font-size:15px}}
 /* Les pages Exemples et Installer */
@@ -341,3 +341,86 @@ html[data-theme=clair] .cible-code{color:#5c7a00}
 @media(max-width:980px){.bac-entete{grid-template-columns:1fr;align-items:start}.exemples-grille{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:760px){.bac-entete{padding:44px 16px 20px}.bac-suite,.exemples-grille{grid-template-columns:1fr}.frise{padding-left:44px!important}.frise:before{left:26px}.version{padding:22px}.version-date{margin-left:0}}
 .version li p{margin:0}
+.version li{margin:0}.version ul{gap:7px}@media(max-width:760px){.version ul{gap:9px}}
+
+/* ─── Le cadre du site : l'en-tête reste fixe, seule la zone sous lui défile (avec sa propre barre).
+   La page entière ne bouge jamais ; la racine est la zone qui défile (le compilateur la remet en haut
+   à chaque changement de page). ─── */
+:root{--entete-site:75px}
+@media(max-width:700px){:root{--entete-site:67px}}
+html,body{height:100%;overflow:hidden}
+#racine{position:fixed;top:var(--entete-site);left:0;right:0;bottom:0;overflow-y:auto;overflow-x:clip;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+#racine::-webkit-scrollbar{width:9px}
+#racine::-webkit-scrollbar-thumb{background:var(--line);border-radius:9px;border:2px solid transparent;background-clip:padding-box}
+#racine::-webkit-scrollbar-thumb:hover{background:var(--faint);background-clip:padding-box}
+#racine>.site-header{position:fixed!important;top:0;left:0;right:0;height:var(--entete-site);z-index:60}
+
+/* Pages légales : les blocs sur deux colonnes, le lien final sur toute la largeur */
+.legal{grid-template-columns:repeat(2,minmax(0,1fr));max-width:none;gap:18px;align-items:stretch}
+.legal>a.button{grid-column:1/-1}
+.legal-bloc{height:100%;box-sizing:border-box}
+
+/* Nouveautés : la frise à gauche, une colonne qui reste en vue à droite */
+.nouveautes-corps{display:grid!important;grid-template-columns:minmax(0,1fr) 320px;gap:36px;align-items:start}
+.nouveautes-corps>.frise{position:relative;display:grid!important;gap:18px;max-width:none;padding:0 0 0 36px!important}
+.nouveautes-corps>.frise:before{left:10px;top:8px;bottom:40px}
+.nouveautes-aside{position:sticky;top:24px;display:grid!important;gap:14px}
+.aside-carte{display:flex!important;flex-direction:column;align-items:stretch;gap:10px;padding:22px;border:1px solid var(--line);border-radius:18px;background:var(--surface)}
+.aside-carte p{margin:0;color:var(--muted);font-size:14px;line-height:1.55}
+.aside-carte>a{font-size:14.5px;font-weight:600;color:var(--text);text-decoration:none;padding:8px 10px;margin:0 -10px;border-radius:10px}
+.aside-carte>a:hover{background:var(--surface2)}
+.aside-vive{border-color:color-mix(in srgb,var(--lime) 50%,var(--line));background:radial-gradient(circle at 100% 0%,rgba(215,255,58,.16),transparent 55%),var(--surface)}
+.aside-etiquette{font-size:11.5px!important;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--faint)!important}
+.aside-version{font:700 44px/1 'Space Grotesk',system-ui,sans-serif!important;letter-spacing:-.05em;color:var(--text)!important}
+.aside-chiffres{display:grid!important;grid-template-columns:repeat(3,1fr);gap:8px}
+.aside-chiffre{display:flex!important;flex-direction:column;align-items:flex-start;gap:2px;padding:12px;border-radius:12px;background:var(--surface2)}
+.aside-nombre{font:700 26px/1 'Space Grotesk',system-ui,sans-serif!important;color:var(--text)!important}
+.aside-chiffre p:last-child{font-size:12.5px}
+@media(max-width:980px){.nouveautes-corps{grid-template-columns:1fr}.nouveautes-aside{position:static;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}}
+@media(max-width:760px){.legal{grid-template-columns:1fr}}
+
+/* ─── Le menu sur téléphone : un bouton burger aligné à droite de l'en-tête, et un tiroir qui
+   glisse depuis la droite, avec un voile sur le reste de la page. ─── */
+@media(max-width:720px){
+  .site-header .nav-row{gap:10px!important}
+  .site-header .brand{margin-right:auto}
+  .site-header .utility{margin-left:0!important}
+  .site-header .nav-links.humalis-menu-repliable{order:3;display:flex!important;flex:none;margin:0!important;padding:0!important;position:static;background:none;border:0;box-shadow:none}
+  .site-header .humalis-menu-bouton{display:inline-flex!important;align-items:center;justify-content:center;width:40px;height:40px;margin:0;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--text);cursor:pointer}
+  .site-header .humalis-menu-bouton:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+  /* Le flou de l'en-tête ferait du tiroir un enfant de l'en-tête : on le retire quand le menu est ouvert. */
+  .site-header:has(.nav-links[data-ouvert]){backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+  .site-header .nav-links.humalis-menu-repliable[data-ouvert]{position:fixed!important;top:0;right:0;bottom:0;z-index:90;width:min(84vw,330px);height:100dvh;flex-direction:column!important;align-items:stretch!important;gap:4px!important;padding:88px 18px 28px!important;background:var(--bg,var(--surface))!important;border-left:1px solid var(--line)!important;box-shadow:0 0 0 100vmax rgba(8,9,10,.5)!important;overflow-y:auto}
+  .site-header .nav-links[data-ouvert]>.humalis-menu-bouton{position:absolute;top:17px;right:16px}
+  .site-header .nav-links[data-ouvert]>a{display:block;padding:14px 14px;border-radius:12px;font-size:17px!important;font-weight:600;color:var(--text)!important}
+  .site-header .nav-links[data-ouvert]>a:hover,.site-header .nav-links[data-ouvert]>a.humalis-actif{background:var(--surface2)}
+  .site-header .nav-links[data-ouvert]>a.humalis-actif{box-shadow:inset 3px 0 0 var(--lime)}
+}
+@media(max-width:720px) and (prefers-reduced-motion:no-preference){
+  .site-header .nav-links[data-ouvert]{animation:tiroir-entree .3s cubic-bezier(.2,.8,.2,1)}
+  .site-header .nav-links[data-ouvert]>a{animation:tiroir-lien .35s ease-out backwards}
+  .site-header .nav-links[data-ouvert]>a:nth-child(3){animation-delay:40ms}
+  .site-header .nav-links[data-ouvert]>a:nth-child(4){animation-delay:80ms}
+  .site-header .nav-links[data-ouvert]>a:nth-child(5){animation-delay:120ms}
+  .site-header .nav-links[data-ouvert]>a:nth-child(6){animation-delay:160ms}
+  .site-header .humalis-menu-icone,.site-header .humalis-menu-icone:after{transition:transform .25s ease,box-shadow .25s ease}
+}
+@keyframes tiroir-entree{from{transform:translateX(100%);box-shadow:0 0 0 100vmax rgba(8,9,10,0)}}
+@keyframes tiroir-lien{from{opacity:0;transform:translateX(16px)}}
+
+/* Nouveautés, version finale : la page tient dans l'écran ; la frise défile seule à gauche,
+   la colonne de droite (version, en bref, suivre) ne bouge jamais. */
+.nouveautes-corps{display:grid!important;grid-template-columns:minmax(0,1fr) 320px;gap:40px;align-items:start;height:calc(100dvh - var(--entete-site));overflow:hidden;padding:0 max(24px,calc((100vw - 1200px)/2))!important;box-sizing:border-box}
+.nouveautes-fil{height:100%;overflow-y:auto;overscroll-behavior:contain;display:flex!important;flex-direction:column;align-items:stretch;gap:36px;padding:56px 14px 80px 0;box-sizing:border-box;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+.nouveautes-fil::-webkit-scrollbar{width:8px}
+.nouveautes-fil::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px}
+.nouveautes-fil>.install-hero-texte .install-titre{margin:18px 0 14px}
+.nouveautes-fil>.frise{position:relative;display:grid!important;gap:18px;max-width:none;padding:0 0 0 36px!important}
+.nouveautes-fil>.frise:before{left:10px;top:8px;bottom:24px}
+.nouveautes-corps>.nouveautes-aside{position:static;padding-top:56px}
+@media(max-width:980px){
+  .nouveautes-corps{grid-template-columns:1fr;height:auto;overflow:visible}
+  .nouveautes-fil{height:auto;overflow:visible;padding:40px 0 24px}
+  .nouveautes-corps>.nouveautes-aside{padding:0 0 56px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+}
+.aside-carte .install-command{flex-wrap:nowrap}.aside-carte .install-code{flex:1;min-width:0;overflow-wrap:anywhere}.aside-carte .copy-button{flex:none}

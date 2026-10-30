@@ -6,7 +6,7 @@ page "documentation" a l'adresse "/documentation" sans pied :
     apercu :
         description "Le guide complet de Humalis : de l’installation au serveur, chaque construction du langage avec un exemple vérifié." en anglais "The complete Humalis guide: from installation to the server, every construct of the language with a checked example."
     ligne avec style "doc" :
-        menu avec style "doc-sommaire" :
+        menu vertical avec style "doc-sommaire" :
             lien "1. Installer et créer un projet" en anglais "1. Install and create a project" vers "documentation_1"
             lien "2. Les règles d'écriture" en anglais "2. Writing rules" vers "documentation_2"
             lien "3. Les pages" en anglais "3. Pages" vers "documentation_3"
@@ -223,7 +223,7 @@ page "documentation_4" dans "documentation" adresse "/documentation/elements" :
                 soustitre "Desserts" avec niveau 3
                 texte "Apple pie, vanilla ice cream."
         texte "{code "soustitre"} (subtitle) opens a part of the page (level 2 by default, up to 6). Keep the levels in order, without skipping: screen readers use them to move through the page."
-        texte "Inside a block placed under a subtitle, a {code "soustitre"} goes down one level on its own: a card in a section becomes level 3. {code "avec niveau"} (with level) still lets you choose."
+        texte "Inside a block placed under a subtitle, a {code "soustitre"} goes down one level on its own: a card in a section becomes level 3. In a {code "section"}, the first subtitle is the section's title, even when it sits in its own block; every other subtitle of the section goes down one level. {code "avec niveau"} (with level) still lets you choose."
         code humalis :
             page "home" :
                 titre "Home"
@@ -339,7 +339,7 @@ page "documentation_4" dans "documentation" adresse "/documentation/elements" :
                 soustitre "Les desserts" avec niveau 3
                 texte "Tarte aux pommes, glace vanille."
         texte "{code "soustitre"} ouvre une partie de la page (niveau 2 par défaut, jusqu'à 6). Garde l'ordre des niveaux, sans en sauter : les lecteurs d'écran s'en servent pour parcourir la page."
-        texte "Dans un bloc placé sous un sous-titre, un {code "soustitre"} descend d'un niveau tout seul : la carte d'une section devient un niveau 3. {code "avec niveau"} reste possible pour choisir soi-même."
+        texte "Dans un bloc placé sous un sous-titre, un {code "soustitre"} descend d'un niveau tout seul : la carte d'une section devient un niveau 3. Dans une {code "section"}, le premier sous-titre est le titre de la section, même rangé dans son propre bloc ; tous les autres sous-titres de la section descendent d'un niveau. {code "avec niveau"} reste possible pour choisir soi-même."
         code humalis :
             page "accueil" :
                 titre "Accueil"
@@ -756,8 +756,14 @@ page "documentation_7" dans "documentation" adresse "/documentation/elements-d-e
                     lien "Home" vers "home"
                     texte "The menu"
                 titre "The menu"
-        texte "{code "fil d'Ariane"} is a breadcrumb. In a {code "menu"}, the link to the current page is marked as active. The links of a menu wrap when space runs out. A menu that your CSS turns into a column ({code "flex-direction: column"}) keeps that wrapping: add {code "flex-wrap: nowrap"} so it scrolls instead of starting a second column."
-        texte "A {code "menu repliable :"} (collapsible menu) folds behind a \"Menu\" button on a small screen (phone); choosing a link closes it. On a large screen it stays open:"
+        texte "{code "fil d'Ariane"} is a breadcrumb. In a {code "menu"}, the link to the current page is marked as active. The links of a menu wrap when space runs out. A {code "menu vertical :"} stacks its links in a column and never starts a second column: a table of contents with a limited height scrolls. It combines with {code "repliable"} ({code "menu vertical repliable :"})."
+        code humalis :
+            page "guide" :
+                titre "The guide"
+                menu vertical :
+                    lien "Install" vers "guide"
+                    lien "Pages" vers "guide"
+        texte "A {code "menu repliable :"} (collapsible menu) folds behind a burger button (named \"Menu\" for screen readers) on a small screen (phone); the icon turns into a cross while the menu is open. Choosing a link, tapping outside or pressing Escape closes it. On a large screen it stays open:"
         code humalis :
             page "home" :
                 menu repliable :
@@ -817,8 +823,14 @@ page "documentation_7" dans "documentation" adresse "/documentation/elements-d-e
                     lien "Accueil" vers "accueil"
                     texte "La carte"
                 titre "La carte"
-        texte "Dans un {code "menu"}, le lien de la page où l'on est est marqué comme actif. Les liens d'un menu passent à la ligne quand la place manque. Un menu que ton CSS met en colonne ({code "flex-direction: column"}) garde ce retour à la ligne : ajoute {code "flex-wrap: nowrap"} pour qu'il défile au lieu d'ouvrir une deuxième colonne."
-        texte "Un {code "menu repliable :"} se range derrière un bouton « Menu » sur un petit écran (téléphone) ; un lien choisi referme le menu. Sur grand écran, il reste ouvert :"
+        texte "Dans un {code "menu"}, le lien de la page où l'on est est marqué comme actif. Les liens d'un menu passent à la ligne quand la place manque. Un {code "menu vertical :"} range ses liens en colonne, sans jamais ouvrir une deuxième colonne : un sommaire de hauteur limitée défile. Il se combine avec {code "repliable"} ({code "menu vertical repliable :"})."
+        code humalis :
+            page "guide" :
+                titre "Le guide"
+                menu vertical :
+                    lien "Installer" vers "guide"
+                    lien "Les pages" vers "guide"
+        texte "Un {code "menu repliable :"} se range derrière un bouton burger (nommé « Menu » pour les lecteurs d'écran) sur un petit écran (téléphone) ; l'icône devient une croix quand le menu est ouvert. Un lien choisi, un toucher à côté ou la touche Échap referment le menu. Sur grand écran, il reste ouvert :"
         code humalis :
             page "accueil" :
                 menu repliable :
