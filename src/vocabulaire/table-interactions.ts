@@ -150,7 +150,7 @@ export const ENTREES_INTERACTIONS: EntreeVocabulaire[] = [
     ),
     couvre: ['web:navigator.clipboard.writeText', 'expo:expo-clipboard'],
     description:
-      'Dans un événement : « copier code » met le texte dans le presse-papier, puis affiche « Copié » (ou « Copie impossible »). « avec message "Code copié" » change le texte, « sans message » le tait.',
+      'Dans un événement : « copier code » met le texte dans le presse-papier, puis affiche « Copié » (ou « Copie impossible »). « avec message "Code copié" » change le texte (et « en anglais "Code copied" » le traduit), « sans message » le tait.',
     exemple: AU_CLIC('        copier code', '    variable code = "REY-2026"\n'),
   }),
   mot({
@@ -347,6 +347,28 @@ export const ENTREES_INTERACTIONS: EntreeVocabulaire[] = [
     exemple: PAGE(
       '    variable image = 1\n    toutes les 4 secondes tant que mouvement n\'est pas reduit :\n        changer image par image + 1\n    si mouvement est reduit :\n        texte "Diaporama arrêté : les animations sont réduites."\n    texte "Image {image}"',
     ),
+    statut: 'supporte',
+    etape: 9,
+  },
+
+  {
+    mot: 'theme sombre',
+    accentue: 'thème sombre',
+    variantes: ['theme clair'],
+    categorie: 'comparaison',
+    concept: 'condition.themeSombre',
+    // Comme « mouvement est reduit » : une tournure lue dans une condition, jamais un mot-clé du lexer.
+    contextes: ['session'],
+    cibles: ecran(
+      "useThemeSombre() : data-theme de <html>, sinon matchMedia('(prefers-color-scheme: dark)'), suivi en direct",
+      "useThemeSombre() : useColorScheme() === 'dark'",
+      'humalis.themeSombre() : data-theme de <html>, sinon le système, la page redessinée au changement',
+    ),
+    couvre: [],
+    description:
+      'La condition « theme est sombre » est vraie quand le thème affiché est sombre (choix du visiteur ou du projet, sinon le système) ; « theme est clair » et « theme n’est pas sombre » sont son contraire. « basculer theme » passe au thème inverse. Le HTML écrit d’avance la considère fausse.',
+    exemple:
+      'theme :\n    mode automatique\n\npage "accueil" :\n    titre "Accueil"\n    bouton "Changer de thème"\n    quand l\'utilisateur clique sur "Changer de thème" :\n        basculer theme\n    si theme est sombre :\n        texte "Bonne soirée"',
     statut: 'supporte',
     etape: 9,
   },

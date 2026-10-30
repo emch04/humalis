@@ -189,6 +189,14 @@ export function analyser(source: string): Token[] {
         i++;
         let valeur = '';
         while (i < ligne.length && ligne[i] !== '"') {
+          // \" écrit un guillemet dans le texte ; tout autre antislash reste tel quel
+          // (« \\ » aussi, en entier : un texte peut finir par lui, comme avant).
+          if (ligne[i] === '\\' && ligne[i + 1] === '\\') {
+            valeur += '\\\\';
+            i += 2;
+            continue;
+          }
+          if (ligne[i] === '\\' && ligne[i + 1] === '"') i++;
           valeur += ligne[i];
           i++;
         }

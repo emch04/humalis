@@ -336,6 +336,7 @@ function humalisJs(
     'afficherMessage',
     'planifier',
     'mouvementReduit',
+    'themeSombre',
     'cliquer',
     'focaliser',
     'retirerPremier',
@@ -590,6 +591,14 @@ ${interactions.fenetres ? '    // Une fenêtre fermée rend le focus à ce qui l
   const mouvementReduit = () => animationsReduites?.matches ?? false;
   // Le réglage change pendant la visite : la page est redessinée.
   animationsReduites?.addEventListener('change', () => actualiser());
+
+  /** « theme est sombre » : le thème affiché (choix du visiteur ou du projet, sinon le système). */
+  const schemaSombre = globalThis.matchMedia?.('(prefers-color-scheme: dark)');
+  const themeSombre = () => {
+    const choisi = document.documentElement.dataset.theme;
+    return choisi ? choisi === 'sombre' : (schemaSombre?.matches ?? false);
+  };
+  schemaSombre?.addEventListener('change', () => actualiser());
 
   /** Les minuteries de la page existent tant que leur condition est vraie ; « arreter » les arrête pour de bon. */
   function reglerMinuteries() {
@@ -1169,6 +1178,11 @@ const themeJs = (defaut: string) => `
   const THEME_PAR_DEFAUT = ${defaut ? `'${defaut}'` : "''"};
 
   function definirTheme(theme) {
+    // « basculer theme » : l'inverse du thème affiché (choix du visiteur ou du projet, sinon le système).
+    if (theme === 'bascule') {
+      const affiche = document.documentElement.dataset.theme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'sombre' : 'clair');
+      theme = affiche === 'sombre' ? 'clair' : 'sombre';
+    }
     try {
       if (theme === 'automatique') localStorage.removeItem('${CLE_THEME}');
       else localStorage.setItem('${CLE_THEME}', theme);
@@ -1178,5 +1192,7 @@ const themeJs = (defaut: string) => `
     const choisi = theme === 'automatique' ? THEME_PAR_DEFAUT : theme;
     if (choisi) document.documentElement.dataset.theme = choisi;
     else delete document.documentElement.dataset.theme;
+    // « theme est sombre » est relu : la page est redessinée.
+    actualiser();
   }
 `;

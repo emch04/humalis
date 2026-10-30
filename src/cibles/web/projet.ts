@@ -121,6 +121,8 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
     dispositions[genre] = nom;
   }
   if (dispositions.entete || dispositions.pied) fichiers.set('src/Disposition.tsx', dispositionTsx(dispositions, application));
+  // Avec un en-tête, le clavier peut sauter directement au contenu de la page.
+  if (dispositions.entete) fichiers.set('src/humalis/aller-au-contenu.tsx', ALLER_AU_CONTENU);
   const pages = application.ecrans.map((ecran) => ({ ecran, page: genererEcran(ecran, chemins, contexte) }));
   session ||= pages.some(({ page }) => page.session);
   // Une page réservée demande la session, même si elle ne la lit pas elle-même.
@@ -483,6 +485,25 @@ ${mouvement ? NETTOYAGE_PRERENDU : ''}};
 }
 
 /** Disposition.tsx : l'en-tête et le pied communs autour des pages, qui restent montés quand on change de page. */
+/** `src/humalis/aller-au-contenu.tsx` : le premier arrêt du clavier, qui saute l'en-tête. */
+const ALLER_AU_CONTENU = `/** Le lien « Aller au contenu » : caché tant qu'il n'a pas le focus du clavier, il saute l'en-tête. */
+export default function AllerAuContenu() {
+  return (
+    <a
+      className="humalis-aller-au-contenu"
+      href="#contenu"
+      onClick={(evenement) => {
+        const contenu = document.querySelector('main');
+        if (!contenu) return;
+        evenement.preventDefault();
+        contenu.setAttribute('tabindex', '-1');
+        contenu.focus();
+      }}
+    >Aller au contenu</a>
+  );
+}
+`;
+
 function dispositionTsx(d: { entete?: string; pied?: string }, application: Application): string {
   const balise = (genre: 'entete' | 'pied', composant: string) => {
     const dispo = application.disposition![genre]!;
@@ -491,12 +512,12 @@ function dispositionTsx(d: { entete?: string; pied?: string }, application: Appl
     return `{${genre} && (\n        <${ouvre} className="${classes}">\n          <${composant} />\n        </${ferme}>\n      )}`;
   };
   return `import { Outlet } from 'react-router';
-${d.entete ? `import ${d.entete} from './composants/${d.entete}';\n` : ''}${d.pied ? `import ${d.pied} from './composants/${d.pied}';\n` : ''}
+${d.entete ? `import AllerAuContenu from './humalis/aller-au-contenu';\nimport ${d.entete} from './composants/${d.entete}';\n` : ''}${d.pied ? `import ${d.pied} from './composants/${d.pied}';\n` : ''}
 /** L'en-tête et le pied communs à toutes les pages : montés une fois, ils restent là quand on change de page. */
 export default function Disposition({ entete = true, pied = true }: { entete?: boolean; pied?: boolean }) {
   return (
     <>
-      ${d.entete ? balise('entete', d.entete) : '{entete && null}'}
+      ${d.entete ? `{entete && <AllerAuContenu />}\n      ${balise('entete', d.entete)}` : '{entete && null}'}
       <Outlet />
       ${d.pied ? balise('pied', d.pied) : '{pied && null}'}
     </>

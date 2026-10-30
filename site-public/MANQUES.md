@@ -1,5 +1,7 @@
 # Manques rencontrés pour la page d’accueil
 
+> Mise à jour : `basculer theme`, `si theme est sombre :`, `copier … avec message "…" en anglais "…"`, les guillemets `\"` dans un texte et le lien « Aller au contenu » automatique existent maintenant. `soustitre … avec niveau 3` et `avec icone` sur un lien existaient déjà.
+
 La page et tous ses textes visibles sont écrits en Humalis, avec leurs versions anglaises. La maquette validée reste la référence visuelle. Les écarts ci-dessous sont explicites.
 
 | Ce que je voulais écrire | Contournement et effet | Syntaxe Humalis proposée |

@@ -366,6 +366,8 @@ export interface Copier {
   valeur: Expression;
   /** Le texte du message de réussite ; null : « sans message ». Absent : « Copié ». */
   message?: string | null;
+  /** « avec message "Copié" en anglais "Copied" » : le message et ses versions. */
+  texte?: LitteralChaine;
   ligne: number;
 }
 
@@ -954,6 +956,7 @@ export type Expression =
   | OperationTexte
   | Remplacement
   | MouvementReduit
+  | ThemeSombre
   | Rien;
 
 /** « majuscules de nom », « minuscules de nom », « longueur de nom ». */
@@ -1080,6 +1083,12 @@ export interface Rien {
 /** « mouvement est reduit » : la personne a demandé à son système de réduire les animations. */
 export interface MouvementReduit {
   type: 'MouvementReduit';
+  ligne: number;
+}
+
+/** « theme est sombre » : le thème affiché (choix du visiteur ou du projet, sinon le système) est sombre. */
+export interface ThemeSombre {
+  type: 'ThemeSombre';
   ligne: number;
 }
 

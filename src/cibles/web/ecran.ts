@@ -580,7 +580,12 @@ class GenerateurEcran {
     const lues = [...new Set([...code.matchAll(/\bactuel\.current\.(\w+)/g)].map((m) => m[1]))];
     code = code.replace('  /*ACTUEL*/\n', lues.length > 0 ? `  const actuel = useActuel({ ${lues.join(', ')} });\n` : '');
     // « mouvement est reduit » : suivi en direct (src/humalis/temps.ts).
-    code = code.replace('  /*MOUVEMENT*/\n', /\bmouvementReduit\b/.test(code) ? '  const mouvementReduit = useMouvementReduit();\n' : '');
+    code = code.replace(
+      '  /*MOUVEMENT*/\n',
+      (/\bmouvementReduit\b/.test(code) ? '  const mouvementReduit = useMouvementReduit();\n' : '') +
+        // « theme est sombre » : le thème affiché, suivi en direct.
+        (/\bthemeSombre\b/.test(code) ? '  const themeSombre = useThemeSombre();\n' : ''),
+    );
     // Sur le téléphone, « confirmer » vient d'un crochet : la question est une fenêtre de l'application.
     code = code.replace('  /*CONFIRMER*/\n', this.rendu.confirmationParCrochet && /\bconfirmer\(/.test(code) ? '  const confirmer = useConfirmer();\n' : '');
     code = code.replace('  /*PLANIFIER*/\n', (/\bplanifier\(/.test(code) ? '  const planifier = usePlanifier();\n' : '') + (/\bderniereRequete\(/.test(code) ? '  const derniereRequete = useDerniere();\n' : ''));
@@ -1178,7 +1183,9 @@ class GenerateurEcran {
           break;
         case 'copie':
           // « copier code » : le résultat est dit à la personne, sauf « sans message ».
-          e.ligne(`await copier(${this.enTexte(action.valeur)}${action.message === null ? '' : `, afficherMessage${action.message === 'Copié' ? '' : `, ${chaine(action.message)}`}`});`);
+          e.ligne(
+            `await copier(${this.enTexte(action.valeur)}${action.message === null ? '' : `, afficherMessage${action.texte ? `, ${x(action.texte)}` : action.message === 'Copié' ? '' : `, ${chaine(action.message)}`}`});`,
+          );
           break;
         case 'partage': {
           // La feuille de partage du système ; sans elle, le lien (ou le texte) est copié.

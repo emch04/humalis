@@ -523,7 +523,7 @@ export type Action =
    */
   | { type: 'minuterie'; mode: 'apres' | 'toutes'; millisecondes: Valeur; tantQue?: Test; corps: Action[] }
   /** « copier code » ; `message` null : sans message. */
-  | { type: 'copie'; valeur: Valeur; message: string | null }
+  | { type: 'copie'; valeur: Valeur; message: string | null; texte?: Valeur }
   /** « partager … » : la feuille de partage du système, sinon le lien copié. */
   | { type: 'partage'; texte: Valeur; titre?: Valeur; lien?: { externe: string } | { ecran: string; arguments?: ArgumentsPage } }
   /** « confirmer "…" : … sinon : … » : une question, Oui ou Non. */
@@ -536,7 +536,7 @@ export type Action =
   | { type: 'retour'; vers?: string }
   | { type: 'changerTexte'; ids: string[]; texte: Valeur }
   /** « changer theme par sombre » : le choix du visiteur, gardé par son appareil. */
-  | { type: 'theme'; valeur: 'clair' | 'sombre' | 'automatique' }
+  | { type: 'theme'; valeur: 'clair' | 'sombre' | 'automatique' | 'bascule' }
   /** « changer langue par anglais » : le choix de la personne, gardé par son appareil. */
   | { type: 'langue'; code: string }
   /** « rendre … » : la valeur d'une fonction. */
@@ -671,6 +671,7 @@ export type Valeur =
   | { type: 'erreurRequete'; variable: string }
   /** « mouvement est reduit » : la personne a demandé de réduire les animations. */
   | { type: 'mouvementReduit' }
+  | { type: 'themeSombre' }
   /** « rien » : pas encore de valeur. */
   | { type: 'rien' };
 
