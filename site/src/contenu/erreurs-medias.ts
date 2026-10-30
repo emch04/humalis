@@ -122,6 +122,28 @@ page "accueil" :
         texte "Salade"
 `),
     'il s’écrit sur un bloc'),
+  e('traduit-et-sans-traduction', 'grammaire', 'Un texte traduit et « sans traduction »',
+    '« sans traduction » dit que le texte est le même dans toutes les langues (un nom propre comme GitHub). Il ne peut pas avoir en même temps une version anglaise.',
+    'Garde la version anglaise si le texte change d’une langue à l’autre ; sinon, retire « en anglais "…" » et garde « sans traduction ».',
+    p(`
+langues :
+    francais
+    anglais
+
+page "accueil" :
+    titre "Accueil" en anglais "Home"
+    lien "GitHub" en anglais "GitHub" sans traduction vers "https://github.com"
+`),
+    p(`
+langues :
+    francais
+    anglais
+
+page "accueil" :
+    titre "Accueil" en anglais "Home"
+    lien "GitHub" sans traduction vers "https://github.com"
+`),
+    'gardez l’un ou l’autre'),
   e('animation-champ', 'sens', 'Une animation sur un champ',
     'Un champ qui bouge pendant qu’on écrit dedans gêne la saisie, surtout avec une loupe d’écran ou un lecteur d’écran. Humalis refuse l’animation sur un champ et dans un formulaire.',
     'Retire l’animation du champ ; anime plutôt le titre ou le bloc qui entoure le formulaire.',

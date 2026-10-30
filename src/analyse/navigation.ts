@@ -5,6 +5,7 @@ import type { Programme, Page, Instruction, Element } from '../parser/ast.js';
 import type { Diagnostic } from './erreurs.js';
 import { simplifier } from './elements.js';
 import { proposerNom } from './suggestions.js';
+import { pascal } from '../cibles/web/noms.js';
 
 /** Ce que dit la chaîne d'un « vers » : une page (et peut-être une ancre), l'ancre de cette page, ou une adresse externe. */
 export interface CibleLue {
@@ -108,6 +109,20 @@ export function analyserNavigation(programme: Programme, diagnostics: Diagnostic
       } else if (sinon === page.nom || programme.pages.find((p) => p.nom === sinon)?.reservee) {
         erreur(`la page « ${sinon} », où l'on envoie les visiteurs refusés de « ${page.nom} », est elle-même réservée : ils tourneraient en rond.`, page.reservee.ligne);
       }
+    }
+  }
+
+  // Une page devient un composant React nommé comme elle (« bac_a_sable » → BacASable) :
+  // un composant du même nom serait caché par la page qui l'affiche.
+  const composants = new Map([...programme.composants, ...programme.composantsReact].flatMap((c): [string, string][] => [[c.nom, c.nom], [pascal(c.nom), c.nom]]));
+  for (const page of programme.pages) {
+    const produit = pascal(page.nom);
+    const composant = composants.get(produit);
+    if (composant !== undefined) {
+      erreur(
+        `la page « ${page.nom} » et le composant « ${composant} » auraient le même nom dans le code produit (${produit}) : renommez l'un des deux (par exemple le composant « ${composant}Bloc »).`,
+        page.ligne,
+      );
     }
   }
 
@@ -243,6 +258,29 @@ function analyserAncres(programme: Programme, diagnostics: Diagnostic[], erreur:
   for (const page of programme.pages) {
     parcourir(page.corps, (i) => {
       if (i.type === 'Element' && (i as Element).cible !== undefined) verifier(page, (i as Element).cible!, i.ligne);
+    });
+  }
+  // L'en-tête et le pied sont sur chaque page : « carte#desserts » se vérifie comme ailleurs ;
+  // « #desserts » vise la page affichée, qui change : il faut au moins une page qui l'ait.
+  for (const disposition of [programme.entete, programme.pied]) {
+    if (!disposition) continue;
+    const de = disposition.genre === 'entete' ? "de l'en-tête" : 'du pied de page';
+    parcourir(disposition.corps, (i) => {
+      if (i.type !== 'Element' || (i as Element).cible === undefined) return;
+      const lue = lireCible((i as Element).cible!);
+      if (lue.ancre === undefined) return;
+      if (lue.page !== undefined && lue.page !== '') {
+        const visee = pages.get(lue.page);
+        if (visee) verifier(visee, (i as Element).cible!, i.ligne);
+        return;
+      }
+      const montrees = programme.pages.filter((p) => !(disposition.genre === 'entete' ? p.sansEntete : p.sansPied) && p.parametres.length === 0);
+      if (!montrees.some((p) => ancres.get(p.nom)?.includes(lue.ancre!))) {
+        erreur(
+          `l'ancre « ${lue.ancre} » ${de} n'existe dans aucune page : écrivez avec ancre "${lue.ancre}" sur l'élément ou le bloc où le lien doit mener, ou écrivez le nom de la page (par exemple "accueil#${lue.ancre}").`,
+          i.ligne,
+        );
+      }
     });
   }
 }

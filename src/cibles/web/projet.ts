@@ -601,6 +601,12 @@ ${session ? "import { Session } from './humalis/session';\n" : ''}${partage ? "i
 ${dispositions.entete || dispositions.pied ? "import Disposition from './Disposition';\n" : ''}${imports}
 import './humalis/styles.css';
 ${mouvement ? "import { observerLeDefilement } from './humalis/mouvement';\n" : ''}${feuilles.map((f) => `import './styles/${f}';\n`).join('')}
+// Un hébergeur statique sert /documentation/index.html pour /documentation/ :
+// le routeur lit l'adresse sans « index.html », comme le dossier.
+if (/\\/index\\.html$/.test(location.pathname)) {
+  history.replaceState(history.state, '', location.pathname.replace(/index\\.html$/, '') + location.search + location.hash);
+}
+
 createRoot(document.getElementById('racine')!).render(
   <StrictMode>
     <BrowserRouter>

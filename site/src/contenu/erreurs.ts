@@ -3815,6 +3815,44 @@ page "accueil" :
     lien "Nos desserts" vers "carte#desserts"
 `),
     "n'existe pas dans la page « carte »"),
+  e("ancre-disposition-inexistante", "sens", "Un lien de l’en-tête ou du pied vers une ancre qui n’existe nulle part",
+    "L’en-tête et le pied sont sur chaque page : « vers \"#haut\" » y mène à l’ancre « haut » de la page affichée. Humalis vérifie qu’au moins une page a cette ancre.",
+    "Ajoute « avec ancre \"…\" » à l’endroit voulu, ou écris le nom de la page devant l’ancre (\"accueil#haut\").",
+    p(`
+pied :
+    lien "Haut de page" vers "#haut"
+
+page "accueil" :
+    titre "Accueil"
+`),
+    p(`
+pied :
+    lien "Haut de page" vers "#haut"
+
+page "accueil" :
+    titre "Accueil" avec ancre "haut"
+`),
+    "n'existe dans aucune page"),
+  e("page-composant-meme-nom", "sens", "Une page et un composant qui auraient le même nom",
+    "Une page devient un composant React nommé comme elle : la page « bac_a_sable » s’appelle BacASable dans le code produit. Un composant du même nom serait caché par la page qui l’affiche.",
+    "Renomme le composant (ou la page).",
+    p(`
+composant "Carte" :
+    texte "Nos plats du jour"
+
+page "carte" :
+    titre "La carte"
+    Carte
+`),
+    p(`
+composant "CarteDuJour" :
+    texte "Nos plats du jour"
+
+page "carte" :
+    titre "La carte"
+    CarteDuJour
+`),
+    "auraient le même nom dans le code produit"),
   e("adresse-refusee", "sens", "Une adresse qui peut exécuter du code",
     "Un lien mène à une page, ou à une adresse en https://, http://, mailto: ou tel:. Les autres schémas (javascript:, data:, file:…) peuvent exécuter du code ou lire des fichiers : Humalis les refuse partout.",
     "Écris une adresse https:// (ou mailto:, tel:).",

@@ -2,6 +2,7 @@ import { verificationsDuChamp, messageEnCode, libellesEnLangues, type MessageEnL
 import { titreComplet, adresseImage, sansBarreFinale } from '../publication.js';
 import { sousActions } from '../../ri/actions.js';
 import { nomDeLaCopie, estFichierLocal, type InfoMedia } from '../../ri/medias.js';
+import { estCombine } from '../../ri/types.js';
 import type { Ecran, Etat, NoeudVue, Gestionnaire, Action, Valeur, TypeValeur, Option, Saisie, FonctionRI, ImageRI, SiteRI, LangueRI } from '../../ri/types.js';
 import { simplifier } from '../../analyse/elements.js';
 import { lireCible } from '../../analyse/navigation.js';
@@ -14,6 +15,7 @@ import { baliseGraphique } from './graphique.js';
 import { type Contexte, typeTS, typeDe, expression, contenuJSX, condition, ficheAvec } from './valeurs.js';
 import { importsDesInteractions, decrireTouches } from './interactions.js';
 import { colorerCodeHumalis } from '../commun/colorerCode.js';
+import { attributsFrappe } from '../commun/mouvement.js';
 
 /** Une variable de boucle, passée au gestionnaire d'un événement écrit dans la boucle. */
 interface Parametre {
@@ -513,7 +515,7 @@ class GenerateurEcran {
     for (const g of this.ecran.gestionnaires) this.enregistrer(g, []);
 
     const composant = pascal(this.ecran.nom);
-    const { titre, description } = titreEtDescription(this.ecran);
+    const { titre, description } = titreEtDescription(this.ecran, this.application.langues);
 
     // Un composant reçoit ses paramètres comme des propriétés React, et ne
     // change pas le titre de la page qui l'affiche.
@@ -606,7 +608,7 @@ class GenerateurEcran {
 
   /** Le premier titre (ou texte) de la page, s'il a des versions : il suit la langue (« t({ fr, en }) »). */
   private traduit(genre: 'titre' | 'texte'): string | undefined {
-    const valeur = this.application.langues ? premiereValeur(genre, this.ecran.vue) : undefined;
+    const valeur = this.application.langues ? premiereValeur(genre, this.ecran.vue, this.application.langues) : undefined;
     return valeur?.type === 'texte' && valeur.versions ? expression(valeur, this.contexte) : undefined;
   }
 
@@ -1005,9 +1007,9 @@ class GenerateurEcran {
       const code = expression(valeur, this.contexte);
       return complet && site?.nom ? `${code} + ${suffixe()}` : code;
     };
-    const titreCode = enCode(apercu?.titre ?? premiereValeur('titre', this.ecran.vue), true) ?? titreLitteral(titre);
+    const titreCode = enCode(apercu?.titre ?? premiereValeur('titre', this.ecran.vue, this.application.langues), true) ?? titreLitteral(titre);
     const descriptionCode =
-      enCode(apercu?.description ?? premiereValeur('texte', this.ecran.vue)) ??
+      enCode(apercu?.description ?? premiereValeur('texte', this.ecran.vue, this.application.langues)) ??
       (site?.descriptionLangues ? messageEnCode(site.descriptionLangues, chaine) : chaine(site?.description ?? description));
     const chemin = this.chemins.get(this.ecran.nom) ?? `/${simplifier(this.ecran.nom)}`;
     const image = apercu?.image ?? (site?.image !== undefined ? ({ type: 'texte', parties: [{ texte: site.image }] } as Valeur) : undefined);
@@ -1641,7 +1643,10 @@ class GenerateurEcran {
           else {
             const copie = this.application.langues ? `t({ fr: 'Copié', en: 'Copied' })` : `'Copié'`;
             const libelle = this.application.langues ? `{t({ fr: 'Copier', en: 'Copy' })}` : 'Copier';
-            e.ligne(`<div className="humalis-bloc-code-conteneur"><pre className="humalis-bloc-code" data-langage=${chaine(noeud.langage ?? '')}><code dangerouslySetInnerHTML={{ __html: ${chaine(colorerCodeHumalis(noeud.code, noeud.langage))} }} /></pre><button type="button" onClick={() => void copier(${chaine(noeud.code)}, afficherMessage, ${copie})}>${libelle}</button></div>`);
+            const frappe = attributsFrappe(noeud);
+            const animation = frappe ? ` ${frappe.classe}` : '';
+            const marques = frappe ? ` data-humalis-frappe="${frappe.frappe}" data-humalis-frappe-cle="${frappe.cle}"` : '';
+            e.ligne(`<div className="humalis-bloc-code-conteneur"><pre className="humalis-bloc-code${animation}" data-langage=${chaine(noeud.langage ?? '')}${marques}><code dangerouslySetInnerHTML={{ __html: ${chaine(colorerCodeHumalis(noeud.code, noeud.langage))} }} /></pre><button type="button" onClick={() => void copier(${chaine(noeud.code)}, afficherMessage, ${copie})}>${libelle}</button></div>`);
           }
           break;
         case 'element':
@@ -2197,12 +2202,32 @@ function modifiees(actions: Action[], noms = new Set<string>()): Set<string> {
   return noms;
 }
 
-/** La première valeur d'un élément de ce genre, affiché sans condition (même dans un bloc de mise en page). */
-function premiereValeur(genre: string, noeuds: NoeudVue[]): Valeur | undefined {
+/**
+ * « si langue est anglais » : la branche montrée dans la langue `code` ;
+ * rien pour une condition qui ne porte pas sur la langue.
+ */
+function brancheDeLangue(noeud: NoeudVue, code: string): NoeudVue[] | undefined {
+  if (noeud.type !== 'condition') return undefined;
+  const test = noeud.test;
+  if (estCombine(test)) return undefined;
+  if (test.gauche.type !== 'variable' || test.gauche.nom !== 'langue' || (test.operateur !== 'egal' && test.operateur !== 'different')) return undefined;
+  const visee = test.droite && texteDeBase(test.droite);
+  if (visee === undefined) return undefined;
+  const vraie = (visee === code) !== (test.operateur === 'different') !== Boolean(test.negation);
+  return vraie ? noeud.alors : noeud.sinon;
+}
+
+/**
+ * La première valeur d'un élément de ce genre, affiché sans condition (même
+ * dans un bloc de mise en page), dans la langue `code` : avec des langues,
+ * une branche « si langue est … » compte.
+ */
+function premiereValeurEn(genre: string, noeuds: NoeudVue[], code?: string): Valeur | undefined {
   for (const n of noeuds) {
     if (n.type === 'element' && n.genre === genre) return n.contenu;
-    if (n.type === 'bloc') {
-      const trouvee = premiereValeur(genre, n.corps);
+    const corps = n.type === 'bloc' ? n.corps : code !== undefined ? brancheDeLangue(n, code) : undefined;
+    if (corps) {
+      const trouvee = premiereValeurEn(genre, corps, code);
       if (trouvee) return trouvee;
     }
   }
@@ -2210,19 +2235,43 @@ function premiereValeur(genre: string, noeuds: NoeudVue[]): Valeur | undefined {
 }
 
 /**
+ * La première valeur d'un élément de ce genre. Avec des langues, celle de la
+ * langue de base ; si les branches « si langue est … » en montrent une autre
+ * dans une autre langue, elle devient la version de cette langue.
+ */
+function premiereValeur(genre: string, noeuds: NoeudVue[], langues?: LangueRI[]): Valeur | undefined {
+  if (!langues || langues.length === 0) return premiereValeurEn(genre, noeuds);
+  const [base, ...autres] = langues;
+  const valeur = premiereValeurEn(genre, noeuds, base.code);
+  if (valeur?.type !== 'texte') return valeur;
+  const versions = autres.flatMap(({ code }) => {
+    const autre = premiereValeurEn(genre, noeuds, code);
+    if (autre === valeur || autre?.type !== 'texte') return [];
+    return [{ code, parties: autre.versions?.find((v) => v.code === code)?.parties ?? autre.parties }];
+  });
+  if (versions.length === 0) return valeur;
+  // Les versions écrites avec « en anglais » restent, celles des branches les complètent.
+  const ecrites = (valeur.versions ?? []).filter((v) => v.code !== base.code && !versions.some((b) => b.code === v.code));
+  return { ...valeur, versions: [{ code: base.code, parties: valeur.parties }, ...ecrites, ...versions] };
+}
+
+/**
  * Le titre et la description de la page (décision W7) : le premier titre
  * et le premier texte écrits en clair, à défaut le nom de la page.
  */
-export function titreEtDescription(ecran: Ecran): { titre: string; description: string } {
+export function titreEtDescription(ecran: Ecran, langues?: LangueRI[]): { titre: string; description: string } {
+  const base = langues?.[0]?.code;
   const premier = (genre: string, noeuds: NoeudVue[]): string | undefined => {
     for (const n of noeuds) {
       if (n.type === 'element' && n.genre === genre) {
         const texte = texteDeBase(n.contenu);
         if (texte) return texte;
       }
-      // Toujours affiché : le contenu d'un bloc de mise en page compte aussi.
-      if (n.type === 'bloc') {
-        const texte = premier(genre, n.corps);
+      // Toujours affiché : le contenu d'un bloc de mise en page compte aussi, et
+      // avec des langues, la branche « si langue est … » de la langue de base.
+      const corps = n.type === 'bloc' ? n.corps : base !== undefined ? brancheDeLangue(n, base) : undefined;
+      if (corps) {
+        const texte = premier(genre, corps);
         if (texte) return texte;
       }
     }

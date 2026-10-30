@@ -304,7 +304,7 @@ export interface GraphiqueRI {
 }
 
 export type NoeudVue =
-  | { type: 'codeDocumentation'; langage?: string; code: string; ligne: number }
+  | { type: 'codeDocumentation'; langage?: string; frappe?: 'chargement' | 'defilement'; code: string; ligne: number }
   | { type: 'tableauDocumentation'; legende: Valeur; colonnes: Valeur[]; rangees: Valeur[][]; ligne: number }
   | {
       type: 'element';
