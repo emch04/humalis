@@ -1,0 +1,42 @@
+# Les avis : tout le monde les lit, seule une personne connectée en publie.
+# La connexion passe par le serveur du même fichier (packs Astratra) :
+# la session est un cookie HttpOnly, la page ne garde aucun mot de passe.
+serveur "avis" :
+    donnee avis :
+        commentaire : texte
+    route "avis" :
+        tout le monde peut lire avis
+        connecte peut creer avis
+
+page "avis" :
+    variable avis = []
+    titre "Les avis"
+    quand la page se charge :
+        envoyer requete vers "avis" dans avis
+    si avis est vide :
+        texte "Aucun avis pour l'instant."
+    sinon :
+        pour chaque critique dans avis :
+            texte critique.commentaire
+    # Un formulaire s'envoie par la touche Entrée ou par son bouton ; après
+    # un envoi réussi, ses champs sont vidés.
+    si utilisateur est connecte :
+        formulaire "avis" :
+            champ "commentaire" avec obligatoire
+            bouton "Publier"
+        bouton "Se déconnecter"
+    sinon :
+        texte "Connectez-vous pour laisser un avis."
+        formulaire "connexion" :
+            champ email "email"
+            champ mot de passe "mot de passe"
+            bouton "Se connecter"
+    quand le formulaire "connexion" est soumis :
+        se connecter avec champ "email" et champ "mot de passe"
+        afficher "Bienvenue"
+    quand le formulaire "avis" est soumis :
+        envoyer requete vers "avis" avec champ "commentaire"
+        envoyer requete vers "avis" dans avis
+    quand l'utilisateur clique sur "Se déconnecter" :
+        se deconnecter
+        afficher "À bientôt"

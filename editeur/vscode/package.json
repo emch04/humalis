@@ -1,0 +1,76 @@
+{
+  "name": "humalis",
+  "displayName": "Humalis",
+  "description": "Le langage Humalis dans VS Code : erreurs du compilateur en direct, survol, complétion, saut à la déclaration, symboles, coloration (y compris sémantique), indentation et extraits de code ; un serveur de langage (LSP) pour les autres éditeurs.",
+  "version": "1.0.0",
+  "publisher": "emch04",
+  "private": true,
+  "license": "SEE LICENSE IN LICENSE",
+  "engines": {
+    "vscode": "^1.100.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Snippets"
+  ],
+  "icon": "images/icon.png",
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onLanguage:humalis"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "humalis",
+        "aliases": [
+          "Humalis"
+        ],
+        "extensions": [
+          ".humalis"
+        ],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./images/fichier-theme-clair.svg",
+          "dark": "./images/fichier-theme-sombre.svg"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "humalis",
+        "scopeName": "source.humalis",
+        "path": "./syntaxes/humalis.tmLanguage.json",
+        "embeddedLanguages": {
+          "source.css.embedded.humalis": "css"
+        }
+      }
+    ],
+    "snippets": [
+      {
+        "language": "humalis",
+        "path": "./snippets/humalis.json"
+      }
+    ]
+  },
+  "scripts": {
+    "grammaire": "node --import tsx scripts/generer-grammaire.ts",
+    "test": "npm run grammaire && vitest run",
+    "typecheck": "tsc --noEmit",
+    "build": "npm run grammaire && esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=dist/extension.js && esbuild src/lsp/principal.ts --bundle --platform=node --format=cjs --outfile=dist/serveur-lsp.js",
+    "paquet": "npm run build && vsce package --allow-missing-repository --skip-license --out humalis-1.0.0.vsix",
+    "test:vscode": "npm run build && esbuild integration/lancer.ts integration/suite.ts --bundle --platform=node --format=cjs --external:vscode --outdir=out/integration && node out/integration/lancer.js",
+    "essai:lsp": "npm run build && tsx scripts/essai-lsp.ts"
+  },
+  "devDependencies": {
+    "@types/node": "26.2.0",
+    "@types/vscode": "1.100.0",
+    "@vscode/test-electron": "3.1.0",
+    "@vscode/vsce": "3.9.2",
+    "esbuild": "0.28.2",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2",
+    "vitest": "4.1.10",
+    "vscode-oniguruma": "2.0.1",
+    "vscode-textmate": "9.3.2"
+  }
+}

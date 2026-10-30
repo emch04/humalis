@@ -1,0 +1,80 @@
+{
+  "name": "humalis",
+  "version": "1.0.4",
+  "description": "Un seul langage, en français, pour créer une application complète : web, mobile, desktop et serveur",
+  "type": "module",
+  "bin": {
+    "humalis": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "llms.txt",
+    "NOTICE",
+    "LICENSE.en.md",
+    "README.en.md",
+    "docs/guide.md",
+    "docs/guide.en.md",
+    "docs/logo/humalis-logo.svg",
+    "docs/logo/humalis-logo-carte.svg",
+    "docs/logo/humalis-logo-sombre.svg"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "essai:web": "node scripts/essai-web.mjs",
+    "essai:react-hote": "node scripts/essai-react-hote.mjs",
+    "essai:serveur": "node scripts/essai-serveur.mjs",
+    "essai:lien": "node scripts/essai-lien.mjs",
+    "essai:mobile": "node scripts/essai-mobile.mjs",
+    "essai:packs": "npm run essai:serveur && npm run essai:lien && npm run essai:connexion && npm run essai:gestion && npm run essai:catalogue && npm run essai:web",
+    "essai:connexion": "node scripts/essai-connexion.mjs",
+    "essai:gestion": "node scripts/essai-gestion.mjs",
+    "essai:catalogue": "node scripts/essai-catalogue.mjs",
+    "essai:statique": "node scripts/essai-statique.mjs",
+    "essai:sources": "node scripts/essai-sources.mjs",
+    "essai:navigation": "node scripts/essai-navigation.mjs",
+    "essai:desktop": "node scripts/essai-desktop.mjs",
+    "essai:formulaire": "node scripts/essai-formulaire.mjs",
+    "essai:vitrine": "node scripts/essai-vitrine.mjs",
+    "llms": "node --disable-warning=ExperimentalWarning --experimental-loader ./scripts/charger-typescript.mjs scripts/generer-llms.mjs",
+    "essai:medias": "node scripts/essai-medias.mjs",
+    "essai:interactions": "node scripts/essai-interactions.mjs",
+    "essai:langues": "node scripts/essai-langues.mjs",
+    "essai:graphiques": "node scripts/essai-graphiques.mjs",
+    "prepack": "npm run build",
+    "prepublishOnly": "npm run typecheck && npm test"
+  },
+  "keywords": [
+    "humalis",
+    "langage",
+    "langage de programmation",
+    "français",
+    "compilateur",
+    "react",
+    "expo",
+    "electron",
+    "site statique",
+    "language",
+    "compiler",
+    "french"
+  ],
+  "license": "SEE LICENSE IN LICENSE",
+  "author": "emch04",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/emch04/humalis.git"
+  },
+  "homepage": "https://github.com/emch04/humalis#readme",
+  "bugs": {
+    "url": "https://github.com/emch04/humalis/issues"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
+  }
+}

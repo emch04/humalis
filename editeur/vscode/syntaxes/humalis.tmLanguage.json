@@ -1,0 +1,122 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Humalis",
+  "scopeName": "source.humalis",
+  "patterns": [
+    {
+      "include": "#blocStyle"
+    },
+    {
+      "include": "#commentaire"
+    },
+    {
+      "include": "#chaine"
+    },
+    {
+      "include": "#constante"
+    },
+    {
+      "include": "#reserve"
+    },
+    {
+      "include": "#contextuel"
+    },
+    {
+      "include": "#nombre"
+    },
+    {
+      "include": "#ponctuation"
+    }
+  ],
+  "repository": {
+    "blocStyle": {
+      "begin": "^(style)\\s*(:)\\s*$",
+      "beginCaptures": {
+        "1": {
+          "name": "support.function.humalis"
+        },
+        "2": {
+          "name": "punctuation.separator.humalis"
+        }
+      },
+      "end": "^(?=\\S)",
+      "contentName": "source.css.embedded.humalis",
+      "patterns": [
+        {
+          "include": "source.css"
+        }
+      ]
+    },
+    "commentaire": {
+      "name": "comment.line.number-sign.humalis",
+      "match": "#.*$"
+    },
+    "chaine": {
+      "name": "string.quoted.double.humalis",
+      "begin": "\"",
+      "end": "\"|$",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.begin.humalis"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.end.humalis"
+        }
+      },
+      "patterns": [
+        {
+          "match": "(\\{)([^}\"]*)(\\})",
+          "captures": {
+            "1": {
+              "name": "punctuation.section.interpolation.begin.humalis"
+            },
+            "2": {
+              "name": "variable.other.humalis"
+            },
+            "3": {
+              "name": "punctuation.section.interpolation.end.humalis"
+            }
+          }
+        }
+      ]
+    },
+    "constante": {
+      "name": "constant.language.humalis",
+      "match": "(?<![\\p{L}0-9_])(?i:f[aàâä][uùûü]x|vr[aàâä][iîï])(?![\\p{L}0-9_])"
+    },
+    "reserve": {
+      "name": "keyword.control.humalis",
+      "match": "(?<![\\p{L}0-9_])(?i:[cç][oôö]mp[oôö]s[aàâä]nt|v[aàâä]r[iîï][aàâä]bl[eéèêë]|s[eéèêë]rv[eéèêë][uùûü]r|q[uùûü][aàâä]nd|s[iîï]n[oôö]n|[aàâä]v[eéèêë][cç]|d[aàâä]ns|p[aàâä]g[eéèêë]|p[oôö][uùûü]r|r[iîï][eéèêë]n|v[eéèêë]rs|[eéèêë]st|n[oôö]n|p[aàâä]r|[eéèêë]t|[oôö][uùûü]|s[iîï])(?![\\p{L}0-9_])"
+    },
+    "contextuel": {
+      "name": "support.function.humalis",
+      "match": "(?<![\\p{L}0-9_])(?i:[iîï]nf[eéèêë]r[iîï][eéèêë][uùûü]r[eéèêë]s|s[uùûü]p[eéèêë]r[iîï][eéèêë][uùûü]r[eéèêë]s|[uùûü]t[iîï]l[iîï]s[aàâä]t[eéèêë][uùûü]r|f[oôö]rm[uùûü]l[aàâä][iîï]r[eéèêë]|[iîï]nf[eéèêë]r[iîï][eéèêë][uùûü]r[eéèêë]|[iîï]nf[eéèêë]r[iîï][eéèêë][uùûü]rs|s[oôö][uùûü]st[iîï]tr[eéèêë]s|s[uùûü]p[eéèêë]r[iîï][eéèêë][uùûü]r[eéèêë]|s[uùûü]p[eéèêë]r[iîï][eéèêë][uùûü]rs|[iîï]nf[eéèêë]r[iîï][eéèêë][uùûü]r|r[eéèêë]d[iîï]r[iîï]g[eéèêë]r|s[oôö][uùûü]st[iîï]tr[eéèêë]|s[uùûü]p[eéèêë]r[iîï][eéèêë][uùûü]r|s[uùûü]rv[oôö]l[eéèêë]nt|[aàâä]ff[iîï][cç]h[eéèêë]r|[uùûü]t[iîï]l[iîï]s[eéèêë]r|[aàâä]j[oôö][uùûü]t[eéèêë]r|[cç]h[aàâä]ng[eéèêë]r|[cç]l[iîï]q[uùûü][eéèêë]s|[eéèêë]nv[oôö]y[eéèêë]r|m[oôö]ntr[eéèêë]r|r[eéèêë]q[uùûü][eéèêë]t[eéèêë]|r[eéèêë]t[iîï]r[eéèêë]r|s[uùûü]rv[oôö]l[eéèêë]|b[oôö][uùûü]t[oôö]n|[cç][aàâä][cç]h[eéèêë]r|[cç][aàâä]l[cç][uùûü]l|[cç]h[aàâä]q[uùûü][eéèêë]|[cç]h[aàâä]rg[eéèêë]|[cç]l[iîï]q[uùûü][eéèêë]|[eéèêë]g[aàâä]l[eéèêë]s|[eéèêë]rr[eéèêë][uùûü]r|n[oôö]mbr[eéèêë]|s[oôö][uùûü]m[iîï]s|[cç]h[aàâä]mp|[eéèêë]g[aàâä]l[eéèêë]|[eéèêë]g[aàâä][uùûü]x|[iîï]m[aàâä]g[eéèêë]|styl[eéèêë]|t[eéèêë]xt[eéèêë]|t[iîï]tr[eéèêë]|[eéèêë]g[aàâä]l|l[iîï][eéèêë]n|v[iîï]d[eéèêë]|s[uùûü]r)(?![\\p{L}0-9_])"
+    },
+    "nombre": {
+      "name": "constant.numeric.humalis",
+      "match": "(?<![\\p{L}0-9_])[0-9]+(?![\\p{L}0-9_])"
+    },
+    "ponctuation": {
+      "patterns": [
+        {
+          "name": "punctuation.separator.humalis",
+          "match": ":"
+        },
+        {
+          "name": "punctuation.separator.comma.humalis",
+          "match": ","
+        },
+        {
+          "name": "keyword.operator.assignment.humalis",
+          "match": "="
+        },
+        {
+          "name": "punctuation.definition.array.humalis",
+          "match": "[\\[\\]]"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,28 @@
+# Graphiques : une courbe, des barres et un camembert, écrits seulement en
+# Humalis. Chaque graphique a sa description et sa table « Voir les données ».
+
+page "accueil" :
+    titre "Le Fleuve en chiffres"
+    texte "Les ventes du restaurant, mois par mois."
+
+    variable ventes = [fiche avec mois "Janvier" et montant 120000 et achats 90000, fiche avec mois "Février" et montant 180000 et achats 110000, fiche avec mois "Mars" et montant 150000 et achats 95000, fiche avec mois "Avril" et montant 210000 et achats 120000]
+    variable depenses = [fiche avec poste "Loyer" et total 500, fiche avec poste "Courses" et total 300, fiche avec poste "Salaires" et total 150, fiche avec poste "Transport" et total 50]
+    variable visites = [120, 180, 150, 210, 260, 320, 90]
+
+    section :
+        soustitre "Les ventes"
+        graphique en courbe ventes avec etiquette mois et valeur montant en FC et description "Les ventes passent de 120 000 FC en janvier à 210 000 FC en avril, avec un creux en mars."
+
+    section :
+        soustitre "Ventes et achats"
+        graphique en barres ventes avec etiquette mois et description "Les ventes dépassent les achats chaque mois ; l’écart le plus grand est en avril." :
+            serie "Ventes" valeur montant en FC avec couleur bleu
+            serie "Achats" valeur achats en FC avec couleur orange
+
+    section :
+        soustitre "Les dépenses"
+        graphique en camembert depenses avec etiquette poste et valeur total en euros et description "Le loyer pèse la moitié des dépenses, les courses près d’un tiers."
+
+    section :
+        soustitre "Les visites de la semaine"
+        graphique en barres visites avec etiquettes ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"] et couleur vert et proportions 2 sur 1 et description "Les visites montent jusqu’au samedi, puis retombent le dimanche."

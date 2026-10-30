@@ -1,0 +1,18 @@
+# Le serveur de la boutique : ses données, ses routes et qui peut faire quoi.
+serveur "boutique" :
+    donnee produit :
+        nom : texte
+        prix : nombre
+        stock : nombre
+        disponible : booleen
+    donnee avis :
+        produit : texte
+        note : nombre
+        commentaire : texte
+    route "produits" :
+        tout le monde peut lire produit
+        seul admin peut modifier produit
+    route "avis" :
+        tout le monde peut lire avis
+        connecte peut creer avis
+        seul admin peut supprimer avis

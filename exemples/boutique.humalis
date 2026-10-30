@@ -1,0 +1,32 @@
+variable panier = [] avec partagee
+
+page "boutique" :
+    variable produits = ["Livre", "Stylo", "Cahier"]
+    variable stock = 0
+    calcul nombre_articles = nombre de panier
+    titre "Nos produits" avec couleur bleu et taille grande
+    texte "Articles dans le panier : {nombre_articles}"
+    pour chaque nom dans produits :
+        texte nom
+        bouton "Ajouter" avec fond vert
+        quand l'utilisateur clique sur "Ajouter" :
+            ajouter nom à panier
+    si stock est egal a 0 :
+        afficher "Rupture de stock"
+    sinon :
+        bouton "Commander"
+    bouton "Voir le panier"
+    quand l'utilisateur clique sur "Voir le panier" :
+        rediriger vers "panier"
+
+page "panier" :
+    titre "Votre panier"
+    si panier est vide :
+        texte "Votre panier est vide."
+    sinon :
+        pour chaque nom dans panier :
+            texte nom
+            bouton "Retirer"
+            quand l'utilisateur clique sur "Retirer" :
+                retirer nom de panier
+    lien "Retour à la boutique" vers "boutique"

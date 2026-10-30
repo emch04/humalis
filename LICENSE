@@ -1,0 +1,86 @@
+Licence Humalis — version 1.0
+
+Copyright © 2026 Les auteurs de Humalis. Humalis a été créé par emch04.
+Le texte français de cette licence fait foi ; toute traduction n'est donnée qu'à titre d'information.
+
+1. Définitions
+
+- Le Logiciel : le compilateur Humalis, ses outils en ligne de commande, son extension d'éditeur,
+  son code source, sa documentation et les fichiers distribués sous cette licence, à l'exclusion des
+  composants de tiers régis par leur propre licence.
+- Une Application : un logiciel créé avec le Logiciel, c'est-à-dire les fichiers écrits en Humalis et
+  tout ce que le compilateur génère à partir d'eux, y compris les fichiers d'aide que le compilateur
+  copie dans les projets qu'il produit.
+- La Commercialisation du Logiciel : vendre, louer ou concéder contre paiement le Logiciel lui-même
+  (une copie, une version modifiée ou renommée), ou le présenter comme son propre produit.
+  Ne sont pas une Commercialisation du Logiciel :
+  - vendre une Application faite avec Humalis ;
+  - vendre ses services pour créer des Applications avec Humalis ;
+  - proposer, gratuitement ou contre paiement, une plateforme ou un service qui utilise le Logiciel
+    pour créer, héberger ou faire fonctionner des Applications pour ses utilisateurs, y compris quand
+    ces utilisateurs écrivent eux-mêmes en Humalis ;
+  - enseigner Humalis, écrire ou vendre des livres, des cours ou des formations sur Humalis.
+- Une Modification : tout changement apporté au Logiciel, y compris une copie dérivée (« fork »).
+
+2. Ce que tu as le droit de faire
+
+Gratuitement, partout dans le monde, à condition de respecter cette licence, tu peux :
+(a) télécharger, lire, exécuter et utiliser le Logiciel, à titre personnel, éducatif, de recherche,
+    ou dans une entreprise, y compris pour créer des applications commerciales ;
+(b) modifier le Logiciel ;
+(c) créer, déployer, distribuer et vendre des Applications, sans rien devoir aux auteurs de Humalis ;
+(d) partager gratuitement le Logiciel, tel quel ou modifié, aux conditions suivantes :
+    - joindre cette licence et les mentions de droits d'auteur ;
+    - pour une version modifiée : indiquer clairement qu'elle est modifiée, ne pas l'appeler
+      « Humalis » ni laisser croire qu'elle est la version officielle, et la partager sous cette
+      même licence (elle ne peut donc pas non plus être vendue).
+
+3. Ce qui est interdit
+
+Sans l'accord écrit préalable des auteurs de Humalis, tu ne peux pas :
+(a) commercialiser le Logiciel, y compris une version modifiée ou renommée ;
+(b) partager une Modification du Logiciel sans respecter les conditions de l'article 2 (d), ou la
+    partager sous une autre licence ;
+(c) retirer, falsifier ou masquer les mentions de droits d'auteur, d'attribution ou de licence ;
+(d) utiliser le nom « Humalis », son logo ou ses marques d'une façon qui laisse croire à un soutien ou
+    à un statut officiel ;
+(e) accorder des droits sur le Logiciel à d'autres conditions que celles de cette licence.
+
+4. Ce que tu crées t'appartient
+
+Les auteurs de Humalis ne revendiquent aucun droit sur les Applications. Tu peux les modifier, les
+distribuer et les vendre librement. Les fichiers d'aide que le compilateur copie dans une Application
+en font partie : tu peux les utiliser, les modifier, les distribuer et les vendre avec elle, sans
+autre condition. Les interdictions de l'article 3 ne s'appliquent jamais à une Application.
+
+5. Contributions
+
+Proposer une modification ne transfère aucun droit de propriété. Les contributions ne sont acceptées
+que selon des conditions écrites séparées.
+
+6. Propriété et marques
+
+Tous les droits non accordés expressément sont réservés. Cette licence ne transfère aucun droit de
+propriété, de brevet ou de marque.
+
+7. Fin des droits
+
+Tes droits prennent fin si tu enfreins gravement cette licence et ne corriges pas l'infraction dans
+les 30 jours suivant un avertissement écrit, lorsque la correction est possible. Les Applications que
+tu as déjà créées restent à toi.
+
+8. Aucune garantie
+
+Dans les limites permises par la loi, le Logiciel est fourni « tel quel », sans garantie d'aucune
+sorte, et les auteurs de Humalis ne sont responsables d'aucun dommage indirect lié à son utilisation.
+Rien dans cette licence n'exclut une responsabilité que la loi interdit d'exclure.
+
+9. Droit applicable
+
+Cette licence est régie par le droit français.
+
+10. Versions précédentes et composants de tiers
+
+Cette licence ne s'applique qu'aux versions publiées sous elle. Les versions publiées sous la licence
+Apache 2.0 (1.0.0 à 1.0.3) restent sous cette licence. Les composants de tiers gardent leur propre
+licence.

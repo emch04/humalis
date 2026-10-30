@@ -1,0 +1,25 @@
+node_modules/
+dist/
+.DS_Store
+build/
+.expo/
+.next/
+coverage/
+.env
+.env.*
+!.env.example
+*.pem
+*.p8
+*.p12
+*.key
+*.keystore
+*.jks
+*service-account*.json
+*.log
+.qodo/
+__pycache__/
+*.pyc
+.claude/worktrees/
+
+# Les consignes locales de Claude restent sur la machine
+CLAUDE.md

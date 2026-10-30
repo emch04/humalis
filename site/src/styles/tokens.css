@@ -1,0 +1,89 @@
+/*
+ * Jetons de style de Humalis : toutes les couleurs, tailles et espaces.
+ * Thème clair par défaut, thème sombre selon la préférence du système.
+ * Le test tests/contraste.test.ts lit ce fichier et vérifie les contrastes
+ * (4,5:1 au moins pour le texte) : ne change une couleur qu'avec lui.
+ */
+:root {
+  color-scheme: light dark;
+
+  /* Couleurs, thème clair */
+  --fond: #fbfaf7;
+  --fond-doux: #f2efe6;
+  --texte: #1c2230;
+  --texte-discret: #4f576a;
+  --bordure: #d6d1c2;
+  --accent: #1b5e58;
+  --accent-fort: #124641;
+  --sur-accent: #ffffff;
+  --erreur: #a3231f;
+  --fond-erreur: #fbeceb;
+  --avertissement: #7a5000;
+  --fond-avertissement: #fbf1da;
+  --succes: #1d6b3c;
+  --fond-succes: #e6f3ea;
+
+  /* Code */
+  --code-fond: #efece2;
+  --code-reserve: #0b5a54;
+  --code-contextuel: #35509c;
+  --code-chaine: #8a4a0e;
+  --code-variable: #a1295f;
+  --code-nombre: #6b3fa0;
+  --code-commentaire: #5d6577;
+  --code-liaison: #6a6450;
+
+  /* Espaces */
+  --e1: 0.25rem;
+  --e2: 0.5rem;
+  --e3: 0.75rem;
+  --e4: 1rem;
+  --e5: 1.5rem;
+  --e6: 2rem;
+  --e7: 3rem;
+  --e8: 4.5rem;
+
+  /* Tailles de texte */
+  --t-petit: 0.875rem;
+  --t-base: 1.0625rem;
+  --t-grand: 1.25rem;
+  --t-titre-3: 1.375rem;
+  --t-titre-2: 1.75rem;
+  --t-titre-1: clamp(2rem, 6vw, 3.25rem);
+
+  /* Polices : celles du système, rien n'est chargé depuis l'extérieur */
+  --police: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --police-code: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+
+  --rayon: 0.5rem;
+  --largeur-lecture: 46rem;
+  --largeur-max: 74rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fond: #12161d;
+    --fond-doux: #1a2029;
+    --texte: #e7eaf0;
+    --texte-discret: #a3adbd;
+    --bordure: #2e3745;
+    --accent: #6fcfc3;
+    --accent-fort: #9ae3d9;
+    --sur-accent: #0b1a18;
+    --erreur: #ff9c97;
+    --fond-erreur: #2c1a1c;
+    --avertissement: #f0c36a;
+    --fond-avertissement: #2b2414;
+    --succes: #7fd9a0;
+    --fond-succes: #152a1e;
+
+    --code-fond: #171d26;
+    --code-reserve: #7fe0d3;
+    --code-contextuel: #9db6ff;
+    --code-chaine: #f0b878;
+    --code-variable: #f08fbe;
+    --code-nombre: #c9a6f5;
+    --code-commentaire: #93a0b6;
+    --code-liaison: #a2a79a;
+  }
+}
