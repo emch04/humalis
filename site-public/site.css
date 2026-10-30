@@ -174,3 +174,25 @@ html:has(.doc),body:has(.doc){height:100%;overflow:hidden}
 .doc-sommaire::-webkit-scrollbar-track,.doc-contenu>.humalis-sous-page::-webkit-scrollbar-track{background:transparent}
 .doc-sommaire::-webkit-scrollbar-thumb,.doc-contenu>.humalis-sous-page::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px;border:2px solid transparent;background-clip:padding-box}
 .doc-sommaire::-webkit-scrollbar-thumb:hover,.doc-contenu>.humalis-sous-page::-webkit-scrollbar-thumb:hover{background:var(--faint);background-clip:padding-box}
+/* La démonstration de l'accueil, écrite en Humalis : le bloc de code prend l'allure de l'éditeur
+   de la maquette, et l'aperçu apparaît au rythme de la frappe (environ six secondes). */
+.demo-shell .pane-top p{margin:0}
+.editor-pane .pane-top{justify-content:flex-start;gap:14px}
+.editor-pane .pane-top:before{content:"";flex:none;width:7px;height:7px;border-radius:50%;background:var(--lime);box-shadow:12px 0 #555b53,24px 0 #555b53;margin-right:24px}
+.editor-pane .pane-top p:last-child{margin-left:auto}
+.editor-pane .humalis-bloc-code-conteneur{margin:0;overflow:visible}
+.editor-pane .humalis-bloc-code-conteneur>button{display:none}
+.editor-pane .humalis-bloc-code{margin:0;padding:23px 15px 26px;min-height:346px;background:none;border:0;border-radius:0;color:#f0f1e8;font:clamp(9px,.74vw,11px)/1.95 'JetBrains Mono',ui-monospace,monospace;white-space:pre-wrap;overflow-wrap:anywhere;tab-size:4}
+.editor-pane .humalis-code-mot{color:#d7ff3a}
+.editor-pane .humalis-code-texte{color:#f5c99e}
+.editor-pane .humalis-code-nombre{color:#a9c5ff}
+.editor-pane .humalis-frappe-copie:after{background:var(--lime)}
+.preview-body>p{margin:0}
+.preview-title{font-family:'Space Grotesk',system-ui,sans-serif;font-size:24px;font-weight:700;line-height:1.1;margin:14px 0 18px!important}
+.preview-body .preview-item{margin:0 0 7px!important}
+.preview-body.humalis-animation-cascade>:nth-child(1){--humalis-delai:200ms}
+.preview-body.humalis-animation-cascade>:nth-child(2){--humalis-delai:900ms}
+.preview-body.humalis-animation-cascade>:nth-child(3){--humalis-delai:2600ms}
+.preview-body.humalis-animation-cascade>:nth-child(4){--humalis-delai:2800ms}
+.preview-body.humalis-animation-cascade>:nth-child(5){--humalis-delai:3000ms}
+.preview-body.humalis-animation-cascade>:nth-child(6){--humalis-delai:3700ms}

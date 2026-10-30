@@ -1,8 +1,7 @@
 # Site public de Humalis. Les métadonnées et le thème précèdent les langues.
 # L'en-tête et le pied sont communs ; la page accueil suit les sections de la maquette.
-# Les classes CSS donnent la mise en page ; seule la démonstration animée utilise React.
+# Les classes CSS donnent la mise en page ; seul l'éditeur du bac à sable utilise React.
 utiliser style "./site.css"
-utiliser composant "DemoCode" depuis "./composants/DemoCode"
 utiliser composant "EditeurHumalis" depuis "./composants/EditeurHumalis"
 utiliser fichier "./documentation.humalis"
 
@@ -81,7 +80,7 @@ pied avec style "site-footer" :
             lien "Les commandes" en anglais "Commands" vers "documentation_32"
         colonne avec style "footer-col" :
             texte "Projet" en anglais "Project" avec style "footer-titre"
-            lien "GitHub" en anglais "GitHub" vers "https://github.com/emch04/humalis" avec nouvel onglet
+            lien "GitHub" sans traduction vers "https://github.com/emch04/humalis" avec nouvel onglet
             lien "Signaler un problème" en anglais "Report an issue" vers "https://github.com/emch04/humalis/issues" avec nouvel onglet
             lien "Paquet npm" en anglais "npm package" vers "https://www.npmjs.com/package/humalis" avec nouvel onglet
             lien "Licence Humalis" en anglais "Humalis License" vers "https://github.com/emch04/humalis/blob/main/LICENSE" avec nouvel onglet
@@ -106,7 +105,34 @@ page "accueil" :
                     bouton "Copier" en anglais "Copy" avec nom "copier" et style "copy-button"
                 quand l'utilisateur clique sur "copier" :
                     copier "npm install -g humalis" avec message "Commande copiée" en anglais "Command copied"
-            DemoCode
+            # La démonstration : le code se tape à gauche, l'aperçu se construit à droite, en cascade.
+            bloc avec style "demo-shell" :
+                ligne avec style "demo-grid" :
+                    colonne avec style "editor-pane" :
+                        ligne avec style "pane-top" :
+                            texte "boutique.humalis" sans traduction
+                            texte "● en direct" en anglais "● live"
+                        code humalis avec animation frappe :
+                            page "boutique" :
+                                titre "Nos produits"
+                                variable produits = ["Livre", "Stylo", "Cahier"]
+                                pour chaque nom dans produits :
+                                    texte nom
+                                bouton "Commander"
+                                quand l'utilisateur clique sur "Commander" :
+                                    afficher "Merci pour ta commande !"
+                    colonne avec style "preview-pane" :
+                        ligne avec style "pane-top" :
+                            texte "Aperçu web" en anglais "Web preview"
+                        colonne avec style "preview-body" et animation montee au defilement et en cascade :
+                            texte "Ma boutique" en anglais "My shop" avec style "preview-caption"
+                            texte "Nos produits" en anglais "Our products" avec style "preview-title"
+                            texte "Livre" en anglais "Book" avec style "preview-item show"
+                            texte "Stylo" en anglais "Pen" avec style "preview-item show"
+                            texte "Cahier" en anglais "Notebook" avec style "preview-item show"
+                            bouton "Commander" en anglais "Order" avec style "preview-order show"
+                        quand l'utilisateur clique sur "Commander" :
+                            afficher reussite "Merci pour ta commande !" en anglais "Thank you for your order!"
     bloc avec style "section target-section" :
         colonne avec style "section-heading" :
             soustitre "Un fichier, cinq cibles." en anglais "One file, five targets."
