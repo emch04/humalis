@@ -1,6 +1,6 @@
 # L'en-tête commun à toutes les pages : la marque, le menu (repliable sur téléphone), la langue et le thème.
 
-entete avec colle et style "site-header" :
+entete avec fixe et style "site-header" :
     ligne avec style "nav-row" :
         lien "humalis" en anglais "humalis" vers "accueil" avec style "brand"
         menu repliable avec style "nav-links" :

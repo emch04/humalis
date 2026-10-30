@@ -5,8 +5,8 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
         titre "Nouveautés" en anglais "What’s new"
         description "Ce qui change dans Humalis, version après version : nouvelles constructions du langage, corrections et améliorations." en anglais "What changes in Humalis, release after release: new language constructs, fixes and improvements."
     # La frise défile seule à gauche ; la colonne de droite ne bouge pas.
-    ligne avec style "nouveautes-corps" :
-        colonne avec style "nouveautes-fil" :
+    ligne avec style "nouveautes-corps" et hauteur ecran :
+        colonne avec style "nouveautes-fil" et defilement interne :
             colonne avec style "install-hero-texte" et animation montee :
                 texte "Journal des versions" en anglais "Release notes" avec style "eyebrow"
                 titre "Les {accent "nouveautés."}" en anglais "What’s {accent "new."}" avec style "install-titre"

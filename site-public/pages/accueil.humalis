@@ -109,7 +109,7 @@ page "accueil" :
             texte "$ humalis compile boutique.humalis" en anglais "$ humalis compile boutique.humalis" avec style "terminal-command"
             texte "Erreur, ligne 3 : la variable « totl » n'est pas déclarée. Peut-être « total » ?" en anglais "Error, line 3: variable ‘totl’ is not declared. Did you mean ‘total’?" avec style "terminal-error"
             texte "↳ Vérifie l’orthographe du nom de la variable." en anglais "↳ Check the spelling of the variable name." avec style "terminal-hint"
-    bloc avec style "section more-pages" :
+    bloc avec style "section" :
         colonne avec style "section-heading" :
             soustitre "Un site pour aller plus loin." en anglais "A site to go further."
             texte "Une vue sur les pages qui accompagneront tes premières lignes de code." en anglais "A look at the pages that will guide your first lines of code."
@@ -123,7 +123,7 @@ page "accueil" :
                 texte "Un parcours clair, du premier mot à ta première application." en anglais "A clear path from your first word to your first app."
                 lien "Lire la documentation ↗" en anglais "Read the docs ↗" vers "documentation"
             bloc avec ancre "exemples" et style "page-card" :
-                bloc avec style "page-mini mini-examples" :
+                bloc avec style "page-mini" :
                     texte "Des idées à explorer" en anglais "Ideas to explore" avec style "mini-title"
                     grille avec colonnes 2 et style "mini-gallery" :
                         bloc avec style "mini-tile" :
