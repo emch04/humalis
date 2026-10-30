@@ -1,0 +1,39 @@
+# Choisir un fichier, l'afficher, l'envoyer avec une barre de progression.
+# Pour le web et le desktop : l'envoi passe par une source, comme les autres appels à une API.
+#
+# Le type et la taille sont vérifiés par la page pour aider la personne ; le
+# serveur de l'API revérifie toujours : c'est lui qui protège.
+
+source "boutique" :
+    adresse "http://localhost:3000"
+    enveloppe "data"
+    erreur dans "message"
+    session astratra
+    route "api/shop/photos" :
+        creer photo
+    donnee photo :
+        fichier : texte
+
+page "profil" :
+    titre "Ma photo de profil"
+    variable photo = rien
+    variable envoi = 0
+    variable adresse_photo = rien
+
+    fichier "Choisir une photo" dans photo accepte images avec maximum 5 Mo
+
+    si photo est different de rien :
+        image photo.apercu avec description "Aperçu de la photo choisie" et proportions 1 sur 1
+        texte photo.nom
+        bouton "Envoyer la photo"
+        progression envoi avec maximum 100 et pourcentage et description "Envoi de la photo"
+
+    si adresse_photo est en chargement :
+        chargement "Envoi en cours"
+    si adresse_photo est en erreur :
+        texte erreur de adresse_photo
+    si adresse_photo est different de rien :
+        image adresse_photo avec description "Votre photo de profil"
+
+    quand l'utilisateur clique sur "Envoyer la photo" :
+        envoyer fichier photo vers "api/shop/photos" de la source "boutique" en corps brut suivi dans envoi et fichier dans adresse_photo

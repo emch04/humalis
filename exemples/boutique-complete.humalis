@@ -1,0 +1,21 @@
+# La boutique complète : le serveur et les pages dans le même fichier.
+# Le compilateur vérifie les deux ensemble (étape 4).
+serveur "boutique" :
+    donnee produit :
+        nom : texte
+        prix : nombre
+    route "produits" :
+        tout le monde peut lire produit
+        seul admin peut modifier produit
+
+page "boutique" :
+    variable produits = []
+    titre "Nos produits"
+    quand la page se charge :
+        envoyer requete vers "produits" dans produits
+    si produits est vide :
+        texte "Aucun produit pour l'instant."
+    sinon :
+        pour chaque p dans produits :
+            texte p.nom
+            texte "{p.prix} €"

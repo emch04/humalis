@@ -1,0 +1,15 @@
+utiliser composant "Carte" depuis "./composants/Carte"
+
+composant "Fiche" :
+    parametre nom
+    parametre prix
+    texte nom
+    texte "{prix} €"
+
+page "accueil" :
+    variable prix_minimum = 2
+    titre "Notre vitrine"
+    texte "Une carte React écrite à la main, et des fiches écrites en Humalis."
+    Carte avec titre "Fournitures scolaires" et prix prix_minimum
+    Fiche avec nom "Livre" et prix 12
+    Fiche avec nom "Stylo" et prix 2

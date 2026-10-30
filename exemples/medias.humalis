@@ -1,0 +1,24 @@
+# Graphiques, médias et mouvement : un site de démonstration écrit
+# seulement en Humalis.
+
+page "accueil" :
+    variable agences = [fiche avec nom "Gombe" et adresse "12 avenue du Port" et latitude -4,3047 et longitude 15,3070, fiche avec nom "Limete" et adresse "5 avenue des Poids Lourds" et latitude -4,3353 et longitude 15,3446]
+    titre "Le Fleuve" avec animation apparition
+    texte "Cuisine du fleuve, tous les soirs." avec animation montee et delai court
+    bouton "Réserver" avec transition douce et effet agrandi
+    section "Nos plats" :
+        bloc avec animation montee au defilement et effet leve et ombre legere :
+            titre "Poisson braisé"
+            texte "Tilapia grillé au charbon, banane plantain."
+        bloc avec animation agrandissement au defilement et duree longue :
+            titre "Moambe"
+            texte "Poulet à la sauce de noix de palme."
+    section "Écouter" :
+        audio "extrait.wav" avec description "Extrait de la chanson Le Fleuve, deux secondes"
+        audio "entretien.wav" avec description "Entretien avec la cheffe" et transcription "Bonjour et bienvenue au Fleuve." et boucle
+    section "Nous trouver" :
+        carte "Le restaurant Le Fleuve, avenue de la Gombe" avec latitude -4,3250 et longitude 15,3222 et zoom 15
+        carte "Nos deux agences à Kinshasa, et l'entrepôt" :
+            pour chaque agence dans agences :
+                marqueur agence.nom avec adresse agence.adresse et latitude agence.latitude et longitude agence.longitude
+            marqueur "Entrepôt" avec latitude -4,3902 et longitude 15,2611

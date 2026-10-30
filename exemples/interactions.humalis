@@ -1,0 +1,86 @@
+# Les interactions de Rey Store : recherche pendant la frappe, messages,
+# copier, partager, raccourcis, fenêtre, question avant de retirer,
+# minuteries et défilement infini. Les requêtes vont à l'API du site
+# (/produits, /recherche, /suppressions).
+
+page "catalogue" :
+    variable produits = []
+    variable nouveaux = []
+    variable numero = 1
+    variable il_reste = vrai
+    variable resultats = []
+    variable code = "REY-2026-0042"
+    variable copie = faux
+    variable compteur = vrai
+    variable secondes = 0
+
+    titre "Rey Store"
+
+    # Copier et partager
+    texte "Ton code promo : {code}"
+    bouton "Copier le code" avec raccourci "controle+maj+c"
+    quand l'utilisateur clique sur "Copier le code" :
+        copier code avec message "Code copié"
+        changer copie par vrai
+        apres 2 secondes :
+            changer copie par faux
+    si copie est vrai :
+        texte "Copié !"
+    bouton "Partager le catalogue"
+    quand l'utilisateur clique sur "Partager le catalogue" :
+        partager "Viens voir Rey Store" avec titre "Rey Store" avec lien vers "catalogue"
+
+    # La recherche pendant la frappe : une requête après la pause
+    champ "recherche" avec indice "Chercher une robe" et raccourci "/"
+    quand l'utilisateur arrete d'ecrire dans "recherche" :
+        envoyer requete vers "/recherche" avec le champ "recherche" dans resultats
+    calcul trouves = nombre de resultats
+    texte "{trouves} résultats" avec annonce
+    pour chaque r dans resultats :
+        texte r
+
+    # Une fenêtre d'aide, ouverte au clic ou par Ctrl+K
+    bouton "Aide"
+    quand l'utilisateur clique sur "Aide" :
+        montrer "Raccourcis"
+    quand l'utilisateur appuie sur "controle+k" :
+        montrer "Raccourcis"
+    fenetre "Raccourcis" avec description "Les touches du catalogue" :
+        texte "Tape / pour chercher, Ctrl+K pour ouvrir cette aide."
+        bouton "Compris"
+        quand l'utilisateur clique sur "Compris" :
+            cacher "Raccourcis"
+
+    # Le catalogue, chargé par tranches en arrivant en bas
+    soustitre "Nos produits"
+    section avec nom "catalogue" :
+        pour chaque p dans produits :
+            ligne :
+                texte p
+                bouton "Retirer {p}" avec nom "retirer"
+                quand l'utilisateur clique sur "retirer" :
+                    confirmer "Retirer {p} du catalogue ?" avec oui "Retirer" et non "Garder" :
+                        retirer p de produits
+                        envoyer requete vers "/suppressions" avec p
+                        afficher reussite "{p} retiré" avec action "Annuler" :
+                            ajouter p a produits
+                    sinon :
+                        afficher "Rien n’a été retiré"
+    quand l'utilisateur arrive en bas de "catalogue" tant que il_reste est vrai avec bouton "Voir plus de produits" :
+        envoyer requete vers "/produits" avec numero dans nouveaux
+        pour chaque n dans nouveaux :
+            ajouter n a produits
+        changer numero par numero + 1
+        si nouveaux est vide :
+            changer il_reste par faux
+    si il_reste est faux :
+        texte "Tous les produits sont affichés."
+
+    # Une minuterie qu'on peut arrêter
+    texte "Ouvert depuis {secondes} secondes"
+    toutes les 1 seconde tant que compteur est vrai :
+        changer secondes par secondes + 1
+    bouton "Arrêter le compteur"
+    quand l'utilisateur clique sur "Arrêter le compteur" :
+        changer compteur par faux
+        afficher avertissement "Compteur arrêté" pendant 10 secondes

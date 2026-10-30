@@ -1,0 +1,14 @@
+**
+!dist/extension.js
+!dist/serveur-lsp.js
+!syntaxes/humalis.tmLanguage.json
+!snippets/humalis.json
+!language-configuration.json
+!package.json
+!README.md
+!LICENSE
+!LICENSE.en.md
+!NOTICE
+!images/icon.png
+!images/fichier-theme-clair.svg
+!images/fichier-theme-sombre.svg

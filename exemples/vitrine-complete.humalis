@@ -1,0 +1,106 @@
+# Le site vitrine d'un restaurant, écrit seulement en Humalis, sans React à côté :
+# thème aux couleurs du projet (clair et sombre), en-tête et pied communs,
+# grille qui s'adapte à l'écran, contenu selon l'appareil.
+
+theme :
+    couleur marque clair "#0e5a6b" sombre "#5fc3d6"
+    couleur sable clair "#f3e9d2" sombre "#2a2a2e"
+    police titres "Georgia"
+    police texte "system-ui"
+    largeur large
+
+entete avec colle :
+    ligne avec repartition entre et alignement centre et remplissage petite :
+        lien "Le Fleuve" vers "accueil"
+        sur ordinateur ou tablette :
+            ligne avec espacement grande :
+                lien "La carte" vers "carte"
+                lien "Réserver" vers "reservation"
+        bouton "Mode sombre" avec nom "bascule"
+        quand l'utilisateur clique sur "bascule" :
+            changer theme par sombre
+
+pied :
+    colonne avec alignement centre :
+        texte "Le Fleuve, avenue du Port"
+        texte "Ouvert de mardi à dimanche"
+
+page "accueil" :
+    section "Bienvenue au Fleuve" avec degrade marque vers sable et remplissage grande et bordure douce :
+        texte "Cuisine du marché, au bord de l'eau" avec taille grande
+        bouton "Réserver une table" avec fond marque
+    sur telephone :
+        texte "Touchez un plat pour le découvrir." avec nom "astuce_telephone"
+    sur ordinateur :
+        texte "Passez la souris sur un plat pour le découvrir." avec nom "astuce_ordinateur"
+    section "Nos plats" :
+        grille avec colonnes 3 et espacement moyenne :
+            bloc avec ombre legere et bordure douce et remplissage moyenne :
+                titre "Poisson braisé"
+                texte "28 000 FC" avec couleur marque
+            bloc avec ombre legere et bordure douce et remplissage moyenne :
+                titre "Liboke de capitaine"
+                texte "32 000 FC" avec couleur marque
+            bloc avec ombre moyenne et bordure douce et remplissage moyenne :
+                titre "Pondu et chikwangue"
+                texte "18 000 FC" avec couleur marque
+
+page "carte" :
+    section "La carte" avec largeur etroite :
+        texte "Tous nos plats sont préparés le jour même."
+        bloc avec colle et remplissage petite :
+            texte "Cette ligne reste en haut pendant le défilement." avec nom "collee"
+        texte "Entrées, plats, desserts."
+
+page "reservation" sans pied :
+    section "Réserver" avec largeur etroite :
+        champ "nom"
+        bouton "Envoyer"
+
+page "plat" :
+    variable note = 3
+    variable quantite = 1
+    variable envoi = 40
+    variable en_cours = vrai
+    calcul moyenne = 9 / 2
+    calcul total = quantite * 28000
+    fil d'Ariane :
+        lien "Accueil" vers "accueil"
+        lien "La carte" vers "carte"
+        texte "Poisson braisé"
+    section "Poisson braisé" :
+        ligne avec alignement centre et espacement moyenne :
+            icone "feuille" avec taille grande et couleur marque et description "Produit du marché"
+            badge "Nouveau" avec fond vert
+            avatar "Chef Mbala"
+            etoiles moyenne avec description "Note moyenne : 4,5 sur 5"
+        texte "Votre note :"
+        etoiles note avec modifiable
+        compteur quantite avec minimum 1 et maximum 5 et description "Quantité"
+        texte "Total : {total} FC" avec nom "total"
+        progression envoi avec pourcentage et maximum 100
+        bouton "Avancer" avec icone "fleche_droite" et nom "avancer"
+        quand l'utilisateur clique sur "avancer" :
+            changer envoi par envoi + 10
+        si en_cours est vrai :
+            chargement "Préparation en cours…"
+        onglets :
+            onglet "Description" avec icone "document" :
+                texte "Poisson braisé, riz et banane plantain."
+            onglet "Avis" :
+                texte "Un régal."
+            onglet "Infos" :
+                texte "Servi de midi à 23 h."
+        accordeon :
+            deroulant "Allergènes" :
+                texte "Poisson."
+            deroulant "Paiement" avec ouvert :
+                texte "Sur place, en espèces ou par mobile."
+        carrousel avec visibles 1 :
+            bloc avec remplissage grande et bordure douce et fond bleu :
+                texte "La salle" avec texte blanc
+            bloc avec remplissage grande et bordure douce et fond vert :
+                texte "La terrasse" avec texte blanc
+            bloc avec remplissage grande et bordure douce et fond orange :
+                texte "Le quai" avec texte blanc
+        code qr "https://lefleuve.cd/plat/poisson-braise" avec taille petite et description "Code du plat"

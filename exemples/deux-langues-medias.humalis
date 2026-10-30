@@ -1,0 +1,34 @@
+# Les graphiques, un son, une image et un champ dans un site en deux langues :
+# le nom et la description du site, les descriptions, la transcription, les
+# séries, les étiquettes et l'indice se traduisent comme les autres textes.
+# Le nom d'un fichier son ou image ne se traduit jamais.
+langues :
+    francais
+    anglais
+
+site :
+    nom "Le Fleuve" en anglais "The River"
+    description "Cuisine du fleuve, tous les soirs, à Kinshasa, au bord de l’eau." en anglais "River cooking, every evening, in Kinshasa, by the water."
+
+page "accueil" :
+    apercu :
+        titre "Le Fleuve, cuisine du fleuve" en anglais "The River, river cooking"
+        description "Cuisine du fleuve, tous les soirs, à Kinshasa, au bord de l’eau." en anglais "River cooking, every evening, in Kinshasa, by the water."
+    selecteur de langue
+    titre "Le Fleuve en chiffres" en anglais "The River in numbers"
+    variable ventes = [fiche avec mois "Janvier" et montant 120000 et achats 90000, fiche avec mois "Février" et montant 180000 et achats 110000]
+    variable visites = [120, 180, 150]
+    graphique en courbe ventes avec etiquette mois et valeur montant en FC et description "Les ventes passent de 120 000 FC à 180 000 FC." en anglais "Sales go from 120,000 FC to 180,000 FC."
+    graphique en barres ventes avec etiquette mois et description "Les ventes dépassent les achats chaque mois." en anglais "Sales beat purchases every month." :
+        serie "Ventes" en anglais "Sales" valeur montant en FC avec couleur bleu
+        serie "Achats" en anglais "Purchases" valeur achats en FC avec couleur orange
+    graphique en barres visites avec etiquettes ["Lun" en anglais "Mon", "Mar" en anglais "Tue", "Mer" en anglais "Wed"] et description "Les visites de la semaine." en anglais "This week's visits."
+    audio "extrait.wav" avec description "Extrait de la chanson Le Fleuve" en anglais "Excerpt of the song Le Fleuve" et transcription "Bonjour et bienvenue au Fleuve." en anglais "Hello and welcome to the River."
+    image "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==" avec description "Le logo du restaurant" en anglais "The restaurant logo" et proportions 1 sur 1
+    icone "etoile" avec description "Notre plat favori" en anglais "Our favourite dish"
+    formulaire "reservation" :
+        champ texte "Nom" en anglais "Name" avec indice "Votre nom complet" en anglais "Your full name"
+        liste deroulante "Pays" en anglais "Country" parmi ["RDC", "France"] avec indice "Choisir un pays" en anglais "Pick a country"
+        bouton "Réserver" en anglais "Book"
+    quand le formulaire "reservation" est soumis :
+        afficher "Merci, à bientôt." en anglais "Thank you, see you soon."

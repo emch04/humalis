@@ -1,0 +1,61 @@
+{
+  "Page": {
+    "prefix": "page",
+    "body": [
+      "page \"${1:nom}\" :",
+      "    titre \"${2:Titre de la page}\"",
+      "    $0"
+    ],
+    "description": "Déclare une page"
+  },
+  "Variable": {
+    "prefix": "variable",
+    "body": "variable ${1:nom} = ${2:0}",
+    "description": "Déclare une variable"
+  },
+  "Si": {
+    "prefix": "si",
+    "body": [
+      "si ${1:stock} est egal a ${2:0} :",
+      "    afficher \"${3:Message}\"$0"
+    ],
+    "description": "Condition : si ..."
+  },
+  "Si sinon": {
+    "prefix": "sinon",
+    "body": [
+      "si ${1:stock} est egal a ${2:0} :",
+      "    afficher \"${3:Rupture de stock}\"",
+      "sinon :",
+      "    afficher \"${4:Disponible}\"$0"
+    ],
+    "description": "Condition avec sinon : si ... sinon ..."
+  },
+  "Pour chaque": {
+    "prefix": "pour",
+    "body": [
+      "pour chaque ${1:element} dans ${2:liste} :",
+      "    texte ${1:element}$0"
+    ],
+    "description": "Boucle : pour chaque élément dans une liste"
+  },
+  "Quand l'utilisateur clique sur": {
+    "prefix": "quand",
+    "body": [
+      "quand l'utilisateur clique sur \"${1:Valider}\" :",
+      "    afficher \"${2:Merci}\"$0"
+    ],
+    "description": "Réagit au clic de l'utilisateur sur un élément"
+  },
+  "Formulaire": {
+    "prefix": "formulaire",
+    "body": [
+      "formulaire \"${1:contact}\" :",
+      "    champ ${2|email,texte,telephone,nombre,date,heure,mot de passe,texte long,adresse web|} \"${3:Email}\" avec obligatoire",
+      "    bouton \"${4:Envoyer}\"",
+      "quand le formulaire \"${1:contact}\" est soumis :",
+      "    afficher \"${5:Merci !}\"$0"
+    ],
+    "description": "Un formulaire : ses champs, son bouton, et ce qui se passe quand on l'envoie (Entrée ou bouton)"
+  }
+}

@@ -1,0 +1,103 @@
+# Une boutique branchée sur une API qui existe déjà (bloc source), sans
+# serveur Humalis : mêmes adresses et même enveloppe { success, message, data }
+# que la boutique de Rey Store.
+source "boutique" :
+    adresse "http://127.0.0.1:4420"
+    enveloppe "data"
+    erreur dans "message"
+    donnee variante :
+        id : texte
+        label : texte
+        images : liste de texte
+    donnee produit :
+        id : texte
+        name : texte
+        price : nombre
+        category : texte
+        variants : liste de variante
+    donnee commande :
+        number : texte
+    donnee membre :
+        id : texte
+        name : texte
+    route "api/shop/products" :
+        lire une liste de produit dans "products"
+        lire un produit dans "product"
+    route "api/shop/orders" :
+        creer commande dans "order"
+    route "api/admin/equipe" :
+        lire une liste de membre dans "membres"
+        supprimer membre
+    route "api/admin/products/:id" :
+        modifier produit par remplacement
+
+page "catalogue" :
+    variable produits = []
+    titre "Nouveautés"
+    quand la page se charge :
+        envoyer requete vers "api/shop/products" de la source "boutique" dans produits
+    pour chaque p dans produits :
+        lien p.name vers "produit" avec id p.id
+    bouton "Maillots"
+    quand l'utilisateur clique sur "Maillots" :
+        envoyer requete vers "api/shop/products" de la source "boutique" filtrant par categorie = "maillots" dans produits
+
+page "produit" avec parametre id :
+    variable produit = rien
+    quand la page se charge :
+        envoyer requete vers "api/shop/products" de la source "boutique" avec id dans produit
+    si produit est rien :
+        texte "Chargement du produit…"
+    sinon :
+        titre produit.name
+        texte "{produit.price} cents"
+        pour chaque v dans produit.variants :
+            texte "Coloris : {v.label}"
+    lien "Retour au catalogue" vers "catalogue"
+
+page "equipe" :
+    variable membres = []
+    quand la page se charge :
+        envoyer requete vers "api/admin/equipe" de la source "boutique" dans membres
+    pour chaque m dans membres :
+        texte m.name
+        bouton "Retirer"
+        quand l'utilisateur clique sur "Retirer" :
+            supprimer m de "api/admin/equipe" de la source "boutique"
+            envoyer requete vers "api/admin/equipe" de la source "boutique" dans membres
+
+page "reglage" :
+    variable produits = []
+    quand la page se charge :
+        envoyer requete vers "api/shop/products" de la source "boutique" dans produits
+    pour chaque p dans produits :
+        texte "{p.name} : {p.price}"
+        bouton "Baisser"
+        quand l'utilisateur clique sur "Baisser" :
+            modifier p dans "api/admin/products/:id" de la source "boutique" avec price = p.price - 1000
+
+page "vitrine" :
+    variable produits = []
+    quand la page se charge :
+        envoyer requete vers "api/shop/products" de la source "boutique" dans produits
+    si produits est en chargement :
+        texte "Chargement du catalogue…"
+    si produits est en erreur :
+        texte erreur de produits
+        bouton "Réessayer maintenant"
+        quand l'utilisateur clique sur "Réessayer maintenant" :
+            recharger produits
+    pour chaque p dans produits :
+        texte p.name
+
+page "commande" :
+    variable client = fiche avec name "Awa" et phone "+243 800 000 000" et address "Gombe"
+    variable lignes = [fiche avec product_id "p3" et variant "v1" et quantity 2 et size "M"]
+    variable recue = rien
+    bouton "Commander"
+    quand l'utilisateur clique sur "Commander" :
+        envoyer requete vers "api/shop/orders" de la source "boutique" avec customer = client et lines = lignes dans recue
+    si recue est rien :
+        texte "Panier prêt"
+    sinon :
+        texte "Commande {recue.number}"

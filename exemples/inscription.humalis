@@ -1,0 +1,66 @@
+# L'inscription à un atelier : chaque sorte de champ d'un formulaire.
+# Tout le monde peut s'inscrire ; seul un admin lit les inscriptions.
+# Le libellé d'un champ donne le nom du champ envoyé (« Âge » → age).
+serveur "ateliers" :
+    donnee inscription :
+        nom : texte
+        email : texte
+        telephone : texte
+        age : nombre
+        naissance : date
+        heure : texte
+        site : texte
+        presentation : texte
+        newsletter : booleen
+        taille : texte
+        pays : texte
+    route "inscriptions" :
+        tout le monde peut creer inscription
+        seul admin peut lire inscription
+
+page "inscription" :
+    variable pays = ["Congo", "Belgique", "France", "Canada"]
+    titre "Inscription à l'atelier"
+    texte "Remplissez le formulaire : les champs marqués d'une étoile sont obligatoires."
+    # Entrée dans un champ, ou le bouton, envoie le formulaire ; après un
+    # envoi réussi, les champs sont vidés.
+    formulaire "inscription" :
+        champ "Nom" avec obligatoire
+        champ email "Email" avec obligatoire et indice "vous@exemple.cd"
+        champ telephone "Téléphone"
+        champ nombre "Âge" avec obligatoire et minimum 12 et maximum 120
+        champ date "Naissance" avec obligatoire
+        champ heure "Heure" avec indice "Heure d'arrivée"
+        champ adresse web "Site" avec indice "https://…"
+        champ texte long "Présentation" avec indice "Quelques mots sur vous"
+        case a cocher "Newsletter"
+        choix "Taille" parmi ["S", "M", "L", "XL"] avec obligatoire
+        liste deroulante "Pays" parmi pays avec obligatoire et indice "Choisissez un pays"
+        bouton "S'inscrire"
+    quand le formulaire "inscription" est soumis :
+        envoyer requete vers "inscriptions" avec champ "Nom" et champ "Email" et champ "Téléphone" et champ "Âge" et champ "Naissance" et champ "Heure" et champ "Site" et champ "Présentation" et champ "Newsletter" et champ "Taille" et champ "Pays"
+        afficher "Merci, votre inscription est enregistrée."
+    lien "Espace admin" vers "admin"
+
+page "admin" :
+    variable inscriptions = []
+    titre "Les inscriptions"
+    si utilisateur est admin :
+        bouton "Voir les inscriptions"
+        pour chaque i dans inscriptions :
+            texte "{i.nom} ({i.email}) : {i.age} ans, né le {i.naissance}, taille {i.taille}, {i.pays}, lettre : {i.newsletter}"
+        bouton "Se déconnecter"
+    sinon :
+        texte "Connectez-vous (admin) pour voir les inscriptions."
+        formulaire "connexion" :
+            champ email "Email"
+            champ mot de passe "Mot de passe"
+            bouton "Se connecter"
+    quand le formulaire "connexion" est soumis :
+        se connecter avec champ "Email" et champ "Mot de passe"
+        afficher "Bienvenue"
+    quand l'utilisateur clique sur "Voir les inscriptions" :
+        envoyer requete vers "inscriptions" dans inscriptions
+    quand l'utilisateur clique sur "Se déconnecter" :
+        se deconnecter
+    lien "Retour à l'inscription" vers "inscription"

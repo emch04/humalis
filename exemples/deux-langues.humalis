@@ -1,0 +1,40 @@
+# Un site en français et en anglais : la première langue est celle des textes écrits.
+langues :
+    francais
+    anglais
+
+# Les textes répétés se traduisent une seule fois, ici.
+traductions anglais :
+    "Voir le catalogue" : "See the catalogue"
+
+page "accueil" :
+    selecteur de langue
+    titre "Bienvenue chez Rey Store" en anglais "Welcome to Rey Store"
+    texte "Mode et maillots, livrés à Kinshasa." en anglais "Fashion and jerseys, delivered in Kinshasa."
+    variable panier = 3
+    variable total = 1234,5
+    texte "{panier article} dans le panier" en anglais "{panier item} in the cart"
+    texte "Total : {total en euros}" en anglais "Total: {total en euros}"
+    bouton "Voir le catalogue"
+    bouton "Passer en anglais" en anglais "Switch to French"
+    quand l'utilisateur clique sur "Voir le catalogue" :
+        rediriger vers "catalogue"
+    quand l'utilisateur clique sur "Passer en anglais" :
+        si langue est anglais :
+            changer langue par francais
+        sinon :
+            changer langue par anglais
+
+page "catalogue" :
+    titre "Le catalogue" en anglais "The catalogue"
+    lien "Retour à l'accueil" en anglais "Back to home" vers "accueil"
+    lien "Nous écrire" en anglais "Write to us" vers "contact"
+
+# Les messages de Humalis suivent la langue : ici, l'erreur d'un champ oublié.
+page "contact" :
+    titre "Nous écrire" en anglais "Write to us"
+    formulaire "message" :
+        champ email "Email" en anglais "Email address" avec obligatoire
+        bouton "Envoyer" en anglais "Send"
+    quand le formulaire "message" est soumis :
+        afficher "Merci, à bientôt." en anglais "Thank you, see you soon."

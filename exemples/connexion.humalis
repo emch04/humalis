@@ -1,0 +1,9 @@
+page "connexion" :
+    variable email_valide = faux
+    champ "email"
+    bouton "Se connecter"
+    quand l'utilisateur clique sur "Se connecter" :
+        si le champ "email" est vide :
+            afficher erreur "Email requis"
+        sinon :
+            afficher "Connexion réussie"

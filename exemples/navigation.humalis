@@ -1,0 +1,93 @@
+# Un espace réservé sur une API qui existe déjà : adresse choisie, page
+# réservée aux connectés, connexion de l'API (session des packs Astratra),
+# retour à la page voulue avec « continuer », et page 404 personnalisée.
+# Puis les sous-pages, les filtres d'adresse, les ancres, « revenir », les
+# liens externes, le lien actif et le menu.
+source "compte" :
+    adresse "http://localhost:4430"
+    session astratra
+    donnee commande :
+        id : texte
+        number : texte
+    route "api/admin/orders" :
+        lire une liste de commande
+
+page "accueil" :
+    menu :
+        lien "Accueil" vers "accueil"
+        lien "Catalogue" vers "catalogue"
+        lien "Carte" vers "carte"
+        lien "Espace" vers "espace"
+    titre "Rey Store"
+    lien "Espace admin" vers "commandes"
+    lien "WhatsApp" vers "https://wa.me/243000000" avec nouvel onglet
+    lien "Nos desserts" vers "carte#desserts"
+    lien "Un lien piégé" vers "danger"
+
+page "commandes" a l'adresse "/admin/commandes" reservee a connecte sinon vers "connexion" :
+    variable commandes = []
+    quand la page se charge :
+        envoyer requete vers "api/admin/orders" de la source "compte" dans commandes
+    titre "Commandes"
+    pour chaque c dans commandes :
+        texte c.number
+
+page "connexion" :
+    titre "Connexion"
+    formulaire "connexion" :
+        champ email "email" avec obligatoire
+        champ mot de passe "mot de passe" avec obligatoire
+        bouton "Se connecter"
+    quand le formulaire "connexion" est soumis :
+        se connecter avec champ "email" et champ "mot de passe"
+        continuer vers "accueil"
+
+page "introuvable" :
+    titre "Cette page n'existe pas"
+    lien "Retour à l'accueil" vers "accueil"
+
+page "catalogue" avec filtre categorie :
+    menu :
+        lien "Tout" vers "catalogue"
+        lien "Costumes" vers "catalogue" avec categorie "costumes"
+        lien "Maillots" vers "catalogue" avec categorie "maillots"
+    titre "Catalogue"
+    si categorie est rien :
+        texte "Toutes les catégories"
+    sinon :
+        texte "Catégorie : {categorie}"
+    bouton "Passer aux robes"
+    quand l'utilisateur clique sur "Passer aux robes" :
+        changer categorie par "robes"
+    bouton "Retour"
+    quand l'utilisateur clique sur "Retour" :
+        revenir vers "accueil"
+
+page "carte" :
+    titre "Carte"
+    lien "Aller aux desserts" vers "#desserts"
+    section "Plats" avec ancre "plats" :
+        pour chaque n dans [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30] :
+            texte "Plat {n}"
+    section "Desserts" avec ancre "desserts" :
+        texte "Beignets"
+
+page "espace" :
+    titre "Espace"
+    menu :
+        lien "Profil" vers "profil"
+        lien "Réglages" vers "reglages"
+    sous page
+
+page "profil" dans "espace" :
+    texte "Votre profil"
+
+page "reglages" dans "espace" adresse "/espace" :
+    texte "Vos réglages"
+
+page "danger" :
+    variable adresse = "javascript:window.__pwned = 1"
+    titre "Danger"
+    bouton "Aller"
+    quand l'utilisateur clique sur "Aller" :
+        rediriger vers adresse

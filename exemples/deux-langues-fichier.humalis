@@ -1,0 +1,29 @@
+# Choisir une photo et l'envoyer, dans un site en deux langues : le libellé
+# du bouton et tous les messages du choix et de l'envoi (fichier trop lourd,
+# type refusé, serveur muet) suivent la langue. Pour le web et le desktop.
+langues :
+    francais
+    anglais
+
+source "boutique" :
+    adresse "http://localhost:3999"
+    enveloppe "data"
+    erreur dans "message"
+    session astratra
+    route "api/shop/photos" :
+        creer photo
+    donnee photo :
+        fichier : texte
+
+page "profil" :
+    selecteur de langue
+    titre "Ma photo de profil" en anglais "My profile photo"
+    variable photo = rien
+    variable envoi = 0
+    fichier "Choisir une photo" en anglais "Choose a photo" dans photo accepte images avec maximum 1 Ko
+    si photo est different de rien :
+        texte photo.nom
+        bouton "Envoyer la photo" en anglais "Send the photo"
+        progression envoi avec maximum 100 et pourcentage et description "Envoi de la photo" en anglais "Sending the photo"
+    quand l'utilisateur clique sur "Envoyer la photo" :
+        envoyer fichier photo vers "api/shop/photos" de la source "boutique" en corps brut suivi dans envoi

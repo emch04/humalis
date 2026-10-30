@@ -1,0 +1,37 @@
+# La gestion des produits : seul l'administrateur change un prix ou
+# supprime un produit, sur le serveur du même fichier (trou G2).
+serveur "boutique" :
+    donnee produit :
+        nom : texte
+        prix : nombre
+    route "produits" :
+        tout le monde peut lire produit
+        seul admin peut modifier produit
+
+page "gestion" :
+    variable produits = []
+    titre "Gestion des produits"
+    quand la page se charge :
+        envoyer requete vers "produits" dans produits
+    si utilisateur est admin :
+        pour chaque p dans produits :
+            texte "{p.nom} : {p.prix} €"
+            bouton "Baisser le prix"
+            quand l'utilisateur clique sur "Baisser le prix" :
+                modifier p dans "produits" avec prix = p.prix - 1
+                envoyer requete vers "produits" dans produits
+            bouton "Supprimer"
+            quand l'utilisateur clique sur "Supprimer" :
+                supprimer p de "produits"
+                envoyer requete vers "produits" dans produits
+                afficher "Produit supprimé"
+        bouton "Se déconnecter"
+    sinon :
+        texte "Réservé à l'administrateur."
+        champ "email"
+        champ "mot de passe"
+        bouton "Se connecter"
+    quand l'utilisateur clique sur "Se connecter" :
+        se connecter avec champ "email" et champ "mot de passe"
+    quand l'utilisateur clique sur "Se déconnecter" :
+        se deconnecter

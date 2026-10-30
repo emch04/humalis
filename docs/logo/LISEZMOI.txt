@@ -1,0 +1,7 @@
+Logo Humalis, proposition C « L’indentation » choisie par Emch le 30/10/2026.
+Couleurs : noir #121212, jaune citron #d7ff3a, blanc #ffffff.
+Nom en Space Grotesk Bold (licence SIL OFL), vectorisé : aucune police à installer.
+
+humalis-logo-carte.svg : le logo sur sa carte sombre aux coins arrondis (nom blanc, symbole jaune).
+C'est lui que montrent les README : il se lit pareil sur une page claire ou sombre, quel que soit
+le réglage de npm ou de GitHub.
