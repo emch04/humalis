@@ -233,6 +233,8 @@ page "accueil" :
 - Un nom d’ancre qui n’est pas valable : n'est pas valable
 - Deux ancres de même nom : est déjà utilisée dans la page
 - Un lien vers une ancre qui n’existe pas : n'existe pas dans la page « carte »
+- Un lien de l’en-tête ou du pied vers une ancre qui n’existe nulle part : n'existe dans aucune page
+- Une page et un composant qui auraient le même nom : auraient le même nom dans le code produit
 - Une adresse qui peut exécuter du code : est refusée
 - Des paramètres de page sur une adresse externe : n'a pas de paramètres de page
 - « nouvel onglet » sur autre chose qu’un lien : s'applique à un lien
@@ -267,6 +269,7 @@ page "accueil" :
 - « duree » ou « delai » sans animation : donne l’attente d’une animation
 - « au defilement » sans animation : « au defilement » suit le nom d’une animation
 - « en cascade » sur un simple élément : il s’écrit sur un bloc
+- Un texte traduit et « sans traduction » : gardez l’un ou l’autre
 - Une animation sur un champ : pas d’animation sur un champ
 - Trop d’éléments animés au défilement : trop de mouvement
 - Une image sans description : décrivez l’image pour les personnes

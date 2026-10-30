@@ -114,7 +114,8 @@ export function analyser(source: string): Token[] {
     const ligne = lignes[numLigne];
     let i = 0;
 
-    const codeBrut = /^( *)(code)(?: +([\p{L}][\p{L}0-9_]*))? *: *$/u.exec(ligne);
+    // « code humalis : », « code : », et l'animation : « code humalis avec animation frappe au defilement : ».
+    const codeBrut = /^( *)(code)(?: +(?!avec\b)([\p{L}][\p{L}0-9_]*))?( +avec +animation +frappe(?: +au +d[eé]filement)?)? *: *$/u.exec(ligne);
     if (codeBrut) {
       const contenu: string[] = [];
       const indentation = codeBrut[1].length;
@@ -143,6 +144,7 @@ export function analyser(source: string): Token[] {
       tokens.push(
         { type: 'MOT_CLE', valeur: 'code', ligne: ligneDebut, colonne: indentation + 1, reserve: false, original: 'code' },
         ...(codeBrut[3] ? [{ type: 'IDENTIFIANT' as const, valeur: codeBrut[3], ligne: ligneDebut, colonne: indentation + 6 }] : []),
+        ...(codeBrut[4] ? codeBrut[4].trim().split(/ +/).map((mot) => ({ type: 'IDENTIFIANT' as const, valeur: mot, ligne: ligneDebut, colonne: ligne.indexOf(codeBrut[4]!) + 1 })) : []),
         { type: 'PONCTUATION', valeur: ':', ligne: ligneDebut, colonne: ligne.indexOf(':') + 1 },
         { type: 'FIN_LIGNE', valeur: '', ligne: ligneDebut, colonne: ligne.length + 1 },
         { type: 'CODE_BRUT', valeur: brut, ligne: ligneDebut + 1, colonne: 1 },

@@ -519,13 +519,21 @@ function analyserInstruction(flux: FluxTokens): Instruction {
     flux.attendre('PONCTUATION', ':', 'deux-points après « liste »');
     return { type: 'Bloc', genre: numerotee ? 'listeNumerotee' : 'liste', styles: [], classes: [], corps: analyserBloc(flux), ligne: debut.ligne };
   }
-  if (estLeMot(flux.actuel(), 'code') && (flux.regarder(1).valeur === ':' || flux.regarder(2).valeur === ':')) {
+  if (estLeMot(flux.actuel(), 'code') && estBlocDeCode(flux)) {
     const debut = flux.avancer();
-    const langage = flux.verifier('PONCTUATION', ':') ? undefined : flux.avancer().valeur;
+    const langage = flux.verifier('PONCTUATION', ':') || estLeMot(flux.actuel(), 'avec') ? undefined : flux.avancer().valeur;
+    // « avec animation frappe » (au chargement), « … au defilement » (quand le bloc arrive à l'écran).
+    let frappe: 'chargement' | 'defilement' | undefined;
+    if (estLeMot(flux.actuel(), 'avec')) {
+      flux.avancer(); // avec
+      flux.avancer(); // animation
+      flux.avancer(); // frappe
+      frappe = estLeMot(flux.actuel(), 'au') ? (flux.avancer(), flux.avancer(), 'defilement') : 'chargement';
+    }
     flux.attendre('PONCTUATION', ':', 'deux-points après « code »');
     flux.accepter('FIN_LIGNE');
     const code = flux.attendre('CODE_BRUT', undefined, 'les lignes du bloc de code').valeur;
-    return { type: 'CodeDocumentation', ...(langage ? { langage } : {}), code, ligne: debut.ligne };
+    return { type: 'CodeDocumentation', ...(langage ? { langage } : {}), ...(frappe ? { frappe } : {}), code, ligne: debut.ligne };
   }
   if (estLeMot(flux.actuel(), 'en') && estLeMot(flux.regarder(1), 'supposant')) {
     const debut = flux.avancer();
@@ -1130,7 +1138,7 @@ function analyserAction(
   // « ajouter nom à panier » : « à » et « de » sont des mots de liaison
   // déjà écartés par le lexer ; « dans » reste permis.
   if (debut.valeur === 'ajouter' || debut.valeur === 'retirer') {
-    const valeur = analyserExpression(flux);
+    const valeur = analyserOperande(flux);
     flux.accepter('MOT_CLE', 'dans');
     const { nom } = flux.attendreNom('le nom de la liste');
     return {
@@ -1215,7 +1223,7 @@ function analyserAction(
       type: 'Affectation',
       nom,
       ...(champs.length > 0 ? { champs } : {}),
-      valeur: analyserExpression(flux),
+      valeur: analyserOperande(flux),
       ligne: debut.ligne,
     };
   }
@@ -1516,6 +1524,14 @@ function analyserApresEst(flux: FluxTokens, gauche: Expression): Comparaison {
 }
 
 /** Variable ou champ de formulaire (« champ "email" »). */
+/** « code … : » est un bloc de code quand le lexer a recopié ses lignes (CODE_BRUT) juste après les deux-points. */
+function estBlocDeCode(flux: FluxTokens): boolean {
+  for (let decalage = 1; decalage <= 7; decalage++) {
+    if (flux.regarder(decalage).valeur === ':') return flux.regarder(decalage + 2).type === 'CODE_BRUT' || flux.regarder(decalage + 1).type === 'CODE_BRUT';
+  }
+  return false;
+}
+
 export function analyserOperande(flux: FluxTokens): Expression {
   if (flux.verifier('MOT_CLE', 'champ') && flux.regarder(1).type === 'CHAINE') {
     const debut = flux.avancer();
@@ -1784,6 +1800,13 @@ function analyserValeur(flux: FluxTokens): Expression {
     flux.avancer();
     // « "Bienvenue" en anglais "Welcome" » : les versions écrites à côté.
     const versions = lireVersions(flux);
+    // « "GitHub" sans traduction » : le même texte dans toutes les langues (un nom propre).
+    if (estLeMot(flux.actuel(), 'sans') && estLeMot(flux.regarder(1), 'traduction')) {
+      const sans = flux.avancer();
+      flux.avancer();
+      if (versions) throw new ErreurSyntaxique('ce texte a une version traduite et « sans traduction » : gardez l’un ou l’autre.', sans.ligne);
+      return { type: 'Chaine', parties: token.parties ?? [], sansTraduction: true, ligne: token.ligne };
+    }
     return { type: 'Chaine', parties: token.parties ?? [], ...(versions ? { versions } : {}), ligne: token.ligne };
   }
 

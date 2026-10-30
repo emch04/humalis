@@ -1,4 +1,4 @@
-import { verificationsDuChamp, messageEnCode, libellesEnLangues, type MessageEnLangues } from '../../i18n/messages.js';
+import { verificationsDuChamp, messageEnCode, libellesEnLangues, messageEnLangues, type MessageEnLangues } from '../../i18n/messages.js';
 /**
  * Un écran de la représentation intermédiaire → une page du site statique :
  * son contenu de départ, écrit dans le HTML (décision T2), et son script,
@@ -10,6 +10,7 @@ import { verificationsDuChamp, messageEnCode, libellesEnLangues, type MessageEnL
  */
 import { sousActions } from '../../ri/actions.js';
 import { colorerCodeHumalis } from '../commun/colorerCode.js';
+import { attributsFrappe } from '../commun/mouvement.js';
 import { arbreWidget, arbreComposite, initiales, type AideWidget, type AideComposite, type Enfant } from './widgets.js';
 import { iconeHtml, etoilesHtml } from './html-elements.js';
 import { appelGraphique, htmlGraphique } from './graphique.js';
@@ -373,10 +374,15 @@ class GenerateurPage {
     return resultat;
   }
 
+  /** « Copier » dans chaque langue du site, la langue de base (celle du HTML de départ) en premier. */
+  private messageCopier(): MessageEnLangues {
+    return (this.site.langues && messageEnLangues('Copier', this.site.langues.map((l) => l.code))) || [{ code: 'fr', texte: 'Copier' }];
+  }
+
   // ─── La page ────────────────────────────────────────────────────────────
 
   generer(): PageStatique {
-    const { titre, description } = titreEtDescription(this.ecran);
+    const { titre, description } = titreEtDescription(this.ecran, this.site.langues);
 
     // Les fonctions et le dessin d'abord : on y lit les variables partagées
     // que la page utilise vraiment.
@@ -945,7 +951,9 @@ ${prise}${code}}
           e.ligne(`${appelGraphique(noeud, (v) => expressionJs(v, this.contexte))},`);
           break;
         case 'codeDocumentation':
-          e.ligne(`creer('div', { class: 'humalis-bloc-code-conteneur' }, creer('pre', { class: 'humalis-bloc-code', 'data-langage': ${chaine(noeud.langage ?? '')} }, (() => { const code = document.createElement('code'); code.innerHTML = ${chaine(colorerCodeHumalis(noeud.code, noeud.langage))}; return code; })()), creer('button', { type: 'button', onclick: () => copier(${chaine(noeud.code)}) }, ${this.site.langues ? "langue() === 'en' ? 'Copy' : 'Copier'" : "'Copier'"})),`);
+          const frappe = attributsFrappe(noeud);
+          const marques = frappe ? `, 'data-humalis-frappe': '${frappe.frappe}', 'data-humalis-frappe-cle': '${frappe.cle}'` : '';
+          e.ligne(`creer('div', { class: 'humalis-bloc-code-conteneur' }, creer('pre', { class: 'humalis-bloc-code${frappe ? ` ${frappe.classe}` : ''}', 'data-langage': ${chaine(noeud.langage ?? '')}${marques} }, (() => { const code = document.createElement('code'); code.innerHTML = ${chaine(colorerCodeHumalis(noeud.code, noeud.langage))}; return code; })()), creer('button', { type: 'button', onclick: () => copier(${chaine(noeud.code)}) }, ${messageEnCode(this.messageCopier(), chaine)})),`);
           break;
         case 'tableauDocumentation': {
           const cellule = (valeur: Valeur, balise: string) => `creer('${balise}', {}, ${this.contenuAccentJs(valeur, 'texte')})`;
@@ -1204,7 +1212,9 @@ ${prise}${code}}
           lignes.push(htmlGraphique(noeud, (v) => this.initial(v, env), (v) => this.texteInitial(v, env)));
           break;
         case 'codeDocumentation':
-          lignes.push(`<div class="humalis-bloc-code-conteneur"><pre class="humalis-bloc-code" data-langage="${echapperTexte(noeud.langage ?? '')}"><code>${colorerCodeHumalis(noeud.code, noeud.langage)}</code></pre><button type="button">Copier</button></div>`);
+          const frappe = attributsFrappe(noeud);
+          const marques = frappe ? ` data-humalis-frappe="${frappe.frappe}" data-humalis-frappe-cle="${frappe.cle}"` : '';
+          lignes.push(`<div class="humalis-bloc-code-conteneur"><pre class="humalis-bloc-code${frappe ? ` ${frappe.classe}` : ''}" data-langage="${echapperTexte(noeud.langage ?? '')}"${marques}><code>${colorerCodeHumalis(noeud.code, noeud.langage)}</code></pre><button type="button">${echapperTexte(this.messageCopier()[0].texte)}</button></div>`);
           break;
         case 'tableauDocumentation': {
           const cellule = (v: Valeur, balise: string) => `<${balise}>${this.contenuAccentHtml(v, 'texte', env)}</${balise}>`;

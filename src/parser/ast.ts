@@ -685,6 +685,8 @@ export interface Formulaire {
 export interface CodeDocumentation {
   type: 'CodeDocumentation';
   langage?: string;
+  /** « avec animation frappe » : le code s'écrit lettre par lettre, au chargement ou quand il arrive à l'écran. */
+  frappe?: 'chargement' | 'defilement';
   code: string;
   ligne: number;
 }
@@ -1176,6 +1178,8 @@ export interface LitteralChaine {
   parties: PartieChaine[];
   /** « "Bienvenue" en anglais "Welcome" » : les versions écrites à côté, dans l'ordre. */
   versions?: VersionChaine[];
+  /** « "GitHub" sans traduction » : le même texte dans toutes les langues, sans avertissement. */
+  sansTraduction?: boolean;
   ligne: number;
 }
 

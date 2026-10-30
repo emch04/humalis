@@ -65,6 +65,7 @@ import { ElementsPage, type ElementRecense, type FormulaireRecense } from './ele
 import { optionCanonique, erreurSurElement, OPTIONS } from './styles.js';
 import { contraste, FOND_PAGE } from './couleurs.js';
 import { verifierAccessibilite } from './accessibilite.js';
+import { niveauxDesSousTitres } from './niveaux.js';
 import { verifierElementEcran, verifierBlocEcran, type Signaler } from './ecran.js';
 import { verifierChoixFichier, verifierEnvoiFichier, typeFichierChoisi, aUnApercu, recenserFichiers, type FichiersDeLaPage } from './fichiers.js';
 import { verifierCarte, verifierMarqueur } from './carte.js';
@@ -264,6 +265,10 @@ export function analyserSens(programme: Programme): ResultatAnalyse {
     changementsLangue: new Map(),
   };
   // Les langues d'abord : avec elles, « langue » et « anglais » sont des valeurs intégrées.
+  // Le niveau automatique des sous-titres, avant tout ce qui lit ces niveaux.
+  for (const corps of [...programme.pages.map((p) => p.corps), programme.entete?.corps, programme.pied?.corps, ...programme.composants.map((c) => c.corps)]) {
+    if (corps) niveauxDesSousTitres(corps);
+  }
   resultat.langues = analyserLangues(programme, resultat.diagnostics);
   languesActives.clear();
   for (const langue of resultat.langues.langues) languesActives.set(langue.mot, langue.code);

@@ -74,7 +74,7 @@ describe('documentation', () => {
   it('traduit le bouton de copie avec les langues du site', () => {
     const app = application(`langues :\n    francais\n    anglais\n\n${page('    code terminal :\n        npm install')}`);
     expect(genererProjetWeb(app, options).get('src/pages/Accueil.tsx')).toContain("fr: 'Copier', en: 'Copy'");
-    expect(genererProjetStatique(app, options).get('pages/accueil.js')).toContain("'Copy' : 'Copier'");
+    expect(genererProjetStatique(app, options).get('pages/accueil.js')).toContain("t({ fr: 'Copier', en: 'Copy' })");
   });
 
   it('compile une liste à puces et une liste numérotée', () => {

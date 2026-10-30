@@ -324,7 +324,7 @@ export function analyserLangues(programme: Programme, diagnostics: Diagnostic[])
 
   // Les textes visibles sans version dans une langue déclarée.
   for (const texte of visibles) {
-    if (!aDesLettres(texte.parties) || uneLangue.has(texte)) continue;
+    if (!aDesLettres(texte.parties) || uneLangue.has(texte) || texte.sansTraduction) continue;
     const cle = texteSource(texte.parties);
     for (const langue of autres) {
       const ecrite = texte.versions?.some((v) => langueDuMot(v.langue) === langue);

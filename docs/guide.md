@@ -175,6 +175,21 @@ page "carte" :
 l'ordre des niveaux, sans en sauter : les lecteurs d'écran s'en servent pour
 parcourir la page.
 
+Dans un bloc placé sous un sous-titre, un `soustitre` descend d'un niveau tout
+seul : la carte d'une section devient un niveau 3. `avec niveau` reste possible
+pour choisir soi-même.
+
+```humalis
+page "accueil" :
+    titre "Accueil"
+    section :
+        soustitre "Nos pages"
+        grille :
+            bloc :
+                soustitre "Exemples"
+                texte "Six applications à essayer."
+```
+
 Dans un `titre`, un `soustitre` ou un `texte`, `{accent "…"}` met quelques mots
 en valeur avec la couleur de marque. Le texte reste lisible normalement par les
 lecteurs d'écran et dans le titre de l'onglet.
@@ -217,6 +232,20 @@ page "guide" :
     code humalis :
         page "accueil" :
             titre "Bienvenue"
+```
+
+`avec animation frappe` écrit le code lettre par lettre, avec un curseur ;
+`avec animation frappe au defilement` attend que le bloc arrive à l'écran. Le
+vrai code reste en place pendant la frappe (lecteurs d'écran, bouton Copier), et
+il s'affiche tout de suite si la personne a demandé de réduire les animations.
+Sur le téléphone, le code s'affiche entier.
+
+```humalis
+page "accueil" :
+    code humalis avec animation frappe :
+        page "boutique" :
+            titre "Nos produits"
+            bouton "Commander"
 ```
 
 ### Tableau
@@ -544,6 +573,10 @@ page "carte" :
 ```
 
 Dans un `menu`, le lien de la page où l'on est est marqué comme actif.
+Les liens d'un menu passent à la ligne quand la place manque. Un menu que ton
+CSS met en colonne (`flex-direction: column`) garde ce retour à la ligne :
+ajoute `flex-wrap: nowrap` pour qu'il défile au lieu d'ouvrir une deuxième
+colonne.
 
 Un `menu repliable :` se range derrière un bouton « Menu » sur un petit écran
 (téléphone) ; un lien choisi referme le menu. Sur grand écran, il reste ouvert :
@@ -1008,8 +1041,10 @@ Les actions s'écrivent dans un événement.
 | `afficher erreur "…"` | un message d'erreur |
 | `montrer "nom"`, `cacher "nom"` | fait apparaître ou disparaître un élément |
 | `changer x par …` | change une variable |
+| `changer x par champ "Libellé"` | prend la valeur actuelle d'un champ |
 | `changer texte de "nom" par "…"` | change le texte d'un élément |
 | `ajouter … à liste`, `retirer … de liste` | modifie une liste |
+| `ajouter champ "Libellé" à liste` | ajoute la valeur actuelle d'un champ |
 | `rediriger vers "page"` | va à une page |
 | `revenir vers "page"` | revient en arrière, ou va à cette page |
 | `envoyer requete vers "…"` | appelle un serveur (voir [le serveur](#22-relier-les-pages-au-serveur)) |
@@ -1028,6 +1063,22 @@ page "produit" :
 
 page "merci" :
     titre "Merci !"
+```
+
+Dans une action, `champ "Libellé"` lit ce que la personne a saisi au moment du clic. Un champ nombre donne un nombre, une case à cocher donne vrai ou faux, et les autres champs donnent du texte. Le libellé est celui de la langue de base, même si le champ a une traduction.
+
+```humalis
+page "taches" :
+    variable taches = ["Acheter du pain"]
+    variable dernier = ""
+    champ "Nouvelle tâche"
+    bouton "Ajouter"
+    quand l'utilisateur clique sur "Ajouter" :
+        ajouter champ "Nouvelle tâche" à taches
+        changer dernier par champ "Nouvelle tâche"
+    texte "Dernière ajoutée : {dernier}"
+    pour chaque t dans taches :
+        texte t
 ```
 
 ---
@@ -1649,6 +1700,8 @@ page "catalogue" :
 ```
 
 - `en anglais "…"` donne la version d'un texte.
+- `sans traduction` garde le même texte dans toutes les langues, pour un nom
+  propre : `lien "GitHub" sans traduction vers "https://github.com"`.
 - `traductions anglais :` traduit une seule fois un texte répété.
 - `selecteur de langue` affiche le choix de la langue ; `changer langue par
   anglais` et `si langue est anglais :` s'utilisent dans les événements.

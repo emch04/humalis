@@ -11,6 +11,11 @@ describe('grammaire : bloc de code brut', () => {
     expect(porteeDe(jetonDe(lignes[3], '# brut'))).toBe('string.unquoted.humalis');
     expect(porteeDe(jetonDe(lignes[4], 'titre'))).toBe(CONTEXTUEL);
   });
+  it('reconnaît aussi un bloc avec l’animation de frappe', async () => {
+    const lignes = await colorier('page "a" :\n    code humalis avec animation frappe au defilement :\n        texte "incomplet\n    titre "Après"');
+    expect(porteeDe(jetonDe(lignes[2], 'texte'))).toBe('string.unquoted.humalis');
+    expect(porteeDe(jetonDe(lignes[3], 'titre'))).toBe(CONTEXTUEL);
+  });
 });
 
 async function portee(source: string, mot: string): Promise<string | undefined> {

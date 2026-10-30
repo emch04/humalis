@@ -33,7 +33,7 @@
   ],
   "repository": {
     "blocCode": {
-      "begin": "^([ ]*)(code)(?:[ ]+[\\p{L}][\\p{L}0-9_]*)?[ ]*(:)[ ]*$",
+      "begin": "^([ ]*)(code)(?:[ ]+(?!avec\\b)[\\p{L}][\\p{L}0-9_]*)?(?:[ ]+avec[ ]+animation[ ]+frappe(?:[ ]+au[ ]+d[eé]filement)?)?[ ]*(:)[ ]*$",
       "beginCaptures": {
         "2": {
           "name": "support.function.humalis"

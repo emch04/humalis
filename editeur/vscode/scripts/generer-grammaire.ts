@@ -95,7 +95,8 @@ const grammaire = {
   ],
   repository: {
     blocCode: {
-      begin: '^([ ]*)(code)(?:[ ]+[\\p{L}][\\p{L}0-9_]*)?[ ]*(:)[ ]*$',
+      // « code humalis : », « code : », et « code humalis avec animation frappe au defilement : ».
+      begin: '^([ ]*)(code)(?:[ ]+(?!avec\\b)[\\p{L}][\\p{L}0-9_]*)?(?:[ ]+avec[ ]+animation[ ]+frappe(?:[ ]+au[ ]+d[eé]filement)?)?[ ]*(:)[ ]*$',
       beginCaptures: {
         '2': { name: 'support.function.humalis' },
         '3': { name: 'punctuation.separator.humalis' },

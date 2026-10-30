@@ -186,6 +186,21 @@ page "menu" :
 Keep the levels in order, without skipping: screen readers use them to move
 through the page.
 
+Inside a block placed under a subtitle, a `soustitre` goes down one level on its
+own: a card in a section becomes level 3. `avec niveau` (with level) still lets
+you choose.
+
+```humalis
+page "home" :
+    titre "Home"
+    section :
+        soustitre "Our pages"
+        grille :
+            bloc :
+                soustitre "Examples"
+                texte "Six apps to try."
+```
+
 In a `titre`, `soustitre`, or `texte`, `{accent "…"}` highlights a few words
 with the brand color. Screen readers and the browser tab still get plain text.
 
@@ -227,6 +242,20 @@ page "guide" :
     code humalis :
         page "home" :
             titre "Welcome"
+```
+
+`avec animation frappe` ("with typing animation") writes the code letter by
+letter, with a cursor; `avec animation frappe au defilement` waits until the
+block scrolls into view. The real code stays in place while it types (screen
+readers, Copy button), and it shows at once if the person asked to reduce
+motion. On a phone, the code shows in full.
+
+```humalis
+page "home" :
+    code humalis avec animation frappe :
+        page "shop" :
+            titre "Our products"
+            bouton "Order"
 ```
 
 ### Table
@@ -579,7 +608,9 @@ page "menu" :
 ```
 
 `fil d'Ariane` is a breadcrumb. In a `menu`, the link to the current page is
-marked as active.
+marked as active. The links of a menu wrap when space runs out. A menu that
+your CSS turns into a column (`flex-direction: column`) keeps that wrapping: add
+`flex-wrap: nowrap` so it scrolls instead of starting a second column.
 
 A `menu repliable :` (collapsible menu) folds behind a "Menu" button on a small
 screen (phone); choosing a link closes it. On a large screen it stays open:
@@ -1074,8 +1105,10 @@ Actions are written inside an event.
 | `afficher erreur "…"` | shows an error message |
 | `montrer "name"`, `cacher "name"` | shows or hides an element |
 | `changer x par …` | changes a variable |
+| `changer x par champ "Label"` | reads a field's current value into a variable |
 | `changer texte de "name" par "…"` | changes an element's text |
 | `ajouter … à list`, `retirer … de list` | changes a list |
+| `ajouter champ "Label" à list` | adds a field's current value to a list |
 | `rediriger vers "page"` | goes to a page |
 | `revenir vers "page"` | goes back, or to that page |
 | `envoyer requete vers "…"` | calls a server (see [the server](#22-connecting-pages-to-the-server)) |
@@ -1094,6 +1127,22 @@ page "product" :
 
 page "thanks" :
     titre "Thank you!"
+```
+
+Inside an action, `champ "Label"` reads what the person entered when they click. A number field yields a number, a checkbox yields true or false, and other fields yield text. Use the base language label even when the field has a translation.
+
+```humalis
+page "tasks" :
+    variable tasks = ["Buy bread"]
+    variable latest = ""
+    champ "New task"
+    bouton "Add"
+    quand l'utilisateur clique sur "Add" :
+        ajouter champ "New task" à tasks
+        changer latest par champ "New task"
+    texte "Latest added: {latest}"
+    pour chaque task dans tasks :
+        texte task
 ```
 
 ---
@@ -1732,6 +1781,8 @@ page "catalogue" :
 
 - `langues :` lists the languages (`francais`, `anglais`…).
 - `en francais "…"` gives another language's version of a text.
+- `sans traduction` ("without translation") keeps the same text in every
+  language, for a proper noun: `lien "GitHub" sans traduction vers "https://github.com"`.
 - `traductions francais :` translates a repeated text once.
 - `selecteur de langue` shows the language switcher; `changer langue par
   anglais` and `si langue est anglais :` are used in events.

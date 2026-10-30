@@ -4,8 +4,9 @@
  * déclaré : c'est la déclaration « je publie ». Sans lui, un programme
  * d'exemple compile en silence.
  */
-import type { Expression, Instruction, Page, Programme } from '../parser/ast.js';
+import type { Expression, Instruction, Page, Programme, Test } from '../parser/ast.js';
 import type { Diagnostic } from './erreurs.js';
+import { langueDuMot } from '../i18n/langues.js';
 
 /** Le texte d'un littéral sans « {…} », sinon `undefined`. */
 export function texteLitteral(expression: Expression | undefined): string | undefined {
@@ -13,12 +14,29 @@ export function texteLitteral(expression: Expression | undefined): string | unde
   return expression.parties.map((p) => p.valeur).join('');
 }
 
-/** Le premier « titre » ou « texte » écrit dans la page, même dans un bloc de mise en page. */
-function premier(genre: 'titre' | 'texte', instructions: Instruction[]): Expression | undefined {
+/**
+ * « si langue est anglais » : vrai si le test est vrai dans la langue `code`,
+ * faux sinon ; `undefined` pour un test qui ne porte pas sur la langue.
+ */
+function testDeLangue(test: Test, code: string): boolean | undefined {
+  if (test.type !== 'Comparaison' || test.gauche.type !== 'Reference' || test.gauche.nom !== 'langue' || test.droite?.type !== 'Reference') return undefined;
+  if (test.operateur !== 'egal' && test.operateur !== 'different') return undefined;
+  const langue = langueDuMot(test.droite.nom);
+  if (!langue) return undefined;
+  return (langue.code === code) !== (test.operateur === 'different') !== Boolean(test.negation);
+}
+
+/**
+ * Le premier « titre » ou « texte » écrit dans la page, même dans un bloc de mise en page.
+ * Avec des langues, une branche « si langue est … » compte : celle de la langue de base.
+ */
+function premier(genre: 'titre' | 'texte', instructions: Instruction[], langueDeBase?: string): Expression | undefined {
   for (const instruction of instructions) {
     if (instruction.type === 'Element' && instruction.element === genre) return instruction.contenu;
-    if (instruction.type === 'Bloc') {
-      const trouve = premier(genre, instruction.corps);
+    const vraie = instruction.type === 'Condition' && langueDeBase !== undefined ? testDeLangue(instruction.test, langueDeBase) : undefined;
+    const corps = instruction.type === 'Bloc' ? instruction.corps : instruction.type === 'Condition' && vraie !== undefined ? (vraie ? instruction.alors : instruction.sinon) : undefined;
+    if (corps) {
+      const trouve = premier(genre, corps, langueDeBase);
       if (trouve) return trouve;
     }
   }
@@ -26,10 +44,10 @@ function premier(genre: 'titre' | 'texte', instructions: Instruction[]): Express
 }
 
 /** Le titre et la description propres à la page : son aperçu, sinon son premier titre et son premier texte. */
-export function apercuDeLaPage(page: Page): { titre?: Expression; description?: Expression } {
+export function apercuDeLaPage(page: Page, langueDeBase?: string): { titre?: Expression; description?: Expression } {
   return {
-    titre: page.apercu?.titre ?? premier('titre', page.corps),
-    description: page.apercu?.description ?? premier('texte', page.corps),
+    titre: page.apercu?.titre ?? premier('titre', page.corps, langueDeBase),
+    description: page.apercu?.description ?? premier('texte', page.corps, langueDeBase),
   };
 }
 
@@ -53,9 +71,11 @@ export function analyserPublication(programme: Programme, diagnostics: Diagnosti
   }
 
   const titres = new Map<string, string>();
+  const premiereLangue = programme.langues?.langues[0];
+  const langueDeBase = premiereLangue ? langueDuMot(premiereLangue.mot)?.code : undefined;
   for (const page of programme.pages) {
     if (page.nom === 'introuvable') continue;
-    const { titre, description } = apercuDeLaPage(page);
+    const { titre, description } = apercuDeLaPage(page, langueDeBase);
     const ligneApercu = page.apercu?.ligne ?? page.ligne;
     const titreLu = texteLitteral(titre);
     const descriptionLue = texteLitteral(description);

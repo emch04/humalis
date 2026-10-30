@@ -370,7 +370,7 @@ class Construction {
           break;
 
         case 'CodeDocumentation':
-          noeuds.push({ type: 'codeDocumentation', ...(instruction.langage ? { langage: instruction.langage } : {}), code: instruction.code, ligne: instruction.ligne });
+          noeuds.push({ type: 'codeDocumentation', ...(instruction.langage ? { langage: instruction.langage } : {}), ...(instruction.frappe ? { frappe: instruction.frappe } : {}), code: instruction.code, ligne: instruction.ligne });
           break;
 
         case 'TableauDocumentation':
