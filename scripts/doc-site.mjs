@@ -176,7 +176,7 @@ const sortie = [
   '# ne pas modifier à la main. Pour changer la documentation, modifier le guide,',
   '# puis lancer « npm run site:doc ».',
   '',
-  'page "apprendre" a l\'adresse "/apprendre" :',
+  'page "apprendre" a l\'adresse "/apprendre" sans pied :',
   '    apercu :',
   '        description "Le guide complet de Humalis : de l’installation au serveur, chaque construction du langage avec un exemple vérifié." en anglais "The complete Humalis guide: from installation to the server, every construct of the language with a checked example."',
   '    ligne avec style "doc" :',

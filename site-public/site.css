@@ -137,3 +137,24 @@ html[data-theme=clair] a.exemple-lien{color:#4d6a00}
 .doc-contenu .humalis-bloc-code-conteneur button:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
 /* La légende d'un tableau reste lue par les lecteurs d'écran, sans s'afficher (elle répète les colonnes) */
 .doc-contenu caption{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+/* Documentation : en-tête et sommaire immobiles, seul le texte défile.
+   La page n'a pas de pied ; le sommaire commence sous l'en-tête et en prend toute la hauteur restante. */
+.doc{--entete:75px;padding-top:0!important;padding-bottom:0!important}
+.doc-sommaire{top:var(--entete);height:calc(100dvh - var(--entete));max-height:none!important;padding-top:32px;padding-bottom:32px;box-sizing:border-box}
+.doc-contenu{padding-top:48px;padding-bottom:96px}
+@media(max-width:700px){.doc{--entete:67px}.doc-contenu{padding-top:28px}.doc-sommaire{padding-top:20px}}
+@media(max-width:600px){.doc-sommaire{top:var(--entete);max-height:none}}
+
+/* Pied de page : la marque, puis une colonne par rôle, puis une ligne de mentions */
+.site-footer{border-top:1px solid var(--line);background:var(--surface);padding:56px 0 0}
+.site-footer>.footer-grid{display:grid!important;grid-template-columns:1.6fr repeat(3,1fr);gap:40px;align-items:start}
+.footer-marque{display:flex!important;flex-direction:column;align-items:flex-start;gap:12px}
+.footer-marque p{margin:0;max-width:280px;color:var(--muted);font-size:14px;line-height:1.6}
+.footer-col{display:flex!important;flex-direction:column;align-items:flex-start;gap:10px}
+.footer-titre{margin:0 0 4px;font:700 12px/1.4 'Inter',system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+.footer-col a{font-size:14px;color:var(--muted);transition:color .2s}
+.footer-col a:hover{color:var(--text)}
+.site-footer>.footer-bas{display:flex!important;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-top:48px;padding-top:20px;padding-bottom:28px;border-top:1px solid var(--line);padding-left:max(24px,calc((100vw - 1200px)/2));padding-right:max(24px,calc((100vw - 1200px)/2))}
+.footer-bas p{margin:0;font-size:13px;color:var(--faint)}
+@media(max-width:860px){.site-footer>.footer-grid{grid-template-columns:repeat(3,1fr)}.footer-marque{grid-column:1/-1}}
+@media(max-width:520px){.site-footer>.footer-grid{grid-template-columns:1fr 1fr;gap:28px}.site-footer>.footer-bas{padding-left:16px;padding-right:16px}}

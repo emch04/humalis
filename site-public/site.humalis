@@ -65,14 +65,29 @@ entete avec colle et style "site-header" :
 
 pied avec style "site-footer" :
     ligne avec style "footer-grid" :
-        lien "humalis" en anglais "humalis" vers "accueil" avec style "brand"
-        ligne avec style "footer-links" :
-            lien "Apprendre" en anglais "Learn" vers "apprendre"
+        colonne avec style "footer-marque" :
+            lien "humalis" en anglais "humalis" vers "accueil" avec style "brand"
+            texte "Le langage de programmation qui s’écrit en français, de la page web au serveur." en anglais "The programming language you write in French, from the web page to the server."
+        colonne avec style "footer-col" :
+            texte "Découvrir" en anglais "Discover" avec style "footer-titre"
+            lien "Accueil" en anglais "Home" vers "accueil"
             lien "Exemples" en anglais "Examples" vers "exemples"
             lien "Bac à sable" en anglais "Playground" vers "bac_a_sable"
+        colonne avec style "footer-col" :
+            texte "Apprendre" en anglais "Learn" avec style "footer-titre"
             lien "Installer" en anglais "Install" vers "installer"
+            lien "Le guide" en anglais "The guide" vers "apprendre"
+            lien "Premiers pas" en anglais "First steps" vers "apprendre_1"
+            lien "Les commandes" en anglais "Commands" vers "apprendre_32"
+        colonne avec style "footer-col" :
+            texte "Projet" en anglais "Project" avec style "footer-titre"
+            lien "GitHub" en anglais "GitHub" vers "https://github.com/emch04/humalis" avec nouvel onglet
+            lien "Signaler un problème" en anglais "Report an issue" vers "https://github.com/emch04/humalis/issues" avec nouvel onglet
+            lien "Paquet npm" en anglais "npm package" vers "https://www.npmjs.com/package/humalis" avec nouvel onglet
             lien "Licence Humalis" en anglais "Humalis License" vers "https://github.com/emch04/humalis/blob/main/LICENSE" avec nouvel onglet
-        texte "Fait avec Humalis" en anglais "Made with Humalis" avec style "footer-note"
+    ligne avec style "footer-bas" :
+        texte "© 2026 Les auteurs de Humalis · créé par emch04" en anglais "© 2026 The Humalis authors · created by emch04"
+        texte "Ce site est écrit en Humalis." en anglais "This site is written in Humalis."
 
 page "accueil" :
     apercu :
