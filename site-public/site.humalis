@@ -4,7 +4,7 @@
 utiliser style "./site.css"
 utiliser composant "DemoCode" depuis "./composants/DemoCode"
 utiliser composant "EditeurHumalis" depuis "./composants/EditeurHumalis"
-utiliser fichier "./apprendre.humalis"
+utiliser fichier "./documentation.humalis"
 
 site :
     nom "Humalis"
@@ -33,7 +33,7 @@ entete avec colle et style "site-header" :
         lien "humalis" en anglais "humalis" vers "accueil" avec style "brand"
         menu repliable avec style "nav-links" :
             lien "Accueil" en anglais "Home" vers "accueil"
-            lien "Apprendre" en anglais "Learn" vers "apprendre"
+            lien "Documentation" en anglais "Documentation" vers "documentation"
             lien "Exemples" en anglais "Examples" vers "exemples"
             lien "Bac à sable" en anglais "Playground" vers "bac_a_sable"
             lien "Installer" en anglais "Install" vers "installer"
@@ -74,11 +74,11 @@ pied avec style "site-footer" :
             lien "Exemples" en anglais "Examples" vers "exemples"
             lien "Bac à sable" en anglais "Playground" vers "bac_a_sable"
         colonne avec style "footer-col" :
-            texte "Apprendre" en anglais "Learn" avec style "footer-titre"
+            texte "Documentation" en anglais "Documentation" avec style "footer-titre"
             lien "Installer" en anglais "Install" vers "installer"
-            lien "Le guide" en anglais "The guide" vers "apprendre"
-            lien "Premiers pas" en anglais "First steps" vers "apprendre_1"
-            lien "Les commandes" en anglais "Commands" vers "apprendre_32"
+            lien "Sommaire" en anglais "Contents" vers "documentation"
+            lien "Premiers pas" en anglais "First steps" vers "documentation_1"
+            lien "Les commandes" en anglais "Commands" vers "documentation_32"
         colonne avec style "footer-col" :
             texte "Projet" en anglais "Project" avec style "footer-titre"
             lien "GitHub" en anglais "GitHub" vers "https://github.com/emch04/humalis" avec nouvel onglet
@@ -100,7 +100,7 @@ page "accueil" :
                 texte "Un seul langage, en français, pour le web, le mobile, le bureau et le serveur. Tu écris une fois. Humalis donne vie à ton idée partout." en anglais "One language, in French, for web, mobile, desktop and server. Write once. Humalis brings your idea to life everywhere." avec style "hero-intro"
                 ligne avec style "hero-actions" :
                     lien "Essayer maintenant →" en anglais "Try it now →" vers "bac_a_sable" avec style "button button-primary"
-                    lien "Lire le guide" en anglais "Read the guide" vers "apprendre" avec style "button button-secondary"
+                    lien "Lire la documentation" en anglais "Read the docs" vers "documentation" avec style "button button-secondary"
                 ligne avec ancre "installer" et style "install-command" :
                     texte "npm install -g humalis" en anglais "npm install -g humalis" avec style "install-code"
                     bouton "Copier" en anglais "Copy" avec nom "copier" et style "copy-button"
@@ -176,14 +176,14 @@ page "accueil" :
             soustitre "Un site pour aller plus loin." en anglais "A site to go further."
             texte "Une vue sur les pages qui accompagneront tes premières lignes de code." en anglais "A look at the pages that will guide your first lines of code."
         grille avec colonnes 3 et style "page-grid" :
-            bloc avec ancre "apprendre" et style "page-card" :
+            bloc avec ancre "documentation" et style "page-card" :
                 bloc avec style "page-mini mini-learn" :
                     texte "Tes premiers pas" en anglais "Your first steps" avec style "mini-title"
                     texte "page bonjour :" en anglais "page hello :" avec style "mini-code"
                     texte "texte Bienvenue !" en anglais "texte Welcome!" avec style "mini-code"
-                soustitre "Apprendre" en anglais "Learn"
+                soustitre "Documentation" en anglais "Documentation"
                 texte "Un parcours clair, du premier mot à ta première application." en anglais "A clear path from your first word to your first app."
-                lien "Voir le concept ↗" en anglais "Explore the concept ↗" vers "apprendre"
+                lien "Lire la documentation ↗" en anglais "Read the docs ↗" vers "documentation"
             bloc avec ancre "exemples" et style "page-card" :
                 bloc avec style "page-mini mini-examples" :
                     texte "Des idées à explorer" en anglais "Ideas to explore" avec style "mini-title"
@@ -290,7 +290,7 @@ page "installer" a l'adresse "/installer" :
                     copier "cd mon-projet && humalis developper" avec message "Commande copiée" en anglais "Command copied"
             texte "Ton site s’ouvre et se met à jour à chaque enregistrement. Quand il te plaît, compile-le pour le web, le mobile, le bureau ou le serveur." en anglais "Your site opens and updates every time you save. When you like it, compile it for the web, mobile, desktop or server."
         ligne avec style "hero-actions" :
-            lien "Lire le guide" en anglais "Read the guide" vers "apprendre" avec style "button button-primary"
+            lien "Lire la documentation" en anglais "Read the docs" vers "documentation" avec style "button button-primary"
             lien "Voir Humalis sur npm" en anglais "See Humalis on npm" vers "https://www.npmjs.com/package/humalis" avec nouvel onglet et style "button button-secondary"
 
 page "introuvable" :
@@ -299,4 +299,4 @@ page "introuvable" :
         texte "Le lien est peut-être ancien, ou l’adresse a une faute de frappe." en anglais "The link may be old, or the address may have a typo."
         ligne avec style "hero-actions" :
             lien "Retour à l’accueil" en anglais "Back to home" vers "accueil" avec style "button button-primary"
-            lien "Lire le guide" en anglais "Read the guide" vers "apprendre" avec style "button button-secondary"
+            lien "Lire la documentation" en anglais "Read the docs" vers "documentation" avec style "button button-secondary"
