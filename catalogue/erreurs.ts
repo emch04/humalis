@@ -1683,25 +1683,38 @@ page "accueil" :
 `),
     'il manque le chemin du fichier CSS entre guillemets',
     { sites: 0 }),
-  e('classe-css-inconnue', 'avertissement', 'Une classe CSS définie nulle part',
-    'Un élément porte une classe donnée par « avec style "…" », mais aucun bloc « style : » du fichier ne la définit. C’est souvent une faute de frappe. Humalis ne dit rien quand tu utilises un fichier CSS séparé, qu’il ne lit pas.',
-    'Corrige le nom de la classe, ou définis-la dans un bloc « style : ».',
+  e('classe-css-inconnue', 'avertissement', 'Un style CSS introuvable',
+    'Un élément utilise une classe absente des blocs CSS du programme et des fichiers CSS lisibles du projet.',
+    'Corrige le nom de la classe ou définis-la dans ton CSS.',
     p(`
 style :
-    .grand { font-size: 3rem; }
-
+    .prix { color: red; }
 page "accueil" :
-    titre "Bienvenue" avec style "grnad"
+    titre "Prix" avec style "prixx"
 `),
     p(`
 style :
-    .grand { font-size: 3rem; }
-
+    .prix { color: red; }
 page "accueil" :
-    titre "Bienvenue" avec style "grand"
+    titre "Prix" avec style "prix"
 `),
-    'n\'est définie dans aucun bloc style',
-    { gravite: 'avertissement', sites: 2 }),
+    "n'est défini dans aucun CSS du projet", { gravite: 'avertissement', sites: 2 }),
+  e('css-ecrase-humalis', 'avertissement', 'Une règle CSS écrase un style Humalis',
+    'Une déclaration !important sur une classe produite par Humalis peut empêcher ses réglages de s’appliquer.',
+    'Retire !important ou cible ta propre classe avec « avec style ».',
+    p(`
+style :
+    .humalis-page { padding: 0 !important; }
+page "accueil" :
+    titre "Bienvenue"
+`),
+    p(`
+style :
+    .humalis-page { padding: 0; }
+page "accueil" :
+    titre "Bienvenue"
+`),
+    'le CSS écrase « humalis-page »', { gravite: 'avertissement', sites: 1 }),
   e('option-variable-inconnue', 'grammaire', 'Une option de variable inconnue',
     'Après « avec », une variable accepte deux options : « partagee » (visible dans toutes les pages) et « memorisee » (gardée après un rechargement). Un autre mot n’a pas de sens ici.',
     'Écris « avec partagee », « avec memorisee », ou les deux reliés par « et ».',

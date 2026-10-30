@@ -236,6 +236,13 @@ export function verifierPourLeMobile(application: Application): Diagnostic[] {
     avertir(ligne, "« colle » n'a pas d'effet sur le téléphone, sauf pour l'en-tête et le pied de page.");
   }
 
+  // « defilement interne », « hauteur ecran » : sur un téléphone, toute la page défile.
+  for (const reglage of ['defilement', 'hauteur']) {
+    for (const ligne of lignesAvecReglage([...application.ecrans, ...application.composants].flatMap((e) => e.vue), reglage)) {
+      avertir(ligne, `« ${reglage === 'defilement' ? 'defilement interne' : 'hauteur ecran'} » n'a pas d'effet sur le téléphone : toute la page défile.`);
+    }
+  }
+
   // M7 : pas de souris ; les composants React sont recopiés tels quels.
   const gestionnaires = [...application.ecrans, ...application.composants].flatMap((e) => [
     ...e.gestionnaires,

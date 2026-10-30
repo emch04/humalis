@@ -26,7 +26,7 @@ const ANGLES: Record<string, string> = { diagonale: '135deg', vertical: '180deg'
 /** Les classes `humalis-<réglage>-<valeur>` qui apparaissent dans le code produit. */
 export function reglagesUtilises(codes: string[]): Set<string> {
   const trouves = new Set<string>();
-  const motif = /humalis-(colonnes|espacement|remplissage|alignement|repartition|largeur|ombre|degrade|colle|bordure|sur)-([a-z0-9_-]+)/g;
+  const motif = /humalis-(colonnes|espacement|remplissage|alignement|repartition|largeur|ombre|degrade|colle|bordure|sur|defilement|hauteur|fixe)-([a-z0-9_-]+)/g;
   for (const code of codes) for (const m of code.matchAll(motif)) trouves.add(`${m[1]}-${m[2]}`);
   return trouves;
 }
@@ -119,6 +119,22 @@ export function cssEcran(codes: string[]): string {
       }
       case 'sur':
         appareil = true;
+        break;
+      case 'defilement':
+        // « defilement interne » : le bloc défile seul, sans entraîner la page ; une barre fine.
+        if (valeur === 'interne') regles.push(`${classe} { overflow-y: auto; overscroll-behavior: contain; min-height: 0; max-height: 100%; align-self: stretch; scrollbar-width: thin; }`);
+        break;
+      case 'hauteur':
+        // « hauteur ecran » : l'écran moins l'en-tête (mesuré par le script, 0 sans en-tête fixe ou collé).
+        if (valeur === 'ecran') regles.push(`${classe} { height: calc(100dvh - var(--humalis-hauteur-entete, 0px)); min-height: 0; overflow: auto; }`);
+        break;
+      case 'fixe':
+        // « entete avec fixe » : l'en-tête ne bouge pas ; sur le web, la racine devient la zone qui
+        // défile, sous l'en-tête ; sur le statique, la page laisse la place de l'en-tête.
+        regles.push(`header${classe} { position: fixed; top: 0; left: 0; right: 0; z-index: 50; background: var(--humalis-page); }`);
+        regles.push('html:has(#racine > .humalis-fixe-oui), html:has(#racine > .humalis-fixe-oui) body { height: 100%; overflow: hidden; }');
+        regles.push('#racine:has(> .humalis-fixe-oui) { position: fixed; top: var(--humalis-hauteur-entete, 0px); left: 0; right: 0; bottom: 0; overflow-y: auto; overscroll-behavior: contain; }');
+        regles.push('body:has(header.humalis-fixe-oui) { padding-top: var(--humalis-hauteur-entete, 0px); }');
         break;
     }
   }

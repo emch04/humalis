@@ -14,7 +14,7 @@ import { cssGraphique } from '../web/graphique.js';
 import { cssEcran } from '../web/css-ecran.js';
 import { cssElements } from '../web/css-elements.js';
 import { cssInteractions } from '../web/interactions.js';
-import { cssMouvement, animeAuDefilement, OBSERVATEUR_DEFILEMENT } from '../commun/mouvement.js';
+import { cssMouvement, animeAuDefilement, OBSERVATEUR_DEFILEMENT, SUIVI_ENTETE, suitLEntete } from '../commun/mouvement.js';
 import type { InfoMedia } from '../../ri/medias.js';
 import { cssTheme, changeLeTheme, modeParDefaut, SCRIPT_THEME, CLE_THEME } from '../web/theme.js';
 import { FORMAT_JS, FORMAT_JS_LANGUES, TAILLE_JS, DATES_JS } from '../format.js';
@@ -158,6 +158,10 @@ ${fonctions.join('\n')}`,
   // « menu repliable » : un seul écouteur pour tous les menus, ceux du HTML de départ comme ceux redessinés.
   if ([...fichiers.values()].some((contenu) => contenu.includes('humalis-menu-bouton'))) {
     fichiers.set('humalis/humalis.js', `${fichiers.get('humalis/humalis.js')!}\n${MENU_REPLIABLE_JS}`);
+  }
+  // « entete avec fixe », « hauteur ecran » : la hauteur de l'en-tête, suivie par un petit script.
+  if (suitLEntete([...fichiers.values()])) {
+    fichiers.set('humalis/humalis.js', `${fichiers.get('humalis/humalis.js')!}\n// La hauteur de l'en-tête, pour « entete avec fixe » et « hauteur ecran ».\n${SUIVI_ENTETE}\nsuivreLaHauteurDeLEntete();\n`);
   }
   // L'observateur des animations « au defilement », seulement si une page en a : il pose humalis-js au chargement.
   if (animeAuDefilement([...fichiers.values()])) {

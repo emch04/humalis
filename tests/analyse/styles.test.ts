@@ -27,7 +27,7 @@ describe('analyse — styles nommés', () => {
 
   it('refuse une option inconnue et dit lesquelles existent', () => {
     expect(erreurs(programme('page "a" :', '>titre "A" avec brillance douce'))).toEqual([
-      "2 : « brillance » n'est pas une option connue. Options possibles : couleur, fond, texte, taille, position, bordure, colonnes, espacement, remplissage, alignement, repartition, largeur, ombre, degrade, colle, icone, description, decoratif, niveau, photo, modifiable, ouvert, plusieurs, automatique, visibles, pourcentage, animation, duree, delai, transition, effet, prioritaire, proportions, ajustement, transcription, boucle, nom, obligatoire, indice, minimum, maximum.",
+      "2 : « brillance » n'est pas une option connue. Options possibles : couleur, fond, texte, taille, position, bordure, colonnes, espacement, remplissage, alignement, repartition, largeur, ombre, degrade, colle, defilement, hauteur, fixe, icone, description, decoratif, niveau, photo, modifiable, ouvert, plusieurs, automatique, visibles, pourcentage, animation, duree, delai, transition, effet, prioritaire, proportions, ajustement, transcription, boucle, nom, obligatoire, indice, minimum, maximum.",
     ]);
   });
 

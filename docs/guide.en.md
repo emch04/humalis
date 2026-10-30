@@ -408,6 +408,11 @@ CSS can also come from a file: `utiliser style "./theme.css"` at the top of
 the file. CSS applies to the web, static and desktop targets; mobile only
 translates named styles (colour, background, size, position, border).
 
+`humalis verifier` warns when a class used with `avec style` is missing from
+the project's CSS and suggests a close name. It also warns when an
+`!important` rule targets a `.humalis-…` class: remove `!important` or use
+your own class.
+
 ---
 
 ## 6. Layout
@@ -445,6 +450,33 @@ Block settings: `largeur` (width: `etroite` narrow, `large` wide),
 `bordure douce` (soft border), `repartition entre` (space between),
 `alignement centre` (centred), `degrade bleu vers violet` (gradient), `colle`
 (sticks to the top while scrolling).
+
+### A page that fits the screen
+
+`entete avec fixe :` (fixed header) keeps the header still: only the area below
+scrolls, with its own scrollbar. `hauteur ecran` (screen height) makes a block
+fill the screen under the header, and `defilement interne` (inner scrolling)
+gives a block its own scrolling without moving the rest. Together they make a
+documentation page: the table of contents and the text each scroll on their own,
+without a line of CSS.
+
+```humalis
+entete avec fixe :
+    lien "Home" vers "guide"
+
+page "guide" :
+    titre "The guide"
+    ligne avec hauteur ecran :
+        menu vertical avec defilement interne :
+            lien "Install" vers "guide"
+            lien "Pages" vers "guide"
+        colonne avec defilement interne :
+            texte "A long chapter that scrolls on its own."
+```
+
+On the static target, the scrollbar stays the window's. On a phone the whole page
+scrolls: `hauteur ecran` and `defilement interne` have no effect, and a warning
+says so.
 
 ### Depending on the device
 

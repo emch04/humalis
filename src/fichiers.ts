@@ -7,6 +7,7 @@ import type { Expression } from './parser/ast.js';
 import { lireCsv } from './donnees/csv.js';
 import { lireJson } from './donnees/json.js';
 import { analyserSens } from './analyse/analyse.js';
+import { verifierCss } from './analyse/css.js';
 import type { Diagnostic } from './analyse/erreurs.js';
 import { construireRepresentation } from './ri/construire.js';
 import type { Application } from './ri/types.js';
@@ -170,7 +171,21 @@ export function compilerProjet(principal: string | undefined, lire: Lecteur, sou
     }
   }
   if (diagnostics.some((d) => d.gravite === 'erreur')) return fin();
-  const analyse = analyserSens(programme);
+  const classesCss = new Set<string>();
+  let cssIllisible = false;
+  for (const bloc of programme.styles) {
+    const resultat = verifierCss(bloc.css, bloc.ligne + 1);
+    for (const nom of resultat.classes) classesCss.add(nom);
+    diagnostics.push(...resultat.diagnostics);
+  }
+  for (const fichier of programme.fichiersStyle) {
+    const contenu = lire(joindre(base, fichier.chemin));
+    if (contenu === undefined) { cssIllisible = true; continue; }
+    const resultat = verifierCss(contenu, 1, fichier.chemin.replace(/^\.\//, ''));
+    for (const nom of resultat.classes) classesCss.add(nom);
+    diagnostics.push(...resultat.diagnostics);
+  }
+  const analyse = analyserSens(programme, cssIllisible ? undefined : classesCss);
   diagnostics.push(...analyse.diagnostics);
   if (diagnostics.some((d) => d.gravite === 'erreur')) return fin();
   return { ...fin(), application: construireRepresentation(programme, analyse) };

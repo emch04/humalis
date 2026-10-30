@@ -389,6 +389,10 @@ Le CSS peut aussi venir d'un fichier : `utiliser style "./theme.css"` en haut du
 fichier. Le CSS s'applique au web, au statique et au desktop ; le mobile ne
 traduit que les styles nommés (couleur, fond, taille, position, bordure).
 
+`humalis verifier` avertit si une classe donnée par `avec style` est absente du CSS
+du projet et propose un nom proche. Il avertit aussi si une règle `!important`
+cible une classe `.humalis-…` : retirez `!important` ou utilisez votre propre classe.
+
 ---
 
 ## 6. La mise en page
@@ -423,6 +427,32 @@ Les réglages des blocs : `largeur` (`etroite`, `large`), `remplissage` et
 `espacement` (`petite`, `moyenne`, `grande`), `colonnes`, `ombre` (`legere`,
 `moyenne`), `bordure douce`, `repartition entre`, `alignement centre`,
 `degrade bleu vers violet`, `colle` (reste en haut pendant le défilement).
+
+### Une page qui tient dans l'écran
+
+`entete avec fixe :` garde l'en-tête immobile : seule la zone en dessous défile,
+avec sa barre. `hauteur ecran` fait remplir l'écran à un bloc, sous l'en-tête, et
+`defilement interne` donne à un bloc son propre défilement, sans faire bouger le
+reste. Ensemble, ils font une page de documentation : le sommaire et le texte
+défilent chacun de leur côté, sans une ligne de CSS.
+
+```humalis
+entete avec fixe :
+    lien "Accueil" vers "guide"
+
+page "guide" :
+    titre "Le guide"
+    ligne avec hauteur ecran :
+        menu vertical avec defilement interne :
+            lien "Installer" vers "guide"
+            lien "Les pages" vers "guide"
+        colonne avec defilement interne :
+            texte "Un long chapitre, qui défile seul."
+```
+
+Sur le statique, la barre de défilement reste celle de la fenêtre. Sur le
+téléphone, toute la page défile : `hauteur ecran` et `defilement interne` n'ont
+pas d'effet, et un avertissement le dit.
 
 ### Selon l'appareil
 
