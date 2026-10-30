@@ -2,88 +2,88 @@
 # ne pas modifier à la main. Pour changer la documentation, modifier le guide,
 # puis lancer « npm run site:doc ».
 
-page "apprendre" a l'adresse "/apprendre" sans pied :
+page "documentation" a l'adresse "/documentation" sans pied :
     apercu :
         description "Le guide complet de Humalis : de l’installation au serveur, chaque construction du langage avec un exemple vérifié." en anglais "The complete Humalis guide: from installation to the server, every construct of the language with a checked example."
     ligne avec style "doc" :
         menu avec style "doc-sommaire" :
-            lien "1. Installer et créer un projet" en anglais "1. Install and create a project" vers "apprendre_1"
-            lien "2. Les règles d'écriture" en anglais "2. Writing rules" vers "apprendre_2"
-            lien "3. Les pages" en anglais "3. Pages" vers "apprendre_3"
-            lien "4. Les éléments" en anglais "4. Elements" vers "apprendre_4"
-            lien "5. Les styles" en anglais "5. Styles" vers "apprendre_5"
-            lien "6. La mise en page" en anglais "6. Layout" vers "apprendre_6"
-            lien "7. Les éléments d'écran" en anglais "7. Interface elements" vers "apprendre_7"
-            lien "8. Images, sons et mouvement" en anglais "8. Images, sound and motion" vers "apprendre_8"
-            lien "9. Les variables et les calculs" en anglais "9. Variables and calculations" vers "apprendre_9"
-            lien "10. Les fiches, le texte, l'argent et les dates" en anglais "10. Records, text, money and dates" vers "apprendre_10"
-            lien "11. Les conditions" en anglais "11. Conditions" vers "apprendre_11"
-            lien "12. Les listes et les boucles" en anglais "12. Lists and loops" vers "apprendre_12"
-            lien "13. Les fonctions" en anglais "13. Functions" vers "apprendre_13"
-            lien "14. Les événements" en anglais "14. Events" vers "apprendre_14"
-            lien "15. Les actions" en anglais "15. Actions" vers "apprendre_15"
-            lien "16. Les messages, les fenêtres et les questions" en anglais "16. Messages, dialogs and questions" vers "apprendre_16"
-            lien "17. Les interactions" en anglais "17. Interactions" vers "apprendre_17"
-            lien "18. Les formulaires" en anglais "18. Forms" vers "apprendre_18"
-            lien "19. Partager et garder des valeurs" en anglais "19. Sharing and keeping values" vers "apprendre_19"
-            lien "20. La navigation" en anglais "20. Navigation" vers "apprendre_20"
-            lien "21. Le serveur" en anglais "21. The server" vers "apprendre_21"
-            lien "22. Relier les pages au serveur" en anglais "22. Connecting pages to the server" vers "apprendre_22"
-            lien "23. Utiliser une API qui existe déjà" en anglais "23. Using an existing API" vers "apprendre_23"
-            lien "24. Les données d'un fichier" en anglais "24. Data from a file" vers "apprendre_24"
-            lien "25. Choisir et envoyer un fichier" en anglais "25. Choosing and uploading a file" vers "apprendre_25"
-            lien "26. Les graphiques" en anglais "26. Charts" vers "apprendre_26"
-            lien "27. Les cartes" en anglais "27. Maps" vers "apprendre_27"
-            lien "28. Plusieurs langues" en anglais "28. Several languages" vers "apprendre_28"
-            lien "29. Publier un site" en anglais "29. Publishing a site" vers "apprendre_29"
-            lien "30. Les composants et les projets en plusieurs fichiers" en anglais "30. Components and multi-file projects" vers "apprendre_30"
-            lien "31. Tester en Humalis" en anglais "31. Testing in Humalis" vers "apprendre_31"
-            lien "32. Les commandes" en anglais "32. Commands" vers "apprendre_32"
-            lien "33. Ce que chaque cible sait faire" en anglais "33. What each target can do" vers "apprendre_33"
-            lien "Les mots-clés de Humalis en anglais" en anglais "French keywords at a glance" vers "apprendre_34"
+            lien "1. Installer et créer un projet" en anglais "1. Install and create a project" vers "documentation_1"
+            lien "2. Les règles d'écriture" en anglais "2. Writing rules" vers "documentation_2"
+            lien "3. Les pages" en anglais "3. Pages" vers "documentation_3"
+            lien "4. Les éléments" en anglais "4. Elements" vers "documentation_4"
+            lien "5. Les styles" en anglais "5. Styles" vers "documentation_5"
+            lien "6. La mise en page" en anglais "6. Layout" vers "documentation_6"
+            lien "7. Les éléments d'écran" en anglais "7. Interface elements" vers "documentation_7"
+            lien "8. Images, sons et mouvement" en anglais "8. Images, sound and motion" vers "documentation_8"
+            lien "9. Les variables et les calculs" en anglais "9. Variables and calculations" vers "documentation_9"
+            lien "10. Les fiches, le texte, l'argent et les dates" en anglais "10. Records, text, money and dates" vers "documentation_10"
+            lien "11. Les conditions" en anglais "11. Conditions" vers "documentation_11"
+            lien "12. Les listes et les boucles" en anglais "12. Lists and loops" vers "documentation_12"
+            lien "13. Les fonctions" en anglais "13. Functions" vers "documentation_13"
+            lien "14. Les événements" en anglais "14. Events" vers "documentation_14"
+            lien "15. Les actions" en anglais "15. Actions" vers "documentation_15"
+            lien "16. Les messages, les fenêtres et les questions" en anglais "16. Messages, dialogs and questions" vers "documentation_16"
+            lien "17. Les interactions" en anglais "17. Interactions" vers "documentation_17"
+            lien "18. Les formulaires" en anglais "18. Forms" vers "documentation_18"
+            lien "19. Partager et garder des valeurs" en anglais "19. Sharing and keeping values" vers "documentation_19"
+            lien "20. La navigation" en anglais "20. Navigation" vers "documentation_20"
+            lien "21. Le serveur" en anglais "21. The server" vers "documentation_21"
+            lien "22. Relier les pages au serveur" en anglais "22. Connecting pages to the server" vers "documentation_22"
+            lien "23. Utiliser une API qui existe déjà" en anglais "23. Using an existing API" vers "documentation_23"
+            lien "24. Les données d'un fichier" en anglais "24. Data from a file" vers "documentation_24"
+            lien "25. Choisir et envoyer un fichier" en anglais "25. Choosing and uploading a file" vers "documentation_25"
+            lien "26. Les graphiques" en anglais "26. Charts" vers "documentation_26"
+            lien "27. Les cartes" en anglais "27. Maps" vers "documentation_27"
+            lien "28. Plusieurs langues" en anglais "28. Several languages" vers "documentation_28"
+            lien "29. Publier un site" en anglais "29. Publishing a site" vers "documentation_29"
+            lien "30. Les composants et les projets en plusieurs fichiers" en anglais "30. Components and multi-file projects" vers "documentation_30"
+            lien "31. Tester en Humalis" en anglais "31. Testing in Humalis" vers "documentation_31"
+            lien "32. Les commandes" en anglais "32. Commands" vers "documentation_32"
+            lien "33. Ce que chaque cible sait faire" en anglais "33. What each target can do" vers "documentation_33"
+            lien "Les mots-clés de Humalis en anglais" en anglais "French keywords at a glance" vers "documentation_34"
         bloc avec style "doc-contenu" :
             sous page
 
-page "apprendre_sommaire" dans "apprendre" adresse "/apprendre" :
-    titre "Apprendre Humalis" en anglais "Learn Humalis"
+page "documentation_sommaire" dans "documentation" adresse "/documentation" :
+    titre "Documentation de Humalis" en anglais "Humalis documentation"
     texte "Le guide complet du langage, du premier titre jusqu’au serveur. Chaque exemple est vérifié par le compilateur : s’il est écrit ici, il marche." en anglais "The complete guide to the language, from the first title to the server. Every example is checked by the compiler: if it is written here, it works."
     liste numerotee :
-        lien "1. Installer et créer un projet" en anglais "1. Install and create a project" vers "apprendre_1"
-        lien "2. Les règles d'écriture" en anglais "2. Writing rules" vers "apprendre_2"
-        lien "3. Les pages" en anglais "3. Pages" vers "apprendre_3"
-        lien "4. Les éléments" en anglais "4. Elements" vers "apprendre_4"
-        lien "5. Les styles" en anglais "5. Styles" vers "apprendre_5"
-        lien "6. La mise en page" en anglais "6. Layout" vers "apprendre_6"
-        lien "7. Les éléments d'écran" en anglais "7. Interface elements" vers "apprendre_7"
-        lien "8. Images, sons et mouvement" en anglais "8. Images, sound and motion" vers "apprendre_8"
-        lien "9. Les variables et les calculs" en anglais "9. Variables and calculations" vers "apprendre_9"
-        lien "10. Les fiches, le texte, l'argent et les dates" en anglais "10. Records, text, money and dates" vers "apprendre_10"
-        lien "11. Les conditions" en anglais "11. Conditions" vers "apprendre_11"
-        lien "12. Les listes et les boucles" en anglais "12. Lists and loops" vers "apprendre_12"
-        lien "13. Les fonctions" en anglais "13. Functions" vers "apprendre_13"
-        lien "14. Les événements" en anglais "14. Events" vers "apprendre_14"
-        lien "15. Les actions" en anglais "15. Actions" vers "apprendre_15"
-        lien "16. Les messages, les fenêtres et les questions" en anglais "16. Messages, dialogs and questions" vers "apprendre_16"
-        lien "17. Les interactions" en anglais "17. Interactions" vers "apprendre_17"
-        lien "18. Les formulaires" en anglais "18. Forms" vers "apprendre_18"
-        lien "19. Partager et garder des valeurs" en anglais "19. Sharing and keeping values" vers "apprendre_19"
-        lien "20. La navigation" en anglais "20. Navigation" vers "apprendre_20"
-        lien "21. Le serveur" en anglais "21. The server" vers "apprendre_21"
-        lien "22. Relier les pages au serveur" en anglais "22. Connecting pages to the server" vers "apprendre_22"
-        lien "23. Utiliser une API qui existe déjà" en anglais "23. Using an existing API" vers "apprendre_23"
-        lien "24. Les données d'un fichier" en anglais "24. Data from a file" vers "apprendre_24"
-        lien "25. Choisir et envoyer un fichier" en anglais "25. Choosing and uploading a file" vers "apprendre_25"
-        lien "26. Les graphiques" en anglais "26. Charts" vers "apprendre_26"
-        lien "27. Les cartes" en anglais "27. Maps" vers "apprendre_27"
-        lien "28. Plusieurs langues" en anglais "28. Several languages" vers "apprendre_28"
-        lien "29. Publier un site" en anglais "29. Publishing a site" vers "apprendre_29"
-        lien "30. Les composants et les projets en plusieurs fichiers" en anglais "30. Components and multi-file projects" vers "apprendre_30"
-        lien "31. Tester en Humalis" en anglais "31. Testing in Humalis" vers "apprendre_31"
-        lien "32. Les commandes" en anglais "32. Commands" vers "apprendre_32"
-        lien "33. Ce que chaque cible sait faire" en anglais "33. What each target can do" vers "apprendre_33"
-        lien "Les mots-clés de Humalis en anglais" en anglais "French keywords at a glance" vers "apprendre_34"
+        lien "Installer et créer un projet" en anglais "Install and create a project" vers "documentation_1"
+        lien "Les règles d'écriture" en anglais "Writing rules" vers "documentation_2"
+        lien "Les pages" en anglais "Pages" vers "documentation_3"
+        lien "Les éléments" en anglais "Elements" vers "documentation_4"
+        lien "Les styles" en anglais "Styles" vers "documentation_5"
+        lien "La mise en page" en anglais "Layout" vers "documentation_6"
+        lien "Les éléments d'écran" en anglais "Interface elements" vers "documentation_7"
+        lien "Images, sons et mouvement" en anglais "Images, sound and motion" vers "documentation_8"
+        lien "Les variables et les calculs" en anglais "Variables and calculations" vers "documentation_9"
+        lien "Les fiches, le texte, l'argent et les dates" en anglais "Records, text, money and dates" vers "documentation_10"
+        lien "Les conditions" en anglais "Conditions" vers "documentation_11"
+        lien "Les listes et les boucles" en anglais "Lists and loops" vers "documentation_12"
+        lien "Les fonctions" en anglais "Functions" vers "documentation_13"
+        lien "Les événements" en anglais "Events" vers "documentation_14"
+        lien "Les actions" en anglais "Actions" vers "documentation_15"
+        lien "Les messages, les fenêtres et les questions" en anglais "Messages, dialogs and questions" vers "documentation_16"
+        lien "Les interactions" en anglais "Interactions" vers "documentation_17"
+        lien "Les formulaires" en anglais "Forms" vers "documentation_18"
+        lien "Partager et garder des valeurs" en anglais "Sharing and keeping values" vers "documentation_19"
+        lien "La navigation" en anglais "Navigation" vers "documentation_20"
+        lien "Le serveur" en anglais "The server" vers "documentation_21"
+        lien "Relier les pages au serveur" en anglais "Connecting pages to the server" vers "documentation_22"
+        lien "Utiliser une API qui existe déjà" en anglais "Using an existing API" vers "documentation_23"
+        lien "Les données d'un fichier" en anglais "Data from a file" vers "documentation_24"
+        lien "Choisir et envoyer un fichier" en anglais "Choosing and uploading a file" vers "documentation_25"
+        lien "Les graphiques" en anglais "Charts" vers "documentation_26"
+        lien "Les cartes" en anglais "Maps" vers "documentation_27"
+        lien "Plusieurs langues" en anglais "Several languages" vers "documentation_28"
+        lien "Publier un site" en anglais "Publishing a site" vers "documentation_29"
+        lien "Les composants et les projets en plusieurs fichiers" en anglais "Components and multi-file projects" vers "documentation_30"
+        lien "Tester en Humalis" en anglais "Testing in Humalis" vers "documentation_31"
+        lien "Les commandes" en anglais "Commands" vers "documentation_32"
+        lien "Ce que chaque cible sait faire" en anglais "What each target can do" vers "documentation_33"
+        lien "Les mots-clés de Humalis en anglais" en anglais "French keywords at a glance" vers "documentation_34"
 
-page "apprendre_1" dans "apprendre" adresse "/apprendre/installer-et-creer-un-projet" :
+page "documentation_1" dans "documentation" adresse "/documentation/installer-et-creer-un-projet" :
     apercu :
         description "Il faut Node.js 24 ou plus récent. humalis nouveau crée un dossier avec un premier fichier, mon-projet.humalis. humalis developper ouvre le site dans le…" en anglais "You need Node.js 24 or later. humalis nouveau (\"new\") creates a folder with a first file, my-project.humalis. humalis developper (\"develop\") opens the site…"
     titre "1. Installer et créer un projet" en anglais "1. Install and create a project"
@@ -112,9 +112,9 @@ page "apprendre_1" dans "apprendre" adresse "/apprendre/installer-et-creer-un-pr
             humalis compile mon-projet.humalis --cible web --sortie mon-projet-web
         texte "Les cibles sont {code "web"}, {code "statique"}, {code "mobile"}, {code "desktop"} et {code "serveur"}. Le README explique comment lancer chaque projet produit."
     ligne avec style "doc-suite" :
-        lien "2. Les règles d'écriture →" en anglais "2. Writing rules →" vers "apprendre_2"
+        lien "2. Les règles d'écriture →" en anglais "2. Writing rules →" vers "documentation_2"
 
-page "apprendre_2" dans "apprendre" adresse "/apprendre/regles-d-ecriture" :
+page "documentation_2" dans "documentation" adresse "/documentation/regles-d-ecriture" :
     apercu :
         description "Une ligne qui finit par : ouvre un bloc. Tout ce qui est dans le bloc est décalé de 4 espaces de plus. Jamais de tabulation." en anglais "A line ending with : opens a block. Everything inside the block is indented by 4 more spaces. Never use tabs."
     titre "2. Les règles d'écriture" en anglais "2. Writing rules"
@@ -173,10 +173,10 @@ page "apprendre_2" dans "apprendre" adresse "/apprendre/regles-d-ecriture" :
         soustitre "Les noms"
         texte "Un nom de variable s'écrit en minuscules, avec {code "_"} entre les mots : {code "nombre_articles"}. Les mots du langage ({code "si"}, {code "page"}, {code "quand"}…) ne peuvent pas servir de nom."
     ligne avec style "doc-suite" :
-        lien "← 1. Installer et créer un projet" en anglais "← 1. Install and create a project" vers "apprendre_1"
-        lien "3. Les pages →" en anglais "3. Pages →" vers "apprendre_3"
+        lien "← 1. Installer et créer un projet" en anglais "← 1. Install and create a project" vers "documentation_1"
+        lien "3. Les pages →" en anglais "3. Pages →" vers "documentation_3"
 
-page "apprendre_3" dans "apprendre" adresse "/apprendre/pages" :
+page "documentation_3" dans "documentation" adresse "/documentation/pages" :
     apercu :
         description "Une page est un écran. Tout s'écrit à l'intérieur d'une page." en anglais "A page (page) is a screen. Everything is written inside a page."
     titre "3. Les pages" en anglais "3. Pages"
@@ -205,10 +205,10 @@ page "apprendre_3" dans "apprendre" adresse "/apprendre/pages" :
         texte "La première page du fichier est la page d'accueil. Le nom d'une page sert aux liens ({code "vers "contact""}) et à son adresse ({code "/contact"}). Chaque page a un titre principal : c'est lui qui donne son nom à l'onglet du navigateur."
         texte "La navigation explique les adresses choisies, les pages réservées, les sous-pages et la page « introuvable »."
     ligne avec style "doc-suite" :
-        lien "← 2. Les règles d'écriture" en anglais "← 2. Writing rules" vers "apprendre_2"
-        lien "4. Les éléments →" en anglais "4. Elements →" vers "apprendre_4"
+        lien "← 2. Les règles d'écriture" en anglais "← 2. Writing rules" vers "documentation_2"
+        lien "4. Les éléments →" en anglais "4. Elements →" vers "documentation_4"
 
-page "apprendre_4" dans "apprendre" adresse "/apprendre/elements" :
+page "documentation_4" dans "documentation" adresse "/documentation/elements" :
     apercu :
         description "Un élément est ce qu'on voit dans une page. On écrit son nom, puis son contenu entre guillemets." en anglais "An element is something visible on a page. Write its name, then its content between quotes."
     titre "4. Les éléments" en anglais "4. Elements"
@@ -410,10 +410,10 @@ page "apprendre_4" dans "apprendre" adresse "/apprendre/elements" :
                         afficher "Grande taille"
                     afficher "Commande envoyée"
     ligne avec style "doc-suite" :
-        lien "← 3. Les pages" en anglais "← 3. Pages" vers "apprendre_3"
-        lien "5. Les styles →" en anglais "5. Styles →" vers "apprendre_5"
+        lien "← 3. Les pages" en anglais "← 3. Pages" vers "documentation_3"
+        lien "5. Les styles →" en anglais "5. Styles →" vers "documentation_5"
 
-page "apprendre_5" dans "apprendre" adresse "/apprendre/styles" :
+page "documentation_5" dans "documentation" adresse "/documentation/styles" :
     apercu :
         description "Les options d'un élément s'écrivent après avec, reliées par et." en anglais "An element's options are written after avec (\"with\"), joined by et (\"and\")."
     titre "5. Les styles" en anglais "5. Styles"
@@ -480,10 +480,10 @@ page "apprendre_5" dans "apprendre" adresse "/apprendre/styles" :
                 bouton "Valider" avec fond vert et style "principal"
         texte "Le CSS peut aussi venir d'un fichier : {code "utiliser style "./theme.css""} en haut du fichier. Le CSS s'applique au web, au statique et au desktop ; le mobile ne traduit que les styles nommés (couleur, fond, taille, position, bordure)."
     ligne avec style "doc-suite" :
-        lien "← 4. Les éléments" en anglais "← 4. Elements" vers "apprendre_4"
-        lien "6. La mise en page →" en anglais "6. Layout →" vers "apprendre_6"
+        lien "← 4. Les éléments" en anglais "← 4. Elements" vers "documentation_4"
+        lien "6. La mise en page →" en anglais "6. Layout →" vers "documentation_6"
 
-page "apprendre_6" dans "apprendre" adresse "/apprendre/mise-en-page" :
+page "documentation_6" dans "documentation" adresse "/documentation/mise-en-page" :
     apercu :
         description "Les réglages des blocs : largeur (etroite, large), remplissage et espacement (petite, moyenne, grande), colonnes, ombre (legere, moyenne), bordure douce,…" en anglais "grid). Block settings: largeur (width: etroite narrow, large wide), remplissage (padding) and espacement (spacing): petite, moyenne, grande; colonnes…"
     titre "6. La mise en page" en anglais "6. Layout"
@@ -661,10 +661,10 @@ page "apprendre_6" dans "apprendre" adresse "/apprendre/mise-en-page" :
             page "connexion" sans entete et sans pied :
                 titre "Connexion"
     ligne avec style "doc-suite" :
-        lien "← 5. Les styles" en anglais "← 5. Styles" vers "apprendre_5"
-        lien "7. Les éléments d'écran →" en anglais "7. Interface elements →" vers "apprendre_7"
+        lien "← 5. Les styles" en anglais "← 5. Styles" vers "documentation_5"
+        lien "7. Les éléments d'écran →" en anglais "7. Interface elements →" vers "documentation_7"
 
-page "apprendre_7" dans "apprendre" adresse "/apprendre/elements-d-ecran" :
+page "documentation_7" dans "documentation" adresse "/documentation/elements-d-ecran" :
     apercu :
         description "Tout ce qu'il faut pour un site complet, sans rien installer." en anglais "Everything a complete site needs, without installing anything."
     titre "7. Les éléments d'écran" en anglais "7. Interface elements"
@@ -793,10 +793,10 @@ page "apprendre_7" dans "apprendre" adresse "/apprendre/elements-d-ecran" :
                     lien "Réserver" vers "accueil"
                 titre "Accueil"
     ligne avec style "doc-suite" :
-        lien "← 6. La mise en page" en anglais "← 6. Layout" vers "apprendre_6"
-        lien "8. Images, sons et mouvement →" en anglais "8. Images, sound and motion →" vers "apprendre_8"
+        lien "← 6. La mise en page" en anglais "← 6. Layout" vers "documentation_6"
+        lien "8. Images, sons et mouvement →" en anglais "8. Images, sound and motion →" vers "documentation_8"
 
-page "apprendre_8" dans "apprendre" adresse "/apprendre/images-sons-et-mouvement" :
+page "documentation_8" dans "documentation" adresse "/documentation/images-sons-et-mouvement" :
     apercu :
         description "proportions réserve la place de l'image avant son chargement (la page ne saute pas). prioritaire la charge en premier : à réserver aux images du haut de la…" en anglais "proportions 16 sur 9 (16 by 9) reserves the image's space before it loads (the page does not jump). prioritaire (priority) loads it first: keep it for…"
     titre "8. Images, sons et mouvement" en anglais "8. Images, sound and motion"
@@ -865,10 +865,10 @@ page "apprendre_8" dans "apprendre" adresse "/apprendre/images-sons-et-mouvement
                     texte "Risotto"
                     texte "Tarte aux pommes"
     ligne avec style "doc-suite" :
-        lien "← 7. Les éléments d'écran" en anglais "← 7. Interface elements" vers "apprendre_7"
-        lien "9. Les variables et les calculs →" en anglais "9. Variables and calculations →" vers "apprendre_9"
+        lien "← 7. Les éléments d'écran" en anglais "← 7. Interface elements" vers "documentation_7"
+        lien "9. Les variables et les calculs →" en anglais "9. Variables and calculations →" vers "documentation_9"
 
-page "apprendre_9" dans "apprendre" adresse "/apprendre/variables-et-les-calculs" :
+page "documentation_9" dans "documentation" adresse "/documentation/variables-et-les-calculs" :
     apercu :
         description "Une variable contient un nombre, un texte, vrai ou faux, une liste, une fiche, ou rien. Les nombres à virgule s'écrivent à la française : 12,50. Dans un…" en anglais "A variable (variable) holds a number, a text, vrai (true) or faux (false), a list, a record, or rien (nothing). Decimal numbers use a comma, the French way:…"
     titre "9. Les variables et les calculs" en anglais "9. Variables and calculations"
@@ -999,10 +999,10 @@ page "apprendre_9" dans "apprendre" adresse "/apprendre/variables-et-les-calculs
                 quand l'utilisateur clique sur "Lancer le dé" :
                     changer tirage par hasard entre 1 et 6
     ligne avec style "doc-suite" :
-        lien "← 8. Images, sons et mouvement" en anglais "← 8. Images, sound and motion" vers "apprendre_8"
-        lien "10. Les fiches, le texte, l'argent et les dates →" en anglais "10. Records, text, money and dates →" vers "apprendre_10"
+        lien "← 8. Images, sons et mouvement" en anglais "← 8. Images, sound and motion" vers "documentation_8"
+        lien "10. Les fiches, le texte, l'argent et les dates →" en anglais "10. Records, text, money and dates →" vers "documentation_10"
 
-page "apprendre_10" dans "apprendre" adresse "/apprendre/fiches-le-texte-l-argent-et-les-dates" :
+page "documentation_10" dans "documentation" adresse "/documentation/fiches-le-texte-l-argent-et-les-dates" :
     apercu :
         description "Une fiche regroupe plusieurs valeurs sous un même nom. On lit chaque valeur avec un point." en anglais "A record (fiche) groups several values under one name. Read each value with a dot."
     titre "10. Les fiches, le texte, l'argent et les dates" en anglais "10. Records, text, money and dates"
@@ -1096,10 +1096,10 @@ page "apprendre_10" dans "apprendre" adresse "/apprendre/fiches-le-texte-l-argen
                 texte "Commandée {commande depuis}"
         texte "Les dates s'affichent en français (« 2 novembre 2026 »). {code "{commande depuis}"} écrit « il y a 5 minutes ». On décale de {code "jours"}, {code "semaines"} ou {code "mois"}."
     ligne avec style "doc-suite" :
-        lien "← 9. Les variables et les calculs" en anglais "← 9. Variables and calculations" vers "apprendre_9"
-        lien "11. Les conditions →" en anglais "11. Conditions →" vers "apprendre_11"
+        lien "← 9. Les variables et les calculs" en anglais "← 9. Variables and calculations" vers "documentation_9"
+        lien "11. Les conditions →" en anglais "11. Conditions →" vers "documentation_11"
 
-page "apprendre_11" dans "apprendre" adresse "/apprendre/conditions" :
+page "documentation_11" dans "documentation" adresse "/documentation/conditions" :
     apercu :
         description "supérieure et inférieure au féminin marchent aussi. et passe avant ou, comme en mathématiques." en anglais "si means \"if\", sinon \"otherwise\". The feminine forms supérieure and inférieure work too."
     titre "11. Les conditions" en anglais "11. Conditions"
@@ -1187,10 +1187,10 @@ page "apprendre_11" dans "apprendre" adresse "/apprendre/conditions" :
                     texte "Panier rempli"
         texte "{code "et"} passe avant {code "ou"}, comme en mathématiques."
     ligne avec style "doc-suite" :
-        lien "← 10. Les fiches, le texte, l'argent et les dates" en anglais "← 10. Records, text, money and dates" vers "apprendre_10"
-        lien "12. Les listes et les boucles →" en anglais "12. Lists and loops →" vers "apprendre_12"
+        lien "← 10. Les fiches, le texte, l'argent et les dates" en anglais "← 10. Records, text, money and dates" vers "documentation_10"
+        lien "12. Les listes et les boucles →" en anglais "12. Lists and loops →" vers "documentation_12"
 
-page "apprendre_12" dans "apprendre" adresse "/apprendre/listes-et-les-boucles" :
+page "documentation_12" dans "documentation" adresse "/documentation/listes-et-les-boucles" :
     apercu :
         description "Dans un événement ou une fonction, on peut aussi répéter, boucler tant qu'une condition tient, et choisir selon une valeur :" en anglais "pour chaque … dans … means \"for each … in …\". ajouter … à (add to), retirer … de (remove from), nombre de (count of)."
     titre "12. Les listes et les boucles" en anglais "12. Lists and loops"
@@ -1331,10 +1331,10 @@ page "apprendre_12" dans "apprendre" adresse "/apprendre/listes-et-les-boucles" 
                             afficher "Bonne semaine"
         texte "{code "arreter"} sort d'une boucle ; {code "passer au suivant"} passe au tour suivant."
     ligne avec style "doc-suite" :
-        lien "← 11. Les conditions" en anglais "← 11. Conditions" vers "apprendre_11"
-        lien "13. Les fonctions →" en anglais "13. Functions →" vers "apprendre_13"
+        lien "← 11. Les conditions" en anglais "← 11. Conditions" vers "documentation_11"
+        lien "13. Les fonctions →" en anglais "13. Functions →" vers "documentation_13"
 
-page "apprendre_13" dans "apprendre" adresse "/apprendre/fonctions" :
+page "documentation_13" dans "documentation" adresse "/documentation/fonctions" :
     apercu :
         description "Elle rend une valeur avec rendre. Elle s'écrit en haut du fichier et sert à toutes les pages." en anglais "It returns a value with rendre. It is written at the top of the file and serves every page."
     titre "13. Les fonctions" en anglais "13. Functions"
@@ -1403,10 +1403,10 @@ page "apprendre_13" dans "apprendre" adresse "/apprendre/fonctions" :
                 quand l'utilisateur clique sur "Vider" :
                     vider_panier()
     ligne avec style "doc-suite" :
-        lien "← 12. Les listes et les boucles" en anglais "← 12. Lists and loops" vers "apprendre_12"
-        lien "14. Les événements →" en anglais "14. Events →" vers "apprendre_14"
+        lien "← 12. Les listes et les boucles" en anglais "← 12. Lists and loops" vers "documentation_12"
+        lien "14. Les événements →" en anglais "14. Events →" vers "documentation_14"
 
-page "apprendre_14" dans "apprendre" adresse "/apprendre/evenements" :
+page "documentation_14" dans "documentation" adresse "/documentation/evenements" :
     apercu :
         description "Un événement dit quand faire quelque chose. Il s'écrit sous les éléments qu'il vise, et son bloc contient les actions." en anglais "An event (quand, \"when\") says when to do something. It is written below the elements it targets, and its block holds the actions."
     titre "14. Les événements" en anglais "14. Events"
@@ -1477,10 +1477,10 @@ page "apprendre_14" dans "apprendre" adresse "/apprendre/evenements" :
                     quand l'utilisateur clique sur "Acheter" :
                         afficher "Tu as acheté {nom}"
     ligne avec style "doc-suite" :
-        lien "← 13. Les fonctions" en anglais "← 13. Functions" vers "apprendre_13"
-        lien "15. Les actions →" en anglais "15. Actions →" vers "apprendre_15"
+        lien "← 13. Les fonctions" en anglais "← 13. Functions" vers "documentation_13"
+        lien "15. Les actions →" en anglais "15. Actions →" vers "documentation_15"
 
-page "apprendre_15" dans "apprendre" adresse "/apprendre/actions" :
+page "documentation_15" dans "documentation" adresse "/documentation/actions" :
     apercu :
         description "Guide de Humalis, 15. Les actions : Les actions s'écrivent dans un événement." en anglais "Humalis guide, 15. Actions: Actions are written inside an event."
     titre "15. Les actions" en anglais "15. Actions"
@@ -1539,10 +1539,10 @@ page "apprendre_15" dans "apprendre" adresse "/apprendre/actions" :
             page "merci" :
                 titre "Merci !"
     ligne avec style "doc-suite" :
-        lien "← 14. Les événements" en anglais "← 14. Events" vers "apprendre_14"
-        lien "16. Les messages, les fenêtres et les questions →" en anglais "16. Messages, dialogs and questions →" vers "apprendre_16"
+        lien "← 14. Les événements" en anglais "← 14. Events" vers "documentation_14"
+        lien "16. Les messages, les fenêtres et les questions →" en anglais "16. Messages, dialogs and questions →" vers "documentation_16"
 
-page "apprendre_16" dans "apprendre" adresse "/apprendre/messages-les-fenetres-et-les-questions" :
+page "documentation_16" dans "documentation" adresse "/documentation/messages-les-fenetres-et-les-questions" :
     apercu :
         description "Les genres : afficher, afficher reussite, afficher avertissement, afficher erreur. pendant 10 secondes règle la durée ; sans disparaitre le garde affiché ;…" en anglais "The kinds: afficher, afficher reussite (success), afficher avertissement (warning), afficher erreur (error). pendant 10 secondes sets how long it stays;…"
     titre "16. Les messages, les fenêtres et les questions" en anglais "16. Messages, dialogs and questions"
@@ -1631,10 +1631,10 @@ page "apprendre_16" dans "apprendre" adresse "/apprendre/messages-les-fenetres-e
                         sinon :
                             afficher "Rien n'a été retiré"
     ligne avec style "doc-suite" :
-        lien "← 15. Les actions" en anglais "← 15. Actions" vers "apprendre_15"
-        lien "17. Les interactions →" en anglais "17. Interactions →" vers "apprendre_17"
+        lien "← 15. Les actions" en anglais "← 15. Actions" vers "documentation_15"
+        lien "17. Les interactions →" en anglais "17. Interactions →" vers "documentation_17"
 
-page "apprendre_17" dans "apprendre" adresse "/apprendre/interactions" :
+page "documentation_17" dans "documentation" adresse "/documentation/interactions" :
     apercu :
         description "Une minuterie s'arrête quand on quitte la page, et se met en pause quand l'onglet est caché." en anglais "toutes les 1 seconde tant que … (every second while …), apres 2 secondes (after 2 seconds). A timer stops when you leave the page, and pauses while the tab…"
     titre "17. Les interactions" en anglais "17. Interactions"
@@ -1773,10 +1773,10 @@ page "apprendre_17" dans "apprendre" adresse "/apprendre/interactions" :
                         changer il_reste par faux
         texte "Le bouton « Voir plus » reste disponible pour les personnes qui naviguent au clavier."
     ligne avec style "doc-suite" :
-        lien "← 16. Les messages, les fenêtres et les questions" en anglais "← 16. Messages, dialogs and questions" vers "apprendre_16"
-        lien "18. Les formulaires →" en anglais "18. Forms →" vers "apprendre_18"
+        lien "← 16. Les messages, les fenêtres et les questions" en anglais "← 16. Messages, dialogs and questions" vers "documentation_16"
+        lien "18. Les formulaires →" en anglais "18. Forms →" vers "documentation_18"
 
-page "apprendre_18" dans "apprendre" adresse "/apprendre/formulaires" :
+page "documentation_18" dans "documentation" adresse "/documentation/formulaires" :
     apercu :
         description "Un formulaire regroupe des champs et un bouton. Les champs obligatoire, les minimum et maximum sont vérifiés avant l'envoi, avec un message clair sous le…" en anglais "A form (formulaire) groups fields and a button. obligatoire fields, minimum and maximum are checked before sending, with a clear message under the faulty field."
     titre "18. Les formulaires" en anglais "18. Forms"
@@ -1813,10 +1813,10 @@ page "apprendre_18" dans "apprendre" adresse "/apprendre/formulaires" :
                         afficher reussite "Message envoyé"
         texte "On lit la valeur d'un champ avec {code "champ "Nom""} (ou {code "le champ "Nom""})."
     ligne avec style "doc-suite" :
-        lien "← 17. Les interactions" en anglais "← 17. Interactions" vers "apprendre_17"
-        lien "19. Partager et garder des valeurs →" en anglais "19. Sharing and keeping values →" vers "apprendre_19"
+        lien "← 17. Les interactions" en anglais "← 17. Interactions" vers "documentation_17"
+        lien "19. Partager et garder des valeurs →" en anglais "19. Sharing and keeping values →" vers "documentation_19"
 
-page "apprendre_19" dans "apprendre" adresse "/apprendre/partager-et-garder-des-valeurs" :
+page "documentation_19" dans "documentation" adresse "/documentation/partager-et-garder-des-valeurs" :
     apercu :
         description "Une variable écrite en haut du fichier avec partagee est la même sur toutes les pages :" en anglais "A variable written at the top of the file with partagee (shared) is the same on every page:"
     titre "19. Partager et garder des valeurs" en anglais "19. Sharing and keeping values"
@@ -1887,10 +1887,10 @@ page "apprendre_19" dans "apprendre" adresse "/apprendre/partager-et-garder-des-
                     changer visites par visites + 1
         texte "Sur le mobile et le desktop, {code "memorisee en secret"} range la valeur dans le coffre chiffré de l'appareil (le trousseau sur un Mac, par exemple)."
     ligne avec style "doc-suite" :
-        lien "← 18. Les formulaires" en anglais "← 18. Forms" vers "apprendre_18"
-        lien "20. La navigation →" en anglais "20. Navigation →" vers "apprendre_20"
+        lien "← 18. Les formulaires" en anglais "← 18. Forms" vers "documentation_18"
+        lien "20. La navigation →" en anglais "20. Navigation →" vers "documentation_20"
 
-page "apprendre_20" dans "apprendre" adresse "/apprendre/navigation" :
+page "documentation_20" dans "documentation" adresse "/documentation/navigation" :
     apercu :
         description "Un filtre est une valeur facultative de l'adresse (/catalogue?categorie=robes) :" en anglais "avec parametre id gives a page a parameter in its address; ancre (anchor) names a place in a page; nouvel onglet opens a new tab."
     titre "20. La navigation" en anglais "20. Navigation"
@@ -2054,10 +2054,10 @@ page "apprendre_20" dans "apprendre" adresse "/apprendre/navigation" :
             texte "{code "reservee a connecte"} (ou {code "reservee a admin"}) la ferme aux visiteurs, renvoyés vers la page de connexion. Après la connexion, {code "continuer vers"} les ramène à la page qu'ils voulaient."
             texte "Une page nommée {code "introuvable"} remplace la page « 404 »."
     ligne avec style "doc-suite" :
-        lien "← 19. Partager et garder des valeurs" en anglais "← 19. Sharing and keeping values" vers "apprendre_19"
-        lien "21. Le serveur →" en anglais "21. The server →" vers "apprendre_21"
+        lien "← 19. Partager et garder des valeurs" en anglais "← 19. Sharing and keeping values" vers "documentation_19"
+        lien "21. Le serveur →" en anglais "21. The server →" vers "documentation_21"
 
-page "apprendre_21" dans "apprendre" adresse "/apprendre/serveur" :
+page "documentation_21" dans "documentation" adresse "/documentation/serveur" :
     apercu :
         description "Un bloc serveur décrit les données de l'application et qui a le droit de faire quoi. Humalis en produit un vrai serveur Node, avec la connexion, les…" en anglais "A serveur block describes the application's data and who is allowed to do what. Humalis generates a real Node server from it, with login, sessions and the…"
     titre "21. Le serveur" en anglais "21. The server"
@@ -2128,10 +2128,10 @@ page "apprendre_21" dans "apprendre" adresse "/apprendre/serveur" :
             npm run build && npm start
         texte "Sans {code "DATABASE_URL"} dans le {code ".env"}, les données restent en mémoire (développement). Avec, elles vont dans PostgreSQL : une table par donnée, créée au démarrage."
     ligne avec style "doc-suite" :
-        lien "← 20. La navigation" en anglais "← 20. Navigation" vers "apprendre_20"
-        lien "22. Relier les pages au serveur →" en anglais "22. Connecting pages to the server →" vers "apprendre_22"
+        lien "← 20. La navigation" en anglais "← 20. Navigation" vers "documentation_20"
+        lien "22. Relier les pages au serveur →" en anglais "22. Connecting pages to the server →" vers "documentation_22"
 
-page "apprendre_22" dans "apprendre" adresse "/apprendre/relier-les-pages-au-serveur" :
+page "documentation_22" dans "documentation" adresse "/documentation/relier-les-pages-au-serveur" :
     apercu :
         description "Quand le serveur et les pages sont dans le même fichier, Humalis vérifie chaque requête à la compilation : la route existe, les champs existent, les types…" en anglais "When the server and the pages are in the same file, Humalis checks every request at compile time: the route exists, the fields exist, the types are right,…"
     titre "22. Relier les pages au serveur" en anglais "22. Connecting pages to the server"
@@ -2278,10 +2278,10 @@ page "apprendre_22" dans "apprendre" adresse "/apprendre/relier-les-pages-au-ser
                         afficher erreur "La commande n'est pas partie : {raison}"
         texte "Dans {code "si erreur :"}, {code "raison"} dit ce qui n'a pas marché. Dans un formulaire, les champs restent remplis."
     ligne avec style "doc-suite" :
-        lien "← 21. Le serveur" en anglais "← 21. The server" vers "apprendre_21"
-        lien "23. Utiliser une API qui existe déjà →" en anglais "23. Using an existing API →" vers "apprendre_23"
+        lien "← 21. Le serveur" en anglais "← 21. The server" vers "documentation_21"
+        lien "23. Utiliser une API qui existe déjà →" en anglais "23. Using an existing API →" vers "documentation_23"
 
-page "apprendre_23" dans "apprendre" adresse "/apprendre/utiliser-une-api-qui-existe-deja" :
+page "documentation_23" dans "documentation" adresse "/documentation/utiliser-une-api-qui-existe-deja" :
     apercu :
         description "Un bloc source décrit une API écrite ailleurs (en Node, PHP, Python…). Les pages s'en servent comme d'un serveur Humalis, avec les mêmes vérifications." en anglais "A source block describes an API written elsewhere (in Node, PHP, Python…). Pages use it like a Humalis server, with the same checks."
     titre "23. Utiliser une API qui existe déjà" en anglais "23. Using an existing API"
@@ -2372,10 +2372,10 @@ page "apprendre_23" dans "apprendre" adresse "/apprendre/utiliser-une-api-qui-ex
             texte "{code "session astratra"} : l'API utilise la connexion des packs Astratra."
             texte "Une route peut {code "lire"}, {code "creer"}, {code "modifier"} ({code "par remplacement"} pour un PUT) et {code "supprimer"}. Un jeton secret ne s'écrit jamais dans le fichier : Humalis le refuse."
     ligne avec style "doc-suite" :
-        lien "← 22. Relier les pages au serveur" en anglais "← 22. Connecting pages to the server" vers "apprendre_22"
-        lien "24. Les données d'un fichier →" en anglais "24. Data from a file →" vers "apprendre_24"
+        lien "← 22. Relier les pages au serveur" en anglais "← 22. Connecting pages to the server" vers "documentation_22"
+        lien "24. Les données d'un fichier →" en anglais "24. Data from a file →" vers "documentation_24"
 
-page "apprendre_24" dans "apprendre" adresse "/apprendre/donnees-d-un-fichier" :
+page "documentation_24" dans "documentation" adresse "/documentation/donnees-d-un-fichier" :
     apercu :
         description "Un tableau CSV ou un fichier JSON peut servir de données, lues à la compilation :" en anglais "A CSV table or a JSON file can serve as data, read at compile time:"
     titre "24. Les données d'un fichier" en anglais "24. Data from a file"
@@ -2410,10 +2410,10 @@ page "apprendre_24" dans "apprendre" adresse "/apprendre/donnees-d-un-fichier" :
             Stylo;2
         texte "Humalis connaît les colonnes : {code "p.prixx"} serait refusé à la compilation. Ces données se lisent seulement ; on ne peut pas les changer depuis une page."
     ligne avec style "doc-suite" :
-        lien "← 23. Utiliser une API qui existe déjà" en anglais "← 23. Using an existing API" vers "apprendre_23"
-        lien "25. Choisir et envoyer un fichier →" en anglais "25. Choosing and uploading a file →" vers "apprendre_25"
+        lien "← 23. Utiliser une API qui existe déjà" en anglais "← 23. Using an existing API" vers "documentation_23"
+        lien "25. Choisir et envoyer un fichier →" en anglais "25. Choosing and uploading a file →" vers "documentation_25"
 
-page "apprendre_25" dans "apprendre" adresse "/apprendre/choisir-et-envoyer-un-fichier" :
+page "documentation_25" dans "documentation" adresse "/documentation/choisir-et-envoyer-un-fichier" :
     apercu :
         description "Le type et la taille sont vérifiés dans la page pour aider la personne ; le serveur qui reçoit le fichier doit toujours revérifier. L'envoi passe par une…" en anglais "fichier \"…\" dans photo lets people pick a file; accepte images limits it to images, maximum 5 Mo to 5 MB. The page checks type and size to help the person;…"
     titre "25. Choisir et envoyer un fichier" en anglais "25. Choosing and uploading a file"
@@ -2438,10 +2438,10 @@ page "apprendre_25" dans "apprendre" adresse "/apprendre/choisir-et-envoyer-un-f
                     texte photo.nom
         texte "Le type et la taille sont vérifiés dans la page pour aider la personne ; le serveur qui reçoit le fichier doit toujours revérifier. L'envoi passe par une {code "source"} : {code "envoyer fichier photo vers "…" de la source "…""}, avec une barre de progression ({code "suivi dans envoi"})."
     ligne avec style "doc-suite" :
-        lien "← 24. Les données d'un fichier" en anglais "← 24. Data from a file" vers "apprendre_24"
-        lien "26. Les graphiques →" en anglais "26. Charts →" vers "apprendre_26"
+        lien "← 24. Les données d'un fichier" en anglais "← 24. Data from a file" vers "documentation_24"
+        lien "26. Les graphiques →" en anglais "26. Charts →" vers "documentation_26"
 
-page "apprendre_26" dans "apprendre" adresse "/apprendre/graphiques" :
+page "documentation_26" dans "documentation" adresse "/documentation/graphiques" :
     apercu :
         description "Chaque graphique a une description (pour les personnes qui ne le voient pas), et un bouton « Voir les données » qui montre le tableau." en anglais "Every chart (graphique) has a description (for people who cannot see it) and a \"See the data\" button that shows the table."
     titre "26. Les graphiques" en anglais "26. Charts"
@@ -2476,10 +2476,10 @@ page "apprendre_26" dans "apprendre" adresse "/apprendre/graphiques" :
                 graphique en barres visites avec etiquettes ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"] et couleur vert et proportions 2 sur 1 et description "Les visites montent jusqu'au samedi."
         texte "Les genres : {code "en courbe"}, {code "en barres"}, {code "en camembert"}."
     ligne avec style "doc-suite" :
-        lien "← 25. Choisir et envoyer un fichier" en anglais "← 25. Choosing and uploading a file" vers "apprendre_25"
-        lien "27. Les cartes →" en anglais "27. Maps →" vers "apprendre_27"
+        lien "← 25. Choisir et envoyer un fichier" en anglais "← 25. Choosing and uploading a file" vers "documentation_25"
+        lien "27. Les cartes →" en anglais "27. Maps →" vers "documentation_27"
 
-page "apprendre_27" dans "apprendre" adresse "/apprendre/cartes" :
+page "documentation_27" dans "documentation" adresse "/documentation/cartes" :
     apercu :
         description "Les tuiles viennent d'OpenStreetMap par défaut. Pour un site très fréquenté, choisis un fournisseur de tuiles avec tuiles \"…\" et son attribution \"…\"." en anglais "carte is a map, marqueur a marker. Tiles come from OpenStreetMap by default. For a busy site, choose a tile provider with tuiles \"…\" and its attribution \"…\"."
     titre "27. Les cartes" en anglais "27. Maps"
@@ -2504,10 +2504,10 @@ page "apprendre_27" dans "apprendre" adresse "/apprendre/cartes" :
                         marqueur b.nom avec latitude b.latitude et longitude b.longitude
         texte "Les tuiles viennent d'OpenStreetMap par défaut. Pour un site très fréquenté, choisis un fournisseur de tuiles avec {code "tuiles "…""} et son {code "attribution "…""}."
     ligne avec style "doc-suite" :
-        lien "← 26. Les graphiques" en anglais "← 26. Charts" vers "apprendre_26"
-        lien "28. Plusieurs langues →" en anglais "28. Several languages →" vers "apprendre_28"
+        lien "← 26. Les graphiques" en anglais "← 26. Charts" vers "documentation_26"
+        lien "28. Plusieurs langues →" en anglais "28. Several languages →" vers "documentation_28"
 
-page "apprendre_28" dans "apprendre" adresse "/apprendre/plusieurs-langues" :
+page "documentation_28" dans "documentation" adresse "/documentation/plusieurs-langues" :
     apercu :
         description "On écrit le code en français ; le site peut parler plusieurs langues. La première langue du bloc est celle des textes écrits." en anglais "You write the code in French; the site can speak several languages. The first language of the block is the language of the written texts."
     titre "28. Plusieurs langues" en anglais "28. Several languages"
@@ -2569,10 +2569,10 @@ page "apprendre_28" dans "apprendre" adresse "/apprendre/plusieurs-langues" :
             texte "Le message de {code "copier"} se traduit comme les autres textes : {code "copier code avec message "Copié" en anglais "Copied""}."
             texte "Humalis signale à la compilation tout texte qui n'a pas sa traduction. Les messages de Humalis (champ obligatoire, chargement…) suivent la langue."
     ligne avec style "doc-suite" :
-        lien "← 27. Les cartes" en anglais "← 27. Maps" vers "apprendre_27"
-        lien "29. Publier un site →" en anglais "29. Publishing a site →" vers "apprendre_29"
+        lien "← 27. Les cartes" en anglais "← 27. Maps" vers "documentation_27"
+        lien "29. Publier un site →" en anglais "29. Publishing a site →" vers "documentation_29"
 
-page "apprendre_29" dans "apprendre" adresse "/apprendre/publier-un-site" :
+page "documentation_29" dans "documentation" adresse "/documentation/publier-un-site" :
     apercu :
         description "Le bloc site : en haut du fichier décrit le site pour les moteurs de recherche et les réseaux sociaux. Le bloc apercu : règle une page." en anglais "The site : block at the top of the file describes the site for search engines and social networks. The apercu : (preview) block sets one page."
     titre "29. Publier un site" en anglais "29. Publishing a site"
@@ -2625,10 +2625,10 @@ page "apprendre_29" dans "apprendre" adresse "/apprendre/publier-un-site" :
                 titre "À propos"
         texte "Avec une {code "adresse"}, la cible web écrit le plan du site ({code "sitemap.xml"}) et {code "robots.txt"}. Une page en {code "indexation non"} n'y apparaît pas. Humalis prévient quand un titre ou une description est trop long ou trop court pour les moteurs de recherche."
     ligne avec style "doc-suite" :
-        lien "← 28. Plusieurs langues" en anglais "← 28. Several languages" vers "apprendre_28"
-        lien "30. Les composants et les projets en plusieurs fichiers →" en anglais "30. Components and multi-file projects →" vers "apprendre_30"
+        lien "← 28. Plusieurs langues" en anglais "← 28. Several languages" vers "documentation_28"
+        lien "30. Les composants et les projets en plusieurs fichiers →" en anglais "30. Components and multi-file projects →" vers "documentation_30"
 
-page "apprendre_30" dans "apprendre" adresse "/apprendre/composants-et-les-projets-en-plusieurs-fichiers" :
+page "documentation_30" dans "documentation" adresse "/documentation/composants-et-les-projets-en-plusieurs-fichiers" :
     apercu :
         description "Un composant est un morceau de page réutilisable. Son nom commence par une majuscule." en anglais "A component (composant) is a reusable piece of page. Its name starts with a capital letter."
     titre "30. Les composants et les projets en plusieurs fichiers" en anglais "30. Components and multi-file projects"
@@ -2698,10 +2698,10 @@ page "apprendre_30" dans "apprendre" adresse "/apprendre/composants-et-les-proje
                 titre "Accueil"
         texte "Tout ce que contiennent ces fichiers (pages, composants, variables partagées, fonctions) rejoint le projet. {code "humalis nouveau"} range déjà les fichiers ainsi."
     ligne avec style "doc-suite" :
-        lien "← 29. Publier un site" en anglais "← 29. Publishing a site" vers "apprendre_29"
-        lien "31. Tester en Humalis →" en anglais "31. Testing in Humalis →" vers "apprendre_31"
+        lien "← 29. Publier un site" en anglais "← 29. Publishing a site" vers "documentation_29"
+        lien "31. Tester en Humalis →" en anglais "31. Testing in Humalis →" vers "documentation_31"
 
-page "apprendre_31" dans "apprendre" adresse "/apprendre/tester-en-humalis" :
+page "documentation_31" dans "documentation" adresse "/documentation/tester-en-humalis" :
     apercu :
         description "Un fichier .test.humalis décrit ce que la personne fait et ce qu'elle doit voir. humalis tester les lance dans un vrai navigateur." en anglais "A .test.humalis file describes what a person does and what they should see. humalis tester runs them in a real browser."
     titre "31. Tester en Humalis" en anglais "31. Testing in Humalis"
@@ -2734,10 +2734,10 @@ page "apprendre_31" dans "apprendre" adresse "/apprendre/tester-en-humalis" :
                 verifier que texte "Bonjour !" est visible
         texte "Les autres étapes : {code "remplir champ "email" avec "…""}, {code "aller vers "panier""}, {code "verifier que champ "email" vaut "…""}, {code "verifier que page est "panier""} et {code "verifier que texte "…" est absent"}."
     ligne avec style "doc-suite" :
-        lien "← 30. Les composants et les projets en plusieurs fichiers" en anglais "← 30. Components and multi-file projects" vers "apprendre_30"
-        lien "32. Les commandes →" en anglais "32. Commands →" vers "apprendre_32"
+        lien "← 30. Les composants et les projets en plusieurs fichiers" en anglais "← 30. Components and multi-file projects" vers "documentation_30"
+        lien "32. Les commandes →" en anglais "32. Commands →" vers "documentation_32"
 
-page "apprendre_32" dans "apprendre" adresse "/apprendre/commandes" :
+page "documentation_32" dans "documentation" adresse "/documentation/commandes" :
     apercu :
         description "Pour le web et le statique, --adresse https://… donne l'adresse finale du site (plan du site, liens de partage). Pour le desktop, --serveur https://… donne…" en anglais "For web and static, --adresse https://… gives the site's final address (sitemap, share links). For desktop, --serveur https://… gives the address of the…"
     titre "32. Les commandes" en anglais "32. Commands"
@@ -2779,10 +2779,10 @@ page "apprendre_32" dans "apprendre" adresse "/apprendre/commandes" :
             Erreur, ligne 3 : le texte utilise {totl}, mais la variable « totl » n'est pas déclarée. Peut-être « total » ?
         texte "L'extension VS Code « Humalis » les affiche pendant que tu écris, avec la coloration, la complétion et le survol des mots."
     ligne avec style "doc-suite" :
-        lien "← 31. Tester en Humalis" en anglais "← 31. Testing in Humalis" vers "apprendre_31"
-        lien "33. Ce que chaque cible sait faire →" en anglais "33. What each target can do →" vers "apprendre_33"
+        lien "← 31. Tester en Humalis" en anglais "← 31. Testing in Humalis" vers "documentation_31"
+        lien "33. Ce que chaque cible sait faire →" en anglais "33. What each target can do →" vers "documentation_33"
 
-page "apprendre_33" dans "apprendre" adresse "/apprendre/ce-que-chaque-cible-sait-faire" :
+page "documentation_33" dans "documentation" adresse "/documentation/ce-que-chaque-cible-sait-faire" :
     apercu :
         description "Le même fichier donne toutes les cibles. Quand une construction n'existe pas sur une cible, le compilateur le dit clairement au lieu de produire quelque…" en anglais "The same file produces every target. When a construct does not exist on a target, the compiler says so clearly instead of producing something wrong."
     titre "33. Ce que chaque cible sait faire" en anglais "33. What each target can do"
@@ -2815,10 +2815,10 @@ page "apprendre_33" dans "apprendre" adresse "/apprendre/ce-que-chaque-cible-sai
             rangee "Plan du site, aperçu de partage", "oui", "oui", "non", "non"
         texte "Le serveur ({code "--cible serveur"}) se produit à part, depuis le bloc {code "serveur"}."
     ligne avec style "doc-suite" :
-        lien "← 32. Les commandes" en anglais "← 32. Commands" vers "apprendre_32"
-        lien "Les mots-clés de Humalis en anglais →" en anglais "French keywords at a glance →" vers "apprendre_34"
+        lien "← 32. Les commandes" en anglais "← 32. Commands" vers "documentation_32"
+        lien "Les mots-clés de Humalis en anglais →" en anglais "French keywords at a glance →" vers "documentation_34"
 
-page "apprendre_34" dans "apprendre" adresse "/apprendre/mots-cles-de-humalis-en-anglais" :
+page "documentation_34" dans "documentation" adresse "/documentation/mots-cles-de-humalis-en-anglais" :
     apercu :
         description "Cette page présente les mots-clés français de Humalis, avec leur sens, aux personnes qui lisent le guide en anglais." en anglais "Humalis guide, French keywords at a glance."
     titre "Les mots-clés de Humalis en anglais" en anglais "French keywords at a glance"
@@ -2862,4 +2862,4 @@ page "apprendre_34" dans "apprendre" adresse "/apprendre/mots-cles-de-humalis-en
     sinon :
         texte "Cette page présente les mots-clés français de Humalis, avec leur sens, aux personnes qui lisent le guide en anglais."
     ligne avec style "doc-suite" :
-        lien "← 33. Ce que chaque cible sait faire" en anglais "← 33. What each target can do" vers "apprendre_33"
+        lien "← 33. Ce que chaque cible sait faire" en anglais "← 33. What each target can do" vers "documentation_33"

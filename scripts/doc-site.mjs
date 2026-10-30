@@ -1,6 +1,6 @@
 // Transforme le guide (docs/guide.md et docs/guide.en.md) en pages Humalis
-// pour le site public : site-public/apprendre.humalis. Un chapitre « ## N. … »
-// devient une sous-page de « apprendre », avec ses deux langues :
+// pour le site public : site-public/documentation.humalis. Un chapitre « ## N. … »
+// devient une sous-page de « documentation », avec ses deux langues :
 // « si langue est anglais : » (le guide anglais) / « sinon : » (le guide français).
 //
 // Le guide reste la seule source : on le modifie, puis on relance
@@ -146,6 +146,9 @@ const apercu = (lignes, titre, deuxPoints) => {
   return texte.length >= 60 ? texte : texte ? `${titre}${deuxPoints}${texte}` : `${titre}.`;
 };
 
+/** « 4. Les éléments » → « Les éléments ». */
+const sansNumero = (titre) => titre.replace(/^\d+\. /, '');
+
 /** Une adresse lisible : « 4. Les éléments » → « elements ». */
 const adresse = (titre) =>
   titre
@@ -162,8 +165,8 @@ const pages = en.map((chapitreEn, index) => {
   const chapitreFr = fr[index] ?? { numero: null, titre: 'Les mots-clés de Humalis en anglais', lignes: ['Cette page présente les mots-clés français de Humalis, avec leur sens, aux personnes qui lisent le guide en anglais.'] };
   const numero = chapitreEn.numero ?? index + 1;
   return {
-    nom: `apprendre_${numero}`,
-    adresse: `/apprendre/${adresse(chapitreFr.titre)}`,
+    nom: `documentation_${numero}`,
+    adresse: `/documentation/${adresse(chapitreFr.titre)}`,
     titreFr: chapitreFr.numero ? `${numero}. ${chapitreFr.titre}` : chapitreFr.titre,
     titreEn: chapitreEn.numero ? `${numero}. ${chapitreEn.titre}` : chapitreEn.titre,
     fr: chapitreFr.lignes,
@@ -176,7 +179,7 @@ const sortie = [
   '# ne pas modifier à la main. Pour changer la documentation, modifier le guide,',
   '# puis lancer « npm run site:doc ».',
   '',
-  'page "apprendre" a l\'adresse "/apprendre" sans pied :',
+  'page "documentation" a l\'adresse "/documentation" sans pied :',
   '    apercu :',
   '        description "Le guide complet de Humalis : de l’installation au serveur, chaque construction du langage avec un exemple vérifié." en anglais "The complete Humalis guide: from installation to the server, every construct of the language with a checked example."',
   '    ligne avec style "doc" :',
@@ -185,18 +188,19 @@ const sortie = [
   '        bloc avec style "doc-contenu" :',
   '            sous page',
   '',
-  'page "apprendre_sommaire" dans "apprendre" adresse "/apprendre" :',
-  '    titre "Apprendre Humalis" en anglais "Learn Humalis"',
+  'page "documentation_sommaire" dans "documentation" adresse "/documentation" :',
+  '    titre "Documentation de Humalis" en anglais "Humalis documentation"',
   '    texte "Le guide complet du langage, du premier titre jusqu’au serveur. Chaque exemple est vérifié par le compilateur : s’il est écrit ici, il marche." en anglais "The complete guide to the language, from the first title to the server. Every example is checked by the compiler: if it is written here, it works."',
+  // La liste numérote déjà : les titres y sont écrits sans leur numéro.
   '    liste numerotee :',
-  ...pages.map((p) => `        lien ${guillemets(p.titreFr)} en anglais ${guillemets(p.titreEn)} vers ${guillemets(p.nom)}`),
+  ...pages.map((p) => `        lien ${guillemets(sansNumero(p.titreFr))} en anglais ${guillemets(sansNumero(p.titreEn))} vers ${guillemets(p.nom)}`),
 ];
 pages.forEach((p, index) => {
   const precedente = pages[index - 1];
   const suivante = pages[index + 1];
   sortie.push(
     '',
-    `page ${guillemets(p.nom)} dans "apprendre" adresse ${guillemets(p.adresse)} :`,
+    `page ${guillemets(p.nom)} dans "documentation" adresse ${guillemets(p.adresse)} :`,
     '    apercu :',
     `        description ${guillemets(apercu(p.fr, `Guide de Humalis, ${p.titreFr}`, ' : '))} en anglais ${guillemets(apercu(p.en, `Humalis guide, ${p.titreEn}`, ': '))}`,
     `    titre ${guillemets(p.titreFr)} en anglais ${guillemets(p.titreEn)}`,
@@ -209,5 +213,5 @@ pages.forEach((p, index) => {
     ...(suivante ? [`        lien ${guillemets(suivante.titreFr + ' →')} en anglais ${guillemets(suivante.titreEn + ' →')} vers ${guillemets(suivante.nom)}`] : []),
   );
 });
-writeFileSync(racine + 'site-public/apprendre.humalis', sortie.join('\n') + '\n');
-console.log(`site-public/apprendre.humalis : ${pages.length} chapitres.`);
+writeFileSync(racine + 'site-public/documentation.humalis', sortie.join('\n') + '\n');
+console.log(`site-public/documentation.humalis : ${pages.length} chapitres.`);

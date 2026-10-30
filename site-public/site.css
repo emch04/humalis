@@ -93,7 +93,7 @@ html[data-theme=clair] .bac-erreur{color:#b3261e}
 /* Le mot mis en valeur du grand titre : souligné de jaune, comme dans la maquette */
 .hero-title .humalis-accent{position:relative;white-space:nowrap;color:inherit}
 .hero-title .humalis-accent:after{content:"";position:absolute;left:0;right:0;height:9px;bottom:-6px;border-radius:8px;background:var(--lime);transform:rotate(-1.6deg);z-index:-1}
-/* Les pages « Apprendre » : le sommaire collant à gauche, le chapitre à droite */
+/* Les pages « Documentation » : le sommaire collant à gauche, le chapitre à droite */
 .doc{display:grid!important;grid-template-columns:260px minmax(0,1fr);gap:48px;align-items:start;padding:48px max(24px,calc((100vw - 1200px)/2)) 96px}
 .doc-sommaire{position:sticky;top:96px;display:flex!important;flex-direction:column;align-items:stretch;gap:2px;max-height:calc(100vh - 120px);overflow:auto;padding-right:8px}
 .doc-sommaire a{display:block;padding:7px 10px;border-radius:8px;font-size:13px;font-weight:500;color:var(--muted);line-height:1.35}
