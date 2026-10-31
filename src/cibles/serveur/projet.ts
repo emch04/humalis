@@ -192,7 +192,7 @@ const NOMS: Record<string, string> = {
 };
 
 /** Une image reçue : réduite par la page, gardée telle quelle (data:…;base64), ou l'adresse d'une image en ligne. */
-const IMAGE = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+\/]+=*$/;
+const IMAGE = /^data:image\\/(png|jpeg|webp);base64,[A-Za-z0-9+\\/]+=*$/;
 const TAILLE_IMAGE = 95_000;
 
 function conforme(type: TypeChamp, valeur: unknown): boolean {
@@ -200,7 +200,7 @@ function conforme(type: TypeChamp, valeur: unknown): boolean {
   if (type === 'texte') return typeof valeur === 'string';
   if (type === 'image') {
     if (typeof valeur !== 'string') return false;
-    return valeur === '' || /^https:\/\/[^\s"<>]+$/.test(valeur) || (valeur.length <= TAILLE_IMAGE && IMAGE.test(valeur));
+    return valeur === '' || /^https:\\/\\/[^\\s"<>]+$/.test(valeur) || (valeur.length <= TAILLE_IMAGE && IMAGE.test(valeur));
   }
   if (type === 'nombre') return typeof valeur === 'number' && Number.isFinite(valeur);
   if (type === 'booleen') return typeof valeur === 'boolean';
