@@ -22,8 +22,10 @@ import { formaterSource } from './outils/formatage.js';
 import { developper, trouverPrincipal } from './outils/developpement.js';
 import { ecrireSiChange } from './outils/ecriture.js';
 import { testerProjet } from './outils/tests.js';
+import { reponseSimple } from './outils/version.js';
 
 const AIDE = `Utilisation :
+  humalis --version
   humalis nouveau <nom>
   humalis formater <fichier.humalis> [--verifier]
   humalis developper [<fichier.humalis>] [--port <nombre>]
@@ -535,7 +537,10 @@ function principal(arguments_: string[]): number {
 }
 
 const argumentsCli = process.argv.slice(2);
-if (argumentsCli[0] === 'tester') {
+const reponse = reponseSimple(argumentsCli, AIDE);
+if (reponse !== undefined) {
+  console.log(reponse);
+} else if (argumentsCli[0] === 'tester') {
   const optionsTester = argumentsCli.slice(1);
   const ciblesTester = optionsTester.filter((argument) => argument !== '--detail');
   if (ciblesTester.length > 1 || optionsTester.filter((argument) => argument === '--detail').length > 1 || ciblesTester.some((argument) => argument.startsWith('--'))) { console.error(AIDE); process.exitCode = 2; }

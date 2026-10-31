@@ -548,6 +548,21 @@ page "documentation_6" dans "documentation" adresse "/documentation/mise-en-page
                         bloc avec ombre legere et bordure douce et remplissage moyenne :
                             texte "Fish of the day"
         texte "Block settings: {code "largeur"} (width: {code "etroite"} narrow, {code "large"} wide), {code "remplissage"} (padding) and {code "espacement"} (spacing): {code "petite"}, {code "moyenne"}, {code "grande"}; {code "colonnes"} (columns), {code "ombre"} (shadow: {code "legere"} light, {code "moyenne"}), {code "bordure douce"} (soft border), {code "repartition entre"} (space between), {code "alignement centre"} (centred), {code "degrade bleu vers violet"} (gradient), {code "colle"} (sticks to the top while scrolling)."
+        soustitre "A page that fits the screen"
+        texte "{code "entete avec fixe :"} (fixed header) keeps the header still: only the area below scrolls, with its own scrollbar. {code "hauteur ecran"} (screen height) makes a block fill the screen under the header, and {code "defilement interne"} (inner scrolling) gives a block its own scrolling without moving the rest. Together they make a documentation page: the table of contents and the text each scroll on their own, without a line of CSS."
+        code humalis :
+            entete avec fixe :
+                lien "Home" vers "guide"
+
+            page "guide" :
+                titre "The guide"
+                ligne avec hauteur ecran :
+                    menu vertical avec defilement interne :
+                        lien "Install" vers "guide"
+                        lien "Pages" vers "guide"
+                    colonne avec defilement interne :
+                        texte "A long chapter that scrolls on its own."
+        texte "On the static target, the scrollbar stays the window's. On a phone the whole page scrolls: {code "hauteur ecran"} and {code "defilement interne"} have no effect, and a warning says so."
         soustitre "Depending on the device"
         code humalis :
             page "home" :
@@ -635,6 +650,21 @@ page "documentation_6" dans "documentation" adresse "/documentation/mise-en-page
                         bloc avec ombre legere et bordure douce et remplissage moyenne :
                             texte "Poisson du jour"
         texte "Les réglages des blocs : {code "largeur"} ({code "etroite"}, {code "large"}), {code "remplissage"} et {code "espacement"} ({code "petite"}, {code "moyenne"}, {code "grande"}), {code "colonnes"}, {code "ombre"} ({code "legere"}, {code "moyenne"}), {code "bordure douce"}, {code "repartition entre"}, {code "alignement centre"}, {code "degrade bleu vers violet"}, {code "colle"} (reste en haut pendant le défilement)."
+        soustitre "Une page qui tient dans l'écran"
+        texte "{code "entete avec fixe :"} garde l'en-tête immobile : seule la zone en dessous défile, avec sa barre. {code "hauteur ecran"} fait remplir l'écran à un bloc, sous l'en-tête, et {code "defilement interne"} donne à un bloc son propre défilement, sans faire bouger le reste. Ensemble, ils font une page de documentation : le sommaire et le texte défilent chacun de leur côté, sans une ligne de CSS."
+        code humalis :
+            entete avec fixe :
+                lien "Accueil" vers "guide"
+
+            page "guide" :
+                titre "Le guide"
+                ligne avec hauteur ecran :
+                    menu vertical avec defilement interne :
+                        lien "Installer" vers "guide"
+                        lien "Les pages" vers "guide"
+                    colonne avec defilement interne :
+                        texte "Un long chapitre, qui défile seul."
+        texte "Sur le statique, la barre de défilement reste celle de la fenêtre. Sur le téléphone, toute la page défile : {code "hauteur ecran"} et {code "defilement interne"} n'ont pas d'effet, et un avertissement le dit."
         soustitre "Selon l'appareil"
         code humalis :
             page "accueil" :
@@ -2825,6 +2855,7 @@ page "documentation_32" dans "documentation" adresse "/documentation/commandes" 
         tableau "Command, Role" :
             colonnes "Command", "Role"
             rangee "{code "humalis nouveau <name>"}", "creates a project"
+            rangee "{code "humalis --version"}", "shows the installed version ({code "humalis --help"}: the usage)"
             rangee "{code "humalis developper"}", "runs the site and recompiles it on every save"
             rangee "{code "humalis compile <file> --cible <target> --sortie <folder>"}", "generates a target's project"
             rangee "{code "humalis compile <file> --cible web --composants <folder>"}", "generates React components to import elsewhere"
@@ -2834,6 +2865,7 @@ page "documentation_32" dans "documentation" adresse "/documentation/commandes" 
             rangee "{code "humalis tester"}", "runs the {code "*.test.humalis"} tests"
             rangee "{code "humalis packs"}", "says whether the Astratra packs have updates"
         texte "For web and static, {code "--adresse https://…"} gives the site's final address (sitemap, share links). For desktop, {code "--serveur https://…"} gives the address of the server the application calls."
+        texte "With {code "humalis developper"}, every element of the page carries its Humalis file and line: in the browser's inspector, a heading shows for example {code "data-humalis-source="pages/accueil.humalis:12""} (the path starts from the main file, the line is the one in that file). Hold the Alt key (Option on Mac) and hover over an element: a small label shows the same reference next to the cursor. {code "humalis compile"} adds none of this: the published site stays identical."
         soustitre "Error messages"
         texte "Messages are in French, with the line number, and often suggest the fix:"
         code :
@@ -2844,6 +2876,7 @@ page "documentation_32" dans "documentation" adresse "/documentation/commandes" 
         tableau "Commande, Rôle" :
             colonnes "Commande", "Rôle"
             rangee "{code "humalis nouveau <nom>"}", "crée un projet"
+            rangee "{code "humalis --version"}", "affiche la version installée ({code "humalis --aide"} : le mode d'emploi)"
             rangee "{code "humalis developper"}", "lance le site et le recompile à chaque enregistrement"
             rangee "{code "humalis compile <fichier> --cible <cible> --sortie <dossier>"}", "produit le projet d'une cible"
             rangee "{code "humalis compile <fichier> --cible web --composants <dossier>"}", "produit des composants React à importer ailleurs"
@@ -2853,6 +2886,7 @@ page "documentation_32" dans "documentation" adresse "/documentation/commandes" 
             rangee "{code "humalis tester"}", "lance les tests {code "*.test.humalis"}"
             rangee "{code "humalis packs"}", "dit si les packs Astratra ont des mises à jour"
         texte "Pour le web et le statique, {code "--adresse https://…"} donne l'adresse finale du site (plan du site, liens de partage). Pour le desktop, {code "--serveur https://…"} donne l'adresse du serveur que l'application appelle."
+        texte "Avec {code "humalis developper"}, chaque élément de la page porte son fichier Humalis et sa ligne : dans l'inspecteur du navigateur, un titre montre par exemple {code "data-humalis-source="pages/accueil.humalis:12""} (le chemin part du fichier principal, la ligne est celle de ce fichier). Tiens la touche Alt (Option sur Mac) et survole un élément : une petite étiquette affiche ce même repère près du curseur. {code "humalis compile"} n'ajoute rien de tout cela : le site publié reste identique."
         soustitre "Les messages d'erreur"
         texte "Les messages sont en français, avec la ligne, et proposent souvent la correction :"
         code :

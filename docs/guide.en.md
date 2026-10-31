@@ -1959,6 +1959,7 @@ texte "…" est absent` (a text is not shown).
 | Command | Role |
 |---|---|
 | `humalis nouveau <name>` | creates a project |
+| `humalis --version` | shows the installed version (`humalis --help`: the usage) |
 | `humalis developper` | runs the site and recompiles it on every save |
 | `humalis compile <file> --cible <target> --sortie <folder>` | generates a target's project |
 | `humalis compile <file> --cible web --composants <folder>` | generates React components to import elsewhere |

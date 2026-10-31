@@ -1871,6 +1871,7 @@ Les autres étapes : `remplir champ "email" avec "…"`, `aller vers "panier"`,
 | Commande | Rôle |
 |---|---|
 | `humalis nouveau <nom>` | crée un projet |
+| `humalis --version` | affiche la version installée (`humalis --aide` : le mode d'emploi) |
 | `humalis developper` | lance le site et le recompile à chaque enregistrement |
 | `humalis compile <fichier> --cible <cible> --sortie <dossier>` | produit le projet d'une cible |
 | `humalis compile <fichier> --cible web --composants <dossier>` | produit des composants React à importer ailleurs |
