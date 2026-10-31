@@ -41,6 +41,18 @@ describe('page de profil : mot de passe et photo', () => {
     expect(erreurs(source())).toEqual([]);
   });
 
+  it('« fichier … avec icone "photo" » : l’icône seule, le libellé gardé pour les lecteurs d’écran', () => {
+    const avecIcone = source().replace('accepte images avec maximum 5 Mo', 'accepte images avec maximum 5 Mo et icone "photo"');
+    expect(erreurs(avecIcone)).toEqual([]);
+    const fichiers = genererProjetWeb(compiler(avecIcone).application!, { nom: 'b', adresse: 'https://b.cd', source: 'b.humalis' });
+    const page = fichiers.get('src/pages/Profil.tsx')!;
+    expect(page).toContain('icone={<CameraIcon className="humalis-icone" aria-hidden="true" />}');
+    expect(page).toContain("import { CameraIcon } from 'lucide-react';");
+    expect(fichiers.get('src/humalis/choix-fichier.tsx')).toContain('<span className="humalis-fichier-libelle">{libelle}</span>');
+    expect(() => erreurs(source().replace('avec maximum 5 Mo', 'avec maximum 5 Mo et icone "appareil-volant"'))).not.toThrow();
+    expect(erreurs(source().replace('avec maximum 5 Mo', 'avec maximum 5 Mo et icone "fusee-rose"')).join('\n')).toMatch(/l'icône « fusee-rose » n'existe pas/);
+  });
+
   it('un champ image refuse un choix qui accepte autre chose que des images', () => {
     expect(erreurs(source().replace('accepte images', 'accepte pdf')).join('\n')).toMatch(/est une image : le choix de « photo » doit accepter seulement des images/);
   });

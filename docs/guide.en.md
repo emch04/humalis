@@ -1851,6 +1851,9 @@ person; the server receiving the file must always check again. Uploading goes
 through a `source`: `envoyer fichier photo vers "…" de la source "…"`, with a
 progress bar (`suivi dans upload`).
 
+`avec icone "photo"` shows the icon alone on the button; the label is still
+read by screen readers and shown on hover.
+
 ---
 
 ## 26. Charts
