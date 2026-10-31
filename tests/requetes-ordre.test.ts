@@ -145,4 +145,19 @@ describe('requêtes : ordre des lignes et noms donnés', () => {
     expect(page).toContain('(produit?.prix ?? 0) * quantite');
     expect(page).toContain('useState<any[]>([])');
   });
+
+  it('web : un filtre d’adresse absent compte comme un texte vide dans une opération de texte (pas de plantage)', () => {
+    const source = programme(
+      'page "boutique" avec filtre recherche :',
+      '>variable produits = [fiche avec nom "Maillot", fiche avec nom "Costume"]',
+      '>calcul mot = minuscules de recherche',
+      '>calcul trouves = produits dont minuscules de nom contient mot',
+      '>titre "Boutique"',
+      '>pour chaque p dans trouves :',
+      '>>texte p.nom',
+    );
+    expect(erreurs(source)).toEqual([]);
+    const page = genererProjetWeb(compiler(source).application!, { nom: 'b', adresse: 'https://b.cd', source: 'b.humalis' }).get('src/pages/Boutique.tsx')!;
+    expect(page).toContain("const mot = (recherche ?? '').toLocaleLowerCase('fr');");
+  });
 });

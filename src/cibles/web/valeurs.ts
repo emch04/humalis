@@ -15,6 +15,8 @@ export interface Contexte {
    * une boucle) : la copie locale à jour qu'il lit (« panier » → « panierMaj »).
    */
   renommes?: Map<string, string>;
+  /** Les filtres d'adresse de la page (« ?recherche=… ») : absents de l'adresse, ils valent null. */
+  filtresAdresse?: Set<string>;
 }
 
 /** Le nom à lire pour une variable : sa copie à jour dans l'événement, sinon son nom. */
@@ -147,7 +149,10 @@ export function expression(valeur: Valeur, contexte: Contexte): string {
       return dateEnCode(valeur, (v) => expression(v, contexte));
     case 'operationTexte':
     case 'remplacement':
-      return operationDeTexte(valeur, (v) => expression(v, contexte));
+      // Un filtre absent de l'adresse (null) compte comme un texte vide : « minuscules de recherche ».
+      return operationDeTexte(valeur, (v) =>
+        v.type === 'variable' && contexte.filtresAdresse?.has(v.nom) ? `(${expression(v, contexte)} ?? '')` : expression(v, contexte),
+      );
     case 'groupement':
       return `grouper(${expression(valeur.liste, contexte)}, (element) => element.${camel(valeur.champ)})`;
     case 'filtre':
