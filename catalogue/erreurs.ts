@@ -1950,6 +1950,77 @@ page "connexion" :
         se connecter avec google
 `),
     'demande la ligne « connexion google »'),
+  e('mot-de-passe-hors-evenement', 'sens', 'Changer le mot de passe en dehors d’un événement',
+    'Changer le mot de passe, c’est une action : elle se fait quand la personne envoie le formulaire, pas pendant l’affichage de la page.',
+    'Place « changer le mot de passe » dans « quand le formulaire … est soumis : ».',
+    p(`
+serveur "club" :
+    donnee membre :
+        nom : texte
+    route "membres" :
+        tout le monde peut lire membre
+        seul admin peut modifier membre
+
+page "profil" :
+    titre "Mon profil"
+    variable actuel = ""
+    variable nouveau = ""
+    changer le mot de passe avec actuel et nouveau
+`),
+    p(`
+serveur "club" :
+    donnee membre :
+        nom : texte
+    route "membres" :
+        tout le monde peut lire membre
+        seul admin peut modifier membre
+
+page "profil" :
+    titre "Mon profil"
+    formulaire "secret" :
+        champ mot de passe "Actuel" avec obligatoire
+        champ mot de passe "Nouveau" avec obligatoire
+        bouton "Changer"
+    quand le formulaire "secret" est soumis :
+        changer le mot de passe avec champ "Actuel" et champ "Nouveau"
+`),
+    "« changer le mot de passe » ne s'utilise que dans un événement"),
+  e('image-fichier-non-image', 'sens', 'Un champ image qui reçoit autre chose qu’une image',
+    'Un champ « image » du serveur garde une image réduite par la page : le fichier choisi doit être une image.',
+    'Écris « accepte images » dans le choix du fichier.',
+    p(`
+serveur "club" :
+    donnee membre :
+        photo : image
+    route "membres" :
+        tout le monde peut lire membre
+        tout le monde peut creer membre
+        seul admin peut modifier membre
+
+page "profil" :
+    variable photo = rien
+    fichier "Choisir une photo" dans photo accepte pdf
+    bouton "Enregistrer"
+    quand l'utilisateur clique sur "Enregistrer" :
+        envoyer requete vers "membres" avec photo
+`),
+    p(`
+serveur "club" :
+    donnee membre :
+        photo : image
+    route "membres" :
+        tout le monde peut lire membre
+        tout le monde peut creer membre
+        seul admin peut modifier membre
+
+page "profil" :
+    variable photo = rien
+    fichier "Choisir une photo" dans photo accepte images
+    bouton "Enregistrer"
+    quand l'utilisateur clique sur "Enregistrer" :
+        envoyer requete vers "membres" avec photo
+`),
+    'doit accepter seulement des images'),
   e('type-de-champ-inconnu', 'grammaire', 'Un type de champ inconnu',
     'Chaque champ d’une donnée a un type : texte, nombre, booleen, date, ou liste de … .',
     'Choisis un des types listés par le message.',

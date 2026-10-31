@@ -55,7 +55,7 @@ describe('serveur — parser', () => {
 
   it('explique un type de champ inconnu', () => {
     expect(() => analyserSyntaxe(analyser('serveur "s" :\n    donnee d :\n        prix : argent'))).toThrow(
-      /« argent » n'est pas un type de champ. Types possibles : texte, nombre, booleen, date, liste de …/,
+      /« argent » n'est pas un type de champ. Types possibles : texte, nombre, booleen, date, image, liste de …/,
     );
   });
 

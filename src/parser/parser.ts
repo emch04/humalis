@@ -63,7 +63,7 @@ import type {
   Boucle,
   Evenement,
   GenreEvenement,
-  Connexion, ConnexionGoogle, Suppression, Modification, EnvoiFichier, ArgumentPage } from './ast.js';
+  Connexion, ConnexionGoogle, ChangementMotDePasse, Suppression, Modification, EnvoiFichier, ArgumentPage } from './ast.js';
 
 export function analyserSyntaxe(tokens: Token[]): Programme {
   const flux = new FluxTokens(tokens);
@@ -385,10 +385,12 @@ function analyserTypeChamp(flux: FluxTokens, ouverte = false): TypeChamp {
   const mot = motDe(token);
   if (mot === 'texte' || mot === 'nombre' || mot === 'booleen' || mot === 'date') return { genre: mot };
   if (mot === 'liste') return { genre: 'liste', de: analyserTypeChamp(flux, ouverte) };
+  // « photo : image » : une image envoyée depuis la page (un fichier choisi), gardée par le serveur.
+  if (mot === 'image' && !ouverte) return { genre: 'texte', image: true };
   // Dans une source, un autre nom est une autre donnée de la même source (un objet imbriqué).
   if (ouverte && estUnNom(token)) return { genre: 'donnee', nom: token.original ?? token.valeur };
   throw new ErreurSyntaxique(
-    `« ${token.original ?? token.valeur} » n'est pas un type de champ. Types possibles : texte, nombre, booleen, date, liste de …`,
+    `« ${token.original ?? token.valeur} » n'est pas un type de champ. Types possibles : texte, nombre, booleen, date, image, liste de …`,
     token.ligne,
   );
 }
@@ -695,6 +697,11 @@ function analyserInstruction(flux: FluxTokens): Instruction {
   }
   if (estLeMot(flux.actuel(), 'deconnecter')) {
     return { type: 'Deconnexion', ligne: flux.avancer().ligne };
+  }
+
+  // « changer le mot de passe avec champ "Actuel" et champ "Nouveau" » : celui du compte connecté.
+  if (flux.verifier('MOT_CLE', 'changer') && estLeMot(flux.regarder(1), 'mot') && estLeMot(flux.regarder(2), 'passe')) {
+    return analyserChangementMotDePasse(flux);
   }
 
   // « changer theme par sombre » : le choix clair ou sombre du visiteur.
@@ -1327,6 +1334,18 @@ function analyserConnexion(flux: FluxTokens): Connexion | ConnexionGoogle {
   flux.attendre('MOT_CLE', 'et', '« et » suivi du champ du mot de passe');
   const motDePasse = analyserOperande(flux);
   return { type: 'Connexion', email, motDePasse, ligne: debut.ligne };
+}
+
+/** « changer le mot de passe avec champ "Mot de passe actuel" et champ "Nouveau mot de passe" ». */
+function analyserChangementMotDePasse(flux: FluxTokens): ChangementMotDePasse {
+  const debut = flux.avancer();
+  flux.avancer();
+  flux.avancer();
+  flux.attendre('MOT_CLE', 'avec', '« avec champ "Mot de passe actuel" et champ "Nouveau mot de passe" » après « changer le mot de passe »');
+  const actuel = analyserOperande(flux);
+  flux.attendre('MOT_CLE', 'et', '« et » suivi du champ du nouveau mot de passe');
+  const nouveau = analyserOperande(flux);
+  return { type: 'ChangementMotDePasse', actuel, nouveau, ligne: debut.ligne };
 }
 
 function analyserCondition(flux: FluxTokens): Condition {

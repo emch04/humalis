@@ -1704,6 +1704,52 @@ You need a Google OAuth client ID ("Web application"), in the server's
 `GOOGLE_CLIENT_ID` variable, with the redirect address
 `https://your-site/auth-google.html`. Web and desktop targets only, for now.
 
+### A profile page: password and photo
+
+A signed-in person changes their password with
+`changer le mot de passe avec … et …`: first the current password, then the new
+one. The server checks the current one and refuses a weak new one (at least
+8 characters, with an uppercase letter, a lowercase letter, a digit and a
+symbol). The session stays open.
+
+An `image` field in a server data type keeps a photo chosen in the page
+(`fichier … accepte images`). The page shrinks it (480 px per side, JPEG)
+before sending it; the server checks it really is an image. It is then shown
+like an address: `image p.photo`.
+
+```humalis
+serveur "club" :
+    donnee profil :
+        nom : texte
+        photo : image
+    route "profils" :
+        tout le monde peut lire profil
+        seul admin peut creer profil
+        seul admin peut modifier profil
+
+page "profil" :
+    titre "Mon profil"
+    variable photo = rien
+    variable nom = "Camille"
+    fichier "Choisir une photo" dans photo accepte images avec maximum 5 Mo
+    bouton "Enregistrer la photo"
+    quand l'utilisateur clique sur "Enregistrer la photo" :
+        envoyer requete vers "profils" avec nom et photo
+    formulaire "secret" :
+        champ mot de passe "Mot de passe actuel" avec obligatoire
+        champ mot de passe "Nouveau mot de passe" avec obligatoire
+        bouton "Changer le mot de passe"
+    quand le formulaire "secret" est soumis :
+        essayer :
+            changer le mot de passe avec champ "Mot de passe actuel" et champ "Nouveau mot de passe"
+            afficher reussite "Mot de passe changé"
+        si erreur :
+            afficher erreur "{raison}"
+```
+
+Password change works on web, desktop and mobile; the shrunk photo, on web and
+desktop.
+
 ---
 
 ## 23. Using an existing API

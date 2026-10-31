@@ -160,6 +160,8 @@ page "accueil" :
 - Une ligne inconnue dans un serveur : dans un serveur, on écrit
 - Une connexion sans fournisseur : écrivez le fournisseur : connexion google
 - Se connecter avec Google sans le permettre au serveur : demande la ligne « connexion google »
+- Changer le mot de passe en dehors d’un événement : « changer le mot de passe » ne s'utilise que dans un événement
+- Un champ image qui reçoit autre chose qu’une image : doit accepter seulement des images
 - Un type de champ inconnu : n'est pas un type de champ
 - Une règle qui ne dit pas qui peut agir : qui peut agir
 - Une action inconnue dans une règle : n'est pas une action

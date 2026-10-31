@@ -289,6 +289,13 @@ export function verifierPourLeStatique(application: Application): Diagnostic[] {
         ligne: ecran.ligne,
       });
     }
+    if (JSON.stringify(ecran.gestionnaires).includes('"type":"changementMotDePasse"')) {
+      diagnostics.push({
+        gravite: 'erreur',
+        message: `la page « ${ecran.nom} » utilise « changer le mot de passe », qui n'est pas encore produit pour le site statique. Compile-la pour le web.`,
+        ligne: ecran.ligne,
+      });
+    }
   }
   // Un lien vers une adresse externe à trous (« …?text={message} ») : pas encore écrit en JavaScript clair.
   for (const ecran of application.ecrans) {

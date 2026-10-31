@@ -185,7 +185,8 @@ export interface Source {
 }
 
 export type TypeChamp =
-  | { genre: 'texte' }
+  /** « photo : image » : un texte pour la page (l'image reçue, réduite), vérifié comme une image par le serveur. */
+  | { genre: 'texte'; image?: true }
   | { genre: 'nombre' }
   | { genre: 'booleen' }
   | { genre: 'date' }
@@ -320,6 +321,7 @@ export type Instruction =
   | Evenement
   | Connexion
   | ConnexionGoogle
+  | ChangementMotDePasse
   | Deconnexion
   | Suppression
   | Modification
@@ -569,6 +571,14 @@ export interface Connexion {
 /** « se connecter avec google » : la fenêtre de Google, puis la session d'un compte déjà connu du serveur. */
 export interface ConnexionGoogle {
   type: 'ConnexionGoogle';
+  ligne: number;
+}
+
+/** « changer le mot de passe avec champ "Actuel" et champ "Nouveau" » : celui du compte connecté. */
+export interface ChangementMotDePasse {
+  type: 'ChangementMotDePasse';
+  actuel: Expression;
+  nouveau: Expression;
   ligne: number;
 }
 

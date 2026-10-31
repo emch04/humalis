@@ -77,6 +77,7 @@ function typeTS(type: TypeChamp): string {
 
 /** Le type d'un champ, tel que le lit src/humalis/verifier.ts. */
 function schemaChamp(type: TypeChamp): string {
+  if (type.genre === 'texte' && type.image) return "'image'";
   return type.genre === 'liste' ? `{ liste: ${schemaChamp(type.de)} }` : `'${type.genre}'`;
 }
 
@@ -84,7 +85,7 @@ function schemaChamp(type: TypeChamp): string {
 function exempleChamp(type: TypeChamp): string {
   switch (type.genre) {
     case 'texte':
-      return "'exemple'";
+      return type.image ? "''" : "'exemple'";
     case 'nombre':
       return '1';
     case 'booleen':
@@ -179,7 +180,7 @@ const VERIFIER = `/**
  * Ce n'est pas de la sécurité (elle vient des packs Astratra) : c'est
  * la description des champs, que seul le programme connaît.
  */
-export type TypeChamp = 'texte' | 'nombre' | 'booleen' | 'date' | { liste: TypeChamp };
+export type TypeChamp = 'texte' | 'nombre' | 'booleen' | 'date' | 'image' | { liste: TypeChamp };
 export type Schema = Record<string, TypeChamp>;
 
 const NOMS: Record<string, string> = {
@@ -187,11 +188,20 @@ const NOMS: Record<string, string> = {
   nombre: 'un nombre',
   booleen: 'vrai ou faux (true ou false)',
   date: 'une date (par exemple 2026-01-31)',
+  image: 'une image PNG, JPEG ou WebP de moins de 70 Ko (choisie dans la page), une adresse https://…, ou vide',
 };
+
+/** Une image reçue : réduite par la page, gardée telle quelle (data:…;base64), ou l'adresse d'une image en ligne. */
+const IMAGE = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+\/]+=*$/;
+const TAILLE_IMAGE = 95_000;
 
 function conforme(type: TypeChamp, valeur: unknown): boolean {
   if (typeof type === 'object') return Array.isArray(valeur) && valeur.every((v) => conforme(type.liste, v));
   if (type === 'texte') return typeof valeur === 'string';
+  if (type === 'image') {
+    if (typeof valeur !== 'string') return false;
+    return valeur === '' || /^https:\/\/[^\s"<>]+$/.test(valeur) || (valeur.length <= TAILLE_IMAGE && IMAGE.test(valeur));
+  }
   if (type === 'nombre') return typeof valeur === 'number' && Number.isFinite(valeur);
   if (type === 'booleen') return typeof valeur === 'boolean';
   return typeof valeur === 'string' && !Number.isNaN(Date.parse(valeur));
@@ -423,11 +433,11 @@ function serveurTs(serveur: ServeurRI): string {
     })
     .join('\n\n');
   const schemas = [...new Set(serveur.routes.map((r) => `SCHEMA_${simplifier(r.donnee).toUpperCase()}`))].join(', ');
-  const google = serveur.connexionGoogle ? ROUTE_GOOGLE : '';
+  const google = (serveur.connexionGoogle ? ROUTE_GOOGLE : '') + ROUTE_MOT_DE_PASSE;
 
   return `// Produit par Humalis : le serveur « ${serveur.nom} », assemblé avec les packs Astratra.
 import { createSaasApp, type UsersStore } from '@astratra/saas-kit';
-import { ${serveur.connexionGoogle ? 'createGoogleIdTokenVerifier, IdTokenError, ' : ''}verifyPasswordHash } from '@astratra/security';
+import { ${serveur.connexionGoogle ? 'createGoogleIdTokenVerifier, IdTokenError, ' : ''}createLoginLimiter, hashPassword, isStrongPassword, verifyPasswordHash } from '@astratra/security';
 import express, { type RequestHandler } from 'express';
 import { ${schemas} } from './donnees.js';
 import type { Stockage } from './humalis/stockage.js';
@@ -690,6 +700,37 @@ Ce dossier est réécrit à chaque compilation Humalis (fichier \`${MARQUE_SERVE
  * vérifie (signature, émetteur, destinataire, nonce). Seul un compte déjà connu du serveur, dont
  * Google confirme l'adresse, ouvre sa session — la même que /auth/login (issueSession).
  */
+/** « changer le mot de passe » : celui du compte connecté, après vérification de l'actuel. */
+const ROUTE_MOT_DE_PASSE = `
+      // « changer le mot de passe » : le compte connecté donne l'actuel ; un nouveau trop faible est refusé.
+      // Le limiteur compte les essais comme pour la connexion : on devine un secret.
+      app.post('/auth/mot-de-passe', createLoginLimiter(), authMiddleware, csrfMiddleware, async (req, res, next) => {
+        try {
+          const corps = (req.body ?? {}) as { actuel?: unknown; nouveau?: unknown };
+          const actuel = typeof corps.actuel === 'string' ? corps.actuel : '';
+          const nouveau = typeof corps.nouveau === 'string' ? corps.nouveau : '';
+          const id = (req as unknown as { user?: { id?: unknown } }).user?.id;
+          const compte = typeof id === 'string' ? await usersStore.findById(id) : null;
+          if (!compte) {
+            res.status(401).json({ erreur: 'connecte-toi de nouveau' });
+            return;
+          }
+          if (typeof compte.passwordHash !== 'string' || !(await verifyPasswordHash(actuel, compte.passwordHash))) {
+            res.status(403).json({ erreur: 'le mot de passe actuel est incorrect' });
+            return;
+          }
+          if (!isStrongPassword(nouveau)) {
+            res.status(400).json({ erreur: 'le nouveau mot de passe est trop faible : au moins 8 caractères, avec une majuscule, une minuscule, un chiffre et un signe' });
+            return;
+          }
+          await usersStore.update(String(compte.id), { passwordHash: await hashPassword(nouveau) });
+          res.json({ change: true });
+        } catch (erreur) {
+          next(erreur);
+        }
+      });
+`;
+
 const ROUTE_GOOGLE = `
       // « connexion google » : un compte déjà connu du serveur, dont Google confirme l'adresse, ouvre sa session.
       const issueSession = (contexte as unknown as { issueSession: (res: unknown, compte: unknown) => Promise<unknown> }).issueSession;
