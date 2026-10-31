@@ -24,7 +24,8 @@ page "mentions_legales" a l'adresse "/mentions-legales" :
             lien "github.com/emch04/humalis/issues ↗" sans traduction vers "https://github.com/emch04/humalis/issues" avec nouvel onglet
         bloc avec style "legal-bloc" :
             soustitre "Hébergement" en anglais "Hosting"
-            texte "Le nom, l’adresse et le téléphone de l’hébergeur seront indiqués ici à la mise en ligne du site." en anglais "The host’s name, address and phone number will be given here when the website goes live."
+            texte "Le site est hébergé par Cloudflare, Inc., 101 Townsend St, San Francisco, CA 94107, États-Unis. Téléphone : +1 (650) 319-8930." en anglais "The website is hosted by Cloudflare, Inc., 101 Townsend St, San Francisco, CA 94107, United States. Phone: +1 (650) 319-8930."
+            lien "cloudflare.com ↗" sans traduction vers "https://www.cloudflare.com" avec nouvel onglet
         bloc avec style "legal-bloc" :
             soustitre "Propriété intellectuelle" en anglais "Intellectual property"
             texte "Le langage Humalis, son compilateur et ce site sont distribués sous la Licence Humalis 1.0. © 2026 Les auteurs de Humalis. Tous droits réservés, sauf ce que la licence permet." en anglais "The Humalis language, its compiler and this website are distributed under the Humalis License 1.0. © 2026 The Humalis authors. All rights reserved, except what the license allows."
