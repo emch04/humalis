@@ -24,9 +24,7 @@
   ],
   "icon": "images/icon.png",
   "main": "./dist/extension.js",
-  "activationEvents": [
-    "onLanguage:humalis"
-  ],
+  "activationEvents": [],
   "contributes": {
     "languages": [
       {
