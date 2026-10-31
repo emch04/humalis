@@ -704,7 +704,8 @@ Ce dossier est réécrit à chaque compilation Humalis (fichier \`${MARQUE_SERVE
 const ROUTE_MOT_DE_PASSE = `
       // « changer le mot de passe » : le compte connecté donne l'actuel ; un nouveau trop faible est refusé.
       // Le limiteur compte les essais comme pour la connexion : on devine un secret.
-      app.post('/auth/mot-de-passe', createLoginLimiter(), authMiddleware, csrfMiddleware, async (req, res, next) => {
+      const routeMotDePasse = express.Router();
+      routeMotDePasse.post('/', createLoginLimiter() as unknown as RequestHandler, authMiddleware, csrfMiddleware, async (req, res, next) => {
         try {
           const corps = (req.body ?? {}) as { actuel?: unknown; nouveau?: unknown };
           const actuel = typeof corps.actuel === 'string' ? corps.actuel : '';
@@ -729,6 +730,7 @@ const ROUTE_MOT_DE_PASSE = `
           next(erreur);
         }
       });
+      app.use('/auth/mot-de-passe', routeMotDePasse);
 `;
 
 const ROUTE_GOOGLE = `
@@ -741,7 +743,7 @@ const ROUTE_GOOGLE = `
       routeGoogle.get('/', (_req, res) => {
         res.json({ clientId: googleClientId ?? null });
       });
-      routeGoogle.post('/', createLoginLimiter(), csrfMiddleware, async (req, res, next) => {
+      routeGoogle.post('/', createLoginLimiter() as unknown as RequestHandler, csrfMiddleware, async (req, res, next) => {
         if (!google) {
           res.status(503).json({ erreur: "la connexion avec Google n'est pas réglée sur ce serveur (GOOGLE_CLIENT_ID)" });
           return;

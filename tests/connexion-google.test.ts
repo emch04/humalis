@@ -53,7 +53,7 @@ describe('connexion avec Google', () => {
     const fichiers = genererProjetServeur(application.serveurs[0], { nom: 'b', source: 'b.humalis' } as never);
     const serveur = fichiers.get('src/serveur.ts')!;
     expect(serveur).toContain("import { createGoogleIdTokenVerifier, IdTokenError, createLoginLimiter, hashPassword, isStrongPassword, verifyPasswordHash } from '@astratra/security';");
-    expect(serveur).toContain("routeGoogle.post('/', createLoginLimiter(), csrfMiddleware, async (req, res, next) => {");
+    expect(serveur).toContain("routeGoogle.post('/', createLoginLimiter() as unknown as RequestHandler, csrfMiddleware, async (req, res, next) => {");
     // Comme Tertius et Solvia : le compte est lié au « sub » de Google ; un autre compte Google est refusé.
     expect(serveur).toContain("compte.googleSubject !== profil.subject");
     expect(serveur).toContain("usersStore.update(String(compte.id), { googleSubject: profil.subject })");

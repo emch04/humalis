@@ -68,7 +68,8 @@ describe('page de profil : mot de passe et photo', () => {
   it('serveur : la route vérifie l’actuel et la force du nouveau ; le champ image a son schéma', () => {
     const fichiers = genererProjetServeur(compiler(source()).application!.serveurs[0], { nom: 'b', source: 'b.humalis' } as never);
     const serveur = fichiers.get('src/serveur.ts')!;
-    expect(serveur).toContain("app.post('/auth/mot-de-passe', createLoginLimiter(), authMiddleware, csrfMiddleware");
+    expect(serveur).toContain("routeMotDePasse.post('/', createLoginLimiter() as unknown as RequestHandler, authMiddleware, csrfMiddleware");
+    expect(serveur).toContain("app.use('/auth/mot-de-passe', routeMotDePasse);");
     expect(serveur).toContain('verifyPasswordHash(actuel, compte.passwordHash)');
     expect(serveur).toContain('if (!isStrongPassword(nouveau))');
     expect(serveur).toContain('passwordHash: await hashPassword(nouveau)');
