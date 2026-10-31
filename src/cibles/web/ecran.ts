@@ -2401,6 +2401,8 @@ function lecturesDirectes(action: Action): Set<string> {
     }
     const objet = valeur as Record<string, unknown>;
     if (objet.type === 'variable' && typeof objet.nom === 'string') lues.add(objet.nom);
+    // Le trou d'un texte (« https://wa.me/{numero} ») : { variable: "numero" } ou « reglage.whatsapp ».
+    if (objet.type === undefined && typeof objet.variable === 'string') lues.add(objet.variable.split('.')[0]);
     for (const v of Object.values(objet)) visiter(v);
   };
   visiter(action);

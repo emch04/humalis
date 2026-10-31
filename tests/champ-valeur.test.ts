@@ -77,4 +77,22 @@ describe('valeur courante d’un champ dans une action', () => {
     expect(web).toContain('taille: tailleMaj');
     expect(web).not.toContain('taille: taille }');
   });
+
+  it('relit la valeur à jour d’une variable écrite dans un trou d’adresse, changée dans un « si »', () => {
+    const source = programme(
+      'page "panier" :',
+      '>variable numero = "243000000000"',
+      '>variable autre = ""',
+      '>bouton "Commander"',
+      '>quand l\'utilisateur clique sur "Commander" :',
+      '>>si autre n\'est pas vide :',
+      '>>>changer numero par autre',
+      '>>rediriger vers "https://wa.me/{numero}?text=Bonjour"',
+    );
+    const { application, diagnostics } = compiler(source);
+    expect(diagnostics.filter((d) => d.gravite === 'erreur')).toEqual([]);
+    const web = genererProjetWeb(application!, { nom: 'a', adresse: 'https://a.exemple.fr', source: 'a.humalis' }).get('src/pages/Panier.tsx')!;
+    expect(web).toContain('numeroMaj = autre;');
+    expect(web).toContain('https://wa.me/${numeroMaj');
+  });
 });
