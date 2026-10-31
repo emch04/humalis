@@ -249,7 +249,8 @@ describe('champs — cible web', () => {
     expect(tout).toContain('<input data-humalis="champ_age" type="number" min={0} max={130} value={champAge}');
     expect(tout).toContain('<input data-humalis="champ_naissance" type="date" value={champNaissance}');
     expect(tout).toContain('<input data-humalis="champ_heure" type="time" value={champHeure}');
-    expect(tout).toContain('<input data-humalis="champ_mot_de_passe" type="password" autoComplete="new-password" value={champMotDePasse}');
+    // Un mot de passe a son œil (« Afficher le mot de passe ») ; le composant garde le type « password » tant qu'on ne clique pas.
+    expect(tout).toContain('<MotDePasse data-humalis="champ_mot_de_passe" autoComplete="new-password" value={champMotDePasse}');
     expect(tout).toContain(
       '<textarea data-humalis="champ_presentation" rows={4} value={champPresentation} onChange={(evenement) => setChampPresentation(evenement.target.value)} />',
     );

@@ -266,7 +266,7 @@ describe('formulaire — cible web', () => {
     );
     // Les champs de « se connecter » gardent leur rôle pour le navigateur.
     expect(code).toContain('type="email" autoComplete="username"');
-    expect(code).toContain('type="password" autoComplete="current-password"');
+    expect(code).toContain('<MotDePasse data-humalis="champ_mot_de_passe" autoComplete="current-password"');
   });
 
   it('garde « type="button" » pour un bouton qui a son propre clic', () => {

@@ -181,7 +181,9 @@ describe('connexion — cible web', () => {
   const session = fichiers.get('src/humalis/session.tsx')!;
 
   it('le champ du mot de passe est un champ caché, celui de l’email un champ email', () => {
-    expect(page).toContain('<input data-humalis="champ_mot_de_passe" type="password" autoComplete="current-password"');
+    expect(page).toContain('<MotDePasse data-humalis="champ_mot_de_passe" autoComplete="current-password"');
+    expect(fichiers.get('src/humalis/mot-de-passe.tsx')).toContain("type={visible ? 'text' : 'password'}");
+    expect(fichiers.get('src/humalis/mot-de-passe.tsx')).toContain("aria-label={visible ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}");
     expect(page).toContain('<input data-humalis="champ_email" type="email" autoComplete="username"');
   });
 
