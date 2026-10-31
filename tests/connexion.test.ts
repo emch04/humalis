@@ -71,7 +71,7 @@ describe('connexion — parser', () => {
 
   it('demande « avec » et deux champs', () => {
     expect(compiler(programme('page "a" :', '>quand la page se charge :', '>>se connecter')).diagnostics[0].message).toBe(
-      'il manque « avec champ "email" et champ "mot de passe" » après « se connecter » : à la place, on trouve la fin de la ligne',
+      'il manque « avec champ "email" et champ "mot de passe" » (ou « avec google ») après « se connecter » : à la place, on trouve la fin de la ligne',
     );
     expect(compiler(programme('page "a" :', '>champ "email"', '>quand la page se charge :', '>>se connecter avec champ "email"')).diagnostics[0].message).toBe(
       'il manque « et » suivi du champ du mot de passe : à la place, on trouve la fin de la ligne',

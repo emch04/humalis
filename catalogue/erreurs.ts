@@ -1894,6 +1894,62 @@ serveur "boutique" :
 `),
     'dans un serveur, on écrit',
     { gravite: 'erreur' }),
+  e('connexion-sans-fournisseur', 'grammaire', 'Une connexion sans fournisseur',
+    "Dans un serveur, « connexion » ouvre une autre porte que l'email et le mot de passe ; pour l'instant, seul Google est possible.",
+    'Écris connexion google.',
+    p(`
+serveur "boutique" :
+    connexion apple
+    donnee produit :
+        nom : texte
+    route "produits" :
+        tout le monde peut lire produit
+        seul admin peut modifier produit
+`),
+    p(`
+serveur "boutique" :
+    connexion google
+    donnee produit :
+        nom : texte
+    route "produits" :
+        tout le monde peut lire produit
+        seul admin peut modifier produit
+`),
+    'écrivez le fournisseur : connexion google',
+    { gravite: 'erreur' }),
+  e('connexion-google-sans-serveur', 'sens', 'Se connecter avec Google sans le permettre au serveur',
+    "« se connecter avec google » passe par le serveur du fichier : il doit l'accepter, avec la ligne « connexion google ».",
+    'Ajoute connexion google dans le bloc serveur.',
+    p(`
+serveur "boutique" :
+    donnee produit :
+        nom : texte
+    route "produits" :
+        tout le monde peut lire produit
+        seul admin peut modifier produit
+
+page "connexion" :
+    titre "Connexion"
+    bouton "Google"
+    quand l'utilisateur clique sur "Google" :
+        se connecter avec google
+`),
+    p(`
+serveur "boutique" :
+    connexion google
+    donnee produit :
+        nom : texte
+    route "produits" :
+        tout le monde peut lire produit
+        seul admin peut modifier produit
+
+page "connexion" :
+    titre "Connexion"
+    bouton "Google"
+    quand l'utilisateur clique sur "Google" :
+        se connecter avec google
+`),
+    'demande la ligne « connexion google »'),
   e('type-de-champ-inconnu', 'grammaire', 'Un type de champ inconnu',
     'Chaque champ d’une donnée a un type : texte, nombre, booleen, date, ou liste de … .',
     'Choisis un des types listés par le message.',

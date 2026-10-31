@@ -280,6 +280,16 @@ export function verifierPourLeStatique(application: Application): Diagnostic[] {
       });
     }
   }
+  // « se connecter avec google » : pas encore écrit en JavaScript clair.
+  for (const ecran of application.ecrans) {
+    if (JSON.stringify(ecran.gestionnaires).includes('"type":"connexionGoogle"')) {
+      diagnostics.push({
+        gravite: 'erreur',
+        message: `la page « ${ecran.nom} » utilise « se connecter avec google », qui n'est pas encore produit pour le site statique. Compile-la pour le web.`,
+        ligne: ecran.ligne,
+      });
+    }
+  }
   // Un lien vers une adresse externe à trous (« …?text={message} ») : pas encore écrit en JavaScript clair.
   for (const ecran of application.ecrans) {
     if (JSON.stringify(ecran.vue).includes('"externeValeur"')) {

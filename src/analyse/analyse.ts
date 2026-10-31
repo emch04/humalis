@@ -179,6 +179,8 @@ interface Liens {
   /** Les sources (API existantes) du programme. */
   sources: Map<string, InfoSource>;
   serveur?: string;
+  /** « connexion google » dans le serveur du fichier. */
+  connexionGoogle?: boolean;
   routes: Map<string, { adresse: string; donnee: Donnee; droits: Droits }>;
   donnees: Map<string, Donnee>;
 }
@@ -293,7 +295,7 @@ export function analyserSens(programme: Programme, classesCss?: Set<string>): Re
   );
   const partages = globale.declarerPartages(programme.partages);
 
-  const liens: Liens = { sources: new Map(), serveur: programme.serveurs[0]?.nom, routes: new Map(), donnees: new Map() };
+  const liens: Liens = { sources: new Map(), serveur: programme.serveurs[0]?.nom, connexionGoogle: programme.serveurs[0]?.connexionGoogle !== undefined, routes: new Map(), donnees: new Map() };
   for (const serveur of programme.serveurs) {
     for (const donnee of serveur.donnees) liens.donnees.set(donnee.nom, donnee);
     for (const route of serveur.routes) {
@@ -868,12 +870,16 @@ class AnalysePage {
       }
 
       case 'Connexion':
+      case 'ConnexionGoogle':
       case 'Deconnexion': {
-        const nom = instruction.type === 'Connexion' ? 'se connecter' : 'se deconnecter';
+        const nom = instruction.type === 'Deconnexion' ? 'se deconnecter' : instruction.type === 'ConnexionGoogle' ? 'se connecter avec google' : 'se connecter';
         this.litLaSession = true;
         if (contexte === 'vue') this.horsEvenement(nom, instruction.ligne);
         this.demandeUnServeur(nom, instruction.ligne);
         if (instruction.type === 'Connexion') this.connexion(instruction);
+        if (instruction.type === 'ConnexionGoogle' && this.liens.serveur !== undefined && !this.liens.connexionGoogle) {
+          this.erreur(`« se connecter avec google » demande la ligne « connexion google » dans le serveur "${this.liens.serveur}".`, instruction.ligne);
+        }
         return;
       }
 
@@ -2485,6 +2491,8 @@ function actionInterditeDansUneFonction(instruction: Instruction): string | unde
       return 'envoyer requete';
     case 'Connexion':
       return 'se connecter';
+    case 'ConnexionGoogle':
+      return 'se connecter avec google';
     case 'Deconnexion':
       return 'se deconnecter';
     case 'Suppression':

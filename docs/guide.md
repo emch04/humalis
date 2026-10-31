@@ -1593,6 +1593,38 @@ page "commande" :
 Dans `si erreur :`, `raison` dit ce qui n'a pas marché. Dans un formulaire, les
 champs restent remplis.
 
+
+### Se connecter avec Google
+
+Avec la ligne `connexion google` dans le serveur, un compte **déjà connu** du
+serveur peut se connecter avec Google : la fenêtre de Google s'ouvre, et si
+Google confirme une adresse qui correspond à un compte, la session s'ouvre,
+sans mot de passe. Une adresse inconnue est refusée : personne ne se crée un
+accès tout seul.
+
+```humalis
+serveur "boutique" :
+    connexion google
+    donnee commande :
+        nom : texte
+    route "commandes" :
+        seul admin peut lire commande
+
+page "connexion" :
+    titre "Connexion"
+    bouton "Continuer avec Google"
+    quand l'utilisateur clique sur "Continuer avec Google" :
+        essayer :
+            se connecter avec google
+            rediriger vers "connexion"
+        si erreur :
+            afficher erreur "Connexion refusée : {raison}"
+```
+
+Il faut un ID client OAuth de Google (type « application Web »), dans la
+variable `GOOGLE_CLIENT_ID` du serveur, avec l'adresse de redirection
+`https://ton-site/auth-google.html`. Cible web et bureau seulement, pour l'instant.
+
 ---
 
 ## 23. Utiliser une API qui existe déjà

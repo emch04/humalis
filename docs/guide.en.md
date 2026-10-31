@@ -1673,6 +1673,37 @@ page "order_page" :
 `essayer` means "try"; inside `si erreur :` ("if error"), `raison` says what
 went wrong. In a form, the fields stay filled in.
 
+
+### Logging in with Google
+
+With the line `connexion google` in the server, an account the server
+**already knows** can log in with Google: Google's window opens, and if Google
+confirms an address that matches an account, the session opens, with no
+password. An unknown address is refused: nobody gives themselves access.
+
+```humalis
+serveur "shop" :
+    connexion google
+    donnee order :
+        name : texte
+    route "orders" :
+        seul admin peut lire order
+
+page "login" :
+    titre "Log in"
+    bouton "Continue with Google"
+    quand l'utilisateur clique sur "Continue with Google" :
+        essayer :
+            se connecter avec google
+            rediriger vers "login"
+        si erreur :
+            afficher erreur "Login refused: {raison}"
+```
+
+You need a Google OAuth client ID ("Web application"), in the server's
+`GOOGLE_CLIENT_ID` variable, with the redirect address
+`https://your-site/auth-google.html`. Web and desktop targets only, for now.
+
 ---
 
 ## 23. Using an existing API

@@ -175,6 +175,7 @@ function serveurRI(serveur: Serveur): ServeurRI {
         const droits = droitsDeRoute(route);
         return { adresse: route.adresse, donnee: route.regles[0].donnee, droits, ligne: route.ligne };
       }),
+    ...(serveur.connexionGoogle !== undefined ? { connexionGoogle: true } : {}),
   };
 }
 
@@ -594,6 +595,10 @@ class Construction {
 
         case 'Connexion':
           actions.push({ type: 'connexion', email: this.valeur(instruction.email), motDePasse: this.valeur(instruction.motDePasse) });
+          break;
+
+        case 'ConnexionGoogle':
+          actions.push({ type: 'connexionGoogle' });
           break;
 
         case 'Deconnexion':

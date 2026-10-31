@@ -43,7 +43,7 @@ export function genererProjetServeur(serveur: ServeurRI, options: OptionsServeur
   fichiers.set('package.json', packageJson(options.nom));
   fichiers.set('tsconfig.json', TSCONFIG);
   fichiers.set('.gitignore', 'node_modules\ndist\n.env\n');
-  fichiers.set('.env.exemple', ENV_EXEMPLE);
+  fichiers.set('.env.exemple', serveur.connexionGoogle ? ENV_EXEMPLE.replace('\nPORT=3000', ENV_GOOGLE + '\nPORT=3000') : ENV_EXEMPLE);
   fichiers.set('LISEZMOI.md', lisezmoi(serveur, options));
   fichiers.set('src/humalis/verifier.ts', VERIFIER);
   fichiers.set('src/humalis/stockage.ts', STOCKAGE);
@@ -149,6 +149,13 @@ const TSCONFIG = JSON.stringify(
   null,
   2,
 ) + '\n';
+
+/** « connexion google » : l'ID client OAuth de Google (pas un secret). */
+const ENV_GOOGLE = `# La connexion avec Google (« connexion google ») : l'ID client OAuth d'une
+# application Web, créé dans la Google Cloud Console (ce n'est pas un secret).
+# Adresses de redirection autorisées : https://ton-site/auth-google.html
+GOOGLE_CLIENT_ID=
+`;
 
 const ENV_EXEMPLE = `# Copie ce fichier en .env et remplis-le. Ne le publie jamais.
 
@@ -416,10 +423,11 @@ function serveurTs(serveur: ServeurRI): string {
     })
     .join('\n\n');
   const schemas = [...new Set(serveur.routes.map((r) => `SCHEMA_${simplifier(r.donnee).toUpperCase()}`))].join(', ');
+  const google = serveur.connexionGoogle ? ROUTE_GOOGLE : '';
 
   return `// Produit par Humalis : le serveur « ${serveur.nom} », assemblé avec les packs Astratra.
 import { createSaasApp, type UsersStore } from '@astratra/saas-kit';
-import { verifyPasswordHash } from '@astratra/security';
+import { ${serveur.connexionGoogle ? 'createGoogleIdTokenVerifier, IdTokenError, ' : ''}verifyPasswordHash } from '@astratra/security';
 import express, { type RequestHandler } from 'express';
 import { ${schemas} } from './donnees.js';
 import type { Stockage } from './humalis/stockage.js';
@@ -431,7 +439,7 @@ export interface OptionsDuServeur {
   usersStore: UsersStore;
   stockages: {
 ${stockages}
-  };
+  };${serveur.connexionGoogle ? '\n  /** L\'ID client OAuth de Google (« connexion google ») ; sans lui, la connexion avec Google est fermée. */\n  googleClientId?: string;' : ''}
 }
 
 const introuvable = (donnee: string) => \`aucun « \${donnee} » avec cet identifiant\`;
@@ -446,7 +454,7 @@ const refuse: RequestHandler = (_req, res) => {
  * limites et les en-têtes de sécurité viennent de createSaasApp. Les
  * routes des données s'ajoutent par extendRoutes, avec les gardes du pack.
  */
-export function creerServeur({ jwtSecret, usersStore, stockages }: OptionsDuServeur) {
+export function creerServeur({ jwtSecret, usersStore, stockages${serveur.connexionGoogle ? ', googleClientId' : ''} }: OptionsDuServeur) {
   return createSaasApp({
     jwtSecret,
     usersStore,
@@ -464,7 +472,7 @@ export function creerServeur({ jwtSecret, usersStore, stockages }: OptionsDuServ
         connecte: [authMiddleware],
         seulAdmin: [authMiddleware, authorizeAdmin],
       };
-
+${google}
 ${routes}
     },
   });
@@ -518,7 +526,7 @@ if (email && motDePasse && !(await usersStore.findByEmail(email))) {
 }
 
 const port = Number(process.env.PORT ?? 3000);
-const app = creerServeur({ jwtSecret, usersStore, stockages }) as unknown as { listen(port: number, pret: () => void): unknown };
+const app = creerServeur({ jwtSecret, usersStore, stockages${serveur.connexionGoogle ? ', googleClientId: process.env.GOOGLE_CLIENT_ID || undefined' : ''} }) as unknown as { listen(port: number, pret: () => void): unknown };
 app.listen(port, () => {
   console.log(\`Serveur « ${serveur.nom} » prêt : http://localhost:\${port}${premiere}\`);
 });
@@ -676,3 +684,43 @@ dépendances : \`npm audit\`.
 Ce dossier est réécrit à chaque compilation Humalis (fichier \`${MARQUE_SERVEUR}\`).
 `;
 }
+
+/**
+ * « connexion google » : la fenêtre de Google rend un jeton d'identité ; le pack de sécurité le
+ * vérifie (signature, émetteur, destinataire, nonce). Seul un compte déjà connu du serveur, dont
+ * Google confirme l'adresse, ouvre sa session — la même que /auth/login (issueSession).
+ */
+const ROUTE_GOOGLE = `
+      // « connexion google » : un compte déjà connu du serveur, dont Google confirme l'adresse, ouvre sa session.
+      const issueSession = (contexte as unknown as { issueSession: (res: unknown, compte: unknown) => Promise<unknown> }).issueSession;
+      const google = googleClientId ? createGoogleIdTokenVerifier({ audiences: [googleClientId] }) : null;
+      app.get('/auth/google', (_req, res) => {
+        res.json({ clientId: googleClientId ?? null });
+      });
+      app.post('/auth/google', csrfMiddleware, async (req, res, next) => {
+        if (!google) {
+          res.status(503).json({ erreur: "la connexion avec Google n'est pas réglée sur ce serveur (GOOGLE_CLIENT_ID)" });
+          return;
+        }
+        try {
+          const corps = (req.body ?? {}) as { idToken?: unknown; nonce?: unknown };
+          const profil = await google(String(corps.idToken ?? ''), typeof corps.nonce === 'string' ? { nonce: corps.nonce } : undefined);
+          if (!profil.email || !profil.emailVerified) {
+            res.status(403).json({ erreur: "Google n'a pas confirmé l'adresse de ce compte" });
+            return;
+          }
+          const compte = await usersStore.findByEmail(profil.email);
+          if (!compte) {
+            res.status(403).json({ erreur: "ce compte Google n'a pas accès à l'application" });
+            return;
+          }
+          res.json(await issueSession(res, compte));
+        } catch (erreur) {
+          if (erreur instanceof IdTokenError) {
+            res.status(401).json({ erreur: "la connexion avec Google n'a pas pu être vérifiée" });
+            return;
+          }
+          next(erreur);
+        }
+      });
+`;

@@ -158,6 +158,8 @@ page "accueil" :
 - « parametre » en dehors d’un composant : ne s'utilise qu'au début d'un composant
 - Un paramètre de composant oublié : n'est pas donné
 - Une ligne inconnue dans un serveur : dans un serveur, on écrit
+- Une connexion sans fournisseur : écrivez le fournisseur : connexion google
+- Se connecter avec Google sans le permettre au serveur : demande la ligne « connexion google »
 - Un type de champ inconnu : n'est pas un type de champ
 - Une règle qui ne dit pas qui peut agir : qui peut agir
 - Une action inconnue dans une règle : n'est pas une action
