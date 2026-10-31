@@ -125,7 +125,9 @@ export function expression(valeur: Valeur, contexte: Contexte): string {
       return contexte.sortes?.get(valeur.id) === 'nombre' ? `Number(${variable}.replace(',', '.'))` : variable;
     }
     case 'calcul': {
-      const membre = (v: Valeur) => (aParentheser(v) ? `(${expression(v, contexte)})` : expression(v, contexte));
+      // Un champ d'une donnée pas encore chargée (« produit?.prix ») compte pour 0 dans un calcul.
+      const facultatif = (v: Valeur) => v.type === 'champDonnee' && v.objet.type === 'variable' && contexte.facultatives?.has(v.objet.nom);
+      const membre = (v: Valeur) => (facultatif(v) ? `(${expression(v, contexte)} ?? 0)` : aParentheser(v) ? `(${expression(v, contexte)})` : expression(v, contexte));
       return `${membre(valeur.gauche)} ${valeur.operateur} ${membre(valeur.droite)}`;
     }
     case 'compte':

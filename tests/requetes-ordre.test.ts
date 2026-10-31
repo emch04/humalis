@@ -107,4 +107,42 @@ describe('requêtes : ordre des lignes et noms donnés', () => {
     const page = genererProjetWeb(compiler(source).application!, { nom: 'b', adresse: 'https://b.cd', source: 'b.humalis' }).get('src/pages/Produit.tsx')!;
     expect(page).toContain("usePage((produit?.nom || 'Produit') + ' | Boutique'");
   });
+
+  it('web : le code produit se construit (types) — composant qui reçoit des données, calcul sur un produit pas encore chargé, panier rempli plus tard', () => {
+    const source = programme(
+      'serveur "boutique" :',
+      '>donnee produit :',
+      '>>nom : texte',
+      '>>prix : nombre',
+      '>route "produits" :',
+      '>>tout le monde peut lire produit',
+      '',
+      'composant "Carte" :',
+      '>parametre modele',
+      '>calcul premier_produit = premier de modele.elements',
+      '>texte premier_produit.nom',
+      '',
+      'page "produit" avec parametre id :',
+      '>variable produit = rien',
+      '>variable produits = []',
+      '>variable lignes = []',
+      '>variable quantite = 1',
+      '>quand la page se charge :',
+      '>>envoyer requete vers "produits" avec id dans produit',
+      '>>envoyer requete vers "produits" dans produits',
+      '>calcul modeles = grouper produits par nom',
+      '>titre "Produit"',
+      '>pour chaque m dans modeles :',
+      '>>Carte avec modele m',
+      '>bouton "Ajouter"',
+      '>quand l\'utilisateur clique sur "Ajouter" :',
+      '>>ajouter fiche avec ref produit.nom et montant produit.prix * quantite à lignes',
+    );
+    expect(erreurs(source)).toEqual([]);
+    const fichiers = genererProjetWeb(compiler(source).application!, { nom: 'b', adresse: 'https://b.cd', source: 'b.humalis' });
+    expect(fichiers.get('src/composants/Carte.tsx')).toContain("import type { Produit } from '../humalis/donnees';");
+    const page = fichiers.get('src/pages/Produit.tsx')!;
+    expect(page).toContain('(produit?.prix ?? 0) * quantite');
+    expect(page).toContain('useState<any[]>([])');
+  });
 });
