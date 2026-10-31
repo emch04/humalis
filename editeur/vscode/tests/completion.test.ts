@@ -28,6 +28,7 @@ describe('completer : en début de ligne', () => {
     expect(libelles(completerA('page "a" :\n    titre "Bienvenue" ‸'))).not.toContain('en anglais "…"');
     expect(libelles(completerA(`${langues}page "a" :\n    bouton "A"\n    quand l'utilisateur clique sur "A" :\n        si langue est ‸`))).toEqual(['français', 'anglais']);
     expect(libelles(completerA(`${langues}page "a" :\n    bouton "A"\n    quand l'utilisateur clique sur "A" :\n        changer langue par ‸`))).toEqual(['français', 'anglais']);
+    expect(libelles(completerA(`langues : francais, anglais\n\npage "a" :\n    bouton "A"\n    quand l'utilisateur clique sur "A" :\n        changer langue par ‸`))).toEqual(['français', 'anglais']);
     const selecteur = completerA(`${langues}page "a" :\n    sel‸`).propositions.find((p) => p.libelle === 'sélecteur');
     expect(selecteur?.insertion).toBe('selecteur de langue');
   });

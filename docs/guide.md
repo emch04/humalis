@@ -1741,6 +1741,8 @@ page "catalogue" :
     lien "Retour à l'accueil" en anglais "Back to home" vers "accueil"
 ```
 
+- Les langues tiennent aussi sur une ligne, séparées par des virgules :
+  `langues : francais, anglais` revient au même que le bloc.
 - `en anglais "…"` donne la version d'un texte.
 - `sans traduction` garde le même texte dans toutes les langues, pour un nom
   propre : `lien "GitHub" sans traduction vers "https://github.com"`.

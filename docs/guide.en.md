@@ -1824,7 +1824,8 @@ page "catalogue" :
     lien "Back to home" en francais "Retour à l'accueil" vers "home"
 ```
 
-- `langues :` lists the languages (`francais`, `anglais`…).
+- `langues :` lists the languages (`francais`, `anglais`…), one per line or
+  on the same line separated by commas: `langues : anglais, francais`.
 - `en francais "…"` gives another language's version of a text.
 - `sans traduction` ("without translation") keeps the same text in every
   language, for a proper noun: `lien "GitHub" sans traduction vers "https://github.com"`.
