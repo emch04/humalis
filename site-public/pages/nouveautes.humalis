@@ -14,8 +14,19 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
             colonne avec style "frise" et animation montee au defilement et en cascade :
                 bloc avec style "version version-recente" :
                     ligne avec style "version-tete" :
-                        texte "1.2.0" sans traduction avec style "version-numero"
+                        texte "1.3.0" sans traduction avec style "version-numero"
                         texte "Dernière version" en anglais "Latest" avec style "pastille pastille-vive"
+                        texte "31 octobre 2026" en anglais "October 31, 2026" avec style "version-date"
+                    soustitre "Des pages qui tiennent dans l’écran" en anglais "Pages that fit the screen"
+                    liste :
+                        texte "{code "entete avec fixe :"} garde l’en-tête immobile : seule la zone en dessous défile." en anglais "{code "entete avec fixe :"} keeps the header still: only the area below it scrolls."
+                        texte "{code "hauteur ecran"} fait remplir l’écran à un bloc, sous l’en-tête ; {code "defilement interne"} donne à un bloc son propre défilement, comme un sommaire ou une frise." en anglais "{code "hauteur ecran"} makes a block fill the screen below the header; {code "defilement interne"} gives a block its own scrolling, like a table of contents or a timeline."
+                        texte "{code "humalis verifier"} signale un style écrit dans {code "avec style"} mais absent du CSS, avec le nom le plus proche, et une règle CSS qui écrase une classe Humalis avec {code "!important"}." en anglais "{code "humalis verifier"} reports a style used in {code "avec style"} but missing from the CSS, with the closest name, and a CSS rule that overrides a Humalis class with {code "!important"}."
+                        texte "Avec {code "humalis developper"}, chaque élément de la page porte son fichier et sa ligne Humalis ; Alt + survol affiche ce repère près du curseur." en anglais "With {code "humalis developper"}, every element on the page carries its Humalis file and line; Alt + hover shows it next to the cursor."
+                        texte "Correction : les pages préparées à l’avance sont écrites dans la langue de base du site, quelle que soit la langue de l’outil qui les prépare." en anglais "Fix: prerendered pages are written in the site’s base language, whatever the language of the tool that prepares them."
+                bloc avec style "version" :
+                    ligne avec style "version-tete" :
+                        texte "1.2.0" sans traduction avec style "version-numero"
                         texte "30 octobre 2026" en anglais "October 30, 2026" avec style "version-date"
                     soustitre "Des menus et des titres mieux rangés" en anglais "Better menus and headings"
                     liste :
@@ -63,7 +74,7 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
         colonne avec style "nouveautes-aside" et animation montee au defilement et en cascade :
             bloc avec style "aside-carte aside-vive" :
                 texte "Version actuelle" en anglais "Current version" avec style "aside-etiquette"
-                texte "1.2.0" sans traduction avec style "aside-version"
+                texte "1.3.0" sans traduction avec style "aside-version"
                 texte "Pour mettre à jour Humalis sur ta machine :" en anglais "To update Humalis on your machine:"
                 ligne avec style "install-command" :
                     texte "npm install -g humalis" sans traduction avec style "install-code"
@@ -74,7 +85,7 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
                 texte "En bref" en anglais "At a glance" avec style "aside-etiquette"
                 ligne avec style "aside-chiffres" :
                     colonne avec style "aside-chiffre" :
-                        texte "7" sans traduction avec style "aside-nombre"
+                        texte "8" sans traduction avec style "aside-nombre"
                         texte "versions" sans traduction
                     colonne avec style "aside-chiffre" :
                         texte "5" sans traduction avec style "aside-nombre"
