@@ -4,6 +4,13 @@
 
 <p align="center"><a href="README.md">Français</a> · <strong>English</strong></p>
 
+<p align="center">
+  <a href="https://www.npmjs.com/package/humalis"><img src="https://img.shields.io/npm/v/humalis" alt="npm"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Humalis%201.0-c1e928" alt="Licence"></a>
+  <a href="https://github.com/emch04/framework"><img src="https://img.shields.io/badge/server-Astratra-6f42c1" alt="Astratra"></a>
+  <a href="https://hub.xerj.org/contributors/emch04"><img src="https://hub.xerj.org/contributors/emch04/badge.svg" alt="XERJ Corpus Hub contributor"></a>
+</p>
+
 # Humalis
 
 **One language, in French, to build a complete application**: a website, a mobile app, a desktop app and its server, all from the same file.
@@ -59,7 +66,7 @@ humalis compile my-project.humalis --cible serveur --sortie my-project-server   
 |---|---|
 | `web` | a React + Vite project, prerendered (one HTML page per address) |
 | `statique` | static HTML, CSS and JavaScript pages, no build step |
-| `serveur` | a Node server with the Astratra packs (login, permissions, sessions) |
+| `serveur` | a Node server with the [Astratra](https://github.com/emch04/framework) packs (login, permissions, sessions) |
 | `mobile` | an Expo app (iPhone, Android) |
 | `desktop` | an Electron app (Mac, Windows, Linux) |
 
