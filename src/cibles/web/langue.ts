@@ -69,6 +69,9 @@ ${entete(langues)}const CLE = ${chaine(CLE_LANGUE)};
  */
 function langueDeDepart(): Langue {
   if (typeof window === 'undefined') return LANGUES[0];
+  // Le prérendu (un navigateur automatisé) écrit les pages dans la langue de base du site,
+  // celle que les moteurs de recherche doivent lire, quelle que soit la langue de ce navigateur.
+  if (navigator.webdriver) return LANGUES[0];
   try {
     const gardee = localStorage.getItem(CLE);
     if (estLangue(gardee)) return gardee;

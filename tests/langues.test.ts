@@ -502,3 +502,11 @@ describe('un titre dans chaque branche « si langue est … »', () => {
     expect(avertissements('    titre "Accueil" en anglais "Home"\n    si langue est anglais :\n        titre "Welcome"\n    sinon :\n        titre "Bienvenue"\n').join('\n')).toMatch(/plusieurs titres principaux/);
   });
 });
+
+describe('la langue du prérendu', () => {
+  it('un navigateur automatisé (le prérendu) écrit les pages dans la langue de base du site', () => {
+    const { application } = compiler('langues :\n    francais\n    anglais\n\npage "a" :\n    titre "Bonjour" en anglais "Hello"\n');
+    const langue = [...genererProjetWeb(application!, { nom: 'a', adresse: 'https://a.test', source: 'a.humalis' }).entries()].find(([n]) => n.endsWith('humalis/langue.tsx'))![1];
+    expect(langue).toMatch(/if \(navigator\.webdriver\) return LANGUES\[0\];[\s\S]*localStorage\.getItem/);
+  });
+});
