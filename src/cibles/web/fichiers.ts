@@ -10,7 +10,7 @@
  */
 
 /** `choix-fichier.tsx` : le bouton, l'aperçu, le refus de confort. */
-export const CHOIX_FICHIER_TSX = `import { useEffect, useId, useRef, useState } from 'react';
+export const CHOIX_FICHIER_TSX = `import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 
 /** Un fichier choisi : ce que la page peut lire (nom, taille, type, aperçu) et le fichier lui-même. */
 export interface FichierChoisi {
@@ -39,6 +39,8 @@ interface Proprietes {
   maximum?: number;
   plusieurs?: boolean;
   apercu: boolean;
+  /** « avec icone "photo" » : l'icône montrée seule sur le bouton. */
+  icone?: ReactNode;
   className?: string;
 }
 
@@ -75,7 +77,7 @@ const REFUS_DE_TYPE: Record<string, string> = {
 };
 
 /** Le choix d'un fichier : un bouton natif, un aperçu, et un message si le fichier ne convient pas. */
-export default function ChoixFichier({ libelle, valeur, onChange, familles, maximum, plusieurs, apercu, className }: Proprietes) {
+export default function ChoixFichier({ libelle, valeur, onChange, familles, maximum, plusieurs, apercu, icone, className }: Proprietes) {
   const id = useId();
   const [erreur, setErreur] = useState('');
   const apercus = useRef<string[]>([]);
@@ -129,10 +131,17 @@ export default function ChoixFichier({ libelle, valeur, onChange, familles, maxi
           void choisir(fichiers);
         }}
       />
-      <label htmlFor={id} className="humalis-fichier-bouton">
-        {libelle}
+      <label htmlFor={id} className={icone ? 'humalis-fichier-bouton humalis-fichier-icone' : 'humalis-fichier-bouton'} title={icone ? libelle : undefined}>
+        {icone ? (
+          <>
+            {icone}
+            <span className="humalis-fichier-libelle">{libelle}</span>
+          </>
+        ) : (
+          libelle
+        )}
       </label>
-      {choisis.length > 0 && (
+      {choisis.length > 0 && !icone && (
         <ul className="humalis-fichier-liste">
           {choisis.map((fichier, i) => (
             <li key={i}>{fichier.nom}</li>

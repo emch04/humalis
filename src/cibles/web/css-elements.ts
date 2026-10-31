@@ -53,6 +53,10 @@ button.humalis-etoile { cursor: pointer; }
 .humalis-fichier-entree { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .humalis-fichier-bouton { display: inline-block; padding: 0.55rem 1rem; border: 1px solid currentColor; border-radius: 0.375rem; cursor: pointer; }
 .humalis-fichier-entree:focus-visible + .humalis-fichier-bouton { outline: 2px solid var(--humalis-bleu); outline-offset: 2px; }
+.humalis-fichier-icone { display: inline-flex; align-items: center; justify-content: center; min-width: 2.75rem; min-height: 2.75rem; padding: 0.5rem; border-radius: 999px; }
+.humalis-fichier-icone .humalis-icone { width: 1.25rem; height: 1.25rem; }
+/* Le libellé d'un bouton à icône reste lu par les lecteurs d'écran, sans se voir. */
+.humalis-fichier-libelle { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
 .humalis-fichier-liste { margin: 0.5rem 0 0; padding-left: 1.25rem; }
 .humalis-fichier-erreur { margin: 0.5rem 0 0; color: var(--humalis-rouge); }
 .humalis-fichier-erreur[hidden] { display: none; }`,

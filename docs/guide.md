@@ -1771,6 +1771,9 @@ serveur qui reçoit le fichier doit toujours revérifier. L'envoi passe par une
 `source` : `envoyer fichier photo vers "…" de la source "…"`, avec une barre
 de progression (`suivi dans envoi`).
 
+`avec icone "photo"` montre une icône seule sur le bouton ; le libellé reste
+lu par les lecteurs d'écran et s'affiche au survol.
+
 ---
 
 ## 26. Les graphiques

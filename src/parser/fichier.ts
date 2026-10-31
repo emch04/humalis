@@ -49,6 +49,7 @@ export function analyserChoixFichier(flux: FluxTokens, expression: (flux: FluxTo
 
   let nom: string | undefined;
   const classes: string[] = [];
+  const styles: Element['styles'] = [];
   if (flux.accepter('MOT_CLE', 'avec')) {
     do {
       const option = flux.actuel();
@@ -69,19 +70,23 @@ export function analyserChoixFichier(flux: FluxTokens, expression: (flux: FluxTo
       } else if (option.type === 'IDENTIFIANT' && mot === 'nom') {
         flux.avancer();
         nom = flux.attendre('CHAINE', undefined, "le nom de l'élément entre guillemets").valeur;
+      } else if (mot === 'icone') {
+        // « avec icone "photo" » : le bouton montre l'icône seule ; le libellé reste son nom pour les lecteurs d'écran.
+        flux.avancer();
+        styles.push({ propriete: 'icone', valeur: flux.attendre('CHAINE', undefined, "le nom de l'icône entre guillemets : icone \"photo\"").valeur });
       } else if (option.type === 'MOT_CLE' && option.valeur === 'style') {
         flux.avancer();
         classes.push(...flux.attendre('CHAINE', undefined, 'le nom de la classe CSS entre guillemets').valeur.split(/\s+/).filter(Boolean));
       } else {
         throw new ErreurSyntaxique(
-          `« ${option.original ?? option.valeur} » ne se règle pas sur un choix de fichier. Réglages possibles : maximum 5 Mo, plusieurs, nom "…", style "…".`,
+          `« ${option.original ?? option.valeur} » ne se règle pas sur un choix de fichier. Réglages possibles : maximum 5 Mo, plusieurs, icone "…", nom "…", style "…".`,
           option.ligne,
         );
       }
     } while (flux.accepter('MOT_CLE', 'et'));
   }
 
-  return { type: 'Element', element: 'fichier', contenu, styles: [], classes, nom, fichier: choix, ligne: debut.ligne };
+  return { type: 'Element', element: 'fichier', contenu, styles, classes, nom, fichier: choix, ligne: debut.ligne };
 }
 
 /**

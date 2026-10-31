@@ -159,7 +159,9 @@ export const WIDGETS_WEB: RenduWidgets = {
         const f = w.fichier!;
         const familles = `[${f.familles.map((x) => `{ nom: ${chaine(x.nom)}, mime: [${x.mime.map(chaine).join(', ')}] }`).join(', ')}]`;
         const maximum = f.octets !== undefined ? ` maximum={${f.octets}}` : '';
-        return `<ChoixFichier libelle={${w.valeur}} valeur={${w.variable!.lecture}} onChange={${w.variable!.setter}} familles={${familles}}${maximum}${f.plusieurs ? ' plusieurs' : ''} apercu={${f.apercu}} className="${cls('humalis-fichier', w.classes)}" />`;
+        // « avec icone "photo" » : l'icône seule sur le bouton, le libellé lu par les lecteurs d'écran.
+        const icone = typeof w.reglages.icone === 'string' ? ` icone={<${composantIcone(w.reglages.icone)} className="humalis-icone" aria-hidden="true" />}` : '';
+        return `<ChoixFichier libelle={${w.valeur}} valeur={${w.variable!.lecture}} onChange={${w.variable!.setter}} familles={${familles}}${maximum}${f.plusieurs ? ' plusieurs' : ''} apercu={${f.apercu}}${icone} className="${cls('humalis-fichier', w.classes)}" />`;
       }
       case 'qr': {
         const taille = TAILLES_QR[w.styles.find((s) => s.startsWith('taille_'))?.slice(7) ?? 'normale'] ?? 192;
