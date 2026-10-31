@@ -1669,8 +1669,9 @@ page "profil" :
             afficher erreur "{raison}"
 ```
 
-Le changement de mot de passe existe pour le web, le bureau et le mobile ; la
-photo réduite, pour le web et le bureau.
+Les deux existent pour le web, le bureau et le mobile. Sur le téléphone, la
+photo vient de la galerie, avec la même réduction ; une image transparente y
+perd sa transparence (le JPEG n'en a pas).
 
 ---
 

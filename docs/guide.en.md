@@ -1749,8 +1749,9 @@ page "profil" :
             afficher erreur "{raison}"
 ```
 
-Password change works on web, desktop and mobile; the shrunk photo, on web and
-desktop.
+Both work on web, desktop and mobile. On the phone, the photo comes from the
+gallery, with the same shrinking; a transparent image loses its transparency
+there (JPEG has none).
 
 ---
 

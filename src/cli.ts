@@ -12,6 +12,7 @@ import { genererProjetWeb, genererComposantsWeb, verifierPourLeWeb, adressesDeRe
 import { genererProjetServeur, MARQUE_SERVEUR } from './cibles/serveur/projet.js';
 import { verifierSourcesPourLaCible, verifierNavigationPourLaCible, verifierFichiersPourLaCible } from './cibles/sources.js';
 import { genererProjetMobile, verifierPourLeMobile, MARQUE_MOBILE } from './cibles/mobile/projet.js';
+import { verifierFichiersPourLeMobile } from './cibles/mobile/fichiers.js';
 import { genererProjetStatique, verifierPourLeStatique, MARQUE_STATIQUE } from './cibles/statique/projet.js';
 import { genererProjetDesktop, MARQUE_DESKTOP, SERVEUR_PAR_DEFAUT } from './cibles/desktop/projet.js';
 import { gestionnairesDuProgramme, contientAction } from './cibles/web/interactions.js';
@@ -324,7 +325,7 @@ function compileMobile(application: Application, chemin: string, sortie: string)
   }
   // Ce qui n'existe pas sur un téléphone (CSS, survol…) : signalé, sans bloquer.
   afficherDiagnostics(verifierPourLeMobile(application));
-  const sansSources = [...verifierSourcesPourLaCible(application, 'mobile'), ...verifierNavigationPourLaCible(application, 'mobile'), ...verifierFichiersPourLaCible(application, 'mobile')];
+  const sansSources = [...verifierSourcesPourLaCible(application, 'mobile'), ...verifierNavigationPourLaCible(application, 'mobile'), ...verifierFichiersPourLeMobile(application)];
   if (sansSources.length > 0) {
     afficherDiagnostics(sansSources);
     console.error('\nLe programme ne peut pas être produit pour le mobile : rien n\'a été écrit.');

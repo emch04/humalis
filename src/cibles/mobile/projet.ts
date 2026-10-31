@@ -7,6 +7,7 @@ import type { Application, Action, Gestionnaire, NoeudVue, ThemeRI } from '../..
 import { APPAREIL_TSX, DEGRADE_TSX, MOUVEMENT_TSX } from './composants-ecran.js';
 import type { InfoMedia } from '../../ri/medias.js';
 import { fichiersMobiles, dependancesMobiles, stylesDesElements } from './widgets.js';
+import { PHRASE_PHOTOS, REDUIRE_IMAGE_MOBILE, VERSIONS_FICHIERS } from './fichiers.js';
 import { fichiersGraphique } from '../web/graphique.js';
 import { changeLeTheme, modeParDefaut } from '../web/theme.js';
 import type { Diagnostic } from '../../analyse/erreurs.js';
@@ -135,6 +136,11 @@ export function genererProjetMobile(application: Application, options: OptionsMo
   for (const [nom, contenu] of fichiersGraphique(codesPages, true)) fichiers.set(`humalis/${nom}`, contenu);
   // Les petits fichiers peuvent eux-mêmes importer des icônes : on relit le tout.
   const dependances = dependancesMobiles([...fichiers.values()]);
+  // Une page choisit un fichier et parle au serveur : une image choisie est réduite avant l'envoi (expo-image-manipulator).
+  const choixFichier = fichiers.has('humalis/choix-fichier.tsx');
+  const reduction = serveur && choixFichier;
+  if (reduction) dependances['expo-image-manipulator'] = VERSIONS_FICHIERS.imageManipulator;
+  const galerie = fichiers.get('humalis/choix-fichier.tsx')?.includes("from 'expo-image-picker'") ?? false;
   // Plusieurs langues : la langue du téléphone (expo-localization) et le choix gardé (AsyncStorage).
   const langues = application.langues !== undefined;
   fichiers.set('package.json', packageJson(slug, { memoire: memoire || langues, coffre: secret || serveur, degrade, dependances, langues }));
@@ -144,7 +150,7 @@ export function genererProjetMobile(application: Application, options: OptionsMo
   const icone = !!logo && /\.png$/i.test(logo) && options.images?.get(logo) !== undefined;
   if (icone) fichiers.set('assets/icone.png', contenuBinaire(options.images!.get(logo)!));
   const carte = codesPages.some((c) => /<CarteLieux\b/.test(c));
-  fichiers.set('app.json', appJson(application.site?.nom ?? options.nom, slug, secret || serveur, icone, carte));
+  fichiers.set('app.json', appJson(application.site?.nom ?? options.nom, slug, secret || serveur, icone, carte, galerie));
   fichiers.set('tsconfig.json', TSCONFIG);
   fichiers.set('expo-env.d.ts', '/// <reference types="expo/types" />\n');
   fichiers.set('.gitignore', 'node_modules\n.expo\ndist\n');
@@ -170,7 +176,7 @@ export function genererProjetMobile(application: Application, options: OptionsMo
   if (codes.some((c) => /<SurAppareil\b/.test(c))) fichiers.set('humalis/appareil.tsx', APPAREIL_TSX);
   if (degrade) fichiers.set('humalis/degrade.tsx', DEGRADE_TSX);
   if (codes.some((c) => /<Anime\b/.test(c))) fichiers.set('humalis/mouvement.tsx', MOUVEMENT_TSX);
-  if (serveur) fichiers.set('humalis/serveur.ts', avecEchecs(SERVEUR, codes));
+  if (serveur) fichiers.set('humalis/serveur.ts', avecEchecs(reduction ? serveurAvecReduction() : SERVEUR, codes));
   if (session) fichiers.set('humalis/session.tsx', SESSION);
   if (memoire || secret) fichiers.set('humalis/memoire.ts', memoireTs(memoire, secret));
   if (application.partages.length > 0) fichiers.set('humalis/partage.tsx', partageTsx(application.partages, contexte.cle));
@@ -363,7 +369,9 @@ function packageJson(slug: string, besoins: { memoire: boolean; coffre: boolean;
   );
 }
 
-function appJson(nom: string, slug: string, coffre: boolean, icone = false, carte = false): string {
+function appJson(nom: string, slug: string, coffre: boolean, icone = false, carte = false, galerie = false): string {
+  // La galerie : la phrase que l'iPhone montre, et ni l'appareil photo ni le micro (Humalis ne s'en sert pas).
+  const photos = galerie ? [['expo-image-picker', { photosPermission: PHRASE_PHOTOS, cameraPermission: false, microphonePermission: false }]] : [];
   return (
     JSON.stringify(
       {
@@ -377,7 +385,7 @@ function appJson(nom: string, slug: string, coffre: boolean, icone = false, cart
           userInterfaceStyle: 'automatic',
           // La clé de Google Maps, que seul Android demande : à remplir (voir le LISEZMOI).
           ...(carte ? { android: { config: { googleMaps: { apiKey: '' } } } } : {}),
-          plugins: ['expo-router', ...(coffre ? ['expo-secure-store'] : [])],
+          plugins: ['expo-router', ...(coffre ? ['expo-secure-store'] : []), ...photos],
           web: { bundler: 'metro', output: 'static' },
         },
       },
@@ -694,6 +702,23 @@ interface Serveur {
   modifier(adresse: string, id: string, donnees: Record<string, unknown>): Promise<unknown>;
 }
 `;
+
+/**
+ * Le serveur d'un programme qui choisit des fichiers : les envois passent par
+ * `preparer`, qui réduit une image choisie comme le fait le web (480 px de
+ * côté, JPEG en data URL, au plus 90 000 caractères).
+ */
+function serveurAvecReduction(): string {
+  const remplacer = (texte: string, avant: string, apres: string) => {
+    if (!texte.includes(avant)) throw new Error(`modèle du serveur mobile inattendu : ${avant}`);
+    return texte.split(avant).join(apres);
+  };
+  let texte = remplacer(SERVEUR, "import { useMessages } from './messages';\n", "import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';\nimport { useMessages } from './messages';\n");
+  texte = remplacer(texte, "\n/**\n * Les requêtes (« envoyer requete »).", `${REDUIRE_IMAGE_MOBILE}\n/**\n * Les requêtes (« envoyer requete »).`);
+  texte = remplacer(texte, '    envoyer: (adresse: string', '    envoyer: async (adresse: string');
+  texte = remplacer(texte, '    modifier: (adresse: string', '    modifier: async (adresse: string');
+  return remplacer(texte, 'body: JSON.stringify(donnees)', 'body: JSON.stringify(await preparer(donnees))');
+}
 
 /**
  * La session sur le mobile (décision L5) : les packs Astratra donnent un
