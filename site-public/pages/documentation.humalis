@@ -94,11 +94,11 @@ page "documentation_1" dans "documentation" adresse "/documentation/installer-et
             humalis nouveau my-project
             cd my-project
             humalis developper
-        texte "{code "humalis nouveau"} (\"new\") creates a folder with a first file, {code "my-project.humalis"}. {code "humalis developper"} (\"develop\") opens the site in your browser and recompiles it every time you save: write, save, look."
+        texte "`humalis nouveau` (\"new\") creates a folder with a first file, `my-project.humalis`. `humalis developper` (\"develop\") opens the site in your browser and recompiles it every time you save: write, save, look."
         texte "When you like the site, compile it to the target you want:"
         code terminal :
             humalis compile my-project.humalis --cible web --sortie my-project-web
-        texte "The targets ({code "--cible"}) are {code "web"}, {code "statique"} (static), {code "mobile"}, {code "desktop"} and {code "serveur"} (server); {code "--sortie"} is the output folder. The README explains how to run each generated project."
+        texte "The targets (`--cible`) are `web`, `statique` (static), `mobile`, `desktop` and `serveur` (server); `--sortie` is the output folder. The README explains how to run each generated project."
     sinon :
         texte "Il faut Node.js 24 ou plus récent."
         code terminal :
@@ -106,11 +106,11 @@ page "documentation_1" dans "documentation" adresse "/documentation/installer-et
             humalis nouveau mon-projet
             cd mon-projet
             humalis developper
-        texte "{code "humalis nouveau"} crée un dossier avec un premier fichier, {code "mon-projet.humalis"}. {code "humalis developper"} ouvre le site dans le navigateur et le recompile à chaque enregistrement : écris, enregistre, regarde."
+        texte "`humalis nouveau` crée un dossier avec un premier fichier, `mon-projet.humalis`. `humalis developper` ouvre le site dans le navigateur et le recompile à chaque enregistrement : écris, enregistre, regarde."
         texte "Quand le site te plaît, compile-le vers la cible voulue :"
         code terminal :
             humalis compile mon-projet.humalis --cible web --sortie mon-projet-web
-        texte "Les cibles sont {code "web"}, {code "statique"}, {code "mobile"}, {code "desktop"} et {code "serveur"}. Le README explique comment lancer chaque projet produit."
+        texte "Les cibles sont `web`, `statique`, `mobile`, `desktop` et `serveur`. Le README explique comment lancer chaque projet produit."
     ligne avec style "doc-suite" :
         lien "2. Les règles d'écriture →" en anglais "2. Writing rules →" vers "documentation_2"
 
@@ -120,58 +120,58 @@ page "documentation_2" dans "documentation" adresse "/documentation/regles-d-ecr
     titre "2. Les règles d'écriture" en anglais "2. Writing rules"
     si langue est anglais :
         soustitre "One block, four spaces"
-        texte "A line ending with {code ":"} opens a block. Everything inside the block is indented by {accent "4 more spaces"}. Never use tabs."
+        texte "A line ending with `:` opens a block. Everything inside the block is indented by {accent "4 more spaces"}. Never use tabs."
         code humalis :
             page "home" :
                 titre "Welcome"
                 section "Opening hours" :
                     texte "Monday to Saturday"
         soustitre "Quotes"
-        texte "Text that is displayed goes between quotes: {code "titre "Welcome""}. Without quotes, it is a variable name: {code "texte firstname"} shows what the variable {code "firstname"} contains."
-        texte "To put a quote inside a text, write {code "\""}:"
+        texte "Text that is displayed goes between quotes: `titre "Welcome"`. Without quotes, it is a variable name: `texte firstname` shows what the variable `firstname` contains."
+        texte "To put a quote inside a text, write `\"`:"
         code humalis :
             page "quote" :
                 titre "A quote"
                 texte "She said \"hello\" as she came in."
         soustitre "Accents are allowed, never required"
-        texte "{code "si age est supérieur ou égal à 18"} and {code "si age est superieur ou egal a 18"} read the same. Write whichever you like."
+        texte "`si age est supérieur ou égal à 18` and `si age est superieur ou egal a 18` read the same. Write whichever you like."
         soustitre "Small words"
-        texte "{code "le"}, {code "la"}, {code "les"}, {code "un"}, {code "une"}, {code "des"}, {code "de"}, {code "du"}, {code "à"}, {code "au"}, {code "aux"}, {code "l'"}, {code "d'"}… (French for \"the\", \"a\", \"of\", \"to\"…) make sentences read naturally. Humalis ignores them where they change nothing: {code "quand l'utilisateur clique"} and {code "quand utilisateur clique"} are the same. For that reason they cannot be used as variable names."
+        texte "`le`, `la`, `les`, `un`, `une`, `des`, `de`, `du`, `à`, `au`, `aux`, `l'`, `d'`… (French for \"the\", \"a\", \"of\", \"to\"…) make sentences read naturally. Humalis ignores them where they change nothing: `quand l'utilisateur clique` and `quand utilisateur clique` are the same. For that reason they cannot be used as variable names."
         soustitre "Comments"
-        texte "A {code "#"} outside quotes starts a comment, up to the end of the line. It is for humans; Humalis ignores it."
+        texte "A `#` outside quotes starts a comment, up to the end of the line. It is for humans; Humalis ignores it."
         code humalis :
             # The home page of the site
             page "home" :
                 titre "Article #1"    # the # between quotes stays text
         soustitre "Names"
-        texte "Variable names are written in lowercase, with {code "_"} between words: {code "item_count"}. Language keywords ({code "si"}, {code "page"}, {code "quand"}…) cannot be used as names."
+        texte "Variable names are written in lowercase, with `_` between words: `item_count`. Language keywords (`si`, `page`, `quand`…) cannot be used as names."
     sinon :
         soustitre "Un bloc, quatre espaces"
-        texte "Une ligne qui finit par {code ":"} ouvre un bloc. Tout ce qui est dans le bloc est décalé de {accent "4 espaces"} de plus. Jamais de tabulation."
+        texte "Une ligne qui finit par `:` ouvre un bloc. Tout ce qui est dans le bloc est décalé de {accent "4 espaces"} de plus. Jamais de tabulation."
         code humalis :
             page "accueil" :
                 titre "Bienvenue"
                 section "Nos horaires" :
                     texte "Du lundi au samedi"
         soustitre "Les guillemets"
-        texte "Un texte qui s'affiche s'écrit entre guillemets : {code "titre "Bienvenue""}. Sans guillemets, c'est un nom de variable : {code "texte prenom"} affiche ce que contient la variable {code "prenom"}."
-        texte "Pour mettre un guillemet dans un texte, écris {code "\""} :"
+        texte "Un texte qui s'affiche s'écrit entre guillemets : `titre "Bienvenue"`. Sans guillemets, c'est un nom de variable : `texte prenom` affiche ce que contient la variable `prenom`."
+        texte "Pour mettre un guillemet dans un texte, écris `\"` :"
         code humalis :
             page "citation" :
                 titre "Une citation"
                 texte "Elle a dit \"bonjour\" en entrant."
         soustitre "Les accents sont permis, jamais obligatoires"
-        texte "{code "si age est supérieur ou égal à 18"} et {code "si age est superieur ou egal a 18"} se lisent pareil. Écris comme tu veux."
+        texte "`si age est supérieur ou égal à 18` et `si age est superieur ou egal a 18` se lisent pareil. Écris comme tu veux."
         soustitre "Les petits mots"
-        texte "{code "le"}, {code "la"}, {code "les"}, {code "un"}, {code "une"}, {code "des"}, {code "de"}, {code "du"}, {code "à"}, {code "au"}, {code "aux"}, {code "l'"}, {code "d'"}… rendent la phrase naturelle. Humalis les ignore là où ils ne changent rien : {code "quand l'utilisateur clique"} et {code "quand utilisateur clique"} sont pareils. Ils ne peuvent donc pas nommer une variable."
+        texte "`le`, `la`, `les`, `un`, `une`, `des`, `de`, `du`, `à`, `au`, `aux`, `l'`, `d'`… rendent la phrase naturelle. Humalis les ignore là où ils ne changent rien : `quand l'utilisateur clique` et `quand utilisateur clique` sont pareils. Ils ne peuvent donc pas nommer une variable."
         soustitre "Les commentaires"
-        texte "Un {code "#"} en dehors des guillemets commence un commentaire, jusqu'à la fin de la ligne. Il est fait pour les humains ; Humalis l'ignore."
+        texte "Un `#` en dehors des guillemets commence un commentaire, jusqu'à la fin de la ligne. Il est fait pour les humains ; Humalis l'ignore."
         code humalis :
             # La page d'accueil du site
             page "accueil" :
                 titre "Article #1"    # le # entre guillemets reste du texte
         soustitre "Les noms"
-        texte "Un nom de variable s'écrit en minuscules, avec {code "_"} entre les mots : {code "nombre_articles"}. Les mots du langage ({code "si"}, {code "page"}, {code "quand"}…) ne peuvent pas servir de nom."
+        texte "Un nom de variable s'écrit en minuscules, avec `_` entre les mots : `nombre_articles`. Les mots du langage (`si`, `page`, `quand`…) ne peuvent pas servir de nom."
     ligne avec style "doc-suite" :
         lien "← 1. Installer et créer un projet" en anglais "← 1. Install and create a project" vers "documentation_1"
         lien "3. Les pages →" en anglais "3. Pages →" vers "documentation_3"
@@ -181,7 +181,7 @@ page "documentation_3" dans "documentation" adresse "/documentation/pages" :
         description "Une page est un écran. Tout s'écrit à l'intérieur d'une page." en anglais "A page (page) is a screen. Everything is written inside a page."
     titre "3. Les pages" en anglais "3. Pages"
     si langue est anglais :
-        texte "A page ({code "page"}) is a screen. Everything is written inside a page."
+        texte "A page (`page`) is a screen. Everything is written inside a page."
         code humalis :
             page "home" :
                 titre "Welcome to my site"
@@ -190,7 +190,7 @@ page "documentation_3" dans "documentation" adresse "/documentation/pages" :
             page "contact" :
                 titre "Contact us"
                 texte "Write to us, we answer within a day."
-        texte "The first page of the file is the home page. A page's name is used by links ({code "vers "contact""}, \"to contact\") and for its address ({code "/contact"}). Each page has a main title ({code "titre"}): it names the browser tab."
+        texte "The first page of the file is the home page. A page's name is used by links (`vers "contact"`, \"to contact\") and for its address (`/contact`). Each page has a main title (`titre`): it names the browser tab."
         texte "Navigation explains chosen addresses, restricted pages, sub-pages and the \"not found\" page."
     sinon :
         texte "Une page est un écran. Tout s'écrit à l'intérieur d'une page."
@@ -202,7 +202,7 @@ page "documentation_3" dans "documentation" adresse "/documentation/pages" :
             page "contact" :
                 titre "Nous contacter"
                 texte "Écris-nous, nous répondons en un jour."
-        texte "La première page du fichier est la page d'accueil. Le nom d'une page sert aux liens ({code "vers "contact""}) et à son adresse ({code "/contact"}). Chaque page a un titre principal : c'est lui qui donne son nom à l'onglet du navigateur."
+        texte "La première page du fichier est la page d'accueil. Le nom d'une page sert aux liens (`vers "contact"`) et à son adresse (`/contact`). Chaque page a un titre principal : c'est lui qui donne son nom à l'onglet du navigateur."
         texte "La navigation explique les adresses choisies, les pages réservées, les sous-pages et la page « introuvable »."
     ligne avec style "doc-suite" :
         lien "← 2. Les règles d'écriture" en anglais "← 2. Writing rules" vers "documentation_2"
@@ -222,8 +222,8 @@ page "documentation_4" dans "documentation" adresse "/documentation/elements" :
                 texte "Soup of the day, seasonal salad."
                 soustitre "Desserts" avec niveau 3
                 texte "Apple pie, vanilla ice cream."
-        texte "{code "soustitre"} (subtitle) opens a part of the page (level 2 by default, up to 6). Keep the levels in order, without skipping: screen readers use them to move through the page."
-        texte "Inside a block placed under a subtitle, a {code "soustitre"} goes down one level on its own: a card in a section becomes level 3. In a {code "section"}, the first subtitle is the section's title, even when it sits in its own block; every other subtitle of the section goes down one level. {code "avec niveau"} (with level) still lets you choose."
+        texte "`soustitre` (subtitle) opens a part of the page (level 2 by default, up to 6). Keep the levels in order, without skipping: screen readers use them to move through the page."
+        texte "Inside a block placed under a subtitle, a `soustitre` goes down one level on its own: a card in a section becomes level 3. In a `section`, the first subtitle is the section's title, even when it sits in its own block; every other subtitle of the section goes down one level. `avec niveau` (with level) still lets you choose."
         code humalis :
             page "home" :
                 titre "Home"
@@ -233,13 +233,13 @@ page "documentation_4" dans "documentation" adresse "/documentation/elements" :
                         bloc :
                             soustitre "Examples"
                             texte "Six apps to try."
-        texte "In a {code "titre"}, {code "soustitre"}, or {code "texte"}, {code "{accent "…"}"} highlights a few words with the brand color. Screen readers and the browser tab still get plain text."
+        texte "In a `titre`, `soustitre`, or `texte`, `{accent "…"}` highlights a few words with the brand color. Screen readers and the browser tab still get plain text."
         code humalis :
             page "offer" :
                 titre "A {accent "simple"} offer"
                 texte "Price: {accent "free"} forever"
         soustitre "Lists"
-        texte "{code "liste :"} makes bullets; {code "liste numerotee :"} numbers each item. Each instruction in the block becomes one item."
+        texte "`liste :` makes bullets; `liste numerotee :` numbers each item. Each instruction in the block becomes one item."
         code humalis :
             page "guide" :
                 liste :
@@ -249,18 +249,19 @@ page "documentation_4" dans "documentation" adresse "/documentation/elements" :
                     texte "Write the file"
                     texte "Compile"
         soustitre "Code within a sentence"
-        texte "In text, {code "{code "…"}"} displays a short piece of code in a monospace font."
+        texte "In text, a piece of code goes between backticks, as in every documentation: it shows in a monospace font, as written, quotes and braces included. `{code "…"}` does the same."
         code humalis :
             page "guide" :
-                texte "Write {code "titre"} to add a heading."
+                texte "Write `titre` to add a heading."
+                texte "A text: `texte "Hello {firstname}"`."
         soustitre "Code block"
-        texte "{code "code language :"} copies the indented lines without interpreting them; the language is optional."
+        texte "`code language :` copies the indented lines without interpreting them; the language is optional."
         code humalis :
             page "guide" :
                 code humalis :
                     page "home" :
                         titre "Welcome"
-        texte "{code "avec animation frappe"} (\"with typing animation\") writes the code letter by letter, with a cursor; {code "avec animation frappe au defilement"} waits until the block scrolls into view. The real code stays in place while it types (screen readers, Copy button), and it shows at once if the person asked to reduce motion. On a phone, the code shows in full."
+        texte "`avec animation frappe` (\"with typing animation\") writes the code letter by letter, with a cursor; `avec animation frappe au defilement` waits until the block scrolls into view. The real code stays in place while it types (screen readers, Copy button), and it shows at once if the person asked to reduce motion. On a phone, the code shows in full."
         code humalis :
             page "home" :
                 code humalis avec animation frappe :
@@ -283,7 +284,7 @@ page "documentation_4" dans "documentation" adresse "/documentation/elements" :
             page "profile" :
                 titre "My profile"
                 image "photo.png" avec description "Profile photo"
-        texte "Every image has a {code "description"}: it is what a screen reader reads, and what shows if the image does not load. A purely decorative image is written {code "avec decoratif"}."
+        texte "Every image has a `description`: it is what a screen reader reads, and what shows if the image does not load. A purely decorative image is written `avec decoratif`."
         soustitre "Button and link"
         code humalis :
             page "home" :
@@ -293,9 +294,9 @@ page "documentation_4" dans "documentation" adresse "/documentation/elements" :
 
             page "about" :
                 titre "About"
-        texte "A link ({code "lien"}) goes to a page ({code "vers "about""}) or to a web address ({code "vers "https://example.com""}). A button ({code "bouton"}) triggers an action (see events)."
+        texte "A link (`lien`) goes to a page (`vers "about"`) or to a web address (`vers "https://example.com"`). A button (`bouton`) triggers an action (see events)."
         soustitre "Field"
-        texte "A field ({code "champ"}) is an area where people type. Its kind is written right after {code "champ"}:"
+        texte "A field (`champ`) is an area where people type. Its kind is written right after `champ`:"
         code humalis :
             page "signup" :
                 titre "Sign up"
@@ -312,7 +313,7 @@ page "documentation_4" dans "documentation" adresse "/documentation/elements" :
                     bouton "Sign up"
                 quand le formulaire "signup" est soumis :
                     afficher "Welcome"
-        texte "Each target picks the right input: the right keyboard on a phone, the right field type in the browser. The kinds: {code "email"}, {code "telephone"}, {code "nombre"} (number), {code "date"}, {code "heure"} (time), {code "mot de passe"} (password), {code "texte long"} (long text), {code "adresse web"} (URL). The options: {code "obligatoire"} (required), {code "indice "…""} (the grey hint of an empty field), and for a number {code "minimum"} and {code "maximum"}."
+        texte "Each target picks the right input: the right keyboard on a phone, the right field type in the browser. The kinds: `email`, `telephone`, `nombre` (number), `date`, `heure` (time), `mot de passe` (password), `texte long` (long text), `adresse web` (URL). The options: `obligatoire` (required), `indice "…"` (the grey hint of an empty field), and for a number `minimum` and `maximum`."
         soustitre "Choices"
         code humalis :
             page "order" :
@@ -327,7 +328,7 @@ page "documentation_4" dans "documentation" adresse "/documentation/elements" :
                     si champ "Size" est egal a "L" :
                         afficher "Large size"
                     afficher "Order sent"
-        texte "{code "choix"} is a set of options, {code "liste deroulante"} a drop-down list, {code "case a cocher"} a checkbox; {code "parmi"} means \"among\"."
+        texte "`choix` is a set of options, `liste deroulante` a drop-down list, `case a cocher` a checkbox; `parmi` means \"among\"."
     sinon :
         texte "Un élément est ce qu'on voit dans une page. On écrit son nom, puis son contenu entre guillemets."
         soustitre "Titre, sous-titre et texte"
@@ -338,8 +339,8 @@ page "documentation_4" dans "documentation" adresse "/documentation/elements" :
                 texte "Soupe du jour, salade de saison."
                 soustitre "Les desserts" avec niveau 3
                 texte "Tarte aux pommes, glace vanille."
-        texte "{code "soustitre"} ouvre une partie de la page (niveau 2 par défaut, jusqu'à 6). Garde l'ordre des niveaux, sans en sauter : les lecteurs d'écran s'en servent pour parcourir la page."
-        texte "Dans un bloc placé sous un sous-titre, un {code "soustitre"} descend d'un niveau tout seul : la carte d'une section devient un niveau 3. Dans une {code "section"}, le premier sous-titre est le titre de la section, même rangé dans son propre bloc ; tous les autres sous-titres de la section descendent d'un niveau. {code "avec niveau"} reste possible pour choisir soi-même."
+        texte "`soustitre` ouvre une partie de la page (niveau 2 par défaut, jusqu'à 6). Garde l'ordre des niveaux, sans en sauter : les lecteurs d'écran s'en servent pour parcourir la page."
+        texte "Dans un bloc placé sous un sous-titre, un `soustitre` descend d'un niveau tout seul : la carte d'une section devient un niveau 3. Dans une `section`, le premier sous-titre est le titre de la section, même rangé dans son propre bloc ; tous les autres sous-titres de la section descendent d'un niveau. `avec niveau` reste possible pour choisir soi-même."
         code humalis :
             page "accueil" :
                 titre "Accueil"
@@ -349,13 +350,13 @@ page "documentation_4" dans "documentation" adresse "/documentation/elements" :
                         bloc :
                             soustitre "Exemples"
                             texte "Six applications à essayer."
-        texte "Dans un {code "titre"}, un {code "soustitre"} ou un {code "texte"}, {code "{accent "…"}"} met quelques mots en valeur avec la couleur de marque. Le texte reste lisible normalement par les lecteurs d'écran et dans le titre de l'onglet."
+        texte "Dans un `titre`, un `soustitre` ou un `texte`, `{accent "…"}` met quelques mots en valeur avec la couleur de marque. Le texte reste lisible normalement par les lecteurs d'écran et dans le titre de l'onglet."
         code humalis :
             page "offre" :
                 titre "Une offre {accent "simple"}"
                 texte "Prix : {accent "gratuit"} pour toujours"
         soustitre "Listes"
-        texte "{code "liste :"} crée des puces ; {code "liste numerotee :"} numérote chaque élément. Chaque instruction du bloc devient une entrée."
+        texte "`liste :` crée des puces ; `liste numerotee :` numérote chaque élément. Chaque instruction du bloc devient une entrée."
         code humalis :
             page "guide" :
                 liste :
@@ -365,18 +366,19 @@ page "documentation_4" dans "documentation" adresse "/documentation/elements" :
                     texte "Écrire le fichier"
                     texte "Compiler"
         soustitre "Code dans une phrase"
-        texte "Dans un texte, {code "{code "…"}"} affiche un court morceau de code à chasse fixe."
+        texte "Dans un texte, un morceau de code s'écrit entre accents graves, comme dans toutes les documentations : il s'affiche à chasse fixe, tel quel, guillemets et accolades compris. `{code "…"}` fait la même chose."
         code humalis :
             page "guide" :
-                texte "Écris {code "titre"} pour donner un titre."
+                texte "Écris `titre` pour donner un titre."
+                texte "Un texte : `texte "Bonjour {prenom}"`."
         soustitre "Bloc de code"
-        texte "{code "code langage :"} recopie les lignes indentées sans les interpréter ; le langage est facultatif."
+        texte "`code langage :` recopie les lignes indentées sans les interpréter ; le langage est facultatif."
         code humalis :
             page "guide" :
                 code humalis :
                     page "accueil" :
                         titre "Bienvenue"
-        texte "{code "avec animation frappe"} écrit le code lettre par lettre, avec un curseur ; {code "avec animation frappe au defilement"} attend que le bloc arrive à l'écran. Le vrai code reste en place pendant la frappe (lecteurs d'écran, bouton Copier), et il s'affiche tout de suite si la personne a demandé de réduire les animations. Sur le téléphone, le code s'affiche entier."
+        texte "`avec animation frappe` écrit le code lettre par lettre, avec un curseur ; `avec animation frappe au defilement` attend que le bloc arrive à l'écran. Le vrai code reste en place pendant la frappe (lecteurs d'écran, bouton Copier), et il s'affiche tout de suite si la personne a demandé de réduire les animations. Sur le téléphone, le code s'affiche entier."
         code humalis :
             page "accueil" :
                 code humalis avec animation frappe :
@@ -399,7 +401,7 @@ page "documentation_4" dans "documentation" adresse "/documentation/elements" :
             page "profil" :
                 titre "Mon profil"
                 image "photo.png" avec description "Photo de profil"
-        texte "Chaque image a une {code "description"} : c'est ce que lit un lecteur d'écran, et ce qui s'affiche si l'image ne charge pas. Une image purement décorative s'écrit {code "avec decoratif"}."
+        texte "Chaque image a une `description` : c'est ce que lit un lecteur d'écran, et ce qui s'affiche si l'image ne charge pas. Une image purement décorative s'écrit `avec decoratif`."
         soustitre "Bouton et lien"
         code humalis :
             page "accueil" :
@@ -409,9 +411,9 @@ page "documentation_4" dans "documentation" adresse "/documentation/elements" :
 
             page "a_propos" :
                 titre "À propos"
-        texte "Un lien mène à une page ({code "vers "a_propos""}) ou à une adresse web ({code "vers "https://exemple.fr""}). Un bouton déclenche une action (voir les événements)."
+        texte "Un lien mène à une page (`vers "a_propos"`) ou à une adresse web (`vers "https://exemple.fr"`). Un bouton déclenche une action (voir les événements)."
         soustitre "Champ"
-        texte "Un champ est une zone où la personne écrit. Sa sorte s'écrit juste après {code "champ"} :"
+        texte "Un champ est une zone où la personne écrit. Sa sorte s'écrit juste après `champ` :"
         code humalis :
             page "inscription" :
                 titre "Inscription"
@@ -428,7 +430,7 @@ page "documentation_4" dans "documentation" adresse "/documentation/elements" :
                     bouton "S'inscrire"
                 quand le formulaire "inscription" est soumis :
                     afficher "Bienvenue"
-        texte "Chaque cible choisit la bonne saisie : le bon clavier sur un téléphone, le bon type de champ dans le navigateur. Les options : {code "obligatoire"}, {code "indice "…""} (le texte gris d'un champ vide), et pour un nombre {code "minimum"} et {code "maximum"}."
+        texte "Chaque cible choisit la bonne saisie : le bon clavier sur un téléphone, le bon type de champ dans le navigateur. Les options : `obligatoire`, `indice "…"` (le texte gris d'un champ vide), et pour un nombre `minimum` et `maximum`."
         soustitre "Les choix"
         code humalis :
             page "commande" :
@@ -452,16 +454,16 @@ page "documentation_5" dans "documentation" adresse "/documentation/styles" :
         description "Les options d'un élément s'écrivent après avec, reliées par et." en anglais "An element's options are written after avec (\"with\"), joined by et (\"and\")."
     titre "5. Les styles" en anglais "5. Styles"
     si langue est anglais :
-        texte "An element's options are written after {code "avec"} (\"with\"), joined by {code "et"} (\"and\")."
+        texte "An element's options are written after `avec` (\"with\"), joined by `et` (\"and\")."
         code humalis :
             page "home" :
                 titre "Welcome" avec couleur bleu et taille grande
                 titre "Centred" avec position centree
                 bouton "Confirm" avec fond vert et texte blanc
                 bouton "Cancel" avec fond gris et bordure arrondie
-        texte "{code "couleur"} is the text colour, {code "fond"} the background, {code "taille"} the size, {code "bordure arrondie"} rounded corners. The colours: {code "bleu"} (blue), {code "vert"} (green), {code "rouge"} (red), {code "orange"}, {code "jaune"} (yellow), {code "violet"}, {code "rose"} (pink), {code "gris"} (grey), {code "noir"} (black), {code "blanc"} (white). The sizes: {code "petite"} (small), {code "moyenne"} (medium), {code "grande"} (large). Your theme's colours work too (see the theme)."
+        texte "`couleur` is the text colour, `fond` the background, `taille` the size, `bordure arrondie` rounded corners. The colours: `bleu` (blue), `vert` (green), `rouge` (red), `orange`, `jaune` (yellow), `violet`, `rose` (pink), `gris` (grey), `noir` (black), `blanc` (white). The sizes: `petite` (small), `moyenne` (medium), `grande` (large). Your theme's colours work too (see the theme)."
         soustitre "Naming an element"
-        texte "{code "nom "…""} gives an element a name, so an action can target it:"
+        texte "`nom "…"` gives an element a name, so an action can target it:"
         code humalis :
             page "login" :
                 titre "Log in"
@@ -472,7 +474,7 @@ page "documentation_5" dans "documentation" adresse "/documentation/styles" :
                 quand l'utilisateur clique sur "login" :
                     montrer "waiting"
         soustitre "Your own CSS"
-        texte "A {code "style :"} block at the top of the file holds ordinary CSS. Apply it with {code "avec style "…""}:"
+        texte "A `style :` block at the top of the file holds ordinary CSS. Apply it with `avec style "…"`:"
         code humalis :
             style :
                 .big { font-size: 3rem; }
@@ -481,19 +483,19 @@ page "documentation_5" dans "documentation" adresse "/documentation/styles" :
             page "home" :
                 titre "Welcome" avec style "big"
                 bouton "Confirm" avec fond vert et style "main"
-        texte "CSS can also come from a file: {code "utiliser style "./theme.css""} at the top of the file. CSS applies to the web, static and desktop targets; mobile only translates named styles (colour, background, size, position, border)."
-        texte "{code "humalis verifier"} warns when a class used with {code "avec style"} is missing from the project's CSS and suggests a close name. It also warns when an {code "!important"} rule targets a {code ".humalis-…"} class: remove {code "!important"} or use your own class."
+        texte "CSS can also come from a file: `utiliser style "./theme.css"` at the top of the file. CSS applies to the web, static and desktop targets; mobile only translates named styles (colour, background, size, position, border)."
+        texte "`humalis verifier` warns when a class used with `avec style` is missing from the project's CSS and suggests a close name. It also warns when an `!important` rule targets a `.humalis-…` class: remove `!important` or use your own class."
     sinon :
-        texte "Les options d'un élément s'écrivent après {code "avec"}, reliées par {code "et"}."
+        texte "Les options d'un élément s'écrivent après `avec`, reliées par `et`."
         code humalis :
             page "accueil" :
                 titre "Bienvenue" avec couleur bleu et taille grande
                 titre "Centré" avec position centree
                 bouton "Valider" avec fond vert et texte blanc
                 bouton "Annuler" avec fond gris et bordure arrondie
-        texte "Les couleurs : {code "bleu"}, {code "vert"}, {code "rouge"}, {code "orange"}, {code "jaune"}, {code "violet"}, {code "rose"}, {code "gris"}, {code "noir"}, {code "blanc"}. Les tailles : {code "petite"}, {code "moyenne"}, {code "grande"}. Les couleurs de ton thème marchent aussi (voir le thème)."
+        texte "Les couleurs : `bleu`, `vert`, `rouge`, `orange`, `jaune`, `violet`, `rose`, `gris`, `noir`, `blanc`. Les tailles : `petite`, `moyenne`, `grande`. Les couleurs de ton thème marchent aussi (voir le thème)."
         soustitre "Donner un nom à un élément"
-        texte "{code "nom "…""} donne un nom à un élément, pour le viser dans une action :"
+        texte "`nom "…"` donne un nom à un élément, pour le viser dans une action :"
         code humalis :
             page "connexion" :
                 titre "Connexion"
@@ -504,7 +506,7 @@ page "documentation_5" dans "documentation" adresse "/documentation/styles" :
                 quand l'utilisateur clique sur "connexion" :
                     montrer "attente"
         soustitre "Ton propre CSS"
-        texte "Un bloc {code "style :"} en haut du fichier contient du CSS ordinaire. On l'applique avec {code "avec style "…""} :"
+        texte "Un bloc `style :` en haut du fichier contient du CSS ordinaire. On l'applique avec `avec style "…"` :"
         code humalis :
             style :
                 .grand { font-size: 3rem; }
@@ -513,8 +515,8 @@ page "documentation_5" dans "documentation" adresse "/documentation/styles" :
             page "accueil" :
                 titre "Bienvenue" avec style "grand"
                 bouton "Valider" avec fond vert et style "principal"
-        texte "Le CSS peut aussi venir d'un fichier : {code "utiliser style "./theme.css""} en haut du fichier. Le CSS s'applique au web, au statique et au desktop ; le mobile ne traduit que les styles nommés (couleur, fond, taille, position, bordure)."
-        texte "{code "humalis verifier"} avertit si une classe donnée par {code "avec style"} est absente du CSS du projet et propose un nom proche. Il avertit aussi si une règle {code "!important"} cible une classe {code ".humalis-…"} : retirez {code "!important"} ou utilisez votre propre classe."
+        texte "Le CSS peut aussi venir d'un fichier : `utiliser style "./theme.css"` en haut du fichier. Le CSS s'applique au web, au statique et au desktop ; le mobile ne traduit que les styles nommés (couleur, fond, taille, position, bordure)."
+        texte "`humalis verifier` avertit si une classe donnée par `avec style` est absente du CSS du projet et propose un nom proche. Il avertit aussi si une règle `!important` cible une classe `.humalis-…` : retirez `!important` ou utilisez votre propre classe."
     ligne avec style "doc-suite" :
         lien "← 4. Les éléments" en anglais "← 4. Elements" vers "documentation_4"
         lien "6. La mise en page →" en anglais "6. Layout →" vers "documentation_6"
@@ -526,11 +528,11 @@ page "documentation_6" dans "documentation" adresse "/documentation/mise-en-page
     si langue est anglais :
         soustitre "Blocks"
         liste :
-            texte "{code "section "…" :"} a part of the page, with its heading;"
-            texte "{code "bloc :"} a box;"
-            texte "{code "ligne :"} elements side by side (a row);"
-            texte "{code "colonne :"} elements one below the other (a column);"
-            texte "{code "grille :"} cells that arrange themselves according to the screen width (a grid)."
+            texte "`section "…" :` a part of the page, with its heading;"
+            texte "`bloc :` a box;"
+            texte "`ligne :` elements side by side (a row);"
+            texte "`colonne :` elements one below the other (a column);"
+            texte "`grille :` cells that arrange themselves according to the screen width (a grid)."
         code humalis :
             page "home" :
                 titre "The Corner Café"
@@ -547,9 +549,9 @@ page "documentation_6" dans "documentation" adresse "/documentation/mise-en-page
                             texte "Vegetable tart"
                         bloc avec ombre legere et bordure douce et remplissage moyenne :
                             texte "Fish of the day"
-        texte "Block settings: {code "largeur"} (width: {code "etroite"} narrow, {code "large"} wide), {code "remplissage"} (padding) and {code "espacement"} (spacing): {code "petite"}, {code "moyenne"}, {code "grande"}; {code "colonnes"} (columns), {code "ombre"} (shadow: {code "legere"} light, {code "moyenne"}), {code "bordure douce"} (soft border), {code "repartition entre"} (space between), {code "alignement centre"} (centred), {code "degrade bleu vers violet"} (gradient), {code "colle"} (sticks to the top while scrolling)."
+        texte "Block settings: `largeur` (width: `etroite` narrow, `large` wide), `remplissage` (padding) and `espacement` (spacing): `petite`, `moyenne`, `grande`; `colonnes` (columns), `ombre` (shadow: `legere` light, `moyenne`), `bordure douce` (soft border), `repartition entre` (space between), `alignement centre` (centred), `degrade bleu vers violet` (gradient), `colle` (sticks to the top while scrolling)."
         soustitre "A page that fits the screen"
-        texte "{code "entete avec fixe :"} (fixed header) keeps the header still: only the area below scrolls, with its own scrollbar. {code "hauteur ecran"} (screen height) makes a block fill the screen under the header, and {code "defilement interne"} (inner scrolling) gives a block its own scrolling without moving the rest. Together they make a documentation page: the table of contents and the text each scroll on their own, without a line of CSS."
+        texte "`entete avec fixe :` (fixed header) keeps the header still: only the area below scrolls, with its own scrollbar. `hauteur ecran` (screen height) makes a block fill the screen under the header, and `defilement interne` (inner scrolling) gives a block its own scrolling without moving the rest. Together they make a documentation page: the table of contents and the text each scroll on their own, without a line of CSS."
         code humalis :
             entete avec fixe :
                 lien "Home" vers "guide"
@@ -562,7 +564,7 @@ page "documentation_6" dans "documentation" adresse "/documentation/mise-en-page
                         lien "Pages" vers "guide"
                     colonne avec defilement interne :
                         texte "A long chapter that scrolls on its own."
-        texte "On the static target, the scrollbar stays the window's. On a phone the whole page scrolls: {code "hauteur ecran"} and {code "defilement interne"} have no effect, and a warning says so."
+        texte "On the static target, the scrollbar stays the window's. On a phone the whole page scrolls: `hauteur ecran` and `defilement interne` have no effect, and a warning says so."
         soustitre "Depending on the device"
         code humalis :
             page "home" :
@@ -573,9 +575,9 @@ page "documentation_6" dans "documentation" adresse "/documentation/mise-en-page
                     ligne :
                         lien "The menu" vers "home"
                         lien "Book" vers "home"
-        texte "{code "sur telephone"} (on phone), {code "sur tablette"} (tablet), {code "sur ordinateur"} (computer)."
+        texte "`sur telephone` (on phone), `sur tablette` (tablet), `sur ordinateur` (computer)."
         soustitre "The theme"
-        texte "A {code "theme :"} block at the top of the file sets the colours, fonts and mode (light, dark or automatic) of the whole application:"
+        texte "A `theme :` block at the top of the file sets the colours, fonts and mode (light, dark or automatic) of the whole application:"
         code humalis :
             theme :
                 couleur marque clair "#0e5a6b" sombre "#5fc3d6"
@@ -590,9 +592,9 @@ page "documentation_6" dans "documentation" adresse "/documentation/mise-en-page
                 bouton "Dark mode"
                 quand l'utilisateur clique sur "Dark mode" :
                     changer theme par sombre
-        texte "{code "couleur marque clair "…" sombre "…""} names a colour ({code "marque"}, \"brand\") with a light ({code "clair"}) and dark ({code "sombre"}) value; {code "police titres"} is the headings font. Humalis checks contrast: a text colour too pale for its background is reported at compile time."
-        texte "A font can be shipped with the site, without relying on an outside service: {code "police titres "Space Grotesk" depuis "./polices/space-grotesk.woff2""} ({code ".woff2"}, {code ".woff"}, {code ".ttf"} or {code ".otf"} files)."
-        texte "Visitors can also switch themes. {code "basculer theme"} (\"toggle theme\") switches to the opposite of the theme being shown, and {code "si theme est sombre :"} (or {code "clair"}) reacts to the theme on screen:"
+        texte "`couleur marque clair "…" sombre "…"` names a colour (`marque`, \"brand\") with a light (`clair`) and dark (`sombre`) value; `police titres` is the headings font. Humalis checks contrast: a text colour too pale for its background is reported at compile time."
+        texte "A font can be shipped with the site, without relying on an outside service: `police titres "Space Grotesk" depuis "./polices/space-grotesk.woff2"` (`.woff2`, `.woff`, `.ttf` or `.otf` files)."
+        texte "Visitors can also switch themes. `basculer theme` (\"toggle theme\") switches to the opposite of the theme being shown, and `si theme est sombre :` (or `clair`) reacts to the theme on screen:"
         code humalis :
             theme :
                 mode automatique
@@ -607,7 +609,7 @@ page "documentation_6" dans "documentation" adresse "/documentation/mise-en-page
                 sinon :
                     texte "Good day"
         soustitre "Shared header and footer"
-        texte "{code "entete :"} (header) and {code "pied :"} (footer) appear on every page. A page can leave them out with {code "sans entete"} or {code "sans pied"}. With a header, Humalis adds a \"Skip to content\" link on its own, hidden until the keyboard reaches it: it lets keyboard users jump past the header."
+        texte "`entete :` (header) and `pied :` (footer) appear on every page. A page can leave them out with `sans entete` or `sans pied`. With a header, Humalis adds a \"Skip to content\" link on its own, hidden until the keyboard reaches it: it lets keyboard users jump past the header."
         code humalis :
             entete avec colle :
                 ligne avec repartition entre :
@@ -628,11 +630,11 @@ page "documentation_6" dans "documentation" adresse "/documentation/mise-en-page
     sinon :
         soustitre "Les blocs"
         liste :
-            texte "{code "section "…" :"} une partie de la page, avec son titre ;"
-            texte "{code "bloc :"} une boîte ;"
-            texte "{code "ligne :"} des éléments côte à côte ;"
-            texte "{code "colonne :"} des éléments les uns sous les autres ;"
-            texte "{code "grille :"} des cases qui se rangent selon la largeur de l'écran."
+            texte "`section "…" :` une partie de la page, avec son titre ;"
+            texte "`bloc :` une boîte ;"
+            texte "`ligne :` des éléments côte à côte ;"
+            texte "`colonne :` des éléments les uns sous les autres ;"
+            texte "`grille :` des cases qui se rangent selon la largeur de l'écran."
         code humalis :
             page "accueil" :
                 titre "Le Comptoir"
@@ -649,9 +651,9 @@ page "documentation_6" dans "documentation" adresse "/documentation/mise-en-page
                             texte "Tarte fine aux légumes"
                         bloc avec ombre legere et bordure douce et remplissage moyenne :
                             texte "Poisson du jour"
-        texte "Les réglages des blocs : {code "largeur"} ({code "etroite"}, {code "large"}), {code "remplissage"} et {code "espacement"} ({code "petite"}, {code "moyenne"}, {code "grande"}), {code "colonnes"}, {code "ombre"} ({code "legere"}, {code "moyenne"}), {code "bordure douce"}, {code "repartition entre"}, {code "alignement centre"}, {code "degrade bleu vers violet"}, {code "colle"} (reste en haut pendant le défilement)."
+        texte "Les réglages des blocs : `largeur` (`etroite`, `large`), `remplissage` et `espacement` (`petite`, `moyenne`, `grande`), `colonnes`, `ombre` (`legere`, `moyenne`), `bordure douce`, `repartition entre`, `alignement centre`, `degrade bleu vers violet`, `colle` (reste en haut pendant le défilement)."
         soustitre "Une page qui tient dans l'écran"
-        texte "{code "entete avec fixe :"} garde l'en-tête immobile : seule la zone en dessous défile, avec sa barre. {code "hauteur ecran"} fait remplir l'écran à un bloc, sous l'en-tête, et {code "defilement interne"} donne à un bloc son propre défilement, sans faire bouger le reste. Ensemble, ils font une page de documentation : le sommaire et le texte défilent chacun de leur côté, sans une ligne de CSS."
+        texte "`entete avec fixe :` garde l'en-tête immobile : seule la zone en dessous défile, avec sa barre. `hauteur ecran` fait remplir l'écran à un bloc, sous l'en-tête, et `defilement interne` donne à un bloc son propre défilement, sans faire bouger le reste. Ensemble, ils font une page de documentation : le sommaire et le texte défilent chacun de leur côté, sans une ligne de CSS."
         code humalis :
             entete avec fixe :
                 lien "Accueil" vers "guide"
@@ -664,7 +666,7 @@ page "documentation_6" dans "documentation" adresse "/documentation/mise-en-page
                         lien "Les pages" vers "guide"
                     colonne avec defilement interne :
                         texte "Un long chapitre, qui défile seul."
-        texte "Sur le statique, la barre de défilement reste celle de la fenêtre. Sur le téléphone, toute la page défile : {code "hauteur ecran"} et {code "defilement interne"} n'ont pas d'effet, et un avertissement le dit."
+        texte "Sur le statique, la barre de défilement reste celle de la fenêtre. Sur le téléphone, toute la page défile : `hauteur ecran` et `defilement interne` n'ont pas d'effet, et un avertissement le dit."
         soustitre "Selon l'appareil"
         code humalis :
             page "accueil" :
@@ -676,7 +678,7 @@ page "documentation_6" dans "documentation" adresse "/documentation/mise-en-page
                         lien "La carte" vers "accueil"
                         lien "Réserver" vers "accueil"
         soustitre "Le thème"
-        texte "Un bloc {code "theme :"} en haut du fichier donne les couleurs, les polices et le mode (clair, sombre ou automatique) de toute l'application :"
+        texte "Un bloc `theme :` en haut du fichier donne les couleurs, les polices et le mode (clair, sombre ou automatique) de toute l'application :"
         code humalis :
             theme :
                 couleur marque clair "#0e5a6b" sombre "#5fc3d6"
@@ -692,8 +694,8 @@ page "documentation_6" dans "documentation" adresse "/documentation/mise-en-page
                 quand l'utilisateur clique sur "Mode sombre" :
                     changer theme par sombre
         texte "Humalis vérifie le contraste : une couleur de texte trop pâle sur le fond est signalée à la compilation."
-        texte "Une police peut être livrée avec le site, sans dépendre d'un service extérieur : {code "police titres "Space Grotesk" depuis "./polices/space-grotesk.woff2""} (fichiers {code ".woff2"}, {code ".woff"}, {code ".ttf"} ou {code ".otf"})."
-        texte "Le visiteur peut aussi passer d'un thème à l'autre. {code "basculer theme"} passe au thème inverse de celui qu'on voit, et {code "si theme est sombre :"} (ou {code "clair"}) réagit au thème affiché :"
+        texte "Une police peut être livrée avec le site, sans dépendre d'un service extérieur : `police titres "Space Grotesk" depuis "./polices/space-grotesk.woff2"` (fichiers `.woff2`, `.woff`, `.ttf` ou `.otf`)."
+        texte "Le visiteur peut aussi passer d'un thème à l'autre. `basculer theme` passe au thème inverse de celui qu'on voit, et `si theme est sombre :` (ou `clair`) réagit au thème affiché :"
         code humalis :
             theme :
                 mode automatique
@@ -708,7 +710,7 @@ page "documentation_6" dans "documentation" adresse "/documentation/mise-en-page
                 sinon :
                     texte "Bonne journée"
         soustitre "L'en-tête et le pied communs"
-        texte "{code "entete :"} et {code "pied :"} s'affichent sur toutes les pages. Une page peut s'en passer avec {code "sans entete"} ou {code "sans pied"}. Avec un en-tête, Humalis ajoute seul un lien « Aller au contenu », caché tant que le clavier ne l'atteint pas : il permet de sauter l'en-tête."
+        texte "`entete :` et `pied :` s'affichent sur toutes les pages. Une page peut s'en passer avec `sans entete` ou `sans pied`. Avec un en-tête, Humalis ajoute seul un lien « Aller au contenu », caché tant que le clavier ne l'atteint pas : il permet de sauter l'en-tête."
         code humalis :
             entete avec colle :
                 ligne avec repartition entre :
@@ -754,7 +756,7 @@ page "documentation_7" dans "documentation" adresse "/documentation/elements-d-e
                 chargement "Loading reviews…"
                 code qr "https://example.com/lamp" avec taille petite et description "Link to this product"
                 bouton "Add to cart" avec icone "plus"
-        texte "{code "icone"} (icon), {code "badge"}, {code "avatar"}, {code "etoiles"} (star rating, {code "modifiable"} lets people rate), {code "compteur"} (quantity stepper), {code "progression"} (progress bar), {code "chargement"} (loading indicator), {code "code qr"} (QR code)."
+        texte "`icone` (icon), `badge`, `avatar`, `etoiles` (star rating, `modifiable` lets people rate), `compteur` (quantity stepper), `progression` (progress bar), `chargement` (loading indicator), `code qr` (QR code)."
         soustitre "Tabs, collapsible sections and carousel"
         code humalis :
             page "help" :
@@ -774,7 +776,7 @@ page "documentation_7" dans "documentation" adresse "/documentation/elements-d-e
                 carrousel avec automatique 5 et visibles 1 :
                     image "room.jpg" avec description "The dining room"
                     image "terrace.jpg" avec description "The terrace"
-        texte "{code "onglets"}/{code "onglet"} (tabs), {code "deroulant"} (collapsible section, {code "ouvert"} = open), {code "accordeon"} (accordion), {code "carrousel"} (carousel: {code "automatique 5"} turns every 5 seconds, {code "visibles 1"} shows one item at a time)."
+        texte "`onglets`/`onglet` (tabs), `deroulant` (collapsible section, `ouvert` = open), `accordeon` (accordion), `carrousel` (carousel: `automatique 5` turns every 5 seconds, `visibles 1` shows one item at a time)."
         soustitre "Breadcrumb and menu"
         code humalis :
             page "home" :
@@ -788,14 +790,14 @@ page "documentation_7" dans "documentation" adresse "/documentation/elements-d-e
                     lien "Home" vers "home"
                     texte "The menu"
                 titre "The menu"
-        texte "{code "fil d'Ariane"} is a breadcrumb. In a {code "menu"}, the link to the current page is marked as active. The links of a menu wrap when space runs out. A {code "menu vertical :"} stacks its links in a column and never starts a second column: a table of contents with a limited height scrolls. It combines with {code "repliable"} ({code "menu vertical repliable :"})."
+        texte "`fil d'Ariane` is a breadcrumb. In a `menu`, the link to the current page is marked as active. The links of a menu wrap when space runs out. A `menu vertical :` stacks its links in a column and never starts a second column: a table of contents with a limited height scrolls. It combines with `repliable` (`menu vertical repliable :`)."
         code humalis :
             page "guide" :
                 titre "The guide"
                 menu vertical :
                     lien "Install" vers "guide"
                     lien "Pages" vers "guide"
-        texte "A {code "menu repliable :"} (collapsible menu) folds behind a burger button (named \"Menu\" for screen readers) on a small screen (phone); the icon turns into a cross while the menu is open. Choosing a link, tapping outside or pressing Escape closes it. On a large screen it stays open:"
+        texte "A `menu repliable :` (collapsible menu) folds behind a burger button (named \"Menu\" for screen readers) on a small screen (phone); the icon turns into a cross while the menu is open. Choosing a link, tapping outside or pressing Escape closes it. On a large screen it stays open:"
         code humalis :
             page "home" :
                 menu repliable :
@@ -855,14 +857,14 @@ page "documentation_7" dans "documentation" adresse "/documentation/elements-d-e
                     lien "Accueil" vers "accueil"
                     texte "La carte"
                 titre "La carte"
-        texte "Dans un {code "menu"}, le lien de la page où l'on est est marqué comme actif. Les liens d'un menu passent à la ligne quand la place manque. Un {code "menu vertical :"} range ses liens en colonne, sans jamais ouvrir une deuxième colonne : un sommaire de hauteur limitée défile. Il se combine avec {code "repliable"} ({code "menu vertical repliable :"})."
+        texte "Dans un `menu`, le lien de la page où l'on est est marqué comme actif. Les liens d'un menu passent à la ligne quand la place manque. Un `menu vertical :` range ses liens en colonne, sans jamais ouvrir une deuxième colonne : un sommaire de hauteur limitée défile. Il se combine avec `repliable` (`menu vertical repliable :`)."
         code humalis :
             page "guide" :
                 titre "Le guide"
                 menu vertical :
                     lien "Installer" vers "guide"
                     lien "Les pages" vers "guide"
-        texte "Un {code "menu repliable :"} se range derrière un bouton burger (nommé « Menu » pour les lecteurs d'écran) sur un petit écran (téléphone) ; l'icône devient une croix quand le menu est ouvert. Un lien choisi, un toucher à côté ou la touche Échap referment le menu. Sur grand écran, il reste ouvert :"
+        texte "Un `menu repliable :` se range derrière un bouton burger (nommé « Menu » pour les lecteurs d'écran) sur un petit écran (téléphone) ; l'icône devient une croix quand le menu est ouvert. Un lien choisi, un toucher à côté ou la touche Échap referment le menu. Sur grand écran, il reste ouvert :"
         code humalis :
             page "accueil" :
                 menu repliable :
@@ -885,14 +887,14 @@ page "documentation_8" dans "documentation" adresse "/documentation/images-sons-
                 titre "Gallery"
                 image "shopfront.jpg" avec description "The shop front" et proportions 16 sur 9 et prioritaire
                 image "pattern.svg" avec decoratif
-        texte "{code "proportions 16 sur 9"} (16 by 9) reserves the image's space before it loads (the page does not jump). {code "prioritaire"} (priority) loads it first: keep it for images at the top of the page."
+        texte "`proportions 16 sur 9` (16 by 9) reserves the image's space before it loads (the page does not jump). `prioritaire` (priority) loads it first: keep it for images at the top of the page."
         soustitre "Sound"
         code humalis :
             page "listen" :
                 titre "Listen"
                 audio "excerpt.mp3" avec description "Concert excerpt, two minutes"
                 audio "interview.mp3" avec description "Interview with the chef" et transcription "Hello and welcome."
-        texte "A sound never starts on its own. Speech has its {code "transcription"}, for people who cannot hear it."
+        texte "A sound never starts on its own. Speech has its `transcription`, for people who cannot hear it."
         soustitre "Motion"
         code humalis :
             page "home" :
@@ -901,8 +903,8 @@ page "documentation_8" dans "documentation" adresse "/documentation/images-sons-
                 bouton "Book" avec transition douce et effet agrandi
                 bloc avec animation montee au defilement et effet leve :
                     texte "Appears when you scroll to it."
-        texte "Animations: {code "apparition"} (fade in), {code "montee"} (slide up), {code "agrandissement"} (grow); {code "au defilement"} plays it when scrolled into view. Hover effects: {code "agrandi"} (grow), {code "leve"} (lift). Humalis respects the person's \"reduce motion\" setting."
-        texte "On a block, {code "et en cascade"} (\"and in a cascade\") makes its children appear one after another:"
+        texte "Animations: `apparition` (fade in), `montee` (slide up), `agrandissement` (grow); `au defilement` plays it when scrolled into view. Hover effects: `agrandi` (grow), `leve` (lift). Humalis respects the person's \"reduce motion\" setting."
+        texte "On a block, `et en cascade` (\"and in a cascade\") makes its children appear one after another:"
         code humalis :
             page "home" :
                 titre "Our dishes"
@@ -917,7 +919,7 @@ page "documentation_8" dans "documentation" adresse "/documentation/images-sons-
                 titre "Galerie"
                 image "vitrine.jpg" avec description "La vitrine de la boutique" et proportions 16 sur 9 et prioritaire
                 image "motif.svg" avec decoratif
-        texte "{code "proportions"} réserve la place de l'image avant son chargement (la page ne saute pas). {code "prioritaire"} la charge en premier : à réserver aux images du haut de la page."
+        texte "`proportions` réserve la place de l'image avant son chargement (la page ne saute pas). `prioritaire` la charge en premier : à réserver aux images du haut de la page."
         soustitre "Les sons"
         code humalis :
             page "ecouter" :
@@ -933,8 +935,8 @@ page "documentation_8" dans "documentation" adresse "/documentation/images-sons-
                 bouton "Réserver" avec transition douce et effet agrandi
                 bloc avec animation montee au defilement et effet leve :
                     texte "Apparaît quand on arrive dessus."
-        texte "Les animations : {code "apparition"}, {code "montee"}, {code "agrandissement"}. Les effets au survol : {code "agrandi"}, {code "leve"}. Humalis respecte le réglage « réduire les animations » de la personne."
-        texte "Sur un bloc, {code "et en cascade"} fait apparaître ses enfants l'un après l'autre :"
+        texte "Les animations : `apparition`, `montee`, `agrandissement`. Les effets au survol : `agrandi`, `leve`. Humalis respecte le réglage « réduire les animations » de la personne."
+        texte "Sur un bloc, `et en cascade` fait apparaître ses enfants l'un après l'autre :"
         code humalis :
             page "accueil" :
                 titre "Nos plats"
@@ -960,8 +962,8 @@ page "documentation_9" dans "documentation" adresse "/documentation/variables-et
                 variable price = 12,50
                 titre "Hello {firstname}!"
                 texte "Your score: {score}"
-        texte "A variable ({code "variable"}) holds a number, a text, {code "vrai"} (true) or {code "faux"} (false), a list, a record, or {code "rien"} (nothing). Decimal numbers use a comma, the French way: {code "12,50"}. Inside a text, {code "{firstname}"} shows the variable's value."
-        texte "A name cannot be one of the small French words Humalis skips so the code reads like a sentence: {code "le"}, {code "la"}, {code "les"}, {code "un"}, {code "une"}, {code "des"}, {code "de"}, {code "du"}, {code "a"}, {code "au"}, {code "aux"}, {code "se"}. Write {code "variable total = 0"}, not {code "variable a = 0"}."
+        texte "A variable (`variable`) holds a number, a text, `vrai` (true) or `faux` (false), a list, a record, or `rien` (nothing). Decimal numbers use a comma, the French way: `12,50`. Inside a text, `{firstname}` shows the variable's value."
+        texte "A name cannot be one of the small French words Humalis skips so the code reads like a sentence: `le`, `la`, `les`, `un`, `une`, `des`, `de`, `du`, `a`, `au`, `aux`, `se`. Write `variable total = 0`, not `variable a = 0`."
         soustitre "Changing a variable"
         code humalis :
             page "counter" :
@@ -974,9 +976,9 @@ page "documentation_9" dans "documentation" adresse "/documentation/variables-et
                     changer clicks par clicks + 1
                 quand l'utilisateur clique sur "Reset" :
                     changer clicks par 0
-        texte "{code "changer clicks par …"} means \"change clicks to …\"."
+        texte "`changer clicks par …` means \"change clicks to …\"."
         soustitre "Calculations that update themselves"
-        texte "{code "calcul"} declares a value computed from others: it updates when they change."
+        texte "`calcul` declares a value computed from others: it updates when they change."
         code humalis :
             page "cart" :
                 variable price = 12
@@ -987,9 +989,9 @@ page "documentation_9" dans "documentation" adresse "/documentation/variables-et
                 bouton "One more"
                 quand l'utilisateur clique sur "One more" :
                     changer quantity par quantity + 1
-        texte "Operations: {code "+"}, {code "-"}, {code "*"}, {code "/"} and parentheses. Numbers are displayed the French way: {code "14 000"}, {code "4,5"}."
+        texte "Operations: `+`, `-`, `*`, `/` and parentheses. Numbers are displayed the French way: `14 000`, `4,5`."
         soustitre "Constants"
-        texte "A {code "constante"} never changes. Written at the top of the file, it serves every page."
+        texte "A `constante` never changes. Written at the top of the file, it serves every page."
         code humalis :
             constante shipping = 5
 
@@ -1014,7 +1016,7 @@ page "documentation_9" dans "documentation" adresse "/documentation/variables-et
                 bouton "Roll the dice"
                 quand l'utilisateur clique sur "Roll the dice" :
                     changer roll par hasard entre 1 et 6
-        texte "{code "moyenne de"} (average of), {code "arrondi de … a 1 chiffres"} (rounded to 1 digit), {code "maximum de"}, {code "minimum de"}, {code "somme de"} (sum of), {code "hasard entre 1 et 6"} (random between 1 and 6)."
+        texte "`moyenne de` (average of), `arrondi de … a 1 chiffres` (rounded to 1 digit), `maximum de`, `minimum de`, `somme de` (sum of), `hasard entre 1 et 6` (random between 1 and 6)."
     sinon :
         soustitre "Les variables"
         code humalis :
@@ -1025,8 +1027,8 @@ page "documentation_9" dans "documentation" adresse "/documentation/variables-et
                 variable prix = 12,50
                 titre "Bonjour {prenom} !"
                 texte "Ta note : {note}"
-        texte "Une variable contient un nombre, un texte, {code "vrai"} ou {code "faux"}, une liste, une fiche, ou {code "rien"}. Les nombres à virgule s'écrivent à la française : {code "12,50"}. Dans un texte, {code "{prenom}"} affiche la valeur de la variable."
-        texte "Un nom ne peut pas être un des petits mots que Humalis ignore pour se lire comme une phrase : {code "le"}, {code "la"}, {code "les"}, {code "un"}, {code "une"}, {code "des"}, {code "de"}, {code "du"}, {code "a"}, {code "au"}, {code "aux"}, {code "se"}. Écris {code "variable total = 0"}, pas {code "variable a = 0"}."
+        texte "Une variable contient un nombre, un texte, `vrai` ou `faux`, une liste, une fiche, ou `rien`. Les nombres à virgule s'écrivent à la française : `12,50`. Dans un texte, `{prenom}` affiche la valeur de la variable."
+        texte "Un nom ne peut pas être un des petits mots que Humalis ignore pour se lire comme une phrase : `le`, `la`, `les`, `un`, `une`, `des`, `de`, `du`, `a`, `au`, `aux`, `se`. Écris `variable total = 0`, pas `variable a = 0`."
         soustitre "Changer une variable"
         code humalis :
             page "compteur" :
@@ -1040,7 +1042,7 @@ page "documentation_9" dans "documentation" adresse "/documentation/variables-et
                 quand l'utilisateur clique sur "Remettre à zéro" :
                     changer clics par 0
         soustitre "Les calculs qui se mettent à jour tout seuls"
-        texte "{code "calcul"} déclare une valeur calculée à partir d'autres : elle se met à jour quand elles changent."
+        texte "`calcul` déclare une valeur calculée à partir d'autres : elle se met à jour quand elles changent."
         code humalis :
             page "panier" :
                 variable prix = 12
@@ -1051,9 +1053,9 @@ page "documentation_9" dans "documentation" adresse "/documentation/variables-et
                 bouton "Un de plus"
                 quand l'utilisateur clique sur "Un de plus" :
                     changer quantite par quantite + 1
-        texte "Les opérations : {code "+"}, {code "-"}, {code "*"}, {code "/"} et les parenthèses. Les nombres s'affichent à la française : {code "14 000"}, {code "4,5"}."
+        texte "Les opérations : `+`, `-`, `*`, `/` et les parenthèses. Les nombres s'affichent à la française : `14 000`, `4,5`."
         soustitre "Les constantes"
-        texte "Une {code "constante"} ne change jamais. Écrite en haut du fichier, elle sert à toutes les pages."
+        texte "Une `constante` ne change jamais. Écrite en haut du fichier, elle sert à toutes les pages."
         code humalis :
             constante livraison = 5
 
@@ -1088,7 +1090,7 @@ page "documentation_10" dans "documentation" adresse "/documentation/fiches-le-t
     titre "10. Les fiches, le texte, l'argent et les dates" en anglais "10. Records, text, money and dates"
     si langue est anglais :
         soustitre "Records"
-        texte "A record ({code "fiche"}) groups several values under one name. Read each value with a dot."
+        texte "A record (`fiche`) groups several values under one name. Read each value with a dot."
         code humalis :
             page "customer" :
                 variable customer = fiche avec name "Sam" et city "Leeds" et address (fiche avec street "Lime Street" et number 12)
@@ -1109,16 +1111,16 @@ page "documentation_10" dans "documentation" adresse "/documentation/fiches-le-t
                 texte "{loud}, {quiet}, {size} letters, {polite}"
                 si name contient "Taylor" :
                     texte "The Taylor family"
-        texte "{code "majuscules de"} (uppercase), {code "minuscules de"} (lowercase), {code "longueur de"} (length), {code "remplacer "a" par "b" dans …"} (replace), {code "contient"} (contains)."
+        texte "`majuscules de` (uppercase), `minuscules de` (lowercase), `longueur de` (length), `remplacer "a" par "b" dans …` (replace), `contient` (contains)."
         soustitre "Money and plurals"
-        texte "Inside a text, {code "{price en euros}"} writes an amount, and {code "{count item}"} agrees the word with the number: \"1 item\", \"3 items\"."
+        texte "Inside a text, `{price en euros}` writes an amount, and `{count item}` agrees the word with the number: \"1 item\", \"3 items\"."
         code humalis :
             page "cart" :
                 variable price = 1234,5
                 variable count = 3
                 titre "Cart"
                 texte "{count item} for {price en euros}"
-        texte "The currencies: {code "euros"}, {code "dollars"} and {code "FC"} (Congolese franc). Amounts are written the French way ({code "1 234,50 €"}); the plural adds an \"s\"."
+        texte "The currencies: `euros`, `dollars` and `FC` (Congolese franc). Amounts are written the French way (`1 234,50 €`); the plural adds an \"s\"."
         soustitre "Dates"
         code humalis :
             page "delivery" :
@@ -1130,7 +1132,7 @@ page "documentation_10" dans "documentation" adresse "/documentation/fiches-le-t
                 titre "Delivery"
                 texte "Delivered on {delivery}, in {wait} days"
                 texte "Ordered {ordered depuis}"
-        texte "{code "maintenant"} (now), {code "aujourd'hui"} (today), {code "plus 3 jours"} (plus 3 days), {code "moins 1 semaine"} (minus 1 week), {code "jours entre"} (days between). Dates are displayed in French (\"2 novembre 2026\"); {code "{ordered depuis}"} writes \"il y a 5 minutes\" (5 minutes ago). You can shift by {code "jours"} (days), {code "semaines"} (weeks) or {code "mois"} (months)."
+        texte "`maintenant` (now), `aujourd'hui` (today), `plus 3 jours` (plus 3 days), `moins 1 semaine` (minus 1 week), `jours entre` (days between). Dates are displayed in French (\"2 novembre 2026\"); `{ordered depuis}` writes \"il y a 5 minutes\" (5 minutes ago). You can shift by `jours` (days), `semaines` (weeks) or `mois` (months)."
     sinon :
         soustitre "Les fiches"
         texte "Une fiche regroupe plusieurs valeurs sous un même nom. On lit chaque valeur avec un point."
@@ -1155,14 +1157,14 @@ page "documentation_10" dans "documentation" adresse "/documentation/fiches-le-t
                 si nom contient "Martin" :
                     texte "Famille Martin"
         soustitre "L'argent et le pluriel"
-        texte "Dans un texte, {code "{prix en euros}"} écrit un montant à la française, et {code "{nombre article}"} accorde le mot : « 1 article », « 3 articles »."
+        texte "Dans un texte, `{prix en euros}` écrit un montant à la française, et `{nombre article}` accorde le mot : « 1 article », « 3 articles »."
         code humalis :
             page "panier" :
                 variable prix = 1234,5
                 variable nombre = 3
                 titre "Panier"
                 texte "{nombre article} pour {prix en euros}"
-        texte "Les devises : {code "euros"}, {code "dollars"} et {code "FC"} (franc congolais)."
+        texte "Les devises : `euros`, `dollars` et `FC` (franc congolais)."
         soustitre "Les dates"
         code humalis :
             page "livraison" :
@@ -1174,7 +1176,7 @@ page "documentation_10" dans "documentation" adresse "/documentation/fiches-le-t
                 titre "Livraison"
                 texte "Livrée le {livraison}, dans {attente} jours"
                 texte "Commandée {commande depuis}"
-        texte "Les dates s'affichent en français (« 2 novembre 2026 »). {code "{commande depuis}"} écrit « il y a 5 minutes ». On décale de {code "jours"}, {code "semaines"} ou {code "mois"}."
+        texte "Les dates s'affichent en français (« 2 novembre 2026 »). `{commande depuis}` écrit « il y a 5 minutes ». On décale de `jours`, `semaines` ou `mois`."
     ligne avec style "doc-suite" :
         lien "← 9. Les variables et les calculs" en anglais "← 9. Variables and calculations" vers "documentation_9"
         lien "11. Les conditions →" en anglais "11. Conditions →" vers "documentation_11"
@@ -1192,20 +1194,20 @@ page "documentation_11" dans "documentation" adresse "/documentation/conditions"
                     texte "Needs work"
                 sinon :
                     texte "Passed"
-        texte "{code "si"} means \"if\", {code "sinon"} \"otherwise\"."
+        texte "`si` means \"if\", `sinon` \"otherwise\"."
         soustitre "Comparisons"
         tableau "Write, Meaning" :
             colonnes "Write", "Meaning"
-            rangee "{code "est egal a"}", "="
-            rangee "{code "est different de"}", "≠"
-            rangee "{code "est superieur a"}, {code "est inferieur a"}", "> and <"
-            rangee "{code "est superieur ou egal a"}, {code "est inferieur ou egal a"}", "≥ and ≤"
-            rangee "{code "est vide"}", "an empty list or text"
-            rangee "{code "est rien"}", "no value"
-            rangee "{code "est vrai"}, {code "est faux"}", "for {code "vrai"} and {code "faux"}"
-            rangee "{code "est dans [ … ]"}", "is one of the list"
-            rangee "{code "contient"}", "the text or list contains"
-        texte "The feminine forms {code "supérieure"} and {code "inférieure"} work too."
+            rangee "`est egal a`", "="
+            rangee "`est different de`", "≠"
+            rangee "`est superieur a`, `est inferieur a`", "> and <"
+            rangee "`est superieur ou egal a`, `est inferieur ou egal a`", "≥ and ≤"
+            rangee "`est vide`", "an empty list or text"
+            rangee "`est rien`", "no value"
+            rangee "`est vrai`, `est faux`", "for `vrai` and `faux`"
+            rangee "`est dans [ … ]`", "is one of the list"
+            rangee "`contient`", "the text or list contains"
+        texte "The feminine forms `supérieure` and `inférieure` work too."
         soustitre "Combining and negating"
         code humalis :
             page "stock" :
@@ -1224,7 +1226,7 @@ page "documentation_11" dans "documentation" adresse "/documentation/conditions"
                     texte "Fashion"
                 si cart n'est pas vide :
                     texte "Cart filled"
-        texte "{code "et"} (and) comes before {code "ou"} (or), as in mathematics. {code "n'est pas"} means \"is not\"."
+        texte "`et` (and) comes before `ou` (or), as in mathematics. `n'est pas` means \"is not\"."
     sinon :
         code humalis :
             page "resultat" :
@@ -1237,16 +1239,16 @@ page "documentation_11" dans "documentation" adresse "/documentation/conditions"
         soustitre "Les comparaisons"
         tableau "On écrit, Ça veut dire" :
             colonnes "On écrit", "Ça veut dire"
-            rangee "{code "est egal a"}", "="
-            rangee "{code "est different de"}", "≠"
-            rangee "{code "est superieur a"}, {code "est inferieur a"}", "> et <"
-            rangee "{code "est superieur ou egal a"}, {code "est inferieur ou egal a"}", "≥ et ≤"
-            rangee "{code "est vide"}", "une liste ou un texte vide"
-            rangee "{code "est rien"}", "aucune valeur"
-            rangee "{code "est vrai"}, {code "est faux"}", "pour {code "vrai"} et {code "faux"}"
-            rangee "{code "est dans [ … ]"}", "fait partie de la liste"
-            rangee "{code "contient"}", "le texte ou la liste contient"
-        texte "{code "supérieure"} et {code "inférieure"} au féminin marchent aussi."
+            rangee "`est egal a`", "="
+            rangee "`est different de`", "≠"
+            rangee "`est superieur a`, `est inferieur a`", "> et <"
+            rangee "`est superieur ou egal a`, `est inferieur ou egal a`", "≥ et ≤"
+            rangee "`est vide`", "une liste ou un texte vide"
+            rangee "`est rien`", "aucune valeur"
+            rangee "`est vrai`, `est faux`", "pour `vrai` et `faux`"
+            rangee "`est dans [ … ]`", "fait partie de la liste"
+            rangee "`contient`", "le texte ou la liste contient"
+        texte "`supérieure` et `inférieure` au féminin marchent aussi."
         soustitre "Combiner et nier"
         code humalis :
             page "stock" :
@@ -1265,7 +1267,7 @@ page "documentation_11" dans "documentation" adresse "/documentation/conditions"
                     texte "Mode"
                 si panier n'est pas vide :
                     texte "Panier rempli"
-        texte "{code "et"} passe avant {code "ou"}, comme en mathématiques."
+        texte "`et` passe avant `ou`, comme en mathématiques."
     ligne avec style "doc-suite" :
         lien "← 10. Les fiches, le texte, l'argent et les dates" en anglais "← 10. Records, text, money and dates" vers "documentation_10"
         lien "12. Les listes et les boucles →" en anglais "12. Lists and loops →" vers "documentation_12"
@@ -1282,7 +1284,7 @@ page "documentation_12" dans "documentation" adresse "/documentation/listes-et-l
                 titre "Our fruit"
                 pour chaque name dans products :
                     texte name
-        texte "{code "pour chaque … dans …"} means \"for each … in …\"."
+        texte "`pour chaque … dans …` means \"for each … in …\"."
         soustitre "Adding, removing, counting"
         code humalis :
             page "cart" :
@@ -1298,7 +1300,7 @@ page "documentation_12" dans "documentation" adresse "/documentation/listes-et-l
                     retirer "Apple" de cart
                 si cart est vide :
                     texte "The cart is empty"
-        texte "{code "ajouter … à"} (add to), {code "retirer … de"} (remove from), {code "nombre de"} (count of)."
+        texte "`ajouter … à` (add to), `retirer … de` (remove from), `nombre de` (count of)."
         soustitre "Sorting, filtering, picking"
         code humalis :
             page "catalogue" :
@@ -1312,7 +1314,7 @@ page "documentation_12" dans "documentation" adresse "/documentation/listes-et-l
                 texte "Found: {book.name}"
                 pour chaque p dans showcase :
                     texte "{p.name}: {p.price en euros}"
-        texte "{code "trier … par"} (sort by, {code "decroissant"} descending), {code "dont"} (whose: filters a list), {code "les 2 premiers de"} (the first 2 of), {code "premier de"} (first of)."
+        texte "`trier … par` (sort by, `decroissant` descending), `dont` (whose: filters a list), `les 2 premiers de` (the first 2 of), `premier de` (first of)."
         soustitre "Grouping"
         code humalis :
             page "departments" :
@@ -1323,7 +1325,7 @@ page "documentation_12" dans "documentation" adresse "/documentation/listes-et-l
                     soustitre department.nom
                     pour chaque p dans department.elements :
                         texte p.name
-        texte "{code "grouper … par"} (group by) gives a list of groups; each group has a {code "nom"} (its name) and its {code "elements"}."
+        texte "`grouper … par` (group by) gives a list of groups; each group has a `nom` (its name) and its `elements`."
         soustitre "Loops inside an action"
         texte "Inside an event or a function you can also repeat, loop while a condition holds, and choose according to a value:"
         code humalis :
@@ -1343,7 +1345,7 @@ page "documentation_12" dans "documentation" adresse "/documentation/listes-et-l
                             afficher "Have a nice weekend"
                         cas "monday" :
                             afficher "Have a nice week"
-        texte "{code "repeter 3 fois"} (repeat 3 times), {code "tant que"} (while), {code "selon … cas …"} (switch … case …). {code "arreter"} leaves a loop; {code "passer au suivant"} skips to the next turn."
+        texte "`repeter 3 fois` (repeat 3 times), `tant que` (while), `selon … cas …` (switch … case …). `arreter` leaves a loop; `passer au suivant` skips to the next turn."
     sinon :
         soustitre "Afficher une liste"
         code humalis :
@@ -1409,7 +1411,7 @@ page "documentation_12" dans "documentation" adresse "/documentation/listes-et-l
                             afficher "Bon week-end"
                         cas "lundi" :
                             afficher "Bonne semaine"
-        texte "{code "arreter"} sort d'une boucle ; {code "passer au suivant"} passe au tour suivant."
+        texte "`arreter` sort d'une boucle ; `passer au suivant` passe au tour suivant."
     ligne avec style "doc-suite" :
         lien "← 11. Les conditions" en anglais "← 11. Conditions" vers "documentation_11"
         lien "13. Les fonctions →" en anglais "13. Functions →" vers "documentation_13"
@@ -1420,7 +1422,7 @@ page "documentation_13" dans "documentation" adresse "/documentation/fonctions" 
     titre "13. Les fonctions" en anglais "13. Functions"
     si langue est anglais :
         soustitre "A calculation function"
-        texte "It returns a value with {code "rendre"}. It is written at the top of the file and serves every page."
+        texte "It returns a value with `rendre`. It is written at the top of the file and serves every page."
         code humalis :
             fonction price_with_tax avec amount :
                 rendre amount * 1,2
@@ -1435,7 +1437,7 @@ page "documentation_13" dans "documentation" adresse "/documentation/fonctions" 
                 titre "Shop"
                 texte "{with_tax en euros}, on sale {sale en euros}"
         soustitre "An action function"
-        texte "Without {code "rendre"}, a function is a sequence of actions, called alone on a line of an event:"
+        texte "Without `rendre`, a function is a sequence of actions, called alone on a line of an event:"
         code humalis :
             variable cart = ["Book"] avec partagee
 
@@ -1452,7 +1454,7 @@ page "documentation_13" dans "documentation" adresse "/documentation/fonctions" 
                     empty_cart()
     sinon :
         soustitre "Une fonction de calcul"
-        texte "Elle rend une valeur avec {code "rendre"}. Elle s'écrit en haut du fichier et sert à toutes les pages."
+        texte "Elle rend une valeur avec `rendre`. Elle s'écrit en haut du fichier et sert à toutes les pages."
         code humalis :
             fonction prix_ttc avec montant :
                 rendre montant * 1,2
@@ -1467,7 +1469,7 @@ page "documentation_13" dans "documentation" adresse "/documentation/fonctions" 
                 titre "Boutique"
                 texte "{ttc en euros}, soldé {solde en euros}"
         soustitre "Une fonction d'actions"
-        texte "Sans {code "rendre"}, une fonction est une suite d'actions, appelée seule sur une ligne d'un événement :"
+        texte "Sans `rendre`, une fonction est une suite d'actions, appelée seule sur une ligne d'un événement :"
         code humalis :
             variable panier = ["Livre"] avec partagee
 
@@ -1491,7 +1493,7 @@ page "documentation_14" dans "documentation" adresse "/documentation/evenements"
         description "Un événement dit quand faire quelque chose. Il s'écrit sous les éléments qu'il vise, et son bloc contient les actions." en anglais "An event (quand, \"when\") says when to do something. It is written below the elements it targets, and its block holds the actions."
     titre "14. Les événements" en anglais "14. Events"
     si langue est anglais :
-        texte "An event ({code "quand"}, \"when\") says {accent "when"} to do something. It is written below the elements it targets, and its block holds the actions."
+        texte "An event (`quand`, \"when\") says {accent "when"} to do something. It is written below the elements it targets, and its block holds the actions."
         code humalis :
             page "home" :
                 titre "Welcome"
@@ -1505,14 +1507,14 @@ page "documentation_14" dans "documentation" adresse "/documentation/evenements"
                     afficher "Product preview"
         tableau "Event, When" :
             colonnes "Event", "When"
-            rangee "{code "quand la page se charge :"}", "when the page opens"
-            rangee "{code "quand l'utilisateur clique sur "…" :"}", "on click (or tap)"
-            rangee "{code "quand l'utilisateur survole "…" :"}", "on mouse hover"
-            rangee "{code "quand le formulaire "…" est soumis :"}", "when a valid form is sent"
-            rangee "{code "quand l'utilisateur ecrit dans "…" :"}", "on every keystroke"
-            rangee "{code "quand l'utilisateur arrete d'ecrire dans "…" :"}", "after a pause in typing"
-            rangee "{code "quand l'utilisateur appuie sur "controle+k" :"}", "on a keyboard shortcut"
-            rangee "{code "quand l'utilisateur arrive en bas de "…" :"}", "at the bottom of a list (infinite scroll)"
+            rangee "`quand la page se charge :`", "when the page opens"
+            rangee "`quand l'utilisateur clique sur "…" :`", "on click (or tap)"
+            rangee "`quand l'utilisateur survole "…" :`", "on mouse hover"
+            rangee "`quand le formulaire "…" est soumis :`", "when a valid form is sent"
+            rangee "`quand l'utilisateur ecrit dans "…" :`", "on every keystroke"
+            rangee "`quand l'utilisateur arrete d'ecrire dans "…" :`", "after a pause in typing"
+            rangee "`quand l'utilisateur appuie sur "controle+k" :`", "on a keyboard shortcut"
+            rangee "`quand l'utilisateur arrive en bas de "…" :`", "at the bottom of a list (infinite scroll)"
         texte "Inside a loop, an event targets the element of {accent "its own"} turn:"
         code humalis :
             page "products" :
@@ -1538,14 +1540,14 @@ page "documentation_14" dans "documentation" adresse "/documentation/evenements"
                     afficher "Aperçu du produit"
         tableau "Événement, Quand" :
             colonnes "Événement", "Quand"
-            rangee "{code "quand la page se charge :"}", "à l'ouverture de la page"
-            rangee "{code "quand l'utilisateur clique sur "…" :"}", "au clic (ou au toucher)"
-            rangee "{code "quand l'utilisateur survole "…" :"}", "au passage de la souris"
-            rangee "{code "quand le formulaire "…" est soumis :"}", "à l'envoi d'un formulaire valide"
-            rangee "{code "quand l'utilisateur ecrit dans "…" :"}", "à chaque frappe"
-            rangee "{code "quand l'utilisateur arrete d'ecrire dans "…" :"}", "après une pause dans la frappe"
-            rangee "{code "quand l'utilisateur appuie sur "controle+k" :"}", "à un raccourci clavier"
-            rangee "{code "quand l'utilisateur arrive en bas de "…" :"}", "au bas d'une liste (défilement infini)"
+            rangee "`quand la page se charge :`", "à l'ouverture de la page"
+            rangee "`quand l'utilisateur clique sur "…" :`", "au clic (ou au toucher)"
+            rangee "`quand l'utilisateur survole "…" :`", "au passage de la souris"
+            rangee "`quand le formulaire "…" est soumis :`", "à l'envoi d'un formulaire valide"
+            rangee "`quand l'utilisateur ecrit dans "…" :`", "à chaque frappe"
+            rangee "`quand l'utilisateur arrete d'ecrire dans "…" :`", "après une pause dans la frappe"
+            rangee "`quand l'utilisateur appuie sur "controle+k" :`", "à un raccourci clavier"
+            rangee "`quand l'utilisateur arrive en bas de "…" :`", "au bas d'une liste (défilement infini)"
         texte "Dans une boucle, un événement vise l'élément de {accent "son"} tour :"
         code humalis :
             page "produits" :
@@ -1568,18 +1570,18 @@ page "documentation_15" dans "documentation" adresse "/documentation/actions" :
         texte "Actions are written inside an event."
         tableau "Action, Effect" :
             colonnes "Action", "Effect"
-            rangee "{code "afficher "…""}", "shows a message"
-            rangee "{code "afficher erreur "…""}", "shows an error message"
-            rangee "{code "montrer "name""}, {code "cacher "name""}", "shows or hides an element"
-            rangee "{code "changer x par …"}", "changes a variable"
-            rangee "{code "changer x par champ "Label""}", "reads a field's current value into a variable"
-            rangee "{code "changer texte de "name" par "…""}", "changes an element's text"
-            rangee "{code "ajouter … à list"}, {code "retirer … de list"}", "changes a list"
-            rangee "{code "ajouter champ "Label" à list"}", "adds a field's current value to a list"
-            rangee "{code "rediriger vers "page""}", "goes to a page"
-            rangee "{code "revenir vers "page""}", "goes back, or to that page"
-            rangee "{code "envoyer requete vers "…""}", "calls a server (see the server)"
-            rangee "{code "copier …"}, {code "partager …"}", "copies to the clipboard, shares"
+            rangee "`afficher "…"`", "shows a message"
+            rangee "`afficher erreur "…"`", "shows an error message"
+            rangee "`montrer "name"`, `cacher "name"`", "shows or hides an element"
+            rangee "`changer x par …`", "changes a variable"
+            rangee "`changer x par champ "Label"`", "reads a field's current value into a variable"
+            rangee "`changer texte de "name" par "…"`", "changes an element's text"
+            rangee "`ajouter … à list`, `retirer … de list`", "changes a list"
+            rangee "`ajouter champ "Label" à list`", "adds a field's current value to a list"
+            rangee "`rediriger vers "page"`", "goes to a page"
+            rangee "`revenir vers "page"`", "goes back, or to that page"
+            rangee "`envoyer requete vers "…"`", "calls a server (see the server)"
+            rangee "`copier …`, `partager …`", "copies to the clipboard, shares"
         code humalis :
             page "product" :
                 titre "Product"
@@ -1593,7 +1595,7 @@ page "documentation_15" dans "documentation" adresse "/documentation/actions" :
 
             page "thanks" :
                 titre "Thank you!"
-        texte "Inside an action, {code "champ "Label""} reads what the person entered when they click. A number field yields a number, a checkbox yields true or false, and other fields yield text. Use the base language label even when the field has a translation."
+        texte "Inside an action, `champ "Label"` reads what the person entered when they click. A number field yields a number, a checkbox yields true or false, and other fields yield text. Use the base language label even when the field has a translation."
         code humalis :
             page "tasks" :
                 variable tasks = ["Buy bread"]
@@ -1610,18 +1612,18 @@ page "documentation_15" dans "documentation" adresse "/documentation/actions" :
         texte "Les actions s'écrivent dans un événement."
         tableau "Action, Effet" :
             colonnes "Action", "Effet"
-            rangee "{code "afficher "…""}", "un message"
-            rangee "{code "afficher erreur "…""}", "un message d'erreur"
-            rangee "{code "montrer "nom""}, {code "cacher "nom""}", "fait apparaître ou disparaître un élément"
-            rangee "{code "changer x par …"}", "change une variable"
-            rangee "{code "changer x par champ "Libellé""}", "prend la valeur actuelle d'un champ"
-            rangee "{code "changer texte de "nom" par "…""}", "change le texte d'un élément"
-            rangee "{code "ajouter … à liste"}, {code "retirer … de liste"}", "modifie une liste"
-            rangee "{code "ajouter champ "Libellé" à liste"}", "ajoute la valeur actuelle d'un champ"
-            rangee "{code "rediriger vers "page""}", "va à une page"
-            rangee "{code "revenir vers "page""}", "revient en arrière, ou va à cette page"
-            rangee "{code "envoyer requete vers "…""}", "appelle un serveur (voir le serveur)"
-            rangee "{code "copier …"}, {code "partager …"}", "copie dans le presse-papiers, partage"
+            rangee "`afficher "…"`", "un message"
+            rangee "`afficher erreur "…"`", "un message d'erreur"
+            rangee "`montrer "nom"`, `cacher "nom"`", "fait apparaître ou disparaître un élément"
+            rangee "`changer x par …`", "change une variable"
+            rangee "`changer x par champ "Libellé"`", "prend la valeur actuelle d'un champ"
+            rangee "`changer texte de "nom" par "…"`", "change le texte d'un élément"
+            rangee "`ajouter … à liste`, `retirer … de liste`", "modifie une liste"
+            rangee "`ajouter champ "Libellé" à liste`", "ajoute la valeur actuelle d'un champ"
+            rangee "`rediriger vers "page"`", "va à une page"
+            rangee "`revenir vers "page"`", "revient en arrière, ou va à cette page"
+            rangee "`envoyer requete vers "…"`", "appelle un serveur (voir le serveur)"
+            rangee "`copier …`, `partager …`", "copie dans le presse-papiers, partage"
         code humalis :
             page "produit" :
                 titre "Produit"
@@ -1635,7 +1637,7 @@ page "documentation_15" dans "documentation" adresse "/documentation/actions" :
 
             page "merci" :
                 titre "Merci !"
-        texte "Dans une action, {code "champ "Libellé""} lit ce que la personne a saisi au moment du clic. Un champ nombre donne un nombre, une case à cocher donne vrai ou faux, et les autres champs donnent du texte. Le libellé est celui de la langue de base, même si le champ a une traduction."
+        texte "Dans une action, `champ "Libellé"` lit ce que la personne a saisi au moment du clic. Un champ nombre donne un nombre, une case à cocher donne vrai ou faux, et les autres champs donnent du texte. Le libellé est celui de la langue de base, même si le champ a une traduction."
         code humalis :
             page "taches" :
                 variable taches = ["Acheter du pain"]
@@ -1671,7 +1673,7 @@ page "documentation_16" dans "documentation" adresse "/documentation/messages-le
                     retirer "Book" de cart
                     afficher reussite "Book removed" avec action "Undo" :
                         ajouter "Book" a cart
-        texte "The kinds: {code "afficher"}, {code "afficher reussite"} (success), {code "afficher avertissement"} (warning), {code "afficher erreur"} (error). {code "pendant 10 secondes"} sets how long it stays; {code "sans disparaitre"} keeps it on screen; {code "avec action "…" :"} adds a button."
+        texte "The kinds: `afficher`, `afficher reussite` (success), `afficher avertissement` (warning), `afficher erreur` (error). `pendant 10 secondes` sets how long it stays; `sans disparaitre` keeps it on screen; `avec action "…" :` adds a button."
         soustitre "Dialogs"
         code humalis :
             page "help" :
@@ -1684,7 +1686,7 @@ page "documentation_16" dans "documentation" adresse "/documentation/messages-le
                     bouton "Got it"
                     quand l'utilisateur clique sur "Got it" :
                         cacher "Shortcuts"
-        texte "{code "fenetre"} is a dialog window."
+        texte "`fenetre` is a dialog window."
         soustitre "Asking a question"
         code humalis :
             page "cart" :
@@ -1698,7 +1700,7 @@ page "documentation_16" dans "documentation" adresse "/documentation/messages-le
                             retirer p de cart
                         sinon :
                             afficher "Nothing was removed"
-        texte "{code "confirmer"} asks a yes ({code "oui"}) / no ({code "non"}) question."
+        texte "`confirmer` asks a yes (`oui`) / no (`non`) question."
     sinon :
         soustitre "Les messages"
         code humalis :
@@ -1714,7 +1716,7 @@ page "documentation_16" dans "documentation" adresse "/documentation/messages-le
                     retirer "Livre" de panier
                     afficher reussite "Livre retiré" avec action "Annuler" :
                         ajouter "Livre" a panier
-        texte "Les genres : {code "afficher"}, {code "afficher reussite"}, {code "afficher avertissement"}, {code "afficher erreur"}. {code "pendant 10 secondes"} règle la durée ; {code "sans disparaitre"} le garde affiché ; {code "avec action "…" :"} ajoute un bouton."
+        texte "Les genres : `afficher`, `afficher reussite`, `afficher avertissement`, `afficher erreur`. `pendant 10 secondes` règle la durée ; `sans disparaitre` le garde affiché ; `avec action "…" :` ajoute un bouton."
         soustitre "Les fenêtres"
         code humalis :
             page "aide" :
@@ -1779,7 +1781,7 @@ page "documentation_17" dans "documentation" adresse "/documentation/interaction
                         changer stopped par faux
                 si stopped est vrai :
                     texte "Stopped!"
-        texte "{code "toutes les 1 seconde tant que …"} (every second while …), {code "apres 2 secondes"} (after 2 seconds). A timer stops when you leave the page, and pauses while the tab is hidden."
+        texte "`toutes les 1 seconde tant que …` (every second while …), `apres 2 secondes` (after 2 seconds). A timer stops when you leave the page, and pauses while the tab is hidden."
         soustitre "Shortcuts and search as you type"
         code humalis :
             page "search" :
@@ -1795,7 +1797,7 @@ page "documentation_17" dans "documentation" adresse "/documentation/interaction
                 bouton "Help" avec raccourci "controle+k"
                 quand l'utilisateur clique sur "Help" :
                     afficher "Type / to search"
-        texte "{code "raccourci"} is a keyboard shortcut ({code "controle"} = Ctrl, {code "maj"} = Shift). {code "avec annonce"} makes screen readers read the text when it changes."
+        texte "`raccourci` is a keyboard shortcut (`controle` = Ctrl, `maj` = Shift). `avec annonce` makes screen readers read the text when it changes."
         soustitre "Infinite scroll"
         code humalis :
             page "catalogue" :
@@ -1862,7 +1864,7 @@ page "documentation_17" dans "documentation" adresse "/documentation/interaction
                 bouton "Aide" avec raccourci "controle+k"
                 quand l'utilisateur clique sur "Aide" :
                     afficher "Tape / pour chercher"
-        texte "{code "avec annonce"} fait lire le texte par les lecteurs d'écran quand il change."
+        texte "`avec annonce` fait lire le texte par les lecteurs d'écran quand il change."
         soustitre "Le défilement infini"
         code humalis :
             page "catalogue" :
@@ -1891,7 +1893,7 @@ page "documentation_18" dans "documentation" adresse "/documentation/formulaires
         description "Un formulaire regroupe des champs et un bouton. Les champs obligatoire, les minimum et maximum sont vérifiés avant l'envoi, avec un message clair sous le…" en anglais "A form (formulaire) groups fields and a button. obligatoire fields, minimum and maximum are checked before sending, with a clear message under the faulty field."
     titre "18. Les formulaires" en anglais "18. Forms"
     si langue est anglais :
-        texte "A form ({code "formulaire"}) groups fields and a button. {code "obligatoire"} fields, {code "minimum"} and {code "maximum"} are checked {accent "before"} sending, with a clear message under the faulty field."
+        texte "A form (`formulaire`) groups fields and a button. `obligatoire` fields, `minimum` and `maximum` are checked {accent "before"} sending, with a clear message under the faulty field."
         code humalis :
             page "contact" :
                 titre "Write to us"
@@ -1905,9 +1907,9 @@ page "documentation_18" dans "documentation" adresse "/documentation/formulaires
                         afficher erreur "Please write your message"
                     sinon :
                         afficher reussite "Message sent"
-        texte "Read a field's value with {code "champ "Name""} (or {code "le champ "Name""})."
+        texte "Read a field's value with `champ "Name"` (or `le champ "Name"`)."
     sinon :
-        texte "Un formulaire regroupe des champs et un bouton. Les champs {code "obligatoire"}, les {code "minimum"} et {code "maximum"} sont vérifiés {accent "avant"} l'envoi, avec un message clair sous le champ fautif."
+        texte "Un formulaire regroupe des champs et un bouton. Les champs `obligatoire`, les `minimum` et `maximum` sont vérifiés {accent "avant"} l'envoi, avec un message clair sous le champ fautif."
         code humalis :
             page "contact" :
                 titre "Nous écrire"
@@ -1921,7 +1923,7 @@ page "documentation_18" dans "documentation" adresse "/documentation/formulaires
                         afficher erreur "Écris ton message"
                     sinon :
                         afficher reussite "Message envoyé"
-        texte "On lit la valeur d'un champ avec {code "champ "Nom""} (ou {code "le champ "Nom""})."
+        texte "On lit la valeur d'un champ avec `champ "Nom"` (ou `le champ "Nom"`)."
     ligne avec style "doc-suite" :
         lien "← 17. Les interactions" en anglais "← 17. Interactions" vers "documentation_17"
         lien "19. Partager et garder des valeurs →" en anglais "19. Sharing and keeping values →" vers "documentation_19"
@@ -1932,7 +1934,7 @@ page "documentation_19" dans "documentation" adresse "/documentation/partager-et
     titre "19. Partager et garder des valeurs" en anglais "19. Sharing and keeping values"
     si langue est anglais :
         soustitre "One variable for every page"
-        texte "A variable written at the top of the file with {code "partagee"} (shared) is the same on every page:"
+        texte "A variable written at the top of the file with `partagee` (shared) is the same on every page:"
         code humalis :
             variable cart = [] avec partagee
 
@@ -1951,7 +1953,7 @@ page "documentation_19" dans "documentation" adresse "/documentation/partager-et
                     texte name
                 lien "Back" vers "shop"
         soustitre "Keeping a value for next time"
-        texte "{code "memorisee"} (remembered) keeps the value on the person's device, even after they close the site:"
+        texte "`memorisee` (remembered) keeps the value on the person's device, even after they close the site:"
         code humalis :
             variable cart = [] avec partagee et memorisee
 
@@ -1962,10 +1964,10 @@ page "documentation_19" dans "documentation" adresse "/documentation/partager-et
                 bouton "Count my visit"
                 quand l'utilisateur clique sur "Count my visit" :
                     changer visits par visits + 1
-        texte "On mobile and desktop, {code "memorisee en secret"} stores the value in the device's encrypted vault (the Keychain on a Mac, for example)."
+        texte "On mobile and desktop, `memorisee en secret` stores the value in the device's encrypted vault (the Keychain on a Mac, for example)."
     sinon :
         soustitre "Une variable pour toutes les pages"
-        texte "Une variable écrite en haut du fichier avec {code "partagee"} est la même sur toutes les pages :"
+        texte "Une variable écrite en haut du fichier avec `partagee` est la même sur toutes les pages :"
         code humalis :
             variable panier = [] avec partagee
 
@@ -1984,7 +1986,7 @@ page "documentation_19" dans "documentation" adresse "/documentation/partager-et
                     texte nom
                 lien "Retour" vers "boutique"
         soustitre "Garder une valeur au retour"
-        texte "{code "memorisee"} garde la valeur sur l'appareil de la personne, même après avoir fermé le site :"
+        texte "`memorisee` garde la valeur sur l'appareil de la personne, même après avoir fermé le site :"
         code humalis :
             variable panier = [] avec partagee et memorisee
 
@@ -1995,7 +1997,7 @@ page "documentation_19" dans "documentation" adresse "/documentation/partager-et
                 bouton "Compter ma visite"
                 quand l'utilisateur clique sur "Compter ma visite" :
                     changer visites par visites + 1
-        texte "Sur le mobile et le desktop, {code "memorisee en secret"} range la valeur dans le coffre chiffré de l'appareil (le trousseau sur un Mac, par exemple)."
+        texte "Sur le mobile et le desktop, `memorisee en secret` range la valeur dans le coffre chiffré de l'appareil (le trousseau sur un Mac, par exemple)."
     ligne avec style "doc-suite" :
         lien "← 18. Les formulaires" en anglais "← 18. Forms" vers "documentation_18"
         lien "20. La navigation →" en anglais "20. Navigation →" vers "documentation_20"
@@ -2024,9 +2026,9 @@ page "documentation_20" dans "documentation" adresse "/documentation/navigation"
                 titre "The menu"
                 section "Desserts" avec ancre "desserts" :
                     texte "Apple pie"
-        texte "{code "avec parametre id"} gives a page a parameter in its address; {code "ancre"} (anchor) names a place in a page; {code "nouvel onglet"} opens a new tab."
+        texte "`avec parametre id` gives a page a parameter in its address; `ancre` (anchor) names a place in a page; `nouvel onglet` opens a new tab."
         soustitre "Address filters"
-        texte "A filter ({code "filtre"}) is an optional value in the address ({code "/catalogue?category=dresses"}):"
+        texte "A filter (`filtre`) is an optional value in the address (`/catalogue?category=dresses`):"
         code humalis :
             page "catalogue" avec filtre category :
                 titre "Catalogue"
@@ -2051,7 +2053,7 @@ page "documentation_20" dans "documentation" adresse "/documentation/navigation"
 
             page "settings" dans "space" :
                 texte "Your settings"
-        texte "{code "page "profile" dans "space""} puts a page inside another; {code "sous page"} marks where the sub-page appears, below the shared menu."
+        texte "`page "profile" dans "space"` puts a page inside another; `sous page` marks where the sub-page appears, below the shared menu."
         soustitre "A chosen address, a restricted page, the not-found page"
         code humalis :
             serveur "shop" :
@@ -2081,9 +2083,9 @@ page "documentation_20" dans "documentation" adresse "/documentation/navigation"
                 titre "This page does not exist"
                 lien "Back to home" vers "home"
         liste :
-            texte "{code "a l'adresse "/…""} chooses the page's address."
-            texte "{code "reservee a connecte"} (or {code "reservee a admin"}) closes it to visitors, who are sent to the login page ({code "sinon vers"}). After logging in, {code "continuer vers"} takes them back to the page they wanted."
-            texte "A page named {code "introuvable"} (\"not found\") replaces the 404 page."
+            texte "`a l'adresse "/…"` chooses the page's address."
+            texte "`reservee a connecte` (or `reservee a admin`) closes it to visitors, who are sent to the login page (`sinon vers`). After logging in, `continuer vers` takes them back to the page they wanted."
+            texte "A page named `introuvable` (\"not found\") replaces the 404 page."
     sinon :
         soustitre "Les liens et les paramètres"
         code humalis :
@@ -2105,7 +2107,7 @@ page "documentation_20" dans "documentation" adresse "/documentation/navigation"
                 section "Desserts" avec ancre "desserts" :
                     texte "Tarte aux pommes"
         soustitre "Les filtres d'adresse"
-        texte "Un filtre est une valeur facultative de l'adresse ({code "/catalogue?categorie=robes"}) :"
+        texte "Un filtre est une valeur facultative de l'adresse (`/catalogue?categorie=robes`) :"
         code humalis :
             page "catalogue" avec filtre categorie :
                 titre "Catalogue"
@@ -2130,7 +2132,7 @@ page "documentation_20" dans "documentation" adresse "/documentation/navigation"
 
             page "reglages" dans "espace" :
                 texte "Tes réglages"
-        texte "{code "sous page"} marque l'endroit où la sous-page s'affiche, sous le menu commun."
+        texte "`sous page` marque l'endroit où la sous-page s'affiche, sous le menu commun."
         soustitre "Une adresse choisie, une page réservée, la page introuvable"
         code humalis :
             serveur "boutique" :
@@ -2160,9 +2162,9 @@ page "documentation_20" dans "documentation" adresse "/documentation/navigation"
                 titre "Cette page n'existe pas"
                 lien "Retour à l'accueil" vers "accueil"
         liste :
-            texte "{code "a l'adresse "/…""} choisit l'adresse de la page."
-            texte "{code "reservee a connecte"} (ou {code "reservee a admin"}) la ferme aux visiteurs, renvoyés vers la page de connexion. Après la connexion, {code "continuer vers"} les ramène à la page qu'ils voulaient."
-            texte "Une page nommée {code "introuvable"} remplace la page « 404 »."
+            texte "`a l'adresse "/…"` choisit l'adresse de la page."
+            texte "`reservee a connecte` (ou `reservee a admin`) la ferme aux visiteurs, renvoyés vers la page de connexion. Après la connexion, `continuer vers` les ramène à la page qu'ils voulaient."
+            texte "Une page nommée `introuvable` remplace la page « 404 »."
     ligne avec style "doc-suite" :
         lien "← 19. Partager et garder des valeurs" en anglais "← 19. Sharing and keeping values" vers "documentation_19"
         lien "21. Le serveur →" en anglais "21. The server →" vers "documentation_21"
@@ -2172,7 +2174,7 @@ page "documentation_21" dans "documentation" adresse "/documentation/serveur" :
         description "Un bloc serveur décrit les données de l'application et qui a le droit de faire quoi. Humalis en produit un vrai serveur Node, avec la connexion, les…" en anglais "A serveur block describes the application's data and who is allowed to do what. Humalis generates a real Node server from it, with login, sessions and the…"
     titre "21. Le serveur" en anglais "21. The server"
     si langue est anglais :
-        texte "A {code "serveur"} block describes the application's data and {accent "who is allowed to do what"}. Humalis generates a real Node server from it, with login, sessions and the security of the Astratra packs."
+        texte "A `serveur` block describes the application's data and {accent "who is allowed to do what"}. Humalis generates a real Node server from it, with login, sessions and the security of the Astratra packs."
         code humalis :
             serveur "library" :
                 donnee book :
@@ -2192,9 +2194,9 @@ page "documentation_21" dans "documentation" adresse "/documentation/serveur" :
                     connecte peut creer review
                     seul admin peut supprimer review
         liste :
-            texte "{code "donnee"} describes a kind of data and its fields: {code "texte"} (text), {code "nombre"} (number), {code "booleen"} (boolean), {code "date"}, {code "liste de …"} (list of …)."
-            texte "{code "route"} gives an address ({code "/api/books"}) and its rules."
-            texte "Who: {code "tout le monde"} (everyone), {code "connecte"} (logged-in users), {code "seul admin"} (admins only); actions: {code "lire"} (read), {code "creer"} (create), {code "modifier"} (update), {code "supprimer"} (delete). {code "modifier"} alone covers create, update and delete."
+            texte "`donnee` describes a kind of data and its fields: `texte` (text), `nombre` (number), `booleen` (boolean), `date`, `liste de …` (list of …)."
+            texte "`route` gives an address (`/api/books`) and its rules."
+            texte "Who: `tout le monde` (everyone), `connecte` (logged-in users), `seul admin` (admins only); actions: `lire` (read), `creer` (create), `modifier` (update), `supprimer` (delete). `modifier` alone covers create, update and delete."
             texte "An action without a rule is {accent "refused to everyone"}. Humalis warns when no one can reach a piece of data."
         texte "To generate and run it:"
         code terminal :
@@ -2203,9 +2205,9 @@ page "documentation_21" dans "documentation" adresse "/documentation/serveur" :
             cp .env.exemple .env      # then fill in JWT_SECRET and the administrator
             npm test                  # checks every access rule
             npm run build && npm start
-        texte "Without {code "DATABASE_URL"} in {code ".env"}, data stays in memory (development). With it, data goes to PostgreSQL: one table per kind of data, created at start-up."
+        texte "Without `DATABASE_URL` in `.env`, data stays in memory (development). With it, data goes to PostgreSQL: one table per kind of data, created at start-up."
     sinon :
-        texte "Un bloc {code "serveur"} décrit les données de l'application et {accent "qui a le droit de faire quoi"}. Humalis en produit un vrai serveur Node, avec la connexion, les sessions et la sécurité des packs Astratra."
+        texte "Un bloc `serveur` décrit les données de l'application et {accent "qui a le droit de faire quoi"}. Humalis en produit un vrai serveur Node, avec la connexion, les sessions et la sécurité des packs Astratra."
         code humalis :
             serveur "bibliotheque" :
                 donnee livre :
@@ -2225,9 +2227,9 @@ page "documentation_21" dans "documentation" adresse "/documentation/serveur" :
                     connecte peut creer avis
                     seul admin peut supprimer avis
         liste :
-            texte "{code "donnee"} décrit une sorte de donnée et ses champs : {code "texte"}, {code "nombre"}, {code "booleen"}, {code "date"}, {code "liste de …"}."
-            texte "{code "route"} donne une adresse ({code "/api/livres"}) et ses règles."
-            texte "Les droits : {code "tout le monde"}, {code "connecte"}, {code "seul admin"} ; les actions : {code "lire"}, {code "creer"}, {code "modifier"}, {code "supprimer"} ({code "modifier"} seul couvre créer, modifier et supprimer)."
+            texte "`donnee` décrit une sorte de donnée et ses champs : `texte`, `nombre`, `booleen`, `date`, `liste de …`."
+            texte "`route` donne une adresse (`/api/livres`) et ses règles."
+            texte "Les droits : `tout le monde`, `connecte`, `seul admin` ; les actions : `lire`, `creer`, `modifier`, `supprimer` (`modifier` seul couvre créer, modifier et supprimer)."
             texte "Une action sans règle est {accent "refusée à tout le monde"}. Humalis prévient quand une donnée n'est accessible à personne."
         texte "Pour le produire et le lancer :"
         code terminal :
@@ -2236,7 +2238,7 @@ page "documentation_21" dans "documentation" adresse "/documentation/serveur" :
             cp .env.exemple .env      # puis remplir JWT_SECRET et l'administrateur
             npm test                  # vérifie chaque règle d'accès
             npm run build && npm start
-        texte "Sans {code "DATABASE_URL"} dans le {code ".env"}, les données restent en mémoire (développement). Avec, elles vont dans PostgreSQL : une table par donnée, créée au démarrage."
+        texte "Sans `DATABASE_URL` dans le `.env`, les données restent en mémoire (développement). Avec, elles vont dans PostgreSQL : une table par donnée, créée au démarrage."
     ligne avec style "doc-suite" :
         lien "← 20. La navigation" en anglais "← 20. Navigation" vers "documentation_20"
         lien "22. Relier les pages au serveur →" en anglais "22. Connecting pages to the server →" vers "documentation_22"
@@ -2293,9 +2295,9 @@ page "documentation_22" dans "documentation" adresse "/documentation/relier-les-
                     se connecter avec champ "email" et champ "password"
                     rediriger vers "shop_page"
         liste :
-            texte "{code "envoyer requete vers "products" dans products"} reads the list into {code "products"}."
-            texte "{code "envoyer requete vers "reviews" avec rating et champ "comment""} sends data."
-            texte "{code "si utilisateur est connecte :"} (if the user is logged in), {code "si utilisateur est admin :"}, {code "se connecter"} (log in) and {code "se deconnecter"} (log out) handle the session."
+            texte "`envoyer requete vers "products" dans products` reads the list into `products`."
+            texte "`envoyer requete vers "reviews" avec rating et champ "comment"` sends data."
+            texte "`si utilisateur est connecte :` (if the user is logged in), `si utilisateur est admin :`, `se connecter` (log in) and `se deconnecter` (log out) handle the session."
         soustitre "Handling a failure"
         code humalis :
             serveur "shop" :
@@ -2315,7 +2317,7 @@ page "documentation_22" dans "documentation" adresse "/documentation/relier-les-
                         afficher reussite "Order sent"
                     si erreur :
                         afficher erreur "The order was not sent: {raison}"
-        texte "{code "essayer"} means \"try\"; inside {code "si erreur :"} (\"if error\"), {code "raison"} says what went wrong. In a form, the fields stay filled in."
+        texte "`essayer` means \"try\"; inside `si erreur :` (\"if error\"), `raison` says what went wrong. In a form, the fields stay filled in."
     sinon :
         texte "Quand le serveur et les pages sont dans le même fichier, Humalis {accent "vérifie chaque requête à la compilation"} : la route existe, les champs existent, les types sont les bons, et la personne a le droit."
         code humalis :
@@ -2364,9 +2366,9 @@ page "documentation_22" dans "documentation" adresse "/documentation/relier-les-
                     se connecter avec champ "email" et champ "mot de passe"
                     rediriger vers "boutique"
         liste :
-            texte "{code "envoyer requete vers "produits" dans produits"} lit la liste."
-            texte "{code "envoyer requete vers "avis" avec note et champ "commentaire""} envoie."
-            texte "{code "si utilisateur est connecte :"}, {code "si utilisateur est admin :"}, {code "se connecter"}, {code "se deconnecter"} gèrent la session."
+            texte "`envoyer requete vers "produits" dans produits` lit la liste."
+            texte "`envoyer requete vers "avis" avec note et champ "commentaire"` envoie."
+            texte "`si utilisateur est connecte :`, `si utilisateur est admin :`, `se connecter`, `se deconnecter` gèrent la session."
         soustitre "Réagir à un échec"
         code humalis :
             serveur "boutique" :
@@ -2386,7 +2388,7 @@ page "documentation_22" dans "documentation" adresse "/documentation/relier-les-
                         afficher reussite "Commande envoyée"
                     si erreur :
                         afficher erreur "La commande n'est pas partie : {raison}"
-        texte "Dans {code "si erreur :"}, {code "raison"} dit ce qui n'a pas marché. Dans un formulaire, les champs restent remplis."
+        texte "Dans `si erreur :`, `raison` dit ce qui n'a pas marché. Dans un formulaire, les champs restent remplis."
     ligne avec style "doc-suite" :
         lien "← 21. Le serveur" en anglais "← 21. The server" vers "documentation_21"
         lien "23. Utiliser une API qui existe déjà →" en anglais "23. Using an existing API →" vers "documentation_23"
@@ -2396,7 +2398,7 @@ page "documentation_23" dans "documentation" adresse "/documentation/utiliser-un
         description "Un bloc source décrit une API écrite ailleurs (en Node, PHP, Python…). Les pages s'en servent comme d'un serveur Humalis, avec les mêmes vérifications." en anglais "A source block describes an API written elsewhere (in Node, PHP, Python…). Pages use it like a Humalis server, with the same checks."
     titre "23. Utiliser une API qui existe déjà" en anglais "23. Using an existing API"
     si langue est anglais :
-        texte "A {code "source"} block describes an API written elsewhere (in Node, PHP, Python…). Pages use it like a Humalis server, with the same checks."
+        texte "A `source` block describes an API written elsewhere (in Node, PHP, Python…). Pages use it like a Humalis server, with the same checks."
         code humalis :
             source "shop" :
                 adresse "https://api.example.com"
@@ -2433,13 +2435,13 @@ page "documentation_23" dans "documentation" adresse "/documentation/utiliser-un
                     titre product.name
                     texte "{product.price en euros}"
         liste :
-            texte "{code "est en chargement"} (is loading) and {code "est en erreur"} (has failed) follow a request to a source; {code "recharger products"} runs it again."
-            texte "{code "enveloppe "data""}: the API wraps its data under {code "data"}."
-            texte "{code "erreur dans "message""}: where the API writes its error messages."
-            texte "{code "session astratra"}: the API uses the Astratra packs' login."
-            texte "A route can {code "lire"} (read), {code "creer"} (create), {code "modifier"} (update, {code "par remplacement"} for a PUT) and {code "supprimer"} (delete). A secret token is never written in the file: Humalis refuses it."
+            texte "`est en chargement` (is loading) and `est en erreur` (has failed) follow a request to a source; `recharger products` runs it again."
+            texte "`enveloppe "data"`: the API wraps its data under `data`."
+            texte "`erreur dans "message"`: where the API writes its error messages."
+            texte "`session astratra`: the API uses the Astratra packs' login."
+            texte "A route can `lire` (read), `creer` (create), `modifier` (update, `par remplacement` for a PUT) and `supprimer` (delete). A secret token is never written in the file: Humalis refuses it."
     sinon :
-        texte "Un bloc {code "source"} décrit une API écrite ailleurs (en Node, PHP, Python…). Les pages s'en servent comme d'un serveur Humalis, avec les mêmes vérifications."
+        texte "Un bloc `source` décrit une API écrite ailleurs (en Node, PHP, Python…). Les pages s'en servent comme d'un serveur Humalis, avec les mêmes vérifications."
         code humalis :
             source "boutique" :
                 adresse "https://api.exemple.fr"
@@ -2476,11 +2478,11 @@ page "documentation_23" dans "documentation" adresse "/documentation/utiliser-un
                     titre produit.name
                     texte "{produit.price en euros}"
         liste :
-            texte "{code "est en chargement"} et {code "est en erreur"} suivent l'état d'une requête vers une source ; {code "recharger produits"} la relance."
-            texte "{code "enveloppe "data""} : la réponse de l'API range ses données sous {code "data"}."
-            texte "{code "erreur dans "message""} : où l'API écrit ses messages d'erreur."
-            texte "{code "session astratra"} : l'API utilise la connexion des packs Astratra."
-            texte "Une route peut {code "lire"}, {code "creer"}, {code "modifier"} ({code "par remplacement"} pour un PUT) et {code "supprimer"}. Un jeton secret ne s'écrit jamais dans le fichier : Humalis le refuse."
+            texte "`est en chargement` et `est en erreur` suivent l'état d'une requête vers une source ; `recharger produits` la relance."
+            texte "`enveloppe "data"` : la réponse de l'API range ses données sous `data`."
+            texte "`erreur dans "message"` : où l'API écrit ses messages d'erreur."
+            texte "`session astratra` : l'API utilise la connexion des packs Astratra."
+            texte "Une route peut `lire`, `creer`, `modifier` (`par remplacement` pour un PUT) et `supprimer`. Un jeton secret ne s'écrit jamais dans le fichier : Humalis le refuse."
     ligne avec style "doc-suite" :
         lien "← 22. Relier les pages au serveur" en anglais "← 22. Connecting pages to the server" vers "documentation_22"
         lien "24. Les données d'un fichier →" en anglais "24. Data from a file →" vers "documentation_24"
@@ -2498,12 +2500,12 @@ page "documentation_24" dans "documentation" adresse "/documentation/donnees-d-u
                 titre "Catalogue"
                 pour chaque p dans products :
                     texte "{p.name}: {p.price en euros}"
-        texte "with the file {code "products.csv"} next to it:"
+        texte "with the file `products.csv` next to it:"
         code texte :
             name;price
             Book;12
             Pen;2
-        texte "Humalis knows the columns: {code "p.pricce"} would be refused at compile time. This data is read-only; a page cannot change it."
+        texte "Humalis knows the columns: `p.pricce` would be refused at compile time. This data is read-only; a page cannot change it."
     sinon :
         texte "Un tableau CSV ou un fichier JSON peut servir de données, lues à la compilation :"
         code humalis :
@@ -2513,12 +2515,12 @@ page "documentation_24" dans "documentation" adresse "/documentation/donnees-d-u
                 titre "Catalogue"
                 pour chaque p dans produits :
                     texte "{p.nom} : {p.prix en euros}"
-        texte "avec, à côté, le fichier {code "produits.csv"} :"
+        texte "avec, à côté, le fichier `produits.csv` :"
         code texte :
             nom;prix
             Livre;12
             Stylo;2
-        texte "Humalis connaît les colonnes : {code "p.prixx"} serait refusé à la compilation. Ces données se lisent seulement ; on ne peut pas les changer depuis une page."
+        texte "Humalis connaît les colonnes : `p.prixx` serait refusé à la compilation. Ces données se lisent seulement ; on ne peut pas les changer depuis une page."
     ligne avec style "doc-suite" :
         lien "← 23. Utiliser une API qui existe déjà" en anglais "← 23. Using an existing API" vers "documentation_23"
         lien "25. Choisir et envoyer un fichier →" en anglais "25. Choosing and uploading a file →" vers "documentation_25"
@@ -2536,7 +2538,7 @@ page "documentation_25" dans "documentation" adresse "/documentation/choisir-et-
                 si photo est different de rien :
                     image photo.apercu avec description "Preview of the chosen photo" et proportions 1 sur 1
                     texte photo.nom
-        texte "{code "fichier "…" dans photo"} lets people pick a file; {code "accepte images"} limits it to images, {code "maximum 5 Mo"} to 5 MB. The page checks type and size to help the person; the server receiving the file must always check again. Uploading goes through a {code "source"}: {code "envoyer fichier photo vers "…" de la source "…""}, with a progress bar ({code "suivi dans upload"})."
+        texte "`fichier "…" dans photo` lets people pick a file; `accepte images` limits it to images, `maximum 5 Mo` to 5 MB. The page checks type and size to help the person; the server receiving the file must always check again. Uploading goes through a `source`: `envoyer fichier photo vers "…" de la source "…"`, with a progress bar (`suivi dans upload`)."
     sinon :
         code humalis :
             page "profil" :
@@ -2546,7 +2548,7 @@ page "documentation_25" dans "documentation" adresse "/documentation/choisir-et-
                 si photo est different de rien :
                     image photo.apercu avec description "Aperçu de la photo choisie" et proportions 1 sur 1
                     texte photo.nom
-        texte "Le type et la taille sont vérifiés dans la page pour aider la personne ; le serveur qui reçoit le fichier doit toujours revérifier. L'envoi passe par une {code "source"} : {code "envoyer fichier photo vers "…" de la source "…""}, avec une barre de progression ({code "suivi dans envoi"})."
+        texte "Le type et la taille sont vérifiés dans la page pour aider la personne ; le serveur qui reçoit le fichier doit toujours revérifier. L'envoi passe par une `source` : `envoyer fichier photo vers "…" de la source "…"`, avec une barre de progression (`suivi dans envoi`)."
     ligne avec style "doc-suite" :
         lien "← 24. Les données d'un fichier" en anglais "← 24. Data from a file" vers "documentation_24"
         lien "26. Les graphiques →" en anglais "26. Charts →" vers "documentation_26"
@@ -2556,7 +2558,7 @@ page "documentation_26" dans "documentation" adresse "/documentation/graphiques"
         description "Chaque graphique a une description (pour les personnes qui ne le voient pas), et un bouton « Voir les données » qui montre le tableau." en anglais "Every chart (graphique) has a description (for people who cannot see it) and a \"See the data\" button that shows the table."
     titre "26. Les graphiques" en anglais "26. Charts"
     si langue est anglais :
-        texte "Every chart ({code "graphique"}) has a description (for people who cannot see it) and a \"See the data\" button that shows the table."
+        texte "Every chart (`graphique`) has a description (for people who cannot see it) and a \"See the data\" button that shows the table."
         code humalis :
             page "figures" :
                 variable sales = [fiche avec month "January" et amount 1200 et purchases 900, fiche avec month "February" et amount 1800 et purchases 1100, fiche avec month "March" et amount 1500 et purchases 950]
@@ -2569,7 +2571,7 @@ page "documentation_26" dans "documentation" adresse "/documentation/graphiques"
                     serie "Purchases" valeur purchases en euros avec couleur orange
                 graphique en camembert expenses avec etiquette item et valeur total en euros et description "Rent is more than half of the expenses."
                 graphique en barres visits avec etiquettes ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] et couleur vert et proportions 2 sur 1 et description "Visits rise until Saturday."
-        texte "The kinds: {code "en courbe"} (line), {code "en barres"} (bars), {code "en camembert"} (pie). {code "etiquette"} names the field used for labels, {code "valeur"} the field used for values, {code "serie"} adds a series."
+        texte "The kinds: `en courbe` (line), `en barres` (bars), `en camembert` (pie). `etiquette` names the field used for labels, `valeur` the field used for values, `serie` adds a series."
     sinon :
         texte "Chaque graphique a une description (pour les personnes qui ne le voient pas), et un bouton « Voir les données » qui montre le tableau."
         code humalis :
@@ -2584,7 +2586,7 @@ page "documentation_26" dans "documentation" adresse "/documentation/graphiques"
                     serie "Achats" valeur achats en euros avec couleur orange
                 graphique en camembert depenses avec etiquette poste et valeur total en euros et description "Le loyer pèse plus de la moitié des dépenses."
                 graphique en barres visites avec etiquettes ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"] et couleur vert et proportions 2 sur 1 et description "Les visites montent jusqu'au samedi."
-        texte "Les genres : {code "en courbe"}, {code "en barres"}, {code "en camembert"}."
+        texte "Les genres : `en courbe`, `en barres`, `en camembert`."
     ligne avec style "doc-suite" :
         lien "← 25. Choisir et envoyer un fichier" en anglais "← 25. Choosing and uploading a file" vers "documentation_25"
         lien "27. Les cartes →" en anglais "27. Maps →" vers "documentation_27"
@@ -2602,7 +2604,7 @@ page "documentation_27" dans "documentation" adresse "/documentation/cartes" :
                 carte "Our other shops" :
                     pour chaque s dans shops :
                         marqueur s.name avec latitude s.latitude et longitude s.longitude
-        texte "{code "carte"} is a map, {code "marqueur"} a marker. Tiles come from OpenStreetMap by default. For a busy site, choose a tile provider with {code "tuiles "…""} and its {code "attribution "…""}."
+        texte "`carte` is a map, `marqueur` a marker. Tiles come from OpenStreetMap by default. For a busy site, choose a tile provider with `tuiles "…"` and its `attribution "…"`."
     sinon :
         code humalis :
             page "nous_trouver" :
@@ -2612,7 +2614,7 @@ page "documentation_27" dans "documentation" adresse "/documentation/cartes" :
                 carte "Nos autres boutiques" :
                     pour chaque b dans boutiques :
                         marqueur b.nom avec latitude b.latitude et longitude b.longitude
-        texte "Les tuiles viennent d'OpenStreetMap par défaut. Pour un site très fréquenté, choisis un fournisseur de tuiles avec {code "tuiles "…""} et son {code "attribution "…""}."
+        texte "Les tuiles viennent d'OpenStreetMap par défaut. Pour un site très fréquenté, choisis un fournisseur de tuiles avec `tuiles "…"` et son `attribution "…"`."
     ligne avec style "doc-suite" :
         lien "← 26. Les graphiques" en anglais "← 26. Charts" vers "documentation_26"
         lien "28. Plusieurs langues →" en anglais "28. Several languages →" vers "documentation_28"
@@ -2644,12 +2646,12 @@ page "documentation_28" dans "documentation" adresse "/documentation/plusieurs-l
                 titre "The catalogue" en francais "Le catalogue"
                 lien "Back to home" en francais "Retour à l'accueil" vers "home"
         liste :
-            texte "{code "langues :"} lists the languages ({code "francais"}, {code "anglais"}…), one per line or on the same line separated by commas: {code "langues : anglais, francais"}."
-            texte "{code "en francais "…""} gives another language's version of a text."
-            texte "{code "sans traduction"} (\"without translation\") keeps the same text in every language, for a proper noun: {code "lien "GitHub" sans traduction vers "https://github.com""}."
-            texte "{code "traductions francais :"} translates a repeated text once."
-            texte "{code "selecteur de langue"} shows the language switcher; {code "changer langue par anglais"} and {code "si langue est anglais :"} are used in events."
-            texte "The message of {code "copier"} is translated like any other text: {code "copier code avec message "Copied" en francais "Copié""}."
+            texte "`langues :` lists the languages (`francais`, `anglais`…), one per line or on the same line separated by commas: `langues : anglais, francais`."
+            texte "`en francais "…"` gives another language's version of a text."
+            texte "`sans traduction` (\"without translation\") keeps the same text in every language, for a proper noun: `lien "GitHub" sans traduction vers "https://github.com"`."
+            texte "`traductions francais :` translates a repeated text once."
+            texte "`selecteur de langue` shows the language switcher; `changer langue par anglais` and `si langue est anglais :` are used in events."
+            texte "The message of `copier` is translated like any other text: `copier code avec message "Copied" en francais "Copié"`."
             texte "Humalis reports at compile time every text that lacks its translation. Humalis's own messages (required field, loading…) follow the language."
     sinon :
         texte "On écrit le code en français ; le {accent "site"} peut parler plusieurs langues. La première langue du bloc est celle des textes écrits."
@@ -2674,12 +2676,12 @@ page "documentation_28" dans "documentation" adresse "/documentation/plusieurs-l
                 titre "Le catalogue" en anglais "The catalogue"
                 lien "Retour à l'accueil" en anglais "Back to home" vers "accueil"
         liste :
-            texte "Les langues tiennent aussi sur une ligne, séparées par des virgules : {code "langues : francais, anglais"} revient au même que le bloc."
-            texte "{code "en anglais "…""} donne la version d'un texte."
-            texte "{code "sans traduction"} garde le même texte dans toutes les langues, pour un nom propre : {code "lien "GitHub" sans traduction vers "https://github.com""}."
-            texte "{code "traductions anglais :"} traduit une seule fois un texte répété."
-            texte "{code "selecteur de langue"} affiche le choix de la langue ; {code "changer langue par anglais"} et {code "si langue est anglais :"} s'utilisent dans les événements."
-            texte "Le message de {code "copier"} se traduit comme les autres textes : {code "copier code avec message "Copié" en anglais "Copied""}."
+            texte "Les langues tiennent aussi sur une ligne, séparées par des virgules : `langues : francais, anglais` revient au même que le bloc."
+            texte "`en anglais "…"` donne la version d'un texte."
+            texte "`sans traduction` garde le même texte dans toutes les langues, pour un nom propre : `lien "GitHub" sans traduction vers "https://github.com"`."
+            texte "`traductions anglais :` traduit une seule fois un texte répété."
+            texte "`selecteur de langue` affiche le choix de la langue ; `changer langue par anglais` et `si langue est anglais :` s'utilisent dans les événements."
+            texte "Le message de `copier` se traduit comme les autres textes : `copier code avec message "Copié" en anglais "Copied"`."
             texte "Humalis signale à la compilation tout texte qui n'a pas sa traduction. Les messages de Humalis (champ obligatoire, chargement…) suivent la langue."
     ligne avec style "doc-suite" :
         lien "← 27. Les cartes" en anglais "← 27. Maps" vers "documentation_27"
@@ -2690,7 +2692,7 @@ page "documentation_29" dans "documentation" adresse "/documentation/publier-un-
         description "Le bloc site : en haut du fichier décrit le site pour les moteurs de recherche et les réseaux sociaux. Le bloc apercu : règle une page." en anglais "The site : block at the top of the file describes the site for search engines and social networks. The apercu : (preview) block sets one page."
     titre "29. Publier un site" en anglais "29. Publishing a site"
     si langue est anglais :
-        texte "The {code "site :"} block at the top of the file describes the site for search engines and social networks. The {code "apercu :"} (preview) block sets one page."
+        texte "The `site :` block at the top of the file describes the site for search engines and social networks. The `apercu :` (preview) block sets one page."
         code humalis :
             site :
                 nom "The Corner Café"
@@ -2712,9 +2714,9 @@ page "documentation_29" dans "documentation" adresse "/documentation/publier-un-
                     titre "Who we are"
                     description "The story of The Corner Café, seasonal cooking since 2020, in the heart of the city."
                 titre "About"
-        texte "With an {code "adresse"}, the web target writes the sitemap ({code "sitemap.xml"}) and {code "robots.txt"}. A page with {code "indexation non"} is left out of search engines. Humalis warns when a title or description is too long or too short for search engines."
+        texte "With an `adresse`, the web target writes the sitemap (`sitemap.xml`) and `robots.txt`. A page with `indexation non` is left out of search engines. Humalis warns when a title or description is too long or too short for search engines."
     sinon :
-        texte "Le bloc {code "site :"} en haut du fichier décrit le site pour les moteurs de recherche et les réseaux sociaux. Le bloc {code "apercu :"} règle une page."
+        texte "Le bloc `site :` en haut du fichier décrit le site pour les moteurs de recherche et les réseaux sociaux. Le bloc `apercu :` règle une page."
         code humalis :
             site :
                 nom "Le Comptoir"
@@ -2736,7 +2738,7 @@ page "documentation_29" dans "documentation" adresse "/documentation/publier-un-
                     titre "Qui sommes-nous"
                     description "L'histoire du Comptoir, une cuisine de saison née en 2020 au cœur de la ville."
                 titre "À propos"
-        texte "Avec une {code "adresse"}, la cible web écrit le plan du site ({code "sitemap.xml"}) et {code "robots.txt"}. Une page en {code "indexation non"} n'y apparaît pas. Humalis prévient quand un titre ou une description est trop long ou trop court pour les moteurs de recherche."
+        texte "Avec une `adresse`, la cible web écrit le plan du site (`sitemap.xml`) et `robots.txt`. Une page en `indexation non` n'y apparaît pas. Humalis prévient quand un titre ou une description est trop long ou trop court pour les moteurs de recherche."
     ligne avec style "doc-suite" :
         lien "← 28. Plusieurs langues" en anglais "← 28. Several languages" vers "documentation_28"
         lien "30. Les composants et les projets en plusieurs fichiers →" en anglais "30. Components and multi-file projects →" vers "documentation_30"
@@ -2747,7 +2749,7 @@ page "documentation_30" dans "documentation" adresse "/documentation/composants-
     titre "30. Les composants et les projets en plusieurs fichiers" en anglais "30. Components and multi-file projects"
     si langue est anglais :
         soustitre "A Humalis component"
-        texte "A component ({code "composant"}) is a reusable piece of page. Its name starts with a capital letter."
+        texte "A component (`composant`) is a reusable piece of page. Its name starts with a capital letter."
         code humalis :
             composant "Card" :
                 parametre name
@@ -2759,7 +2761,7 @@ page "documentation_30" dans "documentation" adresse "/documentation/composants-
                 titre "Shop"
                 Card avec name "Book" et price 12
                 Card avec name "Pen" et price 2
-        texte "{code "parametre"} declares a value the component receives."
+        texte "`parametre` declares a value the component receives."
         soustitre "A React component"
         texte "An existing React component is used like a Humalis component (web and desktop):"
         code humalis :
@@ -2768,7 +2770,7 @@ page "documentation_30" dans "documentation" adresse "/documentation/composants-
             page "home" :
                 titre "Home"
                 Carte avec titre "School supplies"
-        texte "The other way round, {code "humalis compile … --composants <folder>"} generates React components to import into an existing React project."
+        texte "The other way round, `humalis compile … --composants <folder>` generates React components to import into an existing React project."
         soustitre "Several files"
         texte "A large project is split into several files. At the top of the main file:"
         code humalis :
@@ -2777,7 +2779,7 @@ page "documentation_30" dans "documentation" adresse "/documentation/composants-
 
             page "home" :
                 titre "Home"
-        texte "Everything those files contain (pages, components, shared variables, functions) joins the project. {code "humalis nouveau"} already organises files this way."
+        texte "Everything those files contain (pages, components, shared variables, functions) joins the project. `humalis nouveau` already organises files this way."
     sinon :
         soustitre "Un composant Humalis"
         texte "Un composant est un morceau de page réutilisable. Son nom commence par une majuscule."
@@ -2800,7 +2802,7 @@ page "documentation_30" dans "documentation" adresse "/documentation/composants-
             page "accueil" :
                 titre "Accueil"
                 Carte avec titre "Fournitures scolaires"
-        texte "Dans l'autre sens, {code "humalis compile … --composants <dossier>"} produit des composants React à importer dans un projet React existant."
+        texte "Dans l'autre sens, `humalis compile … --composants <dossier>` produit des composants React à importer dans un projet React existant."
         soustitre "Plusieurs fichiers"
         texte "Un grand projet se range en plusieurs fichiers. En haut du fichier principal :"
         code humalis :
@@ -2809,7 +2811,7 @@ page "documentation_30" dans "documentation" adresse "/documentation/composants-
 
             page "accueil" :
                 titre "Accueil"
-        texte "Tout ce que contiennent ces fichiers (pages, composants, variables partagées, fonctions) rejoint le projet. {code "humalis nouveau"} range déjà les fichiers ainsi."
+        texte "Tout ce que contiennent ces fichiers (pages, composants, variables partagées, fonctions) rejoint le projet. `humalis nouveau` range déjà les fichiers ainsi."
     ligne avec style "doc-suite" :
         lien "← 29. Publier un site" en anglais "← 29. Publishing a site" vers "documentation_29"
         lien "31. Tester en Humalis →" en anglais "31. Testing in Humalis →" vers "documentation_31"
@@ -2819,7 +2821,7 @@ page "documentation_31" dans "documentation" adresse "/documentation/tester-en-h
         description "Un fichier .test.humalis décrit ce que la personne fait et ce qu'elle doit voir. humalis tester les lance dans un vrai navigateur." en anglais "A .test.humalis file describes what a person does and what they should see. humalis tester runs them in a real browser."
     titre "31. Tester en Humalis" en anglais "31. Testing in Humalis"
     si langue est anglais :
-        texte "A {code "*.test.humalis"} file describes what a person does and what they should see. {code "humalis tester"} runs them in a real browser."
+        texte "A `*.test.humalis` file describes what a person does and what they should see. `humalis tester` runs them in a real browser."
         code humalis :
             page "home" :
                 titre "Welcome"
@@ -2831,9 +2833,9 @@ page "documentation_31" dans "documentation" adresse "/documentation/tester-en-h
                 verifier que texte "Welcome" est visible
                 cliquer sur "Say hello"
                 verifier que texte "Hello!" est visible
-        texte "The other steps: {code "remplir champ "email" avec "…""} (fill a field), {code "aller vers "cart""} (go to a page), {code "verifier que champ "email" vaut "…""} (a field's value), {code "verifier que page est "cart""} (the current page) and {code "verifier que texte "…" est absent"} (a text is not shown)."
+        texte "The other steps: `remplir champ "email" avec "…"` (fill a field), `aller vers "cart"` (go to a page), `verifier que champ "email" vaut "…"` (a field's value), `verifier que page est "cart"` (the current page) and `verifier que texte "…" est absent` (a text is not shown)."
     sinon :
-        texte "Un fichier {code "*.test.humalis"} décrit ce que la personne fait et ce qu'elle doit voir. {code "humalis tester"} les lance dans un vrai navigateur."
+        texte "Un fichier `*.test.humalis` décrit ce que la personne fait et ce qu'elle doit voir. `humalis tester` les lance dans un vrai navigateur."
         code humalis :
             page "accueil" :
                 titre "Bienvenue"
@@ -2845,7 +2847,7 @@ page "documentation_31" dans "documentation" adresse "/documentation/tester-en-h
                 verifier que texte "Bienvenue" est visible
                 cliquer sur "Dire bonjour"
                 verifier que texte "Bonjour !" est visible
-        texte "Les autres étapes : {code "remplir champ "email" avec "…""}, {code "aller vers "panier""}, {code "verifier que champ "email" vaut "…""}, {code "verifier que page est "panier""} et {code "verifier que texte "…" est absent"}."
+        texte "Les autres étapes : `remplir champ "email" avec "…"`, `aller vers "panier"`, `verifier que champ "email" vaut "…"`, `verifier que page est "panier"` et `verifier que texte "…" est absent`."
     ligne avec style "doc-suite" :
         lien "← 30. Les composants et les projets en plusieurs fichiers" en anglais "← 30. Components and multi-file projects" vers "documentation_30"
         lien "32. Les commandes →" en anglais "32. Commands →" vers "documentation_32"
@@ -2857,39 +2859,39 @@ page "documentation_32" dans "documentation" adresse "/documentation/commandes" 
     si langue est anglais :
         tableau "Command, Role" :
             colonnes "Command", "Role"
-            rangee "{code "humalis nouveau <name>"}", "creates a project"
-            rangee "{code "humalis --version"}", "shows the installed version ({code "humalis --help"}: the usage)"
-            rangee "{code "humalis developper"}", "runs the site and recompiles it on every save"
-            rangee "{code "humalis compile <file> --cible <target> --sortie <folder>"}", "generates a target's project"
-            rangee "{code "humalis compile <file> --cible web --composants <folder>"}", "generates React components to import elsewhere"
-            rangee "{code "humalis verifier <file>"}", "shows errors and warnings"
-            rangee "{code "humalis verifier <file> --exigeant"}", "also treats warnings as errors"
-            rangee "{code "humalis formater <file>"}", "reformats the file"
-            rangee "{code "humalis tester"}", "runs the {code "*.test.humalis"} tests"
-            rangee "{code "humalis packs"}", "says whether the Astratra packs have updates"
-        texte "For web and static, {code "--adresse https://…"} gives the site's final address (sitemap, share links). For desktop, {code "--serveur https://…"} gives the address of the server the application calls."
-        texte "With {code "humalis developper"}, every element of the page carries its Humalis file and line: in the browser's inspector, a heading shows for example {code "data-humalis-source="pages/accueil.humalis:12""} (the path starts from the main file, the line is the one in that file). Hold the Alt key (Option on Mac) and hover over an element: a small label shows the same reference next to the cursor. {code "humalis compile"} adds none of this: the published site stays identical."
+            rangee "`humalis nouveau <name>`", "creates a project"
+            rangee "`humalis --version`", "shows the installed version (`humalis --help`: the usage)"
+            rangee "`humalis developper`", "runs the site and recompiles it on every save"
+            rangee "`humalis compile <file> --cible <target> --sortie <folder>`", "generates a target's project"
+            rangee "`humalis compile <file> --cible web --composants <folder>`", "generates React components to import elsewhere"
+            rangee "`humalis verifier <file>`", "shows errors and warnings"
+            rangee "`humalis verifier <file> --exigeant`", "also treats warnings as errors"
+            rangee "`humalis formater <file>`", "reformats the file"
+            rangee "`humalis tester`", "runs the `*.test.humalis` tests"
+            rangee "`humalis packs`", "says whether the Astratra packs have updates"
+        texte "For web and static, `--adresse https://…` gives the site's final address (sitemap, share links). For desktop, `--serveur https://…` gives the address of the server the application calls."
+        texte "With `humalis developper`, every element of the page carries its Humalis file and line: in the browser's inspector, a heading shows for example `data-humalis-source="pages/accueil.humalis:12"` (the path starts from the main file, the line is the one in that file). Hold the Alt key (Option on Mac) and hover over an element: a small label shows the same reference next to the cursor. `humalis compile` adds none of this: the published site stays identical."
         soustitre "Error messages"
         texte "Messages are in French, with the line number, and often suggest the fix:"
         code :
             Erreur, ligne 3 : le texte utilise {totl}, mais la variable « totl » n'est pas déclarée. Peut-être « total » ?
-        texte "(Error, line 3: the text uses {code "{"}totl{code "}"}, but the variable \"totl\" is not declared. Perhaps \"total\"?)"
+        texte "(Error, line 3: the text uses `{`totl`}`, but the variable \"totl\" is not declared. Perhaps \"total\"?)"
         texte "The \"Humalis\" VS Code extension shows them as you type, with highlighting, completion and hover help."
     sinon :
         tableau "Commande, Rôle" :
             colonnes "Commande", "Rôle"
-            rangee "{code "humalis nouveau <nom>"}", "crée un projet"
-            rangee "{code "humalis --version"}", "affiche la version installée ({code "humalis --aide"} : le mode d'emploi)"
-            rangee "{code "humalis developper"}", "lance le site et le recompile à chaque enregistrement"
-            rangee "{code "humalis compile <fichier> --cible <cible> --sortie <dossier>"}", "produit le projet d'une cible"
-            rangee "{code "humalis compile <fichier> --cible web --composants <dossier>"}", "produit des composants React à importer ailleurs"
-            rangee "{code "humalis verifier <fichier>"}", "affiche les erreurs et les avertissements"
-            rangee "{code "humalis verifier <fichier> --exigeant"}", "traite aussi les avertissements comme des erreurs"
-            rangee "{code "humalis formater <fichier>"}", "remet le fichier en forme"
-            rangee "{code "humalis tester"}", "lance les tests {code "*.test.humalis"}"
-            rangee "{code "humalis packs"}", "dit si les packs Astratra ont des mises à jour"
-        texte "Pour le web et le statique, {code "--adresse https://…"} donne l'adresse finale du site (plan du site, liens de partage). Pour le desktop, {code "--serveur https://…"} donne l'adresse du serveur que l'application appelle."
-        texte "Avec {code "humalis developper"}, chaque élément de la page porte son fichier Humalis et sa ligne : dans l'inspecteur du navigateur, un titre montre par exemple {code "data-humalis-source="pages/accueil.humalis:12""} (le chemin part du fichier principal, la ligne est celle de ce fichier). Tiens la touche Alt (Option sur Mac) et survole un élément : une petite étiquette affiche ce même repère près du curseur. {code "humalis compile"} n'ajoute rien de tout cela : le site publié reste identique."
+            rangee "`humalis nouveau <nom>`", "crée un projet"
+            rangee "`humalis --version`", "affiche la version installée (`humalis --aide` : le mode d'emploi)"
+            rangee "`humalis developper`", "lance le site et le recompile à chaque enregistrement"
+            rangee "`humalis compile <fichier> --cible <cible> --sortie <dossier>`", "produit le projet d'une cible"
+            rangee "`humalis compile <fichier> --cible web --composants <dossier>`", "produit des composants React à importer ailleurs"
+            rangee "`humalis verifier <fichier>`", "affiche les erreurs et les avertissements"
+            rangee "`humalis verifier <fichier> --exigeant`", "traite aussi les avertissements comme des erreurs"
+            rangee "`humalis formater <fichier>`", "remet le fichier en forme"
+            rangee "`humalis tester`", "lance les tests `*.test.humalis`"
+            rangee "`humalis packs`", "dit si les packs Astratra ont des mises à jour"
+        texte "Pour le web et le statique, `--adresse https://…` donne l'adresse finale du site (plan du site, liens de partage). Pour le desktop, `--serveur https://…` donne l'adresse du serveur que l'application appelle."
+        texte "Avec `humalis developper`, chaque élément de la page porte son fichier Humalis et sa ligne : dans l'inspecteur du navigateur, un titre montre par exemple `data-humalis-source="pages/accueil.humalis:12"` (le chemin part du fichier principal, la ligne est celle de ce fichier). Tiens la touche Alt (Option sur Mac) et survole un élément : une petite étiquette affiche ce même repère près du curseur. `humalis compile` n'ajoute rien de tout cela : le site publié reste identique."
         soustitre "Les messages d'erreur"
         texte "Les messages sont en français, avec la ligne, et proposent souvent la correction :"
         code :
@@ -2910,13 +2912,13 @@ page "documentation_33" dans "documentation" adresse "/documentation/ce-que-chaq
             rangee "Pages, elements, styles, theme", "yes", "yes", "yes", "yes"
             rangee "Your own CSS", "yes", "yes", "no (named styles only)", "yes"
             rangee "Requests to a server", "yes", "yes", "yes", "yes"
-            rangee "{code "memorisee"}", "yes", "yes", "yes", "yes"
-            rangee "{code "memorisee en secret"}", "no", "no", "yes", "yes"
-            rangee "{code "essayer"}", "yes", "no", "yes", "yes"
+            rangee "`memorisee`", "yes", "yes", "yes", "yes"
+            rangee "`memorisee en secret`", "no", "no", "yes", "yes"
+            rangee "`essayer`", "yes", "no", "yes", "yes"
             rangee "Keyboard shortcuts", "yes", "yes", "no", "yes"
             rangee "React components", "yes", "no", "yes (in React Native)", "yes"
             rangee "Sitemap, share preview", "yes", "yes", "no", "no"
-        texte "The server ({code "--cible serveur"}) is generated separately, from the {code "serveur"} block."
+        texte "The server (`--cible serveur`) is generated separately, from the `serveur` block."
     sinon :
         texte "Le même fichier donne toutes les cibles. Quand une construction n'existe pas sur une cible, le compilateur le dit clairement au lieu de produire quelque chose de faux."
         tableau "web, statique, mobile, desktop" :
@@ -2924,13 +2926,13 @@ page "documentation_33" dans "documentation" adresse "/documentation/ce-que-chaq
             rangee "Pages, éléments, styles, thème", "oui", "oui", "oui", "oui"
             rangee "Ton propre CSS", "oui", "oui", "non (styles nommés seulement)", "oui"
             rangee "Requêtes vers un serveur", "oui", "oui", "oui", "oui"
-            rangee "{code "memorisee"}", "oui", "oui", "oui", "oui"
-            rangee "{code "memorisee en secret"}", "non", "non", "oui", "oui"
-            rangee "{code "essayer"}", "oui", "non", "oui", "oui"
+            rangee "`memorisee`", "oui", "oui", "oui", "oui"
+            rangee "`memorisee en secret`", "non", "non", "oui", "oui"
+            rangee "`essayer`", "oui", "non", "oui", "oui"
             rangee "Raccourcis clavier", "oui", "oui", "non", "oui"
             rangee "Composants React", "oui", "non", "oui (en React Native)", "oui"
             rangee "Plan du site, aperçu de partage", "oui", "oui", "non", "non"
-        texte "Le serveur ({code "--cible serveur"}) se produit à part, depuis le bloc {code "serveur"}."
+        texte "Le serveur (`--cible serveur`) se produit à part, depuis le bloc `serveur`."
     ligne avec style "doc-suite" :
         lien "← 32. Les commandes" en anglais "← 32. Commands" vers "documentation_32"
         lien "Les mots-clés de Humalis en anglais →" en anglais "French keywords at a glance →" vers "documentation_34"
@@ -2942,40 +2944,40 @@ page "documentation_34" dans "documentation" adresse "/documentation/mots-cles-d
     si langue est anglais :
         tableau "Humalis, English" :
             colonnes "Humalis", "English"
-            rangee "{code "page"}, {code "titre"}, {code "soustitre"}, {code "texte"}", "page, title, subtitle, text"
-            rangee "{code "image"}, {code "bouton"}, {code "lien … vers"}", "image, button, link … to"
-            rangee "{code "champ"}, {code "formulaire"}, {code "choix"}, {code "liste deroulante"}, {code "case a cocher"}", "field, form, choice, drop-down, checkbox"
-            rangee "{code "section"}, {code "bloc"}, {code "ligne"}, {code "colonne"}, {code "grille"}", "section, box, row, column, grid"
-            rangee "{code "entete"}, {code "pied"}, {code "menu"}, {code "fil d'Ariane"}", "header, footer, menu, breadcrumb"
-            rangee "{code "onglets"}, {code "deroulant"}, {code "accordeon"}, {code "carrousel"}, {code "fenetre"}", "tabs, collapsible, accordion, carousel, dialog"
-            rangee "{code "icone"}, {code "etoiles"}, {code "compteur"}, {code "progression"}, {code "chargement"}", "icon, stars, stepper, progress bar, loading"
-            rangee "{code "graphique"}, {code "carte"}, {code "marqueur"}, {code "audio"}, {code "fichier"}", "chart, map, marker, audio, file"
-            rangee "{code "avec … et …"}", "with … and …"
-            rangee "{code "couleur"}, {code "fond"}, {code "taille"}, {code "nom"}, {code "style"}", "colour, background, size, name, CSS class"
-            rangee "{code "variable"}, {code "calcul"}, {code "constante"}, {code "fiche"}", "variable, computed value, constant, record"
-            rangee "{code "vrai"}, {code "faux"}, {code "rien"}", "true, false, nothing"
-            rangee "{code "si"}, {code "sinon"}, {code "et"}, {code "ou"}, {code "n'est pas"}", "if, otherwise, and, or, is not"
-            rangee "{code "est egal a"}, {code "est superieur a"}, {code "est inferieur a"}, {code "est vide"}, {code "contient"}", "equals, greater than, less than, is empty, contains"
-            rangee "{code "pour chaque … dans"}", "for each … in"
-            rangee "{code "ajouter … à"}, {code "retirer … de"}, {code "nombre de"}", "add … to, remove … from, count of"
-            rangee "{code "trier … par"}, {code "dont"}, {code "grouper … par"}", "sort … by, whose (filter), group … by"
-            rangee "{code "repeter … fois"}, {code "tant que"}, {code "selon … cas"}", "repeat … times, while, switch … case"
-            rangee "{code "fonction … avec"}, {code "rendre"}", "function … with, return"
-            rangee "{code "quand"}, {code "l'utilisateur clique sur"}, {code "la page se charge"}", "when, the user clicks on, the page loads"
-            rangee "{code "le formulaire … est soumis"}", "the form … is submitted"
-            rangee "{code "afficher"}, {code "montrer"}, {code "cacher"}, {code "changer … par"}", "show a message, show, hide, change … to"
-            rangee "{code "rediriger vers"}, {code "revenir vers"}", "go to, go back to"
-            rangee "{code "envoyer requete vers … dans … avec"}", "send a request to … into … with"
-            rangee "{code "essayer"}, {code "si erreur"}", "try, if error"
-            rangee "{code "confirmer"}, {code "copier"}, {code "partager"}", "confirm, copy, share"
-            rangee "{code "apres … secondes"}, {code "toutes les … secondes"}", "after … seconds, every … seconds"
-            rangee "{code "partagee"}, {code "memorisee"}", "shared, remembered"
-            rangee "{code "serveur"}, {code "donnee"}, {code "route"}, {code "source"}", "server, data type, route, external API"
-            rangee "{code "tout le monde"}, {code "connecte"}, {code "seul admin"}", "everyone, logged-in users, admins only"
-            rangee "{code "lire"}, {code "creer"}, {code "modifier"}, {code "supprimer"}", "read, create, update, delete"
-            rangee "{code "se connecter"}, {code "se deconnecter"}, {code "utilisateur"}", "log in, log out, user"
-            rangee "{code "langues"}, {code "traductions"}, {code "selecteur de langue"}", "languages, translations, language switcher"
-            rangee "{code "composant"}, {code "parametre"}, {code "utiliser"}", "component, parameter, use"
+            rangee "`page`, `titre`, `soustitre`, `texte`", "page, title, subtitle, text"
+            rangee "`image`, `bouton`, `lien … vers`", "image, button, link … to"
+            rangee "`champ`, `formulaire`, `choix`, `liste deroulante`, `case a cocher`", "field, form, choice, drop-down, checkbox"
+            rangee "`section`, `bloc`, `ligne`, `colonne`, `grille`", "section, box, row, column, grid"
+            rangee "`entete`, `pied`, `menu`, `fil d'Ariane`", "header, footer, menu, breadcrumb"
+            rangee "`onglets`, `deroulant`, `accordeon`, `carrousel`, `fenetre`", "tabs, collapsible, accordion, carousel, dialog"
+            rangee "`icone`, `etoiles`, `compteur`, `progression`, `chargement`", "icon, stars, stepper, progress bar, loading"
+            rangee "`graphique`, `carte`, `marqueur`, `audio`, `fichier`", "chart, map, marker, audio, file"
+            rangee "`avec … et …`", "with … and …"
+            rangee "`couleur`, `fond`, `taille`, `nom`, `style`", "colour, background, size, name, CSS class"
+            rangee "`variable`, `calcul`, `constante`, `fiche`", "variable, computed value, constant, record"
+            rangee "`vrai`, `faux`, `rien`", "true, false, nothing"
+            rangee "`si`, `sinon`, `et`, `ou`, `n'est pas`", "if, otherwise, and, or, is not"
+            rangee "`est egal a`, `est superieur a`, `est inferieur a`, `est vide`, `contient`", "equals, greater than, less than, is empty, contains"
+            rangee "`pour chaque … dans`", "for each … in"
+            rangee "`ajouter … à`, `retirer … de`, `nombre de`", "add … to, remove … from, count of"
+            rangee "`trier … par`, `dont`, `grouper … par`", "sort … by, whose (filter), group … by"
+            rangee "`repeter … fois`, `tant que`, `selon … cas`", "repeat … times, while, switch … case"
+            rangee "`fonction … avec`, `rendre`", "function … with, return"
+            rangee "`quand`, `l'utilisateur clique sur`, `la page se charge`", "when, the user clicks on, the page loads"
+            rangee "`le formulaire … est soumis`", "the form … is submitted"
+            rangee "`afficher`, `montrer`, `cacher`, `changer … par`", "show a message, show, hide, change … to"
+            rangee "`rediriger vers`, `revenir vers`", "go to, go back to"
+            rangee "`envoyer requete vers … dans … avec`", "send a request to … into … with"
+            rangee "`essayer`, `si erreur`", "try, if error"
+            rangee "`confirmer`, `copier`, `partager`", "confirm, copy, share"
+            rangee "`apres … secondes`, `toutes les … secondes`", "after … seconds, every … seconds"
+            rangee "`partagee`, `memorisee`", "shared, remembered"
+            rangee "`serveur`, `donnee`, `route`, `source`", "server, data type, route, external API"
+            rangee "`tout le monde`, `connecte`, `seul admin`", "everyone, logged-in users, admins only"
+            rangee "`lire`, `creer`, `modifier`, `supprimer`", "read, create, update, delete"
+            rangee "`se connecter`, `se deconnecter`, `utilisateur`", "log in, log out, user"
+            rangee "`langues`, `traductions`, `selecteur de langue`", "languages, translations, language switcher"
+            rangee "`composant`, `parametre`, `utiliser`", "component, parameter, use"
     sinon :
         texte "Cette page présente les mots-clés français de Humalis, avec leur sens, aux personnes qui lisent le guide en anglais."
     ligne avec style "doc-suite" :

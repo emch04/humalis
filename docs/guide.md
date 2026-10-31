@@ -218,11 +218,14 @@ page "guide" :
 
 ### Code dans une phrase
 
-Dans un texte, `{code "…"}` affiche un court morceau de code à chasse fixe.
+Dans un texte, un morceau de code s'écrit entre accents graves, comme dans
+toutes les documentations : il s'affiche à chasse fixe, tel quel, guillemets et
+accolades compris. `{code "…"}` fait la même chose.
 
 ```humalis
 page "guide" :
-    texte "Écris {code "titre"} pour donner un titre."
+    texte "Écris `titre` pour donner un titre."
+    texte "Un texte : `texte "Bonjour {prenom}"`."
 ```
 
 ### Bloc de code

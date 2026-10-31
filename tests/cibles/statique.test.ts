@@ -203,7 +203,8 @@ describe('cible statique — aucune injection depuis une valeur', () => {
       '>texte "Tom & Jerry <b>gras</b>" avec style "x\'<y>"',
       '>variable nom = "</p><script>alert(1)</script>"',
       '>texte "Bonjour {nom}"',
-      '>texte "Coût ${nom} `x` \\\\"',
+      '>texte "Coût ${nom} ` x \\\\"',
+      '>texte "Le code `${x} </script>` reste du texte"',
       ">image \"x' onerror='alert(3).png\" avec description \"Un dessin\"",
     ),
   );
@@ -224,7 +225,9 @@ describe('cible statique — aucune injection depuis une valeur', () => {
     expect(() => new Script(script)).not.toThrow();
     expect(script).toContain("'<script>alert(\\'titre\\')</script>'");
     expect(script).toContain('`Bonjour ${nom}`');
-    expect(script).toContain("`Coût $${nom} \\`x\\` \\\\\\\\`");
+    // Un accent grave seul reste un caractère, échappé dans le script ; entre deux, c’est du code, échappé aussi.
+    expect(script).toContain("`Coût $${nom} \\` x \\\\\\\\`");
+    expect(html).toContain('<code class="humalis-code-ligne">${x} &lt;/script&gt;</code>');
     expect(html).toContain('<img src="images/x&#39; onerror=&#39;alert(3).png"');
     expect(html).not.toContain("onerror='");
   });

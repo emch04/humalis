@@ -16,13 +16,8 @@ export function colorerCodeHumalis(code: string, langage?: string): string {
       if (!['MOT_CLE', 'CHAINE', 'NOMBRE'].includes(token.type)) continue;
       const debut = debuts[token.ligne - 1] + token.colonne - 1;
       let fin = debut + (token.original ?? token.valeur).length;
-      if (token.type === 'CHAINE') {
-        fin = debut + 1;
-        while (fin < code.length) {
-          if (code[fin] === '"' && code[fin - 1] !== '\\') { fin++; break; }
-          fin++;
-        }
-      }
+      // Un texte s'arrête où le lexer l'a fermé (le code entre accents graves et {code "…"} compris).
+      if (token.type === 'CHAINE' && token.longueur !== undefined) fin = debut + token.longueur;
       plages.push({ debut, fin, classe: token.type === 'MOT_CLE' ? 'mot' : token.type === 'CHAINE' ? 'texte' : 'nombre' });
     }
     for (let index = 0; index < lignes.length; index++) {

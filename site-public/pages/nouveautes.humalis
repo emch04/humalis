@@ -10,7 +10,7 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
             colonne avec style "install-hero-texte" et animation montee :
                 texte "Journal des versions" en anglais "Release notes" avec style "eyebrow"
                 titre "Les {accent "nouveautés."}" en anglais "What’s {accent "new."}" avec style "install-titre"
-                texte "Ce qui change dans le langage et son compilateur, de la plus récente version à la première. Pour mettre à jour : {code "npm install -g humalis"}." en anglais "What changes in the language and its compiler, from the latest release to the first. To update: {code "npm install -g humalis"}." avec style "hero-intro"
+                texte "Ce qui change dans le langage et son compilateur, de la plus récente version à la première. Pour mettre à jour : `npm install -g humalis`." en anglais "What changes in the language and its compiler, from the latest release to the first. To update: `npm install -g humalis`." avec style "hero-intro"
             colonne avec style "frise" et animation montee au defilement et en cascade :
                 bloc avec style "version version-recente" :
                     ligne avec style "version-tete" :
@@ -19,17 +19,17 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
                         texte "31 octobre 2026" en anglais "October 31, 2026" avec style "version-date"
                     soustitre "La version en une commande" en anglais "The version in one command"
                     liste :
-                        texte "{code "humalis --version"} affiche la version installée, et {code "humalis --aide"} le mode d’emploi." en anglais "{code "humalis --version"} shows the installed version, and {code "humalis --help"} the usage."
+                        texte "`humalis --version` affiche la version installée, et `humalis --aide` le mode d’emploi." en anglais "`humalis --version` shows the installed version, and `humalis --help` the usage."
                 bloc avec style "version" :
                     ligne avec style "version-tete" :
                         texte "1.3.0" sans traduction avec style "version-numero"
                         texte "31 octobre 2026" en anglais "October 31, 2026" avec style "version-date"
                     soustitre "Des pages qui tiennent dans l’écran" en anglais "Pages that fit the screen"
                     liste :
-                        texte "{code "entete avec fixe :"} garde l’en-tête immobile : seule la zone en dessous défile." en anglais "{code "entete avec fixe :"} keeps the header still: only the area below it scrolls."
-                        texte "{code "hauteur ecran"} fait remplir l’écran à un bloc, sous l’en-tête ; {code "defilement interne"} donne à un bloc son propre défilement, comme un sommaire ou une frise." en anglais "{code "hauteur ecran"} makes a block fill the screen below the header; {code "defilement interne"} gives a block its own scrolling, like a table of contents or a timeline."
-                        texte "{code "humalis verifier"} signale un style écrit dans {code "avec style"} mais absent du CSS, avec le nom le plus proche, et une règle CSS qui écrase une classe Humalis avec {code "!important"}." en anglais "{code "humalis verifier"} reports a style used in {code "avec style"} but missing from the CSS, with the closest name, and a CSS rule that overrides a Humalis class with {code "!important"}."
-                        texte "Avec {code "humalis developper"}, chaque élément de la page porte son fichier et sa ligne Humalis ; Alt + survol affiche ce repère près du curseur." en anglais "With {code "humalis developper"}, every element on the page carries its Humalis file and line; Alt + hover shows it next to the cursor."
+                        texte "`entete avec fixe :` garde l’en-tête immobile : seule la zone en dessous défile." en anglais "`entete avec fixe :` keeps the header still: only the area below it scrolls."
+                        texte "`hauteur ecran` fait remplir l’écran à un bloc, sous l’en-tête ; `defilement interne` donne à un bloc son propre défilement, comme un sommaire ou une frise." en anglais "`hauteur ecran` makes a block fill the screen below the header; `defilement interne` gives a block its own scrolling, like a table of contents or a timeline."
+                        texte "`humalis verifier` signale un style écrit dans `avec style` mais absent du CSS, avec le nom le plus proche, et une règle CSS qui écrase une classe Humalis avec `!important`." en anglais "`humalis verifier` reports a style used in `avec style` but missing from the CSS, with the closest name, and a CSS rule that overrides a Humalis class with `!important`."
+                        texte "Avec `humalis developper`, chaque élément de la page porte son fichier et sa ligne Humalis ; Alt + survol affiche ce repère près du curseur." en anglais "With `humalis developper`, every element on the page carries its Humalis file and line; Alt + hover shows it next to the cursor."
                         texte "Correction : les pages préparées à l’avance sont écrites dans la langue de base du site, quelle que soit la langue de l’outil qui les prépare." en anglais "Fix: prerendered pages are written in the site’s base language, whatever the language of the tool that prepares them."
                 bloc avec style "version" :
                     ligne avec style "version-tete" :
@@ -37,10 +37,10 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
                         texte "30 octobre 2026" en anglais "October 30, 2026" avec style "version-date"
                     soustitre "Des menus et des titres mieux rangés" en anglais "Better menus and headings"
                     liste :
-                        texte "{code "menu vertical :"} range les liens en colonne, sans jamais ouvrir une deuxième colonne : un sommaire de hauteur limitée défile." en anglais "{code "menu vertical :"} stacks the links in a column and never starts a second one: a table of contents with a limited height scrolls."
-                        texte "Le bouton d’un {code "menu repliable"} devient une icône burger, en croix quand le menu est ouvert ; un toucher à côté ou la touche Échap referment le menu." en anglais "The button of a {code "menu repliable"} becomes a burger icon, a cross while the menu is open; tapping outside or pressing Escape closes it."
-                        texte "Dans une {code "section"}, le premier sous-titre la titre et les autres descendent d’un niveau, même rangés dans des cartes." en anglais "In a {code "section"}, the first subtitle titles it and the others go down one level, even inside cards."
-                        texte "Un titre dans chaque branche de {code "si langue est …"} ne compte qu’une fois." en anglais "A title in each branch of {code "si langue est …"} counts only once."
+                        texte "`menu vertical :` range les liens en colonne, sans jamais ouvrir une deuxième colonne : un sommaire de hauteur limitée défile." en anglais "`menu vertical :` stacks the links in a column and never starts a second one: a table of contents with a limited height scrolls."
+                        texte "Le bouton d’un `menu repliable` devient une icône burger, en croix quand le menu est ouvert ; un toucher à côté ou la touche Échap referment le menu." en anglais "The button of a `menu repliable` becomes a burger icon, a cross while the menu is open; tapping outside or pressing Escape closes it."
+                        texte "Dans une `section`, le premier sous-titre la titre et les autres descendent d’un niveau, même rangés dans des cartes." en anglais "In a `section`, the first subtitle titles it and the others go down one level, even inside cards."
+                        texte "Un titre dans chaque branche de `si langue est …` ne compte qu’une fois." en anglais "A title in each branch of `si langue est …` counts only once."
                         texte "Corrections : le style du menu sur le téléphone, et la remise en haut de la page quand c’est la zone sous l’en-tête qui défile." en anglais "Fixes: the menu style on phones, and scrolling back to the top when the area under the header is what scrolls."
                 bloc avec style "version" :
                     ligne avec style "version-tete" :
@@ -48,11 +48,11 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
                         texte "30 octobre 2026" en anglais "October 30, 2026" avec style "version-date"
                     soustitre "Écrire une documentation, animer le code" en anglais "Write documentation, animate code"
                     liste :
-                        texte "Les listes ({code "liste :"}, {code "liste numerotee :"}), les tableaux ({code "tableau"}, {code "colonnes"}, {code "rangee"}), le code dans une phrase ({code "{code "…"}"}) et les blocs de code colorés avec un bouton Copier." en anglais "Lists ({code "liste :"}, {code "liste numerotee :"}), tables ({code "tableau"}, {code "colonnes"}, {code "rangee"}), code in a sentence ({code "{code "…"}"}) and coloured code blocks with a Copy button."
-                        texte "{code "avec animation frappe"} : un bloc de code s’écrit lettre par lettre, au chargement ou quand il arrive à l’écran." en anglais "{code "avec animation frappe"}: a code block types itself letter by letter, on load or when it scrolls into view."
-                        texte "{code "changer x par champ "…""} et {code "ajouter champ "…" à liste"} : la valeur d’un champ dans une variable ou une liste." en anglais "{code "changer x par champ "…""} and {code "ajouter champ "…" à liste"}: a field’s value into a variable or a list."
-                        texte "{code "{accent "…"}"} met un mot en valeur ; {code "sans traduction"} garde un nom propre identique dans toutes les langues." en anglais "{code "{accent "…"}"} highlights a word; {code "sans traduction"} keeps a proper noun the same in every language."
-                        texte "{code "menu repliable"}, {code "basculer theme"}, {code "si theme est sombre"}, l’animation {code "en cascade"} et le lien « Aller au contenu » automatique." en anglais "{code "menu repliable"}, {code "basculer theme"}, {code "si theme est sombre"}, the {code "en cascade"} animation and the automatic “Skip to content” link."
+                        texte "Les listes (`liste :`, `liste numerotee :`), les tableaux (`tableau`, `colonnes`, `rangee`), le code dans une phrase (`{code "…"}`) et les blocs de code colorés avec un bouton Copier." en anglais "Lists (`liste :`, `liste numerotee :`), tables (`tableau`, `colonnes`, `rangee`), code in a sentence (`{code "…"}`) and coloured code blocks with a Copy button."
+                        texte "`avec animation frappe` : un bloc de code s’écrit lettre par lettre, au chargement ou quand il arrive à l’écran." en anglais "`avec animation frappe`: a code block types itself letter by letter, on load or when it scrolls into view."
+                        texte "`changer x par champ "…"` et `ajouter champ "…" à liste` : la valeur d’un champ dans une variable ou une liste." en anglais "`changer x par champ "…"` and `ajouter champ "…" à liste`: a field’s value into a variable or a list."
+                        texte "`{accent "…"}` met un mot en valeur ; `sans traduction` garde un nom propre identique dans toutes les langues." en anglais "`{accent "…"}` highlights a word; `sans traduction` keeps a proper noun the same in every language."
+                        texte "`menu repliable`, `basculer theme`, `si theme est sombre`, l’animation `en cascade` et le lien « Aller au contenu » automatique." en anglais "`menu repliable`, `basculer theme`, `si theme est sombre`, the `en cascade` animation and the automatic “Skip to content” link."
                         texte "Les sous-titres prennent seuls le bon niveau dans une carte ; les ancres de l’en-tête et du pied sont vérifiées." en anglais "Subtitles get the right level on their own inside a card; header and footer anchors are checked."
                         texte "Le compilateur fonctionne aussi dans le navigateur : c’est lui qui fait tourner le bac à sable." en anglais "The compiler also runs in the browser: it powers the playground."
                 bloc avec style "version" :
@@ -76,7 +76,7 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
                     soustitre "La première version" en anglais "The first release"
                     liste :
                         texte "Un langage en français et son compilateur, pour cinq cibles : web, statique, mobile, bureau et serveur." en anglais "A language in French and its compiler, for five targets: web, static, mobile, desktop and server."
-                        texte "Les commandes {code "nouveau"}, {code "developper"}, {code "compile"} et {code "verifier"}, et des messages d’erreur en français qui expliquent comment corriger." en anglais "The {code "nouveau"}, {code "developper"}, {code "compile"} and {code "verifier"} commands, and error messages that explain how to fix things."
+                        texte "Les commandes `nouveau`, `developper`, `compile` et `verifier`, et des messages d’erreur en français qui expliquent comment corriger." en anglais "The `nouveau`, `developper`, `compile` and `verifier` commands, and error messages that explain how to fix things."
                         texte "Un guide complet en français et en anglais." en anglais "A complete guide in French and English."
         colonne avec style "nouveautes-aside" et animation montee au defilement et en cascade :
             bloc avec style "aside-carte aside-vive" :

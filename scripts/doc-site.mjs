@@ -29,9 +29,9 @@ function chapitres(texte) {
 const guillemets = (texte) => `"${texte.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 
 /**
- * Le Markdown d'une phrase en texte Humalis : `code` → {code "…"},
+ * Le Markdown d'une phrase en texte Humalis : `code` reste entre accents graves,
  * **gras** → {accent "…"}, [texte](lien) → texte. Les accolades du texte
- * ordinaire (qui liraient une variable) sont écrites dans un {code "…"}.
+ * ordinaire (qui liraient une variable) sont écrites comme du code : `{`.
  */
 function phrase(markdown) {
   const morceaux = [];
@@ -41,8 +41,8 @@ function phrase(markdown) {
     const trouve = motif.exec(reste);
     if (!trouve) break;
     morceaux.push(texteSimple(reste.slice(0, trouve.index)));
-    // Le contenu d'un {code "…"} ou d'un {accent "…"} est recopié tel quel jusqu'au premier "}.
-    if (trouve[1] !== undefined) morceaux.push(`{code "${trouve[1]}"}`);
+    // Le code entre accents graves est recopié tel quel ; le contenu d'un {accent "…"}, jusqu'au premier "}.
+    if (trouve[1] !== undefined) morceaux.push(`\`${trouve[1]}\``);
     else morceaux.push(`{accent "${trouve[2]}"}`);
     reste = reste.slice(trouve.index + trouve[0].length);
   }
@@ -55,7 +55,7 @@ const texteSimple = (texte) =>
   texte
     .replace(/\\/g, '\\\\')
     .replace(/"/g, '\\"')
-    .replace(/[{}]/g, (accolade) => `{code "${accolade}"}`);
+    .replace(/[{}]/g, (accolade) => `\`${accolade}\``);
 
 /** Les cellules d'une ligne de tableau Markdown. */
 const cellules = (ligne) =>

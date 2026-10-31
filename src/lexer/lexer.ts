@@ -32,6 +32,15 @@ function motColle(ligne: string, debut: number, premier: string): string | null 
 }
 
 /**
+ * L'accent grave qui ferme un `code` commencé à `debut` (juste après le premier), sur la
+ * même ligne et après au moins un caractère ; -1 sinon : un accent grave seul reste un caractère.
+ */
+function finDuCode(texte: string, debut: number): number {
+  const fin = texte.indexOf('`', debut);
+  return fin > debut ? fin : -1;
+}
+
+/**
  * Le guillemet qui ferme un {code "…"} ou un {accent "…"} commencé à `debut` : le premier « "} »
  * où les accolades du contenu sont équilibrées ({code "{accent "…"}"}), sinon le premier « "} »
  * ({code "{"}). -1 s'il n'y en a pas.
@@ -56,6 +65,17 @@ function decouperChaine(
   let i = 0;
 
   while (i < valeur.length) {
+    // `titre "Bonjour"` : le code d'une phrase, recopié tel quel, comme {code "…"}.
+    const finCode = valeur[i] === '`' ? finDuCode(valeur, i + 1) : -1;
+    if (finCode >= 0) {
+      if (tampon !== '') {
+        parties.push({ type: 'texte', valeur: tampon });
+        tampon = '';
+      }
+      parties.push({ type: 'code', valeur: valeur.slice(i + 1, finCode) });
+      i = finCode + 1;
+      continue;
+    }
     if (valeur[i] === '{') {
       if (tampon !== '') {
         parties.push({ type: 'texte', valeur: tampon });
@@ -265,6 +285,13 @@ export function analyser(source: string): Token[] {
         let valeur = '';
         let profondeur = 0;
         while (i < ligne.length && (ligne[i] !== '"' || (profondeur > 0 && ligne.indexOf('}', i + 1) >= 0))) {
+          // `…` : le code d'une phrase, recopié tel quel jusqu'à l'accent grave qui le ferme.
+          const finCode = ligne[i] === '`' ? finDuCode(ligne, i + 1) : -1;
+          if (finCode >= 0) {
+            valeur += ligne.slice(i, finCode + 1);
+            i = finCode + 1;
+            continue;
+          }
           // {code "…"} et {accent "…"} : recopiés tels quels jusqu'au premier « "} »
           // (accolades, guillemets et antislashs compris).
           const morceau = /^\{(code|accent)\s*"/.exec(ligne.slice(i));
@@ -300,6 +327,7 @@ export function analyser(source: string): Token[] {
           valeur,
           ligne: numLigne + 1,
           colonne: debut + 1,
+          longueur: i - debut,
           parties: decouperChaine(valeur, numLigne + 1, debut + 1),
         });
         continue;
