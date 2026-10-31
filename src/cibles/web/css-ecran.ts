@@ -134,7 +134,9 @@ export function cssEcran(codes: string[]): string {
         // sur le statique, la page laisse la place de l'en-tête.
         regles.push(`header${classe} { position: fixed; top: 0; left: 0; right: 0; z-index: 50; background: var(--humalis-page); }`);
         regles.push('html:has(#racine > .humalis-fixe-oui), html:has(#racine > .humalis-fixe-oui) body { height: 100%; overflow: hidden; }');
-        regles.push('#racine:has(> .humalis-fixe-oui) { position: fixed; top: var(--humalis-hauteur-entete, 0px); left: 0; right: 0; bottom: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; }');
+        // La zone couvre tout l'écran et laisse la place de l'en-tête (marge intérieure) : sur iPhone, WebKit
+        // coupe un en-tête fixe qui sort de la boîte de la zone qui défile.
+        regles.push('#racine:has(> .humalis-fixe-oui) { position: fixed; inset: 0; padding-top: var(--humalis-hauteur-entete, 0px); scroll-padding-top: var(--humalis-hauteur-entete, 0px); overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; }');
         regles.push('body:has(header.humalis-fixe-oui) { padding-top: var(--humalis-hauteur-entete, 0px); }');
         break;
     }

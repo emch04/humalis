@@ -41,6 +41,10 @@ describe('les options de défilement et de hauteur', () => {
     expect(css).toContain('#racine:has(> .humalis-fixe-oui)');
     // Ce qui dépasse sur les côtés ne fait pas glisser la page (le « html, body { overflow-x } » du CSS ne s'applique plus à la racine).
     expect(css).toMatch(/#racine:has\(> \.humalis-fixe-oui\) \{[^}]*overflow-x: hidden;/);
+    // Sur iPhone (WebKit), un en-tête rangé dans la zone qui défile mais hors de sa boîte est coupé : la zone
+    // couvre donc tout l'écran et laisse la place de l'en-tête par une marge intérieure.
+    expect(css).toMatch(/#racine:has\(> \.humalis-fixe-oui\) \{[^}]*inset: 0;[^}]*padding-top: var\(--humalis-hauteur-entete, 0px\);/);
+    expect(css).not.toMatch(/#racine:has\(> \.humalis-fixe-oui\) \{[^}]*(?:\{ |; )top: var\(--humalis-hauteur-entete/);
     expect(mouvementHorsBloc(css)).toEqual([]);
     expect(projet.get('src/humalis/entete.ts')).toContain('--humalis-hauteur-entete');
     expect(projet.get('src/main.tsx')).toContain('suivreLaHauteurDeLEntete();');
