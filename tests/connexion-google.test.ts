@@ -53,7 +53,8 @@ describe('connexion avec Google', () => {
     const fichiers = genererProjetServeur(application.serveurs[0], { nom: 'b', source: 'b.humalis' } as never);
     const serveur = fichiers.get('src/serveur.ts')!;
     expect(serveur).toContain("import { createGoogleIdTokenVerifier, IdTokenError, verifyPasswordHash } from '@astratra/security';");
-    expect(serveur).toContain("app.post('/auth/google', csrfMiddleware");
+    expect(serveur).toContain("routeGoogle.post('/', csrfMiddleware, async (req, res, next) => {");
+    expect(serveur).toContain("app.use('/auth/google', routeGoogle);");
     expect(serveur).toContain('if (!profil.email || !profil.emailVerified)');
     expect(serveur).toContain('const compte = await usersStore.findByEmail(profil.email);');
     expect(serveur).toContain('res.json(await issueSession(res, compte));');

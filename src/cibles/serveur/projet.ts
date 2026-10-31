@@ -694,10 +694,11 @@ const ROUTE_GOOGLE = `
       // « connexion google » : un compte déjà connu du serveur, dont Google confirme l'adresse, ouvre sa session.
       const issueSession = (contexte as unknown as { issueSession: (res: unknown, compte: unknown) => Promise<unknown> }).issueSession;
       const google = googleClientId ? createGoogleIdTokenVerifier({ audiences: [googleClientId] }) : null;
-      app.get('/auth/google', (_req, res) => {
+      const routeGoogle = express.Router();
+      routeGoogle.get('/', (_req, res) => {
         res.json({ clientId: googleClientId ?? null });
       });
-      app.post('/auth/google', csrfMiddleware, async (req, res, next) => {
+      routeGoogle.post('/', csrfMiddleware, async (req, res, next) => {
         if (!google) {
           res.status(503).json({ erreur: "la connexion avec Google n'est pas réglée sur ce serveur (GOOGLE_CLIENT_ID)" });
           return;
@@ -723,4 +724,5 @@ const ROUTE_GOOGLE = `
           next(erreur);
         }
       });
+      app.use('/auth/google', routeGoogle);
 `;
