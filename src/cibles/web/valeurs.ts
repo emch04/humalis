@@ -155,8 +155,12 @@ export function expression(valeur: Valeur, contexte: Contexte): string {
       return operationDeListe(valeur, (v) => expression(v, contexte), (test, champs) => {
         // Dans la condition, les noms des champs désignent ceux de chaque élément.
         const avant = contexte.renommes;
-        contexte.renommes = new Map([...(avant ?? []), ...champs.map((c): [string, string] => [c, `element.${camel(c)}`])]);
-        const texte = condition(test, contexte);
+        const tous = new Map([...(avant ?? []), ...champs.map((c): [string, string] => [c, `element.${camel(c)}`])]);
+        // Un champ qui porte le nom d'une variable de la page (« club ») : à droite d'une comparaison, c'est la variable.
+        const ambigus = champs.filter((c) => contexte.types.has(c));
+        const droite = ambigus.length ? new Map([...tous].filter(([nom]) => !ambigus.includes(nom))) : undefined;
+        contexte.renommes = tous;
+        const texte = condition(test, contexte, droite);
         contexte.renommes = avant;
         return texte;
       });
@@ -280,15 +284,24 @@ export function combiner(test: TestCombine, ecrire: (t: Test) => string): string
 }
 
 /** Une condition TypeScript. */
-export function condition(test: Test, contexte: Contexte): string {
-  if (estCombine(test)) return combiner(test, (t) => condition(t, contexte));
-  if (test.negation) return `!(${condition({ ...test, negation: false }, contexte)})`;
+export function condition(test: Test, contexte: Contexte, renommesDroite?: Map<string, string>): string {
+  if (estCombine(test)) return combiner(test, (t) => condition(t, contexte, renommesDroite));
+  if (test.negation) return `!(${condition({ ...test, negation: false }, contexte, renommesDroite)})`;
   const gauche = expression(test.gauche, contexte);
   const type = typeDe(test.gauche, contexte);
+  // Dans « dont club est egal a club », la droite lit la variable de la page, pas le champ.
+  const x = (v: Valeur) => {
+    if (!renommesDroite) return expression(v, contexte);
+    const avant = contexte.renommes;
+    contexte.renommes = renommesDroite;
+    const texte = expression(v, contexte);
+    contexte.renommes = avant;
+    return texte;
+  };
 
   switch (test.operateur) {
     case 'dans':
-      return `${expression(test.droite!, contexte)}.includes(${gauche})`;
+      return `${x(test.droite!)}.includes(${gauche})`;
     case 'vide':
       return `${gauche}.length === 0`;
     case 'vrai':
@@ -298,13 +311,13 @@ export function condition(test: Test, contexte: Contexte): string {
     case 'rien':
       return `${gauche} === null`;
     case 'contient':
-      return `${gauche}.includes(${expression(test.droite!, contexte)})`;
+      return `${gauche}.includes(${x(test.droite!)})`;
     case 'commencePar':
-      return `${gauche}.startsWith(${expression(test.droite!, contexte)})`;
+      return `${gauche}.startsWith(${x(test.droite!)})`;
     case 'finitPar':
-      return `${gauche}.endsWith(${expression(test.droite!, contexte)})`;
+      return `${gauche}.endsWith(${x(test.droite!)})`;
     default:
-      return `${gauche} ${OPERATEURS[test.operateur]} ${expression(test.droite!, contexte)}`;
+      return `${gauche} ${OPERATEURS[test.operateur]} ${x(test.droite!)}`;
   }
 }
 
