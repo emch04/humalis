@@ -45,7 +45,7 @@ describe('conditions combinées — ce que produit chaque cible', () => {
   it('web : && et || avec des parenthèses quand il le faut, includes pour « est dans »', () => {
     const page = genererProjetWeb(compiler(PAGE).application!, { nom: 'a', adresse: 'https://a.cd', source: 'a.humalis' }).get('src/pages/Boutique.tsx')!;
     expect(page).toContain('{stock > 0 && prix < 20000 && (');
-    expect(page).toContain('{(panier.length === 0 || stock === 0) && (');
+    expect(page).toContain('{((panier?.length ?? 0) === 0 || stock === 0) && (');
     expect(page).toContain("{['robes', 'pagnes'].includes(categorie) && (");
     expect(page).toContain("{(stock === 0 || (prix < 100 && categorie === 'robes')) && (");
     expect(page).toContain('{stock <= 5 && stock > 0 && (');

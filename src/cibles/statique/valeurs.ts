@@ -203,13 +203,15 @@ export function conditionJs(test: Test, contexte: ContexteJs, renommesDroite?: M
     case 'dans':
       return `${x(test.droite!)}.includes(${gauche})`;
     case 'vide':
-      return `${gauche}.length === 0`;
+      // Un champ absent d'une fiche reçue (« reglage.email ») compte comme vide, sans planter.
+      return `(${gauche}?.length ?? 0) === 0`;
     case 'vrai':
       return booleen ? gauche : `${gauche} === true`;
     case 'faux':
       return booleen ? `!${gauche}` : `${gauche} === false`;
     case 'rien':
-      return `${gauche} === null`;
+      // « rien » : null, ou un champ absent (undefined).
+      return `${gauche} == null`;
     case 'contient':
       return `${gauche}.includes(${x(test.droite!)})`;
     case 'commencePar':

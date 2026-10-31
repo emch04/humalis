@@ -169,7 +169,7 @@ describe('filtres d\'adresse — web', () => {
     expect(page).toContain('const [filtresAdresse, setFiltresAdresse] = useSearchParams();');
     expect(page).toContain("const categorie = lireFiltre(filtresAdresse, 'categorie');");
     expect(page).toContain("const tri = lireFiltreNombre(filtresAdresse, 'tri');");
-    expect(page).toContain('categorie === null');
+    expect(page).toContain('categorie == null');
   });
 
   it('« changer » change l\'adresse', () => {
