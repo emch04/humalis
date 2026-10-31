@@ -2300,12 +2300,17 @@ function contientRendre(actions: Action[]): boolean {
   );
 }
 
-/** Les variables changées plus d'une fois, ou dans une boucle : elles ont besoin d'une copie à jour. */
+/**
+ * Les variables qui ont besoin d'une copie à jour : changées plus d'une fois, dans une boucle, ou
+ * relues après leur changement dans le même événement (« changer taille par champ "Taille" », puis
+ * « … et taille taille »).
+ */
 function variablesASuivre(actions: Action[], lueEnsuite = false): Set<string> {
   const changements = new Map<string, number>();
   const suivies = new Set<string>();
   const parcourir = (liste: Action[], dansUneBoucle: boolean) => {
     for (const a of liste) {
+      for (const lue of lecturesDirectes(a)) if (changements.has(lue)) suivies.add(lue);
       const nom =
         a.type === 'affectation' ? a.nom : a.type === 'ajout' || a.type === 'retrait' ? a.liste : a.type === 'requete' ? a.resultat : undefined;
       if (nom !== undefined) {
@@ -2321,4 +2326,22 @@ function variablesASuivre(actions: Action[], lueEnsuite = false): Set<string> {
   };
   parcourir(actions, false);
   return suivies;
+}
+
+/** Les variables lues par une action elle-même, sans les actions de ses blocs (parcourues à leur tour). */
+function lecturesDirectes(action: Action): Set<string> {
+  const blocs = new Set<unknown>(sousActions(action));
+  const lues = new Set<string>();
+  const visiter = (valeur: unknown) => {
+    if (blocs.has(valeur) || valeur === null || typeof valeur !== 'object') return;
+    if (Array.isArray(valeur)) {
+      for (const v of valeur) visiter(v);
+      return;
+    }
+    const objet = valeur as Record<string, unknown>;
+    if (objet.type === 'variable' && typeof objet.nom === 'string') lues.add(objet.nom);
+    for (const v of Object.values(objet)) visiter(v);
+  };
+  visiter(action);
+  return lues;
 }
