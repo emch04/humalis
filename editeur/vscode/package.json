@@ -2,7 +2,7 @@
   "name": "humalis",
   "displayName": "Humalis",
   "description": "Le langage Humalis dans VS Code : erreurs du compilateur en direct, survol, complétion, saut à la déclaration, symboles, coloration (y compris sémantique), indentation et extraits de code ; un serveur de langage (LSP) pour les autres éditeurs.",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "publisher": "emch04",
   "private": true,
   "license": "SEE LICENSE IN LICENSE",
