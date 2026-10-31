@@ -238,6 +238,11 @@ function champWeb(el: ElementProduit, a: string): string {
             : TYPES_WEB[sorte];
       const bornes =
         (saisie?.minimum !== undefined ? ` min={${saisie.minimum}}` : '') + (saisie?.maximum !== undefined ? ` max={${saisie.maximum}}` : '');
+      // Un mot de passe a son œil : « Afficher le mot de passe », pour vérifier ce qu'on a tapé.
+      if (el.champ.genre === 'motDePasse' || sorte === 'motDePasse') {
+        const role = el.champ.genre === 'motDePasse' ? 'current-password' : 'new-password';
+        return `<label className="humalis-champ">${libelle}<MotDePasse ${a} autoComplete="${role}"${indice}${requis} value={${v}} ${changer} /></label>`;
+      }
       return `<label className="humalis-champ">${libelle}<input ${a}${genre}${bornes}${indice}${requis} value={${v}} ${changer} /></label>`;
     }
   }

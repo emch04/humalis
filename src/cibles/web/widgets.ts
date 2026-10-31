@@ -106,6 +106,7 @@ export const WIDGETS_WEB: RenduWidgets = {
     if (/\bsurToucheOnglets\(/.test(code)) lignes.push(`import { surToucheOnglets } from '../humalis/onglets';`);
     if (/<SelecteurLangue\b/.test(code)) lignes.push(`import { SelecteurLangue } from '../humalis/langue';`);
     if (/<ChoixFichier\b/.test(code)) lignes.push(`import ChoixFichier from '../humalis/choix-fichier';`);
+    if (/<MotDePasse\b/.test(code)) lignes.push(`import MotDePasse from '../humalis/mot-de-passe';`);
     if (/\bteleverser\(/.test(code)) lignes.push(`import { televerser } from '../humalis/televerser';`);
     return lignes;
   },
@@ -243,6 +244,7 @@ export function fichiersDesElements(codes: string[]): Map<string, string> {
   if (emploie(/<Carrousel\b/)) fichiers.set('carrousel.tsx', CARROUSEL_TSX);
   if (emploie(/\bsurToucheOnglets\(/)) fichiers.set('onglets.ts', ONGLETS_TS);
   if (emploie(/<ChoixFichier\b/)) fichiers.set('choix-fichier.tsx', CHOIX_FICHIER_TSX);
+  if (emploie(/<MotDePasse\b/)) fichiers.set('mot-de-passe.tsx', MOT_DE_PASSE_TSX);
   if (emploie(/<CarteLieux\b/)) fichiers.set('carte-lieux.tsx', CARTE_TSX);
   if (emploie(/\bteleverser\(/)) fichiers.set('televerser.ts', TELEVERSER_TS);
   return fichiers;
@@ -462,6 +464,32 @@ export default function Carrousel({ children, automatique, visibles = 1, descrip
         </div>
       )}
     </section>
+  );
+}
+`;
+
+/** Un champ mot de passe et son œil : le bouton montre ou cache ce qui est tapé, sans quitter le champ. */
+const MOT_DE_PASSE_TSX = `import { useState, type InputHTMLAttributes } from 'react';
+
+export default function MotDePasse(proprietes: Omit<InputHTMLAttributes<HTMLInputElement>, 'type'>) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <span className="humalis-mot-de-passe">
+      <input {...proprietes} type={visible ? 'text' : 'password'} />
+      <button
+        type="button"
+        className="humalis-mot-de-passe-oeil"
+        aria-label={visible ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+        aria-pressed={visible}
+        onClick={() => setVisible((v) => !v)}
+      >
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" />
+          <circle cx="12" cy="12" r="3" />
+          {visible && <path d="M4 4l16 16" />}
+        </svg>
+      </button>
+    </span>
   );
 }
 `;

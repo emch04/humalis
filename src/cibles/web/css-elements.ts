@@ -32,6 +32,11 @@ button.humalis-etoile { cursor: pointer; }
 .humalis-etoile-demi .humalis-etoile-fond { fill: none; }
 .humalis-etoile-demi .humalis-etoile-moitie { position: absolute; inset: 0; overflow: hidden; width: 50%; }
 .humalis-etoile-demi .humalis-etoile-moitie svg { fill: currentColor; }`,
+  // L'œil d'un mot de passe, posé dans le champ, à droite.
+  'mot-de-passe': `.humalis-mot-de-passe { position: relative; display: flex; }
+.humalis-mot-de-passe input { flex: 1; min-width: 0; padding-right: 2.75rem; }
+.humalis-mot-de-passe-oeil { position: absolute; right: 0.25rem; top: 50%; transform: translateY(-50%); display: inline-flex; align-items: center; justify-content: center; width: 2.25rem; height: 2.25rem; margin: 0; padding: 0; border: none; border-radius: 0.375rem; background: none; color: inherit; opacity: 0.7; cursor: pointer; }
+.humalis-mot-de-passe-oeil:hover, .humalis-mot-de-passe-oeil[aria-pressed="true"] { opacity: 1; }`,
   compteur: `.humalis-compteur { display: flex; width: fit-content; align-items: center; gap: 0.25rem; margin: 0.5rem 0; }
 .humalis-compteur button { margin: 0; min-width: 2.25rem; padding: 0.35rem 0.5rem; }
 .humalis-compteur button:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -88,7 +93,7 @@ button.humalis-etoile { cursor: pointer; }
 /** Le CSS de base des éléments d'écran dont le code produit se sert. */
 export function cssElements(codes: string[]): string {
   const regles = Object.entries(BASE)
-    .filter(([nom]) => codes.some((c) => new RegExp(`humalis-${nom}\\b`).test(c)))
+    .filter(([nom]) => codes.some((c) => new RegExp(`humalis-${nom}\\b`).test(c) || (nom === 'mot-de-passe' && c.includes('<MotDePasse'))))
     .map(([, css]) => css);
   return regles.length === 0 ? '' : `\n/* Les éléments d'écran utilisés par cette application. */\n${regles.join('\n')}\n`;
 }
