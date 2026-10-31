@@ -10,6 +10,7 @@ import { messageEnCode } from '../../i18n/messages.js';
 import { composantIcone, type RenduWidgets, type WidgetProduit } from '../web/widgets.js';
 import { estFichierLocal } from '../../ri/medias.js';
 import { CARTE_MOBILE_TSX, REACT_NATIVE_MAPS, carteMobile } from './carte.js';
+import { VERSIONS_FICHIERS, choixFichierMobileTsx } from './fichiers.js';
 
 /** Les icônes (`icone={ShoppingCart}`) que le code utilise. */
 const iconesMobile = (code: string): string[] =>
@@ -29,6 +30,7 @@ export const WIDGETS_MOBILE: RenduWidgets = {
       if (new RegExp(`<${composant}\\b`).test(code)) lignes.push(`import ${composant} from '../humalis/${fichier}';`);
     }
     if (/<SelecteurLangue\b/.test(code)) lignes.push(`import { SelecteurLangue } from '../humalis/langue';`);
+    if (/<ChoixFichier\b/.test(code)) lignes.push(`import ChoixFichier from '../humalis/choix-fichier';`);
     return lignes;
   },
 
@@ -71,9 +73,15 @@ export const WIDGETS_MOBILE: RenduWidgets = {
         const transcription = w.audio?.transcription ? ` transcription={<>${w.audio.transcription}</>}` : '';
         return `<Lecteur source={${source}}${description}${transcription}${w.reglages.boucle ? ' boucle' : ''} />`;
       }
-      case 'fichier':
-        // Refusé avant d'arriver ici (cibles/sources.ts : verifierMediasPourLaCible).
-        throw new Error('le choix d’un fichier n’est pas encore produit pour le mobile');
+      case 'fichier': {
+        // La galerie ou le sélecteur de fichiers du téléphone (humalis/choix-fichier.tsx), avec la même fiche que le web.
+        const f = w.fichier!;
+        const familles = `[${f.familles.map((x) => `{ nom: ${chaine(x.nom)}, mime: [${x.mime.map(chaine).join(', ')}] }`).join(', ')}]`;
+        const maximum = f.octets !== undefined ? ` maximum={${f.octets}}` : '';
+        // « avec icone "photo" » : l'icône seule sur le bouton, le libellé devient son nom pour le lecteur d'écran.
+        const icone = typeof w.reglages.icone === 'string' ? ` icone={${composantIcone(w.reglages.icone)}}` : '';
+        return `<ChoixFichier libelle={${w.valeur}} valeur={${w.variable!.lecture}} onChange={${w.variable!.setter}} familles={${familles}}${maximum}${f.plusieurs ? ' plusieurs' : ''} apercu={${f.apercu}}${icone} />`;
+      }
     }
   },
 
@@ -156,6 +164,13 @@ export function fichiersMobiles(codes: string[]): Map<string, string> {
   if (emploie(/<Carrousel\b/)) fichiers.set('humalis/carrousel.tsx', CARROUSEL_TSX);
   if (emploie(/<Lecteur\b/)) fichiers.set('humalis/lecteur.tsx', LECTEUR_TSX);
   if (emploie(/<CarteLieux\b/)) fichiers.set('humalis/carte-lieux.tsx', CARTE_MOBILE_TSX);
+  if (emploie(/<ChoixFichier\b/)) {
+    // La galerie pour les photos et les vidéos, le sélecteur de fichiers pour le reste : seulement ce qui sert.
+    const familles = codes.flatMap((c) => [...c.matchAll(/<ChoixFichier\b[^\n]*?familles=\{\[(.*?)\]\}/g)].map((m) => [...m[1].matchAll(/nom: '(\w+)'/g)].map((n) => n[1])));
+    const galerie = familles.some((f) => f.length > 0 && f.every((nom) => nom === 'images' || nom === 'videos'));
+    const documents = familles.some((f) => f.length === 0 || f.some((nom) => nom !== 'images' && nom !== 'videos'));
+    fichiers.set('humalis/choix-fichier.tsx', choixFichierMobileTsx(galerie, documents));
+  }
   return fichiers;
 }
 
@@ -175,6 +190,10 @@ export function dependancesMobiles(codes: string[]): Record<string, string> {
     // La carte native, accordée à Expo 57 (bundledNativeModules.json).
     ...(emploie(/from 'react-native-maps'/) ? { 'react-native-maps': REACT_NATIVE_MAPS } : {}),
     ...(svg ? { 'react-native-svg': '15.15.4' } : {}),
+    // Le choix d'un fichier et la réduction d'une image avant l'envoi (humalis/choix-fichier.tsx, humalis/serveur.ts).
+    ...(emploie(/from 'expo-image-picker'/) ? { 'expo-image-picker': VERSIONS_FICHIERS.imagePicker } : {}),
+    ...(emploie(/from 'expo-document-picker'/) ? { 'expo-document-picker': VERSIONS_FICHIERS.documentPicker } : {}),
+    ...(emploie(/from 'expo-image-manipulator'/) ? { 'expo-image-manipulator': VERSIONS_FICHIERS.imageManipulator } : {}),
   };
 }
 
