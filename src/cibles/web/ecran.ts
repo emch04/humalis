@@ -517,6 +517,7 @@ class GenerateurEcran {
     for (const c of this.ecran.calculs) this.contexte.types.set(c.nom, c.type);
     for (const p of this.ecran.parametresAdresse ?? []) this.contexte.types.set(p, { genre: 'texte' });
     for (const f of this.ecran.filtres ?? []) this.contexte.types.set(f.nom, { genre: f.nombre ? 'nombre' : 'texte' });
+    if (this.ecran.filtres?.length) this.contexte.filtresAdresse = new Set(this.ecran.filtres.filter((f) => !f.nombre).map((f) => f.nom));
     this.contexte.facultatives = new Set([
       ...[...this.ecran.etat, ...this.ecran.calculs].filter((e) => e.facultatif).map((e) => e.nom),
       ...(this.ecran.filtres ?? []).map((f) => f.nom),
