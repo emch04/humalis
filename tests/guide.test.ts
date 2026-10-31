@@ -60,3 +60,12 @@ for (const [nom, minimum] of GUIDES) {
     }
   });
 }
+
+describe('les petits mots ignorés, dans le guide', () => {
+  it.each(['docs/guide.md', 'docs/guide.en.md'])('%s les cite tous, comme le compilateur', async (chemin) => {
+    const { MOTS_LIAISON } = await import('../src/lexer/motsCles.js');
+    const texte = readFileSync(fileURLToPath(new URL(`../${chemin}`, import.meta.url)), 'utf8').replace(/\n/g, ' ');
+    const liste = /`le`, `la`[^:.]*?`se`/.exec(texte)?.[0];
+    expect(liste?.match(/`([^`]+)`/g)?.map((m) => m.slice(1, -1)).sort()).toEqual([...MOTS_LIAISON].sort());
+  });
+});

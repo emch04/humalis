@@ -961,6 +961,7 @@ page "documentation_9" dans "documentation" adresse "/documentation/variables-et
                 titre "Hello {firstname}!"
                 texte "Your score: {score}"
         texte "A variable ({code "variable"}) holds a number, a text, {code "vrai"} (true) or {code "faux"} (false), a list, a record, or {code "rien"} (nothing). Decimal numbers use a comma, the French way: {code "12,50"}. Inside a text, {code "{firstname}"} shows the variable's value."
+        texte "A name cannot be one of the small French words Humalis skips so the code reads like a sentence: {code "le"}, {code "la"}, {code "les"}, {code "un"}, {code "une"}, {code "des"}, {code "de"}, {code "du"}, {code "a"}, {code "au"}, {code "aux"}, {code "se"}. Write {code "variable total = 0"}, not {code "variable a = 0"}."
         soustitre "Changing a variable"
         code humalis :
             page "counter" :
@@ -1025,6 +1026,7 @@ page "documentation_9" dans "documentation" adresse "/documentation/variables-et
                 titre "Bonjour {prenom} !"
                 texte "Ta note : {note}"
         texte "Une variable contient un nombre, un texte, {code "vrai"} ou {code "faux"}, une liste, une fiche, ou {code "rien"}. Les nombres à virgule s'écrivent à la française : {code "12,50"}. Dans un texte, {code "{prenom}"} affiche la valeur de la variable."
+        texte "Un nom ne peut pas être un des petits mots que Humalis ignore pour se lire comme une phrase : {code "le"}, {code "la"}, {code "les"}, {code "un"}, {code "une"}, {code "des"}, {code "de"}, {code "du"}, {code "a"}, {code "au"}, {code "aux"}, {code "se"}. Écris {code "variable total = 0"}, pas {code "variable a = 0"}."
         soustitre "Changer une variable"
         code humalis :
             page "compteur" :

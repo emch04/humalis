@@ -707,6 +707,10 @@ Une variable contient un nombre, un texte, `vrai` ou `faux`, une liste, une
 fiche, ou `rien`. Les nombres à virgule s'écrivent à la française : `12,50`.
 Dans un texte, `{prenom}` affiche la valeur de la variable.
 
+Un nom ne peut pas être un des petits mots que Humalis ignore pour se lire
+comme une phrase : `le`, `la`, `les`, `un`, `une`, `des`, `de`, `du`, `a`, `au`,
+`aux`, `se`. Écris `variable total = 0`, pas `variable a = 0`.
+
 ### Changer une variable
 
 ```humalis

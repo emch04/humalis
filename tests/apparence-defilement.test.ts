@@ -39,6 +39,8 @@ describe('les options de défilement et de hauteur', () => {
     expect(css).toMatch(/\.humalis-hauteur-ecran \{[^}]*height: calc\(100dvh - var\(--humalis-hauteur-entete, 0px\)\);/);
     expect(css).toMatch(/header\.humalis-fixe-oui \{[^}]*position: fixed;/);
     expect(css).toContain('#racine:has(> .humalis-fixe-oui)');
+    // Ce qui dépasse sur les côtés ne fait pas glisser la page (le « html, body { overflow-x } » du CSS ne s'applique plus à la racine).
+    expect(css).toMatch(/#racine:has\(> \.humalis-fixe-oui\) \{[^}]*overflow-x: hidden;/);
     expect(mouvementHorsBloc(css)).toEqual([]);
     expect(projet.get('src/humalis/entete.ts')).toContain('--humalis-hauteur-entete');
     expect(projet.get('src/main.tsx')).toContain('suivreLaHauteurDeLEntete();');

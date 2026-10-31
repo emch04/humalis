@@ -3,7 +3,7 @@ import { robotsTxt, manifeste, fichiersDuSite, balisesIcone, estExterne } from '
 import { sousActions } from '../../ri/actions.js';
 import { cssEcran } from './css-ecran.js';
 import { cssElements } from './css-elements.js';
-import { cssMouvement, animeAuDefilement, MOUVEMENT_WEB, NETTOYAGE_PRERENDU, ENTETE_WEB, suitLEntete } from '../commun/mouvement.js';
+import { cssMouvement, animeAuDefilement, MOUVEMENT_WEB, nettoyagePrerendu, ENTETE_WEB, suitLEntete } from '../commun/mouvement.js';
 import type { InfoMedia } from '../../ri/medias.js';
 import { fichiersDesElements, dependancesDesElements, dependancesDeDeveloppement } from './widgets.js';
 import { fichiersGraphique, cssGraphique } from './graphique.js';
@@ -491,7 +491,7 @@ ${lignesRoutes}
   waitFor: 'meta[name="description"]',
   // Les adresses des « envoyer requete » du programme, neutralisées pendant le prérendu.
   apiPatterns: [${motifs}],
-${mouvement ? NETTOYAGE_PRERENDU : ''}};
+${nettoyagePrerendu(mouvement)}};
 `;
 }
 
@@ -586,7 +586,21 @@ function mainTsx(
   mouvement = false,
   entete = false,
 ): string {
-  const imports = routes.map((r) => `import ${r.composant} from './pages/${r.composant}';`).join('\n');
+  // Chaque page dans son propre fichier, chargé à sa première visite ; celle de l'adresse ouverte
+  // (et son parent, pour une sous-page) est chargée avant l'affichage, pour ne jamais montrer d'écran vide.
+  const aDesFils = (r: RouteProduite) => routes.some((f) => f.parent === r.nom);
+  const imports = routes.length === 0 ? '' : `const chargeurs = {
+${routes.map((r) => `  ${r.composant}: () => import('./pages/${r.composant}'),`).join('\n')}
+};
+const adresses: [keyof typeof chargeurs, string, boolean][] = [
+${routes.map((r) => `  [${JSON.stringify(r.composant)}, ${JSON.stringify(r.chemin)}, ${aDesFils(r)}],`).join('\n')}
+];
+const ouvertes = new Map<string, ComponentType>();
+for (const [nom, chemin, parent] of adresses) {
+  if (matchPath({ path: chemin, end: !parent }, location.pathname)) ouvertes.set(nom, (await chargeurs[nom]()).default);
+}
+const page = (nom: keyof typeof chargeurs): ComponentType => ouvertes.get(nom) ?? lazy(chargeurs[nom]);
+${routes.map((r) => `const ${r.composant} = page(${JSON.stringify(r.composant)});`).join('\n')}`;
   // Les pages qui ont le même en-tête et le même pied partagent une disposition ; une sous-page suit son parent.
   const groupes = new Map<string, RouteProduite[]>();
   for (const r of routes.filter((r) => r.parent === undefined)) {
@@ -605,25 +619,26 @@ function mainTsx(
   let routesTsx = `<Routes>\n${lignes.replace(/^ {10}/gm, '  ')}\n  <Route path="*" element={<${introuvable ?? 'Introuvable'} />} />\n</Routes>`;
   for (const nom of [...enveloppes].reverse()) routesTsx = `<${nom}>\n${routesTsx.replace(/^/gm, '  ')}\n</${nom}>`;
   routesTsx = routesTsx.replace(/^/gm, '        ');
-  return `import { StrictMode } from 'react';
+  return `import { ${routes.length === 0 ? '' : 'lazy, '}StrictMode, Suspense${routes.length === 0 ? '' : ', type ComponentType'} } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter, Route, Routes } from 'react-router';
+import { BrowserRouter, Route, Routes${routes.length === 0 ? '' : ', matchPath'} } from 'react-router';
 import { Messages } from './humalis/messages';${defilement ? "\nimport { Defilement } from './humalis/navigation';" : ''}
 ${session ? "import { Session } from './humalis/session';\n" : ''}${partage ? "import { Partage } from './humalis/partage';\n" : ''}${routes.some((r) => r.reservee) ? "import { Reservee } from './humalis/reservee';\n" : ''}${introuvable ? `import ${introuvable} from './pages/${introuvable}';` : "import Introuvable from './Introuvable';"}
-${dispositions.entete || dispositions.pied ? "import Disposition from './Disposition';\n" : ''}${imports}
-import './humalis/styles.css';
+${dispositions.entete || dispositions.pied ? "import Disposition from './Disposition';\n" : ''}import './humalis/styles.css';
 ${mouvement ? "import { observerLeDefilement } from './humalis/mouvement';\n" : ''}${entete ? "import { suivreLaHauteurDeLEntete } from './humalis/entete';\n" : ''}${feuilles.map((f) => `import './styles/${f}';\n`).join('')}
 // Un hébergeur statique sert /documentation/index.html pour /documentation/ :
 // le routeur lit l'adresse sans « index.html », comme le dossier.
 if (/\\/index\\.html$/.test(location.pathname)) {
   history.replaceState(history.state, '', location.pathname.replace(/index\\.html$/, '') + location.search + location.hash);
 }
-
+${imports ? `\n${imports}\n` : ''}
 createRoot(document.getElementById('racine')!).render(
   <StrictMode>
     <BrowserRouter>
 ${defilement ? '      <Defilement />\n' : ''}      <Messages>
-${routesTsx}
+        <Suspense fallback={null}>
+${routesTsx.replace(/^/gm, '  ')}
+        </Suspense>
       </Messages>
     </BrowserRouter>
   </StrictMode>,

@@ -279,6 +279,14 @@ ${SUIVI_ENTETE.replace('function suivreLaHauteurDeLEntete() {', 'export function
 `;
 
 /** Le prérendu capture la page après le script : il retire les marques du mouvement (rien de caché sans JavaScript). */
-export const NETTOYAGE_PRERENDU = `  // Le script du mouvement marque la page (humalis-js, data-humalis-vu) : le HTML prérendu ne garde aucune de ces marques.
-  transformHtml: (html) => html.replace(/(<html[^>]*class="[^"]*)\\bhumalis-js\\b/, '$1').replace(/ data-humalis-vu=""/g, '').replace(/ data-humalis-tape="[a-z-]*"/g, '').replace(/<code class="humalis-frappe-copie"[\\s\\S]*?<\\/code>/g, ''),
+/**
+ * Le nettoyage du HTML prérendu. Les préchargements que Vite ajoute en chargeant une page
+ * (« modulepreload » avec as="script", adresse complète) ne servent à rien dans la photo : le
+ * script principal les redemande. Avec le mouvement, le script marque aussi la page
+ * (humalis-js, data-humalis-vu) : le HTML prérendu ne garde aucune de ces marques.
+ */
+export const nettoyagePrerendu = (mouvement: boolean) => `  // La photo de chaque page ne garde que ce que le navigateur doit lire au départ.
+  transformHtml: (html) => html.replace(/<link rel="modulepreload" as="script"[^>]*>/g, '')${mouvement ? NETTOYAGE_MOUVEMENT : ''},
 `;
+
+const NETTOYAGE_MOUVEMENT = `.replace(/(<html[^>]*class="[^"]*)\\bhumalis-js\\b/, '$1').replace(/ data-humalis-vu=""/g, '').replace(/ data-humalis-tape="[a-z-]*"/g, '').replace(/<code class="humalis-frappe-copie"[\\s\\S]*?<\\/code>/g, '')`;
