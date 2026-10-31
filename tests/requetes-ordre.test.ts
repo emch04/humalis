@@ -63,4 +63,28 @@ describe('requêtes : ordre des lignes et noms donnés', () => {
     const page = genererProjetWeb(compiler(source).application!, { nom: 'b', adresse: 'https://b.cd', source: 'b.humalis' }).get('src/pages/Produit.tsx')!;
     expect(page).toContain('}, [id]);');
   });
+
+  it('« produits dont club est egal a club » : à droite, le filtre de la page, pas le champ', () => {
+    const source = programme(
+      'serveur "boutique" :',
+      '>donnee produit :',
+      '>>nom : texte',
+      '>>club : texte',
+      '>route "produits" :',
+      '>>tout le monde peut lire produit',
+      '',
+      'page "maillots" avec filtre club :',
+      '>variable produits = []',
+      '>quand la page se charge :',
+      '>>envoyer requete vers "produits" dans produits',
+      '>calcul du_club = produits dont club est egal a club',
+      '>titre "Maillots"',
+      '>pour chaque p dans du_club :',
+      '>>texte p.nom',
+    );
+    expect(erreurs(source)).toEqual([]);
+    const application = compiler(source).application!;
+    const page = genererProjetWeb(application, { nom: 'b', adresse: 'https://b.cd', source: 'b.humalis' }).get('src/pages/Maillots.tsx')!;
+    expect(page).toContain('produits.filter((element) => element.club === club)');
+  });
 });
