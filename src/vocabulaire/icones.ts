@@ -127,6 +127,14 @@ export const ICONES: readonly Icone[] = [
   { nom: 'signet', lucide: 'bookmark', alias: ['marque_page'] },
   { nom: 'ampoule', lucide: 'lightbulb', alias: ['idee'] },
   { nom: 'bouclier', lucide: 'shield', alias: ['securite'] },
+  { nom: 'graphique', lucide: 'chart-column', alias: ['statistiques', 'histogramme'] },
+  { nom: 'courbe', lucide: 'chart-line', alias: ['tendance'] },
+  { nom: 'boutique', lucide: 'store', alias: ['magasin'] },
+  { nom: 'lien_externe', lucide: 'external-link', alias: ['nouvel_onglet'] },
+  { nom: 'replier_volet', lucide: 'panel-left-close', alias: ['fermer_volet'] },
+  { nom: 'deplier_volet', lucide: 'panel-left-open', alias: ['ouvrir_volet'] },
+  { nom: 'tableau_de_bord', lucide: 'layout-dashboard', alias: ['accueil_admin'] },
+  { nom: 'boite', lucide: 'package', alias: ['colis', 'stock'] },
 ];
 
 const normaliser = (texte: string) =>
