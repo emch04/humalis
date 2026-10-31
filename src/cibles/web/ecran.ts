@@ -610,7 +610,9 @@ class GenerateurEcran {
     // Les interfaces des données du serveur que la page utilise. Une page
     // qui porte le nom de l'une d'elles (la page et la donnée « avis »)
     // s'appelle PageAvis, pour ne pas cacher l'interface.
-    this.typesDonnees = this.application.donnees.filter((d) => this.donneesTypees.has(d)).map(pascal);
+    // Aussi celles qu'un paramètre de composant emploie (« modele: { elements: Produit[] } ») : elles sont écrites comme types.
+    const ecritCommeType = (nom: string) => new RegExp(`(?::\\s*|<|\\|\\s*)${nom}(?:\\[\\]|\\b(?!\\())`).test(code);
+    this.typesDonnees = this.application.donnees.filter((d) => this.donneesTypees.has(d) || ecritCommeType(pascal(d))).map(pascal);
     if (this.typesDonnees.includes(composant)) {
       code = code.replace(`export default function ${composant}(`, `export default function Page${composant}(`);
     }
@@ -944,9 +946,14 @@ class GenerateurEcran {
     e.ligne('/*MOUVEMENT*/');
     for (const etat of this.ecran.etat) {
       // Une variable « = rien » attend sa valeur : son type admet null.
+      // Une liste de fiches vide au départ, remplie dans un événement : ses champs peuvent venir d'une donnée pas encore
+      // chargée (« ref produit.id » donne « produit?.id ») ; comme une liste partagée, elle reste souple.
+      const fiches = etat.type.genre === 'liste' && etat.type.de.genre === 'fiche' && etat.initiale.type === 'liste' && etat.initiale.elements.length === 0;
       const annotation = etat.facultatif
         ? `<${this.typer(etat.type)} | null>`
-        : besoinAnnotation(etat.type)
+        : fiches
+          ? '<any[]>'
+          : besoinAnnotation(etat.type)
           ? `<${this.typer(etat.type)}>`
           : '';
       const initiale = expression(etat.initiale, this.contexte);
