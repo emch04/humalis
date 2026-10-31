@@ -61,7 +61,7 @@ describe('cible web — valeurs', () => {
 
   it('traduit les conditions', () => {
     expect(condition({ gauche: { type: 'champ', id: 'champ_email' }, operateur: 'vide' }, contexte)).toBe(
-      'champEmail.length === 0',
+      '(champEmail?.length ?? 0) === 0',
     );
     expect(
       condition({ gauche: { type: 'variable', nom: 'clics' }, operateur: 'superieurOuEgal', droite: { type: 'nombre', valeur: 18 } }, contexte),
@@ -150,7 +150,7 @@ describe('cible web — connexion', () => {
   it('relie le champ à un état et affiche les messages', () => {
     expect(connexion).toContain("const [champEmail, setChampEmail] = useState('');");
     expect(connexion).toContain('value={champEmail} onChange={(evenement) => setChampEmail(evenement.target.value)}');
-    expect(connexion).toContain('if (champEmail.length === 0) {');
+    expect(connexion).toContain('if ((champEmail?.length ?? 0) === 0) {');
     expect(connexion).toContain("afficherMessage('Email requis', 'erreur');");
     expect(connexion).toContain("afficherMessage('Connexion réussie', 'info');");
     expect(connexion).toContain('onClick={quandCliqueSeConnecter}');

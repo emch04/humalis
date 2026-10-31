@@ -199,6 +199,8 @@ function conforme(type: TypeChamp, valeur: unknown): boolean {
   if (typeof type === 'object') return Array.isArray(valeur) && valeur.every((v) => conforme(type.liste, v));
   if (type === 'texte') return typeof valeur === 'string';
   if (type === 'image') {
+    // Pas de photo choisie : la page envoie null, gardé comme un champ vide.
+    if (valeur === null) return true;
     if (typeof valeur !== 'string') return false;
     return valeur === '' || /^https:\\/\\/[^\\s"<>]+$/.test(valeur) || (valeur.length <= TAILLE_IMAGE && IMAGE.test(valeur));
   }

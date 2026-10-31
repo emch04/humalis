@@ -35,9 +35,9 @@ describe('la négation', () => {
 
   it('web : l\'opérateur contraire quand il existe, sinon « ! »', () => {
     const page = genererProjetWeb(compiler(PAGE).application!, { nom: 'b', adresse: 'https://b.cd', source: 'b.humalis' }).get('src/pages/Boutique.tsx')!;
-    expect(page).toContain('{!(panier.length === 0) && (');
+    expect(page).toContain('{!((panier?.length ?? 0) === 0) && (');
     expect(page).toContain('{stock !== 0 && (');
-    expect(page).toContain('{!(choix === null) && (');
+    expect(page).toContain('{!(choix == null) && (');
     expect(page).toContain("{!(['pagnes', 'wax'].includes(categorie)) && (");
     expect(page).toContain('{stock <= 5 && (');
   });

@@ -146,7 +146,7 @@ describe('cible statique — les éléments', () => {
     expect(script).toContain("let champEmail = '';");
     expect(script).toContain('oninput: (evenement) => { champEmail = evenement.target.value; }');
     expect(script).toContain("value: champEmail");
-    expect(script).toContain("if (champEmail.length === 0) {\n    afficherMessage('Email requis', 'erreur');\n  } else {\n    afficherMessage('Connexion réussie', 'info');\n  }");
+    expect(script).toContain("if ((champEmail?.length ?? 0) === 0) {\n    afficherMessage('Email requis', 'erreur');\n  } else {\n    afficherMessage('Connexion réussie', 'info');\n  }");
   });
 
   it('écrit les images, les liens, les titres suivants et les classes CSS', () => {

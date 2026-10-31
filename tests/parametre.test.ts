@@ -68,7 +68,7 @@ describe('page avec paramètre — cible web', () => {
     expect(web().get('src/pages/Boutique.tsx')).toContain("import { Lien } from '../humalis/navigation';");
     expect(page).toContain('const [produit, setProduit] = useState<Produit | null>(null);');
     expect(page).toContain("setProduit(await serveur.lireUn('/api/produits', id, produit));");
-    expect(page).toContain('{produit === null ? (');
+    expect(page).toContain('{produit == null ? (');
     expect(page).toContain('{produit?.nom}');
   });
 

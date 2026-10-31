@@ -53,6 +53,13 @@ describe('page de profil : mot de passe et photo', () => {
     expect(erreurs(source().replace('avec maximum 5 Mo', 'avec maximum 5 Mo et icone "fusee-rose"')).join('\n')).toMatch(/l'icône « fusee-rose » n'existe pas/);
   });
 
+  it('« est rien » et « est vide » ne plantent pas sur un champ absent d’une fiche reçue', () => {
+    const programme2 = source().replace('    bouton "Enregistrer la photo"', '    si photo est rien :\n        texte "Aucune photo"\n    bouton "Enregistrer la photo"');
+    const page = genererProjetWeb(compiler(programme2).application!, { nom: 'b', adresse: 'https://b.cd', source: 'b.humalis' }).get('src/pages/Profil.tsx')!;
+    expect(page).toContain('photo == null');
+    expect(page).not.toContain('=== null');
+  });
+
   it('un champ image refuse un choix qui accepte autre chose que des images', () => {
     expect(erreurs(source().replace('accepte images', 'accepte pdf')).join('\n')).toMatch(/est une image : le choix de « photo » doit accepter seulement des images/);
   });
@@ -96,6 +103,7 @@ describe('page de profil : mot de passe et photo', () => {
     const schema = { nom: 'texte', photo: 'image' };
     expect(verifierEnvoi(schema, { nom: 'Rey', photo: 'data:image/jpeg;base64,/9j/4AAQSkZJRg==' }, true)).toHaveProperty('valeur');
     expect(verifierEnvoi(schema, { nom: 'Rey', photo: '' }, true)).toHaveProperty('valeur');
+    expect(verifierEnvoi(schema, { nom: 'Rey', photo: null }, true)).toHaveProperty('valeur');
     expect(verifierEnvoi(schema, { nom: 'Rey', photo: 'https://exemple.fr/rey.jpg' }, true)).toHaveProperty('valeur');
     expect(verifierEnvoi(schema, { nom: 'Rey', photo: 'data:image/svg+xml;base64,PHN2Zz4=' }, true)).toHaveProperty('erreur');
     expect(verifierEnvoi(schema, { nom: 'Rey', photo: 'javascript:alert(1)' }, true)).toHaveProperty('erreur');
