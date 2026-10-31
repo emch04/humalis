@@ -90,6 +90,8 @@ describe('messages — les cibles', () => {
     expect(messages).toContain('aria-label="Fermer le message"');
     expect(messages).toContain("role={message.genre === 'erreur' ? 'alert' : 'status'}");
     expect(messages).toContain('erreur: 8000');
+    // Un message à bouton reste 6 s, sauf si « pendant … » choisit une autre durée (même plus courte).
+    expect(messages).toContain('reglages.duree ?? (reglages.action ? 6000 : DUREES[genre])');
     expect(fichier(fichiers, 'humalis/temps.ts')).toContain('export function useActuel');
     const css = fichier(fichiers, 'styles.css');
     expect(css).toContain('.humalis-message-reussite');

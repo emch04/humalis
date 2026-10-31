@@ -87,4 +87,24 @@ describe('requêtes : ordre des lignes et noms donnés', () => {
     const page = genererProjetWeb(application, { nom: 'b', adresse: 'https://b.cd', source: 'b.humalis' }).get('src/pages/Maillots.tsx')!;
     expect(page).toContain('produits.filter((element) => element.club === club)');
   });
+
+  it('web : le titre de l’onglet suit le titre tiré des données, avec le nom de la page en attendant', () => {
+    const source = programme(
+      ...SERVEUR,
+      'site :',
+      '>nom "Boutique"',
+      '>description "Une boutique de quartier, ouverte tous les jours, avec livraison à domicile."',
+      '',
+      'page "produit" avec parametre id :',
+      '>variable produit = rien',
+      '>quand la page se charge :',
+      '>>envoyer requete vers "produits" avec id dans produit',
+      '>si produit est rien :',
+      '>>texte "Chargement…"',
+      '>sinon :',
+      '>>titre produit.nom',
+    );
+    const page = genererProjetWeb(compiler(source).application!, { nom: 'b', adresse: 'https://b.cd', source: 'b.humalis' }).get('src/pages/Produit.tsx')!;
+    expect(page).toContain("usePage((produit?.nom || 'Produit') + ' | Boutique'");
+  });
 });

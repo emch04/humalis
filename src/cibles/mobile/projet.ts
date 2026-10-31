@@ -512,7 +512,7 @@ export function Messages({ children }: { children: ReactNode }) {
   const afficher = useCallback<Afficher>((texte, genre = 'info', options = {}) => {
     const reglages: OptionsMessage = typeof options === 'function' ? { action: { libelle: 'Réessayer', faire: options }, duree: 12000 } : options;
     // Pas de souris sur un téléphone : un message avec un bouton reste au moins 8 secondes.
-    const duree = reglages.persistant ? null : Math.max(reglages.duree ?? DUREES[genre], reglages.action ? 8000 : 0);
+    const duree = reglages.persistant ? null : reglages.duree ?? (reglages.action ? 6000 : DUREES[genre]);
     setMessages((liste) => [...liste, { id: ++suivant.current, texte, genre, duree, ...(reglages.action ? { action: reglages.action } : {}) }].slice(-PILE));
     // iOS ne lit pas seul une zone qui change : le message est dit au lecteur d'écran.
     AccessibilityInfo.announceForAccessibility(texte);
