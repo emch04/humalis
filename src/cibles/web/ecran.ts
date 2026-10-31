@@ -1043,11 +1043,15 @@ class GenerateurEcran {
       // Un chargement qui lit la session attend la réponse de /auth/me :
       // sinon un admin déjà connecté serait pris pour un visiteur.
       const session = /\butilisateur\.(connecte|admin)\b/.test(corps.texte());
+      // Un paramètre d'adresse lu au chargement (« /produit/:id ») : passer d'un produit à un autre
+      // garde la même page, le chargement se relance donc quand il change.
+      const parametres = (this.ecran.parametresAdresse ?? []).map(camel).filter((nom) => new RegExp(`\\b${nom}\\b`).test(corps.texte()));
+      const dependances = [...(session ? ['utilisateur.pret'] : []), ...parametres];
       e.ligne();
       e.bloc('useEffect(() => {', () => {
         if (session) e.ligne('if (!utilisateur.pret) return;');
         for (const ligne of corps.texte().replace(/\n$/, '').split('\n')) e.ligne(ligne);
-      }, session ? '}, [utilisateur.pret]);' : '}, []);');
+      }, `}, [${dependances.join(', ')}]);`);
     }
   }
 

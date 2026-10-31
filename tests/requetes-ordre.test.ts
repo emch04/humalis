@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { compiler } from '../src/compilateur.js';
+import { genererProjetWeb } from '../src/cibles/web/projet.js';
 import { programme, erreurs } from './analyse/aide.js';
 
 const SERVEUR = [
@@ -43,5 +45,22 @@ describe('requêtes : ordre des lignes et noms donnés', () => {
     );
     expect(erreurs(page('nom = client'))).toEqual([]);
     expect(erreurs(page('client')).join('\n')).toMatch(/pas de champ « client »/);
+  });
+
+  it('web : une page à paramètre recharge ses données quand le paramètre change (d’un produit à un autre)', () => {
+    const source = programme(
+      ...SERVEUR,
+      'page "produit" avec parametre id :',
+      '>variable produit = rien',
+      '>quand la page se charge :',
+      '>>envoyer requete vers "produits" avec id dans produit',
+      '>si produit est rien :',
+      '>>texte "Chargement…"',
+      '>sinon :',
+      '>>titre produit.nom',
+    );
+    expect(erreurs(source)).toEqual([]);
+    const page = genererProjetWeb(compiler(source).application!, { nom: 'b', adresse: 'https://b.cd', source: 'b.humalis' }).get('src/pages/Produit.tsx')!;
+    expect(page).toContain('}, [id]);');
   });
 });
