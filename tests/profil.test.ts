@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { stripTypeScriptTypes } from 'node:module';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
 import { genererProjetServeur } from '../src/cibles/serveur/projet.js';
@@ -73,6 +74,19 @@ describe('page de profil : mot de passe et photo', () => {
     expect(serveur).toContain('passwordHash: await hashPassword(nouveau)');
     expect(fichiers.get('src/donnees.ts')).toContain("photo: 'image',");
     expect(fichiers.get('src/humalis/verifier.ts')).toContain('const TAILLE_IMAGE = 95_000;');
+  });
+
+  it('serveur : le vérificateur produit accepte une image réduite et refuse le reste', async () => {
+    const fichiers = genererProjetServeur(compiler(source()).application!.serveurs[0], { nom: 'b', source: 'b.humalis' } as never);
+    const js = stripTypeScriptTypes(fichiers.get('src/humalis/verifier.ts')!);
+    const { verifierEnvoi } = await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
+    const schema = { nom: 'texte', photo: 'image' };
+    expect(verifierEnvoi(schema, { nom: 'Rey', photo: 'data:image/jpeg;base64,/9j/4AAQSkZJRg==' }, true)).toHaveProperty('valeur');
+    expect(verifierEnvoi(schema, { nom: 'Rey', photo: '' }, true)).toHaveProperty('valeur');
+    expect(verifierEnvoi(schema, { nom: 'Rey', photo: 'https://exemple.fr/rey.jpg' }, true)).toHaveProperty('valeur');
+    expect(verifierEnvoi(schema, { nom: 'Rey', photo: 'data:image/svg+xml;base64,PHN2Zz4=' }, true)).toHaveProperty('erreur');
+    expect(verifierEnvoi(schema, { nom: 'Rey', photo: 'javascript:alert(1)' }, true)).toHaveProperty('erreur');
+    expect(verifierEnvoi(schema, { nom: 'Rey', photo: 'data:image/png;base64,' + 'A'.repeat(100_000) }, true)).toHaveProperty('erreur');
   });
 
   it('site statique : « changer le mot de passe » refusé clairement', () => {
