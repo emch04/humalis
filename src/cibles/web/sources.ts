@@ -248,8 +248,8 @@ export function serveurAvecSources(modele: string): string {
   );
   texte = remplacer(
     texte,
-    "    envoyer: (adresse: string, donnees: Record<string, unknown>, actuelle?: unknown) =>\n      appeler(\n        adresse,\n        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(donnees) },\n        actuelle,\n      ),",
-    "    envoyer: (adresse: string, donnees: Record<string, unknown>, actuelle?: unknown, appel?: AppelSource) => {\n      const options = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(donnees) };\n      return appel ? appelerSource(adresse, options, actuelle, appel) : appeler(adresse, options, actuelle);\n    },",
+    "    envoyer: async (adresse: string, donnees: Record<string, unknown>, actuelle?: unknown) =>\n      appeler(\n        adresse,\n        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(await preparer(donnees)) },\n        actuelle,\n      ),",
+    "    envoyer: async (adresse: string, donnees: Record<string, unknown>, actuelle?: unknown, appel?: AppelSource) => {\n      const options = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(await preparer(donnees)) };\n      return appel ? appelerSource(adresse, options, actuelle, appel) : appeler(adresse, options, actuelle);\n    },",
   );
   texte = remplacer(
     texte,
@@ -258,8 +258,8 @@ export function serveurAvecSources(modele: string): string {
   );
   texte = remplacer(
     texte,
-    "    modifier: (adresse: string, id: string, donnees: Record<string, unknown>) =>\n      appeler(\n        `${adresse}/${encodeURIComponent(id)}`,\n        { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(donnees) },\n        undefined,\n      ),",
-    "    modifier: (adresse: string, id: string, donnees: Record<string, unknown>, appel?: AppelSource) =>\n      appel\n        ? appelerSource(avecId(adresse, id), { method: appel.remplacement ? 'PUT' : 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(donnees) }, undefined, appel)\n        : appeler(\n            `${adresse}/${encodeURIComponent(id)}`,\n            { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(donnees) },\n            undefined,\n          ),",
+    "    modifier: async (adresse: string, id: string, donnees: Record<string, unknown>) =>\n      appeler(\n        `${adresse}/${encodeURIComponent(id)}`,\n        { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(await preparer(donnees)) },\n        undefined,\n      ),",
+    "    modifier: async (adresse: string, id: string, donnees: Record<string, unknown>, appel?: AppelSource) =>\n      appel\n        ? appelerSource(avecId(adresse, id), { method: appel.remplacement ? 'PUT' : 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(await preparer(donnees)) }, undefined, appel)\n        : appeler(\n            `${adresse}/${encodeURIComponent(id)}`,\n            { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(await preparer(donnees)) },\n            undefined,\n          ),",
   );
   texte = remplacer(texte, '  supprimer(adresse: string, id: string): Promise<unknown>;\n  modifier(adresse: string, id: string, donnees: Record<string, unknown>): Promise<unknown>;\n', '  supprimer(adresse: string, id: string, appel?: AppelSource): Promise<unknown>;\n  modifier(adresse: string, id: string, donnees: Record<string, unknown>, appel?: AppelSource): Promise<unknown>;\n');
   texte = remplacer(texte, '  lire<T>(adresse: string, actuelle: T): Promise<T>;\n  lire(adresse: string): Promise<unknown>;\n  lireUn<T>(adresse: string, id: string, actuelle: T): Promise<T>;\n  envoyer<T>(adresse: string, donnees: Record<string, unknown>, actuelle: T): Promise<T>;\n  envoyer(adresse: string, donnees: Record<string, unknown>): Promise<unknown>;\n',

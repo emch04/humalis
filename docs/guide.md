@@ -1625,6 +1625,52 @@ Il faut un ID client OAuth de Google (type « application Web »), dans la
 variable `GOOGLE_CLIENT_ID` du serveur, avec l'adresse de redirection
 `https://ton-site/auth-google.html`. Cible web et bureau seulement, pour l'instant.
 
+### Une page de profil : mot de passe et photo
+
+Une personne connectée change son mot de passe avec
+`changer le mot de passe avec … et …` : d'abord le mot de passe actuel, puis le
+nouveau. Le serveur vérifie l'actuel et refuse un nouveau trop faible (au moins
+8 caractères, avec une majuscule, une minuscule, un chiffre et un signe). La
+session reste ouverte.
+
+Un champ `image` dans une donnée du serveur garde une photo choisie dans la
+page (`fichier … accepte images`). La page la réduit (480 px de côté, en JPEG)
+avant de l'envoyer ; le serveur vérifie que c'est bien une image. Elle
+s'affiche ensuite comme une adresse : `image p.photo`.
+
+```humalis
+serveur "club" :
+    donnee profil :
+        nom : texte
+        photo : image
+    route "profils" :
+        tout le monde peut lire profil
+        seul admin peut creer profil
+        seul admin peut modifier profil
+
+page "profil" :
+    titre "Mon profil"
+    variable photo = rien
+    variable nom = "Camille"
+    fichier "Choisir une photo" dans photo accepte images avec maximum 5 Mo
+    bouton "Enregistrer la photo"
+    quand l'utilisateur clique sur "Enregistrer la photo" :
+        envoyer requete vers "profils" avec nom et photo
+    formulaire "secret" :
+        champ mot de passe "Mot de passe actuel" avec obligatoire
+        champ mot de passe "Nouveau mot de passe" avec obligatoire
+        bouton "Changer le mot de passe"
+    quand le formulaire "secret" est soumis :
+        essayer :
+            changer le mot de passe avec champ "Mot de passe actuel" et champ "Nouveau mot de passe"
+            afficher reussite "Mot de passe changé"
+        si erreur :
+            afficher erreur "{raison}"
+```
+
+Le changement de mot de passe existe pour le web, le bureau et le mobile ; la
+photo réduite, pour le web et le bureau.
+
 ---
 
 ## 23. Utiliser une API qui existe déjà

@@ -869,6 +869,15 @@ class AnalysePage {
         return;
       }
 
+      case 'ChangementMotDePasse': {
+        const nom = 'changer le mot de passe';
+        this.litLaSession = true;
+        if (contexte === 'vue') this.horsEvenement(nom, instruction.ligne);
+        this.demandeUnServeur(nom, instruction.ligne);
+        for (const valeur of [instruction.actuel, instruction.nouveau]) this.typeDe(valeur);
+        return;
+      }
+
       case 'Connexion':
       case 'ConnexionGoogle':
       case 'Deconnexion': {
@@ -2329,6 +2338,12 @@ class AnalysePage {
         `la donnée « ${route.donnee.nom} » n'a pas de champ « ${cle} ». Champs : ${route.donnee.champs.map((c) => c.nom).join(', ')}.${proposerNom(cle, route.donnee.champs.map((c) => c.nom))}`,
         ligne,
       );
+    } else if (champ.type.genre === 'texte' && champ.type.image && compatibles(typeFichierChoisi(false), type)) {
+      // « photo : image » reçoit un fichier choisi dans la page : une image, réduite avant l'envoi.
+      const choisi = valeur.type === 'Reference' ? this.fichiers.get(valeur.nom) : undefined;
+      if (choisi && !choisi.choix.accepte.every((a) => a === 'images')) {
+        this.erreur(`le champ « ${champ.nom} » de « ${route.donnee.nom} » est une image : le choix de ${decrire(valeur)} doit accepter seulement des images (accepte images).`, ligne);
+      }
     } else if (!compatibles(this.typeDeChamp(champ.type), type)) {
       this.erreur(
         `${decrire(valeur)} est ${decrireType(type)} ; le champ « ${champ.nom} » de « ${route.donnee.nom} » attend ${decrireType(this.typeDeChamp(champ.type))}.`,
@@ -2493,6 +2508,8 @@ function actionInterditeDansUneFonction(instruction: Instruction): string | unde
       return 'se connecter';
     case 'ConnexionGoogle':
       return 'se connecter avec google';
+    case 'ChangementMotDePasse':
+      return 'changer le mot de passe';
     case 'Deconnexion':
       return 'se deconnecter';
     case 'Suppression':

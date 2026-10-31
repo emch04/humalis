@@ -726,6 +726,8 @@ interface Utilisateur {
   seConnecter(email: string, motDePasse: string, dansUnEssai?: boolean): Promise<boolean>;
   /** « se connecter avec google » : pas encore sur le téléphone. */
   seConnecterAvecGoogle(dansUnEssai?: boolean): Promise<boolean>;
+  /** « changer le mot de passe avec … et … » : celui du compte connecté ; vrai si le serveur l'a accepté. */
+  changerMotDePasse(actuel: string, nouveau: string, dansUnEssai?: boolean): Promise<boolean>;
   seDeconnecter(): Promise<void>;
   /** Demande /auth/me une seule fois, à la première page qui lit la session. */
   demander(): void;
@@ -806,6 +808,34 @@ export function Session({ children }: { children: ReactNode }) {
     return false;
   }
 
+  async function changerMotDePasse(actuel: string, nouveau: string, dansUnEssai = false): Promise<boolean> {
+    const refuser = (texte: string): boolean => {
+      if (dansUnEssai) throw new Error(texte);
+      afficherMessage(texte, 'erreur');
+      return false;
+    };
+    let reponse: Response;
+    try {
+      const entetes = new Headers({ 'Content-Type': 'application/json' });
+      await securiser(entetes, 'POST');
+      reponse = await fetch(BASE + '/auth/mot-de-passe', {
+        method: 'POST',
+        headers: entetes,
+        credentials: 'same-origin',
+        body: JSON.stringify({ actuel, nouveau }),
+      });
+    } catch {
+      return refuser("Le serveur n'a pas répondu. Réessayez dans un instant.");
+    }
+    if (reponse.status === 429) return refuser('Trop de tentatives. Réessayez dans quelques minutes.');
+    if (!reponse.ok) {
+      const corps = (await reponse.json().catch(() => null)) as { erreur?: string } | null;
+      const raison = corps?.erreur ?? "le mot de passe n'a pas été changé";
+      return refuser(raison.charAt(0).toUpperCase() + raison.slice(1) + '.');
+    }
+    return true;
+  }
+
   async function seDeconnecter(): Promise<void> {
     try {
       const entetes = new Headers();
@@ -829,6 +859,7 @@ export function Session({ children }: { children: ReactNode }) {
     },
     seConnecter,
     seConnecterAvecGoogle,
+    changerMotDePasse,
     seDeconnecter,
     demander,
   };

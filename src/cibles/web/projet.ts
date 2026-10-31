@@ -1007,6 +1007,41 @@ const SERVEUR = `import { useMessages } from './messages';
 const BASE = import.meta.env.VITE_HUMALIS_SERVEUR ?? '';
 
 /**
+ * Une image choisie dans la page (« fichier … accepte images ») envoyée dans une donnée
+ * (« photo : image ») : réduite à 480 px de côté, en JPEG, pour tenir dans l'envoi.
+ */
+async function reduireImage(fichier: File): Promise<string> {
+  const image = await createImageBitmap(fichier);
+  const echelle = Math.min(1, 480 / Math.max(image.width, image.height));
+  const toile = document.createElement('canvas');
+  toile.width = Math.max(1, Math.round(image.width * echelle));
+  toile.height = Math.max(1, Math.round(image.height * echelle));
+  const dessin = toile.getContext('2d')!;
+  // Le JPEG n'a pas de transparence : le fond devient blanc plutôt que noir.
+  dessin.fillStyle = '#fff';
+  dessin.fillRect(0, 0, toile.width, toile.height);
+  dessin.drawImage(image, 0, 0, toile.width, toile.height);
+  let qualite = 0.85;
+  let texte = toile.toDataURL('image/jpeg', qualite);
+  while (texte.length > 90_000 && qualite > 0.4) {
+    qualite -= 0.15;
+    texte = toile.toDataURL('image/jpeg', qualite);
+  }
+  return texte;
+}
+
+/** Les fichiers choisis d'un envoi deviennent du texte : une image réduite ; un autre fichier ne s'envoie pas ainsi. */
+async function preparer(donnees: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const pret: Record<string, unknown> = {};
+  for (const [cle, valeur] of Object.entries(donnees)) {
+    const brut = (valeur as { brut?: unknown } | null)?.brut;
+    // Une image que le navigateur ne sait pas lire (HEIC…) part telle quelle : le serveur la refuse.
+    pret[cle] = brut instanceof File && brut.type.startsWith('image/') ? await reduireImage(brut).catch(() => valeur) : valeur;
+  }
+  return pret;
+}
+
+/**
  * Les requêtes (« envoyer requete »). En cas d'échec, un message en
  * français s'affiche et la valeur actuelle est gardée.
  */
@@ -1039,19 +1074,19 @@ export function useServeur() {
     // « avec id dans produit » : un seul élément, par son identifiant.
     lireUn: (adresse: string, id: string, actuelle?: unknown) =>
       appeler(\`\${adresse}/\${encodeURIComponent(id)}\`, { method: 'GET' }, actuelle),
-    envoyer: (adresse: string, donnees: Record<string, unknown>, actuelle?: unknown) =>
+    envoyer: async (adresse: string, donnees: Record<string, unknown>, actuelle?: unknown) =>
       appeler(
         adresse,
-        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(donnees) },
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(await preparer(donnees)) },
         actuelle,
       ),
     // « supprimer p de … » et « modifier p dans … » : la donnée est désignée par son identifiant.
     supprimer: (adresse: string, id: string) =>
       appeler(\`\${adresse}/\${encodeURIComponent(id)}\`, { method: 'DELETE' }, undefined),
-    modifier: (adresse: string, id: string, donnees: Record<string, unknown>) =>
+    modifier: async (adresse: string, id: string, donnees: Record<string, unknown>) =>
       appeler(
         \`\${adresse}/\${encodeURIComponent(id)}\`,
-        { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(donnees) },
+        { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(await preparer(donnees)) },
         undefined,
       ),
   } as Serveur;
@@ -1215,6 +1250,8 @@ interface Utilisateur {
   seConnecter(email: string, motDePasse: string, dansUnEssai?: boolean): Promise<boolean>;
   /** « se connecter avec google » : la fenêtre de Google, puis la session d'un compte déjà connu du serveur. */
   seConnecterAvecGoogle(dansUnEssai?: boolean): Promise<boolean>;
+  /** « changer le mot de passe avec … et … » : celui du compte connecté ; vrai si le serveur l'a accepté. */
+  changerMotDePasse(actuel: string, nouveau: string, dansUnEssai?: boolean): Promise<boolean>;
   seDeconnecter(): Promise<void>;
   /** Demande /auth/me une seule fois, à la première page qui lit la session. */
   demander(): void;
@@ -1359,6 +1396,36 @@ export function Session({ children }: { children: ReactNode }) {
     return true;
   }
 
+  /**
+   * « changer le mot de passe » : le serveur vérifie le mot de passe actuel, refuse un nouveau trop faible,
+   * puis garde son empreinte. La session reste ouverte.
+   */
+  async function changerMotDePasse(actuel: string, nouveau: string, dansUnEssai = false): Promise<boolean> {
+    const refuser = (texte: string): boolean => {
+      if (dansUnEssai) throw new Error(texte);
+      afficherMessage(texte, 'erreur');
+      return false;
+    };
+    let reponse: Response;
+    try {
+      reponse = await fetch(BASE + '/auth/mot-de-passe', {
+        method: 'POST',
+        headers: entetes(),
+        credentials: 'same-origin',
+        body: JSON.stringify({ actuel, nouveau }),
+      });
+    } catch {
+      return refuser("Le serveur n'a pas répondu. Réessayez dans un instant.");
+    }
+    if (reponse.status === 429) return refuser('Trop de tentatives. Réessayez dans quelques minutes.');
+    if (!reponse.ok) {
+      const corps = (await reponse.json().catch(() => null)) as { erreur?: string } | null;
+      const raison = corps?.erreur ?? "le mot de passe n'a pas été changé";
+      return refuser(raison.charAt(0).toUpperCase() + raison.slice(1) + '.');
+    }
+    return true;
+  }
+
   async function seDeconnecter(): Promise<void> {
     try {
       await fetch(BASE + '/auth/logout', { method: 'POST', headers: entetes(), credentials: 'same-origin' });
@@ -1379,6 +1446,7 @@ export function Session({ children }: { children: ReactNode }) {
     },
     seConnecter,
     seConnecterAvecGoogle,
+    changerMotDePasse,
     seDeconnecter,
     demander,
   };

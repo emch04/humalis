@@ -99,7 +99,8 @@ export interface ThemeRI {
 export type QuiPeut = 'tout_le_monde' | 'connecte' | 'admin';
 
 export type TypeChamp =
-  | { genre: 'texte' }
+  /** « photo : image » : un texte (l'image réduite par la page), vérifié comme une image par le serveur. */
+  | { genre: 'texte'; image?: true }
   | { genre: 'nombre' }
   | { genre: 'booleen' }
   | { genre: 'date' }
@@ -607,6 +608,8 @@ export type Action =
   | { type: 'connexion'; email: Valeur; motDePasse: Valeur }
   /** « se connecter avec google » : la fenêtre de Google, puis la session d'un compte déjà connu. */
   | { type: 'connexionGoogle' }
+  /** « changer le mot de passe avec … et … » : celui du compte connecté, vérifié par le serveur. */
+  | { type: 'changementMotDePasse'; actuel: Valeur; nouveau: Valeur }
   | { type: 'deconnexion' }
   | {
       type: 'repetition';

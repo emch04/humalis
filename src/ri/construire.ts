@@ -601,6 +601,10 @@ class Construction {
           actions.push({ type: 'connexionGoogle' });
           break;
 
+        case 'ChangementMotDePasse':
+          actions.push({ type: 'changementMotDePasse', actuel: this.valeur(instruction.actuel), nouveau: this.valeur(instruction.nouveau) });
+          break;
+
         case 'Deconnexion':
           actions.push({ type: 'deconnexion' });
           break;
