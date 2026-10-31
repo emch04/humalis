@@ -238,6 +238,7 @@ page "accueil" :
 - Une page et un composant qui auraient le même nom : auraient le même nom dans le code produit
 - Une adresse qui peut exécuter du code : est refusée
 - Des paramètres de page sur une adresse externe : n'a pas de paramètres de page
+- Des {…} dans le lien vers une page : ne s'écrivent que dans une adresse externe
 - « nouvel onglet » sur autre chose qu’un lien : s'applique à un lien
 - Des paramètres donnés à une adresse externe : demande une page
 - « revenir vers » une page calculée : demande le nom de la page entre guillemets : revenir vers

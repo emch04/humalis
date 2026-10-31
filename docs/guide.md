@@ -1372,6 +1372,17 @@ page "carte" :
         texte "Tarte aux pommes"
 ```
 
+Une adresse externe peut contenir des `{…}` : après le `?`, chaque valeur est
+encodée, pour qu'un « & », un « # » ou une espace ne coupent pas l'adresse.
+`rediriger vers` fait de même.
+
+```humalis
+page "panier" :
+    variable message = "Bonjour, je commande un maillot"
+    titre "Panier"
+    lien "Commander sur WhatsApp" vers "https://wa.me/243000000000?text={message}" avec nouvel onglet
+```
+
 ### Les filtres d'adresse
 
 Un filtre est une valeur facultative de l'adresse (`/catalogue?categorie=robes`) :
@@ -1552,6 +1563,8 @@ page "connexion" :
 
 - `envoyer requete vers "produits" dans produits` lit la liste.
 - `envoyer requete vers "avis" avec note et champ "commentaire"` envoie.
+- `avec commentaire = texte_saisi` envoie une valeur sous le nom d'un champ de la
+  donnée, quand la variable s'appelle autrement.
 - `si utilisateur est connecte :`, `si utilisateur est admin :`,
   `se connecter`, `se deconnecter` gèrent la session.
 

@@ -210,6 +210,28 @@ function texteTS(parties: PartiesTexte, contexte: Contexte, langue?: string): st
   return `\`${morceaux.join('')}\``;
 }
 
+/**
+ * Une adresse externe à trous (« https://wa.me/…?text={message} ») : après le « ? » ou le « # »,
+ * chaque valeur est encodée (encodeURIComponent), pour qu'un « & », un « # » ou une espace ne
+ * coupent pas l'adresse. Avant, la valeur reste telle quelle (une adresse entière donnée par l'API).
+ */
+export function adresseEncodee(valeur: Valeur, contexte: Contexte): string {
+  if (valeur.type !== 'texte' || valeur.versions || valeur.parties.every((p) => 'texte' in p)) return expression(valeur, contexte);
+  let requete = false;
+  const morceaux = valeur.parties.map((p) => {
+    if ('texte' in p) {
+      if (/[?#]/.test(p.texte)) requete = true;
+      return p.texte.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
+    }
+    const [premier, ...reste] = p.variable.split('.');
+    const lu = [nomLu(premier, contexte), ...reste.map(camel)].join(contexte.facultatives?.has(premier) && reste.length > 0 ? '?.' : '.');
+    // Une liste s'écrit comme dans un texte : ses éléments séparés par des virgules.
+    const chemin = contexte.types.get(p.variable)?.genre === 'liste' ? `${lu}.join(', ')` : lu;
+    return requete ? `\${encodeURIComponent(String(${chemin} ?? ''))}` : `\${${chemin} ?? ''}`;
+  });
+  return `\`${morceaux.join('')}\``;
+}
+
 /** Le contenu d'un élément dans du JSX : `Bienvenue`, `{nom}`, `{panier.join(', ')}`. */
 export function contenuJSX(valeur: Valeur, contexte: Contexte): string {
   if (valeur.type === 'texte' && (valeur.parties.some((p) => 'texte' in p && (p.accent || p.code)) || valeur.versions?.some((v) => v.parties.some((p) => 'texte' in p && (p.accent || p.code))))) {

@@ -12,7 +12,7 @@ import { pascal, camel, setter, setterDe, chaine } from './noms.js';
 import { WIDGETS_WEB, type RenduWidgets, type WidgetProduit, type CompositeProduit } from './widgets.js';
 import type { CarteProduite } from './carte.js';
 import { baliseGraphique } from './graphique.js';
-import { type Contexte, typeTS, typeDe, expression, contenuJSX, condition, ficheAvec } from './valeurs.js';
+import { type Contexte, typeTS, typeDe, expression, contenuJSX, condition, ficheAvec, adresseEncodee } from './valeurs.js';
 import { importsDesInteractions, decrireTouches } from './interactions.js';
 import { colorerCodeHumalis } from '../commun/colorerCode.js';
 import { attributsFrappe } from '../commun/mouvement.js';
@@ -133,6 +133,8 @@ export interface ElementProduit {
   versExpression?: string;
   /** Un lien vers une adresse externe (https://, mailto:, tel:), et « avec nouvel onglet ». */
   externe?: string;
+  /** L'adresse externe à trous, en code (ses valeurs encodées après le « ? »). */
+  externeExpression?: string;
   nouvelOnglet?: boolean;
   /** « avec ancre "…" » : l'identifiant de l'élément dans la page. */
   ancre?: string;
@@ -279,7 +281,7 @@ export const RENDU_WEB: Rendu = {
         return `<button type="${el.envoie ? 'submit' : 'button'}" ${a}>${el.contenu}</button>`;
       case 'lien': {
         if (el.externe !== undefined) {
-          return `<a href=${JSON.stringify(el.externe)}${el.nouvelOnglet ? ' target="_blank" rel="noopener noreferrer"' : ''} ${a}>${el.contenu}</a>`;
+          return `<a href=${el.externeExpression ? `{${el.externeExpression}}` : JSON.stringify(el.externe)}${el.nouvelOnglet ? ' target="_blank" rel="noopener noreferrer"' : ''} ${a}>${el.contenu}</a>`;
         }
         const filtres = el.filtresCible?.length ? ` filtres={[${el.filtresCible.map((f) => JSON.stringify(f)).join(', ')}]}` : '';
         return `<Lien to=${el.versExpression ? `{${el.versExpression}}` : JSON.stringify(el.vers)}${filtres}${el.nouvelOnglet ? ' target="_blank" rel="noopener noreferrer"' : ''} ${a}>${el.contenu}</Lien>`;
@@ -415,6 +417,8 @@ class GenerateurEcran {
   private echecs?: string;
   /** Dans « essayer » : le nom du compte des échecs pris avant le bloc. */
   private essai?: string;
+  /** Vrai dans le bloc d'un « essayer » : une connexion refusée y lève son erreur au lieu de l'afficher. */
+  private dansEssai = false;
   private essais = 0;
   /** Pour chaque champ : sa clé dans les données envoyées (« email »). */
   private readonly clesChamps = new Map<string, string>();
@@ -1220,7 +1224,9 @@ class GenerateurEcran {
           const page = texteLitteral(action.ecran);
           if (page === undefined) {
             // Une adresse reçue (le whatsappUrl d'une API) : une page, ou une adresse permise ; sinon refusée avec un message.
-            e.ligne(`allerVers(naviguer, String(${x(action.ecran)}), afficherMessage);`);
+            // Une adresse externe écrite avec des trous (« https://wa.me/…?text={message} ») : ses valeurs sont encodées.
+            const ecrite = action.ecran.type === 'texte' && action.ecran.parties[0] && 'texte' in action.ecran.parties[0] && lireCible(action.ecran.parties[0].texte).externe;
+            e.ligne(`allerVers(naviguer, String(${ecrite ? adresseEncodee(action.ecran, this.contexte) : x(action.ecran)}), afficherMessage);`);
             break;
           }
           const lue = lireCible(page);
@@ -1340,7 +1346,7 @@ class GenerateurEcran {
           // s'affiche et la suite de l'événement ne s'exécute pas.
           const motDePasse = action.motDePasse.type === 'champ' ? this.contexte.champs.get(action.motDePasse.id) : undefined;
           if (motDePasse) e.ligne(`${setterDe(motDePasse)}('');`);
-          e.ligne(`if (!(await utilisateur.seConnecter(${x(action.email)}, ${x(action.motDePasse)}))) return;`);
+          e.ligne(`if (!(await utilisateur.seConnecter(${x(action.email)}, ${x(action.motDePasse)}${this.dansEssai ? ', true' : ''}))) return;`);
           break;
         }
         case 'deconnexion':
@@ -1384,7 +1390,8 @@ class GenerateurEcran {
           const n = ++this.essais;
           const echecs = `echecsEssai${n > 1 ? n : ''}`;
           const raison = `raisonEssai${n > 1 ? n : ''}`;
-          const requetes = contientRequete(action.corps);
+          // La connexion passe par la session, pas par le serveur des données : seules les vraies requêtes le demandent.
+          const requetes = contientAppelServeur(action.corps);
           if (requetes) {
             e.ligne(`const ${echecs} = serveur.echecs();`);
             // Le message automatique se tait : c'est « si erreur » qui parle.
@@ -1395,9 +1402,12 @@ class GenerateurEcran {
           e.indenter(() =>
             e.bloc(`${raison} = await (async (): Promise<string | undefined> => {`, () => {
               const avant = this.essai;
+              const dansEssaiAvant = this.dansEssai;
               if (requetes) this.essai = echecs;
+              this.dansEssai = true;
               this.ecrireActions(e, action.corps, locales, modifiees);
               this.essai = avant;
+              this.dansEssai = dansEssaiAvant;
               e.ligne('return undefined;');
             }, '})();'),
           );
@@ -2110,6 +2120,7 @@ class GenerateurEcran {
             : '/',
       ...(noeud.cible !== undefined && noeud.arguments ? { versExpression: this.adresseAvec(noeud.cible, noeud.arguments, noeud.versAncre) } : {}),
       ...(noeud.externe !== undefined ? { externe: noeud.externe } : {}),
+      ...(noeud.externeValeur !== undefined ? { externeExpression: adresseEncodee(noeud.externeValeur, this.contexte) } : {}),
       ...(noeud.nouvelOnglet ? { nouvelOnglet: true } : {}),
       ...(noeud.ancre !== undefined ? { ancre: noeud.ancre } : {}),
       ...(noeud.cible !== undefined ? { filtresCible: (this.application.filtres?.get(noeud.cible) ?? []).map((f) => f.nom) } : {}),
@@ -2181,6 +2192,15 @@ function contientEnvoi(actions: Action[]): boolean {
  * presse-papier) : la fonction est alors `async`. Le bloc d'une minuterie ou
  * du bouton d'un message s'exécute plus tard, à part : il ne compte pas.
  */
+/** Vrai si des actions appellent le serveur des données (requête, modification, envoi de fichier…). */
+function contientAppelServeur(actions: Action[]): boolean {
+  return actions.some(
+    (a) =>
+      ['requete', 'recharger', 'suppression', 'modification', 'envoiFichier'].includes(a.type) ||
+      (a.type !== 'minuterie' && a.type !== 'message' && sousActions(a).some((liste) => contientAppelServeur(liste))),
+  );
+}
+
 function contientRequete(actions: Action[]): boolean {
   return actions.some(
     (a) =>

@@ -465,6 +465,7 @@ class Construction {
       options: styles,
       classes: element.classes,
       ...cibleDe(element.cible),
+      ...(element.cibleParties && cibleDe(element.cible).externe ? { externeValeur: this.valeur({ type: 'Chaine', parties: element.cibleParties, ligne: element.ligne }) } : {}),
       ...(element.ancre !== undefined ? { ancre: element.ancre } : {}),
       ...(element.nouvelOnglet ? { nouvelOnglet: true } : {}),
       ...(element.arguments ? { arguments: element.arguments.map((x) => ({ nom: x.nom, valeur: this.valeur(x.valeur) })) } : {}),

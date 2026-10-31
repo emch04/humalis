@@ -280,6 +280,16 @@ export function verifierPourLeStatique(application: Application): Diagnostic[] {
       });
     }
   }
+  // Un lien vers une adresse externe à trous (« …?text={message} ») : pas encore écrit en JavaScript clair.
+  for (const ecran of application.ecrans) {
+    if (JSON.stringify(ecran.vue).includes('"externeValeur"')) {
+      diagnostics.push({
+        gravite: 'erreur',
+        message: `la page « ${ecran.nom} » a un lien vers une adresse externe avec des {…}, qui n'est pas encore produit pour le site statique. Compile-la pour le web, ou utilise un bouton avec « rediriger vers ».`,
+        ligne: ecran.ligne,
+      });
+    }
+  }
   for (const c of application.composantsReact) {
     diagnostics.push({
       gravite: 'erreur',
