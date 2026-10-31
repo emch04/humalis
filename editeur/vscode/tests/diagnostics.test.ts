@@ -86,7 +86,7 @@ describe('versDiagnostics — erreurs d’analyse (phase 2)', () => {
   });
 });
 
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -103,5 +103,41 @@ describe('versDiagnostics — plusieurs fichiers', () => {
         gravite: 'erreur',
       },
     ]);
+  });
+});
+
+describe('versDiagnostics — un fichier utilisé par un autre', () => {
+  // Le site : site.humalis déclare les langues et le CSS, et utilise commun/entete.humalis.
+  const site = () => {
+    const dossier = mkdtempSync(join(tmpdir(), 'humalis-extension-'));
+    mkdirSync(join(dossier, 'commun'));
+    writeFileSync(join(dossier, 'site.css'), '.barre { color: red; }\n');
+    writeFileSync(
+      join(dossier, 'site.humalis'),
+      'langues :\n    francais\n    anglais\nutiliser style "./site.css"\nutiliser fichier "./commun/entete.humalis"\n\npage "accueil" :\n    titre "Accueil" en anglais "Home"\n',
+    );
+    const entete = join(dossier, 'commun', 'entete.humalis');
+    writeFileSync(entete, 'entete avec style "barre" :\n    texte "Bonjour" en anglais "Hello"\n');
+    return { dossier, entete };
+  };
+
+  it('vérifie le fichier dans le projet qui l’utilise : ses langues et son CSS sont connus', () => {
+    const { entete } = site();
+    expect(versDiagnostics(readFileSync(entete, 'utf8'), undefined, entete)).toEqual([]);
+  });
+
+  it('montre les fautes du fichier ouvert à leur ligne, avec le texte en cours de frappe', () => {
+    const { entete } = site();
+    const diagnostics = versDiagnostics('entete avec style "barre" :\n    texte prix\n', undefined, entete);
+    expect(diagnostics).toHaveLength(1);
+    expect(diagnostics[0]).toMatchObject({ ligne: 2, gravite: 'erreur' });
+    expect(diagnostics[0].message).toContain('« prix »');
+    expect(diagnostics[0].message).not.toContain('dans ');
+  });
+
+  it('vérifie seul un fichier que personne n’utilise', () => {
+    const { dossier } = site();
+    const seul = join(dossier, 'commun', 'seul.humalis');
+    expect(versDiagnostics('page "a" :\n    texte prix\n', undefined, seul)[0]?.message).toContain('« prix »');
   });
 });
