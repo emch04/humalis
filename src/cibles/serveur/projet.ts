@@ -733,13 +733,15 @@ const ROUTE_MOT_DE_PASSE = `
 
 const ROUTE_GOOGLE = `
       // « connexion google » : un compte déjà connu du serveur, dont Google confirme l'adresse, ouvre sa session.
+      // Comme dans Tertius et Solvia : la première connexion lie le compte à cet identifiant Google (le « sub »),
+      // et un autre compte Google portant la même adresse est ensuite refusé.
       const issueSession = (contexte as unknown as { issueSession: (res: unknown, compte: unknown) => Promise<unknown> }).issueSession;
       const google = googleClientId ? createGoogleIdTokenVerifier({ audiences: [googleClientId] }) : null;
       const routeGoogle = express.Router();
       routeGoogle.get('/', (_req, res) => {
         res.json({ clientId: googleClientId ?? null });
       });
-      routeGoogle.post('/', csrfMiddleware, async (req, res, next) => {
+      routeGoogle.post('/', createLoginLimiter(), csrfMiddleware, async (req, res, next) => {
         if (!google) {
           res.status(503).json({ erreur: "la connexion avec Google n'est pas réglée sur ce serveur (GOOGLE_CLIENT_ID)" });
           return;
@@ -756,7 +758,12 @@ const ROUTE_GOOGLE = `
             res.status(403).json({ erreur: "ce compte Google n'a pas accès à l'application" });
             return;
           }
-          res.json(await issueSession(res, compte));
+          if (typeof compte.googleSubject === 'string' && compte.googleSubject !== profil.subject) {
+            res.status(403).json({ erreur: 'cette adresse est déjà liée à un autre compte Google' });
+            return;
+          }
+          const lie = compte.googleSubject === profil.subject ? compte : ((await usersStore.update(String(compte.id), { googleSubject: profil.subject })) ?? compte);
+          res.json(await issueSession(res, lie));
         } catch (erreur) {
           if (erreur instanceof IdTokenError) {
             res.status(401).json({ erreur: "la connexion avec Google n'a pas pu être vérifiée" });

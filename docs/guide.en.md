@@ -1679,7 +1679,9 @@ went wrong. In a form, the fields stay filled in.
 With the line `connexion google` in the server, an account the server
 **already knows** can log in with Google: Google's window opens, and if Google
 confirms an address that matches an account, the session opens, with no
-password. An unknown address is refused: nobody gives themselves access.
+password. An unknown address is refused: nobody gives themselves access. The
+first sign-in links the account to that Google account; another Google account
+carrying the same address is refused afterwards.
 
 ```humalis
 serveur "shop" :

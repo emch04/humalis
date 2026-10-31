@@ -1600,7 +1600,8 @@ Avec la ligne `connexion google` dans le serveur, un compte **déjà connu** du
 serveur peut se connecter avec Google : la fenêtre de Google s'ouvre, et si
 Google confirme une adresse qui correspond à un compte, la session s'ouvre,
 sans mot de passe. Une adresse inconnue est refusée : personne ne se crée un
-accès tout seul.
+accès tout seul. La première connexion lie le compte à ce compte Google ; un
+autre compte Google qui porterait la même adresse est ensuite refusé.
 
 ```humalis
 serveur "boutique" :
