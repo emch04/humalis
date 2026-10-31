@@ -837,8 +837,8 @@ export function Messages({ children }: { children: ReactNode }) {
 
   const afficher = useCallback<Afficher>((texte, genre = 'info', options = {}) => {
     const reglages: OptionsMessage = typeof options === 'function' ? { action: { libelle: 'Réessayer', faire: options }, duree: 12000 } : options;
-    // Un message qui propose un bouton reste le temps de le lire et de cliquer.
-    const duree = reglages.persistant ? null : Math.max(reglages.duree ?? DUREES[genre], reglages.action ? 8000 : 0);
+    // Un message qui propose un bouton reste le temps de le lire et de cliquer (6 s) ; « pendant … » choisit la durée.
+    const duree = reglages.persistant ? null : reglages.duree ?? (reglages.action ? 6000 : DUREES[genre]);
     const message: Message = { id: ++suivant.current, texte, genre, duree, ...(reglages.action ? { action: reglages.action } : {}) };
     setMessages((liste) => [...liste, message].slice(-PILE));
   }, []);

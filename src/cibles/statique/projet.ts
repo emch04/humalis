@@ -664,8 +664,8 @@ ${interactions.fenetres ? '    // Une fenêtre fermée rend le focus à ce qui l
    */
   function afficherMessage(texte, genre = 'info', options = {}) {
     const reglages = typeof options === 'function' ? { action: { libelle: 'Réessayer', faire: options }, duree: 12000 } : options;
-    // Un message qui propose un bouton reste le temps de le lire et de cliquer.
-    const duree = reglages.persistant ? null : Math.max(reglages.duree ?? DUREES[genre], reglages.action ? 8000 : 0);
+    // Un message qui propose un bouton reste le temps de le lire et de cliquer (6 s) ; « pendant … » choisit la durée.
+    const duree = reglages.persistant ? null : reglages.duree ?? (reglages.action ? 6000 : DUREES[genre]);
     const zone = document.querySelector('.humalis-messages');
     const message = document.createElement('li');
     message.className = \`humalis-message humalis-message-\${genre}\`;

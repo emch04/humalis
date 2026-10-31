@@ -1011,7 +1011,9 @@ class GenerateurEcran {
       if (!valeur) return undefined;
       const lu = texteLitteral(valeur);
       if (lu !== undefined) return complet ? titreLitteral(lu) : chaine(lu);
-      const code = expression(valeur, this.contexte);
+      // Un titre tiré des données (« produit.nom ») : le nom de la page tant qu'elles ne sont pas arrivées.
+      const donnees = valeur.type !== 'texte' || valeur.parties.some((p) => !('texte' in p));
+      const code = complet && donnees ? `(${expression(valeur, this.contexte)} || ${chaine(titre)})` : expression(valeur, this.contexte);
       return complet && site?.nom ? `${code} + ${suffixe()}` : code;
     };
     const titreCode = enCode(apercu?.titre ?? premiereValeur('titre', this.ecran.vue, this.application.langues), true) ?? titreLitteral(titre);
@@ -2272,8 +2274,26 @@ function premiereValeurEn(genre: string, noeuds: NoeudVue[], code?: string): Val
  * langue de base ; si les branches « si langue est … » en montrent une autre
  * dans une autre langue, elle devient la version de cette langue.
  */
+/**
+ * Le titre écrit dans une branche « si … / sinon » (« si produit est rien : … sinon : titre produit.nom ») :
+ * le titre de la page quand ses données sont là. Seulement pour le titre, pas pour la description.
+ */
+function titreDesBranches(noeuds: NoeudVue[]): Valeur | undefined {
+  for (const n of noeuds) {
+    if (n.type === 'condition') {
+      const trouve = premiereValeurEn('titre', n.sinon) ?? premiereValeurEn('titre', n.alors) ?? titreDesBranches(n.sinon) ?? titreDesBranches(n.alors);
+      if (trouve) return trouve;
+    }
+    if (n.type === 'bloc') {
+      const trouve = titreDesBranches(n.corps);
+      if (trouve) return trouve;
+    }
+  }
+  return undefined;
+}
+
 function premiereValeur(genre: string, noeuds: NoeudVue[], langues?: LangueRI[]): Valeur | undefined {
-  if (!langues || langues.length === 0) return premiereValeurEn(genre, noeuds);
+  if (!langues || langues.length === 0) return premiereValeurEn(genre, noeuds) ?? (genre === 'titre' ? titreDesBranches(noeuds) : undefined);
   const [base, ...autres] = langues;
   const valeur = premiereValeurEn(genre, noeuds, base.code);
   if (valeur?.type !== 'texte') return valeur;
