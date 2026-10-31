@@ -1448,6 +1448,17 @@ page "menu" :
 `avec parametre id` gives a page a parameter in its address; `ancre` (anchor)
 names a place in a page; `nouvel onglet` opens a new tab.
 
+An external address can contain `{…}`: after the `?`, each value is encoded,
+so that an "&", a "#" or a space does not break the address. `rediriger vers`
+does the same.
+
+```humalis
+page "cart" :
+    variable message = "Hello, I am ordering a shirt"
+    titre "Cart"
+    lien "Order on WhatsApp" vers "https://wa.me/243000000000?text={message}" avec nouvel onglet
+```
+
 ### Address filters
 
 A filter (`filtre`) is an optional value in the address
@@ -1631,6 +1642,8 @@ page "login" :
 - `envoyer requete vers "products" dans products` reads the list into
   `products`.
 - `envoyer requete vers "reviews" avec rating et champ "comment"` sends data.
+- `avec comment = typed_text` sends a value under the name of a field of the
+  data, when the variable has another name.
 - `si utilisateur est connecte :` (if the user is logged in), `si utilisateur
   est admin :`, `se connecter` (log in) and `se deconnecter` (log out) handle
   the session.

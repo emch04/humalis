@@ -3890,6 +3890,20 @@ page "accueil" :
     lien "Aide" vers "https://exemple.cd"
 `),
     "n'a pas de paramètres de page"),
+  e("lien-trous-page", "sens", "Des {…} dans le lien vers une page",
+    "Les {…} se remplissent dans une adresse externe (https://…, mailto:, tel:). Pour une page de l’application, la valeur se donne en paramètre.",
+    "Écris vers \"page\" avec un paramètre, ou une adresse externe complète.",
+    p(`
+page "accueil" :
+    variable id = "1"
+    lien "Voir" vers "produit{id}"
+`),
+    p(`
+page "accueil" :
+    variable message = "Bonjour"
+    lien "Écrire" vers "https://wa.me/243000000000?text={message}"
+`),
+    "ne s'écrivent que dans une adresse externe"),
   e("nouvel-onglet-pas-un-lien", "sens", "« nouvel onglet » sur autre chose qu’un lien",
     "Seul un lien s’ouvre dans un nouvel onglet.",
     "Mets l’option sur un lien.",

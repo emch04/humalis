@@ -722,8 +722,8 @@ interface Utilisateur {
   connecte: boolean;
   /** « si utilisateur est admin » : le rôle que vérifie le serveur (authorizeAdmin). */
   admin: boolean;
-  /** Vrai si la connexion a réussi ; sinon un message d'erreur s'affiche. */
-  seConnecter(email: string, motDePasse: string): Promise<boolean>;
+  /** Vrai si la connexion a réussi ; sinon un message d'erreur s'affiche (dans « essayer », l'erreur est levée : « si erreur » la reçoit). */
+  seConnecter(email: string, motDePasse: string, dansUnEssai?: boolean): Promise<boolean>;
   seDeconnecter(): Promise<void>;
   /** Demande /auth/me une seule fois, à la première page qui lit la session. */
   demander(): void;
@@ -762,7 +762,12 @@ export function Session({ children }: { children: ReactNode }) {
     void relire();
   }, [relire]);
 
-  async function seConnecter(email: string, motDePasse: string): Promise<boolean> {
+  async function seConnecter(email: string, motDePasse: string, dansUnEssai = false): Promise<boolean> {
+    const refuser = (texte: string): boolean => {
+      if (dansUnEssai) throw new Error(texte);
+      afficherMessage(texte, 'erreur');
+      return false;
+    };
     let reponse: Response;
     try {
       const entetes = new Headers({ 'Content-Type': 'application/json' });
@@ -774,17 +779,14 @@ export function Session({ children }: { children: ReactNode }) {
         body: JSON.stringify({ email, password: motDePasse }),
       });
     } catch {
-      afficherMessage("Le serveur n'a pas répondu. Réessayez dans un instant.", 'erreur');
-      return false;
+      return refuser("Le serveur n'a pas répondu. Réessayez dans un instant.");
     }
     if (reponse.status === 429) {
-      afficherMessage('Trop de tentatives de connexion. Réessayez dans quelques minutes.', 'erreur');
-      return false;
+      return refuser('Trop de tentatives de connexion. Réessayez dans quelques minutes.');
     }
     if (!reponse.ok) {
       // Jamais lequel des deux est faux : on ne dit pas si un compte existe.
-      afficherMessage('Email ou mot de passe incorrect.', 'erreur');
-      return false;
+      return refuser('Email ou mot de passe incorrect.');
     }
     if (surTelephone) {
       // Le jeton donné par le pack va dans le coffre du téléphone, nulle part ailleurs.

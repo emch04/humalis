@@ -363,7 +363,7 @@ export function avertirBas(hote: Hote, evenement: Evenement, lues: string[]): vo
 // ─── Ce que l'analyse de la page recense ──────────────────────────────────
 
 export function fenetreEnDouble(hote: Hote, nom: string, premiere: number, ligne: number): void {
-  hote.erreur(`deux fenêtres s’appellent « ${nom} » (lignes ${premiere} et ${ligne}) : montrer "${nom}" ne saurait pas laquelle ouvrir. Donnez un nom à l’une d’elles : avec nom "…".`, ligne);
+  hote.erreur(`deux fenêtres s’appellent « ${nom} » (ligne ${premiere} et ligne ${ligne}) : montrer "${nom}" ne saurait pas laquelle ouvrir. Donnez un nom à l’une d’elles : avec nom "…".`, ligne);
 }
 
 export function blocEnDouble(hote: Hote, nom: string, premiere: number, ligne: number): void {

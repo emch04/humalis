@@ -718,7 +718,11 @@ class AnalysePage {
         if (instruction.options?.partagee) {
           this.erreur('une variable partagée se déclare en haut du fichier, hors des pages.', instruction.ligne);
         }
-        const type = this.typeDe(instruction.valeur);
+        const ecrit = this.typeDe(instruction.valeur);
+        // « variable produits = [] » remplie plus bas par une requête : son type est connu dès ici,
+        // pour qu'un calcul écrit avant « quand la page se charge » lise ses champs.
+        const attendu = estConnu(ecrit) && !(ecrit.genre === 'liste' && !estConnu(ecrit.de)) ? undefined : this.typeRecuDuServeur(instruction.nom);
+        const type = attendu ?? ecrit;
         this.resultat.types.set(instruction, type);
         // « = rien » et « premier de … » : il peut ne pas y avoir de valeur.
         if (instruction.valeur.type === 'Rien' || instruction.valeur.type === 'Premier') this.resultat.facultatives.add(instruction);
@@ -1097,9 +1101,13 @@ class AnalysePage {
     this.elementEnCours = element.element;
     this.typeDe(element.contenu);
     this.elementEnCours = undefined;
-    if (element.cible !== undefined) {
+    // « vers "https://wa.me/…?text={message}" » : les {…} d'une adresse externe lisent les variables de la page.
+    if (element.cible !== undefined && element.cibleParties && !lireCible(element.cible).externe) {
+      this.erreur(`les {…} ne s'écrivent que dans une adresse externe (https://…, mailto:, tel:) ; pour une page, écrivez vers "page" avec un paramètre.`, element.ligne);
+    } else if (element.cible !== undefined) {
       this.pageCible(element.cible, element.ligne);
       const lue = lireCible(element.cible);
+      if (element.cibleParties) this.typeDe({ type: 'Chaine', parties: element.cibleParties, ligne: element.ligne });
       if (lue.page !== undefined) this.argumentsPage(lue.page, element.arguments ?? [], `${element.element} … vers`, element.ligne);
       else if (element.arguments?.length) {
         this.erreur(lue.externe ? `une adresse externe (${element.cible}) n'a pas de paramètres de page : retirez « avec ${element.arguments[0].nom} … ».` : `« avec ${element.arguments[0].nom} … » demande une page : écrivez vers "page" avec …`, element.ligne);
@@ -2183,7 +2191,8 @@ class AnalysePage {
     }
 
     requete.donnees.forEach((donnee, i) => {
-      const cle = donnee.type === 'Champ' ? simplifier(donnee.nom) : donnee.type === 'Reference' ? donnee.nom : undefined;
+      // « avec nom = client » : le nom donné passe avant celui de la variable.
+      const cle = requete.cles?.[i] ?? (donnee.type === 'Champ' ? simplifier(donnee.nom) : donnee.type === 'Reference' ? donnee.nom : undefined);
       if (cle !== undefined) this.verifierChamp(route, cle, donnee, types[i], requete.ligne);
     });
 
@@ -2264,6 +2273,29 @@ class AnalysePage {
   }
 
   /** La route visée, et son adresse réelle ; une erreur si elle n'existe pas. */
+  /** Le type qu'une requête de la page donnera à cette variable (« … dans produits »), sans rien vérifier encore. */
+  private typeRecuDuServeur(nom: string): TypeValeur | undefined {
+    let trouve: TypeValeur | undefined;
+    const visiter = (valeur: unknown): void => {
+      if (trouve || valeur === null || typeof valeur !== 'object') return;
+      if (Array.isArray(valeur)) {
+        for (const v of valeur) visiter(v);
+        return;
+      }
+      const noeud = valeur as Partial<Requete> & { type?: string };
+      if (noeud.type === 'Requete' && noeud.resultat === nom && noeud.source === undefined && noeud.filtrant === undefined && noeud.adresse !== undefined) {
+        const route = this.liens.routes.get(adresseNormalisee(noeud.adresse));
+        const seul = noeud.donnees?.[0];
+        if (route && noeud.donnees?.length === 0) trouve = listeDe({ genre: 'donnee', nom: route.donnee.nom });
+        else if (route && noeud.donnees?.length === 1 && seul?.type === 'Reference' && this.page.parametres.includes(seul.nom)) trouve = { genre: 'donnee', nom: route.donnee.nom };
+        return;
+      }
+      for (const v of Object.values(noeud)) visiter(v);
+    };
+    visiter(this.page.corps);
+    return trouve;
+  }
+
   private routeDe(operation: Requete | Suppression | Modification) {
     const route = this.liens.routes.get(adresseNormalisee(operation.adresse));
     if (!route) {
@@ -2395,7 +2427,7 @@ class AnalysePage {
     } else {
       const [a, b] = resolution.lignes;
       this.erreur(
-        `deux éléments s'appellent « ${texte} » (lignes ${a} et ${b}). Donnez un nom à l'un d'eux : avec nom "…"`,
+        `deux éléments s'appellent « ${texte} » (ligne ${a} et ligne ${b}). Donnez un nom à l'un d'eux : avec nom "…"`,
         instruction.ligne,
       );
     }

@@ -2,7 +2,7 @@ import { deplierFonctionsActions } from './fonctionsActions.js';
 import { estSite, analyserSite, estApercu, analyserApercu } from './site.js';
 import { estLangues, analyserLangues, estTraductions, analyserTraductions, lireVersions, estSelecteurLangue } from './langues.js';
 import { OPTIONS } from '../analyse/styles.js';
-import type { Token } from '../lexer/types.js';
+import type { Token, PartieChaine } from '../lexer/types.js';
 import { FluxTokens } from './fluxTokens.js';
 import { analyserSource, analyserClausesRequete, analyserSourceSeule } from './source.js';
 import { analyserEntetePage, analyserAvecPage } from './navigation.js';
@@ -989,8 +989,11 @@ function analyserElement(flux: FluxTokens, enTete?: { element: NomElement; ligne
   }
 
   let cible: string | undefined;
+  let cibleParties: PartieChaine[] | undefined;
   if (flux.accepter('MOT_CLE', 'vers')) {
-    cible = flux.attendre('CHAINE', undefined, 'le nom de la page cible').valeur;
+    const jeton = flux.attendre('CHAINE', undefined, 'le nom de la page cible');
+    cible = jeton.valeur;
+    if (jeton.parties?.some((p) => p.type !== 'texte')) cibleParties = jeton.parties;
   }
 
   const styles: Style[] = [];
@@ -1072,6 +1075,7 @@ function analyserElement(flux: FluxTokens, enTete?: { element: NomElement; ligne
     classes,
     nom,
     cible,
+    ...(cibleParties ? { cibleParties } : {}),
     ...(arguments_.length > 0 ? { arguments: arguments_ } : {}),
     ...(ancre !== undefined ? { ancre } : {}),
     ...(nouvelOnglet ? { nouvelOnglet } : {}),

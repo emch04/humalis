@@ -57,7 +57,7 @@ describe('analyse — éléments visés', () => {
       erreurs(
         programme('page "a" :', '>bouton "OK"', '>bouton "OK"', '>quand utilisateur clique sur "OK" :', '>>afficher "x"'),
       ),
-    ).toEqual(['4 : deux éléments s\'appellent « OK » (lignes 2 et 3). Donnez un nom à l\'un d\'eux : avec nom "…"']);
+    ).toEqual(['4 : deux éléments s\'appellent « OK » (ligne 2 et ligne 3). Donnez un nom à l\'un d\'eux : avec nom "…"']);
   });
 
   it('accepte un libellé répété par une boucle', () => {

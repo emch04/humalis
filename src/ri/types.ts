@@ -326,6 +326,8 @@ export type NoeudVue =
       versAncre?: string;
       /** Pour un lien : une adresse externe (https://, http://, mailto:, tel:). */
       externe?: string;
+      /** « vers "https://wa.me/…?text={message}" » : l'adresse externe à trous, lue au moment d'afficher. */
+      externeValeur?: Valeur;
       /** « avec nouvel onglet ». */
       nouvelOnglet?: boolean;
       /** Pour un champ qui a une sorte ou des options : comment on y écrit, et ce qui est vérifié. */

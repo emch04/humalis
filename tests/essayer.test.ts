@@ -47,4 +47,33 @@ describe('essayer … si erreur', () => {
   it('site statique : refusé clairement à la compilation', () => {
     expect(verifierPourLeStatique(compiler(COMMANDE).application!).map((d) => d.message).join('\n')).toMatch(/« essayer »/);
   });
+
+  it('web : « se connecter » dans un essai rend sa raison à « si erreur », sans appeler le serveur des données', () => {
+    const source = programme(
+      'serveur "boutique" :',
+      '>donnee commande :',
+      '>>nom : texte',
+      '>route "commandes" :',
+      '>>seul admin peut lire commande',
+      '',
+      'page "connexion" :',
+      '>titre "Connexion"',
+      '>formulaire "connexion" :',
+      '>>champ email "Email" avec obligatoire',
+      '>>champ mot de passe "Mot de passe" avec obligatoire',
+      '>>bouton "Se connecter"',
+      '>quand le formulaire "connexion" est soumis :',
+      '>>essayer :',
+      '>>>se connecter avec champ "Email" et champ "Mot de passe"',
+      '>>>rediriger vers "connexion"',
+      '>>si erreur :',
+      '>>>afficher erreur "Connexion refusée : {raison}"',
+    );
+    expect(erreurs(source)).toEqual([]);
+    const fichiers = genererProjetWeb(compiler(source).application!, { nom: 'c', adresse: 'https://c.cd', source: 'c.humalis' });
+    const page = fichiers.get('src/pages/Connexion.tsx')!;
+    expect(page).toContain('await utilisateur.seConnecter(champEmail, champMotDePasse, true)');
+    expect(page).not.toContain('serveur.');
+    expect(fichiers.get('src/humalis/session.tsx')).toContain('if (dansUnEssai) throw new Error(texte);');
+  });
 });
