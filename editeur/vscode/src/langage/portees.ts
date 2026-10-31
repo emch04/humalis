@@ -5,7 +5,7 @@
  * `pour chaque` et `quand` ; les variables partagées et les paramètres
  * au-dessus.
  */
-import type { Expression, Instruction, NomElement, Programme } from '../../../../src/parser/ast.js';
+import type { Expression, Instruction, NomElement, Programme, Test } from '../../../../src/parser/ast.js';
 import { indentation, jetonsDeLigne, texteJeton } from './document.js';
 import { entetes, enteteRacine, premierMot } from './blocs.js';
 import { principal, type FichierProjet, type Projet } from './projet.js';
@@ -115,6 +115,16 @@ function recenserFichier(index: Index, { chemin, doc }: FichierProjet, ouvert: b
   };
   const lire = (nom: string, ligne: number) => noter(index.references, nom, ligne);
 
+  // Une condition en « et » ou en « ou » : ses deux côtés sont eux-mêmes des tests.
+  const test = (t: Test): void => {
+    if (t.type === 'Combinaison') {
+      test(t.gauche);
+      test(t.droite);
+      return;
+    }
+    expression(t.gauche);
+    expression(t.droite);
+  };
   const expression = (e: Expression | undefined): void => {
     if (!e) return;
     switch (e.type) {
@@ -194,8 +204,7 @@ function recenserFichier(index: Index, { chemin, doc }: FichierProjet, ouvert: b
           for (const a of i.parametres ?? []) expression(a.valeur);
           break;
         case 'Condition': {
-          expression(i.test.gauche);
-          expression(i.test.droite);
+          test(i.test);
           bloc(i.alors, i.ligne, racine);
           const sinon = ligneSinon(lignes, i.ligne);
           if (sinon !== undefined) bloc(i.sinon, sinon, racine);

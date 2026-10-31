@@ -62,6 +62,12 @@ describe('les portées', () => {
     expect(variablesVisibles(index, 4).map((s) => s.nom).sort()).toEqual(['nom', 'produits']);
   });
 
+  it('lit les variables des deux côtés d’une condition en « et » ou en « ou »', () => {
+    const source = 'page "a" :\n    variable prix = 1\n    variable stock = 2\n    variable nom = ""\n    si prix est superieur a stock et nom est vide ou stock est egal a 2 :\n        texte "oui"\n';
+    const index = indexer(lireProjet(source));
+    expect([...(index.references.get(5) ?? [])].sort()).toEqual(['nom', 'prix', 'stock']);
+  });
+
   it('distingue deux pages qui ont chacune leur variable x', () => {
     const source = 'page "a" :\n    variable x = 1\n    texte x\npage "b" :\n    variable x = 2\n    texte x\n';
     const index = indexer(lireProjet(source));
