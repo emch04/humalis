@@ -96,6 +96,24 @@ describe('langues — le parseur', () => {
     expect(pages[0].corps).toHaveLength(3);
   });
 
+  it('lit aussi les langues sur une ligne, séparées par des virgules', () => {
+    const ligne = lire('langues : francais, anglais', '', 'page "a" :', '>titre "A" en anglais "A"');
+    expect(ligne.langues?.langues.map((l) => l.mot)).toEqual(['francais', 'anglais']);
+    expect(compiler(programme('langues : francais, anglais', '', 'page "a" :', '>titre "Bonjour" en anglais "Hello"')).diagnostics).toEqual([]);
+    expect(lire('langues : français,anglais, espagnol', 'page "a" :', '>titre "A"').langues?.langues.map((l) => l.mot)).toEqual(['francais', 'anglais', 'espagnol']);
+    expect(lire('langues : francais', 'page "a" :', '>titre "A"').langues?.langues.map((l) => l.mot)).toEqual(['francais']);
+  });
+
+  it('explique une virgule oubliée ou de trop sur la ligne des langues', () => {
+    expect(() => lire('langues : francais anglais', 'page "a" :', '>titre "A"')).toThrow(/séparez les langues par des virgules : « langues : francais, anglais »/);
+    expect(() => lire('langues : francais,', 'page "a" :', '>titre "A"')).toThrow(/après la virgule, il manque le nom d'une langue/);
+    expect(() => lire('langues : francais, "anglais"', 'page "a" :', '>titre "A"')).toThrow(/le nom d'une langue/);
+  });
+
+  it('refuse les langues à la fois sur la ligne et en dessous', () => {
+    expect(() => lire('langues : francais', '>anglais', 'page "a" :', '>titre "A"')).toThrow(/soit sur la ligne, soit en dessous/);
+  });
+
   it('refuse deux blocs « langues » et un bloc après les pages', () => {
     expect(() => lire(...LANGUES, ...LANGUES, 'page "a" :', '>titre "A"')).toThrow(/un seul bloc « langues »/);
     expect(() => lire('page "a" :', '>titre "A"', ...LANGUES)).toThrow(/en haut du fichier/);

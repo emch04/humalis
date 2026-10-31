@@ -2642,7 +2642,7 @@ page "documentation_28" dans "documentation" adresse "/documentation/plusieurs-l
                 titre "The catalogue" en francais "Le catalogue"
                 lien "Back to home" en francais "Retour à l'accueil" vers "home"
         liste :
-            texte "{code "langues :"} lists the languages ({code "francais"}, {code "anglais"}…)."
+            texte "{code "langues :"} lists the languages ({code "francais"}, {code "anglais"}…), one per line or on the same line separated by commas: {code "langues : anglais, francais"}."
             texte "{code "en francais "…""} gives another language's version of a text."
             texte "{code "sans traduction"} (\"without translation\") keeps the same text in every language, for a proper noun: {code "lien "GitHub" sans traduction vers "https://github.com""}."
             texte "{code "traductions francais :"} translates a repeated text once."
@@ -2672,6 +2672,7 @@ page "documentation_28" dans "documentation" adresse "/documentation/plusieurs-l
                 titre "Le catalogue" en anglais "The catalogue"
                 lien "Retour à l'accueil" en anglais "Back to home" vers "accueil"
         liste :
+            texte "Les langues tiennent aussi sur une ligne, séparées par des virgules : {code "langues : francais, anglais"} revient au même que le bloc."
             texte "{code "en anglais "…""} donne la version d'un texte."
             texte "{code "sans traduction"} garde le même texte dans toutes les langues, pour un nom propre : {code "lien "GitHub" sans traduction vers "https://github.com""}."
             texte "{code "traductions anglais :"} traduit une seule fois un texte répété."

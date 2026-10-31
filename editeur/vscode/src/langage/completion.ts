@@ -122,9 +122,11 @@ function declareDesLangues(lignes: readonly string[]): boolean {
   return lignes.some((l) => /^langues\s*:/.test(l));
 }
 
-/** Les langues du bloc « langues : », dans l'ordre (sans accent). */
+/** Les langues du bloc « langues : » ou de sa ligne (« langues : francais, anglais »), dans l'ordre (sans accent). */
 function languesDeclarees(lignes: readonly string[]): string[] {
   const debut = lignes.findIndex((l) => /^langues\s*:/.test(l));
+  const surLaLigne = lignes[debut]?.replace(/^langues\s*:/, '').trim();
+  if (surLaLigne) return surLaLigne.split(',').map((l) => normaliser(l.trim())).filter((l) => l !== '');
   const langues: string[] = [];
   for (const ligne of lignes.slice(debut + 1)) {
     if (!/^\s+\S/.test(ligne)) break;

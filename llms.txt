@@ -422,6 +422,10 @@ page "accueil" :
 - Deux blocs « langues » : un seul bloc « langues »
 - Le bloc « langues » après les pages : le bloc « langues » s'écrit en haut du fichier
 - Une langue entre guillemets : une ligne du bloc « langues » est le nom d'une langue
+- Une langue entre guillemets sur la ligne « langues : » : après « langues : », on attend le nom d'une langue
+- Deux langues sans virgule : séparez les langues par des virgules
+- Une virgule en fin de ligne des langues : après la virgule, il manque le nom d'une langue
+- Des langues sur la ligne et en dessous : soit sur la ligne, soit en dessous
 - Une langue que Humalis ne connaît pas : n'est pas une langue connue de Humalis
 - Une langue pas encore disponible : n'est pas encore disponible
 - Une langue écrite deux fois : est déjà dans le bloc « langues »

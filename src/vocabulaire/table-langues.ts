@@ -59,7 +59,7 @@ export const ENTREES_LANGUES: readonly EntreeVocabulaire[] = [
     ),
     couvre: ['html:lang', 'i18n', 'navigator.languages', 'expo-localization'],
     description:
-      'Le bloc « langues : » en haut du fichier déclare les langues du site, une par ligne. La première est celle des textes écrits tels quels ; les autres s’ajoutent après un texte (« en anglais "…" ») ou dans un bloc « traductions ». La personne voit d’abord la langue de son navigateur (ou de son téléphone), si le site la parle.',
+      'Le bloc « langues : » en haut du fichier déclare les langues du site, une par ligne, ou sur la même ligne séparées par des virgules (« langues : francais, anglais »). La première est celle des textes écrits tels quels ; les autres s’ajoutent après un texte (« en anglais "…" ») ou dans un bloc « traductions ». La personne voit d’abord la langue de son navigateur (ou de son téléphone), si le site la parle.',
     exemple: `${LANGUES}page "accueil" :\n    selecteur de langue\n    titre "Bienvenue" en anglais "Welcome"`,
     statut: 'supporte',
     etape: 9,

@@ -2,7 +2,8 @@
  * L'analyse syntaxique des langues (plan 2026-10-30-qualite-publication,
  * partie 1, décisions Q1 à Q4) :
  *
- * - le bloc « langues : » en haut du fichier, une langue par ligne ;
+ * - le bloc « langues : » en haut du fichier, une langue par ligne, ou sur la
+ *   même ligne séparées par des virgules : « langues : francais, anglais » ;
  * - le bloc « traductions anglais : », des lignes « "texte" : "version" » ;
  * - la version écrite à côté d'un texte : « "Bienvenue" en anglais "Welcome" » ;
  * - l'élément « selecteur de langue », en tête de ligne.
@@ -47,13 +48,40 @@ export function analyserLangues(flux: FluxTokens): Langues {
   const debut = flux.avancer();
   flux.avancer();
   const langues: Langues = { type: 'Langues', langues: [], ligne: debut.ligne };
+  const ajouter = (jeton: ReturnType<FluxTokens['actuel']>) =>
+    langues.langues.push({ mot: normaliser(jeton.original ?? jeton.valeur), ligne: jeton.ligne });
+  // « langues : francais, anglais » : sur la ligne même, séparées par des virgules.
+  if (!flux.verifier('FIN_LIGNE') && !flux.estFini()) {
+    for (;;) {
+      const jeton = flux.actuel();
+      if (!estMot(jeton)) {
+        throw new ErreurSyntaxique(`après « langues : », on attend le nom d'une langue, par exemple « francais » ou « anglais » : à la place, on trouve « ${jeton.valeur || jeton.type} »`, jeton.ligne);
+      }
+      flux.avancer();
+      ajouter(jeton);
+      if (flux.verifier('FIN_LIGNE') || flux.estFini()) break;
+      if (flux.actuel().type === 'PONCTUATION' && flux.actuel().valeur === ',') {
+        flux.avancer();
+        if (flux.verifier('FIN_LIGNE') || flux.estFini()) {
+          throw new ErreurSyntaxique(`après la virgule, il manque le nom d'une langue : « langues : francais, anglais »`, jeton.ligne);
+        }
+        continue;
+      }
+      throw new ErreurSyntaxique(`séparez les langues par des virgules : « langues : francais, anglais ». À la place de la virgule, on trouve « ${flux.actuel().valeur || flux.actuel().type} »`, jeton.ligne);
+    }
+    flux.sauterFinsDeLigne();
+    if (flux.verifier('INDENT')) {
+      throw new ErreurSyntaxique(`les langues s'écrivent soit sur la ligne, soit en dessous, une par ligne, pas les deux à la fois`, flux.actuel().ligne);
+    }
+    return langues;
+  }
   lignesDuBloc(flux, () => {
     const jeton = flux.actuel();
     if (!estMot(jeton)) {
       throw new ErreurSyntaxique(`une ligne du bloc « langues » est le nom d'une langue, par exemple « francais » ou « anglais » : à la place, on trouve « ${jeton.valeur || jeton.type} »`, jeton.ligne);
     }
     flux.avancer();
-    langues.langues.push({ mot: normaliser(jeton.original ?? jeton.valeur), ligne: jeton.ligne });
+    ajouter(jeton);
   });
   return langues;
 }

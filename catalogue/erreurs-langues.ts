@@ -78,6 +78,71 @@ page "accueil" :
     titre "Bienvenue" en anglais "Welcome"
 `),
     'une ligne du bloc « langues » est le nom d\'une langue'),
+  e('langues-ligne-nom', 'grammaire', 'Une langue entre guillemets sur la ligne « langues : »',
+    'Sur la ligne « langues : », chaque langue est un nom écrit comme un mot du langage : francais, anglais.',
+    'Retire les guillemets autour du nom de la langue.',
+    p(`
+langues : francais, "anglais"
+
+page "accueil" :
+    titre "Bienvenue" en anglais "Welcome"
+`),
+    p(`
+langues : francais, anglais
+
+page "accueil" :
+    titre "Bienvenue" en anglais "Welcome"
+`),
+    'après « langues : », on attend le nom d\'une langue'),
+  e('langues-virgule-oubliee', 'grammaire', 'Deux langues sans virgule',
+    'Sur une seule ligne, les langues se séparent par des virgules, comme dans une phrase.',
+    'Mets une virgule entre deux langues.',
+    p(`
+langues : francais anglais
+
+page "accueil" :
+    titre "Bienvenue" en anglais "Welcome"
+`),
+    p(`
+langues : francais, anglais
+
+page "accueil" :
+    titre "Bienvenue" en anglais "Welcome"
+`),
+    'séparez les langues par des virgules'),
+  e('langues-virgule-de-trop', 'grammaire', 'Une virgule en fin de ligne des langues',
+    'Une virgule annonce une autre langue : à la fin de la ligne, elle n’annonce rien.',
+    'Retire la dernière virgule, ou écris la langue qui manque.',
+    p(`
+langues : francais, anglais,
+
+page "accueil" :
+    titre "Bienvenue" en anglais "Welcome"
+`),
+    p(`
+langues : francais, anglais
+
+page "accueil" :
+    titre "Bienvenue" en anglais "Welcome"
+`),
+    'après la virgule, il manque le nom d\'une langue'),
+  e('langues-ligne-et-bloc', 'grammaire', 'Des langues sur la ligne et en dessous',
+    'Les langues s’écrivent d’une seule façon à la fois : sur la ligne « langues : », ou en dessous, une par ligne.',
+    'Garde une seule des deux façons.',
+    p(`
+langues : francais
+    anglais
+
+page "accueil" :
+    titre "Bienvenue" en anglais "Welcome"
+`),
+    p(`
+langues : francais, anglais
+
+page "accueil" :
+    titre "Bienvenue" en anglais "Welcome"
+`),
+    'soit sur la ligne, soit en dessous'),
   e('langue-inconnue', 'sens', 'Une langue que Humalis ne connaît pas',
     'Humalis connaît le nom de quelques langues ; un mot mal écrit n’en fait pas partie.',
     'Corrige le nom de la langue (le message propose le plus proche).',
