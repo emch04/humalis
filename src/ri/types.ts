@@ -116,6 +116,8 @@ export interface ServeurRI {
     droits: Record<'lire' | 'creer' | 'modifier' | 'supprimer', QuiPeut | null>;
     ligne: number;
   }[];
+  /** « connexion google » : un compte déjà connu du serveur peut se connecter avec Google. */
+  connexionGoogle?: boolean;
 }
 
 export interface ComposantHumalis extends Ecran {
@@ -603,6 +605,8 @@ export type Action =
    * actions ne s'exécute pas. La session est gardée par le serveur.
    */
   | { type: 'connexion'; email: Valeur; motDePasse: Valeur }
+  /** « se connecter avec google » : la fenêtre de Google, puis la session d'un compte déjà connu. */
+  | { type: 'connexionGoogle' }
   | { type: 'deconnexion' }
   | {
       type: 'repetition';

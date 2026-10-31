@@ -215,6 +215,8 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
   if (session) {
     const source = application.sources.find((x) => x.session);
     fichiers.set('src/humalis/session.tsx', source ? sessionDeLaSource(SESSION, source) : SESSION);
+    // « se connecter avec google » : la page où Google renvoie, qui rend le jeton au site.
+    if (application.serveurs.some((s) => s.connexionGoogle)) fichiers.set('public/auth-google.html', PAGE_RETOUR_GOOGLE);
   }
   fichiers.set(
     'src/humalis/styles.css',
@@ -1211,6 +1213,8 @@ interface Utilisateur {
   admin: boolean;
   /** Vrai si la connexion a réussi ; sinon un message d'erreur s'affiche (dans « essayer », l'erreur est levée : « si erreur » la reçoit). */
   seConnecter(email: string, motDePasse: string, dansUnEssai?: boolean): Promise<boolean>;
+  /** « se connecter avec google » : la fenêtre de Google, puis la session d'un compte déjà connu du serveur. */
+  seConnecterAvecGoogle(dansUnEssai?: boolean): Promise<boolean>;
   seDeconnecter(): Promise<void>;
   /** Demande /auth/me une seule fois, à la première page qui lit la session. */
   demander(): void;
@@ -1288,6 +1292,73 @@ export function Session({ children }: { children: ReactNode }) {
     return true;
   }
 
+  /**
+   * « se connecter avec google » : une fenêtre s'ouvre chez Google ; la page /auth-google.html du site
+   * rend le jeton d'identité (par un canal du même site), et le serveur ouvre la session si le compte
+   * est déjà connu. Le jeton ne passe jamais dans l'adresse du site, ni dans un stockage.
+   */
+  async function seConnecterAvecGoogle(dansUnEssai = false): Promise<boolean> {
+    const refuser = (texte: string): boolean => {
+      if (dansUnEssai) throw new Error(texte);
+      afficherMessage(texte, 'erreur');
+      return false;
+    };
+    let clientId: string | null = null;
+    try {
+      const reponse = await fetch(BASE + '/auth/google', { credentials: 'same-origin' });
+      clientId = reponse.ok ? ((await reponse.json()) as { clientId?: string | null }).clientId ?? null : null;
+    } catch {
+      return refuser("Le serveur n'a pas répondu. Réessayez dans un instant.");
+    }
+    if (!clientId) return refuser("La connexion avec Google n'est pas encore réglée sur le serveur.");
+    const nonce = crypto.randomUUID();
+    const etat = crypto.randomUUID();
+    const parametres = new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: window.location.origin + '/auth-google.html',
+      response_type: 'id_token',
+      scope: 'openid email',
+      nonce,
+      state: etat,
+      prompt: 'select_account',
+    });
+    const canal = new BroadcastChannel('humalis-google');
+    const fenetre = window.open('https://accounts.google.com/o/oauth2/v2/auth?' + parametres, 'humalis-google', 'width=480,height=640');
+    if (!fenetre) {
+      canal.close();
+      return refuser('La fenêtre de Google a été bloquée : autorisez les fenêtres pour ce site, puis réessayez.');
+    }
+    // La page de retour répond sur le canal ; sans réponse en trois minutes, c'est annulé.
+    const jeton = await new Promise<string | null>((resoudre) => {
+      const fin = setTimeout(() => resoudre(null), 180000);
+      canal.onmessage = (evenement: MessageEvent<{ idToken?: string | null; etat?: string | null }>) => {
+        if (evenement.data?.etat !== etat) return;
+        clearTimeout(fin);
+        resoudre(evenement.data.idToken ?? null);
+      };
+    });
+    canal.close();
+    if (!jeton) return refuser('La connexion avec Google a été annulée.');
+    let reponse: Response;
+    try {
+      reponse = await fetch(BASE + '/auth/google', {
+        method: 'POST',
+        headers: entetes(),
+        credentials: 'same-origin',
+        body: JSON.stringify({ idToken: jeton, nonce }),
+      });
+    } catch {
+      return refuser("Le serveur n'a pas répondu. Réessayez dans un instant.");
+    }
+    if (!reponse.ok) {
+      const corps = (await reponse.json().catch(() => null)) as { erreur?: string } | null;
+      const raison = corps?.erreur ?? 'la connexion avec Google a été refusée';
+      return refuser(raison.charAt(0).toUpperCase() + raison.slice(1) + '.');
+    }
+    await relire();
+    return true;
+  }
+
   async function seDeconnecter(): Promise<void> {
     try {
       await fetch(BASE + '/auth/logout', { method: 'POST', headers: entetes(), credentials: 'same-origin' });
@@ -1307,6 +1378,7 @@ export function Session({ children }: { children: ReactNode }) {
       return derniere.current?.role === 'admin';
     },
     seConnecter,
+    seConnecterAvecGoogle,
     seDeconnecter,
     demander,
   };
@@ -1578,3 +1650,25 @@ Ce dossier est réécrit à chaque compilation Humalis (fichier \`${MARQUE}\`).
 
 /** Le nom du composant d'une page, comme dans src/pages/. */
 const genererNomComposant = (nom: string) => pascal(nom);
+
+/** La page de retour de Google : elle rend le jeton d'identité au site par un canal du même site, puis se ferme. */
+const PAGE_RETOUR_GOOGLE = `<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<title>Connexion avec Google</title>
+</head>
+<body>
+<p>Connexion en cours… Cette fenêtre va se fermer.</p>
+<script>
+  var reponse = new URLSearchParams(location.hash.slice(1));
+  var canal = new BroadcastChannel('humalis-google');
+  canal.postMessage({ idToken: reponse.get('id_token'), etat: reponse.get('state') });
+  canal.close();
+  history.replaceState(null, '', location.pathname);
+  window.close();
+</script>
+</body>
+</html>
+`;

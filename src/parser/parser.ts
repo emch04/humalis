@@ -63,7 +63,7 @@ import type {
   Boucle,
   Evenement,
   GenreEvenement,
-  Connexion, Suppression, Modification, EnvoiFichier, ArgumentPage } from './ast.js';
+  Connexion, ConnexionGoogle, Suppression, Modification, EnvoiFichier, ArgumentPage } from './ast.js';
 
 export function analyserSyntaxe(tokens: Token[]): Programme {
   const flux = new FluxTokens(tokens);
@@ -338,6 +338,7 @@ function analyserServeur(flux: FluxTokens): Serveur {
   flux.attendre('PONCTUATION', ':', 'deux-points après le nom du serveur');
   const donnees: Donnee[] = [];
   const routes: Route[] = [];
+  let connexionGoogle: number | undefined;
 
   chaqueLigne(flux, () => {
     const token = flux.actuel();
@@ -345,15 +346,24 @@ function analyserServeur(flux: FluxTokens): Serveur {
       donnees.push(analyserDonnee(flux));
     } else if (estLeMot(token, 'route')) {
       routes.push(analyserRoute(flux));
+    } else if (estLeMot(token, 'connexion')) {
+      // « connexion google » : la seule porte en plus de l'email et du mot de passe, pour l'instant.
+      flux.avancer();
+      const fournisseur = flux.actuel();
+      if (motDe(fournisseur) !== 'google') {
+        throw new ErreurSyntaxique(`après « connexion », écrivez le fournisseur : connexion google`, token.ligne);
+      }
+      flux.avancer();
+      connexionGoogle = token.ligne;
     } else {
       throw new ErreurSyntaxique(
-        `dans un serveur, on écrit « donnee … : » ou « route "…" : », mais « ${token.original ?? token.valeur} » a été trouvé`,
+        `dans un serveur, on écrit « donnee … : », « route "…" : » ou « connexion google », mais « ${token.original ?? token.valeur} » a été trouvé`,
         token.ligne,
       );
     }
   });
 
-  return { type: 'Serveur', nom, donnees, routes, ligne: debut.ligne };
+  return { type: 'Serveur', nom, donnees, routes, ...(connexionGoogle !== undefined ? { connexionGoogle } : {}), ligne: debut.ligne };
 }
 
 export function analyserDonnee(flux: FluxTokens, ouverte = false): Donnee {
@@ -1305,9 +1315,14 @@ function analyserOperationServeur(flux: FluxTokens): Suppression | Modification 
 }
 
 /** « se connecter avec champ "email" et champ "mot de passe" » : l'email, puis le mot de passe. */
-function analyserConnexion(flux: FluxTokens): Connexion {
+function analyserConnexion(flux: FluxTokens): Connexion | ConnexionGoogle {
   const debut = flux.avancer();
-  flux.attendre('MOT_CLE', 'avec', '« avec champ "email" et champ "mot de passe" » après « se connecter »');
+  flux.attendre('MOT_CLE', 'avec', '« avec champ "email" et champ "mot de passe" » (ou « avec google ») après « se connecter »');
+  // « se connecter avec google » : la fenêtre de Google.
+  if (motDe(flux.actuel()) === 'google') {
+    flux.avancer();
+    return { type: 'ConnexionGoogle', ligne: debut.ligne };
+  }
   const email = analyserOperande(flux);
   flux.attendre('MOT_CLE', 'et', '« et » suivi du champ du mot de passe');
   const motDePasse = analyserOperande(flux);

@@ -724,6 +724,8 @@ interface Utilisateur {
   admin: boolean;
   /** Vrai si la connexion a réussi ; sinon un message d'erreur s'affiche (dans « essayer », l'erreur est levée : « si erreur » la reçoit). */
   seConnecter(email: string, motDePasse: string, dansUnEssai?: boolean): Promise<boolean>;
+  /** « se connecter avec google » : pas encore sur le téléphone. */
+  seConnecterAvecGoogle(dansUnEssai?: boolean): Promise<boolean>;
   seDeconnecter(): Promise<void>;
   /** Demande /auth/me une seule fois, à la première page qui lit la session. */
   demander(): void;
@@ -797,6 +799,13 @@ export function Session({ children }: { children: ReactNode }) {
     return true;
   }
 
+  async function seConnecterAvecGoogle(dansUnEssai = false): Promise<boolean> {
+    const texte = "La connexion avec Google n'est pas encore disponible dans l'application mobile.";
+    if (dansUnEssai) throw new Error(texte);
+    afficherMessage(texte, 'erreur');
+    return false;
+  }
+
   async function seDeconnecter(): Promise<void> {
     try {
       const entetes = new Headers();
@@ -819,6 +828,7 @@ export function Session({ children }: { children: ReactNode }) {
       return derniere.current?.role === 'admin';
     },
     seConnecter,
+    seConnecterAvecGoogle,
     seDeconnecter,
     demander,
   };

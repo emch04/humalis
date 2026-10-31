@@ -125,6 +125,8 @@ export interface Serveur {
   nom: string;
   donnees: Donnee[];
   routes: Route[];
+  /** « connexion google » : un compte déjà connu du serveur peut se connecter avec Google (ligne). */
+  connexionGoogle?: number;
   ligne: number;
 }
 
@@ -317,6 +319,7 @@ export type Instruction =
   | Boucle
   | Evenement
   | Connexion
+  | ConnexionGoogle
   | Deconnexion
   | Suppression
   | Modification
@@ -560,6 +563,12 @@ export interface Connexion {
   type: 'Connexion';
   email: Expression;
   motDePasse: Expression;
+  ligne: number;
+}
+
+/** « se connecter avec google » : la fenêtre de Google, puis la session d'un compte déjà connu du serveur. */
+export interface ConnexionGoogle {
+  type: 'ConnexionGoogle';
   ligne: number;
 }
 
