@@ -425,3 +425,7 @@ html[data-theme=clair] .cible-code{color:#5c7a00}
 
 
 
+
+/* Cartes des cibles : le nom et sa phrase au milieu, sous le trait ; l’icône reste dans le coin. */
+.target-card :is(h2,h3),.target-card p{text-align:center}
+.target-card .humalis-icone{display:block}

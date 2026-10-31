@@ -110,6 +110,15 @@ describe('mouvement — web et desktop', () => {
     expect(config).toContain('transformHtml');
     expect(config).toContain('humalis-js');
   });
+  it('le prérendu retire les préchargements ajoutés en cours de route (avec ou sans mouvement)', async () => {
+    for (const projet of [web(ANIME), web(p('>titre "a"'))]) {
+      const config = fichier(projet, 'prerender.config.cjs');
+      const module = { exports: {} as { transformHtml?: (html: string) => string } };
+      new Function('module', config)(module);
+      const html = '<head><link rel="modulepreload" crossorigin="" href="/assets/page.js"><link rel="modulepreload" as="script" crossorigin="" href="https://exemple.test/assets/Accueil.js"></head>';
+      expect(module.exports.transformHtml!(html)).toBe('<head><link rel="modulepreload" crossorigin="" href="/assets/page.js"></head>');
+    }
+  });
   it('un programme sans mouvement n’a aucune règle de mouvement', () => {
     const css = fichier(web(p('>titre "a"', '>bloc avec ombre legere :', '>>texte "b"')), 'styles.css');
     expect(css).not.toContain('prefers-reduced-motion');

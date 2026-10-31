@@ -747,6 +747,10 @@ A variable (`variable`) holds a number, a text, `vrai` (true) or `faux`
 the French way: `12,50`. Inside a text, `{firstname}` shows the variable's
 value.
 
+A name cannot be one of the small French words Humalis skips so the code reads
+like a sentence: `le`, `la`, `les`, `un`, `une`, `des`, `de`, `du`, `a`, `au`,
+`aux`, `se`. Write `variable total = 0`, not `variable a = 0`.
+
 ### Changing a variable
 
 ```humalis

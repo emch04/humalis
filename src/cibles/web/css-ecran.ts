@@ -130,10 +130,11 @@ export function cssEcran(codes: string[]): string {
         break;
       case 'fixe':
         // « entete avec fixe » : l'en-tête ne bouge pas ; sur le web, la racine devient la zone qui
-        // défile, sous l'en-tête ; sur le statique, la page laisse la place de l'en-tête.
+        // défile, sous l'en-tête (sans glisser de côté : un décor qui dépasse ne la déplace pas) ;
+        // sur le statique, la page laisse la place de l'en-tête.
         regles.push(`header${classe} { position: fixed; top: 0; left: 0; right: 0; z-index: 50; background: var(--humalis-page); }`);
         regles.push('html:has(#racine > .humalis-fixe-oui), html:has(#racine > .humalis-fixe-oui) body { height: 100%; overflow: hidden; }');
-        regles.push('#racine:has(> .humalis-fixe-oui) { position: fixed; top: var(--humalis-hauteur-entete, 0px); left: 0; right: 0; bottom: 0; overflow-y: auto; overscroll-behavior: contain; }');
+        regles.push('#racine:has(> .humalis-fixe-oui) { position: fixed; top: var(--humalis-hauteur-entete, 0px); left: 0; right: 0; bottom: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; }');
         regles.push('body:has(header.humalis-fixe-oui) { padding-top: var(--humalis-hauteur-entete, 0px); }');
         break;
     }
