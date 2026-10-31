@@ -100,8 +100,8 @@ page "installer" a l'adresse "/installer" :
         bloc avec style "install-carte" :
             soustitre "Un souci ?" en anglais "Something wrong?" avec niveau 3
             liste :
-                texte "Vérifie ta version de Node.js avec {code "node -v"} : il faut 24 ou plus." en anglais "Check your Node.js version with {code "node -v"}: you need 24 or later."
-                texte "Si {code "npm install -g"} refuse d’écrire, installe Node.js avec un gestionnaire de versions comme nvm." en anglais "If {code "npm install -g"} cannot write, install Node.js with a version manager such as nvm."
+                texte "Vérifie ta version de Node.js avec `node -v` : il faut 24 ou plus." en anglais "Check your Node.js version with `node -v`: you need 24 or later."
+                texte "Si `npm install -g` refuse d’écrire, installe Node.js avec un gestionnaire de versions comme nvm." en anglais "If `npm install -g` cannot write, install Node.js with a version manager such as nvm."
                 texte "Toujours bloqué ? Décris le problème sur GitHub." en anglais "Still stuck? Describe the problem on GitHub."
             lien "Signaler un problème ↗" en anglais "Report an issue ↗" vers "https://github.com/emch04/humalis/issues" avec nouvel onglet et style "button button-secondary"
 

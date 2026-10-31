@@ -91,6 +91,12 @@ describe('grammaire : chaînes et interpolation', () => {
     expect(jetonDe(ligne, 'Bonjour ').portees).toContain('string.quoted.double.humalis');
   });
 
+  it('colorie le code entre accents graves, guillemets compris, sans fermer la chaîne', async () => {
+    const [ligne] = await colorier('texte "Écris `titre "Bonjour"` ici"');
+    expect(porteeDe(jetonDe(ligne, '`titre "Bonjour"`'))).toBe('markup.inline.raw.humalis');
+    expect(jetonDe(ligne, ' ici').portees).toContain('string.quoted.double.humalis');
+  });
+
   it('un mot-clé dans une chaîne reste du texte', async () => {
     const [ligne] = await colorier('texte "page si bouton"');
     const dansChaine = ligne.filter((j) => j.portees.includes('string.quoted.double.humalis'));

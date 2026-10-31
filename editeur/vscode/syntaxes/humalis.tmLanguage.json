@@ -90,6 +90,10 @@
           "match": "\\\\\""
         },
         {
+          "name": "markup.inline.raw.humalis",
+          "match": "`[^`]+`"
+        },
+        {
           "match": "(\\{)([^}\"]*)(\\})",
           "captures": {
             "1": {

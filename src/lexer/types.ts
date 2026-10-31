@@ -30,6 +30,8 @@ export interface Token {
   reserve?: boolean;
   /** Mots-clés, mots de liaison et mots collés : le mot tel qu'il est écrit. */
   original?: string;
+  /** Textes seulement : leur longueur dans la ligne, guillemets compris. */
+  longueur?: number;
 }
 
 export class ErreurLexicale extends Error {

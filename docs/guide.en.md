@@ -228,11 +228,14 @@ page "guide" :
 
 ### Code within a sentence
 
-In text, `{code "…"}` displays a short piece of code in a monospace font.
+In text, a piece of code goes between backticks, as in every documentation:
+it shows in a monospace font, as written, quotes and braces included.
+`{code "…"}` does the same.
 
 ```humalis
 page "guide" :
-    texte "Write {code "titre"} to add a heading."
+    texte "Write `titre` to add a heading."
+    texte "A text: `texte "Hello {firstname}"`."
 ```
 
 ### Code block

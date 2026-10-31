@@ -129,6 +129,8 @@ const grammaire = {
       patterns: [
         { match: '\\\\\\\\' },
         { name: 'constant.character.escape.humalis', match: '\\\\"' },
+        // `titre "Bonjour"` : le code d'une phrase, guillemets compris (il ne ferme pas la chaîne).
+        { name: 'markup.inline.raw.humalis', match: '`[^`]+`' },
         {
           match: '(\\{)([^}"]*)(\\})',
           captures: {
