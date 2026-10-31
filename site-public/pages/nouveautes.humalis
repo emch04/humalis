@@ -14,8 +14,19 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
             colonne avec style "frise" et animation montee au defilement et en cascade :
                 bloc avec style "version version-recente" :
                     ligne avec style "version-tete" :
-                        texte "1.3.1" sans traduction avec style "version-numero"
+                        texte "1.4.0" sans traduction avec style "version-numero"
                         texte "Dernière version" en anglais "Latest" avec style "pastille pastille-vive"
+                        texte "31 octobre 2026" en anglais "October 31, 2026" avec style "version-date"
+                    soustitre "Écrire comme on parle, des sites plus légers" en anglais "Write as you speak, lighter sites"
+                    liste :
+                        texte "Le code d’une phrase s’écrit entre accents graves : {code "Écris `titre` pour commencer"}, guillemets et accolades compris." en anglais "Code in a sentence goes between backticks: {code "Write `titre` to start"}, quotes and braces included."
+                        texte "Les langues tiennent sur une ligne : `langues : francais, anglais`, avec des messages clairs pour une virgule oubliée." en anglais "Languages fit on one line: `langues : francais, anglais`, with clear messages for a missing comma."
+                        texte "Chaque page web est dans son propre fichier, chargé à sa première visite : le site public passe de 947 à 238 Ko au départ." en anglais "Each web page has its own file, loaded on its first visit: the public site goes from 947 to 238 KB at start."
+                        texte "Sous `entete avec fixe`, la page ne glisse plus de côté quand un décor dépasse." en anglais "Under `entete avec fixe`, the page no longer slides sideways when a decoration overflows."
+                        texte "Le guide liste les petits mots qui ne peuvent pas servir de nom ; la couleur des blocs de code suit la fin réelle d’un texte." en anglais "The guide lists the small words that cannot be names; code block colours follow the real end of a text."
+                bloc avec style "version" :
+                    ligne avec style "version-tete" :
+                        texte "1.3.1" sans traduction avec style "version-numero"
                         texte "31 octobre 2026" en anglais "October 31, 2026" avec style "version-date"
                     soustitre "La version en une commande" en anglais "The version in one command"
                     liste :
@@ -81,7 +92,7 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
         colonne avec style "nouveautes-aside" et animation montee au defilement et en cascade :
             bloc avec style "aside-carte aside-vive" :
                 texte "Version actuelle" en anglais "Current version" avec style "aside-etiquette"
-                texte "1.3.1" sans traduction avec style "aside-version"
+                texte "1.4.0" sans traduction avec style "aside-version"
                 texte "Pour mettre à jour Humalis sur ta machine :" en anglais "To update Humalis on your machine:"
                 ligne avec style "install-command" :
                     texte "npm install -g humalis" sans traduction avec style "install-code"
@@ -92,7 +103,7 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
                 texte "En bref" en anglais "At a glance" avec style "aside-etiquette"
                 ligne avec style "aside-chiffres" :
                     colonne avec style "aside-chiffre" :
-                        texte "9" sans traduction avec style "aside-nombre"
+                        texte "10" sans traduction avec style "aside-nombre"
                         texte "versions" sans traduction
                     colonne avec style "aside-chiffre" :
                         texte "5" sans traduction avec style "aside-nombre"
