@@ -57,4 +57,24 @@ describe('valeur courante d’un champ dans une action', () => {
     const mobile = genererProjetMobile(application!, { nom: 'a', source: 'a.humalis' });
     expect([...mobile.values()].join('\n')).toContain('setDernier(champNouvelleTache)');
   });
+
+  it('relit la valeur à jour d’une variable changée plus haut dans le même événement', () => {
+    const source = programme(
+      'page "produit" :',
+      '>variable taille = ""',
+      '>variable panier = []',
+      '>formulaire "ajout" :',
+      '>>choix "Taille" parmi ["S", "M", "L"] avec obligatoire',
+      '>>bouton "Ajouter"',
+      '>quand le formulaire "ajout" est soumis :',
+      '>>changer taille par champ "Taille"',
+      '>>ajouter fiche avec taille taille à panier',
+    );
+    const { application, diagnostics } = compiler(source);
+    expect(diagnostics.filter((d) => d.gravite === 'erreur')).toEqual([]);
+    const web = genererProjetWeb(application!, { nom: 'a', adresse: 'https://a.exemple.fr', source: 'a.humalis' }).get('src/pages/Produit.tsx')!;
+    expect(web).toContain('tailleMaj = champTaille;');
+    expect(web).toContain('taille: tailleMaj');
+    expect(web).not.toContain('taille: taille }');
+  });
 });
