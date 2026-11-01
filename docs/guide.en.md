@@ -824,6 +824,8 @@ page "grades" :
         changer roll par hasard entre 1 et 6
 ```
 
+On a list of records or data, these calculations read a field: `somme de panier.prix`, even when `panier` starts empty (`variable panier = []`).
+
 `moyenne de` (average of), `arrondi de … a 1 chiffres` (rounded to 1 digit),
 `maximum de`, `minimum de`, `somme de` (sum of), `hasard entre 1 et 6`
 (random between 1 and 6).
