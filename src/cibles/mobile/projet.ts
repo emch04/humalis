@@ -42,6 +42,7 @@ export interface OptionsMobile {
  * demande.
  */
 export const VERSIONS_MOBILE = {
+  client: '1.1.0',
   expo: '57.0.29',
   expoRouter: '57.0.27',
   expoConstants: '57.0.22',
@@ -141,6 +142,8 @@ export function genererProjetMobile(application: Application, options: OptionsMo
   const choixFichier = fichiers.has('humalis/choix-fichier.tsx');
   const reduction = serveur && choixFichier;
   if (reduction) dependances['expo-image-manipulator'] = VERSIONS_FICHIERS.imageManipulator;
+  // La session se renouvelle tant que la personne revient (jeton dans le coffre du téléphone).
+  if (session) dependances['@astratra/client'] = VERSIONS_MOBILE.client;
   const galerie = fichiers.get('humalis/choix-fichier.tsx')?.includes("from 'expo-image-picker'") ?? false;
   // Plusieurs langues : la langue du téléphone (expo-localization) et le choix gardé (AsyncStorage).
   const langues = application.langues !== undefined;
@@ -177,10 +180,14 @@ export function genererProjetMobile(application: Application, options: OptionsMo
   if (codes.some((c) => /<SurAppareil\b/.test(c))) fichiers.set('humalis/appareil.tsx', APPAREIL_TSX);
   if (degrade) fichiers.set('humalis/degrade.tsx', DEGRADE_TSX);
   if (codes.some((c) => /<Anime\b/.test(c))) fichiers.set('humalis/mouvement.tsx', MOUVEMENT_TSX);
-  if (serveur) fichiers.set('humalis/serveur.ts', avecEchecs(reduction ? serveurAvecReduction() : SERVEUR, codes));
+  if (serveur) {
+    const modele = reduction ? serveurAvecReduction() : SERVEUR;
+    fichiers.set('humalis/serveur.ts', avecEchecs(session ? serveurRenouvele(modele) : modele, codes));
+  }
   // La dernière réponse de chaque lecture publique : un écran déjà vu s'affiche tout de suite.
   if (serveur) fichiers.set('humalis/lectures.ts', lecturesTs('mobile'));
   if (session) fichiers.set('humalis/session.tsx', SESSION);
+  if (session) fichiers.set('humalis/renouveler.ts', RENOUVELER);
   if (memoire || secret) fichiers.set('humalis/memoire.ts', memoireTs(memoire, secret));
   if (application.partages.length > 0) fichiers.set('humalis/partage.tsx', partageTsx(application.partages, contexte.cle));
   if (application.serveurs.length > 0) fichiers.set('humalis/donnees.ts', donneesTs(application));
@@ -670,6 +677,8 @@ export function useServeur() {
       const reponse = lecture ? await lireEnCommun(adresse, BASE + adresse, envoi) : await fetch(BASE + adresse, envoi);
       // Une lecture d'un élément qui n'existe plus (404) : la valeur actuelle est gardée, sans faux « pas répondu ».
       if (reponse.status === 404 && options.method === 'GET') return actuelle;
+      // Personne n'est connecté : ce n'est pas une panne du serveur.
+      if (reponse.status === 401) throw new Error('Connectez-vous pour continuer.');
       if (!reponse.ok) {
         // Un refus du serveur : sa raison, pour « si erreur » et le message.
         const corps = (await reponse.json().catch(() => null)) as { erreur?: unknown } | null;
@@ -748,6 +757,133 @@ function serveurAvecReduction(): string {
 }
 
 /**
+ * Le renouvellement sur le téléphone : le jeton d'accès dure 15 minutes ; le jeton de renouvellement,
+ * gardé dans le coffre, en donne un autre. Dans un navigateur (Expo web), c'est le cookie HttpOnly.
+ * Le serveur vérifie seul les durées (3 jours sans venir, 30 jours au plus).
+ */
+const RENOUVELER = `import { createSessionClient, SessionExpiredError } from '@astratra/client';
+import { Platform } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
+
+const BASE = process.env.EXPO_PUBLIC_HUMALIS_SERVEUR ?? '';
+const surTelephone = Platform.OS !== 'web';
+const EXPIREE = 'Votre session a expiré. Connectez-vous de nouveau.';
+const DEMANDEE = 'Connectez-vous pour continuer.';
+
+/** Où la connexion range ses jetons, dans le coffre du téléphone. */
+export const CLE_JETON = 'humalis.jeton';
+export const CLE_RENOUVELLEMENT = 'humalis.renouvellement';
+
+/** Ce que disent les routes de session : les deux jetons à garder (à la racine, ou dans « data »). */
+export async function garderLesJetons(corps: { token?: unknown; refreshToken?: unknown } | null | undefined): Promise<void> {
+  if (!surTelephone) return;
+  if (typeof corps?.token === 'string') await SecureStore.setItemAsync(CLE_JETON, corps.token);
+  if (typeof corps?.refreshToken === 'string') await SecureStore.setItemAsync(CLE_RENOUVELLEMENT, corps.refreshToken);
+}
+
+export async function oublierLesJetons(): Promise<void> {
+  if (!surTelephone) return;
+  await SecureStore.deleteItemAsync(CLE_JETON);
+  await SecureStore.deleteItemAsync(CLE_RENOUVELLEMENT);
+}
+
+/** La session est finie : le serveur a refusé de la renouveler. */
+export class SessionFinie extends Error {
+  constructor(
+    message: string,
+    /** Quelqu'un était connecté ici. */
+    readonly expiree: boolean,
+    /** Une autre requête du même instant l'a déjà dit. */
+    readonly dejaDite: boolean,
+  ) {
+    super(message);
+  }
+}
+
+type Lancer = () => Promise<Response>;
+let refusee = false;
+
+const client = createSessionClient({
+  request: async (_chemin: string, lancer?: unknown) => {
+    const reponse = await (lancer as Lancer)();
+    if (reponse.status === 401) throw Object.assign(new Error('401'), { status: 401 });
+    return reponse;
+  },
+  // Vol unique, assuré par le pack : plusieurs requêtes refusées, un seul renouvellement.
+  refresh: async () => {
+    const jeton = surTelephone ? await SecureStore.getItemAsync(CLE_RENOUVELLEMENT) : null;
+    if (surTelephone && !jeton) throw Object.assign(new Error('401'), { status: 401 });
+    const reponse = await fetch(
+      BASE + '/auth/refresh',
+      surTelephone
+        ? { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-humalis-mobile': '1' }, body: JSON.stringify({ refreshToken: jeton }) }
+        : { method: 'POST', credentials: 'same-origin' },
+    );
+    if (!reponse.ok) {
+      // Une coupure ou une limite ne ferme pas la session ; un refus, si.
+      if (surTelephone && [400, 401, 403].includes(reponse.status)) {
+        refusee = true;
+        await oublierLesJetons();
+      }
+      throw Object.assign(new Error("Le serveur n'a pas répondu."), { status: reponse.status });
+    }
+    await garderLesJetons(((await reponse.json()) as { data?: { token?: unknown; refreshToken?: unknown } }).data);
+  },
+});
+
+const ecoutes = new Set<() => void>();
+let derniereFin = 0;
+
+/** La session de l'application écoute ici : plus personne n'est connecté. */
+export function surFinDeSession(rappel: () => void): () => void {
+  ecoutes.add(rappel);
+  return () => {
+    ecoutes.delete(rappel);
+  };
+}
+
+function finDeSession(): SessionFinie {
+  const dejaDite = Date.now() - derniereFin < 3000;
+  const expiree = refusee;
+  refusee = false;
+  if (expiree) derniereFin = Date.now();
+  for (const rappel of ecoutes) rappel();
+  return new SessionFinie(expiree || dejaDite ? EXPIREE : DEMANDEE, expiree, dejaDite);
+}
+
+/** Lance un appel ; sur un 401, renouvelle la session et le relance une fois. \`lancer\` relit le jeton à chaque essai. */
+export async function avecSession(lancer: Lancer): Promise<Response> {
+  try {
+    return (await client.call('', lancer)) as Response;
+  } catch (erreur) {
+    if (erreur instanceof SessionExpiredError || (erreur as { status?: unknown }).status === 401) throw finDeSession();
+    throw erreur;
+  }
+}
+`;
+
+/** `serveur.ts` avec le renouvellement : le 401 ne remonte que si le serveur refuse de renouveler. */
+function serveurRenouvele(modele: string): string {
+  const remplacer = (texte: string, avant: string, apres: string) => {
+    if (!texte.includes(avant)) throw new Error(`modèle du serveur mobile inattendu : ${avant}`);
+    return texte.replace(avant, apres);
+  };
+  let texte = remplacer(modele, "import { useMessages } from './messages';\n", "import { useMessages } from './messages';\nimport { avecSession, CLE_JETON, SessionFinie } from './renouveler';\n");
+  texte = remplacer(texte, "\n/** Où la connexion range le jeton de session, dans le coffre du téléphone. */\nexport const CLE_JETON = 'humalis.jeton';\n", "\nexport { CLE_JETON };\n");
+  texte = remplacer(
+    texte,
+    'const reponse = lecture ? await lireEnCommun(adresse, BASE + adresse, envoi) : await fetch(BASE + adresse, envoi);',
+    "const reponse = await avecSession(async () => {\n        // Relu à chaque essai : après un renouvellement, le jeton a changé.\n        await securiser(entetes, options.method ?? 'GET');\n        return lecture ? lireEnCommun(adresse, BASE + adresse, envoi) : fetch(BASE + adresse, envoi);\n      });",
+  );
+  texte = remplacer(texte, "      // Personne n'est connecté : ce n'est pas une panne du serveur.\n      if (reponse.status === 401) throw new Error('Connectez-vous pour continuer.');\n", '');
+  return remplacer(
+    texte,
+    '      afficherMessage(derniereRaison === PAS_DE_REPONSE ?',
+    '      if (erreur instanceof SessionFinie && erreur.dejaDite) return actuelle;\n      afficherMessage(derniereRaison === PAS_DE_REPONSE ?',
+  );
+}
+
+/**
  * La session sur le mobile (décision L5) : les packs Astratra donnent un
  * jeton à la connexion ; le téléphone le range dans son coffre et le
  * présente dans l'en-tête Authorization (client « Bearer »). Dans le
@@ -755,9 +891,9 @@ function serveurAvecReduction(): string {
  */
 const SESSION = `import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Platform } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
 import { useMessages } from './messages';
-import { BASE, CLE_JETON, securiser } from './serveur';
+import { BASE, securiser } from './serveur';
+import { avecSession, garderLesJetons, oublierLesJetons, SessionFinie, surFinDeSession } from './renouveler';
 
 /** Ce que /auth/me dit de la personne connectée. */
 interface Personne {
@@ -801,16 +937,30 @@ export function Session({ children }: { children: ReactNode }) {
   const relire = useCallback(async () => {
     try {
       const entetes = new Headers();
-      await securiser(entetes, 'GET');
-      const reponse = await fetch(BASE + '/auth/me', { headers: entetes, credentials: 'same-origin' });
+      const reponse = await avecSession(async () => {
+        await securiser(entetes, 'GET');
+        return fetch(BASE + '/auth/me', { headers: entetes, credentials: 'same-origin' });
+      });
       const corps = reponse.ok ? ((await reponse.json()) as { data?: Personne | null }) : null;
       derniere.current = corps?.data?.id !== undefined ? corps.data : null;
-    } catch {
+    } catch (erreur) {
       derniere.current = null;
+      if (erreur instanceof SessionFinie && erreur.expiree && !erreur.dejaDite) afficherMessage(erreur.message, 'avertissement');
     }
     setPersonne(derniere.current);
     setPret(true);
-  }, []);
+  }, [afficherMessage]);
+
+  // Une requête refusée en plein travail : l'application voit aussitôt que plus personne n'est connecté.
+  useEffect(
+    () =>
+      surFinDeSession(() => {
+        derniere.current = null;
+        setPersonne(null);
+        setPret(true);
+      }),
+    [],
+  );
 
   const demander = useCallback(() => {
     if (demandee.current) return;
@@ -828,6 +978,8 @@ export function Session({ children }: { children: ReactNode }) {
     try {
       const entetes = new Headers({ 'Content-Type': 'application/json' });
       await securiser(entetes, 'POST');
+      // Le téléphone n'a pas de cookie sûr : il reçoit son jeton de renouvellement pour son coffre.
+      if (surTelephone) entetes.set('x-humalis-mobile', '1');
       reponse = await fetch(BASE + '/auth/login', {
         method: 'POST',
         headers: entetes,
@@ -846,8 +998,7 @@ export function Session({ children }: { children: ReactNode }) {
     }
     if (surTelephone) {
       // Le jeton donné par le pack va dans le coffre du téléphone, nulle part ailleurs.
-      const corps = (await reponse.json()) as { data?: { token?: string } };
-      if (corps.data?.token) await SecureStore.setItemAsync(CLE_JETON, corps.data.token);
+      await garderLesJetons(((await reponse.json()) as { data?: { token?: unknown; refreshToken?: unknown } }).data);
     }
     await relire();
     return true;
@@ -869,15 +1020,18 @@ export function Session({ children }: { children: ReactNode }) {
     let reponse: Response;
     try {
       const entetes = new Headers({ 'Content-Type': 'application/json' });
-      await securiser(entetes, 'POST');
-      reponse = await fetch(BASE + '/auth/mot-de-passe', {
-        method: 'POST',
-        headers: entetes,
-        credentials: 'same-origin',
-        body: JSON.stringify({ actuel, nouveau }),
+      if (surTelephone) entetes.set('x-humalis-mobile', '1');
+      reponse = await avecSession(async () => {
+        await securiser(entetes, 'POST');
+        return fetch(BASE + '/auth/mot-de-passe', {
+          method: 'POST',
+          headers: entetes,
+          credentials: 'same-origin',
+          body: JSON.stringify({ actuel, nouveau }),
+        });
       });
-    } catch {
-      return refuser("Le serveur n'a pas répondu. Réessayez dans un instant.");
+    } catch (erreur) {
+      return refuser(erreur instanceof SessionFinie ? erreur.message : "Le serveur n'a pas répondu. Réessayez dans un instant.");
     }
     if (reponse.status === 429) return refuser('Trop de tentatives. Réessayez dans quelques minutes.');
     if (!reponse.ok) {
@@ -885,18 +1039,22 @@ export function Session({ children }: { children: ReactNode }) {
       const raison = corps?.erreur ?? "le mot de passe n'a pas été changé";
       return refuser(raison.charAt(0).toUpperCase() + raison.slice(1) + '.');
     }
+    // Le changement a fermé les autres sessions ; celle-ci repart avec des jetons neufs.
+    await garderLesJetons((await reponse.json().catch(() => null)) as { token?: unknown; refreshToken?: unknown } | null);
     return true;
   }
 
   async function seDeconnecter(): Promise<void> {
     try {
       const entetes = new Headers();
-      await securiser(entetes, 'POST');
-      await fetch(BASE + '/auth/logout', { method: 'POST', headers: entetes, credentials: 'same-origin' });
-    } catch {
-      afficherMessage("Le serveur n'a pas répondu. Réessayez dans un instant.", 'erreur');
+      await avecSession(async () => {
+        await securiser(entetes, 'POST');
+        return fetch(BASE + '/auth/logout', { method: 'POST', headers: entetes, credentials: 'same-origin' });
+      });
+    } catch (erreur) {
+      if (!(erreur instanceof SessionFinie)) afficherMessage("Le serveur n'a pas répondu. Réessayez dans un instant.", 'erreur');
     }
-    if (surTelephone) await SecureStore.deleteItemAsync(CLE_JETON);
+    await oublierLesJetons();
     await relire();
   }
 

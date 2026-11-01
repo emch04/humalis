@@ -15,6 +15,9 @@ export const VERSIONS_SERVEUR = {
   saasKit: '2.0.1',
   security: '1.13.0',
   storePostgres: '1.1.0',
+  centrale: '1.10.0',
+  credentials: '1.1.0',
+  tooling: '1.6.2',
   express: '4.22.3',
   pg: '8.23.1',
   typescript: '7.0.2',
@@ -43,15 +46,20 @@ export function genererProjetServeur(serveur: ServeurRI, options: OptionsServeur
   fichiers.set('package.json', packageJson(options.nom));
   fichiers.set('tsconfig.json', TSCONFIG);
   fichiers.set('.gitignore', 'node_modules\ndist\n.env\n');
-  fichiers.set('.env.exemple', serveur.connexionGoogle ? ENV_EXEMPLE.replace('\nPORT=3000', ENV_GOOGLE + '\nPORT=3000') : ENV_EXEMPLE);
+  fichiers.set('.env.exemple', envExemple(serveur));
   fichiers.set('LISEZMOI.md', lisezmoi(serveur, options));
   fichiers.set('src/humalis/verifier.ts', VERIFIER);
   fichiers.set('src/humalis/stockage.ts', STOCKAGE);
   fichiers.set('src/humalis/compresser.ts', COMPRESSER);
+  fichiers.set('src/humalis/renouvellements.ts', RENOUVELLEMENTS);
+  fichiers.set('src/humalis/sessions.ts', SESSIONS);
+  fichiers.set('src/humalis/centrale.ts', CENTRALE);
+  fichiers.set('src/humalis/coffre.ts', coffreTs(serveur));
   fichiers.set('src/donnees.ts', donneesTs(serveur));
   fichiers.set('src/serveur.ts', serveurTs(serveur));
   fichiers.set('src/demarrer.ts', demarrerTs(serveur));
   fichiers.set('tests/regles.test.ts', testsRegles(serveur));
+  fichiers.set('tests/sessions.test.ts', testsSessions(serveur));
   return fichiers;
 }
 
@@ -112,8 +120,13 @@ function packageJson(nom: string): string {
         build: 'tsc',
         start: 'node --env-file-if-exists=.env dist/src/demarrer.js',
         test: 'vitest run --dir tests',
+        // Les failles connues des dépendances, et les secrets écrits en dur dans un journal ou une réponse.
+        'audit:deps': 'astratra audit:deps',
+        'audit:secrets': 'astratra audit:secrets',
       },
       dependencies: {
+        '@astratra/centrale': v.centrale,
+        '@astratra/credentials': v.credentials,
         '@astratra/saas-kit': v.saasKit,
         '@astratra/security': v.security,
         '@astratra/store-postgres': v.storePostgres,
@@ -121,6 +134,7 @@ function packageJson(nom: string): string {
         pg: v.pg,
       },
       devDependencies: {
+        '@astratra/tooling': v.tooling,
         '@types/express': v.typesExpress,
         '@types/node': v.typesNode,
         '@types/pg': v.typesPg,
@@ -173,11 +187,466 @@ HUMALIS_ADMIN_MOT_DE_PASSE=
 # La base PostgreSQL. Sans elle, les données restent en mémoire (développement).
 DATABASE_URL=
 
-# La durée d'une session (« 3d », « 12h ») ; 3 jours par défaut.
+# La session : elle se renouvelle tant que la personne revient.
+# HUMALIS_SESSION : après ce temps sans venir, il faut se reconnecter (« 3d », « 12h » ; 3 jours par défaut).
+# HUMALIS_SESSION_MAX : après ce temps depuis la connexion, il faut se reconnecter, même en revenant chaque jour (30 jours par défaut).
 HUMALIS_SESSION=
+HUMALIS_SESSION_MAX=
+
+# La surveillance (@astratra/centrale) : erreurs et requêtes, masquées avant l'envoi.
+# Sans ces deux variables, rien n'est chargé et rien ne part. La clé est publique (clj_pub_…).
+CENTRALE_ADRESSE=
+CENTRALE_CLE=
+# production, preproduction ou developpement ; sinon, déduit de NODE_ENV.
+CENTRALE_ENVIRONNEMENT=
+
+# Le coffre des clés de service, chiffrées en base et modifiables sans redémarrer (/auth/cles, réservé à l'admin).
+# 32 octets au hasard : openssl rand -base64 32. Sans elle, le coffre reste fermé et le .env sert seul.
+# La perdre rend illisibles les clés déjà rangées : garde-la hors de la base.
+ENCRYPTION_KEY=
 
 PORT=3000
 `;
+
+function envExemple(serveur: ServeurRI): string {
+  return serveur.connexionGoogle ? ENV_EXEMPLE.replace('\nPORT=3000', ENV_GOOGLE + '\nPORT=3000') : ENV_EXEMPLE;
+}
+
+/**
+ * Le magasin des renouvellements de session : l'empreinte de chaque jeton, jamais le jeton, en
+ * mémoire ou dans PostgreSQL. Le service de @astratra/security fait la rotation et révoque toute la
+ * famille d'un jeton rejoué ; `plafonner` ajoute le plafond absolu depuis la connexion.
+ */
+const RENOUVELLEMENTS = `import type { RefreshTokenRecord, RefreshTokenStore } from '@astratra/security';
+import type { PoolPostgres } from './stockage.js';
+
+/**
+ * Produit par Humalis. \`familyStartedAt\` : la connexion d'origine, recopiée à chaque rotation
+ * (le ménage efface les vieilles lignes d'une famille, jamais la dernière).
+ */
+export type LigneRenouvellement = RefreshTokenRecord & { familyStartedAt?: number };
+
+export interface MagasinRenouvellements extends RefreshTokenStore {
+  debutDeFamille(familyId: string): Promise<number | null>;
+}
+
+/** Perdu à l'arrêt du serveur : développement et tests seulement. */
+export function creerMagasinMemoire(): MagasinRenouvellements {
+  const lignes = new Map<string, LigneRenouvellement>();
+  const deLaFamille = (familyId: string) => [...lignes.values()].filter((l) => l.familyId === familyId);
+  return {
+    async save(ligne) {
+      lignes.set(ligne.id, { ...ligne });
+    },
+    async findByHash(hash) {
+      const ligne = [...lignes.values()].find((l) => l.hash === hash);
+      return ligne ? { ...ligne } : null;
+    },
+    async markConsumed(id, at) {
+      const ligne = lignes.get(id);
+      if (ligne) ligne.consumedAt = at;
+    },
+    async revokeFamily(familyId, at) {
+      for (const ligne of deLaFamille(familyId)) ligne.revokedAt ??= at;
+    },
+    async revokeAllForUser(userId, at) {
+      for (const ligne of lignes.values()) if (ligne.userId === userId) ligne.revokedAt ??= at;
+    },
+    async deleteExpired(before) {
+      let retirees = 0;
+      for (const [id, ligne] of lignes) {
+        if (ligne.expiresAt <= before) retirees += Number(lignes.delete(id));
+      }
+      return retirees;
+    },
+    async debutDeFamille(familyId) {
+      const debuts = deLaFamille(familyId).map((l) => l.familyStartedAt ?? l.createdAt);
+      return debuts.length > 0 ? Math.min(...debuts) : null;
+    },
+  };
+}
+
+/** Requêtes paramétrées ; un redémarrage du serveur ne déconnecte personne. */
+export function creerMagasinPostgres(pool: PoolPostgres): MagasinRenouvellements {
+  let prete: Promise<unknown> | undefined;
+  const preparer = () =>
+    (prete ??= pool
+      .query(
+        'CREATE TABLE IF NOT EXISTS sessions_renouvellement (id TEXT PRIMARY KEY, famille TEXT NOT NULL, utilisateur TEXT NOT NULL, empreinte TEXT NOT NULL UNIQUE, cree_le BIGINT NOT NULL, debut BIGINT NOT NULL, expire_le BIGINT NOT NULL, consomme_le BIGINT, revoque_le BIGINT);' +
+          ' CREATE INDEX IF NOT EXISTS sessions_renouvellement_famille ON sessions_renouvellement (famille);' +
+          ' CREATE INDEX IF NOT EXISTS sessions_renouvellement_utilisateur ON sessions_renouvellement (utilisateur);',
+      )
+      .catch((erreur: unknown) => {
+        // La base revient : on réessaiera au prochain appel.
+        prete = undefined;
+        throw erreur;
+      }));
+  const nombre = (valeur: unknown) => (valeur === null || valeur === undefined ? null : Number(valeur));
+  const lire = (l: Record<string, unknown>): LigneRenouvellement => ({
+    id: String(l.id),
+    familyId: String(l.famille),
+    userId: String(l.utilisateur),
+    hash: String(l.empreinte),
+    createdAt: Number(l.cree_le),
+    familyStartedAt: Number(l.debut),
+    expiresAt: Number(l.expire_le),
+    consumedAt: nombre(l.consomme_le),
+    revokedAt: nombre(l.revoque_le),
+  });
+  return {
+    async save(ligne) {
+      await preparer();
+      const l = ligne as LigneRenouvellement;
+      await pool.query(
+        'INSERT INTO sessions_renouvellement (id, famille, utilisateur, empreinte, cree_le, debut, expire_le, consomme_le, revoque_le) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+        [l.id, l.familyId, l.userId, l.hash, l.createdAt, l.familyStartedAt ?? l.createdAt, l.expiresAt, l.consumedAt, l.revokedAt],
+      );
+    },
+    async findByHash(hash) {
+      await preparer();
+      const { rows } = await pool.query('SELECT * FROM sessions_renouvellement WHERE empreinte = $1', [hash]);
+      return rows[0] ? lire(rows[0]) : null;
+    },
+    async markConsumed(id, at) {
+      await preparer();
+      await pool.query('UPDATE sessions_renouvellement SET consomme_le = $2 WHERE id = $1', [id, at]);
+    },
+    async revokeFamily(familyId, at) {
+      await preparer();
+      await pool.query('UPDATE sessions_renouvellement SET revoque_le = COALESCE(revoque_le, $2) WHERE famille = $1', [familyId, at]);
+    },
+    async revokeAllForUser(userId, at) {
+      await preparer();
+      await pool.query('UPDATE sessions_renouvellement SET revoque_le = COALESCE(revoque_le, $2) WHERE utilisateur = $1', [userId, at]);
+    },
+    async deleteExpired(before) {
+      await preparer();
+      const resultat = await pool.query('DELETE FROM sessions_renouvellement WHERE expire_le <= $1', [before]);
+      return resultat.rowCount ?? 0;
+    },
+    async debutDeFamille(familyId) {
+      await preparer();
+      const { rows } = await pool.query('SELECT MIN(debut) AS debut FROM sessions_renouvellement WHERE famille = $1', [familyId]);
+      return nombre(rows[0]?.debut);
+    },
+  };
+}
+
+/**
+ * La borne que seul le serveur vérifie : un jeton renouvelé n'expire jamais après connexion + maximum,
+ * même si la personne revient chaque jour.
+ *
+ * Deux onglets qui renouvellent au même instant présentent le même jeton : le service y verrait
+ * un vol et fermerait la session. Pendant \`graceMs\`, un jeton déjà utilisé reste donc accepté ;
+ * passé ce délai, le rejeu révoque toute la famille.
+ */
+export function plafonner(
+  magasin: MagasinRenouvellements,
+  { maximumMs, horloge = Date.now, graceMs = 10_000 }: { maximumMs: number; horloge?: () => number; graceMs?: number },
+): RefreshTokenStore {
+  const dejaConsommes = new Set<string>();
+  return {
+    ...magasin,
+    async save(ligne) {
+      const debut = (await magasin.debutDeFamille(ligne.familyId)) ?? ligne.createdAt;
+      const bornee: LigneRenouvellement = { ...ligne, familyStartedAt: debut, expiresAt: Math.min(ligne.expiresAt, debut + maximumMs) };
+      return magasin.save(bornee);
+    },
+    async findByHash(hash) {
+      const ligne = await magasin.findByHash(hash);
+      if (ligne?.consumedAt && !ligne.revokedAt && horloge() - ligne.consumedAt <= graceMs) {
+        dejaConsommes.add(ligne.id);
+        return { ...ligne, consumedAt: null };
+      }
+      return ligne;
+    },
+    async markConsumed(id, at) {
+      // Le délai de grâce compte depuis le premier usage : il ne s'allonge pas à chaque rejeu.
+      if (!dejaConsommes.delete(id)) await magasin.markConsumed(id, at);
+    },
+  };
+}
+`;
+
+/**
+ * La session glissante : un jeton d'accès court (cookie HttpOnly du pack) et un jeton de
+ * renouvellement dans un autre cookie HttpOnly, limité à /auth. Le navigateur ne le voit jamais ;
+ * le téléphone, qui n'a pas de cookie sûr, le garde dans son coffre.
+ */
+const SESSIONS = `import { clearSessionCookie, createRefreshTokenService, parseCookieHeader, setSessionCookie, type RefreshTokenService } from '@astratra/security';
+import type { RequestHandler } from 'express';
+import { creerMagasinMemoire, plafonner, type MagasinRenouvellements } from './renouvellements.js';
+
+/** Produit par Humalis. Le jeton d'accès est court : c'est lui qui limite les dégâts d'un vol. */
+const DUREE_JETON = '15m';
+const COOKIE = { name: 'humalis_renouvellement', path: '/auth' };
+const UNITES: Record<string, number> = { s: 1000, m: 60_000, h: 3_600_000, d: 86_400_000 };
+
+export interface ReglagesSession {
+  /** La durée du jeton d'accès (« 15m »). */
+  jeton: string;
+  /** Sans venir pendant ce temps, il faut se reconnecter. */
+  dureeMs: number;
+  /** Depuis la connexion, jamais plus que ce temps. */
+  maximumMs: number;
+  magasin: MagasinRenouvellements;
+  horloge?: () => number;
+}
+
+/** « 3d », « 12h », « 45m » : refuse le reste, avec une phrase qui dit quoi écrire. */
+export function lireDuree(valeur: string | undefined, defaut: string, nom: string): number {
+  const texte = valeur?.trim() || defaut;
+  const morceaux = /^(\\d+)([smhd])$/.exec(texte);
+  if (!morceaux || Number(morceaux[1]) === 0) throw new Error(nom + ' doit être une durée comme 3d, 12h ou 45m.');
+  return Number(morceaux[1]) * UNITES[morceaux[2]];
+}
+
+export function reglagesDeSession(env: Record<string, string | undefined>, magasin: MagasinRenouvellements = creerMagasinMemoire()): ReglagesSession {
+  return {
+    jeton: DUREE_JETON,
+    dureeMs: lireDuree(env.HUMALIS_SESSION, '3d', 'HUMALIS_SESSION'),
+    maximumMs: lireDuree(env.HUMALIS_SESSION_MAX, '30d', 'HUMALIS_SESSION_MAX'),
+    magasin,
+  };
+}
+
+export function creerRenouvellement({ magasin, dureeMs, maximumMs, horloge }: ReglagesSession): RefreshTokenService {
+  const service = createRefreshTokenService({
+    store: plafonner(magasin, { maximumMs, horloge }),
+    ttlMs: dureeMs,
+    ...(horloge ? { now: horloge } : {}),
+  });
+  // Le ménage : les jetons expirés quittent la table. Cette minuterie ne retient jamais le serveur.
+  setInterval(() => void service.prune().catch(() => {}), 6 * 3_600_000).unref();
+  return service;
+}
+
+const CHEMINS = new Set(['/auth/login', '/auth/refresh', '/auth/logout', '/auth/google', '/auth/mot-de-passe']);
+
+/**
+ * Autour des routes de session du pack : le jeton de renouvellement part dans le cookie HttpOnly et
+ * disparaît de la réponse. Seul un téléphone (x-humalis-mobile) le reçoit en JSON à la connexion ;
+ * un jeton venu d'un cookie ne ressort jamais en JSON, quel que soit l'en-tête : une page piégée ne peut pas le lire.
+ */
+export function renouvellementEnCookie(dureeMs: number): RequestHandler {
+  const reglages = { ...COOKIE, maxAgeMs: dureeMs };
+  return (req, res, next) => {
+    if (req.method !== 'POST' || !CHEMINS.has(req.path)) {
+      next();
+      return;
+    }
+    const recu = parseCookieHeader(req.headers.cookie)[COOKIE.name];
+    // Lus tout de suite : plus loin, les routeurs du pack raccourcissent req.path.
+    const renouveler = req.path === '/auth/refresh';
+    const sortie = req.path === '/auth/logout';
+    if (renouveler && recu) {
+      req.body = { refreshToken: recu };
+      (req as unknown as { _body: boolean })._body = true;
+    }
+    const parCookie = renouveler ? Boolean(recu) : req.headers['x-humalis-mobile'] !== '1';
+    const repondre = res.json.bind(res);
+    res.json = ((corps: unknown) => repondre(parCookie ? sansJeton(corps, (jeton) => setSessionCookie(res, jeton, reglages)) : corps)) as typeof res.json;
+    // Déconnecté, ou renouvellement refusé : le cookie s'en va, juste avant que les en-têtes partent.
+    const finir = res.end.bind(res) as (...valeurs: unknown[]) => typeof res;
+    res.end = ((...valeurs: unknown[]) => {
+      const fermee = sortie ? res.statusCode < 300 : renouveler && res.statusCode === 401;
+      if (fermee && !res.headersSent) clearSessionCookie(res, reglages);
+      return finir(...valeurs);
+    }) as typeof res.end;
+    next();
+  };
+}
+
+/** La réponse sans son jeton de renouvellement (à la racine, ou dans « data » pour les routes du pack). */
+function sansJeton(corps: unknown, poser: (jeton: string) => void): unknown {
+  if (typeof corps !== 'object' || corps === null) return corps;
+  const { refreshToken, ...reste } = corps as Record<string, unknown>;
+  if (typeof refreshToken === 'string') {
+    poser(refreshToken);
+    return reste;
+  }
+  return 'data' in reste ? { ...reste, data: sansJeton(reste.data, poser) } : corps;
+}
+`;
+
+/** La surveillance : rien n'est chargé sans ses deux variables. */
+const CENTRALE = `import type { RequeteTransport, ReponseTransport } from '@astratra/centrale';
+import type { ErrorRequestHandler, RequestHandler } from 'express';
+
+/** Produit par Humalis : ce que le serveur monte quand la surveillance est allumée. */
+export interface Surveillance {
+  intergiciel(): RequestHandler;
+  gestionnaireErreurs(): ErrorRequestHandler;
+  /** Envoie ce qui reste en file ; ne rejette jamais. */
+  vider(): Promise<void>;
+}
+
+const ENVIRONNEMENTS = ['production', 'preproduction', 'developpement'] as const;
+const IDENTIFIANTS = /\\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\b/gi;
+
+/**
+ * Ce qui part à la place d'une panne. Le paquet masque déjà e-mails, téléphones, cartes, clés et
+ * jetons, mais PostgreSQL cite les valeurs refusées : son erreur ne garde que son code, et les
+ * identifiants quittent les autres messages.
+ */
+export function assainir(erreur: unknown): unknown {
+  if (typeof erreur !== 'object' || erreur === null) return erreur;
+  const e = erreur as Error & { severity?: unknown; code?: unknown };
+  const copie = (message: string) => {
+    const nouvelle = new Error(message);
+    nouvelle.name = e.name;
+    nouvelle.stack = [e.name + ': ' + message, ...String(e.stack ?? '').split('\\n').filter((l) => /^\\s+at /.test(l))].join('\\n');
+    return nouvelle;
+  };
+  if (typeof e.severity === 'string') return copie('Erreur PostgreSQL ' + String(e.code ?? ''));
+  const message = String(e.message ?? '');
+  const propre = message.replace(IDENTIFIANTS, ':id');
+  return propre === message ? erreur : copie(propre);
+}
+
+/** Le statut que rendra la réponse, comme le fait le gestionnaire du paquet. */
+function statutDe(erreur: unknown, code: number): number {
+  const declare = Number((erreur as { status?: unknown; statusCode?: unknown } | null)?.status ?? (erreur as { statusCode?: unknown } | null)?.statusCode);
+  return Number.isInteger(declare) && declare >= 400 && declare < 600 ? declare : code >= 400 ? code : 500;
+}
+
+/** Sans CENTRALE_ADRESSE et CENTRALE_CLE : le paquet n'est pas chargé, aucun écouteur, aucune minuterie, aucun réseau. */
+export async function demarrerCentrale(env: Record<string, string | undefined> = process.env, transport?: (requete: RequeteTransport) => Promise<ReponseTransport>): Promise<Surveillance | null> {
+  const adresse = env.CENTRALE_ADRESSE?.trim();
+  const cle = env.CENTRALE_CLE?.trim();
+  if (!adresse || !cle) return null;
+  try {
+    const { demarrer } = await import('@astratra/centrale/node');
+    const demande = ENVIRONNEMENTS.find((e) => e === env.CENTRALE_ENVIRONNEMENT?.trim());
+    // Strict : ni utilisateur, ni appareil précis. Jamais de corps, d'en-tête ni de cookie.
+    const centrale = demarrer({ cle, adresse, environnement: demande ?? (env.NODE_ENV === 'production' ? 'production' : 'developpement'), strict: true }, transport);
+    return {
+      vider: () => centrale.vider(),
+      intergiciel: () => centrale.intergiciel() as unknown as RequestHandler,
+      gestionnaireErreurs: () => {
+        const signaler = centrale.gestionnaireErreurs() as unknown as ErrorRequestHandler;
+        return (erreur, req, res, next) => {
+          // Un refus ordinaire (400, 401…) n'est pas une panne, et son message peut citer le corps reçu.
+          if (statutDe(erreur, res.statusCode) < 500) next(erreur);
+          else signaler(assainir(erreur), req, res, () => next(erreur));
+        };
+      },
+    };
+  } catch {
+    console.warn('La surveillance n\\'a pas démarré : le serveur continue sans elle.');
+    return null;
+  }
+}
+`;
+
+/** Les clés que l'admin peut gérer : celles que ce serveur lit vraiment. Une ligne de plus suffira pour l'e-mail. */
+function coffreTs(serveur: ServeurRI): string {
+  const cles = serveur.connexionGoogle
+    ? `      {
+        key: 'GOOGLE_CLIENT_ID',
+        label: 'Connexion avec Google',
+        help: "L'ID client OAuth de l'application Web. Sans lui, la connexion avec Google reste fermée.",
+        where: 'Google Cloud Console, API et services, Identifiants',
+      },
+`
+    : '';
+  return `import type { RequestHandler, Router } from 'express';
+import type { PoolPostgres } from './stockage.js';
+
+/**
+ * Produit par Humalis : le coffre des clés de service (@astratra/credentials). Les valeurs sont
+ * chiffrées avant d'arriver ici : ce magasin ne voit jamais un secret en clair, et process.env
+ * reste à jour sans redémarrer. Sans valeur dans le coffre, le .env sert, comme avant.
+ */
+export interface LigneCle {
+  key: string;
+  value: string;
+  secret: boolean;
+  updatedAt?: Date | string | number | null;
+  updatedBy?: string | null;
+}
+
+/** Une ligne par clé, avec des requêtes paramétrées, comme creerStockagePostgres. */
+export function creerMagasinCles(pool: PoolPostgres) {
+  let prete: Promise<unknown> | undefined;
+  const preparer = () =>
+    (prete ??= pool
+      .query('CREATE TABLE IF NOT EXISTS coffre_cles (cle TEXT PRIMARY KEY, valeur TEXT NOT NULL, secret BOOLEAN NOT NULL, modifie_le TIMESTAMPTZ NOT NULL DEFAULT now(), modifie_par TEXT)')
+      .catch((erreur: unknown) => {
+        prete = undefined;
+        throw erreur;
+      }));
+  return {
+    async findAll(): Promise<LigneCle[]> {
+      await preparer();
+      const { rows } = await pool.query('SELECT cle, valeur, secret, modifie_le, modifie_par FROM coffre_cles');
+      return rows.map((l) => ({ key: String(l.cle), value: String(l.valeur), secret: l.secret === true, updatedAt: l.modifie_le as Date, updatedBy: l.modifie_par === null ? null : String(l.modifie_par) }));
+    },
+    async upsert(ligne: LigneCle): Promise<void> {
+      await preparer();
+      await pool.query(
+        'INSERT INTO coffre_cles (cle, valeur, secret, modifie_par) VALUES ($1, $2, $3, $4) ON CONFLICT (cle) DO UPDATE SET valeur = EXCLUDED.valeur, secret = EXCLUDED.secret, modifie_le = now(), modifie_par = EXCLUDED.modifie_par',
+        [ligne.key, ligne.value, ligne.secret, ligne.updatedBy ?? null],
+      );
+    },
+  };
+}
+
+const ESPACES: { id: string; label: string; keys: { key: string; label: string; help: string; where: string }[] }[] = [
+  {
+    id: 'services',
+    label: 'Services',
+    keys: [
+${cles}    ],
+  },
+];
+
+export interface Coffre {
+  routes(garde: RequestHandler): Router;
+}
+
+/** Sans ENCRYPTION_KEY : le coffre reste fermé, rien n'est chargé, et le .env sert seul. */
+export async function ouvrirCoffre(pool: PoolPostgres | null, env: NodeJS.ProcessEnv = process.env): Promise<Coffre | null> {
+  const noms = ESPACES.flatMap((espace) => espace.keys.map((cle) => cle.key));
+  if (noms.length === 0) return null;
+  const cle = env.ENCRYPTION_KEY?.trim();
+  if (!cle) {
+    console.log('Coffre des clés fermé : ENCRYPTION_KEY n\\'est pas réglée (voir .env.exemple). Le .env sert seul.');
+    return null;
+  }
+  const { createFieldCipher } = await import('@astratra/security');
+  const { createCredentialCatalog, createCredentialsRoutes, createCredentialVault, createEnvHydrator, createMemoryCredentialStore } = await import('@astratra/credentials');
+  let cipher: ReturnType<typeof createFieldCipher>;
+  try {
+    cipher = createFieldCipher({ key: cle });
+  } catch {
+    console.error('Coffre des clés fermé : ENCRYPTION_KEY doit faire 32 octets, en base64 ou en hexadécimal (openssl rand -base64 32).');
+    return null;
+  }
+  const catalog = createCredentialCatalog({
+    spaces: ESPACES,
+    // La serrure ne se range pas dans le coffre qu'elle ferme.
+    reservedKeys: ['ENCRYPTION_KEY', 'JWT_SECRET', 'DATABASE_URL', 'HUMALIS_ADMIN_MOT_DE_PASSE'],
+  });
+  const store = pool ? creerMagasinCles(pool) : createMemoryCredentialStore();
+  const vault = createCredentialVault({
+    store: store as Parameters<typeof createCredentialVault>[0]['store'],
+    catalog,
+    cipher,
+    env,
+    // Une clé enregistrée sert tout de suite, pas à la minute suivante.
+    onChange: async () => {
+      await hydrator.hydrate(noms);
+    },
+  });
+  const hydrator = createEnvHydrator({ vault, env });
+  await hydrator.hydrate(noms);
+  hydrator.startRefresh(noms, { intervalMs: 60_000 });
+  console.log('Coffre des clés ouvert (/auth/cles, réservé à l\\'admin).');
+  return { routes: (garde) => createCredentialsRoutes({ vault, authorize: garde as never }) as unknown as Router };
+}
+`;
+}
 
 const VERIFIER = `/**
  * Produit par Humalis : la vérification de la forme des données reçues.
@@ -605,7 +1074,10 @@ import { createSaasApp, type UsersStore } from '@astratra/saas-kit';
 import { ${serveur.connexionGoogle ? 'createGoogleIdTokenVerifier, IdTokenError, ' : ''}createLoginLimiter, hashPassword, isStrongPassword, verifyPasswordHash } from '@astratra/security';
 import express, { type RequestHandler, type Response } from 'express';
 import { ${schemas} } from './donnees.js';
+import type { Surveillance } from './humalis/centrale.js';
+import type { Coffre } from './humalis/coffre.js';
 import { compresser } from './humalis/compresser.js';
+import { creerRenouvellement, reglagesDeSession, renouvellementEnCookie, type ReglagesSession } from './humalis/sessions.js';
 import type { Stockage } from './humalis/stockage.js';
 import { lireFiltres, verifierEnvoi } from './humalis/verifier.js';
 
@@ -615,7 +1087,13 @@ export interface OptionsDuServeur {
   usersStore: UsersStore;
   stockages: {
 ${stockages}
-  };${serveur.connexionGoogle ? '\n  /** L\'ID client OAuth de Google (« connexion google ») ; sans lui, la connexion avec Google est fermée. */\n  googleClientId?: string;' : ''}
+  };${serveur.connexionGoogle ? '\n  /** L\'ID client OAuth de Google (« connexion google »), relu à chaque demande ; sans lui, la connexion avec Google est fermée. */\n  googleClientId?: string | (() => string | undefined);' : ''}
+  /** La durée de la session et où garder ses renouvellements ; par défaut, HUMALIS_SESSION et HUMALIS_SESSION_MAX, en mémoire. */
+  session?: ReglagesSession;
+  /** La surveillance, si CENTRALE_ADRESSE et CENTRALE_CLE sont réglées. */
+  surveillance?: Surveillance | null;
+  /** Le coffre des clés de service, si ENCRYPTION_KEY est réglée. */
+  coffre?: Coffre | null;
 }
 
 const introuvable = (donnee: string) => \`aucun « \${donnee} » avec cet identifiant\`;
@@ -652,11 +1130,13 @@ const sansCache = (res: Response) => res.set('Cache-Control', 'no-store');
  * limites et les en-têtes de sécurité viennent de createSaasApp. Les
  * routes des données s'ajoutent par extendRoutes, avec les gardes du pack.
  */
-export function creerServeur({ jwtSecret, usersStore, stockages${serveur.connexionGoogle ? ', googleClientId' : ''} }: OptionsDuServeur) {
-  return createSaasApp({
+export function creerServeur({ jwtSecret, usersStore, stockages${serveur.connexionGoogle ? ', googleClientId' : ''}, session = reglagesDeSession(process.env), surveillance, coffre }: OptionsDuServeur) {
+  const renouvellement = creerRenouvellement(session);
+  const serveur = createSaasApp({
     jwtSecret,
-    // La session (et son cookie) dure 3 jours : la personne qui gère depuis son téléphone n'est pas déconnectée chaque heure.
-    jwtExpiresIn: process.env.HUMALIS_SESSION || '3d',
+    // Un jeton d'accès court, renouvelé tant que la personne revient : voir src/humalis/sessions.ts.
+    jwtExpiresIn: session.jeton,
+    refreshTokens: { enabled: true, service: renouvellement },
     usersStore,
     roles: { adminRoles: ['admin'], ownerRoles: ['admin'] },
     verifyPassword: async (utilisateur, motDePasse) =>
@@ -667,6 +1147,7 @@ export function creerServeur({ jwtSecret, usersStore, stockages${serveur.connexi
       const authMiddleware = contexte.authMiddleware as unknown as RequestHandler;
       const authorizeAdmin = contexte.authorizeAdmin as unknown as RequestHandler;
       const csrfMiddleware = contexte.csrfMiddleware as unknown as RequestHandler;
+      const issueSession = (contexte as unknown as { issueSession: (res: unknown, compte: unknown) => Promise<object> }).issueSession;
       const acces = {
         toutLeMonde: [] as RequestHandler[],
         connecte: [authMiddleware],
@@ -675,9 +1156,21 @@ export function creerServeur({ jwtSecret, usersStore, stockages${serveur.connexi
       // Les réponses des routes ci-dessous partent compressées (brotli ou gzip) quand le navigateur l'accepte.
       app.use(compresser);
 ${google}
+      // Le coffre des clés de service : admin seulement, et le CSRF garde les écritures.
+      const coffreFerme: RequestHandler = (_req, res) => {
+        res.status(503).json({ erreur: "le coffre des clés n'est pas ouvert sur ce serveur (ENCRYPTION_KEY)" });
+      };
+      app.use('/auth/cles', authMiddleware, authorizeAdmin, csrfMiddleware, coffre ? coffre.routes(authorizeAdmin) : coffreFerme);
+
 ${routes}
+      // Le dernier avant la réponse d'erreur du pack, qui répond ensuite comme d'habitude.
+      if (surveillance) app.use(surveillance.gestionnaireErreurs());
     },
   });
+  // En tête de tout : la surveillance voit chaque requête, et le jeton de renouvellement passe par son cookie.
+  const avant = express().disable('x-powered-by');
+  if (surveillance) avant.use(surveillance.intergiciel());
+  return avant.use(renouvellementEnCookie(session.dureeMs)).use(serveur as unknown as express.Application);
 }
 `;
 }
@@ -693,12 +1186,19 @@ import { hashPassword, isStrongPassword } from '@astratra/security';
 import { createPostgresUsersStore } from '@astratra/store-postgres';
 import pg from 'pg';
 import { creerServeur } from './serveur.js';
+import { demarrerCentrale } from './humalis/centrale.js';
+import { ouvrirCoffre } from './humalis/coffre.js';
+import { creerMagasinMemoire, creerMagasinPostgres } from './humalis/renouvellements.js';
+import { reglagesDeSession, type ReglagesSession } from './humalis/sessions.js';
 import { creerStockageMemoire, creerStockagePostgres } from './humalis/stockage.js';
 
 function arreter(message: string): never {
   console.error(message);
   process.exit(1);
 }
+
+// La surveillance d'abord, pour voir aussi une panne du démarrage.
+const surveillance = await demarrerCentrale();
 
 const jwtSecret = process.env.JWT_SECRET ?? '';
 if (jwtSecret.length < 32) {
@@ -727,8 +1227,19 @@ if (email && motDePasse && !(await usersStore.findByEmail(email))) {
   console.log(\`Administrateur créé : \${email}\`);
 }
 
+let session: ReglagesSession;
+try {
+  // Dans PostgreSQL, un redémarrage ne déconnecte personne.
+  session = reglagesDeSession(process.env, pool ? creerMagasinPostgres(pool) : creerMagasinMemoire());
+} catch (erreur) {
+  arreter(erreur instanceof Error ? erreur.message : String(erreur));
+}
+
+// Le coffre garde process.env à jour : les clés qu'il gère y sont relues à chaud.
+const coffre = await ouvrirCoffre(pool);
+
 const port = Number(process.env.PORT ?? 3000);
-const app = creerServeur({ jwtSecret, usersStore, stockages${serveur.connexionGoogle ? ', googleClientId: process.env.GOOGLE_CLIENT_ID || undefined' : ''} }) as unknown as { listen(port: number, pret: () => void): unknown };
+const app = creerServeur({ jwtSecret, usersStore, stockages${serveur.connexionGoogle ? ', googleClientId: () => process.env.GOOGLE_CLIENT_ID || undefined' : ''}, session, surveillance, coffre }) as unknown as { listen(port: number, pret: () => void): unknown };
 app.listen(port, () => {
   console.log(\`Serveur « ${serveur.nom} » prêt : http://localhost:\${port}${premiere}\`);
 });
@@ -866,6 +1377,240 @@ ${blocs.join('\n\n')}
 `;
 }
 
+/** Les tests produits de la session, du coffre et de la surveillance, avec les vrais packs et une horloge injectée. */
+function testsSessions(serveur: ServeurRI): string {
+  const stockages = serveur.donnees.map((d) => `      ${camel(d.nom)}: creerStockageMemoire(),`).join('\n');
+  return `// Produit par Humalis : la session glissante, sa borne de 30 jours, le coffre des clés et la surveillance.
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import request from 'supertest';
+import { createMemoryUsersStore, type UsersStore } from '@astratra/saas-kit';
+import { hashPassword } from '@astratra/security';
+import { creerServeur } from '../src/serveur.js';
+import { assainir, demarrerCentrale } from '../src/humalis/centrale.js';
+import { creerMagasinMemoire } from '../src/humalis/renouvellements.js';
+import { lireDuree, type ReglagesSession } from '../src/humalis/sessions.js';
+import { creerStockageMemoire } from '../src/humalis/stockage.js';
+import { ouvrirCoffre } from '../src/humalis/coffre.js';
+
+const JOUR = 86_400_000;
+const MOT_DE_PASSE = 'Essai-Solide-2026!';
+const stockages = () => ({
+${stockages}
+});
+let usersStore: UsersStore;
+let maintenant = 0;
+
+const reglages = (): ReglagesSession => ({ jeton: '15m', dureeMs: 3 * JOUR, maximumMs: 30 * JOUR, magasin: creerMagasinMemoire(), horloge: () => maintenant });
+const leServeur = (plus: object = {}) => creerServeur({ jwtSecret: 'secret-de-test-assez-long-pour-les-sessions', usersStore, stockages: stockages(), session: reglages(), ...plus }) as never;
+
+/** Le cookie de renouvellement posé par une réponse (hors développement il est « Secure » : le test le renvoie lui-même). */
+function cookieDe(reponse: request.Response): string | undefined {
+  const lignes = ([] as string[]).concat(reponse.headers['set-cookie'] ?? []);
+  return lignes.find((l) => l.startsWith('humalis_renouvellement='))?.split(';')[0];
+}
+const connecter = (app: never, email = 'admin@exemple.cd', entetes: Record<string, string> = {}) =>
+  request(app).post('/auth/login').set(entetes).send({ email, password: MOT_DE_PASSE }).expect(200);
+const renouveler = (app: never, cookie: string) => request(app).post('/auth/refresh').set('cookie', cookie);
+
+beforeAll(async () => {
+  usersStore = createMemoryUsersStore() as UsersStore;
+  const passwordHash = await hashPassword(MOT_DE_PASSE);
+  await usersStore.create({ email: 'admin@exemple.cd', role: 'admin', passwordHash });
+  await usersStore.create({ email: 'awa@exemple.cd', role: 'utilisateur', passwordHash });
+});
+
+beforeEach(() => {
+  maintenant = Date.UTC(2026, 0, 1);
+});
+
+describe('la session', () => {
+  it('le jeton de renouvellement reste dans un cookie HttpOnly, jamais dans la réponse du navigateur', async () => {
+    const reponse = await connecter(leServeur());
+    expect(reponse.body.data.refreshToken).toBeUndefined();
+    const ligne = ([] as string[]).concat(reponse.headers['set-cookie']).find((l) => l.startsWith('humalis_renouvellement='))!;
+    expect(ligne).toContain('HttpOnly');
+    expect(ligne).toContain('Path=/auth');
+    expect(ligne).toContain('Max-Age=' + 3 * 86_400);
+    // Une page piégée qui se fait passer pour un téléphone n'y gagne rien : un jeton venu d'un cookie ne ressort jamais.
+    const piege = await renouveler(leServeur(), cookieDe(reponse)!).set('x-humalis-mobile', '1');
+    expect(piege.body.data?.refreshToken).toBeUndefined();
+  });
+
+  it('se renouvelle avant 3 jours, et le renouvellement rouvre 3 jours', async () => {
+    const app = leServeur();
+    let cookie = cookieDe(await connecter(app))!;
+    for (let i = 0; i < 4; i++) {
+      maintenant += 2 * JOUR;
+      const reponse = await renouveler(app, cookie).expect(200);
+      expect(reponse.body.data.token).toBeTruthy();
+      expect(reponse.body.data.refreshToken).toBeUndefined();
+      cookie = cookieDe(reponse)!;
+    }
+    // Le jeton d'accès neuf ouvre bien /auth/me.
+    const jeton = (await renouveler(app, cookie).expect(200)).body.data.token;
+    await request(app).get('/auth/me').set('authorization', 'Bearer ' + jeton).expect(200);
+  });
+
+  it('refuse après 3 jours sans venir, et efface le cookie', async () => {
+    const app = leServeur();
+    const cookie = cookieDe(await connecter(app))!;
+    maintenant += 3 * JOUR + 1000;
+    const reponse = await renouveler(app, cookie).expect(401);
+    expect(cookieDe(reponse)).toBe('humalis_renouvellement=');
+  });
+
+  it('refuse après 30 jours malgré des retours réguliers', async () => {
+    const app = leServeur();
+    let cookie = cookieDe(await connecter(app))!;
+    const debut = maintenant;
+    // Chaque jour : toujours bon jusqu'au 29e.
+    for (let jour = 1; jour <= 29; jour++) {
+      maintenant = debut + jour * JOUR;
+      cookie = cookieDe(await renouveler(app, cookie).expect(200))!;
+    }
+    maintenant = debut + 30 * JOUR;
+    await renouveler(app, cookie).expect(401);
+  });
+
+  it('un jeton rejoué après le délai de grâce ferme toute la famille ; deux onglets au même instant passent', async () => {
+    const app = leServeur();
+    const premier = cookieDe(await connecter(app))!;
+    const suivant = cookieDe(await renouveler(app, premier).expect(200))!;
+    // Le second onglet, le même instant : accepté.
+    await renouveler(app, premier).expect(200);
+    maintenant += 11_000;
+    await renouveler(app, premier).expect(401);
+    await renouveler(app, suivant).expect(401);
+  });
+
+  it('la déconnexion ferme la famille et efface le cookie', async () => {
+    const app = leServeur();
+    const connexion = await connecter(app);
+    const cookie = cookieDe(connexion)!;
+    const sortie = await request(app).post('/auth/logout').set('authorization', 'Bearer ' + connexion.body.data.token).expect(200);
+    expect(cookieDe(sortie)).toBe('humalis_renouvellement=');
+    await renouveler(app, cookie).expect(401);
+  });
+
+  it('changer le mot de passe ferme les autres sessions, celle-ci repart', async () => {
+    const app = leServeur();
+    const ailleurs = cookieDe(await connecter(app, 'awa@exemple.cd'))!;
+    const ici = await connecter(app, 'awa@exemple.cd');
+    const change = await request(app)
+      .post('/auth/mot-de-passe')
+      .set('authorization', 'Bearer ' + ici.body.data.token)
+      .send({ actuel: MOT_DE_PASSE, nouveau: MOT_DE_PASSE })
+      .expect(200);
+    expect(change.body.change).toBe(true);
+    expect(change.body.refreshToken).toBeUndefined();
+    await renouveler(app, ailleurs).expect(401);
+    await renouveler(app, cookieDe(ici)!).expect(401);
+    await renouveler(app, cookieDe(change)!).expect(200);
+  });
+
+  it('un téléphone reçoit son jeton en JSON et le présente dans le corps', async () => {
+    const app = leServeur();
+    const connexion = await connecter(app, 'awa@exemple.cd', { 'x-humalis-mobile': '1' });
+    expect(connexion.body.data.refreshToken).toBeTruthy();
+    expect(cookieDe(connexion)).toBeUndefined();
+    const suite = await request(app).post('/auth/refresh').set('x-humalis-mobile', '1').send({ refreshToken: connexion.body.data.refreshToken }).expect(200);
+    expect(suite.body.data.refreshToken).toBeTruthy();
+    expect(suite.body.data.refreshToken).not.toBe(connexion.body.data.refreshToken);
+  });
+
+  it('refuse une durée illisible avec une phrase claire', () => {
+    expect(lireDuree(undefined, '3d', 'HUMALIS_SESSION')).toBe(3 * JOUR);
+    expect(lireDuree('12h', '3d', 'HUMALIS_SESSION')).toBe(JOUR / 2);
+    expect(() => lireDuree('trois jours', '3d', 'HUMALIS_SESSION')).toThrow('HUMALIS_SESSION doit être une durée');
+  });
+});
+
+describe('le coffre des clés', () => {
+  it('sans ENCRYPTION_KEY, fermé : le serveur marche, /auth/cles répond 503 à un admin et 401 à un visiteur', async () => {
+    const coffre = await ouvrirCoffre(null, { ENCRYPTION_KEY: '' });
+    expect(coffre).toBeNull();
+    const app = leServeur({ coffre });
+    await request(app).get('/auth/cles').expect(401);
+    const jeton = (await connecter(app)).body.data.token;
+    await request(app).get('/auth/cles').set('authorization', 'Bearer ' + jeton).expect(503);
+  });
+
+  it('une ENCRYPTION_KEY de mauvaise taille laisse le coffre fermé, sans arrêter le serveur', async () => {
+    expect(await ouvrirCoffre(null, { ENCRYPTION_KEY: 'trop-courte' })).toBeNull();
+  });${serveur.connexionGoogle ? `
+
+  it('une clé enregistrée sert tout de suite, sans redémarrer ; rien ne ressort en clair ; débranchée, elle se tait', async () => {
+    const env: NodeJS.ProcessEnv = { ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64') };
+    const coffre = await ouvrirCoffre(null, env);
+    const app = leServeur({ coffre, googleClientId: () => env.GOOGLE_CLIENT_ID });
+    const admin = (await connecter(app)).body.data.token;
+    const utilisateur = (await connecter(app, 'awa@exemple.cd')).body.data.token;
+    const avecJeton = (jeton: string) => ({ authorization: 'Bearer ' + jeton });
+    expect((await request(app).get('/auth/google').expect(200)).body.clientId).toBeNull();
+    await request(app).put('/auth/cles/GOOGLE_CLIENT_ID').set(avecJeton(utilisateur)).send({ value: 'id-de-test' }).expect(403);
+    await request(app).put('/auth/cles/GOOGLE_CLIENT_ID').send({ value: 'id-de-test' }).expect(401);
+    await request(app).put('/auth/cles/JWT_SECRET').set(avecJeton(admin)).send({ value: 'non' }).expect(400);
+    await request(app).put('/auth/cles/GOOGLE_CLIENT_ID').set(avecJeton(admin)).send({ value: 'id-de-test-abcd' }).expect(200);
+    expect((await request(app).get('/auth/google').expect(200)).body.clientId).toBe('id-de-test-abcd');
+    const etat = await request(app).get('/auth/cles').set(avecJeton(admin)).expect(200);
+    expect(JSON.stringify(etat.body)).not.toContain('id-de-test-abcd');
+    await request(app).delete('/auth/cles/GOOGLE_CLIENT_ID').set(avecJeton(admin)).expect(200);
+    expect((await request(app).get('/auth/google').expect(200)).body.clientId).toBeNull();
+  });
+
+  it('un envoi depuis une page sans jeton CSRF est refusé', async () => {
+    const coffre = await ouvrirCoffre(null, { ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64') });
+    const app = leServeur({ coffre });
+    const cookies = ([] as string[]).concat((await connecter(app)).headers['set-cookie']);
+    const session = cookies.find((c) => c.startsWith('astratra_session='))!.split(';')[0];
+    await request(app).put('/auth/cles/GOOGLE_CLIENT_ID').set('cookie', session).send({ value: 'id' }).expect(403);
+  });` : ''}
+});
+
+describe('la surveillance', () => {
+  it('sans ses variables, elle ne démarre pas', async () => {
+    expect(await demarrerCentrale({})).toBeNull();
+    expect(await demarrerCentrale({ CENTRALE_ADRESSE: 'https://centrale.exemple.fr' })).toBeNull();
+  });
+
+  it('une erreur de PostgreSQL ne garde que son code ; les identifiants quittent les autres messages', () => {
+    const base = Object.assign(new Error('la valeur « secret@exemple.cd » est refusée'), { severity: 'ERROR', code: '23505' });
+    expect((assainir(base) as Error).message).toBe('Erreur PostgreSQL 23505');
+    expect((assainir(new Error('commande 7f0c6a52-58cb-4dc4-9a0a-1b1e0a4f1d11 introuvable')) as Error).message).toBe('commande :id introuvable');
+  });
+
+  it('une panne part, un refus ordinaire non ; la réponse reste celle du pack', async () => {
+    let envoye = '';
+    const transport = async (requete: { corps: string }) => {
+      envoye += requete.corps;
+      return { statut: 202 };
+    };
+    const surveillance = await demarrerCentrale({ CENTRALE_ADRESSE: 'https://centrale.exemple.fr', CENTRALE_CLE: 'clj_pub_essai' }, transport);
+    expect(surveillance).not.toBeNull();
+    const panne = vi.fn(async () => {
+      throw Object.assign(new Error('colonne « mot-de-passe-secret » absente'), { severity: 'ERROR', code: '42703' });
+    });
+    const enPanne = stockages();
+    for (const stockage of Object.values(enPanne)) (stockage as { lister: unknown }).lister = panne;
+    const app = leServeur({ surveillance, stockages: enPanne });
+    await request(app).post('/auth/login').set('content-type', 'application/json').send('{"email":"mot-de-passe-brut').expect(400);
+    await request(app).get('/auth/me').expect(401);
+    const jeton = (await connecter(app)).body.data.token;${serveur.routes[0] ? `
+    const reponse = await request(app).get('${adresseApi(serveur.routes[0].adresse)}').set('authorization', 'Bearer ' + jeton);
+    expect(reponse.status).toBe(500);
+    expect(panne).toHaveBeenCalled();
+    await surveillance!.vider();
+    expect(envoye).toContain('Erreur PostgreSQL 42703');` : `
+    void jeton;
+    await surveillance!.vider();`}
+    expect(envoye).not.toContain('mot-de-passe-secret');
+    expect(envoye).not.toContain('mot-de-passe-brut');
+    expect(envoye).not.toContain(MOT_DE_PASSE);
+  });
+});
+`;
+}
+
 function lisezmoi(serveur: ServeurRI, options: OptionsServeur): string {
   const routes = serveur.routes
     .map((r) => `| \`${adresseApi(r.adresse)}\` | ${r.donnee} | ${decrireDroits(r.droits)} |`)
@@ -916,6 +1661,35 @@ exactes. Pour savoir si ce projet est en retard sur ton Humalis :
 recompile ton programme. Pour les failles connues des autres
 dépendances : \`npm audit\`.
 
+\`npm run audit:deps\` (failles connues, il faut le package-lock.json) et
+\`npm run audit:secrets\` (secrets écrits en dur dans un journal ou une réponse)
+le disent aussi, avec un code de sortie pour une chaîne d'intégration.
+
+## La session
+
+Elle se renouvelle tant que la personne revient : sans venir pendant
+\`HUMALIS_SESSION\` (3 jours), ou \`HUMALIS_SESSION_MAX\` (30 jours) après la
+connexion même en revenant chaque jour, il faut se reconnecter. Le serveur vérifie
+ces deux bornes (un jeton d'accès déjà délivré vit encore 15 minutes au plus).
+Les jetons de renouvellement tournent à chaque usage : un jeton rejoué, la
+déconnexion ou un changement de mot de passe ferment la session. Le navigateur les
+reçoit dans un cookie HttpOnly limité à \`/auth\` ; la table
+\`sessions_renouvellement\` n'en garde que l'empreinte.
+
+## Facultatif : surveillance et coffre des clés
+
+Sans ces variables, rien n'est chargé et le serveur marche pareil (\`.env.exemple\`).
+
+- \`CENTRALE_ADRESSE\` et \`CENTRALE_CLE\` : les pannes (statut 500 et plus), les
+  exceptions et les requêtes (gabarit de route, statut, durée) partent à Centrale,
+  masquées. Jamais de corps, d'en-tête ni de cookie. Mode strict : ni utilisateur,
+  ni appareil précis.
+- \`ENCRYPTION_KEY\` : les clés de service se rangent chiffrées dans la table
+  \`coffre_cles\` (en mémoire sans \`DATABASE_URL\`) et se modifient sans redémarrer.
+  Routes réservées à l'admin, avec le jeton CSRF : \`GET /auth/cles\` (jamais une valeur
+  secrète, seulement ses 4 derniers caractères), \`PUT /auth/cles/:cle\` avec
+  \`{ "value": "…" }\`, \`DELETE /auth/cles/:cle\`. La valeur du coffre passe avant le \`.env\`.
+
 Ce dossier est réécrit à chaque compilation Humalis (fichier \`${MARQUE_SERVEUR}\`).
 `;
 }
@@ -950,7 +1724,9 @@ const ROUTE_MOT_DE_PASSE = `
             return;
           }
           await usersStore.update(String(compte.id), { passwordHash: await hashPassword(nouveau) });
-          res.json({ change: true });
+          // Celui qui change son mot de passe ferme peut-être la porte à un voleur : toutes les sessions de ce compte s'arrêtent, celle-ci repart.
+          await renouvellement.revokeAllForUser(String(compte.id));
+          res.json({ change: true, ...(await issueSession(res, compte)) });
         } catch (erreur) {
           next(erreur);
         }
@@ -962,13 +1738,21 @@ const ROUTE_GOOGLE = `
       // « connexion google » : un compte déjà connu du serveur, dont Google confirme l'adresse, ouvre sa session.
       // Comme dans Tertius et Solvia : la première connexion lie le compte à cet identifiant Google (le « sub »),
       // et un autre compte Google portant la même adresse est ensuite refusé.
-      const issueSession = (contexte as unknown as { issueSession: (res: unknown, compte: unknown) => Promise<unknown> }).issueSession;
-      const google = googleClientId ? createGoogleIdTokenVerifier({ audiences: [googleClientId] }) : null;
+      // L'ID client se relit à chaque demande : le changer dans le coffre sert aussitôt, sans redémarrer.
+      const idGoogle = () => (typeof googleClientId === 'function' ? googleClientId() : googleClientId) || null;
+      let verificateur: { id: string; verifier: ReturnType<typeof createGoogleIdTokenVerifier> } | null = null;
+      const verificateurGoogle = () => {
+        const id = idGoogle();
+        if (!id) return null;
+        if (verificateur?.id !== id) verificateur = { id, verifier: createGoogleIdTokenVerifier({ audiences: [id] }) };
+        return verificateur.verifier;
+      };
       const routeGoogle = express.Router();
       routeGoogle.get('/', (_req, res) => {
-        res.json({ clientId: googleClientId ?? null });
+        res.json({ clientId: idGoogle() });
       });
       routeGoogle.post('/', createLoginLimiter() as unknown as RequestHandler, csrfMiddleware, async (req, res, next) => {
+        const google = verificateurGoogle();
         if (!google) {
           res.status(503).json({ erreur: "la connexion avec Google n'est pas réglée sur ce serveur (GOOGLE_CLIENT_ID)" });
           return;
