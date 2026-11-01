@@ -196,6 +196,10 @@ describe('télécharger en CSV', () => {
     expect(erreurs(bon)).toEqual([]);
     expect(code(bon)).toContain("telechargerCsv(bon, 'bon.csv'");
   });
+  it('commence par le BOM, pour Excel', () => {
+    expect(fichier(web(source), 'humalis/presse-papier.ts')).toContain("new Blob(['\\uFEFF' + texteCsv(liste)]");
+    expect(fichier(statique(source), 'humalis/humalis.js')).toContain("new Blob(['\\uFEFF' + texteCsv(liste)]");
+  });
   it('neutralise les formules et échappe les cellules', () => {
     const js = fichier(statique(source), 'humalis/humalis.js');
     const debut = js.indexOf('function texteCsv');
