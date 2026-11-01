@@ -777,6 +777,8 @@ export interface Element {
   styles: Style[];
   /** Niveau explicite d'un sous-titre, entre 2 et 6. */
   niveau?: number;
+  /** Le titre écrit sur la ligne d'une section (« section "Nos plats" : ») : affiché en titre de section, pas en titre de page. */
+  deSection?: true;
   /** Donné par « avec nom "…" » pour viser l'élément depuis un événement. */
   nom?: string;
   /** Les classes CSS données par « avec style "…" ». */

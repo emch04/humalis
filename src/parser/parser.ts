@@ -945,7 +945,7 @@ function analyserBlocMiseEnPage(flux: FluxTokens): Bloc {
   const titre: Instruction[] = [];
   let titreBloc: Expression | undefined;
   if (genre === 'section' && flux.verifier('CHAINE')) {
-    titre.push({ type: 'Element', element: 'titre', contenu: analyserValeur(flux), styles: [], classes: [], ligne: debut.ligne });
+    titre.push({ type: 'Element', element: 'titre', contenu: analyserValeur(flux), styles: [], classes: [], deSection: true, ligne: debut.ligne });
   } else if (GENRES_AVEC_TITRE.includes(genre) && flux.verifier('CHAINE')) {
     titreBloc = analyserValeur(flux);
   }

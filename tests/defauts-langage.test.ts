@@ -63,4 +63,50 @@ describe('défauts trouvés avec Rey Store', () => {
     expect(erreurs(source)).toEqual([]);
     expect(JSON.stringify(compiler(source).application!.ecrans[0])).toContain('"type":"arrondi"');
   });
+
+  it('deux dates se comparent : « jour est superieur a debut » avec debut = aujourd’hui moins 7 jours', () => {
+    const source = programme(
+      'serveur "s" :',
+      '>donnee commande :',
+      '>>nom : texte',
+      '>>jour : date',
+      '>route "commandes" :',
+      '>>tout le monde peut creer commande',
+      '>>seul admin peut lire commande',
+      '>>seul admin peut modifier commande',
+      '',
+      'page "p" :',
+      '>titre "P"',
+      '>variable commandes = []',
+      '>quand la page se charge :',
+      '>>envoyer requete vers "commandes" dans commandes',
+      '>calcul debut = aujourd\'hui moins 7 jours',
+      '>calcul recentes = commandes dont jour est superieur a debut',
+      '>calcul combien = nombre de recentes',
+      '>texte "{combien} commandes"',
+    );
+    expect(erreurs(source)).toEqual([]);
+    // Un nombre ne se compare toujours pas à un texte qui n'est pas une date.
+    expect(erreurs(programme('page "p" :', '>titre "P"', '>variable nom = "Rey"', '>si nom est superieur a 3 :', '>>texte "x"')).join('\n')).toMatch(/compare des nombres/);
+  });
+
+  it('le titre d’une section n’est pas un second titre principal', () => {
+    const avertissements = compiler(programme('page "p" :', '>titre "P"', '>section "Les CGV" :', '>>texte "Bonjour"')).diagnostics.map((d) => d.message).join('\n');
+    expect(avertissements).not.toMatch(/plusieurs titres principaux/);
+    const deux = compiler(programme('page "p" :', '>titre "P"', '>titre "Q"')).diagnostics.map((d) => d.message).join('\n');
+    expect(deux).toMatch(/plusieurs titres principaux/);
+  });
+
+  it('dans une boucle, un événement vise un bouton par son texte à {variables} (« Voir {c.nom} »)', () => {
+    const source = programme(
+      'page "p" :',
+      '>titre "P"',
+      '>variable clients = [fiche avec nom "Awa", fiche avec nom "Rey"]',
+      '>pour chaque c dans clients :',
+      '>>bouton "Voir {c.nom}"',
+      '>>quand l\'utilisateur clique sur "Voir {c.nom}" :',
+      '>>>afficher "{c.nom}"',
+    );
+    expect(erreurs(source)).toEqual([]);
+  });
 });

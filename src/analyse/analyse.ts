@@ -1674,7 +1674,10 @@ class AnalysePage {
         }
         return;
 
-      default:
+      default: {
+        // Deux dates (« 2026-11-01 ») se comparent comme leurs textes : « jour est superieur a debut ».
+        const datees = [test.gauche, test.droite].some((e) => e !== undefined && this.estExpressionDate(e));
+        if (datees && [gauche, droite].every((t) => !estConnu(t) || t.genre === 'texte')) return;
         for (const [expression, type] of [
           [test.gauche, gauche],
           [test.droite, droite],
@@ -1686,7 +1689,16 @@ class AnalysePage {
             );
           }
         }
+      }
     }
+  }
+
+  /** Une date : « aujourd'hui », « … moins 7 jours », une variable ou un calcul qui en contient une, un champ « date » du serveur. */
+  private estExpressionDate(expression: Expression): boolean {
+    if (expression.type === 'DateDuJour' || expression.type === 'DateDecalee') return true;
+    if (expression.type === 'Reference') return this.estUneDate(expression.nom);
+    if (expression.type === 'AccesChamp' && expression.objet.type === 'Reference') return this.estChampDate(expression.objet.nom, expression.champ);
+    return false;
   }
 
   /** Les versions d'autres langues d'un texte lisent les mêmes variables que lui. */
@@ -2492,7 +2504,7 @@ class AnalysePage {
 
 /** Vrai si l'élément porte ce nom ou ce libellé. */
 function vise(element: ElementRecense, texte: string): boolean {
-  return element.nom === texte || element.libelle === texte;
+  return element.nom === texte || element.libelle === texte || element.modele === texte;
 }
 
 /** Le texte d'une chaîne écrite sans {variable}, sinon undefined. */

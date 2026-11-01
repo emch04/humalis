@@ -51,7 +51,8 @@ export function verifierAccessibilite(page: Page, theme: ReadonlyMap<string, { c
           adresses.add(element.cible ?? '');
           liens.set(texte.toLocaleLowerCase('fr'), adresses);
         }
-        if (element.element === 'titre') {
+        // Le titre d'une section (« section "Nos plats" : ») est un titre de section (h2), pas un second titre de page.
+        if (element.element === 'titre' && !element.deSection) {
           titres++;
           if (titres > 1) signaler('avertissement', `la page « ${page.nom} » a plusieurs titres principaux. Gardez un seul « titre ».`, element.ligne);
         }
