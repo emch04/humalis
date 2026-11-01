@@ -283,7 +283,8 @@ export const RENDU_WEB: Rendu = {
       case 'soustitre':
         return `<h${el.niveau} ${a}>${el.contenu}</h${el.niveau}>`;
       case 'texte':
-        return `<p ${a}>${el.contenu}</p>`;
+        // « avec decoratif » : un texte qui double ce qu'un lien dit déjà (« Store » sous le logo, une pastille) n'est pas relu.
+        return `<p ${a}${el.decoratif ? ' aria-hidden="true"' : ''}>${el.contenu}</p>`;
       case 'bouton':
         // Le bouton d'un formulaire l'envoie (Entrée aussi) ; un bouton qui a son propre clic garde son clic.
         return `<button type="${el.envoie ? 'submit' : 'button'}" ${a}>${el.contenu}</button>`;
