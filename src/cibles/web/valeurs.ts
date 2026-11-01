@@ -204,6 +204,12 @@ function texteTS(parties: PartiesTexte, contexte: Contexte, langue?: string): st
   }
   const morceaux = parties.map((p) => {
     if ('texte' in p) return p.texte.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
+    // « {nombre de panier} » : le calcul lui-même, avec son habillage.
+    if (p.expression) {
+      const calcul = expression(p.expression, contexte);
+      const habille = habillage(p, langue);
+      return habille ? `\${${habille(calcul)}}` : `\${${calcul} ?? ''}`;
+    }
     // « {p.prix} » : chaque morceau du chemin est un nom.
     const [premier, ...reste] = p.variable.split('.');
     // Le format français (décision F1) : « 28 000 », « 7 novembre 2026 ».
@@ -234,7 +240,12 @@ export function adresseEncodee(valeur: Valeur, contexte: Contexte): string {
   const morceaux = valeur.parties.map((p) => {
     if ('texte' in p) {
       if (/[?#]/.test(p.texte)) requete = true;
-      return p.texte.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
+      // Un retour à la ligne s'écrit %0A dans une adresse.
+      return p.texte.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${').replace(/\n/g, '%0A');
+    }
+    if (p.expression) {
+      const calcul = expression(p.expression, contexte);
+      return requete ? `\${encodeURIComponent(String(${calcul} ?? ''))}` : `\${${calcul} ?? ''}`;
     }
     const [premier, ...reste] = p.variable.split('.');
     const lu = [nomLu(premier, contexte), ...reste.map(camel)].join(contexte.facultatives?.has(premier) && reste.length > 0 ? '?.' : '.');
@@ -261,7 +272,7 @@ export function contenuJSX(valeur: Valeur, contexte: Contexte): string {
   if (valeur.type === 'texte' && !valeur.versions && valeur.parties.every((p) => 'texte' in p)) {
     const texte = valeur.parties.map((p) => ('texte' in p ? p.texte : '')).join('');
     // Les caractères qui ont un sens en JSX passent par une chaîne.
-    return /[{}<>]/.test(texte) || texte !== texte.trim() ? `{${chaine(texte)}}` : texte;
+    return /[{}<>\n]/.test(texte) || texte !== texte.trim() ? `{${chaine(texte)}}` : texte;
   }
   const type = typeDe(valeur, contexte);
   if (type.genre === 'liste') return `{${expression(valeur, contexte)}.join(', ')}`;

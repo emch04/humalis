@@ -2,7 +2,7 @@ import { copiesDesMedias } from '../../ri/medias.js';
 import { robotsTxt, manifeste, fichiersDuSite, balisesIcone, estExterne } from '../publication.js';
 import { sousActions } from '../../ri/actions.js';
 import { cssEcran } from './css-ecran.js';
-import { cssElements } from './css-elements.js';
+import { cssElements, cssSautsDeLigne } from './css-elements.js';
 import { cssMouvement, animeAuDefilement, MOUVEMENT_WEB, nettoyagePrerendu, ENTETE_WEB, suitLEntete } from '../commun/mouvement.js';
 import type { InfoMedia } from '../../ri/medias.js';
 import { fichiersDesElements, dependancesDesElements, dependancesDeDeveloppement } from './widgets.js';
@@ -251,7 +251,7 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
     styles(
       codes.some((c) => /humalis-(formulaire|case|choix|obligatoire)|<textarea|<select/.test(c)),
       codes.some((c) => /humalis-(section|bloc|ligne|colonne|grille|menu)\b/.test(c)),
-    ) + cssEcran(codes) + cssElements(codes) + cssMouvement(codes) + cssGraphique(codes, application.theme?.couleurs.map((c) => c.nom)) + cssInteractions(codes) + cssTheme(application.theme, bascule, options.polices),
+    ) + cssEcran(codes) + cssElements(codes) + cssSautsDeLigne(application) + cssMouvement(codes) + cssGraphique(codes, application.theme?.couleurs.map((c) => c.nom)) + cssInteractions(codes) + cssTheme(application.theme, bascule, options.polices),
   );
   // L'observateur des animations « au defilement », seulement si une page en a.
   const defilementAnime = animeAuDefilement(codes);

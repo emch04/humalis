@@ -392,6 +392,9 @@ Le CSS peut aussi venir d'un fichier : `utiliser style "./theme.css"` en haut du
 fichier. Le CSS s'applique au web, au statique et au desktop ; le mobile ne
 traduit que les styles nommés (couleur, fond, taille, position, bordure).
 
+Un formulaire et un fil d'Ariane prennent aussi leur style :
+`formulaire "commande" avec style "carte" :`, `fil d'Ariane avec style "discret" :`.
+
 `humalis verifier` avertit si une classe donnée par `avec style` est absente du CSS
 du projet et propose un nom proche. Il avertit aussi si une règle `!important`
 cible une classe `.humalis-…` : retirez `!important` ou utilisez votre propre classe.
@@ -765,6 +768,21 @@ page "panier" :
     texte "Total : {total en euros}"
 ```
 
+Écrit en haut du fichier, avant les pages, un calcul vaut pour toutes les pages,
+l'en-tête et le pied :
+
+```humalis
+variable panier = [] avec partagee
+calcul articles = nombre de panier
+
+page "accueil" :
+    titre "Accueil"
+    texte "{articles} articles"
+```
+
+Entre accolades, un texte accepte aussi un calcul : `{nombre de panier}`,
+`{ligne.prix * ligne.quantite}`, `{prix * 2 en euros}`.
+
 ### Les calculs sur les nombres
 
 ```humalis
@@ -946,6 +964,8 @@ page "catalogue" :
     calcul pas_chers = produits dont prix est inferieur a 10
     calcul vitrine = les 2 premiers de par_prix
     calcul livre = premier de produits dont nom contient "Liv"
+    calcul soldes = produits dont prix est inferieur a 10 et nom contient "S"
+    calcul petits = trier (produits dont prix est inferieur a 10) par prix
     titre "Catalogue"
     texte "Trouvé : {livre.nom}"
     pour chaque p dans vitrine :
@@ -990,6 +1010,23 @@ page "jeu" :
 ```
 
 `arreter` sort d'une boucle ; `passer au suivant` passe au tour suivant.
+
+`selon` s'écrit aussi dans une page, pour afficher ce qui correspond à une valeur :
+
+```humalis
+page "commande" :
+    variable statut = "livree"
+    titre "Commande"
+    selon statut :
+        cas "livree" :
+            texte "Votre commande est arrivée."
+        cas "annulee" ou "refusee" :
+            texte "Votre commande n'a pas abouti."
+        sinon :
+            texte "Votre commande est en route."
+```
+
+`non` retourne une condition : `si non actif :` ou `si non prix est egal a 0 :`.
 
 ---
 
@@ -1385,6 +1422,14 @@ page "panier" :
     lien "Commander sur WhatsApp" vers "https://wa.me/243000000000?text={message}" avec nouvel onglet
 ```
 
+Toute l'adresse peut venir d'une variable : `lien "Site" vers "{adresse}"`. Seules
+les adresses en `https:`, `http:`, `mailto:`, `tel:` ou commençant par `/` sont
+suivies. Le web et le bureau savent le faire ; le mobile et le site statique
+refusent encore un lien externe.
+
+`{saut de ligne}` écrit un retour à la ligne dans un texte, et `%0A` dans une
+adresse : `texte "Bonjour{saut de ligne}Merci"`.
+
 ### Les filtres d'adresse
 
 Un filtre est une valeur facultative de l'adresse (`/catalogue?categorie=robes`) :
@@ -1674,6 +1719,12 @@ page "profil" :
 Les deux existent pour le web, le bureau et le mobile. Sur le téléphone, la
 photo vient de la galerie, avec la même réduction ; une image transparente y
 perd sa transparence (le JPEG n'en a pas).
+
+### Télécharger une liste en CSV
+
+Dans un événement, `telecharger commandes en csv` enregistre la liste dans un
+fichier `commandes.csv`, lisible par Excel en français. Sur un téléphone, le
+texte passe par la feuille de partage.
 
 ### Télécharger le bon d'une fiche
 

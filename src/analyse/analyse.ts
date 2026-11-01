@@ -2,6 +2,8 @@ import { analyserPublication } from './site.js';
 import { analyserLangues, type LanguesDuProgramme } from './langues.js';
 import { langueDuMot } from '../i18n/langues.js';
 import { texteSource } from '../parser/langues.js';
+import { lireExpressionDuTexte } from '../parser/parser.js';
+import { ErreurSyntaxique } from '../parser/erreurs.js';
 import type {
   Programme,
   RegleSource,
@@ -116,6 +118,8 @@ export interface ResultatAnalyse {
   /** L'adresse réelle d'une requête vers une route du serveur (« /api/produits »). */
   /** L'adresse réelle (« /api/produits ») d'une requête, d'une modification ou d'une suppression. */
   adressesRequetes: Map<Requete | Suppression | Modification | TelechargementBon, string>;
+  /** Les « {…} » qui sont des calculs : « {nombre de panier} ». */
+  expressions: Map<PartieChaine, Expression>;
   /** Les routes (adresse normalisée) dont une page télécharge le bon : le serveur produit ne sert que celles-là. */
   bons: Set<string>;
   /** Le type d'une variable déclarée, ou de la variable d'une boucle. */
@@ -259,6 +263,7 @@ export function analyserSens(programme: Programme, classesCss?: Set<string>): Re
     formats: new Map(),
     pluriels: new Map(),
     chemins: new Map(),
+    expressions: new Map(),
     fonctions: new Map(),
     fonctionsActions: new Set(programme.fonctionsActions ?? []),
     projections: new Set(),
@@ -888,6 +893,14 @@ class AnalysePage {
         this.telechargementBon(instruction);
         return;
 
+      case 'TelechargementCsv': {
+        if (contexte === 'vue') this.horsEvenement('telecharger … en csv', instruction.ligne, " Un téléchargement part d'une action de la personne : placez-le dans un événement (quand … clique sur …).");
+        if (contexte === 'evenement') this.cadre.attente = true;
+        const type = this.typeDe(instruction.liste);
+        if (estConnu(type) && type.genre !== 'liste') this.erreur(`« telecharger … en csv » attend une liste, et ${decrire(instruction.liste)} est ${decrireType(type)}.`, instruction.ligne);
+        return;
+      }
+
       case 'ChangementMotDePasse': {
         const nom = 'changer le mot de passe';
         this.litLaSession = true;
@@ -1262,6 +1275,11 @@ class AnalysePage {
 
   /** « formulaire "message" : » : un bloc de la vue, qui regroupe des champs et un bouton (décision F1). */
   private formulaire(formulaire: Formulaire, contexte: Contexte, place: Place): void {
+    for (const classe of formulaire.classes ?? []) {
+      if (this.classesDefinies && !this.classesDefinies.has(classe)) {
+        this.avertissement(`le style « ${classe} » n'est défini dans aucun CSS du projet.${proposerNom(classe, this.classesDefinies)}`, formulaire.ligne);
+      }
+    }
     if (contexte === 'evenement') {
       this.erreur(
         'un formulaire ne peut pas être créé dans un événement. Placez-le dans la page, puis utilisez montrer "…" pour le faire apparaître.',
@@ -2056,6 +2074,11 @@ class AnalysePage {
         this.erreur(habillage.erreur, chaine.ligne);
         continue;
       }
+      // « {nombre de panier} », « {l.prix * l.quantite} » : un calcul, pas un simple nom.
+      if (/[\s*+/-]/.test(habillage.chemin)) {
+        this.calculDuTexte(partie, habillage, chaine.ligne);
+        continue;
+      }
       if (habillage.chemin !== partie.valeur) this.resultat.chemins.set(partie, habillage.chemin);
       // « {p.prix} » : la variable, puis ses champs.
       const [racine, ...champs] = habillage.chemin.split('.');
@@ -2092,6 +2115,21 @@ class AnalysePage {
       else if (champs.length === 1 && this.estChampDate(racine, champs[0])) this.resultat.formats.set(partie, 'date');
       else if (champs.length === 0 && this.estUneDate(racine)) this.resultat.formats.set(partie, 'date');
     }
+  }
+
+  private calculDuTexte(partie: PartieChaine, habillage: { chemin: string; devise?: FormatDevise }, ligne: number): void {
+    let expression: Expression;
+    try {
+      expression = lireExpressionDuTexte(habillage.chemin, ligne);
+    } catch (erreur) {
+      if (!(erreur instanceof ErreurSyntaxique)) throw erreur;
+      this.erreur(`le texte utilise {${partie.valeur}}, que Humalis ne sait pas lire : ${erreur.message}.`, ligne);
+      return;
+    }
+    const type = this.typeDe(expression);
+    this.resultat.expressions.set(partie, expression);
+    if (habillage.devise) this.resultat.formats.set(partie, habillage.devise);
+    else if (type.genre === 'nombre') this.resultat.formats.set(partie, 'nombre');
   }
 
   /** « r.jour » : le champ « jour » de la donnée que porte « r » est une date. */
@@ -2644,6 +2682,8 @@ function actionInterditeDansUneFonction(instruction: Instruction): string | unde
       return 'changer le mot de passe';
     case 'TelechargementBon':
       return 'telecharger bon';
+    case 'TelechargementCsv':
+      return 'telecharger en csv';
     case 'Deconnexion':
       return 'se deconnecter';
     case 'Suppression':
@@ -2706,11 +2746,13 @@ function nomsChanges(instructions: Instruction[], noms = new Set<string>()): Set
  * Ce qui habille un « {…} » de texte (décision L6) : « prix en FC » (une
  * devise) ou « n article » (un mot à accorder), et le chemin de la valeur.
  */
-function habillageDe(texte: string): { chemin: string; devise?: 'FC' | 'EUR' | 'USD' | 'Ko' | 'Mo'; mot?: string; pluriel?: string; depuis?: boolean } | { erreur: string } {
+type FormatDevise = 'FC' | 'EUR' | 'USD' | 'Ko' | 'Mo';
+
+function habillageDe(texte: string): { chemin: string; devise?: FormatDevise; mot?: string; pluriel?: string; depuis?: boolean } | { erreur: string } {
   // « {r.cree depuis} » : « il y a 3 jours ».
   const depuis = /^(\S+)\s+depuis$/u.exec(texte);
   if (depuis) return { chemin: depuis[1], depuis: true };
-  const argent = /^(\S+)\s+en\s+(\S+)$/u.exec(texte);
+  const argent = /^(.+?)\s+en\s+(\S+)$/u.exec(texte);
   if (argent) {
     // « {photo.taille en Mo} » : une taille de fichier, écrite en kilo-octets ou en mégaoctets.
     const unite = ({ ko: 'Ko', mo: 'Mo' } as const)[argent[2].toLowerCase() as 'ko' | 'mo'];

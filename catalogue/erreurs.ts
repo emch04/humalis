@@ -294,12 +294,12 @@ page "accueil" :
     'En attendant, utilise un mot déjà disponible : ici, un texte.',
     p(`
 page "accueil" :
-    si non vrai :
-        texte "Détails"
+    titre "Accueil"
+    video "film.mp4"
 `),
     p(`
 page "accueil" :
-    texte "Détails"
+    titre "Accueil"
 `),
     'n’est pas encore disponible',
     { sites: 2 }),
@@ -1745,7 +1745,7 @@ style :
 page "accueil" :
     titre "Prix" avec style "prix"
 `),
-    "n'est défini dans aucun CSS du projet", { gravite: 'avertissement', sites: 2 }),
+    "n'est défini dans aucun CSS du projet", { gravite: 'avertissement', sites: 3 }),
   e('css-ecrase-humalis', 'avertissement', 'Une règle CSS écrase un style Humalis',
     'Une déclaration !important sur une classe produite par Humalis peut empêcher ses réglages de s’appliquer.',
     'Retire !important ou cible ta propre classe avec « avec style ».',
@@ -5128,4 +5128,74 @@ page "livraison" :
     texte "Commandée {commande depuis}"
 `),
     "« depuis » s'écrit après une date"),
+  e('calcul-partage-apres-les-pages', 'grammaire', 'Un calcul partagé écrit après les pages',
+    'Un calcul écrit hors d’une page vaut pour toutes les pages : il se déclare donc avant elles.',
+    'Monte le calcul en haut du fichier.',
+    p(`
+page "accueil" :
+    titre "Accueil"
+
+calcul total = 1 + 1
+`),
+    p(`
+calcul total = 1 + 1
+
+page "accueil" :
+    titre "Total : {total}"
+`),
+    'un calcul partagé s\'écrit en haut du fichier'),
+  e('calcul-illisible-dans-un-texte', 'sens', 'Un calcul illisible entre accolades',
+    'Entre accolades, on peut écrire un nom ou un calcul complet, comme « {prix * 2} ». Ici, le calcul est incomplet.',
+    'Termine le calcul entre les accolades.',
+    p(`
+page "accueil" :
+    titre "Accueil"
+    variable prix = 2
+    texte "{prix *}"
+`),
+    p(`
+page "accueil" :
+    titre "Accueil"
+    variable prix = 2
+    texte "{prix * 2}"
+`),
+    'que Humalis ne sait pas lire', { sites: 2 }),
+  e('csv-sans-liste', 'sens', '« en csv » sur autre chose qu’une liste',
+    'Un fichier CSV a une ligne par élément : il lui faut une liste.',
+    'Donne une liste à « telecharger … en csv ».',
+    p(`
+page "accueil" :
+    titre "Accueil"
+    variable prix = 2
+    bouton "Exporter"
+    quand l'utilisateur clique sur "Exporter" :
+        telecharger prix en csv
+`),
+    p(`
+page "accueil" :
+    titre "Accueil"
+    variable prix = [2, 3]
+    bouton "Exporter"
+    quand l'utilisateur clique sur "Exporter" :
+        telecharger prix en csv
+`),
+    '« telecharger … en csv » attend une liste'),
+  e('csv-hors-evenement', 'sens', '« en csv » directement dans la page',
+    'Un téléchargement part d’une action de la personne, pas de l’affichage de la page.',
+    'Place la phrase dans un événement.',
+    p(`
+page "accueil" :
+    titre "Accueil"
+    variable prix = [2, 3]
+    telecharger prix en csv
+`),
+    p(`
+page "accueil" :
+    titre "Accueil"
+    variable prix = [2, 3]
+    bouton "Exporter"
+    quand l'utilisateur clique sur "Exporter" :
+        telecharger prix en csv
+`),
+    'telecharger … en csv'),
 ];

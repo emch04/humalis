@@ -49,10 +49,12 @@ describe('parser — mots prévus', () => {
     expect(() => corps(page('tableau "Détails"'))).toThrow(/deux-points après la légende du tableau/);
   });
 
-  it('dit qu’un mot réservé prévu n’est pas encore disponible là où une valeur est attendue', () => {
-    const message = /« non » n’est pas encore disponible : ce mot est prévu dans le vocabulaire/;
-    expect(() => corps(page('variable x = 1', 'si non x :', '    texte "zéro"'))).toThrow(message);
-    expect(() => corps(page('variable x = non 1'))).toThrow(message);
+  it('dit qu’un mot prévu n’est pas encore disponible', () => {
+    expect(() => corps(page('video "film.mp4"'))).toThrow(/« video » n’est pas encore disponible : ce mot est prévu dans le vocabulaire/);
+  });
+
+  it('« non » s’écrit devant une condition, pas comme une valeur', () => {
+    expect(() => corps(page('variable x = non 1'))).toThrow(/« non » est un mot réservé/);
   });
 
   it('garde « instruction inconnue » pour un mot hors du vocabulaire', () => {

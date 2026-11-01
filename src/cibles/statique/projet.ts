@@ -12,7 +12,7 @@ import { LEAFLET_JS, LEAFLET_CSS } from './leaflet-donnees.js';
 import { GRAPHIQUE_JS } from './graphique.js';
 import { cssGraphique } from '../web/graphique.js';
 import { cssEcran } from '../web/css-ecran.js';
-import { cssElements } from '../web/css-elements.js';
+import { cssElements, cssSautsDeLigne } from '../web/css-elements.js';
 import { cssInteractions } from '../web/interactions.js';
 import { cssMouvement, animeAuDefilement, OBSERVATEUR_DEFILEMENT, SUIVI_ENTETE, suitLEntete } from '../commun/mouvement.js';
 import type { InfoMedia } from '../../ri/medias.js';
@@ -160,7 +160,7 @@ ${fonctions.join('\n')}`,
   // Copier et partager, les fenêtres et les questions, seulement si une page s'en sert.
   const scriptsDesPages = [...fichiers.entries()].filter(([nom]) => nom.endsWith('.js')).map(([, contenu]) => contenu);
   const emploie = (motif: RegExp) => scriptsDesPages.some((contenu) => motif.test(contenu));
-  const interactions = { pressePapier: emploie(/\b(copier|partager)\(/), fenetres: emploie(/\bfenetre\(/), questions: emploie(/\bconfirmer\(/), bas: emploie(/\bonbas:/) };
+  const interactions = { pressePapier: emploie(/\b(copier|partager|telechargerCsv)\(/), fenetres: emploie(/\bfenetre\(/), questions: emploie(/\bconfirmer\(/), bas: emploie(/\bonbas:/) };
   fichiers.set('humalis/humalis.js', humalisJs(options.source, pagesFichiers, serveur, session, bascule ? modeTheme ?? '' : undefined, usage, application.langues, interactions));
   // « menu repliable » : un seul écouteur pour tous les menus, ceux du HTML de départ comme ceux redessinés.
   if ([...fichiers.values()].some((contenu) => contenu.includes('humalis-menu-bouton'))) {
@@ -175,7 +175,7 @@ ${fonctions.join('\n')}`,
     fichiers.set('humalis/humalis.js', `${fichiers.get('humalis/humalis.js')!}\n// Les animations « au defilement » attendent que l'élément entre à l'écran.\n${OBSERVATEUR_DEFILEMENT}\nobserverLeDefilement();\n`);
   }
   // Les réglages de mise en page utilisés (colonnes, ombre, sur telephone…), d'après le code produit.
-  fichiers.set('humalis/styles.css', fichiers.get('humalis/styles.css')! + cssEcran([...fichiers.values()]) + cssElements([...fichiers.values()]) + cssMouvement([...fichiers.values()]) + cssInteractions([...fichiers.values()]) + cssGraphique([...fichiers.values()], application.theme?.couleurs.map((c) => c.nom)) + cssTheme(application.theme, bascule, options.polices));
+  fichiers.set('humalis/styles.css', fichiers.get('humalis/styles.css')! + cssEcran([...fichiers.values()]) + cssElements([...fichiers.values()]) + cssSautsDeLigne(application) + cssMouvement([...fichiers.values()]) + cssInteractions([...fichiers.values()]) + cssGraphique([...fichiers.values()], application.theme?.couleurs.map((c) => c.nom)) + cssTheme(application.theme, bascule, options.polices));
   // Les images locales, à côté des pages (images/…) : décision M5.
   for (const [chemin, contenu] of copiesDesMedias(options.medias, 'images/')) fichiers.set(chemin, contenu);
   for (const [chemin, contenu] of copiesDesMedias(options.medias, 'audio/', 'audio')) fichiers.set(chemin, contenu);
@@ -409,7 +409,7 @@ function humalisJs(
     ...(theme !== undefined ? ['definirTheme'] : []),
     ...(langues ? ['t', 'langue', 'changerLangue'] : []),
     ...(elements ? exportsElements(elements) : []),
-    ...(interactions.pressePapier ? ['copier', 'partager'] : []),
+    ...(interactions.pressePapier ? ['copier', 'partager', 'telechargerCsv'] : []),
     ...(interactions.fenetres ? ['fenetre'] : []),
     ...(interactions.questions ? ['confirmer'] : []),
     ...(serveur ? ['serveur', 'derniereRequete'] : []),
@@ -849,6 +849,33 @@ const PRESSE_PAPIER_JS = `
       }
     }
     await copier(adresse ?? texte, adresse ? 'Lien copié : il ne reste qu’à le coller.' : 'Texte copié : il ne reste qu’à le coller.');
+  }
+
+  /**
+   * « telecharger … en csv » : une ligne de titres (les champs), puis une ligne par élément. Le point-virgule et
+   * le BOM font ouvrir le fichier correctement par Excel en français. Une valeur qui commence par = + - ou @
+   * reçoit une apostrophe : le tableur ne la lira pas comme une formule.
+   */
+  function texteCsv(liste) {
+    const lignes = liste.map((e) => (e !== null && typeof e === 'object' && !Array.isArray(e) ? e : { valeur: e }));
+    const champs = [...new Set(lignes.flatMap((l) => Object.keys(l)))];
+    const cellule = (v) => {
+      const lu = v === null || v === undefined ? '' : Array.isArray(v) ? v.join(', ') : typeof v === 'object' ? JSON.stringify(v) : String(v);
+      const sur = typeof v === 'string' && /^[=+\\-@\\t\\r]/.test(lu) ? \`'\${lu}\` : lu;
+      return /[;"\\n\\r]/.test(sur) ? \`"\${sur.replace(/"/g, '""')}"\` : sur;
+    };
+    return [champs.map(cellule), ...lignes.map((l) => champs.map((c) => cellule(l[c])))].map((l) => l.join(';')).join('\\r\\n');
+  }
+
+  async function telechargerCsv(liste, fichier) {
+    const adresse = URL.createObjectURL(new Blob(['\\uFEFF' + texteCsv(liste)], { type: 'text/csv;charset=utf-8' }));
+    const lien = document.createElement('a');
+    lien.href = adresse;
+    lien.download = fichier;
+    document.body.append(lien);
+    lien.click();
+    lien.remove();
+    setTimeout(() => URL.revokeObjectURL(adresse), 1000);
   }
 `;
 

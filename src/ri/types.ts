@@ -65,6 +65,8 @@ export interface SourceRI {
 /** Un « {…} » d'un texte : la valeur lue, et comment l'écrire en français. */
 export interface PartieVariable {
   variable: string;
+  /** « {nombre de panier} » : un calcul ; `variable` garde alors ce qui est écrit. */
+  expression?: Valeur;
   format?: 'nombre' | 'date' | 'depuis' | 'FC' | 'EUR' | 'USD' | 'Ko' | 'Mo';
   pluriel?: string;
 }
@@ -374,7 +376,7 @@ export type NoeudVue =
    * Un formulaire : ses champs et ses boutons, envoyés ensemble (touche
    * Entrée ou bouton). Son gestionnaire de soumission le vise par `id`.
    */
-  | { type: 'formulaire'; id: string; nom: string; corps: NoeudVue[]; ligne: number }
+  | { type: 'formulaire'; id: string; nom: string; classes?: string[]; corps: NoeudVue[]; ligne: number }
   /**
    * Un bloc de mise en page (« section », « bloc », « ligne », « colonne »,
    * « grille ») : il regroupe des nœuds, que le CSS met en forme.
@@ -618,6 +620,8 @@ export type Action =
   | { type: 'changementMotDePasse'; actuel: Valeur; nouveau: Valeur }
   /** « telecharger bon de commande de c » : le PDF arrive avec la session, sans ouvrir de page. */
   | { type: 'telechargementBon'; adresse: string; objet: Valeur }
+  /** « telecharger commandes en csv » : le fichier se fait dans l'appareil. */
+  | { type: 'telechargementCsv'; liste: Valeur; fichier: string }
   | { type: 'deconnexion' }
   | {
       type: 'repetition';

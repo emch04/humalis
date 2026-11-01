@@ -411,6 +411,9 @@ CSS can also come from a file: `utiliser style "./theme.css"` at the top of
 the file. CSS applies to the web, static and desktop targets; mobile only
 translates named styles (colour, background, size, position, border).
 
+A form and a breadcrumb take a style too:
+`formulaire "order" avec style "card" :`, `fil d'Ariane avec style "quiet" :`.
+
 `humalis verifier` warns when a class used with `avec style` is missing from
 the project's CSS and suggests a close name. It also warns when an
 `!important` rule targets a `.humalis-…` class: remove `!important` or use
@@ -806,6 +809,21 @@ page "cart" :
     texte "Total: {total en euros}"
 ```
 
+Written at the top of the file, before the pages, a calculation applies to every
+page, the header and the footer:
+
+```humalis
+variable cart = [] avec partagee
+calcul items = nombre de cart
+
+page "home" :
+    titre "Home"
+    texte "{items} items"
+```
+
+Between braces, a text also accepts a calculation: `{nombre de cart}`,
+`{row.price * row.quantity}`, `{price * 2 en euros}`.
+
 ### Number calculations
 
 ```humalis
@@ -1005,6 +1023,8 @@ page "catalogue" :
     calcul cheap = products dont price est inferieur a 10
     calcul showcase = les 2 premiers de by_price
     calcul book = premier de products dont name contient "Bo"
+    calcul sale = products dont price est inferieur a 10 et name contient "P"
+    calcul small = trier (products dont price est inferieur a 10) par price
     titre "Catalogue"
     texte "Found: {book.name}"
     pour chaque p dans showcase :
@@ -1057,6 +1077,23 @@ page "game" :
 `repeter 3 fois` (repeat 3 times), `tant que` (while), `selon … cas …`
 (switch … case …). `arreter` leaves a loop; `passer au suivant` skips to the
 next turn.
+
+`selon` also works in a page, to show what matches a value:
+
+```humalis
+page "order" :
+    variable status = "delivered"
+    titre "Order"
+    selon status :
+        cas "delivered" :
+            texte "Your order has arrived."
+        cas "cancelled" ou "refused" :
+            texte "Your order did not go through."
+        sinon :
+            texte "Your order is on its way."
+```
+
+`non` reverses a condition: `si non active :` or `si non price est egal a 0 :`.
 
 ---
 
@@ -1461,6 +1498,14 @@ page "cart" :
     lien "Order on WhatsApp" vers "https://wa.me/243000000000?text={message}" avec nouvel onglet
 ```
 
+The whole address can come from a variable: `lien "Site" vers "{address}"`. Only
+addresses in `https:`, `http:`, `mailto:`, `tel:` or starting with `/` are
+followed. Web and desktop can do it; mobile and static sites still refuse an
+external link.
+
+`{saut de ligne}` writes a line break in a text, and `%0A` in an address:
+`texte "Hello{saut de ligne}Thanks"`.
+
 ### Address filters
 
 A filter (`filtre`) is an optional value in the address
@@ -1754,6 +1799,12 @@ page "profil" :
 Both work on web, desktop and mobile. On the phone, the photo comes from the
 gallery, with the same shrinking; a transparent image loses its transparency
 there (JPEG has none).
+
+### Downloading a list as CSV
+
+In an event, `telecharger orders en csv` saves the list to an `orders.csv` file
+that French-language Excel opens correctly. On a phone, the text goes through
+the share sheet.
 
 ### Downloading a record's slip
 

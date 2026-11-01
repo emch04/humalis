@@ -666,6 +666,9 @@ ${prise}${code}}
             `await copier(${this.enTexte(action.valeur)}${action.message === null ? ', null' : action.texte ? `, ${x(action.texte)}` : action.message === 'Copié' ? '' : `, ${chaine(action.message)}`});`,
           );
           break;
+        case 'telechargementCsv':
+          e.ligne(`await telechargerCsv(${x(action.liste)}, ${chaine(action.fichier)});`);
+          break;
         case 'partage': {
           // La feuille de partage du système ; sans elle, le lien (ou le texte) est copié.
           const lien = action.lien;
@@ -998,7 +1001,7 @@ ${prise}${code}}
         case 'formulaire': {
           // Entrée ou le bouton envoient le formulaire, sans recharger la page.
           const soumission = this.formulaires.get(noeud.id)?.soumission ?? '() => {}';
-          const ouverture = `creer('form', { ${this.repereObjetJs(noeud.ligne)}'data-humalis': ${chaine(noeud.id)}, class: 'humalis-formulaire', novalidate: true, onsubmit: ${soumission} }, ...`;
+          const ouverture = `creer('form', { ${this.repereObjetJs(noeud.ligne)}'data-humalis': ${chaine(noeud.id)}, class: ${chaine(['humalis-formulaire', ...(noeud.classes ?? [])].join(' '))}, novalidate: true, onsubmit: ${soumission} }, ...`;
           if (this.montres.has(noeud.id) || this.caches.has(noeud.id)) {
             this.ecrireGroupe(e, noeud.corps, `...(visibilite[${chaine(noeud.id)}] ? [${ouverture}`, ')] : []),');
           } else {
@@ -1268,7 +1271,7 @@ ${prise}${code}}
         case 'formulaire': {
           // Un formulaire que l'on montre est caché au départ.
           if (this.montres.has(noeud.id)) break;
-          lignes.push(`<form${attributs([this.repereHtml(noeud.ligne), ['data-humalis', noeud.id], ['class', 'humalis-formulaire'], ['novalidate', 'true']])}>`);
+          lignes.push(`<form${attributs([this.repereHtml(noeud.ligne), ['data-humalis', noeud.id], ['class', ['humalis-formulaire', ...(noeud.classes ?? [])].join(' ')], ['novalidate', 'true']])}>`);
           this.ecrireGroupeHtml(noeud.corps, env, lignes);
           lignes.push('</form>');
           break;
@@ -1666,6 +1669,7 @@ const OUTILS_PAGE = [
   'themeSombre',
   'copier',
   'partager',
+  'telechargerCsv',
   'derniereRequete',
   'cliquer',
   'focaliser',
@@ -1738,7 +1742,7 @@ function contientRequete(actions: Action[]): boolean {
   );
 }
 
-const ATTENTES = new Set<Action['type']>(['requete', 'suppression', 'modification', 'connexion', 'deconnexion', 'confirmation', 'copie', 'partage']);
+const ATTENTES = new Set<Action['type']>(['requete', 'suppression', 'modification', 'connexion', 'deconnexion', 'confirmation', 'copie', 'partage', 'telechargementCsv']);
 
 /** Vrai si le bloc d'une minuterie contient « arreter » pour elle (hors d'une boucle). */
 function arrete(actions: Action[]): boolean {
