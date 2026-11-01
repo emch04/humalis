@@ -213,7 +213,7 @@ function champWeb(el: ElementProduit, a: string): string {
   // Le libellé et son étoile restent sur la même ligne (le libellé est en colonne, au-dessus de la saisie).
   const libelle = saisie?.obligatoire ? `<span>${el.contenu}${ETOILE_WEB}</span>` : el.contenu;
   const requis = saisie?.obligatoire ? ' required' : '';
-  const indice = el.champ.indice !== undefined ? ` placeholder={String(${el.champ.indice} ?? '')}` : saisie?.indice !== undefined ? ` placeholder=${saisie.indiceLangues ? `{${messageEnCode(saisie.indiceLangues, chaine)}}` : attributTexte(saisie.indice)}` : '';
+  const indice = el.champ.indice !== undefined ? ` placeholder={${el.champ.indice}}` : saisie?.indice !== undefined ? ` placeholder=${saisie.indiceLangues ? `{${messageEnCode(saisie.indiceLangues, chaine)}}` : attributTexte(saisie.indice)}` : '';
   const changer = `onChange={(evenement) => ${setter}(evenement.target.value)}`;
   switch (sorte) {
     case 'case':

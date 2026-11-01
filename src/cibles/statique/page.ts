@@ -1087,7 +1087,7 @@ ${prise}${code}}
     const libelle = saisie?.obligatoire ? `creer('span', {}, ${contenu}, ${ETOILE_JS})` : contenu;
     const options = (liste: [string, string][]) => {
       if (saisie?.obligatoire) liste.push(['required', 'true']);
-      if (saisie?.indiceValeur && sorte !== 'liste') liste.push(['placeholder', `String(${expressionJs(saisie.indiceValeur, this.contexte)} ?? '')`]);
+      if (saisie?.indiceValeur && sorte !== 'liste') liste.push(['placeholder', expressionJs(saisie.indiceValeur, this.contexte)]);
       else if (saisie?.indice !== undefined && sorte !== 'liste') liste.push(['placeholder', saisie.indiceLangues ? messageEnCode(saisie.indiceLangues, chaine) : chaine(saisie.indice)]);
       if (saisie?.minimum !== undefined) liste.push(['min', String(saisie.minimum)]);
       if (saisie?.maximum !== undefined) liste.push(['max', String(saisie.maximum)]);
