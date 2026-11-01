@@ -26,6 +26,8 @@ export function estAdresseExterne(valeur: string): boolean {
 
 /** « carte#desserts », « #desserts », « https://… », « mailto:… » : ce qu'un lien ou une redirection vise. */
 export function lireCible(cible: string): CibleLue {
+  // « lien "Site" vers "{adresse}" » : toute l'adresse vient d'une variable ; le schéma est vérifié à l'affichage.
+  if (cible.trim().startsWith('{')) return { externe: true };
   const schema = /^([a-z][a-z0-9+.-]*):/i.exec(cible.trim())?.[1]?.toLowerCase();
   if (schema !== undefined) {
     if (SCHEMAS_PERMIS.includes(schema)) return { externe: true };

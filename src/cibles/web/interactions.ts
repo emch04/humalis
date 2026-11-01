@@ -50,7 +50,7 @@ export function fichiersDesInteractions(codes: string[], plateforme: Plateforme 
 /** Les outils de chaque fichier, pour écrire les imports d'une page. */
 export const OUTILS_INTERACTIONS: Record<string, string[]> = {
   temps: ['useActuel', 'useMinuterie', 'usePlanifier', 'useMouvementReduit', 'useThemeSombre', 'useQuandChange', 'useQuandPause', 'useDerniere'],
-  'presse-papier': ['copier', 'partager', 'adresseAbsolue'],
+  'presse-papier': ['copier', 'partager', 'adresseAbsolue', 'telechargerCsv'],
   menu: ['menuRepliable'],
   clavier: ['useRaccourcis', 'correspond', 'cliquer', 'focaliser'],
   confirmation: ['confirmer', 'useConfirmer'],
@@ -376,6 +376,30 @@ export async function partager(donnees: { texte: string; titre?: string; adresse
     afficher('Partage impossible.', 'erreur');
   }
 }
+
+/**
+ * « telecharger … en csv » : une ligne de titres (les champs), puis une ligne par élément. Le point-virgule et
+ * le BOM font ouvrir le fichier correctement par Excel en français. Une valeur qui commence par = + - ou @
+ * reçoit une apostrophe : le tableur ne la lira pas comme une formule.
+ */
+function texteCsv(liste: unknown[]): string {
+  const lignes = liste.map((e) => (e !== null && typeof e === 'object' && !Array.isArray(e) ? (e as Record<string, unknown>) : { valeur: e }));
+  const champs = [...new Set(lignes.flatMap((l) => Object.keys(l)))];
+  const cellule = (v: unknown): string => {
+    const lu = v === null || v === undefined ? '' : Array.isArray(v) ? v.join(', ') : typeof v === 'object' ? JSON.stringify(v) : String(v);
+    const sur = typeof v === 'string' && /^[=+\\-@\\t\\r]/.test(lu) ? \`'\${lu}\` : lu;
+    return /[;"\\n\\r]/.test(sur) ? \`"\${sur.replace(/"/g, '""')}"\` : sur;
+  };
+  return [champs.map(cellule), ...lignes.map((l) => champs.map((c) => cellule(l[c])))].map((l) => l.join(';')).join('\\r\\n');
+}
+
+export async function telechargerCsv(liste: unknown[], fichier: string, afficher: Afficher): Promise<void> {
+  try {
+    await Share.share({ title: fichier, message: texteCsv(liste) });
+  } catch {
+    afficher('Partage impossible.', 'erreur');
+  }
+}
 `;
   }
   return `/**
@@ -432,6 +456,37 @@ export async function partager(donnees: { texte: string; titre?: string; adresse
     }
   }
   await copier(adresse ?? texte, afficher, adresse ? 'Lien copié : il ne reste qu’à le coller.' : 'Texte copié : il ne reste qu’à le coller.');
+}
+
+/**
+ * « telecharger … en csv » : une ligne de titres (les champs), puis une ligne par élément. Le point-virgule et
+ * le BOM font ouvrir le fichier correctement par Excel en français. Une valeur qui commence par = + - ou @
+ * reçoit une apostrophe : le tableur ne la lira pas comme une formule.
+ */
+function texteCsv(liste: unknown[]): string {
+  const lignes = liste.map((e) => (e !== null && typeof e === 'object' && !Array.isArray(e) ? (e as Record<string, unknown>) : { valeur: e }));
+  const champs = [...new Set(lignes.flatMap((l) => Object.keys(l)))];
+  const cellule = (v: unknown): string => {
+    const lu = v === null || v === undefined ? '' : Array.isArray(v) ? v.join(', ') : typeof v === 'object' ? JSON.stringify(v) : String(v);
+    const sur = typeof v === 'string' && /^[=+\\-@\\t\\r]/.test(lu) ? \`'\${lu}\` : lu;
+    return /[;"\\n\\r]/.test(sur) ? \`"\${sur.replace(/"/g, '""')}"\` : sur;
+  };
+  return [champs.map(cellule), ...lignes.map((l) => champs.map((c) => cellule(l[c])))].map((l) => l.join(';')).join('\\r\\n');
+}
+
+export async function telechargerCsv(liste: unknown[], fichier: string, afficher: Afficher): Promise<void> {
+  try {
+    const adresse = URL.createObjectURL(new Blob(['\\uFEFF' + texteCsv(liste)], { type: 'text/csv;charset=utf-8' }));
+    const lien = document.createElement('a');
+    lien.href = adresse;
+    lien.download = fichier;
+    document.body.append(lien);
+    lien.click();
+    lien.remove();
+    setTimeout(() => URL.revokeObjectURL(adresse), 1000);
+  } catch {
+    afficher('Téléchargement impossible.', 'erreur');
+  }
 }
 `;
 }

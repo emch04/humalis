@@ -58,5 +58,5 @@ export const GENRES_COMPOSITES: GenreBloc[] = ['onglets', 'onglet', 'deroulant',
 
 /** `fil d'Ariane :` s'écrit en deux mots (`d'` est un mot de liaison déjà sauté) : `fil` seul reste un nom. */
 export function estFilAriane(flux: FluxTokens): boolean {
-  return estLeMot(flux.actuel(), 'fil') && estLeMot(flux.regarder(1), 'ariane') && flux.regarder(2).valeur === ':';
+  return estLeMot(flux.actuel(), 'fil') && estLeMot(flux.regarder(1), 'ariane') && (flux.regarder(2).valeur === ':' || flux.regarder(2).valeur === 'avec');
 }

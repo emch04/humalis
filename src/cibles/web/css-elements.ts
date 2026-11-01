@@ -95,6 +95,11 @@ button.humalis-etoile { cursor: pointer; }
 };
 
 /** Le CSS de base des éléments d'écran dont le code produit se sert. */
+/** « {saut de ligne} » : le navigateur garde le retour à la ligne, seulement si le programme en écrit un. */
+export function cssSautsDeLigne(application: unknown): string {
+  return JSON.stringify(application).includes('\\n') ? '\np, h1, h2, h3, h4, h5, h6, .humalis-message { white-space: pre-line; }\n' : '';
+}
+
 export function cssElements(codes: string[]): string {
   const regles = Object.entries(BASE)
     .filter(([nom]) => codes.some((c) => new RegExp(`humalis-${nom}\\b`).test(c) || (nom === 'mot-de-passe' && (c.includes('<MotDePasse') || /\btype(="|: ')password\b/.test(c)))))

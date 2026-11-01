@@ -58,6 +58,12 @@ function texteJs(parties: PartiesTexte, contexte: ContexteJs, langue?: string): 
   }
   const morceaux = parties.map((p) => {
     if ('texte' in p) return p.texte.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
+    // « {nombre de panier} » : le calcul lui-même, avec son habillage.
+    if (p.expression) {
+      const calcul = expressionJs(p.expression, contexte);
+      const habille = habillage(p, langue);
+      return habille ? `\${${habille(calcul)}}` : `\${${calcul} ?? ''}`;
+    }
     const [premier, ...reste] = p.variable.split('.');
     // Le format français (décision F1) : « 28 000 », « 7 novembre 2026 ».
     const formater = 'variable' in p ? habillage(p, langue) : undefined;
@@ -280,7 +286,7 @@ export function evaluer(valeur: Valeur, env: Environnement): unknown {
       return valeur.parties
         .map((p) => {
           if ('texte' in p) return p.texte;
-          const v = lireChemin(p.variable, env);
+          const v = p.expression ? evaluer(p.expression, env) : lireChemin(p.variable, env);
           // Le même format que le script : le HTML de départ et le premier dessin sont identiques.
           if (p.pluriel) return accorder(v as number | null | undefined, p.pluriel);
           if (p.format === 'nombre') return formaterNombre(v as number | null | undefined);
@@ -289,6 +295,7 @@ export function evaluer(valeur: Valeur, env: Environnement): unknown {
           if (p.format === 'Ko' || p.format === 'Mo') return formaterTaille(v as number | null | undefined, p.format);
           if (p.format) return formaterArgent(v as number | null | undefined, p.format);
           // Le champ d'une variable « = rien » encore vide : `?? ''` dans le script, rien ici non plus.
+          if (p.expression) return v === null || v === undefined ? '' : String(v);
           if (p.variable.includes('.') && env.lire(p.variable.split('.')[0]) === null) return '';
           return env.types.get(p.variable)?.genre === 'liste' && Array.isArray(v) ? v.join(', ') : String(v);
         })

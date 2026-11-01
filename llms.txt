@@ -8,7 +8,7 @@ Humalis est un langage en français. Un fichier .humalis décrit des pages, des 
 - Les éléments d’écran pris en charge : titre, texte, image, bouton, lien, champ, formulaire, section, bloc, ligne, colonne, grille, liste numérotée, sous-titre, liste, tableau, fenêtre, menu, icône, badge, avatar, progression, chargement, étoiles, compteur, code QR, onglets, onglet, déroulant, accordéon, carrousel, fil d’Ariane, audio, fichier, carte, marqueur, graphique, série, sélecteur. Leur texte s’écrit entre guillemets.
 - Déclare une valeur avec `variable nom = valeur` ; une condition commence par `si ... :`.
 - Les événements pris en charge : quand, utilisateur, clique, sur, survole, charge, soumis, ecrit, arrête d’écrire, appuie, arrive en bas de, l’ordre de … change. Écris l’événement sous l’élément visé, puis l’action dans son bloc.
-- Les actions prises en charge : afficher, erreur, montrer, cacher, changer, rediriger, ajouter, retirer, envoyer, requête, connecter, déconnecter, connecter avec google, télécharger bon, recharger, basculer thème, continuer vers, revenir, réussite, avertissement, pendant, disparaître, action, après, toutes, copier, partager, confirmer.
+- Les actions prises en charge : afficher, erreur, montrer, cacher, changer, rediriger, ajouter, retirer, envoyer, requête, connecter, déconnecter, connecter avec google, csv, télécharger bon, recharger, basculer thème, continuer vers, revenir, réussite, avertissement, pendant, disparaître, action, après, toutes, copier, partager, confirmer.
 - Les mots de liaison (ignorés dans une phrase mais interdits comme nom de variable) : le, la, les, un, une, des, de, du, à, au, aux, se, l', d', s', n', c', j', m', t'.
 
 ## Pièges fréquents
@@ -491,3 +491,7 @@ page "accueil" :
 - Une date attendue : une date s'écrit comme
 - Un décalage de date sans nombre : attend un nombre ;
 - « depuis » après autre chose qu’une date : « depuis » s'écrit après une date
+- Un calcul partagé écrit après les pages : un calcul partagé s'écrit en haut du fichier
+- Un calcul illisible entre accolades : que Humalis ne sait pas lire
+- « en csv » sur autre chose qu’une liste : « telecharger … en csv » attend une liste
+- « en csv » directement dans la page : telecharger … en csv

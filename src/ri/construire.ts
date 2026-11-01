@@ -400,6 +400,7 @@ class Construction {
               this.analyse.elements.get(this.page)?.formulaires.find((f) => f.noeud === instruction)?.id ??
               `formulaire_ligne_${instruction.ligne}`,
             nom: instruction.nom,
+            ...(instruction.classes ? { classes: instruction.classes } : {}),
             corps: this.vue(instruction.corps, gestionnaires),
             ligne: instruction.ligne,
           });
@@ -615,6 +616,14 @@ class Construction {
 
         case 'ConnexionGoogle':
           actions.push({ type: 'connexionGoogle' });
+          break;
+
+        case 'TelechargementCsv':
+          actions.push({
+            type: 'telechargementCsv',
+            liste: this.valeur(instruction.liste),
+            fichier: `${instruction.liste.type === 'Reference' ? instruction.liste.nom : 'donnees'}.csv`,
+          });
           break;
 
         case 'TelechargementBon':
@@ -918,6 +927,17 @@ class Construction {
   }
 }
 
+/** La condition d'un filtre : une comparaison, ou plusieurs reliées par « et » et « ou ». */
+function testDe(test: TestAst, analyse: ResultatAnalyse): Test {
+  if (test.type === 'Combinaison') return { operateur: test.operateur, gauche: testDe(test.gauche, analyse), droite: testDe(test.droite, analyse) };
+  return {
+    gauche: traduireValeur(test.gauche, analyse),
+    operateur: test.operateur,
+    ...(test.droite ? { droite: traduireValeur(test.droite, analyse) } : {}),
+    ...(test.negation ? { negation: true } : {}),
+  };
+}
+
 /** Une expression de l'arbre devient une valeur de la RI. */
 function traduireValeur(expression: Expression, analyse: ResultatAnalyse): Valeur {
   const valeur = (e: Expression) => traduireValeur(e, analyse);
@@ -932,6 +952,7 @@ function traduireValeur(expression: Expression, analyse: ResultatAnalyse): Valeu
           const pluriel = analyse.pluriels.get(p);
           return {
             variable: analyse.chemins.get(p) ?? p.valeur,
+            ...(analyse.expressions.has(p) ? { expression: valeur(analyse.expressions.get(p)!) } : {}),
             ...(format ? { format } : {}),
             ...(pluriel ? { pluriel } : {}),
           };
@@ -990,12 +1011,7 @@ function traduireValeur(expression: Expression, analyse: ResultatAnalyse): Valeu
         type: 'filtre',
         liste: valeur(expression.liste),
         champs: analyse.filtres.get(expression) ?? [],
-        test: {
-          gauche: valeur(expression.test.gauche),
-          operateur: expression.test.operateur,
-          ...(expression.test.droite ? { droite: valeur(expression.test.droite) } : {}),
-          ...(expression.test.negation ? { negation: true } : {}),
-        },
+        test: testDe(expression.test, analyse),
       };
     case 'Tri':
       return {

@@ -63,7 +63,7 @@ export interface Rendu {
    * soumission (`quandSoumisMessage`, `quandSoumisAvis(sujet)`) s'il en a
    * une, et sa fermeture.
    */
-  formulaire: { ouvrir(id: string, soumettre: string | undefined): string; fermer: string };
+  formulaire: { ouvrir(id: string, soumettre: string | undefined, classes?: string[]): string; fermer: string };
   /** Un bloc de mise en page (« section », « ligne »…) : son ouverture et sa fermeture. */
   bloc: { ouvrir(genre: GenreBloc, options: Option[], classes: string[], ancre?: string): string; fermer(genre: GenreBloc, options: Option[]): string };
   /**
@@ -304,8 +304,8 @@ export const RENDU_WEB: Rendu = {
   // Une vraie balise <form> : Entrée dans un champ, ou le bouton, l'envoie. Les
   // vérifications sont celles de Humalis (messages en français) : noValidate.
   formulaire: {
-    ouvrir: (id, soumettre) =>
-      `<form data-humalis="${id}" className="humalis-formulaire" noValidate onSubmit={${
+    ouvrir: (id, soumettre, classes = []) =>
+      `<form data-humalis="${id}" className="${['humalis-formulaire', ...classes].join(' ')}" noValidate onSubmit={${
         soumettre === undefined
           ? '(evenement) => evenement.preventDefault()'
           : `(evenement) => { evenement.preventDefault(); void ${soumettre.includes('(') ? soumettre : `${soumettre}()`}; }`
@@ -796,6 +796,7 @@ class GenerateurEcran {
           if (action.message !== null) this.besoins.messages = true;
           break;
         case 'partage':
+        case 'telechargementCsv':
           this.besoins.messages = true;
           break;
         case 'minuterie':
@@ -1152,6 +1153,13 @@ class GenerateurEcran {
    * l'envoi, avec un message en français. Cela aide la personne ; cela ne
    * protège rien (le serveur vérifie de nouveau).
    */
+  /** Une adresse qui commence par une variable : seuls les schémas sûrs passent, jamais « javascript: ». */
+  private adresseDeLien(valeur: Valeur): string {
+    const adresse = adresseEncodee(valeur, this.contexte);
+    const premiere = valeur.type === 'texte' ? valeur.parties[0] : undefined;
+    return premiere && 'variable' in premiere ? `((adresse: string) => (/^(https?:|mailto:|tel:|\\/)/i.test(adresse) ? adresse : '#'))(${adresse})` : adresse;
+  }
+
   private verifications(id: string): [string, MessageEnLangues][] {
     const variable = this.contexte.champs.get(id);
     if (variable === undefined) return [];
@@ -1239,6 +1247,9 @@ class GenerateurEcran {
           e.ligne(
             `await copier(${this.enTexte(action.valeur)}${action.message === null ? '' : `, afficherMessage${action.texte ? `, ${x(action.texte)}` : action.message === 'Copié' ? '' : `, ${chaine(action.message)}`}`});`,
           );
+          break;
+        case 'telechargementCsv':
+          e.ligne(`await telechargerCsv(${x(action.liste)}, ${chaine(action.fichier)}, afficherMessage);`);
           break;
         case 'partage': {
           // La feuille de partage du système ; sans elle, le lien (ou le texte) est copié.
@@ -1897,7 +1908,7 @@ class GenerateurEcran {
 
         case 'formulaire': {
           const ecrire = () => {
-            e.ligne(this.marquer(this.rendu.formulaire.ouvrir(noeud.id, this.formulaires.get(noeud.id)?.soumission), noeud.ligne));
+            e.ligne(this.marquer(this.rendu.formulaire.ouvrir(noeud.id, this.formulaires.get(noeud.id)?.soumission, noeud.classes), noeud.ligne));
             // Des variables dans le bloc : écrites comme dans une condition.
             e.indenter(() =>
               noeud.corps.some((n) => n.type === 'locale') ? this.ecrireGroupe(e, noeud.corps, true) : this.ecrireVue(e, noeud.corps),
@@ -2175,7 +2186,7 @@ class GenerateurEcran {
             : '/',
       ...(noeud.cible !== undefined && noeud.arguments ? { versExpression: this.adresseAvec(noeud.cible, noeud.arguments, noeud.versAncre) } : {}),
       ...(noeud.externe !== undefined ? { externe: noeud.externe } : {}),
-      ...(noeud.externeValeur !== undefined ? { externeExpression: adresseEncodee(noeud.externeValeur, this.contexte) } : {}),
+      ...(noeud.externeValeur !== undefined ? { externeExpression: this.adresseDeLien(noeud.externeValeur) } : {}),
       ...(noeud.nouvelOnglet ? { nouvelOnglet: true } : {}),
       ...(noeud.ancre !== undefined ? { ancre: noeud.ancre } : {}),
       ...(noeud.cible !== undefined ? { filtresCible: (this.application.filtres?.get(noeud.cible) ?? []).map((f) => f.nom) } : {}),
@@ -2270,7 +2281,7 @@ function arrete(actions: Action[]): boolean {
   return actions.some((a) => a.type === 'arreter' || (!['repetition', 'tantQue', 'repeter', 'minuterie', 'message'].includes(a.type) && sousActions(a).some(arrete)));
 }
 
-const ATTENTES = new Set<Action['type']>(['requete', 'recharger', 'suppression', 'modification', 'connexion', 'connexionGoogle', 'changementMotDePasse', 'telechargementBon', 'deconnexion', 'envoiFichier', 'confirmation', 'copie', 'partage']);
+const ATTENTES = new Set<Action['type']>(['requete', 'recharger', 'suppression', 'modification', 'connexion', 'connexionGoogle', 'changementMotDePasse', 'telechargementBon', 'deconnexion', 'envoiFichier', 'confirmation', 'copie', 'partage', 'telechargementCsv']);
 
 /** Les noms changés par des actions : affectations, ajouts, retraits, réponses. */
 function modifiees(actions: Action[], noms = new Set<string>()): Set<string> {

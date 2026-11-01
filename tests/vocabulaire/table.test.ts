@@ -130,7 +130,7 @@ describe('la table de vocabulaire : les mots réservés (décision Q2)', () => {
 describe('la table remplace la liste du lexer, sans rien casser', () => {
   it('les mots-clés pris en charge sont exactement les anciens, plus « par », « composant », « serveur » et « rien »', () => {
     const supportes = VOCABULAIRE.filter((e) => e.statut === 'supporte' && estMotCleDuLexer(e)).map((e) => e.mot);
-    expect([...new Set(supportes)].sort()).toEqual([...ANCIENS_MOTS_CLES, 'par', 'composant', 'serveur', 'rien', 'soustitre', 'liste', 'tableau'].sort());
+    expect([...new Set(supportes)].sort()).toEqual([...ANCIENS_MOTS_CLES, 'par', 'composant', 'serveur', 'non', 'rien', 'soustitre', 'liste', 'tableau'].sort());
   });
 
   it('les mots des composants, du partage et du serveur sont pris en charge mais ne sont pas des mots-clés du lexer', () => {

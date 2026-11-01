@@ -3,6 +3,7 @@ import { estSite, analyserSite, estApercu, analyserApercu } from './site.js';
 import { estLangues, analyserLangues, estTraductions, analyserTraductions, lireVersions, estSelecteurLangue } from './langues.js';
 import { OPTIONS } from '../analyse/styles.js';
 import type { Token, PartieChaine } from '../lexer/types.js';
+import { analyser as analyserLexique } from '../lexer/lexer.js';
 import { FluxTokens } from './fluxTokens.js';
 import { analyserSource, analyserClausesRequete, analyserSourceSeule } from './source.js';
 import { analyserEntetePage, analyserAvecPage } from './navigation.js';
@@ -63,7 +64,7 @@ import type {
   Boucle,
   Evenement,
   GenreEvenement,
-  Connexion, ConnexionGoogle, ChangementMotDePasse, TelechargementBon, Fidelite, Suppression, Modification, EnvoiFichier, ArgumentPage } from './ast.js';
+  Connexion, ConnexionGoogle, ChangementMotDePasse, TelechargementBon, TelechargementCsv, Fidelite, Suppression, Modification, EnvoiFichier, ArgumentPage } from './ast.js';
 
 export function analyserSyntaxe(tokens: Token[]): Programme {
   const flux = new FluxTokens(tokens);
@@ -84,6 +85,7 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
   let langues: Programme['langues'];
   const traductions: NonNullable<Programme['traductions']> = [];
   const constantes: DeclarationVariable[] = [];
+  const calculsPartages: DeclarationVariable[] = [];
   let entete: Programme['entete'];
   let pied: Programme['pied'];
   const nomsVus = new Set<string>();
@@ -149,6 +151,14 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
     // « constante tva = 16 » en haut du fichier : elle vaut dans toutes les pages.
     if (estConstante(flux)) {
       constantes.push({ ...analyserVariable(flux), calcul: true, constante: true });
+      flux.sauterFinsDeLigne();
+      continue;
+    }
+
+    // « calcul articles = somme de panier.quantite » en haut du fichier : il se recalcule dans toutes les pages.
+    if (flux.verifier('MOT_CLE', 'calcul')) {
+      if (pages.length > 0) throw new ErreurSyntaxique('un calcul partagé s\'écrit en haut du fichier, avant les pages.', flux.actuel().ligne);
+      calculsPartages.push({ ...analyserVariable(flux), calcul: true });
       flux.sauterFinsDeLigne();
       continue;
     }
@@ -253,9 +263,11 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
   }
 
   // Les constantes du haut du fichier sont écrites en tête de chaque page et de chaque composant.
-  if (constantes.length > 0) {
-    for (const lieu of [...pages, ...composants, ...(entete ? [entete] : []), ...(pied ? [pied] : [])]) lieu.corps.unshift(...constantes.map((c) => ({ ...c })));
+  const enTete = [...constantes, ...calculsPartages];
+  if (enTete.length > 0) {
+    for (const lieu of [...pages, ...composants, ...(entete ? [entete] : []), ...(pied ? [pied] : [])]) lieu.corps.unshift(...enTete.map((c) => ({ ...c })));
   }
+  for (const lieu of [...pages, ...composants, ...(entete ? [entete] : []), ...(pied ? [pied] : [])]) lieu.corps = selonEnConditions(lieu.corps);
   const programme: Programme = { type: 'Programme', pages, styles, fichiersStyle, donneesFichiers, partages, composantsReact, composants, serveurs, sources, fichiersHumalis, fonctions, tests, ...(theme ? { theme } : {}), ...(site ? { site } : {}), ...(langues ? { langues } : {}), ...(traductions.length ? { traductions } : {}), ...(entete ? { entete } : {}), ...(pied ? { pied } : {}) };
   // Les appels de fonctions d'actions sont remplacés par leur corps (src/parser/fonctionsActions.ts).
   const actions = deplierFonctionsActions(programme);
@@ -292,6 +304,33 @@ function analyserSelon(flux: FluxTokens): Selon {
   }
   flux.accepter('DEDENT');
   return { type: 'Selon', valeur, cas, sinon, ligne: debut.ligne };
+}
+
+/** « selon » écrit dans une page : chaque « cas » devient un « si », seul ce qui s'affiche est concerné. */
+function selonEnConditions(corps: Instruction[]): Instruction[] {
+  return corps.map((i) => {
+    switch (i.type) {
+      case 'Selon': {
+        let sinon = selonEnConditions(i.sinon);
+        for (const cas of [...i.cas].reverse()) {
+          const test = cas.valeurs
+            .map((droite): Test => ({ type: 'Comparaison', gauche: i.valeur, operateur: 'egal', droite, ligne: cas.ligne }))
+            .reduce((gauche, droite) => ({ type: 'Combinaison', operateur: 'ou', gauche, droite, ligne: cas.ligne }));
+          sinon = [{ type: 'Condition', test, alors: selonEnConditions(cas.corps), sinon, ligne: cas.ligne }];
+        }
+        return sinon.length === 1 ? sinon[0] : { type: 'Bloc', genre: 'bloc', styles: [], classes: [], corps: sinon, ligne: i.ligne };
+      }
+      case 'Condition':
+        return { ...i, alors: selonEnConditions(i.alors), sinon: selonEnConditions(i.sinon) };
+      case 'Bloc':
+      case 'Formulaire':
+      case 'Boucle':
+      case 'Fenetre':
+        return { ...i, corps: selonEnConditions(i.corps) };
+      default:
+        return i;
+    }
+  });
 }
 
 /** « fonction remise avec prix et taux : », puis le corps décalé. */
@@ -761,6 +800,11 @@ function analyserInstruction(flux: FluxTokens): Instruction {
     return analyserChangementMotDePasse(flux);
   }
 
+  // « telecharger commandes en csv » : un fichier fait dans l'appareil, à partir d'une liste.
+  if (estLeMot(flux.actuel(), 'telecharger') && finitParEnCsv(flux)) {
+    return analyserTelechargementCsv(flux);
+  }
+
   // « telecharger bon de commande de c » : le PDF d'une fiche du serveur.
   if (estLeMot(flux.actuel(), 'telecharger') && estLeMot(flux.regarder(1), 'bon') && estUnNom(flux.regarder(2))) {
     return analyserTelechargementBon(flux);
@@ -970,8 +1014,15 @@ function lireTournure(flux: FluxTokens, tournures: [string[], SorteChamp][]): So
 function analyserFormulaire(flux: FluxTokens): Formulaire {
   const debut = flux.avancer();
   const nom = flux.attendre('CHAINE', undefined, 'le nom du formulaire entre guillemets').valeur;
+  const classes: string[] = [];
+  if (flux.accepter('MOT_CLE', 'avec')) {
+    do {
+      flux.attendre('MOT_CLE', 'style', '« style » après « avec » : un formulaire n\'a pas d\'autre option');
+      classes.push(...flux.attendre('CHAINE', undefined, 'le nom de la classe CSS entre guillemets').valeur.split(/\s+/).filter(Boolean));
+    } while (flux.accepter('MOT_CLE', 'et'));
+  }
   flux.attendre('PONCTUATION', ':', 'deux-points après le nom du formulaire');
-  return { type: 'Formulaire', nom, corps: analyserBloc(flux), ligne: debut.ligne };
+  return { type: 'Formulaire', nom, ...(classes.length > 0 ? { classes } : {}), corps: analyserBloc(flux), ligne: debut.ligne };
 }
 
 /** « minimum 1 », « maximum -5 » : un nombre entier, peut-être négatif. */
@@ -1071,8 +1122,9 @@ function analyserElement(flux: FluxTokens, enTete?: { element: NomElement; ligne
   let cibleParties: PartieChaine[] | undefined;
   if (flux.accepter('MOT_CLE', 'vers')) {
     const jeton = flux.attendre('CHAINE', undefined, 'le nom de la page cible');
-    cible = jeton.valeur;
-    if (jeton.parties?.some((p) => p.type !== 'texte')) cibleParties = jeton.parties;
+    // Une adresse ne garde pas de vrai retour à la ligne : il s'y écrit %0A.
+    cible = jeton.valeur.replace(/\n/g, '%0A');
+    if (jeton.parties?.some((p) => p.type !== 'texte')) cibleParties = jeton.parties.map((p) => (p.type === 'texte' ? { ...p, valeur: p.valeur.replace(/\n/g, '%0A') } : p));
   }
 
   const styles: Style[] = [];
@@ -1421,6 +1473,21 @@ function analyserChangementMotDePasse(flux: FluxTokens): ChangementMotDePasse {
   return { type: 'ChangementMotDePasse', actuel, nouveau, ligne: debut.ligne };
 }
 
+/** Vrai si la ligne finit par « en csv ». */
+function finitParEnCsv(flux: FluxTokens): boolean {
+  let i = 1;
+  while (flux.regarder(i).type !== 'FIN_LIGNE' && flux.regarder(i).type !== 'FIN_FICHIER') i++;
+  return i > 3 && estLeMot(flux.regarder(i - 1), 'csv') && estLeMot(flux.regarder(i - 2), 'en');
+}
+
+function analyserTelechargementCsv(flux: FluxTokens): TelechargementCsv {
+  const debut = flux.avancer();
+  const liste = analyserExpression(flux);
+  flux.avancer();
+  flux.avancer();
+  return { type: 'TelechargementCsv', liste, ligne: debut.ligne };
+}
+
 /** « telecharger bon de commande de c » : « de » est un petit mot sauté, comme ailleurs. */
 function analyserTelechargementBon(flux: FluxTokens): TelechargementBon {
   const debut = flux.avancer();
@@ -1446,19 +1513,28 @@ function analyserCondition(flux: FluxTokens): Condition {
   return { type: 'Condition', test, alors, sinon, ligne: debut.ligne };
 }
 
+/** Vrai si un nom (« prix », « p.prix »), `decalage` plus loin, est suivi d'une comparaison. */
+function lectureComparee(flux: FluxTokens, decalage: number): boolean {
+  if (estLeMot(flux.regarder(decalage), 'non')) return true;
+  let suite = decalage + 1;
+  while (flux.regarder(suite).valeur === '.') suite += 2;
+  const mot = flux.regarder(suite);
+  return (mot.type === 'MOT_CLE' && mot.valeur === 'est') || estLeMot(mot, 'contient') || estLeMot(mot, 'commence') || estLeMot(mot, 'finit');
+}
+
 /** « a ou b et c » se lit « a ou (b et c) » : « et » lie plus fort, comme en logique. */
-function analyserTestCombine(flux: FluxTokens): Test {
-  let test = analyserEt(flux);
-  while (flux.verifier('MOT_CLE', 'ou')) {
+function analyserTestCombine(flux: FluxTokens, continuer: () => boolean = () => true): Test {
+  let test = analyserEt(flux, continuer);
+  while (flux.verifier('MOT_CLE', 'ou') && continuer()) {
     const ligne = flux.avancer().ligne;
-    test = { type: 'Combinaison', operateur: 'ou', gauche: test, droite: analyserEt(flux), ligne };
+    test = { type: 'Combinaison', operateur: 'ou', gauche: test, droite: analyserEt(flux, continuer), ligne };
   }
   return test;
 }
 
-function analyserEt(flux: FluxTokens): Test {
+function analyserEt(flux: FluxTokens, continuer: () => boolean = () => true): Test {
   let test: Test = analyserComparaison(flux);
-  while (flux.verifier('MOT_CLE', 'et')) {
+  while (flux.verifier('MOT_CLE', 'et') && continuer()) {
     const ligne = flux.avancer().ligne;
     test = { type: 'Combinaison', operateur: 'et', gauche: test, droite: analyserComparaison(flux), ligne };
   }
@@ -1466,6 +1542,13 @@ function analyserEt(flux: FluxTokens): Test {
 }
 
 function analyserComparaison(flux: FluxTokens): Comparaison {
+  // « si non actif : » : le contraire d'une valeur ; « si non prix est egal a 1 » : d'une comparaison.
+  if (estLeMot(flux.actuel(), 'non')) {
+    flux.avancer();
+    if (lectureComparee(flux, 0)) return nier(analyserComparaison(flux));
+    const gauche = analyserOperande(flux);
+    return { type: 'Comparaison', gauche, operateur: 'faux', ligne: gauche.ligne };
+  }
   // « utilisateur est connecte », « utilisateur est admin » : l'état de la
   // session, vrai ou faux. Une variable « utilisateur » se compare toujours.
   const etat = flux.regarder(2);
@@ -1889,17 +1972,17 @@ function analyserFacteurSeul(flux: FluxTokens): Expression {
   }
 
   // Les listes (tâche 2) : « trier … par … », « premier de … », « les 4 premiers de … ».
-  if (estLeMot(token, 'trier') && commenceUneValeur(flux.regarder(1))) {
+  if (estLeMot(token, 'trier') && (commenceUneValeur(flux.regarder(1)) || parentheseDetachee(flux))) {
     flux.avancer();
-    const liste = analyserValeur(flux);
+    const liste = flux.verifier('PONCTUATION', '(') ? analyserFacteurSeul(flux) : analyserValeur(flux);
     const champ = flux.accepter('MOT_CLE', 'par') ? flux.attendreNom('le champ selon lequel trier').nom : undefined;
     const decroissant = estLeMot(flux.actuel(), 'decroissant');
     if (decroissant) flux.avancer();
     return { type: 'Tri', liste, ...(champ !== undefined ? { champ } : {}), decroissant, ligne: token.ligne };
   }
-  if (estLeMot(token, 'grouper') && commenceUneValeur(flux.regarder(1))) {
+  if (estLeMot(token, 'grouper') && (commenceUneValeur(flux.regarder(1)) || parentheseDetachee(flux))) {
     flux.avancer();
-    const liste = analyserValeur(flux);
+    const liste = flux.verifier('PONCTUATION', '(') ? analyserFacteurSeul(flux) : analyserValeur(flux);
     flux.attendre('MOT_CLE', 'par', '« par » suivi du champ selon lequel grouper (grouper produits par categorie)');
     return { type: 'Groupement', liste, champ: flux.attendreNom('le champ selon lequel grouper').nom, ligne: token.ligne };
   }
@@ -1917,9 +2000,17 @@ function analyserFacteurSeul(flux: FluxTokens): Expression {
   let valeur = analyserValeur(flux);
   while (estLeMot(flux.actuel(), 'dont')) {
     flux.avancer();
-    valeur = { type: 'Filtre', liste: valeur, test: analyserComparaison(flux), ligne: token.ligne };
+    // Le « et » ou le « ou » restent au filtre seulement si une comparaison les suit : « fiche avec l liste dont a est vrai et prix 3 ».
+    valeur = { type: 'Filtre', liste: valeur, test: analyserTestCombine(flux, () => lectureComparee(flux, 1)), ligne: token.ligne };
   }
   return valeur;
+}
+
+/** « trier (…) » : une parenthèse séparée du mot, alors que « trier(…) » reste l'appel d'une fonction. */
+function parentheseDetachee(flux: FluxTokens): boolean {
+  const mot = flux.actuel();
+  const suite = flux.regarder(1);
+  return suite.type === 'PONCTUATION' && suite.valeur === '(' && suite.ligne === mot.ligne && suite.colonne > mot.colonne + (mot.original ?? mot.valeur).length;
 }
 
 function estUnNom(token: Token): boolean {
@@ -2038,6 +2129,15 @@ const OUTILS: OutilsParser = {
   comparaison: analyserComparaison,
   argumentPage: analyserArgumentPage,
 };
+
+/** Le contenu d'un « {…} » qui n'est pas un simple nom : « {nombre de panier} », « {l.prix * l.quantite} ». */
+export function lireExpressionDuTexte(source: string, ligne: number): Expression {
+  const flux = new FluxTokens(analyserLexique(source).map((t) => ({ ...t, ligne })));
+  const expression = analyserExpression(flux);
+  flux.sauterFinsDeLigne();
+  if (!flux.estFini()) throw new ErreurSyntaxique(`« ${flux.actuel().valeur} » ne va pas dans ce calcul`, ligne);
+  return expression;
+}
 
 /** Le message d'un mot du vocabulaire prévu mais pas encore pris en charge. */
 function messageMotPrevu(token: Token): string {

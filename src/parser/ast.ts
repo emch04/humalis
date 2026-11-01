@@ -341,6 +341,7 @@ export type Instruction =
   | ConnexionGoogle
   | ChangementMotDePasse
   | TelechargementBon
+  | TelechargementCsv
   | Deconnexion
   | Suppression
   | Modification
@@ -601,6 +602,13 @@ export interface ChangementMotDePasse {
   ligne: number;
 }
 
+/** « telecharger commandes en csv » : le fichier se fait dans l'appareil, à partir de la liste. */
+export interface TelechargementCsv {
+  type: 'TelechargementCsv';
+  liste: Expression;
+  ligne: number;
+}
+
 /** « telecharger bon de commande de c » : le PDF d'une fiche du serveur, sans quitter la page. */
 export interface TelechargementBon {
   type: 'TelechargementBon';
@@ -726,6 +734,8 @@ export type SorteChamp =
 export interface Formulaire {
   type: 'Formulaire';
   nom: string;
+  /** « avec style "carte" » : les classes CSS du formulaire. */
+  classes?: string[];
   corps: Instruction[];
   ligne: number;
 }
@@ -1062,7 +1072,7 @@ export interface Filtre {
   type: 'Filtre';
   liste: Expression;
   /** La condition, où les noms des champs désignent ceux de chaque élément. */
-  test: Comparaison;
+  test: Test;
   ligne: number;
 }
 

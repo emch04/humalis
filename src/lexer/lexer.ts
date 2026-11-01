@@ -55,6 +55,8 @@ function finDuMorceau(texte: string, debut: number): number {
   return texte.indexOf('"}', debut);
 }
 
+const SAUT_DE_LIGNE = /^saut\s+de\s+ligne$/;
+
 function decouperChaine(
   valeur: string,
   ligne: number,
@@ -102,6 +104,11 @@ function decouperChaine(
         );
       }
       i++;
+      // « Bonjour{saut de ligne}Merci » : un retour à la ligne dans le texte.
+      if (SAUT_DE_LIGNE.test(nomVariable.trim())) {
+        tampon += '\n';
+        continue;
+      }
       const accent = /^accent\b(.*)$/s.exec(nomVariable.trim());
       if (accent) {
         const contenu = /^\s*"([\s\S]*)"\s*$/.exec(accent[1]);
@@ -324,7 +331,7 @@ export function analyser(source: string): Token[] {
         i++;
         tokens.push({
           type: 'CHAINE',
-          valeur,
+          valeur: valeur.replace(/\{\s*saut\s+de\s+ligne\s*\}/g, '\n'),
           ligne: numLigne + 1,
           colonne: debut + 1,
           longueur: i - debut,
