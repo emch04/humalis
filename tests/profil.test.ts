@@ -125,3 +125,12 @@ describe('page de profil : mot de passe et photo', () => {
     expect(verifierPourLeStatique(compiler(source()).application!).map((d) => d.message).join('\n')).toMatch(/changer le mot de passe/);
   });
 });
+
+describe('le pied d’une page courte', () => {
+  it('reste en bas de l’écran (pied collant), seulement quand le site a un pied', async () => {
+    const { cssEcran } = await import('../src/cibles/web/css-ecran.js');
+    expect(cssEcran(['<footer className="humalis-pied">'])).toContain('#racine > .humalis-pied { position: sticky; top: 100vh; }');
+    expect(cssEcran(['<footer className="humalis-pied">'])).toContain('#racine { min-height: 100vh; min-height: 100dvh; }');
+    expect(cssEcran(['<main className="humalis-page">'])).not.toContain('position: sticky; top: 100vh');
+  });
+});
