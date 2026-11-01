@@ -112,7 +112,7 @@ describe('lien — cible web', () => {
 
   it('type la liste avec l’interface de la donnée', () => {
     expect(boutique).toContain("import type { Produit } from '../humalis/donnees';");
-    expect(boutique).toContain('useState<Produit[]>([])');
+    expect(boutique).toContain("useState<Produit[]>(() => lectureGardee('/api/produits', []))");
     expect(fichiers.get('src/humalis/donnees.ts')).toContain('export interface Produit {');
   });
 
@@ -140,7 +140,7 @@ describe('lien — cible web', () => {
     const code = genererProjetWeb(compiler(source).application!, { nom: 'avis', adresse: 'http://localhost', source: 'a.humalis' }).get('src/pages/Avis.tsx')!;
     expect(code).toContain("import type { Avis } from '../humalis/donnees';");
     expect(code).toContain('export default function PageAvis() {');
-    expect(code).toContain('useState<Avis[]>([])');
+    expect(code).toContain("useState<Avis[]>(() => lectureGardee('/api/avis', []))");
   });
 
   it('n’importe pas une interface que la page n’utilise pas, même si elle porte son nom', () => {

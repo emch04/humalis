@@ -14,6 +14,7 @@ import type { CarteProduite } from './carte.js';
 import { baliseGraphique } from './graphique.js';
 import { type Contexte, typeTS, typeDe, expression, contenuJSX, condition, ficheAvec, adresseEncodee } from './valeurs.js';
 import { importsDesInteractions, decrireTouches } from './interactions.js';
+import { lecturesDuChargement, adresseFiltree, type LectureDuChargement } from './lectures.js';
 import { colorerCodeHumalis } from '../commun/colorerCode.js';
 import { attributsFrappe } from '../commun/mouvement.js';
 import { repereSource, attributSourceJsx, marquerBalise } from '../commun/reperes.js';
@@ -495,6 +496,8 @@ class GenerateurEcran {
   ) {}
 
   private readonly composantsUtilises = new Set<string>();
+  /** Les lectures du chargement dont la dernière réponse sert de valeur de départ (src/humalis/lectures.ts). */
+  private lectures = new Map<string, LectureDuChargement>();
   /** Les données du serveur nommées dans les types écrits par la page. */
   private readonly donneesTypees = new Set<string>();
 
@@ -525,6 +528,8 @@ class GenerateurEcran {
       ...(this.ecran.filtres ?? []).map((f) => f.nom),
     ]);
     for (const p of this.parametres ?? []) this.contexte.types.set(p.nom, p.type);
+
+    this.lectures = new Map(lecturesDuChargement(this.ecran).map((l) => [l.variable, l]));
 
     this.recenser(this.ecran.vue, []);
     for (const g of this.ecran.gestionnaires) this.enregistrer(g, []);
@@ -899,6 +904,7 @@ class GenerateurEcran {
     if (!this.parametres) lignes.push(`import { usePage } from '../humalis/page';`);
     if (this.besoins.partage) lignes.push(`import { usePartage } from '../humalis/partage';`);
     if (this.besoins.serveur) lignes.push(`import { useServeur } from '../humalis/serveur';`);
+    if (/\blectureGardee\(/.test(code)) lignes.push(`import { lectureGardee } from '../humalis/lectures';`);
     if (this.besoins.apres) lignes.push(`import { apresLaGarde } from '../humalis/reservee';`);
     if (this.application.rendu === undefined) {
       const aides = ['Lien', 'adresseAvecFiltres', 'allerVers', 'changerFiltre', 'lireFiltre', 'lireFiltreNombre', 'ouvrirExterne', 'revenirEnArriere'].filter((a) =>
@@ -968,6 +974,9 @@ class GenerateurEcran {
         const crochet = etat.secret ? 'useMemoriseSecret' : 'useMemorise';
         const cle = `${this.application.cle}:${simplifier(this.ecran.nom)}:${simplifier(etat.nom)}`;
         e.ligne(`const [${camel(etat.nom)}, ${setter(etat.nom)}] = ${crochet}${annotation}(${chaine(cle)}, ${initiale});`);
+      } else if (this.lectures.has(etat.nom)) {
+        // Déjà lue (page déjà vue, lien survolé) : la dernière réponse s'affiche tout de suite, puis la page relit le serveur.
+        e.ligne(`const [${camel(etat.nom)}, ${setter(etat.nom)}] = useState${annotation}(() => lectureGardee(${this.lectures.get(etat.nom)!.code}, ${initiale}));`);
       } else {
         e.ligne(`const [${camel(etat.nom)}, ${setter(etat.nom)}] = useState${annotation}(${initiale});`);
       }
@@ -1304,7 +1313,9 @@ class GenerateurEcran {
           break;
         case 'requete': {
           const methode = action.mode;
-          const args = [chaine(action.adresse)];
+          // « calcul … = photos dont produit est egal a id » : seulement les photos de ce produit (« ?produit=… »).
+          const filtre = action.mode === 'lire' && action.source === undefined && action.resultat !== undefined ? this.lectures.get(action.resultat)?.filtre : undefined;
+          const args = [filtre ? adresseFiltree(action.adresse, filtre) : chaine(action.adresse)];
           if (action.mode === 'envoyer') args.push(this.donnees(action.donnees, action.cles, action.source === undefined));
           // « avec id » : l'identifiant de l'élément à lire.
           if (action.mode === 'lireUn') args.push(x(action.donnees[0]));

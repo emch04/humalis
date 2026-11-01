@@ -18,6 +18,7 @@ import { camel, setter, chaine, pascal } from './noms.js';
 import { typeTS, expression } from './valeurs.js';
 import { sourcesTs, serveurAvecSources, sessionDeLaSource } from './sources.js';
 import { fichiersDesInteractions, cssInteractions } from './interactions.js';
+import { lecturesTs, lecturesDuChargement, routesPubliques, PRECHARGEMENT } from './lectures.js';
 import type { Diagnostic } from '../../analyse/erreurs.js';
 import { COULEURS_CSS } from './styles.js';
 
@@ -181,7 +182,11 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
   const utiliseDefilement = application.ecrans.some((e) => e.parent !== undefined || e.filtres?.length || /"(ancre|versAncre)"/.test(JSON.stringify(e)));
   // Les composants (dont l'en-tête et le pied communs) sont déjà écrits : leurs liens comptent aussi.
   const sertLaNavigation = (code: string) => code.includes("humalis/navigation'");
-  if (utiliseDefilement || pages.some(({ page }) => sertLaNavigation(page.code)) || [...fichiers.values()].some(sertLaNavigation)) fichiers.set('src/humalis/navigation.tsx', NAVIGATION);
+  if (utiliseDefilement || pages.some(({ page }) => sertLaNavigation(page.code)) || [...fichiers.values()].some(sertLaNavigation)) {
+    fichiers.set('src/humalis/navigation.tsx', NAVIGATION);
+    // Les liens chargent en avance la page qu'ils ouvrent (visible : son code ; survolé ou touché : ses données).
+    fichiers.set('src/humalis/prechargement.ts', PRECHARGEMENT);
+  }
   fichiers.set('src/humalis/messages.tsx', MESSAGES);
   fichiers.set('src/humalis/page.ts', contexte.publication ? PAGE_PUBLICATION : application.ecrans.some((e) => e.parent !== undefined) ? PAGE_SOUS_PAGES : PAGE);
   // Le compte des échecs et les styles des formulaires ne sont écrits que si une page s'en sert.
@@ -202,6 +207,8 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
   }
   const codes = [...fichiers.values(), ...pages.map(({ page }) => page.code)];
   fichiers.set('src/humalis/serveur.ts', avecEchecs(application.sources.length > 0 ? serveurAvecSources(SERVEUR) : SERVEUR, codes));
+  // La dernière réponse de chaque lecture publique : une page déjà vue s'affiche tout de suite, puis se met à jour.
+  fichiers.set('src/humalis/lectures.ts', lecturesTs('web'));
   if (application.sources.length > 0) fichiers.set('src/humalis/sources.ts', sourcesTs(application));
   if (application.fonctions.length > 0) fichiers.set('src/humalis/fonctions.ts', genererFonctions(application.fonctions, contexte));
   fichiers.set('src/humalis/outils.ts', outils([...codes, ...(application.fonctions.length > 0 ? [fichiers.get('src/humalis/fonctions.ts')!] : [])], application.langues !== undefined));
@@ -247,6 +254,7 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
     fichiers.set(`src/styles/${nom}`, contenu);
     feuilles.push(nom);
   }
+  const publiques = routesPubliques(application);
   fichiers.set(
     'src/main.tsx',
     mainTsx(
@@ -269,6 +277,10 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
       utiliseDefilement,
       defilementAnime,
       enteteSuivie,
+      // Les lectures publiques de chaque page, que le survol d'un lien prépare.
+      fichiers.has('src/humalis/prechargement.ts')
+        ? new Map(pages.map(({ ecran, page }) => [page.composant, lecturesDuChargement(ecran, publiques).filter((l) => l.publique).map((l) => l.modele)]))
+        : undefined,
     ),
   );
 
@@ -587,6 +599,7 @@ function mainTsx(
   defilement = false,
   mouvement = false,
   entete = false,
+  lectures?: Map<string, string[]>,
 ): string {
   // Chaque page dans son propre fichier, chargé à sa première visite ; celle de l'adresse ouverte
   // (et son parent, pour une sous-page) est chargée avant l'affichage, pour ne jamais montrer d'écran vide.
@@ -602,7 +615,17 @@ for (const [nom, chemin, parent] of adresses) {
   if (matchPath({ path: chemin, end: !parent }, location.pathname)) ouvertes.set(nom, (await chargeurs[nom]()).default);
 }
 const page = (nom: keyof typeof chargeurs): ComponentType => ouvertes.get(nom) ?? lazy(chargeurs[nom]);
-${routes.map((r) => `const ${r.composant} = page(${JSON.stringify(r.composant)});`).join('\n')}`;
+${routes.map((r) => `const ${r.composant} = page(${JSON.stringify(r.composant)});`).join('\n')}${
+    lectures
+      ? `
+// Un lien vers une page charge son code en avance, et ses lectures publiques quand on s'apprête à l'ouvrir.
+const lectures: Partial<Record<keyof typeof chargeurs, string[]>> = {${routes
+          .filter((r) => (lectures.get(r.composant) ?? []).length > 0)
+          .map((r) => `\n  ${r.composant}: ${JSON.stringify(lectures.get(r.composant))},`)
+          .join('')}${routes.some((r) => (lectures.get(r.composant) ?? []).length > 0) ? '\n' : ''}};
+connaitreLesPages(adresses.map(([nom, chemin, parent]) => ({ chemin, parent, charger: chargeurs[nom], lectures: lectures[nom] ?? [] })));`
+      : ''
+  }`;
   // Les pages qui ont le même en-tête et le même pied partagent une disposition ; une sous-page suit son parent.
   const groupes = new Map<string, RouteProduite[]>();
   for (const r of routes.filter((r) => r.parent === undefined)) {
@@ -624,7 +647,7 @@ ${routes.map((r) => `const ${r.composant} = page(${JSON.stringify(r.composant)})
   return `import { ${routes.length === 0 ? '' : 'lazy, '}StrictMode, Suspense${routes.length === 0 ? '' : ', type ComponentType'} } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Route, Routes${routes.length === 0 ? '' : ', matchPath'} } from 'react-router';
-import { Messages } from './humalis/messages';${defilement ? "\nimport { Defilement } from './humalis/navigation';" : ''}
+import { Messages } from './humalis/messages';${defilement ? "\nimport { Defilement } from './humalis/navigation';" : ''}${lectures && routes.length > 0 ? "\nimport { connaitreLesPages } from './humalis/prechargement';" : ''}
 ${session ? "import { Session } from './humalis/session';\n" : ''}${partage ? "import { Partage } from './humalis/partage';\n" : ''}${routes.some((r) => r.reservee) ? "import { Reservee } from './humalis/reservee';\n" : ''}${introuvable ? `import ${introuvable} from './pages/${introuvable}';` : "import Introuvable from './Introuvable';"}
 ${dispositions.entete || dispositions.pied ? "import Disposition from './Disposition';\n" : ''}import './humalis/styles.css';
 ${mouvement ? "import { observerLeDefilement } from './humalis/mouvement';\n" : ''}${entete ? "import { suivreLaHauteurDeLEntete } from './humalis/entete';\n" : ''}${feuilles.map((f) => `import './styles/${f}';\n`).join('')}
@@ -653,8 +676,9 @@ ${mouvement ? '\n// Les animations « au defilement » attendent que l\'élémen
  * vers une ancre, les filtres de l'adresse, le retour et les adresses
  * externes (jamais javascript: ni data:).
  */
-const NAVIGATION = `import { useEffect } from 'react';
+const NAVIGATION = `import { useEffect, useRef } from 'react';
 import { Link, useLocation, useResolvedPath, type LinkProps, type NavigateFunction, type SetURLSearchParams } from 'react-router';
+import { observerLien, precharger } from './prechargement';
 
 /** Les seuls schémas qu'une adresse externe peut avoir. */
 const SCHEMAS = ['http', 'https', 'mailto', 'tel'];
@@ -663,10 +687,17 @@ function schemaDe(adresse: string): string | undefined {
   return /^([a-z][a-z0-9+.-]*):/i.exec(adresse.trim())?.[1]?.toLowerCase();
 }
 
-/** Un lien vers une page : la page courante est marquée (aria-current et la classe humalis-actif), pour le CSS. */
-export function Lien({ filtres = [], className, ...reste }: LinkProps & { filtres?: string[] }) {
+/**
+ * Un lien vers une page : la page courante est marquée (aria-current et la classe humalis-actif), pour le CSS.
+ * La page visée se prépare en avance : son code quand le lien devient visible, ses données quand on le
+ * survole, le touche ou l'atteint au clavier ; elle s'ouvre alors sans attente.
+ */
+export function Lien({ filtres = [], className, onPointerEnter, onPointerDown, onFocus, ...reste }: LinkProps & { filtres?: string[] }) {
   const ici = useLocation();
   const cible = useResolvedPath(reste.to);
+  const lien = useRef<HTMLAnchorElement>(null);
+  const vers = cible.pathname;
+  useEffect(() => (lien.current ? observerLien(lien.current, vers) : undefined), [vers]);
   const voulus = new URLSearchParams(cible.search);
   const actuels = new URLSearchParams(ici.search);
   const actif =
@@ -674,7 +705,26 @@ export function Lien({ filtres = [], className, ...reste }: LinkProps & { filtre
     cible.pathname.replace(/\\/+$/, '') === ici.pathname.replace(/\\/+$/, '') &&
     filtres.every((f) => (voulus.get(f) || null) === (actuels.get(f) || null));
   const classes = [className, actif ? 'humalis-actif' : undefined].filter(Boolean).join(' ');
-  return <Link {...reste} className={classes || undefined} aria-current={actif ? 'page' : undefined} />;
+  return (
+    <Link
+      {...reste}
+      ref={lien}
+      className={classes || undefined}
+      aria-current={actif ? 'page' : undefined}
+      onPointerEnter={(evenement) => {
+        precharger(vers, true);
+        onPointerEnter?.(evenement);
+      }}
+      onPointerDown={(evenement) => {
+        precharger(vers, true);
+        onPointerDown?.(evenement);
+      }}
+      onFocus={(evenement) => {
+        precharger(vers, true);
+        onFocus?.(evenement);
+      }}
+    />
+  );
 }
 
 /** En haut de la page à chaque changement de page (pas de filtre) ; vers l'ancre quand l'adresse en a une. */
@@ -801,7 +851,7 @@ type Genre = 'info' | 'reussite' | 'avertissement' | 'erreur';
 
 /** Ce qu'on peut ajouter à un message : sa durée, ou un bouton. */
 export interface OptionsMessage {
-  /** En millisecondes ; par défaut 4 secondes, 8 pour un avertissement ou une erreur. */
+  /** En millisecondes ; par défaut 4 secondes, 8 pour un avertissement ou une erreur (elle aussi disparaît seule). */
   duree?: number;
   /** « sans disparaitre » : le message reste jusqu'à ce qu'on le ferme. */
   persistant?: boolean;
@@ -857,7 +907,11 @@ export function Messages({ children }: { children: ReactNode }) {
   );
 }
 
-/** Un message : il disparaît après sa durée, mais pas tant que la souris ou le focus sont dessus. */
+/**
+ * Un message : il disparaît après sa durée (une erreur aussi, au bout de 8 s), mais pas tant que la souris
+ * ou le focus sont dessus. Un doigt ne compte pas : sur un écran tactile, toucher le message ne le garde
+ * pas à l'écran pour toujours (il n'y a jamais de « sortie » du doigt). « sans disparaitre » le garde.
+ */
 function UnMessage({ message, fermer }: { message: Message; fermer: (id: number) => void }) {
   const [enPause, setEnPause] = useState(false);
   useEffect(() => {
@@ -869,8 +923,8 @@ function UnMessage({ message, fermer }: { message: Message; fermer: (id: number)
   return (
     <li
       className={\`humalis-message humalis-message-\${message.genre}\`}
-      onMouseEnter={() => setEnPause(true)}
-      onMouseLeave={() => setEnPause(false)}
+      onPointerEnter={(evenement) => evenement.pointerType !== 'touch' && setEnPause(true)}
+      onPointerLeave={() => setEnPause(false)}
       onFocus={() => setEnPause(true)}
       onBlur={() => setEnPause(false)}
       onKeyDown={(evenement) => evenement.key === 'Escape' && fermer(message.id)}
@@ -1002,6 +1056,7 @@ const PAGE_SOUS_PAGES = PAGE.replace(
   .replace('}, [description]);', '}, [description, options.cede]);');
 
 const SERVEUR = `import { useMessages } from './messages';
+import { seGarde, garder, lireEnCommun, oublier } from './lectures';
 
 /** L'adresse du serveur : la même origine par défaut, ou VITE_HUMALIS_SERVEUR. */
 const BASE = import.meta.env.VITE_HUMALIS_SERVEUR ?? '';
@@ -1054,16 +1109,24 @@ export function useServeur() {
       const jeton = document.cookie.match(/(?:^|; )astratra_csrf=([^;]*)/)?.[1];
       const entetes = new Headers(options.headers);
       if (options.method !== 'GET' && jeton) entetes.set('x-csrf-token', decodeURIComponent(jeton));
-      const reponse = await fetch(BASE + adresse, { ...options, headers: entetes, credentials: 'same-origin' });
+      const lecture = options.method === 'GET';
+      const envoi = { ...options, headers: entetes, credentials: 'same-origin' } as const;
+      // Une lecture déjà en cours (lien survolé) est partagée : un seul appel.
+      const reponse = lecture ? await lireEnCommun(adresse, BASE + adresse, envoi) : await fetch(BASE + adresse, envoi);
       // Une lecture d'un élément qui n'existe plus (404) : la valeur actuelle est gardée, sans faux « pas répondu ».
       if (reponse.status === 404 && options.method === 'GET') return actuelle;
       if (!reponse.ok) throw new Error(String(reponse.status));
+      // Un envoi réussi : les lectures gardées de cette route ont peut-être changé.
+      if (!lecture) oublier(adresse, options.method ?? 'POST');
       const texte = await reponse.text();
       if (texte === '') return actuelle;
       const valeur = JSON.parse(texte) as T;
       // On attendait une liste et on reçoit autre chose (le prérendu répond {}) :
       // la valeur actuelle est gardée, pour que la page ne casse pas.
-      return Array.isArray(actuelle) && !Array.isArray(valeur) ? actuelle : valeur;
+      if (Array.isArray(actuelle) && !Array.isArray(valeur)) return actuelle;
+      // Ce que tout le monde peut lire est gardé : la page s'affichera tout de suite la prochaine fois.
+      if (lecture && seGarde(reponse)) garder(adresse, valeur, texte);
+      return valeur;
     } catch {
       afficherMessage("Le serveur n'a pas répondu. Réessayez dans un instant.", 'erreur');
       return actuelle;

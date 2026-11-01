@@ -66,7 +66,8 @@ describe('page avec paramètre — cible web', () => {
     expect(page).toContain("const { id = '' } = useParams();");
     expect(page).toContain("import { useParams } from 'react-router';");
     expect(web().get('src/pages/Boutique.tsx')).toContain("import { Lien } from '../humalis/navigation';");
-    expect(page).toContain('const [produit, setProduit] = useState<Produit | null>(null);');
+    // La dernière lecture de ce produit, si la page l'a déjà vu (ou si un lien survolé l'a préparée).
+    expect(page).toContain("const [produit, setProduit] = useState<Produit | null>(() => lectureGardee(`/api/produits/${encodeURIComponent(id)}`, null));");
     expect(page).toContain("setProduit(await serveur.lireUn('/api/produits', id, produit));");
     expect(page).toContain('{produit == null ? (');
     expect(page).toContain('{produit?.nom}');
