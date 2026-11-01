@@ -1490,8 +1490,8 @@ export function grouper<T, C>(liste: T[], cle: (element: T) => C): { nom: C; ele
 `;
 
 export const OUTILS = `/** Retire la première valeur égale (« retirer … de … ») ; la liste reste telle quelle si elle ne la contient pas. */
-export function retirerPremier<T>(liste: T[], valeur: T): T[] {
-  const position = liste.indexOf(valeur);
+export function retirerPremier<T>(liste: T[], valeur: T | null | undefined): T[] {
+  const position = liste.indexOf(valeur as T);
   return position === -1 ? liste : [...liste.slice(0, position), ...liste.slice(position + 1)];
 }
 `;
