@@ -193,6 +193,9 @@ DATABASE_URL=
 HUMALIS_SESSION=
 HUMALIS_SESSION_MAX=
 
+# Le nombre de relais devant le serveur (nginx : 1). Sans lui, les limites de requêtes comptent le relais, pas chaque visiteur.
+HUMALIS_RELAIS=
+
 # La surveillance (@astratra/centrale) : erreurs et requêtes, masquées avant l'envoi.
 # Sans ces deux variables, rien n'est chargé et rien ne part. La clé est publique (clj_pub_…).
 CENTRALE_ADRESSE=
@@ -1134,6 +1137,8 @@ export function creerServeur({ jwtSecret, usersStore, stockages${serveur.connexi
   const renouvellement = creerRenouvellement(session);
   const serveur = createSaasApp({
     jwtSecret,
+    // Derrière un relais (nginx) : son nombre, pour que les limites comptent chaque visiteur et non le relais.
+    ...(process.env.HUMALIS_RELAIS ? { trustProxy: Number(process.env.HUMALIS_RELAIS) } : {}),
     // Un jeton d'accès court, renouvelé tant que la personne revient : voir src/humalis/sessions.ts.
     jwtExpiresIn: session.jeton,
     refreshTokens: { enabled: true, service: renouvellement },

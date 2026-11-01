@@ -192,4 +192,11 @@ describe('défauts trouvés avec Rey Store', () => {
     expect(entete).toMatch(/<div className="humalis-ligne">\s*\{\(\(\) => \{/);
     expect(entete).toContain('})()}');
   });
+
+  it('une application dont toutes les pages sont réservées se construit sans prérendu', () => {
+    const source = programme('serveur "s" :', '>donnee d :', '>>nom : texte', '>route "d" :', '>>seul admin peut lire d', '>>seul admin peut modifier d', '', 'page "a" reservee a admin sinon vers "c" :', '>titre "A"', '', 'page "c" a l\'adresse "/c" :', '>apercu :', '>>indexation non', '>titre "C"');
+    const fichiers = genererProjetWeb(compiler(source).application!, { nom: 'b', adresse: 'https://b.cd', source: 'b.humalis' });
+    expect(fichiers.has('astratra.prerender.config.cjs')).toBe(false);
+    expect(JSON.parse(fichiers.get('package.json')!).scripts.build).toBe('tsc --noEmit && vite build');
+  });
 });

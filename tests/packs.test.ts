@@ -9,7 +9,11 @@ describe('les packs Astratra du compilateur', () => {
       '@astratra/saas-kit',
       '@astratra/security',
       '@astratra/store-postgres',
+      '@astratra/centrale',
+      '@astratra/credentials',
+      '@astratra/tooling',
       '@astratra/prerender',
+      '@astratra/client',
     ]);
     for (const pack of PACKS) expect(pack.version).toMatch(/^\d+\.\d+\.\d+$/);
   });
