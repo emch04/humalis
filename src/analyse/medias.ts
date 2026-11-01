@@ -333,7 +333,7 @@ function verifierNombresEcrits(g: Graphique, s: SignalerGraphique): void {
       s.avertissement(`${n} parts : au-delà de ${MAXIMUM_PARTS}, un camembert se lit mal. Regroupez les petites parts, ou choisissez un graphique en barres.`, g.ligne);
     }
   } else if (g.genre === 'barres' && n > MAXIMUM_BARRES) {
-    s.avertissement(`${n} barres : au-delà de ${MAXIMUM_BARRES}, elles deviennent trop fines pour être lues. Regroupez les valeurs, ou choisissez un graphique en courbe.`, g.ligne);
+    s.avertissement(`${n} barres : au-delà de ${MAXIMUM_BARRES}, le graphique défile au doigt et la vue d'ensemble se perd. Regroupez les valeurs (par semaine, par mois), ou choisissez un graphique en courbe.`, g.ligne);
   } else if (g.genre === 'courbe' && n === 1) {
     s.avertissement('une courbe d’un seul point ne montre pas d’évolution : ajoutez des valeurs, ou montrez ce nombre dans un texte.', g.ligne);
   }
