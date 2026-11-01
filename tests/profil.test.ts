@@ -126,6 +126,14 @@ describe('page de profil : mot de passe et photo', () => {
   });
 });
 
+describe('les clés envoyées au serveur du programme', () => {
+  it('« avec prix_avant = 0 » envoie prixAvant, le nom du champ côté serveur', () => {
+    const prog = programme('serveur "b" :', '>donnee produit :', '>>nom : texte', '>>prix_avant : nombre', '>route "produits" :', '>>tout le monde peut lire produit', '>>tout le monde peut creer produit', '', 'page "p" :', '>titre "P"', '>bouton "Créer"', '>quand l\'utilisateur clique sur "Créer" :', '>>envoyer requete vers "produits" avec nom = "Rey" et prix_avant = 0');
+    const page = genererProjetWeb(compiler(prog).application!, { nom: 'b', adresse: 'https://b.cd', source: 'b.humalis' }).get('src/pages/P.tsx')!;
+    expect(page).toContain("{ nom: 'Rey', prixAvant: 0 }");
+  });
+});
+
 describe('le pied d’une page courte', () => {
   it('reste en bas de l’écran (pied collant), seulement quand le site a un pied', async () => {
     const { cssEcran } = await import('../src/cibles/web/css-ecran.js');
