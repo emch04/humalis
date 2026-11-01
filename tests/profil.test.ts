@@ -103,8 +103,8 @@ describe('page de profil : mot de passe et photo', () => {
     expect(serveur).toContain('verifyPasswordHash(actuel, compte.passwordHash)');
     expect(serveur).toContain('if (!isStrongPassword(nouveau))');
     expect(serveur).toContain('passwordHash: await hashPassword(nouveau)');
-    // La session dure 7 jours par défaut (réglable par HUMALIS_SESSION) : pas de déconnexion chaque heure.
-    expect(serveur).toContain("jwtExpiresIn: process.env.HUMALIS_SESSION || '7d',");
+    // La session dure 3 jours par défaut (réglable par HUMALIS_SESSION) : pas de déconnexion chaque heure.
+    expect(serveur).toContain("jwtExpiresIn: process.env.HUMALIS_SESSION || '3d',");
     expect(fichiers.get('.env.exemple')).toContain('HUMALIS_SESSION=');
     expect(fichiers.get('src/donnees.ts')).toContain("photo: 'image',");
     expect(fichiers.get('src/humalis/verifier.ts')).toContain('const TAILLE_IMAGE = 95_000;');
