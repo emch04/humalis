@@ -182,7 +182,7 @@ export function genererProjetMobile(application: Application, options: OptionsMo
   if (codes.some((c) => /<Anime\b/.test(c))) fichiers.set('humalis/mouvement.tsx', MOUVEMENT_TSX);
   if (serveur) {
     const modele = reduction ? serveurAvecReduction() : SERVEUR;
-    fichiers.set('humalis/serveur.ts', avecEchecs(session ? serveurRenouvele(modele) : modele, codes));
+    fichiers.set('humalis/serveur.ts', avecEchecs(avecTelechargementRefuse(session ? serveurRenouvele(modele) : modele, codes), codes));
   }
   // La dernière réponse de chaque lecture publique : un écran déjà vu s'affiche tout de suite.
   if (serveur) fichiers.set('humalis/lectures.ts', lecturesTs('mobile'));
@@ -738,6 +738,31 @@ interface Serveur {
   modifier(adresse: string, id: string, donnees: Record<string, unknown>): Promise<unknown>;
 }
 `;
+
+/**
+ * « telecharger bon de … » : le téléphone n'a pas encore de partage de fichier simple. Un message
+ * clair, et dans « essayer », « si erreur » reçoit la même phrase.
+ */
+function avecTelechargementRefuse(modele: string, codes: string[]): string {
+  if (!codes.some((c) => c.includes('serveur.telecharger('))) return modele;
+  const remplacer = (texte: string, avant: string, apres: string) => {
+    if (!texte.includes(avant)) throw new Error(`modèle du serveur mobile inattendu : ${avant}`);
+    return texte.replace(avant, apres);
+  };
+  const refus = `  async function telecharger(_adresse: string, _id: string): Promise<void> {
+    try {
+      throw new Error("Le téléchargement d'un bon n'est pas encore disponible dans l'application mobile.");
+    } catch (erreur) {
+      derniereRaison = (erreur as Error).message;
+      afficherMessage(derniereRaison, 'erreur');
+    }
+  }
+
+`;
+  let texte = remplacer(modele, '  // Avec une valeur actuelle, la réponse a son type', `${refus}  // Avec une valeur actuelle, la réponse a son type`);
+  texte = remplacer(texte, '    lireUn: (adresse: string', '    telecharger,\n    lireUn: (adresse: string');
+  return remplacer(texte, 'interface Serveur {\n', 'interface Serveur {\n  telecharger(adresse: string, id: string): Promise<void>;\n');
+}
 
 /**
  * Le serveur d'un programme qui choisit des fichiers : les envois passent par

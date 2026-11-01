@@ -63,7 +63,7 @@ import type {
   Boucle,
   Evenement,
   GenreEvenement,
-  Connexion, ConnexionGoogle, ChangementMotDePasse, Suppression, Modification, EnvoiFichier, ArgumentPage } from './ast.js';
+  Connexion, ConnexionGoogle, ChangementMotDePasse, TelechargementBon, Fidelite, Suppression, Modification, EnvoiFichier, ArgumentPage } from './ast.js';
 
 export function analyserSyntaxe(tokens: Token[]): Programme {
   const flux = new FluxTokens(tokens);
@@ -339,6 +339,7 @@ function analyserServeur(flux: FluxTokens): Serveur {
   const donnees: Donnee[] = [];
   const routes: Route[] = [];
   let connexionGoogle: number | undefined;
+  let fidelite: Fidelite | undefined;
 
   chaqueLigne(flux, () => {
     const token = flux.actuel();
@@ -355,15 +356,71 @@ function analyserServeur(flux: FluxTokens): Serveur {
       }
       flux.avancer();
       connexionGoogle = token.ligne;
+    } else if (estLeMot(token, 'fidelite')) {
+      if (fidelite) throw new ErreurSyntaxique(`un serveur n'a qu'une seule « fidelite » : elle est déjà écrite ligne ${fidelite.ligne}.`, token.ligne);
+      fidelite = analyserFidelite(flux);
     } else {
       throw new ErreurSyntaxique(
-        `dans un serveur, on écrit « donnee … : », « route "…" : » ou « connexion google », mais « ${token.original ?? token.valeur} » a été trouvé`,
+        `dans un serveur, on écrit « donnee … : », « route "…" : », « fidelite par … de … : » ou « connexion google », mais « ${token.original ?? token.valeur} » a été trouvé`,
         token.ligne,
       );
     }
   });
 
-  return { type: 'Serveur', nom, donnees, routes, ...(connexionGoogle !== undefined ? { connexionGoogle } : {}), ligne: debut.ligne };
+  return { type: 'Serveur', nom, donnees, routes, ...(connexionGoogle !== undefined ? { connexionGoogle } : {}), ...(fidelite ? { fidelite } : {}), ligne: debut.ligne };
+}
+
+/**
+ * « fidelite par telephone de commande : », puis « 1 tampon par commande livree »
+ * et « apres 5 tampons, recompense "Un maillot offert" ». L'analyse vérifie le sens
+ * (les champs, les nombres entiers) : ici, on lit seulement les mots.
+ */
+function analyserFidelite(flux: FluxTokens): Fidelite {
+  const debut = flux.avancer();
+  flux.attendre('MOT_CLE', 'par', '« par » suivi du champ qui désigne le client (fidelite par telephone de commande)');
+  const champ = flux.attendreNom('le nom du champ qui désigne le client').nom;
+  const donnee = flux.attendreNom('le nom de la donnée').nom;
+  flux.attendre('PONCTUATION', ':', 'deux-points après « fidelite par … de … »');
+
+  const fidelite: Fidelite = { type: 'Fidelite', champ, donnee, ligne: debut.ligne };
+  chaqueLigne(flux, () => {
+    const token = flux.actuel();
+    if (estLeMot(token, 'apres')) {
+      flux.avancer();
+      const tampons = lireTampons(flux);
+      // « apres 5 tampons, recompense » : la virgule se lit si elle est écrite.
+      flux.accepter('PONCTUATION', ',');
+      if (motDe(flux.actuel()) !== 'recompense') {
+        throw new ErreurSyntaxique(`après « apres ${tampons} tampons », écrivez la récompense : recompense "Un cadeau"`, flux.actuel().ligne);
+      }
+      flux.avancer();
+      fidelite.objectif = { tampons, recompense: flux.attendre('CHAINE', undefined, 'la récompense entre guillemets').valeur, ligne: token.ligne };
+    } else if (token.type === 'NOMBRE' || (token.type === 'PONCTUATION' && token.valeur === '-')) {
+      const tampons = lireTampons(flux);
+      flux.attendre('MOT_CLE', 'par', '« par » suivi de la donnée et de son statut (1 tampon par commande livree)');
+      const cible = flux.attendreNom('le nom de la donnée').nom;
+      const statut = flux.attendreNom('le statut qui donne le tampon').nom;
+      fidelite.gain = { tampons, donnee: cible, statut, ligne: token.ligne };
+    } else {
+      throw new ErreurSyntaxique(
+        `dans « fidelite », on écrit « 1 tampon par commande livree » et « apres 5 tampons, recompense "…" », mais « ${token.original ?? token.valeur} » a été trouvé`,
+        token.ligne,
+      );
+    }
+  });
+  return fidelite;
+}
+
+/** « 5 tampons » ou « 1 tampon » : le nombre, tel qu'il est écrit (l'analyse refuse ce qui n'est pas un entier positif). */
+function lireTampons(flux: FluxTokens): number {
+  const negatif = flux.accepter('PONCTUATION', '-');
+  const nombre = Number(flux.attendre('NOMBRE', undefined, 'le nombre de tampons').valeur);
+  const mot = flux.actuel();
+  if (motDe(mot) !== 'tampon' && motDe(mot) !== 'tampons') {
+    throw new ErreurSyntaxique(`après le nombre, écrivez « tampon » ou « tampons » : ${nombre} tampons`, mot.ligne);
+  }
+  flux.avancer();
+  return negatif ? -nombre : nombre;
 }
 
 export function analyserDonnee(flux: FluxTokens, ouverte = false): Donnee {
@@ -702,6 +759,11 @@ function analyserInstruction(flux: FluxTokens): Instruction {
   // « changer le mot de passe avec champ "Actuel" et champ "Nouveau" » : celui du compte connecté.
   if (flux.verifier('MOT_CLE', 'changer') && estLeMot(flux.regarder(1), 'mot') && estLeMot(flux.regarder(2), 'passe')) {
     return analyserChangementMotDePasse(flux);
+  }
+
+  // « telecharger bon de commande de c » : le PDF d'une fiche du serveur.
+  if (estLeMot(flux.actuel(), 'telecharger') && estLeMot(flux.regarder(1), 'bon') && estUnNom(flux.regarder(2))) {
+    return analyserTelechargementBon(flux);
   }
 
   // « changer theme par sombre » : le choix clair ou sombre du visiteur.
@@ -1279,8 +1341,17 @@ function analyserRequete(flux: FluxTokens, ligne: number): Requete {
 
   const donnees: Expression[] = [];
   const cles: (string | undefined)[] = [];
+  let parId = false;
   if (flux.accepter('MOT_CLE', 'avec')) {
     do {
+      // « avec id c.telephone » : un seul élément, lu par cette valeur. « avec id » seul reste le nom d'une variable.
+      if (donnees.length === 0 && motDe(flux.actuel()) === 'id' && commenceUneValeur(flux.regarder(1))) {
+        flux.avancer();
+        parId = true;
+        cles.push(undefined);
+        donnees.push(analyserOperande(flux));
+        break;
+      }
       // « avec customer = client » : le nom donné à la donnée envoyée (l'API attend ce nom).
       const nomme = flux.verifierNom() && flux.regarder(1).type === 'PONCTUATION' && flux.regarder(1).valeur === '=';
       cles.push(nomme ? flux.attendreNom('le nom de la donnée envoyée').nom : undefined);
@@ -1294,7 +1365,7 @@ function analyserRequete(flux: FluxTokens, ligne: number): Requete {
     resultat = flux.attendreNom('le nom de la variable qui recevra la réponse').nom;
   }
 
-  return { type: 'Requete', adresse, ...clauses, donnees, ...(cles.some((c) => c !== undefined) ? { cles } : {}), resultat, ligne };
+  return { type: 'Requete', adresse, ...clauses, donnees, ...(parId ? { parId } : {}), ...(cles.some((c) => c !== undefined) ? { cles } : {}), resultat, ligne };
 }
 
 function analyserOperationServeur(flux: FluxTokens): Suppression | Modification {
@@ -1348,6 +1419,14 @@ function analyserChangementMotDePasse(flux: FluxTokens): ChangementMotDePasse {
   flux.attendre('MOT_CLE', 'et', '« et » suivi du champ du nouveau mot de passe');
   const nouveau = analyserOperande(flux);
   return { type: 'ChangementMotDePasse', actuel, nouveau, ligne: debut.ligne };
+}
+
+/** « telecharger bon de commande de c » : « de » est un petit mot sauté, comme ailleurs. */
+function analyserTelechargementBon(flux: FluxTokens): TelechargementBon {
+  const debut = flux.avancer();
+  flux.avancer();
+  const { nom: donnee } = flux.attendreNom('le nom de la donnée');
+  return { type: 'TelechargementBon', donnee, objet: analyserOperande(flux), ligne: debut.ligne };
 }
 
 function analyserCondition(flux: FluxTokens): Condition {

@@ -32,6 +32,8 @@ import type {
   Suppression,
   EnvoiFichier,
   Modification,
+  TelechargementBon,
+  Fidelite,
   Minuterie,
   Fenetre,
   GenreEvenement,
@@ -113,7 +115,9 @@ export interface ResultatAnalyse {
   champs: Map<Expression, string>;
   /** L'adresse réelle d'une requête vers une route du serveur (« /api/produits »). */
   /** L'adresse réelle (« /api/produits ») d'une requête, d'une modification ou d'une suppression. */
-  adressesRequetes: Map<Requete | Suppression | Modification, string>;
+  adressesRequetes: Map<Requete | Suppression | Modification | TelechargementBon, string>;
+  /** Les routes (adresse normalisée) dont une page télécharge le bon : le serveur produit ne sert que celles-là. */
+  bons: Set<string>;
   /** Le type d'une variable déclarée, ou de la variable d'une boucle. */
   types: Map<DeclarationVariable | Boucle, TypeValeur>;
   /** Chaque composant écrit en Humalis, vu comme une page (pour ses éléments). */
@@ -181,6 +185,8 @@ interface Liens {
   serveur?: string;
   /** « connexion google » dans le serveur du fichier. */
   connexionGoogle?: boolean;
+  /** « fidelite par … de … : » dans le serveur du fichier. */
+  fidelite?: Fidelite;
   routes: Map<string, { adresse: string; donnee: Donnee; droits: Droits }>;
   donnees: Map<string, Donnee>;
 }
@@ -245,6 +251,7 @@ export function analyserSens(programme: Programme, classesCss?: Set<string>): Re
     typesParametres: new Map(),
     facultatives: new Set(),
     lecturesUn: new Set(),
+    bons: new Set(),
     reglesSources: new Map(),
     etatsLus: new Map(),
     reglesOperations: new Map(),
@@ -295,7 +302,7 @@ export function analyserSens(programme: Programme, classesCss?: Set<string>): Re
   );
   const partages = globale.declarerPartages(programme.partages);
 
-  const liens: Liens = { sources: new Map(), serveur: programme.serveurs[0]?.nom, connexionGoogle: programme.serveurs[0]?.connexionGoogle !== undefined, routes: new Map(), donnees: new Map() };
+  const liens: Liens = { sources: new Map(), serveur: programme.serveurs[0]?.nom, connexionGoogle: programme.serveurs[0]?.connexionGoogle !== undefined, fidelite: programme.serveurs[0]?.fidelite, routes: new Map(), donnees: new Map() };
   for (const serveur of programme.serveurs) {
     for (const donnee of serveur.donnees) liens.donnees.set(donnee.nom, donnee);
     for (const route of serveur.routes) {
@@ -874,6 +881,12 @@ class AnalysePage {
         this.branches.pop();
         return;
       }
+
+      case 'TelechargementBon':
+        if (contexte === 'evenement') this.cadre.attente = true;
+        if (contexte === 'vue') this.horsEvenement('telecharger bon', instruction.ligne, " Un téléchargement part d'une action de la personne : placez-le dans un événement (quand … clique sur …).");
+        this.telechargementBon(instruction);
+        return;
 
       case 'ChangementMotDePasse': {
         const nom = 'changer le mot de passe';
@@ -2193,21 +2206,35 @@ class AnalysePage {
     const types = requete.donnees.map((d) => this.typeDe(d));
     const symbole = requete.resultat !== undefined ? this.variable(requete.resultat, requete.ligne) : undefined;
     if (requete.resultat !== undefined) (requete.source !== undefined ? this.ciblesSources : this.ciblesAutres).add(requete.resultat);
+    if (requete.parId && requete.resultat === undefined) {
+      this.erreur(`« avec id … » lit un seul élément : dites où le ranger, avec « dans » (envoyer requete vers "${requete.adresse}" avec id x dans element).`, requete.ligne);
+      return;
+    }
     if (requete.source !== undefined || requete.filtrant !== undefined) {
       this.requeteSource(requete, symbole);
       return;
     }
-    if (this.liens.routes.size === 0) return;
+    // « envoyer requete vers "fidelite" avec id c.telephone dans carte » : la carte à tampons, pas une route des données.
+    if (this.liens.serveur !== undefined && adresseNormalisee(requete.adresse) === 'fidelite' && !this.liens.routes.has('fidelite')) {
+      this.requeteFidelite(requete, types[0], symbole);
+      return;
+    }
+    if (this.liens.routes.size === 0) {
+      // Une adresse hors du fichier : « avec id » reste une lecture, jamais un envoi.
+      if (requete.parId) this.resultat.lecturesUn.add(requete);
+      return;
+    }
 
     const route = this.routeDe(requete);
     if (!route) return;
+    if (requete.parId && !this.idEstUnTexte(types[0], requete)) return;
 
-    // « avec id dans produit », dans une page à paramètre : un seul élément, lu par son identifiant.
+    // « avec id dans produit », dans une page à paramètre (ou « avec id c.produit ») : un seul élément, lu par son identifiant.
     const seul = requete.donnees[0];
-    if (requete.donnees.length === 1 && seul.type === 'Reference' && this.page.parametres.includes(seul.nom) && symbole) {
+    if (requete.parId || (requete.donnees.length === 1 && seul.type === 'Reference' && this.page.parametres.includes(seul.nom) && symbole)) {
       this.resultat.lecturesUn.add(requete);
       const type: TypeValeur = { genre: 'donnee', nom: route.donnee.nom };
-      if (!estConnu(symbole.type)) {
+      if (symbole && !estConnu(symbole.type)) {
         symbole.type = type;
         if (symbole.origine) this.resultat.types.set(symbole.origine, type);
       }
@@ -2232,6 +2259,59 @@ class AnalysePage {
     });
 
     this.avertirDroits(route, envoi ? 'creer' : 'lire', requete.ligne);
+  }
+
+  /** Une valeur lue « avec id » désigne un élément par un texte (l'identifiant, le numéro…). */
+  private idEstUnTexte(type: TypeValeur, requete: Requete): boolean {
+    if (!estConnu(type) || compatibles(TEXTE, type)) return true;
+    this.erreur(`${decrire(requete.donnees[0])} est ${decrireType(type)} : « avec id » attend un texte.`, requete.ligne);
+    return false;
+  }
+
+  /** La carte d'un client : refusée sans bloc « fidelite », lue seulement par sa valeur ; la réponse a un type connu. */
+  private requeteFidelite(requete: Requete, type: TypeValeur, symbole: Symbole | undefined): void {
+    if (!this.liens.fidelite) {
+      this.erreur(`la route « fidelite » n'existe pas : ajoutez dans le serveur "${this.liens.serveur}" un bloc « fidelite par … de … : ».`, requete.ligne);
+      return;
+    }
+    if (!requete.parId || !symbole) {
+      this.erreur(`on ne lit qu'une carte à la fois, et personne n'y écrit : envoyer requete vers "fidelite" avec id c.${this.liens.fidelite.champ} dans carte.`, requete.ligne);
+      return;
+    }
+    if (!this.idEstUnTexte(type, requete)) return;
+    this.resultat.lecturesUn.add(requete);
+    this.resultat.adressesRequetes.set(requete, '/api/fidelite');
+    if (!estConnu(symbole.type)) {
+      symbole.type = TYPE_FIDELITE;
+      if (symbole.origine) this.resultat.types.set(symbole.origine, TYPE_FIDELITE);
+    }
+    this.avertirDroits({ donnee: { nom: 'fidelite' }, droits: { lire: 'admin', creer: null, modifier: null, supprimer: null } }, 'lire', requete.ligne);
+  }
+
+  /** « telecharger bon de commande de c » : une fiche de cette donnée, lue sur sa route, avec les droits de la lecture. */
+  private telechargementBon(telechargement: TelechargementBon): void {
+    const typeObjet = this.typeDe(telechargement.objet);
+    if (this.liens.serveur === undefined) {
+      this.erreur(`« telecharger bon » demande un serveur dans le même fichier : le serveur produit le document. Ajoutez un bloc serveur "…" :`, telechargement.ligne);
+      return;
+    }
+    const routes = [...this.liens.routes.values()].filter((r) => r.droits.lire !== null);
+    const route = routes.find((r) => r.donnee.nom === telechargement.donnee);
+    if (!route) {
+      const donnees = [...new Set(routes.map((r) => r.donnee.nom))];
+      this.erreur(`« telecharger bon » : aucune route ne permet de lire la donnée « ${telechargement.donnee} », et son bon a les droits de cette lecture. Données lisibles : ${donnees.join(', ') || 'aucune'}.${proposerNom(telechargement.donnee, donnees)}`, telechargement.ligne);
+      return;
+    }
+    if (estConnu(typeObjet) && !(typeObjet.genre === 'donnee' && typeObjet.nom === route.donnee.nom)) {
+      this.erreur(
+        `${decrire(telechargement.objet)} est ${decrireType(typeObjet)} : « telecharger bon de ${route.donnee.nom} » attend un « ${route.donnee.nom} » lu sur sa route (par exemple la variable d’une boucle « pour chaque c dans ${route.adresse} »).`,
+        telechargement.ligne,
+      );
+    }
+    const adresse = adresseNormalisee(route.adresse);
+    this.resultat.adressesRequetes.set(telechargement, `/api/${adresse}`);
+    this.resultat.bons.add(adresse);
+    this.avertirDroits(route, 'lire', telechargement.ligne);
   }
 
   /** Les variables qui reçoivent une requête vers une source (ils ont un état : chargement, erreur…). */
@@ -2261,7 +2341,7 @@ class AnalysePage {
   private requeteSource(requete: Requete, symbole: Symbole | undefined): void {
     for (const f of requete.filtrant ?? []) this.typeDe(f.valeur);
     const parUnId =
-      requete.donnees.length === 1 && requete.donnees[0].type === 'Reference' && this.page.parametres.includes(requete.donnees[0].nom) && symbole !== undefined;
+      symbole !== undefined && requete.donnees.length === 1 && (requete.parId === true || (requete.donnees[0].type === 'Reference' && this.page.parametres.includes(requete.donnees[0].nom)));
     const verifie = verifierRequeteSource(requete, this.liens.sources, parUnId, (m, l) => this.resultat.diagnostics.push({ gravite: 'erreur', message: m, ligne: l }));
     if (verifie?.regle) this.resultat.reglesSources.set(requete, verifie.regle);
     const type = verifie?.type;
@@ -2321,6 +2401,9 @@ class AnalysePage {
       if (noeud.type === 'Requete' && noeud.resultat === nom && noeud.source === undefined && noeud.filtrant === undefined && noeud.adresse !== undefined) {
         const route = this.liens.routes.get(adresseNormalisee(noeud.adresse));
         const seul = noeud.donnees?.[0];
+        if (!route && noeud.parId && adresseNormalisee(noeud.adresse) === 'fidelite' && this.liens.fidelite) trouve = TYPE_FIDELITE;
+        else if (route && noeud.parId) trouve = { genre: 'donnee', nom: route.donnee.nom };
+        else
         if (route && noeud.donnees?.length === 0) trouve = listeDe({ genre: 'donnee', nom: route.donnee.nom });
         else if (route && noeud.donnees?.length === 1 && seul?.type === 'Reference' && this.page.parametres.includes(seul.nom)) trouve = { genre: 'donnee', nom: route.donnee.nom };
         return;
@@ -2373,7 +2456,7 @@ class AnalysePage {
   }
 
   /** Prévient quand la règle d'accès refusera l'action à un visiteur. */
-  private avertirDroits(route: NonNullable<ReturnType<AnalysePage['routeDe']>>, action: 'lire' | 'creer' | 'modifier' | 'supprimer', ligne: number): void {
+  private avertirDroits(route: { donnee: { nom: string }; droits: Droits }, action: 'lire' | 'creer' | 'modifier' | 'supprimer', ligne: number): void {
     const verbe = action === 'creer' ? 'créer' : action;
     const qui = route.droits[action];
     // Une action que personne ne peut faire est déjà signalée sur la route ;
@@ -2528,6 +2611,18 @@ function decrire(expression: Expression): string {
   return 'cette valeur';
 }
 
+/** La réponse de « envoyer requete vers "fidelite" avec id … » : les champs que rend le serveur produit. */
+const TYPE_FIDELITE: TypeValeur = {
+  genre: 'fiche',
+  champs: [
+    { nom: 'tampons', type: { genre: 'nombre' } },
+    { nom: 'objectif', type: { genre: 'nombre' } },
+    { nom: 'restant', type: { genre: 'nombre' } },
+    { nom: 'recompenses', type: { genre: 'nombre' } },
+    { nom: 'recompense', type: { genre: 'texte' } },
+  ],
+};
+
 /** Ce qu'une fonction ne peut pas faire (elle calcule une valeur) : le nom de l'action, ou rien. */
 function actionInterditeDansUneFonction(instruction: Instruction): string | undefined {
   switch (instruction.type) {
@@ -2541,6 +2636,8 @@ function actionInterditeDansUneFonction(instruction: Instruction): string | unde
       return 'se connecter avec google';
     case 'ChangementMotDePasse':
       return 'changer le mot de passe';
+    case 'TelechargementBon':
+      return 'telecharger bon';
     case 'Deconnexion':
       return 'se deconnecter';
     case 'Suppression':

@@ -834,6 +834,7 @@ class GenerateurEcran {
         case 'requete':
         case 'suppression':
         case 'modification':
+        case 'telechargementBon':
           this.besoins.serveur = true;
           break;
         case 'envoiFichier':
@@ -1402,11 +1403,14 @@ class GenerateurEcran {
           e.ligne('await utilisateur.seDeconnecter();');
           break;
         case 'suppression':
-        case 'modification': {
+        case 'modification':
+        case 'telechargementBon': {
           // « de la source "…" » : quelle API, et PUT si la route remplace au lieu de changer des champs.
-          const appelSource = action.source !== undefined ? `, { source: ${chaine(action.source)}${action.type === 'modification' && action.remplacement ? ', remplacement: true' : ''} }` : '';
+          const appelSource = action.type !== 'telechargementBon' && action.source !== undefined ? `, { source: ${chaine(action.source)}${action.type === 'modification' && action.remplacement ? ', remplacement: true' : ''} }` : '';
           const appel =
-            action.type === 'suppression'
+            action.type === 'telechargementBon'
+              ? `await serveur.telecharger(${chaine(action.adresse)}, ${x(action.objet)}.id);`
+              : action.type === 'suppression'
               ? `await serveur.supprimer(${chaine(action.adresse)}, ${x(action.objet)}.id${appelSource});`
               : `await serveur.modifier(${chaine(action.adresse)}, ${x(action.objet)}.id, { ${action.changements
                   .map((c) => (camel(c.champ) === x(c.valeur) ? x(c.valeur) : `${camel(c.champ)}: ${x(c.valeur)}`))
@@ -2248,7 +2252,7 @@ function contientEnvoi(actions: Action[]): boolean {
 function contientAppelServeur(actions: Action[]): boolean {
   return actions.some(
     (a) =>
-      ['requete', 'recharger', 'suppression', 'modification', 'envoiFichier'].includes(a.type) ||
+      ['requete', 'recharger', 'suppression', 'modification', 'telechargementBon', 'envoiFichier'].includes(a.type) ||
       (a.type !== 'minuterie' && a.type !== 'message' && sousActions(a).some((liste) => contientAppelServeur(liste))),
   );
 }
@@ -2266,7 +2270,7 @@ function arrete(actions: Action[]): boolean {
   return actions.some((a) => a.type === 'arreter' || (!['repetition', 'tantQue', 'repeter', 'minuterie', 'message'].includes(a.type) && sousActions(a).some(arrete)));
 }
 
-const ATTENTES = new Set<Action['type']>(['requete', 'recharger', 'suppression', 'modification', 'connexion', 'connexionGoogle', 'changementMotDePasse', 'deconnexion', 'envoiFichier', 'confirmation', 'copie', 'partage']);
+const ATTENTES = new Set<Action['type']>(['requete', 'recharger', 'suppression', 'modification', 'connexion', 'connexionGoogle', 'changementMotDePasse', 'telechargementBon', 'deconnexion', 'envoiFichier', 'confirmation', 'copie', 'partage']);
 
 /** Les noms changés par des actions : affectations, ajouts, retraits, réponses. */
 function modifiees(actions: Action[], noms = new Set<string>()): Set<string> {

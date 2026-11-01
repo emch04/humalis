@@ -1753,6 +1753,101 @@ Both work on web, desktop and mobile. On the phone, the photo comes from the
 gallery, with the same shrinking; a transparent image loses its transparency
 there (JPEG has none).
 
+### Downloading a record's slip
+
+`telecharger bon de commande de c` downloads the PDF of a server record, without
+opening a page. It works for any data read through a route:
+`telecharger bon de reservation de r`, for instance.
+
+```humalis
+serveur "Maison Awa" :
+    donnee commande :
+        nom : texte
+        articles : liste de texte
+        total : nombre
+        jour : date
+    route "commandes" :
+        tout le monde peut creer commande
+        seul admin peut lire commande
+        seul admin peut modifier commande
+
+page "connexion" a l'adresse "/connexion" :
+    titre "Connexion"
+
+page "commandes" a l'adresse "/" reservee a admin sinon vers "connexion" :
+    titre "Commandes"
+    variable commandes = []
+    quand la page se charge :
+        envoyer requete vers "commandes" dans commandes
+    pour chaque c dans commandes :
+        texte c.nom
+        bouton "Bon de commande" avec icone "document" et nom "bon"
+        quand l'utilisateur clique sur "bon" :
+            essayer :
+                telecharger bon de commande de c
+            si erreur :
+                afficher erreur "Bon non téléchargé : {raison}"
+```
+
+The server then adds `GET /api/commandes/:id/bon`, only if a page uses it, with the
+same rights as reading the route. The document carries the server's name (written
+as is: give it the shop's name), the title "Bon de commande" and every field in
+plain text, except those of type `image`. A record that no longer exists answers
+404, and the reason reaches `si erreur`.
+
+Web and desktop targets. On the phone, a message says it is not available yet; the
+static site refuses the sentence. Compile the server from the file that contains
+this page: the page is what asks for the route.
+
+### A loyalty card
+
+In the server, `fidelite par telephone de commande :` computes a stamp card from
+the records, storing nothing. Its two lines are required:
+
+```humalis
+serveur "Maison Awa" :
+    donnee commande :
+        nom : texte
+        telephone : texte
+        statut : texte
+    route "commandes" :
+        tout le monde peut creer commande
+        seul admin peut lire commande
+        seul admin peut modifier commande
+    fidelite par telephone de commande :
+        1 tampon par commande livree
+        apres 5 tampons, recompense "Un maillot offert"
+
+page "connexion" a l'adresse "/connexion" :
+    titre "Connexion"
+
+page "commandes" a l'adresse "/" reservee a admin sinon vers "connexion" :
+    titre "Commandes"
+    variable commandes = []
+    variable carte = rien
+    quand la page se charge :
+        envoyer requete vers "commandes" dans commandes
+    pour chaque c dans commandes :
+        texte c.nom
+        bouton "Fidélité" avec icone "recompense" et nom "fidelite"
+        quand l'utilisateur clique sur "fidelite" :
+            envoyer requete vers "fidelite" avec id c.telephone dans carte
+    si carte n'est pas rien :
+        texte "{carte.tampons} sur {carte.objectif} tampons"
+        si carte.recompenses est superieur a 0 :
+            texte "Récompense gagnée : {carte.recompense}"
+```
+
+`1 tampon par commande livree` counts the records whose `statut` field is exactly
+`livree`. The answer has the fields `tampons`, `objectif`, `restant`, `recompenses`
+and `recompense`, known at compile time. Spaces, dashes and the "+" in the number
+are ignored: "+33 6 12" and "33612" count together.
+
+**Only an admin can read a card** (`GET /api/fidelite/…`), because the value is a
+phone number, and nobody can write to it. No time limit applies: a stamp is never
+lost. Rewards handed over are not recorded: `recompenses` counts those earned since
+the beginning, and `tampons` restarts from zero at each reward earned.
+
 ---
 
 ## 23. Using an existing API

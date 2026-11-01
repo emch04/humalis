@@ -289,6 +289,14 @@ export function verifierPourLeStatique(application: Application): Diagnostic[] {
         ligne: ecran.ligne,
       });
     }
+    // Un bouton dans une boucle garde son action dans la vue : on regarde tout l'écran.
+    if (JSON.stringify(ecran).includes('"type":"telechargementBon"')) {
+      diagnostics.push({
+        gravite: 'erreur',
+        message: `la page « ${ecran.nom} » utilise « telecharger bon », qui n'est pas encore produit pour le site statique. Compile-la pour le web.`,
+        ligne: ecran.ligne,
+      });
+    }
     if (JSON.stringify(ecran.gestionnaires).includes('"type":"changementMotDePasse"')) {
       diagnostics.push({
         gravite: 'erreur',

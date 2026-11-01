@@ -227,7 +227,7 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
   if (sessionDuServeur) fichiers.set('src/humalis/renouveler.ts', RENOUVELER);
   const modeleServeur = sessionDuServeur ? serveurRenouvele(SERVEUR) : SERVEUR;
   const codes = [...fichiers.values(), ...pages.map(({ page }) => page.code)];
-  fichiers.set('src/humalis/serveur.ts', avecEchecs(application.sources.length > 0 ? serveurAvecSources(modeleServeur) : modeleServeur, codes));
+  fichiers.set('src/humalis/serveur.ts', avecEchecs(avecTelechargement(application.sources.length > 0 ? serveurAvecSources(modeleServeur) : modeleServeur, codes, sessionDuServeur), codes));
   // La dernière réponse de chaque lecture publique : une page déjà vue s'affiche tout de suite, puis se met à jour.
   fichiers.set('src/humalis/lectures.ts', lecturesTs('web'));
   if (application.sources.length > 0) fichiers.set('src/humalis/sources.ts', sourcesTs(application));
@@ -1208,6 +1208,47 @@ interface Serveur {
   modifier(adresse: string, id: string, donnees: Record<string, unknown>): Promise<unknown>;
 }
 `;
+
+/**
+ * « telecharger bon de … » : seulement pour une page qui s'en sert. Le fichier arrive par fetch, avec
+ * les cookies de la session (et son renouvellement), puis un lien temporaire le donne au navigateur :
+ * aucune page ne s'ouvre, et rien ne reste dans l'adresse.
+ */
+function avecTelechargement(modele: string, codes: string[], renouvelee: boolean): string {
+  if (!codes.some((c) => c.includes('serveur.telecharger('))) return modele;
+  const remplacer = (texte: string, avant: string, apres: string) => {
+    if (!texte.includes(avant)) throw new Error(`modèle du serveur inattendu : ${avant}`);
+    return texte.replace(avant, apres);
+  };
+  const lire = "fetch(`${BASE}${adresse}/${encodeURIComponent(id)}/bon`, { method: 'GET', credentials: 'same-origin' })";
+  const telecharger = `  async function telecharger(adresse: string, id: string): Promise<void> {
+    try {
+      const reponse = await ${renouvelee ? `avecSession(() => ${lire})` : lire};
+      ${renouvelee ? '' : "if (reponse.status === 401) throw new Error('Connectez-vous pour continuer.');\n      "}if (!reponse.ok) {
+        const corps = (await reponse.json().catch(() => null)) as { erreur?: unknown } | null;
+        throw new Error(typeof corps?.erreur === 'string' && corps.erreur !== '' ? corps.erreur.charAt(0).toUpperCase() + corps.erreur.slice(1) + '.' : PAS_DE_REPONSE);
+      }
+      const nom = /filename="([^"]+)"/.exec(reponse.headers.get('Content-Disposition') ?? '')?.[1] ?? 'document.pdf';
+      const adresseFichier = URL.createObjectURL(await reponse.blob());
+      const lien = document.createElement('a');
+      lien.href = adresseFichier;
+      lien.download = nom;
+      document.body.append(lien);
+      lien.click();
+      lien.remove();
+      // Le navigateur a pris le fichier : le lien temporaire ne sert plus.
+      setTimeout(() => URL.revokeObjectURL(adresseFichier), 10000);
+    } catch (erreur) {
+      derniereRaison = erreur instanceof Error && erreur.message !== PAS_DE_REPONSE ? erreur.message : PAS_DE_REPONSE;
+      ${renouvelee ? 'if (erreur instanceof SessionFinie && erreur.dejaDite) return;\n      ' : ''}afficherMessage(derniereRaison === PAS_DE_REPONSE ? "Le serveur n'a pas répondu. Réessayez dans un instant." : derniereRaison, 'erreur');
+    }
+  }
+
+`;
+  let texte = remplacer(modele, '  // Avec une valeur actuelle, la réponse a son type', `${telecharger}  // Avec une valeur actuelle, la réponse a son type`);
+  texte = remplacer(texte, '    lireUn: (adresse: string', "    // « telecharger bon de … » : le fichier d'une fiche, sans quitter la page.\n    telecharger,\n    lireUn: (adresse: string");
+  return remplacer(texte, 'interface Serveur {\n', 'interface Serveur {\n  telecharger(adresse: string, id: string): Promise<void>;\n');
+}
 
 /**
  * `useServeur()` compte ses échecs quand une page en a besoin : la

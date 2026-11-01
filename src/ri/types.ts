@@ -115,10 +115,14 @@ export interface ServeurRI {
     donnee: string;
     /** Qui peut faire chaque action ; null : personne, la porte reste fermée. */
     droits: Record<'lire' | 'creer' | 'modifier' | 'supprimer', QuiPeut | null>;
+    /** Une page écrit « telecharger bon de … » : la route sert aussi GET /:id/bon. */
+    bon?: boolean;
     ligne: number;
   }[];
   /** « connexion google » : un compte déjà connu du serveur peut se connecter avec Google. */
   connexionGoogle?: boolean;
+  /** « fidelite par telephone de commande : » : la lecture réservée à l'admin de /api/fidelite/… */
+  fidelite?: { champ: string; donnee: string; tampons: number; statut: string; objectif: number; recompense: string };
 }
 
 export interface ComposantHumalis extends Ecran {
@@ -612,6 +616,8 @@ export type Action =
   | { type: 'connexionGoogle' }
   /** « changer le mot de passe avec … et … » : celui du compte connecté, vérifié par le serveur. */
   | { type: 'changementMotDePasse'; actuel: Valeur; nouveau: Valeur }
+  /** « telecharger bon de commande de c » : le PDF arrive avec la session, sans ouvrir de page. */
+  | { type: 'telechargementBon'; adresse: string; objet: Valeur }
   | { type: 'deconnexion' }
   | {
       type: 'repetition';
