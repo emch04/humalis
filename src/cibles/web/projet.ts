@@ -1055,6 +1055,8 @@ export function useServeur() {
       const entetes = new Headers(options.headers);
       if (options.method !== 'GET' && jeton) entetes.set('x-csrf-token', decodeURIComponent(jeton));
       const reponse = await fetch(BASE + adresse, { ...options, headers: entetes, credentials: 'same-origin' });
+      // Une lecture d'un élément qui n'existe plus (404) : la valeur actuelle est gardée, sans faux « pas répondu ».
+      if (reponse.status === 404 && options.method === 'GET') return actuelle;
       if (!reponse.ok) throw new Error(String(reponse.status));
       const texte = await reponse.text();
       if (texte === '') return actuelle;

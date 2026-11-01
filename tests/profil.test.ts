@@ -91,6 +91,8 @@ describe('page de profil : mot de passe et photo', () => {
     const serveur = fichiers.get('src/humalis/serveur.ts')!;
     expect(serveur).toContain('async function reduireImage(fichier: File): Promise<string>');
     expect(serveur).toContain('JSON.stringify(await preparer(donnees))');
+    // Un élément lu par son identifiant qui n'existe plus : pas de faux « le serveur n'a pas répondu ».
+    expect(serveur).toContain("if (reponse.status === 404 && options.method === 'GET') return actuelle;");
   });
 
   it('serveur : la route vérifie l’actuel et la force du nouveau ; le champ image a son schéma', () => {
