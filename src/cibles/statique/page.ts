@@ -1087,7 +1087,8 @@ ${prise}${code}}
     const libelle = saisie?.obligatoire ? `creer('span', {}, ${contenu}, ${ETOILE_JS})` : contenu;
     const options = (liste: [string, string][]) => {
       if (saisie?.obligatoire) liste.push(['required', 'true']);
-      if (saisie?.indice !== undefined && sorte !== 'liste') liste.push(['placeholder', saisie.indiceLangues ? messageEnCode(saisie.indiceLangues, chaine) : chaine(saisie.indice)]);
+      if (saisie?.indiceValeur && sorte !== 'liste') liste.push(['placeholder', `String(${expressionJs(saisie.indiceValeur, this.contexte)} ?? '')`]);
+      else if (saisie?.indice !== undefined && sorte !== 'liste') liste.push(['placeholder', saisie.indiceLangues ? messageEnCode(saisie.indiceLangues, chaine) : chaine(saisie.indice)]);
       if (saisie?.minimum !== undefined) liste.push(['min', String(saisie.minimum)]);
       if (saisie?.maximum !== undefined) liste.push(['max', String(saisie.maximum)]);
       return liste;
@@ -1549,7 +1550,7 @@ ${prise}${code}}
     const options = (liste: [string, string | undefined][]) => [
       ...liste,
       ['required', saisie?.obligatoire ? 'true' : undefined] as [string, string | undefined],
-      ['placeholder', sorte !== 'liste' ? saisie?.indice : undefined] as [string, string | undefined],
+      ['placeholder', sorte !== 'liste' && !saisie?.indiceValeur ? saisie?.indice : undefined] as [string, string | undefined],
       ['min', saisie?.minimum !== undefined ? String(saisie.minimum) : undefined] as [string, string | undefined],
       ['max', saisie?.maximum !== undefined ? String(saisie.maximum) : undefined] as [string, string | undefined],
     ];

@@ -1065,6 +1065,8 @@ function analyserElement(flux: FluxTokens, enTete?: { element: NomElement; ligne
         // « avec indice "Votre nom" en anglais "Your name" » : les versions écrites à côté.
         const versionsIndice = lireVersions(flux);
         if (versionsIndice) saisie.indiceTexte = { type: 'Chaine', parties: [{ type: 'texte', valeur: texteIndice.valeur }], versions: versionsIndice, ligne: texteIndice.ligne };
+        // « avec indice "{reglage.boutique}" » : la valeur actuelle écrite en gris dans le champ.
+        else if (texteIndice.parties?.some((p) => p.type === 'variable')) saisie.indiceTexte = { type: 'Chaine', parties: texteIndice.parties, ligne: texteIndice.ligne };
       } else if (option === 'minimum' || option === 'maximum') {
         flux.avancer();
         saisie[option] = lireNombre(flux, `un nombre après « ${option} » (par exemple « ${option} 1 »)`);

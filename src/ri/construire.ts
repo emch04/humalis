@@ -428,7 +428,8 @@ class Construction {
       ...(element.parmi ? { parmi: this.valeur(element.parmi) } : {}),
       ...(element.obligatoire ? { obligatoire: true } : {}),
       ...(element.indice !== undefined ? { indice: element.indice } : {}),
-      ...(indiceLangues ? { indiceLangues } : {}),
+      ...(indiceLangues && !element.indiceTexte?.parties.some((p) => p.type === 'variable') ? { indiceLangues } : {}),
+      ...(element.indiceTexte?.parties.some((p) => p.type === 'variable') ? { indiceValeur: this.valeur(element.indiceTexte) } : {}),
       ...(element.minimum !== undefined ? { minimum: element.minimum } : {}),
       ...(element.maximum !== undefined ? { maximum: element.maximum } : {}),
     };
