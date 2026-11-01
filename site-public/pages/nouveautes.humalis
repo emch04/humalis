@@ -14,8 +14,20 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
             colonne avec style "frise" et animation montee au defilement et en cascade :
                 bloc avec style "version version-recente" :
                     ligne avec style "version-tete" :
-                        texte "1.4.0" sans traduction avec style "version-numero"
+                        texte "1.5.0" sans traduction avec style "version-numero"
                         texte "Dernière version" en anglais "Latest" avec style "pastille pastille-vive"
+                        texte "1er novembre 2026" en anglais "November 1, 2026" avec style "version-date"
+                    soustitre "Plus de phrases pour les vraies boutiques" en anglais "More phrases for real shops"
+                    liste :
+                        texte "`si non actif :` retourne une condition, et `dont` accepte plusieurs conditions avec `et` et `ou`." en anglais "`si non actif :` reverses a condition, and `dont` takes several conditions with `et` and `ou`."
+                        texte "`trier (produits dont visible est vrai) par prix` trie une liste filtrée ; un texte accepte un calcul entre accolades." en anglais "`trier (products dont visible est vrai) par price` sorts a filtered list; a text accepts a calculation."
+                        texte "Un `calcul` en haut du fichier vaut pour toutes les pages, et `selon` s’écrit aussi dans une page." en anglais "A `calcul` at the top of the file applies to every page, and `selon` also works in a page."
+                        texte "`telecharger commandes en csv` enregistre une liste pour Excel, et un formulaire ou un fil d’Ariane prennent `avec style`." en anglais "`telecharger orders en csv` saves a list for Excel, and a form or a breadcrumb take `avec style`."
+                        texte "Connexion avec Google, changement de mot de passe, type `image`, bon de commande en PDF et fidélité par tampons." en anglais "Sign-in with Google, password change, `image` type, PDF order slip and stamp loyalty."
+                        texte "Les dates restent en français partout, le pare-feu accepte le « # » dans une adresse, et le dossier de sortie retire les fichiers qui ne servent plus." en anglais "Dates stay in French everywhere, the firewall accepts “#” in an address, and the output folder removes files no longer used."
+                bloc avec style "version" :
+                    ligne avec style "version-tete" :
+                        texte "1.4.0" sans traduction avec style "version-numero"
                         texte "31 octobre 2026" en anglais "October 31, 2026" avec style "version-date"
                     soustitre "Écrire comme on parle, des sites plus légers" en anglais "Write as you speak, lighter sites"
                     liste :

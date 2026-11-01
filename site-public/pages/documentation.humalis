@@ -484,6 +484,7 @@ page "documentation_5" dans "documentation" adresse "/documentation/styles" :
                 titre "Welcome" avec style "big"
                 bouton "Confirm" avec fond vert et style "main"
         texte "CSS can also come from a file: `utiliser style "./theme.css"` at the top of the file. CSS applies to the web, static and desktop targets; mobile only translates named styles (colour, background, size, position, border)."
+        texte "A form and a breadcrumb take a style too: `formulaire "order" avec style "card" :`, `fil d'Ariane avec style "quiet" :`."
         texte "`humalis verifier` warns when a class used with `avec style` is missing from the project's CSS and suggests a close name. It also warns when an `!important` rule targets a `.humalis-…` class: remove `!important` or use your own class."
     sinon :
         texte "Les options d'un élément s'écrivent après `avec`, reliées par `et`."
@@ -516,6 +517,7 @@ page "documentation_5" dans "documentation" adresse "/documentation/styles" :
                 titre "Bienvenue" avec style "grand"
                 bouton "Valider" avec fond vert et style "principal"
         texte "Le CSS peut aussi venir d'un fichier : `utiliser style "./theme.css"` en haut du fichier. Le CSS s'applique au web, au statique et au desktop ; le mobile ne traduit que les styles nommés (couleur, fond, taille, position, bordure)."
+        texte "Un formulaire et un fil d'Ariane prennent aussi leur style : `formulaire "commande" avec style "carte" :`, `fil d'Ariane avec style "discret" :`."
         texte "`humalis verifier` avertit si une classe donnée par `avec style` est absente du CSS du projet et propose un nom proche. Il avertit aussi si une règle `!important` cible une classe `.humalis-…` : retirez `!important` ou utilisez votre propre classe."
     ligne avec style "doc-suite" :
         lien "← 4. Les éléments" en anglais "← 4. Elements" vers "documentation_4"
@@ -1001,6 +1003,15 @@ page "documentation_9" dans "documentation" adresse "/documentation/variables-et
                 titre "Cart"
                 texte "Shipping: {shipping en euros}"
                 texte "Total: {total en euros}"
+        texte "Written at the top of the file, before the pages, a calculation applies to every page, the header and the footer:"
+        code humalis :
+            variable cart = [] avec partagee
+            calcul items = nombre de cart
+
+            page "home" :
+                titre "Home"
+                texte "{items} items"
+        texte "Between braces, a text also accepts a calculation: `{nombre de cart}`, `{row.price * row.quantity}`, `{price * 2 en euros}`."
         soustitre "Number calculations"
         code humalis :
             page "grades" :
@@ -1016,6 +1027,7 @@ page "documentation_9" dans "documentation" adresse "/documentation/variables-et
                 bouton "Roll the dice"
                 quand l'utilisateur clique sur "Roll the dice" :
                     changer roll par hasard entre 1 et 6
+        texte "On a list of records or data, these calculations read a field: `somme de panier.prix`, even when `panier` starts empty (`variable panier = []`)."
         texte "`moyenne de` (average of), `arrondi de … a 1 chiffres` (rounded to 1 digit), `maximum de`, `minimum de`, `somme de` (sum of), `hasard entre 1 et 6` (random between 1 and 6)."
     sinon :
         soustitre "Les variables"
@@ -1065,6 +1077,15 @@ page "documentation_9" dans "documentation" adresse "/documentation/variables-et
                 titre "Panier"
                 texte "Livraison : {livraison en euros}"
                 texte "Total : {total en euros}"
+        texte "Écrit en haut du fichier, avant les pages, un calcul vaut pour toutes les pages, l'en-tête et le pied :"
+        code humalis :
+            variable panier = [] avec partagee
+            calcul articles = nombre de panier
+
+            page "accueil" :
+                titre "Accueil"
+                texte "{articles} articles"
+        texte "Entre accolades, un texte accepte aussi un calcul : `{nombre de panier}`, `{ligne.prix * ligne.quantite}`, `{prix * 2 en euros}`."
         soustitre "Les calculs sur les nombres"
         code humalis :
             page "notes" :
@@ -1080,6 +1101,7 @@ page "documentation_9" dans "documentation" adresse "/documentation/variables-et
                 bouton "Lancer le dé"
                 quand l'utilisateur clique sur "Lancer le dé" :
                     changer tirage par hasard entre 1 et 6
+        texte "Sur une liste de fiches ou de données, ces calculs lisent un champ : `somme de panier.prix`, même si `panier` est vide au départ (`variable panier = []`)."
     ligne avec style "doc-suite" :
         lien "← 8. Images, sons et mouvement" en anglais "← 8. Images, sound and motion" vers "documentation_8"
         lien "10. Les fiches, le texte, l'argent et les dates →" en anglais "10. Records, text, money and dates →" vers "documentation_10"
@@ -1310,6 +1332,8 @@ page "documentation_12" dans "documentation" adresse "/documentation/listes-et-l
                 calcul cheap = products dont price est inferieur a 10
                 calcul showcase = les 2 premiers de by_price
                 calcul book = premier de products dont name contient "Bo"
+                calcul sale = products dont price est inferieur a 10 et name contient "P"
+                calcul small = trier (products dont price est inferieur a 10) par price
                 titre "Catalogue"
                 texte "Found: {book.name}"
                 pour chaque p dans showcase :
@@ -1346,6 +1370,19 @@ page "documentation_12" dans "documentation" adresse "/documentation/listes-et-l
                         cas "monday" :
                             afficher "Have a nice week"
         texte "`repeter 3 fois` (repeat 3 times), `tant que` (while), `selon … cas …` (switch … case …). `arreter` leaves a loop; `passer au suivant` skips to the next turn."
+        texte "`selon` also works in a page, to show what matches a value:"
+        code humalis :
+            page "order" :
+                variable status = "delivered"
+                titre "Order"
+                selon status :
+                    cas "delivered" :
+                        texte "Your order has arrived."
+                    cas "cancelled" ou "refused" :
+                        texte "Your order did not go through."
+                    sinon :
+                        texte "Your order is on its way."
+        texte "`non` reverses a condition: `si non active :` or `si non price est egal a 0 :`."
     sinon :
         soustitre "Afficher une liste"
         code humalis :
@@ -1378,6 +1415,8 @@ page "documentation_12" dans "documentation" adresse "/documentation/listes-et-l
                 calcul pas_chers = produits dont prix est inferieur a 10
                 calcul vitrine = les 2 premiers de par_prix
                 calcul livre = premier de produits dont nom contient "Liv"
+                calcul soldes = produits dont prix est inferieur a 10 et nom contient "S"
+                calcul petits = trier (produits dont prix est inferieur a 10) par prix
                 titre "Catalogue"
                 texte "Trouvé : {livre.nom}"
                 pour chaque p dans vitrine :
@@ -1412,6 +1451,19 @@ page "documentation_12" dans "documentation" adresse "/documentation/listes-et-l
                         cas "lundi" :
                             afficher "Bonne semaine"
         texte "`arreter` sort d'une boucle ; `passer au suivant` passe au tour suivant."
+        texte "`selon` s'écrit aussi dans une page, pour afficher ce qui correspond à une valeur :"
+        code humalis :
+            page "commande" :
+                variable statut = "livree"
+                titre "Commande"
+                selon statut :
+                    cas "livree" :
+                        texte "Votre commande est arrivée."
+                    cas "annulee" ou "refusee" :
+                        texte "Votre commande n'a pas abouti."
+                    sinon :
+                        texte "Votre commande est en route."
+        texte "`non` retourne une condition : `si non actif :` ou `si non prix est egal a 0 :`."
     ligne avec style "doc-suite" :
         lien "← 11. Les conditions" en anglais "← 11. Conditions" vers "documentation_11"
         lien "13. Les fonctions →" en anglais "13. Functions →" vers "documentation_13"
@@ -2004,7 +2056,7 @@ page "documentation_19" dans "documentation" adresse "/documentation/partager-et
 
 page "documentation_20" dans "documentation" adresse "/documentation/navigation" :
     apercu :
-        description "Un filtre est une valeur facultative de l'adresse (/catalogue?categorie=robes) :" en anglais "avec parametre id gives a page a parameter in its address; ancre (anchor) names a place in a page; nouvel onglet opens a new tab."
+        description "Une adresse externe peut contenir des … : après le ?, chaque valeur est encodée, pour qu'un « & », un « # » ou une espace ne coupent pas l'adresse.…" en anglais "avec parametre id gives a page a parameter in its address; ancre (anchor) names a place in a page; nouvel onglet opens a new tab."
     titre "20. La navigation" en anglais "20. Navigation"
     si langue est anglais :
         soustitre "Links and parameters"
@@ -2027,6 +2079,14 @@ page "documentation_20" dans "documentation" adresse "/documentation/navigation"
                 section "Desserts" avec ancre "desserts" :
                     texte "Apple pie"
         texte "`avec parametre id` gives a page a parameter in its address; `ancre` (anchor) names a place in a page; `nouvel onglet` opens a new tab."
+        texte "An external address can contain `{…}`: after the `?`, each value is encoded, so that an \"&\", a \"#\" or a space does not break the address. `rediriger vers` does the same."
+        code humalis :
+            page "cart" :
+                variable message = "Hello, I am ordering a shirt"
+                titre "Cart"
+                lien "Order on WhatsApp" vers "https://wa.me/243000000000?text={message}" avec nouvel onglet
+        texte "The whole address can come from a variable: `lien "Site" vers "{address}"`. Only addresses in `https:`, `http:`, `mailto:`, `tel:` or starting with `/` are followed. Web and desktop can do it; mobile and static sites still refuse an external link."
+        texte "`{saut de ligne}` writes a line break in a text, and `%0A` in an address: `texte "Hello{saut de ligne}Thanks"`."
         soustitre "Address filters"
         texte "A filter (`filtre`) is an optional value in the address (`/catalogue?category=dresses`):"
         code humalis :
@@ -2106,6 +2166,14 @@ page "documentation_20" dans "documentation" adresse "/documentation/navigation"
                 titre "La carte"
                 section "Desserts" avec ancre "desserts" :
                     texte "Tarte aux pommes"
+        texte "Une adresse externe peut contenir des `{…}` : après le `?`, chaque valeur est encodée, pour qu'un « & », un « # » ou une espace ne coupent pas l'adresse. `rediriger vers` fait de même."
+        code humalis :
+            page "panier" :
+                variable message = "Bonjour, je commande un maillot"
+                titre "Panier"
+                lien "Commander sur WhatsApp" vers "https://wa.me/243000000000?text={message}" avec nouvel onglet
+        texte "Toute l'adresse peut venir d'une variable : `lien "Site" vers "{adresse}"`. Seules les adresses en `https:`, `http:`, `mailto:`, `tel:` ou commençant par `/` sont suivies. Le web et le bureau savent le faire ; le mobile et le site statique refusent encore un lien externe."
+        texte "`{saut de ligne}` écrit un retour à la ligne dans un texte, et `%0A` dans une adresse : `texte "Bonjour{saut de ligne}Merci"`."
         soustitre "Les filtres d'adresse"
         texte "Un filtre est une valeur facultative de l'adresse (`/catalogue?categorie=robes`) :"
         code humalis :
@@ -2297,6 +2365,7 @@ page "documentation_22" dans "documentation" adresse "/documentation/relier-les-
         liste :
             texte "`envoyer requete vers "products" dans products` reads the list into `products`."
             texte "`envoyer requete vers "reviews" avec rating et champ "comment"` sends data."
+            texte "`avec comment = typed_text` sends a value under the name of a field of the data, when the variable has another name."
             texte "`si utilisateur est connecte :` (if the user is logged in), `si utilisateur est admin :`, `se connecter` (log in) and `se deconnecter` (log out) handle the session."
         soustitre "Handling a failure"
         code humalis :
@@ -2318,6 +2387,128 @@ page "documentation_22" dans "documentation" adresse "/documentation/relier-les-
                     si erreur :
                         afficher erreur "The order was not sent: {raison}"
         texte "`essayer` means \"try\"; inside `si erreur :` (\"if error\"), `raison` says what went wrong. In a form, the fields stay filled in."
+        soustitre "Logging in with Google"
+        texte "With the line `connexion google` in the server, an account the server {accent "already knows"} can log in with Google: Google's window opens, and if Google confirms an address that matches an account, the session opens, with no password. An unknown address is refused: nobody gives themselves access. The first sign-in links the account to that Google account; another Google account carrying the same address is refused afterwards."
+        code humalis :
+            serveur "shop" :
+                connexion google
+                donnee order :
+                    name : texte
+                route "orders" :
+                    seul admin peut lire order
+
+            page "login" :
+                titre "Log in"
+                bouton "Continue with Google"
+                quand l'utilisateur clique sur "Continue with Google" :
+                    essayer :
+                        se connecter avec google
+                        rediriger vers "login"
+                    si erreur :
+                        afficher erreur "Login refused: {raison}"
+        texte "You need a Google OAuth client ID (\"Web application\"), in the server's `GOOGLE_CLIENT_ID` variable, with the redirect address `https://your-site/auth-google.html`. Web and desktop targets only, for now."
+        soustitre "A profile page: password and photo"
+        texte "A signed-in person changes their password with `changer le mot de passe avec … et …`: first the current password, then the new one. The server checks the current one and refuses a weak new one (at least 8 characters, with an uppercase letter, a lowercase letter, a digit and a symbol). The session stays open."
+        texte "An `image` field in a server data type keeps a photo chosen in the page (`fichier … accepte images`). The page shrinks it (480 px per side, JPEG) before sending it; the server checks it really is an image. It is then shown like an address: `image p.photo`."
+        code humalis :
+            serveur "club" :
+                donnee profil :
+                    nom : texte
+                    photo : image
+                route "profils" :
+                    tout le monde peut lire profil
+                    seul admin peut creer profil
+                    seul admin peut modifier profil
+
+            page "profil" :
+                titre "Mon profil"
+                variable photo = rien
+                variable nom = "Camille"
+                fichier "Choisir une photo" dans photo accepte images avec maximum 5 Mo
+                bouton "Enregistrer la photo"
+                quand l'utilisateur clique sur "Enregistrer la photo" :
+                    envoyer requete vers "profils" avec nom et photo
+                formulaire "secret" :
+                    champ mot de passe "Mot de passe actuel" avec obligatoire
+                    champ mot de passe "Nouveau mot de passe" avec obligatoire
+                    bouton "Changer le mot de passe"
+                quand le formulaire "secret" est soumis :
+                    essayer :
+                        changer le mot de passe avec champ "Mot de passe actuel" et champ "Nouveau mot de passe"
+                        afficher reussite "Mot de passe changé"
+                    si erreur :
+                        afficher erreur "{raison}"
+        texte "Both work on web, desktop and mobile. On the phone, the photo comes from the gallery, with the same shrinking; a transparent image loses its transparency there (JPEG has none)."
+        soustitre "Downloading a list as CSV"
+        texte "In an event, `telecharger orders en csv` saves the list to an `orders.csv` file that French-language Excel opens correctly. On a phone, the text goes through the share sheet."
+        soustitre "Downloading a record's slip"
+        texte "`telecharger bon de commande de c` downloads the PDF of a server record, without opening a page. It works for any data read through a route: `telecharger bon de reservation de r`, for instance."
+        code humalis :
+            serveur "Maison Awa" :
+                donnee commande :
+                    nom : texte
+                    articles : liste de texte
+                    total : nombre
+                    jour : date
+                route "commandes" :
+                    tout le monde peut creer commande
+                    seul admin peut lire commande
+                    seul admin peut modifier commande
+
+            page "connexion" a l'adresse "/connexion" :
+                titre "Connexion"
+
+            page "commandes" a l'adresse "/" reservee a admin sinon vers "connexion" :
+                titre "Commandes"
+                variable commandes = []
+                quand la page se charge :
+                    envoyer requete vers "commandes" dans commandes
+                pour chaque c dans commandes :
+                    texte c.nom
+                    bouton "Bon de commande" avec icone "document" et nom "bon"
+                    quand l'utilisateur clique sur "bon" :
+                        essayer :
+                            telecharger bon de commande de c
+                        si erreur :
+                            afficher erreur "Bon non téléchargé : {raison}"
+        texte "The server then adds `GET /api/commandes/:id/bon`, only if a page uses it, with the same rights as reading the route. The document carries the server's name (written as is: give it the shop's name), the title \"Bon de commande\" and every field in plain text, except those of type `image`. A record that no longer exists answers 404, and the reason reaches `si erreur`."
+        texte "Web and desktop targets. On the phone, a message says it is not available yet; the static site refuses the sentence. Compile the server from the file that contains this page: the page is what asks for the route."
+        soustitre "A loyalty card"
+        texte "In the server, `fidelite par telephone de commande :` computes a stamp card from the records, storing nothing. Its two lines are required:"
+        code humalis :
+            serveur "Maison Awa" :
+                donnee commande :
+                    nom : texte
+                    telephone : texte
+                    statut : texte
+                route "commandes" :
+                    tout le monde peut creer commande
+                    seul admin peut lire commande
+                    seul admin peut modifier commande
+                fidelite par telephone de commande :
+                    1 tampon par commande livree
+                    apres 5 tampons, recompense "Un maillot offert"
+
+            page "connexion" a l'adresse "/connexion" :
+                titre "Connexion"
+
+            page "commandes" a l'adresse "/" reservee a admin sinon vers "connexion" :
+                titre "Commandes"
+                variable commandes = []
+                variable carte = rien
+                quand la page se charge :
+                    envoyer requete vers "commandes" dans commandes
+                pour chaque c dans commandes :
+                    texte c.nom
+                    bouton "Fidélité" avec icone "recompense" et nom "fidelite"
+                    quand l'utilisateur clique sur "fidelite" :
+                        envoyer requete vers "fidelite" avec id c.telephone dans carte
+                si carte n'est pas rien :
+                    texte "{carte.tampons} sur {carte.objectif} tampons"
+                    si carte.recompenses est superieur a 0 :
+                        texte "Récompense gagnée : {carte.recompense}"
+        texte "`1 tampon par commande livree` counts the records whose `statut` field is exactly `livree`. The answer has the fields `tampons`, `objectif`, `restant`, `recompenses` and `recompense`, known at compile time. Spaces, dashes and the \"+\" in the number are ignored: \"+33 6 12\" and \"33612\" count together."
+        texte "{accent "Only an admin can read a card"} (`GET /api/fidelite/…`), because the value is a phone number, and nobody can write to it. No time limit applies: a stamp is never lost. Rewards handed over are not recorded: `recompenses` counts those earned since the beginning, and `tampons` restarts from zero at each reward earned."
     sinon :
         texte "Quand le serveur et les pages sont dans le même fichier, Humalis {accent "vérifie chaque requête à la compilation"} : la route existe, les champs existent, les types sont les bons, et la personne a le droit."
         code humalis :
@@ -2368,6 +2559,7 @@ page "documentation_22" dans "documentation" adresse "/documentation/relier-les-
         liste :
             texte "`envoyer requete vers "produits" dans produits` lit la liste."
             texte "`envoyer requete vers "avis" avec note et champ "commentaire"` envoie."
+            texte "`avec commentaire = texte_saisi` envoie une valeur sous le nom d'un champ de la donnée, quand la variable s'appelle autrement."
             texte "`si utilisateur est connecte :`, `si utilisateur est admin :`, `se connecter`, `se deconnecter` gèrent la session."
         soustitre "Réagir à un échec"
         code humalis :
@@ -2389,6 +2581,128 @@ page "documentation_22" dans "documentation" adresse "/documentation/relier-les-
                     si erreur :
                         afficher erreur "La commande n'est pas partie : {raison}"
         texte "Dans `si erreur :`, `raison` dit ce qui n'a pas marché. Dans un formulaire, les champs restent remplis."
+        soustitre "Se connecter avec Google"
+        texte "Avec la ligne `connexion google` dans le serveur, un compte {accent "déjà connu"} du serveur peut se connecter avec Google : la fenêtre de Google s'ouvre, et si Google confirme une adresse qui correspond à un compte, la session s'ouvre, sans mot de passe. Une adresse inconnue est refusée : personne ne se crée un accès tout seul. La première connexion lie le compte à ce compte Google ; un autre compte Google qui porterait la même adresse est ensuite refusé."
+        code humalis :
+            serveur "boutique" :
+                connexion google
+                donnee commande :
+                    nom : texte
+                route "commandes" :
+                    seul admin peut lire commande
+
+            page "connexion" :
+                titre "Connexion"
+                bouton "Continuer avec Google"
+                quand l'utilisateur clique sur "Continuer avec Google" :
+                    essayer :
+                        se connecter avec google
+                        rediriger vers "connexion"
+                    si erreur :
+                        afficher erreur "Connexion refusée : {raison}"
+        texte "Il faut un ID client OAuth de Google (type « application Web »), dans la variable `GOOGLE_CLIENT_ID` du serveur, avec l'adresse de redirection `https://ton-site/auth-google.html`. Cible web et bureau seulement, pour l'instant."
+        soustitre "Une page de profil : mot de passe et photo"
+        texte "Une personne connectée change son mot de passe avec `changer le mot de passe avec … et …` : d'abord le mot de passe actuel, puis le nouveau. Le serveur vérifie l'actuel et refuse un nouveau trop faible (au moins 8 caractères, avec une majuscule, une minuscule, un chiffre et un signe). La session reste ouverte."
+        texte "Un champ `image` dans une donnée du serveur garde une photo choisie dans la page (`fichier … accepte images`). La page la réduit (480 px de côté, en JPEG) avant de l'envoyer ; le serveur vérifie que c'est bien une image. Elle s'affiche ensuite comme une adresse : `image p.photo`."
+        code humalis :
+            serveur "club" :
+                donnee profil :
+                    nom : texte
+                    photo : image
+                route "profils" :
+                    tout le monde peut lire profil
+                    seul admin peut creer profil
+                    seul admin peut modifier profil
+
+            page "profil" :
+                titre "Mon profil"
+                variable photo = rien
+                variable nom = "Camille"
+                fichier "Choisir une photo" dans photo accepte images avec maximum 5 Mo
+                bouton "Enregistrer la photo"
+                quand l'utilisateur clique sur "Enregistrer la photo" :
+                    envoyer requete vers "profils" avec nom et photo
+                formulaire "secret" :
+                    champ mot de passe "Mot de passe actuel" avec obligatoire
+                    champ mot de passe "Nouveau mot de passe" avec obligatoire
+                    bouton "Changer le mot de passe"
+                quand le formulaire "secret" est soumis :
+                    essayer :
+                        changer le mot de passe avec champ "Mot de passe actuel" et champ "Nouveau mot de passe"
+                        afficher reussite "Mot de passe changé"
+                    si erreur :
+                        afficher erreur "{raison}"
+        texte "Les deux existent pour le web, le bureau et le mobile. Sur le téléphone, la photo vient de la galerie, avec la même réduction ; une image transparente y perd sa transparence (le JPEG n'en a pas)."
+        soustitre "Télécharger une liste en CSV"
+        texte "Dans un événement, `telecharger commandes en csv` enregistre la liste dans un fichier `commandes.csv`, lisible par Excel en français. Sur un téléphone, le texte passe par la feuille de partage."
+        soustitre "Télécharger le bon d'une fiche"
+        texte "`telecharger bon de commande de c` télécharge le PDF d'une fiche du serveur, sans ouvrir de page. Cela marche pour toute donnée lue sur une route : `telecharger bon de reservation de r`, par exemple."
+        code humalis :
+            serveur "Maison Awa" :
+                donnee commande :
+                    nom : texte
+                    articles : liste de texte
+                    total : nombre
+                    jour : date
+                route "commandes" :
+                    tout le monde peut creer commande
+                    seul admin peut lire commande
+                    seul admin peut modifier commande
+
+            page "connexion" a l'adresse "/connexion" :
+                titre "Connexion"
+
+            page "commandes" a l'adresse "/" reservee a admin sinon vers "connexion" :
+                titre "Commandes"
+                variable commandes = []
+                quand la page se charge :
+                    envoyer requete vers "commandes" dans commandes
+                pour chaque c dans commandes :
+                    texte c.nom
+                    bouton "Bon de commande" avec icone "document" et nom "bon"
+                    quand l'utilisateur clique sur "bon" :
+                        essayer :
+                            telecharger bon de commande de c
+                        si erreur :
+                            afficher erreur "Bon non téléchargé : {raison}"
+        texte "Le serveur ajoute alors `GET /api/commandes/:id/bon`, seulement si une page s'en sert, avec les mêmes droits que la lecture de la route. Le document porte le nom du serveur (écrit tel quel : donnez-lui le nom de la boutique), le titre « Bon de commande » et tous les champs en clair, sauf ceux de type `image`. Une fiche qui n'existe plus répond 404, et la raison arrive à `si erreur`."
+        texte "Cible web et bureau. Sur le téléphone, un message dit que ce n'est pas encore disponible ; le site statique refuse la phrase. Le serveur à compiler est celui du fichier qui contient cette page : c'est elle qui demande la route."
+        soustitre "Une carte de fidélité"
+        texte "Dans le serveur, `fidelite par telephone de commande :` calcule une carte à tampons à partir des fiches, sans rien stocker. Ses deux lignes sont obligatoires :"
+        code humalis :
+            serveur "Maison Awa" :
+                donnee commande :
+                    nom : texte
+                    telephone : texte
+                    statut : texte
+                route "commandes" :
+                    tout le monde peut creer commande
+                    seul admin peut lire commande
+                    seul admin peut modifier commande
+                fidelite par telephone de commande :
+                    1 tampon par commande livree
+                    apres 5 tampons, recompense "Un maillot offert"
+
+            page "connexion" a l'adresse "/connexion" :
+                titre "Connexion"
+
+            page "commandes" a l'adresse "/" reservee a admin sinon vers "connexion" :
+                titre "Commandes"
+                variable commandes = []
+                variable carte = rien
+                quand la page se charge :
+                    envoyer requete vers "commandes" dans commandes
+                pour chaque c dans commandes :
+                    texte c.nom
+                    bouton "Fidélité" avec icone "recompense" et nom "fidelite"
+                    quand l'utilisateur clique sur "fidelite" :
+                        envoyer requete vers "fidelite" avec id c.telephone dans carte
+                si carte n'est pas rien :
+                    texte "{carte.tampons} sur {carte.objectif} tampons"
+                    si carte.recompenses est superieur a 0 :
+                        texte "Récompense gagnée : {carte.recompense}"
+        texte "`1 tampon par commande livree` compte les fiches dont le champ `statut` vaut exactement `livree`. La réponse a les champs `tampons`, `objectif`, `restant`, `recompenses` et `recompense`, connus de la compilation. Les espaces, les tirets et le « + » du numéro sont ignorés : « +33 6 12 » et « 33612 » comptent ensemble."
+        texte "{accent "Seul un admin peut lire une carte"} (`GET /api/fidelite/…`), car la valeur est un numéro de téléphone, et personne ne peut y écrire. Aucune durée ne s'applique : un tampon ne se perd pas. Les récompenses données ne sont pas enregistrées : `recompenses` compte celles qui ont été gagnées depuis le début, et `tampons` repart de zéro à chaque récompense gagnée."
     ligne avec style "doc-suite" :
         lien "← 21. Le serveur" en anglais "← 21. The server" vers "documentation_21"
         lien "23. Utiliser une API qui existe déjà →" en anglais "23. Using an existing API →" vers "documentation_23"
@@ -2539,6 +2853,7 @@ page "documentation_25" dans "documentation" adresse "/documentation/choisir-et-
                     image photo.apercu avec description "Preview of the chosen photo" et proportions 1 sur 1
                     texte photo.nom
         texte "`fichier "…" dans photo` lets people pick a file; `accepte images` limits it to images, `maximum 5 Mo` to 5 MB. The page checks type and size to help the person; the server receiving the file must always check again. Uploading goes through a `source`: `envoyer fichier photo vers "…" de la source "…"`, with a progress bar (`suivi dans upload`)."
+        texte "`avec icone "photo"` shows the icon alone on the button; the label is still read by screen readers and shown on hover."
     sinon :
         code humalis :
             page "profil" :
@@ -2549,6 +2864,7 @@ page "documentation_25" dans "documentation" adresse "/documentation/choisir-et-
                     image photo.apercu avec description "Aperçu de la photo choisie" et proportions 1 sur 1
                     texte photo.nom
         texte "Le type et la taille sont vérifiés dans la page pour aider la personne ; le serveur qui reçoit le fichier doit toujours revérifier. L'envoi passe par une `source` : `envoyer fichier photo vers "…" de la source "…"`, avec une barre de progression (`suivi dans envoi`)."
+        texte "`avec icone "photo"` montre une icône seule sur le bouton ; le libellé reste lu par les lecteurs d'écran et s'affiche au survol."
     ligne avec style "doc-suite" :
         lien "← 24. Les données d'un fichier" en anglais "← 24. Data from a file" vers "documentation_24"
         lien "26. Les graphiques →" en anglais "26. Charts →" vers "documentation_26"
@@ -2571,7 +2887,8 @@ page "documentation_26" dans "documentation" adresse "/documentation/graphiques"
                     serie "Purchases" valeur purchases en euros avec couleur orange
                 graphique en camembert expenses avec etiquette item et valeur total en euros et description "Rent is more than half of the expenses."
                 graphique en barres visits avec etiquettes ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] et couleur vert et proportions 2 sur 1 et description "Visits rise until Saturday."
-        texte "The kinds: `en courbe` (line), `en barres` (bars), `en camembert` (pie). `etiquette` names the field used for labels, `valeur` the field used for values, `serie` adds a series."
+        texte "The kinds: `en courbe` (line), `en barres` (bars), `en camembert` (pie)."
+        texte "Charts can be read by touch or with the mouse: touching a point, a bar or a slice shows its label and value, and sliding a finger moves the bubble along. With the keyboard, the arrow keys go from one value to the next. With many values, the chart scrolls sideways and shows the latest ones first. `etiquette` names the field used for labels, `valeur` the field used for values, `serie` adds a series."
     sinon :
         texte "Chaque graphique a une description (pour les personnes qui ne le voient pas), et un bouton « Voir les données » qui montre le tableau."
         code humalis :
@@ -2587,6 +2904,7 @@ page "documentation_26" dans "documentation" adresse "/documentation/graphiques"
                 graphique en camembert depenses avec etiquette poste et valeur total en euros et description "Le loyer pèse plus de la moitié des dépenses."
                 graphique en barres visites avec etiquettes ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"] et couleur vert et proportions 2 sur 1 et description "Les visites montent jusqu'au samedi."
         texte "Les genres : `en courbe`, `en barres`, `en camembert`."
+        texte "On lit un graphique au doigt ou à la souris : toucher un point, une barre ou une part montre son étiquette et sa valeur, et glisser le doigt fait suivre la bulle. Au clavier, les flèches passent d'une valeur à l'autre. Avec beaucoup de valeurs, le graphique défile au doigt et montre d'abord les dernières."
     ligne avec style "doc-suite" :
         lien "← 25. Choisir et envoyer un fichier" en anglais "← 25. Choosing and uploading a file" vers "documentation_25"
         lien "27. Les cartes →" en anglais "27. Maps →" vers "documentation_27"
