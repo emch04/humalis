@@ -489,6 +489,8 @@ class AnalysePage {
 
   /** Le nombre de boucles ouvertes dans un événement ou une fonction (pour « arreter »). */
   private boucles = 0;
+  /** Les éléments de chaque branche « si / sinon » ouverte : un événement y vise d'abord ceux de sa branche. */
+  private branches: ElementRecense[][] = [];
 
   /** La fonction dont on analyse le corps, et les types de ce qu'elle rend. */
   private fonctionOuverte?: { info: InfoFonction; rendus: TypeValeur[] };
@@ -863,9 +865,13 @@ class AnalysePage {
         this.comparaison(instruction.test);
         const avant = this.garde;
         this.garde = plusForte(avant, gardeDe(instruction.test));
+        this.branches.push(this.elements.elementsDe(instruction.alors));
         this.sousBloc(instruction.alors, contexte, place);
+        this.branches.pop();
         this.garde = avant;
+        this.branches.push(this.elements.elementsDe(instruction.sinon));
         this.sousBloc(instruction.sinon, contexte, place);
+        this.branches.pop();
         return;
       }
 
@@ -2431,7 +2437,18 @@ class AnalysePage {
   }
 
   private cible(instruction: Evenement | Action, texte: string, parmi?: ElementRecense[]): void {
-    const resolution = this.elements.resoudre(texte, undefined, parmi);
+    let resolution = this.elements.resoudre(texte, undefined, parmi);
+    // Deux éléments de même nom, l'un dans « si », l'autre dans « sinon » : ils ne coexistent jamais ;
+    // l'événement vise celui de sa propre branche.
+    if (instruction.type === 'Evenement' && 'erreur' in resolution && resolution.erreur !== 'inconnu') {
+      for (const branche of [...this.branches].reverse()) {
+        const dansLaBranche = this.elements.resoudre(texte, undefined, branche.filter((e) => !parmi || parmi.includes(e)));
+        if ('ids' in dansLaBranche) {
+          resolution = dansLaBranche;
+          break;
+        }
+      }
+    }
     // « montrer "message" », « cacher "message" » : un formulaire se vise aussi par son nom.
     const formulaire =
       instruction.type === 'Action' && (instruction.action === 'montrer' || instruction.action === 'cacher')
