@@ -237,8 +237,8 @@ export const ENTREES_MEDIAS: readonly EntreeVocabulaire[] = [
     etape: 10,
   },
   {
-    mot: 'brut',
-    variantes: [],
+    mot: 'corps brut',
+    variantes: ['brut'],
     categorie: 'structure',
     concept: 'fichier.brut',
     contextes: ['source'],
