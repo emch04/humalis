@@ -131,6 +131,8 @@ export const ICONES: readonly Icone[] = [
   { nom: 'courbe', lucide: 'chart-line', alias: ['tendance'] },
   { nom: 'boutique', lucide: 'store', alias: ['magasin'] },
   { nom: 'lien_externe', lucide: 'external-link', alias: ['nouvel_onglet'] },
+  // Le volet latéral comme chez Apple : la même icône pour l'ouvrir et le fermer.
+  { nom: 'volet', lucide: 'panel-left', alias: ['barre_laterale'] },
   { nom: 'replier_volet', lucide: 'panel-left-close', alias: ['fermer_volet'] },
   { nom: 'deplier_volet', lucide: 'panel-left-open', alias: ['ouvrir_volet'] },
   { nom: 'tableau_de_bord', lucide: 'layout-dashboard', alias: ['accueil_admin'] },
