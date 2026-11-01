@@ -1186,8 +1186,9 @@ export function creerServeur({ jwtSecret, usersStore, stockages${serveur.connexi
   const renouvellement = creerRenouvellement(session);
   const serveur = createSaasApp({
     jwtSecret,
-    // Le pare-feu du pack, sans le refus du « # » : il n'est pas un commentaire en PostgreSQL et « avenue #12 » est une vraie adresse.
-    waf: { patterns: WAF_PATTERNS.map((motif) => new MotifDuPareFeu(motif.source.replace('|#|', '|'), motif.flags)) },
+    // Le pare-feu du pack, sans son motif des commentaires SQL : le stockage passe par des requêtes paramétrées,
+    // et « avenue #12 » ou « appeler -- après 18h » sont de vrais textes. Les autres motifs restent.
+    waf: { patterns: WAF_PATTERNS.filter((motif) => !motif.source.includes('--')).map((motif) => new MotifDuPareFeu(motif.source, motif.flags)) },
     // Derrière un relais (nginx) : son nombre, pour que les limites comptent chaque visiteur et non le relais.
     ...(process.env.HUMALIS_RELAIS ? { trustProxy: Number(process.env.HUMALIS_RELAIS) } : {}),
     // Un jeton d'accès court, renouvelé tant que la personne revient : voir src/humalis/sessions.ts.

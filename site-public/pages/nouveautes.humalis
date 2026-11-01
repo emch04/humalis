@@ -20,6 +20,7 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
                     soustitre "Des connexions et des exports plus sûrs" en anglais "Safer sign-ins and exports"
                     liste :
                         texte "Le pare-feu ne bloque plus un mot de passe qui contient « -- » : sans ce correctif, son propriétaire ne pouvait pas se connecter." en anglais "The firewall no longer blocks a password containing “--”: without this fix, its owner could not sign in."
+                        texte "Une note ou une adresse peut contenir « -- » ou « /* » ; les vraies injections et les scripts restent bloqués." en anglais "A note or an address can contain “--” or “/*”; real injections and scripts stay blocked."
                         texte "Une `constante` du haut d’un fichier vaut aussi pour les autres fichiers du projet." en anglais "A `constante` at the top of a file now applies to the project’s other files too."
                         texte "Un numéro de téléphone reste lisible dans un CSV, et les images d’un dossier `images/` ne sortent plus sous `/images/images/`." en anglais "A phone number stays readable in a CSV, and images in an `images/` folder no longer end up under `/images/images/`."
                 bloc avec style "version" :
