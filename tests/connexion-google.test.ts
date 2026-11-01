@@ -61,7 +61,7 @@ describe('connexion avec Google', () => {
     expect(serveur).toContain('if (!profil.email || !profil.emailVerified)');
     expect(serveur).toContain('const compte = await usersStore.findByEmail(profil.email);');
     expect(serveur).toContain('res.json(await issueSession(res, lie));');
-    expect(fichiers.get('src/demarrer.ts')).toContain('googleClientId: process.env.GOOGLE_CLIENT_ID || undefined');
+    expect(fichiers.get('src/demarrer.ts')).toContain('googleClientId: () => process.env.GOOGLE_CLIENT_ID || undefined');
     expect(fichiers.get('.env.exemple')).toContain('GOOGLE_CLIENT_ID=');
   });
 

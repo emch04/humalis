@@ -199,8 +199,11 @@ describe('cible mobile — la connexion (décision L5)', () => {
   it('range le jeton des packs dans le coffre et le présente en Bearer', () => {
     const session = fichiers.get('humalis/session.tsx')!;
     expect(session).toContain("fetch(BASE + '/auth/login'");
-    expect(session).toContain('SecureStore.setItemAsync(CLE_JETON, corps.data.token)');
-    expect(session).toContain('SecureStore.deleteItemAsync(CLE_JETON)');
+    expect(session).toContain('await garderLesJetons(');
+    expect(session).toContain('await oublierLesJetons();');
+    const renouveler = fichiers.get('humalis/renouveler.ts')!;
+    expect(renouveler).toContain('SecureStore.setItemAsync(CLE_JETON, corps.token)');
+    expect(renouveler).toContain('SecureStore.deleteItemAsync(CLE_JETON)');
     expect(session).toContain("'Email ou mot de passe incorrect.'");
     expect(fichiers.get('app/_layout.tsx')).toContain('<Session>');
     expect(JSON.parse(fichiers.get('package.json')!).dependencies['expo-secure-store']).toBe('57.0.4');

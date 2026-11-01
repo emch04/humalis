@@ -79,6 +79,8 @@ export const VERSIONS = {
   typesReact: '19.3.0',
   typesReactDom: '19.3.0',
   prerender: '1.0.1',
+  centrale: '1.10.0',
+  client: '1.1.0',
   playwright: '1.63.0',
 };
 
@@ -173,7 +175,7 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
       animeAuDefilement(pages.map(({ page }) => page.code)),
     ),
   );
-  fichiers.set('LISEZMOI.md', lisezmoi(options));
+  fichiers.set('LISEZMOI.md', lisezmoi(options, application.serveurs.length > 0));
   fichiers.set('src/vite-env.d.ts', '/// <reference types="vite/client" />\n');
   // La page « introuvable » écrite par la personne remplace celle de Humalis.
   if (!introuvable) fichiers.set('src/Introuvable.tsx', INTROUVABLE);
@@ -206,8 +208,24 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
     paquet.devDependencies = { ...paquet.devDependencies, ...dependancesDev };
     fichiers.set('package.json', JSON.stringify(paquet, null, 2) + '\n');
   }
+  // La session d'un serveur Humalis se renouvelle ; celle d'une source reste à la charge de son API.
+  const sessionDuServeur = session && application.serveurs.length > 0 && !application.sources.some((x) => x.session);
+  // La surveillance (@astratra/centrale) n'a de sens que pour une application qui a un serveur.
+  const surveillee = application.serveurs.length > 0;
+  if (sessionDuServeur || surveillee) {
+    const paquet = JSON.parse(fichiers.get('package.json')!);
+    paquet.dependencies = {
+      ...paquet.dependencies,
+      ...(surveillee ? { '@astratra/centrale': VERSIONS.centrale } : {}),
+      ...(sessionDuServeur ? { '@astratra/client': VERSIONS.client } : {}),
+    };
+    fichiers.set('package.json', JSON.stringify(paquet, null, 2) + '\n');
+  }
+  if (surveillee) fichiers.set('src/humalis/centrale.ts', CENTRALE_WEB);
+  if (sessionDuServeur) fichiers.set('src/humalis/renouveler.ts', RENOUVELER);
+  const modeleServeur = sessionDuServeur ? serveurRenouvele(SERVEUR) : SERVEUR;
   const codes = [...fichiers.values(), ...pages.map(({ page }) => page.code)];
-  fichiers.set('src/humalis/serveur.ts', avecEchecs(application.sources.length > 0 ? serveurAvecSources(SERVEUR) : SERVEUR, codes));
+  fichiers.set('src/humalis/serveur.ts', avecEchecs(application.sources.length > 0 ? serveurAvecSources(modeleServeur) : modeleServeur, codes));
   // La dernière réponse de chaque lecture publique : une page déjà vue s'affiche tout de suite, puis se met à jour.
   fichiers.set('src/humalis/lectures.ts', lecturesTs('web'));
   if (application.sources.length > 0) fichiers.set('src/humalis/sources.ts', sourcesTs(application));
@@ -222,7 +240,7 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
   if (application.serveurs.length > 0 || application.sources.length > 0) fichiers.set('src/humalis/donnees.ts', donneesTs(application));
   if (session) {
     const source = application.sources.find((x) => x.session);
-    fichiers.set('src/humalis/session.tsx', source ? sessionDeLaSource(SESSION, source) : SESSION);
+    fichiers.set('src/humalis/session.tsx', source ? sessionDeLaSource(SESSION, source) : sessionDuServeur ? sessionRenouvelee(SESSION) : SESSION);
     // « se connecter avec google » : la page où Google renvoie, qui rend le jeton au site.
     if (application.serveurs.some((s) => s.connexionGoogle)) fichiers.set('public/auth-google.html', PAGE_RETOUR_GOOGLE);
   }
@@ -278,6 +296,7 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
       utiliseDefilement,
       defilementAnime,
       enteteSuivie,
+      application.serveurs.length > 0,
       // Les lectures publiques de chaque page, que le survol d'un lien prépare.
       fichiers.has('src/humalis/prechargement.ts')
         ? new Map(pages.map(({ ecran, page }) => [page.composant, lecturesDuChargement(ecran, publiques).filter((l) => l.publique).map((l) => l.modele)]))
@@ -602,6 +621,7 @@ function mainTsx(
   defilement = false,
   mouvement = false,
   entete = false,
+  surveillee = false,
   lectures?: Map<string, string[]>,
 ): string {
   // Chaque page dans son propre fichier, chargé à sa première visite ; celle de l'adresse ouverte
@@ -650,7 +670,7 @@ connaitreLesPages(adresses.map(([nom, chemin, parent]) => ({ chemin, parent, cha
   return `import { ${routes.length === 0 ? '' : 'lazy, '}StrictMode, Suspense${routes.length === 0 ? '' : ', type ComponentType'} } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Route, Routes${routes.length === 0 ? '' : ', matchPath'} } from 'react-router';
-import { Messages } from './humalis/messages';${defilement ? "\nimport { Defilement } from './humalis/navigation';" : ''}${lectures && routes.length > 0 ? "\nimport { connaitreLesPages } from './humalis/prechargement';" : ''}
+${surveillee ? "import './humalis/centrale';\n" : ''}import { Messages } from './humalis/messages';${defilement ? "\nimport { Defilement } from './humalis/navigation';" : ''}${lectures && routes.length > 0 ? "\nimport { connaitreLesPages } from './humalis/prechargement';" : ''}
 ${session ? "import { Session } from './humalis/session';\n" : ''}${partage ? "import { Partage } from './humalis/partage';\n" : ''}${routes.some((r) => r.reservee) ? "import { Reservee } from './humalis/reservee';\n" : ''}${introuvable ? `import ${introuvable} from './pages/${introuvable}';` : "import Introuvable from './Introuvable';"}
 ${dispositions.entete || dispositions.pied ? "import Disposition from './Disposition';\n" : ''}import './humalis/styles.css';
 ${mouvement ? "import { observerLeDefilement } from './humalis/mouvement';\n" : ''}${entete ? "import { suivreLaHauteurDeLEntete } from './humalis/entete';\n" : ''}${feuilles.map((f) => `import './styles/${f}';\n`).join('')}
@@ -1124,6 +1144,8 @@ export function useServeur() {
       const reponse = lecture ? await lireEnCommun(adresse, BASE + adresse, envoi) : await fetch(BASE + adresse, envoi);
       // Une lecture d'un élément qui n'existe plus (404) : la valeur actuelle est gardée, sans faux « pas répondu ».
       if (reponse.status === 404 && options.method === 'GET') return actuelle;
+      // Personne n'est connecté : ce n'est pas une panne du serveur.
+      if (reponse.status === 401) throw new Error('Connectez-vous pour continuer.');
       if (!reponse.ok) {
         // Un refus du serveur (« le champ « prix » doit être un nombre ») : sa raison, pour « si erreur » et le message.
         const corps = (await reponse.json().catch(() => null)) as { erreur?: unknown } | null;
@@ -1305,6 +1327,219 @@ export function useMemorise<T>(cle: string, initiale: T): [T, (valeur: T) => voi
   return [valeur, setValeur];
 }
 `;
+
+/**
+ * La surveillance du site : son code n'arrive dans le navigateur que si les deux variables sont réglées
+ * au build. Dans un navigateur piloté (prérendu, tests), le paquet se tait de lui-même.
+ */
+const CENTRALE_WEB = `const adresse = import.meta.env.VITE_CENTRALE_ADRESSE as string | undefined;
+const cle = import.meta.env.VITE_CENTRALE_CLE as string | undefined;
+
+if (adresse && cle) {
+  // Strict : ni utilisateur, ni appareil précis. Une surveillance qui ne se charge pas ne gêne jamais le site.
+  void import('@astratra/centrale/navigateur')
+    .then(({ demarrer }) => demarrer({ cle, adresse, environnement: import.meta.env.PROD ? 'production' : 'developpement', strict: true }))
+    .catch(() => {});
+}
+`;
+
+/**
+ * Le renouvellement de session côté site : le jeton d'accès dure 15 minutes ; à son expiration, le
+ * cookie HttpOnly de /auth/refresh en donne un autre, et la requête repart. Seul le serveur
+ * décide : la page ne connaît ni le jeton ni les durées (3 jours sans venir, 30 jours au plus).
+ */
+const RENOUVELER = `import { createSessionClient, SessionExpiredError } from '@astratra/client';
+
+const BASE = import.meta.env.VITE_HUMALIS_SERVEUR ?? '';
+const EXPIREE = 'Votre session a expiré. Connectez-vous de nouveau.';
+const DEMANDEE = 'Connectez-vous pour continuer.';
+/** Note seulement qu'une session a été ouverte ici, pour dire « expirée » : jamais un droit. */
+const TRACE = 'humalis.session';
+
+export function tracer(ouverte: boolean): void {
+  try {
+    if (ouverte) localStorage.setItem(TRACE, '1');
+    else localStorage.removeItem(TRACE);
+  } catch {
+    // Navigation privée : seul le message sera moins précis.
+  }
+}
+
+function tracee(): boolean {
+  try {
+    return localStorage.getItem(TRACE) === '1';
+  } catch {
+    return false;
+  }
+}
+
+/** La session est finie : le serveur a refusé de la renouveler. */
+export class SessionFinie extends Error {
+  constructor(
+    message: string,
+    /** Quelqu'un était connecté ici. */
+    readonly expiree: boolean,
+    /** Une autre requête du même instant l'a déjà dit. */
+    readonly dejaDite: boolean,
+  ) {
+    super(message);
+  }
+}
+
+type Lancer = () => Promise<Response>;
+
+const client = createSessionClient({
+  // Le transport du pack doit lever une erreur avec son statut.
+  request: async (_chemin: string, lancer?: unknown) => {
+    const reponse = await (lancer as Lancer)();
+    if (reponse.status === 401) throw Object.assign(new Error('401'), { status: 401 });
+    return reponse;
+  },
+  // Vol unique, assuré par le pack : plusieurs requêtes refusées, un seul renouvellement.
+  refresh: async () => {
+    const reponse = await fetch(BASE + '/auth/refresh', { method: 'POST', credentials: 'same-origin' });
+    if (!reponse.ok) throw Object.assign(new Error("Le serveur n'a pas répondu."), { status: reponse.status });
+  },
+});
+
+const ecoutes = new Set<() => void>();
+let derniereFin = 0;
+
+/** La session de la page écoute ici, pour renvoyer vers la connexion. */
+export function surFinDeSession(rappel: () => void): () => void {
+  ecoutes.add(rappel);
+  return () => {
+    ecoutes.delete(rappel);
+  };
+}
+
+function finDeSession(): SessionFinie {
+  const dejaDite = Date.now() - derniereFin < 3000;
+  const expiree = tracee();
+  if (expiree) {
+    tracer(false);
+    derniereFin = Date.now();
+  }
+  for (const rappel of ecoutes) rappel();
+  return new SessionFinie(expiree || dejaDite ? EXPIREE : DEMANDEE, expiree, dejaDite);
+}
+
+/**
+ * Lance un appel ; sur un 401, renouvelle la session et le relance une fois. Une coupure du
+ * réseau ne ferme pas la session : l'erreur remonte, et le prochain appel réessaiera.
+ */
+export async function avecSession(lancer: Lancer): Promise<Response> {
+  try {
+    return (await client.call('', lancer)) as Response;
+  } catch (erreur) {
+    if (erreur instanceof SessionExpiredError || (erreur as { status?: unknown }).status === 401) throw finDeSession();
+    throw erreur;
+  }
+}
+`;
+
+/** `serveur.ts` avec le renouvellement : le 401 ne remonte que si le serveur refuse de renouveler. */
+function serveurRenouvele(modele: string): string {
+  const remplacer = (texte: string, avant: string, apres: string) => {
+    if (!texte.includes(avant)) throw new Error(`modèle du serveur inattendu : ${avant}`);
+    return texte.replace(avant, apres);
+  };
+  let texte = remplacer(modele, "import { useMessages } from './messages';\n", "import { useMessages } from './messages';\nimport { avecSession, SessionFinie } from './renouveler';\n");
+  texte = remplacer(
+    texte,
+    'const reponse = lecture ? await lireEnCommun(adresse, BASE + adresse, envoi) : await fetch(BASE + adresse, envoi);',
+    'const reponse = await avecSession(() => (lecture ? lireEnCommun(adresse, BASE + adresse, envoi) : fetch(BASE + adresse, envoi)));',
+  );
+  texte = remplacer(texte, "      // Personne n'est connecté : ce n'est pas une panne du serveur.\n      if (reponse.status === 401) throw new Error('Connectez-vous pour continuer.');\n", '');
+  return remplacer(
+    texte,
+    '      afficherMessage(derniereRaison === PAS_DE_REPONSE ?',
+    '      if (erreur instanceof SessionFinie && erreur.dejaDite) return actuelle;\n      afficherMessage(derniereRaison === PAS_DE_REPONSE ?',
+  );
+}
+
+/** `session.tsx` avec le renouvellement : /auth/me, le mot de passe et la déconnexion passent par lui. */
+function sessionRenouvelee(modele: string): string {
+  const remplacer = (texte: string, avant: string, apres: string) => {
+    if (!texte.includes(avant)) throw new Error(`modèle de la session inattendu : ${avant}`);
+    return texte.replace(avant, apres);
+  };
+  let texte = remplacer(modele, "import { useMessages } from './messages';\n", "import { useMessages } from './messages';\nimport { avecSession, SessionFinie, surFinDeSession, tracer } from './renouveler';\n");
+  texte = remplacer(
+    texte,
+    `      const reponse = await fetch(BASE + '/auth/me', { credentials: 'same-origin' });
+      const corps = reponse.ok ? ((await reponse.json()) as { data?: Personne | null }) : null;
+      derniere.current = corps?.data?.id !== undefined ? corps.data : null;
+    } catch {
+      derniere.current = null;
+    }
+    setPersonne(derniere.current);
+    setPret(true);
+  }, []);`,
+    `      const reponse = await avecSession(() => fetch(BASE + '/auth/me', { credentials: 'same-origin' }));
+      const corps = reponse.ok ? ((await reponse.json()) as { data?: Personne | null }) : null;
+      derniere.current = corps?.data?.id !== undefined ? corps.data : null;
+    } catch (erreur) {
+      derniere.current = null;
+      // Revenir sur le site après l'expiration : le message clair, puis la garde renvoie vers la connexion.
+      if (erreur instanceof SessionFinie && erreur.expiree && !erreur.dejaDite) afficherMessage(erreur.message, 'avertissement');
+    }
+    if (derniere.current) tracer(true);
+    setPersonne(derniere.current);
+    setPret(true);
+  }, [afficherMessage]);
+
+  // Une requête refusée en plein travail : la page voit aussitôt que plus personne n'est connecté.
+  useEffect(
+    () =>
+      surFinDeSession(() => {
+        derniere.current = null;
+        setPersonne(null);
+        setPret(true);
+      }),
+    [],
+  );`,
+  );
+  texte = remplacer(
+    texte,
+    `      reponse = await fetch(BASE + '/auth/mot-de-passe', {
+        method: 'POST',
+        headers: entetes(),
+        credentials: 'same-origin',
+        body: JSON.stringify({ actuel, nouveau }),
+      });
+    } catch {
+      return refuser("Le serveur n'a pas répondu. Réessayez dans un instant.");
+    }`,
+    `      reponse = await avecSession(() =>
+        fetch(BASE + '/auth/mot-de-passe', {
+          method: 'POST',
+          headers: entetes(),
+          credentials: 'same-origin',
+          body: JSON.stringify({ actuel, nouveau }),
+        }),
+      );
+    } catch (erreur) {
+      return refuser(erreur instanceof SessionFinie ? erreur.message : "Le serveur n'a pas répondu. Réessayez dans un instant.");
+    }`,
+  );
+  return remplacer(
+    texte,
+    `    try {
+      await fetch(BASE + '/auth/logout', { method: 'POST', headers: entetes(), credentials: 'same-origin' });
+    } catch {
+      afficherMessage("Le serveur n'a pas répondu. Réessayez dans un instant.", 'erreur');
+    }`,
+    `    // Une sortie voulue n'est pas une session expirée.
+    tracer(false);
+    try {
+      // Après 15 minutes, le jeton d'accès est mort : on le renouvelle pour fermer aussi le renouvellement.
+      await avecSession(() => fetch(BASE + '/auth/logout', { method: 'POST', headers: entetes(), credentials: 'same-origin' }));
+    } catch (erreur) {
+      if (!(erreur instanceof SessionFinie)) afficherMessage("Le serveur n'a pas répondu. Réessayez dans un instant.", 'erreur');
+    }`,
+  );
+}
 
 /** La session (décision L5) : src/humalis/session.tsx, placé autour des pages. */
 const SESSION = `import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
@@ -1683,7 +1918,7 @@ ${classes}
 ${formulaires ? STYLES_FORMULAIRES : ''}${blocs ? STYLES_BLOCS : ''}`;
 }
 
-function lisezmoi(options: OptionsWeb): string {
+function lisezmoi(options: OptionsWeb, serveur: boolean): string {
   return `# ${options.nom}
 
 Application web produite par Humalis depuis \`${options.source}\`.
@@ -1701,7 +1936,12 @@ Le prérendu (\`@astratra/prerender\`) ouvre le site dans un navigateur sans
 \`npm run build:sans-prerendu\`.
 
 L'adresse du serveur des requêtes se règle avec \`VITE_HUMALIS_SERVEUR\`.
-
+${serveur ? `
+La surveillance (@astratra/centrale) est facultative : avec \`VITE_CENTRALE_ADRESSE\` et
+\`VITE_CENTRALE_CLE\` (la clé publique, clj_pub_…) au moment du build, le site envoie ses erreurs et
+ses pages vues (en gabarit, masquées, sans cookie). Sans elles, rien n'est chargé. Le prérendu et les
+tests automatisés n'envoient jamais rien : le paquet se tait dans un navigateur piloté.
+` : ''}
 Ce dossier est réécrit à chaque compilation Humalis. Pour le reprendre à
 la main, supprimez le fichier \`${MARQUE}\` : Humalis refusera alors de
 l'écraser.
