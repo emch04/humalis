@@ -783,6 +783,8 @@ page "notes" :
         changer tirage par hasard entre 1 et 6
 ```
 
+Sur une liste de fiches ou de données, ces calculs lisent un champ : `somme de panier.prix`, même si `panier` est vide au départ (`variable panier = []`).
+
 ---
 
 ## 10. Les fiches, le texte, l'argent et les dates
