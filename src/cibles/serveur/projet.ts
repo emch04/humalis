@@ -173,7 +173,7 @@ HUMALIS_ADMIN_MOT_DE_PASSE=
 # La base PostgreSQL. Sans elle, les données restent en mémoire (développement).
 DATABASE_URL=
 
-# La durée d'une session (« 7d », « 12h ») ; 7 jours par défaut.
+# La durée d'une session (« 3d », « 12h ») ; 3 jours par défaut.
 HUMALIS_SESSION=
 
 PORT=3000
@@ -655,8 +655,8 @@ const sansCache = (res: Response) => res.set('Cache-Control', 'no-store');
 export function creerServeur({ jwtSecret, usersStore, stockages${serveur.connexionGoogle ? ', googleClientId' : ''} }: OptionsDuServeur) {
   return createSaasApp({
     jwtSecret,
-    // La session (et son cookie) dure 7 jours : la personne qui gère depuis son téléphone n'est pas déconnectée chaque heure.
-    jwtExpiresIn: process.env.HUMALIS_SESSION || '7d',
+    // La session (et son cookie) dure 3 jours : la personne qui gère depuis son téléphone n'est pas déconnectée chaque heure.
+    jwtExpiresIn: process.env.HUMALIS_SESSION || '3d',
     usersStore,
     roles: { adminRoles: ['admin'], ownerRoles: ['admin'] },
     verifyPassword: async (utilisateur, motDePasse) =>
