@@ -64,7 +64,7 @@ describe('page de profil : mot de passe et photo', () => {
     const programme2 = source().replace('>>champ mot de passe "Mot de passe actuel" avec obligatoire', '>>champ mot de passe "Mot de passe actuel" avec obligatoire').replace('    variable nom = "Rey"', '    variable nom = "Rey"\n    champ "Prénom" avec indice "{nom}"');
     expect(erreurs(programme2)).toEqual([]);
     const page = genererProjetWeb(compiler(programme2).application!, { nom: 'b', adresse: 'https://b.cd', source: 'b.humalis' }).get('src/pages/Profil.tsx')!;
-    expect(page).toContain("placeholder={String(`${nom}` ?? '')}");
+    expect(page).toContain('placeholder={`${nom}`}');
     expect(page).not.toContain('{nom}"');
     expect(erreurs(source().replace('    variable nom = "Rey"', '    variable nom = "Rey"\n    champ "Prénom" avec indice "{nom_inconnu}"')).join('\n')).toMatch(/nom_inconnu/);
   });
