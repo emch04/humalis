@@ -11,7 +11,7 @@ describe('cible serveur — projet produit', () => {
   it('écrit un projet Node complet', () => {
     expect([...fichiers.keys()].sort()).toEqual([
       '.env.exemple', '.gitignore', '.humalis-projet', 'LISEZMOI.md', 'package.json',
-      'src/demarrer.ts', 'src/donnees.ts', 'src/humalis/stockage.ts', 'src/humalis/verifier.ts', 'src/serveur.ts',
+      'src/demarrer.ts', 'src/donnees.ts', 'src/humalis/compresser.ts', 'src/humalis/stockage.ts', 'src/humalis/verifier.ts', 'src/serveur.ts',
       'tests/regles.test.ts', 'tsconfig.json',
     ]);
   });
@@ -24,7 +24,7 @@ describe('cible serveur — projet produit', () => {
   });
 
   it('traduit chaque règle en garde, et ferme la porte aux actions sans règle', () => {
-    expect(serveur).toContain("routeProduits.get('/', ...acces.toutLeMonde,");
+    expect(serveur).toContain("routeProduits.get('/', lecturePublique, ...acces.toutLeMonde,");
     expect(serveur).toContain("routeProduits.post('/', ...acces.seulAdmin, csrfMiddleware,");
     expect(serveur).toContain("routeAvis.post('/', ...acces.connecte, csrfMiddleware,");
     expect(serveur).toContain("routeAvis.patch('/:id', refuse,");

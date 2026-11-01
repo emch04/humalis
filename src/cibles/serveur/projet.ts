@@ -47,6 +47,7 @@ export function genererProjetServeur(serveur: ServeurRI, options: OptionsServeur
   fichiers.set('LISEZMOI.md', lisezmoi(serveur, options));
   fichiers.set('src/humalis/verifier.ts', VERIFIER);
   fichiers.set('src/humalis/stockage.ts', STOCKAGE);
+  fichiers.set('src/humalis/compresser.ts', COMPRESSER);
   fichiers.set('src/donnees.ts', donneesTs(serveur));
   fichiers.set('src/serveur.ts', serveurTs(serveur));
   fichiers.set('src/demarrer.ts', demarrerTs(serveur));
@@ -183,6 +184,8 @@ const VERIFIER = `/**
  * Ce n'est pas de la sécurité (elle vient des packs Astratra) : c'est
  * la description des champs, que seul le programme connaît.
  */
+import type { Filtres } from './stockage.js';
+
 export type TypeChamp = 'texte' | 'nombre' | 'booleen' | 'date' | 'image' | { liste: TypeChamp };
 export type Schema = Record<string, TypeChamp>;
 
@@ -244,6 +247,127 @@ export function verifierEnvoi(
   }
   return { valeur };
 }
+
+/** Le texte d'un paramètre d'adresse, s'il n'y en a qu'un. */
+const seul = (valeur: unknown): string | undefined => (typeof valeur === 'string' ? valeur : undefined);
+
+/** Un entier positif (ou nul) écrit dans l'adresse ; sinon rien. */
+function entier(valeur: unknown): number | undefined {
+  const texte = seul(valeur);
+  return texte !== undefined && /^\\d{1,9}$/.test(texte) ? Number(texte) : undefined;
+}
+
+/**
+ * Les filtres d'une lecture de liste : « GET /api/photos?produit=abc » ne
+ * renvoie que les photos de ce produit. Seuls les champs de la donnée (texte,
+ * nombre, vrai ou faux, date) comptent, comparés par égalité ; une autre clé
+ * est ignorée. Une valeur qui ne peut pas être celle du champ (« ?prix=abc »)
+ * ne trouve rien : la réponse est \`null\`. « limite » et « depuis » découpent
+ * la liste (« ?limite=20&depuis=40 »), sauf si la donnée a un champ de ce nom.
+ */
+export function lireFiltres(schema: Schema, requete: Record<string, unknown>): Filtres | null {
+  const filtres: Filtres = { egal: {} };
+  for (const [cle, brut] of Object.entries(requete)) {
+    const type = Object.hasOwn(schema, cle) ? schema[cle] : undefined;
+    if (type === undefined) {
+      if (cle === 'limite') filtres.limite = entier(brut);
+      if (cle === 'depuis') filtres.depuis = entier(brut);
+      continue;
+    }
+    // Une image ou une liste ne se compare pas dans une adresse.
+    if (typeof type === 'object' || type === 'image') continue;
+    const texte = seul(brut);
+    if (texte === undefined) return null;
+    if (type === 'nombre') {
+      const nombre = texte.trim() === '' ? Number.NaN : Number(texte);
+      if (!Number.isFinite(nombre)) return null;
+      filtres.egal[cle] = nombre;
+    } else if (type === 'booleen') {
+      if (!['true', 'false', 'vrai', 'faux'].includes(texte)) return null;
+      filtres.egal[cle] = texte === 'true' || texte === 'vrai';
+    } else {
+      filtres.egal[cle] = texte;
+    }
+  }
+  return filtres;
+}
+`;
+
+const COMPRESSER = `import type { RequestHandler } from 'express';
+import { brotliCompress, constants, gzip } from 'node:zlib';
+
+/**
+ * Produit par Humalis : les réponses compressées (brotli, sinon gzip), avec
+ * le zlib de Node, sans dépendance. Une réponse envoyée d'un coup (res.json)
+ * de plus de 1 Ko, d'un type texte, l'est ; un flux (res.write, événements
+ * du serveur) part tel quel, sans attendre. La compression se fait hors du
+ * fil principal : le serveur continue de répondre aux autres pendant ce temps.
+ */
+const MINIMUM = 1024;
+const COMPRESSIBLE = /^(text\\/|application\\/([\\w.+-]*\\+)?(json|javascript|xml)\\b|image\\/svg\\+xml)/i;
+
+/** « br;q=0 » refuse brotli : seul un codage accepté avec un poids positif compte. */
+function accepte(entete: string, codage: string): boolean {
+  return entete.split(',').some((partie) => {
+    const [nom, ...reglages] = partie.trim().toLowerCase().split(';');
+    const poids = reglages.map((r) => r.trim()).find((r) => r.startsWith('q='));
+    return (nom === codage || nom === '*') && (poids === undefined || Number(poids.slice(2)) > 0);
+  });
+}
+
+type Fin = (corps?: unknown, codage?: unknown, rappel?: unknown) => unknown;
+
+export const compresser: RequestHandler = (req, res, next) => {
+  const entete = String(req.headers['accept-encoding'] ?? '');
+  const codage = accepte(entete, 'br') ? 'br' : accepte(entete, 'gzip') ? 'gzip' : undefined;
+  // La réponse dépend de ce que le navigateur accepte : un relais garde les deux versions.
+  res.vary('Accept-Encoding');
+  if (codage === undefined || req.method === 'HEAD') {
+    next();
+    return;
+  }
+  const ecrire = res.write.bind(res) as (...valeurs: unknown[]) => boolean;
+  const finir = res.end.bind(res) as Fin;
+  let enFlux = false;
+  res.write = ((...valeurs: unknown[]) => {
+    enFlux = true;
+    return ecrire(...valeurs);
+  }) as typeof res.write;
+  res.end = ((corps?: unknown, codageDuCorps?: unknown, rappel?: unknown) => {
+    const type = String(res.getHeader('Content-Type') ?? '');
+    const garde =
+      enFlux ||
+      res.headersSent ||
+      (typeof corps !== 'string' && !Buffer.isBuffer(corps)) ||
+      res.statusCode === 204 ||
+      res.statusCode === 304 ||
+      res.getHeader('Content-Encoding') !== undefined ||
+      /no-transform/.test(String(res.getHeader('Cache-Control') ?? '')) ||
+      !COMPRESSIBLE.test(type);
+    if (garde) return finir(corps, codageDuCorps, rappel);
+    const brut = Buffer.isBuffer(corps) ? corps : Buffer.from(corps as string, typeof codageDuCorps === 'string' ? (codageDuCorps as BufferEncoding) : 'utf8');
+    if (brut.length < MINIMUM) return finir(corps, codageDuCorps, rappel);
+    const fin = typeof codageDuCorps === 'function' ? codageDuCorps : rappel;
+    const envoyer = (erreur: Error | null, compresse: Buffer) => {
+      // Une compression ratée : la réponse part telle quelle, jamais perdue.
+      if (erreur) {
+        finir(brut, fin);
+        return;
+      }
+      res.setHeader('Content-Encoding', codage);
+      res.setHeader('Content-Length', compresse.length);
+      finir(compresse, fin);
+    };
+    if (codage === 'br') {
+      // Qualité 5 : presque aussi petit que le maximum, beaucoup plus rapide (le maximum, 11, est fait pour les fichiers figés).
+      brotliCompress(brut, { params: { [constants.BROTLI_PARAM_QUALITY]: 5, [constants.BROTLI_PARAM_SIZE_HINT]: brut.length } }, envoyer);
+    } else {
+      gzip(brut, { level: 6 }, envoyer);
+    }
+    return res;
+  }) as typeof res.end;
+  next();
+};
 `;
 
 const STOCKAGE = `import { randomUUID } from 'node:crypto';
@@ -260,8 +384,21 @@ export interface Enregistrement {
   [champ: string]: unknown;
 }
 
+/** « ?produit=abc&limite=20&depuis=40 » : les champs égaux à ces valeurs, puis une tranche de la liste. */
+export interface Filtres {
+  egal: Record<string, string | number | boolean>;
+  limite?: number;
+  depuis?: number;
+}
+
+/** La tranche demandée d'une liste déjà filtrée. */
+function trancher<T>(liste: T[], filtres?: Filtres): T[] {
+  const debut = filtres?.depuis ?? 0;
+  return filtres?.limite === undefined ? liste.slice(debut) : liste.slice(debut, debut + filtres.limite);
+}
+
 export interface Stockage {
-  lister(): Promise<Enregistrement[]>;
+  lister(filtres?: Filtres): Promise<Enregistrement[]>;
   trouver(id: string): Promise<Enregistrement | null>;
   creer(valeurs: Record<string, unknown>): Promise<Enregistrement>;
   modifier(id: string, valeurs: Record<string, unknown>): Promise<Enregistrement | null>;
@@ -272,8 +409,9 @@ export interface Stockage {
 export function creerStockageMemoire(): Stockage {
   const lignes = new Map<string, Enregistrement>();
   return {
-    async lister() {
-      return [...lignes.values()];
+    async lister(filtres) {
+      const egal = Object.entries(filtres?.egal ?? {});
+      return trancher([...lignes.values()].filter((ligne) => egal.every(([champ, valeur]) => ligne[champ] === valeur)), filtres);
     },
     async trouver(id) {
       return lignes.get(id) ?? null;
@@ -312,9 +450,25 @@ export function creerStockagePostgres(pool: PoolPostgres, table: string): Stocka
   const lire = (ligne: Record<string, unknown>): Enregistrement => ({ ...(ligne.data as object), id: String(ligne.id) });
 
   return {
-    async lister() {
+    async lister(filtres) {
       await preparer();
-      return (await pool.query(\`SELECT id, data FROM \${table} ORDER BY cree_le\`)).rows.map(lire);
+      // « data @> {...} » : l'objet contient ces champs avec ces valeurs exactes (texte, nombre, vrai ou faux).
+      const valeurs: unknown[] = [];
+      let texte = \`SELECT id, data FROM \${table}\`;
+      if (filtres && Object.keys(filtres.egal).length > 0) {
+        valeurs.push(JSON.stringify(filtres.egal));
+        texte += \` WHERE data @> $\${valeurs.length}::jsonb\`;
+      }
+      texte += ' ORDER BY cree_le';
+      if (filtres?.limite !== undefined) {
+        valeurs.push(filtres.limite);
+        texte += \` LIMIT $\${valeurs.length}\`;
+      }
+      if (filtres?.depuis !== undefined) {
+        valeurs.push(filtres.depuis);
+        texte += \` OFFSET $\${valeurs.length}\`;
+      }
+      return (await pool.query(texte, valeurs)).rows.map(lire);
     },
     async trouver(id) {
       await preparer();
@@ -385,21 +539,27 @@ function serveurTs(serveur: ServeurRI): string {
       const variable = `route${pascal(route.adresse)}`;
       const garde = (a: Action) => (route.droits[a] === null ? 'refuse' : `...acces.${GARDES[route.droits[a]!]}`);
       const csrf = (a: Action) => (route.droits[a] === null ? '' : ', csrfMiddleware');
+      // Ce que tout le monde peut lire se garde un peu (navigateur, relais) ; une lecture réservée, jamais.
+      const cache = route.droits.lire === 'tout_le_monde' ? 'lecturePublique' : 'lecturePrivee';
       return `      // « ${route.adresse} » (ligne ${ligneLocale(route.ligne)}) — ${decrireDroits(route.droits)}.
       const ${variable} = express.Router();
-      ${variable}.get('/', ${garde('lire')}, async (_req, res, next) => {
+      ${variable}.get('/', ${cache}, ${garde('lire')}, async (req, res, next) => {
         try {
-          res.json(await stockages.${donnee}.lister());
+          // « ?produit=… » : seulement ce qui est demandé, pas toute la liste.
+          const filtres = lireFiltres(${schema}, req.query as Record<string, unknown>);
+          res.json(filtres ? await stockages.${donnee}.lister(filtres) : []);
         } catch (erreur) {
+          sansCache(res);
           next(erreur);
         }
       });
-      ${variable}.get('/:id', ${garde('lire')}, async (req, res, next) => {
+      ${variable}.get('/:id', ${cache}, ${garde('lire')}, async (req, res, next) => {
         try {
           const trouve = await stockages.${donnee}.trouver(req.params.id);
           if (trouve) res.json(trouve);
-          else res.status(404).json({ erreur: introuvable('${route.donnee}') });
+          else sansCache(res).status(404).json({ erreur: introuvable('${route.donnee}') });
         } catch (erreur) {
+          sansCache(res);
           next(erreur);
         }
       });
@@ -443,10 +603,11 @@ function serveurTs(serveur: ServeurRI): string {
   return `// Produit par Humalis : le serveur « ${serveur.nom} », assemblé avec les packs Astratra.
 import { createSaasApp, type UsersStore } from '@astratra/saas-kit';
 import { ${serveur.connexionGoogle ? 'createGoogleIdTokenVerifier, IdTokenError, ' : ''}createLoginLimiter, hashPassword, isStrongPassword, verifyPasswordHash } from '@astratra/security';
-import express, { type RequestHandler } from 'express';
+import express, { type RequestHandler, type Response } from 'express';
 import { ${schemas} } from './donnees.js';
+import { compresser } from './humalis/compresser.js';
 import type { Stockage } from './humalis/stockage.js';
-import { verifierEnvoi } from './humalis/verifier.js';
+import { lireFiltres, verifierEnvoi } from './humalis/verifier.js';
 
 export interface OptionsDuServeur {
   /** Le secret des sessions (au moins 32 caractères). */
@@ -463,6 +624,28 @@ const introuvable = (donnee: string) => \`aucun « \${donnee} » avec cet identi
 const refuse: RequestHandler = (_req, res) => {
   res.status(403).json({ erreur: "cette action n'est permise à personne" });
 };
+
+/**
+ * Une lecture que tout le monde peut faire : le navigateur (ou un relais) la
+ * garde 30 secondes, puis la ressert encore 5 minutes le temps de la relire
+ * en arrière-plan. L'ETag d'Express rend la relecture légère (304). Une
+ * réponse qui pose un cookie (le premier jeton CSRF du visiteur) n'est gardée
+ * que par son navigateur : un relais ne doit jamais donner ce cookie à un autre.
+ */
+const lecturePublique: RequestHandler = (_req, res, next) => {
+  const cookie = res.getHeader('Set-Cookie') !== undefined;
+  res.set('Cache-Control', \`\${cookie ? 'private' : 'public'}, max-age=30, stale-while-revalidate=300\`);
+  next();
+};
+
+/** Une lecture réservée (connecté, admin) ou refusée : jamais gardée, ni partagée. */
+const lecturePrivee: RequestHandler = (_req, res, next) => {
+  res.set('Cache-Control', 'private, no-store');
+  next();
+};
+
+/** Une erreur ou un « introuvable » ne se garde pas, même sur une route publique. */
+const sansCache = (res: Response) => res.set('Cache-Control', 'no-store');
 
 /**
  * La connexion (/auth/login), les sessions, les rôles, le CSRF, les
@@ -489,6 +672,8 @@ export function creerServeur({ jwtSecret, usersStore, stockages${serveur.connexi
         connecte: [authMiddleware],
         seulAdmin: [authMiddleware, authorizeAdmin],
       };
+      // Les réponses des routes ci-dessous partent compressées (brotli ou gzip) quand le navigateur l'accepte.
+      app.use(compresser);
 ${google}
 ${routes}
     },
@@ -598,6 +783,32 @@ function testsRegles(serveur: ServeurRI): string {
     });`);
     }
 
+    // Le cache : public pour ce que tout le monde lit, jamais pour une lecture réservée.
+    const publique = route.droits.lire === 'tout_le_monde';
+    const enTete = publique ? 'public, max-age=30, stale-while-revalidate=300' : 'private, no-store';
+    tests.push(`    it('lecture : Cache-Control « ${enTete} »', async () => {
+      const reponse = await request(app).get('${adresse}').set(csrf).set('authorization', \`Bearer \${jetonAdmin}\`);
+      expect(reponse.headers['cache-control']).toBe('${enTete}');${
+        publique
+          ? `
+      // La première lecture d'un visiteur pose son jeton CSRF : seul son navigateur la garde, jamais un relais.
+      const premiere = await request(app).get('${adresse}');
+      expect(premiere.headers['cache-control']).toBe('private, max-age=30, stale-while-revalidate=300');`
+          : ''
+      }
+    });`);
+    const texte = donnee.champs.find((c) => c.type.genre === 'texte' && !c.type.image);
+    if (route.droits.lire !== null && texte) {
+      const champ = camel(texte.nom);
+      tests.push(`    it('lecture filtrée : ?${champ}=… ne renvoie que les éléments de ce ${champ}', async () => {
+      await stockages.${camel(route.donnee)}.creer({ ...${exemple}, ${champ}: 'filtre-a' });
+      await stockages.${camel(route.donnee)}.creer({ ...${exemple}, ${champ}: 'filtre-b' });
+      const reponse = await request(app).get('${adresse}?${champ}=filtre-a&inconnu=1').set('authorization', \`Bearer \${jetonAdmin}\`).expect(200);
+      expect(reponse.body.length).toBeGreaterThan(0);
+      expect(reponse.body.every((e: Record<string, unknown>) => e.${champ} === 'filtre-a')).toBe(true);
+    });`);
+    }
+
     return `  describe('route « ${route.adresse} » (${decrireDroits(route.droits)})', () => {
     let existant: { id: string };
     beforeEach(async () => {
@@ -687,6 +898,13 @@ ${routes}
 
 Chaque adresse accepte \`GET\` (liste), \`GET /:id\`, \`POST\`, \`PATCH /:id\` et
 \`DELETE /:id\`. Une action sans règle est refusée à tout le monde (403).
+
+La liste se filtre par les champs de la donnée, comparés par égalité :
+\`GET /api/…?champ=valeur\` (une autre clé est ignorée), et se découpe avec
+\`?limite=20&depuis=40\`. Une lecture que tout le monde peut faire est gardée
+30 secondes par le navigateur (\`Cache-Control: public\`, avec ETag) ; une
+lecture réservée ne l'est jamais (\`private, no-store\`). Les réponses de plus
+de 1 Ko partent compressées (brotli ou gzip).
 Se connecter : \`POST /auth/login\` avec \`{ "email", "password" }\`.
 
 ## La sécurité et ses mises à jour

@@ -9,6 +9,7 @@ import type { InfoMedia } from '../../ri/medias.js';
 import { fichiersMobiles, dependancesMobiles, stylesDesElements } from './widgets.js';
 import { PHRASE_PHOTOS, REDUIRE_IMAGE_MOBILE, VERSIONS_FICHIERS } from './fichiers.js';
 import { fichiersGraphique } from '../web/graphique.js';
+import { lecturesTs } from '../web/lectures.js';
 import { changeLeTheme, modeParDefaut } from '../web/theme.js';
 import type { Diagnostic } from '../../analyse/erreurs.js';
 import { simplifier } from '../../analyse/elements.js';
@@ -177,6 +178,8 @@ export function genererProjetMobile(application: Application, options: OptionsMo
   if (degrade) fichiers.set('humalis/degrade.tsx', DEGRADE_TSX);
   if (codes.some((c) => /<Anime\b/.test(c))) fichiers.set('humalis/mouvement.tsx', MOUVEMENT_TSX);
   if (serveur) fichiers.set('humalis/serveur.ts', avecEchecs(reduction ? serveurAvecReduction() : SERVEUR, codes));
+  // La dernière réponse de chaque lecture publique : un écran déjà vu s'affiche tout de suite.
+  if (serveur) fichiers.set('humalis/lectures.ts', lecturesTs('mobile'));
   if (session) fichiers.set('humalis/session.tsx', SESSION);
   if (memoire || secret) fichiers.set('humalis/memoire.ts', memoireTs(memoire, secret));
   if (application.partages.length > 0) fichiers.set('humalis/partage.tsx', partageTsx(application.partages, contexte.cle));
@@ -618,6 +621,7 @@ export function usePage(titre: string, _description: string) {
 const SERVEUR = `import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { useMessages } from './messages';
+import { seGarde, garder, lireEnCommun, oublier } from './lectures';
 
 /** L'adresse du serveur Humalis : un téléphone n'a pas de « même origine ». */
 export const BASE = process.env.EXPO_PUBLIC_HUMALIS_SERVEUR ?? '';
@@ -655,15 +659,23 @@ export function useServeur() {
     try {
       const entetes = new Headers(options.headers);
       await securiser(entetes, options.method ?? 'GET');
-      const reponse = await fetch(BASE + adresse, { ...options, headers: entetes, credentials: 'same-origin' });
+      const lecture = options.method === 'GET';
+      const envoi = { ...options, headers: entetes, credentials: 'same-origin' } as const;
+      // Deux lectures de la même adresse en même temps ne font qu'un appel.
+      const reponse = lecture ? await lireEnCommun(adresse, BASE + adresse, envoi) : await fetch(BASE + adresse, envoi);
       // Une lecture d'un élément qui n'existe plus (404) : la valeur actuelle est gardée, sans faux « pas répondu ».
       if (reponse.status === 404 && options.method === 'GET') return actuelle;
       if (!reponse.ok) throw new Error(String(reponse.status));
+      // Un envoi réussi : les lectures gardées de cette route ont peut-être changé.
+      if (!lecture) oublier(adresse, options.method ?? 'POST');
       const texte = await reponse.text();
       if (texte === '') return actuelle;
       const valeur = JSON.parse(texte) as T;
       // On attendait une liste et on reçoit autre chose : la valeur actuelle est gardée.
-      return Array.isArray(actuelle) && !Array.isArray(valeur) ? actuelle : valeur;
+      if (Array.isArray(actuelle) && !Array.isArray(valeur)) return actuelle;
+      // Ce que tout le monde peut lire est gardé : l'écran s'affichera tout de suite la prochaine fois.
+      if (lecture && seGarde(reponse)) garder(adresse, valeur, texte);
+      return valeur;
     } catch {
       afficherMessage("Le serveur n'a pas répondu. Réessayez dans un instant.", 'erreur');
       return actuelle;

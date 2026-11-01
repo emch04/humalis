@@ -85,7 +85,9 @@ describe('messages — les cibles', () => {
     // Une pile de trois, toujours là pour les lecteurs d'écran, une pause au survol et au focus.
     expect(messages).toContain('const PILE = 3;');
     expect(messages).toContain('<ul className="humalis-messages" aria-live="polite">');
-    expect(messages).toContain('onMouseEnter={() => setEnPause(true)}');
+    // Un doigt ne met pas en pause : sur un écran tactile, il n'y a jamais de « sortie ».
+    expect(messages).toContain("onPointerEnter={(evenement) => evenement.pointerType !== 'touch' && setEnPause(true)}");
+    expect(messages).not.toContain('onMouseEnter');
     expect(messages).toContain('onFocus={() => setEnPause(true)}');
     expect(messages).toContain('aria-label="Fermer le message"');
     expect(messages).toContain("role={message.genre === 'erreur' ? 'alert' : 'status'}");
@@ -114,6 +116,20 @@ describe('messages — les cibles', () => {
     expect(messages).toContain('accessibilityLabel="Fermer le message"');
     expect(messages).toContain('couleurs.vertEncre');
     expect(fichier(fichiers, 'humalis/styles.ts')).toContain("vertEncre: '#ffffff'");
+  });
+
+  it('une erreur disparaît seule, un peu après une information ; seul « sans disparaitre » la garde (web, mobile, statique)', () => {
+    const erreur = auClic(['afficher erreur "Impossible d’enregistrer"']);
+    expect(fichier(web(erreur), 'pages/P.tsx')).toContain("afficherMessage('Impossible d’enregistrer', 'erreur');");
+    const composants = [fichier(web(erreur), 'humalis/messages.tsx'), fichier(mobile(erreur), 'humalis/messages.tsx'), fichier(statique(erreur), 'humalis/humalis.js')];
+    for (const messages of composants) {
+      expect(messages).toMatch(/info: 4000, reussite: 4000, avertissement: 8000, erreur: 8000/);
+      // La durée n'est « null » (le message reste) que pour « sans disparaitre » ; la croix ferme toujours plus tôt.
+      expect(messages).toContain('const duree = reglages.persistant ? null : reglages.duree ?? (reglages.action ? 6000 : DUREES[genre]);');
+      expect(messages).toContain('Fermer le message');
+    }
+    // Sur un écran tactile, toucher le message ne le met pas en pause pour toujours.
+    expect(composants[0]).toContain("evenement.pointerType !== 'touch'");
   });
 
   it('statique : la même pile, écrite en JavaScript clair', () => {
