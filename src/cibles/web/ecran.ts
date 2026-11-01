@@ -1767,7 +1767,7 @@ class GenerateurEcran {
               e.ligne(`{${liste}.map((${variable}, ${index}) => (`);
               e.indenter(() => {
                 e.ligne(ouvrir.replace(/>$/, ` key={${index}}>`));
-                e.indenter(() => (locales.length > 0 ? this.ecrireGroupe(e, noeud.corps) : this.ecrireVue(e, contenu)));
+                e.indenter(() => (locales.length > 0 ? this.ecrireGroupe(e, noeud.corps, true) : this.ecrireVue(e, contenu)));
                 e.ligne(fermer);
               });
               e.ligne('))}');
@@ -1819,7 +1819,7 @@ class GenerateurEcran {
             ...(noeud.classes.length > 0 ? [`className=${attributTexte(noeud.classes.join(' '))}`] : []),
           ];
           e.ligne(`<Fenetre ${proprietes.join(' ')}>`);
-          e.indenter(() => (noeud.corps.some((n) => n.type === 'locale') ? this.ecrireGroupe(e, noeud.corps) : this.ecrireVue(e, noeud.corps)));
+          e.indenter(() => (noeud.corps.some((n) => n.type === 'locale') ? this.ecrireGroupe(e, noeud.corps, true) : this.ecrireVue(e, noeud.corps)));
           e.ligne('</Fenetre>');
           break;
         }
@@ -1866,7 +1866,7 @@ class GenerateurEcran {
           e.ligne(this.marquer(this.rendu.bloc.ouvrir(noeud.genre, noeud.options, noeud.classes, noeud.ancre), noeud.ligne));
           // Des variables dans le bloc : écrites comme dans une condition.
           e.indenter(() =>
-            noeud.corps.some((n) => n.type === 'locale') ? this.ecrireGroupe(e, noeud.corps) : this.ecrireVue(e, noeud.corps),
+            noeud.corps.some((n) => n.type === 'locale') ? this.ecrireGroupe(e, noeud.corps, true) : this.ecrireVue(e, noeud.corps),
           );
           e.ligne(this.rendu.bloc.fermer(noeud.genre, noeud.options));
           // « arrive en bas de » ce bloc : la sentinelle et le bouton « Voir plus », tant que la condition est vraie.
@@ -1896,7 +1896,7 @@ class GenerateurEcran {
             e.ligne(this.marquer(this.rendu.formulaire.ouvrir(noeud.id, this.formulaires.get(noeud.id)?.soumission), noeud.ligne));
             // Des variables dans le bloc : écrites comme dans une condition.
             e.indenter(() =>
-              noeud.corps.some((n) => n.type === 'locale') ? this.ecrireGroupe(e, noeud.corps) : this.ecrireVue(e, noeud.corps),
+              noeud.corps.some((n) => n.type === 'locale') ? this.ecrireGroupe(e, noeud.corps, true) : this.ecrireVue(e, noeud.corps),
             );
             e.ligne(this.rendu.formulaire.fermer);
           };
@@ -2051,7 +2051,8 @@ class GenerateurEcran {
   }
 
   /** Les enfants d'une condition : un fragment, avec ses variables locales s'il en a. */
-  private ecrireGroupe(e: Ecrivain, noeuds: NoeudVue[]): void {
+  /** `dansUneBalise` : entre les balises d'un bloc, la fonction des variables locales s'écrit entre accolades. */
+  private ecrireGroupe(e: Ecrivain, noeuds: NoeudVue[], dansUneBalise = false): void {
     const locales = noeuds.filter((n) => n.type === 'locale');
     const contenu = noeuds.filter((n) => n.type !== 'locale');
     const seul = contenu[0];
@@ -2072,7 +2073,7 @@ class GenerateurEcran {
       e.ligne('</>');
       return;
     }
-    e.bloc('(() => {', () => {
+    e.bloc(dansUneBalise ? '{(() => {' : '(() => {', () => {
       this.ecrireLocales(e, locales);
       e.ligne('return (');
       e.indenter(() => {
@@ -2081,7 +2082,7 @@ class GenerateurEcran {
         e.ligne('</>');
       });
       e.ligne(');');
-    }, '})()');
+    }, dansUneBalise ? '})()}' : '})()');
   }
 
   private ecrireLocales(e: Ecrivain, locales: NoeudVue[]): void {
