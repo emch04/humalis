@@ -184,4 +184,12 @@ describe('défauts trouvés avec Rey Store', () => {
     expect(entete).toMatch(/<p [^>]*aria-hidden="true">Store<\/p>/);
     expect(entete).not.toContain('loading="lazy"');
   });
+
+  it('un « calcul » dans un bloc s’écrit entre accolades dans le JSX (il ne s’affiche plus en texte)', () => {
+    const source = programme('variable favoris = [] avec partagee', '', 'entete :', '>ligne :', '>>calcul combien = nombre de favoris', '>>texte "{combien}"', '', 'page "p" :', '>titre "P"');
+    expect(erreurs(source)).toEqual([]);
+    const entete = genererProjetWeb(compiler(source).application!, { nom: 'b', adresse: 'https://b.cd', source: 'b.humalis' }).get('src/composants/EnteteSite.tsx')!;
+    expect(entete).toMatch(/<div className="humalis-ligne">\s*\{\(\(\) => \{/);
+    expect(entete).toContain('})()}');
+  });
 });
