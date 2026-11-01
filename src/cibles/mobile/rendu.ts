@@ -1,3 +1,4 @@
+import { nomDeLaCopie } from '../../ri/medias.js';
 import type { Option } from '../../ri/types.js';
 import { attributTexte, type Rendu, type ElementProduit, type ImageProduite } from '../web/ecran.js';
 import { camel, chaine } from '../web/noms.js';
@@ -32,7 +33,7 @@ const stylesDe = (options: Option[]) => options.filter((o) => !SANS_STYLE.has(o.
  * réservée par les proportions écrites, sinon par les dimensions lues dans le fichier.
  */
 function imageMobile(image: ImageProduite, id: string, options: Option[]): string {
-  const source = image.locale !== undefined ? `{require(${chaine(`../assets/images/${image.locale}`)})}` : `{{ uri: ${image.expression} }}`;
+  const source = image.locale !== undefined ? `{require(${chaine(`../assets/images/${nomDeLaCopie(image.locale)}`)})}` : `{{ uri: ${image.expression} }}`;
   const accessibilite = image.alt.decorative ? ' accessible={false}' : ` accessibilityLabel=${image.alt.jsx}`;
   const ajustement = options.find((o) => o.nom === 'ajustement')?.valeur;
   const proportions = image.proportions ?? (image.largeur && image.hauteur ? [image.largeur, image.hauteur] : undefined);

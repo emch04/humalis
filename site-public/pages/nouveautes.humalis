@@ -14,8 +14,17 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
             colonne avec style "frise" et animation montee au defilement et en cascade :
                 bloc avec style "version version-recente" :
                     ligne avec style "version-tete" :
-                        texte "1.5.1" sans traduction avec style "version-numero"
+                        texte "1.5.2" sans traduction avec style "version-numero"
                         texte "Dernière version" en anglais "Latest" avec style "pastille pastille-vive"
+                        texte "1er novembre 2026" en anglais "November 1, 2026" avec style "version-date"
+                    soustitre "Des connexions et des exports plus sûrs" en anglais "Safer sign-ins and exports"
+                    liste :
+                        texte "Le pare-feu ne bloque plus un mot de passe qui contient « -- » : sans ce correctif, son propriétaire ne pouvait pas se connecter." en anglais "The firewall no longer blocks a password containing “--”: without this fix, its owner could not sign in."
+                        texte "Une `constante` du haut d’un fichier vaut aussi pour les autres fichiers du projet." en anglais "A `constante` at the top of a file now applies to the project’s other files too."
+                        texte "Un numéro de téléphone reste lisible dans un CSV, et les images d’un dossier `images/` ne sortent plus sous `/images/images/`." en anglais "A phone number stays readable in a CSV, and images in an `images/` folder no longer end up under `/images/images/`."
+                bloc avec style "version" :
+                    ligne avec style "version-tete" :
+                        texte "1.5.1" sans traduction avec style "version-numero"
                         texte "1er novembre 2026" en anglais "November 1, 2026" avec style "version-date"
                     soustitre "Un calcul partagé dans tout le projet" en anglais "A shared calculation across the project"
                     liste :
@@ -111,7 +120,7 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
         colonne avec style "nouveautes-aside" et animation montee au defilement et en cascade :
             bloc avec style "aside-carte aside-vive" :
                 texte "Version actuelle" en anglais "Current version" avec style "aside-etiquette"
-                texte "1.5.1" sans traduction avec style "aside-version"
+                texte "1.5.2" sans traduction avec style "aside-version"
                 texte "Pour mettre à jour Humalis sur ta machine :" en anglais "To update Humalis on your machine:"
                 ligne avec style "install-command" :
                     texte "npm install -g humalis" sans traduction avec style "install-code"
@@ -122,7 +131,7 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
                 texte "En bref" en anglais "At a glance" avec style "aside-etiquette"
                 ligne avec style "aside-chiffres" :
                     colonne avec style "aside-chiffre" :
-                        texte "12" sans traduction avec style "aside-nombre"
+                        texte "13" sans traduction avec style "aside-nombre"
                         texte "versions" sans traduction
                     colonne avec style "aside-chiffre" :
                         texte "5" sans traduction avec style "aside-nombre"

@@ -107,6 +107,15 @@ describe('un calcul partagé, dans un projet en plusieurs fichiers', () => {
     const r = compilerProjet('site.humalis', (chemin) => sources[chemin]);
     expect(r.diagnostics.filter((d) => d.gravite === 'erreur')).toEqual([]);
   });
+  it('une constante aussi, et une page garde sa propre valeur', () => {
+    const fichiers: Record<string, string> = {
+      'site.humalis': ['constante tva = 16', 'utiliser fichier "./pages/p.humalis"', 'utiliser fichier "./pages/q.humalis"', '', 'page "Accueil" :', '    titre "A {tva}"'].join('\n'),
+      'pages/p.humalis': ['page "P" :', '    titre "T {tva}"'].join('\n'),
+      'pages/q.humalis': ['page "Q" :', '    titre "T"', '    variable tva = 20', '    texte "{tva}"'].join('\n'),
+    };
+    const r = compilerProjet('site.humalis', (chemin) => fichiers[chemin]);
+    expect(r.diagnostics.filter((d) => d.gravite === 'erreur')).toEqual([]);
+  });
 });
 
 describe('selon dans la page', () => {
@@ -157,6 +166,9 @@ describe('le saut de ligne', () => {
     expect(fichier(fichiers, 'pages/P.tsx')).toContain("{'Bonjour\\nMerci'}");
     expect(fichier(fichiers, 'humalis/styles.css')).toContain('white-space: pre-line');
   });
+  it('ne passe pas dans la description de la page', () => {
+    expect(fichier(web(page('texte "Bonjour{saut de ligne}Merci"')), 'pages/P.tsx')).toContain("usePage('T', 'Bonjour Merci')");
+  });
   it('sans saut de ligne, pas de règle en plus', () => {
     expect(fichier(web(page('texte "Bonjour"')), 'humalis/styles.css')).not.toContain('white-space: pre-line');
   });
@@ -190,6 +202,8 @@ describe('télécharger en CSV', () => {
     const fin = js.indexOf('async function telechargerCsv');
     const texteCsv = new Function(`${js.slice(debut, fin)}; return texteCsv;`)() as (l: unknown[]) => string;
     expect(texteCsv([{ nom: '=SOMME(A1)', note: 'a;b', q: -3 }, { nom: 'Jo "K"' }])).toBe('nom;note;q\r\n\'=SOMME(A1);"a;b";-3\r\n"Jo ""K""";;');
+    // Un numéro de téléphone reste tel quel ; une vraie formule, non.
+    expect(texteCsv([{ tel: '+243 000 000', f: '+1+1' }])).toBe("tel;f\r\n+243 000 000;'+1+1");
     expect(texteCsv(['a'])).toBe('valeur\r\na');
     expect(texteCsv([])).toBe('');
   });

@@ -1167,6 +1167,13 @@ const lecturePrivee: RequestHandler = (_req, res, next) => {
   next();
 };
 
+/** Le pare-feu ne lit pas les mots de passe : hachés, jamais interprétés, ils peuvent contenir « -- » ou « /* ». */
+class MotifDuPareFeu extends RegExp {
+  override test(cibles: string): boolean {
+    return super.test(cibles.replace(/"(password|actuel|nouveau)":"(?:[^"\\\\]|\\\\.)*"/g, '""'));
+  }
+}
+
 /** Une erreur ou un « introuvable » ne se garde pas, même sur une route publique. */
 const sansCache = (res: Response) => res.set('Cache-Control', 'no-store');
 
@@ -1180,7 +1187,7 @@ export function creerServeur({ jwtSecret, usersStore, stockages${serveur.connexi
   const serveur = createSaasApp({
     jwtSecret,
     // Le pare-feu du pack, sans le refus du « # » : il n'est pas un commentaire en PostgreSQL et « avenue #12 » est une vraie adresse.
-    waf: { patterns: WAF_PATTERNS.map((motif) => new RegExp(motif.source.replace('|#|', '|'), motif.flags)) },
+    waf: { patterns: WAF_PATTERNS.map((motif) => new MotifDuPareFeu(motif.source.replace('|#|', '|'), motif.flags)) },
     // Derrière un relais (nginx) : son nombre, pour que les limites comptent chaque visiteur et non le relais.
     ...(process.env.HUMALIS_RELAIS ? { trustProxy: Number(process.env.HUMALIS_RELAIS) } : {}),
     // Un jeton d'accès court, renouvelé tant que la personne revient : voir src/humalis/sessions.ts.

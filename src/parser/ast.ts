@@ -3,7 +3,7 @@ import type { PartieChaine } from '../lexer/types.js';
 export interface Programme {
   type: 'Programme';
   pages: Page[];
-  /** « calcul … » en haut du fichier : déjà écrit dans ses pages ; `reunir` l'écrit dans celles des autres fichiers. */
+  /** « constante … » et « calcul … » en haut du fichier : déjà écrits dans ses pages ; `reunir` les écrit dans celles des autres fichiers. */
   calculsPartages?: DeclarationVariable[];
   /** Les blocs « style : », en CSS recopié tel quel. */
   styles: BlocStyle[];
