@@ -12,6 +12,9 @@ describe('les packs Astratra du compilateur', () => {
       '@astratra/centrale',
       '@astratra/credentials',
       '@astratra/tooling',
+      '@astratra/pdf',
+      'pdfkit',
+      '@astratra/loyalty',
       '@astratra/prerender',
       '@astratra/client',
     ]);

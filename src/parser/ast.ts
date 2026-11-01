@@ -127,6 +127,24 @@ export interface Serveur {
   routes: Route[];
   /** « connexion google » : un compte déjà connu du serveur peut se connecter avec Google (ligne). */
   connexionGoogle?: number;
+  /** « fidelite par telephone de commande : » : une carte à tampons calculée sur les fiches. */
+  fidelite?: Fidelite;
+  ligne: number;
+}
+
+/**
+ * « fidelite par telephone de commande : », avec ses deux lignes
+ * « 1 tampon par commande livree » et « apres 5 tampons, recompense "…" ».
+ */
+export interface Fidelite {
+  type: 'Fidelite';
+  /** Le champ qui désigne le client (« telephone »). */
+  champ: string;
+  donnee: string;
+  /** « 1 tampon par commande livree » : combien, par fiche de quelle donnée, à quelle valeur du champ « statut ». */
+  gain?: { tampons: number; donnee: string; statut: string; ligne: number };
+  /** « apres 5 tampons, recompense "…" ». */
+  objectif?: { tampons: number; recompense: string; ligne: number };
   ligne: number;
 }
 
@@ -322,6 +340,7 @@ export type Instruction =
   | Connexion
   | ConnexionGoogle
   | ChangementMotDePasse
+  | TelechargementBon
   | Deconnexion
   | Suppression
   | Modification
@@ -582,6 +601,15 @@ export interface ChangementMotDePasse {
   ligne: number;
 }
 
+/** « telecharger bon de commande de c » : le PDF d'une fiche du serveur, sans quitter la page. */
+export interface TelechargementBon {
+  type: 'TelechargementBon';
+  /** La donnée citée (« commande ») : sa route donne l'adresse et les droits. */
+  donnee: string;
+  objet: Expression;
+  ligne: number;
+}
+
 /** « se deconnecter ». */
 export interface Deconnexion {
   type: 'Deconnexion';
@@ -643,6 +671,8 @@ export interface Requete {
   /** « filtrant par categorie = "robes" » : les paramètres d'adresse d'une lecture. */
   filtrant?: { cle: string; valeur: Expression }[];
   donnees: Expression[];
+  /** « avec id c.telephone » : un seul élément, lu par la valeur écrite (la seule de « donnees »). */
+  parId?: boolean;
   /** « avec customer = client » : le nom de chaque donnée envoyée, quand il est écrit (sinon celui de la variable ou du champ). */
   cles?: (string | undefined)[];
   resultat?: string;

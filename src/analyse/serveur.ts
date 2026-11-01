@@ -1,5 +1,6 @@
 import type { Serveur, ActionDonnee, Route, Qui } from '../parser/ast.js';
 import type { Diagnostic } from './erreurs.js';
+import { simplifier } from './elements.js';
 import { proposerNom } from './suggestions.js';
 
 const ACTIONS: ActionDonnee[] = ['lire', 'creer', 'modifier', 'supprimer'];
@@ -67,6 +68,39 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[]): vo
       if (refusees.length > 0) {
         avertissement(`personne ne peut ${refusees.join(', ')} « ${servie} » : ces actions seront refusées.`, route.ligne);
       }
+    }
+  }
+
+  if (serveur.fidelite) {
+    const fidelite = serveur.fidelite;
+    const { gain, objectif } = fidelite;
+    if (adresses.has('fidelite') || adresses.has('/fidelite') || adresses.has('api/fidelite') || adresses.has('/api/fidelite')) {
+      erreur(`le bloc « fidelite » sert déjà l'adresse /api/fidelite : donnez un autre nom à la route « fidelite ».`, fidelite.ligne);
+    }
+    const donnee = serveur.donnees.find((d) => d.nom === fidelite.donnee);
+    const champDe = (nom: string) => donnee?.champs.find((c) => simplifier(c.nom) === simplifier(nom));
+    const estUnTexte = (nom: string) => { const type = champDe(nom)?.type; return type?.genre === 'texte' && !type.image; };
+    if (!donnee) {
+      erreur(`la donnée « ${fidelite.donnee} » n'existe pas dans le serveur « ${serveur.nom} ». Données : ${[...donnees.keys()].join(', ') || 'aucune'}.${proposerNom(fidelite.donnee, donnees.keys())}`, fidelite.ligne);
+    } else if (!estUnTexte(fidelite.champ)) {
+      erreur(`« fidelite par ${fidelite.champ} » : la donnée « ${donnee.nom} » doit avoir un champ « ${fidelite.champ} » de type texte. Champs : ${donnee.champs.map((c) => c.nom).join(', ')}.${proposerNom(fidelite.champ, donnee.champs.map((c) => c.nom))}`, fidelite.ligne);
+    }
+    if (!gain) {
+      erreur(`il manque la ligne qui donne les tampons, par exemple : 1 tampon par ${fidelite.donnee} livree`, fidelite.ligne);
+    } else {
+      if (!Number.isInteger(gain.tampons) || gain.tampons < 1) {
+        erreur(`« ${gain.tampons} tampon par ${gain.donnee} … » : le nombre de tampons doit être un entier positif.`, gain.ligne);
+      }
+      if (gain.donnee !== fidelite.donnee) {
+        erreur(`les tampons se comptent sur la donnée de l'en-tête : écrivez « par ${fidelite.donnee} ${gain.statut} », pas « par ${gain.donnee} ${gain.statut} ».`, gain.ligne);
+      } else if (donnee && !estUnTexte('statut')) {
+        erreur(`« par ${gain.donnee} ${gain.statut} » compare le champ « statut » : la donnée « ${donnee.nom} » doit avoir un champ « statut » de type texte.`, gain.ligne);
+      }
+    }
+    if (!objectif) {
+      erreur(`il manque la ligne de la récompense, par exemple : apres 5 tampons, recompense "Un cadeau"`, fidelite.ligne);
+    } else if (!Number.isInteger(objectif.tampons) || objectif.tampons < 1) {
+      erreur(`« apres ${objectif.tampons} tampons » : le nombre de tampons doit être un entier positif.`, objectif.ligne);
     }
   }
 

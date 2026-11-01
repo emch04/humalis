@@ -71,6 +71,53 @@ const e = (
 /** Retire le premier saut de ligne : on écrit les programmes à partir de la ligne suivante. */
 const p = (texte: string): string => texte.replace(/^\n/, '').replace(/\n\s*$/, '');
 
+/** Un serveur avec sa carte de fidélité : `bloc` remplace le bloc correct dans un programme fautif ; `route`, l'adresse de sa route. */
+const FIDELITE_CORRECTE = `    fidelite par telephone de commande :
+        1 tampon par commande livree
+        apres 5 tampons, recompense "Un cadeau"`;
+const serveurFidelite = (bloc = FIDELITE_CORRECTE, route = 'commandes') => `serveur "boutique" :
+    donnee commande :
+        telephone : texte
+        statut : texte
+        total : nombre
+    route "${route}" :
+        seul admin peut lire commande
+        seul admin peut modifier commande
+${bloc}`;
+
+/** Une page qui lit la carte d'un client : réservée à l'admin par « si utilisateur est admin ». */
+const pageFidelite = (requete: string) => `
+
+page "fidelite_client" :
+    titre "Fidélité"
+    variable commandes = []
+    variable carte = rien
+    si utilisateur est admin :
+        bouton "Voir"
+        quand l'utilisateur clique sur "Voir" :
+            envoyer requete vers "commandes" dans commandes
+            pour chaque c dans commandes :
+                ${requete}`;
+
+/** Un serveur dont la lecture est publique, et une page dont une ligne utilise « telecharger bon ». */
+const pageBon = (ligne: string, enVue = false) => `serveur "boutique" :
+    donnee commande :
+        nom : texte
+    route "commandes" :
+        tout le monde peut lire commande
+        seul admin peut modifier commande
+
+page "commandes" :
+    titre "Commandes"
+    variable commandes = []
+    variable nom = "x"
+    quand la page se charge :
+        envoyer requete vers "commandes" dans commandes
+    pour chaque c dans commandes :
+${enVue ? `        ${ligne}` : `        bouton "Bon" avec nom "bon"
+        quand l'utilisateur clique sur "bon" :
+            ${ligne}`}`;
+
 export const ENTREES_ERREURS: readonly EntreeErreur[] = [
   e('code-ligne-guillemets', 'ecriture', 'Code dans une phrase sans guillemets',
     'Le code affiché dans une phrase est un texte entre guillemets.',
@@ -2021,6 +2068,139 @@ page "profil" :
         envoyer requete vers "membres" avec photo
 `),
     'doit accepter seulement des images'),
+  e('fidelite-double', 'grammaire', 'Deux cartes de fidélité',
+    'Un serveur a une seule carte de fidélité.',
+    'Garde un seul bloc fidelite.',
+    serveurFidelite(`${FIDELITE_CORRECTE}\n${FIDELITE_CORRECTE}`),
+    serveurFidelite(),
+    "un serveur n'a qu'une seule « fidelite »"),
+  e('fidelite-sans-recompense', 'grammaire', 'Une carte sans récompense écrite',
+    'Après le nombre de tampons vient la récompense, entre guillemets.',
+    'Écris apres 5 tampons, recompense "Un cadeau".',
+    serveurFidelite(FIDELITE_CORRECTE.replace(', recompense "Un cadeau"', ' "Un cadeau"')),
+    serveurFidelite(),
+    'écrivez la récompense'),
+  e('fidelite-ligne-inconnue', 'grammaire', 'Une ligne inconnue dans une carte de fidélité',
+    'Le bloc fidelite a deux lignes : ce qui donne un tampon, et la récompense.',
+    'Écris 1 tampon par commande livree et apres 5 tampons, recompense "…".',
+    serveurFidelite(FIDELITE_CORRECTE.replace('1 tampon par commande livree', 'texte "Un tampon"')),
+    serveurFidelite(),
+    'dans « fidelite », on écrit'),
+  e('fidelite-mot-tampon', 'grammaire', 'Un nombre sans le mot « tampon »',
+    'Le nombre de la carte se lit avec son mot : 1 tampon, 5 tampons.',
+    'Ajoute tampon ou tampons après le nombre.',
+    serveurFidelite(FIDELITE_CORRECTE.replace('1 tampon par', '1 par')),
+    serveurFidelite(),
+    'écrivez « tampon » ou « tampons »'),
+  e('fidelite-route-prise', 'sens', 'Une route qui prend l’adresse de la carte',
+    'Le bloc fidelite sert /api/fidelite : une route ne peut pas avoir la même adresse.',
+    'Donne un autre nom à cette route.',
+    serveurFidelite(FIDELITE_CORRECTE, 'fidelite'),
+    serveurFidelite(),
+    'le bloc « fidelite » sert déjà'),
+  e('fidelite-donnee-inconnue', 'sens', 'Une carte sur une donnée qui n’existe pas',
+    'La carte se calcule sur les fiches d’une donnée du serveur.',
+    'Écris le nom d’une donnée du serveur.',
+    serveurFidelite(FIDELITE_CORRECTE.replace('de commande :', 'de vente :').replace('par commande livree', 'par vente livree')),
+    serveurFidelite(),
+    'la donnée « vente » n'),
+  e('fidelite-champ', 'sens', 'Une carte sur un champ absent',
+    'Le champ cité désigne le client : il doit exister, et être un texte.',
+    'Écris le nom d’un champ de type texte de cette donnée.',
+    serveurFidelite(FIDELITE_CORRECTE.replace('par telephone', 'par numero')),
+    serveurFidelite(),
+    'doit avoir un champ « numero » de type texte'),
+  e('fidelite-sans-gain', 'sens', 'Une carte sans ligne de tampons',
+    'La carte a besoin de savoir ce qui donne un tampon.',
+    'Ajoute par exemple 1 tampon par commande livree.',
+    serveurFidelite(FIDELITE_CORRECTE.replace('        1 tampon par commande livree\n', '')),
+    serveurFidelite(),
+    'il manque la ligne qui donne les tampons'),
+  e('fidelite-tampons-entiers', 'sens', 'Un nombre de tampons qui n’est pas un entier positif',
+    'Une fiche donne un nombre entier de tampons, au moins un.',
+    'Écris un entier positif.',
+    serveurFidelite(FIDELITE_CORRECTE.replace('1 tampon par', '0 tampon par')),
+    serveurFidelite(),
+    'le nombre de tampons doit être un entier positif'),
+  e('fidelite-autre-donnee', 'sens', 'Des tampons comptés sur une autre donnée',
+    'Les tampons se comptent sur la donnée écrite dans l’en-tête du bloc.',
+    'Cite la même donnée dans les deux lignes.',
+    serveurFidelite(FIDELITE_CORRECTE.replace('par commande livree', 'par produit livree')),
+    serveurFidelite(),
+    "les tampons se comptent sur la donnée de l'en-tête"),
+  e('fidelite-sans-statut', 'sens', 'Des tampons sans champ « statut »',
+    '« 1 tampon par commande livree » compare le champ statut de chaque fiche à la valeur livree.',
+    'Ajoute un champ statut de type texte à la donnée.',
+    serveurFidelite().replace('        statut : texte\n', ''),
+    serveurFidelite(),
+    'doit avoir un champ « statut » de type texte'),
+  e('fidelite-sans-recompense-ligne', 'sens', 'Une carte sans ligne de récompense',
+    'La carte a besoin du nombre de tampons à atteindre et de la récompense.',
+    'Ajoute par exemple apres 5 tampons, recompense "Un cadeau".',
+    serveurFidelite(FIDELITE_CORRECTE.replace('\n        apres 5 tampons, recompense "Un cadeau"', '')),
+    serveurFidelite(),
+    'il manque la ligne de la récompense'),
+  e('fidelite-objectif-entier', 'sens', 'Un objectif qui n’est pas un entier positif',
+    'Le nombre de tampons à atteindre est un entier, au moins un.',
+    'Écris un entier positif.',
+    serveurFidelite(FIDELITE_CORRECTE.replace('apres 5 tampons', 'apres 2,5 tampons')),
+    serveurFidelite(),
+    '« apres 2.5 tampons » : le nombre de tampons doit être un entier positif'),
+  e('fidelite-route-sans-bloc', 'sens', 'Lire une carte sans bloc fidelite',
+    'La route « fidelite » n’existe que si le serveur a un bloc fidelite.',
+    'Ajoute le bloc fidelite par … de … : dans le serveur.',
+    serveurFidelite('').trimEnd() + pageFidelite('envoyer requete vers "fidelite" avec id c.telephone dans carte'),
+    serveurFidelite() + pageFidelite('envoyer requete vers "fidelite" avec id c.telephone dans carte'),
+    "la route « fidelite » n'existe pas"),
+  e('fidelite-sans-id', 'sens', 'Lire la carte sans dire de quel client',
+    'On ne lit qu’une carte à la fois, par la valeur du champ du client.',
+    'Écris envoyer requete vers "fidelite" avec id c.telephone dans carte.',
+    serveurFidelite() + pageFidelite('envoyer requete vers "fidelite" dans carte'),
+    serveurFidelite() + pageFidelite('envoyer requete vers "fidelite" avec id c.telephone dans carte'),
+    "on ne lit qu'une carte à la fois"),
+  e('avec-id-sans-dans', 'sens', '« avec id » sans « dans »',
+    '« avec id … » lit un seul élément : il faut dire où le ranger.',
+    'Ajoute dans suivi du nom d’une variable.',
+    serveurFidelite() + pageFidelite('envoyer requete vers "fidelite" avec id c.telephone'),
+    serveurFidelite() + pageFidelite('envoyer requete vers "fidelite" avec id c.telephone dans carte'),
+    'lit un seul élément : dites où le ranger'),
+  e('avec-id-pas-un-texte', 'sens', '« avec id » qui n’est pas un texte',
+    'Un élément du serveur se désigne par un texte.',
+    'Donne un champ de type texte.',
+    serveurFidelite() + pageFidelite('envoyer requete vers "fidelite" avec id c.total dans carte'),
+    serveurFidelite() + pageFidelite('envoyer requete vers "fidelite" avec id c.telephone dans carte'),
+    '« avec id » attend un texte'),
+  e('bon-hors-evenement', 'sens', 'Un bon téléchargé hors d’un événement',
+    'Un téléchargement part d’une action de la personne.',
+    'Place la ligne dans quand l’utilisateur clique sur … :.',
+    pageBon('telecharger bon de commande de c', true),
+    pageBon('telecharger bon de commande de c'),
+    'telecharger bon'),
+  e('bon-sans-serveur', 'sens', 'Un bon sans serveur',
+    'Le serveur du fichier produit le document.',
+    'Ajoute un bloc serveur avec cette donnée et sa route.',
+    p(`
+page "commandes" :
+    titre "Commandes"
+    variable c = "x"
+    bouton "Bon"
+    quand l'utilisateur clique sur "Bon" :
+        telecharger bon de commande de c
+`),
+    pageBon('telecharger bon de commande de c'),
+    '« telecharger bon » demande un serveur'),
+  e('bon-sans-route', 'sens', 'Un bon d’une donnée qu’aucune route ne lit',
+    'Le bon a les droits de la lecture de sa donnée : une route doit permettre de la lire.',
+    'Cite une donnée lisible, ou ajoute une règle « … peut lire … » à sa route.',
+    pageBon('telecharger bon de client de c'),
+    pageBon('telecharger bon de commande de c'),
+    'aucune route ne permet de lire la donnée « client »'),
+  e('bon-mauvaise-fiche', 'sens', 'Un bon d’autre chose qu’une fiche de cette donnée',
+    'Le bon se télécharge pour une fiche lue sur la route de la donnée.',
+    'Donne une fiche, par exemple la variable d’une boucle sur la route.',
+    pageBon('telecharger bon de commande de nom'),
+    pageBon('telecharger bon de commande de c'),
+    'attend un « commande » lu sur sa route'),
   e('type-de-champ-inconnu', 'grammaire', 'Un type de champ inconnu',
     'Chaque champ d’une donnée a un type : texte, nombre, booleen, date, ou liste de … .',
     'Choisis un des types listés par le message.',

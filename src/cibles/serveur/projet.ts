@@ -18,6 +18,10 @@ export const VERSIONS_SERVEUR = {
   centrale: '1.10.0',
   credentials: '1.1.0',
   tooling: '1.6.2',
+  pdf: '1.0.0',
+  pdfkit: '0.18.0',
+  typesPdfkit: '0.17.7',
+  loyalty: '1.0.1',
   express: '4.22.3',
   pg: '8.23.1',
   typescript: '7.0.2',
@@ -43,7 +47,7 @@ const ACTIONS: Action[] = ['lire', 'creer', 'modifier', 'supprimer'];
 export function genererProjetServeur(serveur: ServeurRI, options: OptionsServeur): Map<string, string> {
   const fichiers = new Map<string, string>();
   fichiers.set(MARQUE_SERVEUR, `Projet produit par Humalis depuis ${options.source}.\nLe compilateur réécrit ce dossier à chaque compilation.\n`);
-  fichiers.set('package.json', packageJson(options.nom));
+  fichiers.set('package.json', packageJson(options.nom, serveur));
   fichiers.set('tsconfig.json', TSCONFIG);
   fichiers.set('.gitignore', 'node_modules\ndist\n.env\n');
   fichiers.set('.env.exemple', envExemple(serveur));
@@ -60,6 +64,14 @@ export function genererProjetServeur(serveur: ServeurRI, options: OptionsServeur
   fichiers.set('src/demarrer.ts', demarrerTs(serveur));
   fichiers.set('tests/regles.test.ts', testsRegles(serveur));
   fichiers.set('tests/sessions.test.ts', testsSessions(serveur));
+  if (serveur.routes.some((r) => r.bon)) {
+    fichiers.set('src/humalis/bon.ts', BON);
+    fichiers.set('tests/bon.test.ts', testsBon(serveur));
+  }
+  if (serveur.fidelite) {
+    fichiers.set('src/humalis/fidelite.ts', FIDELITE);
+    fichiers.set('tests/fidelite.test.ts', testsFidelite(serveur));
+  }
   return fichiers;
 }
 
@@ -108,8 +120,9 @@ function exempleChamp(type: TypeChamp): string {
   }
 }
 
-function packageJson(nom: string): string {
+function packageJson(nom: string, serveur: ServeurRI): string {
   const v = VERSIONS_SERVEUR;
+  const bon = serveur.routes.some((r) => r.bon);
   return JSON.stringify(
     {
       name: `${simplifier(nom).replace(/_/g, '-') || 'serveur'}-serveur`,
@@ -127,16 +140,20 @@ function packageJson(nom: string): string {
       dependencies: {
         '@astratra/centrale': v.centrale,
         '@astratra/credentials': v.credentials,
+        ...(serveur.fidelite ? { '@astratra/loyalty': v.loyalty } : {}),
+        ...(bon ? { '@astratra/pdf': v.pdf } : {}),
         '@astratra/saas-kit': v.saasKit,
         '@astratra/security': v.security,
         '@astratra/store-postgres': v.storePostgres,
         express: v.express,
+        ...(bon ? { pdfkit: v.pdfkit } : {}),
         pg: v.pg,
       },
       devDependencies: {
         '@astratra/tooling': v.tooling,
         '@types/express': v.typesExpress,
         '@types/node': v.typesNode,
+        ...(bon ? { '@types/pdfkit': v.typesPdfkit } : {}),
         '@types/pg': v.typesPg,
         '@types/supertest': v.typesSupertest,
         supertest: v.supertest,
@@ -861,7 +878,12 @@ export interface Filtres {
   egal: Record<string, string | number | boolean>;
   limite?: number;
   depuis?: number;
+  /** Ce champ, sans espaces, tirets ni « + », vaut cette valeur : « +243 848 » et « 243848 » désignent le même numéro. */
+  numero?: { champ: string; valeur: string };
 }
+
+/** Un numéro sans ses séparateurs, pour comparer deux écritures du même numéro. */
+export const sansSeparateurs = (valeur: unknown): string => (typeof valeur === 'string' ? valeur.replace(/[\\s+-]/g, '') : '');
 
 /** La tranche demandée d'une liste déjà filtrée. */
 function trancher<T>(liste: T[], filtres?: Filtres): T[] {
@@ -883,7 +905,11 @@ export function creerStockageMemoire(): Stockage {
   return {
     async lister(filtres) {
       const egal = Object.entries(filtres?.egal ?? {});
-      return trancher([...lignes.values()].filter((ligne) => egal.every(([champ, valeur]) => ligne[champ] === valeur)), filtres);
+      const numero = filtres?.numero;
+      return trancher(
+        [...lignes.values()].filter((ligne) => egal.every(([champ, valeur]) => ligne[champ] === valeur) && (!numero || sansSeparateurs(ligne[numero.champ]) === numero.valeur)),
+        filtres,
+      );
     },
     async trouver(id) {
       return lignes.get(id) ?? null;
@@ -906,6 +932,9 @@ export function creerStockageMemoire(): Stockage {
   };
 }
 
+/** Les séparateurs d'un numéro, pour PostgreSQL : les mêmes que sansSeparateurs. */
+const SEPARATEURS = '[[:space:]\\\\u00a0\\\\u2000-\\\\u200a\\\\u202f\\\\u205f\\\\u3000+-]';
+
 /** Ce que le stockage attend d'un Pool de \`pg\`. */
 export interface PoolPostgres {
   query(texte: string, valeurs?: unknown[]): Promise<{ rows: Record<string, unknown>[]; rowCount?: number | null }>;
@@ -926,11 +955,18 @@ export function creerStockagePostgres(pool: PoolPostgres, table: string): Stocka
       await preparer();
       // « data @> {...} » : l'objet contient ces champs avec ces valeurs exactes (texte, nombre, vrai ou faux).
       const valeurs: unknown[] = [];
-      let texte = \`SELECT id, data FROM \${table}\`;
+      const conditions: string[] = [];
       if (filtres && Object.keys(filtres.egal).length > 0) {
         valeurs.push(JSON.stringify(filtres.egal));
-        texte += \` WHERE data @> $\${valeurs.length}::jsonb\`;
+        conditions.push(\`data @> $\${valeurs.length}::jsonb\`);
       }
+      if (filtres?.numero) {
+        // La même comparaison que sansSeparateurs, faite par la base : seules les bonnes lignes reviennent.
+        valeurs.push(filtres.numero.champ, SEPARATEURS, filtres.numero.valeur);
+        conditions.push(\`regexp_replace(data->>$\${valeurs.length - 2}, $\${valeurs.length - 1}, '', 'g') = $\${valeurs.length}\`);
+      }
+      let texte = \`SELECT id, data FROM \${table}\`;
+      if (conditions.length > 0) texte += \` WHERE \${conditions.join(' AND ')}\`;
       texte += ' ORDER BY cree_le';
       if (filtres?.limite !== undefined) {
         valeurs.push(filtres.limite);
@@ -1035,7 +1071,7 @@ function serveurTs(serveur: ServeurRI): string {
           next(erreur);
         }
       });
-      ${variable}.post('/', ${garde('creer')}${csrf('creer')}, async (req, res, next) => {
+${route.bon ? routeBon(variable, route, garde('lire'), schema, donnee) : ''}      ${variable}.post('/', ${garde('creer')}${csrf('creer')}, async (req, res, next) => {
         try {
           const envoi = verifierEnvoi(${schema}, req.body, true);
           if ('erreur' in envoi) res.status(400).json({ erreur: envoi.erreur });
@@ -1071,6 +1107,9 @@ function serveurTs(serveur: ServeurRI): string {
     .join('\n\n');
   const schemas = [...new Set(serveur.routes.map((r) => `SCHEMA_${simplifier(r.donnee).toUpperCase()}`))].join(', ');
   const google = (serveur.connexionGoogle ? ROUTE_GOOGLE : '') + ROUTE_MOT_DE_PASSE;
+  const boutique = JSON.stringify(serveur.nom);
+  const fidelite = serveur.fidelite ? routeFidelite(serveur.fidelite) : '';
+  const avecBon = serveur.routes.some((r) => r.bon);
 
   return `// Produit par Humalis : le serveur « ${serveur.nom} », assemblé avec les packs Astratra.
 import { createSaasApp, type UsersStore } from '@astratra/saas-kit';
@@ -1079,9 +1118,9 @@ import express, { type RequestHandler, type Response } from 'express';
 import { ${schemas} } from './donnees.js';
 import type { Surveillance } from './humalis/centrale.js';
 import type { Coffre } from './humalis/coffre.js';
-import { compresser } from './humalis/compresser.js';
+import { compresser } from './humalis/compresser.js';${avecBon ? "\nimport { creerBon } from './humalis/bon.js';" : ''}${serveur.fidelite ? "\nimport { carteDeFidelite } from './humalis/fidelite.js';" : ''}
 import { creerRenouvellement, reglagesDeSession, renouvellementEnCookie, type ReglagesSession } from './humalis/sessions.js';
-import type { Stockage } from './humalis/stockage.js';
+import { ${serveur.fidelite ? 'sansSeparateurs, ' : ''}type Stockage } from './humalis/stockage.js';
 import { lireFiltres, verifierEnvoi } from './humalis/verifier.js';
 
 export interface OptionsDuServeur {
@@ -1099,7 +1138,10 @@ ${stockages}
   coffre?: Coffre | null;
 }
 
-const introuvable = (donnee: string) => \`aucun « \${donnee} » avec cet identifiant\`;
+const introuvable = (donnee: string) => \`aucun « \${donnee} » avec cet identifiant\`;${avecBon ? `
+
+/** Le nom écrit en tête de chaque bon : celui du serveur, tel qu'il est écrit dans le programme. */
+const BOUTIQUE = ${boutique};` : ''}
 
 /** Une action sans règle est refusée à tout le monde : la porte est fermée par défaut. */
 const refuse: RequestHandler = (_req, res) => {
@@ -1168,7 +1210,7 @@ ${google}
       app.use('/auth/cles', authMiddleware, authorizeAdmin, csrfMiddleware, coffre ? coffre.routes(authorizeAdmin) : coffreFerme);
 
 ${routes}
-      // Le dernier avant la réponse d'erreur du pack, qui répond ensuite comme d'habitude.
+${fidelite}      // Le dernier avant la réponse d'erreur du pack, qui répond ensuite comme d'habitude.
       if (surveillance) app.use(surveillance.gestionnaireErreurs());
     },
   });
@@ -1616,6 +1658,18 @@ describe('la surveillance', () => {
 `;
 }
 
+/** Ce que le LISEZMOI ajoute pour « telecharger bon de … » et « fidelite … ». */
+function lisezmoiEnPlus(serveur: ServeurRI): string {
+  const bons = serveur.routes.filter((r) => r.bon).map((r) => `\`GET ${adresseApi(r.adresse)}/:id/bon\``);
+  const lignes = [
+    ...(bons.length > 0 ? [`\nLe bon d'une fiche, en PDF, avec les mêmes droits que sa lecture et jamais gardé en cache : ${bons.join(', ')}.`] : []),
+    ...(serveur.fidelite
+      ? [`\nLa carte de fidélité d'un client, calculée sur les fiches, réservée à l'admin et sans écriture : \`GET /api/fidelite/<${serveur.fidelite.champ}>\` rend \`{ tampons, objectif, restant, recompenses, recompense }\`. Les récompenses données ne sont pas enregistrées : \`recompenses\` compte celles qui ont été gagnées.`]
+      : []),
+  ];
+  return lignes.length > 0 ? lignes.join('\n') + '\n' : '';
+}
+
 function lisezmoi(serveur: ServeurRI, options: OptionsServeur): string {
   const routes = serveur.routes
     .map((r) => `| \`${adresseApi(r.adresse)}\` | ${r.donnee} | ${decrireDroits(r.droits)} |`)
@@ -1656,7 +1710,7 @@ La liste se filtre par les champs de la donnée, comparés par égalité :
 lecture réservée ne l'est jamais (\`private, no-store\`). Les réponses de plus
 de 1 Ko partent compressées (brotli ou gzip).
 Se connecter : \`POST /auth/login\` avec \`{ "email", "password" }\`.
-
+${lisezmoiEnPlus(serveur)}
 ## La sécurité et ses mises à jour
 
 Toute la sécurité vient des packs Astratra (\`@astratra/saas-kit\`,
@@ -1738,6 +1792,279 @@ const ROUTE_MOT_DE_PASSE = `
       });
       app.use('/auth/mot-de-passe', routeMotDePasse);
 `;
+
+/**
+ * « telecharger bon de … » : les mêmes gardes que la lecture de la route, et jamais gardé en cache,
+ * même sur une route publique : c'est un fichier nominatif.
+ */
+function routeBon(variable: string, route: ServeurRI['routes'][number], garde: string, schema: string, donnee: string): string {
+  const fichier = simplifier(route.donnee).replace(/_/g, '-');
+  return `      ${variable}.get('/:id/bon', lecturePrivee, ${garde}, async (req, res, next) => {
+        try {
+          const trouve = await stockages.${donnee}.trouver(req.params.id);
+          if (!trouve) {
+            res.status(404).json({ erreur: introuvable('${route.donnee}') });
+            return;
+          }
+          const fichier = await creerBon({ boutique: BOUTIQUE, donnee: '${route.donnee}', schema: ${schema}, fiche: trouve });
+          // L'identifiant vient de la base : ses seuls lettres et chiffres vont dans le nom du fichier.
+          const court = String(trouve.id).replace(/[^A-Za-z0-9]/g, '').slice(0, 8);
+          res.set('Content-Type', 'application/pdf');
+          res.set('Content-Disposition', \`attachment; filename="bon-de-${fichier}-\${court}.pdf"\`);
+          res.send(fichier);
+        } catch (erreur) {
+          next(erreur);
+        }
+      });
+`;
+}
+
+/**
+ * « fidelite par telephone de commande » : une lecture réservée à l'admin, car la valeur est un numéro
+ * de téléphone. Aucune écriture : seul GET existe, et sans valeur il n'y a pas de liste.
+ */
+function routeFidelite(fidelite: NonNullable<ServeurRI['fidelite']>): string {
+  const egal = `{ ${camel('statut')}: ${JSON.stringify(fidelite.statut)} }`;
+  return `      // « fidelite par ${fidelite.champ} de ${fidelite.donnee} » : seul l'admin lit une carte ; personne n'y écrit.
+      const routeFidelite = express.Router();
+      routeFidelite.get('/:valeur', lecturePrivee, ...acces.seulAdmin, async (req, res, next) => {
+        try {
+          const numero = sansSeparateurs(req.params.valeur);
+          if (numero === '') {
+            res.status(400).json({ erreur: 'la valeur « ${fidelite.champ} » est vide' });
+            return;
+          }
+          // Le stockage filtre lui-même : seules les fiches de ce client avec ce statut reviennent.
+          const fiches = await stockages.${camel(fidelite.donnee)}.lister({ egal: ${egal}, numero: { champ: ${JSON.stringify(camel(fidelite.champ))}, valeur: numero } });
+          res.json(carteDeFidelite(fiches.length, { parFiche: ${fidelite.tampons}, objectif: ${fidelite.objectif}, recompense: ${JSON.stringify(fidelite.recompense)} }));
+        } catch (erreur) {
+          next(erreur);
+        }
+      });
+      app.use('/api/fidelite', routeFidelite);
+
+`;
+}
+
+/**
+ * Le PDF d'une fiche : le nom de la boutique, le titre, puis chaque champ en clair (sauf les images),
+ * dans un tableau du pack @astratra/pdf qui ne coupe jamais une rangée entre deux pages.
+ */
+const BON = `import { drawTable, line, type PdfDocumentLike } from '@astratra/pdf';
+import PDFDocument from 'pdfkit';
+import type { Enregistrement } from './stockage.js';
+import type { Schema, TypeChamp } from './verifier.js';
+
+const MOIS_LONG = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeZone: 'UTC' });
+const INSTANT = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeStyle: 'short' });
+/** Les polices de base du PDF n'ont pas les espaces fines de la mise en forme française. */
+const espaces = (texte: string) => texte.replace(/[\\u00a0\\u202f]/g, ' ');
+
+const majuscule = (texte: string) => texte.charAt(0).toUpperCase() + texte.slice(1);
+/** « prix_avant » → « Prix avant » ; « prixAvant » (le nom gardé par le serveur) → pareil. */
+const libelle = (nom: string) => majuscule(nom.replace(/_/g, ' ').replace(/([a-z])([A-Z])/g, (_, a: string, b: string) => \`\${a} \${b.toLowerCase()}\`));
+
+function dateEnClair(valeur: string): string {
+  const date = new Date(valeur);
+  if (Number.isNaN(date.getTime())) return valeur;
+  // Un jour sans heure reste ce jour-là, quel que soit le fuseau du serveur.
+  return espaces(/^\\d{4}-\\d{2}-\\d{2}$/.test(valeur) ? MOIS_LONG.format(date) : INSTANT.format(date));
+}
+
+/** Une valeur lisible sur le papier ; une liste, une ligne par élément. */
+export function enClair(type: TypeChamp, valeur: unknown): string {
+  if (valeur === null || valeur === undefined || valeur === '') return '-';
+  if (typeof type === 'object') return Array.isArray(valeur) && valeur.length > 0 ? valeur.map((v) => enClair(type.liste, v)).join('\\n') : '-';
+  if (type === 'booleen') return valeur === true ? 'Oui' : 'Non';
+  if (type === 'nombre' && typeof valeur === 'number') return espaces(valeur.toLocaleString('fr-FR'));
+  if (type === 'date' && typeof valeur === 'string') return dateEnClair(valeur);
+  return String(valeur);
+}
+
+const estImage = (type: TypeChamp): boolean => (typeof type === 'object' ? estImage(type.liste) : type === 'image');
+
+/** Le document complet, en mémoire : une fiche tient en quelques pages. */
+export function creerBon({ boutique, donnee, schema, fiche }: { boutique: string; donnee: string; schema: Schema; fiche: Enregistrement }): Promise<Buffer> {
+  return new Promise((resoudre, rejeter) => {
+    const titre = \`Bon de \${libelle(donnee).toLowerCase()}\`;
+    const doc = new PDFDocument({ size: 'A4', margin: 50, info: { Title: titre, Author: boutique } });
+    const morceaux: Buffer[] = [];
+    doc.on('data', (morceau: Buffer) => morceaux.push(morceau));
+    doc.on('end', () => resoudre(Buffer.concat(morceaux)));
+    doc.on('error', rejeter);
+
+    const papier = doc as unknown as PdfDocumentLike;
+    const largeur = doc.page.width - 100;
+    doc.font('Helvetica').fontSize(11).fillColor('#555555');
+    line(papier, boutique, 50, 50, largeur);
+    doc.font('Helvetica-Bold').fontSize(20).fillColor('#111111');
+    line(papier, titre, 50, 68, largeur);
+    doc.font('Helvetica').fontSize(10).fillColor('#555555');
+    line(papier, \`N° \${String(fiche.id).slice(0, 8)}\`, 50, 96, largeur);
+
+    const rangees = Object.entries(schema)
+      .filter(([, type]) => !estImage(type))
+      .map(([champ, type]) => ({ champ: libelle(champ), valeur: enClair(type, fiche[champ]) }));
+    drawTable(papier, {
+      x: 50,
+      y: 122,
+      width: largeur,
+      columns: [
+        { key: 'champ', label: 'Champ', width: 150 },
+        { key: 'valeur', label: 'Valeur', wrap: true },
+      ],
+      rows: rangees,
+      fontSize: 10,
+      headerFontSize: 9,
+      zebra: '#F7F7F7',
+    });
+    doc.end();
+  });
+}
+`;
+
+/**
+ * La carte à tampons : le pack @astratra/loyalty compte le cycle en cours. La phrase ne fixe aucune durée :
+ * aucun tampon ne se perd, tous les tampons du cycle portent donc le même jour.
+ */
+const FIDELITE = `import { createStampCard } from '@astratra/loyalty';
+
+/** Produit par Humalis : la carte d'un client, recalculée à chaque lecture depuis ses fiches ; rien n'est stocké. */
+const SANS_DUREE = '2000-01-01';
+
+export interface RegleFidelite {
+  parFiche: number;
+  objectif: number;
+  recompense: string;
+}
+
+export function carteDeFidelite(fiches: number, { parFiche, objectif, recompense }: RegleFidelite) {
+  const total = fiches * parFiche;
+  // Chaque récompense gagnée ferme un cycle : seul le reste compte sur la carte en cours.
+  const reste = total % objectif;
+  const etat = createStampCard({ threshold: objectif }).evaluate({ visits: Array.from({ length: reste }, () => ({ date: SANS_DUREE })) });
+  return { tampons: etat.count, objectif, restant: etat.remaining, recompenses: Math.floor(total / objectif), recompense };
+}
+`;
+
+/** Une fiche d'exemple, avec les valeurs valides de chaque champ. */
+function ficheExemple(serveur: ServeurRI, nom: string): string {
+  const donnee = serveur.donnees.find((d) => d.nom === nom)!;
+  return `{ ${donnee.champs.map((c) => `${camel(c.nom)}: ${exempleChamp(c.type)}`).join(', ')} }`;
+}
+
+const ENTETE_TESTS = (stockages: string) => `import { beforeAll, describe, expect, it } from 'vitest';
+import request from 'supertest';
+import { createMemoryUsersStore, type UsersStore } from '@astratra/saas-kit';
+import { hashPassword } from '@astratra/security';
+import { creerServeur } from '../src/serveur.js';
+import { creerStockageMemoire } from '../src/humalis/stockage.js';
+
+const MOT_DE_PASSE = 'Essai-Solide-2026!';
+const stockages = {
+${stockages}
+};
+let app: Parameters<typeof request>[0];
+let jetonAdmin = '';
+let jetonUtilisateur = '';
+const avec = (jeton: string) => ({ authorization: \`Bearer \${jeton}\` });
+
+async function connecter(email: string): Promise<string> {
+  const reponse = await request(app).post('/auth/login').send({ email, password: MOT_DE_PASSE }).expect(200);
+  return reponse.body.data.token;
+}
+
+beforeAll(async () => {
+  const usersStore = createMemoryUsersStore() as UsersStore;
+  const passwordHash = await hashPassword(MOT_DE_PASSE);
+  await usersStore.create({ email: 'admin@exemple.cd', role: 'admin', passwordHash });
+  await usersStore.create({ email: 'awa@exemple.cd', role: 'utilisateur', passwordHash });
+  app = creerServeur({ jwtSecret: 'secret-de-test-assez-long-pour-les-sessions', usersStore, stockages }) as never;
+  jetonAdmin = await connecter('admin@exemple.cd');
+  jetonUtilisateur = await connecter('awa@exemple.cd');
+});
+`;
+
+/** Les tests produits du bon : les mêmes refus que la lecture de sa route, un vrai PDF, et un 404. */
+function testsBon(serveur: ServeurRI): string {
+  const stockages = serveur.donnees.map((d) => `  ${camel(d.nom)}: creerStockageMemoire(),`).join('\n');
+  const blocs = serveur.routes.filter((r) => r.bon).map((route) => {
+    const adresse = adresseApi(route.adresse);
+    const refus = route.droits.lire === 'admin' ? [401, 403] : route.droits.lire === 'connecte' ? [401, 200] : [200, 200];
+    return `describe('le bon de « ${route.donnee} »', () => {
+  it('suit les droits de la lecture : visiteur ${refus[0]}, utilisateur ${refus[1]}', async () => {
+    const fiche = await stockages.${camel(route.donnee)}.creer(${ficheExemple(serveur, route.donnee)});
+    await request(app).get(\`${adresse}/\${fiche.id}/bon\`).expect(${refus[0]});
+    await request(app).get(\`${adresse}/\${fiche.id}/bon\`).set(avec(jetonUtilisateur)).expect(${refus[1]});
+  });
+
+  it('rend un PDF à télécharger, jamais gardé en cache', async () => {
+    const fiche = await stockages.${camel(route.donnee)}.creer(${ficheExemple(serveur, route.donnee)});
+    const reponse = await request(app).get(\`${adresse}/\${fiche.id}/bon\`).set(avec(jetonAdmin)).buffer(true).parse((res, fin) => {
+      const morceaux: Buffer[] = [];
+      res.on('data', (m: Buffer) => morceaux.push(m));
+      res.on('end', () => fin(null, Buffer.concat(morceaux)));
+    }).expect(200);
+    expect((reponse.body as Buffer).subarray(0, 4).toString()).toBe('%PDF');
+    expect(reponse.headers['content-type']).toContain('application/pdf');
+    expect(reponse.headers['content-disposition']).toMatch(/^attachment; filename="bon-de-[a-z0-9-]+-[A-Za-z0-9]{1,8}\\.pdf"$/);
+    expect(reponse.headers['cache-control']).toBe('private, no-store');
+  });
+
+  it('404 pour une fiche qui n\\'existe pas', async () => {
+    await request(app).get('${adresse}/inconnue/bon').set(avec(jetonAdmin)).expect(404);
+  });
+});`;
+  });
+  return `// Produit par Humalis : « telecharger bon de … » du serveur « ${serveur.nom} ».
+${ENTETE_TESTS(stockages)}
+${blocs.join('\n\n')}
+`;
+}
+
+/** Les tests produits de la carte : lecture réservée à l'admin, écritures impossibles, calcul sur de vraies fiches. */
+function testsFidelite(serveur: ServeurRI): string {
+  const fidelite = serveur.fidelite!;
+  const stockages = serveur.donnees.map((d) => `  ${camel(d.nom)}: creerStockageMemoire(),`).join('\n');
+  const stockage = `stockages.${camel(fidelite.donnee)}`;
+  const fiche = (numero: string, statut: string) => `{ ...${ficheExemple(serveur, fidelite.donnee)}, ${camel(fidelite.champ)}: ${JSON.stringify(numero)}, statut: ${JSON.stringify(statut)} }`;
+  const compte = fidelite.tampons * 2;
+  const reste = compte % fidelite.objectif;
+  return `// Produit par Humalis : « fidelite par ${fidelite.champ} de ${fidelite.donnee} » du serveur « ${serveur.nom} ».
+${ENTETE_TESTS(stockages)}
+describe('la carte de fidélité', () => {
+  it('seul l\\'admin la lit : visiteur 401, utilisateur 403', async () => {
+    await request(app).get('/api/fidelite/111').expect(401);
+    await request(app).get('/api/fidelite/111').set(avec(jetonUtilisateur)).expect(403);
+    await request(app).get('/api/fidelite/111').set(avec(jetonAdmin)).expect(200);
+  });
+
+  it('jamais gardée en cache, et personne n\\'y écrit', async () => {
+    const reponse = await request(app).get('/api/fidelite/111').set(avec(jetonAdmin));
+    expect(reponse.headers['cache-control']).toBe('private, no-store');
+    for (const methode of ['post', 'patch', 'put', 'delete'] as const) {
+      const ecriture = await request(app)[methode]('/api/fidelite/111').set(avec(jetonAdmin)).send({});
+      expect(ecriture.status).toBeGreaterThanOrEqual(400);
+    }
+  });
+
+  it('compte les fiches de ce statut, quelle que soit l\\'écriture du numéro', async () => {
+    await ${stockage}.creer(${fiche('+243 848-000', fidelite.statut)});
+    await ${stockage}.creer(${fiche('243848000', fidelite.statut)});
+    await ${stockage}.creer(${fiche('243848000', `pas-${fidelite.statut}`)});
+    await ${stockage}.creer(${fiche('999', fidelite.statut)});
+    const reponse = await request(app).get('/api/fidelite/' + encodeURIComponent('+243 848 000')).set(avec(jetonAdmin)).expect(200);
+    expect(reponse.body).toEqual({
+      tampons: ${reste},
+      objectif: ${fidelite.objectif},
+      restant: ${fidelite.objectif - reste},
+      recompenses: ${Math.floor(compte / fidelite.objectif)},
+      recompense: ${JSON.stringify(fidelite.recompense)},
+    });
+  });
+});
+`;
+}
 
 const ROUTE_GOOGLE = `
       // « connexion google » : un compte déjà connu du serveur, dont Google confirme l'adresse, ouvre sa session.

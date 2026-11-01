@@ -19,7 +19,7 @@ import { chercherIcone } from '../vocabulaire/icones.js';
 import type { ResultatAnalyse } from '../analyse/analyse.js';
 import { INCONNU, NOMBRE, BOOLEEN, type TypeValeur } from '../analyse/types.js';
 import { optionCanonique } from '../analyse/styles.js';
-import { droitsDeRoute } from '../analyse/serveur.js';
+import { adresseNormalisee, droitsDeRoute } from '../analyse/serveur.js';
 import { encreSur } from '../analyse/couleurs.js';
 import { lireCible } from '../analyse/navigation.js';
 import { imageDe, REGLAGES_IMAGE, choixFichierDe } from './medias.js';
@@ -75,7 +75,7 @@ export function construireRepresentation(
     css: programme.styles.map((b) => b.css),
     fichiersStyle: programme.fichiersStyle.map((f) => ({ chemin: f.chemin, ligne: f.ligne })),
     partages: programme.partages.map((d) => etatDe(d, analyse)),
-    serveurs: programme.serveurs.map(serveurRI),
+    serveurs: programme.serveurs.map((serveur) => serveurRI(serveur, analyse)),
     sources: programme.sources.map(sourceRI),
     ...(programme.theme ? { theme: themeRI(programme.theme) } : {}),
     ...(analyse.langues.langues.length > 1 ? { langues: analyse.langues.langues.map((l) => ({ code: l.code, nom: l.nomPropre })) } : {}),
@@ -165,7 +165,8 @@ function themeRI(theme: NonNullable<Programme['theme']>): ThemeRI {
   };
 }
 
-function serveurRI(serveur: Serveur): ServeurRI {
+function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
+  const fidelite = serveur.fidelite;
   return {
     nom: serveur.nom,
     donnees: serveur.donnees.map((d) => ({ nom: d.nom, champs: d.champs.map((c) => ({ nom: c.nom, type: c.type })) })),
@@ -173,9 +174,23 @@ function serveurRI(serveur: Serveur): ServeurRI {
       .filter((r) => r.regles.length > 0)
       .map((route) => {
         const droits = droitsDeRoute(route);
-        return { adresse: route.adresse, donnee: route.regles[0].donnee, droits, ligne: route.ligne };
+        const bon = analyse.bons.has(adresseNormalisee(route.adresse));
+        return { adresse: route.adresse, donnee: route.regles[0].donnee, droits, ...(bon ? { bon } : {}), ligne: route.ligne };
       }),
     ...(serveur.connexionGoogle !== undefined ? { connexionGoogle: true } : {}),
+    // L'analyse a déjà vérifié le bloc : ses deux lignes sont là, et le champ existe sous ce nom ou un nom voisin (accents).
+    ...(fidelite?.gain && fidelite.objectif
+      ? {
+          fidelite: {
+            champ: serveur.donnees.find((d) => d.nom === fidelite.donnee)?.champs.find((c) => simplifier(c.nom) === simplifier(fidelite.champ))?.nom ?? fidelite.champ,
+            donnee: fidelite.donnee,
+            tampons: fidelite.gain.tampons,
+            statut: fidelite.gain.statut,
+            objectif: fidelite.objectif.tampons,
+            recompense: fidelite.objectif.recompense,
+          },
+        }
+      : {}),
   };
 }
 
@@ -600,6 +615,14 @@ class Construction {
 
         case 'ConnexionGoogle':
           actions.push({ type: 'connexionGoogle' });
+          break;
+
+        case 'TelechargementBon':
+          actions.push({
+            type: 'telechargementBon',
+            adresse: this.analyse.adressesRequetes.get(instruction) ?? instruction.donnee,
+            objet: this.valeur(instruction.objet),
+          });
           break;
 
         case 'ChangementMotDePasse':

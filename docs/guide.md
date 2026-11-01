@@ -1673,6 +1673,102 @@ Les deux existent pour le web, le bureau et le mobile. Sur le téléphone, la
 photo vient de la galerie, avec la même réduction ; une image transparente y
 perd sa transparence (le JPEG n'en a pas).
 
+### Télécharger le bon d'une fiche
+
+`telecharger bon de commande de c` télécharge le PDF d'une fiche du serveur,
+sans ouvrir de page. Cela marche pour toute donnée lue sur une route :
+`telecharger bon de reservation de r`, par exemple.
+
+```humalis
+serveur "Maison Awa" :
+    donnee commande :
+        nom : texte
+        articles : liste de texte
+        total : nombre
+        jour : date
+    route "commandes" :
+        tout le monde peut creer commande
+        seul admin peut lire commande
+        seul admin peut modifier commande
+
+page "connexion" a l'adresse "/connexion" :
+    titre "Connexion"
+
+page "commandes" a l'adresse "/" reservee a admin sinon vers "connexion" :
+    titre "Commandes"
+    variable commandes = []
+    quand la page se charge :
+        envoyer requete vers "commandes" dans commandes
+    pour chaque c dans commandes :
+        texte c.nom
+        bouton "Bon de commande" avec icone "document" et nom "bon"
+        quand l'utilisateur clique sur "bon" :
+            essayer :
+                telecharger bon de commande de c
+            si erreur :
+                afficher erreur "Bon non téléchargé : {raison}"
+```
+
+Le serveur ajoute alors `GET /api/commandes/:id/bon`, seulement si une page s'en
+sert, avec les mêmes droits que la lecture de la route. Le document porte le nom
+du serveur (écrit tel quel : donnez-lui le nom de la boutique), le titre « Bon de
+commande » et tous les champs en clair, sauf ceux de type `image`. Une fiche qui
+n'existe plus répond 404, et la raison arrive à `si erreur`.
+
+Cible web et bureau. Sur le téléphone, un message dit que ce n'est pas encore
+disponible ; le site statique refuse la phrase. Le serveur à compiler est celui
+du fichier qui contient cette page : c'est elle qui demande la route.
+
+### Une carte de fidélité
+
+Dans le serveur, `fidelite par telephone de commande :` calcule une carte à
+tampons à partir des fiches, sans rien stocker. Ses deux lignes sont obligatoires :
+
+```humalis
+serveur "Maison Awa" :
+    donnee commande :
+        nom : texte
+        telephone : texte
+        statut : texte
+    route "commandes" :
+        tout le monde peut creer commande
+        seul admin peut lire commande
+        seul admin peut modifier commande
+    fidelite par telephone de commande :
+        1 tampon par commande livree
+        apres 5 tampons, recompense "Un maillot offert"
+
+page "connexion" a l'adresse "/connexion" :
+    titre "Connexion"
+
+page "commandes" a l'adresse "/" reservee a admin sinon vers "connexion" :
+    titre "Commandes"
+    variable commandes = []
+    variable carte = rien
+    quand la page se charge :
+        envoyer requete vers "commandes" dans commandes
+    pour chaque c dans commandes :
+        texte c.nom
+        bouton "Fidélité" avec icone "recompense" et nom "fidelite"
+        quand l'utilisateur clique sur "fidelite" :
+            envoyer requete vers "fidelite" avec id c.telephone dans carte
+    si carte n'est pas rien :
+        texte "{carte.tampons} sur {carte.objectif} tampons"
+        si carte.recompenses est superieur a 0 :
+            texte "Récompense gagnée : {carte.recompense}"
+```
+
+`1 tampon par commande livree` compte les fiches dont le champ `statut` vaut
+exactement `livree`. La réponse a les champs `tampons`, `objectif`, `restant`,
+`recompenses` et `recompense`, connus de la compilation. Les espaces, les tirets
+et le « + » du numéro sont ignorés : « +33 6 12 » et « 33612 » comptent ensemble.
+
+**Seul un admin peut lire une carte** (`GET /api/fidelite/…`), car la valeur est un
+numéro de téléphone, et personne ne peut y écrire. Aucune durée ne s'applique : un
+tampon ne se perd pas. Les récompenses données ne sont pas enregistrées :
+`recompenses` compte celles qui ont été gagnées depuis le début, et `tampons`
+repart de zéro à chaque récompense gagnée.
+
 ---
 
 ## 23. Utiliser une API qui existe déjà

@@ -162,6 +162,27 @@ page "accueil" :
 - Se connecter avec Google sans le permettre au serveur : demande la ligne « connexion google »
 - Changer le mot de passe en dehors d’un événement : « changer le mot de passe » ne s'utilise que dans un événement
 - Un champ image qui reçoit autre chose qu’une image : doit accepter seulement des images
+- Deux cartes de fidélité : un serveur n'a qu'une seule « fidelite »
+- Une carte sans récompense écrite : écrivez la récompense
+- Une ligne inconnue dans une carte de fidélité : dans « fidelite », on écrit
+- Un nombre sans le mot « tampon » : écrivez « tampon » ou « tampons »
+- Une route qui prend l’adresse de la carte : le bloc « fidelite » sert déjà
+- Une carte sur une donnée qui n’existe pas : la donnée « vente » n
+- Une carte sur un champ absent : doit avoir un champ « numero » de type texte
+- Une carte sans ligne de tampons : il manque la ligne qui donne les tampons
+- Un nombre de tampons qui n’est pas un entier positif : le nombre de tampons doit être un entier positif
+- Des tampons comptés sur une autre donnée : les tampons se comptent sur la donnée de l'en-tête
+- Des tampons sans champ « statut » : doit avoir un champ « statut » de type texte
+- Une carte sans ligne de récompense : il manque la ligne de la récompense
+- Un objectif qui n’est pas un entier positif : « apres 2.5 tampons » : le nombre de tampons doit être un entier positif
+- Lire une carte sans bloc fidelite : la route « fidelite » n'existe pas
+- Lire la carte sans dire de quel client : on ne lit qu'une carte à la fois
+- « avec id » sans « dans » : lit un seul élément : dites où le ranger
+- « avec id » qui n’est pas un texte : « avec id » attend un texte
+- Un bon téléchargé hors d’un événement : telecharger bon
+- Un bon sans serveur : « telecharger bon » demande un serveur
+- Un bon d’une donnée qu’aucune route ne lit : aucune route ne permet de lire la donnée « client »
+- Un bon d’autre chose qu’une fiche de cette donnée : attend un « commande » lu sur sa route
 - Un type de champ inconnu : n'est pas un type de champ
 - Une règle qui ne dit pas qui peut agir : qui peut agir
 - Une action inconnue dans une règle : n'est pas une action
