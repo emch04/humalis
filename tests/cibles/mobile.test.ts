@@ -210,7 +210,8 @@ describe('cible mobile — la connexion (décision L5)', () => {
   });
 
   it('masque le mot de passe et lit la session dans la page', () => {
-    expect(page).toContain('secureTextEntry autoComplete="current-password"');
+    expect(page).toContain('autoComplete="current-password"');
+    expect(page).toContain('<MotDePasse');
     expect(page).toContain('keyboardType="email-address"');
     expect(page).toContain('const utilisateur = useUtilisateur();');
     expect(page).toContain("import { useUtilisateur } from '../humalis/session';");

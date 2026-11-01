@@ -1950,7 +1950,7 @@ ${classes}
 .humalis-bordure-arrondie { border-radius: 999px; }
 .humalis-bordure-carree { border-radius: 0; }
 
-.humalis-messages { position: fixed; top: 1rem; left: 50%; transform: translateX(-50%); z-index: 10; width: min(32rem, calc(100% - 2rem)); margin: 0; padding: 0; list-style: none; display: grid; gap: 0.5rem; }
+.humalis-messages { position: fixed; top: 1rem; left: 50%; transform: translateX(-50%); z-index: 1000; width: min(32rem, calc(100% - 2rem)); margin: 0; padding: 0; list-style: none; display: grid; gap: 0.5rem; }
 .humalis-message { display: flex; align-items: center; gap: 0.5rem; margin: 0; padding: 0.5rem 0.5rem 0.5rem 1rem; border-radius: 0.5rem; background: var(--humalis-encre); color: var(--humalis-page); box-shadow: 0 4px 16px rgb(0 0 0 / 0.2); }
 .humalis-message-texte { flex: 1; }
 .humalis-message button { margin: 0; border-color: currentColor; color: inherit; }

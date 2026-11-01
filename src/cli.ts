@@ -21,7 +21,7 @@ import { etatDesPacks, verifierProjet, ErreurPackageJson } from './packs.js';
 import { creerProjet } from './outils/nouveau.js';
 import { formaterSource } from './outils/formatage.js';
 import { developper, trouverPrincipal } from './outils/developpement.js';
-import { ecrireSiChange } from './outils/ecriture.js';
+import { ecrireSiChange, retirerAnciensProduits } from './outils/ecriture.js';
 import { testerProjet } from './outils/tests.js';
 import { reponseSimple } from './outils/version.js';
 
@@ -213,7 +213,20 @@ function dossierLibre(sortie: string, marque: string): boolean {
 }
 
 function ecrire(sortie: string, fichiers: Map<string, string>): void {
+  const dependances = (): string => {
+    try {
+      const { dependencies, devDependencies } = JSON.parse(readFileSync(join(sortie, 'package.json'), 'utf8'));
+      return JSON.stringify({ dependencies, devDependencies });
+    } catch {
+      return '';
+    }
+  };
+  const avant = dependances();
   for (const [relatif, contenu] of fichiers) ecrireSiChange(join(sortie, relatif), contenu);
+  retirerAnciensProduits(sortie, fichiers);
+  if (avant && avant !== dependances() && existsSync(join(sortie, 'node_modules'))) {
+    console.error('Les dépendances ont changé : relancez npm install dans ce dossier.');
+  }
 }
 
 /** Les fichiers de « utiliser style "…" », cherchés à côté du fichier Humalis ; undefined si l'un manque (le message est affiché). */

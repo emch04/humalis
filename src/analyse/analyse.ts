@@ -362,7 +362,7 @@ export function analyserSens(programme: Programme, classesCss?: Set<string>): Re
       const option = optionCanonique(style.propriete, style.valeur, resultat.couleursTheme);
       if ('erreur' in option) resultat.diagnostics.push({ gravite: 'erreur', message: option.erreur, ligne: disposition.ligne });
     }
-    new AnalysePage(page, nomsPages, resultat, classes, partages, composants, [], liens).analyser();
+    new AnalysePage(page, nomsPages, resultat, classes, partages, composants, [], liens, fonctions).analyser();
   }
 
   for (const page of programme.pages) {
@@ -2158,9 +2158,10 @@ class AnalysePage {
       if (choisi && !aUnApercu(choisi.choix)) this.erreur(`un fichier accepté « ${choisi.choix.accepte.join(' ou ')} » n'a pas d'aperçu : « apercu » existe pour des images, des sons et des vidéos.`, acces.ligne);
     }
     // « panier.prix » sur une liste de fiches ou de données : la liste des prix.
-    if (type.genre === 'liste' && (type.de.genre === 'fiche' || type.de.genre === 'donnee')) {
+    // Une liste vide au départ (« variable panier = [] ») se remplit de fiches plus tard.
+    if (type.genre === 'liste' && (type.de.genre === 'fiche' || type.de.genre === 'donnee' || !estConnu(type.de))) {
       this.resultat.projections.add(acces);
-      return listeDe(this.champDe(type.de, acces));
+      return listeDe(estConnu(type.de) ? this.champDe(type.de, acces) : INCONNU);
     }
     return this.champDe(type, acces);
   }

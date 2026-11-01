@@ -439,7 +439,7 @@ export const ENTREES_ECRAN: readonly EntreeVocabulaire[] = [
 
   // ─── Les options des éléments d'écran ───────────────────────────────
   optionEcran('icone', 'Une icône avant le texte d’un bouton, d’un lien, d’un titre ou d’un onglet : « avec icone "panier" ». Sur un choix de fichier, l’icône seule (le libellé reste lu par les lecteurs d’écran).', PAGE('    bouton "Ajouter" avec icone "panier"'), ['bouton', 'lien', 'titre', 'texte', 'onglet', 'fichier']),
-  optionEcran('description', 'Le texte lu par un lecteur d’écran quand l’élément n’a pas de texte visible : « avec description "Panier" ».', PAGE('    icone "panier" avec description "Panier"'), ['icone', 'avatar', 'progression', 'etoiles', 'compteur', 'qr', 'chargement', 'badge', 'image', 'audio']),
+  optionEcran('description', 'Le texte lu par un lecteur d’écran quand l’élément n’a pas de texte visible : « avec description "Panier" ».', PAGE('    icone "panier" avec description "Panier"'), ['icone', 'avatar', 'progression', 'etoiles', 'compteur', 'qr', 'chargement', 'badge', 'image', 'audio', 'carrousel']),
   optionEcran('decoratif', 'Une image purement décorative, ignorée par le lecteur d’écran : « avec decoratif ».', PAGE('    titre "Accueil"\n    image "filet.png" avec decoratif'), ['image', 'icone']),
   optionEcran('niveau', 'Le niveau d’un sous-titre, de 2 à 6 : « avec niveau 3 ».', PAGE('    titre "Accueil"\n    soustitre "Détails" avec niveau 3'), ['soustitre']),
   optionEcran('photo', 'L’image d’un avatar : « avec photo "camille.jpg" », ou « avec photo "{p.photo}" » pour une image qui vient d’une donnée.', PAGE('    avatar "Camille Martin" avec photo "camille.jpg"'), ['avatar']),

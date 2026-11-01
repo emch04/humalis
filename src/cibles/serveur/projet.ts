@@ -1113,7 +1113,7 @@ ${route.bon ? routeBon(variable, route, garde('lire'), schema, donnee) : ''}    
 
   return `// Produit par Humalis : le serveur « ${serveur.nom} », assemblé avec les packs Astratra.
 import { createSaasApp, type UsersStore } from '@astratra/saas-kit';
-import { ${serveur.connexionGoogle ? 'createGoogleIdTokenVerifier, IdTokenError, ' : ''}createLoginLimiter, hashPassword, isStrongPassword, verifyPasswordHash } from '@astratra/security';
+import { ${serveur.connexionGoogle ? 'createGoogleIdTokenVerifier, IdTokenError, ' : ''}createLoginLimiter, hashPassword, isStrongPassword, verifyPasswordHash, WAF_PATTERNS } from '@astratra/security';
 import express, { type RequestHandler, type Response } from 'express';
 import { ${schemas} } from './donnees.js';
 import type { Surveillance } from './humalis/centrale.js';
@@ -1179,6 +1179,8 @@ export function creerServeur({ jwtSecret, usersStore, stockages${serveur.connexi
   const renouvellement = creerRenouvellement(session);
   const serveur = createSaasApp({
     jwtSecret,
+    // Le pare-feu du pack, sans le refus du « # » : il n'est pas un commentaire en PostgreSQL et « avenue #12 » est une vraie adresse.
+    waf: { patterns: WAF_PATTERNS.map((motif) => new RegExp(motif.source.replace('|#|', '|'), motif.flags)) },
     // Derrière un relais (nginx) : son nombre, pour que les limites comptent chaque visiteur et non le relais.
     ...(process.env.HUMALIS_RELAIS ? { trustProxy: Number(process.env.HUMALIS_RELAIS) } : {}),
     // Un jeton d'accès court, renouvelé tant que la personne revient : voir src/humalis/sessions.ts.

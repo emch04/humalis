@@ -12,6 +12,7 @@ export interface UsageElements {
   etoiles: boolean;
   qr: boolean;
   carrousel: boolean;
+  motDePasse: boolean;
   carte: boolean;
 }
 
@@ -27,6 +28,7 @@ export function usageElements(textes: string[]): UsageElements {
     etoiles,
     qr: /\bcodeQr\(/.test(tout),
     carrousel: /data-humalis-carrousel/.test(tout),
+    motDePasse: /\btype(="|: ')password\b/.test(tout),
     carte: /\bcarteLieux\(/.test(tout),
   };
 }
@@ -128,6 +130,32 @@ ${formes}
   }
 `);
   }
+  if (u.motDePasse) {
+    parties.push(`
+  // ─── L'œil des champs mot de passe : il montre ou cache ce qui est tapé ──
+
+  const dessinOeil = (visible) => '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>' + (visible ? '<path d="M4 4l16 16"/>' : '') + '</svg>';
+
+  function activerMotsDePasse() {
+    for (const champ of document.querySelectorAll('input[type="password"]:not([data-humalis-oeil])')) {
+      champ.setAttribute('data-humalis-oeil', '');
+      const enveloppe = creer('span', { class: 'humalis-mot-de-passe' });
+      champ.replaceWith(enveloppe);
+      const oeil = creer('button', { type: 'button', class: 'humalis-mot-de-passe-oeil', 'aria-label': 'Afficher le mot de passe', 'aria-pressed': 'false' });
+      oeil.innerHTML = dessinOeil(false);
+      oeil.addEventListener('click', () => {
+        const visible = champ.type === 'password';
+        champ.type = visible ? 'text' : 'password';
+        oeil.innerHTML = dessinOeil(visible);
+        oeil.setAttribute('aria-label', visible ? 'Masquer le mot de passe' : 'Afficher le mot de passe');
+        oeil.setAttribute('aria-pressed', String(visible));
+      });
+      enveloppe.append(champ, oeil);
+    }
+  }
+`);
+  }
+
   if (u.carrousel) {
     parties.push(`
   // ─── Les carrousels ─────────────────────────────────────────────────────

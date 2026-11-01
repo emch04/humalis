@@ -26,7 +26,7 @@ export const WIDGETS_MOBILE: RenduWidgets = {
     const icones = iconesMobile(code);
     if (icones.length > 0) lignes.push(`import { ${icones.join(', ')} } from 'lucide-react-native';`);
     if (/<QRCode\b/.test(code)) lignes.push(`import QRCode from 'react-native-qrcode-svg';`);
-    for (const [composant, fichier] of [['Avatar', 'avatar'], ['Etoiles', 'etoiles'], ['Compteur', 'compteur'], ['Carrousel', 'carrousel'], ['Progression', 'progression'], ['Icone', 'icone'], ['Lecteur', 'lecteur'], ['CarteLieux', 'carte-lieux'], ['Graphique', 'graphique']]) {
+    for (const [composant, fichier] of [['Avatar', 'avatar'], ['Etoiles', 'etoiles'], ['Compteur', 'compteur'], ['Carrousel', 'carrousel'], ['MotDePasse', 'mot-de-passe'], ['Progression', 'progression'], ['Icone', 'icone'], ['Lecteur', 'lecteur'], ['CarteLieux', 'carte-lieux'], ['Graphique', 'graphique']]) {
       if (new RegExp(`<${composant}\\b`).test(code)) lignes.push(`import ${composant} from '../humalis/${fichier}';`);
     }
     if (/<SelecteurLangue\b/.test(code)) lignes.push(`import { SelecteurLangue } from '../humalis/langue';`);
@@ -113,7 +113,7 @@ export const WIDGETS_MOBILE: RenduWidgets = {
         return { avant: ['<View>'], apres: ['</View>'] };
       case 'carrousel':
         return {
-          avant: [`<Carrousel${c.reglages.automatique ? ` automatique={${c.reglages.automatique}}` : ''}${c.reglages.visibles ? ` visibles={${c.reglages.visibles}}` : ''}>`],
+          avant: [`<Carrousel${c.reglages.automatique ? ` automatique={${c.reglages.automatique}}` : ''}${c.reglages.visibles ? ` visibles={${c.reglages.visibles}}` : ''}${c.reglages.description ? ` description=${chaine(c.reglages.description)}` : ''}>`],
           apres: ['</Carrousel>'],
         };
       case 'filAriane':
@@ -162,6 +162,7 @@ export function fichiersMobiles(codes: string[]): Map<string, string> {
   if (emploie(/<Etoiles\b/)) fichiers.set('humalis/etoiles.tsx', ETOILES_TSX);
   if (emploie(/<Compteur\b/)) fichiers.set('humalis/compteur.tsx', COMPTEUR_TSX);
   if (emploie(/<Carrousel\b/)) fichiers.set('humalis/carrousel.tsx', CARROUSEL_TSX);
+  if (emploie(/<MotDePasse\b/)) fichiers.set('humalis/mot-de-passe.tsx', MOT_DE_PASSE_TSX);
   if (emploie(/<Lecteur\b/)) fichiers.set('humalis/lecteur.tsx', LECTEUR_TSX);
   if (emploie(/<CarteLieux\b/)) fichiers.set('humalis/carte-lieux.tsx', CARTE_MOBILE_TSX);
   if (emploie(/<ChoixFichier\b/)) {
@@ -409,6 +410,32 @@ export default function Compteur({ valeur, onChange, minimum, maximum, accessibi
 }
 `;
 
+/** Un champ mot de passe et son œil : l'appui montre ou cache ce qui est tapé. */
+const MOT_DE_PASSE_TSX = `import { useState, type ComponentProps } from 'react';
+import { Pressable, Text, TextInput, View } from 'react-native';
+import { useCouleurs } from './styles';
+
+export default function MotDePasse({ style, ...proprietes }: Omit<ComponentProps<typeof TextInput>, 'secureTextEntry'>) {
+  const couleurs = useCouleurs();
+  const [visible, setVisible] = useState(false);
+  return (
+    <View style={{ justifyContent: 'center' }}>
+      <TextInput {...proprietes} style={[style, { paddingRight: 88 }]} secureTextEntry={!visible} />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={visible ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+        accessibilityState={{ selected: visible }}
+        hitSlop={8}
+        onPress={() => setVisible((v) => !v)}
+        style={{ position: 'absolute', right: 12 }}
+      >
+        <Text style={{ color: couleurs.encre }}>{visible ? 'Masquer' : 'Afficher'}</Text>
+      </Pressable>
+    </View>
+  );
+}
+`;
+
 const CARROUSEL_TSX = `import { Children, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ScrollView, Pressable, Text, View, useWindowDimensions } from 'react-native';
 import { useCouleurs } from './styles';
@@ -418,10 +445,11 @@ interface Proprietes {
   automatique?: number;
   /** Sur un téléphone, une seule diapositive est vue à la fois. */
   visibles?: number;
+  description?: string;
 }
 
 /** Des diapositives qu'on fait défiler du doigt, avec des points, et seules si \`automatique\` est donné. */
-export default function Carrousel({ children, automatique }: Proprietes) {
+export default function Carrousel({ children, automatique, description }: Proprietes) {
   const couleurs = useCouleurs();
   const { width } = useWindowDimensions();
   const piste = useRef<ScrollView>(null);
@@ -440,7 +468,7 @@ export default function Carrousel({ children, automatique }: Proprietes) {
   }, [automatique, courante, total, largeur]);
 
   return (
-    <View accessibilityRole="adjustable" style={{ marginVertical: 12 }}>
+    <View accessibilityRole="adjustable" accessibilityLabel={description ?? 'Carrousel'} style={{ marginVertical: 12 }}>
       <ScrollView
         ref={piste}
         horizontal
