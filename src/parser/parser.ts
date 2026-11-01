@@ -268,7 +268,7 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
     for (const lieu of [...pages, ...composants, ...(entete ? [entete] : []), ...(pied ? [pied] : [])]) lieu.corps.unshift(...enTete.map((c) => ({ ...c })));
   }
   for (const lieu of [...pages, ...composants, ...(entete ? [entete] : []), ...(pied ? [pied] : [])]) lieu.corps = selonEnConditions(lieu.corps);
-  const programme: Programme = { type: 'Programme', pages, styles, fichiersStyle, donneesFichiers, partages, composantsReact, composants, serveurs, sources, fichiersHumalis, fonctions, tests, ...(theme ? { theme } : {}), ...(site ? { site } : {}), ...(langues ? { langues } : {}), ...(traductions.length ? { traductions } : {}), ...(entete ? { entete } : {}), ...(pied ? { pied } : {}) };
+  const programme: Programme = { type: 'Programme', pages, ...(calculsPartages.length > 0 ? { calculsPartages } : {}), styles, fichiersStyle, donneesFichiers, partages, composantsReact, composants, serveurs, sources, fichiersHumalis, fonctions, tests, ...(theme ? { theme } : {}), ...(site ? { site } : {}), ...(langues ? { langues } : {}), ...(traductions.length ? { traductions } : {}), ...(entete ? { entete } : {}), ...(pied ? { pied } : {}) };
   // Les appels de fonctions d'actions sont remplacés par leur corps (src/parser/fonctionsActions.ts).
   const actions = deplierFonctionsActions(programme);
   if (actions.length) programme.fonctionsActions = actions;

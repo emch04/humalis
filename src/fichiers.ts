@@ -202,6 +202,16 @@ function valeurDonnee(valeur: unknown, ligne: number): Expression {
 
 /** Le programme de tout le projet : les pages, composants, variables et serveurs de chaque fichier. */
 function reunir(programmes: Programme[], fichiers: string[], diagnostics: Diagnostic[]): Programme {
+  // Un calcul partagé vaut pour tout le projet ; il arrive dans le même ordre, sauf là où le fichier a le sien.
+  for (const source of programmes) {
+    for (const calcul of [...(source.calculsPartages ?? [])].reverse()) {
+      for (const p of programmes.filter((x) => x !== source)) {
+        for (const lieu of [...p.pages, ...p.composants, ...(p.entete ? [p.entete] : []), ...(p.pied ? [p.pied] : [])]) {
+          if (!lieu.corps.some((i) => i.type === 'Variable' && i.nom === calcul.nom)) lieu.corps.unshift({ ...calcul });
+        }
+      }
+    }
+  }
   const [premier, ...autres] = programmes;
   const tout: Programme = {
     ...premier,
