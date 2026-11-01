@@ -306,6 +306,8 @@ export function cheminsDesPages(application: Application): Map<string, string> {
   // Une page à paramètre ajoute un morceau par paramètre : « /produit/:id ».
   const parametres = (e: Ecran) => (e.parametresAdresse ?? []).map((p) => `/:${camel(p)}`).join('');
   const chemins = new Map<string, string>();
+  // L'adresse tirée du nom garde ses traits d'union (« mentions-legales » → /mentions-legales).
+  const enAdresse = (nom: string) => nom.split('-').map(simplifier).filter(Boolean).join('-');
   // Une sous-page sans adresse choisie a celle de son parent, suivie de son nom (/admin/commandes).
   const cheminDe = (e: Ecran, vus: string[] = []): string => {
     const deja = chemins.get(e.nom);
@@ -315,10 +317,10 @@ export function cheminsDesPages(application: Application): Map<string, string> {
       e.adresse !== undefined
         ? e.adresse
         : parent
-          ? `${cheminDe(parent, [...vus, e.nom]).replace(/\/+$/, '')}/${simplifier(e.nom)}${parametres(e)}`
+          ? `${cheminDe(parent, [...vus, e.nom]).replace(/\/+$/, '')}/${enAdresse(e.nom)}${parametres(e)}`
           : e === entree && !e.parametresAdresse?.length
             ? '/'
-            : `/${simplifier(e.nom)}${parametres(e)}`;
+            : `/${enAdresse(e.nom)}${parametres(e)}`;
     chemins.set(e.nom, chemin);
     return chemin;
   };

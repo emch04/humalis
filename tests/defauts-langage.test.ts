@@ -109,4 +109,19 @@ describe('défauts trouvés avec Rey Store', () => {
     );
     expect(erreurs(source)).toEqual([]);
   });
+
+  it('un titre dans « si » et un autre dans « sinon » : l’onglet suit la même condition', () => {
+    const source = programme('site :', '>nom "Rey Store"', '>description "Les maillots et la mode masculine, commandés sur WhatsApp et payés à la livraison."', '', 'page "boutique" avec filtre recherche :', '>si recherche est rien :', '>>titre "La boutique"', '>sinon :', '>>titre "Recherche : {recherche}"');
+    expect(erreurs(source)).toEqual([]);
+    const page = genererProjetWeb(compiler(source).application!, { nom: 'b', adresse: 'https://b.cd', source: 'b.humalis' }).get('src/pages/Boutique.tsx')!;
+    expect(page).toMatch(/\(recherche == null \? 'La boutique \| Rey Store' : /);
+  });
+
+  it('« page "mentions-legales" » a l’adresse /mentions-legales (les traits d’union restent)', () => {
+    const source = programme('page "accueil" :', '>titre "Accueil"', '>lien "Mentions" vers "mentions-legales"', '', 'page "mentions-legales" :', '>titre "Mentions légales"');
+    expect(erreurs(source)).toEqual([]);
+    const fichiers = genererProjetWeb(compiler(source).application!, { nom: 'b', adresse: 'https://b.cd', source: 'b.humalis' });
+    expect(fichiers.get('src/pages/Accueil.tsx')).toContain('to="/mentions-legales"');
+    expect([...fichiers.values()].join('\n')).not.toContain('/mentions_legales');
+  });
 });

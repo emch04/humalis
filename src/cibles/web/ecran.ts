@@ -3,7 +3,7 @@ import { titreComplet, adresseImage, sansBarreFinale } from '../publication.js';
 import { sousActions } from '../../ri/actions.js';
 import { nomDeLaCopie, estFichierLocal, type InfoMedia } from '../../ri/medias.js';
 import { estCombine } from '../../ri/types.js';
-import type { Ecran, Etat, NoeudVue, Gestionnaire, Action, Valeur, TypeValeur, Option, Saisie, FonctionRI, ImageRI, SiteRI, LangueRI } from '../../ri/types.js';
+import type { Ecran, Etat, NoeudVue, Gestionnaire, Action, Valeur, TypeValeur, Option, Saisie, FonctionRI, ImageRI, SiteRI, LangueRI, Test } from '../../ri/types.js';
 import { simplifier } from '../../analyse/elements.js';
 import { lireCible } from '../../analyse/navigation.js';
 import type { GenreBloc } from '../../parser/ast.js';
@@ -1040,7 +1040,12 @@ class GenerateurEcran {
       const code = complet && donnees ? `(${expression(valeur, this.contexte)} || ${chaine(titre)})` : expression(valeur, this.contexte);
       return complet && site?.nom ? `${code} + ${suffixe()}` : code;
     };
-    const titreCode = enCode(apercu?.titre ?? premiereValeur('titre', this.ecran.vue, this.application.langues), true) ?? titreLitteral(titre);
+    // Un titre écrit dans « si » et un autre dans « sinon » : l'onglet suit la même condition
+    // (« si recherche est rien : titre "La boutique" sinon : titre "Recherche : {recherche}" »).
+    const branches = !apercu?.titre && !this.application.langues?.length && !premiereValeurEn('titre', this.ecran.vue) ? titresDeCondition(this.ecran.vue) : undefined;
+    const titreCode = branches
+      ? `(${condition(branches.test, this.contexte)} ? ${enCode(branches.alors, true)} : ${enCode(branches.sinon, true)})`
+      : (enCode(apercu?.titre ?? premiereValeur('titre', this.ecran.vue, this.application.langues), true) ?? titreLitteral(titre));
     const descriptionCode =
       enCode(apercu?.description ?? premiereValeur('texte', this.ecran.vue, this.application.langues)) ??
       (site?.descriptionLangues ? messageEnCode(site.descriptionLangues, chaine) : chaine(site?.description ?? description));
@@ -2317,6 +2322,23 @@ function premiereValeurEn(genre: string, noeuds: NoeudVue[], code?: string): Val
  * Le titre écrit dans une branche « si … / sinon » (« si produit est rien : … sinon : titre produit.nom ») :
  * le titre de la page quand ses données sont là. Seulement pour le titre, pas pour la description.
  */
+/** La première condition dont les deux branches écrivent un titre : le titre suit la condition. */
+function titresDeCondition(noeuds: NoeudVue[]): { test: Test; alors: Valeur; sinon: Valeur } | undefined {
+  for (const n of noeuds) {
+    if (n.type === 'condition') {
+      const alors = premiereValeurEn('titre', n.alors);
+      const sinon = premiereValeurEn('titre', n.sinon);
+      if (alors && sinon) return { test: n.test, alors, sinon };
+      if (alors || sinon) return undefined;
+    }
+    if (n.type === 'bloc') {
+      const trouve = titresDeCondition(n.corps);
+      if (trouve) return trouve;
+    }
+  }
+  return undefined;
+}
+
 function titreDesBranches(noeuds: NoeudVue[]): Valeur | undefined {
   for (const n of noeuds) {
     if (n.type === 'condition') {
