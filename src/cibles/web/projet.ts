@@ -159,22 +159,24 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
   fichiers.set('vite.config.ts', application.serveurs.length > 0 ? VITE_CONFIG_SERVEUR : VITE_CONFIG);
   fichiers.set('tsconfig.json', TSCONFIG);
   fichiers.set('.gitignore', 'node_modules\ndist\n');
-  fichiers.set(
-    'astratra.prerender.config.cjs',
-    // Une page à paramètre n'est pas prérendue : son adresse dépend des données.
-    configPrerendu(
-      options.adresse,
-      // Une sous-page d'index a l'adresse de son parent : une seule entrée par adresse.
-      pages
-        // Une page « indexation non » n'est ni prérendue ni dans le plan du site.
-        .filter(({ ecran }) => !chemins.get(ecran.nom)!.includes(':') && ecran.nom !== 'introuvable' && !ecran.reservee && ecran.apercu?.indexation !== false)
-        .map(({ ecran, page }) => ({ chemin: chemins.get(ecran.nom)!, libelle: page.titre }))
-        .filter((r, i, toutes) => toutes.findIndex((x) => x.chemin === r.chemin) === i),
-      adresses,
-      application.site?.indexation !== false,
-      animeAuDefilement(pages.map(({ page }) => page.code)),
-    ),
-  );
+  // Une page à paramètre n'est pas prérendue : son adresse dépend des données.
+  // Une sous-page d'index a l'adresse de son parent : une seule entrée par adresse.
+  const routesPrerendues = pages
+    // Une page « indexation non » n'est ni prérendue ni dans le plan du site.
+    .filter(({ ecran }) => !chemins.get(ecran.nom)!.includes(':') && ecran.nom !== 'introuvable' && !ecran.reservee && ecran.apercu?.indexation !== false)
+    .map(({ ecran, page }) => ({ chemin: chemins.get(ecran.nom)!, libelle: page.titre }))
+    .filter((r, i, toutes) => toutes.findIndex((x) => x.chemin === r.chemin) === i);
+  if (routesPrerendues.length > 0) {
+    fichiers.set(
+      'astratra.prerender.config.cjs',
+      configPrerendu(options.adresse, routesPrerendues, adresses, application.site?.indexation !== false, animeAuDefilement(pages.map(({ page }) => page.code))),
+    );
+  } else {
+    // Rien à prérendre (une application dont toutes les pages sont réservées) : le prérendu refuserait une liste vide.
+    const paquet = JSON.parse(fichiers.get('package.json')!);
+    paquet.scripts.build = paquet.scripts['build:sans-prerendu'];
+    fichiers.set('package.json', JSON.stringify(paquet, null, 2) + '\n');
+  }
   fichiers.set('LISEZMOI.md', lisezmoi(options, application.serveurs.length > 0));
   fichiers.set('src/vite-env.d.ts', '/// <reference types="vite/client" />\n');
   // La page « introuvable » écrite par la personne remplace celle de Humalis.

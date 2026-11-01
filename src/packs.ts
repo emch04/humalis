@@ -10,7 +10,11 @@ export const PACKS: readonly { nom: string; version: string; cible: string }[] =
   { nom: '@astratra/saas-kit', version: VERSIONS_SERVEUR.saasKit, cible: 'serveur' },
   { nom: '@astratra/security', version: VERSIONS_SERVEUR.security, cible: 'serveur' },
   { nom: '@astratra/store-postgres', version: VERSIONS_SERVEUR.storePostgres, cible: 'serveur' },
+  { nom: '@astratra/centrale', version: VERSIONS_SERVEUR.centrale, cible: 'serveur' },
+  { nom: '@astratra/credentials', version: VERSIONS_SERVEUR.credentials, cible: 'serveur' },
+  { nom: '@astratra/tooling', version: VERSIONS_SERVEUR.tooling, cible: 'serveur' },
   { nom: '@astratra/prerender', version: VERSIONS.prerender, cible: 'web' },
+  { nom: '@astratra/client', version: VERSIONS.client, cible: 'web' },
 ];
 
 export type GenreDeChangement = 'a_jour' | 'correctif' | 'nouveautes' | 'grand_changement' | 'plus_ancienne' | 'illisible';
