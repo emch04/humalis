@@ -9,6 +9,8 @@ export interface ElementRecense {
   nom?: string;
   /** Le contenu de l'élément, quand c'est un texte écrit entre guillemets. */
   libelle?: string;
+  /** Le texte tel qu'écrit, avec ses {variables} (« Voir {c.nom} ») : un événement peut le viser tel quel. */
+  modele?: string;
   ligne: number;
 }
 
@@ -85,7 +87,7 @@ export class ElementsPage {
     const parNom = candidats.filter((e) => e.nom === texte);
     if (parNom.length > 0) return { ids: parNom.map((e) => e.id) };
 
-    const parLibelle = candidats.filter((e) => e.libelle === texte);
+    const parLibelle = candidats.filter((e) => e.libelle === texte || e.modele === texte);
     if (parLibelle.length === 0) return { erreur: 'inconnu' };
     if (parLibelle.length > 1) {
       return { erreur: 'ambigu', lignes: [parLibelle[0].ligne, parLibelle[1].ligne] };
@@ -150,7 +152,11 @@ export class ElementsPage {
     this.idsPris.add(id);
     this.ids.set(noeud, id);
 
-    this.elements.push({ noeud, id, nom: noeud.nom, libelle, ligne: noeud.ligne });
+    const modele =
+      libelle === undefined && contenu.type === 'Chaine'
+        ? contenu.parties.map((p) => (p.type === 'variable' ? `{${p.valeur}}` : p.valeur)).join('')
+        : undefined;
+    this.elements.push({ noeud, id, nom: noeud.nom, libelle, ...(modele !== undefined ? { modele } : {}), ligne: noeud.ligne });
     return id;
   }
 }
