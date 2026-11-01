@@ -716,9 +716,10 @@ ${interactions.fenetres ? '    // Une fenêtre fermée rend le focus à ce qui l
       });
     }
     bouton('×', 'humalis-message-fermer', fermer).setAttribute('aria-label', 'Fermer le message');
-    // La souris ou le focus sur le message le gardent ; Échap le ferme.
-    message.addEventListener('mouseenter', () => clearTimeout(minuterie));
-    message.addEventListener('mouseleave', attendre);
+    // La souris ou le focus sur le message le gardent ; Échap le ferme. Un doigt ne « sort » jamais :
+    // le toucher ne met pas en pause, sinon le message resterait affiché pour toujours.
+    message.addEventListener('pointerenter', (evenement) => evenement.pointerType !== 'touch' && clearTimeout(minuterie));
+    message.addEventListener('pointerleave', (evenement) => evenement.pointerType !== 'touch' && attendre());
     message.addEventListener('focusin', () => clearTimeout(minuterie));
     message.addEventListener('focusout', attendre);
     message.addEventListener('keydown', (evenement) => evenement.key === 'Escape' && fermer());
