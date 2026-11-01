@@ -65,6 +65,11 @@ export const MESSAGES: Versions[] = [
   { fr: 'Valeur', en: 'Value' },
   { fr: 'Libellé', en: 'Label' },
   { fr: 'Voir les données', en: 'View the data' },
+  // Les graphiques tactiles : la consigne et la lecture une à une.
+  { fr: 'Touchez le graphique pour lire une valeur.', en: 'Touch the chart to read a value.' },
+  { fr: 'Flèches gauche et droite : lire les valeurs une à une.', en: 'Left and right arrows: read the values one by one.' },
+  { fr: 'Flèches gauche et droite : lire les valeurs une à une. Le graphique défile ; il montre d’abord les dernières valeurs.', en: 'Left and right arrows: read the values one by one. The chart scrolls; it shows the latest values first.' },
+  { fr: 'Lire les valeurs', en: 'Read the values' },
   { fr: 'Cacher les données', en: 'Hide the data' },
   { fr: 'Les données du graphique', en: 'The chart data' },
   { fr: 'Aucune donnée à afficher.', en: 'No data to display.' },
@@ -400,7 +405,9 @@ export function graphiqueStatiqueEnLangues(code: string, codes: string[]): strin
       'devise ? (valeur) => humalis.formaterArgent(valeur, devise) : humalis.formaterNombre;',
       'devise ? (valeur) => humalis.formaterArgent(valeur, devise, humalis.langue()) : (valeur) => humalis.formaterNombre(valeur, humalis.langue());',
     )
-    .replace('htmlDuGraphique(config, donnees, formateur(config.devise))', 'htmlDuGraphique({ ...config, langue: humalis.langue() }, donnees, formateur(config.devise))');
+    .replace('htmlDuGraphique(config, donnees, formateur(config.devise))', 'htmlDuGraphique({ ...config, langue: humalis.langue() }, donnees, formateur(config.devise))')
+    // La bulle du toucher écrit aussi ses nombres et pourcentages dans la langue de la page.
+    .replace('activer(figure, config, donnees, formateur(config.devise))', 'activer(figure, { ...config, langue: humalis.langue() }, donnees, formateur(config.devise))');
   for (const fr of ['Voir les données', 'Les données du graphique', 'Aucune donnée à afficher.']) {
     resultat = resultat.split(`>${fr}<`).join(`>' + humalis.${enCode(messageDe(fr), codes, false)} + '<`);
   }
