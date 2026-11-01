@@ -183,7 +183,7 @@ export interface ImageProduite {
 
 /** `<img>` sur le web : dimensions, chargement différé (sauf prioritaire), décodage à part, proportions. */
 function imageWeb(image: ImageProduite, attributs: string): string {
-  const src = image.locale !== undefined ? JSON.stringify(`/images/${image.locale}`) : `{${image.expression}}`;
+  const src = image.locale !== undefined ? JSON.stringify(`/images/${nomDeLaCopie(image.locale)}`) : `{${image.expression}}`;
   const dimensions = image.largeur && image.hauteur ? ` width={${image.largeur}} height={${image.hauteur}}` : '';
   const chargement = image.prioritaire ? ' fetchPriority="high"' : ' loading="lazy"';
   const proportions = image.proportions ? ` style={{ aspectRatio: '${image.proportions[0]} / ${image.proportions[1]}' }}` : '';
@@ -2410,7 +2410,8 @@ export function titreEtDescription(ecran: Ecran, langues?: LangueRI[]): { titre:
   };
   const nom = ecran.nom.replace(/_/g, ' ');
   const titre = premier('titre', ecran.vue) ?? nom.charAt(0).toUpperCase() + nom.slice(1);
-  return { titre, description: premier('texte', ecran.vue) ?? titre };
+  // Un saut de ligne n'a pas sa place dans une description : il devient une espace.
+  return { titre, description: (premier('texte', ecran.vue) ?? titre).replace(/\s*\n\s*/g, ' ') };
 }
 
 /** Vrai si des actions contiennent un « rendre » (une fonction qui rend une valeur). */

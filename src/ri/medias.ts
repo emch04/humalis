@@ -74,11 +74,12 @@ export function mediasLocaux(application: Application): MediaLocal[] {
 
 /**
  * Le chemin de la copie dans le projet produit, relatif au dossier des
- * images (« salle.jpg », « plats/moambe.jpg ») : le chemin écrit, sans « ./ ».
+ * images (« salle.jpg », « plats/moambe.jpg ») : le chemin écrit, sans « ./ » ni
+ * « images/ » au début, car le dossier produit s'appelle déjà ainsi.
  * Un chemin qui remonte (« ../ ») garde seulement le nom du fichier.
  */
 export function nomDeLaCopie(chemin: string): string {
-  const propre = chemin.replace(/\\/g, '/').replace(/^(\.\/)+/, '');
+  const propre = chemin.replace(/\\/g, '/').replace(/^(\.\/)+/, '').replace(/^images\//, '');
   return propre.split('/').some((m) => m === '..' || m === '') ? propre.split('/').pop()! : propre;
 }
 

@@ -55,7 +55,7 @@ describe('connexion avec Google', () => {
     expect(serveur).toContain("import { createGoogleIdTokenVerifier, IdTokenError, createLoginLimiter, hashPassword, isStrongPassword, verifyPasswordHash, WAF_PATTERNS } from '@astratra/security';");
     expect(serveur).toContain("routeGoogle.post('/', createLoginLimiter() as unknown as RequestHandler, csrfMiddleware, async (req, res, next) => {");
     // Le pare-feu du pack, sans le refus du « # » : « avenue #12 » est une vraie adresse.
-    expect(serveur).toContain("waf: { patterns: WAF_PATTERNS.map((motif) => new RegExp(motif.source.replace('|#|', '|'), motif.flags)) },");
+    expect(serveur).toContain("waf: { patterns: WAF_PATTERNS.map((motif) => new MotifDuPareFeu(motif.source.replace('|#|', '|'), motif.flags)) },");
     // Comme Tertius et Solvia : le compte est lié au « sub » de Google ; un autre compte Google est refusé.
     expect(serveur).toContain("compte.googleSubject !== profil.subject");
     expect(serveur).toContain("usersStore.update(String(compte.id), { googleSubject: profil.subject })");
