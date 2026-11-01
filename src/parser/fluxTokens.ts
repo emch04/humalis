@@ -27,6 +27,11 @@ export class FluxTokens {
     }
   }
 
+  /** Le mot de liaison écrit juste avant le token situé `decalage` plus loin (« de » dans « arrondi de ( »). */
+  liaisonA(decalage: number): Token | undefined {
+    return this.liaisons.get(Math.min(this.position + decalage, this.tokens.length - 1));
+  }
+
   /** Le mot de liaison écrit juste avant le token actuel, s'il y en a un. */
   liaisonAvant(): Token | undefined {
     return this.liaisons.get(Math.min(this.position, this.tokens.length - 1));

@@ -1707,6 +1707,14 @@ function analyserFacteur(flux: FluxTokens): Expression {
 function analyserFacteurSeul(flux: FluxTokens): Expression {
   const token = flux.actuel();
 
+  // « champ "Confirme" » partout où une valeur est attendue : à droite d'une comparaison,
+  // dans « avec telephone = champ "Téléphone" », dans un calcul.
+  if (flux.verifier('MOT_CLE', 'champ') && flux.regarder(1).type === 'CHAINE') {
+    flux.avancer();
+    const nom = flux.attendre('CHAINE', undefined, 'le nom du champ entre guillemets');
+    return { type: 'Champ', nom: nom.valeur, ligne: token.ligne };
+  }
+
   // « aujourd'hui » (le lexer lit « aujourd ' hui ») et « maintenant », seuls à leur place.
   if (estLeMot(token, 'aujourdhui') || (estLeMot(token, 'aujourd') && flux.regarder(1).valeur === "'" && estLeMot(flux.regarder(2), 'hui'))) {
     flux.avancer();
@@ -1758,8 +1766,9 @@ function analyserFacteurSeul(flux: FluxTokens): Expression {
       return { type: 'Agregat', operation, liste: analyserFacteur(flux), ligne: token.ligne };
     }
   }
-  // « arrondi de x », « arrondi de x a 2 chiffres » (« a » est un petit mot écarté).
-  if (estLeMot(token, 'arrondi') && commenceUneValeur(flux.regarder(1))) {
+  // « arrondi de x », « arrondi de x a 2 chiffres » (« a » est un petit mot écarté), « arrondi de (a - b) ».
+  const apresArrondi = flux.regarder(1);
+  if (estLeMot(token, 'arrondi') && (commenceUneValeur(apresArrondi) || (apresArrondi.type === 'PONCTUATION' && apresArrondi.valeur === '(' && flux.liaisonA(1)?.valeur === 'de'))) {
     flux.avancer();
     const valeur = analyserFacteur(flux);
     if (flux.verifier('NOMBRE') && estLeMot(flux.regarder(1), 'chiffres')) {
