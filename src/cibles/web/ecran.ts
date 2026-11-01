@@ -1293,9 +1293,12 @@ class GenerateurEcran {
           locales.add(action.nom);
           e.ligne(`${modifiees.has(action.nom) ? 'let' : 'const'} ${camel(action.nom)} = ${x(action.valeur)};`);
           break;
-        case 'ajout':
-          changer(action.liste, `[...${actuel(action.liste)}, ${x(action.valeur)}]`);
+        case 'ajout': {
+          // Une valeur lue d'une fiche peut-être absente (« produit?.id ») : ajoutée seulement si elle existe.
+          const valeur = x(action.valeur);
+          changer(action.liste, valeur.includes('?.') ? `[...${actuel(action.liste)}, ...[${valeur}].filter((v) => v != null)]` : `[...${actuel(action.liste)}, ${valeur}]`);
           break;
+        }
         case 'retrait':
           changer(action.liste, `retirerPremier(${actuel(action.liste)}, ${x(action.valeur)})`);
           break;

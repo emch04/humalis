@@ -134,6 +134,14 @@ describe('les clés envoyées au serveur du programme', () => {
   });
 });
 
+describe('ajouter une valeur lue d’une fiche peut-être absente', () => {
+  it('« ajouter produit.id à favoris » n’ajoute que si la valeur existe (TypeScript accepte la liste)', () => {
+    const prog = programme('variable favoris = [] avec partagee', '', 'page "p" :', '>variable produit = rien', '>titre "P"', '>si produit est different de rien :', '>>bouton "Aimer"', '>>quand l\'utilisateur clique sur "Aimer" :', '>>>ajouter produit.id à favoris', '>>>retirer produit.id de favoris');
+    const page = genererProjetWeb(compiler(prog).application!, { nom: 'b', adresse: 'https://b.cd', source: 'b.humalis' }).get('src/pages/P.tsx')!;
+    expect(page).toMatch(/\.\.\.\[produit\?\.id\]\.filter\(\(v\) => v != null\)/);
+  });
+});
+
 describe('le pied d’une page courte', () => {
   it('reste en bas de l’écran (pied collant), seulement quand le site a un pied', async () => {
     const { cssEcran } = await import('../src/cibles/web/css-ecran.js');
