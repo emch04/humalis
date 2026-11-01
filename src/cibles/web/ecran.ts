@@ -1302,7 +1302,7 @@ class GenerateurEcran {
         case 'requete': {
           const methode = action.mode;
           const args = [chaine(action.adresse)];
-          if (action.mode === 'envoyer') args.push(this.donnees(action.donnees, action.cles));
+          if (action.mode === 'envoyer') args.push(this.donnees(action.donnees, action.cles, action.source === undefined));
           // « avec id » : l'identifiant de l'élément à lire.
           if (action.mode === 'lireUn') args.push(x(action.donnees[0]));
           if (action.resultat !== undefined) {
@@ -1608,10 +1608,11 @@ class GenerateurEcran {
   }
 
   /** `{ email: champEmail, age }` : les données envoyées au serveur. */
-  private donnees(valeurs: Valeur[], cles?: (string | undefined)[]): string {
+  private donnees(valeurs: Valeur[], cles?: (string | undefined)[], versLeServeur = false): string {
     const paires = valeurs.map((v, i) => {
       const ecrite = cles?.[i];
-      const cle = ecrite !== undefined ? (/^[A-Za-z_]\w*$/.test(ecrite) ? ecrite : chaine(ecrite)) : v.type === 'champ' ? (this.clesChamps.get(v.id) ?? camel(v.id)) : v.type === 'variable' ? camel(v.nom) : 'valeur';
+      // Vers le serveur du programme, « prix_avant = 0 » suit le nom du champ (prixAvant) ; une API externe garde la clé écrite.
+      const cle = ecrite !== undefined ? (versLeServeur && /^[A-Za-z_]\w*$/.test(ecrite) ? camel(ecrite) : /^[A-Za-z_]\w*$/.test(ecrite) ? ecrite : chaine(ecrite)) : v.type === 'champ' ? (this.clesChamps.get(v.id) ?? camel(v.id)) : v.type === 'variable' ? camel(v.nom) : 'valeur';
       const valeur = expression(v, this.contexte);
       return cle === valeur ? cle : `${cle}: ${valeur}`;
     });
