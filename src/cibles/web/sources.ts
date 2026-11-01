@@ -136,6 +136,7 @@ const MOTEUR = `
       return extraire(brut, source, appel, actuelle);
     } catch (erreur) {
       const message = messageDeLErreur(erreur);
+      derniereRaison = message;
       appel.suivi?.({ statut: erreur instanceof ErreurSource && erreur.code === 404 ? 'introuvable' : 'erreur', message });
       // Si la page parle de l'erreur, elle la montre à sa façon : Humalis se tait.
       if (!appel.silencieux) afficherMessage(message, 'erreur', appel.relancer);

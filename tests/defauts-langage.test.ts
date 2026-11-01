@@ -124,4 +124,56 @@ describe('défauts trouvés avec Rey Store', () => {
     expect(fichiers.get('src/pages/Accueil.tsx')).toContain('to="/mentions-legales"');
     expect([...fichiers.values()].join('\n')).not.toContain('/mentions_legales');
   });
+
+  it('une valeur peut-être absente dans un texte à trous s’écrit vide, pas « undefined »', () => {
+    const source = programme(
+      'serveur "s" :',
+      '>donnee reglage :',
+      '>>boutique : texte',
+      '>route "reglages" :',
+      '>>tout le monde peut lire reglage',
+      '>>seul admin peut modifier reglage',
+      '',
+      'page "p" :',
+      '>titre "P"',
+      '>variable reglages = []',
+      '>quand la page se charge :',
+      '>>envoyer requete vers "reglages" dans reglages',
+      '>calcul reglage = premier de reglages',
+      '>formulaire "f" :',
+      '>>champ "Nom" avec indice "{reglage.boutique}"',
+      '>>bouton "Ok"',
+      '>quand le formulaire "f" est soumis :',
+      '>>afficher "{reglage.boutique}"',
+    );
+    expect(erreurs(source)).toEqual([]);
+    const page = genererProjetWeb(compiler(source).application!, { nom: 'b', adresse: 'https://b.cd', source: 'b.humalis' }).get('src/pages/P.tsx')!;
+    expect(page).toContain("${reglage?.boutique ?? ''}");
+    expect(page).not.toMatch(/\$\{reglage\?\.boutique\}/);
+  });
+
+  it('« si erreur » reçoit la raison du refus du serveur, pas toujours « Le serveur n’a pas répondu »', async () => {
+    const source = programme(
+      'serveur "s" :',
+      '>donnee produit :',
+      '>>prix : nombre',
+      '>route "produits" :',
+      '>>tout le monde peut lire produit',
+      '>>tout le monde peut creer produit',
+      '',
+      'page "p" :',
+      '>titre "P"',
+      '>bouton "Créer"',
+      '>quand l\'utilisateur clique sur "Créer" :',
+      '>>essayer :',
+      '>>>envoyer requete vers "produits" avec prix = 3',
+      '>>si erreur :',
+      '>>>afficher erreur "{raison}"',
+    );
+    const fichiers = genererProjetWeb(compiler(source).application!, { nom: 'b', adresse: 'https://b.cd', source: 'b.humalis' });
+    expect(fichiers.get('src/pages/P.tsx')).toContain('return serveur.raison();');
+    const serveur = fichiers.get('src/humalis/serveur.ts')!;
+    expect(serveur).toContain("corps.erreur.charAt(0).toUpperCase() + corps.erreur.slice(1) + '.'");
+    expect(serveur).toContain('raison: () => derniereRaison,');
+  });
 });

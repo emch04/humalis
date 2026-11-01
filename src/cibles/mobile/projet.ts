@@ -625,6 +625,9 @@ import { seGarde, garder, lireEnCommun, oublier } from './lectures';
 
 /** L'adresse du serveur Humalis : un téléphone n'a pas de « même origine ». */
 export const BASE = process.env.EXPO_PUBLIC_HUMALIS_SERVEUR ?? '';
+
+/** Le serveur n'a pas répondu (réseau coupé, serveur arrêté) : pas de raison plus précise. */
+const PAS_DE_REPONSE = "Le serveur n'a pas répondu.";
 if (BASE === '' && Platform.OS !== 'web') {
   console.warn("EXPO_PUBLIC_HUMALIS_SERVEUR n'est pas réglée : les requêtes ne savent pas où trouver le serveur.");
 }
@@ -654,6 +657,8 @@ export async function securiser(entetes: Headers, methode: string): Promise<void
  */
 export function useServeur() {
   const { afficherMessage } = useMessages();
+  // La raison du dernier échec : la phrase du serveur quand il refuse, sinon « pas répondu ».
+  let derniereRaison = PAS_DE_REPONSE;
 
   async function appeler<T>(adresse: string, options: RequestInit, actuelle: T): Promise<T> {
     try {
@@ -665,7 +670,11 @@ export function useServeur() {
       const reponse = lecture ? await lireEnCommun(adresse, BASE + adresse, envoi) : await fetch(BASE + adresse, envoi);
       // Une lecture d'un élément qui n'existe plus (404) : la valeur actuelle est gardée, sans faux « pas répondu ».
       if (reponse.status === 404 && options.method === 'GET') return actuelle;
-      if (!reponse.ok) throw new Error(String(reponse.status));
+      if (!reponse.ok) {
+        // Un refus du serveur : sa raison, pour « si erreur » et le message.
+        const corps = (await reponse.json().catch(() => null)) as { erreur?: unknown } | null;
+        throw new Error(typeof corps?.erreur === 'string' && corps.erreur !== '' ? corps.erreur.charAt(0).toUpperCase() + corps.erreur.slice(1) + '.' : PAS_DE_REPONSE);
+      }
       // Un envoi réussi : les lectures gardées de cette route ont peut-être changé.
       if (!lecture) oublier(adresse, options.method ?? 'POST');
       const texte = await reponse.text();
@@ -676,14 +685,17 @@ export function useServeur() {
       // Ce que tout le monde peut lire est gardé : l'écran s'affichera tout de suite la prochaine fois.
       if (lecture && seGarde(reponse)) garder(adresse, valeur, texte);
       return valeur;
-    } catch {
-      afficherMessage("Le serveur n'a pas répondu. Réessayez dans un instant.", 'erreur');
+    } catch (erreur) {
+      derniereRaison = erreur instanceof Error && erreur.message !== PAS_DE_REPONSE ? erreur.message : PAS_DE_REPONSE;
+      afficherMessage(derniereRaison === PAS_DE_REPONSE ? "Le serveur n'a pas répondu. Réessayez dans un instant." : derniereRaison, 'erreur');
       return actuelle;
     }
   }
 
   // Avec une valeur actuelle, la réponse a son type ; sans, elle est inconnue.
   return {
+    // La raison du dernier échec, que reçoit « si erreur » (« raison »).
+    raison: () => derniereRaison,
     lire: (adresse: string, actuelle?: unknown) => appeler(adresse, { method: 'GET' }, actuelle),
     // « avec id dans produit » : un seul élément, par son identifiant.
     lireUn: (adresse: string, id: string, actuelle?: unknown) =>
@@ -707,6 +719,7 @@ export function useServeur() {
 }
 
 interface Serveur {
+  raison(): string;
   lire<T>(adresse: string, actuelle: T): Promise<T>;
   lire(adresse: string): Promise<unknown>;
   lireUn<T>(adresse: string, id: string, actuelle: T): Promise<T>;

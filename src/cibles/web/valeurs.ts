@@ -216,7 +216,9 @@ function texteTS(parties: PartiesTexte, contexte: Contexte, langue?: string): st
     const chemin = [nomLu(premier, contexte), ...reste.map(camel)].join('.');
     if (formater) return `\${${formater(chemin)}}`;
     const type = contexte.types.get(p.variable);
-    return type?.genre === 'liste' ? `\${${chemin}.join(', ')}` : `\${${chemin}}`;
+    if (type?.genre === 'liste') return `\${${chemin}.join(', ')}`;
+    // Une valeur peut-être absente (« reglage?.boutique », une variable « = rien ») : rien, plutôt que « undefined ».
+    return chemin.includes('?.') || contexte.facultatives?.has(premier) ? `\${${chemin} ?? ''}` : `\${${chemin}}`;
   });
   return `\`${morceaux.join('')}\``;
 }
