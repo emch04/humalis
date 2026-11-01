@@ -199,4 +199,41 @@ describe('défauts trouvés avec Rey Store', () => {
     expect(fichiers.has('astratra.prerender.config.cjs')).toBe(false);
     expect(JSON.parse(fichiers.get('package.json')!).scripts.build).toBe('tsc --noEmit && vite build');
   });
+
+  it('une date reste au format français dans un composant et une fois copiée dans une fiche', () => {
+    const source = programme(
+      'serveur "s" :',
+      '>donnee commande :',
+      '>>nom : texte',
+      '>>jour : date',
+      '>route "commandes" :',
+      '>>seul admin peut lire commande',
+      '>>seul admin peut modifier commande',
+      '',
+      'composant "CarteCommande" :',
+      '>parametre commande',
+      '>texte "Le {commande.jour}, {commande.nom}"',
+      '',
+      'page "p" :',
+      '>titre "P"',
+      '>variable commandes = []',
+      '>variable copies = []',
+      '>quand la page se charge :',
+      '>>envoyer requete vers "commandes" dans commandes',
+      '>>pour chaque c dans commandes :',
+      '>>>ajouter fiche avec jour c.jour et nom c.nom à copies',
+      '>pour chaque c dans commandes :',
+      '>>CarteCommande avec commande c',
+      '>pour chaque x dans copies :',
+      '>>texte "{x.jour}, {x.nom}"',
+    );
+    expect(erreurs(source)).toEqual([]);
+    const fichiers = genererProjetWeb(compiler(source).application!, { nom: 'b', adresse: 'https://b.cd', source: 'b.humalis' });
+    const tout = [...fichiers.values()].join('\n');
+    expect(tout).toContain('formaterDate(commande');
+    expect(tout).not.toContain('formaterDate(commande.nom');
+    expect(tout).not.toContain('formaterDate(commande?.nom');
+    expect(fichiers.get('src/pages/P.tsx')).toContain('formaterDate(x.jour)');
+    expect(fichiers.get('src/pages/P.tsx')).not.toContain('formaterDate(x.nom)');
+  });
 });

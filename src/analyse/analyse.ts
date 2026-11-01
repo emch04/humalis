@@ -1811,13 +1811,14 @@ class AnalysePage {
         return NOMBRE;
       }
       case 'Fiche': {
-        const champs: { nom: string; type: TypeValeur }[] = [];
+        const champs: { nom: string; type: TypeValeur; date?: true }[] = [];
         for (const champ of expression.champs) {
           if (champs.some((c) => c.nom === champ.nom)) {
             this.erreur(`le champ « ${champ.nom} » est donné deux fois dans cette fiche.`, champ.ligne);
             continue;
           }
-          champs.push({ nom: champ.nom, type: this.typeDe(champ.valeur) });
+          // Une date recopiée dans une fiche garde son format français à l'affichage.
+          champs.push({ nom: champ.nom, type: this.typeDe(champ.valeur), ...(this.estExpressionDate(champ.valeur) ? { date: true as const } : {}) });
         }
         return { genre: 'fiche', champs };
       }
@@ -2103,8 +2104,12 @@ class AnalysePage {
 
   private estChampDate(racine: string, champ: string): boolean {
     const type = this.portees.chercher(racine)?.type;
-    if (type?.genre !== 'donnee') return false;
-    return this.liens.donnees.get(type.nom)?.champs.find((c) => c.nom === champ)?.type.genre === 'date';
+    if (type?.genre === 'fiche') return type.champs.some((c) => c.nom === champ && c.date);
+    if (type?.genre === 'donnee') return this.liens.donnees.get(type.nom)?.champs.find((c) => c.nom === champ)?.type.genre === 'date';
+    if (type && estConnu(type)) return false;
+    // Le paramètre d'un composant n'a pas de type : un champ qui est une date dans toutes les données qui le portent en est une.
+    const porteurs = [...this.liens.donnees.values()].flatMap((d) => d.champs.filter((c) => c.nom === champ));
+    return porteurs.length > 0 && porteurs.every((c) => c.type.genre === 'date');
   }
 
   /** Le type d'un champ de donnée, vu depuis une page. */
