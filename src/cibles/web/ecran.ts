@@ -152,6 +152,8 @@ export interface ElementProduit {
     saisie?: Saisie;
     /** Un choix ou une liste déroulante : l'expression de la liste des valeurs. */
     valeurs?: string;
+    /** Un indice avec des {variables} : son expression. */
+    indice?: string;
     /** Une saisie d'une ligne d'un formulaire qui a sa soumission : la touche du clavier l'envoie. */
     envoie?: boolean;
     /** Une liste déroulante écrite à la main : l'état qui dit si elle est ouverte. */
@@ -211,7 +213,7 @@ function champWeb(el: ElementProduit, a: string): string {
   // Le libellé et son étoile restent sur la même ligne (le libellé est en colonne, au-dessus de la saisie).
   const libelle = saisie?.obligatoire ? `<span>${el.contenu}${ETOILE_WEB}</span>` : el.contenu;
   const requis = saisie?.obligatoire ? ' required' : '';
-  const indice = saisie?.indice !== undefined ? ` placeholder=${saisie.indiceLangues ? `{${messageEnCode(saisie.indiceLangues, chaine)}}` : attributTexte(saisie.indice)}` : '';
+  const indice = el.champ.indice !== undefined ? ` placeholder={String(${el.champ.indice} ?? '')}` : saisie?.indice !== undefined ? ` placeholder=${saisie.indiceLangues ? `{${messageEnCode(saisie.indiceLangues, chaine)}}` : attributTexte(saisie.indice)}` : '';
   const changer = `onChange={(evenement) => ${setter}(evenement.target.value)}`;
   switch (sorte) {
     case 'case':
@@ -2163,6 +2165,7 @@ class GenerateurEcran {
         genre: this.champsMotDePasse.has(noeud.id) ? 'motDePasse' : this.champsEmail.has(noeud.id) ? 'email' : undefined,
         ...(saisie ? { saisie } : {}),
         ...(saisie?.parmi ? { valeurs: expression(saisie.parmi, this.contexte) } : {}),
+        ...(saisie?.indiceValeur ? { indice: expression(saisie.indiceValeur, this.contexte) } : {}),
         ...(envoiClavier ? { envoie: true } : {}),
         ...(ouvert ? { ouvert: { variable: ouvert, setter: setterDe(ouvert) } } : {}),
       },

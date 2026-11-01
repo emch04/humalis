@@ -218,7 +218,7 @@ function champMobile(el: ElementProduit, id: string, evenements: string, options
             : CLAVIERS[sorte];
       const texteIndice = saisie?.indice ?? INDICES[sorte];
       // Le texte gris d'un champ vide : du même gris que la bordure, en clair comme en sombre.
-      const indice = texteIndice !== undefined ? ` placeholder=${saisie?.indiceLangues ? `{${messageEnCode(saisie.indiceLangues, chaine)}}` : attributTexte(texteIndice)} placeholderTextColor="#8a8a90"` : '';
+      const indice = el.champ.indice !== undefined ? ` placeholder={String(${el.champ.indice} ?? '')} placeholderTextColor="#8a8a90"` : texteIndice !== undefined ? ` placeholder=${saisie?.indiceLangues ? `{${messageEnCode(saisie.indiceLangues, chaine)}}` : attributTexte(texteIndice)} placeholderTextColor="#8a8a90"` : '';
       const saisieStyle = style(sorte === 'texteLong' ? ['saisie', 'saisieLongue'] : ['saisie']);
       const envoi = el.champ.envoie ? ' returnKeyType="send"' : '';
       return `<View ${style(['champ'])}>${libelle}<TextInput ${id}${accessible}${genre}${indice} ${saisieStyle} value={${v}} onChangeText={${setter}}${envoi}${evenements} /></View>`;

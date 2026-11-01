@@ -472,6 +472,8 @@ export interface Saisie {
   indice?: string;
   /** Le même texte dans chaque langue du site, s'il en a plusieurs versions. */
   indiceLangues?: TexteEnLangues;
+  /** Un indice avec des {variables} (« {reglage.boutique} ») : sa valeur, calculée à l'affichage. */
+  indiceValeur?: Valeur;
   minimum?: number;
   maximum?: number;
 }

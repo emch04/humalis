@@ -1227,6 +1227,8 @@ class AnalysePage {
     if (element.minimum !== undefined && element.maximum !== undefined && element.minimum > element.maximum) {
       this.erreur(`le minimum (${element.minimum}) est plus grand que le maximum (${element.maximum}).`, element.ligne);
     }
+    // Les {variables} d'un indice existent et se lisent comme dans un texte.
+    if (element.indiceTexte?.parties.some((p) => p.type === 'variable')) this.typeDe(element.indiceTexte);
     if (element.indice !== undefined && (element.sorte === 'case' || element.sorte === 'choix')) {
       this.erreur('l’option « indice » ne s’applique pas à une case à cocher ni à un choix : il n’y a rien à écrire dedans.', element.ligne);
     }
