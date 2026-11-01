@@ -39,7 +39,8 @@ describe('essayer … si erreur', () => {
     const fichiers = genererProjetWeb(compiler(COMMANDE).application!, { nom: 'c', adresse: 'https://c.cd', source: 'c.humalis' });
     const page = fichiers.get('src/pages/Commande.tsx')!;
     expect(page).toContain('serveur.taire(true);');
-    expect(page).toMatch(/if \(serveur\.echecs\(\) > \w+\) return "Le serveur n'a pas répondu\.";/);
+    // La raison du refus vient du serveur (« le champ « prix » doit être un nombre »), sinon « pas répondu ».
+    expect(page).toMatch(/if \(serveur\.echecs\(\) > \w+\) return serveur\.raison\(\);/);
     expect(page).toContain('const raison = raisonEssai;');
     expect(fichiers.get('src/humalis/serveur.ts')).toContain('taire: (oui: boolean)');
   });

@@ -1359,7 +1359,7 @@ class GenerateurEcran {
           }
           // Un envoi refusé arrête la soumission d'un formulaire : ses champs restent remplis.
           // Dans « essayer », un échec arrête le bloc et passe à « si erreur ».
-          if (this.essai) e.ligne(`if (serveur.echecs() > ${this.essai}) return "Le serveur n'a pas répondu.";`);
+          if (this.essai) e.ligne(`if (serveur.echecs() > ${this.essai}) return serveur.raison();`);
           else if (this.echecs && action.mode === 'envoyer' && !optimiste) e.ligne(`if (serveur.echecs() > ${this.echecs}) return;`);
           break;
         }
@@ -1414,7 +1414,7 @@ class GenerateurEcran {
           const objet = action.objet.type === 'variable' && this.contexte.facultatives?.has(action.objet.nom) ? x(action.objet) : undefined;
           if (objet) e.bloc(`if (${objet} !== null) {`, () => e.ligne(appel.replace(`${objet}?.id`, `${objet}.id`)));
           else e.ligne(appel);
-          if (this.essai) e.ligne(`if (serveur.echecs() > ${this.essai}) return "Le serveur n'a pas répondu.";`);
+          if (this.essai) e.ligne(`if (serveur.echecs() > ${this.essai}) return serveur.raison();`);
           else if (this.echecs && !optimiste) e.ligne(`if (serveur.echecs() > ${this.echecs}) return;`);
           break;
         }
