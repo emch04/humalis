@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
+import { genererProjetMobile } from '../src/cibles/mobile/projet.js';
+import { genererProjetStatique } from '../src/cibles/statique/projet.js';
 import { programme, erreurs } from './analyse/aide.js';
 
 // Les défauts du langage trouvés en écrivant Rey Store, corrigés un par un (humalis-notes, 2026-11-01).
@@ -235,5 +237,52 @@ describe('défauts trouvés avec Rey Store', () => {
     expect(tout).not.toContain('formaterDate(commande?.nom');
     expect(fichiers.get('src/pages/P.tsx')).toContain('formaterDate(x.jour)');
     expect(fichiers.get('src/pages/P.tsx')).not.toContain('formaterDate(x.nom)');
+  });
+
+  it('une fonction du haut du fichier se lit dans le pied', () => {
+    const source = 'fonction double avec x :\n    rendre x * 2\n\npied :\n    calcul d = double(2)\n    texte "{d}"\n\npage "p" :\n    titre "P"\n';
+    expect(erreurs(source)).toEqual([]);
+    const fichiers = genererProjetWeb(compiler(source).application!, { nom: 'b', adresse: 'https://b.cd', source: 'b.humalis' });
+    expect([...fichiers.values()].join('\n')).toContain("import { double } from '../humalis/fonctions';");
+  });
+
+  it('somme de panier.prix marche sur une liste vide au départ', () => {
+    const source = programme(
+      'page "p" :',
+      '>titre "P"',
+      '>variable panier = []',
+      '>calcul total = somme de panier.prix',
+      '>texte "{total}"',
+      '>bouton "Ajouter"',
+      '>quand l\'utilisateur clique sur "Ajouter" :',
+      '>>ajouter fiche avec prix 3 à panier',
+    );
+    expect(erreurs(source)).toEqual([]);
+  });
+
+  it('un carrousel porte sa description (web, mobile) ; seule l\'image d\'une diapositive prend toute la largeur', () => {
+    const source = programme('page "p" :', '>titre "P"', '>carrousel avec description "Vitrine" :', '>>image "a.jpg" avec description "A"');
+    expect(erreurs(source)).toEqual([]);
+    const application = compiler(source).application!;
+    const web = genererProjetWeb(application, { nom: 'b', adresse: 'https://b.cd', source: 'b.humalis' });
+    expect([...web.values()].join('\n')).toContain('description="Vitrine"');
+    const css = [...web].filter(([nom]) => nom.endsWith('.css')).map(([, contenu]) => contenu).join('\n');
+    expect(css).toContain('.humalis-carrousel-piste > img, .humalis-carrousel-piste > figure img { width: 100%; }');
+    expect(css).not.toContain('.humalis-carrousel-piste img {');
+    expect([...genererProjetMobile(application, { nom: 'b' } as never).values()].join('\n')).toContain("description='Vitrine'");
+  });
+
+  it('un mot de passe a son œil sur mobile et sur le site statique', () => {
+    const source = programme('page "p" :', '>titre "P"', '>champ mot de passe "Secret"');
+    expect(erreurs(source)).toEqual([]);
+    const application = compiler(source).application!;
+    const mobile = genererProjetMobile(application, { nom: 'b' } as never);
+    expect(mobile.get('humalis/mot-de-passe.tsx')).toContain('Afficher le mot de passe');
+    expect([...mobile.values()].join('\n')).toContain('<MotDePasse ');
+    const statique = genererProjetStatique(application, { nom: 'b', adresse: 'https://b.cd', source: 'b.humalis' } as never);
+    const outils = statique.get('humalis/humalis.js')!;
+    expect(outils).toContain('function activerMotsDePasse()');
+    expect(outils).toContain('activerMotsDePasse();');
+    expect([...statique.values()].join('\n')).toContain('.humalis-mot-de-passe-oeil');
   });
 });

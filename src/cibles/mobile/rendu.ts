@@ -221,6 +221,10 @@ function champMobile(el: ElementProduit, id: string, evenements: string, options
       const indice = el.champ.indice !== undefined ? ` placeholder={${el.champ.indice}} placeholderTextColor="#8a8a90"` : texteIndice !== undefined ? ` placeholder=${saisie?.indiceLangues ? `{${messageEnCode(saisie.indiceLangues, chaine)}}` : attributTexte(texteIndice)} placeholderTextColor="#8a8a90"` : '';
       const saisieStyle = style(sorte === 'texteLong' ? ['saisie', 'saisieLongue'] : ['saisie']);
       const envoi = el.champ.envoie ? ' returnKeyType="send"' : '';
+      if (el.champ.genre === 'motDePasse' || sorte === 'motDePasse') {
+        const sansMasque = genre.replace(' secureTextEntry', '');
+        return `<View ${style(['champ'])}>${libelle}<MotDePasse ${id}${accessible}${sansMasque}${indice} ${saisieStyle} value={${v}} onChangeText={${setter}}${envoi}${evenements} /></View>`;
+      }
       return `<View ${style(['champ'])}>${libelle}<TextInput ${id}${accessible}${genre}${indice} ${saisieStyle} value={${v}} onChangeText={${setter}}${envoi}${evenements} /></View>`;
     }
   }

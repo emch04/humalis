@@ -331,7 +331,8 @@ describe('champs — cible mobile', () => {
     expect(tout).toContain('testID="champ_age" accessibilityLabel="Âge" keyboardType="numeric"');
     expect(tout).toContain('keyboardType="numbers-and-punctuation" placeholder="AAAA-MM-JJ"');
     expect(tout).toContain('keyboardType="numbers-and-punctuation" placeholder="HH:MM"');
-    expect(tout).toContain('secureTextEntry autoComplete="new-password" autoCapitalize="none"');
+    expect(tout).toContain('<MotDePasse');
+    expect(tout).toContain('autoComplete="new-password" autoCapitalize="none"');
     expect(tout).toContain('multiline numberOfLines={4} textAlignVertical="top" style={[s.saisie, s.saisieLongue]}');
     expect(tout).toContain('keyboardType="url" autoComplete="url" autoCapitalize="none"');
   });

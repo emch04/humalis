@@ -546,7 +546,7 @@ ${
     reglerMinuteries();
 ${interactions.bas ? '    observerLeBas();\n' : ''}
 ${interactions.fenetres ? '    const retour = ouvrirLesFenetres(repere);\n' : ''}
-${elements?.carrousel ? '    activerCarrousels();\n' : ''}    if (repere) document.querySelectorAll(selecteur)[rang]?.focus();
+${elements?.carrousel ? '    activerCarrousels();\n' : ''}${elements?.motDePasse ? '    activerMotsDePasse();\n' : ''}    if (repere) document.querySelectorAll(selecteur)[rang]?.focus();
 ${interactions.fenetres ? '    // Une fenêtre fermée rend le focus à ce qui l’avait ouverte.\n    if (retour && (!document.activeElement || document.activeElement === document.body)) retour.focus();\n' : ''}
     // L'onglet suit le premier titre affiché, même calculé (« titre plat.nom »).
     const titre = document.querySelector('main h1')?.textContent?.trim();

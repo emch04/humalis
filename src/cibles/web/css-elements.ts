@@ -81,7 +81,7 @@ button.humalis-etoile { cursor: pointer; }
 .humalis-carrousel-piste::-webkit-scrollbar { display: none; }
 .humalis-carrousel-piste > * { flex: 0 0 calc((100% - (var(--humalis-visibles, 1) - 1) * 1rem) / var(--humalis-visibles, 1)); scroll-snap-align: start; margin: 0; min-width: 0; box-sizing: border-box; }
 @media (max-width: 639px) { .humalis-carrousel-piste > * { flex-basis: 100%; } }
-.humalis-carrousel-piste img { width: 100%; }
+.humalis-carrousel-piste > img, .humalis-carrousel-piste > figure img { width: 100%; }
 .humalis-carrousel-commandes { display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-top: 0.75rem; }
 .humalis-carrousel-commandes button { margin: 0; padding: 0.25rem 0.6rem; }
 .humalis-carrousel-points { display: flex; gap: 0.4rem; }
@@ -97,7 +97,7 @@ button.humalis-etoile { cursor: pointer; }
 /** Le CSS de base des éléments d'écran dont le code produit se sert. */
 export function cssElements(codes: string[]): string {
   const regles = Object.entries(BASE)
-    .filter(([nom]) => codes.some((c) => new RegExp(`humalis-${nom}\\b`).test(c) || (nom === 'mot-de-passe' && c.includes('<MotDePasse'))))
+    .filter(([nom]) => codes.some((c) => new RegExp(`humalis-${nom}\\b`).test(c) || (nom === 'mot-de-passe' && (c.includes('<MotDePasse') || /\btype(="|: ')password\b/.test(c)))))
     .map(([, css]) => css);
   return regles.length === 0 ? '' : `\n/* Les éléments d'écran utilisés par cette application. */\n${regles.join('\n')}\n`;
 }
