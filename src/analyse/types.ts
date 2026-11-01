@@ -11,7 +11,7 @@ export type TypeValeur =
   /** Un enregistrement d'une donnée du serveur (« produit »). */
   | { genre: 'donnee'; nom: string }
   /** Une fiche écrite dans le programme (« fiche avec nom "Livre" et prix 12 »), avec le type de chaque champ. */
-  | { genre: 'fiche'; champs: { nom: string; type: TypeValeur }[]; fichier?: string }
+  | { genre: 'fiche'; champs: { nom: string; type: TypeValeur; date?: true }[]; fichier?: string }
   | { genre: 'inconnu' };
 
 export const TEXTE: TypeValeur = { genre: 'texte' };
