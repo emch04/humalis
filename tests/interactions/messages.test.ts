@@ -130,6 +130,8 @@ describe('messages — les cibles', () => {
     }
     // Sur un écran tactile, toucher le message ne le met pas en pause pour toujours.
     expect(composants[0]).toContain("evenement.pointerType !== 'touch'");
+    expect(composants[2]).toContain("message.addEventListener('pointerleave', (evenement) => evenement.pointerType !== 'touch' && attendre());");
+    expect(composants[2]).not.toContain("'mouseleave'");
   });
 
   it('statique : la même pile, écrite en JavaScript clair', () => {
