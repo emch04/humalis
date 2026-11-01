@@ -125,7 +125,8 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
     if (!d) continue;
     const produit = genererEcran({ ...d.ecran, nom }, chemins, contexte, []);
     session ||= produit.session;
-    fichiers.set(`src/composants/${nom}.tsx`, produit.code);
+    // L'en-tête est visible dès l'ouverture : ses images (le logo) se chargent tout de suite, pas en différé.
+    fichiers.set(`src/composants/${nom}.tsx`, genre === 'entete' ? produit.code.replaceAll(' loading="lazy"', ' loading="eager"') : produit.code);
     dispositions[genre] = nom;
   }
   if (dispositions.entete || dispositions.pied) fichiers.set('src/Disposition.tsx', dispositionTsx(dispositions, application));

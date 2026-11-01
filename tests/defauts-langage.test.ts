@@ -176,4 +176,12 @@ describe('défauts trouvés avec Rey Store', () => {
     expect(serveur).toContain("corps.erreur.charAt(0).toUpperCase() + corps.erreur.slice(1) + '.'");
     expect(serveur).toContain('raison: () => derniereRaison,');
   });
+
+  it('« texte … avec decoratif » n’est pas relu, et le logo de l’en-tête se charge tout de suite', () => {
+    const source = programme('entete :', '>image "logo.svg" avec description "Rey Store"', '>texte "Store" avec decoratif', '', 'page "p" :', '>titre "P"');
+    const fichiers = genererProjetWeb(compiler(source).application!, { nom: 'b', adresse: 'https://b.cd', source: 'b.humalis' });
+    const entete = fichiers.get('src/composants/EnteteSite.tsx')!;
+    expect(entete).toMatch(/<p [^>]*aria-hidden="true">Store<\/p>/);
+    expect(entete).not.toContain('loading="lazy"');
+  });
 });
