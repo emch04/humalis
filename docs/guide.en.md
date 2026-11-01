@@ -1877,6 +1877,11 @@ page "figures" :
 ```
 
 The kinds: `en courbe` (line), `en barres` (bars), `en camembert` (pie).
+
+Charts can be read by touch or with the mouse: touching a point, a bar or a
+slice shows its label and value, and sliding a finger moves the bubble along.
+With the keyboard, the arrow keys go from one value to the next. With many
+values, the chart scrolls sideways and shows the latest ones first.
 `etiquette` names the field used for labels, `valeur` the field used for
 values, `serie` adds a series.
 

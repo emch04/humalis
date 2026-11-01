@@ -1798,6 +1798,11 @@ page "chiffres" :
 
 Les genres : `en courbe`, `en barres`, `en camembert`.
 
+On lit un graphique au doigt ou à la souris : toucher un point, une barre ou
+une part montre son étiquette et sa valeur, et glisser le doigt fait suivre la
+bulle. Au clavier, les flèches passent d'une valeur à l'autre. Avec beaucoup
+de valeurs, le graphique défile au doigt et montre d'abord les dernières.
+
 ---
 
 ## 27. Les cartes
