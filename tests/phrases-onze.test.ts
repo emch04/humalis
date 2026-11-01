@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { compiler } from '../src/compilateur.js';
+import { compilerProjet } from '../src/fichiers.js';
 import { web, statique, mobile, desktop, fichier, erreurs } from './interactions/aide.js';
 
 const page = (...lignes: string[]) => ['page "P" :', '    titre "T"', ...lignes.map((l) => `    ${l}`)].join('\n');
@@ -94,6 +95,17 @@ describe('un calcul partagé', () => {
   it('refuse un calcul partagé après les pages', () => {
     expect(() => compiler([page('texte "x"'), '', 'calcul a = 1'].join('\n'))).not.toThrow();
     expect(compiler([page('texte "x"'), '', 'calcul a = 1'].join('\n')).diagnostics.map((d) => d.message).join()).toMatch(/en haut du fichier/);
+  });
+});
+
+describe('un calcul partagé, dans un projet en plusieurs fichiers', () => {
+  const sources: Record<string, string> = {
+    'site.humalis': ['variable panier = [] avec partagee', 'calcul articles = nombre de panier', 'calcul double = articles * 2', 'utiliser fichier "./pages/p.humalis"', '', 'page "Accueil" :', '    titre "A {articles}"'].join('\n'),
+    'pages/p.humalis': ['page "P" :', '    titre "T"', '    texte "{articles} {double}"'].join('\n'),
+  };
+  it('arrive aussi dans les pages des autres fichiers', () => {
+    const r = compilerProjet('site.humalis', (chemin) => sources[chemin]);
+    expect(r.diagnostics.filter((d) => d.gravite === 'erreur')).toEqual([]);
   });
 });
 
