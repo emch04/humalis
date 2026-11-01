@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync, readdirSync } from 'node:fs';
 import { VOCABULAIRE } from '../../src/vocabulaire/table.js';
 import { estMotCleDuLexer, formesDe, chercher, entreePrevue } from '../../src/vocabulaire/recherche.js';
 import {
@@ -232,4 +233,61 @@ describe('les exemples de la table', () => {
       expect(erreurs).toEqual([]);
     });
   }
+});
+
+/**
+ * Les mots que le parseur lit à leur texte, trouvés dans src/parser/*.ts avec
+ * les mêmes motifs que l'outil de constat : estLeMot(…, 'mot'), motDe(…) === 'mot',
+ * mot === 'mot', option === 'mot', et verifier / accepter / attendre('MOT_CLE', 'mot').
+ */
+const MOTIFS_DU_PARSEUR = [
+  /estLeMot\([^,()]*(?:\([^)]*\))?[^,()]*,\s*'([^']+)'\)/g,
+  /motDe\([^)]*\)\s*[!=]==\s*'([^']+)'/g,
+  /\bmot\s*===\s*'([^']+)'/g,
+  /option\s*===\s*'([^']+)'/g,
+  /verifier\('MOT_CLE',\s*'([^']+)'/g,
+  /accepter\('MOT_CLE',\s*'([^']+)'/g,
+  /attendre\('MOT_CLE',\s*'([^']+)'/g,
+];
+
+/**
+ * Ce que le parseur lit sans que ce soit un mot du langage à mettre dans la table :
+ * - « aujourd » et « hui » : les deux morceaux de « aujourd'hui » (l'apostrophe coupe
+ *   le mot en deux), qui est dans la table sous la forme « aujourdhui ».
+ * Un faux positif des motifs (une comparaison de chaîne qui n'est pas la lecture d'un mot
+ * du langage) s'ajoute ici, avec sa raison.
+ */
+const LU_SANS_ETRE_UN_MOT = new Set(['aujourd', 'hui']);
+
+describe('la table couvre tout ce que le parseur lit', () => {
+  /** Toutes les formes de la table, et chacun des mots d'une tournure (« telecharger bon »). */
+  const connus = new Set(VOCABULAIRE.flatMap((e) => formesDe(e)).flatMap((forme) => [forme, ...forme.split(/\s+/)]));
+
+  const dossier = new URL('../../src/parser/', import.meta.url);
+  const luParLeParseur = new Map<string, Set<string>>();
+  for (const fichier of readdirSync(dossier).filter((nom) => nom.endsWith('.ts'))) {
+    const source = readFileSync(new URL(fichier, dossier), 'utf8');
+    for (const motif of MOTIFS_DU_PARSEUR) {
+      for (const trouve of source.matchAll(motif)) {
+        const mot = normaliser(trouve[1]);
+        if (!luParLeParseur.has(mot)) luParLeParseur.set(mot, new Set());
+        luParLeParseur.get(mot)!.add(fichier);
+      }
+    }
+  }
+
+  it('trouve des mots dans le parseur (le motif lit toujours le code)', () => {
+    expect(luParLeParseur.size).toBeGreaterThan(100);
+  });
+
+  it('n’a aucun mot lu par le parseur qui manque à la table', () => {
+    const manquants = [...luParLeParseur]
+      .filter(([mot]) => !connus.has(mot) && !LU_SANS_ETRE_UN_MOT.has(mot))
+      .map(([mot, fichiers]) => `${mot} (${[...fichiers].join(', ')})`);
+    expect(manquants, 'ces mots sont lus par le parseur mais absents de src/vocabulaire : ajoutez une entrée').toEqual([]);
+  });
+
+  it('ne garde dans les exceptions que des mots que le parseur lit encore', () => {
+    for (const mot of LU_SANS_ETRE_UN_MOT) expect(luParLeParseur.has(mot), mot).toBe(true);
+  });
 });
