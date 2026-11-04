@@ -32,7 +32,7 @@ export async function run(): Promise<void> {
 
   // On corrige : le soulignement doit disparaître en moins d'une demi-seconde.
   const edition = new vscode.WorkspaceEdit();
-  edition.replace(uri, document.lineAt(1).range, '    texte "Bonjour"');
+  edition.replace(uri, document.lineAt(1).range, '    titre "Bonjour"');
   await vscode.workspace.applyEdit(edition);
   const debut = Date.now();
   while (vscode.languages.getDiagnostics(uri).length > 0 && Date.now() - debut < 3000) {
