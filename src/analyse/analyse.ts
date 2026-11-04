@@ -879,6 +879,8 @@ class AnalysePage {
         this.comparaison(instruction.test);
         const avant = this.garde;
         this.garde = plusForte(avant, gardeDe(instruction.test));
+        // Ce que regarde ce « si » : dans ses deux branches, une variable « = rien » est déjà prise en compte.
+        this.testees.push(JSON.stringify(instruction.test));
         this.branches.push(this.elements.elementsDe(instruction.alors));
         this.sousBloc(instruction.alors, contexte, place);
         this.branches.pop();
@@ -886,6 +888,7 @@ class AnalysePage {
         this.branches.push(this.elements.elementsDe(instruction.sinon));
         this.sousBloc(instruction.sinon, contexte, place);
         this.branches.pop();
+        this.testees.pop();
         return;
       }
 
@@ -2032,10 +2035,21 @@ class AnalysePage {
     return NOMBRE;
   }
 
+  /** « ajouter lu à tous » quand « lu » commence à rien et qu'aucun « si » autour ne le regarde : tsc refuserait le code produit. */
+  private avertirSiRien(modification: ModificationListe): void {
+    const { valeur, operation, liste, ligne } = modification;
+    if (operation !== 'ajouter' || valeur.type !== 'Reference' || this.testees.some((test) => test.includes(`"${valeur.nom}"`))) return;
+    const origine = this.portees.chercher(valeur.nom)?.origine;
+    if (origine?.type === 'Variable' && origine.valeur.type === 'Rien') {
+      this.avertissement(`« ${valeur.nom} » peut encore être rien ici : ajoutez-le à « ${liste} » sous « si ${valeur.nom} est different de rien : ».`, ligne);
+    }
+  }
+
   private modificationListe(modification: ModificationListe, contexte: Contexte): void {
     if (contexte === 'vue') this.horsEvenement(modification.operation, modification.ligne);
 
     const typeValeur = this.typeDe(modification.valeur);
+    this.avertirSiRien(modification);
     const symbole = this.variable(modification.liste, modification.ligne);
     if (symbole?.origine?.type === 'Variable' && symbole.origine.fichierDonnees) {
       this.erreur(`« ${modification.liste} » vient d'un fichier : on peut la lire, pas la changer. Pour la modifier, copiez-la : variable mes_${modification.liste} = ${modification.liste}.`, modification.ligne);
@@ -2385,6 +2399,8 @@ class AnalysePage {
   private readonly ciblesSources = new Set<string>();
   /** Les variables remplies par une requête vers le serveur du fichier ou une adresse : sans état pour l'instant. */
   private readonly ciblesAutres = new Set<string>();
+  /** Les tests des « si » autour de l'instruction lue. */
+  private readonly testees: string[] = [];
   private readonly usagesEtat: { nom: string; ligne: number; mot: string }[] = [];
 
   /** « produits est en chargement », « erreur de produits », « recharger produits » : la variable doit recevoir une requête vers une source. */

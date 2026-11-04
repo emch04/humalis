@@ -518,10 +518,21 @@ export function analyserDonnee(flux: FluxTokens, ouverte = false): Donnee {
     const champ = flux.attendreNom('le nom du champ');
     flux.attendre('PONCTUATION', ':', 'deux-points entre le nom du champ et son type');
     const type = analyserTypeChamp(flux, ouverte);
+    // « non vide » se place avant ou après une règle : « liste de texte du site non vide ».
+    const nonVideAvant = !ouverte && lireNonVide(flux);
     const regle = ouverte ? undefined : analyserRegleChamp(flux);
-    champs.push({ nom: champ.nom, type, ...(regle ? { regle } : {}), ligne: champ.ligne });
+    const nonVide = nonVideAvant || (!ouverte && lireNonVide(flux));
+    champs.push({ nom: champ.nom, type, ...(regle ? { regle } : {}), ...(nonVide ? { nonVide } : {}), ligne: champ.ligne });
   });
   return { type: 'Donnee', nom, champs, ligne: debut.ligne };
+}
+
+/** « non vide » après le type d'un champ. */
+function lireNonVide(flux: FluxTokens): boolean {
+  if (!estLeMot(flux.actuel(), 'non') || !estLeMot(flux.regarder(1), 'vide')) return false;
+  flux.avancer();
+  flux.avancer();
+  return true;
 }
 
 /** Un nom de champ ou de donnée dans une règle du serveur : les mots du langage y restent des noms. */

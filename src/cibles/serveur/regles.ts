@@ -26,8 +26,9 @@ const champsDuSite = (donnee: Donnee) => donnee.champs.filter((c) => c.regle?.ge
 export function reglesEnvoi(donnee: Donnee, route: Route): string {
   const serveur = champsDuServeur(donnee, route);
   const site = champsDuSite(donnee);
-  if (serveur.length === 0 && site.length === 0) return '';
-  return `, { duServeur: ${JSON.stringify(serveur)}, duSite: ${JSON.stringify(site)} }`;
+  const nonVides = donnee.champs.filter((c) => c.nonVide).map((c) => camel(c.nom));
+  if (serveur.length === 0 && site.length === 0 && nonVides.length === 0) return '';
+  return `, { duServeur: ${JSON.stringify(serveur)}, duSite: ${JSON.stringify(site)}${nonVides.length > 0 ? `, nonVides: ${JSON.stringify(nonVides)}` : ''} }`;
 }
 
 /** Vrai si la création de cette donnée passe par une fonction « completer… ». */

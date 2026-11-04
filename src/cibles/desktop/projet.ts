@@ -555,7 +555,7 @@ contextBridge.exposeInMainWorld('humalisCoffre', {
 
 /** src/humalis/memoire.ts : celui du web, plus le coffre de l'ordinateur. */
 function memoireAvecCoffre(): string {
-  const web = MEMOIRE.replace("import { useEffect, useState } from 'react';", "import { useCallback, useEffect, useRef, useState } from 'react';");
+  const web = MEMOIRE.replace("import { useCallback, useState } from 'react';", "import { useCallback, useEffect, useRef, useState } from 'react';");
   return `${web}
 /** Le pont vers le coffre de l'ordinateur, posé par electron/pont.cts. */
 declare global {
@@ -580,10 +580,20 @@ export function useMemoriseSecret<T>(cle: string, initiale: T): [T, (valeur: T) 
   const changee = useRef(false);
   const derniere = useRef(valeur);
   derniere.current = valeur;
-  const setValeur = useCallback((nouvelle: T) => {
-    changee.current = true;
-    setValeurLue(nouvelle);
-  }, []);
+  const setValeur = useCallback(
+    (nouvelle: T) => {
+      changee.current = true;
+      derniere.current = nouvelle;
+      // L'écriture part tout de suite ; avant que le coffre ait répondu, sa réponse l'enverra.
+      if (lue.current) {
+        window.humalisCoffre?.ecrire(cle, JSON.stringify(nouvelle)).catch(() => {
+          // Le coffre refuse : la valeur reste en mémoire.
+        });
+      }
+      setValeurLue(nouvelle);
+    },
+    [cle],
+  );
 
   useEffect(() => {
     let active = true;
@@ -608,13 +618,6 @@ export function useMemoriseSecret<T>(cle: string, initiale: T): [T, (valeur: T) 
       active = false;
     };
   }, [cle]);
-
-  useEffect(() => {
-    if (!lue.current) return;
-    window.humalisCoffre?.ecrire(cle, JSON.stringify(valeur)).catch(() => {
-      // Le coffre refuse : la valeur reste en mémoire.
-    });
-  }, [cle, valeur]);
 
   return [valeur, setValeur];
 }

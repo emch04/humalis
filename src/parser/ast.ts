@@ -237,7 +237,7 @@ export interface Donnee {
   nom: string;
   /** Le nom sous lequel l'analyse la connaît (« boutique_produit » si une autre donnée porte déjà « produit »). */
   cle?: string;
-  champs: { nom: string; type: TypeChamp; regle?: RegleChamp; ligne: number }[];
+  champs: { nom: string; type: TypeChamp; regle?: RegleChamp; nonVide?: boolean; ligne: number }[];
   /** Vrai pour « comptes », les comptes de la connexion : aucune table à créer, le serveur les lit dans ses packs. */
   comptes?: boolean;
   ligne: number;

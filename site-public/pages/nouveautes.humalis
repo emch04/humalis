@@ -20,6 +20,8 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
                     soustitre "Modifier ce que le serveur décide" en anglais "Modifying what the server decides"
                     liste :
                         texte "`modifier` accepte de nouveau un champ `au depart` ou `calcule` : seule la création le refuse." en anglais "`modifier` accepts an `au depart` or `calcule` field again: only creation refuses it."
+                        texte "Une variable `memorisee` est écrite tout de suite : un `rediriger` juste après ne la perd plus." en anglais "A `memorisee` variable is written at once: a `rediriger` right after no longer loses it."
+                        texte "`non vide` refuse une liste ou un texte vide, et `rediriger vers \"https://…\"` marche aussi sur le site statique." en anglais "`non vide` refuses an empty list or text, and `rediriger vers \"https://…\"` also works on the static target."
                 bloc avec style "version" :
                     ligne avec style "version-tete" :
                         texte "1.7.2" sans traduction avec style "version-numero"

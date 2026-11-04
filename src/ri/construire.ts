@@ -203,7 +203,7 @@ function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
   };
   return {
     nom: serveur.nom,
-    donnees: serveur.donnees.filter((d) => !d.comptes).map((d) => ({ nom: d.nom, champs: d.champs.map((c) => ({ nom: c.nom, type: c.type, ...(c.regle ? { regle: reglePropre(c.regle, d.nom) } : {}) })) })),
+    donnees: serveur.donnees.filter((d) => !d.comptes).map((d) => ({ nom: d.nom, champs: d.champs.map((c) => ({ nom: c.nom, type: c.type, ...(c.regle ? { regle: reglePropre(c.regle, d.nom) } : {}), ...(c.nonVide ? { nonVide: true } : {}) })) })),
     routes: serveur.routes
       .filter((r) => r.regles.length > 0 && !donneesComptes.has(r.regles[0].donnee))
       .map((route) => {

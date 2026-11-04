@@ -1353,7 +1353,7 @@ export function usePartage(): Partages {
 `;
 }
 
-export const MEMOIRE = `import { useEffect, useState } from 'react';
+export const MEMOIRE = `import { useCallback, useState } from 'react';
 
 /**
  * Comme useState, mais la valeur est gardée dans le navigateur
@@ -1370,15 +1370,20 @@ export function useMemorise<T>(cle: string, initiale: T): [T, (valeur: T) => voi
     }
   });
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(cle, JSON.stringify(valeur));
-    } catch {
-      // Stockage plein ou interdit : la valeur reste en mémoire.
-    }
-  }, [cle, valeur]);
+  // Écrite tout de suite, pas après l'affichage : un « rediriger » juste après quitte la page avant React.
+  const changer = useCallback(
+    (nouvelle: T) => {
+      try {
+        localStorage.setItem(cle, JSON.stringify(nouvelle));
+      } catch {
+        // Stockage plein ou interdit : la valeur reste en mémoire.
+      }
+      setValeur(nouvelle);
+    },
+    [cle],
+  );
 
-  return [valeur, setValeur];
+  return [valeur, changer];
 }
 `;
 

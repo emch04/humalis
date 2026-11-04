@@ -153,6 +153,11 @@ function valeurVaDans(valeur: ValeurFixe, type: TypeChamp): boolean {
 /** « au depart », « du site », « calcule », « au plus » : chacun sur le bon type, et ce qu'ils lisent existe. */
 function verifierRegleChamp(champ: Donnee['champs'][number], donnee: Donnee, serveur: Serveur, erreur: (message: string, ligne: number) => void): void {
   const { regle, type, nom, ligne } = champ;
+  if (champ.nonVide && !((type.genre === 'texte' && !type.image) || type.genre === 'liste') ) {
+    erreur(`« ${nom} » : « non vide » vaut pour un texte ou une liste.`, ligne);
+  } else if (champ.nonVide && (regle?.genre === 'depart' || regle?.genre === 'nombreDe' || regle?.genre === 'somme')) {
+    erreur(`« ${nom} » : le serveur donne déjà cette valeur, « non vide » ne sert à rien ici.`, ligne);
+  }
   if (!regle) return;
   const champDe = (d: Donnee | undefined, c: string) => d?.champs.find((x) => simplifier(x.nom) === simplifier(c));
   const prixDe = (donneeLue: string, prix: string) => {

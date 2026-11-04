@@ -1689,6 +1689,8 @@ serveur "shop" :
   adds another field. An unknown id is refused.
 - `au plus prix de zone par commune` refuses a value above the price of that
   commune's zone, or a negative one. Without a zone, only 0 passes.
+- `non vide` refuses an empty list, or an empty or blank text:
+  `refs : liste de texte non vide`. It combines with another rule.
 - `du site` accepts only a path on this site (`/images/photo.jpg`), the
   `HUMALIS_ADRESSE_SITE` address, or an image chosen in the page. It also applies when
   modifying.

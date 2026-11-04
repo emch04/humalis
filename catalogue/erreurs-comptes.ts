@@ -63,6 +63,10 @@ const pageSuivi = (action: string) =>
   serveur('donnee suivi :', '    etape : texte', 'route "suivis" :', '    tout le monde peut lire suivi par identifiant', '    seul admin peut modifier suivi')
     .replace('page "bienvenue" :', `page "action" :\n    titre "Action"\n    variable suivi = rien\n    bouton "Go"\n    quand l'utilisateur clique sur "Go" :\n        ${action}\n\npage "bienvenue" :`);
 
+/** Une page où « lu » commence à rien. */
+const programmeAjout = (action: string) =>
+  `page "accueil" :\n    titre "A"\n    variable lu = rien\n    variable tous = ["a"]\n    bouton "Go"\n    quand l'utilisateur clique sur "Go" :\n        changer lu par "b"\n        ${action}\n`;
+
 export const ENTREES_ERREURS_COMPTES: readonly EntreeErreur[] = [
   e('emails-sans-service', 'grammaire', '« emails » sans son service',
     'Le serveur doit savoir quel service envoie ses e-mails.',
@@ -302,4 +306,22 @@ export const ENTREES_ERREURS_COMPTES: readonly EntreeErreur[] = [
     pageSuivi('envoyer requete vers "suivis" dans suivi'),
     pageSuivi('envoyer requete vers "suivis" avec id "x" dans suivi'),
     'ne se lit que par identifiant'),
+  e('non-vide-mauvais-type', 'sens', '« non vide » sur un champ qui ne peut pas l’être',
+    'Seul un texte ou une liste peut être vide.',
+    'Retire « non vide », ou change le type du champ.',
+    fiches(['quantite : nombre non vide']),
+    fiches(['nom : texte non vide']),
+    'vaut pour un texte ou une liste'),
+  e('non-vide-du-serveur', 'sens', '« non vide » sur une valeur du serveur',
+    'Le serveur donne déjà cette valeur : la requête ne l’envoie jamais.',
+    'Retire « non vide ».',
+    fiches(['statut : texte au depart "a" non vide']),
+    fiches(['statut : texte au depart "a"']),
+    'non vide » ne sert à rien ici'),
+  e('ajouter-rien', 'avertissement', 'Ajouter à une liste une variable qui peut être rien',
+    'Une variable qui commence à rien ne reçoit peut-être jamais de valeur : la liste contiendrait un trou, et la construction du site s’arrête.',
+    'Ajoute-la sous « si … est different de rien : ».',
+    programmeAjout('ajouter lu à tous'),
+    programmeAjout('si lu est different de rien :\n            ajouter lu à tous'),
+    'peut encore être rien ici'),
 ];

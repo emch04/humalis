@@ -871,6 +871,8 @@ ${prise}${code}}
   /** L'adresse d'une page : son fichier, écrit en clair quand on le connaît. */
   private adresse(ecran: Valeur): string {
     const nom = texteLitteral(ecran);
+    // « rediriger vers "https://…" » quitte le site : ce n'est pas le nom d'une page.
+    if (nom !== undefined && /^https?:\/\//.test(nom)) return chaine(nom);
     if (nom !== undefined) return chaine(this.fichier(nom));
     return `adresseDe(${expressionJs(ecran, this.contexte)})`;
   }

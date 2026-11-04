@@ -2475,6 +2475,21 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     note: 'Vaut à la création.',
   },
   {
+    mot: 'non vide',
+    variantes: [],
+    categorie: 'structure',
+    concept: 'serveur.nonVide',
+    contextes: ['serveur'],
+    cibles: serveurSeul('une liste vide ou un texte vide (espaces compris) reçoit 400, à la création et à la modification'),
+    couvre: [],
+    description:
+      'Après le type d’un texte ou d’une liste : « refs : liste de texte non vide » refuse une requête sans élément.',
+    exemple: 'serveur "boutique" :\n    donnee commande :\n        nom : texte non vide\n        refs : liste de texte non vide\n    route "commandes" :\n        tout le monde peut creer commande\n        seul admin peut lire commande\n        seul admin peut modifier commande',
+    statut: 'supporte',
+    etape: 9,
+    note: 'Sans ces mots, un champ vide reste accepté.',
+  },
+  {
     mot: 'par identifiant',
     variantes: [],
     categorie: 'structure',
