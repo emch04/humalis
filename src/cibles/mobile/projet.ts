@@ -23,6 +23,7 @@ import { RENDU_MOBILE } from './rendu.js';
 import { fichiersDesInteractions, gestionnairesDuProgramme } from '../web/interactions.js';
 import { langueMobileTsx } from '../web/langue.js';
 import { messagesDuProjet } from '../../i18n/messages.js';
+import { avecDureeDesErreurs } from '../commun/messages.js';
 
 export interface OptionsMobile {
   /** Le nom du projet, tiré du fichier Humalis (« boutique »). */
@@ -162,7 +163,7 @@ export function genererProjetMobile(application: Application, options: OptionsMo
   const confirmations = codesPages.some((c) => /\buseConfirmer\(/.test(c));
   fichiers.set('app/_layout.tsx', disposition(application.partages.length > 0, session, { ...dispositions, sansEntete: sans('sansEntete'), sansPied: sans('sansPied') }, confirmations));
   fichiers.set('app/+not-found.tsx', INTROUVABLE);
-  fichiers.set('humalis/messages.tsx', MESSAGES);
+  fichiers.set('humalis/messages.tsx', avecDureeDesErreurs(MESSAGES, application));
   fichiers.set('humalis/page.ts', PAGE);
   const codes = [...fichiers.values()];
   fichiers.set(
@@ -635,6 +636,9 @@ export const BASE = process.env.EXPO_PUBLIC_HUMALIS_SERVEUR ?? '';
 
 /** Le serveur n'a pas répondu (réseau coupé, serveur arrêté) : pas de raison plus précise. */
 const PAS_DE_REPONSE = "Le serveur n'a pas répondu.";
+
+/** La raison d'un échec : une phrase écrite pour la personne, jamais le texte anglais du système (« Network request failed ») ni celui d'une réponse illisible. */
+const raisonDe = (erreur: unknown) => (erreur instanceof Error && !(erreur instanceof TypeError) && !(erreur instanceof SyntaxError) ? erreur.message : PAS_DE_REPONSE);
 if (BASE === '' && Platform.OS !== 'web') {
   console.warn("EXPO_PUBLIC_HUMALIS_SERVEUR n'est pas réglée : les requêtes ne savent pas où trouver le serveur.");
 }
@@ -695,7 +699,7 @@ export function useServeur() {
       if (lecture && seGarde(reponse)) garder(adresse, valeur, texte);
       return valeur;
     } catch (erreur) {
-      derniereRaison = erreur instanceof Error && erreur.message !== PAS_DE_REPONSE ? erreur.message : PAS_DE_REPONSE;
+      derniereRaison = raisonDe(erreur);
       afficherMessage(derniereRaison === PAS_DE_REPONSE ? "Le serveur n'a pas répondu. Réessayez dans un instant." : derniereRaison, 'erreur');
       return actuelle;
     }

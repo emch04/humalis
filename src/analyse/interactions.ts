@@ -42,7 +42,7 @@ export function millisecondesDe(duree: Duree): number | undefined {
 }
 
 /** « 1,5 seconde » : une durée écrite pour un message d'erreur. */
-function ecrireDuree(ms: number): string {
+export function ecrireDuree(ms: number): string {
   if (ms < 1000) return `${ms} millisecondes`;
   const secondes = String(ms / 1000).replace('.', ',');
   return `${secondes} seconde${ms >= 2000 ? 's' : ''}`;

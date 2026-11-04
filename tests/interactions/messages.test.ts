@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { compiler } from '../../src/compilateur.js';
-import { auClic, p, corps, web, statique, mobile, desktop, fichier, erreurs, avertissements } from './aide.js';
+import { auClic, p, corps, compile, web, statique, mobile, desktop, fichier, erreurs, avertissements } from './aide.js';
+import { genererProjetWeb } from '../../src/cibles/web/projet.js';
+import { programme } from '../analyse/aide.js';
 
 const MESSAGES = auClic(
   [
@@ -143,5 +145,55 @@ describe('messages — les cibles', () => {
     expect(outils).toContain('while (zone.children.length > 3) zone.firstElementChild.remove();');
     expect(outils).toContain("lu.setAttribute('role', genre === 'erreur' ? 'alert' : 'status');");
     expect(fichier(fichiers, 'index.html')).toContain('<ul class="humalis-messages" aria-live="polite"></ul>');
+  });
+});
+
+describe('messages — « erreurs pendant … » dans le bloc site', () => {
+  const site = (ligne: string, ...suite: string[]) => programme('site :', '>nom "Le Fleuve"', '>adresse "https://lefleuve.cd"', `>${ligne}`, '', 'page "p" :', '>bouton "Go"', '>quand l\'utilisateur clique sur "Go" :', '>>afficher erreur "Raté"', ...suite);
+  // Un site avec une adresse se prérend : la commande passe la même adresse à la génération.
+  const webPublie = (source: string) => genererProjetWeb(compile(source), { nom: 'e', source: 'e.humalis', adresse: 'https://lefleuve.cd' });
+  const fichiersDeMessages = (source: string) => [fichier(webPublie(source), 'humalis/messages.tsx'), fichier(mobile(source), 'humalis/messages.tsx'), fichier(statique(source), 'humalis/humalis.js')];
+
+  it('donne la durée de toutes les erreurs sans durée à chaque cible, le reste ne bouge pas', () => {
+    for (const messages of fichiersDeMessages(site('erreurs pendant 2 secondes'))) {
+      expect(messages).toMatch(/info: 4000, reussite: 4000, avertissement: 8000, erreur: 2000 \}/);
+      // Un « pendant » écrit sur le message et un bouton gardent leur durée.
+      expect(messages).toContain('reglages.duree ?? (reglages.action ? 6000 : DUREES[genre])');
+    }
+  });
+
+  it('lit « 1,5 seconde » et ne change rien sans la ligne', () => {
+    expect(fichier(webPublie(site('erreurs pendant 1,5 seconde')), 'humalis/messages.tsx')).toContain('erreur: 1500 }');
+    expect(fichier(webPublie(site('indexation non')), 'humalis/messages.tsx')).toContain('erreur: 8000 }');
+  });
+
+  it('avertit sous 4 secondes, comme « afficher erreur … pendant »', () => {
+    expect(avertissements(site('erreurs pendant 2 secondes')).join()).toMatch(/trop court pour lire une erreur/);
+    expect(avertissements(site('erreurs pendant 5 secondes')).join()).not.toMatch(/trop court/);
+  });
+
+  it('refuse une durée hors de 1 à 60 secondes', () => {
+    expect(erreurs(site('erreurs pendant 500 millisecondes'))[0]).toMatch(/de 1 à 60 secondes/);
+    expect(erreurs(site('erreurs pendant 2 minutes'))[0]).toMatch(/de 1 à 60 secondes/);
+  });
+
+  it('refuse une ligne mal écrite ou donnée deux fois', () => {
+    const faute = (...lignes: string[]) => compiler(programme('site :', ...lignes.map((l) => `>${l}`), '', 'page "p" :', '>titre "A"')).diagnostics.find((d) => d.gravite === 'erreur')?.message;
+    expect(faute('erreurs 2 secondes')).toMatch(/erreurs pendant 2 secondes/);
+    expect(faute('erreurs pendant 2')).toMatch(/erreurs pendant 2 secondes/);
+    expect(faute('erreurs pendant duree secondes')).toMatch(/erreurs pendant 2 secondes/);
+    expect(faute('erreurs pendant 2 secondes', 'erreurs pendant 3 secondes')).toMatch(/déjà donné/);
+  });
+});
+
+describe('messages — une panne ne montre pas le texte du navigateur', () => {
+  const lecture = programme('serveur "s" :', '>donnee d :', '>>prix : nombre', '>route "d" :', '>>tout le monde peut lire d', '>>tout le monde peut creer d', '', 'page "p" :', '>titre "P"', '>bouton "Créer"', '>quand l\'utilisateur clique sur "Créer" :', '>>envoyer requete vers "d" avec prix = 3');
+
+  it('web et mobile : « Failed to fetch » et une réponse illisible deviennent « pas répondu »', () => {
+    for (const serveur of [fichier(web(lecture), 'humalis/serveur.ts'), fichier(mobile(lecture), 'humalis/serveur.ts')]) {
+      expect(serveur).toContain('derniereRaison = raisonDe(erreur);');
+      expect(serveur).toContain('!(erreur instanceof TypeError) && !(erreur instanceof SyntaxError)');
+      expect(serveur).not.toContain('erreur.message !== PAS_DE_REPONSE');
+    }
   });
 });

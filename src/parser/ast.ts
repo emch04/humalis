@@ -1315,6 +1315,8 @@ export interface Site {
   adresse?: string;
   /** « indexation non » : le site est fermé aux moteurs de recherche. */
   indexation: boolean;
+  /** « erreurs pendant 2 secondes » : combien de temps reste une erreur sans durée propre. */
+  erreurs?: Duree;
   /** « nom "Le Fleuve" en anglais "The River" » : le texte avec ses versions, seulement quand il en a. */
   textes?: Partial<Record<'nom' | 'description', LitteralChaine>>;
   /** La ligne de chaque réglage, pour les messages. */

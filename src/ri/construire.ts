@@ -30,7 +30,7 @@ import type { LitteralChaine } from '../parser/ast.js';
 import { texteSource } from '../parser/langues.js';
 import { langueDuMot } from '../i18n/langues.js';
 import type { TexteEnLangues, PartiesTexte, Reglages, GenreWidget, DispositionRI, ThemeRI, ServeurRI, SourceRI, Option, Etat, Application, Ecran, NoeudVue, Gestionnaire, Action, Valeur, Test, Saisie } from './types.js';
-import { lireTouches } from '../analyse/interactions.js';
+import { lireTouches, millisecondesDe } from '../analyse/interactions.js';
 import { MILLISECONDES } from '../parser/interactions.js';
 
 /** La cible d'un lien dans la RI : la page, l'ancre visée, ou l'adresse externe. */
@@ -90,6 +90,7 @@ export function construireRepresentation(
             ...(programme.site.logo !== undefined ? { logo: programme.site.logo } : {}),
             ...(programme.site.adresse !== undefined ? { adresse: programme.site.adresse } : {}),
             indexation: programme.site.indexation,
+            ...(programme.site.erreurs ? { dureeErreurs: millisecondesDe(programme.site.erreurs) } : {}),
             ligne: programme.site.ligne,
           },
         }

@@ -1194,6 +1194,11 @@ Les genres : `afficher`, `afficher reussite`, `afficher avertissement`,
 `afficher erreur`. `pendant 10 secondes` règle la durée ; `sans disparaitre`
 le garde affiché ; `avec action "…" :` ajoute un bouton.
 
+Une erreur reste 8 secondes. Humalis en affiche aussi de lui-même, par exemple
+quand une lecture échoue : « Le serveur n'a pas répondu. Réessayez dans un
+instant. » Pour changer la durée de toutes les erreurs du site, écris
+`erreurs pendant 5 secondes` dans le [bloc `site :`](#29-publier-un-site).
+
 ### Les fenêtres
 
 ```humalis
@@ -2045,6 +2050,14 @@ Avec une `adresse`, la cible web écrit le plan du site (`sitemap.xml`) et
 `robots.txt`. Une page en `indexation non` n'y apparaît pas. Humalis prévient
 quand un titre ou une description est trop long ou trop court pour les moteurs
 de recherche.
+
+La ligne `erreurs pendant 5 secondes` du bloc `site :` règle combien de temps
+restent les erreurs du site, celles que tu écris sans durée et celles que
+Humalis affiche de lui-même. Elle va de 1 à 60 secondes ; sans elle, c'est 8
+secondes. Humalis prévient en dessous de 4 secondes, car beaucoup de personnes
+n'ont pas le temps de lire. Un `pendant` écrit sur un message garde la priorité,
+et un message avec un bouton garde le temps de cliquer (6 secondes, 12 pour
+« Réessayer »).
 
 ---
 
