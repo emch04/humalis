@@ -26,10 +26,10 @@ import { imageDe, REGLAGES_IMAGE, choixFichierDe } from './medias.js';
 import { graphiqueDe } from './graphique.js';
 import { messageEnLangues } from '../i18n/messages.js';
 import type { PartieChaine } from '../lexer/types.js';
-import type { LitteralChaine } from '../parser/ast.js';
+import type { LitteralChaine, Route } from '../parser/ast.js';
 import { texteSource } from '../parser/langues.js';
 import { langueDuMot } from '../i18n/langues.js';
-import type { TexteEnLangues, PartiesTexte, Reglages, GenreWidget, DispositionRI, ThemeRI, ServeurRI, SourceRI, Option, Etat, Application, Ecran, NoeudVue, Gestionnaire, Action, Valeur, Test, Saisie } from './types.js';
+import type { TexteEnLangues, PartiesTexte, Reglages, GenreWidget, DispositionRI, ThemeRI, ServeurRI, SourceRI, Option, Etat, Application, Ecran, NoeudVue, Gestionnaire, Action, Valeur, Test, Saisie, MorceauEmail, EnvoiEmailRI } from './types.js';
 import { lireTouches, millisecondesDe } from '../analyse/interactions.js';
 import { MILLISECONDES } from '../parser/interactions.js';
 
@@ -168,16 +168,38 @@ function themeRI(theme: NonNullable<Programme['theme']>): ThemeRI {
 
 function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
   const fidelite = serveur.fidelite;
+  const donneesComptes = new Set(serveur.donnees.filter((d) => d.comptes).map((d) => d.nom));
+  const routeComptes = serveur.routes.find((r) => donneesComptes.has(r.regles[0]?.donnee ?? ''));
+  const champDe = (donnee: string, champ: string) => serveur.donnees.find((d) => d.nom === donnee)?.champs.find((c) => simplifier(c.nom) === simplifier(champ))?.nom ?? champ;
+  const morceaux = (parties: PartieChaine[], donnee: string): MorceauEmail[] =>
+    parties.map((p) => (p.type === 'variable' ? { champ: champDe(donnee, p.valeur.split('.')[1] ?? '') } : { texte: p.valeur }));
+  const envoisRI = (apres: NonNullable<Route['apresCreation']>): EnvoiEmailRI[] =>
+    apres.envois.map(({ destinataire, sujet, texte }) => ({
+      destinataire: destinataire.genre === 'champ' ? { genre: 'champ', champ: champDe(apres.donnee, destinataire.champ) } : destinataire,
+      sujet: morceaux(sujet, apres.donnee),
+      texte: morceaux(texte, apres.donnee),
+    }));
   return {
     nom: serveur.nom,
-    donnees: serveur.donnees.map((d) => ({ nom: d.nom, champs: d.champs.map((c) => ({ nom: c.nom, type: c.type })) })),
+    donnees: serveur.donnees.filter((d) => !d.comptes).map((d) => ({ nom: d.nom, champs: d.champs.map((c) => ({ nom: c.nom, type: c.type })) })),
     routes: serveur.routes
-      .filter((r) => r.regles.length > 0)
+      .filter((r) => r.regles.length > 0 && !donneesComptes.has(r.regles[0].donnee))
       .map((route) => {
         const droits = droitsDeRoute(route);
         const bon = analyse.bons.has(adresseNormalisee(route.adresse));
-        return { adresse: route.adresse, donnee: route.regles[0].donnee, droits, ...(bon ? { bon } : {}), ligne: route.ligne };
+        return {
+          adresse: route.adresse,
+          donnee: route.regles[0].donnee,
+          droits,
+          ...(bon ? { bon } : {}),
+          ...(route.apresCreation ? { envois: envoisRI(route.apresCreation) } : {}),
+          ligne: route.ligne,
+        };
       }),
+    ...(routeComptes ? { routeComptes: { adresse: routeComptes.adresse, droits: droitsDeRoute(routeComptes), ligne: routeComptes.ligne } } : {}),
+    ...(serveur.emails ? { emails: { service: serveur.emails.service } } : {}),
+    ...(serveur.invitations ? { invitations: serveur.invitations.page } : {}),
+    ...(serveur.motDePasseOublie ? { motDePasseOublie: serveur.motDePasseOublie.page } : {}),
     ...(serveur.connexionGoogle !== undefined ? { connexionGoogle: true } : {}),
     // L'analyse a déjà vérifié le bloc : ses deux lignes sont là, et le champ existe sous ce nom ou un nom voisin (accents).
     ...(fidelite?.gain && fidelite.objectif
@@ -635,6 +657,15 @@ class Construction {
           });
           break;
 
+        case 'Invitation':
+          actions.push({ type: 'invitation', email: this.valeur(instruction.email), role: instruction.role });
+          break;
+        case 'DemandeLienMotDePasse':
+          actions.push({ type: 'demandeLienMotDePasse', email: this.valeur(instruction.email) });
+          break;
+        case 'ChoixMotDePasse':
+          actions.push({ type: 'choixMotDePasse', nouveau: this.valeur(instruction.nouveau) });
+          break;
         case 'ChangementMotDePasse':
           actions.push({ type: 'changementMotDePasse', actuel: this.valeur(instruction.actuel), nouveau: this.valeur(instruction.nouveau) });
           break;

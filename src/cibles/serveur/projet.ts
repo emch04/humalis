@@ -1,3 +1,4 @@
+import { avecComptes, avecEmails, CLES_BREVO, codeCreationComptes, codeEnvois, codeRoutesComptes, COMPTES, EMAILS, ENV_EMAILS, ENV_LIENS, testsComptes } from './comptes.js';
 import { ligneLocale } from '../../fichiers.js';
 import type { ServeurRI, TypeChamp, QuiPeut } from '../../ri/types.js';
 import { simplifier } from '../../analyse/elements.js';
@@ -8,10 +9,13 @@ export interface OptionsServeur {
   nom: string;
   /** Le fichier Humalis d'origine, cité dans le LISEZMOI. */
   source: string;
+  /** Le chemin de chaque page : celui qu'ouvre un lien envoyé par e-mail. */
+  chemins?: Map<string, string>;
 }
 
 /** Versions épinglées des dépendances du serveur produit. */
 export const VERSIONS_SERVEUR = {
+  notify: '1.1.0',
   saasKit: '2.0.1',
   security: '1.13.0',
   storePostgres: '1.1.0',
@@ -60,7 +64,12 @@ export function genererProjetServeur(serveur: ServeurRI, options: OptionsServeur
   fichiers.set('src/humalis/centrale.ts', CENTRALE);
   fichiers.set('src/humalis/coffre.ts', coffreTs(serveur));
   fichiers.set('src/donnees.ts', donneesTs(serveur));
-  fichiers.set('src/serveur.ts', serveurTs(serveur));
+  if (avecEmails(serveur)) fichiers.set('src/humalis/emails.ts', EMAILS);
+  if (avecComptes(serveur)) fichiers.set('src/humalis/comptes.ts', COMPTES);
+  if (serveur.invitations || serveur.motDePasseOublie || serveur.routeComptes) {
+    fichiers.set('tests/comptes.test.ts', testsComptes(serveur, serveur.donnees.map((d) => `    ${camel(d.nom)}: creerStockageMemoire(),`).join('\n')));
+  }
+  fichiers.set('src/serveur.ts', serveurTs(serveur, options.chemins));
   fichiers.set('src/demarrer.ts', demarrerTs(serveur));
   fichiers.set('tests/regles.test.ts', testsRegles(serveur));
   fichiers.set('tests/sessions.test.ts', testsSessions(serveur));
@@ -141,6 +150,7 @@ function packageJson(nom: string, serveur: ServeurRI): string {
         '@astratra/centrale': v.centrale,
         '@astratra/credentials': v.credentials,
         ...(serveur.fidelite ? { '@astratra/loyalty': v.loyalty } : {}),
+        ...(avecEmails(serveur) ? { '@astratra/notify': v.notify } : {}),
         ...(bon ? { '@astratra/pdf': v.pdf } : {}),
         '@astratra/saas-kit': v.saasKit,
         '@astratra/security': v.security,
@@ -229,7 +239,12 @@ PORT=3000
 `;
 
 function envExemple(serveur: ServeurRI): string {
-  return serveur.connexionGoogle ? ENV_EXEMPLE.replace('\nPORT=3000', ENV_GOOGLE + '\nPORT=3000') : ENV_EXEMPLE;
+  const enPlus = [
+    ...(serveur.connexionGoogle ? [ENV_GOOGLE] : []),
+    ...(serveur.emails ? [ENV_EMAILS] : []),
+    ...(serveur.invitations || serveur.motDePasseOublie ? [ENV_LIENS] : []),
+  ];
+  return ENV_EXEMPLE.replace('\nPORT=3000', enPlus.join('\n') + '\nPORT=3000');
 }
 
 /**
@@ -561,7 +576,7 @@ export async function demarrerCentrale(env: Record<string, string | undefined> =
 
 /** Les clés que l'admin peut gérer : celles que ce serveur lit vraiment. Une ligne de plus suffira pour l'e-mail. */
 function coffreTs(serveur: ServeurRI): string {
-  const cles = serveur.connexionGoogle
+  const clesGoogle = serveur.connexionGoogle
     ? `      {
         key: 'GOOGLE_CLIENT_ID',
         label: 'Connexion avec Google',
@@ -570,6 +585,7 @@ function coffreTs(serveur: ServeurRI): string {
       },
 `
     : '';
+  const cles = clesGoogle + (serveur.emails ? CLES_BREVO : '');
   return `import type { RequestHandler, Router } from 'express';
 import type { PoolPostgres } from './stockage.js';
 
@@ -1038,7 +1054,7 @@ function decrireDroits(droits: Record<Action, QuiPeut | null>): string {
   return ACTIONS.map((a) => `${a} : ${qui(droits[a])}`).join(' ; ');
 }
 
-function serveurTs(serveur: ServeurRI): string {
+function serveurTs(serveur: ServeurRI, chemins?: Map<string, string>): string {
   const stockages = serveur.donnees.map((d) => `    ${camel(d.nom)}: Stockage;`).join('\n');
   const routes = serveur.routes
     .map((route) => {
@@ -1075,7 +1091,12 @@ ${route.bon ? routeBon(variable, route, garde('lire'), schema, donnee) : ''}    
         try {
           const envoi = verifierEnvoi(${schema}, req.body, true);
           if ('erreur' in envoi) res.status(400).json({ erreur: envoi.erreur });
-          else res.status(201).json(await stockages.${donnee}.creer(envoi.valeur));
+          else ${route.envois?.length ? `{
+          const cree = await stockages.${donnee}.creer(envoi.valeur);
+          res.status(201).json(cree);
+          // La réponse est partie : un e-mail raté ne fait pas échouer la création.
+${codeEnvois(serveur, route)}
+          }` : `res.status(201).json(await stockages.${donnee}.creer(envoi.valeur));`}
         } catch (erreur) {
           next(erreur);
         }
@@ -1110,15 +1131,17 @@ ${route.bon ? routeBon(variable, route, garde('lire'), schema, donnee) : ''}    
   const boutique = JSON.stringify(serveur.nom);
   const fidelite = serveur.fidelite ? routeFidelite(serveur.fidelite) : '';
   const avecBon = serveur.routes.some((r) => r.bon);
+  const comptes = avecComptes(serveur);
+  const envoisDansRoutes = serveur.routes.some((r) => r.envois?.length);
 
   return `// Produit par Humalis : le serveur « ${serveur.nom} », assemblé avec les packs Astratra.
-import { createSaasApp, type UsersStore } from '@astratra/saas-kit';
-import { ${serveur.connexionGoogle ? 'createGoogleIdTokenVerifier, IdTokenError, ' : ''}createLoginLimiter, hashPassword, isStrongPassword, verifyPasswordHash, WAF_PATTERNS } from '@astratra/security';
+import { createSaasApp, ${comptes ? 'createMemoryPasswordResetStore, type PasswordResetStore, ' : ''}type UsersStore } from '@astratra/saas-kit';
+import { ${[...(serveur.connexionGoogle ? ['createGoogleIdTokenVerifier', 'IdTokenError'] : []), ...(serveur.invitations ? ['createApiLimiter'] : []), ...(comptes ? ['createMemoryRevocationStore'] : [])].map((n) => n + ', ').join('')}createLoginLimiter, hashPassword, isStrongPassword, verifyPasswordHash, WAF_PATTERNS } from '@astratra/security';
 import express, { type RequestHandler, type Response } from 'express';
 import { ${schemas} } from './donnees.js';
 import type { Surveillance } from './humalis/centrale.js';
 import type { Coffre } from './humalis/coffre.js';
-import { compresser } from './humalis/compresser.js';${avecBon ? "\nimport { creerBon } from './humalis/bon.js';" : ''}${serveur.fidelite ? "\nimport { carteDeFidelite } from './humalis/fidelite.js';" : ''}
+${comptes ? "import { creerComptes, refuserMotDePasseFaible, sansLesRetires } from './humalis/comptes.js';\n" : ''}${avecEmails(serveur) ? `import { creerEmails, ${envoisDansRoutes ? 'enTexte, ' : ''}type Emails } from './humalis/emails.js';\n` : ''}import { compresser } from './humalis/compresser.js';${avecBon ? "\nimport { creerBon } from './humalis/bon.js';" : ''}${serveur.fidelite ? "\nimport { carteDeFidelite } from './humalis/fidelite.js';" : ''}
 import { creerRenouvellement, reglagesDeSession, renouvellementEnCookie, type ReglagesSession } from './humalis/sessions.js';
 import { ${serveur.fidelite ? 'sansSeparateurs, ' : ''}type Stockage } from './humalis/stockage.js';
 import { lireFiltres, verifierEnvoi } from './humalis/verifier.js';
@@ -1131,7 +1154,11 @@ export interface OptionsDuServeur {
 ${stockages}
   };${serveur.connexionGoogle ? '\n  /** L\'ID client OAuth de Google (« connexion google »), relu à chaque demande ; sans lui, la connexion avec Google est fermée. */\n  googleClientId?: string | (() => string | undefined);' : ''}
   /** La durée de la session et où garder ses renouvellements ; par défaut, HUMALIS_SESSION et HUMALIS_SESSION_MAX, en mémoire. */
-  session?: ReglagesSession;
+  session?: ReglagesSession;${avecEmails(serveur) ? `
+  /** Les e-mails ; par défaut, Brevo avec BREVO_API_KEY et BREVO_EXPEDITEUR. */
+  emails?: Emails;` : ''}${comptes ? `
+  /** Les empreintes des liens envoyés par e-mail ; par défaut, en mémoire. */
+  jetons?: PasswordResetStore;` : ''}
   /** La surveillance, si CENTRALE_ADRESSE et CENTRALE_CLE sont réglées. */
   surveillance?: Surveillance | null;
   /** Le coffre des clés de service, si ENCRYPTION_KEY est réglée. */
@@ -1182,9 +1209,9 @@ const sansCache = (res: Response) => res.set('Cache-Control', 'no-store');
  * limites et les en-têtes de sécurité viennent de createSaasApp. Les
  * routes des données s'ajoutent par extendRoutes, avec les gardes du pack.
  */
-export function creerServeur({ jwtSecret, usersStore, stockages${serveur.connexionGoogle ? ', googleClientId' : ''}, session = reglagesDeSession(process.env), surveillance, coffre }: OptionsDuServeur) {
+export function creerServeur({ jwtSecret, usersStore${comptes ? ': tousLesComptes' : ''}, stockages${serveur.connexionGoogle ? ', googleClientId' : ''}, session = reglagesDeSession(process.env), surveillance, coffre${avecEmails(serveur) ? `, emails = creerEmails({ nom: ${boutique} })` : ''}${comptes ? ', jetons = createMemoryPasswordResetStore()' : ''} }: OptionsDuServeur) {
   const renouvellement = creerRenouvellement(session);
-  const serveur = createSaasApp({
+${comptes ? codeCreationComptes(serveur, chemins).replace('usersStore,', 'usersStore: tousLesComptes,') + '  // Pour les packs, un compte retiré n\'existe plus.\n  const usersStore = sansLesRetires(tousLesComptes);\n' : ''}${envoisDansRoutes ? `  const adressesDesAdmins = async () => (await usersStore.list({ role: 'admin', limit: 100 })).map((compte) => String(compte.email)).filter(Boolean);\n` : ''}  const serveur = createSaasApp({
     jwtSecret,
     // Le pare-feu du pack, sans son motif des commentaires SQL : le stockage passe par des requêtes paramétrées,
     // et « avenue #12 » ou « appeler -- après 18h » sont de vrais textes. Les autres motifs restent.
@@ -1198,7 +1225,11 @@ export function creerServeur({ jwtSecret, usersStore, stockages${serveur.connexi
     roles: { adminRoles: ['admin'], ownerRoles: ['admin'] },
     verifyPassword: async (utilisateur, motDePasse) =>
       typeof utilisateur.passwordHash === 'string' && verifyPasswordHash(motDePasse, utilisateur.passwordHash),
-    notify: async () => {},
+    notify: async () => {},${comptes ? `
+    // Le mot de passe oublié et la consommation d'un lien (invitation comprise) : les routes du pack, jeton haché et usage unique.
+    hashPassword,
+    revocationStore: revocations,
+    passwordReset: { send: comptes.envoyerLienOublie, store: jetons },` : ''}
     extendRoutes: (app, contexte) => {
       // Les gardes du pack, telles quelles.
       const authMiddleware = contexte.authMiddleware as unknown as RequestHandler;
@@ -1219,20 +1250,21 @@ ${google}
       };
       app.use('/auth/cles', authMiddleware, authorizeAdmin, csrfMiddleware, coffre ? coffre.routes(authorizeAdmin) : coffreFerme);
 
-${routes}
+${comptes ? codeRoutesComptes(serveur, adresseApi, (a) => `route${pascal(a)}`) : ''}${routes}
 ${fidelite}      // Le dernier avant la réponse d'erreur du pack, qui répond ensuite comme d'habitude.
       if (surveillance) app.use(surveillance.gestionnaireErreurs());
     },
   });
   // En tête de tout : la surveillance voit chaque requête, et le jeton de renouvellement passe par son cookie.
   const avant = express().disable('x-powered-by');
-  if (surveillance) avant.use(surveillance.intergiciel());
+  if (surveillance) avant.use(surveillance.intergiciel());${comptes ? "\n  avant.post('/auth/reset-password', express.json({ limit: '16kb' }), refuserMotDePasseFaible);" : ''}
   return avant.use(renouvellementEnCookie(session.dureeMs)).use(serveur as unknown as express.Application);
 }
 `;
 }
 
 function demarrerTs(serveur: ServeurRI): string {
+  const comptes = avecComptes(serveur);
   const stockages = serveur.donnees
     .map((d) => `  ${camel(d.nom)}: pool ? creerStockagePostgres(pool, '${nomTable(d.nom)}') : creerStockageMemoire(),`)
     .join('\n');
@@ -1244,7 +1276,7 @@ import { createPostgresUsersStore } from '@astratra/store-postgres';
 import pg from 'pg';
 import { creerServeur } from './serveur.js';
 import { demarrerCentrale } from './humalis/centrale.js';
-import { ouvrirCoffre } from './humalis/coffre.js';
+import { ouvrirCoffre } from './humalis/coffre.js';${comptes ? "\nimport { creerMagasinJetons } from './humalis/comptes.js';" : ''}
 import { creerMagasinMemoire, creerMagasinPostgres } from './humalis/renouvellements.js';
 import { reglagesDeSession, type ReglagesSession } from './humalis/sessions.js';
 import { creerStockageMemoire, creerStockagePostgres } from './humalis/stockage.js';
@@ -1296,7 +1328,7 @@ try {
 const coffre = await ouvrirCoffre(pool);
 
 const port = Number(process.env.PORT ?? 3000);
-const app = creerServeur({ jwtSecret, usersStore, stockages${serveur.connexionGoogle ? ', googleClientId: () => process.env.GOOGLE_CLIENT_ID || undefined' : ''}, session, surveillance, coffre }) as unknown as { listen(port: number, pret: () => void): unknown };
+const app = creerServeur({ jwtSecret, usersStore, stockages${serveur.connexionGoogle ? ', googleClientId: () => process.env.GOOGLE_CLIENT_ID || undefined' : ''}${comptes ? ', jetons: creerMagasinJetons(pool)' : ''}, session, surveillance, coffre }) as unknown as { listen(port: number, pret: () => void): unknown };
 app.listen(port, () => {
   console.log(\`Serveur « ${serveur.nom} » prêt : http://localhost:\${port}${premiere}\`);
 });
@@ -1671,12 +1703,17 @@ describe('la surveillance', () => {
 /** Ce que le LISEZMOI ajoute pour « telecharger bon de … » et « fidelite … ». */
 function lisezmoiEnPlus(serveur: ServeurRI): string {
   const bons = serveur.routes.filter((r) => r.bon).map((r) => `\`GET ${adresseApi(r.adresse)}/:id/bon\``);
-  const lignes = [
+  const lignes: string[] = [
     ...(bons.length > 0 ? [`\nLe bon d'une fiche, en PDF, avec les mêmes droits que sa lecture et jamais gardé en cache : ${bons.join(', ')}.`] : []),
     ...(serveur.fidelite
       ? [`\nLa carte de fidélité d'un client, calculée sur les fiches, réservée à l'admin et sans écriture : \`GET /api/fidelite/<${serveur.fidelite.champ}>\` rend \`{ tampons, objectif, restant, recompenses, recompense }\`. Les récompenses données ne sont pas enregistrées : \`recompenses\` compte celles qui ont été gagnées.`]
       : []),
   ];
+  if (serveur.invitations || serveur.motDePasseOublie) {
+    lignes.push(`\nLes liens envoyés par e-mail ont besoin de \`BREVO_API_KEY\`, \`BREVO_EXPEDITEUR\` et \`HUMALIS_ADRESSE_SITE\`. Le jeton est dans le fragment de l'adresse, le serveur n'en garde que l'empreinte, et il ne sert qu'une fois (\`src/humalis/comptes.ts\`).`);
+  } else if (serveur.emails) {
+    lignes.push(`\nLes e-mails partent par Brevo, avec \`BREVO_API_KEY\` et \`BREVO_EXPEDITEUR\` (\`src/humalis/emails.ts\`).`);
+  }
   return lignes.length > 0 ? lignes.join('\n') + '\n' : '';
 }
 

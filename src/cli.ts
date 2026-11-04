@@ -8,7 +8,7 @@ import { compilerProjet, situer } from './fichiers.js';
 import type { Diagnostic } from './analyse/erreurs.js';
 import { appliquerExigence, resumerQualite } from './analyse/diagnosticsQualite.js';
 import { prevenirDesTuiles } from './analyse/carte.js';
-import { genererProjetWeb, genererComposantsWeb, verifierPourLeWeb, adressesDeRequetes, MARQUE } from './cibles/web/projet.js';
+import { cheminsDesPages, genererProjetWeb, genererComposantsWeb, verifierPourLeWeb, adressesDeRequetes, MARQUE } from './cibles/web/projet.js';
 import { genererProjetServeur, MARQUE_SERVEUR } from './cibles/serveur/projet.js';
 import { verifierSourcesPourLaCible, verifierNavigationPourLaCible, verifierFichiersPourLaCible } from './cibles/sources.js';
 import { genererProjetMobile, verifierPourLeMobile, MARQUE_MOBILE } from './cibles/mobile/projet.js';
@@ -448,6 +448,7 @@ function compileServeur(application: Application, chemin: string, sortie: string
   const fichiers = genererProjetServeur(application.serveurs[0], {
     nom: application.serveurs[0].nom,
     source: basename(chemin),
+    chemins: cheminsDesPages(application),
   });
   ecrire(sortie, fichiers);
   console.error(`Serveur écrit dans « ${sortie} » (${fichiers.size} fichiers).`);

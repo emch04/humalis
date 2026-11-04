@@ -64,7 +64,7 @@ import type {
   Boucle,
   Evenement,
   GenreEvenement,
-  Connexion, ConnexionGoogle, ChangementMotDePasse, TelechargementBon, TelechargementCsv, Fidelite, Suppression, Modification, EnvoiFichier, ArgumentPage } from './ast.js';
+  Connexion, ConnexionGoogle, ChangementMotDePasse, Invitation, DemandeLienMotDePasse, ChoixMotDePasse, ApresCreation, EnvoiEmail, TelechargementBon, TelechargementCsv, Fidelite, Suppression, Modification, EnvoiFichier, ArgumentPage } from './ast.js';
 
 export function analyserSyntaxe(tokens: Token[]): Programme {
   const flux = new FluxTokens(tokens);
@@ -378,6 +378,9 @@ function analyserServeur(flux: FluxTokens): Serveur {
   const donnees: Donnee[] = [];
   const routes: Route[] = [];
   let connexionGoogle: number | undefined;
+  let emails: Serveur['emails'];
+  let invitations: Serveur['invitations'];
+  let motDePasseOublie: Serveur['motDePasseOublie'];
   let fidelite: Fidelite | undefined;
 
   chaqueLigne(flux, () => {
@@ -395,18 +398,62 @@ function analyserServeur(flux: FluxTokens): Serveur {
       }
       flux.avancer();
       connexionGoogle = token.ligne;
+    } else if (estLeMot(token, 'emails')) {
+      // « emails par brevo » : un seul service pour l'instant.
+      flux.avancer();
+      if (!estLeMot(flux.actuel(), 'par')) throw new ErreurSyntaxique('après « emails », écrivez le service qui les envoie : emails par brevo', token.ligne);
+      flux.avancer();
+      const service = flux.actuel();
+      if (motDe(service) !== 'brevo') throw new ErreurSyntaxique('le seul service d’e-mails est Brevo pour l’instant : emails par brevo', token.ligne);
+      flux.avancer();
+      emails = { service: 'brevo', ligne: token.ligne };
+    } else if (estLeMot(token, 'invitations')) {
+      flux.avancer();
+      invitations = { page: pageDuLien(flux, 'invitations'), ligne: token.ligne };
+    } else if (estLeMot(token, 'mot') && estLeMot(flux.regarder(1), 'passe') && estLeMot(flux.regarder(2), 'oublie')) {
+      flux.avancer();
+      flux.avancer();
+      flux.avancer();
+      motDePasseOublie = { page: pageDuLien(flux, 'mot de passe oublie'), ligne: token.ligne };
     } else if (estLeMot(token, 'fidelite')) {
       if (fidelite) throw new ErreurSyntaxique(`un serveur n'a qu'une seule « fidelite » : elle est déjà écrite ligne ${fidelite.ligne}.`, token.ligne);
       fidelite = analyserFidelite(flux);
     } else {
       throw new ErreurSyntaxique(
-        `dans un serveur, on écrit « donnee … : », « route "…" : », « fidelite par … de … : » ou « connexion google », mais « ${token.original ?? token.valeur} » a été trouvé`,
+        `dans un serveur, on écrit « donnee … : », « route "…" : », « fidelite par … de … : », « connexion google », « emails par brevo », « invitations vers "…" » ou « mot de passe oublie vers "…" », mais « ${token.original ?? token.valeur} » a été trouvé`,
         token.ligne,
       );
     }
   });
 
-  return { type: 'Serveur', nom, donnees, routes, ...(connexionGoogle !== undefined ? { connexionGoogle } : {}), ...(fidelite ? { fidelite } : {}), ligne: debut.ligne };
+  // « comptes » dans une règle : les comptes de la connexion, s'il n'existe pas de donnée de ce nom.
+  const regleComptes = routes.flatMap((r) => r.regles).find((r) => r.donnee === 'comptes');
+  if (regleComptes && !donnees.some((d) => d.nom === 'comptes')) {
+    const champ = (nom: string) => ({ nom, type: { genre: 'texte' as const }, ligne: regleComptes.ligne });
+    donnees.push({ type: 'Donnee', nom: 'comptes', champs: ['email', 'role', 'statut'].map(champ), comptes: true, ligne: regleComptes.ligne });
+  }
+
+  return {
+    type: 'Serveur',
+    nom,
+    donnees,
+    routes,
+    ...(connexionGoogle !== undefined ? { connexionGoogle } : {}),
+    ...(emails ? { emails } : {}),
+    ...(invitations ? { invitations } : {}),
+    ...(motDePasseOublie ? { motDePasseOublie } : {}),
+    ...(fidelite ? { fidelite } : {}),
+    ligne: debut.ligne,
+  };
+}
+
+/** « vers "bienvenue" » : la page qu'ouvre le lien d'un e-mail. */
+function pageDuLien(flux: FluxTokens, ligne: string): string {
+  const exemple = `« ${ligne} » est suivi de la page qu'ouvre le lien : ${ligne} vers "bienvenue"`;
+  if (!estLeMot(flux.actuel(), 'vers')) throw new ErreurSyntaxique(exemple, flux.actuel().ligne);
+  flux.avancer();
+  if (flux.actuel().type !== 'CHAINE') throw new ErreurSyntaxique(exemple, flux.actuel().ligne);
+  return flux.avancer().valeur;
 }
 
 /**
@@ -498,8 +545,66 @@ function analyserRoute(flux: FluxTokens): Route {
   const adresse = flux.attendre('CHAINE', undefined, "l'adresse de la route entre guillemets").valeur;
   flux.attendre('PONCTUATION', ':', "deux-points après l'adresse de la route");
   const regles: Regle[] = [];
-  chaqueLigne(flux, () => regles.push(analyserRegle(flux)));
-  return { type: 'Route', adresse, regles, ligne: debut.ligne };
+  let apresCreation: ApresCreation | undefined;
+  chaqueLigne(flux, () => {
+    if (flux.verifier('MOT_CLE', 'quand') || estLeMot(flux.actuel(), 'quand')) {
+      if (apresCreation) throw new ErreurSyntaxique(`une route n'a qu'un seul « quand … est cree » : il est déjà écrit ligne ${apresCreation.ligne}.`, flux.actuel().ligne);
+      apresCreation = analyserApresCreation(flux);
+    } else regles.push(analyserRegle(flux));
+  });
+  return { type: 'Route', adresse, regles, ...(apresCreation ? { apresCreation } : {}), ligne: debut.ligne };
+}
+
+/** « quand message est cree : » puis, décalés, les « envoyer email … ». */
+function analyserApresCreation(flux: FluxTokens): ApresCreation {
+  const debut = flux.avancer();
+  const { nom: donnee } = flux.attendreNom('le nom de la donnée');
+  if (!estLeMot(flux.actuel(), 'est') || !estLeMot(flux.regarder(1), 'cree')) {
+    throw new ErreurSyntaxique(`dans une route, on écrit « quand ${donnee} est cree : » puis, en dessous, « envoyer email … ».`, debut.ligne);
+  }
+  flux.avancer();
+  flux.avancer();
+  flux.attendre('PONCTUATION', ':', 'deux-points après « est cree »');
+  const envois: EnvoiEmail[] = [];
+  chaqueLigne(flux, () => envois.push(analyserEnvoiEmail(flux)));
+  return { donnee, envois, ligne: debut.ligne };
+}
+
+/** « envoyer email aux admins avec sujet "…" et texte "…" » ; le destinataire peut être "a@b.c" ou commande.email. */
+function analyserEnvoiEmail(flux: FluxTokens): EnvoiEmail {
+  const exemple = 'envoyer email aux admins avec sujet "Nouveau message" et texte "{message.texte}"';
+  const debut = flux.actuel();
+  if (!estLeMot(debut, 'envoyer') || !estLeMot(flux.regarder(1), 'email')) {
+    throw new ErreurSyntaxique(`sous « quand … est cree : », on écrit : ${exemple}`, debut.ligne);
+  }
+  flux.avancer();
+  flux.avancer();
+  const cible = flux.actuel();
+  let destinataire: EnvoiEmail['destinataire'];
+  if (estLeMot(cible, 'admins')) {
+    flux.avancer();
+    destinataire = { genre: 'admins' };
+  } else if (cible.type === 'CHAINE') {
+    flux.avancer();
+    destinataire = { genre: 'adresse', adresse: cible.valeur };
+  } else if (estMot(cible) && flux.regarder(1).valeur === '.' && estMot(flux.regarder(2))) {
+    flux.avancer();
+    flux.avancer();
+    destinataire = { genre: 'champ', donnee: cible.valeur, champ: flux.avancer().valeur };
+  } else {
+    throw new ErreurSyntaxique(`à qui part cet e-mail ? « aux admins », une adresse entre guillemets, ou le champ d'une fiche (a commande.email). Par exemple : ${exemple}`, cible.ligne);
+  }
+  const lireTexte = (mot: string) => {
+    const jeton = flux.actuel();
+    if (!estLeMot(jeton, mot) || flux.regarder(1).type !== 'CHAINE') throw new ErreurSyntaxique(`il manque ${mot} "…" dans cet e-mail : ${exemple}`, jeton.ligne);
+    flux.avancer();
+    const chaine = flux.avancer();
+    return chaine.parties ?? [{ type: 'texte' as const, valeur: chaine.valeur }];
+  };
+  flux.attendre('MOT_CLE', 'avec', `« avec sujet "…" et texte "…" » après le destinataire : ${exemple}`);
+  const sujet = lireTexte('sujet');
+  flux.attendre('MOT_CLE', 'et', `« et texte "…" » après le sujet : ${exemple}`);
+  return { destinataire, sujet, texte: lireTexte('texte'), ligne: debut.ligne };
 }
 
 /** « tout le monde peut lire produit », « seul admin peut modifier produit ». */
@@ -794,6 +899,14 @@ function analyserInstruction(flux: FluxTokens): Instruction {
   if (estLeMot(flux.actuel(), 'deconnecter')) {
     return { type: 'Deconnexion', ligne: flux.avancer().ligne };
   }
+
+  // « inviter champ "Adresse" comme admin » ; « inviter(…) » reste l'appel d'une fonction de ce nom.
+  if (estLeMot(flux.actuel(), 'inviter') && flux.regarder(1).valeur !== '(' && flux.regarder(1).type !== 'FIN_LIGNE') {
+    return analyserInvitation(flux);
+  }
+  // « demander un lien de mot de passe pour champ "Email" » et « choisir le mot de passe avec champ "Nouveau" ».
+  if (estLeMot(flux.actuel(), 'demander') && estLeMot(flux.regarder(1), 'lien')) return analyserDemandeLien(flux);
+  if (estLeMot(flux.actuel(), 'choisir') && estLeMot(flux.regarder(1), 'mot') && estLeMot(flux.regarder(2), 'passe')) return analyserChoixMotDePasse(flux);
 
   // « changer le mot de passe avec champ "Actuel" et champ "Nouveau" » : celui du compte connecté.
   if (flux.verifier('MOT_CLE', 'changer') && estLeMot(flux.regarder(1), 'mot') && estLeMot(flux.regarder(2), 'passe')) {
@@ -1459,6 +1572,39 @@ function analyserConnexion(flux: FluxTokens): Connexion | ConnexionGoogle {
   flux.attendre('MOT_CLE', 'et', '« et » suivi du champ du mot de passe');
   const motDePasse = analyserOperande(flux);
   return { type: 'Connexion', email, motDePasse, ligne: debut.ligne };
+}
+
+/** « inviter champ "Adresse" » : un simple compte ; « comme admin » : un administrateur. */
+function analyserInvitation(flux: FluxTokens): Invitation {
+  const debut = flux.avancer();
+  const email = analyserOperande(flux);
+  if (!estLeMot(flux.actuel(), 'comme')) return { type: 'Invitation', email, role: 'membre', ligne: debut.ligne };
+  flux.avancer();
+  if (!estLeMot(flux.actuel(), 'admin')) throw new ErreurSyntaxique('après « comme », écrivez « admin » ; sans « comme », la personne invitée est un simple compte connecté.', debut.ligne);
+  flux.avancer();
+  return { type: 'Invitation', email, role: 'admin', ligne: debut.ligne };
+}
+
+/** « demander un lien de mot de passe pour champ "Email" » : « un », « de » et « le » sont déjà sautés. */
+function analyserDemandeLien(flux: FluxTokens): DemandeLienMotDePasse {
+  const debut = flux.avancer();
+  flux.avancer();
+  if (!estLeMot(flux.actuel(), 'mot') || !estLeMot(flux.regarder(1), 'passe') || !estLeMot(flux.regarder(2), 'pour')) {
+    throw new ErreurSyntaxique('on écrit : demander un lien de mot de passe pour champ "Email"', debut.ligne);
+  }
+  flux.avancer();
+  flux.avancer();
+  flux.avancer();
+  return { type: 'DemandeLienMotDePasse', email: analyserOperande(flux), ligne: debut.ligne };
+}
+
+/** « choisir le mot de passe avec champ "Nouveau" ». */
+function analyserChoixMotDePasse(flux: FluxTokens): ChoixMotDePasse {
+  const debut = flux.avancer();
+  flux.avancer();
+  flux.avancer();
+  flux.attendre('MOT_CLE', 'avec', '« avec champ "Nouveau mot de passe" » après « choisir le mot de passe »');
+  return { type: 'ChoixMotDePasse', nouveau: analyserOperande(flux), ligne: debut.ligne };
 }
 
 /** « changer le mot de passe avec champ "Mot de passe actuel" et champ "Nouveau mot de passe" ». */

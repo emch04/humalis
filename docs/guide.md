@@ -1678,6 +1678,117 @@ Il faut un ID client OAuth de Google (type « application Web »), dans la
 variable `GOOGLE_CLIENT_ID` du serveur, avec l'adresse de redirection
 `https://ton-site/auth-google.html`. Cible web et bureau seulement, pour l'instant.
 
+### Inviter des personnes et retrouver un mot de passe
+
+Le premier compte vient de l'environnement. Les suivants arrivent sur invitation :
+un admin donne une adresse, la personne reçoit un lien, puis choisit son mot de
+passe. Avec `connexion google`, elle peut aussi entrer avec Google, puisque son
+compte est maintenant connu.
+
+```humalis
+serveur "boutique" :
+    connexion google
+    emails par brevo
+    invitations vers "bienvenue"
+    mot de passe oublie vers "bienvenue"
+    route "equipe" :
+        seul admin peut lire comptes
+        seul admin peut supprimer comptes
+
+page "accueil" :
+    titre "Connexion"
+
+page "equipe" reservee a admin sinon vers "accueil" :
+    titre "L'équipe"
+    variable membres = []
+    quand la page se charge :
+        envoyer requete vers "equipe" dans membres
+    formulaire "invitation" :
+        champ email "Adresse" avec obligatoire
+        bouton "Inviter"
+    quand le formulaire "invitation" est soumis :
+        essayer :
+            inviter champ "Adresse" comme admin
+            afficher reussite "Invitation envoyée"
+            envoyer requete vers "equipe" dans membres
+        si erreur :
+            afficher erreur "{raison}"
+    pour chaque m dans membres :
+        ligne :
+            texte "{m.email} ({m.role}, {m.statut})"
+            bouton "Retirer"
+            quand l'utilisateur clique sur "Retirer" :
+                supprimer m de "equipe"
+                envoyer requete vers "equipe" dans membres
+
+page "oublie" :
+    titre "Mot de passe oublié"
+    formulaire "demande" :
+        champ email "Email" avec obligatoire
+        bouton "Recevoir un lien"
+    quand le formulaire "demande" est soumis :
+        demander un lien de mot de passe pour champ "Email"
+        afficher reussite "Si ce compte existe, un lien vient de partir."
+
+page "bienvenue" :
+    titre "Choisis ton mot de passe"
+    formulaire "choix" :
+        champ mot de passe "Mot de passe" avec obligatoire
+        bouton "Enregistrer"
+    quand le formulaire "choix" est soumis :
+        essayer :
+            choisir le mot de passe avec champ "Mot de passe"
+            rediriger vers "accueil"
+        si erreur :
+            afficher erreur "{raison}"
+```
+
+- `inviter … comme admin` crée un administrateur ; sans `comme`, c'est un simple
+  compte connecté. Seul un admin peut inviter, et le serveur le vérifie.
+- Le lien ne sert qu'une fois. Il vaut 7 jours pour une invitation, une heure pour
+  un mot de passe oublié. Le serveur garde seulement son empreinte.
+- `demander un lien…` répond pareil que l'adresse ait un compte ou non, et une même
+  adresse ne reçoit qu'un lien toutes les dix minutes. Inviter une adresse qui a
+  déjà un compte ne change rien à ce compte.
+- `comptes` est une donnée déjà prête, avec `email`, `role` (`admin` ou `membre`) et
+  `statut` (`invite` ou `actif`). Seul un admin peut la lire ou en supprimer une
+  fiche. Supprimer annule une invitation ou retire un membre : il n'a plus de
+  mot de passe, plus de lien, et sa session est coupée. On ne peut pas se retirer
+  soi-même. Une nouvelle invitation peut le faire revenir.
+
+Il faut, dans l'environnement du serveur ou son coffre de clés, `BREVO_API_KEY` et
+`BREVO_EXPEDITEUR` (une adresse d'un domaine vérifié chez Brevo), et, dans
+l'environnement, `HUMALIS_ADRESSE_SITE` (`https://ma-boutique.com`) pour écrire
+les liens. Sans elles, `inviter` affiche une erreur qui le dit. Cible web et
+bureau ; l'application mobile affiche un message qui renvoie vers le site, et le
+site statique refuse ces phrases.
+
+### Envoyer un e-mail depuis le serveur
+
+Sous une route, `quand … est cree :` fait partir des e-mails quand une fiche vient
+d'être enregistrée.
+
+```humalis
+serveur "boutique" :
+    emails par brevo
+    donnee message :
+        nom : texte
+        texte : texte
+    route "messages" :
+        tout le monde peut creer message
+        seul admin peut lire message
+        seul admin peut supprimer message
+        quand message est cree :
+            envoyer email aux admins avec sujet "Nouveau message de {message.nom}" et texte "{message.texte}"
+```
+
+Le destinataire s'écrit `aux admins`, avec une adresse (`a "contact@exemple.com"`) ou
+avec un champ de la fiche (`a commande.email`). Le texte montre les champs de la
+fiche créée. Un envoi raté ne fait pas échouer la création. Humalis prévient si
+tout le monde peut créer la fiche et choisir ainsi l'adresse d'arrivée : ton
+domaine servirait à envoyer du spam. Le serveur envoie au plus 100 e-mails par
+heure ; `HUMALIS_EMAILS_PAR_HEURE` change cette limite.
+
 ### Une page de profil : mot de passe et photo
 
 Une personne connectée change son mot de passe avec

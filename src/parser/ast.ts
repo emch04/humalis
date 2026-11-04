@@ -129,6 +129,12 @@ export interface Serveur {
   routes: Route[];
   /** « connexion google » : un compte déjà connu du serveur peut se connecter avec Google (ligne). */
   connexionGoogle?: number;
+  /** « emails par brevo » : le service qui envoie les e-mails du serveur. */
+  emails?: { service: string; ligne: number };
+  /** « invitations vers "bienvenue" » : un admin invite une adresse ; le lien ouvre cette page. */
+  invitations?: { page: string; ligne: number };
+  /** « mot de passe oublie vers "bienvenue" » : le lien reçu par e-mail ouvre cette page. */
+  motDePasseOublie?: { page: string; ligne: number };
   /** « fidelite par telephone de commande : » : une carte à tampons calculée sur les fiches. */
   fidelite?: Fidelite;
   ligne: number;
@@ -221,6 +227,8 @@ export interface Donnee {
   /** Le nom sous lequel l'analyse la connaît (« boutique_produit » si une autre donnée porte déjà « produit »). */
   cle?: string;
   champs: { nom: string; type: TypeChamp; ligne: number }[];
+  /** Vrai pour « comptes », les comptes de la connexion : aucune table à créer, le serveur les lit dans ses packs. */
+  comptes?: boolean;
   ligne: number;
 }
 
@@ -232,6 +240,23 @@ export interface Route {
   type: 'Route';
   adresse: string;
   regles: Regle[];
+  /** « quand message est cree : … » : les e-mails que la création d'une fiche fait partir. */
+  apresCreation?: ApresCreation;
+  ligne: number;
+}
+
+/** « quand message est cree : envoyer email … ». */
+export interface ApresCreation {
+  donnee: string;
+  envois: EnvoiEmail[];
+  ligne: number;
+}
+
+/** « envoyer email aux admins avec sujet "…" et texte "…" ». */
+export interface EnvoiEmail {
+  destinataire: { genre: 'admins' } | { genre: 'adresse'; adresse: string } | { genre: 'champ'; donnee: string; champ: string };
+  sujet: PartieChaine[];
+  texte: PartieChaine[];
   ligne: number;
 }
 
@@ -342,6 +367,9 @@ export type Instruction =
   | Connexion
   | ConnexionGoogle
   | ChangementMotDePasse
+  | Invitation
+  | DemandeLienMotDePasse
+  | ChoixMotDePasse
   | TelechargementBon
   | TelechargementCsv
   | Deconnexion
@@ -593,6 +621,28 @@ export interface Connexion {
 /** « se connecter avec google » : la fenêtre de Google, puis la session d'un compte déjà connu du serveur. */
 export interface ConnexionGoogle {
   type: 'ConnexionGoogle';
+  ligne: number;
+}
+
+/** « inviter champ "Adresse" comme admin » : un lien par e-mail pour rejoindre l'application. */
+export interface Invitation {
+  type: 'Invitation';
+  email: Expression;
+  role: 'membre' | 'admin';
+  ligne: number;
+}
+
+/** « demander un lien de mot de passe pour champ "Email" » : la réponse ne dit jamais si le compte existe. */
+export interface DemandeLienMotDePasse {
+  type: 'DemandeLienMotDePasse';
+  email: Expression;
+  ligne: number;
+}
+
+/** « choisir le mot de passe avec champ "Nouveau" » : sur la page ouverte par le lien reçu. */
+export interface ChoixMotDePasse {
+  type: 'ChoixMotDePasse';
+  nouveau: Expression;
   ligne: number;
 }
 

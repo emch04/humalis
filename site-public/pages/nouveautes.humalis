@@ -14,8 +14,17 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
             colonne avec style "frise" et animation montee au defilement et en cascade :
                 bloc avec style "version version-recente" :
                     ligne avec style "version-tete" :
-                        texte "1.6.0" sans traduction avec style "version-numero"
+                        texte "1.7.0" sans traduction avec style "version-numero"
                         texte "Dernière version" en anglais "Latest" avec style "pastille pastille-vive"
+                        texte "4 novembre 2026" en anglais "November 4, 2026" avec style "version-date"
+                    soustitre "Inviter son équipe, envoyer des e-mails" en anglais "Invite your team, send emails"
+                    liste :
+                        texte "`inviter champ \"Adresse\" comme admin` envoie un lien à usage unique ; la personne choisit son mot de passe ou entre avec Google." en anglais "`inviter champ \"Adresse\" comme admin` sends a single-use link; the person chooses a password or comes in with Google."
+                        texte "Mot de passe oublié, liste des comptes et retrait d’un membre, dans la grammaire des routes." en anglais "Forgotten password, account list and member removal, in the same grammar as routes."
+                        texte "`quand message est cree :` et `envoyer email aux admins avec sujet … et texte …` : le serveur écrit quand une fiche arrive." en anglais "`quand message est cree :` and `envoyer email aux admins avec sujet … et texte …`: the server writes when a record arrives."
+                bloc avec style "version" :
+                    ligne avec style "version-tete" :
+                        texte "1.6.0" sans traduction avec style "version-numero"
                         texte "4 novembre 2026" en anglais "November 4, 2026" avec style "version-date"
                     soustitre "Des erreurs réglables et toujours en français" en anglais "Adjustable errors, always in French"
                     liste :
@@ -129,7 +138,7 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
         colonne avec style "nouveautes-aside" et animation montee au defilement et en cascade :
             bloc avec style "aside-carte aside-vive" :
                 texte "Version actuelle" en anglais "Current version" avec style "aside-etiquette"
-                texte "1.6.0" sans traduction avec style "aside-version"
+                texte "1.7.0" sans traduction avec style "aside-version"
                 texte "Pour mettre à jour Humalis sur ta machine :" en anglais "To update Humalis on your machine:"
                 ligne avec style "install-command" :
                     texte "npm install -g humalis" sans traduction avec style "install-code"
@@ -140,7 +149,7 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
                 texte "En bref" en anglais "At a glance" avec style "aside-etiquette"
                 ligne avec style "aside-chiffres" :
                     colonne avec style "aside-chiffre" :
-                        texte "14" sans traduction avec style "aside-nombre"
+                        texte "15" sans traduction avec style "aside-nombre"
                         texte "versions" sans traduction
                     colonne avec style "aside-chiffre" :
                         texte "5" sans traduction avec style "aside-nombre"

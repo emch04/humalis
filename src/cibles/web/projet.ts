@@ -1616,6 +1616,12 @@ interface Utilisateur {
   seConnecterAvecGoogle(dansUnEssai?: boolean): Promise<boolean>;
   /** « changer le mot de passe avec … et … » : celui du compte connecté ; vrai si le serveur l'a accepté. */
   changerMotDePasse(actuel: string, nouveau: string, dansUnEssai?: boolean): Promise<boolean>;
+  /** « inviter … » : un lien par e-mail ; vrai si le serveur l'a pris en charge. */
+  inviter(email: string, role: 'membre' | 'admin', dansUnEssai?: boolean): Promise<boolean>;
+  /** « demander un lien de mot de passe pour … » : la réponse ne dit jamais si le compte existe. */
+  demanderLienMotDePasse(email: string, dansUnEssai?: boolean): Promise<boolean>;
+  /** « choisir le mot de passe avec … » : le jeton vient de l'adresse du lien reçu. */
+  choisirMotDePasse(nouveau: string, dansUnEssai?: boolean): Promise<boolean>;
   seDeconnecter(): Promise<void>;
   /** Demande /auth/me une seule fois, à la première page qui lit la session. */
   demander(): void;
@@ -1764,6 +1770,47 @@ export function Session({ children }: { children: ReactNode }) {
    * « changer le mot de passe » : le serveur vérifie le mot de passe actuel, refuse un nouveau trop faible,
    * puis garde son empreinte. La session reste ouverte.
    */
+  /** Un envoi aux routes des comptes ; un refus devient une phrase en français (ou « si erreur » la reçoit). */
+  async function envoyerAuCompte(chemin: string, donnees: object, dansUnEssai: boolean, sansRaison: string): Promise<boolean> {
+    const refuser = (texte: string): boolean => {
+      if (dansUnEssai) throw new Error(texte);
+      afficherMessage(texte, 'erreur');
+      return false;
+    };
+    let reponse: Response;
+    try {
+      reponse = await fetch(BASE + chemin, { method: 'POST', headers: entetes(), credentials: 'same-origin', body: JSON.stringify(donnees) });
+    } catch {
+      return refuser("Le serveur n'a pas répondu. Réessayez dans un instant.");
+    }
+    if (reponse.status === 429) return refuser('Trop de tentatives. Réessayez dans quelques minutes.');
+    if (reponse.status === 401) return refuser('Connectez-vous pour continuer.');
+    if (!reponse.ok) {
+      // Les messages du pack sont en anglais : seule une raison de Humalis (« erreur ») est montrée telle quelle.
+      const corps = (await reponse.json().catch(() => null)) as { erreur?: string } | null;
+      const raison = corps?.erreur;
+      return refuser(raison ? raison.charAt(0).toUpperCase() + raison.slice(1) + '.' : sansRaison);
+    }
+    return true;
+  }
+
+  async function inviter(email: string, role: 'membre' | 'admin', dansUnEssai = false): Promise<boolean> {
+    return envoyerAuCompte('/auth/invitations', { email, role }, dansUnEssai, "L'invitation n'est pas partie.");
+  }
+
+  async function demanderLienMotDePasse(email: string, dansUnEssai = false): Promise<boolean> {
+    return envoyerAuCompte('/auth/forgot-password', { email }, dansUnEssai, "Cette adresse e-mail n'est pas valable.");
+  }
+
+  async function choisirMotDePasse(nouveau: string, dansUnEssai = false): Promise<boolean> {
+    // Le jeton est dans le fragment de l'adresse : le navigateur ne l'envoie à aucun serveur.
+    const jeton = new URLSearchParams(window.location.hash.slice(1)).get('jeton') ?? '';
+    const fait = await envoyerAuCompte('/auth/reset-password', { token: jeton, password: nouveau }, dansUnEssai, "Ce lien n'est plus valable. Demandez-en un nouveau.");
+    // Le lien a servi : il ne reste pas dans l'adresse ni dans l'historique.
+    if (fait) window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    return fait;
+  }
+
   async function changerMotDePasse(actuel: string, nouveau: string, dansUnEssai = false): Promise<boolean> {
     const refuser = (texte: string): boolean => {
       if (dansUnEssai) throw new Error(texte);
@@ -1811,6 +1858,9 @@ export function Session({ children }: { children: ReactNode }) {
     seConnecter,
     seConnecterAvecGoogle,
     changerMotDePasse,
+    inviter,
+    demanderLienMotDePasse,
+    choisirMotDePasse,
     seDeconnecter,
     demander,
   };

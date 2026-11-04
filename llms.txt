@@ -8,7 +8,7 @@ Humalis est un langage en français. Un fichier .humalis décrit des pages, des 
 - Les éléments d’écran pris en charge : titre, texte, image, bouton, lien, champ, formulaire, section, bloc, ligne, colonne, grille, liste numérotée, sous-titre, liste, tableau, fenêtre, menu, icône, badge, avatar, progression, chargement, étoiles, compteur, code QR, onglets, onglet, déroulant, accordéon, carrousel, fil d’Ariane, audio, fichier, carte, marqueur, graphique, série, sélecteur. Leur texte s’écrit entre guillemets.
 - Déclare une valeur avec `variable nom = valeur` ; une condition commence par `si ... :`.
 - Les événements pris en charge : quand, utilisateur, clique, sur, survole, charge, soumis, ecrit, arrête d’écrire, appuie, arrive en bas de, l’ordre de … change. Écris l’événement sous l’élément visé, puis l’action dans son bloc.
-- Les actions prises en charge : afficher, erreur, montrer, cacher, changer, rediriger, ajouter, retirer, envoyer, requête, connecter, déconnecter, connecter avec google, csv, télécharger bon, recharger, basculer thème, continuer vers, revenir, réussite, avertissement, pendant, disparaître, action, après, toutes, copier, partager, confirmer.
+- Les actions prises en charge : afficher, erreur, montrer, cacher, changer, rediriger, ajouter, retirer, envoyer, requête, connecter, déconnecter, connecter avec google, inviter comme, demander lien mot de passe pour, choisir mot de passe, csv, télécharger bon, recharger, basculer thème, continuer vers, revenir, réussite, avertissement, pendant, disparaître, action, après, toutes, copier, partager, confirmer.
 - Les mots de liaison (ignorés dans une phrase mais interdits comme nom de variable) : le, la, les, un, une, des, de, du, à, au, aux, se, l', d', s', n', c', j', m', t'.
 
 ## Pièges fréquents
@@ -387,6 +387,28 @@ page "accueil" :
 - Trop de barres : au-delà de 40
 - Une courbe d’un seul point : une courbe d’un seul point
 - Des champs de graphique non vérifiés : ne sont connus qu’à l’exécution
+- « emails » sans son service : écrivez le service qui les envoie
+- Un service d’e-mails inconnu : le seul service d’e-mails est Brevo
+- Une invitation ou un mot de passe oublié sans sa page : est suivi de la page qu'ouvre le lien
+- Un lien par e-mail sans service d’e-mails : envoie un lien par e-mail
+- Le lien ouvre une page qui n’existe pas : cette page n'existe pas
+- Le lien ouvre une page qui attend une valeur : attend une valeur dans son adresse
+- Les comptes ouverts à tout le monde : seul un admin peut voir ou retirer les comptes
+- Créer ou modifier un compte par une route : les comptes se lisent et se suppriment seulement
+- Deux « quand … est cree » dans une route : une route n'a qu'un seul « quand
+- Un « quand » de route mal écrit : dans une route, on écrit
+- La création d’une autre donnée : elle ne voit pas la création de
+- « envoyer email » sans service d’e-mails : « envoyer email » demande la ligne
+- Autre chose qu’un e-mail sous « quand … est cree » : sous « quand … est cree : », on écrit
+- Un e-mail sans destinataire : à qui part cet e-mail
+- Un e-mail sans sujet ou sans texte : dans cet e-mail
+- Une adresse e-mail mal écrite : n'est pas une adresse e-mail
+- Un destinataire qui n’est pas un champ de la fiche : le destinataire est un champ de
+- Un visiteur choisit où part l’e-mail : vers l'adresse de son choix
+- Un e-mail qui montre autre chose que la fiche : un e-mail montre les champs de la fiche créée
+- Un rôle inconnu après « comme » : après « comme », écrivez « admin »
+- Une demande de lien mal écrite : on écrit : demander un lien de mot de passe
+- Une phrase des comptes sans sa ligne dans le serveur : demande la ligne « invitations vers
 - Une durée oubliée : il manque une durée
 - Une durée sans unité : il manque l’unité de la durée
 - Une durée qui n’est pas un nombre : une durée est un nombre suivi de son unité
