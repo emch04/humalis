@@ -78,9 +78,10 @@ describe('la phrase et son sens', () => {
     expect(erreurs(programme(...SERVEUR, ...page())).join('\n')).toMatch(/la route « fidelite » n'existe pas/);
   });
 
-  it('l’avertissement « seul un admin » s’applique à la carte', () => {
-    const { diagnostics } = compiler(complet);
-    expect(diagnostics.some((d) => d.gravite === 'avertissement' && d.message.includes('seul un admin peut lire « fidelite »'))).toBe(true);
+  it('l’avertissement « seul un admin » s’applique à la carte, sauf sur une page réservée à l’admin', () => {
+    const prevenu = (source: string) => compiler(source).diagnostics.some((d) => d.gravite === 'avertissement' && d.message.includes('seul un admin peut lire « fidelite »'));
+    expect(prevenu(complet)).toBe(false);
+    expect(prevenu(complet.replace(' reservee a admin sinon vers "connexion"', ''))).toBe(true);
   });
 
   it('les deux lignes de la carte sont vérifiées', () => {

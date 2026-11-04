@@ -4691,30 +4691,6 @@ page "accueil" :
     texte "Un restaurant au bord du fleuve Congo, ouvert du mardi au dimanche."
 `),
     'une erreur reste affichée de 1 à 60 secondes'),
-  e('site-erreurs-courte', 'avertissement', 'Des erreurs vite effacées dans tout le site',
-    'Lire une erreur, la comprendre et savoir quoi faire prend du temps. En dessous de 4 secondes, beaucoup de personnes la manquent ; le choix reste le tien.',
-    'Laisse au moins 4 secondes, ou retire la ligne pour garder 8 secondes.',
-    p(`
-site :
-    nom "Le Fleuve"
-    logo "./logo.svg"
-    erreurs pendant 2 secondes
-
-page "accueil" :
-    titre "Le Fleuve"
-    texte "Un restaurant au bord du fleuve Congo, ouvert du mardi au dimanche."
-`),
-    p(`
-site :
-    nom "Le Fleuve"
-    logo "./logo.svg"
-    erreurs pendant 5 secondes
-
-page "accueil" :
-    titre "Le Fleuve"
-    texte "Un restaurant au bord du fleuve Congo, ouvert du mardi au dimanche."
-`),
-    'c’est trop court pour lire une erreur', { gravite: 'avertissement' }),
   e('site-sans-logo', 'avertissement', 'Un site sans icône',
     'L’icône s’affiche dans l’onglet, les favoris et sur l’écran d’accueil d’un téléphone. Humalis n’en impose aucune : c’est ton site.',
     'Ajoute « logo "./logo.svg" » au bloc site (un SVG, ou un PNG carré de 512×512 au moins).',

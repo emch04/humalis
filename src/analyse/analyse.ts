@@ -210,6 +210,26 @@ type Garde = 'connecte' | 'admin' | undefined;
 /** La garde la plus forte des deux : admin passe avant connecté. */
 const plusForte = (a: Garde, b: Garde): Garde => (a === 'admin' || b === 'admin' ? 'admin' : (a ?? b));
 
+/** Vrai si ce bloc place le composant, à n'importe quelle profondeur. */
+function placeLeComposant(valeur: unknown, nom: string): boolean {
+  if (Array.isArray(valeur)) return valeur.some((v) => placeLeComposant(v, nom));
+  if (valeur === null || typeof valeur !== 'object') return false;
+  const noeud = valeur as { type?: unknown; nom?: unknown };
+  return (noeud.type === 'Composant' && noeud.nom === nom) || Object.values(valeur).some((v) => placeLeComposant(v, nom));
+}
+
+/**
+ * La garde d'un composant : celle de toutes les pages où il est placé, s'il n'est placé
+ * que dans des pages réservées ; rien s'il est dans une page ouverte, l'en-tête, le pied ou un autre composant.
+ */
+function gardeDuComposant(nom: string, programme: Programme): Garde {
+  const ailleurs = [programme.entete?.corps, programme.pied?.corps, ...programme.composants.map((c) => c.corps)];
+  if (ailleurs.some((corps) => placeLeComposant(corps, nom))) return undefined;
+  const pages = programme.pages.filter((p) => placeLeComposant(p.corps, nom));
+  if (pages.length === 0 || pages.some((p) => !p.reservee)) return undefined;
+  return pages.some((p) => p.reservee?.qui === 'connecte') ? 'connecte' : 'admin';
+}
+
 /** La garde que pose une condition « si utilisateur est connecte|admin ». */
 const gardeDe = (test: Test): Garde => {
   // « … et utilisateur est admin » garde la page ; avec « ou », rien n'est sûr.
@@ -357,7 +377,7 @@ export function analyserSens(programme: Programme, classesCss?: Set<string>): Re
     }
     const page: Page = { type: 'Page', nom: definition.nom, parametres: [], corps: definition.corps, ligne: definition.ligne };
     resultat.pagesComposants.set(definition, page);
-    new AnalysePage(page, nomsPages, resultat, classes, partages, composants, definition.parametres, liens, fonctions).analyser();
+    new AnalysePage(page, nomsPages, resultat, classes, partages, composants, definition.parametres, liens, fonctions).analyser(gardeDuComposant(definition.nom, programme));
   }
 
   // L'en-tête et le pied communs s'analysent comme une page : ils voient les variables partagées et la session.
@@ -521,7 +541,10 @@ class AnalysePage {
     this.portees.fermer();
   }
 
-  analyser(): void {
+  /** `gardeDesPages` : pour un composant, ce que garantissent les pages où il est placé. */
+  analyser(gardeDesPages?: Garde): void {
+    // « reservee a admin » : seule cette personne arrive ici, ses requêtes ne seront pas refusées.
+    this.garde = plusForte(gardeDesPages, this.page.reservee?.qui);
     this.portees.ouvrir();
     // Les mêmes symboles pour toutes les pages : le type d'une liste vide,
     // appris par un ajout dans une page, vaut aussi pour les autres.

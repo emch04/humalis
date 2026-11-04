@@ -74,8 +74,6 @@ export function analyserPublication(programme: Programme, diagnostics: Diagnosti
     const ms = millisecondesDe(site.erreurs)!;
     if (ms < 1000 || ms > 60_000) {
       diagnostics.push({ gravite: 'erreur', message: `une erreur reste affichée de 1 à 60 secondes (ici : ${ecrireDuree(ms)}).`, ligne: site.erreurs.ligne });
-    } else if (ms < 4000) {
-      avertir(`${ecrireDuree(ms)}, c’est trop court pour lire une erreur : laissez au moins 4 secondes (8 par défaut).`, site.erreurs.ligne);
     }
   }
 
