@@ -1,97 +1,69 @@
 # Humalis pour VS Code
 
-Extension VS Code du langage Humalis (phases 1 à 3), et un serveur de
-langage (LSP) pour les autres éditeurs.
+[Humalis](https://humalis.dev) est un langage en français pour créer une application complète : un site, une application mobile ou de bureau, et son serveur, à partir d'un seul programme.
+
+Cette extension vous aide à l'écrire. Elle signale vos erreurs pendant que vous tapez, explique chaque mot du langage et complète ce que vous écrivez.
+
+```humalis
+page "accueil" :
+    titre "Bienvenue"
+    variable visites = 0
+    bouton "Ajouter"
+    quand l'utilisateur clique sur "Ajouter" :
+        changer visites par visites + 1
+    texte "{visites} visites"
+```
 
 ## Ce qu'elle fait
 
-- Reconnaît les fichiers `.humalis`.
-- **Souligne les erreurs du compilateur** à la bonne ligne, avec son message
-  en français (survol et onglet « Problèmes ») : erreurs du lexer et du parser,
-  puis toutes les erreurs de l'analyse à la fois (variable non déclarée,
-  élément introuvable, types…) en rouge, et les avertissements (page cible
-  absente…) en jaune. Mis à jour 250 ms après la frappe.
-- **Survol** d'un mot : sa fiche, prise dans la table de vocabulaire
-  (`src/vocabulaire/table.ts`) et choisie selon la place (`texte` en tête de
-  ligne est l'élément, après `avec` c'est le style) : description, exemple,
-  code produit pour chaque cible (web, mobile, desktop, serveur, statique),
-  statut (« prévu » pour un mot pas encore disponible). Survoler un nom
-  (variable, page, route…) dit où il est déclaré.
-- **Complétion selon la place** (Ctrl+Espace) : en début de ligne, les mots
-  permis dans ce bloc (une page, un événement, le serveur, une route) ; après
-  `avec`, les options et les styles ; après `couleur`, les couleurs ; après
-  `quand`, les tournures d'événement ; après `est`, les comparaisons ; dans
-  `vers "…"`, les pages ; dans une requête, les routes ; dans `clique sur "…"`,
-  les éléments de la page ; à la place d'une valeur, les variables visibles à
-  cet endroit ; après `p.`, les champs des données.
-- **Saut à la déclaration** (F12, ou Ctrl+clic) : d'une variable à sa
-  déclaration (y compris `{nom}` dans un texte), d'un `vers "panier"` à la page,
-  d'un composant placé à sa définition, d'une route ou d'une donnée au serveur,
-  de `p.prix` au champ, d'un `clique sur "Ajouter"` au bouton, et à travers
-  `utiliser fichier` (un fichier ouvert et pas encore enregistré est lu dans
-  l'éditeur).
-- **Plan du document** (Ctrl+Maj+O, fil d'Ariane) : pages, composants, serveur
-  avec ses données et ses routes, variables partagées.
-- Colore le code : mots réservés, mots contextuels, `vrai` / `faux`, chaînes,
-  `{variable}` dans les chaînes, nombres, commentaires `#`. La grammaire est
-  **générée** depuis la table de vocabulaire (`npm run grammaire`). Une
-  **coloration sémantique** s'y ajoute : une variable nommée comme un mot du
-  vocabulaire (`nom`) est coloriée comme une variable.
-- Indente de 4 espaces après une ligne qui finit par `:`, ferme `""`, `[]`, `{}`.
-- Extraits de code : `page`, `variable`, `si`, `sinon`, `pour`, `quand`.
+- **Les erreurs en direct.** Le compilateur est inclus dans l'extension : rien d'autre à installer. Une erreur est soulignée en rouge et un avertissement en jaune, à la bonne ligne, avec une explication en français. Un fichier utilisé par un autre (`utiliser fichier "…"`) est vérifié avec tout son projet.
+- **Une fiche sur chaque mot.** Survolez un mot pour lire ce qu'il fait, avec un exemple et ce qu'il produit sur chaque cible. Survolez une variable, une page ou une route pour voir où elle est déclarée.
+- **Une complétion qui suit la place du curseur.** Dans une page, les éléments et les événements. Dans un serveur, ses données et ses routes. Après `avec`, les options et les styles. Dans `vers "…"`, vos pages. Après `p.`, les champs de la donnée.
+- **Aller à la déclaration** (F12 ou Ctrl+clic) : d'une variable à sa déclaration, d'un lien à sa page, d'une requête à sa route, y compris d'un fichier à l'autre.
+- **Le plan du document** (Ctrl+Maj+O) : pages, composants, serveur avec ses données et ses routes.
+- **La coloration du code**, jusqu'aux textes et aux `{variable}`. Une variable qui porte le nom d'un mot du langage reste colorée comme une variable.
+- **La mise en forme** avec la commande « Formater le document », la même que `humalis formater`. Un fichier qui contient une erreur n'est pas modifié.
+- **Quelques aides à l'écriture** : l'indentation après une ligne qui finit par `:`, la fermeture de `""`, `[]` et `{}`, et des extraits pour `page`, `variable`, `si`, `sinon`, `pour` et `quand`.
 
-Le compilateur est inclus dans le paquet (`dist/extension.js` et
-`dist/serveur-lsp.js`, fabriqués avec esbuild à partir de `../../src`). Le
-survol, la complétion et le reste sont des fonctions pures, sans VS Code
-(`src/langage/`), que l'extension et le serveur LSP appellent de la même façon.
-Elles comprennent aussi un fichier en cours de frappe : une ligne fautive est
-mise de côté le temps de lire le reste. Rien n'est publié.
+## Tout le langage
 
-## Construire
+L'extension connaît le langage de Humalis 1.7.3, y compris les constructions les plus récentes :
 
-```
-cd editeur/vscode
-npm install
-npm test          # génère la grammaire, lance les tests
-npm run build     # dist/extension.js et dist/serveur-lsp.js
-npm run paquet    # humalis-1.0.0.vsix
-npm run essai:lsp # lance le serveur LSP construit et lui parle en JSON-RPC
+- **Les messages d'un site :** `erreurs pendant 5 secondes`.
+- **Les comptes :** `emails par brevo`, `invitations vers "bienvenue"`, `mot de passe oublie vers "bienvenue"`, `seul admin peut lire comptes`, et dans les pages `inviter champ "Adresse" comme admin`, `demander un lien de mot de passe pour champ "Email"`, `choisir le mot de passe avec champ "Nouveau"`.
+- **Ce que le serveur décide :** `au depart "en_attente"`, `calcule somme prix de produit par refs`, `au plus prix de zone par commune`, `liste de texte du site`, `non vide`.
+- **Les routes :** `tout le monde peut lire suivi par identifiant`, et `quand commande est cree :` suivi de `envoyer email …` ou `creer … avec … dans …`.
+
+## Pour commencer
+
+1. Installez l'extension.
+2. Créez un fichier `accueil.humalis` et collez l'exemple ci-dessus.
+3. Survolez `bouton` pour lire sa fiche, puis retirez une espace au début d'une ligne : l'erreur apparaît aussitôt.
+
+Pour compiler et lancer votre programme, il vous faut la commande `humalis` :
+
+```bash
+npm install -g humalis
 ```
 
-## Installer
+Les tests écrits en Humalis (`*.test.humalis`) se lancent depuis le terminal avec `humalis tester`.
 
-```
-code --install-extension humalis-1.0.0.vsix
-```
+Le guide complet est sur [humalis.dev](https://humalis.dev).
 
-Ouvrir ensuite `exemples/boutique.humalis`, puis :
+## Avec un autre éditeur
 
-- survoler `bouton` : sa fiche s'affiche ;
-- au bout de la ligne `bouton "Commander"`, taper ` ave` puis Ctrl+Espace :
-  `avec` est proposé, avec sa fiche ;
-- F12 sur `panier` dans `ajouter nom à panier` : le curseur va à la ligne 1 ;
-- Ctrl+Maj+O : les pages `boutique` et `panier`, la variable `panier` ;
-- passer l'indentation d'une ligne à 3 espaces : l'erreur est soulignée.
+L'extension contient aussi un serveur de langage (LSP), qui ne demande que Node. Il offre les mêmes diagnostics, le survol, la complétion, la définition, le plan, la coloration et la mise en forme. Il se lance ainsi, depuis le dossier de l'extension installée :
 
-## Le serveur de langage, pour les autres éditeurs
-
-`dist/serveur-lsp.js` parle le protocole LSP sur l'entrée et la sortie
-standard (il ne demande que Node) :
-
-```
-node chemin/vers/editeur/vscode/dist/serveur-lsp.js --stdio
+```bash
+node dist/serveur-lsp.js --stdio
 ```
 
-Il sert les diagnostics, le survol, la complétion, la définition, le plan du
-document et la coloration sémantique. Il est écrit à la main (le transport
-`Content-Length` et JSON-RPC tiennent dans `src/lsp/`), sans bibliothèque.
-
-Neovim (0.11 et plus récent) :
+Neovim (0.11 ou plus récent) :
 
 ```lua
 vim.filetype.add({ extension = { humalis = 'humalis' } })
 vim.lsp.config('humalis', {
-  cmd = { 'node', '/chemin/vers/editeur/vscode/dist/serveur-lsp.js', '--stdio' },
+  cmd = { 'node', '/chemin/vers/dist/serveur-lsp.js', '--stdio' },
   filetypes = { 'humalis' },
 })
 vim.lsp.enable('humalis')
@@ -102,7 +74,7 @@ Helix (`languages.toml`) :
 ```toml
 [language-server.humalis]
 command = "node"
-args = ["/chemin/vers/editeur/vscode/dist/serveur-lsp.js", "--stdio"]
+args = ["/chemin/vers/dist/serveur-lsp.js", "--stdio"]
 
 [[language]]
 name = "humalis"
@@ -112,17 +84,8 @@ indent = { tab-width = 4, unit = "    " }
 language-servers = ["humalis"]
 ```
 
-Ces deux configurations n'ont pas encore été essayées dans Neovim ou Helix ;
-le serveur, lui, est essayé en vrai par `npm run essai:lsp`.
+Ces deux réglages n'ont pas encore été essayés dans Neovim et Helix.
 
-## Test dans un vrai VS Code
+## Licence
 
-`npm run test:vscode` télécharge VS Code (`@vscode/test-electron`) et vérifie
-que les diagnostics apparaissent et disparaissent, puis le survol de `bouton`,
-la complétion de `ave`, F12 sur `panier` et le plan de `boutique.humalis`.
-Sous Linux sans écran : `xvfb-run -a npm run test:vscode`.
-# Formatage
-
-La commande « Formater le document » utilise le formateur Humalis partagé avec la CLI. Le serveur de langage annonce aussi `textDocument/formatting`. Un document invalide reste intact ; le formatage travaille sur le texte ouvert dans l'éditeur.
-
-Les fichiers `*.test.humalis` sont exécutés depuis le terminal avec `humalis tester` à la racine du projet. La commande compile l'application indiquée par `humalis.projet.json`, puis affiche pour chaque étape le fichier, la ligne et le nom du test.
+Voir le fichier [LICENSE](LICENSE).

@@ -2343,6 +2343,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
   },
   {
     mot: 'quand est cree envoyer email sujet admins',
+    accentue: 'quand … est cree : envoyer email …',
     variantes: [],
     categorie: 'structure',
     concept: 'serveur.envoyerEmail',
@@ -2358,6 +2359,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
   },
   {
     mot: 'inviter comme',
+    accentue: 'inviter … comme admin',
     variantes: [],
     categorie: 'action',
     concept: 'action.inviter',
@@ -2377,6 +2379,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
   },
   {
     mot: 'demander lien mot de passe pour',
+    accentue: 'demander un lien de mot de passe pour …',
     variantes: [],
     categorie: 'action',
     concept: 'action.demanderLien',
@@ -2396,6 +2399,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
   },
   {
     mot: 'choisir mot de passe',
+    accentue: 'choisir le mot de passe avec …',
     variantes: [],
     categorie: 'action',
     concept: 'action.choisirMotDePasse',
@@ -2446,6 +2450,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
   },
   {
     mot: 'calcule somme nombre',
+    accentue: 'calcule nombre de … ou calcule somme …',
     variantes: [],
     categorie: 'structure',
     concept: 'serveur.calcule',
@@ -2461,6 +2466,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
   },
   {
     mot: 'au plus par',
+    accentue: 'au plus … de … par …',
     variantes: [],
     categorie: 'structure',
     concept: 'serveur.auPlus',
@@ -2473,6 +2479,36 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     statut: 'supporte',
     etape: 9,
     note: 'Vaut à la création.',
+  },
+  {
+    mot: 'comptes',
+    variantes: [],
+    categorie: 'structure',
+    concept: 'serveur.comptes',
+    contextes: ['serveur'],
+    cibles: serveurSeul('GET et DELETE de la route : la liste des comptes, sans aucun secret ; retirer un compte coupe sa session'),
+    couvre: [],
+    description:
+      'Dans une règle de route, « seul admin peut lire comptes » donne la liste des comptes de la connexion, avec email, role (admin ou membre) et statut (invite ou actif). « seul admin peut supprimer comptes » retire un membre ou annule une invitation.',
+    exemple: 'serveur "boutique" :\n    route "equipe" :\n        seul admin peut lire comptes\n        seul admin peut supprimer comptes',
+    statut: 'supporte',
+    etape: 9,
+    note: 'Une donnée que vous déclarez sous le nom « comptes » reste une donnée ordinaire.',
+  },
+  {
+    mot: 'erreurs pendant',
+    variantes: [],
+    categorie: 'structure',
+    concept: 'site.erreursPendant',
+    contextes: ['serveur'],
+    cibles: { ...AUCUNE, web: t('la durée des erreurs dans src/humalis/messages.tsx'), desktop: t('la durée des erreurs dans src/humalis/messages.tsx', COMME_WEB), mobile: t('la durée des erreurs dans humalis/messages.tsx'), statique: t('la durée des erreurs dans humalis/humalis.js'), serveur: t('rien : le serveur ne lit pas cette ligne, seules les pages affichent les erreurs') },
+    couvre: [],
+    description:
+      'Dans le bloc « site : », « erreurs pendant 5 secondes » règle combien de temps restent les erreurs du site, celles que Humalis affiche de lui-même comprises. De 1 à 60 secondes ; sans la ligne, 8 secondes.',
+    exemple: 'site :\n    nom "Le Comptoir"\n    erreurs pendant 5 secondes\n\npage "accueil" :\n    titre "Bienvenue"',
+    statut: 'supporte',
+    etape: 9,
+    note: 'Un « pendant » écrit sur un message garde la priorité ; un message avec un bouton garde le temps de cliquer.',
   },
   {
     mot: 'non vide',
@@ -2506,6 +2542,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
   },
   {
     mot: 'creer avec dans',
+    accentue: 'creer … avec … dans …',
     variantes: [],
     categorie: 'structure',
     concept: 'serveur.creerLiee',

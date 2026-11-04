@@ -15,7 +15,7 @@ fichier .humalis → lexer → parser → analyse → représentation intermédi
 | Parser | fait, testé |
 | Analyse, représentation intermédiaire | fait, testé |
 | Commande `humalis verifier` | faite |
-| Extension VS Code (erreurs, coloration, survol, complétion, saut à la déclaration, serveur LSP) | phases 1 à 3 faites ; serveur LSP essayé en vrai, l'extension reste à essayer dans VS Code |
+| Extension VS Code (erreurs, coloration, survol, complétion, saut à la déclaration, serveur LSP) | faite ; serveur LSP essayé en vrai, l'extension reste à essayer dans VS Code |
 | Cible web (React, prérendue) | faite, vérifiée dans un navigateur |
 | Commande `humalis compile` | faite (cibles web, mobile, desktop, serveur, statique) |
 | Interop React (pages dans un projet React, composants React dans Humalis) | faite, vérifiée dans un navigateur |
@@ -90,3 +90,18 @@ Le cœur, la cible web et le partage de données entre pages sont faits ; l'inte
 ### Tests Humalis
 
 Dans un projet avec `humalis.projet.json`, `humalis tester` découvre les fichiers `tests/**/*.test.humalis`, compile le fichier principal pour le web, construit le site avec Vite et exécute chaque cas dans un contexte Chromium isolé. `humalis tester tests/accueil.test.humalis` cible un fichier. Chaque étape affiche son fichier, sa ligne et le nom du test ; la commande retourne 1 dès qu'un test ou une préparation échoue. Le premier lancement installe les dépendances du projet produit dans `.humalis/tests/web` et nécessite Chromium pour Playwright (`npx playwright install chromium` dans ce dossier).
+
+## L'extension VS Code
+
+Depuis `editeur/vscode` :
+
+```sh
+npm install
+npm test               # génère la grammaire, lance les tests
+npm run paquet         # construit humalis-<version>.vsix
+npm run essai:lsp      # lance le serveur de langage construit et lui parle en JSON-RPC
+npm run essai:projet -- <dossier> <principal.humalis,autre.humalis> <fichier.humalis> …   # compare ses diagnostics à ceux de humalis verifier
+npm run test:vscode    # télécharge VS Code et essaie l'extension dedans
+```
+
+Le survol, la complétion et le reste sont des fonctions pures (`src/langage/`), que l'extension et le serveur de langage appellent de la même façon. La grammaire de coloration est générée depuis le vocabulaire ; une tournure de plusieurs mots s'ajoute dans `scripts/generer-grammaire.ts`, sa fiche dans `PHRASES` de `src/langage/survol.ts`.

@@ -77,6 +77,42 @@ function motEntier(mots: string[]): string {
   return `(?<![\\p{L}0-9_])(?i:${alternatives(mots)})(?![\\p{L}0-9_])`;
 }
 
+/** Une suite de mots séparés par des espaces, avec leurs accents ; « _ » : un mot facultatif (« le », « de »…). */
+const suite = (...mots: string[]) => mots.map(motversRegex).join('[ ]+');
+
+/**
+ * Les tournures que le parser lit par leur texte (ni mots-clés, ni réservées :
+ * ailleurs, ces mots restent des noms libres). Seule la tournure entière est coloriée.
+ */
+const TOURNURES: string[] = [
+  // Le serveur et le bloc site, en tête de ligne.
+  `(?<=^[ ]*)${suite('erreurs', 'pendant')}`,
+  `(?<=^[ ]*)${suite('connexion', 'google')}`,
+  `(?<=^[ ]*)${suite('emails', 'par', 'brevo')}`,
+  `(?<=^[ ]*)${motversRegex('invitations')}(?=[ ]+${motversRegex('vers')}\\b)`,
+  `(?<=^[ ]*)${suite('mot', 'de', 'passe', 'oublie')}`,
+  // Après le type d'un champ.
+  `(?<=[ ])${suite('au', 'depart')}`,
+  `(?<=[ ])${suite('du', 'site')}(?=[ ]*(?:${suite('non', 'vide')}[ ]*)?(?:#.*)?$)`,
+  `(?<=[ ])${suite('non', 'vide')}(?=[ ]*(?:#.*)?$)`,
+  `(?<=[ ])${suite('calcule')}(?=[ ]+(?:${motversRegex('nombre')}|${motversRegex('somme')})\\b)`,
+  `(?<=[ ])${suite('au', 'plus')}(?=[ ])`,
+  // Une règle de route.
+  `(?<=[ ])${suite('par', 'identifiant')}`,
+  `(?<=${motversRegex('peut')}[ ]${motversRegex('lire')}[ ])${motversRegex('comptes')}`,
+  `(?<=${motversRegex('peut')}[ ]${motversRegex('supprimer')}[ ])${motversRegex('comptes')}`,
+  `(?<=[ ])${suite('cree')}(?=[ ]*:)`,
+  // Sous « quand … est cree : ».
+  `(?<=^[ ]*${motversRegex('envoyer')}[ ])${motversRegex('email')}`,
+  `(?<=[ ])${suite('aux', 'admins')}`,
+  `(?<=[ ])${motversRegex('sujet')}(?=[ ]+")`,
+  // Les phrases des pages.
+  `(?<=^[ ]*)${motversRegex('inviter')}(?=[ ]+[^(=])`,
+  `(?<=[ ])${suite('comme', 'admin')}`,
+  `(?<=^[ ]*)${suite('demander', 'un', 'lien', 'de', 'mot', 'de', 'passe')}`,
+  `(?<=^[ ]*)${suite('choisir', 'le', 'mot', 'de', 'passe')}`,
+];
+
 const grammaire = {
   $schema:
     'https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json',
@@ -88,6 +124,7 @@ const grammaire = {
     { include: '#commentaire' },
     { include: '#chaine' },
     { include: '#constante' },
+    { include: '#tournures' },
     { include: '#reserve' },
     { include: '#contextuel' },
     { include: '#nombre' },
@@ -115,6 +152,10 @@ const grammaire = {
       end: '^(?=\\S)',
       contentName: 'source.css.embedded.humalis',
       patterns: [{ include: 'source.css' }],
+    },
+    tournures: {
+      name: 'support.function.humalis',
+      match: `(?<![\\p{L}0-9_])(?i:${TOURNURES.join('|')})(?![\\p{L}0-9_])`,
     },
     commentaire: {
       name: 'comment.line.number-sign.humalis',

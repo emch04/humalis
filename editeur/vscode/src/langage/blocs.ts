@@ -6,7 +6,7 @@ import { normaliser } from '../../../../src/vocabulaire/normaliser.js';
 import { indentation } from './document.js';
 
 /** Où se trouve une ligne : hors de tout bloc, dans une page, un événement, le serveur… */
-export type GenreBloc = 'fichier' | 'vue' | 'evenement' | 'serveur' | 'donnee' | 'route' | 'style';
+export type GenreBloc = 'fichier' | 'vue' | 'evenement' | 'serveur' | 'donnee' | 'route' | 'apresCreation' | 'site' | 'style';
 
 const estVide = (ligne: string) => ligne.trim() === '' || ligne.trim().startsWith('#');
 
@@ -40,6 +40,8 @@ export function premierMot(ligne: string): string {
 export function genreBloc(lignes: readonly string[], chaine: readonly number[]): GenreBloc {
   if (chaine.length === 0) return 'fichier';
   const mots = chaine.map((k) => premierMot(lignes[k - 1] ?? ''));
+  // « quand message est cree : » sous une route : ce n'est pas un événement de page.
+  if (mots[0] === 'quand' && mots[1] === 'route') return 'apresCreation';
   if (mots.includes('quand')) return 'evenement';
   for (const mot of mots) {
     if (mot === 'donnee') return 'donnee';
@@ -47,6 +49,7 @@ export function genreBloc(lignes: readonly string[], chaine: readonly number[]):
     if (mot === 'serveur') return 'serveur';
     if (mot === 'page' || mot === 'composant') return 'vue';
     if (mot === 'style') return 'style';
+    if (mot === 'site') return 'site';
   }
   return 'vue';
 }

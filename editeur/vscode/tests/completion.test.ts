@@ -80,13 +80,13 @@ describe('completer : en début de ligne', () => {
   });
 
   it('dans le serveur, une donnée et une route', () => {
-    expect(libelles(completerA('serveur "s" :\n    ‸'))).toEqual(['donnée', 'route']);
+    expect(libelles(completerA('serveur "s" :\n    ‸'))).toEqual(['donnée', 'route', 'connexion google', 'emails par brevo', 'invitations vers "…"', 'mot de passe oublié vers "…"']);
     expect(libelles(completerA('serveur "s" :\n    donnee produit :\n        stock : ‸'))).toEqual(
       expect.arrayContaining(['texte', 'nombre', 'booléen', 'date']),
     );
-    expect(libelles(completerA(SERVEUR + '        ‸'))).toEqual(['tout le monde peut', 'connecté peut', 'seul admin peut']);
+    expect(libelles(completerA(SERVEUR + '        ‸'))).toEqual(['tout le monde peut', 'connecté peut', 'seul admin peut', 'quand … est cree :']);
     expect(libelles(completerA(SERVEUR + '        connecte peut ‸'))).toEqual(['lire', 'créer', 'modifier', 'supprimer']);
-    expect(libelles(completerA(SERVEUR + '        connecte peut lire ‸'))).toEqual(['produit']);
+    expect(libelles(completerA(SERVEUR + '        connecte peut lire ‸'))).toEqual(['produit', 'comptes']);
   });
 });
 

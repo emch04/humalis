@@ -8,7 +8,7 @@ import { chercher, entreesDe } from '../../../../src/vocabulaire/recherche.js';
 import { normaliser } from '../../../../src/vocabulaire/normaliser.js';
 import type { Categorie, Cible, Contexte, EntreeVocabulaire } from '../../../../src/vocabulaire/types.js';
 import { longueurJeton, texteJeton } from './document.js';
-import { entetes, genreBloc } from './blocs.js';
+import { entetes, genreBloc, type GenreBloc } from './blocs.js';
 import { principal } from './projet.js';
 import { jetonPlace, symboleA, type Lieu, type JetonPlace } from './definition.js';
 import type { GenreSymbole, Index, Symbole } from './portees.js';
@@ -74,6 +74,39 @@ export function ficheDuMot(mot: string, contexte: Contexte): string | undefined 
   return entree ? fiche(entree) : undefined;
 }
 
+/**
+ * Les tournures de plusieurs mots : la table les range sous la phrase entière,
+ * le survol se fait sur un de ses mots. La ligne et le bloc disent de quelle phrase il s'agit.
+ */
+const PHRASES: readonly { blocs: readonly GenreBloc[]; ligne: RegExp; mots: readonly string[]; entree: string }[] = [
+  { blocs: ['site'], ligne: /^\s*erreurs\s+pendant\b/, mots: ['erreurs', 'pendant'], entree: 'erreurs pendant' },
+  { blocs: ['serveur'], ligne: /^\s*connexion\s+google\b/, mots: ['connexion', 'google'], entree: 'connexion google' },
+  { blocs: ['serveur'], ligne: /^\s*emails\b/, mots: ['emails', 'par', 'brevo'], entree: 'emails par brevo' },
+  { blocs: ['serveur'], ligne: /^\s*invitations\b/, mots: ['invitations', 'vers'], entree: 'invitations vers' },
+  { blocs: ['serveur'], ligne: /^\s*mot\s+de\s+passe\b/, mots: ['mot', 'de', 'passe', 'oublie', 'vers'], entree: 'mot de passe oublie vers' },
+  { blocs: ['donnee'], ligne: /\bau\s+d[eé]part\b/, mots: ['au', 'depart'], entree: 'au depart' },
+  { blocs: ['donnee'], ligne: /\bdu\s+site\b/, mots: ['du', 'site'], entree: 'du site' },
+  { blocs: ['donnee'], ligne: /\bnon\s+vide\b/, mots: ['non', 'vide'], entree: 'non vide' },
+  { blocs: ['donnee'], ligne: /\bcalcul[eé]\b/, mots: ['calcule', 'somme', 'plus'], entree: 'calcule somme nombre' },
+  { blocs: ['donnee'], ligne: /\bau\s+plus\b/, mots: ['au', 'plus', 'par'], entree: 'au plus par' },
+  { blocs: ['route'], ligne: /\bpar\s+identifiant\b/, mots: ['par', 'identifiant'], entree: 'par identifiant' },
+  { blocs: ['route'], ligne: /^\s*quand\b/, mots: ['quand', 'est', 'cree'], entree: 'quand est cree envoyer email sujet admins' },
+  { blocs: ['apresCreation'], ligne: /^\s*envoyer\s+email\b/, mots: ['envoyer', 'email', 'admins', 'aux', 'sujet'], entree: 'quand est cree envoyer email sujet admins' },
+  { blocs: ['apresCreation'], ligne: /^\s*cr[eé]er\b/, mots: ['creer', 'avec', 'dans'], entree: 'creer avec dans' },
+  { blocs: ['evenement'], ligne: /^\s*inviter\b/, mots: ['inviter', 'comme'], entree: 'inviter comme' },
+  { blocs: ['evenement'], ligne: /^\s*demander\s+un\s+lien\b/, mots: ['demander', 'lien', 'mot', 'de', 'passe', 'pour'], entree: 'demander lien mot de passe pour' },
+  { blocs: ['evenement'], ligne: /^\s*choisir\s+le\s+mot\b/, mots: ['choisir', 'mot', 'de', 'passe'], entree: 'choisir mot de passe' },
+];
+
+/** L'entrée de la phrase dont ce mot fait partie, à cette ligne. */
+function entreeDeLaPhrase(lignes: readonly string[], ligne: number, mot: string): EntreeVocabulaire | undefined {
+  const genre = genreBloc(lignes, entetes(lignes, ligne));
+  const texte = lignes[ligne - 1] ?? '';
+  const forme = normaliser(mot);
+  const phrase = PHRASES.find((p) => p.blocs.includes(genre) && p.ligne.test(texte) && p.mots.includes(forme));
+  return phrase && entreesDe(phrase.entree)[0];
+}
+
 function entreeDuMot(mot: string, contexte: Contexte): EntreeVocabulaire | undefined {
   const entrees = entreesDe(mot);
   return chercher(mot, contexte) ?? entrees.find((e) => e.statut === 'supporte') ?? entrees[0];
@@ -84,7 +117,7 @@ const STYLES = new Set(['couleur', 'fond', 'texte', 'taille', 'position', 'bordu
 /** La place d'un mot dans sa ligne, au sens de la table (`Contexte`). */
 export function contexteDuMot(lignes: readonly string[], ligne: number, place: JetonPlace): Contexte {
   const genre = genreBloc(lignes, entetes(lignes, ligne));
-  if (genre === 'serveur') return 'serveur';
+  if (genre === 'serveur' || genre === 'apresCreation') return 'serveur';
   if (genre === 'donnee') return 'donnee';
   if (genre === 'route') return 'route';
   const mots = place.avant.map((j) => normaliser(texteJeton(j)));
@@ -145,6 +178,6 @@ export function survoler(index: Index, ligne: number, colonne: number): Survol |
   if (symbole) return { markdown: `**fichier utilisé**\n\n${code(symbole.fichier ?? '')}`, plage };
 
   if (jeton.type === 'CHAINE' || jeton.type === 'NOMBRE') return undefined;
-  const entree = entreeDuMot(texteJeton(jeton), contexteDuMot(doc.lignes, ligne, place));
+  const entree = entreeDeLaPhrase(doc.lignes, ligne, texteJeton(jeton)) ?? entreeDuMot(texteJeton(jeton), contexteDuMot(doc.lignes, ligne, place));
   return entree ? { markdown: fiche(entree), plage } : undefined;
 }

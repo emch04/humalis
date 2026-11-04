@@ -135,6 +135,12 @@ function languesDeclarees(lignes: readonly string[]): string[] {
   return langues;
 }
 
+/** Une tournure de plusieurs mots : l'entrée de la table pour la fiche, ce qu'on voit et ce qu'on insère. */
+function tournure(motDeLaTable: string, libelle: string, insertion: string, contexte: Contexte = 'serveur'): Proposition[] {
+  const e = entree(motDeLaTable, contexte);
+  return e && supporte(e) ? [mot(e, { libelle, insertion, extrait: true, filtre: libelle })] : [];
+}
+
 function motsEnTete(dansUnEvenement: boolean): Proposition[] {
   const categories: Categorie[] = dansUnEvenement
     ? ['etat', 'controle', 'action']
@@ -158,6 +164,10 @@ function motsEnTete(dansUnEvenement: boolean): Proposition[] {
     ...mots(['supposant'], 'tournure', (e) => ({ libelle: 'en supposant que ça marche :', insertion: 'en supposant que ça marche :', filtre: 'en supposant que ca marche', extrait: true })),
     ...mots(['modifier', 'supprimer'], 'route'),
     ...mots(['connecter', 'deconnecter'], 'session', (e) => ({ libelle: `se ${e.accentue ?? e.mot}`, filtre: `se ${e.mot}` })),
+    // Les comptes : ces phrases demandent leur ligne dans le serveur.
+    ...tournure('inviter comme', 'inviter', 'inviter champ "$1"', 'serveur'),
+    ...tournure('demander lien mot de passe pour', 'demander un lien de mot de passe', 'demander un lien de mot de passe pour champ "$1"', 'serveur'),
+    ...tournure('choisir mot de passe', 'choisir le mot de passe', 'choisir le mot de passe avec champ "$1"', 'serveur'),
   ];
 }
 
@@ -283,13 +293,31 @@ export function completer(index: Index, ligne: number, colonne: number): Complet
           ...mots(['langues'], 'declaration', () => ({ insertion: 'langues :\n    francais\n    anglais', extrait: true })),
           ...mots(['traductions'], 'declaration', () => ({ libelle: 'traductions anglais', insertion: 'traductions anglais :\n    "$1" : "$2"', extrait: true, filtre: 'traductions' })),
         ]);
+      case 'site':
+        return resultat([
+          ...['nom', 'description', 'image', 'logo', 'adresse'].flatMap((m) => tournure('site', m, `${m} "$1"`, 'declaration')),
+          ...tournure('site', 'indexation', 'indexation ${1|non,oui|}', 'declaration'),
+          ...tournure('erreurs pendant', 'erreurs pendant', 'erreurs pendant ${1:5} secondes'),
+        ]);
       case 'serveur':
-        return resultat(mots(['donnee', 'route'], 'serveur'));
+        return resultat([
+          ...mots(['donnee', 'route'], 'serveur'),
+          ...tournure('connexion google', 'connexion google', 'connexion google'),
+          ...tournure('emails par brevo', 'emails par brevo', 'emails par brevo'),
+          ...tournure('invitations vers', 'invitations vers "…"', 'invitations vers "$1"'),
+          ...tournure('mot de passe oublie vers', 'mot de passe oublié vers "…"', 'mot de passe oublie vers "$1"'),
+        ]);
+      case 'apresCreation':
+        return resultat([
+          ...tournure('quand est cree envoyer email sujet admins', 'envoyer email', 'envoyer email aux admins avec sujet "$1" et texte "$2"'),
+          ...tournure('creer avec dans', 'creer … avec …', 'creer ${1:donnee} avec ${2:champ} "$3"'),
+        ]);
       case 'route':
         return resultat([
           ...mots(['tout'], 'route', () => ({ libelle: 'tout le monde peut', insertion: 'tout le monde peut ', filtre: 'tout le monde peut' })),
           ...mots(['connecte'], 'route', (e) => ({ libelle: `${e.accentue ?? e.mot} peut`, insertion: `${e.accentue ?? e.mot} peut `, filtre: 'connecte peut' })),
           ...mots(['seul'], 'route', () => ({ libelle: 'seul admin peut', insertion: 'seul admin peut ', filtre: 'seul admin peut' })),
+          ...tournure('quand est cree envoyer email sujet admins', 'quand … est cree :', 'quand ${1:donnee} est cree :'),
         ]);
       case 'donnee':
       case 'style':
@@ -317,11 +345,26 @@ export function completer(index: Index, ligne: number, colonne: number): Complet
   if ((premier === 'variable' || premier === 'calcul') && motsAvant.length === 1) return resultat([]);
   if (premier === 'pour' && precedent === 'chaque') return resultat([]);
 
-  if (genre === 'donnee') return resultat(motsAvant.includes(':') ? mots(VOCABULAIRE.filter((e) => e.contextes.includes('donnee')).map((e) => e.mot), 'donnee') : []);
-  if (genre === 'serveur' || genre === 'style') return resultat([]);
+  if (genre === 'donnee') {
+    if (!motsAvant.includes(':')) return resultat([]);
+    if (precedent === ':' || precedent === 'liste') return resultat(mots(VOCABULAIRE.filter((e) => e.contextes.includes('donnee')).map((e) => e.mot), 'donnee'));
+    // Après le type : ce que le serveur décide de ce champ.
+    const type = motsAvant[motsAvant.indexOf(':') + 1];
+    return resultat([
+      ...tournure('au depart', 'au depart', 'au depart ${1:"valeur"}'),
+      ...(type === 'nombre'
+        ? [...tournure('calcule somme nombre', 'calcule nombre de', 'calcule nombre de ${1:liste}'), ...tournure('calcule somme nombre', 'calcule somme', 'calcule somme ${1:prix} de ${2:donnee} par ${3:liste}'), ...tournure('au plus par', 'au plus', 'au plus ${1:prix} de ${2:donnee} par ${3:champ}')]
+        : [...tournure('du site', 'du site', 'du site'), ...tournure('non vide', 'non vide', 'non vide')]),
+    ]);
+  }
+  if (genre === 'serveur' || genre === 'style' || genre === 'site' || genre === 'apresCreation') return resultat([]);
   if (genre === 'route') {
     if (precedent === 'peut' || precedent === 'et') return resultat(mots(ACTIONS_ROUTE, 'route'));
-    if (motsAvant.includes('peut')) return resultat(uniques(symbolesDe(index, 'donnee').map((s) => nom(s, 'donnee', s.nom, 'donnée du serveur'))));
+    if (motsAvant.includes('peut') && ACTIONS_ROUTE.includes(precedent ?? '')) {
+      const comptes = tournure('comptes', 'comptes', 'comptes');
+      return resultat(uniques([...symbolesDe(index, 'donnee').map((s) => nom(s, 'donnee', s.nom, 'donnée du serveur')), ...comptes]));
+    }
+    if (motsAvant.includes('peut')) return resultat(motsAvant.includes('lire') ? tournure('par identifiant', 'par identifiant', 'par identifiant') : []);
     return resultat(mots(['peut'], 'route'));
   }
 
@@ -336,6 +379,8 @@ export function completer(index: Index, ligne: number, colonne: number): Complet
       }),
     };
   }
+
+  if (premier === 'inviter' && motsAvant.length >= 2) return resultat(tournure('inviter comme', 'comme admin', 'comme admin'));
 
   if (precedent === 'est') {
     if (motsAvant[motsAvant.length - 2] === 'utilisateur') return resultat(mots(['connecte', 'admin'], 'session'));
