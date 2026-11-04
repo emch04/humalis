@@ -14,8 +14,16 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
             colonne avec style "frise" et animation montee au defilement et en cascade :
                 bloc avec style "version version-recente" :
                     ligne avec style "version-tete" :
-                        texte "1.5.2" sans traduction avec style "version-numero"
+                        texte "1.6.0" sans traduction avec style "version-numero"
                         texte "Dernière version" en anglais "Latest" avec style "pastille pastille-vive"
+                        texte "4 novembre 2026" en anglais "November 4, 2026" avec style "version-date"
+                    soustitre "Des erreurs réglables et toujours en français" en anglais "Adjustable errors, always in French"
+                    liste :
+                        texte "`erreurs pendant 5 secondes` dans le bloc `site :` règle la durée de toutes les erreurs du site, celles que Humalis affiche de lui-même comprises." en anglais "`erreurs pendant 5 secondes` in the `site :` block sets how long all the site’s errors stay, including the ones Humalis shows by itself."
+                        texte "Une panne du réseau affiche la phrase française de Humalis, et non plus le texte anglais du navigateur." en anglais "A network failure shows Humalis’s own sentence instead of the browser’s raw English text."
+                bloc avec style "version" :
+                    ligne avec style "version-tete" :
+                        texte "1.5.2" sans traduction avec style "version-numero"
                         texte "1er novembre 2026" en anglais "November 1, 2026" avec style "version-date"
                     soustitre "Des connexions et des exports plus sûrs" en anglais "Safer sign-ins and exports"
                     liste :
@@ -121,7 +129,7 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
         colonne avec style "nouveautes-aside" et animation montee au defilement et en cascade :
             bloc avec style "aside-carte aside-vive" :
                 texte "Version actuelle" en anglais "Current version" avec style "aside-etiquette"
-                texte "1.5.2" sans traduction avec style "aside-version"
+                texte "1.6.0" sans traduction avec style "aside-version"
                 texte "Pour mettre à jour Humalis sur ta machine :" en anglais "To update Humalis on your machine:"
                 ligne avec style "install-command" :
                     texte "npm install -g humalis" sans traduction avec style "install-code"
@@ -132,7 +140,7 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
                 texte "En bref" en anglais "At a glance" avec style "aside-etiquette"
                 ligne avec style "aside-chiffres" :
                     colonne avec style "aside-chiffre" :
-                        texte "13" sans traduction avec style "aside-nombre"
+                        texte "14" sans traduction avec style "aside-nombre"
                         texte "versions" sans traduction
                     colonne avec style "aside-chiffre" :
                         texte "5" sans traduction avec style "aside-nombre"
