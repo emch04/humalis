@@ -1,0 +1,829 @@
+# Généré par scripts/antiseche-site.mjs depuis docs/antiseche.md : modifier la source, pas ce fichier.
+
+page "antiseche" a l'adresse "/antiseche" :
+    apercu :
+        titre "Antisèche Humalis" en anglais "Humalis cheat sheet"
+        description "Toutes les formules exactes de Humalis sur une page, et les tournures à éviter. Chaque formule est compilée à chaque version." en anglais "Every exact Humalis phrase on one page, and the wordings to avoid. Each one is compiled for every release."
+    bloc avec style "aide" :
+        titre "Antisèche" en anglais "Cheat sheet"
+        texte "Les formules exactes, à copier. Chaque exemple est compilé à chaque version de Humalis." en anglais "The exact phrases, ready to copy. Every example is compiled for each Humalis release."
+        ligne avec style "aide-sommaire" :
+            lien "Écrire" en anglais "Writing" vers "#ecrire"
+            lien "Les pages" en anglais "Pages" vers "#pages"
+            lien "Les éléments" en anglais "Elements" vers "#elements"
+            lien "Les formulaires" en anglais "Forms" vers "#formulaires"
+            lien "La mise en page et les styles" en anglais "Layout and styles" vers "#mise-en-page"
+            lien "Les variables et les calculs" en anglais "Variables and calculations" vers "#variables"
+            lien "Les conditions" en anglais "Conditions" vers "#conditions"
+            lien "Les listes et les boucles" en anglais "Lists and loops" vers "#listes"
+            lien "Les événements" en anglais "Events" vers "#evenements"
+            lien "Les actions et les messages" en anglais "Actions and messages" vers "#actions"
+            lien "Le serveur" en anglais "The server" vers "#serveur"
+            lien "Relier les pages au serveur" en anglais "Connecting pages to the server" vers "#relier"
+            lien "Le site, les langues et le reste" en anglais "The site, languages and the rest" vers "#site"
+            lien "Les commandes" en anglais "Commands" vers "#commandes"
+            lien "Les pièges" en anglais "Common traps" vers "#pieges"
+        bloc avec ancre "ecrire" et style "aide-section" :
+            soustitre "Écrire" en anglais "Writing"
+            bloc avec style "aide-entrees" :
+                bloc avec style "aide-entree" :
+                    texte "Ouvrir un bloc : `:` en fin de ligne, puis 4 espaces de plus" en anglais "Open a block: `:` at the end of the line, then 4 more spaces" avec style "aide-besoin"
+                    code humalis :
+                        section "Horaires" :
+                            texte "Du lundi au samedi"
+                bloc avec style "aide-entree" :
+                    texte "Afficher un texte fixe" en anglais "Show fixed text" avec style "aide-besoin"
+                    code humalis :
+                        texte "Bonjour"
+                bloc avec style "aide-entree" :
+                    texte "Afficher ce que contient une variable" en anglais "Show what a variable holds" avec style "aide-besoin"
+                    code humalis :
+                        texte prenom
+                bloc avec style "aide-entree" :
+                    texte "Mettre une variable dans un texte" en anglais "Put a variable inside a text" avec style "aide-besoin"
+                    code humalis :
+                        texte "Bonjour {prenom}"
+                bloc avec style "aide-entree" :
+                    texte "Mettre un guillemet dans un texte" en anglais "Put a quote inside a text" avec style "aide-besoin"
+                    code humalis :
+                        texte "Elle a dit \"bonjour\""
+                bloc avec style "aide-entree" :
+                    texte "Écrire un commentaire" en anglais "Write a comment" avec style "aide-besoin"
+                    code humalis :
+                        # Une note pour les humains
+                bloc avec style "aide-entree" :
+                    texte "Donner plusieurs options à un élément : un seul `avec`, puis `et`" en anglais "Give an element several options: one `avec`, then `et`" avec style "aide-besoin"
+                    code humalis :
+                        bouton "Valider" avec fond vert et texte blanc
+        bloc avec ancre "pages" et style "aide-section" :
+            soustitre "Les pages" en anglais "Pages"
+            bloc avec style "aide-entrees" :
+                bloc avec style "aide-entree" :
+                    texte "Créer une page" en anglais "Create a page" avec style "aide-besoin"
+                    code humalis :
+                        page "bienvenue" :
+                            titre "Bienvenue"
+                bloc avec style "aide-entree" :
+                    texte "Choisir son adresse" en anglais "Choose its address" avec style "aide-besoin"
+                    code humalis :
+                        page "tarifs" a l'adresse "/tarifs" :
+                            titre "Tarifs"
+                bloc avec style "aide-entree" :
+                    texte "Lui passer une valeur dans l'adresse" en anglais "Pass it a value in the address" avec style "aide-besoin"
+                    code humalis :
+                        page "fiche" avec parametre numero :
+                            texte "Fiche {numero}"
+                bloc avec style "aide-entree" :
+                    texte "Lire un filtre de l'adresse (`?rayon=robes`)" en anglais "Read a filter from the address (`?rayon=robes`)" avec style "aide-besoin"
+                    code humalis :
+                        page "rayons" avec filtre rayon :
+                            si rayon est rien :
+                                texte "Tous les rayons"
+                bloc avec style "aide-entree" :
+                    texte "La réserver aux comptes connectés" en anglais "Restrict it to signed-in accounts" avec style "aide-besoin"
+                    code humalis :
+                        page "compte" reservee a connecte sinon vers "connexion" :
+                            titre "Mon compte"
+                bloc avec style "aide-entree" :
+                    texte "Faire un lien vers une page" en anglais "Link to a page" avec style "aide-besoin"
+                    code humalis :
+                        lien "Nous écrire" vers "contact"
+                bloc avec style "aide-entree" :
+                    texte "Faire un lien avec une valeur" en anglais "Link with a value" avec style "aide-besoin"
+                    code humalis :
+                        lien "Voir le livre" vers "produit" avec id "livre-1"
+                bloc avec style "aide-entree" :
+                    texte "Faire un lien vers un autre site" en anglais "Link to another site" avec style "aide-besoin"
+                    code humalis :
+                        lien "Nous suivre" vers "https://exemple.fr" avec nouvel onglet
+                bloc avec style "aide-entree" :
+                    texte "Faire un lien vers un endroit de la page" en anglais "Link to a place on the page" avec style "aide-besoin"
+                    code humalis :
+                        section "Desserts" avec ancre "desserts" :
+                            texte "Tarte aux pommes"
+                        lien "Les desserts" vers "#desserts"
+                bloc avec style "aide-entree" :
+                    texte "Mettre une page dans une autre" en anglais "Put a page inside another" avec style "aide-besoin"
+                    code humalis :
+                        page "espace" :
+                            lien "Profil" vers "profil"
+                            sous page
+
+                        page "profil" dans "espace" :
+                            texte "Ton profil"
+                bloc avec style "aide-entree" :
+                    texte "Ajouter un en-tête et un pied communs" en anglais "Add a shared header and footer" avec style "aide-besoin"
+                    code humalis :
+                        entete avec fixe :
+                            lien "Accueil" vers "essai"
+
+                        pied :
+                            texte "Ouvert du lundi au samedi"
+                bloc avec style "aide-entree" :
+                    texte "Ranger une page dans son propre fichier" en anglais "Keep a page in its own file" avec style "aide-besoin"
+                    code humalis :
+                        utiliser fichier "./pages/panier.humalis"
+        bloc avec ancre "elements" et style "aide-section" :
+            soustitre "Les éléments" en anglais "Elements"
+            bloc avec style "aide-entrees" :
+                bloc avec style "aide-entree" :
+                    texte "Titres" en anglais "Headings" avec style "aide-besoin"
+                    code humalis :
+                        titre "Le catalogue"
+                        soustitre "Les robes"
+                        soustitre "En promotion" avec niveau 3
+                bloc avec style "aide-entree" :
+                    texte "Mettre un mot en valeur" en anglais "Highlight a word" avec style "aide-besoin"
+                    code humalis :
+                        texte "Prix : {accent "gratuit"}"
+                bloc avec style "aide-entree" :
+                    texte "Montrer du code dans une phrase" en anglais "Show code in a sentence" avec style "aide-besoin"
+                    code humalis :
+                        texte "Écris `titre` pour donner un titre."
+                bloc avec style "aide-entree" :
+                    texte "Image" sans traduction avec style "aide-besoin"
+                    code humalis :
+                        image "vitrine.jpg" avec description "La vitrine de la boutique"
+                bloc avec style "aide-entree" :
+                    texte "Bouton" en anglais "Button" avec style "aide-besoin"
+                    code humalis :
+                        bouton "Ajouter" avec icone "panier"
+                bloc avec style "aide-entree" :
+                    texte "Liste à puces et liste numérotée" en anglais "Bulleted and numbered list" avec style "aide-besoin"
+                    code humalis :
+                        liste :
+                            texte "Une robe"
+                        liste numerotee :
+                            texte "Choisir"
+                bloc avec style "aide-entree" :
+                    texte "Onglets et texte dépliable" en anglais "Tabs and collapsible text" avec style "aide-besoin"
+                    code humalis :
+                        onglets :
+                            onglet "Livraison" :
+                                texte "En trois jours."
+                        deroulant "Comment commander ?" :
+                            texte "Ajoute un produit au panier."
+                bloc avec style "aide-entree" :
+                    texte "Note, quantité, progression" en anglais "Rating, quantity, progress" avec style "aide-besoin"
+                    code humalis :
+                        etoiles note avec modifiable
+                        compteur quantite avec minimum 1 et maximum 10 et description "Quantité"
+                        progression stock avec pourcentage et maximum 100
+                bloc avec style "aide-entree" :
+                    texte "Choisir un fichier" en anglais "Choose a file" avec style "aide-besoin"
+                    code humalis :
+                        fichier "Choisir une photo" dans photo accepte images avec maximum 5 Mo
+        bloc avec ancre "formulaires" et style "aide-section" :
+            soustitre "Les formulaires" en anglais "Forms"
+            bloc avec style "aide-entrees" :
+                bloc avec style "aide-entree" :
+                    texte "Un formulaire complet" en anglais "A complete form" avec style "aide-besoin"
+                    code humalis :
+                        formulaire "message" :
+                            champ "Prénom" avec obligatoire
+                            champ email "Adresse" avec indice "toi@exemple.fr"
+                            bouton "Envoyer"
+                        quand le formulaire "message" est soumis :
+                            afficher reussite "Message envoyé"
+                bloc avec style "aide-entree" :
+                    texte "Les sortes de champs" en anglais "Kinds of fields" avec style "aide-besoin"
+                    code humalis :
+                        champ telephone "Téléphone"
+                        champ nombre "Âge" avec minimum 0 et maximum 130
+                        champ date "Naissance"
+                        champ heure "Heure d'appel"
+                        champ mot de passe "Mot de passe"
+                        champ texte long "Présentation"
+                        champ adresse web "Site"
+                bloc avec style "aide-entree" :
+                    texte "Un choix parmi plusieurs" en anglais "One choice among several" avec style "aide-besoin"
+                    code humalis :
+                        choix "Taille" parmi ["S", "M", "L"] avec obligatoire
+                        liste deroulante "Pays" parmi ["France", "Belgique"] avec indice "Choisis un pays"
+                bloc avec style "aide-entree" :
+                    texte "Une case à cocher" en anglais "A checkbox" avec style "aide-besoin"
+                    code humalis :
+                        case a cocher "J'accepte les conditions" avec obligatoire
+                bloc avec style "aide-entree" :
+                    texte "Lire ce qui a été écrit dans un champ" en anglais "Read what was typed in a field" avec style "aide-besoin"
+                    code humalis :
+                        changer nom par champ "Nom"
+        bloc avec ancre "mise-en-page" et style "aide-section" :
+            soustitre "La mise en page et les styles" en anglais "Layout and styles"
+            bloc avec style "aide-entrees" :
+                bloc avec style "aide-entree" :
+                    texte "Ranger côte à côte, l'un sous l'autre" en anglais "Side by side, one below the other" avec style "aide-besoin"
+                    code humalis :
+                        ligne :
+                            texte "À gauche"
+                            texte "À droite"
+                        colonne :
+                            texte "En haut"
+                            texte "En bas"
+                bloc avec style "aide-entree" :
+                    texte "Une grille de blocs" en anglais "A grid of blocks" avec style "aide-besoin"
+                    code humalis :
+                        grille avec colonnes 3 et espacement moyenne :
+                            bloc avec ombre legere et remplissage moyenne :
+                                texte "Risotto"
+                bloc avec style "aide-entree" :
+                    texte "Selon l'écran" en anglais "Depending on the screen" avec style "aide-besoin"
+                    code humalis :
+                        sur telephone :
+                            bouton "Menu"
+                        sur tablette ou ordinateur :
+                            lien "La carte" vers "contact"
+                bloc avec style "aide-entree" :
+                    texte "Couleurs et tailles" en anglais "Colors and sizes" avec style "aide-besoin"
+                    code humalis :
+                        titre "Bienvenue" avec couleur bleu et taille grande et position centree
+                        bouton "Annuler" avec fond gris et bordure arrondie
+                bloc avec style "aide-entree" :
+                    texte "Utiliser ta classe CSS" en anglais "Use your CSS class" avec style "aide-besoin"
+                    code humalis :
+                        titre "Bienvenue" avec style "grand"
+                bloc avec style "aide-entree" :
+                    texte "Le thème du site" en anglais "The site theme" avec style "aide-besoin"
+                    code humalis :
+                        theme :
+                            couleur marque clair "#0e5a6b" sombre "#5fc3d6"
+                            police titres "Georgia"
+                            mode automatique
+                bloc avec style "aide-entree" :
+                    texte "Passer du clair au sombre" en anglais "Switch between light and dark" avec style "aide-besoin"
+                    code humalis :
+                        basculer theme
+                bloc avec style "aide-entree" :
+                    texte "Faire apparaître un élément" en anglais "Animate an element in" avec style "aide-besoin"
+                    code humalis :
+                        titre "Bienvenue" avec animation apparition
+                        bloc avec animation montee au defilement :
+                            texte "Apparaît quand on arrive dessus."
+        bloc avec ancre "variables" et style "aide-section" :
+            soustitre "Les variables et les calculs" en anglais "Variables and calculations"
+            bloc avec style "aide-entrees" :
+                bloc avec style "aide-entree" :
+                    texte "Une variable qui change, un calcul qui suit" en anglais "A variable that changes, a calculation that follows" avec style "aide-besoin"
+                    code humalis :
+                        variable compte = 0
+                        calcul double = compte * 2
+                bloc avec style "aide-entree" :
+                    texte "Une valeur fixe pour tout le site" en anglais "A fixed value for the whole site" avec style "aide-besoin"
+                    code humalis :
+                        constante livraison = 5
+                bloc avec style "aide-entree" :
+                    texte "Partager entre les pages" en anglais "Share between pages" avec style "aide-besoin"
+                    code humalis :
+                        variable favoris = [] avec partagee
+                bloc avec style "aide-entree" :
+                    texte "Garder après avoir fermé le site" en anglais "Keep after closing the site" avec style "aide-besoin"
+                    code humalis :
+                        variable preferes = [] avec partagee et memorisee
+                bloc avec style "aide-entree" :
+                    texte "Changer une valeur" en anglais "Change a value" avec style "aide-besoin"
+                    code humalis :
+                        changer note par note + 1
+                bloc avec style "aide-entree" :
+                    texte "Regrouper des valeurs dans une fiche" en anglais "Group values in a record" avec style "aide-besoin"
+                    code humalis :
+                        variable client = fiche avec nom "Camille" et ville "Lyon"
+                        texte "{client.nom}, {client.ville}"
+                bloc avec style "aide-entree" :
+                    texte "Calculer sur une liste de nombres" en anglais "Calculate on a list of numbers" avec style "aide-besoin"
+                    code humalis :
+                        calcul total = somme de notes
+                        calcul moyenne_notes = moyenne de notes
+                        calcul meilleure = maximum de notes
+                        calcul arrondie = arrondi de moyenne_notes a 1 chiffres
+                bloc avec style "aide-entree" :
+                    texte "Tirer au sort" en anglais "Draw at random" avec style "aide-besoin"
+                    code humalis :
+                        changer note par hasard entre 1 et 6
+                bloc avec style "aide-entree" :
+                    texte "Travailler le texte" en anglais "Work with text" avec style "aide-besoin"
+                    code humalis :
+                        calcul fort = majuscules de nom
+                        calcul taille = longueur de nom
+                        calcul poli = remplacer "Camille" par "Madame" dans nom
+                bloc avec style "aide-entree" :
+                    texte "Afficher un prix, un pluriel" en anglais "Show a price, a plural" avec style "aide-besoin"
+                    code humalis :
+                        texte "{quantite article} pour {prix en euros}"
+                bloc avec style "aide-entree" :
+                    texte "Calculer sur les dates" en anglais "Calculate with dates" avec style "aide-besoin"
+                    code humalis :
+                        calcul livraison_prevue = aujourd'hui plus 3 jours
+                        calcul attente = jours entre aujourd'hui et livraison_prevue
+        bloc avec ancre "conditions" et style "aide-section" :
+            soustitre "Les conditions" en anglais "Conditions"
+            bloc avec style "aide-entrees" :
+                bloc avec style "aide-entree" :
+                    texte "Si, sinon" en anglais "If, otherwise" avec style "aide-besoin"
+                    code humalis :
+                        si note est inferieure a 10 :
+                            texte "À retravailler"
+                        sinon :
+                            texte "Réussi"
+                bloc avec style "aide-entree" :
+                    texte "Comparer" en anglais "Compare" avec style "aide-besoin"
+                    code humalis :
+                        si stock est superieur a 0 :
+                            texte "En stock"
+                        si stock est inferieur ou egal a 5 :
+                            texte "Bientôt épuisé"
+                        si stock est egal a 0 :
+                            texte "Épuisé"
+                        si nom est different de "Camille" :
+                            texte "Bonjour"
+                bloc avec style "aide-entree" :
+                    texte "Tester un vrai ou faux" en anglais "Test a true or false" avec style "aide-besoin"
+                    code humalis :
+                        si actif est vrai :
+                            texte "Actif"
+                bloc avec style "aide-entree" :
+                    texte "Liste vide, valeur absente" en anglais "Empty list, missing value" avec style "aide-besoin"
+                    code humalis :
+                        si panier est vide :
+                            texte "Rien pour l'instant"
+                        si panier n'est pas vide :
+                            texte "Panier rempli"
+                        si photo est rien :
+                            texte "Pas de photo"
+                        si photo est different de rien :
+                            texte "Photo choisie"
+                bloc avec style "aide-entree" :
+                    texte "Contient, fait partie de" en anglais "Contains, is one of" avec style "aide-besoin"
+                    code humalis :
+                        si nom contient "Martin" :
+                            texte "Famille Martin"
+                        si categorie est dans ["robes", "jupes"] :
+                            texte "Mode"
+                bloc avec style "aide-entree" :
+                    texte "Combiner" en anglais "Combine" avec style "aide-besoin"
+                    code humalis :
+                        si stock est superieur a 0 et prix est inferieur a 20 :
+                            texte "Bonne affaire"
+                        si panier est vide ou stock est egal a 0 :
+                            texte "Rien à commander"
+                bloc avec style "aide-entree" :
+                    texte "Plusieurs cas" en anglais "Several cases" avec style "aide-besoin"
+                    code humalis :
+                        selon categorie :
+                            cas "robes" ou "jupes" :
+                                texte "Mode"
+                            sinon :
+                                texte "Le reste"
+                bloc avec style "aide-entree" :
+                    texte "Selon la personne connectée" en anglais "Depending on who is signed in" avec style "aide-besoin"
+                    code humalis :
+                        si utilisateur est connecte :
+                            texte "Bonjour"
+        bloc avec ancre "listes" et style "aide-section" :
+            soustitre "Les listes et les boucles" en anglais "Lists and loops"
+            bloc avec style "aide-entrees" :
+                bloc avec style "aide-entree" :
+                    texte "Parcourir une liste" en anglais "Go through a list" avec style "aide-besoin"
+                    code humalis :
+                        pour chaque p dans produits :
+                            texte "{p.nom} : {p.prix en euros}"
+                bloc avec style "aide-entree" :
+                    texte "Ajouter, retirer" en anglais "Add, remove" avec style "aide-besoin"
+                    code humalis :
+                        ajouter "Pomme" à panier
+                        retirer "Pomme" de panier
+                bloc avec style "aide-entree" :
+                    texte "Compter les éléments" en anglais "Count the items" avec style "aide-besoin"
+                    code humalis :
+                        calcul dans_le_panier = nombre de panier
+                bloc avec style "aide-entree" :
+                    texte "Trier" en anglais "Sort" avec style "aide-besoin"
+                    code humalis :
+                        calcul moins_chers = trier produits par prix
+                        calcul plus_chers = trier produits par prix decroissant
+                bloc avec style "aide-entree" :
+                    texte "Filtrer" en anglais "Filter" avec style "aide-besoin"
+                    code humalis :
+                        calcul petits_prix = produits dont prix est inferieur a 10
+                        calcul trouve = premier de produits dont nom contient "Liv"
+                bloc avec style "aide-entree" :
+                    texte "Garder les premiers, grouper" en anglais "Keep the first ones, group" avec style "aide-besoin"
+                    code humalis :
+                        calcul vitrine = les 2 premiers de produits
+                        calcul groupes = grouper produits par nom
+                bloc avec style "aide-entree" :
+                    texte "Répéter" en anglais "Repeat" avec style "aide-besoin"
+                    code humalis :
+                        repeter 3 fois :
+                            changer note par note + 1
+                        tant que note est inferieure a 10 :
+                            changer note par note + 2
+        bloc avec ancre "evenements" et style "aide-section" :
+            soustitre "Les événements" en anglais "Events"
+            bloc avec style "aide-entrees" :
+                bloc avec style "aide-entree" :
+                    texte "Au chargement de la page" en anglais "When the page loads" avec style "aide-besoin"
+                    code humalis :
+                        quand la page se charge :
+                            afficher "Prêt"
+                bloc avec style "aide-entree" :
+                    texte "Au clic" en anglais "On click" avec style "aide-besoin"
+                    code humalis :
+                        bouton "Commencer"
+                        quand l'utilisateur clique sur "Commencer" :
+                            afficher "C'est parti"
+                bloc avec style "aide-entree" :
+                    texte "Quand la personne a fini d'écrire" en anglais "When the person stops typing" avec style "aide-besoin"
+                    code humalis :
+                        champ "recherche" avec indice "Chercher"
+                        quand l'utilisateur arrete d'ecrire dans "recherche" :
+                            afficher "Recherche…"
+                bloc avec style "aide-entree" :
+                    texte "Toutes les X secondes" en anglais "Every X seconds" avec style "aide-besoin"
+                    code humalis :
+                        toutes les 1 seconde tant que actif est vrai :
+                            changer note par note + 1
+                bloc avec style "aide-entree" :
+                    texte "Plus tard" en anglais "Later" avec style "aide-besoin"
+                    code humalis :
+                        apres 2 secondes :
+                            changer actif par faux
+        bloc avec ancre "actions" et style "aide-section" :
+            soustitre "Les actions et les messages" en anglais "Actions and messages"
+            bloc avec style "aide-entrees" :
+                bloc avec style "aide-entree" :
+                    texte "Afficher un message" en anglais "Show a message" avec style "aide-besoin"
+                    code humalis :
+                        afficher "Prêt"
+                        afficher reussite "Enregistré"
+                        afficher erreur "Écris ton message"
+                        afficher avertissement "Pense à vérifier ton email" pendant 10 secondes
+                bloc avec style "aide-entree" :
+                    texte "Aller vers une autre page" en anglais "Go to another page" avec style "aide-besoin"
+                    code humalis :
+                        rediriger vers "contact"
+                bloc avec style "aide-entree" :
+                    texte "Demander confirmation" en anglais "Ask for confirmation" avec style "aide-besoin"
+                    code humalis :
+                        confirmer "Vider le panier ?" avec oui "Vider" et non "Garder" :
+                            changer panier par []
+                        sinon :
+                            afficher "Rien n'a été retiré"
+                bloc avec style "aide-entree" :
+                    texte "Ouvrir une fenêtre" en anglais "Open a dialog" avec style "aide-besoin"
+                    code humalis :
+                        bouton "Ouvrir l'aide"
+                        quand l'utilisateur clique sur "Ouvrir l'aide" :
+                            montrer "Raccourcis"
+                        fenetre "Raccourcis" avec description "Les touches utiles" :
+                            texte "Ctrl+K ouvre cette aide."
+                bloc avec style "aide-entree" :
+                    texte "Montrer, cacher un élément nommé" en anglais "Show, hide a named element" avec style "aide-besoin"
+                    code humalis :
+                        texte "Connexion en cours…" avec nom "attente"
+                        quand la page se charge :
+                            cacher "attente"
+                bloc avec style "aide-entree" :
+                    texte "Copier, partager" en anglais "Copy, share" avec style "aide-besoin"
+                    code humalis :
+                        copier nom avec message "Copié"
+                        partager "Viens voir la boutique" avec titre "La boutique" avec lien vers "contact"
+        bloc avec ancre "serveur" et style "aide-section" :
+            soustitre "Le serveur" en anglais "The server"
+            bloc avec style "aide-entrees" :
+                bloc avec style "aide-entree" :
+                    texte "Déclarer des données" en anglais "Declare data" avec style "aide-besoin"
+                    code humalis :
+                        serveur "bibliotheque" :
+                            donnee livre :
+                                titre : texte
+                                pages : nombre
+                                disponible : booleen
+                                parution : date
+                                auteurs : liste de texte
+                            route "livres" :
+                                tout le monde peut lire livre
+                bloc avec style "aide-entree" :
+                    texte "Dire qui a le droit" en anglais "Say who is allowed" avec style "aide-besoin"
+                    code humalis :
+                        tout le monde peut lire avis
+                        connecte peut creer avis
+                        seul admin peut modifier avis
+                        seul admin peut supprimer avis
+                bloc avec style "aide-entree" :
+                    texte "Lire une fiche seulement avec son identifiant" en anglais "Read a record only with its identifier" avec style "aide-besoin"
+                    code humalis :
+                        tout le monde peut lire avis par identifiant
+                bloc avec style "aide-entree" :
+                    texte "Un champ que le serveur calcule" en anglais "A field the server calculates" avec style "aide-besoin"
+                    code humalis :
+                        quantite : nombre calcule nombre de refs
+                        montant : nombre calcule somme prix de produit par refs
+                bloc avec style "aide-entree" :
+                    texte "Une valeur de départ imposée" en anglais "An enforced starting value" avec style "aide-besoin"
+                    code humalis :
+                        statut : texte au depart "en_attente"
+                        jour : date au depart aujourd'hui
+                bloc avec style "aide-entree" :
+                    texte "Limiter ce que le client peut envoyer" en anglais "Limit what the client can send" avec style "aide-besoin"
+                    code humalis :
+                        frais : nombre au plus prix de zone par commune
+                        contenu : liste de texte non vide
+                        photos : liste de texte du site
+                bloc avec style "aide-entree" :
+                    texte "Réagir à une création" en anglais "React to a creation" avec style "aide-besoin"
+                    code humalis :
+                        quand commande est cree :
+                            creer suivi avec etape "en_attente" et total commande.total dans commande.suivi
+                bloc avec style "aide-entree" :
+                    texte "Envoyer des e-mails, inviter, gérer l'oubli" en anglais "Send email, invite, handle forgotten passwords" avec style "aide-besoin"
+                    code humalis :
+                        serveur "boutique" :
+                            connexion google
+                            emails par brevo
+                            invitations vers "bienvenue"
+                            mot de passe oublie vers "bienvenue"
+
+                        page "bienvenue" :
+                            titre "Bienvenue"
+        bloc avec ancre "relier" et style "aide-section" :
+            soustitre "Relier les pages au serveur" en anglais "Connecting pages to the server"
+            bloc avec style "aide-entrees" :
+                bloc avec style "aide-entree" :
+                    texte "Charger des données" en anglais "Load data" avec style "aide-besoin"
+                    code humalis :
+                        quand la page se charge :
+                            envoyer requete vers "produits" dans produits
+                bloc avec style "aide-entree" :
+                    texte "Envoyer des données" en anglais "Send data" avec style "aide-besoin"
+                    code humalis :
+                        envoyer requete vers "commandes" avec nom et champ "Nom"
+                bloc avec style "aide-entree" :
+                    texte "Modifier, supprimer une fiche" en anglais "Change, delete a record" avec style "aide-besoin"
+                    code humalis :
+                        pour chaque piece dans articles :
+                            bouton "Solder" avec nom "solder"
+                            quand l'utilisateur clique sur "solder" :
+                                modifier piece dans "produits" avec prix = 5
+                            bouton "Retirer" avec nom "retirer"
+                            quand l'utilisateur clique sur "retirer" :
+                                supprimer piece de "produits"
+                bloc avec style "aide-entree" :
+                    texte "Gérer une erreur" en anglais "Handle an error" avec style "aide-besoin"
+                    code humalis :
+                        essayer :
+                            envoyer requete vers "commandes" avec nom
+                            afficher reussite "Commande envoyée"
+                        si erreur :
+                            afficher erreur "La commande n'est pas partie : {raison}"
+                bloc avec style "aide-entree" :
+                    texte "Se connecter, se déconnecter" en anglais "Sign in, sign out" avec style "aide-besoin"
+                    code humalis :
+                        se connecter avec champ "Email" et champ "Nom"
+                        se deconnecter
+                bloc avec style "aide-entree" :
+                    texte "Se connecter avec Google" en anglais "Sign in with Google" avec style "aide-besoin"
+                    code humalis :
+                        se connecter avec google
+                bloc avec style "aide-entree" :
+                    texte "Inviter, gérer le mot de passe" en anglais "Invite, manage the password" avec style "aide-besoin"
+                    code humalis :
+                        inviter champ "Email" comme admin
+                        demander un lien de mot de passe pour champ "Email"
+                        choisir le mot de passe avec champ "Nom"
+                        changer le mot de passe avec champ "Nom" et champ "Email"
+        bloc avec ancre "site" et style "aide-section" :
+            soustitre "Le site, les langues et le reste" en anglais "The site, languages and the rest"
+            bloc avec style "aide-entrees" :
+                bloc avec style "aide-entree" :
+                    texte "Présenter le site" en anglais "Describe the site" avec style "aide-besoin"
+                    code humalis :
+                        site :
+                            nom "Le Comptoir"
+                            description "Une cuisine de saison au cœur de la ville, ouverte du lundi au samedi."
+                            logo "./logo.svg"
+                            adresse "https://lecomptoir.fr"
+                bloc avec style "aide-entree" :
+                    texte "Présenter une page aux moteurs de recherche" en anglais "Describe a page to search engines" avec style "aide-besoin"
+                    code humalis :
+                        apercu :
+                            titre "Qui sommes-nous"
+                            description "L'histoire du Comptoir, une cuisine de saison née en 2020 au cœur de la ville."
+                bloc avec style "aide-entree" :
+                    texte "Cacher une page aux moteurs de recherche" en anglais "Hide a page from search engines" avec style "aide-besoin"
+                    code humalis :
+                        apercu :
+                            indexation non
+                bloc avec style "aide-entree" :
+                    texte "Traduire" en anglais "Translate" avec style "aide-besoin"
+                    code humalis :
+                        langues :
+                            francais
+                            anglais
+
+                        page "bonjour" :
+                            selecteur de langue
+                            titre "Bienvenue" en anglais "Welcome"
+                bloc avec style "aide-entree" :
+                    texte "Lire les données d'un fichier" en anglais "Read data from a file" avec style "aide-besoin"
+                    code humalis :
+                        utiliser donnees "clients" depuis "./clients.csv"
+                bloc avec style "aide-entree" :
+                    texte "Écrire une fonction" en anglais "Write a function" avec style "aide-besoin"
+                    code humalis :
+                        fonction prix_ttc avec montant :
+                            rendre montant * 1,2
+
+                        page "tarif" :
+                            calcul ttc = prix_ttc(50)
+                            texte "{ttc en euros}"
+                bloc avec style "aide-entree" :
+                    texte "Écrire un composant" en anglais "Write a component" avec style "aide-besoin"
+                    code humalis :
+                        composant "Fiche" :
+                            parametre nom
+                            texte nom
+
+                        page "vitrine" :
+                            Fiche avec nom "Livre"
+                bloc avec style "aide-entree" :
+                    texte "Écrire un test" en anglais "Write a test" avec style "aide-besoin"
+                    code humalis :
+                        page "salut" :
+                            bouton "Dire bonjour"
+                            quand l'utilisateur clique sur "Dire bonjour" :
+                                afficher "Bonjour !"
+
+                        test "le bouton dit bonjour" de page "salut" :
+                            cliquer sur "Dire bonjour"
+                            verifier que texte "Bonjour !" est visible
+        bloc avec ancre "commandes" et style "aide-section" :
+            soustitre "Les commandes" en anglais "Commands"
+            bloc avec style "aide-entrees" :
+                bloc avec style "aide-entree" :
+                    texte "Installer et créer un projet" en anglais "Install and create a project" avec style "aide-besoin"
+                    code terminal :
+                        npm install -g humalis
+                        humalis nouveau mon-projet
+                bloc avec style "aide-entree" :
+                    texte "Voir le site pendant que tu écris" en anglais "See the site as you write" avec style "aide-besoin"
+                    code terminal :
+                        humalis developper
+                bloc avec style "aide-entree" :
+                    texte "Chercher les erreurs" en anglais "Look for errors" avec style "aide-besoin"
+                    code terminal :
+                        humalis verifier mon-projet.humalis
+                bloc avec style "aide-entree" :
+                    texte "Remettre en forme" en anglais "Tidy the formatting" avec style "aide-besoin"
+                    code terminal :
+                        humalis formater mon-projet.humalis
+                bloc avec style "aide-entree" :
+                    texte "Lancer les tests" en anglais "Run the tests" avec style "aide-besoin"
+                    code terminal :
+                        humalis tester
+                bloc avec style "aide-entree" :
+                    texte "Produire le projet : web, statique, mobile, desktop ou serveur" en anglais "Build the project: web, statique, mobile, desktop or serveur" avec style "aide-besoin"
+                    code terminal :
+                        humalis compile mon-projet.humalis --cible web --sortie mon-site
+        bloc avec ancre "pieges" et style "aide-section" :
+            soustitre "Les pièges" en anglais "Common traps"
+            bloc avec style "aide-entrees" :
+                bloc avec style "aide-entree" :
+                    texte "Une comparaison a besoin de `est`" en anglais "A comparison needs `est`" avec style "aide-besoin"
+                    texte "À éviter" en anglais "Avoid" avec style "aide-eviter"
+                    code humalis :
+                        si note > 10 :
+                            texte "Bien"
+                    texte "À écrire" en anglais "Write" avec style "aide-ecrire"
+                    code humalis :
+                        si note est superieure a 10 :
+                            texte "Bien"
+                bloc avec style "aide-entree" :
+                    texte "`est` a besoin d'une comparaison" en anglais "`est` needs a comparison" avec style "aide-besoin"
+                    texte "À éviter" en anglais "Avoid" avec style "aide-eviter"
+                    code humalis :
+                        si note est 10 :
+                            texte "Dix"
+                    texte "À écrire" en anglais "Write" avec style "aide-ecrire"
+                    code humalis :
+                        si note est egale a 10 :
+                            texte "Dix"
+                bloc avec style "aide-entree" :
+                    texte "Un vrai ou faux se teste en entier" en anglais "Test a true or false in full" avec style "aide-besoin"
+                    texte "À éviter" en anglais "Avoid" avec style "aide-eviter"
+                    code humalis :
+                        si actif :
+                            texte "Actif"
+                    texte "À écrire" en anglais "Write" avec style "aide-ecrire"
+                    code humalis :
+                        si actif est vrai :
+                            texte "Actif"
+                bloc avec style "aide-entree" :
+                    texte "Pas d'égal pour changer une valeur" en anglais "No equals sign to change a value" avec style "aide-besoin"
+                    texte "À éviter" en anglais "Avoid" avec style "aide-eviter"
+                    code humalis :
+                        note = 3
+                    texte "À écrire" en anglais "Write" avec style "aide-ecrire"
+                    code humalis :
+                        changer note par 3
+                bloc avec style "aide-entree" :
+                    texte "`changer` va toujours avec `par`" en anglais "`changer` always goes with `par`" avec style "aide-besoin"
+                    texte "À éviter" en anglais "Avoid" avec style "aide-eviter"
+                    code humalis :
+                        changer note en 3
+                    texte "À écrire" en anglais "Write" avec style "aide-ecrire"
+                    code humalis :
+                        changer note par 3
+                bloc avec style "aide-entree" :
+                    texte "Une variable se déclare avec `=`" en anglais "A variable is declared with `=`" avec style "aide-besoin"
+                    texte "À éviter" en anglais "Avoid" avec style "aide-eviter"
+                    code humalis :
+                        variable compte vaut 3
+                    texte "À écrire" en anglais "Write" avec style "aide-ecrire"
+                    code humalis :
+                        variable compte = 3
+                bloc avec style "aide-entree" :
+                    texte "Un seul `avec` par élément" en anglais "Only one `avec` per element" avec style "aide-besoin"
+                    texte "À éviter" en anglais "Avoid" avec style "aide-eviter"
+                    code humalis :
+                        texte "Bonjour" avec couleur bleu avec taille grande
+                    texte "À écrire" en anglais "Write" avec style "aide-ecrire"
+                    code humalis :
+                        texte "Bonjour" avec couleur bleu et taille grande
+                bloc avec style "aide-entree" :
+                    texte "Pas de virgule entre les options" en anglais "No comma between options" avec style "aide-besoin"
+                    texte "À éviter" en anglais "Avoid" avec style "aide-eviter"
+                    code humalis :
+                        texte "Bonjour" avec couleur bleu, taille grande
+                    texte "À écrire" en anglais "Write" avec style "aide-ecrire"
+                    code humalis :
+                        texte "Bonjour" avec couleur bleu et taille grande
+                bloc avec style "aide-entree" :
+                    texte "Le texte d'un bouton va entre guillemets" en anglais "A button's text goes in quotes" avec style "aide-besoin"
+                    texte "À éviter" en anglais "Avoid" avec style "aide-eviter"
+                    code humalis :
+                        bouton Valider
+                    texte "À écrire" en anglais "Write" avec style "aide-ecrire"
+                    code humalis :
+                        bouton "Valider"
+                bloc avec style "aide-entree" :
+                    texte "Le nom d'une page va entre guillemets" en anglais "A page name goes in quotes" avec style "aide-besoin"
+                    texte "À éviter" en anglais "Avoid" avec style "aide-eviter"
+                    code humalis :
+                        lien "Contact" vers contact
+                    texte "À écrire" en anglais "Write" avec style "aide-ecrire"
+                    code humalis :
+                        lien "Contact" vers "contact"
+                bloc avec style "aide-entree" :
+                    texte "Pour changer de page : `rediriger vers`" en anglais "To change page: `rediriger vers`" avec style "aide-besoin"
+                    texte "À éviter" en anglais "Avoid" avec style "aide-eviter"
+                    code humalis :
+                        aller vers "contact"
+                    texte "À écrire" en anglais "Write" avec style "aide-ecrire"
+                    code humalis :
+                        rediriger vers "contact"
+                bloc avec style "aide-entree" :
+                    texte "Un clic s'écrit toujours pareil" en anglais "A click is always written the same way" avec style "aide-besoin"
+                    texte "À éviter" en anglais "Avoid" avec style "aide-eviter"
+                    code humalis :
+                        quand on clique sur "Commander" :
+                            afficher "Bien"
+                    texte "À écrire" en anglais "Write" avec style "aide-ecrire"
+                    code humalis :
+                        quand l'utilisateur clique sur "Commander" :
+                            afficher "Bien"
+                bloc avec style "aide-entree" :
+                    texte "Pour parcourir : `pour chaque … dans`" en anglais "To go through a list: `pour chaque … dans`" avec style "aide-besoin"
+                    texte "À éviter" en anglais "Avoid" avec style "aide-eviter"
+                    code humalis :
+                        pour chaque p de panier :
+                            texte p
+                    texte "À écrire" en anglais "Write" avec style "aide-ecrire"
+                    code humalis :
+                        pour chaque p dans panier :
+                            texte p
+                bloc avec style "aide-entree" :
+                    texte "Pas de « alors » : le bloc s'ouvre par `:`" en anglais "No « alors »: the block opens with `:`" avec style "aide-besoin"
+                    texte "À éviter" en anglais "Avoid" avec style "aide-eviter"
+                    code humalis :
+                        si note est superieure a 10 alors :
+                            texte "Bien"
+                    texte "À écrire" en anglais "Write" avec style "aide-ecrire"
+                    code humalis :
+                        si note est superieure a 10 :
+                            texte "Bien"
+                bloc avec style "aide-entree" :
+                    texte "Une requête s'écrit `envoyer requete vers`" en anglais "A request is written `envoyer requete vers`" avec style "aide-besoin"
+                    texte "À éviter" en anglais "Avoid" avec style "aide-eviter"
+                    code humalis :
+                        envoyer "produits" dans produits
+                    texte "À écrire" en anglais "Write" avec style "aide-ecrire"
+                    code humalis :
+                        envoyer requete vers "produits" dans produits
+                bloc avec style "aide-entree" :
+                    texte "Une durée s'écrit en toutes lettres" en anglais "A duration is written in full" avec style "aide-besoin"
+                    texte "À éviter" en anglais "Avoid" avec style "aide-eviter"
+                    code humalis :
+                        afficher "Prêt" pendant 3 s
+                    texte "À écrire" en anglais "Write" avec style "aide-ecrire"
+                    code humalis :
+                        afficher "Prêt" pendant 3 secondes
