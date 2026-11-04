@@ -766,7 +766,7 @@ export function verifierEnvoi(
   schema: Schema,
   corps: unknown,
   complet: boolean,
-  regles: { duServeur?: string[]; duSite?: string[] } = {},
+  regles: { duServeur?: string[]; duSite?: string[]; nonVides?: string[] } = {},
 ): { valeur: Record<string, unknown> } | { erreur: string } {
   if (typeof corps !== 'object' || corps === null || Array.isArray(corps)) {
     return { erreur: 'les données envoyées doivent être un objet JSON' };
@@ -787,6 +787,9 @@ export function verifierEnvoi(
     // Une image « du site » peut aussi être un chemin de ce site (/images/photo.jpg), en plus de ce qu'accepte une image.
     const chemin = schema[champ] === 'image' && regles.duSite?.includes(champ) && estDuSite(recu);
     if (!chemin && !conforme(schema[champ], recu)) return { erreur: \`le champ « \${champ} » doit être \${decrire(schema[champ])}\` };
+    if (regles.nonVides?.includes(champ) && (Array.isArray(recu) ? recu.length === 0 : typeof recu === 'string' && recu.trim() === '')) {
+      return { erreur: \`le champ « \${champ} » ne doit pas être vide\` };
+    }
     if (regles.duSite?.includes(champ) && !estDuSite(recu)) return { erreur: \`le champ « \${champ} » doit être une adresse de ce site (/images/photo.jpg)\` };
     valeur[champ] = recu;
   }
@@ -1381,7 +1384,17 @@ function testsRegles(serveur: ServeurRI): string {
   const blocs = serveur.routes.map((route) => {
     const donnee = serveur.donnees.find((d) => d.nom === route.donnee)!;
     // Les champs à règle ont des exemples qui les respectent ; un envoi laisse de côté ce que le serveur décide.
-    const exempleDe = (c: (typeof donnee.champs)[number]) => (c.regle?.genre === 'site' ? (c.type.genre === 'liste' ? "['/a.png']" : "'/a.png'") : c.regle?.genre === 'auPlus' ? '0' : exempleChamp(c.type));
+    // Une liste non vide lue par une somme contient une vraie référence, créée à la volée.
+    const lueParSomme = (c: (typeof donnee.champs)[number]) => donnee.champs.flatMap((x) => (x.regle?.genre === 'somme' && x.regle.liste === c.nom ? [x.regle.donnee] : []))[0];
+    const exempleDe = (c: (typeof donnee.champs)[number]) => {
+      if (c.regle?.genre === 'site') return c.type.genre === 'liste' ? "['/a.png']" : "'/a.png'";
+      if (c.regle?.genre === 'auPlus') return '0';
+      if (c.nonVide && c.type.genre === 'liste') {
+        const lue = lueParSomme(c);
+        return lue ? `[(await stockages.${camel(lue)}.creer(${ficheExemple(serveur, lue)})).id]` : "['exemple']";
+      }
+      return exempleChamp(c.type);
+    };
     const duServeur = champsDuServeur(donnee, route);
     const exemple = `{ ${donnee.champs.map((c) => `${camel(c.nom)}: ${exempleDe(c)}`).join(', ')} }`;
     const envoiExemple = `{ ${donnee.champs.filter((c) => !duServeur.includes(camel(c.nom))).map((c) => `${camel(c.nom)}: ${exempleDe(c)}`).join(', ')} }`;
@@ -1443,6 +1456,15 @@ ${duServeur.map((c) => `      expect((await ${avec}.send({ ...${envoiExemple}, $
       expect(reponse.body.${camel(somme.nom)}).toBe(14);
 ${liees.map((c) => `      expect(await stockages.${camel(c.donnee)}.trouver(reponse.body.${camel(c.dans!)})).not.toBeNull();`).join('\n')}
       expect((await ${avec}.send({ ...${envoiExemple}, ${camel(liste)}: ['inconnue'] })).status).toBe(400);
+    });`);
+    }
+    const champNonVide = donnee.champs.find((c) => c.nonVide);
+    if (createur && champNonVide) {
+      const avec = createur === 'visiteur' ? `visiteurAvecCsrf.post('${adresse}').set(csrf)` : `request(app).post('${adresse}').set('authorization', \`Bearer \${${createur}}\`)`;
+      tests.push(`    it('« ${champNonVide.nom} » refuse une valeur vide', async () => {
+      const reponse = await ${avec}.send({ ...${envoiExemple}, ${camel(champNonVide.nom)}: ${champNonVide.type.genre === 'liste' ? '[]' : "'  '"} });
+      expect(reponse.status).toBe(400);
+      expect(reponse.body.erreur).toContain('ne doit pas être vide');
     });`);
     }
     const champSite = donnee.champs.find((c) => c.regle?.genre === 'site');

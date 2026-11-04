@@ -1611,6 +1611,8 @@ serveur "boutique" :
   ajoute un autre champ. Un identifiant inconnu est refusé.
 - `au plus prix de zone par commune` refuse une valeur plus grande que le prix de la
   zone de cette commune, ou négative. Sans zone, seul 0 passe.
+- `non vide` refuse une liste vide, ou un texte vide ou fait d'espaces :
+  `refs : liste de texte non vide`. Il se combine avec une autre règle.
 - `du site` n'accepte qu'un chemin de ce site (`/images/photo.jpg`), l'adresse de
   `HUMALIS_ADRESSE_SITE` ou une image choisie dans la page. Il vaut aussi à la
   modification.

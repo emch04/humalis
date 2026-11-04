@@ -131,7 +131,7 @@ export type MorceauEmail = { texte: string } | { champ: string };
 
 export interface ServeurRI {
   nom: string;
-  donnees: { nom: string; champs: { nom: string; type: TypeChamp; regle?: RegleChampRI }[] }[];
+  donnees: { nom: string; champs: { nom: string; type: TypeChamp; regle?: RegleChampRI; nonVide?: boolean }[] }[];
   routes: {
     adresse: string;
     donnee: string;

@@ -428,6 +428,9 @@ page "accueil" :
 - L’identifiant va dans un mauvais champ : l'identifiant va dans un champ texte
 - Une page envoie ce que le serveur décide : le serveur décide lui-même du champ
 - Lire toute la liste d’une donnée lue par identifiant : ne se lit que par identifiant
+- « non vide » sur un champ qui ne peut pas l’être : vaut pour un texte ou une liste
+- « non vide » sur une valeur du serveur : non vide » ne sert à rien ici
+- Ajouter à une liste une variable qui peut être rien : peut encore être rien ici
 - Une durée oubliée : il manque une durée
 - Une durée sans unité : il manque l’unité de la durée
 - Une durée qui n’est pas un nombre : une durée est un nombre suivi de son unité

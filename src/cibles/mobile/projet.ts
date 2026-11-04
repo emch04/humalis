@@ -1156,10 +1156,20 @@ function useGardee<T>(stockage: Stockage, cle: string, initiale: T): [T, (valeur
   const changee = useRef(false);
   const derniere = useRef(valeur);
   derniere.current = valeur;
-  const setValeur = useCallback((nouvelle: T) => {
-    changee.current = true;
-    setValeurLue(nouvelle);
-  }, []);
+  const setValeur = useCallback(
+    (nouvelle: T) => {
+      changee.current = true;
+      derniere.current = nouvelle;
+      // L'écriture part tout de suite ; avant que le téléphone ait répondu, sa réponse l'enverra.
+      if (lue.current) {
+        stockage.ecrire(cle, JSON.stringify(nouvelle)).catch(() => {
+          // Stockage plein ou interdit : la valeur reste en mémoire.
+        });
+      }
+      setValeurLue(nouvelle);
+    },
+    [stockage, cle],
+  );
 
   useEffect(() => {
     let active = true;
@@ -1183,13 +1193,6 @@ function useGardee<T>(stockage: Stockage, cle: string, initiale: T): [T, (valeur
       active = false;
     };
   }, [stockage, cle]);
-
-  useEffect(() => {
-    if (!lue.current) return;
-    stockage.ecrire(cle, JSON.stringify(valeur)).catch(() => {
-      // Stockage plein ou interdit : la valeur reste en mémoire.
-    });
-  }, [stockage, cle, valeur]);
 
   return [valeur, setValeur];
 }`);
