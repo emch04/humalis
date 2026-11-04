@@ -6,6 +6,7 @@ entete avec fixe et style "site-header" :
         menu repliable avec style "nav-links" :
             lien "Accueil" en anglais "Home" vers "accueil"
             lien "Documentation" en anglais "Documentation" vers "documentation"
+            lien "Antisèche" en anglais "Cheat sheet" vers "antiseche"
             lien "Exemples" en anglais "Examples" vers "exemples"
             lien "Bac à sable" en anglais "Playground" vers "bac_a_sable"
             lien "Installer" en anglais "Install" vers "installer"

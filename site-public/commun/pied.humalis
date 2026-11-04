@@ -15,6 +15,7 @@ pied avec style "site-footer" :
             lien "Installer" en anglais "Install" vers "installer"
             lien "Sommaire" en anglais "Contents" vers "documentation"
             lien "Premiers pas" en anglais "First steps" vers "documentation_1"
+            lien "Antisèche" en anglais "Cheat sheet" vers "antiseche"
             lien "Les commandes" en anglais "Commands" vers "documentation_32"
             lien "Nouveautés" en anglais "What’s new" vers "nouveautes"
         colonne avec style "footer-col" :
