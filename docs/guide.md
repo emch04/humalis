@@ -1617,12 +1617,15 @@ serveur "boutique" :
 - `creer suivi avec … dans commande.suivi` crée une fiche liée avec les valeurs déjà
   vérifiées, et garde son identifiant dans la fiche créée. La réponse le donne à la
   page : `envoyer requete vers "commandes" avec … dans commande`, puis `commande.suivi`.
-- `par identifiant` ouvre une fiche à la fois (`avec id`), sans donner la liste, et
-  cette lecture n'est jamais gardée en cache. La liste suit sa propre règle.
+- `par identifiant` ouvre une fiche à la fois, sans donner la liste, et cette lecture
+  n'est jamais gardée en cache. La liste suit sa propre règle. La page écrit
+  `envoyer requete vers "suivis" avec id m.id dans fiche`, ou `avec id` seul dans une
+  page dont le paramètre s'appelle `id`.
 
 Un champ décidé par le serveur est refusé à l'envoi (400), et Humalis le signale à la
 compilation si une page l'envoie. Une personne qui a le droit de modifier peut le
-changer ensuite. Les calculs restent simples : une règle comme « livraison offerte
+changer ensuite avec `modifier c dans "commandes" avec statut = "confirmee"` ; un
+total modifié ainsi garde la valeur écrite, sans nouveau calcul. Les calculs restent simples : une règle comme « livraison offerte
 dès 50 $ » reste décidée par la page, donc un client qui trafique sa requête peut
 payer moins que prévu sur ce champ, jamais plus que le plafond.
 

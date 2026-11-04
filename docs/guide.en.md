@@ -1695,12 +1695,15 @@ serveur "shop" :
 - `creer suivi avec … dans commande.suivi` creates a linked record from the values
   already checked, and keeps its id in the new record. The response gives it to the
   page: `envoyer requete vers "commandes" avec … dans commande`, then `commande.suivi`.
-- `par identifiant` opens one record at a time (`avec id`), without the list, and this
-  read is never cached. The list follows its own rule.
+- `par identifiant` opens one record at a time, without the list, and this read is
+  never cached. The list follows its own rule. The page writes
+  `envoyer requete vers "suivis" avec id m.id dans fiche`, or `avec id` alone in a page
+  whose parameter is named `id`.
 
 A field the server decides is refused when sent (400), and Humalis reports it at
-compile time if a page sends it. Someone allowed to modify can still change it later.
-Calculations stay simple: a rule like "free delivery from $50" stays decided by the
+compile time if a page sends it. Someone allowed to modify can still change it later
+with `modifier c dans "commandes" avec statut = "confirmee"`; a total changed this way
+keeps the written value, with no new calculation. Calculations stay simple: a rule like "free delivery from $50" stays decided by the
 page, so a client tampering with the request can pay less on that field, never more
 than the cap.
 
