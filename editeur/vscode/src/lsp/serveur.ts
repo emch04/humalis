@@ -9,7 +9,7 @@
  */
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { formaterSource } from '../../../../src/outils/formatage.js';
-import { lireSurLeDisque, verifierAvec, versDiagnostics } from '../diagnostics.js';
+import { lireSurLeDisque, listerSurLeDisque, verifierAvec, versDiagnostics } from '../diagnostics.js';
 import { lireProjet, type Lecteur } from '../langage/projet.js';
 import { indexer, type Index } from '../langage/portees.js';
 import { survoler } from '../langage/survol.js';
@@ -191,7 +191,7 @@ export class ServeurLangage {
 
   private index(uri: string): Index | undefined {
     const texte = this.documents.get(uri);
-    return texte === undefined ? undefined : indexer(lireProjet(texte, cheminDe(uri), this.lire));
+    return texte === undefined ? undefined : indexer(lireProjet(texte, cheminDe(uri), this.lire, [], listerSurLeDisque));
   }
 
   private publier(uri: string): void {
@@ -221,7 +221,7 @@ export class ServeurLangage {
   private completion(uri: string, position: PositionLsp) {
     const texte = this.documents.get(uri);
     if (texte === undefined) return null;
-    const { debut, propositions } = completerSource(texte, position.line + 1, position.character + 1, cheminDe(uri), this.lire);
+    const { debut, propositions } = completerSource(texte, position.line + 1, position.character + 1, cheminDe(uri), this.lire, listerSurLeDisque);
     const range = plage(position.line + 1, debut, position.character + 1);
     return {
       isIncomplete: false,
