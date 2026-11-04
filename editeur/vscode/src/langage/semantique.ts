@@ -34,6 +34,7 @@ function typeDe(s: Symbole): { type: TypeJeton; readonly: boolean } | undefined 
       return { type: 'variable', readonly: true };
     case 'parametrePage':
     case 'parametreComposant':
+    case 'parametreFonction':
       return { type: 'parameter', readonly: false };
     case 'donnee':
       return { type: 'type', readonly: false };

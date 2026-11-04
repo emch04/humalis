@@ -137,6 +137,8 @@ const GENRES: Record<GenreSymbole, string> = {
   boucle: 'variable de la boucle « pour chaque »',
   parametrePage: 'paramètre de la page (lu dans son adresse)',
   parametreComposant: 'paramètre du composant',
+  parametreFonction: 'paramètre de la fonction',
+  fonction: 'fonction',
   page: 'page',
   composant: 'composant écrit en Humalis',
   composantReact: 'composant React',

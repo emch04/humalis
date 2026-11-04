@@ -1,11 +1,10 @@
 /**
  * Les noms d'un projet : où chacun est déclaré, et lequel est visible à une
  * ligne donnée. Les portées suivent celles de l'analyse du compilateur
- * (`src/analyse/portees.ts`) : la page, puis un bloc par `si`, `sinon`,
- * `pour chaque` et `quand` ; les variables partagées et les paramètres
- * au-dessus.
+ * (`src/analyse/portees.ts`) : la page, puis chaque bloc décalé ; les variables
+ * partagées et les paramètres au-dessus.
  */
-import type { Expression, Instruction, NomElement, Programme, Test } from '../../../../src/parser/ast.js';
+import type { Expression, Instruction, NomElement, Programme } from '../../../../src/parser/ast.js';
 import { indentation, jetonsDeLigne, texteJeton } from './document.js';
 import { entetes, enteteRacine, premierMot } from './blocs.js';
 import { principal, type FichierProjet, type Projet } from './projet.js';
@@ -17,6 +16,8 @@ export type GenreSymbole =
   | 'boucle'
   | 'parametrePage'
   | 'parametreComposant'
+  | 'parametreFonction'
+  | 'fonction'
   | 'page'
   | 'composant'
   | 'composantReact'
@@ -34,6 +35,7 @@ export const GENRES_VARIABLE: readonly GenreSymbole[] = [
   'boucle',
   'parametrePage',
   'parametreComposant',
+  'parametreFonction',
 ];
 
 export interface Symbole {
@@ -79,19 +81,6 @@ function placer(lignes: readonly string[], ligne: number, nom: string, chaine: b
   return { colonne: jeton.colonne, fin: jeton.colonne + longueur, texteLigne: texte.trim() };
 }
 
-/** La ligne du « sinon : » d'une condition, s'il y en a un. */
-function ligneSinon(lignes: readonly string[], ligneSi: number): number | undefined {
-  const marge = indentation(lignes[ligneSi - 1] ?? '');
-  for (let k = ligneSi + 1; k <= lignes.length; k++) {
-    const texte = lignes[k - 1];
-    if (texte.trim() === '' || texte.trim().startsWith('#')) continue;
-    const i = indentation(texte);
-    if (i < marge) return undefined;
-    if (i === marge) return premierMot(texte) === 'sinon' ? k : undefined;
-  }
-  return undefined;
-}
-
 /** Le nom lu dans une interpolation : « produit » pour {produit.prix}. */
 export const baseInterpolation = (valeur: string) => valeur.split('.')[0].trim();
 
@@ -115,117 +104,68 @@ function recenserFichier(index: Index, { chemin, doc }: FichierProjet, ouvert: b
   };
   const lire = (nom: string, ligne: number) => noter(index.references, nom, ligne);
 
-  // Une condition en « et » ou en « ou » : ses deux côtés sont eux-mêmes des tests.
-  const test = (t: Test): void => {
-    if (t.type === 'Combinaison') {
-      test(t.gauche);
-      test(t.droite);
+  /** Le bloc qui contient cette ligne, d'après l'indentation : le même calcul que les variables visibles. */
+  const blocDe = (ligne: number) => entetes(lignes, ligne)[0];
+
+  /**
+   * Parcourt tout l'arbre du programme, sans liste de blocs à tenir à jour : une référence ou une
+   * déclaration est trouvée dans n'importe quel bloc (fenêtre, onglet, « essayer », « selon »…).
+   * `racine` : la ligne de la page, du composant ou de la fonction.
+   */
+  const visiter = (valeur: unknown, racine: number): void => {
+    if (Array.isArray(valeur)) {
+      for (const v of valeur) visiter(v, racine);
       return;
     }
-    expression(t.gauche);
-    expression(t.droite);
-  };
-  const expression = (e: Expression | undefined): void => {
-    if (!e) return;
-    switch (e.type) {
+    if (valeur === null || typeof valeur !== 'object') return;
+    const n = valeur as Instruction | Expression | { type?: undefined };
+    switch (n.type) {
       case 'Reference':
-        lire(e.nom, e.ligne);
+        lire(n.nom, n.ligne);
         return;
       case 'Chaine':
-        for (const partie of e.parties) if (partie.type === 'variable') lire(baseInterpolation(partie.valeur), e.ligne);
+        for (const partie of n.parties) if (partie.type === 'variable') lire(baseInterpolation(partie.valeur), n.ligne);
+        for (const version of n.versions ?? []) for (const partie of version.parties) if (partie.type === 'variable') lire(baseInterpolation(partie.valeur), n.ligne);
         return;
-      case 'Liste':
-        e.elements.forEach(expression);
-        return;
-      case 'Calcul':
-        expression(e.gauche);
-        expression(e.droite);
-        return;
-      case 'Compte':
-        expression(e.liste);
-        return;
-      case 'AccesChamp':
-        expression(e.objet);
-        return;
-    }
-  };
-
-  /** Parcourt un bloc : `entete` est la ligne qui l'ouvre, `racine` celle de la page ou du composant. */
-  const bloc = (instructions: Instruction[], entete: number, racine: number): void => {
-    for (const i of instructions) {
-      switch (i.type) {
-        case 'Variable':
-          if (ouvert) ajouter(i.calcul ? 'calcul' : 'variable', i.nom, i.ligne, false, 1, { entete });
-          expression(i.valeur);
-          break;
-        case 'Affectation':
-          lire(i.nom, i.ligne);
-          expression(i.valeur);
-          break;
-        case 'ModificationListe':
-          expression(i.valeur);
-          lire(i.liste, i.ligne);
-          break;
-        case 'Requete':
-          i.donnees.forEach(expression);
-          if (i.resultat !== undefined) lire(i.resultat, i.ligne);
-          break;
-        case 'Suppression':
-          expression(i.objet);
-          break;
-        case 'Modification':
-          expression(i.objet);
-          for (const c of i.changements) expression(c.valeur);
-          break;
-        case 'Composant':
-          noter(index.composantsPlaces, i.nom, i.ligne);
-          for (const p of i.proprietes) expression(p.valeur);
-          break;
-        case 'Element': {
-          expression(i.contenu);
-          for (const a of i.arguments ?? []) expression(a.valeur);
-          const libelle =
-            i.contenu.type === 'Chaine' && i.contenu.parties.every((p) => p.type === 'texte')
-              ? i.contenu.parties.map((p) => p.valeur).join('')
-              : undefined;
-          const nom = i.nom ?? libelle;
-          if (ouvert && nom !== undefined) {
-            ajouter('element', nom, i.ligne, true, 0, {
-              entete: racine,
-              element: i.element,
-              ...(i.nom !== undefined ? { nomElement: i.nom } : {}),
-              ...(libelle !== undefined ? { libelle } : {}),
-            });
-          }
-          break;
+      case 'Variable':
+        if (ouvert) ajouter(n.calcul ? 'calcul' : 'variable', n.nom, n.ligne, false, 1, { entete: blocDe(n.ligne) });
+        break;
+      case 'Affectation':
+        lire(n.nom, n.ligne);
+        break;
+      case 'ModificationListe':
+        lire(n.liste, n.ligne);
+        break;
+      case 'Requete':
+        if (n.resultat !== undefined) lire(n.resultat, n.ligne);
+        break;
+      case 'Rechargement':
+        lire(n.variable, n.ligne);
+        break;
+      case 'Composant':
+        noter(index.composantsPlaces, n.nom, n.ligne);
+        break;
+      case 'Boucle':
+        if (ouvert) ajouter('boucle', n.variable, n.ligne, false, 1, { entete: n.ligne });
+        break;
+      case 'Element': {
+        const libelle =
+          n.contenu.type === 'Chaine' && n.contenu.parties.every((p) => p.type === 'texte')
+            ? n.contenu.parties.map((p) => p.valeur).join('')
+            : undefined;
+        const nom = n.nom ?? libelle;
+        if (ouvert && nom !== undefined) {
+          ajouter('element', nom, n.ligne, true, 0, {
+            entete: racine,
+            element: n.element,
+            ...(n.nom !== undefined ? { nomElement: n.nom } : {}),
+            ...(libelle !== undefined ? { libelle } : {}),
+          });
         }
-        case 'Action':
-          i.arguments.forEach(expression);
-          for (const a of i.parametres ?? []) expression(a.valeur);
-          break;
-        case 'Condition': {
-          test(i.test);
-          bloc(i.alors, i.ligne, racine);
-          const sinon = ligneSinon(lignes, i.ligne);
-          if (sinon !== undefined) bloc(i.sinon, sinon, racine);
-          break;
-        }
-        case 'Boucle':
-          expression(i.liste);
-          if (ouvert) ajouter('boucle', i.variable, i.ligne, false, 1, { entete: i.ligne });
-          bloc(i.corps, i.ligne, racine);
-          break;
-        case 'Evenement':
-        case 'Formulaire':
-        case 'Bloc':
-          bloc(i.corps, i.ligne, racine);
-          break;
-        case 'Connexion':
-          expression(i.email);
-          expression(i.motDePasse);
-          break;
+        break;
       }
     }
+    for (const enfant of Object.values(n)) visiter(enfant, racine);
   };
 
   for (const d of programme.partages) ajouter('partagee', d.nom, d.ligne, false, 1);
@@ -233,12 +173,24 @@ function recenserFichier(index: Index, { chemin, doc }: FichierProjet, ouvert: b
   for (const c of programme.composants) {
     ajouter('composant', c.nom, c.ligne, true);
     if (ouvert) for (const p of c.parametres) ajouter('parametreComposant', p.nom, p.ligne, false, 1, { entete: c.ligne });
-    bloc(c.corps, c.ligne, c.ligne);
+    visiter(c.corps, c.ligne);
+  }
+  for (const disposition of [programme.entete, programme.pied]) if (disposition) visiter(disposition.corps, disposition.ligne);
+  // Un calcul du haut d'un fichier vaut dans toutes les pages du projet.
+  for (const d of programme.calculsPartages ?? []) {
+    ajouter('partagee', d.nom, d.ligne, false, 1);
+    visiter(d.valeur, d.ligne);
+  }
+  for (const f of [...programme.fonctions, ...(programme.definitionsActions ?? [])]) {
+    ajouter('fonction', f.nom, f.ligne, false, 1);
+    if (ouvert) for (const p of f.parametres) ajouter('parametreFonction', p.nom, p.ligne ?? f.ligne, false, 1, { entete: f.ligne });
+    visiter(f.corps, f.ligne);
   }
   for (const page of programme.pages) {
     ajouter('page', page.nom, page.ligne, true);
     if (ouvert) for (const p of page.parametres) ajouter('parametrePage', p, page.ligne, false, 1, { entete: page.ligne });
-    bloc(page.corps, page.ligne, page.ligne);
+    visiter(page.corps, page.ligne);
+    visiter(page.apercu, page.ligne);
   }
   for (const serveur of programme.serveurs) {
     ajouter('serveur', serveur.nom, serveur.ligne, true);

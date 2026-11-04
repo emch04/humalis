@@ -56,6 +56,7 @@ function renommer<T>(valeur: T, noms: Map<string, string>): T {
 export function deplierFonctionsActions(programme: Programme): string[] {
   const enHaut = new Map(programme.fonctions.filter((f) => !contientRendre(f.corps)).map((f) => [f.nom, f]));
   programme.fonctions = programme.fonctions.filter((f) => !enHaut.has(f.nom));
+  programme.definitionsActions = [...enHaut.values()];
   const noms = new Set(enHaut.keys());
   const utilises = new Map<string, number>();
 
@@ -91,6 +92,7 @@ export function deplierFonctionsActions(programme: Programme): string[] {
         throw new ErreurSyntaxique(`« ${f.nom} » rend une valeur : une fonction de calcul s'écrit en haut du fichier, pour servir à toutes les pages.`, f.ligne);
       }
       noms.add(f.nom);
+      programme.definitionsActions.push(f);
     }
     const fonctions = new Map([...enHaut, ...locales.map((f): [string, DefinitionFonction] => [f.nom, f])]);
     lieu.corps = deplier(lieu.corps.filter((i) => i.type !== 'Fonction'), fonctions, []);

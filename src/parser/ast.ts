@@ -26,6 +26,8 @@ export interface Programme {
   fonctions: DefinitionFonction[];
   /** Les noms des fonctions d'actions (sans « rendre ») : leurs appels sont déjà dépliés. */
   fonctionsActions?: string[];
+  /** Ces fonctions telles qu'elles sont écrites : leurs appels sont dépliés, l'éditeur lit encore leur corps. */
+  definitionsActions?: DefinitionFonction[];
   /** Les « test "…" de page "…" : » des fichiers *.test.humalis (décision O3). */
   tests: CasTest[];
   /** Le bloc « theme : » : couleurs, polices, mode. */
