@@ -12,7 +12,7 @@ import { cssTheme, changeLeTheme, modeParDefaut, themeTs, SCRIPT_THEME } from '.
 import { FORMAT_TS, FORMAT_TS_LANGUES, TAILLE_TS, DATES_TS } from '../format.js';
 import { langueWebTsx } from './langue.js';
 import { messagesDuProjet } from '../../i18n/messages.js';
-import type { Application, Ecran, Etat, Action, NoeudVue, SiteRI } from '../../ri/types.js';
+import type { Application, Ecran, Etat, Action, NoeudVue, ServeurRI, SiteRI } from '../../ri/types.js';
 import { simplifier } from '../../analyse/elements.js';
 import { genererEcran, genererFonctions, type ContexteApplication } from './ecran.js';
 import { camel, setter, chaine, pascal } from './noms.js';
@@ -107,7 +107,7 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
     partages: application.partages,
     cle: `humalis:${simplifier(options.nom) || 'application'}`,
     modulesComposants,
-    donnees: [...application.serveurs, ...application.sources].flatMap((s) => s.donnees.map((d) => d.nom)),
+    donnees: [...application.serveurs.flatMap(donneesDesPages), ...application.sources.flatMap((s) => s.donnees)].map((d) => d.nom),
     fonctions: application.fonctions.map((f) => f.nom),
     filtres: new Map(application.ecrans.filter((e) => e.filtres?.length).map((e) => [e.nom, e.filtres!])),
     medias: options.medias ?? new Map(),
@@ -476,11 +476,18 @@ export default defineConfig({
 });
 `;
 
+/** Les données que reçoivent les pages d'un serveur : « comptes » n'a pas de table sur le serveur, mais sa route donne ces champs. */
+export function donneesDesPages(serveur: ServeurRI): ServeurRI['donnees'] {
+  if (!serveur.routeComptes) return serveur.donnees;
+  const champ = (nom: string) => ({ nom, type: { genre: 'texte' as const } });
+  return [...serveur.donnees, { nom: 'comptes', champs: ['email', 'role', 'statut'].map(champ) }];
+}
+
 /** Les interfaces des données du serveur, lues par les pages. */
 export function donneesTs(application: Application): string {
   const typeChamp = (t: import('../../ri/types.js').TypeChamp): string =>
     t.genre === 'liste' ? `${typeChamp(t.de)}[]` : t.genre === 'donnee' ? pascal(t.nom) : t.genre === 'nombre' ? 'number' : t.genre === 'booleen' ? 'boolean' : 'string';
-  const interfaces = [...application.serveurs, ...application.sources].flatMap((s) =>
+  const interfaces = [...application.serveurs.map((s) => ({ nom: s.nom, donnees: donneesDesPages(s) })), ...application.sources].flatMap((s) =>
     s.donnees.map(
       (d) => `/** La donnée « ${d.nom} » du serveur « ${s.nom} ». */
 export interface ${pascal(d.nom)} {

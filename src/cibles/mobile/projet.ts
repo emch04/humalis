@@ -16,7 +16,7 @@ import { simplifier } from '../../analyse/elements.js';
 import { adresseNormalisee } from '../../analyse/serveur.js';
 import { OPTIONS } from '../../analyse/styles.js';
 import { genererEcran, genererFonctions, type ContexteApplication } from '../web/ecran.js';
-import { avecEchecs, cheminsDesPages, donneesTs, partageTsx, outils } from '../web/projet.js';
+import { avecEchecs, cheminsDesPages, donneesDesPages, donneesTs, partageTsx, outils } from '../web/projet.js';
 import { COULEURS_CSS } from '../web/styles.js';
 import { pascal } from '../web/noms.js';
 import { RENDU_MOBILE } from './rendu.js';
@@ -87,7 +87,7 @@ export function genererProjetMobile(application: Application, options: OptionsMo
     partages: application.partages,
     cle: `humalis:${simplifier(options.nom) || 'application'}`,
     modulesComposants,
-    donnees: application.serveurs.flatMap((s) => s.donnees.map((d) => d.nom)),
+    donnees: application.serveurs.flatMap(donneesDesPages).map((d) => d.nom),
     fonctions: application.fonctions.map((f) => f.nom),
     rendu: RENDU_MOBILE,
     medias: options.medias,
