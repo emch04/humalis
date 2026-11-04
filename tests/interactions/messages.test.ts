@@ -167,9 +167,10 @@ describe('messages — « erreurs pendant … » dans le bloc site', () => {
     expect(fichier(webPublie(site('indexation non')), 'humalis/messages.tsx')).toContain('erreur: 8000 }');
   });
 
-  it('avertit sous 4 secondes, comme « afficher erreur … pendant »', () => {
-    expect(avertissements(site('erreurs pendant 2 secondes')).join()).toMatch(/trop court pour lire une erreur/);
-    expect(avertissements(site('erreurs pendant 5 secondes')).join()).not.toMatch(/trop court/);
+  it('la durée de tout un site est un choix : aucun avertissement, même sous 4 secondes', () => {
+    expect(avertissements(site('erreurs pendant 2 secondes')).join()).not.toMatch(/trop court/);
+    // Sur un seul message, l'avertissement reste.
+    expect(avertissements(auClic(['afficher erreur "Raté" pendant 2 secondes'])).join()).toMatch(/trop court/);
   });
 
   it('refuse une durée hors de 1 à 60 secondes', () => {

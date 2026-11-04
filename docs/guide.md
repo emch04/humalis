@@ -2241,8 +2241,8 @@ de recherche.
 La ligne `erreurs pendant 5 secondes` du bloc `site :` règle combien de temps
 restent les erreurs du site, celles que tu écris sans durée et celles que
 Humalis affiche de lui-même. Elle va de 1 à 60 secondes ; sans elle, c'est 8
-secondes. Humalis prévient en dessous de 4 secondes, car beaucoup de personnes
-n'ont pas le temps de lire. Un `pendant` écrit sur un message garde la priorité,
+secondes. Sous 4 secondes, beaucoup de personnes n'ont pas le temps de lire : le choix
+est le tien. Un `pendant` écrit sur un message garde la priorité,
 et un message avec un bouton garde le temps de cliquer (6 secondes, 12 pour
 « Réessayer »).
 

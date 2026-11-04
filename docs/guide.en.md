@@ -2320,8 +2320,8 @@ engines.
 The line `erreurs pendant 5 secondes` in the `site :` block sets how long the
 site's errors stay on screen: the ones you write without a duration and the ones
 Humalis shows by itself, such as a failed read. It ranges from 1 to 60 seconds;
-without it, errors stay 8 seconds. Humalis warns below 4 seconds, because many
-people won't have time to read. A `pendant` written on a message takes priority,
+without it, errors stay 8 seconds. Below 4 seconds, many people won't have time to read: the choice is yours. A
+`pendant` written on a message takes priority,
 and a message with a button keeps enough time to click (6 seconds, 12 for
 « Réessayer »).
 
