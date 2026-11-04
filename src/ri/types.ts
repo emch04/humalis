@@ -109,6 +109,14 @@ export type TypeChamp =
   | { genre: 'liste'; de: TypeChamp }
   | { genre: 'donnee'; nom: string };
 
+/** Un e-mail après une création : les textes sont en morceaux, un morceau « champ » vient de la fiche. */
+export interface EnvoiEmailRI {
+  destinataire: { genre: 'admins' } | { genre: 'adresse'; adresse: string } | { genre: 'champ'; champ: string };
+  sujet: MorceauEmail[];
+  texte: MorceauEmail[];
+}
+export type MorceauEmail = { texte: string } | { champ: string };
+
 export interface ServeurRI {
   nom: string;
   donnees: { nom: string; champs: { nom: string; type: TypeChamp }[] }[];
@@ -119,8 +127,18 @@ export interface ServeurRI {
     droits: Record<'lire' | 'creer' | 'modifier' | 'supprimer', QuiPeut | null>;
     /** Une page écrit « telecharger bon de … » : la route sert aussi GET /:id/bon. */
     bon?: boolean;
+    /** « quand message est cree : » : les e-mails que la création fait partir. */
+    envois?: EnvoiEmailRI[];
     ligne: number;
   }[];
+  /** « seul admin peut lire comptes » : la route des comptes de la connexion, servie par les packs et non par une table. */
+  routeComptes?: { adresse: string; droits: Record<'lire' | 'creer' | 'modifier' | 'supprimer', QuiPeut | null>; ligne: number };
+  /** « emails par brevo ». */
+  emails?: { service: string };
+  /** « invitations vers "bienvenue" » : la page qu'ouvre le lien. */
+  invitations?: string;
+  /** « mot de passe oublie vers "bienvenue" » : la page qu'ouvre le lien. */
+  motDePasseOublie?: string;
   /** « connexion google » : un compte déjà connu du serveur peut se connecter avec Google. */
   connexionGoogle?: boolean;
   /** « fidelite par telephone de commande : » : la lecture réservée à l'admin de /api/fidelite/… */
@@ -620,6 +638,12 @@ export type Action =
   | { type: 'connexionGoogle' }
   /** « changer le mot de passe avec … et … » : celui du compte connecté, vérifié par le serveur. */
   | { type: 'changementMotDePasse'; actuel: Valeur; nouveau: Valeur }
+  /** « inviter champ "Adresse" comme admin » : un lien par e-mail. */
+  | { type: 'invitation'; email: Valeur; role: 'membre' | 'admin' }
+  /** « demander un lien de mot de passe pour champ "Email" ». */
+  | { type: 'demandeLienMotDePasse'; email: Valeur }
+  /** « choisir le mot de passe avec champ "Nouveau" » : le jeton est dans l'adresse du lien. */
+  | { type: 'choixMotDePasse'; nouveau: Valeur }
   /** « telecharger bon de commande de c » : le PDF arrive avec la session, sans ouvrir de page. */
   | { type: 'telechargementBon'; adresse: string; objet: Valeur }
   /** « telecharger commandes en csv » : le fichier se fait dans l'appareil. */

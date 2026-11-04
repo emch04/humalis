@@ -1,4 +1,4 @@
-import type { Serveur, ActionDonnee, Route, Qui } from '../parser/ast.js';
+import type { Serveur, ActionDonnee, Route, Qui, Page, EnvoiEmail } from '../parser/ast.js';
 import type { Diagnostic } from './erreurs.js';
 import { simplifier } from './elements.js';
 import { proposerNom } from './suggestions.js';
@@ -10,7 +10,7 @@ const ACTIONS: ActionDonnee[] = ['lire', 'creer', 'modifier', 'supprimer'];
  * visent une donnée existante, une seule donnée par route, et les
  * actions que personne ne pourra faire (la porte est fermée par défaut).
  */
-export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[]): void {
+export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[], pages: Page[] = []): void {
   const erreur = (message: string, ligne: number) => diagnostics.push({ gravite: 'erreur', message, ligne });
   const avertissement = (message: string, ligne: number) => diagnostics.push({ gravite: 'avertissement', message, ligne });
 
@@ -55,9 +55,23 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[]): vo
       servie = regle.donnee;
       servies.add(regle.donnee);
       for (const action of regle.actions) permises.add(action);
+      if (serveur.donnees.find((d) => d.nom === regle.donnee)?.comptes) {
+        // Les comptes de la connexion : qui s'y trouve ne regarde que l'administration, et ils naissent d'une invitation.
+        if (regle.qui !== 'admin') erreur(`seul un admin peut voir ou retirer les comptes : écrivez « seul admin peut ${regle.actions.join(' et ')} comptes ».`, regle.ligne);
+        if (regle.actions.some((a) => a === 'creer' || a === 'modifier')) {
+          erreur('les comptes se lisent et se suppriment seulement : un compte naît de « inviter … » dans une page, et chacun change son mot de passe lui-même.', regle.ligne);
+        }
+      }
     }
 
-    if (servie !== undefined) {
+    if (route.apresCreation) {
+      const { donnee, envois, ligne } = route.apresCreation;
+      if (!serveur.emails) erreur(`« envoyer email » demande la ligne « emails par brevo » dans le serveur "${serveur.nom}".`, ligne);
+      if (donnee !== servie) erreur(`la route « ${route.adresse} » sert « ${servie ?? 'aucune donnée'} » : elle ne voit pas la création de « ${donnee} ».`, ligne);
+      else for (const envoi of envois) verifierEnvoiEmail(envoi, donnee, serveur, droitsDeRoute(route).creer ?? droitsDeRoute(route).modifier, erreur, avertissement);
+    }
+
+    if (servie !== undefined && !serveur.donnees.find((d) => d.nom === servie)?.comptes) {
       // « modifier » couvre aussi créer et supprimer (décision S2).
       const couvertes = new Set(permises);
       if (permises.has('modifier')) {
@@ -68,6 +82,20 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[]): vo
       if (refusees.length > 0) {
         avertissement(`personne ne peut ${refusees.join(', ')} « ${servie} » : ces actions seront refusées.`, route.ligne);
       }
+    }
+  }
+
+  for (const lien of [
+    { nom: 'invitations', ...serveur.invitations },
+    { nom: 'mot de passe oublie', ...serveur.motDePasseOublie },
+  ]) {
+    if (lien.page === undefined || lien.ligne === undefined) continue;
+    if (!serveur.emails) erreur(`« ${lien.nom} » envoie un lien par e-mail : ajoutez la ligne « emails par brevo » dans le serveur "${serveur.nom}".`, lien.ligne);
+    const page = pages.find((p) => p.nom === lien.page);
+    if (!page) {
+      erreur(`« ${lien.nom} vers "${lien.page}" » : cette page n'existe pas.${proposerNom(lien.page, pages.map((p) => p.nom))}`, lien.ligne);
+    } else if (page.parametres.length > 0) {
+      erreur(`« ${lien.nom} vers "${lien.page}" » : un lien d'e-mail ne peut pas ouvrir une page qui attend une valeur dans son adresse.`, lien.ligne);
     }
   }
 
@@ -105,7 +133,38 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[]): vo
   }
 
   for (const donnee of serveur.donnees) {
-    if (!servies.has(donnee.nom)) avertissement(`aucune route ne donne accès à la donnée « ${donnee.nom} ».`, donnee.ligne);
+    if (!servies.has(donnee.nom) && !donnee.comptes) avertissement(`aucune route ne donne accès à la donnée « ${donnee.nom} ».`, donnee.ligne);
+  }
+}
+
+/** Le destinataire et les « {message.nom} » d'un e-mail : des champs de la fiche qui vient d'être créée. */
+function verifierEnvoiEmail(
+  envoi: EnvoiEmail,
+  donnee: string,
+  serveur: Serveur,
+  createur: Qui | null,
+  erreur: (message: string, ligne: number) => void,
+  avertissement: (message: string, ligne: number) => void,
+): void {
+  const champs = serveur.donnees.find((d) => d.nom === donnee)?.champs ?? [];
+  const existe = (champ: string) => champs.some((c) => simplifier(c.nom) === simplifier(champ));
+  const { destinataire } = envoi;
+  if (destinataire.genre === 'adresse' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(destinataire.adresse)) {
+    erreur(`« ${destinataire.adresse} » n'est pas une adresse e-mail.`, envoi.ligne);
+  }
+  if (destinataire.genre === 'champ') {
+    if (destinataire.donnee !== donnee || !existe(destinataire.champ)) {
+      erreur(`« ${destinataire.donnee}.${destinataire.champ} » : le destinataire est un champ de « ${donnee} ». Champs : ${champs.map((c) => c.nom).join(', ')}.`, envoi.ligne);
+    } else if (createur === 'tout_le_monde') {
+      avertissement(`tout le monde peut creer « ${donnee} » : n'importe qui peut faire partir cet e-mail vers l'adresse de son choix. Réservez la création, ou écrivez aux admins.`, envoi.ligne);
+    }
+  }
+  for (const partie of [...envoi.sujet, ...envoi.texte]) {
+    if (partie.type !== 'variable') continue;
+    const [nom, champ, ...reste] = partie.valeur.split('.');
+    if (nom !== donnee || champ === undefined || reste.length > 0 || !existe(champ)) {
+      erreur(`« {${partie.valeur}} » : un e-mail montre les champs de la fiche créée, par exemple {${donnee}.${champs[0]?.nom ?? 'nom'}}.`, envoi.ligne);
+    }
   }
 }
 

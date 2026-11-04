@@ -595,6 +595,46 @@ Cacher le bouton « Publier » ne protège rien : c'est la règle `connecte
 peut creer avis` du serveur qui refuse un visiteur.
 
 
+## Inviter, retrouver un mot de passe, envoyer un e-mail
+
+Le serveur envoie des e-mails avec `emails par brevo`. `invitations vers …` et
+`mot de passe oublie vers …` disent quelle page ouvre le lien reçu ; `comptes` est
+la liste des comptes de la connexion.
+
+```humalis
+serveur "boutique" :
+    emails par brevo
+    invitations vers "bienvenue"
+    mot de passe oublie vers "bienvenue"
+    donnee message :
+        nom : texte
+    route "messages" :
+        tout le monde peut creer message
+        seul admin peut lire message
+        quand message est cree :
+            envoyer email aux admins avec sujet "Nouveau message" et texte "De {message.nom}"
+    route "equipe" :
+        seul admin peut lire comptes
+        seul admin peut supprimer comptes
+
+page "accueil" :
+    titre "Connexion"
+    champ email "Adresse"
+    bouton "Inviter"
+    quand l'utilisateur clique sur "Inviter" :
+        inviter champ "Adresse" comme admin
+    bouton "Mot de passe oublié"
+    quand l'utilisateur clique sur "Mot de passe oublié" :
+        demander un lien de mot de passe pour champ "Adresse"
+
+page "bienvenue" :
+    titre "Choisis ton mot de passe"
+    champ mot de passe "Nouveau"
+    bouton "Valider"
+    quand l'utilisateur clique sur "Valider" :
+        choisir le mot de passe avec champ "Nouveau"
+```
+
 ## Modifier et supprimer sur le serveur
 
 Une page change ou supprime une donnée lue sur une route. `supprimer … de`

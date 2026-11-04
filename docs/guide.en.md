@@ -1758,6 +1758,114 @@ You need a Google OAuth client ID ("Web application"), in the server's
 `GOOGLE_CLIENT_ID` variable, with the redirect address
 `https://your-site/auth-google.html`. Web and desktop targets only, for now.
 
+### Inviting people and recovering a password
+
+The first account comes from the environment. The next ones arrive by invitation:
+an admin gives an address, the person receives a link, then chooses a password.
+With `connexion google`, they can also come in with Google, since their account
+is now known.
+
+```humalis
+serveur "shop" :
+    connexion google
+    emails par brevo
+    invitations vers "welcome"
+    mot de passe oublie vers "welcome"
+    route "team" :
+        seul admin peut lire comptes
+        seul admin peut supprimer comptes
+
+page "home" :
+    titre "Sign in"
+
+page "team" reservee a admin sinon vers "home" :
+    titre "The team"
+    variable members = []
+    quand la page se charge :
+        envoyer requete vers "team" dans members
+    formulaire "invitation" :
+        champ email "Address" avec obligatoire
+        bouton "Invite"
+    quand le formulaire "invitation" est soumis :
+        essayer :
+            inviter champ "Address" comme admin
+            afficher reussite "Invitation sent"
+            envoyer requete vers "team" dans members
+        si erreur :
+            afficher erreur "{raison}"
+    pour chaque m dans members :
+        ligne :
+            texte "{m.email} ({m.role}, {m.statut})"
+            bouton "Remove"
+            quand l'utilisateur clique sur "Remove" :
+                supprimer m de "team"
+                envoyer requete vers "team" dans members
+
+page "forgotten" :
+    titre "Forgotten password"
+    formulaire "request" :
+        champ email "Email" avec obligatoire
+        bouton "Get a link"
+    quand le formulaire "request" est soumis :
+        demander un lien de mot de passe pour champ "Email"
+        afficher reussite "If this account exists, a link is on its way."
+
+page "welcome" :
+    titre "Choose your password"
+    formulaire "choice" :
+        champ mot de passe "Password" avec obligatoire
+        bouton "Save"
+    quand le formulaire "choice" est soumis :
+        essayer :
+            choisir le mot de passe avec champ "Password"
+            rediriger vers "home"
+        si erreur :
+            afficher erreur "{raison}"
+```
+
+- `inviter … comme admin` creates an administrator; without `comme`, it is a plain
+  signed-in account. Only an admin can invite, and the server checks it.
+- A link works once. It lasts 7 days for an invitation, one hour for a forgotten
+  password. The server keeps only its fingerprint.
+- `demander un lien…` answers the same whether the address has an account or not,
+  and one address gets at most one link every ten minutes. Inviting an address
+  that already has an account leaves that account unchanged.
+- `comptes` is a ready-made data type, with `email`, `role` (`admin` or `membre`)
+  and `statut` (`invite` or `actif`). Only an admin can read it or delete from it.
+  Deleting cancels an invitation or removes a member: no more password, no more
+  link, and their session is cut. You cannot remove yourself. A new invitation can
+  bring them back.
+
+The server needs `BREVO_API_KEY` and `BREVO_EXPEDITEUR` (an address on a domain
+verified with Brevo), in its environment or key vault, and `HUMALIS_ADRESSE_SITE`
+(`https://my-shop.com`) in its environment to write the links. Without them,
+`inviter` shows an error that says so. Web and desktop targets; the mobile app
+shows a message pointing to the site, and the static target refuses these phrases.
+
+### Sending an email from the server
+
+Under a route, `quand … est cree :` sends emails once a record has been saved.
+
+```humalis
+serveur "shop" :
+    emails par brevo
+    donnee message :
+        nom : texte
+        texte : texte
+    route "messages" :
+        tout le monde peut creer message
+        seul admin peut lire message
+        seul admin peut supprimer message
+        quand message est cree :
+            envoyer email aux admins avec sujet "New message from {message.nom}" et texte "{message.texte}"
+```
+
+The recipient is `aux admins`, an address (`a "contact@example.com"`), or a field
+of the record (`a commande.email`). The text shows fields of the new record. A
+failed send never fails the creation. Humalis warns when anyone can create the
+record and so choose where the email goes: your domain would be sending spam. The
+server sends at most 100 emails per hour; `HUMALIS_EMAILS_PAR_HEURE` changes that.
+
 ### A profile page: password and photo
 
 A signed-in person changes their password with

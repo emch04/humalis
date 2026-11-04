@@ -945,6 +945,9 @@ interface Utilisateur {
   seConnecterAvecGoogle(dansUnEssai?: boolean): Promise<boolean>;
   /** « changer le mot de passe avec … et … » : celui du compte connecté ; vrai si le serveur l'a accepté. */
   changerMotDePasse(actuel: string, nouveau: string, dansUnEssai?: boolean): Promise<boolean>;
+  inviter(email: string, role: 'membre' | 'admin', dansUnEssai?: boolean): Promise<boolean>;
+  demanderLienMotDePasse(email: string, dansUnEssai?: boolean): Promise<boolean>;
+  choisirMotDePasse(nouveau: string, dansUnEssai?: boolean): Promise<boolean>;
   seDeconnecter(): Promise<void>;
   /** Demande /auth/me une seule fois, à la première page qui lit la session. */
   demander(): void;
@@ -1040,6 +1043,17 @@ export function Session({ children }: { children: ReactNode }) {
     return false;
   }
 
+  /** Les invitations et les liens de mot de passe s'ouvrent sur le site : pas encore dans l'application. */
+  function comptesSurLeSite(dansUnEssai: boolean): boolean {
+    const texte = "Les invitations et les liens de mot de passe ne sont pas encore disponibles dans l'application mobile : passez par le site.";
+    if (dansUnEssai) throw new Error(texte);
+    afficherMessage(texte, 'erreur');
+    return false;
+  }
+  const inviter = async (_email: string, _role: 'membre' | 'admin', dansUnEssai = false): Promise<boolean> => comptesSurLeSite(dansUnEssai);
+  const demanderLienMotDePasse = async (_email: string, dansUnEssai = false): Promise<boolean> => comptesSurLeSite(dansUnEssai);
+  const choisirMotDePasse = async (_nouveau: string, dansUnEssai = false): Promise<boolean> => comptesSurLeSite(dansUnEssai);
+
   async function changerMotDePasse(actuel: string, nouveau: string, dansUnEssai = false): Promise<boolean> {
     const refuser = (texte: string): boolean => {
       if (dansUnEssai) throw new Error(texte);
@@ -1099,6 +1113,9 @@ export function Session({ children }: { children: ReactNode }) {
     seConnecter,
     seConnecterAvecGoogle,
     changerMotDePasse,
+    inviter,
+    demanderLienMotDePasse,
+    choisirMotDePasse,
     seDeconnecter,
     demander,
   };

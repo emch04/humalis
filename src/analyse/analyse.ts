@@ -189,6 +189,8 @@ interface Liens {
   serveur?: string;
   /** « connexion google » dans le serveur du fichier. */
   connexionGoogle?: boolean;
+  /** « invitations vers … » et « mot de passe oublie vers … » dans le serveur du fichier. */
+  comptes: { invitations: boolean; oublie: boolean };
   /** « fidelite par … de … : » dans le serveur du fichier. */
   fidelite?: Fidelite;
   routes: Map<string, { adresse: string; donnee: Donnee; droits: Droits }>;
@@ -307,7 +309,7 @@ export function analyserSens(programme: Programme, classesCss?: Set<string>): Re
   );
   const partages = globale.declarerPartages(programme.partages);
 
-  const liens: Liens = { sources: new Map(), serveur: programme.serveurs[0]?.nom, connexionGoogle: programme.serveurs[0]?.connexionGoogle !== undefined, fidelite: programme.serveurs[0]?.fidelite, routes: new Map(), donnees: new Map() };
+  const liens: Liens = { sources: new Map(), serveur: programme.serveurs[0]?.nom, connexionGoogle: programme.serveurs[0]?.connexionGoogle !== undefined, comptes: { invitations: programme.serveurs[0]?.invitations !== undefined, oublie: programme.serveurs[0]?.motDePasseOublie !== undefined }, fidelite: programme.serveurs[0]?.fidelite, routes: new Map(), donnees: new Map() };
   for (const serveur of programme.serveurs) {
     for (const donnee of serveur.donnees) liens.donnees.set(donnee.nom, donnee);
     for (const route of serveur.routes) {
@@ -384,7 +386,7 @@ export function analyserSens(programme: Programme, classesCss?: Set<string>): Re
     }
   }
 
-  for (const serveur of programme.serveurs) analyserServeur(serveur, resultat.diagnostics);
+  for (const serveur of programme.serveurs) analyserServeur(serveur, resultat.diagnostics, programme.pages);
   analyserSources(programme.sources, programme.serveurs, resultat.diagnostics);
   analyserNavigation(programme, resultat.diagnostics);
   analyserPublication(programme, resultat.diagnostics);
@@ -485,7 +487,7 @@ class AnalysePage {
     private readonly partages: Symbole[] = [],
     private readonly composants: Composants = { react: new Set(), humalis: new Map() },
     private readonly parametres: Parametre[] = [],
-    private readonly liens: Liens = { sources: new Map(), routes: new Map(), donnees: new Map() },
+    private readonly liens: Liens = { sources: new Map(), routes: new Map(), donnees: new Map(), comptes: { invitations: false, oublie: false } },
     private readonly fonctions: Map<string, InfoFonction> = new Map(),
   ) {
     this.elements = new ElementsPage(page, resultat.diagnostics);
@@ -898,6 +900,21 @@ class AnalysePage {
         if (contexte === 'evenement') this.cadre.attente = true;
         const type = this.typeDe(instruction.liste);
         if (estConnu(type) && type.genre !== 'liste') this.erreur(`« telecharger … en csv » attend une liste, et ${decrire(instruction.liste)} est ${decrireType(type)}.`, instruction.ligne);
+        return;
+      }
+
+      case 'Invitation':
+      case 'DemandeLienMotDePasse':
+      case 'ChoixMotDePasse': {
+        const nom = { Invitation: 'inviter', DemandeLienMotDePasse: 'demander un lien de mot de passe', ChoixMotDePasse: 'choisir le mot de passe' }[instruction.type];
+        this.litLaSession = true;
+        if (contexte === 'vue') this.horsEvenement(nom, instruction.ligne);
+        this.demandeUnServeur(nom, instruction.ligne);
+        this.typeDe(instruction.type === 'ChoixMotDePasse' ? instruction.nouveau : instruction.email);
+        const { invitations, oublie } = this.liens.comptes;
+        const manque =
+          instruction.type === 'Invitation' ? (invitations ? null : 'invitations vers "…"') : instruction.type === 'DemandeLienMotDePasse' ? (oublie ? null : 'mot de passe oublie vers "…"') : invitations || oublie ? null : 'invitations vers "…" ou mot de passe oublie vers "…"';
+        if (manque !== null && this.liens.serveur !== undefined) this.erreur(`« ${nom} » demande la ligne « ${manque} » dans le serveur "${this.liens.serveur}".`, instruction.ligne);
         return;
       }
 
@@ -2680,6 +2697,12 @@ function actionInterditeDansUneFonction(instruction: Instruction): string | unde
       return 'se connecter avec google';
     case 'ChangementMotDePasse':
       return 'changer le mot de passe';
+    case 'Invitation':
+      return 'inviter';
+    case 'DemandeLienMotDePasse':
+      return 'demander un lien de mot de passe';
+    case 'ChoixMotDePasse':
+      return 'choisir le mot de passe';
     case 'TelechargementBon':
       return 'telecharger bon';
     case 'TelechargementCsv':
