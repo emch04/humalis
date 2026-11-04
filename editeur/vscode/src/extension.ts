@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { formaterSource } from '../../../src/outils/formatage.js';
-import { lireSurLeDisque, verifierAvec, versDiagnostics } from './diagnostics.js';
+import { lireSurLeDisque, listerSurLeDisque, verifierAvec, versDiagnostics } from './diagnostics.js';
 import { lireProjet, type Lecteur } from './langage/projet.js';
 import { indexer } from './langage/portees.js';
 import { survoler } from './langage/survol.js';
@@ -19,7 +19,7 @@ const lire: Lecteur = (chemin) =>
   lireSurLeDisque(chemin);
 
 const cheminDe = (document: vscode.TextDocument) => (document.uri.scheme === 'file' ? document.uri.fsPath : undefined);
-const indexDe = (document: vscode.TextDocument) => indexer(lireProjet(document.getText(), cheminDe(document), lire));
+const indexDe = (document: vscode.TextDocument) => indexer(lireProjet(document.getText(), cheminDe(document), lire, [], listerSurLeDisque));
 
 /** Lignes et colonnes de `langage/` (à partir de 1) → VS Code (à partir de 0). */
 const plage = (ligne: number, debut: number, fin: number) => new vscode.Range(ligne - 1, debut - 1, ligne - 1, fin - 1);
@@ -145,6 +145,7 @@ export function activate(contexte: vscode.ExtensionContext): void {
               position.character + 1,
               cheminDe(document),
               lire,
+              listerSurLeDisque,
             );
             const remplace = new vscode.Range(position.line, debut - 1, position.line, position.character);
             return propositions.map((p) => {

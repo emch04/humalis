@@ -10,7 +10,7 @@ import { normaliser } from '../../../../src/vocabulaire/normaliser.js';
 import type { Categorie, Contexte, EntreeVocabulaire } from '../../../../src/vocabulaire/types.js';
 import { dansStyle, indentation, jetonsDeLigne, texteJeton } from './document.js';
 import { entetes, enteteRacine, genreBloc, premierMot } from './blocs.js';
-import { lireProjet, principal, type Lecteur } from './projet.js';
+import { lireProjet, principal, type Lecteur, type Lister } from './projet.js';
 import { elementsDeLaPage, indexer, symbolesDe, variablesVisibles, type Index, type Symbole } from './portees.js';
 import { fiche } from './survol.js';
 
@@ -54,8 +54,9 @@ export function completerSource(
   colonne: number,
   chemin?: string,
   lire?: Lecteur,
+  lister?: Lister,
 ): Completion {
-  return completer(indexer(lireProjet(source, chemin, lire, [ligne])), ligne, colonne);
+  return completer(indexer(lireProjet(source, chemin, lire, [ligne], lister)), ligne, colonne);
 }
 
 // ─── Les mots de la table ───────────────────────────────────────────────
