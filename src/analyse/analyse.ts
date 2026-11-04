@@ -2317,7 +2317,12 @@ class AnalysePage {
     requete.donnees.forEach((donnee, i) => {
       // « avec nom = client » : le nom donné passe avant celui de la variable.
       const cle = requete.cles?.[i] ?? (donnee.type === 'Champ' ? simplifier(donnee.nom) : donnee.type === 'Reference' ? donnee.nom : undefined);
-      if (cle !== undefined) this.verifierChamp(route, cle, donnee, types[i], requete.ligne);
+      if (cle === undefined) return;
+      // Seule la création est refusée : modifier reste une affaire de droits, ceux de la route.
+      const regle = route.donnee.champs.find((c) => c.nom === cle)?.regle;
+      if (regle?.genre === 'depart' || regle?.genre === 'nombreDe' || regle?.genre === 'somme') {
+        this.erreur(`le serveur décide lui-même du champ « ${cle} » de « ${route.donnee.nom} » à la création : retirez-le de cet envoi, il serait refusé.`, requete.ligne);
+      } else this.verifierChamp(route, cle, donnee, types[i], requete.ligne);
     });
 
     this.avertirDroits(route, envoi ? 'creer' : 'lire', requete.ligne);
@@ -2498,11 +2503,9 @@ class AnalysePage {
     ligne: number,
   ): void {
     const champ = route.donnee.champs.find((c) => c.nom === cle);
-    if (champ?.regle?.genre === 'depart' || champ?.regle?.genre === 'nombreDe' || champ?.regle?.genre === 'somme') {
-      this.erreur(`le serveur décide lui-même du champ « ${cle} » de « ${route.donnee.nom} » : retirez-le de cet envoi, il serait refusé.`, ligne);
-    } else if (!champ) {
+    if (!champ) {
       this.erreur(
-        `la donnée « ${route.donnee.nom} » n'a pas de champ « ${cle} ». Champs : ${route.donnee.champs.map((c) => c.nom).join(', ')}.${proposerNom(cle, route.donnee.champs.map((c) => c.nom))}`,
+        `la donnée « ${route.donnee.nom} » n'a pas de champ « ${cle} ». Champs : ${route.donnee.champs.map((c) => c.nom).join(', ')}.${cle === 'id' ? ' Pour lire une fiche par son identifiant, écrivez : avec id valeur dans fiche.' : proposerNom(cle, route.donnee.champs.map((c) => c.nom))}`,
         ligne,
       );
     } else if (champ.type.genre === 'texte' && champ.type.image && compatibles(typeFichierChoisi(false), type)) {
