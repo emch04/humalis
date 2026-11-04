@@ -7,6 +7,7 @@
  */
 import type { MorceauEmail, ServeurRI } from '../../ri/types.js';
 import { simplifier } from '../../analyse/elements.js';
+import { camel } from '../web/noms.js';
 
 const chaine = (texte: string) => JSON.stringify(texte);
 
@@ -23,7 +24,7 @@ const cheminDe = (page: string | undefined, chemins?: Map<string, string>) =>
 /** Un texte d'e-mail en TypeScript : ses morceaux, ceux de la fiche étant relus au moment de l'envoi. */
 function texteEmail(morceaux: MorceauEmail[]): string {
   return (
-    morceaux.map((m) => ('champ' in m ? `enTexte(fiche[${chaine(m.champ)}])` : chaine(m.texte))).join(' + ') || "''"
+    morceaux.map((m) => ('champ' in m ? `enTexte(fiche[${chaine(camel(m.champ))}])` : chaine(m.texte))).join(' + ') || "''"
   );
 }
 
@@ -31,7 +32,7 @@ function texteEmail(morceaux: MorceauEmail[]): string {
 export function codeEnvois(serveur: ServeurRI, route: ServeurRI['routes'][number]): string {
   const lignes = (route.envois ?? []).map((envoi) => {
     const { destinataire } = envoi;
-    const a = destinataire.genre === 'admins' ? 'await adressesDesAdmins()' : destinataire.genre === 'adresse' ? chaine(destinataire.adresse) : `enTexte(fiche[${chaine(destinataire.champ)}])`;
+    const a = destinataire.genre === 'admins' ? 'await adressesDesAdmins()' : destinataire.genre === 'adresse' ? chaine(destinataire.adresse) : `enTexte(fiche[${chaine(camel(destinataire.champ))}])`;
     return `            await emails.envoyer({ a: ${a}, sujet: ${texteEmail(envoi.sujet)}, texte: ${texteEmail(envoi.texte)} });`;
   });
   return `          void (async () => {

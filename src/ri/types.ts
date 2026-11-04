@@ -115,16 +115,30 @@ export interface EnvoiEmailRI {
   sujet: MorceauEmail[];
   texte: MorceauEmail[];
 }
+/** Une valeur écrite dans le serveur, ou la date du jour au moment de la création. */
+export type ValeurFixeRI = { genre: 'valeur'; valeur: string | number | boolean } | { genre: 'aujourdhui' };
+export type ValeurLieeRI = ValeurFixeRI | { genre: 'champ'; champ: string };
+
+/** Ce que le serveur décide d'un champ ; les noms sont ceux du programme. */
+export type RegleChampRI =
+  | { genre: 'depart'; valeur: ValeurFixeRI }
+  | { genre: 'site' }
+  | { genre: 'nombreDe'; liste: string }
+  | { genre: 'somme'; prix: string; donnee: string; liste: string; plus?: string }
+  | { genre: 'auPlus'; prix: string; donnee: string; par: string };
+
 export type MorceauEmail = { texte: string } | { champ: string };
 
 export interface ServeurRI {
   nom: string;
-  donnees: { nom: string; champs: { nom: string; type: TypeChamp }[] }[];
+  donnees: { nom: string; champs: { nom: string; type: TypeChamp; regle?: RegleChampRI }[] }[];
   routes: {
     adresse: string;
     donnee: string;
-    /** Qui peut faire chaque action ; null : personne, la porte reste fermée. */
-    droits: Record<'lire' | 'creer' | 'modifier' | 'supprimer', QuiPeut | null>;
+    /** Qui peut faire chaque action ; null : personne, la porte reste fermée. « lireUn » : la lecture « par identifiant ». */
+    droits: Record<'lire' | 'creer' | 'modifier' | 'supprimer', QuiPeut | null> & { lireUn?: QuiPeut };
+    /** « creer suivi avec … dans commande.suivi » : les fiches liées, créées avant la réponse. */
+    creations?: { donnee: string; valeurs: { champ: string; valeur: ValeurLieeRI }[]; dans?: string }[];
     /** Une page écrit « telecharger bon de … » : la route sert aussi GET /:id/bon. */
     bon?: boolean;
     /** « quand message est cree : » : les e-mails que la création fait partir. */

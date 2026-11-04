@@ -1,4 +1,4 @@
-import type { Serveur, ActionDonnee, Route, Qui, Page, EnvoiEmail } from '../parser/ast.js';
+import type { Serveur, ActionDonnee, Route, Qui, Page, EnvoiEmail, CreationLiee, Donnee, TypeChamp, ValeurFixe } from '../parser/ast.js';
 import type { Diagnostic } from './erreurs.js';
 import { simplifier } from './elements.js';
 import { proposerNom } from './suggestions.js';
@@ -26,6 +26,8 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[], pag
       champs.set(champ.nom, champ.ligne);
     }
   }
+
+  for (const donnee of serveur.donnees) for (const champ of donnee.champs) verifierRegleChamp(champ, donnee, serveur, erreur);
 
   const adresses = new Map<string, number>();
   const servies = new Set<string>();
@@ -65,10 +67,13 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[], pag
     }
 
     if (route.apresCreation) {
-      const { donnee, envois, ligne } = route.apresCreation;
-      if (!serveur.emails) erreur(`« envoyer email » demande la ligne « emails par brevo » dans le serveur "${serveur.nom}".`, ligne);
+      const { donnee, envois, creations, ligne } = route.apresCreation;
+      if (!serveur.emails && envois.length > 0) erreur(`« envoyer email » demande la ligne « emails par brevo » dans le serveur "${serveur.nom}".`, ligne);
       if (donnee !== servie) erreur(`la route « ${route.adresse} » sert « ${servie ?? 'aucune donnée'} » : elle ne voit pas la création de « ${donnee} ».`, ligne);
-      else for (const envoi of envois) verifierEnvoiEmail(envoi, donnee, serveur, droitsDeRoute(route).creer ?? droitsDeRoute(route).modifier, erreur, avertissement);
+      else {
+        for (const envoi of envois) verifierEnvoiEmail(envoi, donnee, serveur, droitsDeRoute(route).creer ?? droitsDeRoute(route).modifier, erreur, avertissement);
+        for (const creation of creations) verifierCreationLiee(creation, donnee, serveur, erreur);
+      }
     }
 
     if (servie !== undefined && !serveur.donnees.find((d) => d.nom === servie)?.comptes) {
@@ -137,6 +142,75 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[], pag
   }
 }
 
+/** Une valeur écrite va-t-elle dans ce type de champ ? */
+function valeurVaDans(valeur: ValeurFixe, type: TypeChamp): boolean {
+  if (valeur.genre === 'aujourdhui') return type.genre === 'date';
+  if (type.genre === 'date') return typeof valeur.valeur === 'string' && !Number.isNaN(Date.parse(valeur.valeur));
+  const attendu = type.genre === 'nombre' ? 'number' : type.genre === 'booleen' ? 'boolean' : type.genre === 'texte' ? 'string' : null;
+  return typeof valeur.valeur === attendu;
+}
+
+/** « au depart », « du site », « calcule », « au plus » : chacun sur le bon type, et ce qu'ils lisent existe. */
+function verifierRegleChamp(champ: Donnee['champs'][number], donnee: Donnee, serveur: Serveur, erreur: (message: string, ligne: number) => void): void {
+  const { regle, type, nom, ligne } = champ;
+  if (!regle) return;
+  const champDe = (d: Donnee | undefined, c: string) => d?.champs.find((x) => simplifier(x.nom) === simplifier(c));
+  const prixDe = (donneeLue: string, prix: string) => {
+    const lue = serveur.donnees.find((d) => d.nom === donneeLue);
+    if (!lue) erreur(`« ${nom} » lit la donnée « ${donneeLue} », qui n'existe pas. Données : ${serveur.donnees.map((d) => d.nom).join(', ')}.`, ligne);
+    else if (champDe(lue, prix)?.type.genre !== 'nombre') erreur(`« ${nom} » lit « ${prix} » de « ${donneeLue} » : ce doit être un champ nombre.`, ligne);
+    return lue;
+  };
+  if (regle.genre === 'depart') {
+    if (!valeurVaDans(regle.valeur, type)) erreur(`« ${nom} » : cette valeur « au depart » ne convient pas à son type.`, ligne);
+  } else if (regle.genre === 'site') {
+    const base = type.genre === 'liste' ? type.de : type;
+    if (base.genre !== 'texte') erreur(`« ${nom} » : « du site » vaut pour un texte, une image ou une liste de textes.`, ligne);
+  } else {
+    if (type.genre !== 'nombre') erreur(`« ${nom} » : ce calcul ou ce plafond donne un nombre, le champ doit être de type nombre.`, ligne);
+    if (regle.genre === 'auPlus') {
+      const lue = prixDe(regle.donnee, regle.prix);
+      if (lue && (!champDe(lue, regle.par) || !champDe(donnee, regle.par))) {
+        erreur(`« ${nom} » compare « ${regle.par} » : les données « ${donnee.nom} » et « ${regle.donnee} » doivent toutes deux avoir ce champ.`, ligne);
+      }
+    } else {
+      if (champDe(donnee, regle.liste)?.type.genre !== 'liste') erreur(`« ${nom} » lit « ${regle.liste} » : ce doit être un champ « liste de … » de « ${donnee.nom} ».`, ligne);
+      if (regle.genre === 'somme') {
+        prixDe(regle.donnee, regle.prix);
+        const plus = regle.plus === undefined ? undefined : champDe(donnee, regle.plus);
+        if (regle.plus !== undefined && (plus?.type.genre !== 'nombre' || plus.regle?.genre === 'somme')) {
+          erreur(`« ${nom} » ajoute « ${regle.plus} » : ce doit être un champ nombre de « ${donnee.nom} », qui n'est pas lui-même une somme.`, ligne);
+        }
+      }
+    }
+  }
+}
+
+/** « creer suivi avec … dans commande.suivi » : la fiche liée a tout ce qu'il lui faut, et le serveur seul la remplit. */
+function verifierCreationLiee(creation: CreationLiee, parent: string, serveur: Serveur, erreur: (message: string, ligne: number) => void): void {
+  const { donnee, valeurs, dans, ligne } = creation;
+  const liee = serveur.donnees.find((d) => d.nom === donnee);
+  if (!liee || liee.comptes) {
+    erreur(`« creer ${donnee} » : cette donnée n'existe pas. Données : ${serveur.donnees.filter((d) => !d.comptes).map((d) => d.nom).join(', ')}.`, ligne);
+    return;
+  }
+  const source = serveur.donnees.find((d) => d.nom === parent);
+  const existe = (d: Donnee | undefined, c: string) => d?.champs.find((x) => simplifier(x.nom) === simplifier(c));
+  for (const { champ, valeur } of valeurs) {
+    const cible = existe(liee, champ);
+    if (!cible) erreur(`« creer ${donnee} » : la donnée « ${donnee} » n'a pas de champ « ${champ} ». Champs : ${liee.champs.map((c) => c.nom).join(', ')}.`, ligne);
+    else if (cible.regle?.genre === 'depart' || cible.regle?.genre === 'nombreDe' || cible.regle?.genre === 'somme') erreur(`« creer ${donnee} » : le serveur donne déjà « ${champ} » : retirez-le de cette ligne.`, ligne);
+    if (valeur.genre === 'champ' && (valeur.donnee !== parent || !existe(source, valeur.champ))) {
+      erreur(`« ${valeur.donnee}.${valeur.champ} » : une fiche liée lit les champs de la fiche créée (« ${parent} »).`, ligne);
+    }
+  }
+  const manquants = liee.champs.filter((c) => !valeurs.some((v) => simplifier(v.champ) === simplifier(c.nom)) && c.regle?.genre !== 'depart' && c.regle?.genre !== 'nombreDe' && c.regle?.genre !== 'somme');
+  if (manquants.length > 0) erreur(`« creer ${donnee} » : il manque ${manquants.map((c) => `« ${c.nom} »`).join(', ')}.`, ligne);
+  if (dans && (dans.donnee !== parent || existe(source, dans.champ)?.type.genre !== 'texte')) {
+    erreur(`« dans ${dans.donnee}.${dans.champ} » : l'identifiant va dans un champ texte de « ${parent} ».`, ligne);
+  }
+}
+
 /** Le destinataire et les « {message.nom} » d'un e-mail : des champs de la fiche qui vient d'être créée. */
 function verifierEnvoiEmail(
   envoi: EnvoiEmail,
@@ -168,7 +242,7 @@ function verifierEnvoiEmail(
   }
 }
 
-export type Droits = Record<ActionDonnee, Qui | null>;
+export type Droits = Record<ActionDonnee, Qui | null> & { lireUn?: Qui };
 
 /**
  * Qui peut faire chaque action d'une route. « modifier » couvre créer et
@@ -178,7 +252,8 @@ export type Droits = Record<ActionDonnee, Qui | null>;
 export function droitsDeRoute(route: Route): Droits {
   const droits: Droits = { lire: null, creer: null, modifier: null, supprimer: null };
   for (const regle of route.regles) {
-    for (const action of regle.actions) droits[action] = regle.qui;
+    if (regle.parIdentifiant) droits.lireUn = regle.qui;
+    else for (const action of regle.actions) droits[action] = regle.qui;
   }
   if (droits.modifier) {
     droits.creer ??= droits.modifier;

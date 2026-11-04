@@ -26,10 +26,10 @@ import { imageDe, REGLAGES_IMAGE, choixFichierDe } from './medias.js';
 import { graphiqueDe } from './graphique.js';
 import { messageEnLangues } from '../i18n/messages.js';
 import type { PartieChaine } from '../lexer/types.js';
-import type { LitteralChaine, Route } from '../parser/ast.js';
+import type { LitteralChaine, RegleChamp, Route } from '../parser/ast.js';
 import { texteSource } from '../parser/langues.js';
 import { langueDuMot } from '../i18n/langues.js';
-import type { TexteEnLangues, PartiesTexte, Reglages, GenreWidget, DispositionRI, ThemeRI, ServeurRI, SourceRI, Option, Etat, Application, Ecran, NoeudVue, Gestionnaire, Action, Valeur, Test, Saisie, MorceauEmail, EnvoiEmailRI } from './types.js';
+import type { TexteEnLangues, PartiesTexte, Reglages, GenreWidget, DispositionRI, ThemeRI, ServeurRI, SourceRI, Option, Etat, Application, Ecran, NoeudVue, Gestionnaire, Action, Valeur, Test, Saisie, MorceauEmail, EnvoiEmailRI, RegleChampRI } from './types.js';
 import { lireTouches, millisecondesDe } from '../analyse/interactions.js';
 import { MILLISECONDES } from '../parser/interactions.js';
 
@@ -179,9 +179,31 @@ function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
       sujet: morceaux(sujet, apres.donnee),
       texte: morceaux(texte, apres.donnee),
     }));
+  const creationsRI = (apres: NonNullable<Route['apresCreation']>) =>
+    apres.creations.map(({ donnee, valeurs, dans }) => ({
+      donnee,
+      valeurs: valeurs.map(({ champ, valeur }) => ({
+        champ: champDe(donnee, champ),
+        valeur: valeur.genre === 'champ' ? { genre: 'champ' as const, champ: champDe(apres.donnee, valeur.champ) } : valeur,
+      })),
+      ...(dans ? { dans: champDe(apres.donnee, dans.champ) } : {}),
+    }));
+  // Les noms lus par une règle sont ceux des champs déclarés, accents compris.
+  const reglePropre = (regle: RegleChamp, donnee: string): RegleChampRI => {
+    switch (regle.genre) {
+      case 'nombreDe':
+        return { genre: 'nombreDe', liste: champDe(donnee, regle.liste) };
+      case 'somme':
+        return { ...regle, prix: champDe(regle.donnee, regle.prix), liste: champDe(donnee, regle.liste), ...(regle.plus !== undefined ? { plus: champDe(donnee, regle.plus) } : {}) };
+      case 'auPlus':
+        return { ...regle, prix: champDe(regle.donnee, regle.prix), par: champDe(donnee, regle.par) };
+      default:
+        return regle;
+    }
+  };
   return {
     nom: serveur.nom,
-    donnees: serveur.donnees.filter((d) => !d.comptes).map((d) => ({ nom: d.nom, champs: d.champs.map((c) => ({ nom: c.nom, type: c.type })) })),
+    donnees: serveur.donnees.filter((d) => !d.comptes).map((d) => ({ nom: d.nom, champs: d.champs.map((c) => ({ nom: c.nom, type: c.type, ...(c.regle ? { regle: reglePropre(c.regle, d.nom) } : {}) })) })),
     routes: serveur.routes
       .filter((r) => r.regles.length > 0 && !donneesComptes.has(r.regles[0].donnee))
       .map((route) => {
@@ -192,7 +214,8 @@ function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
           donnee: route.regles[0].donnee,
           droits,
           ...(bon ? { bon } : {}),
-          ...(route.apresCreation ? { envois: envoisRI(route.apresCreation) } : {}),
+          ...(route.apresCreation?.envois.length ? { envois: envoisRI(route.apresCreation) } : {}),
+          ...(route.apresCreation?.creations.length ? { creations: creationsRI(route.apresCreation) } : {}),
           ligne: route.ligne,
         };
       }),

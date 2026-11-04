@@ -1558,6 +1558,77 @@ Sans `DATABASE_URL` dans le `.env`, les données restent en mémoire
 (développement). Avec, elles vont dans PostgreSQL : une table par donnée,
 créée au démarrage.
 
+### Ce que le serveur décide
+
+Une règle `tout le monde peut creer commande` accepte chaque champ déclaré, tel que
+la requête l'envoie : quelqu'un peut donc écrire un statut ou un total de son choix.
+Ces règles, après le type d'un champ, donnent la décision au serveur.
+
+```humalis
+serveur "boutique" :
+    donnee produit :
+        nom : texte
+        prix : nombre
+    donnee zone :
+        commune : texte
+        prix : nombre
+    donnee suivi :
+        etape : texte
+        total : nombre
+    donnee commande :
+        nom : texte
+        refs : liste de texte
+        photos : liste de texte du site
+        quantite : nombre calcule nombre de refs
+        commune : texte
+        livraison : nombre au plus prix de zone par commune
+        total : nombre calcule somme prix de produit par refs plus livraison
+        suivi : texte
+        statut : texte au depart "en_attente"
+        jour : date au depart aujourd'hui
+    route "produits" :
+        tout le monde peut lire produit
+        seul admin peut modifier produit
+    route "zones" :
+        tout le monde peut lire zone
+        seul admin peut modifier zone
+    route "suivis" :
+        tout le monde peut lire suivi par identifiant
+        seul admin peut lire suivi
+        seul admin peut modifier suivi
+    route "commandes" :
+        tout le monde peut creer commande
+        seul admin peut lire commande
+        seul admin peut modifier commande
+        quand commande est cree :
+            creer suivi avec etape "en_attente" et total commande.total dans commande.suivi
+```
+
+- `au depart "…"` : le serveur met cette valeur à la création. Elle peut être un
+  texte, un nombre, `vrai`, `faux` ou `aujourd'hui`.
+- `calcule nombre de refs` compte la liste. `calcule somme prix de produit par refs
+  plus livraison` relit le prix de chaque identifiant de la liste, l'additionne, puis
+  ajoute un autre champ. Un identifiant inconnu est refusé.
+- `au plus prix de zone par commune` refuse une valeur plus grande que le prix de la
+  zone de cette commune, ou négative. Sans zone, seul 0 passe.
+- `du site` n'accepte qu'un chemin de ce site (`/images/photo.jpg`), l'adresse de
+  `HUMALIS_ADRESSE_SITE` ou une image choisie dans la page. Il vaut aussi à la
+  modification.
+- `creer suivi avec … dans commande.suivi` crée une fiche liée avec les valeurs déjà
+  vérifiées, et garde son identifiant dans la fiche créée. La réponse le donne à la
+  page : `envoyer requete vers "commandes" avec … dans commande`, puis `commande.suivi`.
+- `par identifiant` ouvre une fiche à la fois (`avec id`), sans donner la liste, et
+  cette lecture n'est jamais gardée en cache. La liste suit sa propre règle.
+
+Un champ décidé par le serveur est refusé à l'envoi (400), et Humalis le signale à la
+compilation si une page l'envoie. Une personne qui a le droit de modifier peut le
+changer ensuite. Les calculs restent simples : une règle comme « livraison offerte
+dès 50 $ » reste décidée par la page, donc un client qui trafique sa requête peut
+payer moins que prévu sur ce champ, jamais plus que le plafond.
+
+Derrière un relais sur la même machine, écris `HUMALIS_ECOUTE=127.0.0.1` dans
+l'environnement : le serveur n'est plus joignable que par lui.
+
 ---
 
 ## 22. Relier les pages au serveur

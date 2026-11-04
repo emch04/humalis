@@ -635,6 +635,41 @@ page "bienvenue" :
         choisir le mot de passe avec champ "Nouveau"
 ```
 
+## Ce que le serveur décide
+
+Après le type d'un champ, `au depart`, `calcule`, `au plus` et `du site` retirent la
+décision à la requête ; `par identifiant` ouvre une fiche à la fois.
+
+```humalis
+serveur "boutique" :
+    donnee produit :
+        prix : nombre
+    donnee suivi :
+        etape : texte
+    donnee commande :
+        refs : liste de texte
+        photos : liste de texte du site
+        total : nombre calcule somme prix de produit par refs
+        suivi : texte
+        statut : texte au depart "en_attente"
+        jour : date au depart aujourd'hui
+    route "produits" :
+        tout le monde peut lire produit
+        seul admin peut modifier produit
+    route "suivis" :
+        tout le monde peut lire suivi par identifiant
+        seul admin peut modifier suivi
+    route "commandes" :
+        tout le monde peut creer commande
+        seul admin peut lire commande
+        seul admin peut modifier commande
+        quand commande est cree :
+            creer suivi avec etape "en_attente" dans commande.suivi
+
+page "accueil" :
+    titre "Accueil"
+```
+
 ## Modifier et supprimer sur le serveur
 
 Une page change ou supprime une donnée lue sur une route. `supprimer … de`
