@@ -1,4 +1,5 @@
 import { avecComptes, avecEmails, CLES_BREVO, codeCreationComptes, codeEnvois, codeRoutesComptes, COMPTES, EMAILS, ENV_EMAILS, ENV_LIENS, testsComptes } from './comptes.js';
+import { champsDuServeur, codeCompleter, codeCreation, noms as nomsVerifier, reglesEnvoi } from './regles.js';
 import { ligneLocale } from '../../fichiers.js';
 import type { ServeurRI, TypeChamp, QuiPeut } from '../../ri/types.js';
 import { simplifier } from '../../analyse/elements.js';
@@ -222,6 +223,8 @@ HUMALIS_SESSION_MAX=
 
 # Le nombre de relais devant le serveur (nginx : 1). Sans lui, les limites de requêtes comptent le relais, pas chaque visiteur.
 HUMALIS_RELAIS=
+# L'adresse d'écoute. Derrière un relais sur la même machine : 127.0.0.1, le serveur n'est alors joignable que par lui. Sans elle, toutes les adresses.
+HUMALIS_ECOUTE=
 
 # La surveillance (@astratra/centrale) : erreurs et requêtes, masquées avant l'envoi.
 # Sans ces deux variables, rien n'est chargé et rien ne part. La clé est publique (clj_pub_…).
@@ -242,7 +245,7 @@ function envExemple(serveur: ServeurRI): string {
   const enPlus = [
     ...(serveur.connexionGoogle ? [ENV_GOOGLE] : []),
     ...(serveur.emails ? [ENV_EMAILS] : []),
-    ...(serveur.invitations || serveur.motDePasseOublie ? [ENV_LIENS] : []),
+    ...(serveur.invitations || serveur.motDePasseOublie || serveur.donnees.some((d) => d.champs.some((c) => c.regle?.genre === 'site')) ? [ENV_LIENS] : []),
   ];
   return ENV_EXEMPLE.replace('\nPORT=3000', enPlus.join('\n') + '\nPORT=3000');
 }
@@ -723,6 +726,38 @@ function conforme(type: TypeChamp, valeur: unknown): boolean {
 const decrire = (type: TypeChamp): string =>
   typeof type === 'object' ? \`une liste dont chaque élément est \${decrire(type.liste)}\` : NOMS[type];
 
+/** « du site » : un chemin de ce site, son adresse (HUMALIS_ADRESSE_SITE), une image choisie dans la page, ou rien. */
+export function estDuSite(valeur: unknown, adresseDuSite = process.env.HUMALIS_ADRESSE_SITE): boolean {
+  if (Array.isArray(valeur)) return valeur.every((v) => estDuSite(v, adresseDuSite));
+  if (valeur === null || valeur === '') return true;
+  if (typeof valeur !== 'string' || /[\\s"<>\\\\]/.test(valeur)) return false;
+  if (/^\\/(?!\\/)/.test(valeur)) return true;
+  if (valeur.length <= TAILLE_IMAGE && IMAGE.test(valeur)) return true;
+  const site = (adresseDuSite ?? '').trim().replace(/\\/+$/, '');
+  return site !== '' && valeur.startsWith(site + '/');
+}
+
+/** « calcule somme prix de produit par refs » : le prix relu pour chaque identifiant ; un texte dit ce qui ne va pas. */
+export async function sommeDesPrix(stockage: { trouver(id: string): Promise<Record<string, unknown> | null> }, liste: unknown, champ: string): Promise<number | string> {
+  const ids = Array.isArray(liste) ? liste.map(String) : [];
+  const differents = new Set(ids);
+  if (differents.size > 200) return 'la liste est trop longue';
+  const prix = new Map<string, number>();
+  for (const id of differents) {
+    const fiche = await stockage.trouver(id);
+    if (!fiche) return \`« \${id} » n'existe pas\`;
+    prix.set(id, Number(fiche[champ]) || 0);
+  }
+  return ids.reduce((total, id) => total + prix.get(id)!, 0);
+}
+
+/** « au plus prix de zone par commune » : le prix de la fiche dont le champ est égal ; 0 si aucune, ce qui laisse passer 0. */
+export async function plafondDe(stockage: { lister(filtres: Filtres): Promise<Record<string, unknown>[]> }, par: string, valeur: unknown, champ: string): Promise<number> {
+  if (typeof valeur !== 'string' && typeof valeur !== 'number') return 0;
+  const [fiche] = await stockage.lister({ egal: { [par]: valeur } });
+  return fiche ? Number(fiche[champ]) || 0 : 0;
+}
+
 /**
  * \`complet\` : à la création, chaque champ est obligatoire ; à la
  * modification, seuls les champs envoyés sont vérifiés.
@@ -731,6 +766,7 @@ export function verifierEnvoi(
   schema: Schema,
   corps: unknown,
   complet: boolean,
+  regles: { duServeur?: string[]; duSite?: string[] } = {},
 ): { valeur: Record<string, unknown> } | { erreur: string } {
   if (typeof corps !== 'object' || corps === null || Array.isArray(corps)) {
     return { erreur: 'les données envoyées doivent être un objet JSON' };
@@ -738,16 +774,20 @@ export function verifierEnvoi(
   const champs = Object.keys(schema);
   for (const cle of Object.keys(corps)) {
     if (cle === 'id') return { erreur: "l'identifiant est donné par le serveur : ne l'envoie pas" };
+    if (complet && regles.duServeur?.includes(cle)) return { erreur: \`le champ « \${cle} » est donné par le serveur : ne l'envoie pas\` };
     if (!(cle in schema)) return { erreur: \`le champ « \${cle} » n'existe pas. Champs : \${champs.join(', ')}\` };
   }
   const valeur: Record<string, unknown> = {};
   for (const champ of champs) {
     const recu = (corps as Record<string, unknown>)[champ];
     if (recu === undefined) {
-      if (complet) return { erreur: \`le champ « \${champ} » manque\` };
+      if (complet && !regles.duServeur?.includes(champ)) return { erreur: \`le champ « \${champ} » manque\` };
       continue;
     }
-    if (!conforme(schema[champ], recu)) return { erreur: \`le champ « \${champ} » doit être \${decrire(schema[champ])}\` };
+    // Une image « du site » peut aussi être un chemin de ce site (/images/photo.jpg), en plus de ce qu'accepte une image.
+    const chemin = schema[champ] === 'image' && regles.duSite?.includes(champ) && estDuSite(recu);
+    if (!chemin && !conforme(schema[champ], recu)) return { erreur: \`le champ « \${champ} » doit être \${decrire(schema[champ])}\` };
+    if (regles.duSite?.includes(champ) && !estDuSite(recu)) return { erreur: \`le champ « \${champ} » doit être une adresse de ce site (/images/photo.jpg)\` };
     valeur[champ] = recu;
   }
   return { valeur };
@@ -1077,7 +1117,7 @@ function serveurTs(serveur: ServeurRI, chemins?: Map<string, string>): string {
           next(erreur);
         }
       });
-      ${variable}.get('/:id', ${cache}, ${garde('lire')}, async (req, res, next) => {
+      ${variable}.get('/:id', ${route.droits.lireUn ? `lecturePrivee, ...acces.${GARDES[route.droits.lireUn]}` : `${cache}, ${garde('lire')}`}, async (req, res, next) => {
         try {
           const trouve = await stockages.${donnee}.trouver(req.params.id);
           if (trouve) res.json(trouve);
@@ -1089,21 +1129,14 @@ function serveurTs(serveur: ServeurRI, chemins?: Map<string, string>): string {
       });
 ${route.bon ? routeBon(variable, route, garde('lire'), schema, donnee) : ''}      ${variable}.post('/', ${garde('creer')}${csrf('creer')}, async (req, res, next) => {
         try {
-          const envoi = verifierEnvoi(${schema}, req.body, true);
-          if ('erreur' in envoi) res.status(400).json({ erreur: envoi.erreur });
-          else ${route.envois?.length ? `{
-          const cree = await stockages.${donnee}.creer(envoi.valeur);
-          res.status(201).json(cree);
-          // La réponse est partie : un e-mail raté ne fait pas échouer la création.
-${codeEnvois(serveur, route)}
-          }` : `res.status(201).json(await stockages.${donnee}.creer(envoi.valeur));`}
+${codeCreation(serveur, route, serveur.donnees.find((d) => d.nom === route.donnee)!, schema, route.envois?.length ? codeEnvois(serveur, route) : '')}
         } catch (erreur) {
           next(erreur);
         }
       });
       ${variable}.patch('/:id', ${garde('modifier')}${csrf('modifier')}, async (req, res, next) => {
         try {
-          const envoi = verifierEnvoi(${schema}, req.body, false);
+          const envoi = verifierEnvoi(${schema}, req.body, false${reglesEnvoi(serveur.donnees.find((d) => d.nom === route.donnee)!, route)});
           if ('erreur' in envoi) {
             res.status(400).json({ erreur: envoi.erreur });
             return;
@@ -1144,7 +1177,7 @@ import type { Coffre } from './humalis/coffre.js';
 ${comptes ? "import { creerComptes, refuserMotDePasseFaible, sansLesRetires } from './humalis/comptes.js';\n" : ''}${avecEmails(serveur) ? `import { creerEmails, ${envoisDansRoutes ? 'enTexte, ' : ''}type Emails } from './humalis/emails.js';\n` : ''}import { compresser } from './humalis/compresser.js';${avecBon ? "\nimport { creerBon } from './humalis/bon.js';" : ''}${serveur.fidelite ? "\nimport { carteDeFidelite } from './humalis/fidelite.js';" : ''}
 import { creerRenouvellement, reglagesDeSession, renouvellementEnCookie, type ReglagesSession } from './humalis/sessions.js';
 import { ${serveur.fidelite ? 'sansSeparateurs, ' : ''}type Stockage } from './humalis/stockage.js';
-import { lireFiltres, verifierEnvoi } from './humalis/verifier.js';
+import { lireFiltres, ${nomsVerifier(serveur).map((n) => n + ', ').join('')}verifierEnvoi } from './humalis/verifier.js';
 
 export interface OptionsDuServeur {
   /** Le secret des sessions (au moins 32 caractères). */
@@ -1250,11 +1283,13 @@ ${google}
       };
       app.use('/auth/cles', authMiddleware, authorizeAdmin, csrfMiddleware, coffre ? coffre.routes(authorizeAdmin) : coffreFerme);
 
-${comptes ? codeRoutesComptes(serveur, adresseApi, (a) => `route${pascal(a)}`) : ''}${routes}
+${codeCompleter(serveur)}${comptes ? codeRoutesComptes(serveur, adresseApi, (a) => `route${pascal(a)}`) : ''}${routes}
 ${fidelite}      // Le dernier avant la réponse d'erreur du pack, qui répond ensuite comme d'habitude.
       if (surveillance) app.use(surveillance.gestionnaireErreurs());
     },
   });
+  // Express s'annonce par défaut : l'application du pack ne le fait plus.
+  (serveur as unknown as express.Application).disable('x-powered-by');
   // En tête de tout : la surveillance voit chaque requête, et le jeton de renouvellement passe par son cookie.
   const avant = express().disable('x-powered-by');
   if (surveillance) avant.use(surveillance.intergiciel());${comptes ? "\n  avant.post('/auth/reset-password', express.json({ limit: '16kb' }), refuserMotDePasseFaible);" : ''}
@@ -1270,6 +1305,7 @@ function demarrerTs(serveur: ServeurRI): string {
     .join('\n');
   const premiere = serveur.routes[0] ? adresseApi(serveur.routes[0].adresse) : '/auth/me';
   return `// Produit par Humalis : lit l'environnement, crée le premier admin, démarre le serveur « ${serveur.nom} ».
+import { createServer, type RequestListener } from 'node:http';
 import { createMemoryUsersStore, type UsersStore } from '@astratra/saas-kit';
 import { hashPassword, isStrongPassword } from '@astratra/security';
 import { createPostgresUsersStore } from '@astratra/store-postgres';
@@ -1329,9 +1365,12 @@ const coffre = await ouvrirCoffre(pool);
 
 const port = Number(process.env.PORT ?? 3000);
 const app = creerServeur({ jwtSecret, usersStore, stockages${serveur.connexionGoogle ? ', googleClientId: () => process.env.GOOGLE_CLIENT_ID || undefined' : ''}${comptes ? ', jetons: creerMagasinJetons(pool)' : ''}, session, surveillance, coffre }) as unknown as { listen(port: number, pret: () => void): unknown };
-app.listen(port, () => {
-  console.log(\`Serveur « ${serveur.nom} » prêt : http://localhost:\${port}${premiere}\`);
-});
+// HUMALIS_ECOUTE : l'adresse d'écoute (127.0.0.1 derrière un relais) ; sans elle, toutes les adresses.
+const pret = () => console.log(\`Serveur « ${serveur.nom} » prêt : http://localhost:\${port}${premiere}\`);
+const ecoute = process.env.HUMALIS_ECOUTE?.trim();
+const auditeur = createServer(app as unknown as RequestListener);
+if (ecoute) auditeur.listen(port, ecoute, pret);
+else auditeur.listen(port, pret);
 `;
 }
 
@@ -1341,7 +1380,11 @@ function testsRegles(serveur: ServeurRI): string {
 
   const blocs = serveur.routes.map((route) => {
     const donnee = serveur.donnees.find((d) => d.nom === route.donnee)!;
-    const exemple = `{ ${donnee.champs.map((c) => `${camel(c.nom)}: ${exempleChamp(c.type)}`).join(', ')} }`;
+    // Les champs à règle ont des exemples qui les respectent ; un envoi laisse de côté ce que le serveur décide.
+    const exempleDe = (c: (typeof donnee.champs)[number]) => (c.regle?.genre === 'site' ? (c.type.genre === 'liste' ? "['/a.png']" : "'/a.png'") : c.regle?.genre === 'auPlus' ? '0' : exempleChamp(c.type));
+    const duServeur = champsDuServeur(donnee, route);
+    const exemple = `{ ${donnee.champs.map((c) => `${camel(c.nom)}: ${exempleDe(c)}`).join(', ')} }`;
+    const envoiExemple = `{ ${donnee.champs.filter((c) => !duServeur.includes(camel(c.nom))).map((c) => `${camel(c.nom)}: ${exempleDe(c)}`).join(', ')} }`;
     const adresse = adresseApi(route.adresse);
     const tests: string[] = [];
 
@@ -1353,7 +1396,7 @@ function testsRegles(serveur: ServeurRI): string {
           case 'lire':
             return `request(app).get('${adresse}')${avec}`;
           case 'creer':
-            return `${jeton === 'visiteur' ? 'visiteurAvecCsrf' : 'request(app)'}.post('${adresse}')${avec}${jeton === 'visiteur' ? '.set(csrf)' : ''}.send(${exemple})`;
+            return `${jeton === 'visiteur' ? 'visiteurAvecCsrf' : 'request(app)'}.post('${adresse}')${avec}${jeton === 'visiteur' ? '.set(csrf)' : ''}.send(${envoiExemple})`;
           case 'modifier':
             return `${jeton === 'visiteur' ? 'visiteurAvecCsrf' : 'request(app)'}.patch(\`${adresse}/\${existant.id}\`)${avec}${jeton === 'visiteur' ? '.set(csrf)' : ''}.send({})`;
           case 'supprimer':
@@ -1374,12 +1417,51 @@ function testsRegles(serveur: ServeurRI): string {
     }
 
     const createur = route.droits.creer === null ? null : route.droits.creer === 'tout_le_monde' ? 'visiteur' : route.droits.creer === 'connecte' ? 'jetonUtilisateur' : 'jetonAdmin';
-    if (createur && donnee.champs.length > 0) {
+    if (createur && donnee.champs.length > duServeur.length) {
       const avec = createur === 'visiteur' ? `visiteurAvecCsrf.post('${adresse}').set(csrf)` : `request(app).post('${adresse}').set('authorization', \`Bearer \${${createur}}\`)`;
       tests.push(`    it('refuse un envoi mal formé (400)', async () => {
       const reponse = await ${avec}.send({});
       expect(reponse.status).toBe(400);
       expect(reponse.body.erreur).toContain('manque');
+    });`);
+    }
+
+    if (createur && duServeur.length > 0) {
+      const avec = createur === 'visiteur' ? `visiteurAvecCsrf.post('${adresse}').set(csrf)` : `request(app).post('${adresse}').set('authorization', \`Bearer \${${createur}}\`)`;
+      tests.push(`    it('ce que le serveur décide est refusé à l\\'envoi : ${duServeur.join(', ')}', async () => {
+${duServeur.map((c) => `      expect((await ${avec}.send({ ...${envoiExemple}, ${c}: ${exempleChamp(donnee.champs.find((x) => camel(x.nom) === c)!.type)} })).body.erreur).toContain('donné par le serveur');`).join('\n')}
+    });`);
+    }
+    const somme = donnee.champs.find((c) => c.regle?.genre === 'somme');
+    if (createur && somme?.regle?.genre === 'somme') {
+      const { donnee: lue, prix, liste } = somme.regle;
+      const avec = createur === 'visiteur' ? `visiteurAvecCsrf.post('${adresse}').set(csrf)` : `request(app).post('${adresse}').set('authorization', \`Bearer \${${createur}}\`)`;
+      const liees = (route.creations ?? []).filter((c) => c.dans !== undefined);
+      tests.push(`    it('« ${somme.nom} » est recalculé depuis « ${lue} », et une référence inconnue est refusée', async () => {
+      const fiche = await stockages.${camel(lue)}.creer({ ...${ficheExemple(serveur, lue)}, ${camel(prix)}: 7 });
+      const reponse = await ${avec}.send({ ...${envoiExemple}, ${camel(liste)}: [fiche.id, fiche.id] }).expect(201);
+      expect(reponse.body.${camel(somme.nom)}).toBe(14);
+${liees.map((c) => `      expect(await stockages.${camel(c.donnee)}.trouver(reponse.body.${camel(c.dans!)})).not.toBeNull();`).join('\n')}
+      expect((await ${avec}.send({ ...${envoiExemple}, ${camel(liste)}: ['inconnue'] })).status).toBe(400);
+    });`);
+    }
+    const champSite = donnee.champs.find((c) => c.regle?.genre === 'site');
+    if (createur && champSite) {
+      const avec = createur === 'visiteur' ? `visiteurAvecCsrf.post('${adresse}').set(csrf)` : `request(app).post('${adresse}').set('authorization', \`Bearer \${${createur}}\`)`;
+      const mauvais = champSite.type.genre === 'liste' ? "['https://ailleurs.example/a.png']" : "'https://ailleurs.example/a.png'";
+      tests.push(`    it('« ${champSite.nom} » refuse une adresse d\\'un autre site', async () => {
+      const reponse = await ${avec}.send({ ...${envoiExemple}, ${camel(champSite.nom)}: ${mauvais} });
+      expect(reponse.status).toBe(400);
+      expect(reponse.body.erreur).toContain('adresse de ce site');
+    });`);
+    }
+    if (route.droits.lireUn) {
+      const qui = route.droits.lireUn;
+      const visiteur = qui === 'tout_le_monde' ? 200 : 401;
+      tests.push(`    it('une fiche par son identifiant : visiteur ${visiteur}, jamais gardée', async () => {
+      const fiche = await stockages.${camel(route.donnee)}.creer(${exemple});
+      const reponse = await request(app).get(\`${adresse}/\${fiche.id}\`).expect(${visiteur});
+      expect(reponse.headers['cache-control']).toBe('private, no-store');
     });`);
     }
 
@@ -1461,6 +1543,11 @@ beforeAll(async () => {
 });
 
 describe('règles d\\'accès', () => {
+  it('le serveur ne dit pas qu\\'il tourne sous Express', async () => {
+    const reponse = await request(app).get('/auth/me');
+    expect(reponse.headers['x-powered-by']).toBeUndefined();
+  });
+
 ${blocs.join('\n\n')}
 });
 `;

@@ -1636,6 +1636,77 @@ npm run build && npm start
 Without `DATABASE_URL` in `.env`, data stays in memory (development). With it,
 data goes to PostgreSQL: one table per kind of data, created at start-up.
 
+### What the server decides
+
+A rule such as `tout le monde peut creer commande` accepts every declared field as
+the request sends it: anyone could write the status or total of their choice. These
+rules, after a field's type, give the decision to the server.
+
+```humalis
+serveur "shop" :
+    donnee produit :
+        nom : texte
+        prix : nombre
+    donnee zone :
+        commune : texte
+        prix : nombre
+    donnee suivi :
+        etape : texte
+        total : nombre
+    donnee commande :
+        nom : texte
+        refs : liste de texte
+        photos : liste de texte du site
+        quantite : nombre calcule nombre de refs
+        commune : texte
+        livraison : nombre au plus prix de zone par commune
+        total : nombre calcule somme prix de produit par refs plus livraison
+        suivi : texte
+        statut : texte au depart "pending"
+        jour : date au depart aujourd'hui
+    route "produits" :
+        tout le monde peut lire produit
+        seul admin peut modifier produit
+    route "zones" :
+        tout le monde peut lire zone
+        seul admin peut modifier zone
+    route "suivis" :
+        tout le monde peut lire suivi par identifiant
+        seul admin peut lire suivi
+        seul admin peut modifier suivi
+    route "commandes" :
+        tout le monde peut creer commande
+        seul admin peut lire commande
+        seul admin peut modifier commande
+        quand commande est cree :
+            creer suivi avec etape "pending" et total commande.total dans commande.suivi
+```
+
+- `au depart "…"`: the server sets this value on creation. It can be a text, a
+  number, `vrai`, `faux` or `aujourd'hui`.
+- `calcule nombre de refs` counts the list. `calcule somme prix de produit par refs
+  plus livraison` reads the price of each id in the list again, adds them up, then
+  adds another field. An unknown id is refused.
+- `au plus prix de zone par commune` refuses a value above the price of that
+  commune's zone, or a negative one. Without a zone, only 0 passes.
+- `du site` accepts only a path on this site (`/images/photo.jpg`), the
+  `HUMALIS_ADRESSE_SITE` address, or an image chosen in the page. It also applies when
+  modifying.
+- `creer suivi avec … dans commande.suivi` creates a linked record from the values
+  already checked, and keeps its id in the new record. The response gives it to the
+  page: `envoyer requete vers "commandes" avec … dans commande`, then `commande.suivi`.
+- `par identifiant` opens one record at a time (`avec id`), without the list, and this
+  read is never cached. The list follows its own rule.
+
+A field the server decides is refused when sent (400), and Humalis reports it at
+compile time if a page sends it. Someone allowed to modify can still change it later.
+Calculations stay simple: a rule like "free delivery from $50" stays decided by the
+page, so a client tampering with the request can pay less on that field, never more
+than the cap.
+
+Behind a relay on the same machine, set `HUMALIS_ECOUTE=127.0.0.1` in the environment:
+the server is then reachable only through it.
+
 ---
 
 ## 22. Connecting pages to the server

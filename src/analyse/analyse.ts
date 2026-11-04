@@ -2299,7 +2299,8 @@ class AnalysePage {
         symbole.type = type;
         if (symbole.origine) this.resultat.types.set(symbole.origine, type);
       }
-      this.avertirDroits(route, 'lire', requete.ligne);
+      // « par identifiant » : le droit de cette lecture est le sien, celui de la liste ne compte pas.
+      if (!route.droits.lireUn) this.avertirDroits(route, 'lire', requete.ligne);
       return;
     }
 
@@ -2497,7 +2498,9 @@ class AnalysePage {
     ligne: number,
   ): void {
     const champ = route.donnee.champs.find((c) => c.nom === cle);
-    if (!champ) {
+    if (champ?.regle?.genre === 'depart' || champ?.regle?.genre === 'nombreDe' || champ?.regle?.genre === 'somme') {
+      this.erreur(`le serveur décide lui-même du champ « ${cle} » de « ${route.donnee.nom} » : retirez-le de cet envoi, il serait refusé.`, ligne);
+    } else if (!champ) {
       this.erreur(
         `la donnée « ${route.donnee.nom} » n'a pas de champ « ${cle} ». Champs : ${route.donnee.champs.map((c) => c.nom).join(', ')}.${proposerNom(cle, route.donnee.champs.map((c) => c.nom))}`,
         ligne,
@@ -2520,6 +2523,10 @@ class AnalysePage {
   private avertirDroits(route: { donnee: { nom: string }; droits: Droits }, action: 'lire' | 'creer' | 'modifier' | 'supprimer', ligne: number): void {
     const verbe = action === 'creer' ? 'créer' : action;
     const qui = route.droits[action];
+    if (action === 'lire' && qui === null && route.droits.lireUn) {
+      this.avertissement(`« ${route.donnee.nom} » ne se lit que par identifiant : cette lecture de toute la liste sera refusée. Écrivez « avec id ».`, ligne);
+      return;
+    }
     // Une action que personne ne peut faire est déjà signalée sur la route ;
     // une requête déjà gardée par « si utilisateur est … » ne sera pas refusée.
     if (qui === 'connecte' && this.garde !== undefined) return;

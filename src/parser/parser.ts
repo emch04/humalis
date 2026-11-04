@@ -64,7 +64,7 @@ import type {
   Boucle,
   Evenement,
   GenreEvenement,
-  Connexion, ConnexionGoogle, ChangementMotDePasse, Invitation, DemandeLienMotDePasse, ChoixMotDePasse, ApresCreation, EnvoiEmail, TelechargementBon, TelechargementCsv, Fidelite, Suppression, Modification, EnvoiFichier, ArgumentPage } from './ast.js';
+  Connexion, ConnexionGoogle, ChangementMotDePasse, Invitation, DemandeLienMotDePasse, ChoixMotDePasse, ApresCreation, EnvoiEmail, CreationLiee, RegleChamp, ValeurFixe, TelechargementBon, TelechargementCsv, Fidelite, Suppression, Modification, EnvoiFichier, ArgumentPage } from './ast.js';
 
 export function analyserSyntaxe(tokens: Token[]): Programme {
   const flux = new FluxTokens(tokens);
@@ -517,9 +517,88 @@ export function analyserDonnee(flux: FluxTokens, ouverte = false): Donnee {
   chaqueLigne(flux, () => {
     const champ = flux.attendreNom('le nom du champ');
     flux.attendre('PONCTUATION', ':', 'deux-points entre le nom du champ et son type');
-    champs.push({ nom: champ.nom, type: analyserTypeChamp(flux, ouverte), ligne: champ.ligne });
+    const type = analyserTypeChamp(flux, ouverte);
+    const regle = ouverte ? undefined : analyserRegleChamp(flux);
+    champs.push({ nom: champ.nom, type, ...(regle ? { regle } : {}), ligne: champ.ligne });
   });
   return { type: 'Donnee', nom, champs, ligne: debut.ligne };
+}
+
+/** Un nom de champ ou de donnée dans une règle du serveur : les mots du langage y restent des noms. */
+function nomDansRegle(flux: FluxTokens, exemple: string): string {
+  const jeton = flux.actuel();
+  if (!estMot(jeton)) throw new ErreurSyntaxique(`on écrit par exemple : ${exemple}`, jeton.ligne);
+  flux.avancer();
+  return jeton.valeur;
+}
+
+/** « "en_attente" », « 0 », « vrai », « aujourd'hui » ; undefined si ce n'est aucun des quatre. */
+function valeurFixe(flux: FluxTokens): ValeurFixe | undefined {
+  const jeton = flux.actuel();
+  if (jeton.type === 'CHAINE') {
+    flux.avancer();
+    return { genre: 'valeur', valeur: jeton.valeur };
+  }
+  if (jeton.type === 'NOMBRE') {
+    flux.avancer();
+    return { genre: 'valeur', valeur: Number(jeton.valeur) };
+  }
+  if (estLeMot(jeton, 'vrai') || estLeMot(jeton, 'faux')) {
+    flux.avancer();
+    return { genre: 'valeur', valeur: estLeMot(jeton, 'vrai') };
+  }
+  if (estLeMot(jeton, 'aujourdhui')) {
+    flux.avancer();
+    return { genre: 'aujourdhui' };
+  }
+  if (estLeMot(jeton, 'aujourd') && flux.regarder(1).valeur === "'" && estLeMot(flux.regarder(2), 'hui')) {
+    flux.avancer();
+    flux.avancer();
+    flux.avancer();
+    return { genre: 'aujourdhui' };
+  }
+  return undefined;
+}
+
+/** Ce qui suit le type d'un champ : « au depart "…" », « du site », « calcule … », « au plus … » (« au » et « du » sont déjà sautés). */
+function analyserRegleChamp(flux: FluxTokens): RegleChamp | undefined {
+  const jeton = flux.actuel();
+  if (estLeMot(jeton, 'site')) {
+    flux.avancer();
+    return { genre: 'site' };
+  }
+  if (estLeMot(jeton, 'depart')) {
+    flux.avancer();
+    const valeur = valeurFixe(flux);
+    if (!valeur) throw new ErreurSyntaxique('« au depart » est suivi de la valeur que le serveur donne : un texte entre guillemets, un nombre, vrai, faux ou aujourd\'hui.', jeton.ligne);
+    return { genre: 'depart', valeur };
+  }
+  if (estLeMot(jeton, 'plus')) {
+    const exemple = 'livraison : nombre au plus prix de zone par commune';
+    flux.avancer();
+    const prix = nomDansRegle(flux, exemple);
+    const donnee = nomDansRegle(flux, exemple);
+    if (!estLeMot(flux.actuel(), 'par')) throw new ErreurSyntaxique(`on écrit par exemple : ${exemple}`, jeton.ligne);
+    flux.avancer();
+    return { genre: 'auPlus', prix, donnee, par: nomDansRegle(flux, exemple) };
+  }
+  if (!estLeMot(jeton, 'calcule')) return undefined;
+  const exemple = 'total : nombre calcule somme prix de produit par refs plus livraison, ou quantite : nombre calcule nombre de refs';
+  flux.avancer();
+  if (estLeMot(flux.actuel(), 'nombre')) {
+    flux.avancer();
+    return { genre: 'nombreDe', liste: nomDansRegle(flux, exemple) };
+  }
+  if (!estLeMot(flux.actuel(), 'somme')) throw new ErreurSyntaxique(`on écrit par exemple : ${exemple}`, jeton.ligne);
+  flux.avancer();
+  const prix = nomDansRegle(flux, exemple);
+  const donnee = nomDansRegle(flux, exemple);
+  if (!estLeMot(flux.actuel(), 'par')) throw new ErreurSyntaxique(`on écrit par exemple : ${exemple}`, jeton.ligne);
+  flux.avancer();
+  const liste = nomDansRegle(flux, exemple);
+  if (!estLeMot(flux.actuel(), 'plus')) return { genre: 'somme', prix, donnee, liste };
+  flux.avancer();
+  return { genre: 'somme', prix, donnee, liste, plus: nomDansRegle(flux, exemple) };
 }
 
 /** « texte », « nombre », « booleen », « date », « liste de … ». */
@@ -566,8 +645,36 @@ function analyserApresCreation(flux: FluxTokens): ApresCreation {
   flux.avancer();
   flux.attendre('PONCTUATION', ':', 'deux-points après « est cree »');
   const envois: EnvoiEmail[] = [];
-  chaqueLigne(flux, () => envois.push(analyserEnvoiEmail(flux)));
-  return { donnee, envois, ligne: debut.ligne };
+  const creations: CreationLiee[] = [];
+  chaqueLigne(flux, () => {
+    if (estLeMot(flux.actuel(), 'creer')) creations.push(analyserCreationLiee(flux));
+    else envois.push(analyserEnvoiEmail(flux));
+  });
+  return { donnee, envois, creations, ligne: debut.ligne };
+}
+
+/** « creer suivi avec etape "en_attente" et total commande.total dans commande.suivi ». */
+function analyserCreationLiee(flux: FluxTokens): CreationLiee {
+  const exemple = 'creer suivi avec etape "en_attente" et total commande.total dans commande.suivi';
+  const debut = flux.avancer();
+  const donnee = nomDansRegle(flux, exemple);
+  flux.attendre('MOT_CLE', 'avec', `« avec » suivi des valeurs de la fiche : ${exemple}`);
+  const valeurs: CreationLiee['valeurs'] = [];
+  const champDeFiche = () => {
+    const nom = flux.actuel();
+    if (!estMot(nom) || flux.regarder(1).valeur !== '.' || !estMot(flux.regarder(2))) throw new ErreurSyntaxique(`on écrit par exemple : ${exemple}`, nom.ligne);
+    flux.avancer();
+    flux.avancer();
+    return { genre: 'champ' as const, donnee: nom.valeur, champ: flux.avancer().valeur };
+  };
+  do {
+    const champ = nomDansRegle(flux, exemple);
+    valeurs.push({ champ, valeur: valeurFixe(flux) ?? champDeFiche() });
+  } while (flux.accepter('MOT_CLE', 'et'));
+  if (!estLeMot(flux.actuel(), 'dans')) return { donnee, valeurs, ligne: debut.ligne };
+  flux.avancer();
+  const { donnee: parent, champ } = champDeFiche();
+  return { donnee, valeurs, dans: { donnee: parent, champ }, ligne: debut.ligne };
 }
 
 /** « envoyer email aux admins avec sujet "…" et texte "…" » ; le destinataire peut être "a@b.c" ou commande.email. */
@@ -639,7 +746,14 @@ function analyserRegle(flux: FluxTokens): Regle {
   } while (flux.accepter('MOT_CLE', 'et'));
 
   const { nom: donnee } = flux.attendreNom('le nom de la donnée');
-  return { type: 'Regle', qui, actions, donnee, ligne: debut.ligne };
+  // « par identifiant » : une fiche à la fois, jamais la liste.
+  if (!estLeMot(flux.actuel(), 'par')) return { type: 'Regle', qui, actions, donnee, ligne: debut.ligne };
+  flux.avancer();
+  if (!estLeMot(flux.actuel(), 'identifiant') || actions.some((a) => a !== 'lire')) {
+    throw new ErreurSyntaxique(`« par identifiant » ne vaut que pour la lecture : ${mots.join(' ')} peut lire ${donnee} par identifiant`, debut.ligne);
+  }
+  flux.avancer();
+  return { type: 'Regle', qui, actions, donnee, parIdentifiant: true, ligne: debut.ligne };
 }
 
 function analyserDefinitionComposant(flux: FluxTokens): DefinitionComposant {

@@ -221,12 +221,23 @@ export type TypeChamp =
   | { genre: 'donnee'; nom: string };
 
 /** « donnee produit : », avec un champ typé par ligne. */
+/** Une valeur écrite dans le serveur : un texte, un nombre, vrai ou faux, ou la date du jour. */
+export type ValeurFixe = { genre: 'valeur'; valeur: string | number | boolean } | { genre: 'aujourdhui' };
+
+/** Ce que le serveur décide d'un champ : « au depart "…" », « du site », « calcule … », « au plus … ». */
+export type RegleChamp =
+  | { genre: 'depart'; valeur: ValeurFixe }
+  | { genre: 'site' }
+  | { genre: 'nombreDe'; liste: string }
+  | { genre: 'somme'; prix: string; donnee: string; liste: string; plus?: string }
+  | { genre: 'auPlus'; prix: string; donnee: string; par: string };
+
 export interface Donnee {
   type: 'Donnee';
   nom: string;
   /** Le nom sous lequel l'analyse la connaît (« boutique_produit » si une autre donnée porte déjà « produit »). */
   cle?: string;
-  champs: { nom: string; type: TypeChamp; ligne: number }[];
+  champs: { nom: string; type: TypeChamp; regle?: RegleChamp; ligne: number }[];
   /** Vrai pour « comptes », les comptes de la connexion : aucune table à créer, le serveur les lit dans ses packs. */
   comptes?: boolean;
   ligne: number;
@@ -249,6 +260,15 @@ export interface Route {
 export interface ApresCreation {
   donnee: string;
   envois: EnvoiEmail[];
+  creations: CreationLiee[];
+  ligne: number;
+}
+
+/** « creer suivi avec etape "…" et total commande.total dans commande.suivi ». */
+export interface CreationLiee {
+  donnee: string;
+  valeurs: { champ: string; valeur: ValeurFixe | { genre: 'champ'; donnee: string; champ: string } }[];
+  dans?: { donnee: string; champ: string };
   ligne: number;
 }
 
@@ -266,6 +286,8 @@ export interface Regle {
   qui: Qui;
   actions: ActionDonnee[];
   donnee: string;
+  /** « tout le monde peut lire suivi par identifiant » : une fiche à la fois, jamais la liste. */
+  parIdentifiant?: boolean;
   ligne: number;
 }
 

@@ -14,8 +14,17 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
             colonne avec style "frise" et animation montee au defilement et en cascade :
                 bloc avec style "version version-recente" :
                     ligne avec style "version-tete" :
-                        texte "1.7.1" sans traduction avec style "version-numero"
+                        texte "1.7.2" sans traduction avec style "version-numero"
                         texte "Dernière version" en anglais "Latest" avec style "pastille pastille-vive"
+                        texte "4 novembre 2026" en anglais "November 4, 2026" avec style "version-date"
+                    soustitre "Ce que le serveur décide" en anglais "What the server decides"
+                    liste :
+                        texte "`au depart`, `calcule`, `au plus` et `du site` : une requête publique ne choisit plus un statut, un total ou une adresse d’image." en anglais "`au depart`, `calcule`, `au plus` and `du site`: a public request can no longer choose a status, a total or an image address."
+                        texte "`par identifiant` ouvre une fiche à la fois, sans la liste ; `creer … dans …` crée une fiche liée côté serveur." en anglais "`par identifiant` opens one record at a time, without the list; `creer … dans …` creates a linked record on the server."
+                        texte "`HUMALIS_ECOUTE` choisit l’adresse d’écoute, et le serveur ne dit plus qu’il tourne sous Express." en anglais "`HUMALIS_ECOUTE` sets the listening address, and the server no longer says it runs on Express."
+                bloc avec style "version" :
+                    ligne avec style "version-tete" :
+                        texte "1.7.1" sans traduction avec style "version-numero"
                         texte "4 novembre 2026" en anglais "November 4, 2026" avec style "version-date"
                     soustitre "La liste des comptes se construit" en anglais "The account list builds"
                     liste :
@@ -145,7 +154,7 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
         colonne avec style "nouveautes-aside" et animation montee au defilement et en cascade :
             bloc avec style "aside-carte aside-vive" :
                 texte "Version actuelle" en anglais "Current version" avec style "aside-etiquette"
-                texte "1.7.1" sans traduction avec style "aside-version"
+                texte "1.7.2" sans traduction avec style "aside-version"
                 texte "Pour mettre à jour Humalis sur ta machine :" en anglais "To update Humalis on your machine:"
                 ligne avec style "install-command" :
                     texte "npm install -g humalis" sans traduction avec style "install-code"
@@ -156,7 +165,7 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
                 texte "En bref" en anglais "At a glance" avec style "aside-etiquette"
                 ligne avec style "aside-chiffres" :
                     colonne avec style "aside-chiffre" :
-                        texte "16" sans traduction avec style "aside-nombre"
+                        texte "17" sans traduction avec style "aside-nombre"
                         texte "versions" sans traduction
                     colonne avec style "aside-chiffre" :
                         texte "5" sans traduction avec style "aside-nombre"

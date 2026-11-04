@@ -409,6 +409,25 @@ page "accueil" :
 - Un rôle inconnu après « comme » : après « comme », écrivez « admin »
 - Une demande de lien mal écrite : on écrit : demander un lien de mot de passe
 - Une phrase des comptes sans sa ligne dans le serveur : demande la ligne « invitations vers
+- Une règle de champ mal écrite : on écrit par exemple :
+- « au depart » sans valeur : est suivi de la valeur que le serveur donne
+- « par identifiant » sur autre chose que la lecture : ne vaut que pour la lecture
+- Un calcul qui lit une donnée inconnue : qui n'existe pas. Données
+- Un calcul qui lit autre chose qu’un nombre : ce doit être un champ nombre.
+- Une valeur « au depart » du mauvais type : ne convient pas à son type
+- « du site » sur un champ sans adresse : vaut pour un texte, une image
+- Un calcul dans un champ qui n’est pas un nombre : le champ doit être de type nombre
+- Un plafond sans champ commun : doivent toutes deux avoir ce champ
+- Un calcul sur autre chose qu’une liste : ce doit être un champ « liste de … »
+- Une somme qui ajoute un champ impossible : qui n'est pas lui-même une somme
+- Une fiche liée d’une donnée inconnue : cette donnée n'existe pas
+- Une fiche liée avec un champ inconnu : n'a pas de champ
+- Une fiche liée qui impose une valeur déjà décidée : le serveur donne déjà
+- Une fiche liée qui lit une autre fiche : une fiche liée lit les champs de la fiche créée
+- Une fiche liée incomplète : il manque
+- L’identifiant va dans un mauvais champ : l'identifiant va dans un champ texte
+- Une page envoie ce que le serveur décide : le serveur décide lui-même du champ
+- Lire toute la liste d’une donnée lue par identifiant : ne se lit que par identifiant
 - Une durée oubliée : il manque une durée
 - Une durée sans unité : il manque l’unité de la durée
 - Une durée qui n’est pas un nombre : une durée est un nombre suivi de son unité
