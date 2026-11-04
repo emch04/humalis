@@ -167,7 +167,7 @@ export const ENTREES_ECRAN: readonly EntreeVocabulaire[] = [
     ),
     couvre: ['html:link-icon', 'html:meta-og', 'robots.txt', 'sitemap.xml', 'webmanifest'],
     description:
-      'Le bloc « site : » en haut du fichier, c’est « je publie » : le nom du site (ajouté au titre de chaque page), sa description, son image de partage, son logo (l’icône) et son adresse publique. Il produit les balises d’aperçu, robots.txt et le plan du site. « indexation non » ferme le site aux moteurs de recherche.',
+      'Le bloc « site : » en haut du fichier, c’est « je publie » : le nom du site (ajouté au titre de chaque page), sa description, son image de partage, son logo (l’icône) et son adresse publique. Il produit les balises d’aperçu, robots.txt et le plan du site. « indexation non » ferme le site aux moteurs de recherche. « erreurs pendant 5 secondes » règle la durée de toutes les erreurs du site, celles de Humalis comprises.',
     exemple: 'site :\n    nom "Le Fleuve"\n    logo "./logo.svg"\n    adresse "https://lefleuve.cd"\n\npage "accueil" :\n    titre "Bienvenue"\n    texte "Un restaurant au bord du fleuve Congo, ouvert du mardi au dimanche."',
     statut: 'supporte',
     etape: 9,

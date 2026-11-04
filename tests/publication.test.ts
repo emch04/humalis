@@ -72,7 +72,7 @@ describe('publication — le parseur', () => {
   });
 
   it('refuse une ligne inconnue dans « site : », en donnant celles qui existent', () => {
-    expect(() => lire('site :', '>couleur "bleu"', '', 'page "a" :', '>titre "A"')).toThrow(/nom, description, image, logo, adresse ou indexation/);
+    expect(() => lire('site :', '>couleur "bleu"', '', 'page "a" :', '>titre "A"')).toThrow(/nom, description, image, logo, adresse, indexation ou erreurs/);
   });
 
   it('refuse deux blocs « site »', () => {

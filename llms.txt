@@ -284,6 +284,10 @@ page "accueil" :
 - Une ligne inconnue dans le bloc apercu : n'est pas une ligne du bloc « apercu »
 - Une ligne donnée deux fois dans le bloc apercu : est déjà donné dans le bloc « apercu »
 - Une adresse de site sans https:// : doit commencer par https://
+- « erreurs » sans sa durée dans le bloc site : « erreurs » est suivi de sa durée
+- « erreurs » donné deux fois dans le bloc site : « erreurs » est déjà donné
+- Une durée d’erreur hors de 1 à 60 secondes : une erreur reste affichée de 1 à 60 secondes
+- Des erreurs vite effacées dans tout le site : c’est trop court pour lire une erreur
 - Un site sans icône : le site n'a pas d'icône
 - Une image de partage prise sur un autre site : est sur un autre site
 - Un titre de page trop long : fait plus de 60 caractères

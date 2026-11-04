@@ -174,6 +174,8 @@ export interface SiteRI {
   adresse?: string;
   /** Faux : « indexation non », le site est fermé aux moteurs de recherche. */
   indexation: boolean;
+  /** « erreurs pendant 2 secondes », en millisecondes : la durée d'une erreur sans durée propre. */
+  dureeErreurs?: number;
   ligne: number;
 }
 

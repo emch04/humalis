@@ -15,6 +15,7 @@ import { cssEcran } from '../web/css-ecran.js';
 import { cssElements, cssSautsDeLigne } from '../web/css-elements.js';
 import { cssInteractions } from '../web/interactions.js';
 import { cssMouvement, animeAuDefilement, OBSERVATEUR_DEFILEMENT, SUIVI_ENTETE, suitLEntete } from '../commun/mouvement.js';
+import { avecDureeDesErreurs } from '../commun/messages.js';
 import type { InfoMedia } from '../../ri/medias.js';
 import { cssTheme, changeLeTheme, modeParDefaut, SCRIPT_THEME, CLE_THEME } from '../web/theme.js';
 import { FORMAT_JS, FORMAT_JS_LANGUES, TAILLE_JS, DATES_JS } from '../format.js';
@@ -161,7 +162,7 @@ ${fonctions.join('\n')}`,
   const scriptsDesPages = [...fichiers.entries()].filter(([nom]) => nom.endsWith('.js')).map(([, contenu]) => contenu);
   const emploie = (motif: RegExp) => scriptsDesPages.some((contenu) => motif.test(contenu));
   const interactions = { pressePapier: emploie(/\b(copier|partager|telechargerCsv)\(/), fenetres: emploie(/\bfenetre\(/), questions: emploie(/\bconfirmer\(/), bas: emploie(/\bonbas:/) };
-  fichiers.set('humalis/humalis.js', humalisJs(options.source, pagesFichiers, serveur, session, bascule ? modeTheme ?? '' : undefined, usage, application.langues, interactions));
+  fichiers.set('humalis/humalis.js', avecDureeDesErreurs(humalisJs(options.source, pagesFichiers, serveur, session, bascule ? modeTheme ?? '' : undefined, usage, application.langues, interactions), application));
   // « menu repliable » : un seul écouteur pour tous les menus, ceux du HTML de départ comme ceux redessinés.
   if ([...fichiers.values()].some((contenu) => contenu.includes('humalis-menu-bouton'))) {
     fichiers.set('humalis/humalis.js', `${fichiers.get('humalis/humalis.js')!}\n${MENU_REPLIABLE_JS}`);

@@ -1262,6 +1262,11 @@ The kinds: `afficher`, `afficher reussite` (success), `afficher avertissement`
 stays; `sans disparaitre` keeps it on screen; `avec action "…" :` adds a
 button.
 
+An error stays 8 seconds. Humalis also shows some by itself, for example when a
+read fails: « Le serveur n'a pas répondu. Réessayez dans un instant. » To change
+how long all the site's errors stay, write `erreurs pendant 5 secondes` in the
+[`site :` block](#29-publishing-a-site).
+
 ### Dialogs
 
 ```humalis
@@ -2127,6 +2132,14 @@ With an `adresse`, the web target writes the sitemap (`sitemap.xml`) and
 `robots.txt`. A page with `indexation non` is left out of search engines.
 Humalis warns when a title or description is too long or too short for search
 engines.
+
+The line `erreurs pendant 5 secondes` in the `site :` block sets how long the
+site's errors stay on screen: the ones you write without a duration and the ones
+Humalis shows by itself, such as a failed read. It ranges from 1 to 60 seconds;
+without it, errors stay 8 seconds. Humalis warns below 4 seconds, because many
+people won't have time to read. A `pendant` written on a message takes priority,
+and a message with a button keeps enough time to click (6 seconds, 12 for
+« Réessayer »).
 
 ---
 

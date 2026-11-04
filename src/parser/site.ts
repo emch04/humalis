@@ -8,7 +8,8 @@ import { normaliser } from '../lexer/motsCles.js';
 import type { FluxTokens } from './fluxTokens.js';
 import { ErreurSyntaxique } from './erreurs.js';
 import { estLeMot, estMot } from './miseEnPage.js';
-import type { Apercu, Expression, Site } from './ast.js';
+import type { Apercu, Duree, Expression, Site } from './ast.js';
+import { uniteDe } from './interactions.js';
 import { lireVersions } from './langues.js';
 
 const LIGNES_SITE = ['nom', 'description', 'image', 'logo', 'adresse'] as const;
@@ -46,6 +47,19 @@ function indexation(flux: FluxTokens): boolean {
   throw new ErreurSyntaxique('« indexation » est suivi de « non » (caché aux moteurs de recherche) ou de « oui ».', jeton.ligne);
 }
 
+/** « pendant 2 secondes » après « erreurs » : un nombre écrit, le site n'a pas encore de variables. */
+function dureeDesErreurs(flux: FluxTokens): Duree {
+  const exemple = '« erreurs » est suivi de sa durée, écrite en chiffres : erreurs pendant 2 secondes';
+  if (!estLeMot(flux.actuel(), 'pendant')) throw new ErreurSyntaxique(exemple, flux.actuel().ligne);
+  flux.avancer();
+  const nombre = flux.actuel();
+  const unite = uniteDe(flux.regarder(1));
+  if (nombre.type !== 'NOMBRE' || !unite) throw new ErreurSyntaxique(exemple, nombre.ligne);
+  flux.avancer();
+  flux.avancer();
+  return { valeur: { type: 'Nombre', valeur: Number(nombre.valeur), ligne: nombre.ligne }, unite, ligne: nombre.ligne };
+}
+
 /** Les lignes décalées d'un bloc, une par une ; le bloc vide est permis. */
 function lignesDuBloc(flux: FluxTokens, lireLigne: () => void): void {
   flux.sauterFinsDeLigne();
@@ -64,13 +78,18 @@ export function analyserSite(flux: FluxTokens): Site {
   const site: Site = { type: 'Site', indexation: true, lignes: {}, ligne: debut.ligne };
   lignesDuBloc(flux, () => {
     const ligne = flux.actuel().ligne;
-    const genre = motDeLigne(flux, 'nom, description, image, logo, adresse ou indexation');
+    const genre = motDeLigne(flux, 'nom, description, image, logo, adresse, indexation ou erreurs');
     if (genre === 'indexation') {
       site.indexation = indexation(flux);
       return;
     }
+    if (genre === 'erreurs') {
+      if (site.erreurs) throw new ErreurSyntaxique(`« erreurs » est déjà donné dans le bloc « site » (ligne ${site.erreurs.ligne}).`, ligne);
+      site.erreurs = dureeDesErreurs(flux);
+      return;
+    }
     if (!(LIGNES_SITE as readonly string[]).includes(genre)) {
-      throw new ErreurSyntaxique(`« ${genre} » n'est pas une ligne du bloc « site ». Lignes possibles : nom, description, image, logo, adresse ou indexation.`, ligne);
+      throw new ErreurSyntaxique(`« ${genre} » n'est pas une ligne du bloc « site ». Lignes possibles : nom, description, image, logo, adresse, indexation ou erreurs.`, ligne);
     }
     const cle = genre as (typeof LIGNES_SITE)[number];
     if (site[cle] !== undefined) throw new ErreurSyntaxique(`« ${cle} » est déjà donné dans le bloc « site » (ligne ${site.lignes[cle]}).`, ligne);

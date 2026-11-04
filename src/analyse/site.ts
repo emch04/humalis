@@ -7,6 +7,7 @@
 import type { Expression, Instruction, Page, Programme, Test } from '../parser/ast.js';
 import type { Diagnostic } from './erreurs.js';
 import { langueDuMot } from '../i18n/langues.js';
+import { ecrireDuree, millisecondesDe } from './interactions.js';
 
 /** Le texte d'un littéral sans « {…} », sinon `undefined`. */
 export function texteLitteral(expression: Expression | undefined): string | undefined {
@@ -68,6 +69,14 @@ export function analyserPublication(programme: Programme, diagnostics: Diagnosti
   }
   if (site.image !== undefined && /^https?:\/\//.test(site.image)) {
     avertir(`l'image de partage « ${site.image} » est sur un autre site : si elle disparaît, l'aperçu des liens du site la perd. Préférez un fichier du projet.`, site.lignes.image ?? site.ligne);
+  }
+  if (site.erreurs) {
+    const ms = millisecondesDe(site.erreurs)!;
+    if (ms < 1000 || ms > 60_000) {
+      diagnostics.push({ gravite: 'erreur', message: `une erreur reste affichée de 1 à 60 secondes (ici : ${ecrireDuree(ms)}).`, ligne: site.erreurs.ligne });
+    } else if (ms < 4000) {
+      avertir(`${ecrireDuree(ms)}, c’est trop court pour lire une erreur : laissez au moins 4 secondes (8 par défaut).`, site.erreurs.ligne);
+    }
   }
 
   const titres = new Map<string, string>();

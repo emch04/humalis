@@ -1111,6 +1111,18 @@ page "catalogue" :
 - Une question aide la personne : elle ne protège rien, le serveur vérifie
   toujours ce qu'on lui demande.
 
+Une erreur reste 8 secondes. La ligne `erreurs` du bloc `site :` change la durée
+de toutes les erreurs du site, celles que Humalis affiche de lui-même comprises :
+
+```humalis
+site :
+    nom "Le Comptoir"
+    erreurs pendant 5 secondes
+
+page "accueil" :
+    titre "Le Comptoir"
+```
+
 ## Un son
 
 ```humalis

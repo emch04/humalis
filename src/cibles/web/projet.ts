@@ -4,6 +4,7 @@ import { sousActions } from '../../ri/actions.js';
 import { cssEcran } from './css-ecran.js';
 import { cssElements, cssSautsDeLigne } from './css-elements.js';
 import { cssMouvement, animeAuDefilement, MOUVEMENT_WEB, nettoyagePrerendu, ENTETE_WEB, suitLEntete } from '../commun/mouvement.js';
+import { avecDureeDesErreurs } from '../commun/messages.js';
 import type { InfoMedia } from '../../ri/medias.js';
 import { fichiersDesElements, dependancesDesElements, dependancesDeDeveloppement } from './widgets.js';
 import { fichiersGraphique, cssGraphique } from './graphique.js';
@@ -192,7 +193,7 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
     // Les liens chargent en avance la page qu'ils ouvrent (visible : son code ; survolé ou touché : ses données).
     fichiers.set('src/humalis/prechargement.ts', PRECHARGEMENT);
   }
-  fichiers.set('src/humalis/messages.tsx', MESSAGES);
+  fichiers.set('src/humalis/messages.tsx', avecDureeDesErreurs(MESSAGES, application));
   fichiers.set('src/humalis/page.ts', contexte.publication ? PAGE_PUBLICATION : application.ecrans.some((e) => e.parent !== undefined) ? PAGE_SOUS_PAGES : PAGE);
   // Le compte des échecs et les styles des formulaires ne sont écrits que si une page s'en sert.
   // Les petits fichiers des éléments d'écran (étoiles, compteur…) et les bibliothèques qu'ils demandent.
@@ -933,7 +934,7 @@ export function Messages({ children }: { children: ReactNode }) {
 }
 
 /**
- * Un message : il disparaît après sa durée (une erreur aussi, au bout de 8 s), mais pas tant que la souris
+ * Un message : il disparaît après sa durée (une erreur aussi), mais pas tant que la souris
  * ou le focus sont dessus. Un doigt ne compte pas : sur un écran tactile, toucher le message ne le garde
  * pas à l'écran pour toujours (il n'y a jamais de « sortie » du doigt). « sans disparaitre » le garde.
  */
@@ -1089,6 +1090,9 @@ const BASE = import.meta.env.VITE_HUMALIS_SERVEUR ?? '';
 /** Le serveur n'a pas répondu (réseau coupé, serveur arrêté) : pas de raison plus précise. */
 const PAS_DE_REPONSE = "Le serveur n'a pas répondu.";
 
+/** La raison d'un échec : une phrase écrite pour la personne, jamais le texte anglais du navigateur (« Failed to fetch ») ni celui d'une réponse illisible. */
+const raisonDe = (erreur: unknown) => (erreur instanceof Error && !(erreur instanceof TypeError) && !(erreur instanceof SyntaxError) ? erreur.message : PAS_DE_REPONSE);
+
 /**
  * Une image choisie dans la page (« fichier … accepte images ») envoyée dans une donnée
  * (« photo : image ») : réduite à 480 px de côté, en JPEG, pour tenir dans l'envoi.
@@ -1165,7 +1169,7 @@ export function useServeur() {
       if (lecture && seGarde(reponse)) garder(adresse, valeur, texte);
       return valeur;
     } catch (erreur) {
-      derniereRaison = erreur instanceof Error && erreur.message !== PAS_DE_REPONSE ? erreur.message : PAS_DE_REPONSE;
+      derniereRaison = raisonDe(erreur);
       afficherMessage(derniereRaison === PAS_DE_REPONSE ? "Le serveur n'a pas répondu. Réessayez dans un instant." : derniereRaison, 'erreur');
       return actuelle;
     }
@@ -1239,7 +1243,7 @@ function avecTelechargement(modele: string, codes: string[], renouvelee: boolean
       // Le navigateur a pris le fichier : le lien temporaire ne sert plus.
       setTimeout(() => URL.revokeObjectURL(adresseFichier), 10000);
     } catch (erreur) {
-      derniereRaison = erreur instanceof Error && erreur.message !== PAS_DE_REPONSE ? erreur.message : PAS_DE_REPONSE;
+      derniereRaison = raisonDe(erreur);
       ${renouvelee ? 'if (erreur instanceof SessionFinie && erreur.dejaDite) return;\n      ' : ''}afficherMessage(derniereRaison === PAS_DE_REPONSE ? "Le serveur n'a pas répondu. Réessayez dans un instant." : derniereRaison, 'erreur');
     }
   }
