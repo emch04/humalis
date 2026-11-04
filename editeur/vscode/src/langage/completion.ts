@@ -199,6 +199,7 @@ const GENRE_DETAIL: Partial<Record<Symbole['genre'], string>> = {
   boucle: 'variable de la boucle',
   parametrePage: 'paramètre de la page',
   parametreComposant: 'paramètre du composant',
+  parametreFonction: 'paramètre de la fonction',
 };
 
 const declaration = (s: Symbole) => `\`\`\`humalis\n${s.texteLigne}\n\`\`\``;
