@@ -3,6 +3,7 @@
 # (pages/). Les classes CSS donnent la mise en page ; seul l'éditeur du bac à sable utilise React.
 utiliser style "./site.css"
 utiliser composant "EditeurHumalis" depuis "./composants/EditeurHumalis"
+utiliser composant "FormulaireSignalement" depuis "./composants/FormulaireSignalement"
 utiliser fichier "./commun/entete.humalis"
 utiliser fichier "./commun/pied.humalis"
 utiliser fichier "./pages/accueil.humalis"
@@ -14,6 +15,7 @@ utiliser fichier "./pages/installer.humalis"
 utiliser fichier "./pages/nouveautes.humalis"
 utiliser fichier "./pages/mentions-legales.humalis"
 utiliser fichier "./pages/confidentialite.humalis"
+utiliser fichier "./pages/signaler.humalis"
 utiliser fichier "./pages/introuvable.humalis"
 
 site :
