@@ -646,6 +646,13 @@ page "antiseche" a l'adresse "/antiseche" :
                         page "vitrine" :
                             Fiche avec nom "Livre"
                 bloc avec style "aide-entree" :
+                    texte "Ajouter une scène 3D" en anglais "Add a 3D scene" avec style "aide-besoin"
+                    code humalis :
+                        utiliser composant "Scene3D" depuis "./composants/Scene3D"
+
+                        page "accueil" :
+                            Scene3D avec couleur "#c1e928"
+                bloc avec style "aide-entree" :
                     texte "Écrire un test" en anglais "Write a test" avec style "aide-besoin"
                     code humalis :
                         page "salut" :
