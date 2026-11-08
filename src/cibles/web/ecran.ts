@@ -2380,7 +2380,7 @@ function titreDesBranches(noeuds: NoeudVue[]): Valeur | undefined {
   return undefined;
 }
 
-function premiereValeur(genre: string, noeuds: NoeudVue[], langues?: LangueRI[]): Valeur | undefined {
+export function premiereValeur(genre: string, noeuds: NoeudVue[], langues?: LangueRI[]): Valeur | undefined {
   if (!langues || langues.length === 0) return premiereValeurEn(genre, noeuds) ?? (genre === 'titre' ? titreDesBranches(noeuds) : undefined);
   const [base, ...autres] = langues;
   const valeur = premiereValeurEn(genre, noeuds, base.code);

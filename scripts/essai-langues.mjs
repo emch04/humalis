@@ -62,7 +62,7 @@ async function servir(dossier) {
 
 function compiler(cible, exemple = 'deux-langues') {
   const dossier = join(travail, exemple === 'deux-langues' ? cible : `${exemple}-${cible}`);
-  execFileSync('node', ['dist/cli.js', 'compile', `exemples/${exemple}.humalis`, '--cible', cible, '--sortie', dossier], { stdio: 'inherit' });
+  execFileSync('node', ['dist/cli.js', 'compile', `exemples/${exemple}.humalis`, '--cible', cible, ...(cible === 'web' && process.env.HUMALIS_MOTEUR ? ['--moteur', process.env.HUMALIS_MOTEUR] : []), '--sortie', dossier], { stdio: 'inherit' });
   return dossier;
 }
 
@@ -225,9 +225,9 @@ async function verifierMedias(page, nom, code, motif) {
   verifier((await titre(page)) === t.titre, `${etiquette} : le titre est en ${code}`);
   const figures = page.locator('figure.humalis-graphique');
   verifier((await figures.count()) === 3, `${etiquette} : trois graphiques`);
-  verifier((await figures.nth(0).locator('svg.humalis-graphique-large > title').textContent()) === t.courbe, `${etiquette} : le nom du dessin (${t.courbe})`);
-  verifier((await figures.nth(1).locator('svg.humalis-graphique-large > title').textContent()) === t.barres, `${etiquette} : le nom du dessin en barres (${t.barres})`);
-  verifier((await figures.nth(0).locator('svg.humalis-graphique-large > desc').textContent()) === t.descriptionCourbe, `${etiquette} : la description du graphique`);
+  verifier((await figures.nth(0).locator('.humalis-graphique-large svg > title').textContent()) === t.courbe, `${etiquette} : le nom du dessin (${t.courbe})`);
+  verifier((await figures.nth(1).locator('.humalis-graphique-large svg > title').textContent()) === t.barres, `${etiquette} : le nom du dessin en barres (${t.barres})`);
+  verifier((await figures.nth(0).locator('.humalis-graphique-large svg > desc').textContent()) === t.descriptionCourbe, `${etiquette} : la description du graphique`);
   verifier((await figures.nth(0).locator('summary').innerText()) === t.voir, `${etiquette} : « ${t.voir} »`);
   verifier(espaces(await figures.nth(0).locator('tbody td').first().textContent()) === t.montant, `${etiquette} : le montant du graphique (${t.montant})`);
   verifier((await figures.nth(1).locator('figcaption li').allInnerTexts()).map((x) => x.trim()).join('|') === t.legende.join('|'), `${etiquette} : la légende (${t.legende.join(', ')})`);

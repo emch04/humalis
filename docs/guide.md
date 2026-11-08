@@ -2428,6 +2428,7 @@ chose de faux.
 | `essayer` | oui | non | oui | oui |
 | Raccourcis clavier | oui | oui | non | oui |
 | Composants React | oui | non | oui (en React Native) | oui |
+| Le moteur sans React (`--moteur humalis`) | oui | non | non | non |
 | Plan du site, aperçu de partage | oui | oui | non | non |
 
 Le serveur (`--cible serveur`) se produit à part, depuis le bloc `serveur`.
@@ -2442,7 +2443,9 @@ humalis compile site.humalis --cible web --moteur humalis --sortie site
 
 Chaque page est un fichier HTML déjà écrit par le compilateur, qu'un petit
 script reprend sans le reconstruire. Quand une variable change, seul ce qui la
-lit change. Sans cette option, le site reste produit avec React.
+lit change. Sans cette option, le site reste produit avec React. Pour un projet, écris-le
+une fois dans `humalis.projet.json` : `"moteur": "humalis"` ; `humalis developper`
+et `humalis tester` s'en servent aussi.
 
 Les modules (`utiliser module`), les composants React et les Web Components
 marchent de la même façon : le fichier n'est chargé que par les pages qui s'en

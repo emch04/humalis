@@ -165,7 +165,13 @@ export const CHOIX_FICHIER_JS = String.raw`// Produit par Humalis : choisir des 
 import { effet, nettoyer, executer } from './moteur.js';
 
 const MOTS = { images: 'image', audio: 'audio', videos: 'video', pdf: 'pdf', documents: 'document' };
-const REFUS_DE_TYPE = { images: 'une image', audio: 'un son', videos: 'une vidéo', pdf: 'un PDF', documents: 'un document' };
+const REFUS_DE_TYPE = {
+  images: 'une image',
+  audio: 'un son',
+  videos: 'une vidéo',
+  pdf: 'un PDF',
+  documents: 'un document',
+};
 let prochainId = 0;
 
 /** Les octets de tête priment sur le nom et le type annoncé pour les images et les PDF. */
@@ -245,14 +251,14 @@ export function choixFichier(cadre, { libelle, boite, familles, maximum, plusieu
     for (const fichier of fichiers) {
       const sujet = fichiers.length === 1 ? 'Ce fichier' : fichier.name;
       if (maximum !== undefined && fichier.size > maximum) {
-        refus.push(sujet + ' est trop gros : ' + ecrireTaille(fichier.size) + ', le maximum est ' + ecrireTaille(maximum) + '.');
+        refus.push(${'`'}${'$'}{sujet} est trop gros : ${'$'}{ecrireTaille(fichier.size)}, le maximum est ${'$'}{ecrireTaille(maximum)}.${'`'});
         continue;
       }
       const mime = await typeLu(fichier);
       if (!actif || tour !== version) return;
       const famille = familles.find((f) => f.mime.includes(mime));
       if (familles.length > 0 && !famille) {
-        refus.push(sujet + " n'est pas " + familles.map((f) => REFUS_DE_TYPE[f.nom]).join(' ni ') + '.');
+        refus.push(${'`'}${'$'}{sujet} n'est pas ${'$'}{familles.map((f) => REFUS_DE_TYPE[f.nom]).join(' ni ')}.${'`'});
         continue;
       }
       const adresse = apercu && /^(image|audio|video)\//.test(mime) ? URL.createObjectURL(fichier) : null;

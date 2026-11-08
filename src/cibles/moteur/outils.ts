@@ -33,7 +33,7 @@ function elementsMoteur(usage: UsageElements): string {
 export function outilsJs(b: BesoinsOutils): string {
   const { usage, langues, theme } = b;
   const exportes = [
-    'creer', 'afficherMessage', 'planifier', 'arreterMinuteries', 'minuteriesDeCouche', 'ecouterRaccourcis', 'mouvementReduit', 'themeSombre', 'cliquer', 'focaliser', 'fenetre', 'observerLeBas', 'titreDeLaPage',
+    'creer', 'afficherMessage', 'planifier', 'planificateur', 'arreterMinuteries', 'minuteriesDeCouche', 'ecouterRaccourcis', 'mouvementReduit', 'themeSombre', 'cliquer', 'focaliser', 'fenetre', 'observerLeBas', 'titreDeLaPage', 'descriptionDeLaPage',
     'retirerPremier', 'grouper', 'formaterNombre', 'formaterDate', 'formaterArgent', 'accorder', 'formaterTaille', 'dateDuJour', 'maintenant', 'decalerDate', 'joursEntre', 'formaterDepuis',
     'lireMemoire', 'garderMemoire', 'lirePartage', 'garderPartage', 'copier', 'partager', 'telechargerCsv', 'confirmer',
     ...exportsElements(usage),
@@ -114,6 +114,7 @@ function planifier(faire, millisecondes, options = {}) {
     clearInterval(id);
     clearTimeout(id);
     minuteriesEnCours.delete(annuler);
+    options.fin?.(annuler);
   };
   const tour = async () => {
     if (options.tantQue && !options.tantQue()) return annuler();
@@ -126,6 +127,19 @@ function planifier(faire, millisecondes, options = {}) {
   id = options.repete ? setInterval(tour, millisecondes) : setTimeout(tour, millisecondes);
   if (!options.couche) minuteriesEnCours.add(annuler);
   return annuler;
+}
+
+/** Les minuteries lancées par un événement d'une couche : elles vivent et meurent avec elle. */
+function planificateur() {
+  const miennes = new Set();
+  nettoyer(() => {
+    for (const annuler of [...miennes]) annuler();
+  });
+  return (faire, millisecondes, options = {}) => {
+    const annuler = planifier(faire, millisecondes, { ...options, couche: true, fin: (a) => miennes.delete(a) });
+    miennes.add(annuler);
+    return annuler;
+  };
 }
 
 function arreterMinuteries() {
@@ -175,6 +189,16 @@ function titreDeLaPage(f) {
   effet(() => {
     const titre = String(f() ?? '').trim();
     if (!premier && titre) document.title = titre;
+    premier = false;
+  });
+}
+
+/** La description de la page suit la langue choisie. */
+function descriptionDeLaPage(f) {
+  let premier = true;
+  effet(() => {
+    const description = String(f() ?? '');
+    if (!premier) document.querySelector('meta[name="description"]')?.setAttribute('content', description);
     premier = false;
   });
 }
@@ -320,15 +344,23 @@ export interface RouteMoteur {
 }
 
 /** navigation.js : démarrer les couches, changer de page sans recharger. */
-export function navigationJs(routes: RouteMoteur[], options: { partages: boolean; session: boolean; langues: boolean; pages: Map<string, string> }): string {
+export function navigationJs(routes: RouteMoteur[], options: { partages: boolean; session: boolean; langues: boolean; pages: Map<string, string>; minuteries: boolean; raccourcis: boolean; planifie: boolean; adressesRecues: boolean }): string {
   const table = routes.map((r) => {
     const noms = [...r.chemin.matchAll(/:([A-Za-z0-9_]+)/g)].map((m) => m[1]);
     const motif = r.chemin.replace(/\/+$/, '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/:([A-Za-z0-9_]+)/g, '([^/]+)');
     return `  { m: /^${motif.replace(/\//g, '\\/')}\\/?$/, n: ${JSON.stringify(noms)}, f: ${chaine(r.fichier)} },`;
   });
+  // Seulement ce que le site emploie : le reste ne part pas dans le navigateur.
+  const outilsNav = [
+    ...(options.minuteries ? ['minuteriesDeCouche'] : []),
+    ...(options.raccourcis ? ['ecouterRaccourcis'] : []),
+    ...(options.planifie ? ['arreterMinuteries'] : []),
+    ...(options.adressesRecues ? ['afficherMessage'] : []),
+    ...(options.langues ? ['relireLangue'] : []),
+  ];
   return `// Produit par Humalis : ouvrir une page, changer de page sans recharger.
 import { racine, parcourir, nettoyer, appliquer, executer, signal } from './moteur.js';
-import { minuteriesDeCouche, ecouterRaccourcis, arreterMinuteries, afficherMessage${options.langues ? ', relireLangue' : ''} } from './outils.js';
+${outilsNav.length ? `import { ${outilsNav.join(', ')} } from './outils.js';\n` : ''}
 ${options.partages ? "import { relirePartages } from './partages.js';\n" : ''}${options.session ? "import { relireSession, utilisateur } from './serveur.js';\n" : ''}
 const ROUTES = [
 ${table.join('\n')}
@@ -369,9 +401,7 @@ function lancerCouche(i, entree, parametres) {
   couche.arreter = racine(() => {
     const api = fonction(parcourir(emplacement.firstChild, null, []), { parametres }) ?? {};
     couche.api = api;
-    if (api.minuteries) minuteriesDeCouche(api.minuteries);
-    if (api.raccourcis) ecouterRaccourcis(api.raccourcis);
-    api.relire?.();
+${options.minuteries ? '    if (api.minuteries) minuteriesDeCouche(api.minuteries);\n' : ''}${options.raccourcis ? '    if (api.raccourcis) ecouterRaccourcis(api.raccourcis);\n' : ''}    api.relire?.();
   });
   return couche;
 }
@@ -486,7 +516,7 @@ async function aller(url, { historique = true, remplacer = false, garde } = {}) 
     let commun = 0;
     while (commun < actives.length && commun < couches.length - 1 && actives[commun].id === empreinte(couches[commun], trouve.parametres)) commun++;
     for (let i = actives.length - 1; i >= commun; i--) actives[i].arreter();
-    arreterMinuteries();
+    ${options.planifie ? 'arreterMinuteries();' : ''}
     const ici = document.querySelector('[data-c="' + commun + '"]');
     const la = doc.querySelector('[data-c="' + commun + '"]');
     ici.replaceChildren(...la.childNodes);
@@ -518,7 +548,7 @@ export function naviguer(url, remplacer = false) {
   const schema = /^([a-z][a-z0-9+.-]*):/i.exec(String(url).trim())?.[1]?.toLowerCase();
   if (schema !== undefined) {
     if (['http', 'https', 'mailto', 'tel'].includes(schema)) location.assign(url);
-    else afficherMessage('Adresse refusée : « ' + schema + ": » n'est pas permis (https, http, mailto et tel seulement).", 'erreur');
+    ${options.adressesRecues ? `else afficherMessage('Adresse refusée : « ' + schema + ": » n'est pas permis (https, http, mailto et tel seulement).", 'erreur');` : "else console.error('Adresse refusée : ' + schema);"}
     return;
   }
   const adresse = String(url);

@@ -35,7 +35,7 @@ function sessionTexte(base: string, source: boolean, renouveler: boolean): strin
     .replace('MESSAGE_EXPIRATION', renouveler ? 'erreur instanceof SessionFinie && erreur.expiree && !erreur.dejaDite' : 'false')
     .replace('TRACER_SESSION', renouveler ? 'true' : 'false')
     .replace('CHANGER_SESSION', renouveler ? 'avecSession(lancer)' : 'lancer()')
-    .replace('ERREUR_CHANGER', renouveler ? 'erreur instanceof SessionFinie ? erreur.message : REESSAYER' : 'REESSAYER')
+    .replace('ERREUR_CHANGER', renouveler ? 'erreur instanceof SessionFinie ? erreur.message : REESSAYER()' : 'REESSAYER()')
     .replace('SORTIE_TRACE', renouveler ? 'tracer(false);' : '')
     .replace('SORTIE_SESSION', renouveler ? 'avecSession(lancer)' : 'lancer()')
     .replace('ERREUR_SORTIE', renouveler ? '!(erreur instanceof SessionFinie)' : 'true');
@@ -43,7 +43,7 @@ function sessionTexte(base: string, source: boolean, renouveler: boolean): strin
 
 const BASE = String.raw`const BASE = import.meta.env.VITE_HUMALIS_SERVEUR ?? '';
 const PAS_DE_REPONSE = "Le serveur n'a pas répondu.";
-const REESSAYER = "Le serveur n'a pas répondu. Réessayez dans un instant.";
+const REESSAYER = () => "Le serveur n'a pas répondu. Réessayez dans un instant.";
 export const REPOS = { statut: 'repos', message: '' };
 const raisonDe = (erreur) => erreur instanceof Error && !(erreur instanceof TypeError) && !(erreur instanceof SyntaxError) ? erreur.message : PAS_DE_REPONSE;
 const csrf = () => document.cookie.match(/(?:^|; )astratra_csrf=([^;]*)/)?.[1];
@@ -73,6 +73,11 @@ function enregistrer() {
     }
     sessionStorage.setItem(CLE, JSON.stringify(choisies));
   } catch { /* La mémoire suffit. */ }
+}
+export function lectureGardee(adresse, initiale) {
+  if (!gardees.has(adresse)) return initiale;
+  const valeur = gardees.get(adresse);
+  return Array.isArray(initiale) && !Array.isArray(valeur) ? initiale : valeur;
 }
 const deLaRoute = (adresse, route) => adresse === route || adresse.startsWith(route + '/') || adresse.startsWith(route + '?');
 function garder(adresse, valeur, texte) {
@@ -158,7 +163,7 @@ function messageDeLErreur(erreur) {
     if (erreur.message !== '' && erreur.code >= 400 && erreur.code < 500) return erreur.message;
     if (erreur.code === 404) return "Ce que vous cherchez n'existe pas.";
   }
-  return REESSAYER;
+  return REESSAYER();
 }
 async function appelerSource(adresse, options, actuelle, appel) {
   const source = SOURCES[appel.source], lecture = options.method === 'GET';
@@ -277,7 +282,7 @@ async function appeler(adresse, options, actuelle) {
   } catch (erreur) {
     echecs++; derniereRaison = raisonDe(erreur);
     if (${renouveler ? 'erreur instanceof SessionFinie && erreur.dejaDite' : 'false'}) return actuelle;
-    dire(derniereRaison === PAS_DE_REPONSE ? REESSAYER : derniereRaison, 'erreur');
+    dire(derniereRaison === PAS_DE_REPONSE ? REESSAYER() : derniereRaison, 'erreur');
     return actuelle;
   }
 }
@@ -298,7 +303,7 @@ async function telecharger(adresse, id) {
   } catch (erreur) {
     echecs++; derniereRaison = raisonDe(erreur);
     if (${renouveler ? 'erreur instanceof SessionFinie && erreur.dejaDite' : 'false'}) return;
-    dire(derniereRaison === PAS_DE_REPONSE ? REESSAYER : derniereRaison, 'erreur');
+    dire(derniereRaison === PAS_DE_REPONSE ? REESSAYER() : derniereRaison, 'erreur');
   }
 }
 export const serveur = {
@@ -355,7 +360,7 @@ async function seConnecter(email, motDePasse, dansUnEssai = false) {
   let reponse;
   try {
     reponse = await fetch(BASE_AUTH + '/auth/login', { method: 'POST', headers: entetesSession(), credentials: CREDENTIALS_AUTH, body: JSON.stringify({ email, password: motDePasse }) });
-  } catch { return refuser(REESSAYER, dansUnEssai); }
+  } catch { return refuser(REESSAYER(), dansUnEssai); }
   if (reponse.status === 429) return refuser('Trop de tentatives de connexion. Réessayez dans quelques minutes.', dansUnEssai);
   if (!reponse.ok) return refuser('Email ou mot de passe incorrect.', dansUnEssai);
   await relireSession(); return true;
@@ -365,7 +370,7 @@ async function seConnecterAvecGoogle(dansUnEssai = false) {
   try {
     const reponse = await fetch(BASE_AUTH + '/auth/google', { credentials: CREDENTIALS_AUTH });
     clientId = reponse.ok ? (await reponse.json()).clientId ?? null : null;
-  } catch { return refuser(REESSAYER, dansUnEssai); }
+  } catch { return refuser(REESSAYER(), dansUnEssai); }
   if (!clientId) return refuser("La connexion avec Google n'est pas encore réglée sur le serveur.", dansUnEssai);
   const nonce = crypto.randomUUID(), etat = crypto.randomUUID();
   const parametres = new URLSearchParams({ client_id: clientId, redirect_uri: window.location.origin + '/auth-google.html', response_type: 'id_token', scope: 'openid email', nonce, state: etat, prompt: 'select_account' });
@@ -384,7 +389,7 @@ async function seConnecterAvecGoogle(dansUnEssai = false) {
   let reponse;
   try {
     reponse = await fetch(BASE_AUTH + '/auth/google', { method: 'POST', headers: entetesSession(), credentials: CREDENTIALS_AUTH, body: JSON.stringify({ idToken: jeton, nonce }) });
-  } catch { return refuser(REESSAYER, dansUnEssai); }
+  } catch { return refuser(REESSAYER(), dansUnEssai); }
   if (!reponse.ok) {
     const corps = await reponse.json().catch(() => null);
     const raison = corps?.erreur ?? 'la connexion avec Google a été refusée';
@@ -395,7 +400,7 @@ async function seConnecterAvecGoogle(dansUnEssai = false) {
 async function envoyerAuCompte(chemin, donnees, dansUnEssai, sansRaison) {
   let reponse;
   try { reponse = await fetch(BASE_AUTH + chemin, { method: 'POST', headers: entetesSession(), credentials: CREDENTIALS_AUTH, body: JSON.stringify(donnees) }); }
-  catch { return refuser(REESSAYER, dansUnEssai); }
+  catch { return refuser(REESSAYER(), dansUnEssai); }
   if (reponse.status === 429) return refuser('Trop de tentatives. Réessayez dans quelques minutes.', dansUnEssai);
   if (reponse.status === 401) return refuser('Connectez-vous pour continuer.', dansUnEssai);
   if (!reponse.ok) {
@@ -426,7 +431,7 @@ async function changerMotDePasse(actuel, nouveau, dansUnEssai = false) {
 async function seDeconnecter() {
   SORTIE_TRACE
   try { const lancer = () => fetch(BASE_AUTH + '/auth/logout', { method: 'POST', headers: entetesSession(), credentials: CREDENTIALS_AUTH }); await SORTIE_SESSION; }
-  catch (erreur) { if (ERREUR_SORTIE) dire(REESSAYER, 'erreur'); }
+  catch (erreur) { if (ERREUR_SORTIE) dire(REESSAYER(), 'erreur'); }
   await relireSession();
 }
 `;
@@ -466,7 +471,7 @@ function messageDuFichier(erreur) {
   if (erreur.code === 401) return 'Connectez-vous pour continuer.';
   if (erreur.code === 413) return erreur.message || 'Ce fichier est trop gros pour le serveur.';
   if (erreur.message !== '' && erreur.code >= 400 && erreur.code < 500) return erreur.message;
-  return REESSAYER;
+  return REESSAYER();
 }
 export async function televerser(choisi, adresse, options, actuelle) {
   const fichiers = Array.isArray(choisi) ? choisi : choisi ? [choisi] : [];

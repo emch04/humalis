@@ -30,7 +30,10 @@ export async function executerDansChromium(sortie: string, adresse: string, cas:
             else if (etape.type === 'VerifierTexteVisible') await page.getByText(etape.cible, { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
             else if (etape.type === 'VerifierTexteAbsent') await page.getByText(etape.cible, { exact: true }).waitFor({ state: 'hidden', timeout: 5000 });
             else if (etape.type === 'VerifierPage') {
-              obtenu = new URL(page.url()).pathname.replace(/^\//u, '') || 'accueil';
+              // Un changement de page peut prendre un instant : on attend, comme pour les textes.
+              const lire = () => new URL(page.url()).pathname.replace(/^\/|\/$/gu, '') || 'accueil';
+              for (let reste = 5000; lire() !== etape.cible && reste > 0; reste -= 50) await page.waitForTimeout(50);
+              obtenu = lire();
               if (obtenu !== etape.cible) throw new Error(`page attendue « ${etape.cible} », obtenue « ${obtenu} »`);
             } else if (etape.type === 'VerifierChamp') {
               obtenu = await page.getByLabel(etape.cible, { exact: true }).inputValue({ timeout: 5000 });

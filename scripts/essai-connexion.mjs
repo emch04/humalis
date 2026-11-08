@@ -103,8 +103,8 @@ try {
   const cookies = await contexte.cookies();
   const session = cookies.find((c) => c.name === 'astratra_session');
   verifier(session?.httpOnly === true, 'la session est le cookie astratra_session HttpOnly du pack');
-  const vuParLaPage = await page.evaluate(() => ({ cookies: document.cookie, stockage: localStorage.length + sessionStorage.length }));
-  verifier(!vuParLaPage.cookies.includes('astratra_session') && vuParLaPage.stockage === 0, 'la page ne voit ni ne garde aucun jeton (cookie illisible, stockage vide)');
+  const vuParLaPage = await page.evaluate(() => ({ cookies: document.cookie, stockage: JSON.stringify([{ ...localStorage }, { ...sessionStorage }]) }));
+  verifier(!vuParLaPage.cookies.includes('astratra_session') && !/eyJ|token|jeton|Bearer/i.test(vuParLaPage.stockage) && !vuParLaPage.stockage.includes(MOT_DE_PASSE), 'la page ne voit ni ne garde aucun jeton ni mot de passe (cookie illisible, rien de tel dans le stockage)');
 
   // 4. L'avis publié (un formulaire : champ obligatoire, Entrée, champ vidé).
   const commentaire = page.locator('[data-humalis="champ_commentaire"]');

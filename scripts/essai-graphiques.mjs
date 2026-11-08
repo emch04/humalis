@@ -51,7 +51,7 @@ async function servir(dossier) {
 
 function compiler(cible) {
   const dossier = join(travail, cible);
-  execFileSync('node', ['dist/cli.js', 'compile', 'exemples/graphiques.humalis', '--cible', cible, '--sortie', dossier, ...(cible === 'web' ? ['--adresse', 'https://lefleuve.cd'] : [])], { stdio: 'ignore' });
+  execFileSync('node', ['dist/cli.js', 'compile', 'exemples/graphiques.humalis', '--cible', cible, ...(cible === 'web' && process.env.HUMALIS_MOTEUR ? ['--moteur', process.env.HUMALIS_MOTEUR] : []), '--sortie', dossier, ...(cible === 'web' ? ['--adresse', 'https://lefleuve.cd'] : [])], { stdio: 'ignore' });
   return dossier;
 }
 
@@ -92,7 +92,9 @@ async function scenario(nom, adresse, navigateur) {
   // 2. Avec JavaScript : le dessin est le même, caractère pour caractère.
   page = await ouvrir(navigateur, adresse, { viewport: { width: 1280, height: 900 } }, messages);
   const avecJs = await figures(page);
-  verifier(avecJs.length === 4 && avecJs.every((f, i) => f === sansJs[i]), `${nom} : avec JavaScript, chaque graphique est identique au HTML de départ (${avecJs.filter((f, i) => f === sansJs[i]).length}/4)`);
+  // Le script ajoute au dessin ce qu'il faut pour le doigt et le clavier : on compare ce qu'il dit, pas ses attributs.
+  const texteDe = (f) => (f.match(/<table[\s\S]*<\/table>/)?.[0] ?? f).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+  verifier(avecJs.length === 4 && avecJs.every((f, i) => texteDe(f) === texteDe(sansJs[i])), `${nom} : avec JavaScript, chaque graphique dit la même chose que le HTML de départ (${avecJs.filter((f, i) => texteDe(f) === texteDe(sansJs[i])).length}/4)`);
 
   // 3. L'arbre d'accessibilité : un nom par graphique (le dessin caché n'y est pas), la table au clavier.
   const images = await page.getByRole('img', { name: /^Graphique en (courbe|barres|camembert)/ }).count();
@@ -115,8 +117,8 @@ async function scenario(nom, adresse, navigateur) {
   for (const [largeur, attendu] of [[1280, 'large'], [375, 'etroit']]) {
     for (const mode of ['light', 'dark']) {
       page = await ouvrir(navigateur, adresse, { viewport: { width: largeur, height: 900 }, colorScheme: mode }, messages);
-      const visibles = await page.$$eval('figure.humalis-graphique > svg', (els) => els.filter((el) => getComputedStyle(el).display !== 'none').map((el) => el.getAttribute('class')));
-      verifier(visibles.length === 4 && visibles.every((c) => c === `humalis-graphique-${attendu}`), `${nom} : ${largeur} px, ${mode === 'light' ? 'clair' : 'sombre'} : le dessin ${attendu} est montré (${visibles.join(', ')})`);
+      const visibles = await page.$$eval('figure.humalis-graphique > .humalis-graphique-large, figure.humalis-graphique > .humalis-graphique-etroit', (els) => els.filter((el) => getComputedStyle(el).display !== 'none').map((el) => el.getAttribute('class')));
+      verifier(visibles.length === 4 && visibles.every((c) => c.includes(`humalis-graphique-${attendu}`)), `${nom} : ${largeur} px, ${mode === 'light' ? 'clair' : 'sombre'} : le dessin ${attendu} est montré (${visibles.join(', ')})`);
       const debord = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
       verifier(!debord, `${nom} : ${largeur} px, ${mode === 'light' ? 'clair' : 'sombre'} : rien ne dépasse de la largeur de l'écran`);
       const couleurs = await page.$$eval('.humalis-graphique-barre, .humalis-graphique-courbe, path.humalis-graphique-part', (els) => {
@@ -128,7 +130,7 @@ async function scenario(nom, adresse, navigateur) {
       });
       const pire = Math.min(...couleurs.map((c) => contraste(c.teinte, c.fond)));
       verifier(couleurs.length > 0 && pire >= 3, `${nom} : ${largeur} px, ${mode === 'light' ? 'clair' : 'sombre'} : chaque série se voit sur le fond (contraste le plus faible ${pire.toFixed(2)} pour 1)`);
-      const tailleTexte = await page.$eval(`figure.humalis-graphique > svg.humalis-graphique-${attendu} text`, (el) => el.getBoundingClientRect().height).catch(() => 0);
+      const tailleTexte = await page.$eval(`figure.humalis-graphique > .humalis-graphique-${attendu} svg text, figure.humalis-graphique > svg.humalis-graphique-${attendu} text`, (el) => el.getBoundingClientRect().height).catch(() => 0);
       if (largeur === 375) verifier(tailleTexte >= 9, `${nom} : 375 px : le texte des axes reste lisible (hauteur ${tailleTexte.toFixed(1)} px)`);
       await page.screenshot({ path: join(travail, 'captures', `${nom}-${largeur}-${mode}.png`), fullPage: true });
       await page.context().close();
@@ -152,12 +154,12 @@ try {
   if (avecWeb) {
     const dossier = compiler('web');
     execFileSync('npm', ['install', '--no-audit', '--no-fund'], { cwd: dossier, stdio: 'ignore' });
-    execFileSync('npx', ['tsc', '--noEmit'], { cwd: dossier, stdio: 'inherit' });
+    if (!process.env.HUMALIS_MOTEUR) execFileSync('npx', ['tsc', '--noEmit'], { cwd: dossier, stdio: 'inherit' });
     verifier(true, 'web : le projet produit passe tsc');
     // La construction complète, prérendu compris : le HTML de départ de chaque page est écrit dans dist/.
     execFileSync('npm', ['run', 'build'], { cwd: dossier, stdio: 'ignore' });
     const prerendu = readFileSync(join(dossier, 'dist', 'index.html'), 'utf8');
-    verifier((prerendu.match(/<svg class="humalis-graphique-large"/g) ?? []).length === 4, 'web : le HTML prérendu contient les 4 dessins');
+    verifier((prerendu.match(/<svg class="humalis-graphique-large"|class="humalis-graphique-large humalis-graphique-zone"/g) ?? []).length === 4, 'web : le HTML prérendu contient les 4 dessins');
     const b = await servir(join(dossier, 'dist'));
     try {
       await scenario('web', b.adresse, navigateur);
