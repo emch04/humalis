@@ -14,8 +14,17 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
             colonne avec style "frise" et animation montee au defilement et en cascade :
                 bloc avec style "version version-recente" :
                     ligne avec style "version-tete" :
-                        texte "1.7.4" sans traduction avec style "version-numero"
+                        texte "1.8.0" sans traduction avec style "version-numero"
                         texte "Dernière version" en anglais "Latest" avec style "pastille pastille-vive"
+                        texte "8 novembre 2026" en anglais "November 8, 2026" avec style "version-date"
+                    soustitre "De la 3D dans une page Humalis" en anglais "3D in a Humalis page"
+                    liste :
+                        texte "Un composant React peut être écrit en `.jsx` aussi bien qu’en `.tsx`." en anglais "A React component can be written in `.jsx` as well as `.tsx`."
+                        texte "Les paquets qu’un composant importe (`three`, `gsap`, `@react-three/…`, `lenis`) sont ajoutés tout seuls au projet produit." en anglais "The packages a component imports (`three`, `gsap`, `@react-three/…`, `lenis`) are added to the generated project automatically."
+                        texte "Un composant 3D est chargé à part : le texte de la page s’affiche sans l’attendre." en anglais "A 3D component is loaded separately: the page text appears without waiting for it."
+                bloc avec style "version" :
+                    ligne avec style "version-tete" :
+                        texte "1.7.4" sans traduction avec style "version-numero"
                         texte "4 novembre 2026" en anglais "November 4, 2026" avec style "version-date"
                     soustitre "Moins de fausses alertes" en anglais "Fewer false alarms"
                     liste :

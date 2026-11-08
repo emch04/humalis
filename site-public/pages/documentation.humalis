@@ -3350,6 +3350,15 @@ page "documentation_30" dans "documentation" adresse "/documentation/composants-
             page "home" :
                 titre "Home"
                 Carte avec titre "School supplies"
+        texte "The file can be `.tsx`, `.ts`, `.jsx` or `.js`. The packages it imports (`three`, `gsap`…) are added to the generated project automatically: you only need to run `npm install`."
+        texte "Humalis does not draw 3D itself: write the scene in a React component."
+        code humalis :
+            utiliser composant "Scene3D" depuis "./composants/Scene3D"
+
+            page "home" :
+                titre "My portfolio"
+                Scene3D avec couleur "#c1e928"
+        texte "A component that imports `three` or `@react-three/…` is loaded separately: the page text appears without waiting for the 3D. These packages have versions tried together: `three`, `@react-three/fiber`, `@react-three/drei`, `@react-three/postprocessing`, `postprocessing`, `gsap` and `lenis`. Any other package is installed at its latest version."
         texte "The other way round, `humalis compile … --composants <folder>` generates React components to import into an existing React project."
         soustitre "Several files"
         texte "A large project is split into several files. At the top of the main file:"
@@ -3382,6 +3391,15 @@ page "documentation_30" dans "documentation" adresse "/documentation/composants-
             page "accueil" :
                 titre "Accueil"
                 Carte avec titre "Fournitures scolaires"
+        texte "Le fichier peut être en `.tsx`, `.ts`, `.jsx` ou `.js`. Les paquets qu'il importe (`three`, `gsap`…) sont ajoutés tout seuls au projet produit : il suffit de lancer `npm install`."
+        texte "Humalis ne dessine pas de 3D lui-même : écris la scène dans un composant React."
+        code humalis :
+            utiliser composant "Scene3D" depuis "./composants/Scene3D"
+
+            page "accueil" :
+                titre "Mon portfolio"
+                Scene3D avec couleur "#c1e928"
+        texte "Un composant qui importe `three` ou `@react-three/…` est chargé à part : le texte de la page s'affiche sans attendre la 3D. Ces paquets ont des versions essayées ensemble : `three`, `@react-three/fiber`, `@react-three/drei`, `@react-three/postprocessing`, `postprocessing`, `gsap` et `lenis`. Un autre paquet est installé dans sa dernière version."
         texte "Dans l'autre sens, `humalis compile … --composants <dossier>` produit des composants React à importer dans un projet React existant."
         soustitre "Plusieurs fichiers"
         texte "Un grand projet se range en plusieurs fichiers. En haut du fichier principal :"
