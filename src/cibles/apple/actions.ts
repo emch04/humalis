@@ -284,13 +284,19 @@ export class EcrivainActions {
       case 'prisePhoto': {
         const cible = this.variable(a.variable);
         if (!cible) return this.hote.refuser(this.hote.ligne, `« photo dans ${a.variable} » : cette variable est inconnue ici`);
-        e.bloc('if let photo = await prendrePhoto() {', () => e.ligne(`${cible.code} = photo`));
+        e.bloc('if let humalisPhoto = await prendrePhoto() {', () => e.ligne(`${cible.code} = humalisPhoto`));
+        return;
+      }
+      case 'localisation': {
+        const cible = this.variable(a.variable);
+        if (!cible) return this.hote.refuser(this.hote.ligne, `« position dans ${a.variable} » : cette variable est inconnue ici`);
+        e.bloc('if let humalisLieu = await lirePosition() {', () => e.ligne(`${cible.code} = ${this.v.types.swift(cible.type)}(latitude: humalisLieu.latitude, longitude: humalisLieu.longitude, precision: humalisLieu.precision)`));
         return;
       }
       case 'scanCode': {
         const cible = this.variable(a.variable);
         if (!cible) return this.hote.refuser(this.hote.ligne, `« scanner code dans ${a.variable} » : cette variable est inconnue ici`);
-        e.bloc('if let code = await scannerCode() {', () => e.ligne(`${cible.code} = code`));
+        e.bloc('if let humalisCode = await scannerCode() {', () => e.ligne(`${cible.code} = humalisCode`));
         return;
       }
       case 'verificationIdentite':
@@ -505,6 +511,10 @@ export class EcrivainActions {
     const fin = options.length ? `, ${options.join(', ')}` : '';
     const adresse = chaineSwift(a.adresse);
 
+    if (!resultat && a.enAttente) {
+      this.envoiGarde(e, `${adresse}${fin}`, c);
+      return;
+    }
     if (!resultat) {
       if (c.essai) e.ligne(`try await Serveur.commun.appelSansReponse(${adresse}${fin})`);
       else if (c.formulaire && a.mode === 'envoyer') e.ligne(`guard await Serveur.commun.appelReussi(${adresse}${fin}) else { return }`);
@@ -551,7 +561,8 @@ export class EcrivainActions {
         const paires = a.changements.map((ch) => `${chaineSwift(a.source === undefined ? cleJson(ch.champ) : ch.champ)}: ValeurHumalis(${this.x(ch.valeur).code})`);
         appel = `methode: ${a.remplacement ? '"PUT"' : '"PATCH"'}, envoi: [${paires.length ? paires.join(', ') : ':'}], id: ${id}${source}`;
       }
-      if (c.essai) e.ligne(`try await Serveur.commun.appelSansReponse(${adresse}, ${appel})`);
+      if (a.enAttente) this.envoiGarde(e, `${adresse}, ${appel}`, c);
+      else if (c.essai) e.ligne(`try await Serveur.commun.appelSansReponse(${adresse}, ${appel})`);
       else if (c.formulaire) e.ligne(`guard await Serveur.commun.appelReussi(${adresse}, ${appel}) else { return }`);
       else e.ligne(`_ = await Serveur.commun.appelReussi(${adresse}, ${appel})`);
     };
@@ -562,6 +573,13 @@ export class EcrivainActions {
         ecrire();
       });
     } else ecrire();
+  }
+
+  /** « … hors ligne » : sans réseau l'envoi attend et le geste continue ; un refus du serveur reste un refus. */
+  private envoiGarde(e: Ecrivain, arguments_: string, c: Cadre): void {
+    if (c.essai) e.ligne(`try await Serveur.commun.appelOuGarder(${arguments_})`);
+    else if (c.formulaire) e.ligne(`guard await Serveur.commun.appelReussiOuGarder(${arguments_}) else { return }`);
+    else e.ligne(`_ = await Serveur.commun.appelReussiOuGarder(${arguments_})`);
   }
 
   private optimiste(e: Ecrivain, a: Extract<Action, { type: 'optimiste' }>, c: Cadre, vars: Set<string>): void {

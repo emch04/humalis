@@ -18,7 +18,7 @@ import { fichiersElements } from './elements.js';
 import { nomIcone } from './icones.js';
 import { chaineSwift, nomApplication, nomComposant, nomPage, nomRoute, nomSwift } from './noms.js';
 import { GenerateurPage, type ContexteApple } from './page.js';
-import { LANGUES_SWIFT, MEMOIRE_SWIFT, MESSAGES_SWIFT, MINUTERIES_SWIFT, NOTIFICATIONS_SWIFT, SERVEUR_SWIFT, SYSTEME_SWIFT } from './systeme.js';
+import { ENVOIS_SWIFT, LANGUES_SWIFT, MEMOIRE_SWIFT, MESSAGES_SWIFT, MINUTERIES_SWIFT, NOTIFICATIONS_SWIFT, SERVEUR_SWIFT, SYSTEME_SWIFT } from './systeme.js';
 import { Types, Valeurs, plusPrecis, type Portee } from './valeurs.js';
 import { CONFIDENTIALITE, assets, infoSupplementaire, type PaquetSwift, droits, projetXcode, schemaXcode } from './xcode.js';
 
@@ -194,6 +194,82 @@ function fonctionsSwift(application: Application, app: ContexteApple, portee: Po
   return e.texte();
 }
 
+/** « en arriere plan : » : du code sans page ouverte, qui ne voit donc que les variables partagées. */
+function arrierePlanSwift(application: Application, app: ContexteApple, portee: Portee, identifiant: string, envois: boolean): string {
+  portee.variables.clear();
+  for (const p of application.partages) portee.variables.set(p.nom, { code: `Partage.commun.${nomSwift(p.nom)}`, type: p.type, opt: p.facultatif ?? false });
+  const corps = new Ecrivain();
+  let ligne = 1;
+  const precision = ' : « en arriere plan » ne voit que les variables partagées';
+  const hote: HotePage = {
+    valeurs: new Valeurs(app.types, portee, (quoi) => app.refuser(ligne, `${quoi}${precision}.`)),
+    refuser: (l, quoi) => app.refuser(l, `${quoi}${precision}.`),
+    ligne,
+    pages: app.pages,
+    etatsRequetes: new Set(),
+    estEtat: () => false,
+    nomEtatRequete: (n) => n,
+    estHorsLigne: (nom) => application.partages.some((p) => p.nom === nom && p.horsLigne),
+  };
+  const ecrivain = new EcrivainActions(hote, new Map());
+  for (const ecran of application.ecrans) {
+    for (const g of ecran.gestionnaires.filter((x) => x.declencheur === 'arrierePlan')) {
+      ligne = g.ligne;
+      hote.ligne = g.ligne;
+      corps.indenter(() => ecrivain.ecrire(corps, g.actions));
+    }
+  }
+  const texte = corps.texte();
+  if (/\b(planificateur\.|directs\.|relances\[)/.test(texte)) app.refuser(ligne, '« en arriere plan » : une minuterie ou une lecture « en direct » demande une page ouverte.');
+  return `// Produit par Humalis : ce que l'application fait quand le système la réveille.
+import SwiftUI
+#if os(iOS)
+import BackgroundTasks
+#endif
+
+enum ArrierePlanHumalis {
+    static let identifiant = ${chaineSwift(identifiant)}
+
+    /** Le système choisit le moment : pas avant 15 minutes, souvent plus tard. */
+    static func planifier() {
+        #if os(iOS)
+        let demande = BGAppRefreshTaskRequest(identifier: identifiant)
+        demande.earliestBeginDate = Date(timeIntervalSinceNow: 15 * 60)
+        try? BGTaskScheduler.shared.submit(demande)
+        #endif
+    }
+
+    /** Pour les essais : le simulateur ne réveille jamais une application. */
+    @MainActor static func lancerSiEssai() {
+        #if os(macOS)
+        demarrerSurMac()
+        #endif
+        if ProcessInfo.processInfo.environment["HUMALIS_ESSAI_ARRIERE_PLAN"] != nil { Task { await tacheArrierePlanHumalis() } }
+    }
+
+    #if os(macOS)
+    @MainActor private static let activite = NSBackgroundActivityScheduler(identifier: identifiant)
+
+    /** Sur Mac, l'application doit être ouverte ; la tâche revient toutes les 15 minutes environ. */
+    @MainActor static func demarrerSurMac() {
+        activite.repeats = true
+        activite.interval = 15 * 60
+        activite.schedule { termine in
+            nonisolated(unsafe) let fin = termine
+            Task { @MainActor in
+                await tacheArrierePlanHumalis()
+                fin(.finished)
+            }
+        }
+    }
+    #endif
+}
+
+@MainActor func tacheArrierePlanHumalis() async {
+${/\bjetons\./.test(texte) ? '  let jetons = JetonsRequetes()\n' : ''}${texte}${envois ? '  await EnvoisGardes.commun.envoyer()\n' : ''}}
+`;
+}
+
 function sourcesSwift(sources: SourceRI[]): string {
   const e = new Ecrivain();
   e.ligne("// Produit par Humalis : les API que les pages appellent. Un jeton public part avec l'application ; un secret n'est jamais écrit ici.");
@@ -331,12 +407,31 @@ function routesSwift(application: Application, app: ContexteApple, entree: Ecran
       });
     });
     e.ligne();
+    if (application.liensProfonds) lienProfondSwift(e, application, app, entree, chemins);
     e.bloc('/** L\'adresse publique d\'une page, pour la partager. */\n  nonisolated static func adressePublique(_ page: String) -> String {', () => {
       e.ligne('Configuration.adresseDuSite + "/" + page');
     });
   });
   e.ligne('}');
   return e.texte();
+}
+
+/** « magasin://produit/42 » : la page « produit » avec son paramètre ; une page protégée reste gardée par sa page. */
+function lienProfondSwift(e: Ecrivain, application: Application, app: ContexteApple, entree: Ecran, chemins: Map<string, string>): void {
+  e.bloc('func ouvrirLien(_ url: URL) {', () => {
+    e.ligne(`guard url.scheme?.lowercased() == ${chaineSwift(application.liensProfonds!.schema)} else { return }`);
+    e.ligne('let morceaux = [url.host(percentEncoded: false)].compactMap { $0 } + url.pathComponents.filter { $0 != "/" }');
+    e.ligne('if morceaux.isEmpty { chemin = []; return }');
+    for (const ecran of application.ecrans.filter((x) => x !== entree)) {
+      const info = app.pages.get(ecran.nom)!;
+      const base = (chemins.get(ecran.nom) ?? `/${ecran.nom}`).split('/').filter(Boolean);
+      const valeurs = info.parametres.map((p, i) => `${nomSwift(p)}: morceaux[${base.length + i}]`);
+      const route = `.${nomRoute(ecran.nom)}${valeurs.length ? `(${valeurs.join(', ')})` : info.filtres.length ? '()' : ''}`;
+      e.ligne(`if morceaux.count == ${base.length + info.parametres.length} && Array(morceaux.prefix(${base.length})) == [${base.map(chaineSwift).join(', ')}] { allerAuMenu(${route}); return }`);
+    }
+    e.ligne('Messages.commun.afficher("Cette page n\'existe pas.", .erreur)');
+  });
+  e.ligne();
 }
 
 function routeSimple(page: string, app: ContexteApple): string {
@@ -364,7 +459,7 @@ function menuSwift(entrees: EntreeMenu[]): string {
   return e.texte();
 }
 
-function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, disposition: Disposition, polices: string[], policeTexte?: string, notifications = false): string {
+function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, disposition: Disposition, polices: string[], policeTexte?: string, notifications = false, fonds: { liens?: boolean; envois?: boolean; arrierePlan?: boolean } = {}): string {
   const racine = `${nomPage(entree.nom)}()`;
   const sans = (liste: string[]) => (liste.length ? `![${liste.map((r) => `Route.${r}`).join(', ')}].contains(Routeur.commun.chemin.last ?? .accueilHumalis)` : 'true');
   const entete = disposition.entete;
@@ -465,6 +560,28 @@ function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, dispos
     }
 `
     : '';
+  const phase = fonds.envois || fonds.arrierePlan;
+  const auLancement = [...(fonds.envois ? ['EnvoisGardes.commun.demarrer()'] : []), ...(fonds.arrierePlan ? ['ArrierePlanHumalis.lancerSiEssai()'] : [])];
+  const racineScene = `RacineHumalis()${fonds.liens ? `
+                .onOpenURL { Routeur.commun.ouvrirLien($0) }
+                .handlesExternalEvents(preferring: ["*"], allowing: ["*"])` : ''}${auLancement.length ? `
+                .task { ${auLancement.join('; ')} }` : ''}`;
+  const aLaPhase = phase
+    ? `
+        .onChange(of: phase) { _, nouvelle in${fonds.envois ? `
+            if nouvelle == .active { Task { await EnvoisGardes.commun.envoyer() } }` : ''}${fonds.arrierePlan ? `
+            if nouvelle == .background { ArrierePlanHumalis.planifier() }` : ''}
+        }`
+    : '';
+  const tacheFond = fonds.arrierePlan
+    ? `
+        #if os(iOS)
+        .backgroundTask(.appRefresh(ArrierePlanHumalis.identifiant)) {
+            await tacheArrierePlanHumalis()
+            ArrierePlanHumalis.planifier()
+        }
+        #endif`
+    : '';
   return `// Produit par Humalis : l'application.
 import SwiftUI${polices.length ? '\nimport CoreText' : ''}
 
@@ -475,11 +592,12 @@ struct ${nom}App: App {${notifications ? `
     #else
     @UIApplicationDelegateAdaptor(DelegueNotifications.self) private var delegue
     #endif
-` : ''}${inscrire}
+` : ''}${phase ? `    @Environment(\\.scenePhase) private var phase\n` : ''}${inscrire}
     var body: some Scene {
         WindowGroup {
-            RacineHumalis()
-        }
+            ${racineScene}
+        }${fonds.liens ? `
+        .handlesExternalEvents(matching: ["*"])` : ''}${aLaPhase}${tacheFond}
         #if os(macOS)
         .windowResizability(.contentMinSize)
         .defaultSize(width: 1000, height: 720)
@@ -646,6 +764,15 @@ export function genererProjetApple(application: Application, options: OptionsApp
   }
   for (const ecran of application.ecrans) ecrire(`Pages/${nomPage(ecran.nom)}.swift`, new GenerateurPage(ecran, app).generer());
   if (application.fonctions.length > 0) ecrire('Humalis/Fonctions.swift', fonctionsSwift(application, app, portee));
+  const identifiantApp = options.identifiant ?? `local.humalis.${simplifier(options.nom).replace(/_/g, '-') || 'application'}`;
+  for (const c of application.composants) {
+    if (c.gestionnaires.some((g) => g.declencheur === 'arrierePlan')) refuser(c.ligne, '« en arriere plan : » s\'écrit dans une page, pas dans un composant.');
+  }
+  const avecEnvois = /\b(appelOuGarder|appelReussiOuGarder)\(/.test([...fichiers.values()].join('\n'));
+  const avecArrierePlan = application.ecrans.some((x) => x.gestionnaires.some((g) => g.declencheur === 'arrierePlan'));
+  const identifiantFond = `${identifiantApp}.arriere-plan`;
+  if (avecArrierePlan) ecrire('Humalis/ArrierePlan.swift', arrierePlanSwift(application, app, portee, identifiantFond, avecEnvois));
+  if (avecEnvois) ecrire('Humalis/Envois.swift', ENVOIS_SWIFT);
 
   if (!simple(entree)) refuser(entree.ligne, `la page d'entrée « ${entree.nom} » attend un paramètre`);
   const cheminsPages = new Map(application.ecrans.map((e) => [e.nom, e === entree ? '/' : `/${simplifier(e.nom)}`]));
@@ -653,7 +780,7 @@ export function genererProjetApple(application: Application, options: OptionsApp
   const notifications = JSON.stringify([application.ecrans, application.composants]).includes('"type":"activationNotifications"');
   if (notifications && !options.equipe) avertir(1, "« activer notifications » : sans --equipe, l'application demande la permission mais ne peut pas recevoir de notification d'Apple. Compilez avec --equipe pour qu'elle les reçoive.");
   const policesCopiees = (application.theme?.polices ?? []).flatMap((p) => (p.fichier && /\.(ttf|otf)$/i.test(p.fichier) && options.polices?.has(p.fichier) ? [p.fichier] : []));
-  ecrire(`${nom}App.swift`, applicationSwift(nom, application.site?.nom ?? options.nom, entree, disposition, policesCopiees.map(nomFichierPlat), application.theme?.polices.find((p) => p.role === 'texte')?.nom, notifications));
+  ecrire(`${nom}App.swift`, applicationSwift(nom, application.site?.nom ?? options.nom, entree, disposition, policesCopiees.map(nomFichierPlat), application.theme?.polices.find((p) => p.role === 'texte')?.nom, notifications, { liens: application.liensProfonds !== undefined, envois: avecEnvois, arrierePlan: avecArrierePlan }));
   if (disposition.menu?.length) ecrire('Humalis/Menu.swift', menuSwift(disposition.menu));
   for (const p of policesCopiees) ecrire(`Ressources/${nomFichierPlat(p)}`, contenuBinaire(options.polices!.get(p)!));
   ecrire('Humalis/Configuration.swift', configurationSwift(application, options));
@@ -695,8 +822,9 @@ export function genererProjetApple(application: Application, options: OptionsApp
   for (const [chemin, contenu] of assets(octetsLogo !== undefined, marqueDe(application.theme))) ecrire(chemin, contenu);
   if (octetsLogo !== undefined) ecrire('Assets.xcassets/AppIcon.appiconset/icone.png', contenuBinaire(octetsLogo));
   const avecFichiers = /\b(ChoixFichierHumalis|prendrePhoto)\b/.test(tout);
-  ecrire(`${nom}.entitlements`, droits(avecFichiers, notifications && options.equipe ? 'ios' : undefined));
-  if (notifications && options.equipe) ecrire(`${nom}-mac.entitlements`, droits(avecFichiers, 'mac'));
+  const avecPosition = /\blirePosition\(/.test(tout);
+  ecrire(`${nom}.entitlements`, droits(avecFichiers, notifications && options.equipe ? 'ios' : undefined, avecPosition));
+  if (notifications && options.equipe) ecrire(`${nom}-mac.entitlements`, droits(avecFichiers, 'mac', avecPosition));
   if (notifications) ecrire('Humalis/Notifications.swift', NOTIFICATIONS_SWIFT);
   ecrire('PrivacyInfo.xcprivacy', CONFIDENTIALITE);
 
@@ -707,13 +835,13 @@ export function genererProjetApple(application: Application, options: OptionsApp
   for (const adresse of new Set(adresses)) {
     if (/^http:\/\//i.test(adresse) && !/^http:\/\/(localhost|127\.0\.0\.1)([:/]|$)/i.test(adresse)) avertir(1, `l'application Apple ne peut pas appeler « ${adresse} » : le système bloque http://. Utilisez https://.`);
   }
-  fichiers.set('Info.plist', infoSupplementaire(serveurLocal, { camera: /\b(prendrePhoto|scannerCode)\(/.test(tout), identite: /\bverifierIdentite\(/.test(tout) }));
+  fichiers.set('Info.plist', infoSupplementaire(serveurLocal, { camera: /\b(prendrePhoto|scannerCode)\(/.test(tout), identite: /\bverifierIdentite\(/.test(tout), position: avecPosition, ...(application.liensProfonds ? { liens: { schema: application.liensProfonds.schema, identifiant: identifiantApp } } : {}), ...(avecArrierePlan ? { arrierePlan: identifiantFond } : {}) }));
   fichiers.set(
     `${nom}.xcodeproj/project.pbxproj`,
     projetXcode({
       nom,
       nomAffiche,
-      identifiant: options.identifiant ?? `local.humalis.${simplifier(options.nom).replace(/_/g, '-') || 'application'}`,
+      identifiant: identifiantApp,
       ...(options.equipe ? { equipe: options.equipe } : {}),
       icone: octetsLogo !== undefined,
       serveurLocal,

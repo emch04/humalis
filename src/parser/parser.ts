@@ -76,6 +76,7 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
   const partages: DeclarationVariable[] = [];
   const composantsReact: ComposantReact[] = [];
   let paquetsSwift: NonNullable<Programme['paquetsSwift']> | undefined;
+  let liensProfonds: Programme['liensProfonds'];
   const fichiersHumalis: { chemin: string; ligne: number }[] = [];
   const composants: DefinitionComposant[] = [];
   const serveurs: Serveur[] = [];
@@ -205,6 +206,20 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
       continue;
     }
 
+    // « liens profonds "magasin" » : les adresses magasin://… ouvrent les pages.
+    if (estLeMot(flux.actuel(), 'liens') && estLeMot(flux.regarder(1), 'profonds')) {
+      const debut = flux.avancer();
+      flux.avancer();
+      const schema = flux.attendre('CHAINE', undefined, 'le début des adresses entre guillemets : liens profonds "magasin"').valeur.toLowerCase();
+      if (!/^[a-z][a-z0-9+.-]*$/.test(schema) || ['http', 'https', 'file', 'mailto', 'tel'].includes(schema)) {
+        throw new ErreurSyntaxique(`« ${schema} » ne peut pas servir de début d’adresse : choisissez un mot propre à l’application, sans espace ni « : », par exemple liens profonds "magasin".`, debut.ligne);
+      }
+      if (liensProfonds) throw new ErreurSyntaxique('« liens profonds » ne s’écrit qu’une fois par application.', debut.ligne);
+      liensProfonds = { schema, ligne: debut.ligne };
+      flux.sauterFinsDeLigne();
+      continue;
+    }
+
     // « paquet swift "https://…" version "1.2" » : une bibliothèque Swift pour les vues écrites à la main.
     if (estLeMot(flux.actuel(), 'paquet') && estLeMot(flux.regarder(1), 'swift')) {
       const debut = flux.avancer();
@@ -297,7 +312,7 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
     for (const lieu of [...pages, ...composants, ...(entete ? [entete] : []), ...(pied ? [pied] : [])]) lieu.corps.unshift(...enTete.map((c) => ({ ...c })));
   }
   for (const lieu of [...pages, ...composants, ...(entete ? [entete] : []), ...(pied ? [pied] : [])]) lieu.corps = selonEnConditions(lieu.corps);
-  const programme: Programme = { type: 'Programme', pages, ...(paquetsSwift ? { paquetsSwift } : {}), ...(enTete.length > 0 ? { calculsPartages: enTete } : {}), styles, fichiersStyle, donneesFichiers, partages, composantsReact, composants, serveurs, sources, fichiersHumalis, fonctions, tests, ...(theme ? { theme } : {}), ...(site ? { site } : {}), ...(langues ? { langues } : {}), ...(traductions.length ? { traductions } : {}), ...(entete ? { entete } : {}), ...(pied ? { pied } : {}) };
+  const programme: Programme = { type: 'Programme', pages, ...(paquetsSwift ? { paquetsSwift } : {}), ...(liensProfonds ? { liensProfonds } : {}), ...(enTete.length > 0 ? { calculsPartages: enTete } : {}), styles, fichiersStyle, donneesFichiers, partages, composantsReact, composants, serveurs, sources, fichiersHumalis, fonctions, tests, ...(theme ? { theme } : {}), ...(site ? { site } : {}), ...(langues ? { langues } : {}), ...(traductions.length ? { traductions } : {}), ...(entete ? { entete } : {}), ...(pied ? { pied } : {}) };
   // Les appels de fonctions d'actions sont remplacés par leur corps (src/parser/fonctionsActions.ts).
   const actions = deplierFonctionsActions(programme);
   if (actions.length) programme.fonctionsActions = actions;
@@ -1258,6 +1273,19 @@ function analyserInstruction(flux: FluxTokens): Instruction {
     flux.avancer();
     return { type: 'PrisePhoto', variable: flux.attendreNom('la variable qui reçoit la photo').nom, ligne: debut.ligne };
   }
+  if (estLeMot(flux.actuel(), 'position') && estLeMot(flux.regarder(1), 'dans')) {
+    const debut = flux.avancer();
+    flux.avancer();
+    return { type: 'Localisation', variable: flux.attendreNom('la variable qui reçoit la position').nom, ligne: debut.ligne };
+  }
+  // « en arriere plan : » : ce que l'application fait quand le système la réveille.
+  if (estLeMot(flux.actuel(), 'en') && estLeMot(flux.regarder(1), 'arriere') && estLeMot(flux.regarder(2), 'plan')) {
+    const debut = flux.avancer();
+    flux.avancer();
+    flux.avancer();
+    flux.attendre('PONCTUATION', ':', 'deux-points à la fin de « en arriere plan »');
+    return { type: 'Evenement', genre: 'arrierePlan', corps: analyserBloc(flux), ligne: debut.ligne };
+  }
   if (estLeMot(flux.actuel(), 'scanner') && estLeMot(flux.regarder(1), 'code') && estLeMot(flux.regarder(2), 'dans')) {
     const debut = flux.avancer();
     flux.avancer();
@@ -1922,8 +1950,17 @@ function analyserRequete(flux: FluxTokens, ligne: number): Requete {
     flux.avancer();
     flux.avancer();
   }
+  const enAttente = lireHorsLigne(flux);
 
-  return { type: 'Requete', adresse, ...clauses, donnees, ...(direct ? { direct } : {}), ...(parId ? { parId } : {}), ...(cles.some((c) => c !== undefined) ? { cles } : {}), resultat, ligne };
+  return { type: 'Requete', adresse, ...clauses, donnees, ...(direct ? { direct } : {}), ...(enAttente ? { enAttente } : {}), ...(parId ? { parId } : {}), ...(cles.some((c) => c !== undefined) ? { cles } : {}), resultat, ligne };
+}
+
+/** « … hors ligne » à la fin d'un envoi : il attendra le retour du réseau. */
+function lireHorsLigne(flux: FluxTokens): boolean {
+  if (!estLeMot(flux.regarder(0), 'hors') || !estLeMot(flux.regarder(1), 'ligne')) return false;
+  flux.avancer();
+  flux.avancer();
+  return true;
 }
 
 function analyserOperationServeur(flux: FluxTokens): Suppression | Modification {
@@ -1935,7 +1972,7 @@ function analyserOperationServeur(flux: FluxTokens): Suppression | Modification 
   if (!suppression) flux.attendre('MOT_CLE', 'dans', `« dans » suivi de la route, après « modifier ${nom} »`);
   const adresse = flux.attendre('CHAINE', undefined, 'la route entre guillemets').valeur;
   const source = analyserSourceSeule(flux);
-  if (suppression) return { type: 'Suppression', objet, adresse, ...(source !== undefined ? { source } : {}), ligne: debut.ligne };
+  if (suppression) return { type: 'Suppression', objet, adresse, ...(source !== undefined ? { source } : {}), ...(lireHorsLigne(flux) ? { enAttente: true } : {}), ligne: debut.ligne };
 
   flux.attendre('MOT_CLE', 'avec', '« avec » suivi des champs à changer (avec prix = 10)');
   const changements: Modification['changements'] = [];
@@ -1949,7 +1986,7 @@ function analyserOperationServeur(flux: FluxTokens): Suppression | Modification 
       changements.push({ champ, valeur: analyserExpression(flux) });
     }
   } while (flux.accepter('MOT_CLE', 'et'));
-  return { type: 'Modification', objet, adresse, ...(source !== undefined ? { source } : {}), changements, ligne: debut.ligne };
+  return { type: 'Modification', objet, adresse, ...(source !== undefined ? { source } : {}), changements, ...(lireHorsLigne(flux) ? { enAttente: true } : {}), ligne: debut.ligne };
 }
 
 /** « se connecter avec champ "email" et champ "mot de passe" » : l'email, puis le mot de passe. */

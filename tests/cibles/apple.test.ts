@@ -310,15 +310,81 @@ describe('cible Apple — rôles, temps réel, IA, paiements, notifications', ()
   });
 });
 
+describe('cible Apple — position, liens profonds, arrière-plan et envois hors ligne', () => {
+  const SERVEUR = `serveur "s" :\n    donnee m :\n        n : texte\n    route "m" :\n        tout le monde peut lire m\n        tout le monde peut creer m\n        tout le monde peut supprimer m\n\n`;
+  const erreurs = (source: string) => compiler(source).diagnostics.filter((d) => d.gravite === 'erreur').map((d) => d.message);
+
+  it('« position dans lieu » demande la permission et remplit une fiche de trois nombres', () => {
+    const f = projet(`page "a" :\n    variable lieu = rien\n    titre "t"\n    bouton "Go"\n    quand l'utilisateur clique sur "Go" :\n        position dans lieu\n`);
+    expect(f.get('Essai/Pages/PageA.swift')).toContain('if let humalisLieu = await lirePosition() {');
+    expect(f.get('Info.plist')).toContain('NSLocationWhenInUseUsageDescription');
+    expect([...f.entries()].find(([c]) => c.endsWith('.entitlements'))?.[1]).toContain('personal-information.location');
+    expect(f.has('Essai/Humalis/Position.swift')).toBe(true);
+  });
+
+  it('« position » ne se place pas dans une tâche en arrière-plan', () => {
+    expect(erreurs(`page "a" :\n    variable lieu = rien\n    titre "t"\n    en arriere plan :\n        position dans lieu\n`).join()).toContain('devant l’écran');
+  });
+
+  it('« liens profonds » déclare l\'adresse et ouvre les pages, paramètres compris', () => {
+    const f = projet(`liens profonds "magasin"\npage "a" :\n    titre "t"\npage "b" avec parametre id :\n    titre "b"\n`);
+    expect(f.get('Info.plist')).toContain('<string>magasin</string>');
+    expect(f.get('Essai/Humalis/Routes.swift')).toContain('allerAuMenu(.b(id: morceaux[1]))');
+    expect(f.get('Essai/EssaiApp.swift')).toContain('.onOpenURL');
+  });
+
+  it('un début d\'adresse réservé est refusé', () => {
+    expect(erreurs(`liens profonds "https"\npage "a" :\n    titre "t"\n`).join()).toContain('début d’adresse');
+  });
+
+  it('« en arriere plan » est déclaré au système et ne touche pas à la page ouverte', () => {
+    const f = projet(`variable v = 0 avec partagee\npage "a" :\n    titre "t"\n    en arriere plan :\n        changer v par 1\n`);
+    expect(f.get('Info.plist')).toContain('BGTaskSchedulerPermittedIdentifiers');
+    expect(f.get('Essai/Humalis/ArrierePlan.swift')).toContain('Partage.commun.v = 1');
+    expect(f.get('Essai/EssaiApp.swift')).toContain('.backgroundTask(.appRefresh');
+    expect(f.get('Essai/Pages/PageA.swift')).not.toContain('Partage.commun.v = 1');
+  });
+
+  it('une tâche en arrière-plan ne voit pas les variables de la page', () => {
+    const { diagnostics } = produire(`page "a" :\n    variable v = 0\n    titre "t"\n    en arriere plan :\n        changer v par 1\n`);
+    expect(diagnostics.some((d) => d.gravite === 'erreur' && d.message.includes('variables partagées'))).toBe(true);
+  });
+
+  it('« hors ligne » sur un envoi garde ce qui ne part pas, et seulement si on le demande', () => {
+    const f = projet(`${SERVEUR}page "a" :\n    titre "t"\n    bouton "Go"\n    quand l'utilisateur clique sur "Go" :\n        envoyer requete vers "m" avec n = "x" hors ligne\n`);
+    expect(f.get('Essai/Pages/PageA.swift')).toContain('appelReussiOuGarder("/api/m"');
+    expect(f.has('Essai/Humalis/Envois.swift')).toBe(true);
+    expect(projet(COMPTEUR).has('Essai/Humalis/Envois.swift')).toBe(false);
+  });
+
+  it('une suppression peut aussi attendre le réseau', () => {
+    const f = projet(`${SERVEUR}page "a" :\n    variable d = []\n    titre "t"\n    pour chaque x dans d :\n        bouton "Go"\n        quand l'utilisateur clique sur "Go" :\n            supprimer x de "m" hors ligne\n`);
+    expect(f.get('Essai/Pages/PageA.swift')).toMatch(/appelReussiOuGarder\("\/api\/m", methode: "DELETE"/);
+  });
+
+  it('« hors ligne » refuse une réponse attendue ou une simple lecture', () => {
+    const debut = `${SERVEUR}page "a" :\n    variable d = []\n    titre "t"\n    bouton "Go"\n    quand l'utilisateur clique sur "Go" :\n`;
+    expect(erreurs(`${debut}        envoyer requete vers "m" avec n = "x" dans d hors ligne\n`).join()).toContain('hors ligne');
+    expect(erreurs(`${debut}        envoyer requete vers "m" hors ligne\n`).join()).toContain('hors ligne');
+  });
+
+  it('les autres cibles le disent clairement', async () => {
+    const { verifierAppareilPourLaCible } = await import('../../src/cibles/appareil.js');
+    const refus = verifierAppareilPourLaCible(compile(`liens profonds "m"\n${SERVEUR}page "a" :\n    variable lieu = rien\n    titre "t"\n    en arriere plan :\n        afficher "x"\n    bouton "Go"\n    quand l'utilisateur clique sur "Go" :\n        position dans lieu\n        envoyer requete vers "m" avec n = "x" hors ligne\n`), 'web');
+    expect(refus.length).toBe(4);
+    expect(refus.every((r) => r.message.includes('cible Apple'))).toBe(true);
+  });
+});
+
 describe('cible Apple — les fonctions de l\'appareil', () => {
   const PAGE = `page "a" :\n    titre "t"\n    variable cliche = rien\n    variable code = ""\n    variable trace = ""\n    signature dans trace\n    bouton "Go"\n    quand l'utilisateur clique sur "Go" :\n        photo dans cliche\n        scanner code dans code\n        vibrer\n        verifier identite :\n            afficher "Oui"\n        sinon :\n            afficher "Non"\n`;
 
   it('chaque fonction appelle l\'appareil, et la permission est déclarée', () => {
     const f = projet(PAGE);
     const page = f.get('Essai/Pages/PageA.swift')!;
-    expect(page).toContain('if let photo = await prendrePhoto() {');
+    expect(page).toContain('if let humalisPhoto = await prendrePhoto() {');
     expect(page).toContain('@State private var cliche: FichierChoisi? = nil');
-    expect(page).toContain('if let code = await scannerCode() {');
+    expect(page).toContain('if let humalisCode = await scannerCode() {');
     expect(page).toContain('if await verifierIdentite() {');
     expect(page).toContain('vibrer()');
     expect(page).toContain('SignatureHumalis(trace: $trace)');

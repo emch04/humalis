@@ -383,7 +383,7 @@ export function schemaXcode(nom: string, essais = false): string {
  * Les droits de l'application : le Mac l'enferme dans son bac à sable, et lui
  * ouvre seulement le réseau sortant (et les fichiers choisis, s'il en faut).
  */
-export function droits(fichiers: boolean, notifications?: 'ios' | 'mac'): string {
+export function droits(fichiers: boolean, notifications?: 'ios' | 'mac', position = false): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -393,6 +393,8 @@ export function droits(fichiers: boolean, notifications?: 'ios' | 'mac'): string
 	<key>com.apple.security.network.client</key>
 	<true/>${fichiers ? `
 	<key>com.apple.security.files.user-selected.read-only</key>
+	<true/>` : ''}${position ? `
+	<key>com.apple.security.personal-information.location</key>
 	<true/>` : ''}${notifications ? `
 	<key>${notifications === 'mac' ? 'com.apple.developer.aps-environment' : 'aps-environment'}</key>
 	<string>development</string>` : ''}
@@ -406,7 +408,7 @@ export function droits(fichiers: boolean, notifications?: 'ios' | 'mac'): string
  * (HTTPS, Keychain) : TestFlight ne repose donc pas la question du chiffrement à chaque envoi.
  * `http://` reste permis sur le réseau local, seulement pour essayer contre un serveur de cet ordinateur.
  */
-export function infoSupplementaire(serveurLocal: boolean, usages: { camera?: boolean; identite?: boolean } = {}): string {
+export function infoSupplementaire(serveurLocal: boolean, usages: { camera?: boolean; identite?: boolean; position?: boolean; liens?: { schema: string; identifiant: string }; arrierePlan?: string } = {}): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -416,7 +418,30 @@ export function infoSupplementaire(serveurLocal: boolean, usages: { camera?: boo
 	<key>NSCameraUsageDescription</key>
 	<string>L'application utilise l'appareil photo pour prendre une photo ou scanner un code.</string>` : ''}${usages.identite ? `
 	<key>NSFaceIDUsageDescription</key>
-	<string>L'application vérifie qu'il s'agit bien de vous.</string>` : ''}${serveurLocal ? `
+	<string>L'application vérifie qu'il s'agit bien de vous.</string>` : ''}${usages.position ? `
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>L'application utilise votre position quand vous le demandez.</string>
+	<key>NSLocationUsageDescription</key>
+	<string>L'application utilise votre position quand vous le demandez.</string>` : ''}${usages.liens ? `
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>${usages.liens.identifiant}</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>${usages.liens.schema}</string>
+			</array>
+		</dict>
+	</array>` : ''}${usages.arrierePlan ? `
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>${usages.arrierePlan}</string>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+	</array>` : ''}${serveurLocal ? `
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>

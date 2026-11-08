@@ -24,6 +24,8 @@ export interface Application {
   composantsReact: { nom: string; chemin: string; ligne: number; module?: true; /** « sur apple "Carte.swift" » : la vue écrite à la main. */ apple?: string }[];
   /** « paquet swift "https://…" version "1.2" ». */
   paquetsSwift?: { adresse: string; version: string; produit?: string; ligne: number }[];
+  /** « liens profonds "magasin" ». */
+  liensProfonds?: { schema: string; ligne: number };
   /** Les composants écrits en Humalis : des écrans qui reçoivent des paramètres. */
   composants: ComposantHumalis[];
   /** Les serveurs : données, routes et droits. */
@@ -601,7 +603,9 @@ export interface Gestionnaire {
     /** « arrive en bas de "x" » : le bas du bloc devient visible (et le bouton « Voir plus »). */
     | 'bas'
     /** « l'ordre de taches change » : après chaque déplacement d'un élément de la liste. */
-    | 'ordre';
+    | 'ordre'
+    /** « en arriere plan : » : quand le système réveille l'application. */
+    | 'arrierePlan';
   /** Les éléments visés (vide pour « chargement »). */
   cibles: string[];
   actions: Action[];
@@ -662,6 +666,8 @@ export type Action =
   | {
       type: 'requete';
       adresse: string;
+      /** « … hors ligne » : sans réseau, l'envoi attend le retour de la connexion. */
+      enAttente?: boolean;
       /** Avec des données, la requête envoie ; sans données, elle lit. */
       /** « lireUn » : un seul élément, par l'identifiant donné dans `donnees`. */
       mode: 'lire' | 'envoyer' | 'lireUn';
@@ -680,9 +686,9 @@ export type Action =
       dans?: string;
     }
   /** « supprimer p de "produits" » : sur le serveur, par l'identifiant de la donnée. */
-  | { type: 'suppression'; adresse: string; objet: Valeur; source?: string }
+  | { type: 'suppression'; adresse: string; objet: Valeur; source?: string; enAttente?: boolean }
   /** « modifier p dans "produits" avec prix = … » : seuls les champs nommés changent. */
-  | { type: 'modification'; adresse: string; objet: Valeur; changements: { champ: string; valeur: Valeur }[]; source?: string; remplacement?: boolean }
+  | { type: 'modification'; adresse: string; objet: Valeur; changements: { champ: string; valeur: Valeur }[]; source?: string; remplacement?: boolean; enAttente?: boolean }
   /** « envoyer fichier photo vers "…" de la source "…" » : le fichier choisi, avec sa progression (plan des médias, 4.3). */
   | {
       type: 'envoiFichier';
@@ -730,6 +736,8 @@ export type Action =
   | { type: 'activationNotifications' }
   /** « photo dans image ». */
   | { type: 'prisePhoto'; variable: string }
+  /** « position dans lieu ». */
+  | { type: 'localisation'; variable: string }
   /** « scanner code dans valeur ». */
   | { type: 'scanCode'; variable: string }
   /** « verifier identite : … sinon : … ». */

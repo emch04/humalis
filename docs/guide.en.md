@@ -1824,6 +1824,23 @@ page "accueil" :
 device passcode. A variable `avec hors ligne` keeps the server's last response and shows
 it when there is no network: `variable produits = [] avec hors ligne`.
 
+`position dans lieu` asks for permission, then fills `lieu` (declared `= rien`) with
+`lieu.latitude`, `lieu.longitude` and `lieu.precision`, in metres.
+
+`liens profonds "magasin"`, at the top of the file, lets addresses such as
+`magasin://produit/42` open the app: the first word is the page, the next ones its
+parameters. A restricted page stays restricted.
+
+`en arriere plan :`, directly in a page, says what the app does when the system wakes it.
+The system picks the moment: never before 15 minutes, often much later. This block only
+sees `avec partagee` variables, since no page is open. On Mac, the app must be open.
+
+`hors ligne`, at the end of an `envoyer requete … avec …`, a `modifier` or a `supprimer`,
+keeps the request on the device when there is no network and sends it, in order, when the
+connection returns. A server refusal is shown. Logging out clears what was waiting. It
+does not work with `dans` (the answer would come later) or with an external API. To refresh
+the page afterwards, read the route `en direct`.
+
 To use a Swift library in a hand-written view, write at the top of the file
 `paquet swift "https://github.com/example/package" version "1.2"`. If the product is not
 named after the repository, add `produit "Name"`.
