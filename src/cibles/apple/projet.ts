@@ -177,6 +177,7 @@ function fonctionsSwift(application: Application, app: ContexteApple, portee: Po
       estEtat: () => false,
       nomEtatRequete: (n) => n,
       estHorsLigne: () => false,
+      retourSouple: info.retour.genre === 'inconnu',
     };
     ligne = f.ligne;
     const corps = new Ecrivain();

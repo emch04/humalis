@@ -295,7 +295,7 @@ export class Valeurs {
       case 'compte': {
         const liste = this.expr(valeur.liste);
         if (liste.type.genre === 'inconnu') return { code: `${liste.opt ? `(${liste.code} ?? .rien)` : liste.code}.longueur`, type: NOMBRE, opt: false };
-        return { code: liste.opt ? `Double(${liste.code}?.count ?? 0)` : `Double(${liste.code}.count)`, type: NOMBRE, opt: false };
+        return { code: liste.opt ? `Double((${liste.code})?.count ?? 0)` : `Double(${liste.code}.count)`, type: NOMBRE, opt: false };
       }
       case 'fiche':
         return this.fiche(valeur, attendu);
@@ -547,7 +547,7 @@ export class Valeurs {
       }
       case 'vide':
         if (gauche.type.genre === 'inconnu') return `${gauche.opt ? `(${gauche.code} ?? .rien)` : gauche.code}.estVide`;
-        if (gauche.type.genre === 'texte' || gauche.type.genre === 'liste') return gauche.opt ? `(${gauche.code}?.isEmpty ?? true)` : `${gauche.code}.isEmpty`;
+        if (gauche.type.genre === 'texte' || gauche.type.genre === 'liste') return gauche.opt ? `((${gauche.code})?.isEmpty ?? true)` : `${gauche.code}.isEmpty`;
         return gauche.opt ? `(${gauche.code} == nil)` : 'false';
       case 'vrai':
         return gauche.type.genre === 'booleen' && !gauche.opt ? gauche.code : `(${this.vers(gauche, BOOLEEN)} == true)`;
@@ -577,6 +577,10 @@ export class Valeurs {
 
   private comparaison(operateur: string, gauche: Expr, droite: Expr): string {
     const symbole: Record<string, string> = { egal: '==', different: '!=', inferieur: '<', superieur: '>', inferieurOuEgal: '<=', superieurOuEgal: '>=' };
+    // Deux valeurs dont le type n'est connu qu'à l'exécution : un « plus grand que » les compare comme des nombres.
+    if (!['egal', 'different'].includes(operateur) && gauche.type.genre === 'inconnu' && droite.type.genre === 'inconnu') {
+      return `(${gauche.opt ? `(${gauche.code} ?? .rien)` : gauche.code}).enNombre ${symbole[operateur]} (${droite.opt ? `(${droite.code} ?? .rien)` : droite.code}).enNombre`;
+    }
     const op = symbole[operateur];
     // Comparer à « rien », ou deux valeurs qui peuvent manquer : l'absence compte.
     if (droite.code === 'nil') {

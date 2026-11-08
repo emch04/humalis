@@ -15,6 +15,8 @@ const NOMBRE: TypeValeur = { genre: 'nombre' };
 
 /** Ce que les actions demandent à la page qui les écrit. */
 export interface HotePage {
+  /** Une fonction dont le type de retour n'est pas connu : ce qu'elle rend devient une valeur souple. */
+  retourSouple?: boolean;
   valeurs: Valeurs;
   refuser(ligne: number, quoi: string): void;
   ligne: number;
@@ -179,7 +181,7 @@ export class EcrivainActions {
         return this.essayer(e, a, c, vars);
       case 'rendre': {
         if (!c.fonction) return this.hote.refuser(this.hote.ligne, '« rendre » hors d\'une fonction');
-        e.ligne(`return ${this.retour(a.valeur)}`);
+        e.ligne(`return ${this.hote.retourSouple && this.x(a.valeur).type.genre !== 'inconnu' ? `ValeurHumalis(${this.retour(a.valeur)})` : this.retour(a.valeur)}`);
         return;
       }
       case 'message':
