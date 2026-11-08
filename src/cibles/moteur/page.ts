@@ -20,12 +20,13 @@ import { Ecrivain } from '../web/ecrivain.js';
 import { camel, chaine, pascal } from '../web/noms.js';
 import { titreEtDescription } from '../web/ecran.js';
 import { ficheAvec } from '../web/valeurs.js';
+import { lecturesDuChargement } from '../web/lectures.js';
 import { attributsFrappe } from '../commun/mouvement.js';
 import { colorerCodeHumalis } from '../commun/colorerCode.js';
 import { chercherIcone } from '../../vocabulaire/icones.js';
 import { messageEnCode } from '../../i18n/messages.js';
 import { simplifier } from '../../analyse/elements.js';
-import type { Action, ComposantHumalis, Ecran, NoeudVue, Valeur, ImageRI, ArgumentsPage, Etat } from '../../ri/types.js';
+import type { Action, ComposantHumalis, Ecran, Gestionnaire, NoeudVue, Valeur, ImageRI, ArgumentsPage, Etat } from '../../ri/types.js';
 
 type Liste<T> = T[];
 
@@ -139,9 +140,11 @@ function html(liste: M[]): string {
 /** Ce que le moteur ajoute au contexte du site. */
 export interface ContexteMoteur extends ContexteSite {
   /** Les modules JavaScript et les composants d'autres frameworks : nom → chemin d'import depuis src/couches. */
-  externes: Map<string, { chemin: string; sorte: 'module' | 'react' | 'vue' | 'svelte' | 'web' }>;
+  externes: Map<string, { chemin: string; sorte: 'module' | 'react' | 'vue' | 'svelte' | 'web'; balise?: string }>;
   /** Les chemins des pages (« /produit/:id »). */
   chemins: Map<string, string>;
+  /** Les filtres d'adresse de chaque page : un lien n'est actif que si l'adresse a les mêmes. */
+  filtresDesPages: Map<string, string[]>;
 }
 
 const ACTIONS_LUES = new Set<Action['type']>(['affectation', 'ajout', 'retrait', 'visibilite', 'changerTexte', 'navigation', 'locale', 'repetition']);
@@ -156,8 +159,27 @@ export class GenerateurMoteur extends GenerateurPage {
   constructor(ecran: Ecran, private readonly moteur: ContexteMoteur, source: string, parametres?: { nom: string; type: import('../../ri/types.js').TypeValeur }[]) {
     super(ecran, moteur, source, parametres);
     this.contexte.lu = (nom) => this.lu(nom);
+    this.contexte.requetes = true;
     for (const [id, variable] of this.contexte.champs) this.contexte.champs.set(id, `${variable}.v`);
     this.prefixe = parametres ? pascal(ecran.nom) : '';
+  }
+
+  declare private ordres?: Map<string, string>;
+
+  private ordresDe(): Map<string, string> {
+    return (this.ordres ??= new Map());
+  }
+
+  /** « l'ordre de taches change » : appelé après chaque déplacement. */
+  protected override enregistrer(gestionnaire: Gestionnaire, parametres: Parametre[]): void {
+    if (gestionnaire.declencheur !== 'ordre') {
+      super.enregistrer(gestionnaire, parametres);
+      return;
+    }
+    this.parcourirActions(gestionnaire.actions);
+    const fonction = this.nomUnique(`quandOrdreChange${pascal(gestionnaire.variable ?? '')}`, false);
+    this.fonctions.push({ nom: fonction, parametres, actions: gestionnaire.actions });
+    this.ordresDe().set(gestionnaire.variable ?? '', fonction);
   }
 
   private hors(): Set<string> {
@@ -186,7 +208,7 @@ export class GenerateurMoteur extends GenerateurPage {
       const nom = camel(a.nom);
       const valeur = `\${encodeURIComponent(String(${expressionJs(a.valeur, this.contexte)}))}`;
       if (chemin.includes(`:${nom}`)) chemin = chemin.replace(`:${nom}`, valeur);
-      else requete.push(`${nom}=${valeur}`);
+      else requete.push(`${a.nom}=${valeur}`);
     }
     return `\`${chemin}${requete.length ? `?${requete.join('&')}` : ''}\``;
   }
@@ -198,7 +220,7 @@ export class GenerateurMoteur extends GenerateurPage {
       const nom = camel(a.nom);
       const valeur = encodeURIComponent(String(evaluer(a.valeur, env)));
       if (chemin.includes(`:${nom}`)) chemin = chemin.replace(`:${nom}`, valeur);
-      else requete.push(`${nom}=${valeur}`);
+      else requete.push(`${a.nom}=${valeur}`);
     }
     return chemin + (requete.length ? `?${requete.join('&')}` : '');
   }
@@ -247,7 +269,7 @@ export class GenerateurMoteur extends GenerateurPage {
         case 'navigation': {
           const page = action.ecran.type === 'texte' ? texteLitteral(action.ecran) : undefined;
           const vers = action.arguments && page !== undefined ? this.adresseAvec(page, action.arguments) : this.adresse(action.ecran);
-          e.ligne(`naviguer(${vers});`);
+          e.ligne(`naviguer(${action.continuer ? `apresLaGarde() ?? ${vers}` : vers});`);
           break;
         }
         case 'locale':
@@ -264,9 +286,195 @@ export class GenerateurMoteur extends GenerateurPage {
     }
   }
 
-  /** Les actions que le rattrapage ajoute : rend vrai si l'action est écrite ici. */
-  protected actionEnPlus(_e: Ecrivain, _action: Action, _locales: Set<string>, _modif: Set<string>): boolean {
-    return false;
+  /** Ce qu'il faut pour réécrire une variable après un échec (« optimiste ») ; annulé après la première requête. */
+  private optimiste?: { avant: string; echecs: string; variables: string[] };
+  private essai?: string;
+  private dansEssai = false;
+  private compteurs = { chargeurs: 0, essais: 0, optimistes: 0 };
+
+  /** La variable d'une réponse : une réponse lente ne remplace pas une plus récente, dans un événement. */
+  private reponse(e: Ecrivain, variable: string, appel: string): void {
+    if (!this.dansEvenement) {
+      e.ligne(`${this.lu(variable)} = ${appel};`);
+      return;
+    }
+    const n = ++this.dernieres;
+    e.ligne(`const derniere${n} = derniereRequete(${chaine(variable)});`);
+    e.ligne(`const reponse${n} = ${appel};`);
+    e.ligne(`if (!derniere${n}()) return;`);
+    e.ligne(`${this.lu(variable)} = reponse${n};`);
+  }
+
+  /** Après un appel au serveur : un échec arrête « essayer », ou la soumission d'un formulaire. */
+  private apresAppel(e: Ecrivain, envoi: boolean): void {
+    const opt = this.optimiste;
+    if (this.essai) e.ligne(`if (serveur.echecs() > ${this.essai}) return serveur.raison();`);
+    else if (this.echecs && envoi && !opt) e.ligne(`if (serveur.echecs() > ${this.echecs}) return;`);
+    if (opt) {
+      e.bloc(`if (serveur.echecs() > ${opt.echecs}) {`, () => {
+        for (const nom of opt.variables) e.ligne(`${this.lu(nom)} = ${opt.avant}.${camel(nom)};`);
+        e.ligne(`afficherMessage("L'action n'a pas été prise en compte : on a remis les choses comme avant.", 'erreur');`);
+        e.ligne('return;');
+      });
+      this.optimiste = undefined;
+    }
+  }
+
+  /** Les actions propres au moteur : rend vrai si l'action est écrite ici. */
+  protected actionEnPlus(e: Ecrivain, action: Action, locales: Set<string>, modif: Set<string>): boolean {
+    const x = (v: Valeur) => expressionJs(v, this.contexte);
+    const lit = (v: Valeur) => `String(${x(v)})`;
+    switch (action.type) {
+      case 'optimiste': {
+        const n = ++this.compteurs.optimistes;
+        const avant = `avantOptimiste${n}`;
+        const echecs = `echecsOptimiste${n}`;
+        e.ligne(`const ${avant} = structuredClone({ ${action.variables.map((nom) => `${camel(nom)}: ${this.lu(nom)}`).join(', ')} });`);
+        e.ligne(`const ${echecs} = serveur.echecs();`);
+        this.ecrireActions(e, action.corps, locales, modif);
+        this.optimiste = { avant, echecs, variables: action.variables };
+        return true;
+      }
+      case 'requete': {
+        // « calcul … = photos dont produit est egal a id » : seulement les photos de ce produit.
+        const filtre = action.mode === 'lire' && action.source === undefined && action.resultat !== undefined ? lecturesDuChargement(this.ecran).find((l) => l.variable === action.resultat)?.filtre : undefined;
+        const args = [filtre ? `\`${action.adresse}?${encodeURIComponent(filtre.champ)}=\${encodeURIComponent(${this.lu(filtre.parametre)})}\`` : chaine(action.adresse)];
+        if (action.mode === 'envoyer') args.push(this.donnees(action.donnees, action.cles));
+        if (action.mode === 'lireUn') args.push(x(action.donnees[0]));
+        if (action.resultat !== undefined) args.push(this.lu(action.resultat));
+        else if (action.source !== undefined) args.push('undefined');
+        const suivie = action.resultat !== undefined && (this.ecran.etatsRequetes?.includes(action.resultat) ?? false);
+        const lecture = action.source !== undefined && action.mode !== 'envoyer';
+        if (action.source !== undefined) {
+          const filtres = (action.filtrant ?? []).map((f) => `${/^[A-Za-z_]\w*$/.test(f.cle) ? f.cle : chaine(f.cle)}: ${x(f.valeur)}`);
+          const n = this.compteurs.chargeurs + 1;
+          const options = [
+            `source: ${chaine(action.source)}`,
+            ...(filtres.length > 0 ? [`filtres: { ${filtres.join(', ')} }`] : []),
+            ...(action.dans !== undefined ? [`dans: ${chaine(action.dans)}`] : []),
+            ...(lecture && action.resultat !== undefined ? ['contourner', `relancer: () => charger${n}(true)`] : []),
+            ...(suivie ? [`suivi: (etat) => { ${camel(action.resultat!)}Req.v = etat; }`, 'silencieux: true'] : []),
+          ];
+          args.push(`{ ${options.join(', ')} }`);
+        }
+        if (action.resultat !== undefined) {
+          const appel = `await serveur.${action.mode}(${args.join(', ')})`;
+          if (lecture) {
+            const n = ++this.compteurs.chargeurs;
+            e.bloc(`const charger${n} = async (contourner = false) => {`, () => this.reponse(e, action.resultat!, appel), '};');
+            if (suivie) e.ligne(`relances.${camel(action.resultat)} = charger${n};`);
+            e.ligne(`await charger${n}();`);
+          } else this.reponse(e, action.resultat, appel);
+        } else e.ligne(`await serveur.${action.mode}(${args.join(', ')});`);
+        this.apresAppel(e, action.mode === 'envoyer');
+        return true;
+      }
+      case 'suppression':
+      case 'modification':
+      case 'telechargementBon': {
+        const source = action.type !== 'telechargementBon' && action.source !== undefined ? `, { source: ${chaine(action.source)}${action.type === 'modification' && action.remplacement ? ', remplacement: true' : ''} }` : '';
+        const appel =
+          action.type === 'telechargementBon'
+            ? `await serveur.telecharger(${chaine(action.adresse)}, ${x(action.objet)}.id);`
+            : action.type === 'suppression'
+              ? `await serveur.supprimer(${chaine(action.adresse)}, ${x(action.objet)}.id${source});`
+              : `await serveur.modifier(${chaine(action.adresse)}, ${x(action.objet)}.id, { ${action.changements.map((c) => `${camel(c.champ)}: ${x(c.valeur)}`).join(', ')} }${source});`;
+        const facultatif = action.objet.type === 'variable' && this.contexte.facultatives?.has(action.objet.nom);
+        if (facultatif) e.bloc(`if (${x(action.objet)} !== null) {`, () => e.ligne(appel));
+        else e.ligne(appel);
+        this.apresAppel(e, true);
+        return true;
+      }
+      case 'recharger':
+        e.ligne(`await relances.${camel(action.variable)}?.();`);
+        return true;
+      case 'envoiFichier': {
+        const suivie = action.resultat !== undefined && (this.ecran.etatsRequetes?.includes(action.resultat) ?? false);
+        const options = [
+          `source: ${chaine(action.source)}`,
+          action.corpsBrut ? 'corpsBrut: true' : `champ: ${chaine(action.champ)}`,
+          ...(action.suivi !== undefined ? [`progression: (valeur) => { ${this.lu(action.suivi)} = valeur; }`] : []),
+          ...(suivie ? [`suivi: (etat) => { ${camel(action.resultat!)}Req.v = etat; }`, 'silencieux: true'] : ['message: afficherMessage']),
+        ];
+        const appel = `await televerser(${this.lu(action.variable)}, ${chaine(action.adresse)}, { ${options.join(', ')} }, ${action.resultat !== undefined ? this.lu(action.resultat) : 'null'})`;
+        if (action.resultat !== undefined) e.ligne(`${this.lu(action.resultat)} = ${appel};`);
+        else e.ligne(`${appel};`);
+        return true;
+      }
+      case 'connexion': {
+        const champ = action.motDePasse.type === 'champ' ? this.contexte.champs.get(action.motDePasse.id) : undefined;
+        let motDePasse = x(action.motDePasse);
+        if (champ) {
+          e.ligne(`const motDePasseSaisi = ${champ};`);
+          e.ligne(`${champ} = '';`);
+          motDePasse = 'motDePasseSaisi';
+        }
+        e.ligne(`if (!(await utilisateur.seConnecter(${x(action.email)}, ${motDePasse}${this.dansEssai ? ', true' : ''}))) return;`);
+        return true;
+      }
+      case 'connexionGoogle':
+        e.ligne(`if (!(await utilisateur.seConnecterAvecGoogle(${this.dansEssai ? 'true' : ''}))) return;`);
+        return true;
+      case 'changementMotDePasse':
+        e.ligne(`if (!(await utilisateur.changerMotDePasse(${lit(action.actuel)}, ${lit(action.nouveau)}${this.dansEssai ? ', true' : ''}))) return;`);
+        return true;
+      case 'invitation':
+        e.ligne(`if (!(await utilisateur.inviter(${lit(action.email)}, '${action.role}'${this.dansEssai ? ', true' : ''}))) return;`);
+        return true;
+      case 'demandeLienMotDePasse':
+        e.ligne(`if (!(await utilisateur.demanderLienMotDePasse(${lit(action.email)}${this.dansEssai ? ', true' : ''}))) return;`);
+        return true;
+      case 'choixMotDePasse':
+        e.ligne(`if (!(await utilisateur.choisirMotDePasse(${lit(action.nouveau)}${this.dansEssai ? ', true' : ''}))) return;`);
+        return true;
+      case 'deconnexion':
+        e.ligne('await utilisateur.seDeconnecter();');
+        return true;
+      case 'filtre':
+        e.ligne(`changerFiltre(${chaine(action.nom)}, ${x(action.valeur)});`);
+        return true;
+      case 'retour':
+        e.ligne(`revenir(${action.vers !== undefined ? chaine(this.fichier(action.vers)) : ''});`);
+        return true;
+      case 'essayer': {
+        const n = ++this.compteurs.essais;
+        const echecs = `echecsEssai${n}`;
+        const raison = `raisonEssai${n}`;
+        const requetes = JSON.stringify(action.corps).match(/"type":"(requete|suppression|modification|envoiFichier)"/) !== null;
+        if (requetes) {
+          e.ligne(`const ${echecs} = serveur.echecs();`);
+          e.ligne('serveur.taire(true);');
+        }
+        e.ligne(`let ${raison};`);
+        e.ligne('try {');
+        e.indenter(() => e.bloc(`${raison} = await (async () => {`, () => {
+          const avant = this.essai;
+          const dansAvant = this.dansEssai;
+          if (requetes) this.essai = echecs;
+          this.dansEssai = true;
+          this.ecrireActions(e, action.corps, locales, modif);
+          this.essai = avant;
+          this.dansEssai = dansAvant;
+          e.ligne('return undefined;');
+        }, '})();'));
+        e.ligne('} catch (erreur) {');
+        e.indenter(() => e.ligne(`${raison} = erreur instanceof Error ? erreur.message : String(erreur);`));
+        if (requetes) {
+          e.ligne('} finally {');
+          e.indenter(() => e.ligne('serveur.taire(false);'));
+        }
+        e.ligne('}');
+        if (action.siErreur.length) {
+          e.bloc(`if (${raison} !== undefined) {`, () => {
+            e.ligne(`const raison = ${raison};`);
+            this.avecHors(['raison'], () => this.ecrireActions(e, action.siErreur, new Set([...locales, 'raison']), modif));
+          });
+        }
+        return true;
+      }
+      default:
+        return false;
+    }
   }
 
   // ─── La couche ──────────────────────────────────────────────────────────
@@ -274,7 +482,7 @@ export class GenerateurMoteur extends GenerateurPage {
   private nomGabarit(contenu: string): string {
     const trouve = this.gabarits.find((g) => g.html === contenu);
     if (trouve) return trouve.nom;
-    const nom = `g${this.prefixe}${this.gabarits.length + 1}`;
+    const nom = `$g${this.prefixe}${this.gabarits.length + 1}`;
     this.gabarits.push({ nom, html: contenu });
     return nom;
   }
@@ -282,7 +490,7 @@ export class GenerateurMoteur extends GenerateurPage {
   private ecrireEtatMoteur(e: Ecrivain): void {
     const adresse = this.ecran.parametresAdresse ?? [];
     for (const p of adresse) e.ligne(`const ${nomJs(p)} = signal(adresse.parametres[${chaine(camel(p))}] ?? '');`);
-    for (const f of this.ecran.filtres ?? []) e.ligne(`const ${nomJs(f.nom)} = filtre(${chaine(camel(f.nom))}, ${f.nombre ? 'true' : 'false'});`);
+    for (const f of this.ecran.filtres ?? []) e.ligne(`const ${nomJs(f.nom)} = filtre(${chaine(f.nom)}, ${f.nombre ? 'true' : 'false'});`);
     for (const etat of this.ecran.etat) e.ligne(`const ${nomJs(etat.nom)} = signal(${expressionJs(etat.initiale, this.contexte)});`);
     for (const [id, variable] of this.contexte.champs) {
       e.ligne(`const ${variable.replace(/\.v$/, '')} = signal(${this.contexte.sortes?.get(id) === 'case' ? 'false' : "''"});`);
@@ -290,6 +498,9 @@ export class GenerateurMoteur extends GenerateurPage {
     const visibles = [...new Set([...this.montres, ...this.caches, ...this.fenetres])];
     if (visibles.length > 0) e.ligne(`const visibilite = signal({ ${visibles.map((id) => `${chaine(id)}: ${!this.montres.has(id) && !this.fenetres.has(id)}`).join(', ')} });`);
     if (this.textesChanges.size > 0) e.ligne('const textes = signal({});');
+    const suivies = this.ecran.etatsRequetes ?? [];
+    for (const nom of suivies) e.ligne(`const ${camel(nom)}Req = signal(REPOS);`);
+    if (suivies.length > 0) e.ligne('const relances = {};');
   }
 
   protected override ecrireCalcul(e: Ecrivain, nom: string, valeur: Valeur): void {
@@ -403,7 +614,7 @@ ${this.gabarits.map((g) => `const ${g.nom} = /*#__PURE__*/ gabarit(${chaine(g.ht
     return {
       gabarit: html(arbre),
       code: `${this.gabarits.map((g) => `const ${g.nom} = /*#__PURE__*/ gabarit(${chaine(g.html)});`).join('\n')}
-export const g${nom} = /*#__PURE__*/ gabarit(${chaine(html(arbre))});
+export const $g${nom} = /*#__PURE__*/ gabarit(${chaine(html(arbre))});
 export function ${nom}(r${parametres ? `, { ${parametres} }` : ''}) {
 ${corps.texte()}}
 `,
@@ -490,14 +701,38 @@ ${corps.texte()}}
         break;
       }
       case 'repetition':
+        if (noeud.deplacement && noeud.liste.type === 'variable') {
+          const surOrdre = this.ordresDe().get(noeud.liste.nom);
+          const lignes = this.chaqueM(noeud.liste, noeud.variable, (dedans) => [el('div', [['role', 'listitem'], ['data-deplacable', 'true']], this.groupe(noeud.corps, dedans))], env);
+          sortie.push(el('div', [['role', 'list'], ['class', 'humalis-liste-deplacable']], [lignes], [`listeDeplacable(@, ${nomJs(noeud.liste.nom)}${surOrdre ? `, ${surOrdre}` : ''});`]));
+          break;
+        }
         sortie.push(this.chaqueM(noeud.liste, noeud.variable, (dedans) => this.groupe(noeud.corps, dedans), env));
         break;
       case 'widget':
+        if (noeud.genre === 'fichier') {
+          const f = noeud.fichier!;
+          const icone = noeud.reglages.icone ? chercherIcone(noeud.reglages.icone)?.lucide : undefined;
+          const reglages = [
+            `libelle: () => ${contenuJs(noeud.contenu, this.contexte)}`,
+            `boite: ${nomJs(f.variable)}`,
+            `familles: ${JSON.stringify(f.familles)}`,
+            ...(f.octets !== undefined ? [`maximum: ${f.octets}`] : []),
+            ...(f.plusieurs ? ['plusieurs: true'] : []),
+            `apercu: ${f.apercu}`,
+            ...(icone ? [`iconeHtml: ${chaine(iconeHtml(icone, 'humalis-icone'))}`] : []),
+            `classes: ${chaine(['humalis-fichier', ...noeud.options.map((o) => `humalis-${o.nom}-${o.valeur}`), ...noeud.classes].join(' '))}`,
+          ];
+          sortie.push(el('div', [], [], [`choixFichier(@, { ${reglages.join(', ')} });`]));
+          break;
+        }
         sortie.push(...this.enfantM(arbreWidget(noeud.genre, this.aideMoteur(noeud, env)), env));
         break;
       case 'carte': {
         const e = new Ecrivain();
-        this.carteJs(e, noeud);
+        // Dans la carte, les boucles sont de vraies boucles JavaScript : leurs variables ne sont pas des boîtes.
+        const variables = (liste: NoeudVue[]): string[] => liste.flatMap((n) => (n.type === 'repetition' ? [n.variable, ...variables(n.corps)] : n.type === 'condition' ? [...variables(n.alors), ...variables(n.sinon)] : []));
+        this.avecHors(variables(noeud.corps), () => this.carteJs(e, noeud));
         const lignes: string[] = [];
         if (env) this.carteHtml(noeud, env, lignes);
         sortie.push({ zone: `[${e.texte().trim().replace(/,$/, '')}]`, initial: lignes.join('') });
@@ -553,7 +788,7 @@ ${corps.texte()}}
         this.composantM(noeud, env, sortie);
         break;
       case 'sousPage':
-        sortie.push(el('div', [['class', 'humalis-sous-page'], ['data-c', String(this.niveau + 1)]], env ? [{ brut: this.sousPageDepart ?? '' }] : []));
+        sortie.push(el('div', [['class', 'humalis-page humalis-sous-page'], ['data-c', String(this.niveau + 1)]], env ? [{ brut: this.sousPageDepart ?? '' }] : []));
         break;
     }
   }
@@ -615,7 +850,7 @@ ${corps.texte()}}
     const props = noeud.proprietes.map((p) => `${camel(p.nom)}: ${expressionJs(p.valeur, this.contexte)}`).join(', ');
     if (externe) {
       this.imports.add(noeud.nom);
-      sortie.push(el('div', [], [], [`${ADAPTATEURS[externe.sorte]}(@, () => import(${chaine(externe.chemin)}), () => ({ ${props} }));`]));
+      sortie.push(el('div', [], [], [`${ADAPTATEURS[externe.sorte]}(@, () => import(${chaine(externe.chemin)}), () => ({ ${props} })${externe.balise ? `, ${chaine(externe.balise)}` : ''});`]));
       return;
     }
     const composant = this.moteur.composants.get(noeud.nom);
@@ -701,6 +936,8 @@ ${corps.texte()}}
     const onglet: [string, Attr | undefined][] = noeud.nouvelOnglet ? [['target', '_blank'], ['rel', 'noopener noreferrer']] : [];
     if (noeud.externeValeur) return [['href', { js: expressionJs(noeud.externeValeur, this.contexte), initial: env ? this.txt(noeud.externeValeur, env) : false }], ...onglet];
     if (noeud.externe !== undefined) return [['href', noeud.externe], ...onglet];
+    const filtres = noeud.cible !== undefined ? this.moteur.filtresDesPages.get(noeud.cible) : undefined;
+    if (filtres?.length) onglet.push(['data-filtres', filtres.join(' ')]);
     const ancre = noeud.versAncre !== undefined ? `#${noeud.versAncre}` : '';
     if (noeud.cible === undefined && ancre) return [['href', ancre], ...onglet];
     if (noeud.arguments?.length && noeud.cible !== undefined) {
@@ -848,7 +1085,7 @@ ${corps.texte()}}
     } else if ('si' in m) {
       const composant = (m as MSi & { composant?: { nom: string; proprietes: string } }).composant;
       if (composant) {
-        e.ligne(`si(r[${m.h}], () => 0, [[g${composant.nom}, (r) => ${composant.nom}(r, { ${composant.proprietes} })]]);`);
+        e.ligne(`si(r[${m.h}], () => 0, [[$g${composant.nom}, (r) => ${composant.nom}(r, { ${composant.proprietes} })]]);`);
         return;
       }
       e.ligne(`si(r[${m.h}], () => ${m.si}, [`);
@@ -879,13 +1116,16 @@ const TYPES_SAISIE: Partial<Record<string, { type: string; autocomplete?: string
   adresseWeb: { type: 'url', autocomplete: 'url' },
 };
 
+/** Les noms que les pages produites emploient : une variable du programme ne peut pas les cacher. */
+export const NOMS_RESERVES = (): Set<string> => new Set(['r', 'adresse', 'couche', 'relances', 'minuteries', 'raccourcis', 'session', 'valeur', 'evenement', 'etat', ...NOMS_MOTEUR, ...NOMS_OUTILS, ...NOMS_NAV, ...NOMS_ADAPT, ...NOMS_SERVEUR, 'listeDeplacable', 'choixFichier', 'humalisGraphique']);
+
 export const ADAPTATEURS = { module: 'monterModule', react: 'monterReact', vue: 'monterVue', svelte: 'monterSvelte', web: 'monterWeb' } as const;
 
 const NOMS_MOTEUR = ['signal', 'calcul', 'lecture', 'effet', 'nettoyer', 'gabarit', 'texte', 'attribut', 'ecouter', 'soumettre', 'ecouterLaPause', 'modele', 'si', 'chaque', 'zone', 'contenu', 'executer'];
-const NOMS_OUTILS = ['creer', 'icone', 'avatar', 'etoiles', 'codeQr', 'carteLieux', 'fenetre', 'observerLeBas', 'titreDeLaPage', 'activerCarrousel', 'activerMotDePasse', 'afficherMessage', 'planifier', 'mouvementReduit', 'themeSombre', 'copier', 'partager', 'telechargerCsv', 'confirmer', 'retirerPremier', 'grouper', 'formaterNombre', 'formaterDate', 'formaterArgent', 'accorder', 'formaterTaille', 'dateDuJour', 'maintenant', 'decalerDate', 'joursEntre', 'formaterDepuis', 'lireMemoire', 'garderMemoire', 'cliquer', 'focaliser', 't', 'langue', 'changerLangue', 'definirTheme', 'humalisGraphique'];
-const NOMS_NAV = ['naviguer', 'adresseDe', 'filtre', 'revenir', 'changerFiltre'];
+const NOMS_OUTILS = ['creer', 'icone', 'avatar', 'etoiles', 'codeQr', 'carteLieux', 'fenetre', 'observerLeBas', 'titreDeLaPage', 'activerCarrousel', 'activerMotDePasse', 'afficherMessage', 'planifier', 'mouvementReduit', 'themeSombre', 'copier', 'partager', 'telechargerCsv', 'confirmer', 'retirerPremier', 'grouper', 'formaterNombre', 'formaterDate', 'formaterArgent', 'accorder', 'formaterTaille', 'dateDuJour', 'maintenant', 'decalerDate', 'joursEntre', 'formaterDepuis', 'lireMemoire', 'garderMemoire', 'cliquer', 'focaliser', 't', 'langue', 'changerLangue', 'definirTheme'];
+const NOMS_NAV = ['naviguer', 'adresseDe', 'filtre', 'revenir', 'changerFiltre', 'apresLaGarde'];
 const NOMS_ADAPT = ['monterModule', 'monterReact', 'monterVue', 'monterSvelte', 'monterWeb'];
-const NOMS_SERVEUR = ['serveur', 'derniereRequete', 'utilisateur', 'etatDe', 'erreurDe', 'recharger', 'optimiste'];
+const NOMS_SERVEUR = ['serveur', 'derniereRequete', 'utilisateur', 'televerser', 'REPOS'];
 
 const utilise = (nom: string, code: string) => new RegExp(`(?<![.\\w$])${nom}\\b(?=\\s*[(.{,\\)\\];]|$)`, 'm').test(code);
 
@@ -894,13 +1134,16 @@ function importsDe(code: string, dossier: string, moteur: ContexteMoteur, partag
   const ligne = (noms: string[], fichier: string) => (noms.length ? `import { ${noms.join(', ')} } from '${fichier}';\n` : '');
   const composants = [...moteur.composants.keys()].flatMap((n) => {
     const nom = pascal(n);
-    return new RegExp(`\\b${nom}\\(`).test(code) ? [nom, `g${nom}`] : [];
+    return new RegExp(`\\b${nom}\\(`).test(code) ? [nom, `$g${nom}`] : [];
   });
   const fonctions = [...(moteur.fonctionsGlobales ?? [])].filter((n) => new RegExp(`(?<![.\\w$])${n}\\(`).test(code));
   return (
     ligne(['gabarit', ...prendre(NOMS_MOTEUR.filter((n) => n !== 'gabarit'))], `${dossier}/moteur.js`) +
     ligne(prendre(NOMS_OUTILS), `${dossier}/outils.js`) +
     ligne(prendre(NOMS_NAV), `${dossier}/navigation.js`) +
+    ligne(/\bhumalisGraphique\./.test(code) ? ['humalisGraphique'] : [], `${dossier}/graphique.js`) +
+    ligne(prendre(['listeDeplacable']), `${dossier}/deplacement.js`) +
+    ligne(prendre(['choixFichier']), `${dossier}/fichier.js`) +
     ligne(prendre(NOMS_ADAPT), `${dossier}/adaptateurs.js`) +
     ligne(prendre(NOMS_SERVEUR), `${dossier}/serveur.js`) +
     ligne(partages.filter((n) => new RegExp(`(?<![.\\w$])${n}\\.v\\b`).test(code)), `${dossier}/partages.js`) +

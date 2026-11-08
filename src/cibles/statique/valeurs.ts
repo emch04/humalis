@@ -28,10 +28,18 @@ const PRIS = new Set([
   'dessiner', 'relire', 'garder', 'auChargement', 'visibilite', 'textes', 'evenement', 'motDePasseSaisi',
 ]);
 
+/** Les noms que le moteur de rendu emploie en plus dans les pages qu'il écrit. */
+let prisEnPlus: ReadonlySet<string> = new Set();
+
+/** Le moteur réserve ses noms le temps de produire un projet. */
+export function reserverNoms(noms: ReadonlySet<string>): void {
+  prisEnPlus = noms;
+}
+
 /** « nombre_articles » → « nombreArticles » ; un nom déjà pris reçoit un « _ ». */
 export function nomJs(nom: string): string {
   const resultat = camel(nom);
-  return PRIS.has(resultat) ? `${resultat}_` : resultat;
+  return PRIS.has(resultat) || prisEnPlus.has(resultat) ? `${resultat}_` : resultat;
 }
 
 /** Ce qu'il faut savoir pour écrire une expression. */
@@ -51,6 +59,8 @@ export interface ContexteJs {
   langues?: boolean;
   /** Le moteur de rendu lit certaines variables autrement (« compteur.v »). */
   lu?: (nom: string) => string | undefined;
+  /** Le moteur de rendu suit l'état des requêtes dans des boîtes. */
+  requetes?: boolean;
 }
 
 /** Un texte et ses « {…} » en JavaScript ; `langue` est celle d'une version (« en »). */
@@ -169,6 +179,8 @@ export function expressionJs(valeur: Valeur, contexte: ContexteJs): string {
       return 'themeSombre()';
     case 'etatRequete':
     case 'erreurRequete':
+      // Le moteur lit l'état de la requête dans sa boîte.
+      if (contexte.requetes) return valeur.type === 'etatRequete' ? `${camel(valeur.variable)}Req.v.statut === '${valeur.etat}'` : `${camel(valeur.variable)}Req.v.message`;
       // Les sources ne sont pas encore produites pour le site statique : l'analyse de la cible les refuse avant.
       return 'null';
   }

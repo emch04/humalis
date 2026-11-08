@@ -189,7 +189,7 @@ async function scenarioFichier(navigateur) {
   const api = await lancerApiDeFichiers();
   const dossier = join(travail, 'fichier-web');
   rmSync(dossier, { recursive: true, force: true });
-  execFileSync('node', ['dist/cli.js', 'compile', 'exemples/fichier.humalis', '--cible', 'web', '--sortie', dossier, '--adresse', 'https://boutique.exemple.cd'], { stdio: 'ignore' });
+  execFileSync('node', ['dist/cli.js', 'compile', 'exemples/fichier.humalis', '--cible', 'web', ...(process.env.HUMALIS_MOTEUR ? ['--moteur', process.env.HUMALIS_MOTEUR] : []), '--sortie', dossier, '--adresse', 'https://boutique.exemple.cd'], { stdio: 'ignore' });
   execFileSync('npm', ['install', '--no-audit', '--no-fund', '--prefer-offline'], { cwd: dossier, stdio: 'ignore' });
   execFileSync('npm', ['run', 'build'], { cwd: dossier, stdio: 'ignore', env: { ...process.env, VITE_HUMALIS_SOURCE_BOUTIQUE: api.adresse } });
   verifier(true, 'fichier : le projet produit passe tsc et se construit (prérendu compris)');

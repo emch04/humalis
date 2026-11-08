@@ -23,7 +23,7 @@ const verifier = (condition, message) => {
 const source = 'exemples/boutique-complete.humalis';
 
 execFileSync('node', ['dist/cli.js', 'compile', source, '--cible', 'serveur', '--sortie', serveur], { stdio: 'inherit' });
-execFileSync('node', ['dist/cli.js', 'compile', source, '--cible', 'web', '--sortie', web, '--adresse', 'https://boutique.exemple.cd'], { stdio: 'inherit' });
+execFileSync('node', ['dist/cli.js', 'compile', source, '--cible', 'web', ...(process.env.HUMALIS_MOTEUR ? ['--moteur', process.env.HUMALIS_MOTEUR] : []), '--sortie', web, '--adresse', 'https://boutique.exemple.cd'], { stdio: 'inherit' });
 execFileSync('npx', ['-y', 'npm@11', 'install', '--no-audit', '--no-fund'], { cwd: serveur, stdio: 'inherit' });
 execFileSync('npm', ['run', 'build'], { cwd: serveur, stdio: 'inherit' });
 execFileSync('npm', ['install', '--no-audit', '--no-fund'], { cwd: web, stdio: 'inherit' });
@@ -50,7 +50,7 @@ const adresseWeb = await lancer(join(web, 'node_modules', '.bin', 'vite'), ['pre
   env: { ...process.env, HUMALIS_SERVEUR: `http://127.0.0.1:${port}` },
 }, (m) => m.match(/http:\/\/localhost:\d+/)?.[0]);
 
-const { chromium } = createRequire(join(web, 'package.json'))('playwright');
+const { chromium } = createRequire(process.env.HUMALIS_MOTEUR ? import.meta.url : join(web, 'package.json'))('playwright');
 const navigateur = await chromium.launch();
 try {
   const page = await navigateur.newPage();
@@ -63,10 +63,12 @@ try {
   const cree = await fetch(`http://127.0.0.1:${port}/api/produits`, { method: 'POST', headers: { ...json, authorization: `Bearer ${connexion.data.token}` }, body: JSON.stringify({ nom: 'Livre', prix: 12 }) });
   verifier(cree.status === 201, 'l\'admin crée « Livre » sur le serveur (201)');
 
-  await page.reload();
-  verifier(await page.getByText('Livre').waitFor({ timeout: 5000 }).then(() => true, () => false), 'la page web affiche le produit lu sur son serveur');
-  verifier(await page.getByText('12 €').isVisible(), 'le champ p.prix est affiché (« 12 € »)');
-  await page.screenshot({ path: join(travail, 'boutique-complete.png'), fullPage: true });
+  // Un autre visiteur : le serveur permet de garder cette lecture 30 secondes dans le navigateur du premier.
+  const visiteur = await navigateur.newPage();
+  await visiteur.goto(adresseWeb);
+  verifier(await visiteur.getByText('Livre').waitFor({ timeout: 5000 }).then(() => true, () => false), 'la page web affiche le produit lu sur son serveur');
+  verifier(await visiteur.getByText('12 €').isVisible(), 'le champ p.prix est affiché (« 12 € »)');
+  await visiteur.screenshot({ path: join(travail, 'boutique-complete.png'), fullPage: true });
 } finally {
   await navigateur.close();
   for (const p of processus) p.kill();

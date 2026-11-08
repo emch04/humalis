@@ -412,7 +412,7 @@ export function enregistrer(adresse, couches, options) {
   ${options.langues ? 'relireLangue();' : ''}
   ${options.session ? `relireSession().then(() => {
     const vers = refuse(options);
-    if (vers) return naviguer(vers, true);
+    if (vers) return aller(vers, { remplacer: true, garde: location.pathname + location.search });
     devoiler();
     chargerLesDonnees(actives);
   });` : 'devoiler();\n  chargerLesDonnees(actives);'}
@@ -448,7 +448,7 @@ function remplacerEntete(doc) {
 }
 
 /** Change de page : seule la couche qui diffère est remplacée. */
-async function aller(url, { historique = true, remplacer = false } = {}) {
+async function aller(url, { historique = true, remplacer = false, garde } = {}) {
   const cible = new URL(url, location.href);
   const trouve = trouverRoute(cible.pathname.replace(/\\/+$/, '') || '/');
   if (!trouve || cible.origin !== location.origin) {
@@ -464,11 +464,11 @@ async function aller(url, { historique = true, remplacer = false } = {}) {
     await import(/* @vite-ignore */ adresse);
     if (jeton !== numero) return;
     const { couches, options } = registre.get(adresse);
-    if (refuse(options)) return aller(refuse(options), { remplacer: true });
+    if (refuse(options)) return aller(refuse(options), { remplacer, garde: cible.pathname + cible.search });
     if (historique) {
       positions.set(cleEntree, scrollY);
       cleEntree = Date.now();
-      history[remplacer ? 'replaceState' : 'pushState']({ cle: cleEntree }, '', cible.href);
+      history[remplacer ? 'replaceState' : 'pushState']({ cle: cleEntree, ...(garde ? { apres: garde } : {}) }, '', cible.href);
     }
     cheminOuvert = cible.pathname.replace(/\\/+$/, '') || '/';
     let commun = 0;
@@ -510,6 +510,12 @@ export function naviguer(url, remplacer = false) {
     return;
   }
   return aller(url, { remplacer });
+}
+
+/** « continuer vers » : la page voulue avant la connexion, si c'est bien une adresse de ce site. */
+export function apresLaGarde() {
+  const apres = history.state?.apres;
+  return typeof apres === 'string' && apres.startsWith('/') && !apres.startsWith('//') ? apres : undefined;
 }
 
 export function adresseDe(nom) {

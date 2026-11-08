@@ -18,7 +18,7 @@ const verifier = (condition, message) => {
 const apparait = (element) => element.waitFor({ timeout: 5000 }).then(() => true, () => false);
 
 rmSync(pages, { recursive: true, force: true });
-execFileSync('node', ['dist/cli.js', 'compile', 'exemples/boutique.humalis', '--cible', 'web', '--composants', pages], { stdio: 'inherit' });
+execFileSync('node', ['dist/cli.js', 'compile', 'exemples/boutique.humalis', '--cible', 'web', ...(process.env.HUMALIS_MOTEUR ? ['--moteur', process.env.HUMALIS_MOTEUR] : []), '--composants', pages], { stdio: 'inherit' });
 execFileSync('npm', ['install', '--no-audit', '--no-fund'], { cwd: hote, stdio: 'inherit' });
 execFileSync('npm', ['run', 'build'], { cwd: hote, stdio: 'inherit' });
 
@@ -28,7 +28,7 @@ const adresse = await new Promise((ok) => serveur.stdout.on('data', (m) => {
   if (trouve) ok(trouve[0]);
 }));
 
-const { chromium } = createRequire(join(hote, 'package.json'))('playwright');
+const { chromium } = createRequire(process.env.HUMALIS_MOTEUR ? import.meta.url : join(hote, 'package.json'))('playwright');
 const navigateur = await chromium.launch();
 try {
   const page = await navigateur.newPage();

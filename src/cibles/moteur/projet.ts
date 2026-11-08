@@ -11,9 +11,10 @@ import { QRCODE_GENERATOR } from '../statique/qrcode-donnees.js';
 import { LEAFLET_JS, LEAFLET_CSS } from '../statique/leaflet-donnees.js';
 import { GRAPHIQUE_JS } from '../statique/graphique.js';
 import { avecDisposition } from '../statique/disposition.js';
-import { connaitreFonctions, nomJs, expressionJs } from '../statique/valeurs.js';
+import { connaitreFonctions, nomJs, expressionJs, reserverNoms } from '../statique/valeurs.js';
+import { messagesDuSiteStatique } from '../../i18n/messages.js';
 import { echapperAttribut, echapperTexte } from '../statique/html.js';
-import { cheminsDesPages, styles, nomsDesStyles, VERSIONS, verifierPourLeWeb } from '../web/projet.js';
+import { cheminsDesPages, styles, nomsDesStyles, VERSIONS, verifierPourLeWeb, CENTRALE_WEB } from '../web/projet.js';
 import { cssEcran } from '../web/css-ecran.js';
 import { cssElements, cssSautsDeLigne } from '../web/css-elements.js';
 import { cssInteractions } from '../web/interactions.js';
@@ -25,9 +26,11 @@ import { robotsTxt, manifeste, fichiersDuSite } from '../publication.js';
 import { chaine, pascal } from '../web/noms.js';
 import type { Diagnostic } from '../../analyse/erreurs.js';
 import { MOTEUR_JS } from './execution.js';
-import { GenerateurMoteur, type ContexteMoteur } from './page.js';
+import { GenerateurMoteur, NOMS_RESERVES, type ContexteMoteur } from './page.js';
 import { outilsJs, navigationJs } from './outils.js';
-import { adaptateursJs, paquetsDesExternes, sorteDe } from './adaptateurs.js';
+import { adaptateursJs, baliseDe, paquetsDesExternes, sorteDe } from './adaptateurs.js';
+import { serveurJs } from './serveur.js';
+import { DEPLACEMENT_JS, CHOIX_FICHIER_JS } from './interactions.js';
 
 export const MARQUE_MOTEUR = '.humalis-projet';
 
@@ -50,6 +53,15 @@ const dossierDe = (chemin: string) => chemin.replace(/^\/+|\/+$/g, '').replace(/
 const htmlDe = (chemin: string) => (dossierDe(chemin) ? `${dossierDe(chemin)}/index.html` : 'index.html');
 
 export function genererProjetMoteur(application: Application, options: OptionsMoteur): Map<string, string> {
+  reserverNoms(NOMS_RESERVES());
+  try {
+    return produire(application, options);
+  } finally {
+    reserverNoms(new Set());
+  }
+}
+
+function produire(application: Application, options: OptionsMoteur): Map<string, string> {
   const fichiers = new Map<string, string>();
   const chemins = cheminsDesPages(application);
   const externes: ContexteMoteur['externes'] = new Map();
@@ -57,13 +69,14 @@ export function genererProjetMoteur(application: Application, options: OptionsMo
     const lu = options.externes?.get(c.chemin);
     if (!lu) throw new Error(`le composant « ${c.nom} » (${c.chemin}) n'a pas été lu`);
     fichiers.set(`src/externes/${lu.nom}`, lu.contenu);
-    externes.set(c.nom, { chemin: `../externes/${lu.nom}`, sorte: sorteDe(c.module === true, lu.nom) });
+    externes.set(c.nom, { chemin: `../externes/${lu.nom}`, sorte: sorteDe(c.module === true, lu.nom, lu.contenu), balise: baliseDe(lu.contenu) });
   }
   const contexte: ContexteMoteur = {
     partages: application.partages,
     cle: `humalis:${simplifier(options.nom) || 'application'}`,
     fichiers: chemins,
     chemins,
+    filtresDesPages: new Map(application.ecrans.filter((e) => e.filtres?.length).map((e) => [e.nom, e.filtres!.map((f) => f.nom)])),
     composants: new Map(application.composants.map((c) => [c.nom, c])),
     externes,
     medias: options.medias,
@@ -207,6 +220,16 @@ enregistrer(import.meta.url, [${couches.map((c, i) => `[${chaine(c.id)}, c${i}]`
   fichiers.set(MARQUE_MOTEUR, `Projet produit par Humalis depuis ${options.source}.\nLe compilateur réécrit ce dossier à chaque compilation.\n`);
   fichiers.set('.gitignore', 'node_modules\ndist\n');
 
+  // Une page réservée demande la session, même si elle ne la lit pas elle-même.
+  session ||= application.ecrans.some((e) => e.reservee);
+  const parleAuServeur = [...fichiers.entries()].some(([n, c]) => n.endsWith('.js') && /from '[^']*serveur\.js'/.test(c));
+  const sessionDuServeur = session && application.serveurs.length > 0 && !application.sources.some((x) => x.session);
+  if (parleAuServeur || session) fichiers.set('src/humalis/serveur.js', serveurJs({ application, session, sessionDuServeur }));
+  if ([...fichiers.values()].some((c) => /\blisteDeplacable\(/.test(c))) fichiers.set('src/humalis/deplacement.js', DEPLACEMENT_JS);
+  if ([...fichiers.values()].some((c) => /\bchoixFichier\(/.test(c))) fichiers.set('src/humalis/fichier.js', CHOIX_FICHIER_JS);
+  const surveillee = application.serveurs.length > 0;
+  if (surveillee) fichiers.set('src/humalis/centrale.ts', CENTRALE_WEB);
+
   // Les outils, écrits quand on sait ce que les pages emploient.
   const textes = [...fichiers.entries()].filter(([n]) => /\.(js|html)$/.test(n)).map(([, c]) => c);
   const usage = usageElements(textes);
@@ -219,7 +242,7 @@ enregistrer(import.meta.url, [${couches.map((c, i) => `[${chaine(c.id)}, c${i}]`
   fichiers.set('src/humalis/outils.js', avecDureeDesErreurs(outilsJs({ usage, langues: application.langues, ...(bascule ? { theme: modeTheme ?? '' } : {}) }), application));
   fichiers.set(
     'src/humalis/navigation.js',
-    `${site.length ? "import './site.js';\n" : ''}${navigationJs(routes, { partages: application.partages.length > 0, session, langues: application.langues !== undefined, pages: pagesTable })}`,
+    `${surveillee ? "import './centrale.ts';\n" : ''}${site.length ? "import './site.js';\n" : ''}${navigationJs(routes, { partages: application.partages.length > 0, session, langues: application.langues !== undefined, pages: pagesTable })}`,
   );
   if (site.length) fichiers.set('src/humalis/site.js', `// Produit par Humalis : ce qui vaut pour tout le site.\n${site.join('\n')}\n`);
   if (application.composantsReact.length > 0) fichiers.set('src/humalis/adaptateurs.js', adaptateursJs(externes));
@@ -229,10 +252,7 @@ enregistrer(import.meta.url, [${couches.map((c, i) => `[${chaine(c.id)}, c${i}]`
     fichiers.set('public/humalis/leaflet.css', LEAFLET_CSS);
   }
   if (textes.some((c) => /\bhumalisGraphique\./.test(c))) {
-    fichiers.set('src/humalis/graphique.js', `${GRAPHIQUE_JS.replace("'use strict';", '')}\nexport { humalisGraphique };\n`);
-    for (const [n, c] of fichiers) {
-      if (n.startsWith('src/couches/') && /\bhumalisGraphique\./.test(c)) fichiers.set(n, `import { humalisGraphique } from '../humalis/graphique.js';\n${c}`);
-    }
+    fichiers.set('src/humalis/graphique.js', `import * as humalis from './outils.js';\n${GRAPHIQUE_JS.replace("'use strict';", '')}\nexport { humalisGraphique };\n`);
   }
   if (usage.qr || usage.carte) {
     for (const [n, c] of fichiers) {
@@ -263,16 +283,34 @@ enregistrer(import.meta.url, [${couches.map((c, i) => `[${chaine(c.id)}, c${i}]`
   const dynamiques = routes.filter((r) => r.chemin.includes(':'));
   if (dynamiques.length > 0) fichiers.set('public/_redirects', dynamiques.map((r) => `${r.chemin.replace(/:[A-Za-z0-9_]+/g, '*')} ${r.fichier} 200`).join('\n') + '\n');
 
+  // Plusieurs langues : les messages de Humalis passent par t().
+  if (application.langues) {
+    const noms: [string, string][] = [['src/humalis/outils.js', 'humalis/humalis.js'], ['src/humalis/graphique.js', 'humalis/graphique.js']];
+    const temporaire = new Map([...fichiers].filter(([n]) => n.endsWith('.js') && n !== 'src/humalis/moteur.js' && n !== 'src/humalis/navigation.js' && !n.startsWith('public/')).map(([n, c]): [string, string] => [noms.find(([a]) => a === n)?.[1] ?? n, c]));
+    messagesDuSiteStatique(temporaire, application.langues.map((l) => l.code));
+    for (const [n, c] of temporaire) {
+      const vrai = noms.find(([, b]) => b === n)?.[0] ?? n;
+      const dossier = vrai.startsWith('src/humalis/') ? '.' : '../humalis';
+      const aImporter = vrai !== 'src/humalis/outils.js' && /(?<![.\w$])t\(/.test(c) && !/import \{[^}]*\bt\b[^}]*\} from '[^']*outils\.js'/.test(c);
+      fichiers.set(vrai, aImporter ? `import { t } from '${dossier}/outils.js';\n${c}` : c);
+    }
+  }
+
   const lus = [...(options.externes?.values() ?? [])].map((e) => e.contenu);
   const sortes = new Set([...externes.values()].map((e) => e.sorte));
   const paquets = paquetsDesExternes(lus, sortes);
+  const dependances = {
+    ...paquets.dependances,
+    ...(surveillee ? { '@astratra/centrale': VERSIONS.centrale } : {}),
+    ...(sessionDuServeur ? { '@astratra/client': VERSIONS.client } : {}),
+  };
   fichiers.set('package.json', JSON.stringify({
     name: simplifier(options.nom) || 'site',
     private: true,
     version: '0.1.0',
     type: 'module',
     scripts: { dev: 'vite', build: 'vite build', preview: 'vite preview' },
-    ...(Object.keys(paquets.dependances).length ? { dependencies: paquets.dependances } : {}),
+    ...(Object.keys(dependances).length ? { dependencies: dependances } : {}),
     devDependencies: { vite: VERSIONS.vite, ...paquets.dependancesDev },
   }, null, 2) + '\n');
   fichiers.set('vite.config.js', viteConfig(entrees, dynamiques, application.serveurs.length > 0, sortes));
@@ -356,26 +394,9 @@ export default defineConfig({
 `;
 }
 
-/** Ce que le moteur ne sait pas encore faire : refusé clairement plutôt que produit de travers. */
+/** Ce que le moteur refuse : la même chose que la cible web (un secret dans le navigateur). */
 export function verifierPourLeMoteur(application: Application): Diagnostic[] {
-  const diagnostics = [...verifierPourLeWeb(application)];
-  const refuser = (quoi: string, ligne: number) => diagnostics.push({ gravite: 'erreur', ligne, message: `${quoi} n'est pas encore produit par le moteur Humalis : compile sans « --moteur humalis ».` });
-  for (const ecran of [...application.ecrans, ...application.composants]) {
-    const code = JSON.stringify(ecran);
-    for (const [motif, quoi] of RETARD) if (motif.test(code)) refuser(`${quoi} (« ${ecran.nom} »)`, ecran.ligne);
-  }
-  if (application.sources.length > 0) refuser('Une source (API existante)', 1);
-  return diagnostics;
+  return verifierPourLeWeb(application);
 }
-
-const RETARD: [RegExp, string][] = [
-  [/"type":"(requete|suppression|modification|connexion|deconnexion|connexionGoogle|changementMotDePasse|invitation|demandeLienMotDePasse|choixMotDePasse|telechargementBon|optimiste|recharger|essayer|envoiFichier)"/, 'Une action qui parle au serveur'],
-  [/"deplacement":true/, '« avec deplacement »'],
-  [/"type":"(etatRequete|erreurRequete|utilisateur)"/, 'Un état de requête ou de session'],
-  [/"type":"filtre","nom"/, 'Un changement de filtre'],
-  [/"type":"retour"/, '« revenir »'],
-  [/"continuer":true/, '« continuer vers »'],
-  [/"genre":"fichier"/, 'Le choix d’un fichier'],
-];
 
 void pascal;

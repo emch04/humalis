@@ -10,8 +10,14 @@ import type { ContexteMoteur } from './page.js';
 
 export type SorteExterne = ContexteMoteur['externes'] extends Map<string, infer V> ? (V extends { sorte: infer S } ? S : never) : never;
 
-export function sorteDe(module: boolean, fichier: string): SorteExterne {
+/** Le nom de la balise d'un Web Component : celui donné à customElements.define. */
+export function baliseDe(code: string): string | undefined {
+  return /customElements\.define\(\s*['"]([a-z][a-z0-9-]*-[a-z0-9-]*)['"]/.exec(code)?.[1];
+}
+
+export function sorteDe(module: boolean, fichier: string, code = ''): SorteExterne {
   if (module) return 'module';
+  if (baliseDe(code)) return 'web';
   if (fichier.endsWith('.vue')) return 'vue';
   if (fichier.endsWith('.svelte')) return 'svelte';
   return 'react';
@@ -101,6 +107,22 @@ export function monterReact(element, charger, lire) {
         const dessiner = (p) => racine.render(createElement(m.default, p));
         dessiner(proprietes);
         return { mettreAJour: dessiner, detruire: () => racine.unmount() };
+      },
+    };
+  }, lire);
+}
+` : ''}${sortes.has('web') ? `
+/** Un Web Component : le fichier définit sa balise ; les propriétés sont posées sur l'élément. */
+export function monterWeb(element, charger, lire, balise) {
+  monter(element, async () => {
+    await charger();
+    return {
+      default(cadre, proprietes) {
+        const composant = document.createElement(balise);
+        const poser = (p) => Object.assign(composant, p);
+        poser(proprietes);
+        cadre.append(composant);
+        return { mettreAJour: poser, detruire: () => composant.remove() };
       },
     };
   }, lire);

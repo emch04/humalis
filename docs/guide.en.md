@@ -2519,6 +2519,22 @@ block.
 
 ---
 
+### The Humalis rendering engine
+
+`--moteur humalis` produces the website without React:
+
+```sh
+humalis compile site.humalis --cible web --moteur humalis --sortie site
+```
+
+Each page is an HTML file already written by the compiler, which a small script
+picks up without rebuilding it. When a variable changes, only what reads it
+changes. Without this option, the site is still produced with React.
+
+Modules (`utiliser module`), React components and Web Components work the same
+way: the file is loaded only by the pages that use it. Anything shown after
+loading (data from the server, a React component) is not in the initial HTML.
+
 ## French keywords at a glance
 
 | Humalis | English |

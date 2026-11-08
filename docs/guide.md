@@ -2431,3 +2431,20 @@ chose de faux.
 | Plan du site, aperçu de partage | oui | oui | non | non |
 
 Le serveur (`--cible serveur`) se produit à part, depuis le bloc `serveur`.
+
+### Le moteur de rendu de Humalis
+
+`--moteur humalis` produit le site web sans React :
+
+```sh
+humalis compile site.humalis --cible web --moteur humalis --sortie site
+```
+
+Chaque page est un fichier HTML déjà écrit par le compilateur, qu'un petit
+script reprend sans le reconstruire. Quand une variable change, seul ce qui la
+lit change. Sans cette option, le site reste produit avec React.
+
+Les modules (`utiliser module`), les composants React et les Web Components
+marchent de la même façon : le fichier n'est chargé que par les pages qui s'en
+servent. Tout ce qui s'affiche après le chargement (ce qui vient du serveur,
+un composant React) n'est pas dans le HTML de départ.

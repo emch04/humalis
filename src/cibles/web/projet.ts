@@ -1415,7 +1415,7 @@ export function useMemorise<T>(cle: string, initiale: T): [T, (valeur: T) => voi
  * La surveillance du site : son code n'arrive dans le navigateur que si les deux variables sont réglées
  * au build. Dans un navigateur piloté (prérendu, tests), le paquet se tait de lui-même.
  */
-const CENTRALE_WEB = `const adresse = import.meta.env.VITE_CENTRALE_ADRESSE as string | undefined;
+export const CENTRALE_WEB = `const adresse = import.meta.env.VITE_CENTRALE_ADRESSE as string | undefined;
 const cle = import.meta.env.VITE_CENTRALE_CLE as string | undefined;
 
 if (adresse && cle) {

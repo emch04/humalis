@@ -45,6 +45,8 @@ Pour le serveur : `node dist/cli.js compile exemples/boutique-serveur.humalis --
 Pour un site statique, sans React ni construction : `node dist/cli.js compile exemples/boutique.humalis --cible statique --sortie ../boutique-site`, puis ouvrez `index.html` ou déposez le dossier chez un hébergeur. `npm run essai:statique` le vérifie dans Chromium (avec `-- --avec-serveur`, la connexion contre le vrai serveur).
 `exemples/inscription.humalis` montre un formulaire complet (`formulaire "…" :`, chaque sorte de champ, case à cocher, choix, liste déroulante, champs obligatoires) : `npm run essai:formulaire` le pilote dans Chromium, sur le web avec son serveur et sur le mobile.
 
+`npm run essai:moteur` vérifie le moteur de rendu dans Chromium. Les autres essais tournent aussi sur le moteur avec `HUMALIS_MOTEUR=humalis` devant la commande.
+
 `npm run essai:web` compile les deux exemples (la boutique a un panier partagé entre ses deux pages), les construit et les pilote dans Chromium pour vérifier qu'ils marchent vraiment.
 
 ## Commandes des outils
@@ -75,6 +77,7 @@ node dist/cli.js verifier exemples/boutique.humalis --ri   # avec la représenta
 | `src/ri/` | la représentation intermédiaire, neutre, que liront les cibles |
 | `src/cibles/web/` | la cible web : chaque écran devient un composant React |
 | `src/cibles/statique/` | la cible statique : chaque écran devient une page HTML et son script |
+| `src/cibles/moteur/` | le moteur de rendu sans React (`--cible web --moteur humalis`) : HTML écrit, reprise, mises à jour fines |
 | `scripts/essai-web.mjs` | l'essai en vrai de la cible web, dans Chromium |
 | `src/compilateur.ts` | `compiler(source)` : tout enchaîner, renvoyer la RI ou les diagnostics |
 | `editeur/vscode/` | l'extension VS Code (voir son README) |
