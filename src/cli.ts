@@ -168,8 +168,8 @@ function compile(arguments_: string[]): number | Promise<number> {
 
   if (cible !== 'apple' && cible !== 'serveur') {
     const appareil = verifierAppareilPourLaCible(application, cible);
-    if (appareil.length > 0) {
-      afficherDiagnostics(appareil);
+    if (appareil.length > 0) afficherDiagnostics(appareil);
+    if (appareil.some((d) => d.gravite === 'erreur')) {
       console.error('\nLe programme ne peut pas être produit pour cette cible : rien n\'a été écrit.');
       return 1;
     }

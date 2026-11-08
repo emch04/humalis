@@ -431,6 +431,7 @@ export async function relireSession() {
     personne.v = null;
     if (MESSAGE_EXPIRATION) dire(erreur.message, 'avertissement');
   }
+  globalThis.dispatchEvent?.(new CustomEvent('humalis:session', { detail: personne.v?.id ?? null }));
   if (TRACER_SESSION && personne.v) tracer(true);
   pret.v = true;
 }
@@ -591,6 +592,7 @@ async function changerMotDePasse(actuel, nouveau, dansUnEssai = false) {
 }
 async function seDeconnecter() {
   SORTIE_TRACE
+  globalThis.dispatchEvent?.(new CustomEvent('humalis:deconnexion'));
   try { const lancer = () => fetch(BASE_AUTH + '/auth/logout', { method: 'POST', headers: entetesSession(), credentials: CREDENTIALS_AUTH }); await SORTIE_SESSION; }
   catch (erreur) { if (ERREUR_SORTIE) dire(REESSAYER(), 'erreur'); }
   await relireSession();

@@ -1856,6 +1856,16 @@ connexion.
 Cette fin de phrase ne marche pas avec `dans` (la réponse arrivera plus tard) ni vers une
 API externe. Pour que la page se mette à jour ensuite, lis la route `en direct`.
 
+**Sur le web**, ces phrases marchent aussi, avec les API du navigateur, sur le moteur comme avec
+React. `photo` ouvre l'appareil photo sur un téléphone et le choix d'un fichier sur un ordinateur.
+`scanner code` demande un navigateur qui sait lire les codes (Chrome sur Android ou sur Mac, par
+exemple) ; sinon la personne le lit. `verifier identite` passe par Touch ID, Face ID ou Windows
+Hello : cela reste sur l'appareil et ne protège pas le serveur, seules les règles du serveur le
+font. `vibrer` n'a d'effet que sur Android, et le compilateur le dit. Une page déjà ouverte
+continue sans réseau, mais le web ne rouvre pas une page entière sans réseau. `liens profonds` n'y
+change rien, chaque page ayant déjà son adresse. `en arriere plan :` et `memorisee en secret`
+n'existent pas sur le web : le compilateur refuse, plutôt que de faire semblant.
+
 Pour se servir d'une bibliothèque Swift dans une vue écrite à la main, écris en haut du
 fichier `paquet swift "https://github.com/exemple/paquet" version "1.2"`. Si le produit
 ne porte pas le nom du dépôt, ajoute `produit "Nom"`.
@@ -2851,7 +2861,8 @@ chose de faux.
 | Raccourcis clavier | oui | oui | non | oui | oui |
 | Composants React | oui | non | oui (en React Native) | oui | non (`sur apple "Vue.swift"`) |
 | Le moteur sans React (`--moteur humalis`) | oui | non | non | non | non |
-| Photo, scanner, Face ID, vibration, signature, hors ligne | non | non | non | non | oui |
+| Photo, scanner, Face ID, vibration, signature, hors ligne | oui (vibration : Android) | non | non | non | oui |
+| `en arriere plan` | non | non | non | non | oui |
 | Plan du site, aperçu de partage | oui | oui | non | non | non |
 
 Le serveur (`--cible serveur`) se produit à part, depuis le bloc `serveur`.

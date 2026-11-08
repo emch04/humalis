@@ -376,6 +376,10 @@ export class GenerateurMoteur extends GenerateurPage {
         return true;
       }
       case 'requete': {
+        if (action.enAttente) {
+          e.ligne(`await appareil.envoyerHorsLigne('POST', ${chaine(action.adresse)}, ${this.donnees(action.donnees, action.cles)});`);
+          return true;
+        }
         // « calcul … = photos dont produit est egal a id » : seulement les photos de ce produit.
         const filtre = action.mode === 'lire' && action.source === undefined && action.resultat !== undefined ? lecturesDuChargement(this.ecran).find((l) => l.variable === action.resultat)?.filtre : undefined;
         const args = [filtre ? `\`${action.adresse}?${encodeURIComponent(filtre.champ)}=\${encodeURIComponent(${this.lu(filtre.parametre)})}\`` : chaine(action.adresse)];
@@ -413,6 +417,11 @@ export class GenerateurMoteur extends GenerateurPage {
       case 'suppression':
       case 'modification':
       case 'telechargementBon': {
+        if (action.type !== 'telechargementBon' && action.enAttente) {
+          const fiche = `${chaine(action.adresse + '/')} + encodeURIComponent(String(${x(action.objet)}.id))`;
+          e.ligne(action.type === 'suppression' ? `await appareil.envoyerHorsLigne('DELETE', ${fiche});` : `await appareil.envoyerHorsLigne('PATCH', ${fiche}, { ${action.changements.map((c) => `${camel(c.champ)}: ${x(c.valeur)}`).join(', ')} });`);
+          return true;
+        }
         const source = action.type !== 'telechargementBon' && action.source !== undefined ? `, { source: ${chaine(action.source)}${action.type === 'modification' && action.remplacement ? ', remplacement: true' : ''} }` : '';
         const appel =
           action.type === 'telechargementBon'
@@ -467,6 +476,31 @@ export class GenerateurMoteur extends GenerateurPage {
         return true;
       case 'paiement':
         e.ligne(`if (!(await utilisateur.payer(${chaine(action.adresse)}, ${x(action.objet)}.id, ${this.dansEssai}))) return;`);
+        return true;
+      case 'prisePhoto':
+        e.bloc('{', () => {
+          e.ligne('const $resultat = await appareil.prendrePhoto();');
+          e.ligne(`if ($resultat) ${this.lu(action.variable)} = $resultat;`);
+        }, '}');
+        return true;
+      case 'scanCode':
+        e.bloc('{', () => {
+          e.ligne('const $resultat = await appareil.scannerCode();');
+          e.ligne(`if ($resultat !== null) ${this.lu(action.variable)} = $resultat;`);
+        }, '}');
+        return true;
+      case 'localisation':
+        e.bloc('{', () => {
+          e.ligne('const $resultat = await appareil.position();');
+          e.ligne(`if ($resultat) ${this.lu(action.variable)} = $resultat;`);
+        }, '}');
+        return true;
+      case 'vibration':
+        e.ligne('appareil.vibrer();');
+        return true;
+      case 'verificationIdentite':
+        e.bloc('if (await appareil.verifierIdentite()) {', () => this.ecrireActions(e, action.alors, locales, modif), action.sinon.length > 0 ? '} else {' : '}');
+        if (action.sinon.length > 0) e.bloc('', () => this.ecrireActions(e, action.sinon, locales, modif), '}');
         return true;
       case 'demandeIa':
         e.ligne(`if (!(await utilisateur.demanderIa(${lit(action.question)}, (texte) => { ${this.lu(action.variable)} = texte; }, ${this.dansEssai}))) return;`);
@@ -572,14 +606,14 @@ export class GenerateurMoteur extends GenerateurPage {
 
   /** Les variables « memorisee » de la page. */
   private ecrireMemoireMoteur(e: Ecrivain): string[] {
-    const gardees = this.ecran.etat.filter((etat: Etat) => etat.memorisee);
+    const gardees = this.ecran.etat.filter((etat: Etat) => etat.memorisee || etat.horsLigne);
     // Une page déjà vue s'affiche tout de suite avec sa dernière réponse, puis relit le serveur.
     const lectures = lecturesDuChargement(this.ecran).map((l) => ({
       variable: l.variable,
       code: (this.ecran.parametresAdresse ?? []).concat((this.ecran.filtres ?? []).map((f) => f.nom)).reduce((c, p) => c.replace(new RegExp(`encodeURIComponent\\(${camel(p)}\\)`, 'g'), `encodeURIComponent(${this.lu(p)})`), l.code),
     }));
     if (gardees.length === 0 && lectures.length === 0) return [];
-    const cle = (etat: Etat) => chaine(`${this.site.cle}:${simplifier(this.ecran.nom)}:${simplifier(etat.nom)}`);
+    const cle = (etat: Etat) => chaine(`${etat.horsLigne ? 'humalis-hors-ligne:' : ''}${this.site.cle}:${simplifier(this.ecran.nom)}:${simplifier(etat.nom)}`);
     e.bloc('function relire() {', () => {
       for (const l of lectures) e.ligne(`${this.lu(l.variable)} = lectureGardee(${l.code}, ${nomJs(l.variable)}.x);`);
       for (const etat of gardees) e.ligne(`${nomJs(etat.nom)}.v = lireMemoire(${cle(etat)}, ${nomJs(etat.nom)}.x);`);
@@ -629,7 +663,7 @@ export class GenerateurMoteur extends GenerateurPage {
     const code = this.avecPlanificateur(corps.texte());
     const session = /\butilisateur\.\w+/.test(code);
     return {
-      script: `${this.entete(code)}
+      script: `${/\bappareil\./.test(code) ? "import { appareil } from '../humalis/appareil.js';\n" : ''}${this.entete(code)}
 
 export default function couche(r, adresse) {
 ${code}}
@@ -1159,6 +1193,7 @@ ${this.avecPlanificateur(corps.texte())}}
       return [{ brut: iconeHtml(enfant.icone, enfant.classe ?? 'humalis-icone', enfant.label) }];
     }
     if ('qr' in enfant) return [{ zone: `[codeQr(${enfant.qr})]`, initial: '' }];
+    if ('signature' in enfant) return [{ zone: `[appareil.signature(document.createElement('span'), (valeur) => { ${enfant.signature} = valeur; })]`, initial: '' }];
     if ('avatar' in enfant) {
       const { nom, photo, initialNom, initialPhoto } = enfant.avatar;
       return [{ zone: `[avatar(${nom}, ${photo ?? "''"})]`, initial: !env ? '' : initialPhoto ? `<img${attributs([['src', initialPhoto], ['alt', '']])}>` : `<span aria-hidden="true">${echapperTexte(initiales(initialNom))}</span>` }];
@@ -1239,7 +1274,7 @@ const TYPES_SAISIE: Partial<Record<string, { type: string; autocomplete?: string
 };
 
 /** Les noms que les pages produites emploient : une variable du programme ne peut pas les cacher. */
-export const NOMS_RESERVES = (): Set<string> => new Set(['r', 'adresse', 'couche', 'relances', 'minuteries', 'raccourcis', 'session', 'valeur', 'evenement', 'etat', ...NOMS_MOTEUR, ...NOMS_OUTILS, ...NOMS_NAV, ...NOMS_ADAPT, ...NOMS_SERVEUR, 'listeDeplacable', 'choixFichier', 'humalisGraphique']);
+export const NOMS_RESERVES = (): Set<string> => new Set(['appareil', 'r', 'adresse', 'couche', 'relances', 'minuteries', 'raccourcis', 'session', 'valeur', 'evenement', 'etat', ...NOMS_MOTEUR, ...NOMS_OUTILS, ...NOMS_NAV, ...NOMS_ADAPT, ...NOMS_SERVEUR, 'listeDeplacable', 'choixFichier', 'humalisGraphique']);
 
 export const ADAPTATEURS = { module: 'monterModule', react: 'monterReact', vue: 'monterVue', svelte: 'monterSvelte', web: 'monterWeb' } as const;
 
