@@ -1924,7 +1924,9 @@ sees `avec partagee` variables, since no page is open. On Mac, the app must be o
 
 `hors ligne`, at the end of an `envoyer requete … avec …`, a `modifier` or a `supprimer`,
 keeps the request on the device when there is no network and sends it, in order, when the
-connection returns. A server refusal is shown. Logging out clears what was waiting. It
+connection returns. A server refusal is shown. Each request belongs to the account that
+made it: on logout it is set aside and only leaves if the same person logs back in; it is
+deleted after 30 days. It
 does not work with `dans` (the answer would come later) or with an external API. To refresh
 the page afterwards, read the route `en direct`.
 

@@ -41,6 +41,22 @@ page "accueil" :
     bouton "Couper"
     quand l'utilisateur clique sur "Couper" :
         envoyer requete vers "messages" avec contenu = "coupe" hors ligne
+    formulaire "connexion" :
+        champ email "email"
+        champ mot de passe "mot de passe"
+        bouton "Entrer"
+    quand le formulaire "connexion" est soumis :
+        se connecter avec champ "email" et champ "mot de passe"
+    bouton "Sortir"
+    quand l'utilisateur clique sur "Sortir" :
+        se deconnecter
+    si utilisateur est connecte :
+        texte "Personne connectee"
+    sinon :
+        texte "Personne absente"
+    bouton "Garder"
+    quand l'utilisateur clique sur "Garder" :
+        envoyer requete vers "messages" avec contenu = "garde" hors ligne
     bouton "Relire"
     quand l'utilisateur clique sur "Relire" :
         envoyer requete vers "messages" dans messages

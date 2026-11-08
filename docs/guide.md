@@ -1847,7 +1847,9 @@ ouverte. Sur Mac, l'application doit être ouverte.
 
 `hors ligne`, à la fin d'un `envoyer requete … avec …`, d'un `modifier` ou d'un `supprimer`,
 garde l'envoi sur l'appareil s'il n'y a pas de réseau, et l'envoie dans l'ordre quand la
-connexion revient. Un refus du serveur est affiché. Se déconnecter efface ce qui attendait.
+connexion revient. Un refus du serveur est affiché. Chaque envoi appartient au compte qui
+l'a fait : à la déconnexion il est mis de côté, et repart seulement si la même personne se
+reconnecte ; il est effacé au bout de 30 jours.
 Cette fin de phrase ne marche pas avec `dans` (la réponse arrivera plus tard) ni vers une
 API externe. Pour que la page se mette à jour ensuite, lis la route `en direct`.
 
