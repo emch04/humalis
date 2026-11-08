@@ -3,6 +3,7 @@ import { analyser } from '../src/lexer/lexer.js';
 import { analyserSyntaxe } from '../src/parser/parser.js';
 import { compiler } from './aide-qualite.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
+import { dependancesDesComposantsReact, paquetsImportes } from '../src/cibles/web/composants-react.js';
 import { programme, erreurs, avertissements } from './analyse/aide.js';
 
 const avecCarte = programme(
@@ -127,5 +128,53 @@ describe('composants — cible web', () => {
     expect(fiche).toContain('    <>');
     expect(f.get('src/pages/Boutique.tsx')).toContain('<Fiche nom="Livre" prix={12} />');
     expect(f.get('src/pages/Boutique.tsx')).toContain("import Fiche from '../composants/Fiche';");
+  });
+});
+
+describe('composants React — paquets, .jsx et 3D', () => {
+  const avec = (nom: string, contenu: string) =>
+    genererProjetWeb(compiler(avecCarte).application!, {
+      nom: 'b', adresse: 'http://localhost', source: 'b.humalis',
+      composantsReact: new Map([['./composants/Carte', { nom, contenu }]]),
+    });
+  const scene = "import { useEffect } from 'react';\nimport * as THREE from 'three';\nimport gsap from 'gsap';\nexport default function Carte() { return null; }";
+
+  it('lit les paquets importés, sans React, sans chemins relatifs ni modules de Node', () => {
+    expect(paquetsImportes(`
+import { useRef } from 'react';
+import { Canvas } from '@react-three/fiber';
+import * as THREE from "three";
+import './style.css';
+import x from './x';
+import { readFile } from 'node:fs';
+const g = await import('gsap/ScrollTrigger');
+`)).toEqual(['@react-three/fiber', 'gsap', 'three']);
+  });
+
+  it('ajoute three, gsap et les types de three au package.json', () => {
+    const paquet = JSON.parse(avec('Carte.jsx', scene).get('package.json')!);
+    expect(paquet.dependencies.three).toBe('0.187.0');
+    expect(paquet.dependencies.gsap).toBe('3.15.0');
+    expect(paquet.devDependencies['@types/three']).toBe('0.187.0');
+  });
+
+  it('un paquet inconnu part en latest ; sans import, rien n\'est ajouté', () => {
+    expect(dependancesDesComposantsReact(["import x from 'inconnu';"]).dependances).toEqual({ inconnu: 'latest' });
+    expect(dependancesDesComposantsReact(['export default function A() { return null; }'])).toEqual({ dependances: {}, dependancesDev: {} });
+  });
+
+  it('accepte un composant .jsx : tsconfig avec allowJs, fichier recopié tel quel', () => {
+    const f = avec('Carte.jsx', 'export default function Carte() { return null; }');
+    expect(JSON.parse(f.get('tsconfig.json')!).compilerOptions.allowJs).toBe(true);
+    expect(f.get('src/composants/Carte.jsx')).toContain('function Carte');
+  });
+
+  it('charge à part un composant 3D, pas un composant ordinaire', () => {
+    const f3d = avec('Carte.tsx', scene);
+    expect(f3d.get('src/composants/Carte.differe.tsx')).toContain("lazy(() => import('./Carte')");
+    expect(f3d.get('src/pages/Accueil.tsx')).toContain('composants/Carte.differe');
+    const ordinaire = avec('Carte.tsx', 'export default function Carte() { return null; }');
+    expect(ordinaire.has('src/composants/Carte.differe.tsx')).toBe(false);
+    expect(ordinaire.get('src/pages/Accueil.tsx')).toContain("composants/Carte'");
   });
 });

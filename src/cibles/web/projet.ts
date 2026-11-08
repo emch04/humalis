@@ -1,4 +1,5 @@
 import { copiesDesMedias } from '../../ri/medias.js';
+import { dependancesDesComposantsReact, enveloppeDifferee, utiliseLa3D } from './composants-react.js';
 import { robotsTxt, manifeste, fichiersDuSite, balisesIcone, estExterne } from '../publication.js';
 import { sousActions } from '../../ri/actions.js';
 import { cssEcran } from './css-ecran.js';
@@ -99,7 +100,13 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
     const fichier = options.composantsReact?.get(c.chemin);
     if (!fichier) throw new Error(`le composant « ${c.nom} » (${c.chemin}) n'a pas été lu`);
     fichiers.set(`src/composants/${fichier.nom}`, fichier.contenu);
-    modulesComposants.set(c.nom, fichier.nom.replace(/\.(tsx|ts|jsx|js)$/, ''));
+    const module = fichier.nom.replace(/\.(tsx|ts|jsx|js)$/, '');
+    if (utiliseLa3D(fichier.contenu)) {
+      fichiers.set(`src/composants/${module}.differe.tsx`, enveloppeDifferee(module));
+      modulesComposants.set(c.nom, `${module}.differe`);
+    } else {
+      modulesComposants.set(c.nom, module);
+    }
   }
   for (const c of application.composants) modulesComposants.set(c.nom, pascal(c.nom));
 
@@ -209,6 +216,18 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
     const paquet = JSON.parse(fichiers.get('package.json')!);
     paquet.dependencies = { ...paquet.dependencies, ...dependances };
     paquet.devDependencies = { ...paquet.devDependencies, ...dependancesDev };
+    fichiers.set('package.json', JSON.stringify(paquet, null, 2) + '\n');
+  }
+  // Les paquets que les composants React importent (three, gsap…), réécrits à chaque compilation.
+  const lusReact = application.composantsReact.flatMap((c) => {
+    const fichier = options.composantsReact?.get(c.chemin);
+    return fichier ? [fichier.contenu] : [];
+  });
+  const paquetsReact = dependancesDesComposantsReact(lusReact);
+  if (Object.keys(paquetsReact.dependances).length > 0) {
+    const paquet = JSON.parse(fichiers.get('package.json')!);
+    paquet.dependencies = { ...paquet.dependencies, ...paquetsReact.dependances };
+    paquet.devDependencies = { ...paquet.devDependencies, ...paquetsReact.dependancesDev };
     fichiers.set('package.json', JSON.stringify(paquet, null, 2) + '\n');
   }
   // La session d'un serveur Humalis se renouvelle ; celle d'une source reste à la charge de son API.
@@ -510,6 +529,8 @@ const TSCONFIG = JSON.stringify(
       moduleResolution: 'bundler',
       jsx: 'react-jsx',
       strict: true,
+      // Un composant React peut rester en .jsx : il est accepté tel quel, sans être vérifié.
+      allowJs: true,
       noEmit: true,
       skipLibCheck: true,
       types: ['vite/client'],
