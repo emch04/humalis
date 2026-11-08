@@ -13,6 +13,8 @@ export type ActionSeparee = 'lire' | 'creer' | 'modifier' | 'supprimer';
 export const conditionsDe = (route: Route, action: ActionSeparee) => route.conditions?.[action] ?? [];
 export const estSeparee = (donnee: Donnee, route: Route) => donnee.par !== undefined || Object.values(route.conditions ?? {}).some((c) => c.length > 0);
 
+export const gardeAction = (qui: string) => `...acces.${qui.startsWith('role:') ? `roles(${JSON.stringify(qui.slice(5).split(','))})` : qui === 'admin' ? 'seulAdmin' : 'connecte'}`;
+
 /** Vrai si le serveur doit relire le compte à chaque requête. */
 export function compteRelu(serveur: ServeurRI): boolean {
   return Boolean(serveur.changeDeRole) || serveur.routes.some((r) => estSeparee(serveur.donnees.find((d) => d.nom === r.donnee)!, r));

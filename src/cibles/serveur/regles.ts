@@ -33,7 +33,7 @@ export function reglesEnvoi(donnee: Donnee, route: Route): string {
 }
 
 /** Vrai si la création de cette donnée passe par une fonction « completer… ». */
-const aCompleter = (donnee: Donnee) => donnee.champs.some((c) => (decide(c.regle) && c.regle?.genre !== 'groupe') || c.regle?.genre === 'auPlus');
+export const aCompleter = (donnee: Donnee) => donnee.champs.some((c) => (decide(c.regle) && c.regle?.genre !== 'groupe') || c.regle?.genre === 'auPlus');
 
 /** La fonction qui écrit, dans la fiche reçue, ce que le serveur décide : l'ordre importe (les calculs lisent les autres champs). */
 function fonctionCompleter(donnee: Donnee): string {

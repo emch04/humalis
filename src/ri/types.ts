@@ -137,6 +137,30 @@ export interface ConditionRegleRI {
   droite: OperandeRI;
 }
 
+export type ValeurServeurRI =
+  | { genre: 'valeur'; valeur: string | number | boolean }
+  | { genre: 'aujourdhui' }
+  | { genre: 'champ'; fiche: string; champ: string }
+  | { genre: 'utilisateur'; champ: string }
+  | { genre: 'texte'; parties: ({ texte: string } | { valeur: ValeurServeurRI })[] }
+  | { genre: 'calcul'; operateur: '+' | '-' | '*' | '/'; gauche: ValeurServeurRI; droite: ValeurServeurRI };
+
+export type TestServeurRI =
+  | { genre: 'comparaison'; operateur: string; gauche: ValeurServeurRI; droite?: ValeurServeurRI; negation?: boolean }
+  | { genre: 'combinaison'; operateur: 'et' | 'ou'; gauche: TestServeurRI; droite: TestServeurRI };
+
+export type InstructionServeurRI =
+  | { type: 'si'; test: TestServeurRI; alors: InstructionServeurRI[]; sinon: InstructionServeurRI[] }
+  | { type: 'pourChaque'; variable: string; donnee: string; filtre?: { champ: string; valeur: ValeurServeurRI }; corps: InstructionServeurRI[] }
+  | { type: 'changer'; fiche: string; donnee: string; champ: string; valeur: ValeurServeurRI }
+  | { type: 'supprimer'; fiche: string; donnee: string }
+  | { type: 'refuser'; message: ValeurServeurRI }
+  | { type: 'creer'; donnee: string; valeurs: { champ: string; valeur: ValeurServeurRI }[]; groupeDe?: string }
+  | { type: 'email'; a: { genre: 'admins' } | { genre: 'valeur'; valeur: ValeurServeurRI }; sujet: ValeurServeurRI; texte: ValeurServeurRI }
+  | { type: 'notification'; a: { genre: 'roles'; roles: string[] } | { genre: 'compte'; valeur: ValeurServeurRI }; titre: ValeurServeurRI; texte: ValeurServeurRI };
+
+export type FrequenceRI = { genre: 'heure' } | { genre: 'jour'; heure: number; minute: number } | { genre: 'semaine'; jour: number; heure: number; minute: number };
+
 export type MorceauEmail = { texte: string } | { champ: string };
 
 export interface ServeurRI {
@@ -149,6 +173,8 @@ export interface ServeurRI {
     droits: Record<'lire' | 'creer' | 'modifier' | 'supprimer', QuiPeut | null> & { lireUn?: QuiPeut };
     /** « client peut lire facture si … » : ces règles s'ajoutent aux droits sans condition. */
     conditions?: Partial<Record<'lire' | 'creer' | 'modifier' | 'supprimer', ConditionRegleRI[]>>;
+    /** « seul gerant peut faire "rembourser" sur commande : ». */
+    actions?: { nom: string; qui: QuiPeut; corps: InstructionServeurRI[] }[];
     /** « creer suivi avec … dans commande.suivi » : les fiches liées, créées avant la réponse. */
     creations?: { donnee: string; valeurs: { champ: string; valeur: ValeurLieeRI }[]; dans?: string }[];
     /** Une page écrit « telecharger bon de … » : la route sert aussi GET /:id/bon. */
@@ -171,6 +197,8 @@ export interface ServeurRI {
   connexionGoogle?: boolean;
   /** « roles directeur, enseignant et parent ». */
   roles?: string[];
+  /** « tous les jours a 7 h : ». */
+  taches?: { nom: string; frequence: FrequenceRI; corps: InstructionServeurRI[] }[];
   /** Une page écrit « changer role de … ». */
   changeDeRole?: boolean;
   /** « fidelite par telephone de commande : » : la lecture réservée à l'admin de /api/fidelite/… */

@@ -133,6 +133,8 @@ export interface Serveur {
   connexionGoogle?: number;
   /** « roles directeur, enseignant et parent ». */
   roles?: string[];
+  /** « tous les jours a 7 h : » : le travail que le serveur fait seul. */
+  taches?: TachePlanifiee[];
   /** « emails par brevo » : le service qui envoie les e-mails du serveur. */
   emails?: { service: string; ligne: number };
   /** « invitations vers "bienvenue" » : un admin invite une adresse ; le lien ouvre cette page. */
@@ -262,6 +264,8 @@ export interface Route {
   regles: Regle[];
   /** « quand message est cree : … » : les e-mails que la création d'une fiche fait partir. */
   apresCreation?: ApresCreation;
+  /** « seul gerant peut faire "rembourser" sur commande : ». */
+  actions?: ActionServeur[];
   ligne: number;
 }
 
@@ -309,6 +313,44 @@ export interface ConditionRegle {
   droite: OperandeRegle;
   ligne: number;
 }
+
+/** « seul gerant peut faire "rembourser" sur commande : ». */
+export interface ActionServeur {
+  type: 'ActionServeur';
+  nom: string;
+  qui: Qui;
+  donnee: string;
+  corps: InstructionServeur[];
+  ligne: number;
+}
+
+export type FrequenceTache = { genre: 'heure' } | { genre: 'jour'; heure: number; minute: number } | { genre: 'semaine'; jour: number; heure: number; minute: number };
+
+export interface TachePlanifiee {
+  type: 'TachePlanifiee';
+  frequence: FrequenceTache;
+  corps: InstructionServeur[];
+  ligne: number;
+}
+
+/** « envoyer notification aux gerant avec titre "…" et texte "…" » ; le destinataire peut être commande.compte. */
+export interface EnvoiNotification {
+  destinataire: { genre: 'roles'; roles: string[] } | { genre: 'compte'; donnee: string; champ: string };
+  titre: MorceauTexte[];
+  texte: MorceauTexte[];
+  ligne: number;
+}
+type MorceauTexte = EnvoiEmail['sujet'][number];
+
+export type InstructionServeur =
+  | { type: 'SiServeur'; test: Test; alors: InstructionServeur[]; sinon: InstructionServeur[]; ligne: number }
+  | { type: 'PourChaqueServeur'; variable: string; donnee: string; filtre?: { champ: string; valeur: Expression }; corps: InstructionServeur[]; ligne: number }
+  | { type: 'ChangerChamp'; cible: string; champ: string; valeur: Expression; ligne: number }
+  | { type: 'SupprimerFiche'; cible: string; ligne: number }
+  | { type: 'Refuser'; message: Expression; ligne: number }
+  | { type: 'CreerFiche'; creation: CreationLiee; ligne: number }
+  | { type: 'EmailServeur'; envoi: EnvoiEmail; ligne: number }
+  | { type: 'NotificationServeur'; envoi: EnvoiNotification; ligne: number };
 
 export interface ComposantReact {
   type: 'ComposantReact';
@@ -412,6 +454,7 @@ export type Instruction =
   | ChangementMotDePasse
   | Invitation
   | ChangementRole
+  | FaireAction
   | DemandeLienMotDePasse
   | ChoixMotDePasse
   | TelechargementBon
@@ -675,6 +718,14 @@ export interface Invitation {
   role: string;
   /** « dans boutique b » : le groupe du nouveau compte. */
   groupe?: { champ: string; valeur: Expression };
+  ligne: number;
+}
+
+/** « faire "rembourser" sur c » : lance l'action écrite sur le serveur. */
+export interface FaireAction {
+  type: 'FaireAction';
+  nom: string;
+  objet: Expression;
   ligne: number;
 }
 

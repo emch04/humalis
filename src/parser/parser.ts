@@ -5,6 +5,7 @@ import { OPTIONS } from '../analyse/styles.js';
 import type { Token, PartieChaine } from '../lexer/types.js';
 import { analyser as analyserLexique } from '../lexer/lexer.js';
 import { FluxTokens } from './fluxTokens.js';
+import { analyserActionServeur, analyserTache, estTache } from './logique.js';
 import { analyserSource, analyserClausesRequete, analyserSourceSeule } from './source.js';
 import { analyserEntetePage, analyserAvecPage } from './navigation.js';
 import { ErreurSyntaxique } from './erreurs.js';
@@ -64,7 +65,7 @@ import type {
   Boucle,
   Evenement,
   GenreEvenement,
-  Connexion, ConnexionGoogle, ChangementMotDePasse, Invitation, ChangementRole, ConditionRegle, OperandeRegle, DemandeLienMotDePasse, ChoixMotDePasse, ApresCreation, EnvoiEmail, CreationLiee, RegleChamp, ValeurFixe, TelechargementBon, TelechargementCsv, Fidelite, Suppression, Modification, EnvoiFichier, ArgumentPage } from './ast.js';
+  Connexion, ConnexionGoogle, ChangementMotDePasse, Invitation, ChangementRole, FaireAction, ActionServeur, TachePlanifiee, EnvoiNotification, ConditionRegle, OperandeRegle, DemandeLienMotDePasse, ChoixMotDePasse, ApresCreation, EnvoiEmail, CreationLiee, RegleChamp, ValeurFixe, TelechargementBon, TelechargementCsv, Fidelite, Suppression, Modification, EnvoiFichier, ArgumentPage } from './ast.js';
 
 export function analyserSyntaxe(tokens: Token[]): Programme {
   const flux = new FluxTokens(tokens);
@@ -386,10 +387,13 @@ function analyserServeur(flux: FluxTokens): Serveur {
   let invitations: Serveur['invitations'];
   let motDePasseOublie: Serveur['motDePasseOublie'];
   let fidelite: Fidelite | undefined;
+  const taches: TachePlanifiee[] = [];
 
   chaqueLigne(flux, () => {
     const token = flux.actuel();
-    if (estLeMot(token, 'donnee')) {
+    if (estTache(flux)) {
+      taches.push(analyserTache(flux));
+    } else if (estLeMot(token, 'donnee')) {
       donnees.push(analyserDonnee(flux));
     } else if (estLeMot(token, 'route')) {
       routes.push(analyserRoute(flux, roles !== undefined));
@@ -452,6 +456,7 @@ function analyserServeur(flux: FluxTokens): Serveur {
     routes,
     ...(connexionGoogle !== undefined ? { connexionGoogle } : {}),
     ...(roles?.length ? { roles } : {}),
+    ...(taches.length ? { taches } : {}),
     ...(emails ? { emails } : {}),
     ...(invitations ? { invitations } : {}),
     ...(motDePasseOublie ? { motDePasseOublie } : {}),
@@ -655,14 +660,19 @@ function analyserRoute(flux: FluxTokens, avecRoles = false): Route {
   const adresse = flux.attendre('CHAINE', undefined, "l'adresse de la route entre guillemets").valeur;
   flux.attendre('PONCTUATION', ':', "deux-points après l'adresse de la route");
   const regles: Regle[] = [];
+  const actions: ActionServeur[] = [];
   let apresCreation: ApresCreation | undefined;
   chaqueLigne(flux, () => {
     if (flux.verifier('MOT_CLE', 'quand') || estLeMot(flux.actuel(), 'quand')) {
       if (apresCreation) throw new ErreurSyntaxique(`une route n'a qu'un seul « quand … est cree » : il est déjà écrit ligne ${apresCreation.ligne}.`, flux.actuel().ligne);
       apresCreation = analyserApresCreation(flux);
-    } else regles.push(analyserRegle(flux, avecRoles));
+    } else {
+      const lue = analyserRegle(flux, avecRoles);
+      if (lue.type === 'Regle') regles.push(lue);
+      else actions.push(lue);
+    }
   });
-  return { type: 'Route', adresse, regles, ...(apresCreation ? { apresCreation } : {}), ligne: debut.ligne };
+  return { type: 'Route', adresse, regles, ...(actions.length ? { actions } : {}), ...(apresCreation ? { apresCreation } : {}), ligne: debut.ligne };
 }
 
 /** « quand message est cree : » puis, décalés, les « envoyer email … ». */
@@ -685,7 +695,7 @@ function analyserApresCreation(flux: FluxTokens): ApresCreation {
 }
 
 /** « creer suivi avec etape "en_attente" et total commande.total dans commande.suivi ». */
-function analyserCreationLiee(flux: FluxTokens): CreationLiee {
+export function analyserCreationLiee(flux: FluxTokens): CreationLiee {
   const exemple = 'creer suivi avec etape "en_attente" et total commande.total dans commande.suivi';
   const debut = flux.avancer();
   const donnee = nomDansRegle(flux, exemple);
@@ -709,7 +719,39 @@ function analyserCreationLiee(flux: FluxTokens): CreationLiee {
 }
 
 /** « envoyer email aux admins avec sujet "…" et texte "…" » ; le destinataire peut être "a@b.c" ou commande.email. */
-function analyserEnvoiEmail(flux: FluxTokens): EnvoiEmail {
+/** « envoyer notification aux gerant et vendeur avec titre "…" et texte "…" », ou « a commande.compte ». */
+export function analyserEnvoiNotification(flux: FluxTokens): EnvoiNotification {
+  const exemple = 'envoyer notification aux gerant avec titre "Nouveau" et texte "{commande.total}"';
+  const debut = flux.avancer();
+  flux.avancer();
+  let destinataire: EnvoiNotification['destinataire'];
+  if (estMot(flux.actuel()) && flux.regarder(1).valeur === '.' && estMot(flux.regarder(2))) {
+    const donnee = flux.avancer().valeur;
+    flux.avancer();
+    destinataire = { genre: 'compte', donnee, champ: flux.avancer().valeur };
+  } else {
+    const roles: string[] = [];
+    while (!estLeMot(flux.actuel(), 'avec') && !flux.verifier('FIN_LIGNE') && !flux.estFini()) {
+      const mot = motDe(flux.avancer());
+      if (mot !== 'et' && mot !== ',' && mot !== 'aux') roles.push(mot);
+    }
+    if (roles.length === 0) throw new ErreurSyntaxique(`à qui part cette notification ? ${exemple}`, debut.ligne);
+    destinataire = { genre: 'roles', roles };
+  }
+  const lireTexte = (mot: string) => {
+    const jeton = flux.actuel();
+    if (!estLeMot(jeton, mot) || flux.regarder(1).type !== 'CHAINE') throw new ErreurSyntaxique(`il manque ${mot} "…" dans cette notification : ${exemple}`, jeton.ligne);
+    flux.avancer();
+    const chaine = flux.avancer();
+    return chaine.parties ?? [{ type: 'texte' as const, valeur: chaine.valeur }];
+  };
+  flux.attendre('MOT_CLE', 'avec', `« avec titre "…" et texte "…" » après le destinataire : ${exemple}`);
+  const titre = lireTexte('titre');
+  flux.attendre('MOT_CLE', 'et', `« et texte "…" » après le titre : ${exemple}`);
+  return { destinataire, titre, texte: lireTexte('texte'), ligne: debut.ligne };
+}
+
+export function analyserEnvoiEmail(flux: FluxTokens): EnvoiEmail {
   const exemple = 'envoyer email aux admins avec sujet "Nouveau message" et texte "{message.texte}"';
   const debut = flux.actuel();
   if (!estLeMot(debut, 'envoyer') || !estLeMot(flux.regarder(1), 'email')) {
@@ -746,7 +788,7 @@ function analyserEnvoiEmail(flux: FluxTokens): EnvoiEmail {
 }
 
 /** « tout le monde peut lire produit », « seul admin peut modifier produit ». */
-function analyserRegle(flux: FluxTokens, avecRoles = false): Regle {
+function analyserRegle(flux: FluxTokens, avecRoles = false): Regle | ActionServeur {
   const debut = flux.actuel();
   const mots: string[] = [];
   while (!estLeMot(flux.actuel(), 'peut') && !estLeMot(flux.actuel(), 'peuvent') && !flux.verifier('FIN_LIGNE') && !flux.estFini()) {
@@ -766,6 +808,8 @@ function analyserRegle(flux: FluxTokens, avecRoles = false): Regle {
   }
   if (estLeMot(flux.actuel(), 'peuvent')) flux.avancer();
   else flux.attendre(flux.actuel().type === 'MOT_CLE' ? 'MOT_CLE' : 'IDENTIFIANT', 'peut', '« peut » suivi d\'une action');
+
+  if (estLeMot(flux.actuel(), 'faire')) return analyserActionServeur(flux, qui, debut.ligne);
 
   const actions: ActionDonnee[] = [];
   do {
@@ -1082,6 +1126,15 @@ function analyserInstruction(flux: FluxTokens): Instruction {
   // « demander un lien de mot de passe pour champ "Email" » et « choisir le mot de passe avec champ "Nouveau" ».
   if (estLeMot(flux.actuel(), 'demander') && estLeMot(flux.regarder(1), 'lien')) return analyserDemandeLien(flux);
   if (estLeMot(flux.actuel(), 'choisir') && estLeMot(flux.regarder(1), 'mot') && estLeMot(flux.regarder(2), 'passe')) return analyserChoixMotDePasse(flux);
+
+  // « faire "rembourser" sur c » ; « faire » seul reste un nom possible.
+  if (estLeMot(flux.actuel(), 'faire') && flux.regarder(1).type === 'CHAINE') {
+    const debut = flux.avancer();
+    const nom = flux.avancer().valeur;
+    if (!estLeMot(flux.actuel(), 'sur')) throw new ErreurSyntaxique(`on écrit : faire "${nom}" sur c`, debut.ligne);
+    flux.avancer();
+    return { type: 'FaireAction', nom, objet: analyserOperande(flux), ligne: debut.ligne } satisfies FaireAction;
+  }
 
   // « changer role de c en "vendeur" » ; « changer role par 2 » reste une variable de ce nom.
   if (flux.verifier('MOT_CLE', 'changer') && estLeMot(flux.regarder(1), 'role') && !estLeMot(flux.regarder(2), 'par') && flux.regarder(2).type !== 'FIN_LIGNE') {
@@ -1877,7 +1930,7 @@ function lectureComparee(flux: FluxTokens, decalage: number): boolean {
 }
 
 /** « a ou b et c » se lit « a ou (b et c) » : « et » lie plus fort, comme en logique. */
-function analyserTestCombine(flux: FluxTokens, continuer: () => boolean = () => true): Test {
+export function analyserTestCombine(flux: FluxTokens, continuer: () => boolean = () => true): Test {
   let test = analyserEt(flux, continuer);
   while (flux.verifier('MOT_CLE', 'ou') && continuer()) {
     const ligne = flux.avancer().ligne;
@@ -2196,7 +2249,7 @@ function analyserBoucle(flux: FluxTokens): Boucle {
 }
 
 /** Un calcul : des termes séparés par + ou -, de gauche à droite. */
-function analyserExpression(flux: FluxTokens): Expression {
+export function analyserExpression(flux: FluxTokens): Expression {
   let gauche = analyserTerme(flux);
   while (flux.verifier('PONCTUATION', '+') || flux.verifier('PONCTUATION', '-')) {
     const operateur = flux.avancer().valeur as OperateurCalcul;

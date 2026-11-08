@@ -20,6 +20,7 @@ import type { ResultatAnalyse } from '../analyse/analyse.js';
 import { INCONNU, NOMBRE, BOOLEEN, type TypeValeur } from '../analyse/types.js';
 import { optionCanonique } from '../analyse/styles.js';
 import { adresseNormalisee, conditionsDeRoute, droitsDeRoute } from '../analyse/serveur.js';
+import { traduireAction, traduireTache } from '../analyse/logique.js';
 import { encreSur } from '../analyse/couleurs.js';
 import { lireCible } from '../analyse/navigation.js';
 import { imageDe, REGLAGES_IMAGE, choixFichierDe } from './medias.js';
@@ -221,6 +222,7 @@ function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
           donnee: route.regles[0].donnee,
           droits,
           ...(Object.keys(conditionsDeRoute(route)).length ? { conditions: conditionsRI(route) } : {}),
+          ...(route.actions?.length ? { actions: route.actions.map((a) => ({ nom: a.nom, qui: a.qui, corps: traduireAction(a, serveur, () => undefined) })) } : {}),
           ...(bon ? { bon } : {}),
           ...(direct ? { direct } : {}),
           ...(route.apresCreation?.envois.length ? { envois: envoisRI(route.apresCreation) } : {}),
@@ -235,6 +237,7 @@ function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
     ...(serveur.connexionGoogle !== undefined ? { connexionGoogle: true } : {}),
     ...(serveur.roles?.length ? { roles: serveur.roles } : {}),
     ...(analyse.changeDeRole ? { changeDeRole: true } : {}),
+    ...(serveur.taches?.length ? { taches: serveur.taches.map((t, i) => ({ nom: `tache-${i + 1}`, frequence: t.frequence, corps: traduireTache(t, serveur, () => undefined) })) } : {}),
     // L'analyse a déjà vérifié le bloc : ses deux lignes sont là, et le champ existe sous ce nom ou un nom voisin (accents).
     ...(fidelite?.gain && fidelite.objectif
       ? {
@@ -695,6 +698,10 @@ class Construction {
 
         case 'Invitation':
           actions.push({ type: 'invitation', email: this.valeur(instruction.email), role: instruction.role, ...(instruction.groupe ? { groupe: { champ: instruction.groupe.champ, valeur: this.valeur(instruction.groupe.valeur) } } : {}) });
+          break;
+        case 'FaireAction':
+          // Une action passe par le même chemin qu'une modification : droits, jeton, erreurs et relecture sont déjà là.
+          actions.push({ type: 'modification', adresse: this.analyse.adressesRequetes.get(instruction) ?? '', objet: this.valeur(instruction.objet), changements: [] });
           break;
         case 'ChangementRole':
           actions.push({ type: 'changementRole', cible: this.valeur(instruction.cible), role: this.valeur(instruction.role) });
