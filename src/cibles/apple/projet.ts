@@ -301,7 +301,7 @@ interface EntreeMenu {
 }
 
 interface Disposition {
-  entete?: { nom: string; sans: string[]; css: string[] };
+  entete?: { nom: string; sans: string[]; css: string[]; haut: boolean };
   pied?: { nom: string; sans: string[]; colle: boolean; css: string[] };
   /** Les liens du menu de l'en-tête : la barre latérale de l'iPad et du Mac, et le menu « Aller à ». */
   menu?: EntreeMenu[];
@@ -483,13 +483,14 @@ function menuSwift(entrees: EntreeMenu[]): string {
 }
 
 function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, disposition: Disposition, polices: string[], policeTexte?: string, notifications = false, fonds: { liens?: boolean; domaine?: boolean; envois?: boolean; arrierePlan?: boolean } = {}): string {
-  const racine = `${nomPage(entree.nom)}()`;
+  // Par la route, et non la page directement : une page d'entrée réservée garde sa protection.
+  const racine = entree.reservee ? 'Route.accueilHumalis.vue' : `${nomPage(entree.nom)}()`;
   const sans = (liste: string[]) => (liste.length ? `![${liste.map((r) => `Route.${r}`).join(', ')}].contains(Routeur.commun.chemin.last ?? .accueilHumalis)` : 'true');
   const entete = disposition.entete;
   const pied = disposition.pied;
   const menu = disposition.menu && disposition.menu.length > 0 ? disposition.menu : undefined;
   // Avec la barre latérale, un en-tête qui n'a que son menu disparaît.
-  const montrerEntete = entete ? `${sans(entete.sans)}${menu && !disposition.enteteAvecAutreChose ? ' && !large' : ''}` : '';
+  const montrerEntete = entete ? `${sans(entete.sans)}${menu && !disposition.enteteAvecAutreChose ? ' && !large' : ''}${entete.haut ? ' && large' : ''}` : '';
   const piedColle = pied?.colle ? pied : undefined;
   const piedQuiDefile = pied && !pied.colle ? pied : undefined;
   const insets = `${entete ? `
@@ -501,7 +502,8 @@ function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, dispos
                     }
                     .background(.bar)${entete.css.map((l) => `\n                    ${l}`).join('')}
                 }
-            }` : ''}${piedColle ? `
+            }` : ''}${entete?.haut ? `
+            .environment(\\.enteteHumalis, !large && ${sans(entete.sans)} ? AnyView(${entete.nom}().padding(.horizontal, 16).padding(.vertical, 8).frame(maxWidth: .infinity, alignment: .leading)${entete.css.join('')}) : nil)` : ''}${piedColle ? `
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 if ${sans(piedColle.sans)} {
                     VStack(spacing: 0) {
@@ -791,7 +793,7 @@ export function genererProjetApple(application: Application, options: OptionsApp
     const sans = application.ecrans.filter((e) => (genre === 'entete' ? e.sansEntete : e.sansPied)).map((e) => nomRoute(e.nom));
     const cssCommun = app.css.modificateurs([`humalis-${genre}`, ...d.classes], 'bloc');
     if (genre === 'pied') disposition.pied = { nom: composant, sans, colle: d.options.some((o) => o.nom === 'colle'), css: cssCommun };
-    else disposition.entete = { nom: composant, sans, css: cssCommun };
+    else disposition.entete = { nom: composant, sans, css: cssCommun, haut: (JSON.stringify(d.ecran.vue).match(/"type":"element"/g)?.length ?? 0) > 5 };
     if (menu) {
       disposition.menu = entreesDuMenu(menu, app, valeurs);
       disposition.enteteAvecAutreChose = montreAutreChose(d.ecran.vue, menu);

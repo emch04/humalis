@@ -377,10 +377,13 @@ func couleurHumalis(_ clair: UInt32, _ sombre: UInt32) -> Color {
 extension EnvironmentValues {
     /** Le pied commun qui n'est pas « colle » : il défile à la fin de chaque page, comme sur un site. */
     @Entry var piedHumalis: AnyView? = nil
+    /** Sur iPhone, un en-tête de site trop haut défile avec la page au lieu de cacher l'écran. */
+    @Entry var enteteHumalis: AnyView? = nil
 }
 
 struct PageHumalis<Contenu: View>: View {
     @Environment(\.piedHumalis) private var pied
+    @Environment(\.enteteHumalis) private var enteteDefilante
     let titre: String
     var largeur: CGFloat = 768
     /** Une page avec une liste : seules les lignes visibles sont construites. */
@@ -391,6 +394,7 @@ struct PageHumalis<Contenu: View>: View {
         ScrollViewReader { lecteur in
             ScrollView {
                 VStack(spacing: 0) {
+                    if let enteteDefilante { enteteDefilante }
                     Group {
                         if paresseuse {
                             LazyVStack(alignment: .leading, spacing: 12) { contenu() }
