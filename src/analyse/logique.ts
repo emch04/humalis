@@ -2,7 +2,7 @@
  * Vérifie ce qui s'exécute sur le serveur et le traduit pour le générateur. Une seule passe :
  * l'analyse s'en sert pour les erreurs, la construction de la RI pour le résultat.
  */
-import type { ActionServeur, Donnee, Expression, InstructionServeur, Serveur, TachePlanifiee, Test } from '../parser/ast.js';
+import type { ActionServeur, DocumentServeur, Donnee, Expression, InstructionServeur, Serveur, TachePlanifiee, Test } from '../parser/ast.js';
 import type { InstructionServeurRI, TestServeurRI, ValeurServeurRI } from '../ri/types.js';
 import { simplifier } from './elements.js';
 import { proposerNom } from './suggestions.js';
@@ -175,6 +175,17 @@ export function traduireAction(action: ActionServeur, serveur: Serveur, erreur: 
     return [];
   }
   return new Traduction(serveur, erreur, true).corps(action.corps, new Map([[donnee.nom, donnee]]));
+}
+
+/** Les lignes d'un document : chaque « {commande.total} » existe. */
+export function traduireDocument(document: DocumentServeur, serveur: Serveur, erreur: Erreur): { genre: 'titre' | 'texte'; valeur: ValeurServeurRI }[] {
+  const donnee = serveur.donnees.find((d) => d.nom === document.donnee && !d.comptes);
+  if (!donnee) {
+    erreur(`la donnée « ${document.donnee} » n'existe pas. Données : ${serveur.donnees.filter((d) => !d.comptes).map((d) => d.nom).join(', ') || 'aucune'}.`, document.ligne);
+    return [];
+  }
+  const traduction = new Traduction(serveur, erreur, false);
+  return document.lignes.map(({ genre, parties, ligne }) => ({ genre, valeur: traduction.valeur({ type: 'Chaine', parties, ligne }, new Map([[donnee.nom, donnee]])) }));
 }
 
 export function traduireTache(tache: TachePlanifiee, serveur: Serveur, erreur: Erreur): InstructionServeurRI[] {

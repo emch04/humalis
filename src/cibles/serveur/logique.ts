@@ -13,7 +13,7 @@ type Route = ServeurRI['routes'][number];
 const chaine = (t: string) => JSON.stringify(t);
 const fiche = (nom: string) => `f_${camel(nom)}`;
 
-export const avecLogique = (serveur: ServeurRI) => Boolean(serveur.taches?.length) || serveur.routes.some((r) => r.actions?.length);
+export const avecLogique = (serveur: ServeurRI) => Boolean(serveur.taches?.length) || Boolean(serveur.documents?.length) || serveur.routes.some((r) => r.actions?.length);
 const parcourir = (liste: InstructionServeurRI[], voir: (i: InstructionServeurRI) => void): void => {
   for (const i of liste) {
     voir(i);
@@ -150,6 +150,53 @@ ${new Ecriture(serveur, groupe).lignes(action.corps, '            ')}
 `)
     .join('');
 }
+
+/** Les documents d'une route : GET /documents/<nom>/:id/bon, avec les droits de la lecture. */
+export function codeDocuments(serveur: ServeurRI, route: Route, variable: string, garde: string, separee: boolean, voir: string): string {
+  const nomFiche = fiche(route.donnee);
+  return (serveur.documents ?? [])
+    .filter((d) => d.donnee === route.donnee)
+    .map((document) => `      ${variable}.get('/documents/${slug(document.nom)}/:id/bon', lecturePrivee, ${garde}, async (req, res, next) => {
+        try {
+${voir}          const ${nomFiche} = ${separee ? 'visible' : `await stockages.${camel(route.donnee)}.trouver(String(req.params.id))`};
+          if (!${nomFiche}) {
+            res.status(404).json({ erreur: introuvable('${route.donnee}') });
+            return;
+          }
+          const fichier = await creerDocument(${chaine(document.nom)}, [${document.lignes.map((l) => `{ genre: '${l.genre}', texte: ${valeur(l.valeur)} }`).join(', ')}]);
+          res.set('Content-Type', 'application/pdf');
+          res.set('Content-Disposition', 'attachment; filename="${slug(document.nom)}.pdf"');
+          res.send(fichier);
+        } catch (erreur) {
+          next(erreur);
+        }
+      });
+`)
+    .join('');
+}
+
+/** src/humalis/document.ts */
+export const DOCUMENT = String.raw`import PDFDocument from 'pdfkit';
+import { enTexte } from './logique.js';
+
+/** Produit par Humalis : un document PDF écrit dans le programme. Les valeurs ne sont jamais interprétées. */
+const espaces = (texte: string) => texte.replace(/[  ]/g, ' ');
+
+export function creerDocument(nom: string, lignes: { genre: 'titre' | 'texte'; texte: string }[]): Promise<Buffer> {
+  return new Promise((resoudre, rejeter) => {
+    const doc = new PDFDocument({ size: 'A4', margin: 50, info: { Title: espaces(enTexte(nom)) } });
+    const morceaux: Buffer[] = [];
+    doc.on('data', (morceau: Buffer) => morceaux.push(morceau));
+    doc.on('end', () => resoudre(Buffer.concat(morceaux)));
+    doc.on('error', rejeter);
+    for (const { genre, texte } of lignes) {
+      doc.font(genre === 'titre' ? 'Helvetica-Bold' : 'Helvetica').fontSize(genre === 'titre' ? 20 : 12).text(espaces(texte));
+      doc.moveDown(genre === 'titre' ? 1 : 0.5);
+    }
+    doc.end();
+  });
+}
+`;
 
 /** Les tâches : lancées seulement par demarrer.ts, jamais dans les tests. */
 export function codeTaches(serveur: ServeurRI): string {

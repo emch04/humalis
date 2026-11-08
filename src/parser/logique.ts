@@ -5,7 +5,7 @@
 import { FluxTokens } from './fluxTokens.js';
 import { ErreurSyntaxique } from './erreurs.js';
 import { chaqueLigne, estLeMot, analyserOperande, analyserExpression, analyserTestCombine, analyserCreationLiee, analyserEnvoiEmail, analyserEnvoiNotification } from './parser.js';
-import type { ActionServeur, FrequenceTache, InstructionServeur, Qui, TachePlanifiee } from './ast.js';
+import type { ActionServeur, DocumentServeur, FrequenceTache, InstructionServeur, Qui, TachePlanifiee } from './ast.js';
 
 /** « faire "rembourser" sur commande : » (le « qui » et « peut » sont déjà lus). */
 export function analyserActionServeur(flux: FluxTokens, qui: Qui, ligne: number): ActionServeur {
@@ -63,6 +63,24 @@ export function analyserTache(flux: FluxTokens): TachePlanifiee {
   }
   flux.attendre('PONCTUATION', ':', 'deux-points à la fin de la tâche');
   return { type: 'TachePlanifiee', frequence, corps: analyserCorpsServeur(flux), ligne: debut.ligne };
+}
+
+/** « document "facture" de commande : » (« de » est déjà sauté par le lexer). */
+export function analyserDocument(flux: FluxTokens): DocumentServeur {
+  const debut = flux.avancer();
+  const nom = flux.attendre('CHAINE', undefined, 'le nom du document entre guillemets').valeur;
+  const donnee = flux.attendreNom('la donnée que montre ce document').nom;
+  flux.attendre('PONCTUATION', ':', 'deux-points à la fin de « document »');
+  const lignes: DocumentServeur['lignes'] = [];
+  chaqueLigne(flux, () => {
+    const mot = flux.actuel();
+    const genre = estLeMot(mot, 'titre') ? 'titre' : estLeMot(mot, 'texte') ? 'texte' : null;
+    if (genre === null || flux.regarder(1).type !== 'CHAINE') throw new ErreurSyntaxique('dans un document, on écrit « titre "…" » ou « texte "…" ».', mot.ligne);
+    flux.avancer();
+    const chaine = flux.avancer();
+    lignes.push({ genre, parties: chaine.parties ?? [{ type: 'texte', valeur: chaine.valeur }], ligne: mot.ligne });
+  });
+  return { type: 'DocumentServeur', nom, donnee, lignes, ligne: debut.ligne };
 }
 
 /** Le bloc d'instructions d'une action ou d'une tâche. */

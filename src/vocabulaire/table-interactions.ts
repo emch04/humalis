@@ -360,6 +360,16 @@ export const ENTREES_INTERACTIONS: EntreeVocabulaire[] = [
     exemple: 'serveur "s" :\n    roles gerant\n    donnee commande :\n        total : nombre\n    route "commandes" :\n        seul gerant peut lire commande\n        seul gerant peut modifier commande\n        seul gerant peut faire "a" sur commande :\n            envoyer notification aux gerant avec titre "T" et texte "X"\n',
   }),
   mot({
+    mot: 'document',
+    categorie: 'action',
+    concept: 'action.documentServeur',
+    contextes: ['option'],
+    cibles: { ...ecran('un PDF produit par le serveur', null, null) },
+    couvre: [],
+    description: '« document "facture" de commande : » : un PDF écrit dans le serveur, avec les droits de la lecture de sa donnée.',
+    exemple: 'serveur "s" :\n    document "a" de commande :\n        titre "T"\n    donnee commande :\n        total : nombre\n    route "commandes" :\n        seul admin peut lire commande\n        seul admin peut modifier commande\n',
+  }),
+  mot({
     mot: 'role',
     accentue: 'rôle',
     categorie: 'action',

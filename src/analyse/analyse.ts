@@ -4,7 +4,7 @@ import { langueDuMot } from '../i18n/langues.js';
 import { texteSource } from '../parser/langues.js';
 import { lireExpressionDuTexte } from '../parser/parser.js';
 import { ErreurSyntaxique } from '../parser/erreurs.js';
-import type { FaireAction } from '../parser/ast.js';
+import type { FaireAction, TelechargementDocument } from '../parser/ast.js';
 import type {
   Programme,
   RegleSource,
@@ -119,7 +119,7 @@ export interface ResultatAnalyse {
   champs: Map<Expression, string>;
   /** L'adresse réelle d'une requête vers une route du serveur (« /api/produits »). */
   /** L'adresse réelle (« /api/produits ») d'une requête, d'une modification ou d'une suppression. */
-  adressesRequetes: Map<Requete | Suppression | Modification | TelechargementBon | FaireAction, string>;
+  adressesRequetes: Map<Requete | Suppression | Modification | TelechargementBon | FaireAction | TelechargementDocument, string>;
   /** Les « {…} » qui sont des calculs : « {nombre de panier} ». */
   expressions: Map<PartieChaine, Expression>;
   /** Les routes (adresse normalisée) dont une page télécharge le bon : le serveur produit ne sert que celles-là. */
@@ -203,6 +203,8 @@ interface Liens {
   donnees: Map<string, Donnee>;
   /** Le nom de chaque « … peut faire "x" », et l'adresse de sa route. */
   actions?: Map<string, string>;
+  /** Le nom de chaque « document "x" », et l'adresse de la route qui lit sa donnée. */
+  documents?: Map<string, string>;
 }
 
 /** Ce que l'analyse sait des composants déclarés dans le fichier. */
@@ -340,7 +342,7 @@ export function analyserSens(programme: Programme, classesCss?: Set<string>): Re
   );
   const partages = globale.declarerPartages(programme.partages);
 
-  const liens: Liens = { actions: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, r.adresse] as [string, string])))), sources: new Map(), serveur: programme.serveurs[0]?.nom, connexionGoogle: programme.serveurs[0]?.connexionGoogle !== undefined, comptes: { invitations: programme.serveurs[0]?.invitations !== undefined, oublie: programme.serveurs[0]?.motDePasseOublie !== undefined }, fidelite: programme.serveurs[0]?.fidelite, routes: new Map(), donnees: new Map() };
+  const liens: Liens = { documents: new Map(programme.serveurs.flatMap((s) => (s.documents ?? []).flatMap((d) => { const route = s.routes.find((r) => r.regles.some((x) => x.donnee === d.donnee && x.actions.includes('lire'))); return route ? [[d.nom, route.adresse] as [string, string]] : []; }))), actions: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, r.adresse] as [string, string])))), sources: new Map(), serveur: programme.serveurs[0]?.nom, connexionGoogle: programme.serveurs[0]?.connexionGoogle !== undefined, comptes: { invitations: programme.serveurs[0]?.invitations !== undefined, oublie: programme.serveurs[0]?.motDePasseOublie !== undefined }, fidelite: programme.serveurs[0]?.fidelite, routes: new Map(), donnees: new Map() };
   for (const serveur of programme.serveurs) {
     for (const donnee of serveur.donnees) liens.donnees.set(donnee.nom, donnee);
     for (const route of serveur.routes) {
@@ -954,6 +956,17 @@ class AnalysePage {
         const manque =
           instruction.type === 'Invitation' ? (invitations ? null : 'invitations vers "…"') : instruction.type === 'DemandeLienMotDePasse' ? (oublie ? null : 'mot de passe oublie vers "…"') : invitations || oublie ? null : 'invitations vers "…" ou mot de passe oublie vers "…"';
         if (manque !== null && this.liens.serveur !== undefined) this.erreur(`« ${nom} » demande la ligne « ${manque} » dans le serveur "${this.liens.serveur}".`, instruction.ligne);
+        return;
+      }
+
+      case 'TelechargementDocument': {
+        this.litLaSession = true;
+        if (contexte === 'vue') this.horsEvenement('telecharger document', instruction.ligne);
+        this.demandeUnServeur('telecharger document', instruction.ligne);
+        this.typeDe(instruction.objet);
+        const trouve = this.liens.documents?.get(instruction.nom);
+        if (trouve !== undefined) this.resultat.adressesRequetes.set(instruction, `/api/${adresseNormalisee(trouve)}/documents/${simplifier(instruction.nom).replace(/_/g, '-')}`);
+        else if (this.liens.serveur !== undefined) this.erreur(`aucun document « ${instruction.nom} » n'est écrit dans le serveur "${this.liens.serveur}".`, instruction.ligne);
         return;
       }
 
@@ -2793,6 +2806,8 @@ function actionInterditeDansUneFonction(instruction: Instruction): string | unde
       return 'changer role';
     case 'FaireAction':
       return 'faire';
+    case 'TelechargementDocument':
+      return 'telecharger document';
     case 'DemandeLienMotDePasse':
       return 'demander un lien de mot de passe';
     case 'ChoixMotDePasse':

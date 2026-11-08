@@ -8,7 +8,7 @@ Humalis est un langage en français. Un fichier .humalis décrit des pages, des 
 - Les éléments d’écran pris en charge : titre, texte, image, bouton, lien, champ, formulaire, section, bloc, ligne, colonne, grille, liste numérotée, sous-titre, liste, tableau, fenêtre, menu, icône, badge, avatar, progression, chargement, étoiles, compteur, code QR, onglets, onglet, déroulant, accordéon, carrousel, fil d’Ariane, audio, fichier, carte, marqueur, graphique, série, sélecteur. Leur texte s’écrit entre guillemets.
 - Déclare une valeur avec `variable nom = valeur` ; une condition commence par `si ... :`.
 - Les événements pris en charge : quand, utilisateur, clique, sur, survole, charge, soumis, ecrit, arrête d’écrire, appuie, arrive en bas de, l’ordre de … change. Écris l’événement sous l’élément visé, puis l’action dans son bloc.
-- Les actions prises en charge : afficher, erreur, montrer, cacher, changer, rediriger, ajouter, retirer, envoyer, requête, connecter, déconnecter, connecter avec google, inviter … comme admin, demander un lien de mot de passe pour …, choisir le mot de passe avec …, csv, télécharger bon, recharger, basculer thème, continuer vers, revenir, réussite, avertissement, pendant, disparaître, action, après, toutes, copier, partager, confirmer, faire, refuser, notification, rôle.
+- Les actions prises en charge : afficher, erreur, montrer, cacher, changer, rediriger, ajouter, retirer, envoyer, requête, connecter, déconnecter, connecter avec google, inviter … comme admin, demander un lien de mot de passe pour …, choisir le mot de passe avec …, csv, télécharger bon, recharger, basculer thème, continuer vers, revenir, réussite, avertissement, pendant, disparaître, action, après, toutes, copier, partager, confirmer, faire, refuser, notification, document, rôle.
 - Les mots de liaison (ignorés dans une phrase mais interdits comme nom de variable) : le, la, les, un, une, des, de, du, à, au, aux, se, l', d', s', n', c', j', m', t'.
 
 ## Pièges fréquents
@@ -450,6 +450,10 @@ page "accueil" :
 - Une condition sur un champ de compte que rien n’écrit : restera fausse
 - Une notification sans destinataire : à qui part cette notification
 - Une notification sans titre ou sans texte : dans cette notification
+- Deux documents du même nom : est déjà écrit
+- Un document vide : est vide
+- Un téléchargement de document dans la page : telecharger document
+- Un document qui n’existe pas : aucun document « oups »
 - Une durée oubliée : il manque une durée
 - Une durée sans unité : il manque l’unité de la durée
 - Une durée qui n’est pas un nombre : une durée est un nombre suivi de son unité

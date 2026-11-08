@@ -5,7 +5,7 @@ import { OPTIONS } from '../analyse/styles.js';
 import type { Token, PartieChaine } from '../lexer/types.js';
 import { analyser as analyserLexique } from '../lexer/lexer.js';
 import { FluxTokens } from './fluxTokens.js';
-import { analyserActionServeur, analyserTache, estTache } from './logique.js';
+import { analyserActionServeur, analyserDocument, analyserTache, estTache } from './logique.js';
 import { analyserSource, analyserClausesRequete, analyserSourceSeule } from './source.js';
 import { analyserEntetePage, analyserAvecPage } from './navigation.js';
 import { ErreurSyntaxique } from './erreurs.js';
@@ -65,7 +65,7 @@ import type {
   Boucle,
   Evenement,
   GenreEvenement,
-  Connexion, ConnexionGoogle, ChangementMotDePasse, Invitation, ChangementRole, FaireAction, ActionServeur, TachePlanifiee, EnvoiNotification, ConditionRegle, OperandeRegle, DemandeLienMotDePasse, ChoixMotDePasse, ApresCreation, EnvoiEmail, CreationLiee, RegleChamp, ValeurFixe, TelechargementBon, TelechargementCsv, Fidelite, Suppression, Modification, EnvoiFichier, ArgumentPage } from './ast.js';
+  Connexion, ConnexionGoogle, ChangementMotDePasse, Invitation, ChangementRole, FaireAction, TelechargementDocument, DocumentServeur, ActionServeur, TachePlanifiee, EnvoiNotification, ConditionRegle, OperandeRegle, DemandeLienMotDePasse, ChoixMotDePasse, ApresCreation, EnvoiEmail, CreationLiee, RegleChamp, ValeurFixe, TelechargementBon, TelechargementCsv, Fidelite, Suppression, Modification, EnvoiFichier, ArgumentPage } from './ast.js';
 
 export function analyserSyntaxe(tokens: Token[]): Programme {
   const flux = new FluxTokens(tokens);
@@ -388,11 +388,14 @@ function analyserServeur(flux: FluxTokens): Serveur {
   let motDePasseOublie: Serveur['motDePasseOublie'];
   let fidelite: Fidelite | undefined;
   const taches: TachePlanifiee[] = [];
+  const documents: DocumentServeur[] = [];
 
   chaqueLigne(flux, () => {
     const token = flux.actuel();
     if (estTache(flux)) {
       taches.push(analyserTache(flux));
+    } else if (estLeMot(token, 'document') && flux.regarder(1).type === 'CHAINE') {
+      documents.push(analyserDocument(flux));
     } else if (estLeMot(token, 'donnee')) {
       donnees.push(analyserDonnee(flux));
     } else if (estLeMot(token, 'route')) {
@@ -457,6 +460,7 @@ function analyserServeur(flux: FluxTokens): Serveur {
     ...(connexionGoogle !== undefined ? { connexionGoogle } : {}),
     ...(roles?.length ? { roles } : {}),
     ...(taches.length ? { taches } : {}),
+    ...(documents.length ? { documents } : {}),
     ...(emails ? { emails } : {}),
     ...(invitations ? { invitations } : {}),
     ...(motDePasseOublie ? { motDePasseOublie } : {}),
@@ -1149,6 +1153,14 @@ function analyserInstruction(flux: FluxTokens): Instruction {
   // « telecharger commandes en csv » : un fichier fait dans l'appareil, à partir d'une liste.
   if (estLeMot(flux.actuel(), 'telecharger') && finitParEnCsv(flux)) {
     return analyserTelechargementCsv(flux);
+  }
+
+  // « telecharger document "facture" de c » : le PDF écrit dans le serveur.
+  if (estLeMot(flux.actuel(), 'telecharger') && estLeMot(flux.regarder(1), 'document') && flux.regarder(2).type === 'CHAINE') {
+    const debut = flux.avancer();
+    flux.avancer();
+    const nom = flux.avancer().valeur;
+    return { type: 'TelechargementDocument', nom, objet: analyserOperande(flux), ligne: debut.ligne } satisfies TelechargementDocument;
   }
 
   // « telecharger bon de commande de c » : le PDF d'une fiche du serveur.

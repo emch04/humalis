@@ -1,6 +1,9 @@
 # Essai du serveur : groupes, droits sur ses fiches, rôles qui changent.
 serveur "commerce" :
     roles gerant, vendeur et client
+    document "recu" de commande :
+        titre "Reçu {commande.id}"
+        texte "Total : {commande.total} euros"
     toutes les heures :
         creer journal avec nom "heure"
     donnee commande par boutique :

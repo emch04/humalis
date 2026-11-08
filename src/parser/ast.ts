@@ -133,6 +133,8 @@ export interface Serveur {
   connexionGoogle?: number;
   /** « roles directeur, enseignant et parent ». */
   roles?: string[];
+  /** « document "facture" de commande : ». */
+  documents?: DocumentServeur[];
   /** « tous les jours a 7 h : » : le travail que le serveur fait seul. */
   taches?: TachePlanifiee[];
   /** « emails par brevo » : le service qui envoie les e-mails du serveur. */
@@ -314,6 +316,15 @@ export interface ConditionRegle {
   ligne: number;
 }
 
+/** « document "facture" de commande : » puis ses « titre "…" » et « texte "…" ». */
+export interface DocumentServeur {
+  type: 'DocumentServeur';
+  nom: string;
+  donnee: string;
+  lignes: { genre: 'titre' | 'texte'; parties: EnvoiEmail['sujet']; ligne: number }[];
+  ligne: number;
+}
+
 /** « seul gerant peut faire "rembourser" sur commande : ». */
 export interface ActionServeur {
   type: 'ActionServeur';
@@ -455,6 +466,7 @@ export type Instruction =
   | Invitation
   | ChangementRole
   | FaireAction
+  | TelechargementDocument
   | DemandeLienMotDePasse
   | ChoixMotDePasse
   | TelechargementBon
@@ -718,6 +730,14 @@ export interface Invitation {
   role: string;
   /** « dans boutique b » : le groupe du nouveau compte. */
   groupe?: { champ: string; valeur: Expression };
+  ligne: number;
+}
+
+/** « telecharger document "facture" de c » : le PDF écrit sur le serveur. */
+export interface TelechargementDocument {
+  type: 'TelechargementDocument';
+  nom: string;
+  objet: Expression;
   ligne: number;
 }
 

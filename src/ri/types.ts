@@ -197,6 +197,8 @@ export interface ServeurRI {
   connexionGoogle?: boolean;
   /** « roles directeur, enseignant et parent ». */
   roles?: string[];
+  /** « document "facture" de commande : ». */
+  documents?: { nom: string; donnee: string; lignes: { genre: 'titre' | 'texte'; valeur: ValeurServeurRI }[] }[];
   /** « tous les jours a 7 h : ». */
   taches?: { nom: string; frequence: FrequenceRI; corps: InstructionServeurRI[] }[];
   /** Une page écrit « changer role de … ». */
