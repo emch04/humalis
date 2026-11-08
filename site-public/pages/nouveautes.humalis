@@ -191,7 +191,7 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
                 texte "En bref" en anglais "At a glance" avec style "aside-etiquette"
                 ligne avec style "aside-chiffres" :
                     colonne avec style "aside-chiffre" :
-                        texte "19" sans traduction avec style "aside-nombre"
+                        texte "20" sans traduction avec style "aside-nombre"
                         texte "versions" sans traduction
                     colonne avec style "aside-chiffre" :
                         texte "5" sans traduction avec style "aside-nombre"

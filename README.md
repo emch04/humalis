@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/humalis"><img src="https://img.shields.io/npm/v/humalis" alt="npm"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/licence-Humalis%201.0-c1e928" alt="Licence"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/licence-Humalis%201.1-c1e928" alt="Licence"></a>
   <a href="https://github.com/emch04/framework"><img src="https://img.shields.io/badge/serveur-Astratra-6f42c1" alt="Astratra"></a>
   <a href="https://hub.xerj.org/contributors/emch04"><img src="https://hub.xerj.org/contributors/emch04/badge.svg" alt="XERJ Corpus Hub contributor"></a>
 </p>
