@@ -1,4 +1,4 @@
-Licence Humalis — version 1.0
+Licence Humalis — version 1.1
 
 Copyright © 2026 Les auteurs de Humalis. Humalis a été créé par emch04.
 Le texte français de cette licence fait foi ; toute traduction n'est donnée qu'à titre d'information.
@@ -11,14 +11,18 @@ Le texte français de cette licence fait foi ; toute traduction n'est donnée qu
 - Une Application : un logiciel créé avec le Logiciel, c'est-à-dire les fichiers écrits en Humalis et
   tout ce que le compilateur génère à partir d'eux, y compris les fichiers d'aide que le compilateur
   copie dans les projets qu'il produit.
+- Un Service Humalis : une plateforme ou un service proposé à des tiers, qui leur permet d'écrire en
+  Humalis, de compiler, ou de créer, d'héberger ou de faire fonctionner des Applications au moyen du
+  Logiciel, et dont le Logiciel constitue une fonction essentielle.
 - La Commercialisation du Logiciel : vendre, louer ou concéder contre paiement le Logiciel lui-même
-  (une copie, une version modifiée ou renommée), ou le présenter comme son propre produit.
+  (une copie, une version modifiée ou renommée), le présenter comme son propre produit, ou proposer un
+  Service Humalis contre paiement, par abonnement, avec de la publicité ou contre tout autre avantage.
   Ne sont pas une Commercialisation du Logiciel :
   - vendre une Application faite avec Humalis ;
-  - vendre ses services pour créer des Applications avec Humalis ;
-  - proposer, gratuitement ou contre paiement, une plateforme ou un service qui utilise le Logiciel
-    pour créer, héberger ou faire fonctionner des Applications pour ses utilisateurs, y compris quand
-    ces utilisateurs écrivent eux-mêmes en Humalis ;
+  - vendre ses services pour créer des Applications avec Humalis, y compris pour un client ;
+  - héberger ou faire fonctionner, gratuitement ou contre paiement, une Application déterminée, pour
+    soi ou pour un client, y compris comme le fait un hébergeur de sites ;
+  - proposer un Service Humalis réellement gratuit, sans publicité ni autre contrepartie ;
   - enseigner Humalis, écrire ou vendre des livres, des cours ou des formations sur Humalis.
 - Une Modification : tout changement apporté au Logiciel, y compris une copie dérivée (« fork »).
 

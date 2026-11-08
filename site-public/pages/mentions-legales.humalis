@@ -12,7 +12,7 @@ page "mentions_legales" a l'adresse "/mentions-legales" :
             texte "emch04, auteur de Humalis, à titre non professionnel." en anglais "emch04, the author of Humalis, as a private individual."
         bloc avec style "legal-point" et effet leve :
             soustitre "Licence" en anglais "License"
-            texte "Licence Humalis 1.0 : utiliser est libre, revendre ne l’est pas." en anglais "Humalis License 1.0: using is free, reselling is not."
+            texte "Licence Humalis 1.1 : utiliser est libre, revendre ne l’est pas." en anglais "Humalis License 1.1: using is free, reselling is not."
         bloc avec style "legal-point" et effet leve :
             soustitre "Contact" sans traduction
             texte "Par un ticket sur GitHub, pour toute question sur le site." en anglais "Through a GitHub issue, for any question about the website."

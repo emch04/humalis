@@ -1,4 +1,4 @@
-Humalis License — version 1.0 (English translation)
+Humalis License — version 1.1 (English translation)
 
 This is a translation for information only. The French text in the LICENSE file is the only
 authoritative version.
@@ -14,13 +14,18 @@ emch04.
 - An Application: software created with the Software, that is, the files written in Humalis and
   everything the compiler generates from them, including the helper files the compiler copies into
   the projects it produces.
+- A Humalis Service: a platform or service offered to third parties that lets them write Humalis,
+  compile, or create, host or run Applications by means of the Software, and of which the Software is
+  an essential function.
 - Commercialisation of the Software: selling, renting or licensing for a fee the Software itself (a
-  copy, a modified or renamed version), or presenting it as one's own product.
+  copy, a modified or renamed version), presenting it as one's own product, or offering a Humalis
+  Service for a fee, by subscription, with advertising or for any other benefit.
   The following are not Commercialisation of the Software:
   - selling an Application made with Humalis;
-  - selling one's services to create Applications with Humalis;
-  - offering, free of charge or for a fee, a platform or service that uses the Software to create,
-    host or run Applications for its users, including when those users write Humalis themselves;
+  - selling one's services to create Applications with Humalis, including for a client;
+  - hosting or running, free of charge or for a fee, a specific Application, for oneself or for a
+    client, including as a website host does;
+  - offering a Humalis Service that is genuinely free, with no advertising or other benefit;
   - teaching Humalis, writing or selling books, courses or training about Humalis.
 - A Modification: any change made to the Software, including a derived copy ("fork").
 

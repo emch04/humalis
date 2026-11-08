@@ -3,11 +3,13 @@ Copyright 2026 Les auteurs de Humalis
 
 Humalis a été créé par emch04.
 
-Ce logiciel est distribué sous la Licence Humalis, version 1.0 : voir le
+Ce logiciel est distribué sous la Licence Humalis, version 1.1 : voir le
 fichier LICENSE (texte français, qui fait foi) et LICENSE.en.md (traduction
 anglaise). Tout le monde peut l'utiliser, le modifier et le partager
-gratuitement ; personne ne peut vendre Humalis lui-même. Les versions 1.0.0 à
-1.0.3 restent sous la licence Apache 2.0.
+gratuitement ; personne ne peut vendre Humalis lui-même. Proposer Humalis comme
+service commercial demande un accord écrit. Les versions 1.0.0 à 1.0.3 restent
+sous la licence Apache 2.0, et les versions 1.0.4 à 1.8.0 sous la Licence
+Humalis 1.0.
 
 Le nom « Humalis » et son logo ne sont pas couverts par cette licence
 (article 6) : ils ne peuvent pas servir à présenter un autre produit
