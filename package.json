@@ -41,6 +41,7 @@
     "essai:moteur-roles": "node scripts/essai-moteur-roles.mjs",
     "essai:serveur-metier": "node scripts/essai-serveur-metier.mjs",
     "essai:charge-serveur": "node scripts/essai-charge-serveur.mjs",
+    "essai:web-appareil": "node scripts/essai-web-appareil.mjs",
     "mesure:moteur": "node scripts/mesure-moteur.mjs",
     "essai:sources": "node scripts/essai-sources.mjs",
     "essai:navigation": "node scripts/essai-navigation.mjs",

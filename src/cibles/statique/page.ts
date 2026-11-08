@@ -367,6 +367,7 @@ export class GenerateurPage {
         case 'selon':
         case 'minuterie':
         case 'confirmation':
+        case 'verificationIdentite':
         case 'message':
           for (const liste of sousActions(action)) this.parcourirActions(liste);
           break;
@@ -1507,7 +1508,7 @@ ${prise}${code}}
       e.ligne(`codeQr(${enfant.qr}),`);
     } else if ('avatar' in enfant) {
       e.ligne(`avatar(${enfant.avatar.nom}, ${enfant.avatar.photo ?? "''"}),`);
-    } else {
+    } else if ('etoiles' in enfant) {
       const { js, maximum, change, label, classes } = enfant.etoiles;
       e.ligne(`etoiles(${js}, ${maximum}, ${change ?? 'undefined'}, ${typeof label === 'string' ? chaine(label) : label.js}, ${chaine(classes)}),`);
     }
@@ -1545,7 +1546,7 @@ ${prise}${code}}
     } else if ('avatar' in enfant) {
       const { initialNom, initialPhoto } = enfant.avatar;
       lignes.push(initialPhoto ? `<img${attributs([['src', initialPhoto], ['alt', '']])}>` : `<span aria-hidden="true">${echapperTexte(initiales(initialNom))}</span>`);
-    } else {
+    } else if ('etoiles' in enfant) {
       const { initial, maximum, change, label, classes } = enfant.etoiles;
       lignes.push(etoilesHtml(initial, maximum, change !== undefined, typeof label === 'string' ? label : label.initial, classes));
     }
@@ -1749,7 +1750,7 @@ export function contientRequete(actions: Action[]): boolean {
   );
 }
 
-const ATTENTES = new Set<Action['type']>(['changementCompte', 'paiement', 'demandeIa', 'changementRole', 'activationNotifications', 'requete', 'suppression', 'modification', 'connexion', 'deconnexion', 'confirmation', 'copie', 'partage', 'telechargementCsv', 'recharger', 'envoiFichier', 'telechargementBon', 'connexionGoogle', 'changementMotDePasse', 'invitation', 'demandeLienMotDePasse', 'choixMotDePasse', 'essayer']);
+const ATTENTES = new Set<Action['type']>(['prisePhoto', 'scanCode', 'localisation', 'verificationIdentite', 'changementCompte', 'paiement', 'demandeIa', 'changementRole', 'activationNotifications', 'requete', 'suppression', 'modification', 'connexion', 'deconnexion', 'confirmation', 'copie', 'partage', 'telechargementCsv', 'recharger', 'envoiFichier', 'telechargementBon', 'connexionGoogle', 'changementMotDePasse', 'invitation', 'demandeLienMotDePasse', 'choixMotDePasse', 'essayer']);
 
 /** Vrai si le bloc d'une minuterie contient « arreter » pour elle (hors d'une boucle). */
 export function arrete(actions: Action[]): boolean {
