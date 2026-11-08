@@ -1624,6 +1624,35 @@ serveur "commerce" :
 Chaque côté est un champ de la fiche, un champ de `utilisateur` (`id`, `email`, `role`,
 un groupe) ou une valeur. On écrit `est` ou `est dans`.
 
+#### Des champs sur les comptes, et l'équipe
+
+```humalis
+serveur "commerce" :
+    roles gerant et vendeur
+    invitations vers "bienvenue"
+    emails par brevo
+    compte :
+        telephone : texte
+    donnee commande par boutique :
+        total : nombre
+    route "commandes" :
+        seuls gerant et vendeur peuvent lire commande
+        seul gerant peut modifier commande
+    route "equipe" :
+        seul gerant peut lire comptes
+        seul gerant peut creer comptes
+        seul gerant peut modifier comptes
+        seul gerant peut supprimer comptes
+
+page "bienvenue" :
+    titre "Bienvenue"
+```
+
+`inviter champ "Adresse" comme vendeur avec telephone = champ "Tél"` remplit un champ à
+l'invitation, et `changer compte de c avec telephone = champ "Tél"` le modifie ensuite. Seuls les
+champs déclarés sont acceptés. Un gérant ne voit et ne touche que les comptes de son groupe,
+jamais un admin. `utilisateur.telephone` se lit dans une règle avec `si`.
+
 #### Changer le rôle d'un compte
 
 `changer role de c en "vendeur"`, après un geste dans une page, compte tout de suite :
@@ -1664,8 +1693,64 @@ page "accueil" :
 ```
 
 Dans une action, on écrit `si`, `pour chaque c dans commande ou statut est "ouverte" :`,
+`calcul recette = somme de commande.total ou statut est "payee"`,
 `changer c.statut par …`, `creer … avec …`, `supprimer c`, `refuser "…"`, `envoyer email …`
 et `envoyer notification …`. Les e-mails et notifications partent seulement si tout a réussi.
+
+Une action peut recevoir des valeurs, vérifiées par le serveur :
+
+```humalis
+serveur "commerce" :
+    roles gerant
+    donnee commande :
+        total : nombre
+    route "commandes" :
+        seul gerant peut lire commande
+        seul gerant peut modifier commande
+        seul gerant peut faire "reduire" sur commande avec montant : nombre et raison : texte :
+            si montant est superieur a commande.total :
+                refuser "Montant trop élevé"
+            changer commande.total par commande.total - montant
+
+page "commandes" reservee a gerant sinon vers "accueil" :
+    variable commandes = []
+    titre "Commandes"
+    quand la page se charge :
+        envoyer requete vers "commandes" dans commandes
+    pour chaque c dans commandes :
+        bouton "Réduire"
+        quand l'utilisateur clique sur "Réduire" :
+            faire "reduire" sur c avec montant = 5 et raison = "geste"
+
+page "accueil" :
+    titre "Accueil"
+```
+
+Après `ou`, plusieurs conditions se suivent avec `et` : `statut est "ouverte" et total est
+superieur a 100`. On écrit `est`, `est superieur a`, `est inferieur a` ou `est different de`.
+Un calcul est une `somme`, une `moyenne`, un `minimum`, un `maximum` ou un `nombre`.
+
+#### Un résumé pour une page
+
+```humalis
+serveur "commerce" :
+    roles gerant
+    donnee commande :
+        total : nombre
+        statut : texte
+    route "commandes" :
+        seul gerant peut lire commande
+        seul gerant peut modifier commande
+        seul gerant peut lire "resume" de commande ou statut est "payee" :
+            calcul recette = somme de total
+            calcul combien = nombre de commande
+            regroupe par statut
+```
+
+La page le lit comme une route : `envoyer requete vers "commandes/resume" dans resume`.
+Sans `regroupe par`, on obtient une seule fiche (`resume.recette`) ; avec, une ligne par valeur.
+Si la donnée est séparée par groupe, un gérant ne compte que le sien. Le serveur lit les lignes
+une à une pour calculer : sur de très grosses tables, ce sera à mesurer.
 
 #### Une tâche planifiée
 
@@ -1700,7 +1785,8 @@ serveur "commerce" :
 ```
 
 `telecharger document "recu" de c` le télécharge depuis une page, avec les droits de la
-lecture de cette donnée.
+lecture de cette donnée. Dans un document, `tableau de ligne ou commande est commande.id avec
+colonnes produit, quantite et prix` montre les fiches d'une autre donnée.
 
 #### Les notifications
 

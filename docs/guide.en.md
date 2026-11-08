@@ -1703,6 +1703,35 @@ serveur "commerce" :
 Each side is a field of the record, a field of `utilisateur` (`id`, `email`, `role`, a group)
 or a value. Write `est` or `est dans`.
 
+#### Fields on accounts, and the team
+
+```humalis
+serveur "commerce" :
+    roles gerant et vendeur
+    invitations vers "bienvenue"
+    emails par brevo
+    compte :
+        telephone : texte
+    donnee commande par boutique :
+        total : nombre
+    route "commandes" :
+        seuls gerant et vendeur peuvent lire commande
+        seul gerant peut modifier commande
+    route "equipe" :
+        seul gerant peut lire comptes
+        seul gerant peut creer comptes
+        seul gerant peut modifier comptes
+        seul gerant peut supprimer comptes
+
+page "bienvenue" :
+    titre "Bienvenue"
+```
+
+`inviter champ "Adresse" comme vendeur avec telephone = champ "Tél"` fills a field when inviting,
+and `changer compte de c avec telephone = champ "Tél"` changes it later. Only declared fields are
+accepted. A manager only sees and touches accounts in their own group, never an admin.
+`utilisateur.telephone` can be read in a rule with `si`.
+
 #### Changing an account's role
 
 `changer role de c en "vendeur"`, after a gesture in a page, takes effect at once: as soon as
@@ -1743,8 +1772,64 @@ page "accueil" :
 ```
 
 Inside an action you can write `si`, `pour chaque c dans commande ou statut est "ouverte" :`,
+`calcul recette = somme de commande.total ou statut est "payee"`,
 `changer c.statut par …`, `creer … avec …`, `supprimer c`, `refuser "…"`, `envoyer email …` and
 `envoyer notification …`. Emails and notifications leave only if everything succeeded.
+
+An action can receive values, checked by the server:
+
+```humalis
+serveur "commerce" :
+    roles gerant
+    donnee commande :
+        total : nombre
+    route "commandes" :
+        seul gerant peut lire commande
+        seul gerant peut modifier commande
+        seul gerant peut faire "reduire" sur commande avec montant : nombre et raison : texte :
+            si montant est superieur a commande.total :
+                refuser "Montant trop élevé"
+            changer commande.total par commande.total - montant
+
+page "commandes" reservee a gerant sinon vers "accueil" :
+    variable commandes = []
+    titre "Commandes"
+    quand la page se charge :
+        envoyer requete vers "commandes" dans commandes
+    pour chaque c dans commandes :
+        bouton "Réduire"
+        quand l'utilisateur clique sur "Réduire" :
+            faire "reduire" sur c avec montant = 5 et raison = "geste"
+
+page "accueil" :
+    titre "Accueil"
+```
+
+After `ou`, several conditions follow with `et`: `statut est "ouverte" et total est superieur a
+100`. Write `est`, `est superieur a`, `est inferieur a` or `est different de`. A calculation is a
+`somme`, `moyenne`, `minimum`, `maximum` or `nombre`.
+
+#### A summary for a page
+
+```humalis
+serveur "commerce" :
+    roles gerant
+    donnee commande :
+        total : nombre
+        statut : texte
+    route "commandes" :
+        seul gerant peut lire commande
+        seul gerant peut modifier commande
+        seul gerant peut lire "resume" de commande ou statut est "payee" :
+            calcul recette = somme de total
+            calcul combien = nombre de commande
+            regroupe par statut
+```
+
+The page reads it like a route: `envoyer requete vers "commandes/resume" dans resume`. Without
+`regroupe par`, you get a single record (`resume.recette`); with it, one line per value. If the
+data is separated by group, a manager only counts their own. The server reads the lines one by
+one to calculate: very large tables will need measuring.
 
 #### A scheduled task
 
@@ -1779,6 +1864,8 @@ serveur "commerce" :
 ```
 
 `telecharger document "recu" de c` downloads it from a page, with the read rights of that data.
+In a document, `tableau de ligne ou commande est commande.id avec colonnes produit, quantite et
+prix` shows the records of another data type.
 
 #### Notifications
 

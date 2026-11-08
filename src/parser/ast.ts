@@ -133,6 +133,8 @@ export interface Serveur {
   connexionGoogle?: number;
   /** « roles directeur, enseignant et parent ». */
   roles?: string[];
+  /** « compte : » puis ses champs. */
+  champsCompte?: { nom: string; type: TypeChamp; ligne: number }[];
   /** « paiements par stripe ». */
   paiements?: { service: string; ligne: number };
   /** « ia par anthropic » et « connecte peut demander a ia ». */
@@ -274,6 +276,7 @@ export interface Route {
   /** « seul gerant peut faire "rembourser" sur commande : ». */
   actions?: ActionServeur[];
   apresPaiement?: ApresPaiement;
+  resumes?: ResumeServeur[];
   ligne: number;
 }
 
@@ -358,7 +361,7 @@ export interface DocumentServeur {
   type: 'DocumentServeur';
   nom: string;
   donnee: string;
-  lignes: { genre: 'titre' | 'texte'; parties: EnvoiEmail['sujet']; ligne: number }[];
+  lignes: ({ genre: 'titre' | 'texte'; parties: EnvoiEmail['sujet']; ligne: number } | { genre: 'tableau'; donnee: string; filtres: FiltreServeur[]; colonnes: string[]; ligne: number })[];
   ligne: number;
 }
 
@@ -369,6 +372,29 @@ export interface ActionServeur {
   qui: Qui;
   donnee: string;
   corps: InstructionServeur[];
+  /** « avec montant : nombre et raison : texte » : ce que la page doit envoyer. */
+  parametres?: { nom: string; type: TypeChamp; ligne: number }[];
+  ligne: number;
+}
+
+/** « statut est "ouverte" », « total est superieur a 100 ». */
+export interface FiltreServeur {
+  champ: string;
+  operateur: 'egal' | 'superieur' | 'inferieur' | 'different';
+  valeur: Expression;
+}
+
+export type OperationCalcul = 'somme' | 'moyenne' | 'minimum' | 'maximum' | 'nombre';
+
+/** « seul gerant peut lire "resume" de commande ou statut est "payee" : ». */
+export interface ResumeServeur {
+  type: 'ResumeServeur';
+  nom: string;
+  qui: Qui;
+  donnee: string;
+  filtres: FiltreServeur[];
+  calculs: { nom: string; operation: OperationCalcul; champ?: string; ligne: number }[];
+  regroupePar?: string;
   ligne: number;
 }
 
@@ -392,7 +418,8 @@ type MorceauTexte = EnvoiEmail['sujet'][number];
 
 export type InstructionServeur =
   | { type: 'SiServeur'; test: Test; alors: InstructionServeur[]; sinon: InstructionServeur[]; ligne: number }
-  | { type: 'PourChaqueServeur'; variable: string; donnee: string; filtre?: { champ: string; valeur: Expression }; corps: InstructionServeur[]; ligne: number }
+  | { type: 'PourChaqueServeur'; variable: string; donnee: string; filtres: FiltreServeur[]; corps: InstructionServeur[]; ligne: number }
+  | { type: 'CalculServeur'; nom: string; operation: OperationCalcul; donnee: string; champ?: string; filtres: FiltreServeur[]; ligne: number }
   | { type: 'ChangerChamp'; cible: string; champ: string; valeur: Expression; ligne: number }
   | { type: 'SupprimerFiche'; cible: string; ligne: number }
   | { type: 'Refuser'; message: Expression; ligne: number }
@@ -502,6 +529,7 @@ export type Instruction =
   | ChangementMotDePasse
   | Invitation
   | ChangementRole
+  | ChangementCompte
   | FaireAction
   | TelechargementDocument
   | ActivationNotifications
@@ -770,6 +798,8 @@ export interface Invitation {
   role: string;
   /** « dans boutique b » : le groupe du nouveau compte. */
   groupe?: { champ: string; valeur: Expression };
+  /** « avec telephone = champ "Tél" » : les champs déclarés dans « compte : ». */
+  champs?: { champ: string; valeur: Expression }[];
   ligne: number;
 }
 
@@ -792,6 +822,15 @@ export interface FaireAction {
   type: 'FaireAction';
   nom: string;
   objet: Expression;
+  avec?: { champ: string; valeur: Expression }[];
+  ligne: number;
+}
+
+/** « changer compte de c avec telephone = champ "Tél" ». */
+export interface ChangementCompte {
+  type: 'ChangementCompte';
+  cible: Expression;
+  champs: { champ: string; valeur: Expression }[];
   ligne: number;
 }
 

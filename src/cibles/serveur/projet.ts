@@ -1,7 +1,7 @@
 import { avecComptes, avecEmails, CLES_BREVO, codeCreationComptes, codeEnvois, codeRoutesComptes, COMPTES, EMAILS, ENV_EMAILS, ENV_LIENS, testsComptes } from './comptes.js';
 import { codeFicheVisible, codePortee, compteRelu, conditionsDe, constantesSeparation, estSeparee, SEPARATION, testsSeparee } from './separation.js';
 import { avecIa, ENV_IA, IA, routeIa } from './ia.js';
-import { avecPaiements, codePaiements, codeSurPaiement, PAIEMENTS, avecLogique, avecNotifications, codeActions, codeDocuments, codeNotificationsCreation, codeTaches, DOCUMENT, employe, LOGIQUE, NOTIFICATIONS, ROUTES_APPAREILS } from './logique.js';
+import { codeResumes, avecPaiements, codePaiements, codeSurPaiement, PAIEMENTS, avecLogique, avecNotifications, codeActions, codeDocuments, codeNotificationsCreation, codeTaches, DOCUMENT, employe, LOGIQUE, NOTIFICATIONS, ROUTES_APPAREILS } from './logique.js';
 import { champsDuServeur, codeCompleter, codeCreation, noms as nomsVerifier, reglesEnvoi } from './regles.js';
 import { ligneLocale } from '../../fichiers.js';
 import type { ServeurRI, TypeChamp, QuiPeut } from '../../ri/types.js';
@@ -1164,7 +1164,7 @@ function serveurTs(serveur: ServeurRI, chemins?: Map<string, string>): string {
       return `      // « ${route.adresse} » (ligne ${ligneLocale(route.ligne)}) — ${decrireDroits(route.droits)}.
       const ${variable} = express.Router();
 ${clesAnnoncees(serveur, route).length ? `      ${variable}.use(direct.apres(${JSON.stringify(clesAnnoncees(serveur, route))}));
-` : ''}${separee ? constantesSeparation(variable, donneeRoute, route) : ''}${route.direct ? routeDirect(variable, garde('lire'), route.donnee, separee ? { separation: `separation${variable}`, regles: `regles${variable}.lire` } : undefined) : ''}      ${variable}.get('/', ${cache}, ${garde('lire')}, async (req, res, next) => {
+` : ''}${separee ? constantesSeparation(variable, donneeRoute, route) : ''}${codeResumes(route, variable, separee)}${route.direct ? routeDirect(variable, garde('lire'), route.donnee, separee ? { separation: `separation${variable}`, regles: `regles${variable}.lire` } : undefined) : ''}      ${variable}.get('/', ${cache}, ${garde('lire')}, async (req, res, next) => {
         try {
 ${separee ? codePortee(variable, 'lire') : ''}          // « ?produit=… » : seulement ce qui est demandé, pas toute la liste.
           const filtres = lireFiltres(${schema}, req.query as Record<string, unknown>);
@@ -1232,7 +1232,7 @@ ${serveur.routes.some((r) => r.direct) ? "import { direct } from './humalis/dire
 import type { Surveillance } from './humalis/centrale.js';
 import type { Coffre } from './humalis/coffre.js';
 ${comptes ? "import { creerComptes, refuserMotDePasseFaible, sansLesRetires } from './humalis/comptes.js';\n" : ''}${avecEmails(serveur) ? `import { creerEmails, ${envoisDansRoutes ? 'enTexte, ' : ''}type Emails } from './humalis/emails.js';\n` : ''}import { compresser } from './humalis/compresser.js';${avecPaiements(serveur) ? "\nimport { creerPaiements, type SurPaiement } from './humalis/paiements.js';" : ''}${avecIa(serveur) ? "\nimport { compterMemoire, creerIa, type Compter } from './humalis/ia.js';" : ''}${avecNotifications(serveur) ? "\nimport { creerNotifications } from './humalis/notifications.js';" : ''}${serveur.documents?.length ? "\nimport { creerDocument } from './humalis/document.js';" : ''}${avecBon ? "\nimport { creerBon } from './humalis/bon.js';" : ''}${serveur.fidelite ? "\nimport { carteDeFidelite } from './humalis/fidelite.js';" : ''}
-${avecLogique(serveur) ? `import { ${['Refus', 'enTexte', 'estVide', 'contient', 'noter', 'nouveauTravail', 'terminer', 'transactionMemoire', ...(serveur.taches?.length ? ['lancerTaches', 'type Reclamer'] : []), 'type Transaction'].join(', ')} } from './humalis/logique.js';\n` : ''}import { creerRenouvellement, reglagesDeSession, renouvellementEnCookie, type ReglagesSession } from './humalis/sessions.js';
+${avecLogique(serveur) ? `import { ${['Refus', 'agreger', 'resumer', 'enTexte', 'estVide', 'contient', 'noter', 'nouveauTravail', 'terminer', 'transactionMemoire', ...(serveur.taches?.length ? ['lancerTaches', 'type Reclamer'] : []), 'type Transaction'].join(', ')} } from './humalis/logique.js';\n` : ''}import { creerRenouvellement, reglagesDeSession, renouvellementEnCookie, type ReglagesSession } from './humalis/sessions.js';
 import { ${avecNotifications(serveur) ? 'creerStockageMemoire, ' : ''}${serveur.fidelite ? 'sansSeparateurs, ' : ''}type Stockage } from './humalis/stockage.js';
 ${compteRelu(serveur) ? (serveur.routes.some((r) => estSeparee(serveur.donnees.find((d) => d.nom === r.donnee)!, r)) ? "import { dansPortee, groupeACreer, listerDans, moiDe, porteeDe, REFUS_FICHES, type RegleAcces, type Separation } from './humalis/separation.js';\n" : '') : ''}import { lireFiltres, ${nomsVerifier(serveur).map((n) => n + ', ').join('')}verifierEnvoi } from './humalis/verifier.js';
 

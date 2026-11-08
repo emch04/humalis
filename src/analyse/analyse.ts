@@ -126,6 +126,8 @@ export interface ResultatAnalyse {
   bons: Set<string>;
   /** Les routes (adresse normalisée) qu'une page lit « en direct » : le serveur annonce leurs changements. */
   directs: Set<string>;
+  /** Une page écrit « changer compte de … ». */
+  changeDeCompte?: boolean;
   /** Une page écrit « activer notifications ». */
   activeNotifications?: boolean;
   /** Une page écrit « changer role de … » : le serveur ouvre cette route et relit le compte à chaque requête. */
@@ -210,6 +212,9 @@ interface Liens {
   /** « ia par anthropic » dans le serveur du fichier. */
   ia?: boolean;
   actionsDonnees?: Map<string, string>;
+  actionsParametres?: Map<string, string[]>;
+  resumes?: Set<string>;
+  champsCompte?: string[];
   documentsDonnees?: Map<string, string>;
   /** Le nom de chaque « document "x" », et l'adresse de la route qui lit sa donnée. */
   documents?: Map<string, string>;
@@ -350,7 +355,7 @@ export function analyserSens(programme: Programme, classesCss?: Set<string>): Re
   );
   const partages = globale.declarerPartages(programme.partages);
 
-  const liens: Liens = { payees: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.apresPaiement ? [[r.apresPaiement.donnee, r.adresse] as [string, string]] : [])))), ia: programme.serveurs.some((s) => s.ia), actionsDonnees: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, a.donnee] as [string, string])))), documentsDonnees: new Map(programme.serveurs.flatMap((s) => (s.documents ?? []).map((d) => [d.nom, d.donnee] as [string, string]))), documents: new Map(programme.serveurs.flatMap((s) => (s.documents ?? []).flatMap((d) => { const route = s.routes.find((r) => r.regles.some((x) => x.donnee === d.donnee && x.actions.includes('lire'))); return route ? [[d.nom, route.adresse] as [string, string]] : []; }))), actions: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, r.adresse] as [string, string])))), sources: new Map(), serveur: programme.serveurs[0]?.nom, connexionGoogle: programme.serveurs[0]?.connexionGoogle !== undefined, comptes: { invitations: programme.serveurs[0]?.invitations !== undefined, oublie: programme.serveurs[0]?.motDePasseOublie !== undefined }, fidelite: programme.serveurs[0]?.fidelite, routes: new Map(), donnees: new Map() };
+  const liens: Liens = { actionsParametres: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, (a.parametres ?? []).map((p) => p.nom)] as [string, string[]])))), resumes: new Set(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.resumes ?? []).map((x) => `${adresseNormalisee(r.adresse)}/${simplifier(x.nom).replace(/_/g, '-')}`)))), champsCompte: programme.serveurs.flatMap((s) => (s.champsCompte ?? []).map((c) => c.nom)), payees: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.apresPaiement ? [[r.apresPaiement.donnee, r.adresse] as [string, string]] : [])))), ia: programme.serveurs.some((s) => s.ia), actionsDonnees: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, a.donnee] as [string, string])))), documentsDonnees: new Map(programme.serveurs.flatMap((s) => (s.documents ?? []).map((d) => [d.nom, d.donnee] as [string, string]))), documents: new Map(programme.serveurs.flatMap((s) => (s.documents ?? []).flatMap((d) => { const route = s.routes.find((r) => r.regles.some((x) => x.donnee === d.donnee && x.actions.includes('lire'))); return route ? [[d.nom, route.adresse] as [string, string]] : []; }))), actions: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, r.adresse] as [string, string])))), sources: new Map(), serveur: programme.serveurs[0]?.nom, connexionGoogle: programme.serveurs[0]?.connexionGoogle !== undefined, comptes: { invitations: programme.serveurs[0]?.invitations !== undefined, oublie: programme.serveurs[0]?.motDePasseOublie !== undefined }, fidelite: programme.serveurs[0]?.fidelite, routes: new Map(), donnees: new Map() };
   for (const serveur of programme.serveurs) {
     for (const donnee of serveur.donnees) liens.donnees.set(donnee.nom, donnee);
     for (const route of serveur.routes) {
@@ -960,6 +965,7 @@ class AnalysePage {
         this.demandeUnServeur(nom, instruction.ligne);
         this.typeDe(instruction.type === 'ChoixMotDePasse' ? instruction.nouveau : instruction.email);
         if (instruction.type === 'Invitation' && instruction.groupe) this.typeDe(instruction.groupe.valeur);
+        if (instruction.type === 'Invitation' && instruction.champs) this.champsDeCompte(instruction.champs, instruction.ligne);
         const { invitations, oublie } = this.liens.comptes;
         const manque =
           instruction.type === 'Invitation' ? (invitations ? null : 'invitations vers "…"') : instruction.type === 'DemandeLienMotDePasse' ? (oublie ? null : 'mot de passe oublie vers "…"') : invitations || oublie ? null : 'invitations vers "…" ou mot de passe oublie vers "…"';
@@ -1018,9 +1024,29 @@ class AnalysePage {
         if (contexte === 'vue') this.horsEvenement('faire', instruction.ligne);
         this.demandeUnServeur('faire', instruction.ligne);
         this.ficheAttendue(instruction.objet, 'faire', this.liens.actionsDonnees?.get(instruction.nom), instruction.ligne);
+        {
+          const attendus = this.liens.actionsParametres?.get(instruction.nom);
+          const donnes = instruction.avec ?? [];
+          for (const v of donnes) this.typeDe(v.valeur);
+          if (attendus) {
+            for (const v of donnes) if (!attendus.includes(v.champ)) this.erreur(`l'action « ${instruction.nom} » n'attend pas « ${v.champ} ». Elle attend : ${attendus.join(', ') || 'rien'}.`, instruction.ligne);
+            const manquants = attendus.filter((a) => !donnes.some((v) => v.champ === a));
+            if (manquants.length) this.erreur(`il manque ${manquants.map((m) => `« ${m} »`).join(', ')} pour l'action « ${instruction.nom} ».`, instruction.ligne);
+          }
+        }
         const trouvee = this.liens.actions?.get(instruction.nom);
         if (trouvee !== undefined) this.resultat.adressesRequetes.set(instruction, `/api/${adresseNormalisee(trouvee)}/faire/${simplifier(instruction.nom).replace(/_/g, '-')}`);
         else if (this.liens.serveur !== undefined) this.erreur(`aucune action « ${instruction.nom} » n'est écrite dans le serveur "${this.liens.serveur}".`, instruction.ligne);
+        return;
+      }
+
+      case 'ChangementCompte': {
+        this.litLaSession = true;
+        this.resultat.changeDeCompte = true;
+        if (contexte === 'vue') this.horsEvenement('changer compte', instruction.ligne);
+        this.demandeUnServeur('changer compte', instruction.ligne);
+        this.typeDe(instruction.cible);
+        this.champsDeCompte(instruction.champs, instruction.ligne);
         return;
       }
 
@@ -2411,6 +2437,11 @@ class AnalysePage {
       this.requeteFidelite(requete, types[0], symbole);
       return;
     }
+    // « envoyer requete vers "commandes/resume" dans resume » : un résumé calculé par le serveur, pas une route de fiches.
+    if (this.liens.resumes?.has(adresseNormalisee(requete.adresse))) {
+      this.resultat.adressesRequetes.set(requete, `/api/${adresseNormalisee(requete.adresse)}`);
+      return;
+    }
     if (this.liens.routes.size === 0) {
       // Une adresse hors du fichier : « avec id » reste une lecture, jamais un envoi.
       if (requete.parId) this.resultat.lecturesUn.add(requete);
@@ -2488,6 +2519,14 @@ class AnalysePage {
 
   /** « telecharger bon de commande de c » : une fiche de cette donnée, lue sur sa route, avec les droits de la lecture. */
   /** « faire … sur c » et « telecharger document … de c » agissent sur une fiche : c'est elle qui donne l'identifiant. */
+  /** Les champs écrits sur un compte : déclarés dans « compte : ». */
+  private champsDeCompte(champs: { champ: string; valeur: Expression }[], ligne: number): void {
+    for (const { champ, valeur } of champs) {
+      this.typeDe(valeur);
+      if (!this.liens.champsCompte?.includes(champ)) this.erreur(`« ${champ} » n'est pas un champ du compte. Ajoutez-le au serveur, dans le bloc « compte : ». Champs : ${this.liens.champsCompte?.join(', ') || 'aucun'}.`, ligne);
+    }
+  }
+
   private ficheAttendue(objet: Expression, phrase: string, donnee: string | undefined, ligne: number): void {
     const type = this.typeDe(objet);
     if (donnee !== undefined && estConnu(type) && !(type.genre === 'donnee' && type.nom === donnee)) {
@@ -2855,6 +2894,8 @@ function actionInterditeDansUneFonction(instruction: Instruction): string | unde
       return 'inviter';
     case 'ChangementRole':
       return 'changer role';
+    case 'ChangementCompte':
+      return 'changer compte';
     case 'FaireAction':
       return 'faire';
     case 'ActivationNotifications':

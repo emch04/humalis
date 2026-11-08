@@ -4,8 +4,8 @@
  */
 import { FluxTokens } from './fluxTokens.js';
 import { ErreurSyntaxique } from './erreurs.js';
-import { chaqueLigne, estLeMot, analyserOperande, analyserExpression, analyserTestCombine, analyserCreationLiee, analyserEnvoiEmail, analyserEnvoiNotification } from './parser.js';
-import type { ActionServeur, DocumentServeur, FrequenceTache, InstructionServeur, Qui, TachePlanifiee } from './ast.js';
+import { chaqueLigne, estLeMot, analyserOperande, analyserExpression, analyserTestCombine, analyserCreationLiee, analyserEnvoiEmail, analyserEnvoiNotification, analyserTypeChamp } from './parser.js';
+import type { ActionServeur, DocumentServeur, Expression, FiltreServeur, FrequenceTache, InstructionServeur, OperationCalcul, Qui, ResumeServeur, TachePlanifiee, TypeChamp } from './ast.js';
 
 /** « faire "rembourser" sur commande : » (le « qui » et « peut » sont déjà lus). */
 export function analyserActionServeur(flux: FluxTokens, qui: Qui, ligne: number): ActionServeur {
@@ -14,8 +14,81 @@ export function analyserActionServeur(flux: FluxTokens, qui: Qui, ligne: number)
   if (!estLeMot(flux.actuel(), 'sur')) throw new ErreurSyntaxique(`on écrit : seul gerant peut faire "${nom}" sur commande :`, ligne);
   flux.avancer();
   const donnee = flux.attendreNom('la donnée sur laquelle agit cette action').nom;
+  const parametres: { nom: string; type: TypeChamp; ligne: number }[] = [];
+  if (estLeMot(flux.actuel(), 'avec')) {
+    flux.avancer();
+    do {
+      const champ = flux.attendreNom('le nom de la valeur attendue');
+      flux.attendre('PONCTUATION', ':', 'deux-points entre le nom de la valeur et son type (montant : nombre)');
+      parametres.push({ nom: champ.nom, type: analyserTypeChamp(flux), ligne: champ.ligne });
+    } while (flux.accepter('MOT_CLE', 'et'));
+  }
   flux.attendre('PONCTUATION', ':', 'deux-points à la fin de l’action');
-  return { type: 'ActionServeur', nom, qui, donnee, corps: analyserCorpsServeur(flux), ligne };
+  return { type: 'ActionServeur', nom, qui, donnee, ...(parametres.length ? { parametres } : {}), corps: analyserCorpsServeur(flux), ligne };
+}
+
+/** « statut est "ouverte" et total est superieur a 100 », après « ou ». */
+export function analyserFiltres(flux: FluxTokens): FiltreServeur[] {
+  const filtres: FiltreServeur[] = [];
+  do {
+    const champ = flux.attendreNom('le champ à comparer').nom;
+    if (!estLeMot(flux.actuel(), 'est')) throw new ErreurSyntaxique(`on écrit : ${champ} est "valeur", ou ${champ} est superieur a 10`, flux.actuel().ligne);
+    flux.avancer();
+    let operateur: FiltreServeur['operateur'] = 'egal';
+    for (const mot of ['superieur', 'inferieur', 'different', 'egal'] as const) {
+      if (estLeMot(flux.actuel(), mot)) {
+        operateur = mot;
+        flux.avancer();
+        break;
+      }
+    }
+    const valeur: Expression = analyserOperande(flux);
+    filtres.push({ champ, operateur, valeur });
+  } while (flux.accepter('MOT_CLE', 'et'));
+  return filtres;
+}
+
+const filtresOptionnels = (flux: FluxTokens): FiltreServeur[] => {
+  if (!estLeMot(flux.actuel(), 'ou')) return [];
+  flux.avancer();
+  return analyserFiltres(flux);
+};
+
+const OPERATIONS: OperationCalcul[] = ['somme', 'moyenne', 'minimum', 'maximum', 'nombre'];
+
+/** « calcul recette = somme de … » : le nom, puis l'opération. */
+function lireOperation(flux: FluxTokens): { nom: string; operation: OperationCalcul; ligne: number } {
+  const exemple = 'calcul recette = somme de commande.total';
+  const debut = flux.avancer();
+  const nom = flux.attendreNom('le nom du calcul').nom;
+  flux.attendre('PONCTUATION', '=', `« = » après le nom du calcul : ${exemple}`);
+  const operation = OPERATIONS.find((o) => estLeMot(flux.actuel(), o));
+  if (!operation) throw new ErreurSyntaxique(`sur le serveur, un calcul est une somme, une moyenne, un minimum, un maximum ou un nombre : ${exemple}`, debut.ligne);
+  flux.avancer();
+  return { nom, operation, ligne: debut.ligne };
+}
+
+/** « lire "resume" de commande ou statut est "payee" : » (le « qui » et « peut » sont déjà lus). */
+export function analyserResume(flux: FluxTokens, qui: Qui, ligne: number): ResumeServeur {
+  flux.avancer();
+  const nom = flux.attendre('CHAINE', undefined, 'le nom du résumé entre guillemets').valeur;
+  const donnee = flux.attendreNom('la donnée à résumer').nom;
+  const filtres = filtresOptionnels(flux);
+  flux.attendre('PONCTUATION', ':', 'deux-points à la fin du résumé');
+  const resume: ResumeServeur = { type: 'ResumeServeur', nom, qui, donnee, filtres, calculs: [], ligne };
+  chaqueLigne(flux, () => {
+    if (estLeMot(flux.actuel(), 'regroupe')) {
+      flux.avancer();
+      flux.avancer();
+      resume.regroupePar = flux.attendreNom('le champ qui regroupe les lignes').nom;
+      return;
+    }
+    if (!estLeMot(flux.actuel(), 'calcul')) throw new ErreurSyntaxique('dans un résumé, on écrit « calcul recette = somme de total » ou « regroupe par statut ».', flux.actuel().ligne);
+    const { nom: calcul, operation, ligne: ligneCalcul } = lireOperation(flux);
+    const champ = flux.attendreNom('le champ à calculer').nom;
+    resume.calculs.push({ nom: calcul, operation, ...(operation === 'nombre' ? {} : { champ }), ligne: ligneCalcul });
+  });
+  return resume;
 }
 
 const estFrequence = (flux: FluxTokens) => {
@@ -74,6 +147,21 @@ export function analyserDocument(flux: FluxTokens): DocumentServeur {
   const lignes: DocumentServeur['lignes'] = [];
   chaqueLigne(flux, () => {
     const mot = flux.actuel();
+    if (estLeMot(mot, 'tableau')) {
+      flux.avancer();
+      const liee = flux.attendreNom('la donnée dont viennent les lignes').nom;
+      const filtres = filtresOptionnels(flux);
+      if (!estLeMot(flux.actuel(), 'avec') || !estLeMot(flux.regarder(1), 'colonnes')) throw new ErreurSyntaxique('on écrit : tableau de ligne ou commande est commande.id avec colonnes produit, quantite et prix', mot.ligne);
+      flux.avancer();
+      flux.avancer();
+      const colonnes: string[] = [];
+      while (!flux.verifier('FIN_LIGNE') && !flux.estFini()) {
+        const jeton = flux.avancer();
+        if (jeton.valeur !== ',' && !estLeMot(jeton, 'et')) colonnes.push(jeton.valeur);
+      }
+      lignes.push({ genre: 'tableau', donnee: liee, filtres, colonnes, ligne: mot.ligne });
+      return;
+    }
     const genre = estLeMot(mot, 'titre') ? 'titre' : estLeMot(mot, 'texte') ? 'texte' : null;
     if (genre === null || flux.regarder(1).type !== 'CHAINE') throw new ErreurSyntaxique('dans un document, on écrit « titre "…" » ou « texte "…" ».', mot.ligne);
     flux.avancer();
@@ -118,16 +206,20 @@ function analyserInstructionServeur(flux: FluxTokens): InstructionServeur {
     if (!estLeMot(flux.actuel(), 'dans')) throw new ErreurSyntaxique(`on écrit : ${exemple}`, ligne);
     flux.avancer();
     const donnee = flux.attendreNom('la donnée à parcourir').nom;
-    let filtre: { champ: string; valeur: ReturnType<typeof analyserOperande> } | undefined;
-    if (estLeMot(flux.actuel(), 'ou')) {
-      flux.avancer();
-      const champ = flux.attendreNom('le champ à comparer').nom;
-      if (!estLeMot(flux.actuel(), 'est')) throw new ErreurSyntaxique(`on écrit : ${exemple}`, ligne);
-      flux.avancer();
-      filtre = { champ, valeur: analyserOperande(flux) };
-    }
+    const filtres = filtresOptionnels(flux);
     flux.attendre('PONCTUATION', ':', 'deux-points à la fin de « pour chaque »');
-    return { type: 'PourChaqueServeur', variable, donnee, ...(filtre ? { filtre } : {}), corps: analyserCorpsServeur(flux), ligne };
+    return { type: 'PourChaqueServeur', variable, donnee, filtres, corps: analyserCorpsServeur(flux), ligne };
+  }
+  if (estLeMot(debut, 'calcul')) {
+    const { nom, operation } = lireOperation(flux);
+    const donnee = flux.attendreNom('la donnée à calculer').nom;
+    let champ: string | undefined;
+    if (flux.actuel().valeur === '.') {
+      flux.avancer();
+      champ = flux.avancer().valeur;
+    }
+    if (operation !== 'nombre' && champ === undefined) throw new ErreurSyntaxique(`quel champ ? On écrit : calcul ${nom} = ${operation} de ${donnee}.total`, ligne);
+    return { type: 'CalculServeur', nom, operation, donnee, ...(champ !== undefined ? { champ } : {}), filtres: filtresOptionnels(flux), ligne };
   }
   if (estLeMot(debut, 'changer')) {
     flux.avancer();
@@ -150,5 +242,5 @@ function analyserInstructionServeur(flux: FluxTokens): InstructionServeur {
   if (estLeMot(debut, 'creer')) return { type: 'CreerFiche', creation: analyserCreationLiee(flux), ligne };
   if (estLeMot(debut, 'envoyer') && estLeMot(flux.regarder(1), 'notification')) return { type: 'NotificationServeur', envoi: analyserEnvoiNotification(flux), ligne };
   if (estLeMot(debut, 'envoyer')) return { type: 'EmailServeur', envoi: analyserEnvoiEmail(flux), ligne };
-  throw new ErreurSyntaxique(`sur le serveur, on écrit « si », « pour chaque », « changer … par », « creer », « supprimer », « refuser » ou « envoyer … », mais « ${debut.original ?? debut.valeur} » a été trouvé`, ligne);
+  throw new ErreurSyntaxique(`sur le serveur, on écrit « si », « pour chaque », « calcul », « changer … par », « creer », « supprimer », « refuser » ou « envoyer … », mais « ${debut.original ?? debut.valeur} » a été trouvé`, ligne);
 }

@@ -2,8 +2,8 @@
  * Vérifie ce qui s'exécute sur le serveur et le traduit pour le générateur. Une seule passe :
  * l'analyse s'en sert pour les erreurs, la construction de la RI pour le résultat.
  */
-import type { ApresPaiement, ActionServeur, DocumentServeur, EnvoiNotification, Donnee, Expression, InstructionServeur, Serveur, TachePlanifiee, Test } from '../parser/ast.js';
-import type { InstructionServeurRI, TestServeurRI, ValeurServeurRI } from '../ri/types.js';
+import type { ApresPaiement, ActionServeur, DocumentServeur, EnvoiNotification, Donnee, Expression, FiltreServeur, InstructionServeur, ResumeServeur, Serveur, TachePlanifiee, Test } from '../parser/ast.js';
+import type { FiltreServeurRI, InstructionServeurRI, LigneDocumentRI, ResumeRI, TestServeurRI, ValeurServeurRI } from '../ri/types.js';
 import { simplifier } from './elements.js';
 import { proposerNom } from './suggestions.js';
 
@@ -18,7 +18,17 @@ class Traduction {
     private readonly serveur: Serveur,
     private readonly erreur: Erreur,
     private readonly avecUtilisateur: boolean,
+    private locaux = new Set<string>(),
   ) {}
+
+  /** « statut est "ouverte" et total est superieur a 100 » : les champs existent. */
+  filtres(liste: FiltreServeur[], donnee: Donnee, portee: Portee, ligne: number): FiltreServeurRI[] {
+    return liste.map(({ champ, operateur, valeur }) => {
+      const trouve = simplifier(champ) === 'id' ? { nom: 'id' } : champDe(donnee, champ);
+      if (!trouve) this.erreur(`la donnée « ${donnee.nom} » n'a pas de champ « ${champ} ». Champs : ${donnee.champs.map((c) => c.nom).join(', ')}.${proposerNom(champ, donnee.champs.map((c) => c.nom))}`, ligne);
+      return { champ: trouve?.nom ?? champ, operateur, valeur: this.valeur(valeur, portee) };
+    });
+  }
 
   /** « commande.total », « utilisateur.id » : ce que la valeur désigne. */
   private acces(nom: string, champ: string, portee: Portee, ligne: number): ValeurServeurRI {
@@ -51,6 +61,7 @@ class Traduction {
           parties: e.parties.map((p) => {
             if (p.type !== 'variable') return { texte: p.valeur };
             const [nom, champ, ...reste] = p.valeur.split('.');
+            if (champ === undefined && this.locaux.has(nom)) return { valeur: { genre: 'local', nom } };
             if (champ === undefined || reste.length > 0) {
               this.erreur(`« {${p.valeur}} » : sur le serveur, on montre le champ d'une fiche, par exemple {commande.total}.`, e.ligne);
               return { texte: '' };
@@ -65,6 +76,7 @@ class Traduction {
         return { genre: 'calcul', operateur: e.operateur, gauche: this.valeur(e.gauche, portee), droite: this.valeur(e.droite, portee) };
       case 'Reference':
         if (simplifier(e.nom) === 'aujourdhui') return { genre: 'aujourdhui' };
+        if (this.locaux.has(e.nom)) return { genre: 'local', nom: e.nom };
         break;
       default:
         break;
@@ -99,7 +111,40 @@ class Traduction {
   }
 
   corps(liste: InstructionServeur[], portee: Portee): InstructionServeurRI[] {
-    return liste.map((i) => this.instruction(i, portee));
+    const avant = this.locaux;
+    this.locaux = new Set(avant);
+    const traduites = liste.map((i) => this.instruction(i, portee));
+    this.locaux = avant;
+    return traduites;
+  }
+
+  /** La donnée nommée, sinon un message. */
+  private donneeDe(nom: string, ligne: number): Donnee | undefined {
+    const donnee = this.serveur.donnees.find((d) => d.nom === nom && !d.comptes);
+    if (!donnee) this.erreur(`la donnée « ${nom} » n'existe pas. Données : ${this.serveur.donnees.filter((d) => !d.comptes).map((d) => d.nom).join(', ')}.`, ligne);
+    return donnee;
+  }
+
+  /** « calcul x = somme de total » : le champ est un nombre, sauf pour compter. */
+  champCalcul(donnee: Donnee, operation: string, champ: string | undefined, ligne: number): string | undefined {
+    if (operation === 'nombre' || champ === undefined) return undefined;
+    const trouve = champDe(donnee, champ);
+    if (trouve?.type.genre !== 'nombre') this.erreur(`« ${champ} » doit être un champ nombre de « ${donnee.nom} » pour ce calcul.`, ligne);
+    return trouve?.nom ?? champ;
+  }
+
+  /** Une ligne « tableau de … ou … avec colonnes … » d'un document. */
+  tableau(l: Extract<DocumentServeur['lignes'][number], { genre: 'tableau' }>, parent: Donnee): LigneDocumentRI {
+    const liee = this.donneeDe(l.donnee, l.ligne);
+    if (!liee) return { genre: 'texte', valeur: vide };
+    const portee: Portee = new Map([[parent.nom, parent]]);
+    if (liee.par !== undefined && liee.par !== parent.par) this.erreur(`« tableau de ${liee.nom} » : cette donnée est séparée par ${liee.par}, et « ${parent.nom} » ${parent.par ? `par ${parent.par}` : "ne l'est pas"}. Les deux doivent l'être de la même façon.`, l.ligne);
+    const colonnes = l.colonnes.map((c) => {
+      const trouve = simplifier(c) === 'id' ? { nom: 'id' } : champDe(liee, c);
+      if (!trouve) this.erreur(`la donnée « ${liee.nom} » n'a pas de champ « ${c} ». Champs : ${liee.champs.map((x) => x.nom).join(', ')}.`, l.ligne);
+      return trouve?.nom ?? c;
+    });
+    return { genre: 'tableau', donnee: liee.nom, filtres: this.filtres(l.filtres, liee, portee, l.ligne), colonnes, ...(liee.par !== undefined ? { groupeDe: parent.nom } : {}) };
   }
 
   private instruction(i: InstructionServeur, portee: Portee): InstructionServeurRI {
@@ -112,16 +157,22 @@ class Traduction {
           this.erreur(`la donnée « ${i.donnee} » n'existe pas. Données : ${this.serveur.donnees.filter((d) => !d.comptes).map((d) => d.nom).join(', ')}.`, i.ligne);
           return { type: 'si', test: { genre: 'combinaison', operateur: 'et', gauche: { genre: 'comparaison', operateur: 'vrai', gauche: vide }, droite: { genre: 'comparaison', operateur: 'vrai', gauche: vide } }, alors: [], sinon: [] };
         }
-        const champ = i.filtre ? champDe(donnee, i.filtre.champ) : undefined;
-        if (i.filtre && !champ) this.erreur(`la donnée « ${donnee.nom} » n'a pas de champ « ${i.filtre.champ} ». Champs : ${donnee.champs.map((c) => c.nom).join(', ')}.`, i.ligne);
+        const filtres = this.filtres(i.filtres, donnee, portee, i.ligne);
         const interieur = new Map(portee).set(i.variable, donnee);
         return {
           type: 'pourChaque',
           variable: i.variable,
           donnee: donnee.nom,
-          ...(i.filtre && champ ? { filtre: { champ: champ.nom, valeur: this.valeur(i.filtre.valeur, portee) } } : {}),
+          filtres,
           corps: this.corps(i.corps, interieur),
         };
+      }
+      case 'CalculServeur': {
+        const donnee = this.donneeDe(i.donnee, i.ligne);
+        const filtres = donnee ? this.filtres(i.filtres, donnee, portee, i.ligne) : [];
+        const champ = donnee ? this.champCalcul(donnee, i.operation, i.champ, i.ligne) : undefined;
+        this.locaux.add(i.nom);
+        return { type: 'calcul', nom: i.nom, operation: i.operation, donnee: i.donnee, ...(champ !== undefined ? { champ } : {}), filtres };
       }
       case 'ChangerChamp': {
         const donnee = portee.get(i.cible);
@@ -181,18 +232,18 @@ export function traduireAction(action: ActionServeur, serveur: Serveur, erreur: 
     erreur(`la donnée « ${action.donnee} » n'existe pas dans le serveur « ${serveur.nom} ». Données : ${serveur.donnees.filter((d) => !d.comptes).map((d) => d.nom).join(', ') || 'aucune'}.${proposerNom(action.donnee, serveur.donnees.map((d) => d.nom))}`, action.ligne);
     return [];
   }
-  return new Traduction(serveur, erreur, true).corps(action.corps, new Map([[donnee.nom, donnee]]));
+  return new Traduction(serveur, erreur, true, new Set((action.parametres ?? []).map((p) => p.nom))).corps(action.corps, new Map([[donnee.nom, donnee]]));
 }
 
 /** Les lignes d'un document : chaque « {commande.total} » existe. */
-export function traduireDocument(document: DocumentServeur, serveur: Serveur, erreur: Erreur): { genre: 'titre' | 'texte'; valeur: ValeurServeurRI }[] {
+export function traduireDocument(document: DocumentServeur, serveur: Serveur, erreur: Erreur): LigneDocumentRI[] {
   const donnee = serveur.donnees.find((d) => d.nom === document.donnee && !d.comptes);
   if (!donnee) {
     erreur(`la donnée « ${document.donnee} » n'existe pas. Données : ${serveur.donnees.filter((d) => !d.comptes).map((d) => d.nom).join(', ') || 'aucune'}.`, document.ligne);
     return [];
   }
   const traduction = new Traduction(serveur, erreur, false);
-  return document.lignes.map(({ genre, parties, ligne }) => ({ genre, valeur: traduction.valeur({ type: 'Chaine', parties, ligne }, new Map([[donnee.nom, donnee]])) }));
+  return document.lignes.map((l) => (l.genre === 'tableau' ? traduction.tableau(l, donnee) : { genre: l.genre, valeur: traduction.valeur({ type: 'Chaine', parties: l.parties, ligne: l.ligne }, new Map([[donnee.nom, donnee]])) }));
 }
 
 /** « quand commande est payee : » : l'argent est déjà pris, « refuser » n'y a pas de sens. */
@@ -205,6 +256,26 @@ export function traduireApresPaiement(apres: ApresPaiement, donnee: Donnee, serv
 /** « quand commande est cree : envoyer notification … » : la fiche créée est connue. */
 export function traduireNotification(envoi: EnvoiNotification, donnee: Donnee, serveur: Serveur, erreur: Erreur): Extract<InstructionServeurRI, { type: 'notification' }> {
   return new Traduction(serveur, erreur, false).notification(envoi, new Map([[donnee.nom, donnee]]));
+}
+
+/** « seul gerant peut lire "resume" de commande … : ». */
+export function traduireResume(resume: ResumeServeur, serveur: Serveur, erreur: Erreur): ResumeRI {
+  const traduction = new Traduction(serveur, erreur, false);
+  const donnee = serveur.donnees.find((d) => d.nom === resume.donnee && !d.comptes);
+  if (!donnee) {
+    erreur(`la donnée « ${resume.donnee} » n'existe pas. Données : ${serveur.donnees.filter((d) => !d.comptes).map((d) => d.nom).join(', ') || 'aucune'}.`, resume.ligne);
+    return { nom: resume.nom, qui: resume.qui, filtres: [], calculs: [] };
+  }
+  const groupe = resume.regroupePar === undefined ? undefined : champDe(donnee, resume.regroupePar);
+  if (resume.regroupePar !== undefined && !groupe) erreur(`la donnée « ${donnee.nom} » n'a pas de champ « ${resume.regroupePar} ». Champs : ${donnee.champs.map((c) => c.nom).join(', ')}.`, resume.ligne);
+  if (resume.calculs.length === 0) erreur(`le résumé « ${resume.nom} » est vide : écrivez au moins un calcul, par exemple « calcul combien = nombre de ${donnee.nom} ».`, resume.ligne);
+  return {
+    nom: resume.nom,
+    qui: resume.qui,
+    filtres: traduction.filtres(resume.filtres, donnee, new Map(), resume.ligne),
+    calculs: resume.calculs.map((c) => ({ nom: c.nom, operation: c.operation, ...(c.champ !== undefined ? { champ: traduction.champCalcul(donnee, c.operation, c.champ, c.ligne) } : {}) })),
+    ...(groupe ? { regroupePar: groupe.nom } : {}),
+  };
 }
 
 export function traduireTache(tache: TachePlanifiee, serveur: Serveur, erreur: Erreur): InstructionServeurRI[] {

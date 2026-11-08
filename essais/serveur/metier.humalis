@@ -1,6 +1,8 @@
 # Essai du serveur : groupes, droits sur ses fiches, rôles qui changent.
 serveur "commerce" :
     roles gerant, vendeur et client
+    compte :
+        telephone : texte
     emails par brevo
     invitations vers "bienvenue"
     paiements par stripe
@@ -8,14 +10,21 @@ serveur "commerce" :
     seuls gerant et client peuvent demander a ia
     document "recu" de commande :
         titre "Reçu {commande.id}"
+        tableau de article ou commande est commande.id avec colonnes produit, quantite et prix
         texte "Total : {commande.total} euros"
     toutes les heures :
         creer journal avec nom "heure"
     donnee commande par boutique :
         total : nombre
         statut : texte au depart "ouverte"
+        note : texte au depart ""
     donnee message par compte :
         texte : texte
+    donnee article par boutique :
+        commande : texte
+        produit : texte
+        quantite : nombre
+        prix : nombre
     donnee reservation :
         nom : texte
         total : nombre
@@ -26,6 +35,9 @@ serveur "commerce" :
     donnee facture :
         montant : nombre
         clients : liste de texte
+    route "articles" :
+        seul gerant peut lire article
+        seul gerant peut modifier article
     route "commandes" :
         seuls gerant et vendeur peuvent lire commande
         seuls gerant et vendeur peuvent creer commande
@@ -33,6 +45,19 @@ serveur "commerce" :
         seul gerant peut supprimer commande
         quand commande est cree :
             envoyer notification aux vendeur avec titre "Nouvelle commande" et texte "{commande.total}"
+        seul gerant peut lire "bilan" de commande ou statut est "ouverte" et total est superieur a 2 :
+            calcul recette = somme de total
+            calcul combien = nombre de commande
+            calcul plus_gros = maximum de total
+        seul gerant peut lire "par-statut" de commande :
+            calcul combien = nombre de commande
+            regroupe par statut
+        seul gerant peut faire "reduire" sur commande avec montant : nombre et raison : texte :
+            si montant est superieur a commande.total :
+                refuser "Montant trop élevé"
+            calcul ouvertes = nombre de commande ou statut est "ouverte" et total est superieur a 1
+            changer commande.total par commande.total - montant
+            changer commande.note par "{raison} / {ouvertes}"
         seul gerant peut faire "rembourser" sur commande :
             si commande.statut est egal a "remboursee" :
                 refuser "Déjà remboursée"
@@ -62,8 +87,10 @@ serveur "commerce" :
         client peut lire facture si utilisateur.id est dans facture.clients
         seul gerant peut modifier facture
     route "equipe" :
-        seul admin peut lire comptes
+        seul gerant peut lire comptes
         seul gerant peut creer comptes
+        seul gerant peut modifier comptes
+        seul gerant peut supprimer comptes
 
 page "bienvenue" :
     titre "Bienvenue"
@@ -79,10 +106,17 @@ page "accueil" reservee a connecte sinon vers "bienvenue" :
     variable commandes = []
     variable reservations = []
     variable reponse = ""
+    variable bilan = rien
     titre "Commerce"
     quand la page se charge :
         envoyer requete vers "commandes" dans commandes en direct
         envoyer requete vers "reservations" dans reservations
+        envoyer requete vers "commandes/bilan" dans bilan
+    si bilan est different de rien :
+        texte "Combien : {bilan.combien}"
+    bouton "Coordonnees"
+    quand l'utilisateur clique sur "Coordonnees" :
+        changer compte de "abc" avec telephone = "0102"
     bouton "Promouvoir"
     quand l'utilisateur clique sur "Promouvoir" :
         changer role de "abc" en "gerant"
@@ -98,6 +132,9 @@ page "accueil" reservee a connecte sinon vers "bienvenue" :
     quand l'utilisateur clique sur "Activer" :
         activer notifications
     pour chaque c dans commandes :
+        bouton "Reduire"
+        quand l'utilisateur clique sur "Reduire" :
+            faire "reduire" sur c avec montant = 1 et raison = "geste"
         bouton "Rembourser"
         quand l'utilisateur clique sur "Rembourser" :
             faire "rembourser" sur c
