@@ -23,7 +23,7 @@ import { cssTheme, changeLeTheme, modeParDefaut, SCRIPT_THEME } from '../web/the
 import { cssMouvement, animeAuDefilement, OBSERVATEUR_DEFILEMENT, SUIVI_ENTETE, suitLEntete } from '../commun/mouvement.js';
 import { avecDureeDesErreurs } from '../commun/messages.js';
 import { robotsTxt, manifeste, fichiersDuSite } from '../publication.js';
-import { chaine, pascal } from '../web/noms.js';
+import { camel, chaine, pascal } from '../web/noms.js';
 import type { Diagnostic } from '../../analyse/erreurs.js';
 import { MOTEUR_JS } from './execution.js';
 import { GenerateurMoteur, NOMS_RESERVES, type ContexteMoteur } from './page.js';
@@ -178,20 +178,23 @@ function produire(application: Application, options: OptionsMoteur): Map<string,
 
   for (const [chemin, ecran] of parAdresse) {
     const pages = chaineDe(ecran);
+    // Une sous-page d'une page réservée l'est aussi : la garde la plus proche de la page compte.
+    const garde = [...pages].reverse().find((p) => p.reservee)?.reservee;
     const dispo = clefDisposition(ecran);
-    const couches: { id: string; g: GenerateurMoteur; fichier: string }[] = [];
+    const couches: { id: string; g: GenerateurMoteur; fichier: string; parametres: string[] }[] = [];
     if (dispo) {
       const g = generateurDisposition(ecran, dispo);
-      couches.push({ id: dispo, g, fichier: ecrireCouche(dispo, g) });
+      couches.push({ id: dispo, g, fichier: ecrireCouche(dispo, g), parametres: [] });
     }
     pages.forEach((p, i) => {
       const g = generateurPage(p, couches.length);
-      couches.push({ id: p.nom, g, fichier: ecrireCouche(p.nom, g) });
+      couches.push({ id: p.nom, g, fichier: ecrireCouche(p.nom, g), parametres: (p.parametresAdresse ?? []).map(camel) });
       void i;
     });
     let contenu: string | undefined;
     for (let i = couches.length - 1; i >= 0; i--) {
       couches[i].g.niveau = i;
+      couches[i].g.pageCachee = garde !== undefined;
       contenu = couches[i].g.htmlDepart(contenu);
     }
     const dernier = generateurPage(ecran, couches.length - 1);
@@ -199,14 +202,14 @@ function produire(application: Application, options: OptionsMoteur): Map<string,
     const apercu = enTetePublication(application, ecran, { titre, description, html: [] }, chemin.replace(/^\//, ''), adresse);
     const cleEntree = simplifier(ecran.nom) || 'page';
     const entree = `src/routes/${cleEntree}.js`;
-    const reservee = ecran.reservee ? `{ reservee: { qui: ${chaine(ecran.reservee.qui)}, sinon: ${chaine(chemins.get(ecran.reservee.sinon) ?? `/${simplifier(ecran.reservee.sinon)}`)} } }` : '{}';
+    const reservee = garde ? `{ reservee: { qui: ${chaine(garde.qui)}, sinon: ${chaine(chemins.get(garde.sinon) ?? `/${simplifier(garde.sinon)}`)} } }` : '{}';
     fichiers.set(entree, `// Produit par Humalis : la page « ${ecran.nom} » et ses couches.
 import { enregistrer } from '../humalis/navigation.js';
 ${couches.map((c, i) => `import c${i} from '../couches/${c.fichier.split('/').pop()}';`).join('\n')}
 
-enregistrer(import.meta.url, [${couches.map((c, i) => `[${chaine(c.id)}, c${i}]`).join(', ')}], ${reservee});
+enregistrer(import.meta.url, [${couches.map((c, i) => `[${chaine(c.id)}, c${i}${c.parametres.length ? `, ${JSON.stringify(c.parametres)}` : ''}]`).join(', ')}], ${reservee});
 `);
-    const html = pageHtml(apercu.titre, apercu.description, feuilles, `/${entree}`, contenu ?? '', { mode: modeTheme, bascule, site: avecEntete, langue, cache: ecran.reservee !== undefined }, apercu.balises);
+    const html = pageHtml(apercu.titre, apercu.description, feuilles, `/${entree}`, contenu ?? '', { mode: modeTheme, bascule, site: avecEntete, langue, cache: garde !== undefined }, apercu.balises);
     const fichierHtml = ecran.nom === 'introuvable' ? '404.html' : htmlDe(chemin);
     fichiers.set(fichierHtml, html);
     entrees.push([cleEntree, fichierHtml]);
@@ -313,7 +316,7 @@ enregistrer(import.meta.url, [${couches.map((c, i) => `[${chaine(c.id)}, c${i}]`
     ...(Object.keys(dependances).length ? { dependencies: dependances } : {}),
     devDependencies: { vite: VERSIONS.vite, ...paquets.dependancesDev },
   }, null, 2) + '\n');
-  fichiers.set('vite.config.js', viteConfig(entrees, dynamiques, application.serveurs.length > 0, sortes));
+  fichiers.set('vite.config.js', viteConfig(entrees, routes.filter((r) => r.chemin !== '/'), application.serveurs.length > 0, sortes));
   fichiers.set('LISEZMOI.md', `# ${options.nom}\n\nSite produit par Humalis depuis \`${options.source}\`, avec son moteur de rendu, sans React.\n\n\`\`\`sh\nnpm install\nnpm run dev\nnpm run build\nnpm run preview\n\`\`\`\n\nChaque page est un fichier HTML déjà écrit ; un petit script la reprend.\n`);
   return fichiers;
 }
@@ -355,15 +358,15 @@ function pageHtml(titre: string, description: string, feuilles: string[], script
 ${balises.map((b) => `    ${b}\n`).join('')}${feuilles.map((f) => `    <link rel="stylesheet" href="${echapperAttribut(f)}">\n`).join('')}${script ? `    <script type="module" src="${echapperAttribut(script)}"></script>\n` : ''}  </head>
   <body>
     <ul class="humalis-messages" aria-live="polite"></ul>
-    <main class="${theme.site ? 'humalis-site' : 'humalis-page'}" data-c="0"${theme.cache ? ' hidden' : ''}>${contenu}</main>
+    ${theme.site ? `<div id="racine" data-c="0">${contenu}</div>` : `<div id="racine"><main class="humalis-page" data-c="0"${theme.cache ? ' hidden' : ''}>${contenu}</main></div>`}
   </body>
 </html>
 `;
 }
 
-function viteConfig(entrees: [string, string][], dynamiques: { chemin: string; fichier: string }[], serveur: boolean, sortes: Set<string>): string {
+function viteConfig(entrees: [string, string][], adresses: { chemin: string; fichier: string }[], serveur: boolean, sortes: Set<string>): string {
   const react = sortes.has('react');
-  const reecritures = dynamiques.map((r) => `  [/^${r.chemin.replace(/\//g, '\\/').replace(/:[A-Za-z0-9_]+/g, '[^/]+')}\\/?$/, ${chaine(`${r.fichier}index.html`)}],`);
+  const reecritures = adresses.map((r) => `  [/^${r.chemin.replace(/\//g, '\\/').replace(/:[A-Za-z0-9_]+/g, '[^/]+')}\\/?$/, ${chaine(`${r.fichier}index.html`)}],`);
   return `import { defineConfig } from 'vite';
 import { resolve } from 'node:path';
 ${react ? "import react from '@vitejs/plugin-react';\n" : ''}${sortes.has('vue') ? "import vue from '@vitejs/plugin-vue';\n" : ''}${sortes.has('svelte') ? "import { svelte } from '@sveltejs/vite-plugin-svelte';\n" : ''}
@@ -371,7 +374,7 @@ const entrees = {
 ${entrees.map(([cle, f]) => `  ${chaine(cle)}: resolve(import.meta.dirname, ${chaine(f)}),`).join('\n')}
 };
 
-/** Les adresses à paramètre (/produit/12) sont servies par leur page. */
+/** Chaque adresse (/panier, /produit/12) est servie par sa page, avec ou sans barre finale. */
 const adresses = [
 ${reecritures.join('\n')}
 ];
@@ -380,9 +383,11 @@ const reecrire = (requete, _reponse, suite) => {
   for (const [motif, fichier] of adresses) {
     if (motif.test(chemin)) {
       requete.url = fichier + requete.url.slice(chemin.length);
-      break;
+      return suite();
     }
   }
+  // Une adresse inconnue : la page « introuvable », comme chez l'hébergeur.
+  if (!/\\.[a-z0-9]+$/i.test(chemin) && !/^\\/(@|src\\/|assets\\/|node_modules\\/|api(\\/|$)|auth(\\/|$))/.test(chemin) && chemin !== '/') requete.url = '/404.html';
   suite();
 };
 ${serveur ? "\nconst cible = process.env.HUMALIS_SERVEUR ?? 'http://localhost:3000';\nconst proxy = { '/api': cible, '/auth': cible };\n" : ''}

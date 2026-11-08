@@ -20,6 +20,7 @@ import { Ecrivain } from '../web/ecrivain.js';
 import { camel, chaine, pascal } from '../web/noms.js';
 import { titreEtDescription } from '../web/ecran.js';
 import { ficheAvec } from '../web/valeurs.js';
+import { lireCible } from '../../analyse/navigation.js';
 import { lecturesDuChargement } from '../web/lectures.js';
 import { attributsFrappe } from '../commun/mouvement.js';
 import { colorerCodeHumalis } from '../commun/colorerCode.js';
@@ -213,6 +214,28 @@ export class GenerateurMoteur extends GenerateurPage {
     return `\`${chemin}${requete.length ? `?${requete.join('&')}` : ''}\``;
   }
 
+  /** Une adresse à trous (« https://wa.me/…?text={message} ») : après « ? » ou « # », les valeurs sont encodées. */
+  private adresseEncodee(valeur: Valeur): string {
+    if (valeur.type !== 'texte' || valeur.versions || valeur.parties.every((p) => 'texte' in p)) return expressionJs(valeur, this.contexte);
+    let requete = false;
+    const morceaux = valeur.parties.map((p) => {
+      if ('texte' in p) {
+        if (/[?#]/.test(p.texte)) requete = true;
+        return p.texte.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${').replace(/\n/g, '%0A');
+      }
+      const lu = expressionJs({ type: 'texte', parties: [p] }, this.contexte);
+      return requete ? `\${encodeURIComponent(${lu})}` : `\${${lu}}`;
+    });
+    return `\`${morceaux.join('')}\``;
+  }
+
+  /** Une adresse qui commence par une variable : seuls les schémas sûrs passent, jamais « javascript: ». */
+  private adresseDeLien(valeur: Valeur): string {
+    const adresse = this.adresseEncodee(valeur);
+    const premiere = valeur.type === 'texte' ? valeur.parties[0] : undefined;
+    return premiere && 'variable' in premiere ? `((adresse) => (/^(https?:|mailto:|tel:|\\/)/i.test(adresse) ? adresse : '#'))(${adresse})` : adresse;
+  }
+
   private adresseInitiale(page: string, args: ArgumentsPage, env: Environnement): string {
     let chemin = this.fichier(page);
     const requete: string[] = [];
@@ -267,8 +290,20 @@ export class GenerateurMoteur extends GenerateurPage {
           for (const id of action.ids) e.ligne(`textes.v = { ...textes.v, ${chaine(id)}: ${x(action.texte)} };`);
           break;
         case 'navigation': {
-          const page = action.ecran.type === 'texte' ? texteLitteral(action.ecran) : undefined;
-          const vers = action.arguments && page !== undefined ? this.adresseAvec(page, action.arguments) : this.adresse(action.ecran);
+          const page = texteLitteral(action.ecran);
+          if (page === undefined) {
+            // Une adresse reçue : une page, ou une adresse permise ; naviguer refuse le reste avec un message.
+            const ecrite = action.ecran.type === 'texte' && action.ecran.parties[0] && 'texte' in action.ecran.parties[0] && lireCible(action.ecran.parties[0].texte).externe;
+            e.ligne(`naviguer(String(${ecrite ? this.adresseEncodee(action.ecran) : x(action.ecran)}));`);
+            break;
+          }
+          const lue = lireCible(page);
+          if (lue.externe) {
+            e.ligne(`naviguer(${chaine(page)});`);
+            break;
+          }
+          const ancre = lue.ancre ? `#${lue.ancre}` : '';
+          const vers = action.arguments && lue.page ? this.adresseAvec(lue.page, action.arguments) : chaine(this.fichier(lue.page ?? page) + ancre);
           e.ligne(`naviguer(${action.continuer ? `apresLaGarde() ?? ${vers}` : vers});`);
           break;
         }
@@ -299,10 +334,10 @@ export class GenerateurMoteur extends GenerateurPage {
       return;
     }
     const n = ++this.dernieres;
-    e.ligne(`const derniere${n} = derniereRequete(${chaine(variable)});`);
-    e.ligne(`const reponse${n} = ${appel};`);
-    e.ligne(`if (!derniere${n}()) return;`);
-    e.ligne(`${this.lu(variable)} = reponse${n};`);
+    e.ligne(`const $derniere${n} = derniereRequete(${chaine(variable)});`);
+    e.ligne(`const $reponse${n} = ${appel};`);
+    e.ligne(`if (!$derniere${n}()) return;`);
+    e.ligne(`${this.lu(variable)} = $reponse${n};`);
   }
 
   /** Après un appel au serveur : un échec arrête « essayer », ou la soumission d'un formulaire. */
@@ -327,8 +362,8 @@ export class GenerateurMoteur extends GenerateurPage {
     switch (action.type) {
       case 'optimiste': {
         const n = ++this.compteurs.optimistes;
-        const avant = `avantOptimiste${n}`;
-        const echecs = `echecsOptimiste${n}`;
+        const avant = `$avant${n}`;
+        const echecs = `$echecsOptimiste${n}`;
         e.ligne(`const ${avant} = structuredClone({ ${action.variables.map((nom) => `${camel(nom)}: ${this.lu(nom)}`).join(', ')} });`);
         e.ligne(`const ${echecs} = serveur.echecs();`);
         this.ecrireActions(e, action.corps, locales, modif);
@@ -352,7 +387,7 @@ export class GenerateurMoteur extends GenerateurPage {
             `source: ${chaine(action.source)}`,
             ...(filtres.length > 0 ? [`filtres: { ${filtres.join(', ')} }`] : []),
             ...(action.dans !== undefined ? [`dans: ${chaine(action.dans)}`] : []),
-            ...(lecture && action.resultat !== undefined ? ['contourner', `relancer: () => charger${n}(true)`] : []),
+            ...(lecture && action.resultat !== undefined ? ['contourner', `relancer: () => $charger${n}(true)`] : []),
             ...(suivie ? [`suivi: (etat) => { ${camel(action.resultat!)}Req.v = etat; }`, 'silencieux: true'] : []),
           ];
           args.push(`{ ${options.join(', ')} }`);
@@ -361,9 +396,9 @@ export class GenerateurMoteur extends GenerateurPage {
           const appel = `await serveur.${action.mode}(${args.join(', ')})`;
           if (lecture) {
             const n = ++this.compteurs.chargeurs;
-            e.bloc(`const charger${n} = async (contourner = false) => {`, () => this.reponse(e, action.resultat!, appel), '};');
-            if (suivie) e.ligne(`relances.${camel(action.resultat)} = charger${n};`);
-            e.ligne(`await charger${n}();`);
+            e.bloc(`const $charger${n} = async (contourner = false) => {`, () => this.reponse(e, action.resultat!, appel), '};');
+            if (suivie) e.ligne(`relances.${camel(action.resultat)} = $charger${n};`);
+            e.ligne(`await $charger${n}();`);
           } else this.reponse(e, action.resultat, appel);
         } else e.ligne(`await serveur.${action.mode}(${args.join(', ')});`);
         this.apresAppel(e, action.mode === 'envoyer');
@@ -438,8 +473,8 @@ export class GenerateurMoteur extends GenerateurPage {
         return true;
       case 'essayer': {
         const n = ++this.compteurs.essais;
-        const echecs = `echecsEssai${n}`;
-        const raison = `raisonEssai${n}`;
+        const echecs = `$echecsEssai${n}`;
+        const raison = `$raison${n}`;
         const requetes = JSON.stringify(action.corps).match(/"type":"(requete|suppression|modification|envoiFichier)"/) !== null;
         if (requetes) {
           e.ligne(`const ${echecs} = serveur.echecs();`);
@@ -757,7 +792,8 @@ ${corps.texte()}}
         break;
       case 'codeDocumentation': {
         const frappe = attributsFrappe(noeud);
-        const copier = `() => copier(${chaine(noeud.code)})`;
+        // Le code est déjà dans la page : le bouton le relit, le script ne le porte pas une seconde fois.
+        const copier = `(evenement) => copier(evenement.currentTarget.previousElementSibling.querySelector('code').textContent)`;
         const message = this.messageCopier();
         const texte: M = message.length > 1 ? { js: messageEnCode(message, chaine), initial: env ? message[0].texte : '' } : { texte: message[0].texte };
         sortie.push(el('div', [['class', 'humalis-bloc-code-conteneur']], [
@@ -824,8 +860,13 @@ ${corps.texte()}}
       ...(estRepliable(noeud) ? [{ brut: '<button type="button" class="humalis-menu-bouton" aria-expanded="false" aria-label="Menu"><span class="humalis-menu-icone" aria-hidden="true"></span></button>' } as M] : []),
       ...this.groupe(noeud.corps, env),
     ];
-    const contenuPage = noeud.genre === 'contenu' && this.coucheContenu !== undefined;
-    sortie.push(el(BALISES_BLOC[noeud.genre] ?? 'div', [this.repereHtml(noeud.ligne) as [string, Attr | undefined], ['class', classesDuBloc(noeud)], ['id', noeud.ancre], ...(contenuPage ? ([['data-c', String(this.coucheContenu)]] as [string, Attr][]) : [])], contenuPage ? [{ brut: env ? (this.sousPageDepart ?? '') : '' }] : enfants));
+    // Comme sur le web : l'en-tête, le <main> de la page, le pied, côte à côte.
+    if (noeud.genre === 'contenu' && this.coucheContenu !== undefined) {
+      sortie.push(el('main', [['id', 'contenu'], ['class', 'humalis-page'], ['data-c', String(this.coucheContenu)], ...(this.pageCachee ? ([['hidden', 'true']] as [string, Attr][]) : [])], [{ brut: env ? (this.sousPageDepart ?? '') : '' }]));
+      return;
+    }
+    if (noeud.genre === 'entete' && this.coucheContenu !== undefined) sortie.push({ brut: ALLER_AU_CONTENU });
+    sortie.push(el(BALISES_BLOC[noeud.genre] ?? 'div', [this.repereHtml(noeud.ligne) as [string, Attr | undefined], ['class', classesDuBloc(noeud)], ['id', noeud.ancre]], enfants));
     const bas = noeud.id !== undefined ? this.basDesBlocs.get(noeud.id) : undefined;
     if (!bas) return;
     const fonction = bas.fonction;
@@ -844,6 +885,8 @@ ${corps.texte()}}
 
   /** La couche de la disposition met ici le numéro de son emplacement pour le contenu de la page. */
   coucheContenu: number | undefined;
+  /** Une page réservée reste cachée tant que la session n'a pas répondu. */
+  pageCachee = false;
 
   private composantM(noeud: Extract<NoeudVue, { type: 'composant' }>, env: Environnement | null, sortie: M[]): void {
     const externe = this.moteur.externes.get(noeud.nom);
@@ -934,7 +977,7 @@ ${corps.texte()}}
 
   private attrsLien(noeud: Element, env: Environnement | null): [string, Attr | undefined][] {
     const onglet: [string, Attr | undefined][] = noeud.nouvelOnglet ? [['target', '_blank'], ['rel', 'noopener noreferrer']] : [];
-    if (noeud.externeValeur) return [['href', { js: expressionJs(noeud.externeValeur, this.contexte), initial: env ? this.txt(noeud.externeValeur, env) : false }], ...onglet];
+    if (noeud.externeValeur) return [['href', { js: this.adresseDeLien(noeud.externeValeur), initial: false }], ...onglet];
     if (noeud.externe !== undefined) return [['href', noeud.externe], ...onglet];
     const filtres = noeud.cible !== undefined ? this.moteur.filtresDesPages.get(noeud.cible) : undefined;
     if (filtres?.length) onglet.push(['data-filtres', filtres.join(' ')]);
@@ -1105,6 +1148,8 @@ ${corps.texte()}}
     }
   }
 }
+
+const ALLER_AU_CONTENU = '<a class="humalis-aller-au-contenu" href="#contenu">Aller au contenu</a>';
 
 const TYPES_SAISIE: Partial<Record<string, { type: string; autocomplete?: string }>> = {
   email: { type: 'email', autocomplete: 'email' },

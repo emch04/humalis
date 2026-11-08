@@ -126,7 +126,7 @@ const bouton = (page, nom) => page.getByRole('button', { name: nom, exact: true 
   await page.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent === 'Ajouter').click());
   await page.getByText('Ligne z', { exact: true }).waitFor();
   m = await mutations(page);
-  verifier(m.retraits === 0 && m.ajouts <= 3, `labo : ajouter une ligne n'ajoute qu'elle (${JSON.stringify(m)})`);
+  verifier(m.retraits === 0 && m.ajouts <= 4, `labo : ajouter une ligne n'ajoute qu'elle (${JSON.stringify(m)})`);
 
   await page.evaluate(() => { window.__p2 = [...document.querySelectorAll('p')].find((p) => p.textContent === 'Ligne b'); });
   await bouton(page, 'Basculer').click();

@@ -153,6 +153,17 @@ describe('le moteur : le projet produit', () => {
     expect(html).toContain('&lt;script&gt;x');
   });
 
+  it('une variable du programme ne peut pas prendre un nom du moteur', () => {
+    const code = projet('page "a" :\n    variable texte = "x"\n    variable r = 1\n    texte "{texte} {r}"\n').get('src/couches/a.js')!;
+    expect(code).toContain('const texte_ = signal');
+    expect(code).toContain('const r_ = signal');
+  });
+
+  it('une adresse à trous qui commence par une variable refuse javascript:', () => {
+    const code = projet('page "a" :\n    variable u = "javascript:alert(1)"\n    lien "x" vers "{u}/y"\n').get('src/couches/a.js');
+    if (code) expect(code).not.toContain("attribut(r[0], 'href', () => u.v)");
+  });
+
   it('refuse un secret dans le navigateur, comme la cible web', () => {
     const { application } = compiler('page "a" :\n    variable t = "" avec memorisee en secret\n    texte t\n');
     if (application) expect(verifierPourLeMoteur(application).some((d) => d.gravite === 'erreur')).toBe(true);
