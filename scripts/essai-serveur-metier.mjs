@@ -184,6 +184,14 @@ try {
   const journaux = await appeler(A, 'GET', '/api/journaux', jetonAdmin);
   verifier(journaux.valeur.length === 1, 'une tâche ne tourne qu’une fois, malgré deux serveurs');
 
+  // ─── Les documents ────────────────────────────────────────────────
+  const pdf = (jeton, id) => fetch(`${A}/api/commandes/documents/recu/${id}/bon`, { headers: { authorization: `Bearer ${jeton}` } });
+  const lu = await pdf(gerantA.jeton, chere.valeur.id);
+  const octets = Buffer.from(await lu.arrayBuffer());
+  verifier(lu.status === 200 && lu.headers.get('content-type') === 'application/pdf' && octets.subarray(0, 5).toString() === '%PDF-', 'le document est un vrai PDF');
+  verifier((await pdf(gerantB.jeton, chere.valeur.id)).status === 404, 'le document d’une fiche d’un autre groupe est introuvable (404)');
+  verifier((await pdf(vendeur.jeton, chere.valeur.id)).status === 403, 'un rôle qui ne lit pas la donnée n’a pas le document (403)');
+
   // EXTENSIONS
 } finally {
   for (const p of processus) p.kill();

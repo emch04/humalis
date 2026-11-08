@@ -20,7 +20,7 @@ import type { ResultatAnalyse } from '../analyse/analyse.js';
 import { INCONNU, NOMBRE, BOOLEEN, type TypeValeur } from '../analyse/types.js';
 import { optionCanonique } from '../analyse/styles.js';
 import { adresseNormalisee, conditionsDeRoute, droitsDeRoute } from '../analyse/serveur.js';
-import { traduireAction, traduireTache } from '../analyse/logique.js';
+import { traduireAction, traduireDocument, traduireTache } from '../analyse/logique.js';
 import { encreSur } from '../analyse/couleurs.js';
 import { lireCible } from '../analyse/navigation.js';
 import { imageDe, REGLAGES_IMAGE, choixFichierDe } from './medias.js';
@@ -237,6 +237,7 @@ function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
     ...(serveur.connexionGoogle !== undefined ? { connexionGoogle: true } : {}),
     ...(serveur.roles?.length ? { roles: serveur.roles } : {}),
     ...(analyse.changeDeRole ? { changeDeRole: true } : {}),
+    ...(serveur.documents?.length ? { documents: serveur.documents.map((d) => ({ nom: d.nom, donnee: d.donnee, lignes: traduireDocument(d, serveur, () => undefined) })) } : {}),
     ...(serveur.taches?.length ? { taches: serveur.taches.map((t, i) => ({ nom: `tache-${i + 1}`, frequence: t.frequence, corps: traduireTache(t, serveur, () => undefined) })) } : {}),
     // L'analyse a déjà vérifié le bloc : ses deux lignes sont là, et le champ existe sous ce nom ou un nom voisin (accents).
     ...(fidelite?.gain && fidelite.objectif
@@ -698,6 +699,10 @@ class Construction {
 
         case 'Invitation':
           actions.push({ type: 'invitation', email: this.valeur(instruction.email), role: instruction.role, ...(instruction.groupe ? { groupe: { champ: instruction.groupe.champ, valeur: this.valeur(instruction.groupe.valeur) } } : {}) });
+          break;
+        case 'TelechargementDocument':
+          // Le même chemin qu'un bon : droits et téléchargement sont déjà là.
+          actions.push({ type: 'telechargementBon', adresse: this.analyse.adressesRequetes.get(instruction) ?? '', objet: this.valeur(instruction.objet) });
           break;
         case 'FaireAction':
           // Une action passe par le même chemin qu'une modification : droits, jeton, erreurs et relecture sont déjà là.

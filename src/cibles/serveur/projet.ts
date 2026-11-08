@@ -1,6 +1,6 @@
 import { avecComptes, avecEmails, CLES_BREVO, codeCreationComptes, codeEnvois, codeRoutesComptes, COMPTES, EMAILS, ENV_EMAILS, ENV_LIENS, testsComptes } from './comptes.js';
 import { codeFicheVisible, codePortee, compteRelu, conditionsDe, constantesSeparation, estSeparee, SEPARATION, testsSeparee } from './separation.js';
-import { avecLogique, codeActions, codeTaches, employe, LOGIQUE } from './logique.js';
+import { avecLogique, codeActions, codeDocuments, codeTaches, DOCUMENT, employe, LOGIQUE } from './logique.js';
 import { champsDuServeur, codeCompleter, codeCreation, noms as nomsVerifier, reglesEnvoi } from './regles.js';
 import { ligneLocale } from '../../fichiers.js';
 import type { ServeurRI, TypeChamp, QuiPeut } from '../../ri/types.js';
@@ -79,6 +79,7 @@ export function genererProjetServeur(serveur: ServeurRI, options: OptionsServeur
   if (serveur.routes.some((r) => r.direct)) fichiers.set('src/humalis/direct.ts', DIRECT);
   if (compteRelu(serveur) || serveur.routes.some((r) => r.actions?.length && serveur.donnees.find((d) => d.nom === r.donnee)?.par)) fichiers.set('src/humalis/separation.ts', SEPARATION);
   if (avecLogique(serveur)) fichiers.set('src/humalis/logique.ts', LOGIQUE);
+  if (serveur.documents?.length) fichiers.set('src/humalis/document.ts', DOCUMENT);
   if (serveur.routes.some((r) => r.bon)) {
     fichiers.set('src/humalis/bon.ts', BON);
     fichiers.set('tests/bon.test.ts', testsBon(serveur));
@@ -137,7 +138,7 @@ function exempleChamp(type: TypeChamp): string {
 
 function packageJson(nom: string, serveur: ServeurRI): string {
   const v = VERSIONS_SERVEUR;
-  const bon = serveur.routes.some((r) => r.bon);
+  const bon = serveur.routes.some((r) => r.bon) || Boolean(serveur.documents?.length);
   return JSON.stringify(
     {
       name: `${simplifier(nom).replace(/_/g, '-') || 'serveur'}-serveur`,
@@ -1201,7 +1202,7 @@ ${voir('supprimer')}          if (await stockages.${donnee}.supprimer(req.params
           next(erreur);
         }
       });
-${codeActions(serveur, route, variable)}      app.use('${adresseApi(route.adresse)}', ${variable});`;
+${codeDocuments(serveur, route, variable, garde('lire'), separee, voir('lire'))}${codeActions(serveur, route, variable)}      app.use('${adresseApi(route.adresse)}', ${variable});`;
     })
     .join('\n\n');
   const schemas = [...new Set(serveur.routes.map((r) => `SCHEMA_${simplifier(r.donnee).toUpperCase()}`))].join(', ');
@@ -1219,7 +1220,7 @@ import express, { type RequestHandler, type Response } from 'express';
 ${serveur.routes.some((r) => r.direct) ? "import { direct } from './humalis/direct.js';\n" : ''}import { ${schemas} } from './donnees.js';
 import type { Surveillance } from './humalis/centrale.js';
 import type { Coffre } from './humalis/coffre.js';
-${comptes ? "import { creerComptes, refuserMotDePasseFaible, sansLesRetires } from './humalis/comptes.js';\n" : ''}${avecEmails(serveur) ? `import { creerEmails, ${envoisDansRoutes ? 'enTexte, ' : ''}type Emails } from './humalis/emails.js';\n` : ''}import { compresser } from './humalis/compresser.js';${avecBon ? "\nimport { creerBon } from './humalis/bon.js';" : ''}${serveur.fidelite ? "\nimport { carteDeFidelite } from './humalis/fidelite.js';" : ''}
+${comptes ? "import { creerComptes, refuserMotDePasseFaible, sansLesRetires } from './humalis/comptes.js';\n" : ''}${avecEmails(serveur) ? `import { creerEmails, ${envoisDansRoutes ? 'enTexte, ' : ''}type Emails } from './humalis/emails.js';\n` : ''}import { compresser } from './humalis/compresser.js';${serveur.documents?.length ? "\nimport { creerDocument } from './humalis/document.js';" : ''}${avecBon ? "\nimport { creerBon } from './humalis/bon.js';" : ''}${serveur.fidelite ? "\nimport { carteDeFidelite } from './humalis/fidelite.js';" : ''}
 ${avecLogique(serveur) ? `import { ${['Refus', 'enTexte', 'estVide', 'contient', 'noter', 'nouveauTravail', 'terminer', 'transactionMemoire', ...(serveur.taches?.length ? ['lancerTaches', 'type Reclamer'] : []), 'type Transaction'].join(', ')} } from './humalis/logique.js';\n` : ''}import { creerRenouvellement, reglagesDeSession, renouvellementEnCookie, type ReglagesSession } from './humalis/sessions.js';
 import { ${serveur.fidelite ? 'sansSeparateurs, ' : ''}type Stockage } from './humalis/stockage.js';
 ${compteRelu(serveur) ? (serveur.routes.some((r) => estSeparee(serveur.donnees.find((d) => d.nom === r.donnee)!, r)) ? "import { dansPortee, groupeACreer, listerDans, moiDe, porteeDe, REFUS_FICHES, type RegleAcces, type Separation } from './humalis/separation.js';\n" : '') : ''}import { lireFiltres, ${nomsVerifier(serveur).map((n) => n + ', ').join('')}verifierEnvoi } from './humalis/verifier.js';

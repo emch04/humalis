@@ -2,7 +2,7 @@ import type { Regle, Serveur, ActionDonnee, Route, Qui, Page, EnvoiEmail, Creati
 import type { Diagnostic } from './erreurs.js';
 import { simplifier } from './elements.js';
 import { proposerNom } from './suggestions.js';
-import { traduireAction, traduireTache } from './logique.js';
+import { traduireAction, traduireDocument, traduireTache } from './logique.js';
 
 const ACTIONS: ActionDonnee[] = ['lire', 'creer', 'modifier', 'supprimer'];
 
@@ -31,6 +31,13 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[], pag
   for (const donnee of serveur.donnees) for (const champ of donnee.champs) verifierRegleChamp(champ, donnee, serveur, erreur);
 
   for (const tache of serveur.taches ?? []) traduireTache(tache, serveur, erreur);
+  const nomsDocuments = new Map<string, number>();
+  for (const document of serveur.documents ?? []) {
+    traduireDocument(document, serveur, erreur);
+    if (nomsDocuments.has(document.nom)) erreur(`le document « ${document.nom} » est déjà écrit (ligne ${nomsDocuments.get(document.nom)}) : donnez-lui un autre nom.`, document.ligne);
+    nomsDocuments.set(document.nom, document.ligne);
+    if (document.lignes.length === 0) erreur(`le document « ${document.nom} » est vide : écrivez au moins un titre "…" ou un texte "…".`, document.ligne);
+  }
 
   const adresses = new Map<string, number>();
   const servies = new Set<string>();

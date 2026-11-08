@@ -42,6 +42,10 @@ const separee = (regle: string) => serveur('roles client', 'donnee commande par 
 /** Une route avec les lignes d'action données, et deux données pour tester une action mal placée. */
 const actions = (lignes: string[]) => serveur('roles gerant', 'donnee commande :', '    total : nombre', 'donnee produit :', '    nom : texte', 'route "commandes" :', '    seul gerant peut lire commande', '    seul gerant peut modifier commande', ...lignes.map((l) => `    ${l}`), 'route "produits" :', '    seul gerant peut lire produit', '    seul gerant peut modifier produit');
 
+/** Un serveur avec des documents. */
+const documents = (lignes: string[]) => serveur('roles gerant', ...lignes, 'donnee commande :', '    total : nombre', 'donnee produit :', '    nom : texte', 'route "commandes" :', '    seul gerant peut lire commande', '    seul gerant peut modifier commande', 'route "produits" :', '    seul gerant peut lire produit', '    seul gerant peut modifier produit');
+const avecDocument = (action: string) => documents(['document "a" de commande :', '    titre "T"']).replace('page "bienvenue" :', `page "action" :\n    titre "Action"\n    bouton "Go"\n    quand l'utilisateur clique sur "Go" :\n        ${action}\n\npage "bienvenue" :`);
+
 /** Une page qui lance une action. */
 const avecAction = (action: string) => actions(['seul gerant peut faire "rembourser" sur commande :', '    refuser "Non"']).replace('page "bienvenue" :', `page "action" :\n    titre "Action"\n    bouton "Go"\n    quand l'utilisateur clique sur "Go" :\n        ${action}\n\npage "bienvenue" :`);
 
@@ -447,4 +451,28 @@ export const ENTREES_ERREURS_COMPTES: readonly EntreeErreur[] = [
     actions(['seul gerant peut faire "a" sur commande :', '    envoyer notification aux gerant avec message "T" et texte "X"']),
     actions(['seul gerant peut faire "a" sur commande :', '    envoyer notification aux gerant avec titre "T" et texte "X"']),
     'dans cette notification'),
+  e('document-double', 'sens', 'Deux documents du même nom',
+    'La page désigne un document par son nom.',
+    'Donne un autre nom à l’un des deux.',
+    documents(['document "a" de commande :', '    titre "T"', 'document "a" de commande :', '    titre "T"']),
+    documents(['document "a" de commande :', '    titre "T"', 'document "b" de commande :', '    titre "T"']),
+    'est déjà écrit'),
+  e('document-vide', 'sens', 'Un document vide',
+    'Un document a au moins une ligne.',
+    'Ajoute un titre "…" ou un texte "…".',
+    documents(['document "a" de commande :', '    # rien']).replace('    # rien', '').replace('document "a" de commande :', 'document "a" de commande :\n'),
+    documents(['document "a" de commande :', '    titre "T"']),
+    'est vide'),
+  e('telecharger-document-hors-evenement', 'sens', 'Un téléchargement de document dans la page',
+    'Un téléchargement suit un geste de la personne.',
+    'Place la phrase sous « quand l’utilisateur clique … ».',
+    documents(['document "a" de commande :', '    titre "T"']).replace('page "bienvenue" :\n    titre "Bienvenue"', 'page "bienvenue" :\n    titre "Bienvenue"\n    telecharger document "a" de "abc"'),
+    avecDocument('telecharger document "a" de "abc"'),
+    'telecharger document'),
+  e('document-inconnu', 'sens', 'Un document qui n’existe pas',
+    'La page télécharge un document écrit dans le serveur.',
+    'Corrige le nom, ou écris ce document dans le serveur.',
+    avecDocument('telecharger document "oups" de "abc"'),
+    avecDocument('telecharger document "a" de "abc"'),
+    'aucun document « oups »'),
 ];
