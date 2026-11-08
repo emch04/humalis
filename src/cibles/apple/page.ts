@@ -13,6 +13,7 @@ import { EcrivainActions, type HotePage } from './actions.js';
 import { nomIcone } from './icones.js';
 import { chaineSwift, cleJson, nomComposant, nomPage, nomSwift } from './noms.js';
 import { clavier, modificateurs, touches, ESPACES, type Option } from './styles.js';
+import type { CssApple } from './css.js';
 import { FICHIER_CHOISI, plusPrecis, Valeurs, type Expr, type Lecture, type Portee, type Types } from './valeurs.js';
 
 const TEXTE: TypeValeur = { genre: 'texte' };
@@ -20,6 +21,8 @@ const NOMBRE: TypeValeur = { genre: 'nombre' };
 const BOOLEEN: TypeValeur = { genre: 'booleen' };
 
 export interface ContexteApple {
+  /** Le CSS du projet, traduit en modificateurs. */
+  css: CssApple;
   types: Types;
   partages: Etat[];
   fonctions: Portee['fonctions'];
@@ -669,17 +672,25 @@ export class GenerateurPage implements HotePage {
   }
 
   private modifieurs(e: Ecrivain, noeudOptions: Option[], sorte: Parameters<typeof modificateurs>[1], extra: string[] = []): void {
-    const lignes = [...modificateurs(noeudOptions, sorte, { dansLigne: this.dansLigne }), ...extra];
+    const classes = noeudOptions.find((o) => o.nom === 'css')?.valeur.split(' ').filter(Boolean) ?? [];
+    const lignes = [...modificateurs(noeudOptions, sorte, { dansLigne: this.dansLigne }), ...this.app.css.modificateurs(classes), ...extra];
     e.indenter(() => lignes.forEach((l) => e.ligne(l)));
   }
 
-  private ecrireBloc(e: Ecrivain, noeud: Extract<NoeudVue, { type: 'bloc' }>): void {
+  private ecrireBloc(e: Ecrivain, noeudLu: Extract<NoeudVue, { type: 'bloc' }>): void {
+    // « sur ios : », « sur macos : » : le projet Xcode est commun aux deux.
+    if (noeudLu.plateforme === 'ios' || noeudLu.plateforme === 'macos') {
+      e.ligne(`#if os(${noeudLu.plateforme === 'ios' ? 'iOS' : 'macOS'})`);
+      this.ecrireCorps(e, noeudLu.corps);
+      e.ligne('#endif');
+      return;
+    }
+    const noeud = { ...noeudLu, options: [...noeudLu.options, { nom: 'css', valeur: noeudLu.classes.join(' ') }] };
     const options = noeud.options;
     const valeurDe = (nom: string) => options.find((o) => o.nom === nom)?.valeur;
-    const espace = valeurDe('espacement') !== undefined ? (ESPACES[valeurDe('espacement')!] ?? 12) : undefined;
+    const espace = valeurDe('espacement') !== undefined ? (ESPACES[valeurDe('espacement')!] ?? 12) : this.app.css.ecart(noeud.classes);
     const avecAncre = noeud.ancre !== undefined ? [`.id(${chaineSwift(noeud.ancre)})`] : [];
     const dansLigneAvant = this.dansLigne;
-    if (noeud.classes.length > 0) this.app.avertir(noeud.ligne, "le CSS ne s'applique pas sur la cible Apple : seuls les styles nommés (couleur, fond, taille, position, bordure…) y sont traduits.");
     switch (noeud.genre) {
       case 'section':
       case 'bloc':
@@ -814,10 +825,10 @@ export class GenerateurPage implements HotePage {
     return `Text(verbatim: ${this.valeurs.enTexte(valeur)})`;
   }
 
-  private ecrireElement(e: Ecrivain, noeud: Extract<NoeudVue, { type: 'element' }>): void {
+  private ecrireElement(e: Ecrivain, noeudLu: Extract<NoeudVue, { type: 'element' }>): void {
+    const noeud = { ...noeudLu, options: [...noeudLu.options, { nom: 'css', valeur: noeudLu.classes.join(' ') }] };
     const id = `.accessibilityIdentifier(${chaineSwift(noeud.id)})`;
     const ancre = noeud.ancre !== undefined ? [`.id(${chaineSwift(noeud.ancre)})`] : [];
-    if (noeud.classes.length > 0) this.app.avertir(noeud.ligne, "le CSS ne s'applique pas sur la cible Apple : seuls les styles nommés (couleur, fond, taille, position, bordure…) y sont traduits.");
     const survol = (this.survols.get(noeud.id) ?? []).map((f) => `.onHover { dedans in if dedans { ${this.appel(f)} } }`);
     const annonce = noeud.annonce ? ['.accessibilityAddTraits(.updatesFrequently)'] : [];
     const clics = this.clics.get(noeud.id) ?? [];

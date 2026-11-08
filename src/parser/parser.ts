@@ -14,7 +14,7 @@ import { normaliser } from '../lexer/motsCles.js';
 import { entreePrevue } from '../vocabulaire/recherche.js';
 import { langueDuMot } from '../i18n/langues.js';
 import { estMot } from './miseEnPage.js';
-import { analyserStylePropre, estSurAppareil, analyserSurAppareil, estDisposition, analyserDisposition, analyserSansDisposition } from './miseEnPage.js';
+import { analyserStylePropre, estSurPlateforme, analyserSurPlateforme, estStylePlateforme, lireStylePlateforme, lirePlateforme, estSurAppareil, analyserSurAppareil, estDisposition, analyserDisposition, analyserSansDisposition } from './miseEnPage.js';
 import { estCarte, estMarqueur, analyserCarte, analyserMarqueur } from './carte.js';
 import { lireElementEcran, estFilAriane, GENRES_AVEC_TITRE } from './elements.js';
 import { estChoixFichier, analyserChoixFichier, estEnvoiFichier, analyserEnvoiFichier } from './fichier.js';
@@ -296,7 +296,8 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
       const debut = flux.avancer();
       flux.attendre('MOT_CLE', 'style', '« style » après « utiliser »');
       const chemin = flux.attendre('CHAINE', undefined, 'le chemin du fichier CSS entre guillemets').valeur;
-      fichiersStyle.push({ type: 'FichierStyle', chemin, ligne: debut.ligne });
+      const plateforme = flux.accepter('MOT_CLE', 'sur') ? lirePlateforme(flux) : undefined;
+      fichiersStyle.push({ type: 'FichierStyle', chemin, ...(plateforme ? { plateforme } : {}), ligne: debut.ligne });
       flux.sauterFinsDeLigne();
       continue;
     }
@@ -1393,6 +1394,9 @@ function analyserInstruction(flux: FluxTokens): Instruction {
     return analyserBlocMiseEnPage(flux);
   }
 
+  // « sur application : », « sur site : » : un bloc réservé à une plateforme.
+  if (estSurPlateforme(flux)) return analyserSurPlateforme(flux, { corps: analyserBloc });
+
   // « sur telephone : » : un bloc affiché selon l'appareil.
   if (estSurAppareil(flux)) {
     return analyserSurAppareil(flux, { corps: analyserBloc });
@@ -1588,6 +1592,10 @@ function analyserFormulaire(flux: FluxTokens): Formulaire {
   const classes: string[] = [];
   if (flux.accepter('MOT_CLE', 'avec')) {
     do {
+      if (estStylePlateforme(flux)) {
+        classes.push(...lireStylePlateforme(flux));
+        continue;
+      }
       flux.attendre('MOT_CLE', 'style', '« style » après « avec » : un formulaire n\'a pas d\'autre option');
       classes.push(...flux.attendre('CHAINE', undefined, 'le nom de la classe CSS entre guillemets').valeur.split(/\s+/).filter(Boolean));
     } while (flux.accepter('MOT_CLE', 'et'));
@@ -1639,7 +1647,9 @@ function analyserBlocMiseEnPage(flux: FluxTokens): Bloc {
   let nom: string | undefined;
   if (flux.accepter('MOT_CLE', 'avec')) {
     do {
-      if (flux.verifier('MOT_CLE', 'style')) {
+      if (estStylePlateforme(flux)) {
+        classes.push(...lireStylePlateforme(flux));
+      } else if (flux.verifier('MOT_CLE', 'style')) {
         flux.avancer();
         const valeur = flux.attendre('CHAINE', undefined, 'le nom de la classe CSS entre guillemets').valeur;
         classes.push(...valeur.split(/\s+/).filter(Boolean));
@@ -1714,7 +1724,9 @@ function analyserElement(flux: FluxTokens, enTete?: { element: NomElement; ligne
       // Après « vers "produit" », un nom qui n'est pas une option est un
       // paramètre de la page cible : « avec id p.id ».
       const option = formeDe(flux.actuel());
-      if (cible !== undefined && estArgumentPage(flux)) {
+      if (estStylePlateforme(flux)) {
+        classes.push(...lireStylePlateforme(flux));
+      } else if (cible !== undefined && estArgumentPage(flux)) {
         arguments_.push(analyserArgumentPage(flux));
       } else if (flux.verifier('MOT_CLE', 'style')) {
         flux.avancer();

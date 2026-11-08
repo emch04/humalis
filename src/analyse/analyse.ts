@@ -65,6 +65,7 @@ import {
   type PlaceGeste,
 } from './interactions.js';
 import type { Diagnostic } from './erreurs.js';
+import { sansPlateforme } from '../ri/plateforme.js';
 import type { PartieChaine } from '../lexer/types.js';
 import { ElementsPage, type ElementRecense, type FormulaireRecense } from './elements.js';
 import { optionCanonique, erreurSurElement, OPTIONS } from './styles.js';
@@ -1351,8 +1352,8 @@ class AnalysePage {
       }
     }
     for (const classe of element.classes) {
-      if (this.classesDefinies && !this.classesDefinies.has(classe)) {
-        this.avertissement(`le style « ${classe} » n'est défini dans aucun CSS du projet.${proposerNom(classe, this.classesDefinies)}`, element.ligne);
+      if (this.classesDefinies && !this.classesDefinies.has(sansPlateforme(classe))) {
+        this.avertissement(`le style « ${sansPlateforme(classe)} » n'est défini dans aucun CSS du projet.${proposerNom(sansPlateforme(classe), this.classesDefinies)}`, element.ligne);
       }
     }
     verifierElementEcran(element, this.signaler());
@@ -1503,8 +1504,8 @@ class AnalysePage {
   /** « formulaire "message" : » : un bloc de la vue, qui regroupe des champs et un bouton (décision F1). */
   private formulaire(formulaire: Formulaire, contexte: Contexte, place: Place): void {
     for (const classe of formulaire.classes ?? []) {
-      if (this.classesDefinies && !this.classesDefinies.has(classe)) {
-        this.avertissement(`le style « ${classe} » n'est défini dans aucun CSS du projet.${proposerNom(classe, this.classesDefinies)}`, formulaire.ligne);
+      if (this.classesDefinies && !this.classesDefinies.has(sansPlateforme(classe))) {
+        this.avertissement(`le style « ${sansPlateforme(classe)} » n'est défini dans aucun CSS du projet.${proposerNom(sansPlateforme(classe), this.classesDefinies)}`, formulaire.ligne);
       }
     }
     if (contexte === 'evenement') {
@@ -1602,8 +1603,8 @@ class AnalysePage {
       }
     }
     for (const classe of bloc.classes) {
-      if (this.classesDefinies && !this.classesDefinies.has(classe)) {
-        this.avertissement(`le style « ${classe} » n'est défini dans aucun CSS du projet.${proposerNom(classe, this.classesDefinies)}`, bloc.ligne);
+      if (this.classesDefinies && !this.classesDefinies.has(sansPlateforme(classe))) {
+        this.avertissement(`le style « ${sansPlateforme(classe)} » n'est défini dans aucun CSS du projet.${proposerNom(sansPlateforme(classe), this.classesDefinies)}`, bloc.ligne);
       }
     }
     verifierBlocEcran(bloc, this.pileBlocs[this.pileBlocs.length - 1], this.signaler());

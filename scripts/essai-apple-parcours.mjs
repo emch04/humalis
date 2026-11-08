@@ -66,7 +66,7 @@ for (const nom of choisies) {
     // Le Mac aussi repart de zéro : le panier gardé par un essai précédent fausserait celui-ci.
     spawnSync('defaults', ['delete', 'local.humalis.magasin-complet']);
   }
-  const r = spawnSync('xcodebuild', ['-project', join(apple, 'MagasinComplet.xcodeproj'), '-scheme', 'MagasinComplet', '-destination', cibles[nom], '-derivedDataPath', join(travail, 'derive'), '-resultBundlePath', join(travail, `resultat-${nom}-${Date.now()}`), 'test'], { encoding: 'utf8', maxBuffer: 1 << 28 });
+  const r = spawnSync('xcodebuild', ['-project', join(apple, 'MagasinComplet.xcodeproj'), '-scheme', 'MagasinComplet', '-destination', cibles[nom], '-collect-test-diagnostics', 'never', '-derivedDataPath', join(travail, 'derive'), '-resultBundlePath', join(travail, `resultat-${nom}-${Date.now()}`), 'test'], { encoding: 'utf8', maxBuffer: 1 << 28 });
   processus.kill();
   // Un seul simulateur à la fois : celui-ci s'éteint avant le suivant.
   if (nom !== 'mac') spawnSync('xcrun', ['simctl', 'shutdown', cibles[nom].split('name=')[1]]);

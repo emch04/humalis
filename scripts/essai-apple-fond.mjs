@@ -29,7 +29,7 @@ execFileSync('xcrun', ['simctl', 'bootstatus', simulateur, '-b'], { stdio: 'igno
 spawnSync('xcrun', ['simctl', 'uninstall', simulateur, 'local.humalis.fond']);
 
 const fin = await new Promise((f) => {
-  const p = spawn('xcodebuild', ['-project', join(apple, 'Fond.xcodeproj'), '-scheme', 'Fond', '-destination', `platform=iOS Simulator,name=${simulateur}`, '-derivedDataPath', join(travail, 'derive'), 'test']);
+  const p = spawn('xcodebuild', ['-project', join(apple, 'Fond.xcodeproj'), '-scheme', 'Fond', '-destination', `platform=iOS Simulator,name=${simulateur}`, '-collect-test-diagnostics', 'never', '-derivedDataPath', join(travail, 'derive'), 'test']);
   let sortie = '';
   p.stdout.on('data', (d) => { sortie += d; });
   p.stderr.on('data', (d) => { sortie += d; });

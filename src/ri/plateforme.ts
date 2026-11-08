@@ -1,0 +1,76 @@
+/**
+ * Un même programme, un design par plateforme. Le compilateur vérifie tout, puis ne garde pour
+ * chaque cible que ce qui la concerne : « utiliser style "…" sur apple », « et sur apple style "…" »,
+ * « sur application : », « sur site : ».
+ */
+import type { Application } from './types.js';
+
+const VISEES: Record<string, string[]> = {
+  apple: ['application', 'apple', 'ios', 'macos'],
+  mobile: ['application'],
+  desktop: ['application'],
+  web: ['site'],
+  statique: ['site'],
+  serveur: [],
+};
+
+const MARQUE = /^(apple|ios|macos|site|application):(.+)$/;
+/** iOS et macOS partagent un projet Xcode : ce qui leur est propre reste écrit, sous « #if os(…) ». */
+const DANS_LE_PROJET = new Set(['ios', 'macos']);
+
+/** Le nom d'un style sans sa plateforme, pour vérifier qu'il existe. */
+export const sansPlateforme = (classe: string): string => MARQUE.exec(classe)?.[2] ?? classe;
+
+export function pourLaCible(application: Application, cible: string): Application {
+  const visees = VISEES[cible] ?? [];
+  const retires = new Set<string>();
+  const noter = (v: unknown): void => {
+    if (Array.isArray(v)) v.forEach(noter);
+    else if (v && typeof v === 'object') {
+      const o = v as Record<string, unknown>;
+      if (typeof o.id === 'string') retires.add(o.id);
+      Object.values(o).forEach(noter);
+    }
+  };
+  const adapter = (v: unknown): unknown => {
+    if (Array.isArray(v)) {
+      return v.flatMap((n) => {
+        const plateforme = n && typeof n === 'object' ? (n as { plateforme?: string }).plateforme : undefined;
+        if (plateforme === undefined) return [adapter(n)];
+        if (visees.includes(plateforme) && DANS_LE_PROJET.has(plateforme)) return [adapter(n)];
+        if (visees.includes(plateforme)) return adapter((n as { corps: unknown[] }).corps) as unknown[];
+        noter(n);
+        return [];
+      });
+    }
+    if (!v || typeof v !== 'object') return v;
+    return Object.fromEntries(
+      Object.entries(v).map(([cle, valeur]) => {
+        if (cle === 'classes' && Array.isArray(valeur)) {
+          return [cle, (valeur as string[]).flatMap((c) => {
+            const lue = MARQUE.exec(c);
+            if (!lue) return [c];
+            if (!visees.includes(lue[1])) return [];
+            return DANS_LE_PROJET.has(lue[1]) ? [c] : [lue[2]];
+          })];
+        }
+        return [cle, adapter(valeur)];
+      }),
+    );
+  };
+  // Les fichiers de style n'ont pas de nœud : « plateforme » n'y marque pas un bloc à déplier.
+  const fichiersStyle = application.fichiersStyle.filter((f) => f.plateforme === undefined || visees.includes(f.plateforme));
+  const adaptee = adapter({ ...application, fichiersStyle: [] }) as Application;
+  adaptee.fichiersStyle = fichiersStyle;
+  // Un événement d'un élément retiré n'a plus d'élément à écouter.
+  const nettoyer = (v: unknown): void => {
+    if (Array.isArray(v)) v.forEach(nettoyer);
+    else if (v && typeof v === 'object') {
+      const o = v as Record<string, unknown>;
+      if (Array.isArray(o.gestionnaires)) o.gestionnaires = (o.gestionnaires as { cibles: string[] }[]).filter((g) => g.cibles.length === 0 || !g.cibles.every((c) => retires.has(c)));
+      Object.values(o).forEach(nettoyer);
+    }
+  };
+  if (retires.size > 0) nettoyer(adaptee);
+  return adaptee;
+}
