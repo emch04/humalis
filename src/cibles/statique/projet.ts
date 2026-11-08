@@ -200,7 +200,7 @@ function adresseDePage(adresse: string, fichier: string): string {
  * publication, partie 3) : l'aperçu écrit en clair gagne, sinon le premier titre et
  * le premier texte, sinon le site. Sans bloc « site » ni « apercu », rien ne change.
  */
-function enTetePublication(
+export function enTetePublication(
   application: Application,
   ecran: Application['ecrans'][number],
   page: { titre: string; description: string; html: string[] },
@@ -239,7 +239,7 @@ function texteDe(valeur: NonNullable<NonNullable<Application['ecrans'][number]['
 }
 
 /** sitemap.xml : une adresse complète par page indexable. */
-function planDuSite(application: Application, pagesFichiers: Map<string, string>, adresse: string): string {
+export function planDuSite(application: Application, pagesFichiers: Map<string, string>, adresse: string): string {
   const adresses = application.ecrans
     .filter((e) => e.apercu?.indexation !== false && e.nom !== 'introuvable')
     .map((e) => `  <url><loc>${echapper(adresseDePage(adresse, pagesFichiers.get(e.nom)!))}</loc></url>\n`);
@@ -377,6 +377,119 @@ function gestionnairesDe(noeuds: NoeudVue[]): Gestionnaire[] {
           : [],
   );
 }
+
+export const MESSAGES_JS = `  // ─── Les messages (« afficher ») ────────────────────────────────────────
+
+  /** Combien de temps reste un message, selon son genre. */
+  const DUREES = { info: 4000, reussite: 4000, avertissement: 8000, erreur: 8000 };
+
+  /**
+   * Un message en haut de la page, lu par les lecteurs d'écran (« status »,
+   * « alert » pour une erreur). Au plus trois à la fois ; chacun a un bouton
+   * « Fermer » et ne disparaît pas tant que la souris ou le focus sont dessus.
+   * options : { duree, persistant, action: { libelle, faire } } ; une fonction
+   * seule est le bouton « Réessayer » d'une requête.
+   */
+  function afficherMessage(texte, genre = 'info', options = {}) {
+    const reglages = typeof options === 'function' ? { action: { libelle: 'Réessayer', faire: options }, duree: 12000 } : options;
+    // Un message qui propose un bouton reste le temps de le lire et de cliquer (6 s) ; « pendant … » choisit la durée.
+    const duree = reglages.persistant ? null : reglages.duree ?? (reglages.action ? 6000 : DUREES[genre]);
+    const zone = document.querySelector('.humalis-messages');
+    const message = document.createElement('li');
+    message.className = \`humalis-message humalis-message-\${genre}\`;
+    const lu = document.createElement('span');
+    lu.className = 'humalis-message-texte';
+    lu.setAttribute('role', genre === 'erreur' ? 'alert' : 'status');
+    lu.textContent = texte;
+    message.append(lu);
+    let minuterie;
+    const fermer = () => {
+      clearTimeout(minuterie);
+      message.remove();
+    };
+    const attendre = () => {
+      clearTimeout(minuterie);
+      if (duree !== null) minuterie = setTimeout(fermer, duree);
+    };
+    const bouton = (libelle, classe, faire) => {
+      const element = document.createElement('button');
+      element.type = 'button';
+      element.className = classe;
+      element.textContent = libelle;
+      element.addEventListener('click', faire);
+      message.append(element);
+      return element;
+    };
+    if (reglages.action) {
+      bouton(reglages.action.libelle, 'humalis-message-action', () => {
+        fermer();
+        executer(reglages.action.faire);
+      });
+    }
+    bouton('×', 'humalis-message-fermer', fermer).setAttribute('aria-label', 'Fermer le message');
+    // La souris ou le focus sur le message le gardent ; Échap le ferme. Un doigt ne « sort » jamais :
+    // le toucher ne met pas en pause, sinon le message resterait affiché pour toujours.
+    message.addEventListener('pointerenter', (evenement) => evenement.pointerType !== 'touch' && clearTimeout(minuterie));
+    message.addEventListener('pointerleave', (evenement) => evenement.pointerType !== 'touch' && attendre());
+    message.addEventListener('focusin', () => clearTimeout(minuterie));
+    message.addEventListener('focusout', attendre);
+    message.addEventListener('keydown', (evenement) => evenement.key === 'Escape' && fermer());
+    zone.append(message);
+    while (zone.children.length > 3) zone.firstElementChild.remove();
+    attendre();
+  }
+
+`;
+
+export const LISTES_JS = `  // ─── Les listes ─────────────────────────────────────────────────────────
+
+  /** Retire la première valeur égale (« retirer … de … ») ; la liste reste telle quelle sinon. */
+  function retirerPremier(liste, valeur) {
+    const position = liste.indexOf(valeur);
+    return position === -1 ? liste : [...liste.slice(0, position), ...liste.slice(position + 1)];
+  }
+
+  /** « grouper produits par categorie » : un groupe par valeur de la clé, dans l'ordre d'apparition. */
+  function grouper(liste, cle) {
+    const groupes = [];
+    for (const element of liste) {
+      const nom = cle(element);
+      const groupe = groupes.find((g) => g.nom === nom);
+      if (groupe) groupe.elements.push(element);
+      else groupes.push({ nom, elements: [element] });
+    }
+    return groupes;
+  }
+
+`;
+
+export const STOCKAGE_JS = `  // ─── Ce qui est gardé dans le navigateur ────────────────────────────────
+  // Partagé entre les pages : sessionStorage, le temps de la visite.
+  // Mémorisé : localStorage, gardé au retour du visiteur.
+  // Si le stockage est absent ou interdit, la valeur actuelle sert.
+
+  function lireDans(stockage, cle, actuelle) {
+    try {
+      const gardee = stockage().getItem(cle);
+      return gardee === null ? actuelle : JSON.parse(gardee);
+    } catch {
+      return actuelle;
+    }
+  }
+
+  function garderDans(stockage, cle, valeur) {
+    try {
+      stockage().setItem(cle, JSON.stringify(valeur));
+    } catch {
+      // Stockage plein ou interdit : la valeur reste dans la page.
+    }
+  }
+
+  const lirePartage = (cle, actuelle) => lireDans(() => sessionStorage, cle, actuelle);
+  const garderPartage = (cle, valeur) => garderDans(() => sessionStorage, cle, valeur);
+  const lireMemoire = (cle, actuelle) => lireDans(() => localStorage, cle, actuelle);
+  const garderMemoire = (cle, valeur) => garderDans(() => localStorage, cle, valeur);
+`;
 
 /** humalis/humalis.js : les outils communs des pages, en JavaScript écrit en clair. */
 function humalisJs(
@@ -685,125 +798,18 @@ ${interactions.fenetres ? '    // Une fenêtre fermée rend le focus à ce qui l
     return PAGES[nom] ?? \`\${nom}.html\`;
   }
 
-  // ─── Les messages (« afficher ») ────────────────────────────────────────
-
-  /** Combien de temps reste un message, selon son genre. */
-  const DUREES = { info: 4000, reussite: 4000, avertissement: 8000, erreur: 8000 };
-
-  /**
-   * Un message en haut de la page, lu par les lecteurs d'écran (« status »,
-   * « alert » pour une erreur). Au plus trois à la fois ; chacun a un bouton
-   * « Fermer » et ne disparaît pas tant que la souris ou le focus sont dessus.
-   * options : { duree, persistant, action: { libelle, faire } } ; une fonction
-   * seule est le bouton « Réessayer » d'une requête.
-   */
-  function afficherMessage(texte, genre = 'info', options = {}) {
-    const reglages = typeof options === 'function' ? { action: { libelle: 'Réessayer', faire: options }, duree: 12000 } : options;
-    // Un message qui propose un bouton reste le temps de le lire et de cliquer (6 s) ; « pendant … » choisit la durée.
-    const duree = reglages.persistant ? null : reglages.duree ?? (reglages.action ? 6000 : DUREES[genre]);
-    const zone = document.querySelector('.humalis-messages');
-    const message = document.createElement('li');
-    message.className = \`humalis-message humalis-message-\${genre}\`;
-    const lu = document.createElement('span');
-    lu.className = 'humalis-message-texte';
-    lu.setAttribute('role', genre === 'erreur' ? 'alert' : 'status');
-    lu.textContent = texte;
-    message.append(lu);
-    let minuterie;
-    const fermer = () => {
-      clearTimeout(minuterie);
-      message.remove();
-    };
-    const attendre = () => {
-      clearTimeout(minuterie);
-      if (duree !== null) minuterie = setTimeout(fermer, duree);
-    };
-    const bouton = (libelle, classe, faire) => {
-      const element = document.createElement('button');
-      element.type = 'button';
-      element.className = classe;
-      element.textContent = libelle;
-      element.addEventListener('click', faire);
-      message.append(element);
-      return element;
-    };
-    if (reglages.action) {
-      bouton(reglages.action.libelle, 'humalis-message-action', () => {
-        fermer();
-        executer(reglages.action.faire);
-      });
-    }
-    bouton('×', 'humalis-message-fermer', fermer).setAttribute('aria-label', 'Fermer le message');
-    // La souris ou le focus sur le message le gardent ; Échap le ferme. Un doigt ne « sort » jamais :
-    // le toucher ne met pas en pause, sinon le message resterait affiché pour toujours.
-    message.addEventListener('pointerenter', (evenement) => evenement.pointerType !== 'touch' && clearTimeout(minuterie));
-    message.addEventListener('pointerleave', (evenement) => evenement.pointerType !== 'touch' && attendre());
-    message.addEventListener('focusin', () => clearTimeout(minuterie));
-    message.addEventListener('focusout', attendre);
-    message.addEventListener('keydown', (evenement) => evenement.key === 'Escape' && fermer());
-    zone.append(message);
-    while (zone.children.length > 3) zone.firstElementChild.remove();
-    attendre();
-  }
-
-  // ─── Les listes ─────────────────────────────────────────────────────────
-
-  /** Retire la première valeur égale (« retirer … de … ») ; la liste reste telle quelle sinon. */
-  function retirerPremier(liste, valeur) {
-    const position = liste.indexOf(valeur);
-    return position === -1 ? liste : [...liste.slice(0, position), ...liste.slice(position + 1)];
-  }
-
-  /** « grouper produits par categorie » : un groupe par valeur de la clé, dans l'ordre d'apparition. */
-  function grouper(liste, cle) {
-    const groupes = [];
-    for (const element of liste) {
-      const nom = cle(element);
-      const groupe = groupes.find((g) => g.nom === nom);
-      if (groupe) groupe.elements.push(element);
-      else groupes.push({ nom, elements: [element] });
-    }
-    return groupes;
-  }
-
-  // ─── Le format français (décision F1) ───────────────────────────────────
+${MESSAGES_JS}${LISTES_JS}  // ─── Le format français (décision F1) ───────────────────────────────────
 
 ${langues ? FORMAT_JS_LANGUES : FORMAT_JS}
 ${TAILLE_JS}
 ${DATES_JS}
-  // ─── Ce qui est gardé dans le navigateur ────────────────────────────────
-  // Partagé entre les pages : sessionStorage, le temps de la visite.
-  // Mémorisé : localStorage, gardé au retour du visiteur.
-  // Si le stockage est absent ou interdit, la valeur actuelle sert.
-
-  function lireDans(stockage, cle, actuelle) {
-    try {
-      const gardee = stockage().getItem(cle);
-      return gardee === null ? actuelle : JSON.parse(gardee);
-    } catch {
-      return actuelle;
-    }
-  }
-
-  function garderDans(stockage, cle, valeur) {
-    try {
-      stockage().setItem(cle, JSON.stringify(valeur));
-    } catch {
-      // Stockage plein ou interdit : la valeur reste dans la page.
-    }
-  }
-
-  const lirePartage = (cle, actuelle) => lireDans(() => sessionStorage, cle, actuelle);
-  const garderPartage = (cle, valeur) => garderDans(() => sessionStorage, cle, valeur);
-  const lireMemoire = (cle, actuelle) => lireDans(() => localStorage, cle, actuelle);
-  const garderMemoire = (cle, valeur) => garderDans(() => localStorage, cle, valeur);
-${theme !== undefined ? themeJs(theme) : ''}${langues ? langueJs(langues) : ''}${elements ? elementsJs(elements) : ''}${interactions.pressePapier ? PRESSE_PAPIER_JS : ''}${interactions.bas ? BAS_JS : ''}${interactions.fenetres ? FENETRES_JS : ''}${interactions.questions ? QUESTIONS_JS : ''}${serveur || session ? SERVEUR_JS : ''}${session ? SESSION_JS : ''}
+${STOCKAGE_JS}${theme !== undefined ? themeJs(theme) : ''}${langues ? langueJs(langues) : ''}${elements ? elementsJs(elements) : ''}${interactions.pressePapier ? PRESSE_PAPIER_JS : ''}${interactions.bas ? BAS_JS : ''}${interactions.fenetres ? FENETRES_JS : ''}${interactions.questions ? QUESTIONS_JS : ''}${serveur || session ? SERVEUR_JS : ''}${session ? SESSION_JS : ''}
   return { ${exportes.join(', ')} };
 })();
 `;
 }
 
-const PRESSE_PAPIER_JS = `
+export const PRESSE_PAPIER_JS = `
   // ─── Copier et partager ─────────────────────────────────────────────────
 
   /**
@@ -976,7 +982,7 @@ const FENETRES_JS = `
   }
 `;
 
-const QUESTIONS_JS = `
+export const QUESTIONS_JS = `
   // ─── Les questions (« confirmer ») ──────────────────────────────────────
 
   /**
@@ -1035,7 +1041,7 @@ const QUESTIONS_JS = `
   }
 `;
 
-const SERVEUR_JS = `
+export const SERVEUR_JS = `
   // ─── Le serveur (« envoyer requete ») ───────────────────────────────────
 
   /** Les en-têtes d'un envoi : le jeton CSRF que pose @astratra/security (cookie astratra_csrf). */
@@ -1090,7 +1096,7 @@ const SERVEUR_JS = `
   };
 `;
 
-const SESSION_JS = `
+export const SESSION_JS = `
   // ─── La session (« se connecter », « si utilisateur est connecte ») ─────
   // La session est le cookie HttpOnly posé par le pack, que le JavaScript ne
   // peut pas lire : la page ne garde ni jeton ni mot de passe. L'état
@@ -1286,7 +1292,7 @@ const themeJs = (defaut: string) => `
 `;
 
 /** « menu repliable » : le bouton « Menu » ouvre et ferme les liens ; un lien choisi referme le menu. */
-const MENU_REPLIABLE_JS = `// Les menus repliables : le bouton « Menu » d'un petit écran.
+export const MENU_REPLIABLE_JS = `// Les menus repliables : le bouton « Menu » d'un petit écran.
 document.addEventListener('click', (evenement) => {
   const cible = evenement.target instanceof Element ? evenement.target : null;
   const menu = cible?.closest('.humalis-menu-repliable');

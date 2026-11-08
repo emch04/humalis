@@ -37,7 +37,7 @@ import {
   verifier,
 } from './valeurs.js';
 
-type Element = Extract<NoeudVue, { type: 'element' }>;
+export type Element = Extract<NoeudVue, { type: 'element' }>;
 
 /** Ce que les pages du site partagent. */
 export interface ContexteSite {
@@ -71,12 +71,12 @@ export interface PageStatique {
   serveur: boolean;
 }
 
-interface Parametre {
+export interface Parametre {
   nom: string;
   type: TypeValeur;
 }
 
-interface Fonction {
+export interface Fonction {
   nom: string;
   parametres: Parametre[];
   actions: Action[];
@@ -125,56 +125,56 @@ function htmlDuComposant(composant: ComposantHumalis, site: ContexteSite, propri
   new GenerateurPage(composant, site, '', composant.parametres).htmlComposant(proprietes, lignes);
 }
 
-class GenerateurPage {
-  private readonly contexte: ContexteJs = { types: new Map(), champs: new Map(), calculs: new Set() };
-  private readonly montres = new Set<string>();
-  private readonly caches = new Set<string>();
-  private readonly textesChanges = new Set<string>();
+export class GenerateurPage {
+  protected readonly contexte: ContexteJs = { types: new Map(), champs: new Map(), calculs: new Set() };
+  protected readonly montres = new Set<string>();
+  protected readonly caches = new Set<string>();
+  protected readonly textesChanges = new Set<string>();
   /** Pour chaque élément : ses événements (« onclick ») et les appels qu'ils font. */
-  private readonly evenements = new Map<string, Map<string, string[]>>();
+  protected readonly evenements = new Map<string, Map<string, string[]>>();
   /** Les champs qui ont une sorte ou des options (« champ nombre "Âge" avec obligatoire »). */
-  private readonly saisies = new Map<string, Saisie>();
+  protected readonly saisies = new Map<string, Saisie>();
   /** Le libellé de chaque champ, pour les messages de vérification. */
-  private readonly libelles = new Map<string, string>();
+  protected readonly libelles = new Map<string, string>();
   /** Le libellé de chaque champ dans les autres langues (« Nom » en anglais « Name »), pour ses messages. */
-  private readonly libellesLangues = new Map<string, Map<string, string>>();
+  protected readonly libellesLangues = new Map<string, Map<string, string>>();
   /** Chaque formulaire : son nom, ses champs, et l'appel de sa soumission s'il en a une. */
-  private readonly formulaires = new Map<string, { nom: string; champs: string[]; soumission?: string }>();
+  protected readonly formulaires = new Map<string, { nom: string; champs: string[]; soumission?: string }>();
   /** Pour un champ ou un bouton placé dans un formulaire : ce formulaire. */
-  private readonly formulaireDe = new Map<string, string>();
+  protected readonly formulaireDe = new Map<string, string>();
   /** Pendant l'écriture d'une soumission qui envoie : la variable du compte des échecs du serveur. */
-  private echecs?: string;
-  private readonly fonctions: Fonction[] = [];
-  private readonly chargements: Action[] = [];
+  protected echecs?: string;
+  protected readonly fonctions: Fonction[] = [];
+  protected readonly chargements: Action[] = [];
   /** Les minuteries écrites dans la page : démarrées par humalis.demarrer. */
-  private readonly minuteries: Extract<Action, { type: 'minuterie' }>[] = [];
+  protected readonly minuteries: Extract<Action, { type: 'minuterie' }>[] = [];
   /** Dans le bloc d'une minuterie (hors d'une boucle) : « arreter » arrête la minuterie. */
-  private dansMinuterie = false;
+  protected dansMinuterie = false;
   /** Les raccourcis de la page : « appuie sur "controle+k" » et « avec raccourci ». */
-  private readonly raccourcis: string[] = [];
+  protected readonly raccourcis: string[] = [];
   /** Les fenêtres de la page : fermées au départ, ouvertes par « montrer ». */
-  private readonly fenetres = new Set<string>();
+  protected readonly fenetres = new Set<string>();
   /** « arrive en bas de "x" » : pour chaque bloc, la fonction et son gestionnaire. */
-  private readonly basDesBlocs = new Map<string, { fonction: string; gestionnaire: Gestionnaire }>();
+  protected readonly basDesBlocs = new Map<string, { fonction: string; gestionnaire: Gestionnaire }>();
   /** Les lectures écrites dans un événement : « la dernière requête gagne ». */
-  private dansEvenement = false;
-  private dernieres = 0;
-  private readonly nomsPris = new Set<string>();
+  protected dansEvenement = false;
+  protected dernieres = 0;
+  protected readonly nomsPris = new Set<string>();
   /** Pour chaque champ : sa clé dans les données envoyées (« email »), comme sur le web. */
-  private readonly clesChamps = new Map<string, string>();
-  private readonly champsEmail = new Set<string>();
-  private readonly champsMotDePasse = new Set<string>();
+  protected readonly clesChamps = new Map<string, string>();
+  protected readonly champsEmail = new Set<string>();
+  protected readonly champsMotDePasse = new Set<string>();
   /** Le niveau de chaque titre : le premier de la page est <h1>, les suivants <h2> (comme sur le web). */
-  private readonly niveaux = new Map<Element, number>();
-  private titreVu = false;
-  private besoins = { session: false, composants: false, serveur: false };
+  protected readonly niveaux = new Map<Element, number>();
+  protected titreVu = false;
+  protected besoins = { session: false, composants: false, serveur: false };
 
   constructor(
-    private readonly ecran: Ecran,
-    private readonly site: ContexteSite,
-    private readonly source: string,
+    protected readonly ecran: Ecran,
+    protected readonly site: ContexteSite,
+    protected readonly source: string,
     /** Présents quand l'écran est un composant écrit en Humalis. */
-    private readonly parametres?: { nom: string; type: TypeValeur }[],
+    protected readonly parametres?: { nom: string; type: TypeValeur }[],
   ) {
     if (site.langues) this.contexte.langues = true;
     const partages = parametres ? [] : site.partages;
@@ -199,9 +199,14 @@ class GenerateurPage {
     for (const g of ecran.gestionnaires) this.enregistrer(g, []);
   }
 
+  /** Comment le script lit une variable : son nom ; le moteur y ajoute « .v ». */
+  protected lu(nom: string): string {
+    return nomJs(nom);
+  }
+
   // ─── Recensement ────────────────────────────────────────────────────────
 
-  private recenser(noeuds: NoeudVue[], boucles: Parametre[], formulaire?: string): void {
+  protected recenser(noeuds: NoeudVue[], boucles: Parametre[], formulaire?: string): void {
     for (const noeud of noeuds) {
       switch (noeud.type) {
         case 'element':
@@ -264,7 +269,7 @@ class GenerateurPage {
     }
   }
 
-  private enregistrer(gestionnaire: Gestionnaire, parametres: Parametre[]): void {
+  protected enregistrer(gestionnaire: Gestionnaire, parametres: Parametre[]): void {
     this.parcourirActions(gestionnaire.actions);
     if (gestionnaire.declencheur === 'chargement') {
       this.chargements.push(...gestionnaire.actions);
@@ -310,7 +315,7 @@ class GenerateurPage {
       if (!formulaire) return;
       const nom = this.nomUnique(`quandSoumis${pascal(formulaire.nom)}`, false);
       this.fonctions.push({ nom, parametres, actions: gestionnaire.actions, formulaire: id });
-      formulaire.soumission = parametres.length === 0 ? nom : `() => ${nom}(${parametres.map((p) => nomJs(p.nom)).join(', ')})`;
+      formulaire.soumission = parametres.length === 0 ? nom : `() => ${nom}(${parametres.map((p) => this.lu(p.nom)).join(', ')})`;
       return;
     }
 
@@ -319,7 +324,7 @@ class GenerateurPage {
     const verbe = gestionnaire.declencheur === 'clic' ? 'Clique' : 'Survole';
     const nom = this.nomUnique(`quand${verbe}${pascal(sansGenre(gestionnaire.cibles[0] ?? ''))}`, false);
     this.fonctions.push({ nom, parametres, actions: gestionnaire.actions });
-    const appel = parametres.length === 0 ? nom : `${nom}(${parametres.map((p) => nomJs(p.nom)).join(', ')})`;
+    const appel = parametres.length === 0 ? nom : `${nom}(${parametres.map((p) => this.lu(p.nom)).join(', ')})`;
     for (const id of gestionnaire.cibles) {
       const parAttribut = this.evenements.get(id) ?? new Map<string, string[]>();
       parAttribut.set(attribut, [...(parAttribut.get(attribut) ?? []), appel]);
@@ -327,7 +332,7 @@ class GenerateurPage {
     }
   }
 
-  private parcourirActions(actions: Action[]): void {
+  protected parcourirActions(actions: Action[]): void {
     for (const action of actions) {
       switch (action.type) {
         case 'visibilite':
@@ -369,7 +374,7 @@ class GenerateurPage {
     }
   }
 
-  private nomUnique(base: string, enCamel = true): string {
+  protected nomUnique(base: string, enCamel = true): string {
     const nom = enCamel ? nomJs(base) : base;
     let resultat = nom;
     for (let n = 2; this.nomsPris.has(resultat); n++) resultat = `${nom}${n}`;
@@ -378,7 +383,7 @@ class GenerateurPage {
   }
 
   /** « Copier » dans chaque langue du site, la langue de base (celle du HTML de départ) en premier. */
-  private messageCopier(): MessageEnLangues {
+  protected messageCopier(): MessageEnLangues {
     return (this.site.langues && messageEnLangues('Copier', this.site.langues.map((l) => l.code))) || [{ code: 'fr', texte: 'Copier' }];
   }
 
@@ -496,7 +501,7 @@ ${prise}${code}}
 
   // ─── L'état ─────────────────────────────────────────────────────────────
 
-  private ecrireEtat(e: Ecrivain, partages: Etat[]): void {
+  protected ecrireEtat(e: Ecrivain, partages: Etat[]): void {
     if (this.ecran.parametresAdresse?.length) {
       e.ligne('// Les paramètres de la page, lus dans son adresse (produit.html?id=…).');
       for (const p of this.ecran.parametresAdresse) {
@@ -528,7 +533,7 @@ ${prise}${code}}
     }
   }
 
-  private ecrireCalcul(e: Ecrivain, nom: string, valeur: Valeur): void {
+  protected ecrireCalcul(e: Ecrivain, nom: string, valeur: Valeur): void {
     e.ligne();
     e.ligne(`/** « calcul ${nom} » : recalculé à chaque fois. */`);
     e.bloc(`function ${nomJs(nom)}() {`, () => e.ligne(`return ${expressionJs(valeur, this.contexte)};`));
@@ -538,7 +543,7 @@ ${prise}${code}}
    * `relire()` et `garder()` : ce qui est gardé hors de la page (décision T5).
    * Renvoie les options de `humalis.demarrer`.
    */
-  private ecrireMemoire(e: Ecrivain, partages: Etat[]): string[] {
+  protected ecrireMemoire(e: Ecrivain, partages: Etat[]): string[] {
     const gardees: { nom: string; lire: string; garder: string; cle: string }[] = [];
     for (const p of partages) {
       // Les données d'un fichier sont déjà écrites dans chaque page : rien à faire passer d'une page à l'autre.
@@ -571,7 +576,7 @@ ${prise}${code}}
 
   // ─── Les événements ─────────────────────────────────────────────────────
 
-  private ecrireFonction(e: Ecrivain, fonction: Fonction): void {
+  protected ecrireFonction(e: Ecrivain, fonction: Fonction): void {
     const parametres = fonction.parametres.map((p) => nomJs(p.nom)).join(', ');
     const asynchrone = contientRequete(fonction.actions) ? 'async ' : '';
     const locales = new Set(fonction.parametres.map((p) => p.nom));
@@ -609,7 +614,7 @@ ${prise}${code}}
   }
 
   /** Ce qui est vérifié avant d'envoyer un formulaire, pour ce champ : (condition d'erreur, message), comme sur le web. */
-  private verifications(id: string): [string, MessageEnLangues][] {
+  protected verifications(id: string): [string, MessageEnLangues][] {
     const variable = this.contexte.champs.get(id);
     if (variable === undefined) return [];
     const libelle = this.libelles.get(id) ?? id;
@@ -628,7 +633,7 @@ ${prise}${code}}
     return e.texte();
   }
 
-  private ecrireActions(e: Ecrivain, actions: Action[], locales: Set<string>, modifiees: Set<string>): void {
+  protected ecrireActions(e: Ecrivain, actions: Action[], locales: Set<string>, modifiees: Set<string>): void {
     const x = (v: Valeur) => expressionJs(v, this.contexte);
     for (const action of actions) {
       switch (action.type) {
@@ -827,14 +832,14 @@ ${prise}${code}}
   }
 
   /** Une valeur écrite en texte, comme dans « {…} » : un nombre au format français. */
-  private enTexte(valeur: Valeur): string {
+  protected enTexte(valeur: Valeur): string {
     const code = expressionJs(valeur, this.contexte);
     const type = typeDe(valeur, { types: this.contexte.types, champs: this.contexte.champs, sortes: this.contexte.sortes }).genre;
     return type === 'texte' ? code : type === 'nombre' ? `formaterNombre(${code})` : `String(${code})`;
   }
 
   /** La sentinelle (observée par humalis.js) et le bouton « Voir plus », qui appellent la même fonction. */
-  private voirPlusJs(id: string, fonction: string, bouton: string | null): string[] {
+  protected voirPlusJs(id: string, fonction: string, bouton: string | null): string[] {
     return [
       `creer('div', { class: 'humalis-sentinelle', 'data-humalis': ${chaine(`${id}-bas`)}, 'aria-hidden': 'true', onbas: ${fonction} })`,
       ...(bouton === null
@@ -844,7 +849,7 @@ ${prise}${code}}
   }
 
   /** Le corps d'une boucle : « arreter » y sort de la boucle, pas de la minuterie qui l'entoure. */
-  private dansUneBoucle(ecrire: () => void): void {
+  protected dansUneBoucle(ecrire: () => void): void {
     const avant = this.dansMinuterie;
     this.dansMinuterie = false;
     ecrire();
@@ -852,7 +857,7 @@ ${prise}${code}}
   }
 
   /** `{ email: champEmail, age }` : les données envoyées au serveur, comme sur le web. */
-  private donnees(valeurs: Valeur[], cles?: (string | undefined)[]): string {
+  protected donnees(valeurs: Valeur[], cles?: (string | undefined)[]): string {
     const paires = valeurs.map((v, i) => {
       const ecrite = cles?.[i];
       const cle = ecrite !== undefined ? (/^[A-Za-z_]\w*$/.test(ecrite) ? ecrite : JSON.stringify(ecrite)) : v.type === 'champ' ? (this.clesChamps.get(v.id) ?? camel(v.id)) : v.type === 'variable' ? nomJs(v.nom) : 'valeur';
@@ -863,13 +868,13 @@ ${prise}${code}}
   }
 
   /** L'adresse d'une page à paramètre : `produit.html?id=${…}`. */
-  private adresseAvec(page: string, args: { nom: string; valeur: Valeur }[]): string {
+  protected adresseAvec(page: string, args: { nom: string; valeur: Valeur }[]): string {
     const requete = args.map((a) => `${camel(a.nom)}=\${encodeURIComponent(String(${expressionJs(a.valeur, this.contexte)}))}`).join('&');
     return `\`${this.fichier(page)}?${requete}\``;
   }
 
   /** L'adresse d'une page : son fichier, écrit en clair quand on le connaît. */
-  private adresse(ecran: Valeur): string {
+  protected adresse(ecran: Valeur): string {
     const nom = texteLitteral(ecran);
     // « rediriger vers "https://…" » quitte le site : ce n'est pas le nom d'une page.
     if (nom !== undefined && /^https?:\/\//.test(nom)) return chaine(nom);
@@ -878,14 +883,14 @@ ${prise}${code}}
   }
 
   /** Une page absente (déjà signalée par un avertissement) : le nom de la page, en .html. */
-  private fichier(nom: string): string {
+  protected fichier(nom: string): string {
     return this.site.fichiers.get(nom) ?? `${simplifier(nom) || 'index'}.html`;
   }
 
   // ─── La vue, en JavaScript ──────────────────────────────────────────────
 
   /** `return [ … ];` : les éléments d'un groupe, avec ses variables locales d'abord. */
-  private ecrireRetour(e: Ecrivain, noeuds: NoeudVue[]): void {
+  protected ecrireRetour(e: Ecrivain, noeuds: NoeudVue[]): void {
     for (const l of noeuds) {
       if (l.type === 'locale') e.ligne(`const ${nomJs(l.nom)} = ${expressionJs(l.valeur, this.contexte)};`);
     }
@@ -895,7 +900,7 @@ ${prise}${code}}
   }
 
   /** Un groupe placé dans une expression : `[ … ]`, ou une petite fonction s'il a des variables locales. */
-  private ecrireGroupe(e: Ecrivain, noeuds: NoeudVue[], ouverture: string, fermeture: string): void {
+  protected ecrireGroupe(e: Ecrivain, noeuds: NoeudVue[], ouverture: string, fermeture: string): void {
     if (noeuds.some((n) => n.type === 'locale')) {
       e.bloc(`${ouverture}(() => {`, () => this.ecrireRetour(e, noeuds), `})()${fermeture}`);
     } else {
@@ -903,7 +908,7 @@ ${prise}${code}}
     }
   }
 
-  private ecrireVue(e: Ecrivain, noeuds: NoeudVue[]): void {
+  protected ecrireVue(e: Ecrivain, noeuds: NoeudVue[]): void {
     for (const noeud of noeuds) {
       switch (noeud.type) {
         case 'element': {
@@ -1024,7 +1029,7 @@ ${prise}${code}}
   }
 
   /** `creer('p', { … }, contenu)`. */
-  private elementJs(noeud: Element): string {
+  protected elementJs(noeud: Element): string {
     const commun = (avant: [string, string][] = []): [string, string][] => {
       const liste: [string, string][] = [...this.repereJs(noeud.ligne), ...avant, ["'data-humalis'", chaine(noeud.id)]];
       const classes = this.classes(noeud);
@@ -1079,7 +1084,7 @@ ${prise}${code}}
   }
 
   /** Un champ, selon sa sorte : saisie d'une ligne, texte long, case, choix ou liste (comme sur le web). */
-  private champJs(
+  protected champJs(
     noeud: Element,
     commun: (avant?: [string, string][]) => [string, string][],
     objet: (liste: [string, string][]) => string,
@@ -1141,7 +1146,7 @@ ${prise}${code}}
    * la copie locale, la description (vide si décorative), les dimensions lues, la priorité, les proportions.
    * `valeur` traduit une valeur, `texte` écrit un texte fixe (entre guillemets pour le script).
    */
-  private attributsImage(image: ImageRI, contenu: Valeur, valeur: (v: Valeur) => string, texte: (t: string) => string, cle: (n: string) => string = (n) => n): [string, string][] {
+  protected attributsImage(image: ImageRI, contenu: Valeur, valeur: (v: Valeur) => string, texte: (t: string) => string, cle: (n: string) => string = (n) => n): [string, string][] {
     const info = image.locale !== undefined ? this.site.medias?.get(image.locale) : undefined;
     const attributs: [string, string][] = [
       [cle('src'), image.locale !== undefined ? texte(`images/${nomDeLaCopie(image.locale)}`) : valeur(contenu)],
@@ -1154,12 +1159,12 @@ ${prise}${code}}
     return attributs;
   }
 
-  private classes(noeud: Element): string {
+  protected classes(noeud: Element): string {
     // Les styles nommés d'abord, puis les classes CSS de l'utilisateur, comme sur le web.
     return [...noeud.options.map((o) => `humalis-${o.nom}-${o.valeur}`), ...noeud.classes].join(' ');
   }
 
-  private genreChamp(noeud: Element): { type: string; autocomplete: string } | undefined {
+  protected genreChamp(noeud: Element): { type: string; autocomplete: string } | undefined {
     if (this.champsMotDePasse.has(noeud.id)) return { type: 'password', autocomplete: 'current-password' };
     if (this.champsEmail.has(noeud.id)) return { type: 'email', autocomplete: 'username' };
     return undefined;
@@ -1168,7 +1173,7 @@ ${prise}${code}}
   // ─── La vue, en HTML de départ ──────────────────────────────────────────
 
   /** Les valeurs de départ de la page : variables, partagées, calculs. */
-  private environnement(): Environnement {
+  protected environnement(): Environnement {
     const env = new Environnement(this.contexte.types);
     // Un paramètre de l'adresse n'est connu qu'à l'ouverture de la page : vide au départ.
     for (const p of this.ecran.parametresAdresse ?? []) env.definir(p, '');
@@ -1179,7 +1184,7 @@ ${prise}${code}}
     return env;
   }
 
-  private ecrireHtml(noeuds: NoeudVue[], env: Environnement, lignes: string[]): void {
+  protected ecrireHtml(noeuds: NoeudVue[], env: Environnement, lignes: string[]): void {
     for (const noeud of noeuds) {
       switch (noeud.type) {
         case 'element':
@@ -1291,7 +1296,7 @@ ${prise}${code}}
     }
   }
 
-  private ecrireGroupeHtml(noeuds: NoeudVue[], env: Environnement, lignes: string[]): void {
+  protected ecrireGroupeHtml(noeuds: NoeudVue[], env: Environnement, lignes: string[]): void {
     const dedans = env.enfant();
     for (const l of noeuds) if (l.type === 'locale') dedans.definir(l.nom, evaluer(l.valeur, dedans));
     this.ecrireHtml(noeuds, dedans, lignes);
@@ -1299,7 +1304,7 @@ ${prise}${code}}
 
   // ─── Les éléments d'écran (widgets.ts) ──────────────────────────────────
 
-  private initial(valeur: Valeur, env: Environnement): unknown {
+  protected initial(valeur: Valeur, env: Environnement): unknown {
     try {
       return evaluer(valeur, env);
     } catch {
@@ -1307,7 +1312,7 @@ ${prise}${code}}
     }
   }
 
-  private contenuAccentJs(valeur: Valeur, genre: string): string {
+  protected contenuAccentJs(valeur: Valeur, genre: string): string {
     if (valeur.type !== 'texte' || !['titre', 'soustitre', 'texte'].includes(genre)) return contenuJs(valeur, this.contexte);
     const parties = (liste: typeof valeur.parties) => liste.map((p) => 'texte' in p
       ? p.accent ? `creer('span', { class: 'humalis-accent' }, ${chaine(p.texte)})` : p.code ? `creer('code', { class: 'humalis-code-ligne' }, ${chaine(p.texte)})` : chaine(p.texte)
@@ -1318,7 +1323,7 @@ ${prise}${code}}
     return parties(valeur.parties);
   }
 
-  private contenuAccentHtml(valeur: Valeur, genre: string, env: Environnement): string {
+  protected contenuAccentHtml(valeur: Valeur, genre: string, env: Environnement): string {
     if (valeur.type !== 'texte' || !['titre', 'soustitre', 'texte'].includes(genre) || !valeur.parties.some((p) => 'texte' in p && (p.accent || p.code))) return echapperTexte(texteDe(valeur, env, this.contexte.champs));
     return valeur.parties.map((p) => {
       const texte = echapperTexte('texte' in p ? p.texte : texteDe({ type: 'texte', parties: [p] }, env, this.contexte.champs));
@@ -1326,7 +1331,7 @@ ${prise}${code}}
     }).join('');
   }
 
-  private texteInitial(valeur: Valeur, env: Environnement): string {
+  protected texteInitial(valeur: Valeur, env: Environnement): string {
     try {
       return texteDe(valeur, env, this.contexte.champs);
     } catch {
@@ -1334,11 +1339,11 @@ ${prise}${code}}
     }
   }
 
-  private classesDe(noeud: { options: { nom: string; valeur: string }[]; classes: string[] }): string {
+  protected classesDe(noeud: { options: { nom: string; valeur: string }[]; classes: string[] }): string {
     return [...noeud.options.map((o) => `humalis-${o.nom}-${o.valeur}`), ...noeud.classes].join(' ');
   }
 
-  private aide(noeud: Extract<NoeudVue, { type: 'widget' }>, env: Environnement): AideWidget {
+  protected aide(noeud: Extract<NoeudVue, { type: 'widget' }>, env: Environnement): AideWidget {
     const texte = texteLitteral(noeud.contenu);
     return {
       valeur: { js: expressionJs(noeud.contenu, this.contexte), initial: this.initial(noeud.contenu, env) },
@@ -1350,7 +1355,7 @@ ${prise}${code}}
       ...(noeud.minimum !== undefined ? { minimum: noeud.minimum } : {}),
       ...(noeud.maximum !== undefined ? { maximum: noeud.maximum } : {}),
       ...(noeud.reglages.photo ? { photo: { js: expressionJs(noeud.reglages.photo, this.contexte), initial: this.texteInitial(noeud.reglages.photo, env) } } : {}),
-      ...(noeud.contenu.type === 'variable' ? { variable: nomJs(noeud.contenu.nom) } : {}),
+      ...(noeud.contenu.type === 'variable' ? { variable: this.lu(noeud.contenu.nom) } : {}),
       ...(this.site.langues ? { langues: this.site.langues } : {}),
       ...(noeud.genre === 'audio' ? { audio: this.audioDe(noeud, env) } : {}),
       id: noeud.id,
@@ -1358,7 +1363,7 @@ ${prise}${code}}
   }
 
   /** Un audio : un fichier local est copié dans audio/ ; les textes sont fixes ou calculés par le script. */
-  private audioDe(noeud: Extract<NoeudVue, { type: 'widget' }>, env: Environnement): NonNullable<AideWidget['audio']> {
+  protected audioDe(noeud: Extract<NoeudVue, { type: 'widget' }>, env: Environnement): NonNullable<AideWidget['audio']> {
     const attribut = (valeur: Valeur): string | { js: string; initial: string } =>
       texteLitteral(valeur) ?? { js: contenuJs(valeur, this.contexte), initial: this.texteInitial(valeur, env) };
     const fichier = texteLitteral(noeud.contenu);
@@ -1370,10 +1375,10 @@ ${prise}${code}}
     };
   }
 
-  private aideComposite(noeud: Extract<NoeudVue, { type: 'bloc' }>, env: Environnement): AideComposite {
+  protected aideComposite(noeud: Extract<NoeudVue, { type: 'bloc' }>, env: Environnement): AideComposite {
     const enfants = noeud.corps.filter((n): n is Extract<NoeudVue, { type: 'bloc' }> => n.type === 'bloc');
     const titre = (v: Valeur | undefined) => (v ? { js: contenuJs(v, this.contexte), initial: this.texteInitial(v, env) } : { js: "''", initial: '' });
-    const etat = noeud.etat ? { js: nomJs(noeud.etat), initial: this.initial({ type: 'variable', nom: noeud.etat }, env) as number | boolean } : undefined;
+    const etat = noeud.etat ? { js: this.lu(noeud.etat), initial: this.initial({ type: 'variable', nom: noeud.etat }, env) as number | boolean } : undefined;
     const aide: AideComposite = {
       genre: noeud.genre as AideComposite['genre'],
       id: `${noeud.genre}-${noeud.ligne % 1_000_000}`,
@@ -1403,12 +1408,12 @@ ${prise}${code}}
   // ─── La carte (plan des médias, 4.5) ────────────────────────────────────
 
   /** Les classes de la carte, comme sur le web : celle de Humalis, puis celles de l'utilisateur. */
-  private classesCarte(noeud: Extract<NoeudVue, { type: 'carte' }>): string {
+  protected classesCarte(noeud: Extract<NoeudVue, { type: 'carte' }>): string {
     return ['humalis-carte', ...noeud.classes].join(' ');
   }
 
   /** Les lieux de départ : les marqueurs, boucles et conditions évalués avec les valeurs de départ. */
-  private lieuxInitiaux(noeuds: NoeudVue[], env: Environnement): { nom: string; adresse?: string; latitude: number; longitude: number }[] {
+  protected lieuxInitiaux(noeuds: NoeudVue[], env: Environnement): { nom: string; adresse?: string; latitude: number; longitude: number }[] {
     return noeuds.flatMap((noeud) => {
       if (noeud.type === 'marqueur') {
         return [{
@@ -1428,7 +1433,7 @@ ${prise}${code}}
   }
 
   /** Le HTML de départ d'une carte : sa zone (vide) et la liste des lieux, lisible sans JavaScript. */
-  private carteHtml(noeud: Extract<NoeudVue, { type: 'carte' }>, env: Environnement, lignes: string[]): void {
+  protected carteHtml(noeud: Extract<NoeudVue, { type: 'carte' }>, env: Environnement, lignes: string[]): void {
     const nom = this.texteInitial(noeud.nom, env);
     const lieux = this.lieuxInitiaux(noeud.corps, env);
     const lien = (l: { latitude: number; longitude: number }) => `https://www.openstreetmap.org/?mlat=${l.latitude}&mlon=${l.longitude}#map=15/${l.latitude}/${l.longitude}`;
@@ -1449,7 +1454,7 @@ ${prise}${code}}
   }
 
   /** Les lieux d'une carte en JavaScript : un objet par marqueur, un `flatMap` par « pour chaque », un choix par « si ». */
-  private lieuxJs(e: Ecrivain, noeuds: NoeudVue[]): void {
+  protected lieuxJs(e: Ecrivain, noeuds: NoeudVue[]): void {
     for (const noeud of noeuds) {
       if (noeud.type === 'marqueur') {
         const adresse = noeud.adresse ? `, adresse: ${contenuJs(noeud.adresse, this.contexte)}` : '';
@@ -1471,7 +1476,7 @@ ${prise}${code}}
   }
 
   /** `carteLieux(id, nom, réglages, [lieux], classes),` : humalis.js dessine la carte et la liste. */
-  private carteJs(e: Ecrivain, noeud: Extract<NoeudVue, { type: 'carte' }>): void {
+  protected carteJs(e: Ecrivain, noeud: Extract<NoeudVue, { type: 'carte' }>): void {
     const reglages = [
       ...(noeud.latitude && noeud.longitude ? [`latitude: ${expressionJs(noeud.latitude, this.contexte)}`, `longitude: ${expressionJs(noeud.longitude, this.contexte)}`] : []),
       ...(noeud.zoom ? [`zoom: ${expressionJs(noeud.zoom, this.contexte)}`] : []),
@@ -1481,7 +1486,7 @@ ${prise}${code}}
   }
 
   /** Un arbre de widgets.ts, en JavaScript : `creer('tag', { … }, enfants…),`. */
-  private ecrireEnfantJs(e: Ecrivain, enfant: Enfant): void {
+  protected ecrireEnfantJs(e: Ecrivain, enfant: Enfant): void {
     if ('tag' in enfant) {
       const attrs = enfant.attrs
         .filter(([, v]) => v !== false)
@@ -1509,7 +1514,7 @@ ${prise}${code}}
   }
 
   /** Un arbre de widgets.ts, en HTML de départ. */
-  private ecrireEnfantHtml(enfant: Enfant, env: Environnement, lignes: string[]): void {
+  protected ecrireEnfantHtml(enfant: Enfant, env: Environnement, lignes: string[]): void {
     if ('tag' in enfant) {
       const attrs = attributs(
         enfant.attrs
@@ -1547,7 +1552,7 @@ ${prise}${code}}
   }
 
   /** Le même champ que champJs, en HTML de départ : vide, rien de coché, rien de choisi. */
-  private champHtml(noeud: Element, env: Environnement, classes: string | undefined, contenu: string): string {
+  protected champHtml(noeud: Element, env: Environnement, classes: string | undefined, contenu: string): string {
     const saisie = noeud.saisie;
     const sorte = saisie?.sorte ?? 'texte';
     const libelle = saisie?.obligatoire ? `<span>${contenu}${ETOILE_HTML}</span>` : contenu;
@@ -1587,22 +1592,22 @@ ${prise}${code}}
   }
 
   /** Le mode développement : le fichier et la ligne Humalis de l'élément, en HTML (attributs() l'échappe ; absent sans le mode). */
-  private repereHtml(ligne: number): [string, string | undefined] {
+  protected repereHtml(ligne: number): [string, string | undefined] {
     return ['data-humalis-source', this.site.reperes ? repereSource(ligne, this.site.reperes) : undefined];
   }
 
   /** Le même repère pour creer() : rien sans le mode. */
-  private repereJs(ligne: number): [string, string][] {
+  protected repereJs(ligne: number): [string, string][] {
     const repere = this.site.reperes ? repereSource(ligne, this.site.reperes) : undefined;
     return repere === undefined ? [] : [["'data-humalis-source'", chaine(repere)]];
   }
 
   /** `'data-humalis-source': '…', ` au début d'un objet d'attributs écrit à la main. */
-  private repereObjetJs(ligne: number): string {
+  protected repereObjetJs(ligne: number): string {
     return this.repereJs(ligne).map(([nom, valeur]) => `${nom}: ${valeur}, `).join('');
   }
 
-  private elementHtml(noeud: Element, env: Environnement): string {
+  protected elementHtml(noeud: Element, env: Environnement): string {
     const classes = this.classes(noeud) || undefined;
     const commun = (avant: [string, string | undefined][] = []) =>
       attributs([this.repereHtml(noeud.ligne), ...avant, ['data-humalis', noeud.id], ['class', classes], ...(noeud.annonce ? ([['aria-live', 'polite'], ['aria-atomic', 'true']] as [string, string][]) : []), ...attributsRaccourci(noeud)]);
@@ -1637,17 +1642,17 @@ ${prise}${code}}
 }
 
 /** « menu repliable » : un bouton « Menu » le replie sur un petit écran. */
-const estRepliable = (noeud: { options: { nom: string; valeur: string }[] }) => noeud.options.some((o) => o.nom === 'menu' && o.valeur === 'repliable');
+export const estRepliable = (noeud: { options: { nom: string; valeur: string }[] }) => noeud.options.some((o) => o.nom === 'menu' && o.valeur === 'repliable');
 
 /** Les blocs d'éléments d'écran, décrits par widgets.ts. */
-const COMPOSITES = new Set<string>(['onglets', 'deroulant', 'accordeon', 'carrousel', 'filAriane']);
+export const COMPOSITES = new Set<string>(['onglets', 'deroulant', 'accordeon', 'carrousel', 'filAriane']);
 
 /** La balise de chaque bloc : une section, l'en-tête et le pied de la page, sinon une boîte. */
-const BALISES_BLOC: Partial<Record<string, string>> = { section: 'section', entete: 'header', pied: 'footer', menu: 'nav' };
+export const BALISES_BLOC: Partial<Record<string, string>> = { section: 'section', entete: 'header', pied: 'footer', menu: 'nav' };
 
 /** Les outils de humalis.js qu'une page peut prendre. */
 /** « avec raccourci » : annoncé au lecteur d'écran (aria-keyshortcuts) et visible au survol (title). */
-function attributsRaccourci(noeud: Element): [string, string][] {
+export function attributsRaccourci(noeud: Element): [string, string][] {
   if (noeud.raccourci === undefined) return [];
   const { aria, texte } = decrireTouches(noeud.raccourci);
   const libelle = texteLitteral(noeud.contenu);
@@ -1699,24 +1704,24 @@ const OUTILS_PAGE = [
 ];
 
 /** Le texte de remplacement d'une image, tiré de son nom de fichier (comme sur le web). */
-function alt(source: string | undefined): string {
+export function alt(source: string | undefined): string {
   return source !== undefined ? source.replace(/\.[a-z0-9]+$/i, '').replace(/[_-]+/g, ' ') : '';
 }
 
 /** Le texte écrit en clair, sans « {…} » ni versions dans d'autres langues ; sinon rien. */
-function texteLitteral(valeur: Valeur): string | undefined {
+export function texteLitteral(valeur: Valeur): string | undefined {
   if (valeur.type === 'texte' && valeur.versions) return undefined;
   return texteDeBase(valeur);
 }
 
 /** Le texte écrit en clair dans la langue de base (son identité), même s'il a d'autres versions. */
-function texteDeBase(valeur: Valeur): string | undefined {
+export function texteDeBase(valeur: Valeur): string | undefined {
   if (valeur.type !== 'texte' || !valeur.parties.every((p) => 'texte' in p)) return undefined;
   return valeur.parties.map((p) => ('texte' in p ? p.texte : '')).join('');
 }
 
 /** « bouton_voir_le_panier » → « voir_le_panier ». */
-function sansGenre(id: string): string {
+export function sansGenre(id: string): string {
   return id.replace(/^(titre|texte|image|bouton|lien|champ)_/, '');
 }
 
@@ -1736,7 +1741,7 @@ function contientEnvoi(actions: Action[]): boolean {
  * presse-papier) : la fonction est alors `async`. Le bloc d'une minuterie ou
  * du bouton d'un message s'exécute plus tard, à part : il ne compte pas.
  */
-function contientRequete(actions: Action[]): boolean {
+export function contientRequete(actions: Action[]): boolean {
   return actions.some(
     (a) =>
       ATTENTES.has(a.type) ||
@@ -1747,12 +1752,12 @@ function contientRequete(actions: Action[]): boolean {
 const ATTENTES = new Set<Action['type']>(['requete', 'suppression', 'modification', 'connexion', 'deconnexion', 'confirmation', 'copie', 'partage', 'telechargementCsv']);
 
 /** Vrai si le bloc d'une minuterie contient « arreter » pour elle (hors d'une boucle). */
-function arrete(actions: Action[]): boolean {
+export function arrete(actions: Action[]): boolean {
   return actions.some((a) => a.type === 'arreter' || (!['repetition', 'tantQue', 'repeter', 'minuterie', 'message'].includes(a.type) && sousActions(a).some(arrete)));
 }
 
 /** Les noms changés par des actions : déclarés avec `let` s'ils sont locaux. */
-function modifiees(actions: Action[], noms = new Set<string>()): Set<string> {
+export function modifiees(actions: Action[], noms = new Set<string>()): Set<string> {
   for (const a of actions) {
     if (a.type === 'affectation') noms.add(a.nom);
     if (a.type === 'ajout' || a.type === 'retrait') noms.add(a.liste);
@@ -1763,6 +1768,6 @@ function modifiees(actions: Action[], noms = new Set<string>()): Set<string> {
 }
 
 /** « humalis-ligne humalis-fond-vert fiche » : la classe du bloc, ses styles nommés, puis les classes CSS de l'utilisateur. */
-function classesDuBloc(noeud: Extract<NoeudVue, { type: 'bloc' }>): string {
+export function classesDuBloc(noeud: Extract<NoeudVue, { type: 'bloc' }>): string {
   return [`humalis-${noeud.genre}`, ...noeud.options.map((o) => `humalis-${o.nom}-${o.valeur}`), ...noeud.classes].join(' ');
 }

@@ -35,6 +35,7 @@
     "essai:gestion": "node scripts/essai-gestion.mjs",
     "essai:catalogue": "node scripts/essai-catalogue.mjs",
     "essai:statique": "node scripts/essai-statique.mjs",
+    "essai:moteur": "node scripts/essai-moteur.mjs",
     "essai:sources": "node scripts/essai-sources.mjs",
     "essai:navigation": "node scripts/essai-navigation.mjs",
     "essai:desktop": "node scripts/essai-desktop.mjs",
