@@ -927,7 +927,7 @@ export class GenerateurPage implements HotePage {
     const proportions = image?.proportions ? `, proportions: ${image.proportions[0]} / ${image.proportions[1]}` : '';
     const ajustement = noeud.options.find((o) => o.nom === 'ajustement')?.valeur;
     e.ligne(`ImageHumalis(source: ${source}, description: ${description}${proportions}${ajustement ? `, ajustement: .${ajustement}` : ''})`);
-    this.modifieurs(e, noeud.options, 'image', [...this.toucher(clics), ...survol, id, ...ancre]);
+    this.modifieurs(e, noeud.options, 'image', [...(this.nomForce === 'EnteteSite' ? ['.frame(maxHeight: 44, alignment: .leading)'] : []), ...this.toucher(clics), ...survol, id, ...ancre]);
   }
 
   private ecrireChamp(e: Ecrivain, noeud: Extract<NoeudVue, { type: 'element' }>, idBrut: string): void {

@@ -311,6 +311,13 @@ describe('cible Apple — rôles, temps réel, IA, paiements, notifications', ()
   });
 });
 
+describe('la page d\'entrée réservée', () => {
+  it('passe par sa garde, comme les autres pages', () => {
+    const f = projet(`serveur "s" :\n    donnee d :\n        n : texte\n    route "d" :\n        seul admin peut lire d\n\npage "a" reservee a admin sinon vers "b" :\n    titre "a"\n\npage "b" :\n    titre "b"\n`);
+    expect(f.get('Essai/EssaiApp.swift')).toContain('Route.accueilHumalis.vue');
+  });
+});
+
 describe('le CSS et les styles par plateforme', () => {
   const CSS = `style :\n    :root { --nuit: #0A1330; }\n    .a { color: var(--nuit); padding: 8px 16px; border-radius: 12px; }\n    .a:hover { color: red; }\n    .b { position: absolute; }\n    @media (max-width: 600px) { .a { color: red; } }\n`;
 
