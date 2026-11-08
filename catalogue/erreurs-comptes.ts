@@ -39,6 +39,12 @@ const BON_ENVOI = 'envoyer email aux admins avec sujet "Nouveau" et texte "{mess
 /** Une donnée séparée par groupe ; `regle` s'ajoute à ses règles. */
 const separee = (regle: string) => serveur('roles client', 'donnee commande par boutique :', '    total : nombre', 'route "commandes" :', `    ${regle}`, ...(regle.includes('lire') ? [] : ['    client peut lire commande']), ...(regle.includes('creer') ? ['    seul admin peut modifier commande', '    seul admin peut supprimer commande'] : ['    seul admin peut modifier commande']));
 
+/** Une route avec les lignes d'action données, et deux données pour tester une action mal placée. */
+const actions = (lignes: string[]) => serveur('roles gerant', 'donnee commande :', '    total : nombre', 'donnee produit :', '    nom : texte', 'route "commandes" :', '    seul gerant peut lire commande', '    seul gerant peut modifier commande', ...lignes.map((l) => `    ${l}`), 'route "produits" :', '    seul gerant peut lire produit', '    seul gerant peut modifier produit');
+
+/** Une page qui lance une action. */
+const avecAction = (action: string) => actions(['seul gerant peut faire "rembourser" sur commande :', '    refuser "Non"']).replace('page "bienvenue" :', `page "action" :\n    titre "Action"\n    bouton "Go"\n    quand l'utilisateur clique sur "Go" :\n        ${action}\n\npage "bienvenue" :`);
+
 /** Une page qui fait une action au clic. */
 const auClic = (lignesServeur: string[], action: string) =>
   serveur(...lignesServeur).replace('page "bienvenue" :', `page "action" :\n    titre "Action"\n    champ email "Adresse"\n    bouton "Go"\n    quand l'utilisateur clique sur "Go" :\n        ${action}\n\npage "bienvenue" :`);
@@ -387,4 +393,58 @@ export const ENTREES_ERREURS_COMPTES: readonly EntreeErreur[] = [
     serveur('roles client', 'donnee commande :', '    total : nombre', 'donnee suivi par boutique :', '    total : nombre', 'route "commandes" :', '    client peut modifier commande', '    client peut lire commande', '    quand commande est cree :', '        creer suivi avec total commande.total', 'route "suivis" :', '    client peut lire suivi', '    client peut modifier suivi'),
     serveur('roles client', 'donnee commande par boutique :', '    total : nombre', 'donnee suivi par boutique :', '    total : nombre', 'route "commandes" :', '    client peut modifier commande', '    client peut lire commande', '    quand commande est cree :', '        creer suivi avec total commande.total', 'route "suivis" :', '    client peut lire suivi', '    client peut modifier suivi'),
     'Les deux doivent'),
+  e('faire-forme', 'grammaire', 'Un « faire » sans sa fiche',
+    'Une action agit sur une fiche.',
+    'Écris : faire "rembourser" sur c.',
+    avecAction('faire "rembourser" "abc"'),
+    avecAction('faire "rembourser" sur "abc"'),
+    'on écrit : faire'),
+  e('faire-hors-evenement', 'sens', 'Un « faire » dans la page',
+    'Une action se lance après un geste de la personne.',
+    'Place la phrase sous « quand l’utilisateur clique … ».',
+    avecAction('faire "rembourser" sur "abc"').replace('    bouton "Go"\n    quand l\'utilisateur clique sur "Go" :\n        faire "rembourser" sur "abc"', '    faire "rembourser" sur "abc"'),
+    avecAction('faire "rembourser" sur "abc"'),
+    'faire'),
+  e('faire-inconnue', 'sens', 'Une action qui n’existe pas',
+    'La page lance une action écrite dans le serveur.',
+    'Corrige le nom, ou écris cette action dans une route.',
+    avecAction('faire "oups" sur "abc"'),
+    avecAction('faire "rembourser" sur "abc"'),
+    'aucune action « oups »'),
+  e('action-double', 'sens', 'Deux actions du même nom',
+    'La page désigne une action par son nom.',
+    'Donne un autre nom à l’une des deux.',
+    actions(['seul gerant peut faire "a" sur commande :', '    refuser "Non"', 'seul gerant peut faire "a" sur commande :', '    refuser "Non"']),
+    actions(['seul gerant peut faire "a" sur commande :', '    refuser "Non"', 'seul gerant peut faire "b" sur commande :', '    refuser "Non"']),
+    'est déjà écrite'),
+  e('action-autre-donnee', 'sens', 'Une action sur la donnée d’une autre route',
+    'Une action agit sur la donnée de sa route.',
+    'Déplace l’action dans la route de cette donnée.',
+    actions(['seul gerant peut faire "a" sur produit :', '    refuser "Non"']),
+    actions(['seul gerant peut faire "a" sur commande :', '    refuser "Non"']),
+    'ne peut pas agir sur'),
+  e('action-publique', 'sens', 'Une action ouverte à tout le monde',
+    'Une action écrit sur le serveur : un visiteur ne doit pas pouvoir la lancer.',
+    'Réserve-la à des comptes connectés.',
+    actions(['tout le monde peut faire "a" sur commande :', '    refuser "Non"']),
+    actions(['connecte peut faire "a" sur commande :', '    refuser "Non"']),
+    'réservez-la à des comptes connectés'),
+  e('regle-si-compte-inconnu', 'avertissement', 'Une condition sur un champ de compte que rien n’écrit',
+    'Un compte porte son identifiant, son adresse, son rôle et ses groupes.',
+    'Mets la liste des comptes dans la fiche, et écris : si utilisateur.id est dans facture.clients.',
+    separee('client peut lire commande si commande.total est utilisateur.oups'),
+    separee('client peut lire commande si commande.boutique est utilisateur.boutique'),
+    'restera fausse', { gravite: 'avertissement' }),
+  e('notification-sans-destinataire', 'grammaire', 'Une notification sans destinataire',
+    'Une notification part vers des rôles, ou vers le compte écrit dans une fiche.',
+    'Écris : envoyer notification aux gerant avec titre "…" et texte "…".',
+    actions(['seul gerant peut faire "a" sur commande :', '    envoyer notification avec titre "T" et texte "X"']),
+    actions(['seul gerant peut faire "a" sur commande :', '    envoyer notification aux gerant avec titre "T" et texte "X"']),
+    'à qui part cette notification'),
+  e('notification-forme', 'grammaire', 'Une notification sans titre ou sans texte',
+    'Une notification a toujours un titre et un texte.',
+    'Écris : avec titre "…" et texte "…".',
+    actions(['seul gerant peut faire "a" sur commande :', '    envoyer notification aux gerant avec message "T" et texte "X"']),
+    actions(['seul gerant peut faire "a" sur commande :', '    envoyer notification aux gerant avec titre "T" et texte "X"']),
+    'dans cette notification'),
 ];

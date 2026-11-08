@@ -160,6 +160,30 @@ try {
   verifier(oreilleAdmin.recu === 1, 'un admin est prévenu');
   for (const o of [oreilleA, oreilleB, oreilleAdmin]) o.arret.abort();
 
+  // ─── Les actions ──────────────────────────────────────────────────
+  const aRembourser = await appeler(A, 'POST', '/api/commandes', gerantA.jeton, { total: 15 });
+  const faire = (jeton, id, base = A) => appeler(base, 'PATCH', `/api/commandes/faire/rembourser/${id}`, jeton, {});
+  verifier((await faire(vendeur.jeton, aRembourser.valeur.id)).statut === 403, 'un rôle sans droit ne lance pas l’action (403)');
+  verifier((await faire(gerantB.jeton, aRembourser.valeur.id)).statut === 404, 'une action ne touche pas la fiche d’un autre groupe (404)');
+  const fait = await faire(gerantA.jeton, aRembourser.valeur.id);
+  verifier(fait.statut === 200 && fait.valeur.statut === 'remboursee', 'l’action change la fiche');
+  const suivis = await appeler(A, 'GET', '/api/suivis', gerantA.jeton);
+  verifier(suivis.valeur.length === 1 && suivis.valeur[0].boutique === 'A', 'la fiche créée par l’action prend le groupe');
+  const deuxieme = await faire(gerantA.jeton, aRembourser.valeur.id);
+  verifier(deuxieme.statut === 400 && deuxieme.valeur.erreur === 'Déjà remboursée', '« refuser » renvoie son message');
+  const chere = await appeler(A, 'POST', '/api/commandes', gerantA.jeton, { total: 5000 });
+  const refuseeTard = await faire(gerantA.jeton, chere.valeur.id);
+  const relue = await appeler(A, 'GET', `/api/commandes/${chere.valeur.id}`, gerantA.jeton);
+  verifier(refuseeTard.statut === 400 && relue.valeur.statut === 'ouverte', '« refuser » annule ce qui a déjà été écrit');
+  verifier((await appeler(A, 'GET', '/api/suivis', gerantA.jeton)).valeur.length === 1, '… y compris la fiche créée juste avant');
+  const unique = await appeler(A, 'POST', '/api/commandes', gerantA.jeton, { total: 7 });
+  const ensemble = await Promise.all([faire(gerantA.jeton, unique.valeur.id, A), faire(gerantA.jeton, unique.valeur.id, B), faire(gerantA.jeton, unique.valeur.id, A), faire(gerantA.jeton, unique.valeur.id, B)]);
+  verifier(ensemble.filter((r) => r.statut === 200).length === 1, 'quatre lancements en même temps sur deux serveurs : un seul réussit');
+
+  // ─── Les tâches ───────────────────────────────────────────────────
+  const journaux = await appeler(A, 'GET', '/api/journaux', jetonAdmin);
+  verifier(journaux.valeur.length === 1, 'une tâche ne tourne qu’une fois, malgré deux serveurs');
+
   // EXTENSIONS
 } finally {
   for (const p of processus) p.kill();

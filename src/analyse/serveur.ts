@@ -2,6 +2,7 @@ import type { Regle, Serveur, ActionDonnee, Route, Qui, Page, EnvoiEmail, Creati
 import type { Diagnostic } from './erreurs.js';
 import { simplifier } from './elements.js';
 import { proposerNom } from './suggestions.js';
+import { traduireAction, traduireTache } from './logique.js';
 
 const ACTIONS: ActionDonnee[] = ['lire', 'creer', 'modifier', 'supprimer'];
 
@@ -29,8 +30,11 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[], pag
 
   for (const donnee of serveur.donnees) for (const champ of donnee.champs) verifierRegleChamp(champ, donnee, serveur, erreur);
 
+  for (const tache of serveur.taches ?? []) traduireTache(tache, serveur, erreur);
+
   const adresses = new Map<string, number>();
   const servies = new Set<string>();
+  const nomsActions = new Map<string, number>();
   for (const route of serveur.routes) {
     if (adresses.has(route.adresse)) {
       erreur(`la route « ${route.adresse} » est déjà déclarée (ligne ${adresses.get(route.adresse)}).`, route.ligne);
@@ -62,7 +66,7 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[], pag
       } else if (lue?.par !== undefined && regle.qui === 'tout_le_monde') {
         avertissement(`tout le monde peut lire « ${lue.nom} » : les fiches de chaque ${lue.par} sont publiques. Seules les écritures restent séparées.`, regle.ligne);
       }
-      if (regle.si) verifierConditionRegle(regle, lue, erreur);
+      if (regle.si) verifierConditionRegle(regle, lue, serveur.donnees.flatMap((d) => (d.par ? [simplifier(d.par)] : [])), erreur, avertissement);
       for (const action of regle.actions) permises.add(action);
       if (serveur.donnees.find((d) => d.nom === regle.donnee)?.comptes) {
         // Les comptes de la connexion : qui s'y trouve ne regarde que l'administration, et ils naissent d'une invitation.
@@ -72,6 +76,15 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[], pag
           erreur('les comptes ne se modifient pas par une règle : un compte naît de « inviter … », et son rôle change avec « changer role de c en … ».', regle.ligne);
         }
       }
+    }
+
+    for (const action of route.actions ?? []) {
+      traduireAction(action, serveur, erreur);
+      if (nomsActions.has(action.nom)) erreur(`l'action « ${action.nom} » est déjà écrite (ligne ${nomsActions.get(action.nom)}) : donnez-lui un autre nom.`, action.ligne);
+      nomsActions.set(action.nom, action.ligne);
+      const donneeRoute = servie ?? route.regles[0]?.donnee;
+      if (action.donnee !== donneeRoute) erreur(`la route « ${route.adresse} » sert « ${donneeRoute ?? 'aucune donnée'} » : l'action « ${action.nom} » ne peut pas agir sur « ${action.donnee} ».`, action.ligne);
+      if (action.qui === 'tout_le_monde') erreur(`« ${action.nom} » écrit sur le serveur : réservez-la à des comptes connectés.`, action.ligne);
     }
 
     if (route.apresCreation) {
@@ -200,7 +213,7 @@ function verifierRegleChamp(champ: Donnee['champs'][number], donnee: Donnee, ser
 }
 
 /** « si facture.compte est dans utilisateur.comptes_lies » : la fiche nommée est celle de la règle, et ses champs existent. */
-function verifierConditionRegle(regle: Regle, donnee: Donnee | undefined, erreur: (message: string, ligne: number) => void): void {
+function verifierConditionRegle(regle: Regle, donnee: Donnee | undefined, serveurGroupes: string[], erreur: (message: string, ligne: number) => void, avertissement: (message: string, ligne: number) => void): void {
   const { qui, si, ligne, parIdentifiant } = regle;
   if (!si || !donnee) return;
   if (qui === 'tout_le_monde' || parIdentifiant) erreur('une règle avec « si » regarde qui est connecté : elle ne vaut pas pour « tout le monde », ni « par identifiant ».', ligne);
@@ -211,6 +224,10 @@ function verifierConditionRegle(regle: Regle, donnee: Donnee | undefined, erreur
     else if (!donnee.champs.some((c) => simplifier(c.nom) === simplifier(o.champ)) && simplifier(o.champ) !== 'id') {
       erreur(`la donnée « ${donnee.nom} » n'a pas de champ « ${o.champ} ». Champs : ${donnee.champs.map((c) => c.nom).join(', ')}.${proposerNom(o.champ, donnee.champs.map((c) => c.nom))}`, ligne);
     }
+  }
+  const champsCompte = new Set(['id', 'email', 'role', ...serveurGroupes]);
+  for (const o of [si.gauche, si.droite]) {
+    if (o.genre === 'utilisateur' && !champsCompte.has(simplifier(o.champ))) avertissement(`aucune phrase n'écrit « ${o.champ} » sur un compte : cette condition restera fausse. Une liste de comptes dans la fiche fonctionne : si utilisateur.id est dans ${donnee.nom}.clients`, ligne);
   }
   if (si.dans && si.droite.genre === 'valeur') erreur('« est dans » demande une liste : le champ d\'une fiche ou de l\'utilisateur.', ligne);
   if (si.dans && si.droite.genre === 'fiche' && donnee.champs.find((c) => simplifier(c.nom) === simplifier((si.droite as { champ: string }).champ))?.type.genre !== 'liste') {

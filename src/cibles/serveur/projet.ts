@@ -1,5 +1,6 @@
 import { avecComptes, avecEmails, CLES_BREVO, codeCreationComptes, codeEnvois, codeRoutesComptes, COMPTES, EMAILS, ENV_EMAILS, ENV_LIENS, testsComptes } from './comptes.js';
 import { codeFicheVisible, codePortee, compteRelu, conditionsDe, constantesSeparation, estSeparee, SEPARATION, testsSeparee } from './separation.js';
+import { avecLogique, codeActions, codeTaches, employe, LOGIQUE } from './logique.js';
 import { champsDuServeur, codeCompleter, codeCreation, noms as nomsVerifier, reglesEnvoi } from './regles.js';
 import { ligneLocale } from '../../fichiers.js';
 import type { ServeurRI, TypeChamp, QuiPeut } from '../../ri/types.js';
@@ -76,7 +77,8 @@ export function genererProjetServeur(serveur: ServeurRI, options: OptionsServeur
   fichiers.set('tests/regles.test.ts', testsRegles(serveur));
   fichiers.set('tests/sessions.test.ts', testsSessions(serveur));
   if (serveur.routes.some((r) => r.direct)) fichiers.set('src/humalis/direct.ts', DIRECT);
-  if (compteRelu(serveur)) fichiers.set('src/humalis/separation.ts', SEPARATION);
+  if (compteRelu(serveur) || serveur.routes.some((r) => r.actions?.length && serveur.donnees.find((d) => d.nom === r.donnee)?.par)) fichiers.set('src/humalis/separation.ts', SEPARATION);
+  if (avecLogique(serveur)) fichiers.set('src/humalis/logique.ts', LOGIQUE);
   if (serveur.routes.some((r) => r.bon)) {
     fichiers.set('src/humalis/bon.ts', BON);
     fichiers.set('tests/bon.test.ts', testsBon(serveur));
@@ -955,7 +957,10 @@ function trancher<T>(liste: T[], filtres?: Filtres): T[] {
 
 export interface Stockage {
   lister(filtres?: Filtres): Promise<Enregistrement[]>;
-  trouver(id: string): Promise<Enregistrement | null>;
+  /** « pourEcrire » : dans une transaction, la fiche reste à celui qui la lit jusqu'à la fin. */
+  trouver(id: string, pourEcrire?: boolean): Promise<Enregistrement | null>;
+  /** En mémoire seulement : une photo des données, et de quoi y revenir. */
+  instantane?(): () => void;
   creer(valeurs: Record<string, unknown>): Promise<Enregistrement>;
   modifier(id: string, valeurs: Record<string, unknown>): Promise<Enregistrement | null>;
   supprimer(id: string): Promise<boolean>;
@@ -975,6 +980,13 @@ export function creerStockageMemoire(): Stockage {
     },
     async trouver(id) {
       return lignes.get(id) ?? null;
+    },
+    instantane() {
+      const photo = new Map([...lignes].map(([id, ligne]) => [id, { ...ligne }]));
+      return () => {
+        lignes.clear();
+        for (const [id, ligne] of photo) lignes.set(id, ligne);
+      };
     },
     async creer(valeurs) {
       const enregistrement = { ...valeurs, id: randomUUID() };
@@ -1040,9 +1052,9 @@ export function creerStockagePostgres(pool: PoolPostgres, table: string): Stocka
       }
       return (await pool.query(texte, valeurs)).rows.map(lire);
     },
-    async trouver(id) {
+    async trouver(id, pourEcrire) {
       await preparer();
-      const { rows } = await pool.query(\`SELECT id, data FROM \${table} WHERE id = $1\`, [id]);
+      const { rows } = await pool.query(\`SELECT id, data FROM \${table} WHERE id = $1\${pourEcrire ? ' FOR UPDATE' : ''}\`, [id]);
       return rows[0] ? lire(rows[0]) : null;
     },
     async creer(valeurs) {
@@ -1189,7 +1201,7 @@ ${voir('supprimer')}          if (await stockages.${donnee}.supprimer(req.params
           next(erreur);
         }
       });
-      app.use('${adresseApi(route.adresse)}', ${variable});`;
+${codeActions(serveur, route, variable)}      app.use('${adresseApi(route.adresse)}', ${variable});`;
     })
     .join('\n\n');
   const schemas = [...new Set(serveur.routes.map((r) => `SCHEMA_${simplifier(r.donnee).toUpperCase()}`))].join(', ');
@@ -1208,7 +1220,7 @@ ${serveur.routes.some((r) => r.direct) ? "import { direct } from './humalis/dire
 import type { Surveillance } from './humalis/centrale.js';
 import type { Coffre } from './humalis/coffre.js';
 ${comptes ? "import { creerComptes, refuserMotDePasseFaible, sansLesRetires } from './humalis/comptes.js';\n" : ''}${avecEmails(serveur) ? `import { creerEmails, ${envoisDansRoutes ? 'enTexte, ' : ''}type Emails } from './humalis/emails.js';\n` : ''}import { compresser } from './humalis/compresser.js';${avecBon ? "\nimport { creerBon } from './humalis/bon.js';" : ''}${serveur.fidelite ? "\nimport { carteDeFidelite } from './humalis/fidelite.js';" : ''}
-import { creerRenouvellement, reglagesDeSession, renouvellementEnCookie, type ReglagesSession } from './humalis/sessions.js';
+${avecLogique(serveur) ? `import { ${['Refus', 'enTexte', 'estVide', 'contient', 'noter', 'nouveauTravail', 'terminer', 'transactionMemoire', ...(serveur.taches?.length ? ['lancerTaches', 'type Reclamer'] : []), 'type Transaction'].join(', ')} } from './humalis/logique.js';\n` : ''}import { creerRenouvellement, reglagesDeSession, renouvellementEnCookie, type ReglagesSession } from './humalis/sessions.js';
 import { ${serveur.fidelite ? 'sansSeparateurs, ' : ''}type Stockage } from './humalis/stockage.js';
 ${compteRelu(serveur) ? (serveur.routes.some((r) => estSeparee(serveur.donnees.find((d) => d.nom === r.donnee)!, r)) ? "import { dansPortee, groupeACreer, listerDans, moiDe, porteeDe, REFUS_FICHES, type RegleAcces, type Separation } from './humalis/separation.js';\n" : '') : ''}import { lireFiltres, ${nomsVerifier(serveur).map((n) => n + ', ').join('')}verifierEnvoi } from './humalis/verifier.js';
 
@@ -1219,7 +1231,11 @@ export interface OptionsDuServeur {
   stockages: {
 ${stockages}
   };${serveur.connexionGoogle ? '\n  /** L\'ID client OAuth de Google (« connexion google »), relu à chaque demande ; sans lui, la connexion avec Google est fermée. */\n  googleClientId?: string | (() => string | undefined);' : ''}
-  /** La durée de la session et où garder ses renouvellements ; par défaut, HUMALIS_SESSION et HUMALIS_SESSION_MAX, en mémoire. */
+${avecLogique(serveur) ? `  /** Comment écrire tout ou rien ; par défaut, en mémoire. */
+  transaction?: Transaction<OptionsDuServeur['stockages']>;
+` : ''}${serveur.taches?.length ? `  /** Donné par demarrer.ts : sans lui, aucune tâche ne tourne. */
+  reclamerTache?: Reclamer;
+` : ''}  /** La durée de la session et où garder ses renouvellements ; par défaut, HUMALIS_SESSION et HUMALIS_SESSION_MAX, en mémoire. */
   session?: ReglagesSession;${avecEmails(serveur) ? `
   /** Les e-mails ; par défaut, Brevo avec BREVO_API_KEY et BREVO_EXPEDITEUR. */
   emails?: Emails;` : ''}${comptes ? `
@@ -1275,9 +1291,9 @@ const sansCache = (res: Response) => res.set('Cache-Control', 'no-store');
  * limites et les en-têtes de sécurité viennent de createSaasApp. Les
  * routes des données s'ajoutent par extendRoutes, avec les gardes du pack.
  */
-export function creerServeur({ jwtSecret, usersStore${comptes ? ': tousLesComptes' : ''}, stockages${serveur.connexionGoogle ? ', googleClientId' : ''}, session = reglagesDeSession(process.env), surveillance, coffre${avecEmails(serveur) ? `, emails = creerEmails({ nom: ${boutique} })` : ''}${comptes ? ', jetons = createMemoryPasswordResetStore()' : ''} }: OptionsDuServeur) {
+export function creerServeur({ jwtSecret, usersStore${comptes ? ': tousLesComptes' : ''}, stockages${avecLogique(serveur) ? ', transaction = transactionMemoire(stockages)' : ''}${serveur.taches?.length ? ', reclamerTache' : ''}${serveur.connexionGoogle ? ', googleClientId' : ''}, session = reglagesDeSession(process.env), surveillance, coffre${avecEmails(serveur) ? `, emails = creerEmails({ nom: ${boutique} })` : ''}${comptes ? ', jetons = createMemoryPasswordResetStore()' : ''} }: OptionsDuServeur) {
   const renouvellement = creerRenouvellement(session);
-${comptes ? codeCreationComptes(serveur, chemins).replace('usersStore,', 'usersStore: tousLesComptes,') + '  // Pour les packs, un compte retiré n\'existe plus.\n  const usersStore = sansLesRetires(tousLesComptes);\n' : ''}${envoisDansRoutes ? `  const adressesDesAdmins = async () => (await usersStore.list({ role: 'admin', limit: 100 })).map((compte) => String(compte.email)).filter(Boolean);\n` : ''}  const serveur = createSaasApp({
+${comptes ? codeCreationComptes(serveur, chemins).replace('usersStore,', 'usersStore: tousLesComptes,') + '  // Pour les packs, un compte retiré n\'existe plus.\n  const usersStore = sansLesRetires(tousLesComptes);\n' : ''}${envoisDansRoutes || employe(serveur, (i) => i.type === 'email' && i.a.genre === 'admins') ? `  const adressesDesAdmins = async () => (await usersStore.list({ role: 'admin', limit: 100 })).map((compte) => String(compte.email)).filter(Boolean);\n` : ''}  const serveur = createSaasApp({
     jwtSecret,
     // Le pare-feu du pack, sans son motif des commentaires SQL : le stockage passe par des requêtes paramétrées,
     // et « avenue #12 » ou « appeler -- après 18h » sont de vrais textes. Les autres motifs restent.
@@ -1320,7 +1336,7 @@ ${google}
       app.use('/auth/cles', authMiddleware, authorizeAdmin, csrfMiddleware, coffre ? coffre.routes(authorizeAdmin) : coffreFerme);
 
 ${codeCompleter(serveur)}${comptes ? codeRoutesComptes(serveur, adresseApi, (a) => `route${pascal(a)}`) : ''}${routes}
-${fidelite}      // Le dernier avant la réponse d'erreur du pack, qui répond ensuite comme d'habitude.
+${fidelite}${codeTaches(serveur)}      // Le dernier avant la réponse d'erreur du pack, qui répond ensuite comme d'habitude.
       if (surveillance) app.use(surveillance.gestionnaireErreurs());
     },
   });
@@ -1348,7 +1364,7 @@ import { createPostgresUsersStore } from '@astratra/store-postgres';
 import pg from 'pg';
 import { creerServeur } from './serveur.js';
 ${serveur.routes.some((r) => r.direct) ? "import { direct } from './humalis/direct.js';\n" : ''}import { demarrerCentrale } from './humalis/centrale.js';
-import { ouvrirCoffre } from './humalis/coffre.js';${comptes ? "\nimport { creerMagasinJetons } from './humalis/comptes.js';" : ''}
+${avecLogique(serveur) ? `import { transactionPostgres${serveur.taches?.length ? ', reclamerMemoire, reclamerPostgres' : ''} } from './humalis/logique.js';\n` : ''}import { ouvrirCoffre } from './humalis/coffre.js';${comptes ? "\nimport { creerMagasinJetons } from './humalis/comptes.js';" : ''}
 import { creerMagasinMemoire, creerMagasinPostgres } from './humalis/renouvellements.js';
 import { reglagesDeSession, type ReglagesSession } from './humalis/sessions.js';
 import { creerStockageMemoire, creerStockagePostgres } from './humalis/stockage.js';
@@ -1400,7 +1416,7 @@ try {
 const coffre = await ouvrirCoffre(pool);
 
 const port = Number(process.env.PORT ?? 3000);
-const app = creerServeur({ jwtSecret, usersStore, stockages${serveur.connexionGoogle ? ', googleClientId: () => process.env.GOOGLE_CLIENT_ID || undefined' : ''}${comptes ? ', jetons: creerMagasinJetons(pool)' : ''}, session, surveillance, coffre }) as unknown as { listen(port: number, pret: () => void): unknown };
+const app = creerServeur({ jwtSecret, usersStore, stockages${avecLogique(serveur) ? `, ...(pool ? { transaction: transactionPostgres(pool, (client) => ({ ${serveur.donnees.map((d) => `${camel(d.nom)}: creerStockagePostgres(client, '${nomTable(d.nom)}')`).join(', ')} })) } : {})` : ''}${serveur.taches?.length ? ', reclamerTache: pool ? reclamerPostgres(pool) : reclamerMemoire()' : ''}${serveur.connexionGoogle ? ', googleClientId: () => process.env.GOOGLE_CLIENT_ID || undefined' : ''}${comptes ? ', jetons: creerMagasinJetons(pool)' : ''}, session, surveillance, coffre }) as unknown as { listen(port: number, pret: () => void): unknown };
 // HUMALIS_ECOUTE : l'adresse d'écoute (127.0.0.1 derrière un relais) ; sans elle, toutes les adresses.
 const pret = () => console.log(\`Serveur « ${serveur.nom} » prêt : http://localhost:\${port}${premiere}\`);
 const ecoute = process.env.HUMALIS_ECOUTE?.trim();
@@ -2074,6 +2090,9 @@ setInterval(() => {
 }, 25000).unref();
 
 export const direct = {
+  /** Une écriture faite ailleurs qu'une route (action, tâche). */
+  annonce: annoncer,
+
   ecouter(cle: string, req: Request, res: Response): void {
     if (total >= MAXIMUM) {
       res.status(503).end();
