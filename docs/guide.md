@@ -2462,6 +2462,23 @@ liste change, et apparaître en fondu celles qui arrivent (sauf si la personne a
 demandé moins d'animations). Cela ne marche qu'avec ce moteur : ailleurs, le
 compilateur le dit et les lignes changent sans glisser.
 
+#### Le temps réel
+
+`en direct` garde une page à jour quand le serveur change :
+
+```humalis
+page "commandes" :
+    variable commandes = []
+    titre "Commandes"
+    quand la page se charge :
+        envoyer requete vers "commandes" dans commandes en direct
+```
+
+Une commande créée ailleurs apparaît seule, sans recharger. Le serveur annonce
+seulement « ça a changé » : la page relit ensuite la route normale, avec ses droits,
+donc rien de privé ne passe par ce canal. Cela marche avec ce moteur et un serveur
+Humalis lancé en un seul exemplaire.
+
 #### Lire le serveur à la construction
 
 Pour que les pages publiques portent déjà leur contenu dans le HTML, indique

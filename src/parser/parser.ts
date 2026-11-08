@@ -1657,8 +1657,14 @@ function analyserRequete(flux: FluxTokens, ligne: number): Requete {
   if (flux.accepter('MOT_CLE', 'dans')) {
     resultat = flux.attendreNom('le nom de la variable qui recevra la réponse').nom;
   }
+  // « … dans commandes en direct » : la page se met à jour quand le serveur change.
+  const direct = estLeMot(flux.regarder(0), 'en') && estLeMot(flux.regarder(1), 'direct');
+  if (direct) {
+    flux.avancer();
+    flux.avancer();
+  }
 
-  return { type: 'Requete', adresse, ...clauses, donnees, ...(parId ? { parId } : {}), ...(cles.some((c) => c !== undefined) ? { cles } : {}), resultat, ligne };
+  return { type: 'Requete', adresse, ...clauses, donnees, ...(direct ? { direct } : {}), ...(parId ? { parId } : {}), ...(cles.some((c) => c !== undefined) ? { cles } : {}), resultat, ligne };
 }
 
 function analyserOperationServeur(flux: FluxTokens): Suppression | Modification {

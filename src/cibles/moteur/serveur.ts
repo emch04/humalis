@@ -15,7 +15,7 @@ export function serveurJs(o: { application: Application; session: boolean; sessi
     ? `import.meta.env.${variableDAdresse(sourceSession, 'VITE')} ?? ${JSON.stringify(sourceSession.adresse.replace(/\/+$/, ''))}`
     : 'import.meta.env.VITE_HUMALIS_SERVEUR ?? \'\'';
   return `// Produit par Humalis : les requêtes et la session des pages.
-import { signal } from './moteur.js';
+import { signal, nettoyer } from './moteur.js';
 import { afficherMessage } from './outils.js';
 ${sessionDuServeur ? "import { createSessionClient, SessionExpiredError } from '@astratra/client';\n" : ''}
 ${BASE}
@@ -74,6 +74,34 @@ function enregistrer() {
     sessionStorage.setItem(CLE, JSON.stringify(choisies));
   } catch { /* La mémoire suffit. */ }
 }
+/** Le temps réel d'une couche : chaque route lue « en direct » est écoutée une fois, et fermée avec la couche. */
+export function directDeCouche() {
+  const ouverts = new Map();
+  nettoyer(() => {
+    for (const e of ouverts.values()) e.close();
+  });
+  return (adresse, relire) => {
+    if (ouverts.has(adresse)) return;
+    let attente;
+    let dejaOuvert = false;
+    const rafraichir = () => {
+      clearTimeout(attente);
+      attente = setTimeout(() => {
+        oublier(adresse, 'POST');
+        relire();
+      }, 120);
+    };
+    const flux = new EventSource(BASE + adresse + '/direct', { withCredentials: BASE !== '' });
+    flux.onmessage = rafraichir;
+    // Une reconnexion : on rattrape ce qui a changé pendant la coupure.
+    flux.onopen = () => {
+      if (dejaOuvert) rafraichir();
+      dejaOuvert = true;
+    };
+    ouverts.set(adresse, flux);
+  };
+}
+
 export function lectureGardee(adresse, initiale) {
   if (!gardees.has(adresse)) return initiale;
   const valeur = gardees.get(adresse);

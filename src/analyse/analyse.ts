@@ -122,6 +122,8 @@ export interface ResultatAnalyse {
   expressions: Map<PartieChaine, Expression>;
   /** Les routes (adresse normalisée) dont une page télécharge le bon : le serveur produit ne sert que celles-là. */
   bons: Set<string>;
+  /** Les routes (adresse normalisée) qu'une page lit « en direct » : le serveur annonce leurs changements. */
+  directs: Set<string>;
   /** Le type d'une variable déclarée, ou de la variable d'une boucle. */
   types: Map<DeclarationVariable | Boucle, TypeValeur>;
   /** Chaque composant écrit en Humalis, vu comme une page (pour ses éléments). */
@@ -278,6 +280,7 @@ export function analyserSens(programme: Programme, classesCss?: Set<string>): Re
     facultatives: new Set(),
     lecturesUn: new Set(),
     bons: new Set(),
+    directs: new Set(),
     reglesSources: new Map(),
     etatsLus: new Map(),
     reglesOperations: new Map(),
@@ -2301,6 +2304,10 @@ class AnalysePage {
    * la requête à un visiteur.
    */
   private requete(requete: Requete): void {
+    if (requete.direct && (requete.source !== undefined || requete.donnees.length > 0 || requete.resultat === undefined)) {
+      this.erreur('« en direct » se met sur une lecture d’une route du serveur de ce fichier : envoyer requete vers "commandes" dans commandes en direct.', requete.ligne);
+    }
+    if (requete.direct) this.resultat.directs.add(adresseNormalisee(requete.adresse));
     const types = requete.donnees.map((d) => this.typeDe(d));
     const symbole = requete.resultat !== undefined ? this.variable(requete.resultat, requete.ligne) : undefined;
     if (requete.resultat !== undefined) (requete.source !== undefined ? this.ciblesSources : this.ciblesAutres).add(requete.resultat);

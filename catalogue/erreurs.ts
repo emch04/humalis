@@ -5274,4 +5274,21 @@ page "accueil" :
         telecharger prix en csv
 `),
     'telecharger … en csv'),
+  e('en-direct-sans-lecture', 'sens', '« en direct » sur autre chose qu’une lecture',
+    '« en direct » garde une liste à jour : il lui faut une variable où ranger ce qui est lu.',
+    'Ajoute « dans » et une variable avant « en direct ».',
+    p(`
+page "accueil" :
+    titre "Accueil"
+    quand la page se charge :
+        envoyer requete vers "produits" en direct
+`),
+    p(`
+page "accueil" :
+    titre "Accueil"
+    variable produits = []
+    quand la page se charge :
+        envoyer requete vers "produits" dans produits en direct
+`),
+    '« en direct » se met sur une lecture'),
 ];

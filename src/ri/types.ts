@@ -141,6 +141,8 @@ export interface ServeurRI {
     creations?: { donnee: string; valeurs: { champ: string; valeur: ValeurLieeRI }[]; dans?: string }[];
     /** Une page écrit « telecharger bon de … » : la route sert aussi GET /:id/bon. */
     bon?: boolean;
+    /** Une page lit cette route « en direct » : la route annonce ses changements (GET /direct). */
+    direct?: boolean;
     /** « quand message est cree : » : les e-mails que la création fait partir. */
     envois?: EnvoiEmailRI[];
     ligne: number;
@@ -606,6 +608,8 @@ export type Action =
       cles?: (string | undefined)[];
       /** La variable qui reçoit la réponse. */
       resultat?: string;
+      /** « … en direct » : relue quand le serveur annonce un changement sur cette route. */
+      direct?: boolean;
       /** « de la source "boutique" » : l'API visée. */
       source?: string;
       /** « filtrant par k = v » : les paramètres d'adresse d'une lecture. */
