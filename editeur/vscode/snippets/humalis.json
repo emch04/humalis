@@ -65,5 +65,13 @@
       "$0"
     ],
     "description": "Utilise un composant React (.tsx ou .jsx), par exemple une scène 3D"
+  },
+  "Module JavaScript": {
+    "prefix": "module-js",
+    "body": [
+      "utiliser module \"${1:Scene3D}\" depuis \"./modules/${1:Scene3D}\"",
+      "$0"
+    ],
+    "description": "Utilise un module JavaScript sans framework, par exemple Three.js"
   }
 }

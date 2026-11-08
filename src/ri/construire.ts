@@ -103,7 +103,7 @@ export function construireRepresentation(
           },
         }
       : {}),
-    composantsReact: programme.composantsReact.map((c) => ({ nom: c.nom, chemin: c.chemin, ligne: c.ligne })),
+    composantsReact: programme.composantsReact.map((c) => ({ nom: c.nom, chemin: c.chemin, ligne: c.ligne, ...(c.module ? { module: true as const } : {}) })),
     fonctions: [...analyse.fonctions.values()].map(({ definition, retour, appels }) => ({
       nom: definition.nom,
       parametres: definition.parametres.map((p, i) => ({ nom: p.nom, type: typeParametre(appels.map((a) => a[i])) })),

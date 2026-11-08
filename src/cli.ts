@@ -10,8 +10,8 @@ import { appliquerExigence, resumerQualite } from './analyse/diagnosticsQualite.
 import { prevenirDesTuiles } from './analyse/carte.js';
 import { cheminsDesPages, genererProjetWeb, genererComposantsWeb, verifierPourLeWeb, adressesDeRequetes, MARQUE } from './cibles/web/projet.js';
 import { genererProjetServeur, MARQUE_SERVEUR } from './cibles/serveur/projet.js';
-import { verifierSourcesPourLaCible, verifierNavigationPourLaCible, verifierFichiersPourLaCible } from './cibles/sources.js';
-import { genererProjetMobile, verifierPourLeMobile, MARQUE_MOBILE } from './cibles/mobile/projet.js';
+import { verifierSourcesPourLaCible, verifierNavigationPourLaCible, verifierFichiersPourLaCible, verifierNomsPourLeWeb } from './cibles/sources.js';
+import { genererProjetMobile, verifierPourLeMobile, verifierModulesPourLeMobile, MARQUE_MOBILE } from './cibles/mobile/projet.js';
 import { verifierFichiersPourLeMobile } from './cibles/mobile/fichiers.js';
 import { genererProjetStatique, verifierPourLeStatique, MARQUE_STATIQUE } from './cibles/statique/projet.js';
 import { genererProjetDesktop, MARQUE_DESKTOP, SERVEUR_PAR_DEFAUT } from './cibles/desktop/projet.js';
@@ -166,6 +166,12 @@ function compile(arguments_: string[]): number {
   const fichiersStyle = lireFichiersStyle(application, chemin);
   if (!fichiersStyle) return 1;
 
+  const nomsPris = verifierNomsPourLeWeb(application);
+  if (nomsPris.length > 0) {
+    afficherDiagnostics(nomsPris);
+    console.error('\nLe programme a des erreurs : rien n\'a été écrit.');
+    return 1;
+  }
   const composantsReact = lireComposantsReact(application, chemin);
   if (!composantsReact) return 1;
 
@@ -338,7 +344,7 @@ function compileMobile(application: Application, chemin: string, sortie: string)
   }
   // Ce qui n'existe pas sur un téléphone (CSS, survol…) : signalé, sans bloquer.
   afficherDiagnostics(verifierPourLeMobile(application));
-  const sansSources = [...verifierSourcesPourLaCible(application, 'mobile'), ...verifierNavigationPourLaCible(application, 'mobile'), ...verifierFichiersPourLeMobile(application)];
+  const sansSources = [...verifierModulesPourLeMobile(application), ...verifierSourcesPourLaCible(application, 'mobile'), ...verifierNavigationPourLaCible(application, 'mobile'), ...verifierFichiersPourLeMobile(application)];
   if (sansSources.length > 0) {
     afficherDiagnostics(sansSources);
     console.error('\nLe programme ne peut pas être produit pour le mobile : rien n\'a été écrit.');
@@ -384,6 +390,12 @@ function compileDesktop(application: Application, chemin: string, sortie: string
   // Les fichiers de « utiliser style "…" », cherchés à côté du fichier Humalis.
   const fichiersStyle = lireFichiersStyle(application, chemin);
   if (!fichiersStyle) return 1;
+  const nomsPris = verifierNomsPourLeWeb(application);
+  if (nomsPris.length > 0) {
+    afficherDiagnostics(nomsPris);
+    console.error('\nLe programme a des erreurs : rien n\'a été écrit.');
+    return 1;
+  }
   const composantsReact = lireComposantsReact(application, chemin);
   if (!composantsReact) return 1;
   const nom = basename(chemin).replace(/\.humalis$/, '');

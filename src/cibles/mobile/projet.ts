@@ -202,6 +202,17 @@ export function genererProjetMobile(application: Application, options: OptionsMo
 
 // ─── Ce qui ne passe pas sur un téléphone ───────────────────────────────
 
+/** Un « utiliser module » dessine dans un élément du navigateur, qu'un téléphone n'a pas : la compilation s'arrête. */
+export function verifierModulesPourLeMobile(application: Application): Diagnostic[] {
+  return application.composantsReact
+    .filter((c) => c.module)
+    .map((c) => ({
+      gravite: 'erreur' as const,
+      ligne: c.ligne,
+      message: `le module « ${c.nom} » a besoin d'un navigateur : il ne fonctionne pas sur la cible mobile. Écris un composant React Native avec « utiliser composant ».`,
+    }));
+}
+
 /**
  * Les vérifications propres à la cible mobile : rien n'y est refusé, mais
  * ce qui n'existe pas sur un téléphone est signalé (décisions M4, M6, M7).
@@ -269,6 +280,7 @@ export function verifierPourLeMobile(application: Application): Diagnostic[] {
     if (g.declencheur === 'survol') avertir(g.ligne, "sur un téléphone, il n'y a pas de souris : « survole » est ignoré sur le mobile.");
   }
   for (const c of application.composantsReact) {
+    if (c.module) continue; // refusé par verifierModulesPourLeMobile
     avertir(
       c.ligne,
       `le composant React « ${c.nom} » est recopié tel quel : sur le mobile, il doit être écrit pour React Native (View, Text), pas pour le navigateur.`,
