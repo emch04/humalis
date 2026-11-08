@@ -131,7 +131,7 @@ page "accueil" reservee a connecte sinon vers "bienvenue" :
     bouton "Activer"
     quand l'utilisateur clique sur "Activer" :
         activer notifications
-    pour chaque c dans commandes :
+    pour chaque c dans commandes avec animation :
         bouton "Reduire"
         quand l'utilisateur clique sur "Reduire" :
             faire "reduire" sur c avec montant = 1 et raison = "geste"

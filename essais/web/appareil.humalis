@@ -1,0 +1,64 @@
+# Essai des fonctions de l'appareil sur le web.
+serveur "atelier" :
+    donnee tache :
+        nom : texte
+    route "taches" :
+        connecte peut lire tache
+        connecte peut creer tache
+        seul admin peut modifier tache
+        connecte peut supprimer tache
+
+page "bienvenue" :
+    titre "Bienvenue"
+    formulaire "entree" :
+        champ email "Email"
+        champ mot de passe "Mot de passe"
+        bouton "Entrer"
+    quand le formulaire "entree" est soumis :
+        se connecter avec champ "Email" et champ "Mot de passe"
+        rediriger vers "accueil"
+
+page "accueil" reservee a connecte sinon vers "bienvenue" :
+    variable cliche = rien
+    variable code = ""
+    variable trace = ""
+    variable lieu = rien
+    variable identite = ""
+    variable taches = [] avec hors ligne
+    titre "Atelier"
+    quand la page se charge :
+        envoyer requete vers "taches" dans taches
+    signature dans trace
+    si trace est different de "" :
+        texte "Signée"
+    bouton "Photo"
+    quand l'utilisateur clique sur "Photo" :
+        photo dans cliche
+    si cliche est different de rien :
+        texte "Photo prise"
+    bouton "Scanner"
+    quand l'utilisateur clique sur "Scanner" :
+        scanner code dans code
+        vibrer
+    texte "Code : {code}"
+    bouton "Position"
+    quand l'utilisateur clique sur "Position" :
+        position dans lieu
+    si lieu est different de rien :
+        texte "Latitude : {lieu.latitude}"
+    bouton "Identite"
+    quand l'utilisateur clique sur "Identite" :
+        verifier identite :
+            changer identite par "reconnue"
+        sinon :
+            changer identite par "refusee"
+    texte "Identité : {identite}"
+    bouton "Ajouter"
+    quand l'utilisateur clique sur "Ajouter" :
+        envoyer requete vers "taches" avec nom = "gardee" hors ligne
+    pour chaque t dans taches :
+        texte "Tache : {t.nom}"
+    bouton "Sortir"
+    quand l'utilisateur clique sur "Sortir" :
+        se deconnecter
+        rediriger vers "bienvenue"

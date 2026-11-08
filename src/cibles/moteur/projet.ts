@@ -30,6 +30,7 @@ import { GenerateurMoteur, NOMS_RESERVES, type ContexteMoteur } from './page.js'
 import { outilsJs, navigationJs } from './outils.js';
 import { adaptateursJs, baliseDe, paquetsDesExternes, sorteDe } from './adaptateurs.js';
 import { serveurJs } from './serveur.js';
+import { APPAREIL_JS, utiliseAppareil } from '../commun/appareil-web.js';
 import { donneesDansLaPage } from './lecture-construction.js';
 import { DEPLACEMENT_JS, CHOIX_FICHIER_JS } from './interactions.js';
 
@@ -293,6 +294,10 @@ document.title = ${traduit('Page introuvable')};
   fichiers.set('public/humalis/reprise.js', `${REPRISE_DES_CLICS}\n`);
   if (application.serveurs.some((s) => s.activeNotifications)) fichiers.set('public/humalis/notifications.js', TRAVAILLEUR_NOTIFICATIONS);
   fichiers.set('src/humalis/moteur.js', MOTEUR_JS);
+  if (utiliseAppareil(application)) {
+    fichiers.set('src/humalis/appareil.js', APPAREIL_JS);
+    site.push("import './appareil.js';\nimport { afficherMessage } from './outils.js';\nwindow.addEventListener('humalis:message', (e) => afficherMessage(e.detail.texte, e.detail.genre));");
+  }
   fichiers.set('src/humalis/outils.js', avecDureeDesErreurs(outilsJs({ usage, langues: application.langues, ...(bascule ? { theme: modeTheme ?? '' } : {}) }), application));
   fichiers.set(
     'src/humalis/navigation.js',

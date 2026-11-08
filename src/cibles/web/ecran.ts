@@ -801,6 +801,7 @@ class GenerateurEcran {
           break;
         case 'minuterie':
         case 'confirmation':
+        case 'verificationIdentite':
           for (const liste of sousActions(action)) this.parcourirActions(liste);
           break;
         case 'visibilite':
@@ -883,16 +884,23 @@ class GenerateurEcran {
 
   // ─── En-tête du composant ───────────────────────────────────────────────
 
+  /** « … en direct » : seulement sur le web, le canal du serveur s'écoute avec EventSource. */
+  private avecDirect(): boolean {
+    return !this.application.rendu && (JSON.stringify(this.ecran.gestionnaires) ?? '').includes('"direct":true');
+  }
+
   private imports(code: string): string {
     const react: string[] = [];
     if (this.besoins.fragment) react.push('Fragment');
-    if (this.chargements.length > 0) react.push('useEffect');
+    if (this.chargements.length > 0 || this.avecDirect()) react.push('useEffect');
     if (this.aDeLEtat() || (this.ecran.etatsRequetes?.length ?? 0) > 0) react.push('useState');
-    if ((this.ecran.etatsRequetes?.length ?? 0) > 0) react.push('useRef');
+    if ((this.ecran.etatsRequetes?.length ?? 0) > 0 || this.avecDirect()) react.push('useRef');
 
     const lignes: string[] = [];
     if (react.length) lignes.push(`import { ${react.join(', ')} } from 'react';`);
     lignes.push(...this.rendu.imports(code));
+    if (/\bappareil\./.test(code)) lignes.push(`import { appareil } from '../humalis/appareil';`);
+    if (code.includes('<ListeAnimee')) lignes.push(`import { ListeAnimee } from '../humalis/liste-animee';`);
     lignes.push(...this.rendu.widgets.imports(code));
     if (this.besoins.messages) lignes.push(`import { useMessages } from '../humalis/messages';`);
     const outils = [
@@ -969,7 +977,11 @@ class GenerateurEcran {
           ? `<${this.typer(etat.type)}>`
           : '';
       const initiale = expression(etat.initiale, this.contexte);
-      if (etat.memorisee) {
+      if (etat.horsLigne && !this.application.rendu) {
+        // « avec hors ligne » : la dernière réponse reste lisible ; la déconnexion l'efface.
+        this.besoins.memoire = true;
+        e.ligne(`const [${camel(etat.nom)}, ${setter(etat.nom)}] = useMemorise${annotation}(${chaine(`humalis-hors-ligne:${this.application.cle}:${simplifier(this.ecran.nom)}:${simplifier(etat.nom)}`)}, ${initiale});`);
+      } else if (etat.memorisee) {
         // Gardée dans le navigateur (ou le téléphone), sous une clé propre à
         // la page ; un secret, seulement sur le mobile, dans son coffre.
         if (etat.secret) this.besoins.secret = true;
@@ -1015,6 +1027,13 @@ class GenerateurEcran {
     if (suivies.length > 0) {
       for (const nom of suivies) e.ligne(`const [${camel(nom)}Req, set${pascal(nom)}Req] = useState<EtatRequete>(REPOS);`);
       e.ligne('const relances = useRef<Record<string, (() => Promise<void>) | undefined>>({});');
+    }
+    if (this.avecDirect()) {
+      e.ligne('const arretsDirects = useRef(new Map<string, () => void>());');
+      e.bloc('useEffect(() => () => {', () => {
+        e.ligne('for (const arreter of arretsDirects.current.values()) arreter();');
+        e.ligne('arretsDirects.current.clear();');
+      }, '}, []);');
     }
   }
 
@@ -1330,6 +1349,10 @@ class GenerateurEcran {
           changer(action.liste, `retirerPremier(${actuel(action.liste)}, ${x(action.valeur)})`);
           break;
         case 'requete': {
+          if (action.enAttente) {
+            e.ligne(`await appareil.envoyerHorsLigne('POST', ${chaine(action.adresse)}, ${this.donnees(action.donnees, action.cles, action.source === undefined)});`);
+            break;
+          }
           const methode = action.mode;
           // « calcul … = photos dont produit est egal a id » : seulement les photos de ce produit (« ?produit=… »).
           const filtre = action.mode === 'lire' && action.source === undefined && action.resultat !== undefined ? this.lectures.get(action.resultat)?.filtre : undefined;
@@ -1351,7 +1374,8 @@ class GenerateurEcran {
           }
           if (action.resultat !== undefined) {
             const suivie = this.ecran.etatsRequetes?.includes(action.resultat) ?? false;
-            const lecture = action.source !== undefined && action.mode !== 'envoyer';
+            const direct = action.direct === true && !this.application.rendu;
+            const lecture = (action.source !== undefined && action.mode !== 'envoyer') || direct;
             if (action.source !== undefined) {
               // La page parle de l'état de la variable : elle montre l'erreur elle-même.
               const dernier = args.pop()!;
@@ -1361,9 +1385,13 @@ class GenerateurEcran {
             if (lecture) {
               // Une lecture sait se rejouer : le bouton « Réessayer » et « recharger » s'en servent.
               const n = ++this.chargeurs;
-              e.bloc(`const charger${n} = async (contourner = false) => {`, () => this.ecrireReponse(e, action.resultat!, `await serveur.${methode}(${args.join(', ')})`, changer), '};');
+              e.bloc(`const charger${n} = async (${action.source !== undefined ? 'contourner = false' : ''}) => {`, () => this.ecrireReponse(e, action.resultat!, `await serveur.${direct ? 'relire' : methode}(${args.join(', ')})`, changer), '};');
               if (suivie) e.ligne(`relances.current.${camel(action.resultat)} = charger${n};`);
               e.ligne(`await charger${n}();`);
+              if (direct) {
+                e.ligne(`arretsDirects.current.get(${chaine(action.adresse)})?.();`);
+                e.ligne(`arretsDirects.current.set(${chaine(action.adresse)}, serveur.ecouterDirect(${chaine(action.adresse)}, () => void charger${n}()));`);
+              }
             } else {
               this.ecrireReponse(e, action.resultat, `await serveur.${methode}(${args.join(', ')})`, changer);
             }
@@ -1420,6 +1448,31 @@ class GenerateurEcran {
         case 'paiement':
           e.ligne(`if (!(await utilisateur.payer(${chaine(action.adresse)}, String((${x(action.objet)} as unknown as { id: unknown }).id), ${this.dansEssai}))) return;`);
           break;
+        case 'prisePhoto':
+          e.bloc('{', () => {
+            e.ligne('const resultatAppareil = await appareil.prendrePhoto();');
+            e.ligne(`if (resultatAppareil) ${setter(action.variable)}(resultatAppareil as never);`);
+          }, '}');
+          break;
+        case 'scanCode':
+          e.bloc('{', () => {
+            e.ligne('const resultatAppareil = await appareil.scannerCode();');
+            e.ligne(`if (resultatAppareil !== null) ${setter(action.variable)}(resultatAppareil as never);`);
+          }, '}');
+          break;
+        case 'localisation':
+          e.bloc('{', () => {
+            e.ligne('const resultatAppareil = await appareil.position();');
+            e.ligne(`if (resultatAppareil) ${setter(action.variable)}(resultatAppareil as never);`);
+          }, '}');
+          break;
+        case 'vibration':
+          e.ligne('appareil.vibrer();');
+          break;
+        case 'verificationIdentite':
+          e.bloc('if (await appareil.verifierIdentite()) {', () => this.ecrireActions(e, action.alors, locales, modifiees), action.sinon.length > 0 ? '} else {' : '}');
+          if (action.sinon.length > 0) e.bloc('', () => this.ecrireActions(e, action.sinon, locales, modifiees), '}');
+          break;
         case 'demandeIa':
           e.ligne(`if (!(await utilisateur.demanderIa(String(${x(action.question)}), ${setter(action.variable)}, ${this.dansEssai}))) return;`);
           break;
@@ -1456,8 +1509,11 @@ class GenerateurEcran {
                   .join(', ')} }${appelSource});`;
           // Une variable « = rien » pas encore lue n'a pas d'identifiant : rien n'est envoyé.
           const objet = action.objet.type === 'variable' && this.contexte.facultatives?.has(action.objet.nom) ? x(action.objet) : undefined;
-          if (objet) e.bloc(`if (${objet} !== null) {`, () => e.ligne(appel.replace(`${objet}?.id`, `${objet}.id`)));
-          else e.ligne(appel);
+          const enAttente = action.type !== 'telechargementBon' && action.enAttente === true;
+          const adresseFiche = `${chaine(action.adresse + '/')} + encodeURIComponent(String(${x(action.objet)}.id))`;
+          const appelFinal = !enAttente ? appel : action.type === 'suppression' ? `await appareil.envoyerHorsLigne('DELETE', ${adresseFiche});` : `await appareil.envoyerHorsLigne('PATCH', ${adresseFiche}, { ${action.type === 'modification' ? action.changements.map((c) => `${camel(c.champ)}: ${x(c.valeur)}`).join(', ') : ''} });`;
+          if (objet) e.bloc(`if (${objet} !== null) {`, () => e.ligne(appelFinal.replace(`${objet}?.id`, `${objet}.id`)));
+          else e.ligne(appelFinal);
           if (this.essai) e.ligne(`if (serveur.echecs() > ${this.essai}) return serveur.raison();`);
           else if (this.echecs && !optimiste) e.ligne(`if (serveur.echecs() > ${this.echecs}) return;`);
           break;
@@ -1817,9 +1873,13 @@ class GenerateurEcran {
             });
             for (const ligne of this.rendu.deplacement.fermer(nom)) e.ligne(ligne);
           } else if (locales.length === 0) {
+            // « avec animation » : une clé stable, pour que chaque ligne garde son élément et puisse glisser.
+            const anime = noeud.animation === true && !this.application.rendu;
+            const cle = anime ? `(${variable} as { id?: string | number }).id ?? ${index}` : index;
+            if (anime) e.ligne('<ListeAnimee>');
             e.ligne(`{${liste}.map((${variable}, ${index}) => (`);
             e.indenter(() => {
-              e.ligne(`<Fragment key={${index}}>`);
+              e.ligne(`<Fragment key={${cle}}>`);
               e.indenter(() => {
                 if (this.listeEnCours) e.ligne(this.application.rendu ? `<View style={{ flexDirection: "row" }}><Text>${this.listeEnCours === 'liste' ? '•' : `{${index} + 1}.`}</Text>` : '<li>');
                 this.ecrireVue(e, contenu);
@@ -1828,17 +1888,22 @@ class GenerateurEcran {
               e.ligne('</Fragment>');
             });
             e.ligne('))}');
+            if (anime) e.ligne('</ListeAnimee>');
           } else {
+            const anime = noeud.animation === true && !this.application.rendu;
+            const cle = anime ? `(${variable} as { id?: string | number }).id ?? ${index}` : index;
+            if (anime) e.ligne('<ListeAnimee>');
             e.bloc(`{${liste}.map((${variable}, ${index}) => {`, () => {
               this.ecrireLocales(e, locales);
               e.ligne('return (');
               e.indenter(() => {
-                e.ligne(`<Fragment key={${index}}>`);
+                e.ligne(`<Fragment key={${cle}}>`);
                 e.indenter(() => this.ecrireVue(e, contenu));
                 e.ligne('</Fragment>');
               });
               e.ligne(');');
             }, '})}');
+            if (anime) e.ligne('</ListeAnimee>');
           }
           break;
         }
@@ -2309,7 +2374,7 @@ function arrete(actions: Action[]): boolean {
   return actions.some((a) => a.type === 'arreter' || (!['repetition', 'tantQue', 'repeter', 'minuterie', 'message'].includes(a.type) && sousActions(a).some(arrete)));
 }
 
-const ATTENTES = new Set<Action['type']>(['requete', 'recharger', 'suppression', 'modification', 'connexion', 'connexionGoogle', 'connexionApple', 'invitation', 'changementRole', 'changementCompte', 'activationNotifications', 'demandeIa', 'paiement', 'demandeLienMotDePasse', 'choixMotDePasse', 'changementMotDePasse', 'telechargementBon', 'deconnexion', 'envoiFichier', 'confirmation', 'copie', 'partage', 'telechargementCsv']);
+const ATTENTES = new Set<Action['type']>(['requete', 'recharger', 'suppression', 'modification', 'connexion', 'connexionGoogle', 'connexionApple', 'invitation', 'changementRole', 'changementCompte', 'activationNotifications', 'demandeIa', 'paiement', 'prisePhoto', 'scanCode', 'localisation', 'verificationIdentite', 'demandeLienMotDePasse', 'choixMotDePasse', 'changementMotDePasse', 'telechargementBon', 'deconnexion', 'envoiFichier', 'confirmation', 'copie', 'partage', 'telechargementCsv']);
 
 /** Les noms changés par des actions : affectations, ajouts, retraits, réponses. */
 function modifiees(actions: Action[], noms = new Set<string>()): Set<string> {

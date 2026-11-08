@@ -1955,6 +1955,16 @@ deleted after 30 days, and the person is told at their next login. It
 does not work with `dans` (the answer would come later) or with an external API. To refresh
 the page afterwards, read the route `en direct`.
 
+**On the web**, these sentences work too, through browser APIs, on the engine as well as with
+React. `photo` opens the camera on a phone and a file picker on a computer. `scanner code` needs
+a browser that can read codes (Chrome on Android or Mac, for example); otherwise the person is
+told. `verifier identite` uses Touch ID, Face ID or Windows Hello: it stays on the device and does
+not protect the server, only the server's rules do. `vibrer` only has an effect on Android, and
+the compiler says so. A page that is already open keeps working without a network, but the web
+does not reopen a whole page offline. `liens profonds` changes nothing, as each page already has
+its address. `en arriere plan :` and `memorisee en secret` do not exist on the web: the compiler
+refuses rather than pretends.
+
 To use a Swift library in a hand-written view, write at the top of the file
 `paquet swift "https://github.com/example/package" version "1.2"`. If the product is not
 named after the repository, add `produit "Name"`.
@@ -2949,7 +2959,8 @@ target, the compiler says so clearly instead of producing something wrong.
 | Keyboard shortcuts | yes | yes | no | yes | yes |
 | React components | yes | no | yes (in React Native) | yes | no (`sur apple "View.swift"`) |
 | The engine without React (`--moteur humalis`) | yes | no | no | no | no |
-| Photo, scanner, Face ID, vibration, signature, offline | no | no | no | no | yes |
+| Photo, scanner, Face ID, vibration, signature, offline | yes (vibration: Android) | no | no | no | yes |
+| `en arriere plan` | no | no | no | no | yes |
 | Sitemap, share preview | yes | yes | no | no | no |
 
 The server (`--cible serveur`) is generated separately, from the `serveur`
@@ -2979,8 +2990,8 @@ A click made before the page is ready is not lost: it is replayed as soon as the
 page is ready.
 
 `pour chaque t dans taches avec animation :` makes rows slide when the list
-changes, and new rows fade in (unless the person asked for less motion). It only
-works with this engine: elsewhere the compiler says so and rows change without
+changes, and new rows fade in (unless the person asked for less motion). It works
+on the web, with this engine as well as with React: elsewhere the compiler says so and rows change without
 sliding.
 
 #### Real time
@@ -2997,8 +3008,8 @@ page "commandes" :
 
 An order created elsewhere appears by itself, without a reload. The server only
 announces that something changed: the page then re-reads the normal route, with its
-access rules, so nothing private travels through this channel. It works with this
-engine.
+access rules, so nothing private travels through this channel. It works on the web,
+with this engine as well as with React.
 
 With a PostgreSQL database you can run several copies of the server: a change received
 by one is announced by all. Without PostgreSQL, keep a single copy. Changes close

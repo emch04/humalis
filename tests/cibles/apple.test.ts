@@ -492,7 +492,7 @@ describe('cible Apple — position, liens profonds, arrière-plan et envois hors
 
   it('les autres cibles le disent clairement', async () => {
     const { verifierAppareilPourLaCible } = await import('../../src/cibles/appareil.js');
-    const refus = verifierAppareilPourLaCible(compile(`liens profonds "m"\n${SERVEUR}page "a" :\n    variable lieu = rien\n    titre "t"\n    en arriere plan :\n        afficher "x"\n    bouton "Go"\n    quand l'utilisateur clique sur "Go" :\n        position dans lieu\n        envoyer requete vers "m" avec n = "x" hors ligne\n`), 'web');
+    const refus = verifierAppareilPourLaCible(compile(`liens profonds "m"\n${SERVEUR}page "a" :\n    variable lieu = rien\n    titre "t"\n    en arriere plan :\n        afficher "x"\n    bouton "Go"\n    quand l'utilisateur clique sur "Go" :\n        position dans lieu\n        envoyer requete vers "m" avec n = "x" hors ligne\n`), 'statique');
     expect(refus.length).toBe(4);
     expect(refus.every((r) => r.message.includes('cible Apple'))).toBe(true);
   });
@@ -540,7 +540,7 @@ describe('cible Apple — les fonctions de l\'appareil', () => {
 
   it('les autres cibles le disent au lieu de produire un bouton vide', async () => {
     const { verifierAppareilPourLaCible } = await import('../../src/cibles/appareil.js');
-    const refus = verifierAppareilPourLaCible(compile(PAGE), 'web');
+    const refus = verifierAppareilPourLaCible(compile(PAGE), 'statique');
     expect(refus.length).toBe(5);
     expect(refus[0].message).toContain('cible Apple');
   });
