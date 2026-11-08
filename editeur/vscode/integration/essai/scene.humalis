@@ -1,0 +1,5 @@
+utiliser composant "Scene3D" depuis "./composants/Scene3D"
+
+page "accueil" :
+    titre "Essai"
+    Scene3D
