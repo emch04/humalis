@@ -1916,7 +1916,10 @@ it when there is no network: `variable produits = [] avec hors ligne`.
 
 `liens profonds "magasin"`, at the top of the file, lets addresses such as
 `magasin://produit/42` open the app: the first word is the page, the next ones its
-parameters. A restricted page stays restricted.
+parameters. A restricted page stays restricted. With
+`liens profonds "magasin" et domaine "example.com/test"`, addresses such as
+`https://example.com/test/produit/42` open the app too. Compile with `--equipe` and publish on
+the site the file written to `a-publier-sur-le-site/`.
 
 `en arriere plan :`, directly in a page, says what the app does when the system wakes it.
 The system picks the moment: never before 15 minutes, often much later. This block only
@@ -1926,7 +1929,7 @@ sees `avec partagee` variables, since no page is open. On Mac, the app must be o
 keeps the request on the device when there is no network and sends it, in order, when the
 connection returns. A server refusal is shown. Each request belongs to the account that
 made it: on logout it is set aside and only leaves if the same person logs back in; it is
-deleted after 30 days. It
+deleted after 30 days, and the person is told at their next login. It
 does not work with `dans` (the answer would come later) or with an external API. To refresh
 the page afterwards, read the route `en direct`.
 
@@ -1987,7 +1990,7 @@ confirms it through a signed webhook: send it to `/paiements/webhook`. It needs
 If the connection drops during a send, a program can safely try again: it sends the
 `X-Humalis-Envoi` header with a random id, the same one on every attempt. The server does the
 work once, even across several copies, then returns the same answer. It answers 409 while the
-first attempt is still running. The id is kept for one day.
+first attempt is still running. The id is kept for 30 days, as long as a request can wait on the device.
 
 #### Many people behind one address
 

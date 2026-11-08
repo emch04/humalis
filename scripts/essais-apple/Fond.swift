@@ -137,6 +137,48 @@ final class Fond: XCTestCase {
         sortir()
     }
 
+    func testHLiensDuSite() {
+        // Sans application signée, le système n'envoie pas les liens https:// : on donne l'adresse au lancement.
+        app.launchEnvironment["HUMALIS_ESSAI_LIEN"] = "https://humalis.dev/essai/detail/42"
+        app.launch()
+        attendre("Detail 42", "le lien du site ouvre la page avec son paramètre")
+        app.terminate()
+        for lien in ["https://humalis.dev/autre/detail/42", "https://exemple.fr/essai/detail/42", "http://humalis.dev/essai/detail/42"] {
+            app.launchEnvironment["HUMALIS_ESSAI_LIEN"] = lien
+            app.launch()
+            attendre("Etat attente", "\(lien) n'ouvre rien")
+            XCTAssertFalse(texte("Detail 42").exists, "\(lien) ne doit pas ouvrir la page")
+            app.terminate()
+        }
+    }
+
+    func testIEnvoiTropVieuxSignale() async throws {
+        app.launch()
+        entrer("ana")
+        try await coupure("oui")
+        toucher("Perime")
+        attendre("ce sera envoyé")
+        sortir()
+        try await coupure("non")
+        app.terminate()
+
+        // Une durée d'une seconde remplace les 30 jours.
+        try await Task.sleep(for: .seconds(2))
+        app.launchEnvironment["HUMALIS_ESSAI_DUREE_ENVOIS"] = "1"
+        app.launch()
+        attendre("Personne absente")
+        XCTAssertFalse(texte("pas parti").waitForExistence(timeout: 4), "un visiteur n'apprend rien des envois d'Ana")
+        entrer("bob")
+        XCTAssertFalse(texte("pas parti").waitForExistence(timeout: 4), "Bob n'apprend rien des envois d'Ana")
+        sortir()
+
+        entrer("ana")
+        attendre("n'est pas parti", "Ana est prévenue à son retour")
+        toucher("Relire")
+        try await Task.sleep(for: .seconds(2))
+        XCTAssertFalse(texte("-perime").exists, "l'envoi trop vieux n'est pas parti")
+    }
+
     func testEArrierePlan() {
         app.launchEnvironment["HUMALIS_ESSAI_ARRIERE_PLAN"] = "1"
         app.launch()

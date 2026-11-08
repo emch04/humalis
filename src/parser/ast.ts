@@ -17,7 +17,7 @@ export interface Programme {
   /** « paquet swift "https://…" version "1.2" » : une bibliothèque Swift, pour les vues écrites à la main. */
   paquetsSwift?: { adresse: string; version: string; produit?: string; ligne: number }[];
   /** « liens profonds "magasin" » : les adresses magasin://… ouvrent les pages de l'application. */
-  liensProfonds?: { schema: string; ligne: number };
+  liensProfonds?: { schema: string; /** Le site, et éventuellement le début du chemin. */ domaine?: string; ligne: number };
   /** Les « composant "Fiche" : » écrits en Humalis. */
   composants: DefinitionComposant[];
   /** Les « serveur "…" : » : données, routes et règles d'accès. */
