@@ -2366,9 +2366,21 @@ The file can be `.tsx`, `.ts`, `.jsx` or `.js`. The packages it imports (`three`
 `gsap`…) are added to the generated project automatically: you only need to run
 `npm install`.
 
-For 3D, write the scene in a React component with Three.js. A component that
-imports `three` or `@react-three/…` is loaded separately: the page text appears
-without waiting for the 3D.
+Humalis does not draw 3D itself: write the scene in a React component.
+
+```humalis
+utiliser composant "Scene3D" depuis "./composants/Scene3D"
+
+page "home" :
+    titre "My portfolio"
+    Scene3D avec couleur "#c1e928"
+```
+
+A component that imports `three` or `@react-three/…` is loaded separately: the
+page text appears without waiting for the 3D. These packages have versions tried
+together: `three`, `@react-three/fiber`, `@react-three/drei`,
+`@react-three/postprocessing`, `postprocessing`, `gsap` and `lenis`. Any other
+package is installed at its latest version.
 
 The other way round, `humalis compile … --composants <folder>` generates React
 components to import into an existing React project.

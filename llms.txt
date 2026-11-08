@@ -17,6 +17,7 @@ Humalis est un langage en français. Un fichier .humalis décrit des pages, des 
 - Dans `{nom}`, les accolades n’acceptent qu’un nom de variable, sans calcul ni phrase.
 - Un événement s’écrit sous l’élément concerné, jamais comme une instruction isolée.
 - Utilise des espaces, jamais des tabulations ; indentation par multiples de 4.
+- La 3D n’existe pas dans le langage : écris la scène dans un composant React (`.tsx` ou `.jsx`) et utilise-le avec `utiliser composant "Scene3D" depuis "./composants/Scene3D"`. Ses paquets (`three`, `gsap`…) sont ajoutés seuls au projet.
 
 ## Exemple complet vérifié
 
