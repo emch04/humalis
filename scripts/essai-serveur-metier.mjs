@@ -4,6 +4,7 @@
 // Lancer : npm run build && node scripts/essai-serveur-metier.mjs [dossier-de-travail]
 // Il faut PostgreSQL (initdb, pg_ctl).
 import { execFileSync, spawn } from 'node:child_process';
+import { createRequire } from 'node:module';
 import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { createServer as creerHttps } from 'node:https';
@@ -16,6 +17,7 @@ import { tmpdir } from 'node:os';
 const travail = resolve(process.argv[2] ?? join(tmpdir(), 'humalis-essai-metier'));
 rmSync(join(travail, 'pg'), { recursive: true, force: true });
 mkdirSync(travail, { recursive: true });
+const { chromium } = createRequire(import.meta.url)('playwright');
 const problemes = [];
 export const verifier = (ok, message) => {
   if (!ok) problemes.push(message);
@@ -328,6 +330,48 @@ try {
   await Promise.all([webhook(A, evenement(1250), signer(evenement(1250))), webhook(B, evenement(1250), signer(evenement(1250)))]);
   verifier(await combienJournal() === 1, 'un webhook rejoué sur deux serveurs ne refait rien');
   verifier((await appeler(A, 'POST', `/api/reservations/payer/total/${reservation.valeur.id}`, u1.jeton, {})).statut === 409, 'on ne paie pas deux fois (409)');
+
+  // ─── Dans un vrai navigateur, sur les deux sortes de site ──────────
+  const navigateur = await chromium.launch();
+  try {
+    for (const nom of ['site-moteur', 'site-react']) {
+      const dossier = join(travail, nom);
+      const adresse = await new Promise((ok, echec) => {
+        const p = spawn(join(dossier, 'node_modules', '.bin', 'vite'), ['preview', '--port', '0', '--strictPort', 'false'], { cwd: dossier, env: { ...process.env, HUMALIS_SERVEUR: A } });
+        processus.push(p);
+        const fin = setTimeout(() => echec(new Error('vite preview ne répond pas')), 30000);
+        p.stdout.on('data', (m) => { const url = String(m).replace(/\x1b\[[0-9;]*m/g, '').match(/http:\/\/localhost:\d+/)?.[0]; if (url) { clearTimeout(fin); ok(url); } });
+      });
+      await appeler(A, 'POST', '/api/commandes', gerantA.jeton, { total: 31 });
+      const aPayer = await appeler(A, 'POST', '/api/reservations', gerantA.jeton, { nom: 'Page', total: 4 });
+      const contexte = await navigateur.newContext({ locale: 'fr-FR' });
+      const page = await contexte.newPage();
+      const erreursPage = [];
+      page.on('pageerror', (e) => erreursPage.push(e.message));
+      await page.route('https://checkout.stripe.com/**', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '<title>Stripe</title>' }));
+      await page.goto(`${adresse}/bienvenue`);
+      await page.getByLabel('Email').fill(gerantA.email);
+      await page.getByLabel('Mot de passe').first().fill(MOT);
+      await page.getByRole('button', { name: 'Entrer' }).click();
+      await page.getByRole('button', { name: 'Question' }).waitFor({ timeout: 15000 });
+      verifier(true, `${nom} : la page réservée s'ouvre après la connexion`);
+      await page.getByRole('button', { name: 'Question' }).click();
+      await page.getByText('Bonjour à vous').waitFor({ timeout: 8000 }).then(() => verifier(true, `${nom} : la réponse de l'IA s'affiche`), () => verifier(false, `${nom} : la réponse de l'IA s'affiche`));
+      const reponseFaire = page.waitForResponse((r) => r.url().includes('/faire/rembourser/'));
+      await page.getByRole('button', { name: 'Rembourser' }).last().click();
+      verifier((await reponseFaire).status() === 200, `${nom} : « faire » lance l'action`);
+      const reponseActiver = page.getByText(/notifications/i).first().waitFor({ timeout: 5000 });
+      await page.getByRole('button', { name: 'Activer' }).click();
+      await reponseActiver.then(() => verifier(true, `${nom} : « activer notifications » répond à la personne`), () => verifier(false, `${nom} : « activer notifications » répond à la personne`));
+      await page.getByRole('button', { name: 'Payer' }).last().click();
+      await page.waitForURL('https://checkout.stripe.com/**', { timeout: 8000 }).then(() => verifier(true, `${nom} : « payer » ouvre la page de paiement`), () => verifier(false, `${nom} : « payer » ouvre la page de paiement`));
+      verifier(erreursPage.length === 0, `${nom} : aucune erreur dans la page ${erreursPage.join(' ; ')}`);
+      void aPayer;
+      await contexte.close();
+    }
+  } finally {
+    await navigateur.close();
+  }
 
   // EXTENSIONS
 } finally {

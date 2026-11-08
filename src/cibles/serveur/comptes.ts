@@ -541,6 +541,21 @@ export function testsComptes(serveur: ServeurRI, stockages: string): string {
     expect(reponse.body.erreur).toContain('BREVO_API_KEY');
   });`);
   }
+  const qui = serveur.routeComptes?.droits.creer;
+  const [groupe] = champsDeGroupe(serveur);
+  if (serveur.invitations && groupe && qui?.startsWith('role:')) {
+    const role = qui.slice(5).split(',')[0];
+    blocs.push(`  it('un membre invite dans son propre groupe, jamais un admin ; seul un admin choisit le groupe', async () => {
+    const { app, usersStore, passwordHash, entree, entreeAdmin } = await preparer();
+    await usersStore.create({ email: 'chef@exemple.cd', role: '${role}', passwordHash, ${chaine(groupe)}: 'groupe-a' } as never);
+    const chef = await entree('chef@exemple.cd');
+    await request(app).post('/auth/invitations').set(chef).send({ email: 'admin2@exemple.cd', role: 'admin' }).expect(403);
+    await request(app).post('/auth/invitations').set(chef).send({ email: 'neuf@exemple.cd', role: '${role}', groupes: { ${chaine(groupe)}: 'groupe-b' } }).expect(200);
+    expect((await usersStore.findByEmail('neuf@exemple.cd') as Record<string, unknown>)[${chaine(groupe)}]).toBe('groupe-a');
+    await request(app).post('/auth/invitations').set(entreeAdmin).send({ email: 'autre@exemple.cd', role: '${role}', groupes: { ${chaine(groupe)}: 'groupe-b' } }).expect(200);
+    expect((await usersStore.findByEmail('autre@exemple.cd') as Record<string, unknown>)[${chaine(groupe)}]).toBe('groupe-b');
+  });`);
+  }
   if (serveur.motDePasseOublie) {
     blocs.push(`  it('mot de passe oublié : la même réponse que l\\'adresse existe ou non, un seul e-mail toutes les dix minutes', async () => {
     const { app, boite } = await preparer();
@@ -613,7 +628,7 @@ ${stockages}
   const app = creerServeur({ jwtSecret: 'secret-de-test-assez-long-pour-les-sessions', usersStore, stockages, emails, jetons }) as never;
   const entree = async (email: string) => ({ Authorization: \`Bearer \${(await request(app).post('/auth/login').send({ email, password: MOT_DE_PASSE }).expect(200)).body.data.token}\` });
   const idDe = async (email: string) => String((await usersStore.findByEmail(email))?.id);
-  return { app, boite, jetons, idDe, entreeAdmin: await entree('admin@exemple.cd'), entreeMembre: await entree('awa@exemple.cd') };
+  return { app, boite, jetons, idDe, usersStore, passwordHash, entree, entreeAdmin: await entree('admin@exemple.cd'), entreeMembre: await entree('awa@exemple.cd') };
 }
 
 describe('les comptes', () => {
