@@ -5,6 +5,7 @@
  */
 import type { RegleChampRI, ServeurRI, ValeurLieeRI } from '../../ri/types.js';
 import { camel, pascal } from '../web/noms.js';
+import { codePortee } from './separation.js';
 
 const chaine = (texte: string) => JSON.stringify(texte);
 const cle = (champ: string) => `fiche[${chaine(camel(champ))}]`;
@@ -12,7 +13,7 @@ const cle = (champ: string) => `fiche[${chaine(camel(champ))}]`;
 type Donnee = ServeurRI['donnees'][number];
 type Route = ServeurRI['routes'][number];
 
-const decide = (regle: RegleChampRI | undefined) => regle?.genre === 'depart' || regle?.genre === 'nombreDe' || regle?.genre === 'somme';
+const decide = (regle: RegleChampRI | undefined) => regle?.genre === 'depart' || regle?.genre === 'nombreDe' || regle?.genre === 'somme' || regle?.genre === 'groupe';
 
 /** Les champs que seul le serveur remplit à la création : ceux de la donnée, et ceux que « dans » remplit sur cette route. */
 export function champsDuServeur(donnee: Donnee, route?: Route): string[] {
@@ -32,7 +33,7 @@ export function reglesEnvoi(donnee: Donnee, route: Route): string {
 }
 
 /** Vrai si la création de cette donnée passe par une fonction « completer… ». */
-const aCompleter = (donnee: Donnee) => donnee.champs.some((c) => decide(c.regle) || c.regle?.genre === 'auPlus');
+const aCompleter = (donnee: Donnee) => donnee.champs.some((c) => (decide(c.regle) && c.regle?.genre !== 'groupe') || c.regle?.genre === 'auPlus');
 
 /** La fonction qui écrit, dans la fiche reçue, ce que le serveur décide : l'ordre importe (les calculs lisent les autres champs). */
 function fonctionCompleter(donnee: Donnee): string {
@@ -81,16 +82,33 @@ function valeurLiee(valeur: ValeurLieeRI, parent: string): string {
 }
 
 /** Le corps de POST : vérifier, compléter, créer les fiches liées, créer, répondre. */
-export function codeCreation(serveur: ServeurRI, route: Route, donnee: Donnee, schema: string, emails: string): string {
+export function codeCreation(serveur: ServeurRI, route: Route, donnee: Donnee, schema: string, emails: string, separee?: string): string {
   const nom = camel(route.donnee);
   const verifier = `const envoi = verifierEnvoi(${schema}, req.body, true${reglesEnvoi(donnee, route)});`;
   const creations = route.creations ?? [];
-  if (!aCompleter(donnee) && creations.length === 0 && emails === '') {
+  if (!aCompleter(donnee) && creations.length === 0 && emails === '' && separee === undefined) {
     return `          ${verifier}
           if ('erreur' in envoi) res.status(400).json({ erreur: envoi.erreur });
           else res.status(201).json(await stockages.${nom}.creer(envoi.valeur));`;
   }
+  const groupe = separee !== undefined && donnee.par !== undefined;
+  const champGroupe = donnee.par !== undefined ? chaine(camel(donnee.par)) : '';
   const lignes = [
+    ...(separee !== undefined
+      ? [
+          `${codePortee(separee, 'creer').trimEnd()}`,
+          ...(groupe
+            ? [
+                `          const groupe = groupeACreer(req, portee, separation${separee}!);`,
+                `          if ('erreur' in groupe) {`,
+                `            res.status(400).json({ erreur: groupe.erreur });`,
+                `            return;`,
+                `          }`,
+                `          res.locals.groupeDirect = groupe.valeur;`,
+              ]
+            : []),
+        ]
+      : []),
     `          ${verifier}`,
     `          if ('erreur' in envoi) {`,
     `            res.status(400).json({ erreur: envoi.erreur });`,
@@ -107,9 +125,13 @@ export function codeCreation(serveur: ServeurRI, route: Route, donnee: Donnee, s
       `          const recue = complete.valeur;`,
     );
   } else lignes.push(`          const recue: Record<string, unknown> = envoi.valeur;`);
+  if (groupe) lignes.push(`          recue[${champGroupe}] = groupe.valeur;`);
+  if (separee !== undefined) {
+    lignes.push(`          if (portee.test && !portee.test(recue)) {`, `            res.status(403).json({ erreur: REFUS_FICHES });`, `            return;`, `          }`);
+  }
   creations.forEach((creation, i) => {
     const liee = serveur.donnees.find((d) => d.nom === creation.donnee)!;
-    const valeurs = `{ ${creation.valeurs.map((v) => `${chaine(camel(v.champ))}: ${valeurLiee(v.valeur, 'recue')}`).join(', ')} }`;
+    const valeurs = `{ ${[...creation.valeurs.map((v) => `${chaine(camel(v.champ))}: ${valeurLiee(v.valeur, 'recue')}`), ...(groupe && liee.par !== undefined ? [`${champGroupe}: groupe.valeur`] : [])].join(', ')} }`;
     lignes.push(`          // « creer ${creation.donnee} » : la fiche liée vient de ce que le serveur a vérifié.`);
     if (aCompleter(liee)) {
       lignes.push(

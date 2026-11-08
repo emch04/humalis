@@ -64,7 +64,7 @@ import type {
   Boucle,
   Evenement,
   GenreEvenement,
-  Connexion, ConnexionGoogle, ChangementMotDePasse, Invitation, DemandeLienMotDePasse, ChoixMotDePasse, ApresCreation, EnvoiEmail, CreationLiee, RegleChamp, ValeurFixe, TelechargementBon, TelechargementCsv, Fidelite, Suppression, Modification, EnvoiFichier, ArgumentPage } from './ast.js';
+  Connexion, ConnexionGoogle, ChangementMotDePasse, Invitation, ChangementRole, ConditionRegle, OperandeRegle, DemandeLienMotDePasse, ChoixMotDePasse, ApresCreation, EnvoiEmail, CreationLiee, RegleChamp, ValeurFixe, TelechargementBon, TelechargementCsv, Fidelite, Suppression, Modification, EnvoiFichier, ArgumentPage } from './ast.js';
 
 export function analyserSyntaxe(tokens: Token[]): Programme {
   const flux = new FluxTokens(tokens);
@@ -392,7 +392,7 @@ function analyserServeur(flux: FluxTokens): Serveur {
     if (estLeMot(token, 'donnee')) {
       donnees.push(analyserDonnee(flux));
     } else if (estLeMot(token, 'route')) {
-      routes.push(analyserRoute(flux));
+      routes.push(analyserRoute(flux, roles !== undefined));
     } else if (estLeMot(token, 'connexion')) {
       // « connexion google » : la seule porte en plus de l'email et du mot de passe, pour l'instant.
       flux.avancer();
@@ -525,6 +525,12 @@ function lireTampons(flux: FluxTokens): number {
 export function analyserDonnee(flux: FluxTokens, ouverte = false): Donnee {
   const debut = flux.avancer();
   const { nom } = flux.attendreNom('le nom de la donnée');
+  // « donnee commande par boutique : », « donnee message par compte : ».
+  let par: string | undefined;
+  if (!ouverte && estLeMot(flux.actuel(), 'par')) {
+    flux.avancer();
+    par = flux.attendreNom('ce qui sépare les fiches : donnee commande par boutique').nom;
+  }
   flux.attendre('PONCTUATION', ':', 'deux-points après le nom de la donnée');
   const champs: Donnee['champs'] = [];
   chaqueLigne(flux, () => {
@@ -537,7 +543,8 @@ export function analyserDonnee(flux: FluxTokens, ouverte = false): Donnee {
     const nonVide = nonVideAvant || (!ouverte && lireNonVide(flux));
     champs.push({ nom: champ.nom, type, ...(regle ? { regle } : {}), ...(nonVide ? { nonVide } : {}), ligne: champ.ligne });
   });
-  return { type: 'Donnee', nom, champs, ligne: debut.ligne };
+  if (par !== undefined) champs.push({ nom: par, type: { genre: 'texte' }, regle: { genre: 'groupe' }, ligne: debut.ligne });
+  return { type: 'Donnee', nom, ...(par !== undefined ? { par } : {}), champs, ligne: debut.ligne };
 }
 
 /** « non vide » après le type d'un champ. */
@@ -643,7 +650,7 @@ function analyserTypeChamp(flux: FluxTokens, ouverte = false): TypeChamp {
 
 const ACTIONS_DONNEE: ActionDonnee[] = ['lire', 'creer', 'modifier', 'supprimer'];
 
-function analyserRoute(flux: FluxTokens): Route {
+function analyserRoute(flux: FluxTokens, avecRoles = false): Route {
   const debut = flux.avancer();
   const adresse = flux.attendre('CHAINE', undefined, "l'adresse de la route entre guillemets").valeur;
   flux.attendre('PONCTUATION', ':', "deux-points après l'adresse de la route");
@@ -653,7 +660,7 @@ function analyserRoute(flux: FluxTokens): Route {
     if (flux.verifier('MOT_CLE', 'quand') || estLeMot(flux.actuel(), 'quand')) {
       if (apresCreation) throw new ErreurSyntaxique(`une route n'a qu'un seul « quand … est cree » : il est déjà écrit ligne ${apresCreation.ligne}.`, flux.actuel().ligne);
       apresCreation = analyserApresCreation(flux);
-    } else regles.push(analyserRegle(flux));
+    } else regles.push(analyserRegle(flux, avecRoles));
   });
   return { type: 'Route', adresse, regles, ...(apresCreation ? { apresCreation } : {}), ligne: debut.ligne };
 }
@@ -739,17 +746,18 @@ function analyserEnvoiEmail(flux: FluxTokens): EnvoiEmail {
 }
 
 /** « tout le monde peut lire produit », « seul admin peut modifier produit ». */
-function analyserRegle(flux: FluxTokens): Regle {
+function analyserRegle(flux: FluxTokens, avecRoles = false): Regle {
   const debut = flux.actuel();
   const mots: string[] = [];
   while (!estLeMot(flux.actuel(), 'peut') && !estLeMot(flux.actuel(), 'peuvent') && !flux.verifier('FIN_LIGNE') && !flux.estFini()) {
     mots.push(motDe(flux.avancer()));
   }
   // « seul directeur peut … », « seuls directeur et enseignant peuvent … » : des rôles déclarés dans le serveur. Un admin passe toujours.
-  const nommes = mots.slice(1).filter((m) => m !== 'et' && m !== ',' && m !== 'admin');
+  const seul = mots[0] === 'seul' || mots[0] === 'seuls';
+  const nommes = mots.slice(seul ? 1 : 0).filter((m) => m !== 'et' && m !== ',' && m !== 'admin');
   const qui: Qui | undefined = (
     { 'tout monde': 'tout_le_monde', connecte: 'connecte', 'utilisateur connecte': 'connecte', 'seul admin': 'admin', admin: 'admin' } as Record<string, Qui>
-  )[mots.join(' ')] ?? ((mots[0] === 'seul' || mots[0] === 'seuls') && nommes.length > 0 ? (`role:${nommes.join(',')}` as Qui) : undefined);
+  )[mots.join(' ')] ?? (nommes.length > 0 && (seul || avecRoles) ? (`role:${nommes.join(',')}` as Qui) : undefined);
   if (!qui) {
     throw new ErreurSyntaxique(
       `qui peut agir ? Écrivez « tout le monde », « connecte » ou « seul admin », puis « peut … »`,
@@ -773,6 +781,10 @@ function analyserRegle(flux: FluxTokens): Regle {
   } while (flux.accepter('MOT_CLE', 'et'));
 
   const { nom: donnee } = flux.attendreNom('le nom de la donnée');
+  if (estLeMot(flux.actuel(), 'si')) {
+    flux.avancer();
+    return { type: 'Regle', qui, actions, donnee, si: analyserConditionRegle(flux), ligne: debut.ligne };
+  }
   // « par identifiant » : une fiche à la fois, jamais la liste.
   if (!estLeMot(flux.actuel(), 'par')) return { type: 'Regle', qui, actions, donnee, ligne: debut.ligne };
   flux.avancer();
@@ -781,6 +793,28 @@ function analyserRegle(flux: FluxTokens): Regle {
   }
   flux.avancer();
   return { type: 'Regle', qui, actions, donnee, parIdentifiant: true, ligne: debut.ligne };
+}
+
+/** « facture.compte est dans utilisateur.comptes_lies », « utilisateur.id est facture.compte ». */
+function analyserConditionRegle(flux: FluxTokens): ConditionRegle {
+  const ligne = flux.actuel().ligne;
+  const exemple = 'si facture.compte est dans utilisateur.comptes_lies';
+  const operande = (): OperandeRegle => {
+    const fixe = valeurFixe(flux);
+    if (fixe?.genre === 'valeur') return fixe;
+    const nom = flux.actuel();
+    if (fixe || !estMot(nom) || flux.regarder(1).valeur !== '.' || !estMot(flux.regarder(2))) throw new ErreurSyntaxique(`on écrit par exemple : ${exemple}`, nom.ligne);
+    flux.avancer();
+    flux.avancer();
+    const champ = flux.avancer().valeur;
+    return estLeMot(nom, 'utilisateur') ? { genre: 'utilisateur', champ } : { genre: 'fiche', donnee: nom.valeur, champ };
+  };
+  const gauche = operande();
+  if (!estLeMot(flux.actuel(), 'est')) throw new ErreurSyntaxique(`après la première valeur, écrivez « est » ou « est dans » : ${exemple}`, ligne);
+  flux.avancer();
+  const dans = estLeMot(flux.actuel(), 'dans');
+  if (dans) flux.avancer();
+  return { gauche, dans, droite: operande(), ligne };
 }
 
 function analyserDefinitionComposant(flux: FluxTokens): DefinitionComposant {
@@ -1048,6 +1082,11 @@ function analyserInstruction(flux: FluxTokens): Instruction {
   // « demander un lien de mot de passe pour champ "Email" » et « choisir le mot de passe avec champ "Nouveau" ».
   if (estLeMot(flux.actuel(), 'demander') && estLeMot(flux.regarder(1), 'lien')) return analyserDemandeLien(flux);
   if (estLeMot(flux.actuel(), 'choisir') && estLeMot(flux.regarder(1), 'mot') && estLeMot(flux.regarder(2), 'passe')) return analyserChoixMotDePasse(flux);
+
+  // « changer role de c en "vendeur" » ; « changer role par 2 » reste une variable de ce nom.
+  if (flux.verifier('MOT_CLE', 'changer') && estLeMot(flux.regarder(1), 'role') && !estLeMot(flux.regarder(2), 'par') && flux.regarder(2).type !== 'FIN_LIGNE') {
+    return analyserChangementRole(flux);
+  }
 
   // « changer le mot de passe avec champ "Actuel" et champ "Nouveau" » : celui du compte connecté.
   if (flux.verifier('MOT_CLE', 'changer') && estLeMot(flux.regarder(1), 'mot') && estLeMot(flux.regarder(2), 'passe')) {
@@ -1725,13 +1764,33 @@ function analyserConnexion(flux: FluxTokens): Connexion | ConnexionGoogle {
 function analyserInvitation(flux: FluxTokens): Invitation {
   const debut = flux.avancer();
   const email = analyserOperande(flux);
-  if (!estLeMot(flux.actuel(), 'comme')) return { type: 'Invitation', email, role: 'membre', ligne: debut.ligne };
+  // « dans boutique b », après le rôle : le groupe du nouveau compte.
+  const groupe = () => {
+    if (!estLeMot(flux.actuel(), 'dans')) return {};
+    flux.avancer();
+    const champ = flux.attendreNom('le groupe : inviter champ "Adresse" comme vendeur dans boutique b').nom;
+    return { groupe: { champ, valeur: analyserOperande(flux) } };
+  };
+  if (!estLeMot(flux.actuel(), 'comme')) return { type: 'Invitation', email, role: 'membre', ...groupe(), ligne: debut.ligne };
   flux.avancer();
   // « comme directeur » : un rôle déclaré dans le serveur (vérifié par l'analyse).
-  if (flux.actuel().type === 'IDENTIFIANT' && !estLeMot(flux.actuel(), 'admin')) return { type: 'Invitation', email, role: motDe(flux.avancer()), ligne: debut.ligne };
+  if (flux.actuel().type === 'IDENTIFIANT' && !estLeMot(flux.actuel(), 'admin')) {
+    const role = motDe(flux.avancer());
+    return { type: 'Invitation', email, role, ...groupe(), ligne: debut.ligne };
+  }
   if (!estLeMot(flux.actuel(), 'admin')) throw new ErreurSyntaxique('après « comme », écrivez « admin » ; sans « comme », la personne invitée est un simple compte connecté.', debut.ligne);
   flux.avancer();
-  return { type: 'Invitation', email, role: 'admin', ligne: debut.ligne };
+  return { type: 'Invitation', email, role: 'admin', ...groupe(), ligne: debut.ligne };
+}
+
+/** « changer role de c en "vendeur" » (« de » est déjà sauté). */
+function analyserChangementRole(flux: FluxTokens): ChangementRole {
+  const debut = flux.avancer();
+  flux.avancer();
+  const cible = analyserOperande(flux);
+  if (!estLeMot(flux.actuel(), 'en')) throw new ErreurSyntaxique('on écrit : changer role de c en "vendeur"', debut.ligne);
+  flux.avancer();
+  return { type: 'ChangementRole', cible, role: analyserOperande(flux), ligne: debut.ligne };
 }
 
 /** « demander un lien de mot de passe pour champ "Email" » : « un », « de » et « le » sont déjà sautés. */

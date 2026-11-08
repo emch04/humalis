@@ -1,4 +1,4 @@
-import type { Serveur, ActionDonnee, Route, Qui, Page, EnvoiEmail, CreationLiee, Donnee, TypeChamp, ValeurFixe } from '../parser/ast.js';
+import type { Regle, Serveur, ActionDonnee, Route, Qui, Page, EnvoiEmail, CreationLiee, Donnee, TypeChamp, ValeurFixe } from '../parser/ast.js';
 import type { Diagnostic } from './erreurs.js';
 import { simplifier } from './elements.js';
 import { proposerNom } from './suggestions.js';
@@ -56,12 +56,20 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[], pag
       }
       servie = regle.donnee;
       servies.add(regle.donnee);
+      const lue = serveur.donnees.find((d) => d.nom === regle.donnee);
+      if (lue?.par !== undefined && regle.qui === 'tout_le_monde' && regle.actions.some((a) => a !== 'lire')) {
+        erreur(`« ${lue.nom} » est séparée par ${lue.par} : un visiteur n'y appartient pas. Réservez ${regle.actions.join(' et ')} aux comptes connectés.`, regle.ligne);
+      } else if (lue?.par !== undefined && regle.qui === 'tout_le_monde') {
+        avertissement(`tout le monde peut lire « ${lue.nom} » : les fiches de chaque ${lue.par} sont publiques. Seules les écritures restent séparées.`, regle.ligne);
+      }
+      if (regle.si) verifierConditionRegle(regle, lue, erreur);
       for (const action of regle.actions) permises.add(action);
       if (serveur.donnees.find((d) => d.nom === regle.donnee)?.comptes) {
         // Les comptes de la connexion : qui s'y trouve ne regarde que l'administration, et ils naissent d'une invitation.
-        if (regle.qui !== 'admin') erreur(`seul un admin peut voir ou retirer les comptes : écrivez « seul admin peut ${regle.actions.join(' et ')} comptes ».`, regle.ligne);
-        if (regle.actions.some((a) => a === 'creer' || a === 'modifier')) {
-          erreur('les comptes se lisent et se suppriment seulement : un compte naît de « inviter … » dans une page, et chacun change son mot de passe lui-même.', regle.ligne);
+        if (regle.actions.some((a) => a !== 'creer') && regle.qui !== 'admin') erreur(`seul un admin peut voir ou retirer les comptes : écrivez « seul admin peut ${regle.actions.join(' et ')} comptes ».`, regle.ligne);
+        if (regle.actions.includes('creer') && (regle.qui === 'tout_le_monde' || regle.qui === 'connecte')) erreur('« creer comptes » dit qui peut inviter : réservez-le à un rôle, par exemple « seul gerant peut creer comptes ».', regle.ligne);
+        if (regle.actions.includes('modifier')) {
+          erreur('les comptes ne se modifient pas par une règle : un compte naît de « inviter … », et son rôle change avec « changer role de c en … ».', regle.ligne);
         }
       }
     }
@@ -158,7 +166,7 @@ function verifierRegleChamp(champ: Donnee['champs'][number], donnee: Donnee, ser
   } else if (champ.nonVide && (regle?.genre === 'depart' || regle?.genre === 'nombreDe' || regle?.genre === 'somme')) {
     erreur(`« ${nom} » : le serveur donne déjà cette valeur, « non vide » ne sert à rien ici.`, ligne);
   }
-  if (!regle) return;
+  if (!regle || regle.genre === 'groupe') return;
   const champDe = (d: Donnee | undefined, c: string) => d?.champs.find((x) => simplifier(x.nom) === simplifier(c));
   const prixDe = (donneeLue: string, prix: string) => {
     const lue = serveur.donnees.find((d) => d.nom === donneeLue);
@@ -191,6 +199,25 @@ function verifierRegleChamp(champ: Donnee['champs'][number], donnee: Donnee, ser
   }
 }
 
+/** « si facture.compte est dans utilisateur.comptes_lies » : la fiche nommée est celle de la règle, et ses champs existent. */
+function verifierConditionRegle(regle: Regle, donnee: Donnee | undefined, erreur: (message: string, ligne: number) => void): void {
+  const { qui, si, ligne, parIdentifiant } = regle;
+  if (!si || !donnee) return;
+  if (qui === 'tout_le_monde' || parIdentifiant) erreur('une règle avec « si » regarde qui est connecté : elle ne vaut pas pour « tout le monde », ni « par identifiant ».', ligne);
+  if (donnee.comptes) erreur('les comptes ne prennent pas de règle avec « si ».', ligne);
+  for (const o of [si.gauche, si.droite]) {
+    if (o.genre !== 'fiche') continue;
+    if (o.donnee !== donnee.nom) erreur(`« ${o.donnee}.${o.champ} » : cette règle parle de « ${donnee.nom} ».`, ligne);
+    else if (!donnee.champs.some((c) => simplifier(c.nom) === simplifier(o.champ)) && simplifier(o.champ) !== 'id') {
+      erreur(`la donnée « ${donnee.nom} » n'a pas de champ « ${o.champ} ». Champs : ${donnee.champs.map((c) => c.nom).join(', ')}.${proposerNom(o.champ, donnee.champs.map((c) => c.nom))}`, ligne);
+    }
+  }
+  if (si.dans && si.droite.genre === 'valeur') erreur('« est dans » demande une liste : le champ d\'une fiche ou de l\'utilisateur.', ligne);
+  if (si.dans && si.droite.genre === 'fiche' && donnee.champs.find((c) => simplifier(c.nom) === simplifier((si.droite as { champ: string }).champ))?.type.genre !== 'liste') {
+    erreur(`« ${si.droite.champ} » doit être un champ « liste de … » pour « est dans ».`, ligne);
+  }
+}
+
 /** « creer suivi avec … dans commande.suivi » : la fiche liée a tout ce qu'il lui faut, et le serveur seul la remplit. */
 function verifierCreationLiee(creation: CreationLiee, parent: string, serveur: Serveur, erreur: (message: string, ligne: number) => void): void {
   const { donnee, valeurs, dans, ligne } = creation;
@@ -209,7 +236,8 @@ function verifierCreationLiee(creation: CreationLiee, parent: string, serveur: S
       erreur(`« ${valeur.donnee}.${valeur.champ} » : une fiche liée lit les champs de la fiche créée (« ${parent} »).`, ligne);
     }
   }
-  const manquants = liee.champs.filter((c) => !valeurs.some((v) => simplifier(v.champ) === simplifier(c.nom)) && c.regle?.genre !== 'depart' && c.regle?.genre !== 'nombreDe' && c.regle?.genre !== 'somme');
+  if (liee.par !== undefined && liee.par !== source?.par) erreur(`« creer ${donnee} » : « ${donnee} » est séparée par ${liee.par}, mais « ${parent} » ${source?.par ? `par ${source.par}` : "ne l'est pas"}. Les deux doivent l'être de la même façon.`, ligne);
+  const manquants = liee.champs.filter((c) => !valeurs.some((v) => simplifier(v.champ) === simplifier(c.nom)) && c.regle?.genre !== 'depart' && c.regle?.genre !== 'nombreDe' && c.regle?.genre !== 'somme' && c.regle?.genre !== 'groupe');
   if (manquants.length > 0) erreur(`« creer ${donnee} » : il manque ${manquants.map((c) => `« ${c.nom} »`).join(', ')}.`, ligne);
   if (dans && (dans.donnee !== parent || existe(source, dans.champ)?.type.genre !== 'texte')) {
     erreur(`« dans ${dans.donnee}.${dans.champ} » : l'identifiant va dans un champ texte de « ${parent} ».`, ligne);
@@ -257,6 +285,7 @@ export type Droits = Record<ActionDonnee, Qui | null> & { lireUn?: Qui };
 export function droitsDeRoute(route: Route): Droits {
   const droits: Droits = { lire: null, creer: null, modifier: null, supprimer: null };
   for (const regle of route.regles) {
+    if (regle.si) continue;
     if (regle.parIdentifiant) droits.lireUn = regle.qui;
     else for (const action of regle.actions) droits[action] = regle.qui;
   }
@@ -265,6 +294,23 @@ export function droitsDeRoute(route: Route): Droits {
     droits.supprimer ??= droits.modifier;
   }
   return droits;
+}
+
+/** Les règles avec « si », action par action ; « modifier » couvre créer et supprimer, comme pour les autres règles. */
+export function conditionsDeRoute(route: Route): Partial<Record<ActionDonnee, { qui: Qui; si: NonNullable<Regle['si']> }[]>> {
+  const resultat: Partial<Record<ActionDonnee, { qui: Qui; si: NonNullable<Regle['si']> }[]>> = {};
+  const ajouter = (action: ActionDonnee, regle: Regle) => (resultat[action] ??= []).push({ qui: regle.qui, si: regle.si! });
+  for (const regle of route.regles) {
+    if (!regle.si) continue;
+    for (const action of regle.actions) {
+      ajouter(action, regle);
+      if (action === 'modifier') {
+        if (!route.regles.some((r) => r.actions.includes('creer'))) ajouter('creer', regle);
+        if (!route.regles.some((r) => r.actions.includes('supprimer'))) ajouter('supprimer', regle);
+      }
+    }
+  }
+  return resultat;
 }
 
 /** « /api/produits », « /produits » et « produits » désignent la même route. */

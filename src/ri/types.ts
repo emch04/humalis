@@ -126,18 +126,29 @@ export type RegleChampRI =
   | { genre: 'site' }
   | { genre: 'nombreDe'; liste: string }
   | { genre: 'somme'; prix: string; donnee: string; liste: string; plus?: string }
-  | { genre: 'auPlus'; prix: string; donnee: string; par: string };
+  | { genre: 'auPlus'; prix: string; donnee: string; par: string }
+  | { genre: 'groupe' };
+
+export type OperandeRI = { genre: 'fiche'; champ: string } | { genre: 'utilisateur'; champ: string } | { genre: 'valeur'; valeur: string | number | boolean };
+export interface ConditionRegleRI {
+  qui: QuiPeut;
+  gauche: OperandeRI;
+  dans: boolean;
+  droite: OperandeRI;
+}
 
 export type MorceauEmail = { texte: string } | { champ: string };
 
 export interface ServeurRI {
   nom: string;
-  donnees: { nom: string; champs: { nom: string; type: TypeChamp; regle?: RegleChampRI; nonVide?: boolean }[] }[];
+  donnees: { nom: string; par?: string; champs: { nom: string; type: TypeChamp; regle?: RegleChampRI; nonVide?: boolean }[] }[];
   routes: {
     adresse: string;
     donnee: string;
     /** Qui peut faire chaque action ; null : personne, la porte reste fermée. « lireUn » : la lecture « par identifiant ». */
     droits: Record<'lire' | 'creer' | 'modifier' | 'supprimer', QuiPeut | null> & { lireUn?: QuiPeut };
+    /** « client peut lire facture si … » : ces règles s'ajoutent aux droits sans condition. */
+    conditions?: Partial<Record<'lire' | 'creer' | 'modifier' | 'supprimer', ConditionRegleRI[]>>;
     /** « creer suivi avec … dans commande.suivi » : les fiches liées, créées avant la réponse. */
     creations?: { donnee: string; valeurs: { champ: string; valeur: ValeurLieeRI }[]; dans?: string }[];
     /** Une page écrit « telecharger bon de … » : la route sert aussi GET /:id/bon. */
@@ -160,6 +171,8 @@ export interface ServeurRI {
   connexionGoogle?: boolean;
   /** « roles directeur, enseignant et parent ». */
   roles?: string[];
+  /** Une page écrit « changer role de … ». */
+  changeDeRole?: boolean;
   /** « fidelite par telephone de commande : » : la lecture réservée à l'admin de /api/fidelite/… */
   fidelite?: { champ: string; donnee: string; tampons: number; statut: string; objectif: number; recompense: string };
 }
@@ -662,7 +675,9 @@ export type Action =
   /** « changer le mot de passe avec … et … » : celui du compte connecté, vérifié par le serveur. */
   | { type: 'changementMotDePasse'; actuel: Valeur; nouveau: Valeur }
   /** « inviter champ "Adresse" comme admin » : un lien par e-mail. */
-  | { type: 'invitation'; email: Valeur; role: string }
+  | { type: 'invitation'; email: Valeur; role: string; groupe?: { champ: string; valeur: Valeur } }
+  /** « changer role de c en "vendeur" ». */
+  | { type: 'changementRole'; cible: Valeur; role: Valeur }
   /** « demander un lien de mot de passe pour champ "Email" ». */
   | { type: 'demandeLienMotDePasse'; email: Valeur }
   /** « choisir le mot de passe avec champ "Nouveau" » : le jeton est dans l'adresse du lien. */

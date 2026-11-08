@@ -1,0 +1,35 @@
+# Essai du serveur : groupes, droits sur ses fiches, rôles qui changent.
+serveur "commerce" :
+    roles gerant, vendeur et client
+    donnee commande par boutique :
+        total : nombre
+        statut : texte au depart "ouverte"
+    donnee message par compte :
+        texte : texte
+    donnee facture :
+        montant : nombre
+        clients : liste de texte
+    route "commandes" :
+        seuls gerant et vendeur peuvent lire commande
+        seuls gerant et vendeur peuvent creer commande
+        seul gerant peut modifier commande
+        seul gerant peut supprimer commande
+    route "messages" :
+        connecte peut lire message
+        connecte peut creer message
+        connecte peut supprimer message
+    route "factures" :
+        seul gerant peut lire facture
+        client peut lire facture si utilisateur.id est dans facture.clients
+        seul gerant peut modifier facture
+    route "equipe" :
+        seul admin peut lire comptes
+
+page "accueil" :
+    variable commandes = []
+    titre "Commerce"
+    quand la page se charge :
+        envoyer requete vers "commandes" dans commandes en direct
+    bouton "Promouvoir"
+    quand l'utilisateur clique sur "Promouvoir" :
+        changer role de "abc" en "gerant"

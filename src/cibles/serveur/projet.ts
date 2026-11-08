@@ -1,4 +1,5 @@
 import { avecComptes, avecEmails, CLES_BREVO, codeCreationComptes, codeEnvois, codeRoutesComptes, COMPTES, EMAILS, ENV_EMAILS, ENV_LIENS, testsComptes } from './comptes.js';
+import { codeFicheVisible, codePortee, compteRelu, conditionsDe, constantesSeparation, estSeparee, SEPARATION, testsSeparee } from './separation.js';
 import { champsDuServeur, codeCompleter, codeCreation, noms as nomsVerifier, reglesEnvoi } from './regles.js';
 import { ligneLocale } from '../../fichiers.js';
 import type { ServeurRI, TypeChamp, QuiPeut } from '../../ri/types.js';
@@ -75,6 +76,7 @@ export function genererProjetServeur(serveur: ServeurRI, options: OptionsServeur
   fichiers.set('tests/regles.test.ts', testsRegles(serveur));
   fichiers.set('tests/sessions.test.ts', testsSessions(serveur));
   if (serveur.routes.some((r) => r.direct)) fichiers.set('src/humalis/direct.ts', DIRECT);
+  if (compteRelu(serveur)) fichiers.set('src/humalis/separation.ts', SEPARATION);
   if (serveur.routes.some((r) => r.bon)) {
     fichiers.set('src/humalis/bon.ts', BON);
     fichiers.set('tests/bon.test.ts', testsBon(serveur));
@@ -1087,6 +1089,23 @@ ${blocs.join('\n\n')}
 `;
 }
 
+/** Le rôle et les groupes viennent du compte relu : un changement compte tout de suite, sur chaque serveur. */
+const COMPTE_RELU = `      const compteRelu: RequestHandler = async (req, res, next) => {
+        try {
+          const session = req as unknown as { user?: Record<string, unknown> };
+          const compte = await usersStore.findById(String(session.user?.id));
+          if (!compte) {
+            res.status(401).json({ erreur: "ce compte n'existe plus" });
+            return;
+          }
+          session.user = { ...compte, ...session.user, role: compte.role, id: String(compte.id) };
+          next();
+        } catch (erreur) {
+          next(erreur);
+        }
+      };
+`;
+
 const GARDES: Record<'tout_le_monde' | 'connecte' | 'admin', string> = {
   tout_le_monde: 'toutLeMonde',
   connecte: 'connecte',
@@ -1110,18 +1129,22 @@ function serveurTs(serveur: ServeurRI, chemins?: Map<string, string>): string {
       const donnee = camel(route.donnee);
       const schema = `SCHEMA_${simplifier(route.donnee).toUpperCase()}`;
       const variable = `route${pascal(route.adresse)}`;
-      const garde = (a: Action) => (route.droits[a] === null ? 'refuse' : `...acces.${gardeDe(route.droits[a]!)}`);
-      const csrf = (a: Action) => (route.droits[a] === null ? '' : ', csrfMiddleware');
+      const donneeRoute = serveur.donnees.find((d) => d.nom === route.donnee)!;
+      const separee = estSeparee(donneeRoute, route);
+      // Une règle avec « si » regarde qui est connecté : la porte s'ouvre aux comptes, la fiche décide ensuite.
+      const garde = (a: Action) => (route.droits[a] === null ? (conditionsDe(route, a).length ? '...acces.connecte' : 'refuse') : `...acces.${conditionsDe(route, a).length && route.droits[a] !== 'tout_le_monde' ? 'connecte' : gardeDe(route.droits[a]!)}`);
+      const csrf = (a: Action) => (route.droits[a] === null && !conditionsDe(route, a).length ? '' : ', csrfMiddleware');
+      const voir = (a: Action) => (separee ? codeFicheVisible(variable, donnee, route.donnee, a, donneeRoute.par) : '');
       // Ce que tout le monde peut lire se garde un peu (navigateur, relais) ; une lecture réservée, jamais.
       const cache = route.droits.lire === 'tout_le_monde' ? 'lecturePublique' : 'lecturePrivee';
       return `      // « ${route.adresse} » (ligne ${ligneLocale(route.ligne)}) — ${decrireDroits(route.droits)}.
       const ${variable} = express.Router();
 ${clesAnnoncees(serveur, route).length ? `      ${variable}.use(direct.apres(${JSON.stringify(clesAnnoncees(serveur, route))}));
-` : ''}${route.direct ? routeDirect(variable, garde('lire'), route.donnee) : ''}      ${variable}.get('/', ${cache}, ${garde('lire')}, async (req, res, next) => {
+` : ''}${separee ? constantesSeparation(variable, donneeRoute, route) : ''}${route.direct ? routeDirect(variable, garde('lire'), route.donnee, separee ? { separation: `separation${variable}`, regles: `regles${variable}.lire` } : undefined) : ''}      ${variable}.get('/', ${cache}, ${garde('lire')}, async (req, res, next) => {
         try {
-          // « ?produit=… » : seulement ce qui est demandé, pas toute la liste.
+${separee ? codePortee(variable, 'lire') : ''}          // « ?produit=… » : seulement ce qui est demandé, pas toute la liste.
           const filtres = lireFiltres(${schema}, req.query as Record<string, unknown>);
-          res.json(filtres ? await stockages.${donnee}.lister(filtres) : []);
+          res.json(filtres ? await ${separee ? `listerDans(stockages.${donnee}, filtres, portee)` : `stockages.${donnee}.lister(filtres)`} : []);
         } catch (erreur) {
           sansCache(res);
           next(erreur);
@@ -1129,7 +1152,7 @@ ${clesAnnoncees(serveur, route).length ? `      ${variable}.use(direct.apres(${J
       });
       ${variable}.get('/:id', ${route.droits.lireUn ? `lecturePrivee, ...acces.${gardeDe(route.droits.lireUn)}` : `${cache}, ${garde('lire')}`}, async (req, res, next) => {
         try {
-          const trouve = await stockages.${donnee}.trouver(req.params.id);
+${voir('lire')}          const trouve = ${separee ? 'visible' : `await stockages.${donnee}.trouver(req.params.id)`};
           if (trouve) res.json(trouve);
           else sansCache(res).status(404).json({ erreur: introuvable('${route.donnee}') });
         } catch (erreur) {
@@ -1137,16 +1160,16 @@ ${clesAnnoncees(serveur, route).length ? `      ${variable}.use(direct.apres(${J
           next(erreur);
         }
       });
-${route.bon ? routeBon(variable, route, garde('lire'), schema, donnee) : ''}      ${variable}.post('/', ${garde('creer')}${csrf('creer')}, async (req, res, next) => {
+${route.bon ? routeBon(variable, route, garde('lire'), schema, donnee, separee) : ''}      ${variable}.post('/', ${garde('creer')}${csrf('creer')}, async (req, res, next) => {
         try {
-${codeCreation(serveur, route, serveur.donnees.find((d) => d.nom === route.donnee)!, schema, route.envois?.length ? codeEnvois(serveur, route) : '')}
+${codeCreation(serveur, route, donneeRoute, schema, route.envois?.length ? codeEnvois(serveur, route) : '', separee ? variable : undefined)}
         } catch (erreur) {
           next(erreur);
         }
       });
       ${variable}.patch('/:id', ${garde('modifier')}${csrf('modifier')}, async (req, res, next) => {
         try {
-          const envoi = verifierEnvoi(${schema}, req.body, false${reglesEnvoi(serveur.donnees.find((d) => d.nom === route.donnee)!, route)});
+${voir('modifier')}          const envoi = verifierEnvoi(${schema}, req.body, false${reglesEnvoi(donneeRoute, route)});
           if ('erreur' in envoi) {
             res.status(400).json({ erreur: envoi.erreur });
             return;
@@ -1160,7 +1183,7 @@ ${codeCreation(serveur, route, serveur.donnees.find((d) => d.nom === route.donne
       });
       ${variable}.delete('/:id', ${garde('supprimer')}${csrf('supprimer')}, async (req, res, next) => {
         try {
-          if (await stockages.${donnee}.supprimer(req.params.id)) res.status(204).end();
+${voir('supprimer')}          if (await stockages.${donnee}.supprimer(req.params.id)) res.status(204).end();
           else res.status(404).json({ erreur: introuvable('${route.donnee}') });
         } catch (erreur) {
           next(erreur);
@@ -1187,7 +1210,7 @@ import type { Coffre } from './humalis/coffre.js';
 ${comptes ? "import { creerComptes, refuserMotDePasseFaible, sansLesRetires } from './humalis/comptes.js';\n" : ''}${avecEmails(serveur) ? `import { creerEmails, ${envoisDansRoutes ? 'enTexte, ' : ''}type Emails } from './humalis/emails.js';\n` : ''}import { compresser } from './humalis/compresser.js';${avecBon ? "\nimport { creerBon } from './humalis/bon.js';" : ''}${serveur.fidelite ? "\nimport { carteDeFidelite } from './humalis/fidelite.js';" : ''}
 import { creerRenouvellement, reglagesDeSession, renouvellementEnCookie, type ReglagesSession } from './humalis/sessions.js';
 import { ${serveur.fidelite ? 'sansSeparateurs, ' : ''}type Stockage } from './humalis/stockage.js';
-import { lireFiltres, ${nomsVerifier(serveur).map((n) => n + ', ').join('')}verifierEnvoi } from './humalis/verifier.js';
+${compteRelu(serveur) ? (serveur.routes.some((r) => estSeparee(serveur.donnees.find((d) => d.nom === r.donnee)!, r)) ? "import { dansPortee, groupeACreer, listerDans, moiDe, porteeDe, REFUS_FICHES, type RegleAcces, type Separation } from './humalis/separation.js';\n" : '') : ''}import { lireFiltres, ${nomsVerifier(serveur).map((n) => n + ', ').join('')}verifierEnvoi } from './humalis/verifier.js';
 
 export interface OptionsDuServeur {
   /** Le secret des sessions (au moins 32 caractères). */
@@ -1280,12 +1303,12 @@ ${comptes ? codeCreationComptes(serveur, chemins).replace('usersStore,', 'usersS
       const authorizeRoles = contexte.authorizeRoles as unknown as (...roles: string[]) => RequestHandler;
       const csrfMiddleware = contexte.csrfMiddleware as unknown as RequestHandler;
       const issueSession = (contexte as unknown as { issueSession: (res: unknown, compte: unknown) => Promise<object> }).issueSession;
-      const acces = {
+${compteRelu(serveur) ? COMPTE_RELU : ''}      const acces = {
         toutLeMonde: [] as RequestHandler[],
-        connecte: [authMiddleware],
-        seulAdmin: [authMiddleware, authorizeAdmin],
+        connecte: [authMiddleware${compteRelu(serveur) ? ', compteRelu' : ''}],
+        seulAdmin: [authMiddleware${compteRelu(serveur) ? ', compteRelu' : ''}, authorizeAdmin],
         // « seul directeur peut … » : le rôle vient de la session, vérifié par le pack de sécurité. Un admin passe toujours.
-        roles: (permis: string[]): RequestHandler[] => [authMiddleware, authorizeRoles('admin', ...permis)],
+        roles: (permis: string[]): RequestHandler[] => [authMiddleware${compteRelu(serveur) ? ', compteRelu' : ''}, authorizeRoles('admin', ...permis)],
       };
       // Les réponses des routes ci-dessous partent compressées (brotli ou gzip) quand le navigateur l'accepte.
       app.use(compresser);
@@ -1409,6 +1432,7 @@ function testsRegles(serveur: ServeurRI): string {
     const exemple = `{ ${donnee.champs.map((c) => `${camel(c.nom)}: ${exempleDe(c)}`).join(', ')} }`;
     const envoiExemple = `{ ${donnee.champs.filter((c) => !duServeur.includes(camel(c.nom))).map((c) => `${camel(c.nom)}: ${exempleDe(c)}`).join(', ')} }`;
     const adresse = adresseApi(route.adresse);
+    if (estSeparee(donnee, route)) return testsSeparee(serveur, route, donnee, adresse, exemple, envoiExemple);
     const tests: string[] = [];
 
     for (const action of ACTIONS) {
@@ -1551,6 +1575,8 @@ let jetonUtilisateur = '';
 // Un visiteur garde son cookie CSRF, amorcé par une première lecture.
 let visiteurAvecCsrf: ReturnType<typeof request.agent>;
 let csrf: Record<string, string> = {};
+let comptesCrees = 0;
+let nouveauCompte: (role: string, groupes?: Record<string, string>) => Promise<{ id: string; jeton: string }>;
 
 async function connecter(email: string): Promise<string> {
   const reponse = await request(app).post('/auth/login').send({ email, password: MOT_DE_PASSE }).expect(200);
@@ -1565,6 +1591,11 @@ beforeAll(async () => {
   app = creerServeur({ jwtSecret: 'secret-de-test-assez-long-pour-les-sessions', usersStore, stockages }) as never;
   jetonAdmin = await connecter('admin@exemple.cd');
   jetonUtilisateur = await connecter('awa@exemple.cd');
+  nouveauCompte = async (role, groupes = {}) => {
+    const email = \`compte\${++comptesCrees}@exemple.cd\`;
+    const compte = await usersStore.create({ email, role, passwordHash, ...groupes });
+    return { id: String(compte.id), jeton: await connecter(email) };
+  };
   visiteurAvecCsrf = request.agent(app);
   const amorce = await visiteurAvecCsrf.get('/auth/me');
   const cookie = ([] as string[]).concat(amorce.headers['set-cookie'] ?? []).find((c) => c.startsWith('astratra_csrf='));
@@ -1967,7 +1998,20 @@ const ROUTE_MOT_DE_PASSE = `
  * Le temps réel : une page qui lit une route « en direct » apprend qu'elle a changé.
  * Aucune donnée ne passe par ce canal : la page relit par la route normale, avec ses droits.
  */
-function routeDirect(variable: string, garde: string, cle: string): string {
+function routeDirect(variable: string, garde: string, cle: string, separee?: { separation: string; regles: string }): string {
+  // Une donnée séparée : chacun n'écoute que son groupe ; un admin écoute tout.
+  if (separee) {
+    return `      ${variable}.get('/direct', ${garde}, (req, res) => {
+        const portee = porteeDe(moiDe(req), ${separee.separation}, ${separee.regles});
+        if (!portee) {
+          res.status(403).json({ erreur: REFUS_FICHES });
+          return;
+        }
+        const groupe = ${separee.separation} ? portee.egal[${separee.separation}.champ] : undefined;
+        direct.ecouter(groupe === undefined ? ${JSON.stringify(cle)} : ${JSON.stringify(cle + '|')} + groupe, req, res);
+      });
+`;
+  }
   return `      ${variable}.get('/direct', ${garde}, (req, res) => direct.ecouter(${JSON.stringify(cle)}, req, res));
 `;
 }
@@ -2051,7 +2095,11 @@ export const direct = {
     return (req, res, next) => {
       if (req.method !== 'GET') {
         res.on('finish', () => {
-          if (res.statusCode < 400) for (const cle of cles) annoncer(cle);
+          if (res.statusCode >= 400) return;
+          // Une donnée séparée : l'annonce va à son groupe et aux admins, jamais aux autres groupes.
+          const groupe = res.locals.groupeDirect;
+          for (const cle of cles) annoncer(typeof groupe === 'string' ? cle + '|' + groupe : cle);
+          if (typeof groupe === 'string') for (const cle of cles) annoncer(cle);
         });
       }
       next();
@@ -2084,11 +2132,11 @@ export const direct = {
 };
 `;
 
-function routeBon(variable: string, route: ServeurRI['routes'][number], garde: string, schema: string, donnee: string): string {
+function routeBon(variable: string, route: ServeurRI['routes'][number], garde: string, schema: string, donnee: string, separee = false): string {
   const fichier = simplifier(route.donnee).replace(/_/g, '-');
   return `      ${variable}.get('/:id/bon', lecturePrivee, ${garde}, async (req, res, next) => {
         try {
-          const trouve = await stockages.${donnee}.trouver(req.params.id);
+${separee ? codeFicheVisible(variable, donnee, route.donnee, 'lire') : ''}          const trouve = ${separee ? 'visible' : `await stockages.${donnee}.trouver(req.params.id)`};
           if (!trouve) {
             res.status(404).json({ erreur: introuvable('${route.donnee}') });
             return;

@@ -234,11 +234,15 @@ export type RegleChamp =
   | { genre: 'site' }
   | { genre: 'nombreDe'; liste: string }
   | { genre: 'somme'; prix: string; donnee: string; liste: string; plus?: string }
-  | { genre: 'auPlus'; prix: string; donnee: string; par: string };
+  | { genre: 'auPlus'; prix: string; donnee: string; par: string }
+  /** Ajouté par « donnee commande par boutique : » : le serveur seul le remplit. */
+  | { genre: 'groupe' };
 
 export interface Donnee {
   type: 'Donnee';
   nom: string;
+  /** « par boutique » : chaque groupe ne voit que ses fiches ; « par compte » : chaque compte ne voit que les siennes. */
+  par?: string;
   /** Le nom sous lequel l'analyse la connaît (« boutique_produit » si une autre donnée porte déjà « produit »). */
   cle?: string;
   champs: { nom: string; type: TypeChamp; regle?: RegleChamp; nonVide?: boolean; ligne: number }[];
@@ -293,6 +297,16 @@ export interface Regle {
   donnee: string;
   /** « tout le monde peut lire suivi par identifiant » : une fiche à la fois, jamais la liste. */
   parIdentifiant?: boolean;
+  /** « … si facture.compte est dans utilisateur.comptes_lies » : la règle ne vaut que pour ces fiches. */
+  si?: ConditionRegle;
+  ligne: number;
+}
+
+export type OperandeRegle = { genre: 'fiche'; donnee: string; champ: string } | { genre: 'utilisateur'; champ: string } | { genre: 'valeur'; valeur: string | number | boolean };
+export interface ConditionRegle {
+  gauche: OperandeRegle;
+  dans: boolean;
+  droite: OperandeRegle;
   ligne: number;
 }
 
@@ -397,6 +411,7 @@ export type Instruction =
   | ConnexionGoogle
   | ChangementMotDePasse
   | Invitation
+  | ChangementRole
   | DemandeLienMotDePasse
   | ChoixMotDePasse
   | TelechargementBon
@@ -658,6 +673,16 @@ export interface Invitation {
   type: 'Invitation';
   email: Expression;
   role: string;
+  /** « dans boutique b » : le groupe du nouveau compte. */
+  groupe?: { champ: string; valeur: Expression };
+  ligne: number;
+}
+
+/** « changer role de c en "vendeur" » : compte tout de suite, le serveur relit le compte à chaque requête. */
+export interface ChangementRole {
+  type: 'ChangementRole';
+  cible: Expression;
+  role: Expression;
   ligne: number;
 }
 

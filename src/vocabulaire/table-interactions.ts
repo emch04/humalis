@@ -299,6 +299,16 @@ export const ENTREES_INTERACTIONS: EntreeVocabulaire[] = [
   }),
 
   mot({
+    mot: 'role',
+    accentue: 'rôle',
+    categorie: 'action',
+    concept: 'action.changerRole',
+    cibles: { ...ecran('utilisateur.changerRole(…)', null, null) },
+    couvre: [],
+    description: '« changer role de c en "vendeur" » : le rôle d’un compte change tout de suite. Réservé à l’admin, vérifié par le serveur.',
+    exemple: 'serveur "s" :\n    roles vendeur\n\npage "p" :\n    titre "P"\n    bouton "Go"\n    quand l\'utilisateur clique sur "Go" :\n        changer role de "abc" en "vendeur"\n',
+  }),
+  mot({
     mot: 'roles',
     accentue: 'rôles',
     categorie: 'option',

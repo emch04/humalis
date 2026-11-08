@@ -125,6 +125,8 @@ export interface ResultatAnalyse {
   bons: Set<string>;
   /** Les routes (adresse normalisée) qu'une page lit « en direct » : le serveur annonce leurs changements. */
   directs: Set<string>;
+  /** Une page écrit « changer role de … » : le serveur ouvre cette route et relit le compte à chaque requête. */
+  changeDeRole?: boolean;
   /** Le type d'une variable déclarée, ou de la variable d'une boucle. */
   types: Map<DeclarationVariable | Boucle, TypeValeur>;
   /** Chaque composant écrit en Humalis, vu comme une page (pour ses éléments). */
@@ -944,10 +946,21 @@ class AnalysePage {
         if (contexte === 'vue') this.horsEvenement(nom, instruction.ligne);
         this.demandeUnServeur(nom, instruction.ligne);
         this.typeDe(instruction.type === 'ChoixMotDePasse' ? instruction.nouveau : instruction.email);
+        if (instruction.type === 'Invitation' && instruction.groupe) this.typeDe(instruction.groupe.valeur);
         const { invitations, oublie } = this.liens.comptes;
         const manque =
           instruction.type === 'Invitation' ? (invitations ? null : 'invitations vers "…"') : instruction.type === 'DemandeLienMotDePasse' ? (oublie ? null : 'mot de passe oublie vers "…"') : invitations || oublie ? null : 'invitations vers "…" ou mot de passe oublie vers "…"';
         if (manque !== null && this.liens.serveur !== undefined) this.erreur(`« ${nom} » demande la ligne « ${manque} » dans le serveur "${this.liens.serveur}".`, instruction.ligne);
+        return;
+      }
+
+      case 'ChangementRole': {
+        this.litLaSession = true;
+        this.resultat.changeDeRole = true;
+        if (contexte === 'vue') this.horsEvenement('changer role', instruction.ligne);
+        this.demandeUnServeur('changer role', instruction.ligne);
+        this.typeDe(instruction.cible);
+        this.typeDe(instruction.role);
         return;
       }
 
@@ -2762,6 +2775,8 @@ function actionInterditeDansUneFonction(instruction: Instruction): string | unde
       return 'changer le mot de passe';
     case 'Invitation':
       return 'inviter';
+    case 'ChangementRole':
+      return 'changer role';
     case 'DemandeLienMotDePasse':
       return 'demander un lien de mot de passe';
     case 'ChoixMotDePasse':
