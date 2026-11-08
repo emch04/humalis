@@ -86,6 +86,19 @@ try {
   await page.waitForTimeout(800);
   verifier(lectures.length === avant, 'après avoir quitté la page, plus rien n’est relu');
   verifier(erreurs.length === 0, `aucune erreur ${erreurs.join(' | ').slice(0, 300)}`);
+
+  // Une coupure : le serveur s'arrête puis repart ; la page se reconnecte et rattrape ce qui a changé.
+  const seconde = await navigateur.newPage();
+  await seconde.goto(adresse);
+  await seconde.getByText('Livre rouge').waitFor({ timeout: 5000 });
+  processus[0].kill();
+  await new Promise((z) => setTimeout(z, 1500));
+  await lancer('node', ['dist/src/demarrer.js'], { cwd: serveur, env: { ...process.env, JWT_SECRET: randomBytes(32).toString('hex'), HUMALIS_ADMIN_EMAIL: EMAIL, HUMALIS_ADMIN_MOT_DE_PASSE: MOT, PORT: String(port) } }, (m) => m.includes('prêt'));
+  // Le serveur repart : un changement fait maintenant doit arriver, que la page soit déjà reconnectée ou pas encore.
+  const nouveauJeton = (await (await fetch(`${base}/auth/login`, { method: 'POST', headers: json, body: JSON.stringify({ email: EMAIL, password: MOT }) })).json()).data.token;
+  await fetch(`${base}/api/produits`, { method: 'POST', headers: { ...json, authorization: `Bearer ${nouveauJeton}` }, body: JSON.stringify({ nom: 'Apres la coupure' }) });
+  verifier(await seconde.getByText('Apres la coupure').waitFor({ timeout: 80000 }).then(() => true, () => false), 'après une coupure du serveur, la page se reconnecte et rattrape');
+  await seconde.close();
 } finally {
   await navigateur.close();
   for (const p of processus) p.kill();
