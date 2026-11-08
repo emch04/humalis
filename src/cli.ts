@@ -13,6 +13,7 @@ import { genererProjetServeur, MARQUE_SERVEUR } from './cibles/serveur/projet.js
 import { verifierSourcesPourLaCible, verifierNavigationPourLaCible, verifierFichiersPourLaCible, verifierNomsPourLeWeb } from './cibles/sources.js';
 import { genererProjetMobile, verifierPourLeMobile, verifierModulesPourLeMobile, MARQUE_MOBILE } from './cibles/mobile/projet.js';
 import { verifierFichiersPourLeMobile } from './cibles/mobile/fichiers.js';
+import { genererProjetMoteur, verifierPourLeMoteur, MARQUE_MOTEUR } from './cibles/moteur/projet.js';
 import { genererProjetStatique, verifierPourLeStatique, MARQUE_STATIQUE } from './cibles/statique/projet.js';
 import { genererProjetDesktop, MARQUE_DESKTOP, SERVEUR_PAR_DEFAUT } from './cibles/desktop/projet.js';
 import { gestionnairesDuProgramme, contientAction } from './cibles/web/interactions.js';
@@ -145,6 +146,14 @@ function compile(arguments_: string[]): number {
     console.error('\nLe programme ne peut pas être produit pour le web : rien n\'a été écrit.');
     return 1;
   }
+
+  // « --moteur humalis » : le site sans React (le moteur de rendu de Humalis).
+  const moteur = option(arguments_, 'moteur');
+  if (moteur !== undefined && moteur !== 'humalis' && moteur !== 'react') {
+    console.error(`Le moteur « ${moteur} » n'existe pas. Moteurs disponibles : react (par défaut), humalis.`);
+    return 2;
+  }
+  if (moteur === 'humalis') return compileMoteur(application, chemin, sortie, option(arguments_, 'adresse'));
 
   // Ne jamais écraser un travail fait à la main : un dossier non vide doit
   // porter la marque d'un projet produit par Humalis.
@@ -414,6 +423,36 @@ function compileDesktop(application: Application, chemin: string, sortie: string
     console.error(`Les requêtes vers le serveur partent de l'application vers ${serveur ?? SERVEUR_PAR_DEFAUT} ; HUMALIS_SERVEUR la remplace au lancement.`);
   }
   console.error(`Pour la lancer : cd ${sortie} && npm install && npm start (voir LISEZMOI.md)`);
+  return 0;
+}
+
+function compileMoteur(application: Application, chemin: string, sortie: string, adresse?: string): number {
+  if (application.ecrans.length === 0) {
+    console.error(`Le fichier ${basename(chemin)} ne contient aucune page : rien n'a été écrit.`);
+    return 1;
+  }
+  const refus = verifierPourLeMoteur(application);
+  afficherDiagnostics(refus);
+  if (refus.some((d) => d.gravite === 'erreur')) {
+    console.error('\nLe programme ne peut pas encore être produit avec le moteur Humalis : rien n\'a été écrit.');
+    return 1;
+  }
+  if (!dossierLibre(sortie, MARQUE_MOTEUR)) return 1;
+  const fichiersStyle = lireFichiersStyle(application, chemin);
+  if (!fichiersStyle) return 1;
+  const externes = lireComposantsReact(application, chemin);
+  if (!externes) return 1;
+  const polices = lirePolices(application, chemin);
+  if (!polices) return 1;
+  const images = lireImagesDuSite(application, chemin);
+  if (!images) return 1;
+  const medias = lireMedias(application, chemin);
+  if (!medias) return 1;
+  const nom = basename(chemin).replace(/\.humalis$/, '');
+  const fichiers = genererProjetMoteur(application, { nom, source: basename(chemin), fichiersStyle, polices, images, medias, externes, ...(adresse ?? application.site?.adresse ? { adresse: adresse ?? application.site?.adresse } : {}) });
+  ecrire(sortie, fichiers);
+  console.error(`Site écrit dans « ${sortie} » avec le moteur Humalis (${fichiers.size} fichiers).`);
+  console.error(`Pour le lancer : cd ${sortie} && npm install && npm run dev`);
   return 0;
 }
 

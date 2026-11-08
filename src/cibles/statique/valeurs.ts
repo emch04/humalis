@@ -49,6 +49,8 @@ export interface ContexteJs {
   renommes?: Map<string, string>;
   /** Le site a plusieurs langues : « langue » est la langue courante (humalis.js). */
   langues?: boolean;
+  /** Le moteur de rendu lit certaines variables autrement (« compteur.v »). */
+  lu?: (nom: string) => string | undefined;
 }
 
 /** Un texte et ses « {…} » en JavaScript ; `langue` est celle d'une version (« en »). */
@@ -69,7 +71,7 @@ function texteJs(parties: PartiesTexte, contexte: ContexteJs, langue?: string): 
     const formater = 'variable' in p ? habillage(p, langue) : undefined;
     // Une variable « = rien » pas encore lue : rien ne s'affiche à la place du champ.
     if (reste.length > 0 && contexte.facultatives?.has(premier)) {
-      const champ = `${nomJs(premier)}?.${reste.map(camel).join('.')}`;
+      const champ = `${contexte.lu?.(premier) ?? nomJs(premier)}?.${reste.map(camel).join('.')}`;
       return formater ? `\${${formater(champ)}}` : `\${${champ} ?? ''}`;
     }
     if (formater) return `\${${formater(chemin(p.variable, contexte))}}`;
@@ -85,7 +87,7 @@ const contexteTypes = (contexte: ContexteJs) => ({ types: contexte.types, champs
 function chemin(variable: string, contexte: ContexteJs): string {
   const [premier, ...champs] = variable.split('.');
   const renomme = contexte.renommes?.get(premier);
-  const debut = renomme ?? (contexte.calculs.has(premier) ? `${nomJs(premier)}()` : nomJs(premier));
+  const debut = renomme ?? (contexte.calculs.has(premier) ? `${nomJs(premier)}()` : (contexte.lu?.(premier) ?? nomJs(premier)));
   return [debut, ...champs.map(camel)].join('.');
 }
 

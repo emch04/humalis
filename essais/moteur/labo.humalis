@@ -1,0 +1,33 @@
+# Un programme d'essai pour le moteur de rendu : variables, listes, conditions, focus.
+page "labo" :
+    variable lignes = ["a", "b", "c"]
+    variable compteur = 0
+    variable montrer = vrai
+    titre "Labo"
+    texte "Compteur : {compteur}"
+    bouton "Plus"
+    quand l'utilisateur clique sur "Plus" :
+        changer compteur par compteur + 1
+    bouton "Inverser"
+    quand l'utilisateur clique sur "Inverser" :
+        changer lignes par trier lignes decroissant
+    bouton "Ajouter"
+    quand l'utilisateur clique sur "Ajouter" :
+        ajouter "z" a lignes
+    bouton "Basculer"
+    quand l'utilisateur clique sur "Basculer" :
+        si montrer est vrai :
+            changer montrer par faux
+        sinon :
+            changer montrer par vrai
+    si montrer est vrai :
+        texte "Visible"
+    sinon :
+        texte "Cache"
+    champ "Nom"
+    texte "Tape : {champ "Nom"}"
+    pour chaque l dans lignes :
+        texte "Ligne {l}"
+        bouton "Choisir"
+        quand l'utilisateur clique sur "Choisir" :
+            changer compteur par compteur + 10
