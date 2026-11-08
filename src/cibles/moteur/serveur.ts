@@ -413,7 +413,7 @@ export const utilisateur = {
   get pret() { return pret.v; },
   get connecte() { return personne.v !== null; },
   get admin() { return personne.v?.role === 'admin'; },
-  seConnecter, seConnecterAvecGoogle, changerMotDePasse, inviter, changerRole, activerNotifications,
+  seConnecter, seConnecterAvecGoogle, changerMotDePasse, inviter, changerRole, activerNotifications, demanderIa,
   demanderLienMotDePasse, choisirMotDePasse, seDeconnecter,
 };
 function entetesSession() { return ajouterCsrf(new Headers({ 'Content-Type': 'application/json' })); }
@@ -488,6 +488,31 @@ async function envoyerAuCompte(chemin, donnees, dansUnEssai, sansRaison) {
   return true;
 }
 function inviter(email, role, dansUnEssai = false, groupes) { return envoyerAuCompte('/auth/invitations', { email, role, groupes }, dansUnEssai, "L'invitation n'est pas partie."); }
+async function demanderIa(question, surTexte, dansUnEssai = false) {
+  let reponse;
+  try { reponse = await fetch(BASE_AUTH + '/auth/ia', { method: 'POST', headers: entetesSession(), credentials: CREDENTIALS_AUTH, body: JSON.stringify({ question }) }); }
+  catch { return refuser(REESSAYER(), dansUnEssai); }
+  if (!reponse.ok || !reponse.body) {
+    const corps = await reponse.json().catch(() => null);
+    return refuser(corps?.erreur ? corps.erreur.charAt(0).toUpperCase() + corps.erreur.slice(1) + '.' : "L'IA n'a pas répondu.", dansUnEssai);
+  }
+  let texte = '', reste = '';
+  const decodeur = new TextDecoder();
+  const lecteur = reponse.body.getReader();
+  for (;;) {
+    const { value, done } = await lecteur.read();
+    if (done) return true;
+    reste += decodeur.decode(value, { stream: true });
+    const blocs = reste.split('\n\n');
+    reste = blocs.pop() ?? '';
+    for (const bloc of blocs) {
+      const message = JSON.parse(bloc.replace(/^data: /, ''));
+      if (message.erreur) return refuser(message.erreur, dansUnEssai);
+      texte += message.t ?? '';
+      surTexte(texte);
+    }
+  }
+}
 async function activerNotifications(dansUnEssai = false) {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return refuser('Cet appareil ne reçoit pas les notifications.', dansUnEssai);
   if ((await Notification.requestPermission()) !== 'granted') return refuser('Les notifications sont refusées sur cet appareil.', dansUnEssai);

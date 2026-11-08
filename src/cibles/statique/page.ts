@@ -1749,7 +1749,7 @@ export function contientRequete(actions: Action[]): boolean {
   );
 }
 
-const ATTENTES = new Set<Action['type']>(['changementRole', 'activationNotifications', 'requete', 'suppression', 'modification', 'connexion', 'deconnexion', 'confirmation', 'copie', 'partage', 'telechargementCsv', 'recharger', 'envoiFichier', 'telechargementBon', 'connexionGoogle', 'changementMotDePasse', 'invitation', 'demandeLienMotDePasse', 'choixMotDePasse', 'essayer']);
+const ATTENTES = new Set<Action['type']>(['demandeIa', 'changementRole', 'activationNotifications', 'requete', 'suppression', 'modification', 'connexion', 'deconnexion', 'confirmation', 'copie', 'partage', 'telechargementCsv', 'recharger', 'envoiFichier', 'telechargementBon', 'connexionGoogle', 'changementMotDePasse', 'invitation', 'demandeLienMotDePasse', 'choixMotDePasse', 'essayer']);
 
 /** Vrai si le bloc d'une minuterie contient « arreter » pour elle (hors d'une boucle). */
 export function arrete(actions: Action[]): boolean {

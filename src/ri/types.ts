@@ -199,6 +199,8 @@ export interface ServeurRI {
   connexionGoogle?: boolean;
   /** « roles directeur, enseignant et parent ». */
   roles?: string[];
+  /** « connecte peut demander a ia ». */
+  droitIa?: QuiPeut;
   /** « document "facture" de commande : ». */
   documents?: { nom: string; donnee: string; lignes: { genre: 'titre' | 'texte'; valeur: ValeurServeurRI }[] }[];
   /** « tous les jours a 7 h : ». */
@@ -710,6 +712,8 @@ export type Action =
   | { type: 'changementMotDePasse'; actuel: Valeur; nouveau: Valeur }
   /** « inviter champ "Adresse" comme admin » : un lien par e-mail. */
   | { type: 'invitation'; email: Valeur; role: string; groupe?: { champ: string; valeur: Valeur } }
+  /** « demander a ia "…" dans reponse ». */
+  | { type: 'demandeIa'; question: Valeur; variable: string }
   /** « activer notifications » : cet appareil reçoit celles du compte. */
   | { type: 'activationNotifications' }
   /** « changer role de c en "vendeur" ». */

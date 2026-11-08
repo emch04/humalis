@@ -1658,6 +1658,8 @@ interface Utilisateur {
   changerMotDePasse(actuel: string, nouveau: string, dansUnEssai?: boolean): Promise<boolean>;
   /** « inviter … » : un lien par e-mail ; vrai si le serveur l'a pris en charge. */
   inviter(email: string, role: string, dansUnEssai?: boolean, groupes?: Record<string, string>): Promise<boolean>;
+  /** « demander a ia … » : la réponse arrive au fil de l'eau. */
+  demanderIa(question: string, surTexte: (texte: string) => void, dansUnEssai?: boolean): Promise<boolean>;
   /** « activer notifications » : cet appareil reçoit celles du compte. */
   activerNotifications(dansUnEssai?: boolean): Promise<boolean>;
   /** « changer role de c en … » : compte tout de suite. */
@@ -1842,6 +1844,41 @@ export function Session({ children }: { children: ReactNode }) {
     return envoyerAuCompte('/auth/invitations', { email, role, groupes }, dansUnEssai, "L'invitation n'est pas partie.");
   }
 
+  async function demanderIa(question: string, surTexte: (texte: string) => void, dansUnEssai = false): Promise<boolean> {
+    const dire = (texte: string): boolean => {
+      if (dansUnEssai) throw new Error(texte);
+      afficherMessage(texte, 'erreur');
+      return false;
+    };
+    let reponse: Response;
+    try {
+      reponse = await fetch(BASE + '/auth/ia', { method: 'POST', headers: entetes(), credentials: 'same-origin', body: JSON.stringify({ question }) });
+    } catch {
+      return dire("Le serveur n'a pas répondu. Réessayez dans un instant.");
+    }
+    if (!reponse.ok || !reponse.body) {
+      const corps = (await reponse.json().catch(() => null)) as { erreur?: string } | null;
+      return dire(corps?.erreur ? corps.erreur.charAt(0).toUpperCase() + corps.erreur.slice(1) + '.' : "L'IA n'a pas répondu.");
+    }
+    let texte = '';
+    let reste = '';
+    const decodeur = new TextDecoder();
+    const lecteur = reponse.body.getReader();
+    for (;;) {
+      const { value, done } = await lecteur.read();
+      if (done) return true;
+      reste += decodeur.decode(value, { stream: true });
+      const blocs = reste.split('\\n\\n');
+      reste = blocs.pop() ?? '';
+      for (const bloc of blocs) {
+        const message = JSON.parse(bloc.replace(/^data: /, '')) as { t?: string; erreur?: string };
+        if (message.erreur) return dire(message.erreur);
+        texte += message.t ?? '';
+        surTexte(texte);
+      }
+    }
+  }
+
   async function activerNotifications(dansUnEssai = false): Promise<boolean> {
     const dire = (texte: string): boolean => {
       if (dansUnEssai) throw new Error(texte);
@@ -1926,6 +1963,7 @@ export function Session({ children }: { children: ReactNode }) {
     inviter,
     changerRole,
     activerNotifications,
+    demanderIa,
     demanderLienMotDePasse,
     choisirMotDePasse,
     seDeconnecter,

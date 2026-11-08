@@ -31,6 +31,9 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[], pag
   for (const donnee of serveur.donnees) for (const champ of donnee.champs) verifierRegleChamp(champ, donnee, serveur, erreur);
 
   for (const tache of serveur.taches ?? []) traduireTache(tache, serveur, erreur);
+  if (serveur.ia && !serveur.droitIa) erreur(`chaque question à l'IA coûte : dites qui peut la poser, par exemple « connecte peut demander a ia ».`, serveur.ia.ligne);
+  if (serveur.droitIa && !serveur.ia) erreur(`« peut demander a ia » demande la ligne « ia par anthropic » dans le serveur "${serveur.nom}".`, serveur.droitIa.ligne);
+  if (serveur.droitIa?.qui === 'tout_le_monde') erreur(`chaque question à l'IA coûte : réservez-la à des comptes connectés, par exemple « connecte peut demander a ia ».`, serveur.droitIa.ligne);
   const nomsDocuments = new Map<string, number>();
   for (const document of serveur.documents ?? []) {
     traduireDocument(document, serveur, erreur);

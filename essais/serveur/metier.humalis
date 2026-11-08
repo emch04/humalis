@@ -1,6 +1,8 @@
 # Essai du serveur : groupes, droits sur ses fiches, rôles qui changent.
 serveur "commerce" :
     roles gerant, vendeur et client
+    ia par anthropic
+    seuls gerant et client peuvent demander a ia
     document "recu" de commande :
         titre "Reçu {commande.id}"
         texte "Total : {commande.total} euros"
@@ -52,12 +54,17 @@ serveur "commerce" :
 
 page "accueil" :
     variable commandes = []
+    variable reponse = ""
     titre "Commerce"
     quand la page se charge :
         envoyer requete vers "commandes" dans commandes en direct
     bouton "Promouvoir"
     quand l'utilisateur clique sur "Promouvoir" :
         changer role de "abc" en "gerant"
+    texte reponse
+    bouton "Question"
+    quand l'utilisateur clique sur "Question" :
+        demander a ia "Bonjour" dans reponse
     bouton "Activer"
     quand l'utilisateur clique sur "Activer" :
         activer notifications

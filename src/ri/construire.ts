@@ -239,6 +239,7 @@ function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
     ...(serveur.roles?.length ? { roles: serveur.roles } : {}),
     ...(analyse.changeDeRole ? { changeDeRole: true } : {}),
     ...(analyse.activeNotifications ? { activeNotifications: true } : {}),
+    ...(serveur.droitIa ? { droitIa: serveur.droitIa.qui } : {}),
     ...(serveur.documents?.length ? { documents: serveur.documents.map((d) => ({ nom: d.nom, donnee: d.donnee, lignes: traduireDocument(d, serveur, () => undefined) })) } : {}),
     ...(serveur.taches?.length ? { taches: serveur.taches.map((t, i) => ({ nom: `tache-${i + 1}`, frequence: t.frequence, corps: traduireTache(t, serveur, () => undefined) })) } : {}),
     // L'analyse a déjà vérifié le bloc : ses deux lignes sont là, et le champ existe sous ce nom ou un nom voisin (accents).
@@ -705,6 +706,9 @@ class Construction {
         case 'TelechargementDocument':
           // Le même chemin qu'un bon : droits et téléchargement sont déjà là.
           actions.push({ type: 'telechargementBon', adresse: this.analyse.adressesRequetes.get(instruction) ?? '', objet: this.valeur(instruction.objet) });
+          break;
+        case 'DemandeIa':
+          actions.push({ type: 'demandeIa', question: this.valeur(instruction.question), variable: instruction.variable });
           break;
         case 'ActivationNotifications':
           actions.push({ type: 'activationNotifications' });

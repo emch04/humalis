@@ -65,7 +65,7 @@ import type {
   Boucle,
   Evenement,
   GenreEvenement,
-  Connexion, ConnexionGoogle, ChangementMotDePasse, Invitation, ChangementRole, FaireAction, TelechargementDocument, DocumentServeur, ActionServeur, TachePlanifiee, EnvoiNotification, ConditionRegle, OperandeRegle, DemandeLienMotDePasse, ChoixMotDePasse, ApresCreation, EnvoiEmail, CreationLiee, RegleChamp, ValeurFixe, TelechargementBon, TelechargementCsv, Fidelite, Suppression, Modification, EnvoiFichier, ArgumentPage } from './ast.js';
+  Connexion, ConnexionGoogle, ChangementMotDePasse, Invitation, ChangementRole, DroitIa, DemandeIa, FaireAction, TelechargementDocument, DocumentServeur, ActionServeur, TachePlanifiee, EnvoiNotification, ConditionRegle, OperandeRegle, DemandeLienMotDePasse, ChoixMotDePasse, ApresCreation, EnvoiEmail, CreationLiee, RegleChamp, ValeurFixe, TelechargementBon, TelechargementCsv, Fidelite, Suppression, Modification, EnvoiFichier, ArgumentPage } from './ast.js';
 
 export function analyserSyntaxe(tokens: Token[]): Programme {
   const flux = new FluxTokens(tokens);
@@ -389,10 +389,21 @@ function analyserServeur(flux: FluxTokens): Serveur {
   let fidelite: Fidelite | undefined;
   const taches: TachePlanifiee[] = [];
   const documents: DocumentServeur[] = [];
+  let ia: Serveur['ia'];
+  let droitIa: DroitIa | undefined;
 
   chaqueLigne(flux, () => {
     const token = flux.actuel();
-    if (estTache(flux)) {
+    if (estDroitIa(flux)) {
+      const droit = analyserRegle(flux, roles !== undefined);
+      if (droit.type === 'DroitIa') droitIa = droit;
+    } else if (estLeMot(token, 'ia') && estLeMot(flux.regarder(1), 'par')) {
+      flux.avancer();
+      flux.avancer();
+      if (motDe(flux.actuel()) !== 'anthropic') throw new ErreurSyntaxique('le seul service d’IA est Anthropic pour l’instant : ia par anthropic', token.ligne);
+      flux.avancer();
+      ia = { service: 'anthropic', ligne: token.ligne };
+    } else if (estTache(flux)) {
       taches.push(analyserTache(flux));
     } else if (estLeMot(token, 'document') && flux.regarder(1).type === 'CHAINE') {
       documents.push(analyserDocument(flux));
@@ -461,6 +472,8 @@ function analyserServeur(flux: FluxTokens): Serveur {
     ...(roles?.length ? { roles } : {}),
     ...(taches.length ? { taches } : {}),
     ...(documents.length ? { documents } : {}),
+    ...(ia ? { ia } : {}),
+    ...(droitIa ? { droitIa } : {}),
     ...(emails ? { emails } : {}),
     ...(invitations ? { invitations } : {}),
     ...(motDePasseOublie ? { motDePasseOublie } : {}),
@@ -673,7 +686,8 @@ function analyserRoute(flux: FluxTokens, avecRoles = false): Route {
     } else {
       const lue = analyserRegle(flux, avecRoles);
       if (lue.type === 'Regle') regles.push(lue);
-      else actions.push(lue);
+      else if (lue.type === 'ActionServeur') actions.push(lue);
+      else throw new ErreurSyntaxique('« … peut demander a ia » s’écrit directement dans le serveur, pas dans une route.', lue.ligne);
     }
   });
   return { type: 'Route', adresse, regles, ...(actions.length ? { actions } : {}), ...(apresCreation ? { apresCreation } : {}), ligne: debut.ligne };
@@ -794,7 +808,15 @@ export function analyserEnvoiEmail(flux: FluxTokens): EnvoiEmail {
 }
 
 /** « tout le monde peut lire produit », « seul admin peut modifier produit ». */
-function analyserRegle(flux: FluxTokens, avecRoles = false): Regle | ActionServeur {
+/** La ligne dit-elle qui peut interroger l'IA ? */
+function estDroitIa(flux: FluxTokens): boolean {
+  for (let i = 0; i < 12 && flux.regarder(i).type !== 'FIN_LIGNE'; i++) {
+    if (estLeMot(flux.regarder(i), 'peut') || estLeMot(flux.regarder(i), 'peuvent')) return estLeMot(flux.regarder(i + 1), 'demander');
+  }
+  return false;
+}
+
+function analyserRegle(flux: FluxTokens, avecRoles = false): Regle | ActionServeur | DroitIa {
   const debut = flux.actuel();
   const mots: string[] = [];
   while (!estLeMot(flux.actuel(), 'peut') && !estLeMot(flux.actuel(), 'peuvent') && !flux.verifier('FIN_LIGNE') && !flux.estFini()) {
@@ -816,6 +838,12 @@ function analyserRegle(flux: FluxTokens, avecRoles = false): Regle | ActionServe
   else flux.attendre(flux.actuel().type === 'MOT_CLE' ? 'MOT_CLE' : 'IDENTIFIANT', 'peut', '« peut » suivi d\'une action');
 
   if (estLeMot(flux.actuel(), 'faire')) return analyserActionServeur(flux, qui, debut.ligne);
+  if (estLeMot(flux.actuel(), 'demander')) {
+    flux.avancer();
+    if (!estLeMot(flux.actuel(), 'ia')) throw new ErreurSyntaxique('on écrit : connecte peut demander a ia', debut.ligne);
+    flux.avancer();
+    return { type: 'DroitIa', qui, ligne: debut.ligne };
+  }
 
   const actions: ActionDonnee[] = [];
   do {
@@ -1155,6 +1183,16 @@ function analyserInstruction(flux: FluxTokens): Instruction {
   // « telecharger commandes en csv » : un fichier fait dans l'appareil, à partir d'une liste.
   if (estLeMot(flux.actuel(), 'telecharger') && finitParEnCsv(flux)) {
     return analyserTelechargementCsv(flux);
+  }
+
+  // « demander a ia "…" dans reponse » (« a » est déjà sauté par le lexer).
+  if (estLeMot(flux.actuel(), 'demander') && estLeMot(flux.regarder(1), 'ia')) {
+    const debut = flux.avancer();
+    flux.avancer();
+    const question = analyserOperande(flux);
+    if (!estLeMot(flux.actuel(), 'dans')) throw new ErreurSyntaxique('on écrit : demander a ia "…" dans reponse', debut.ligne);
+    flux.avancer();
+    return { type: 'DemandeIa', question, variable: flux.attendreNom('la variable qui reçoit la réponse').nom, ligne: debut.ligne } satisfies DemandeIa;
   }
 
   // « activer notifications » ; « activer » seul reste un nom possible.
