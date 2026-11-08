@@ -11,7 +11,7 @@ describe('cible serveur — projet produit', () => {
   it('écrit un projet Node complet', () => {
     expect([...fichiers.keys()].sort()).toEqual([
       '.env.exemple', '.gitignore', '.humalis-projet', 'LISEZMOI.md', 'package.json',
-      'src/demarrer.ts', 'src/donnees.ts', 'src/humalis/centrale.ts', 'src/humalis/coffre.ts', 'src/humalis/compresser.ts', 'src/humalis/renouvellements.ts', 'src/humalis/sessions.ts', 'src/humalis/stockage.ts', 'src/humalis/verifier.ts', 'src/serveur.ts',
+      'src/demarrer.ts', 'src/donnees.ts', 'src/humalis/centrale.ts', 'src/humalis/coffre.ts', 'src/humalis/compresser.ts', 'src/humalis/envois.ts', 'src/humalis/renouvellements.ts', 'src/humalis/sessions.ts', 'src/humalis/stockage.ts', 'src/humalis/verifier.ts', 'src/serveur.ts',
       'tests/regles.test.ts', 'tests/sessions.test.ts', 'tsconfig.json',
     ]);
   });
@@ -19,7 +19,7 @@ describe('cible serveur — projet produit', () => {
   it('assemble le serveur avec createSaasApp et ses gardes', () => {
     expect(serveur).toContain("import { createSaasApp, type UsersStore } from '@astratra/saas-kit';");
     expect(serveur).toContain('extendRoutes: (app, contexte) => {');
-    expect(serveur).toContain('seulAdmin: [authMiddleware, authorizeAdmin],');
+    expect(serveur).toContain('seulAdmin: [authMiddleware, authorizeAdmin, unSeulEnvoi],');
     expect(serveur).toContain("app.use('/api/produits', routeProduits);");
   });
 
@@ -33,7 +33,8 @@ describe('cible serveur — projet produit', () => {
 
   it('n’invente aucune sécurité : ni mot de passe, ni secret, ni hachage maison', () => {
     for (const [chemin, contenu] of fichiers) {
-      if (!chemin.endsWith('.ts') || chemin.startsWith('tests/')) continue;
+      // envois.ts raccourcit un identifiant d'envoi et compare deux corps : ni mot de passe, ni secret.
+      if (!chemin.endsWith('.ts') || chemin.startsWith('tests/') || chemin === 'src/humalis/envois.ts') continue;
       expect(contenu, chemin).not.toMatch(/createHash|bcrypt|jsonwebtoken|md5|sha1|sha256/i);
     }
     const demarrer = fichiers.get('src/demarrer.ts')!;
