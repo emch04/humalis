@@ -42,6 +42,32 @@ export async function run(): Promise<void> {
   assert.ok(Date.now() - debut < 500, `trop lent : ${Date.now() - debut} ms`);
 
   await outilsEditeur(path.resolve(__dirname, '../../../../exemples'));
+  await composantReact(dossier);
+}
+
+/** « utiliser composant » : aucun faux soulignement, F12 ouvre le fichier .jsx, l'extrait s'insère. */
+async function composantReact(dossier: string): Promise<void> {
+  const uri = vscode.Uri.file(path.join(dossier, 'scene.humalis'));
+  const document = await vscode.workspace.openTextDocument(uri);
+  const editeur = await vscode.window.showTextDocument(document);
+  await attendre(500);
+  assert.deepStrictEqual(vscode.languages.getDiagnostics(uri).map((d) => d.message), [], 'aucune erreur attendue');
+
+  const ligne = document.lineAt(0).text;
+  const lieux = await vscode.commands.executeCommand<(vscode.Location | vscode.LocationLink)[]>(
+    'vscode.executeDefinitionProvider',
+    uri,
+    new vscode.Position(0, ligne.indexOf('./composants') + 3),
+  );
+  assert.strictEqual(lieux.length, 1, 'un fichier attendu');
+  const cible = 'uri' in lieux[0] ? lieux[0].uri : lieux[0].targetUri;
+  assert.strictEqual(cible.fsPath, path.join(dossier, 'composants', 'Scene3D.jsx'));
+
+  editeur.selection = new vscode.Selection(0, 0, 0, 0);
+  await vscode.commands.executeCommand('editor.action.insertSnippet', { langId: 'humalis', name: 'Composant React' });
+  await attendre(200);
+  assert.ok(document.lineAt(0).text.startsWith('utiliser composant "Scene3D" depuis "./composants/Scene3D"'), `extrait inattendu : ${document.lineAt(0).text}`);
+  await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor');
 }
 
 /** Phase 3 : survol, complétion, définition, symboles, sur la boutique. */
