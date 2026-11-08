@@ -2777,8 +2777,8 @@ qu'elle l'est.
 
 `pour chaque t dans taches avec animation :` fait glisser les lignes quand la
 liste change, et apparaître en fondu celles qui arrivent (sauf si la personne a
-demandé moins d'animations). Cela ne marche qu'avec ce moteur : ailleurs, le
-compilateur le dit et les lignes changent sans glisser.
+demandé moins d'animations). Cela marche sur le web, avec ce moteur comme avec
+React : ailleurs, le compilateur le dit et les lignes changent sans glisser.
 
 #### Le temps réel
 
@@ -2794,7 +2794,8 @@ page "commandes" :
 
 Une commande créée ailleurs apparaît seule, sans recharger. Le serveur annonce
 seulement « ça a changé » : la page relit ensuite la route normale, avec ses droits,
-donc rien de privé ne passe par ce canal. Cela marche avec ce moteur.
+donc rien de privé ne passe par ce canal. Cela marche sur le web, avec ce moteur
+comme avec React.
 
 Avec une base PostgreSQL, tu peux lancer plusieurs exemplaires du serveur : un
 changement reçu par l'un est annoncé par tous. Sans PostgreSQL, garde un seul
