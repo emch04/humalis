@@ -27,6 +27,8 @@ export interface HotePage {
   estEtat(nom: string): boolean;
   /** Le nom Swift de l'état de requête d'une variable. */
   nomEtatRequete(nom: string): string;
+  /** Vrai pour une variable « avec hors ligne » : sans réseau, pas de message d'erreur. */
+  estHorsLigne(nom: string): boolean;
 }
 
 /** La clé d'un champ envoyé, déjà traduite pour le serveur. */
@@ -279,6 +281,30 @@ export class EcrivainActions {
       case 'activationNotifications':
         e.ligne('await activerNotifications()');
         return;
+      case 'prisePhoto': {
+        const cible = this.variable(a.variable);
+        if (!cible) return this.hote.refuser(this.hote.ligne, `« photo dans ${a.variable} » : cette variable est inconnue ici`);
+        e.bloc('if let photo = await prendrePhoto() {', () => e.ligne(`${cible.code} = photo`));
+        return;
+      }
+      case 'scanCode': {
+        const cible = this.variable(a.variable);
+        if (!cible) return this.hote.refuser(this.hote.ligne, `« scanner code dans ${a.variable} » : cette variable est inconnue ici`);
+        e.bloc('if let code = await scannerCode() {', () => e.ligne(`${cible.code} = code`));
+        return;
+      }
+      case 'verificationIdentite':
+        e.ligne('if await verifierIdentite() {');
+        e.indenter(() => this.dansBranche(e, a.alors, c, vars));
+        if (a.sinon.length > 0) {
+          e.ligne('} else {');
+          e.indenter(() => this.dansBranche(e, a.sinon, c, vars));
+        }
+        e.ligne('}');
+        return;
+      case 'vibration':
+        e.ligne('vibrer()');
+        return;
       case 'changementRole': {
         const envoi = `["role": ValeurHumalis(${this.v.texte(a.role)})]`;
         const appel = `"/auth/comptes/:id/role", methode: "POST", envoi: ${envoi}, id: ${this.identifiant(a.cible)}`;
@@ -487,7 +513,7 @@ export class EcrivainActions {
     }
 
     const type = this.v.types.swift(resultat.type);
-    const appel = c.essai ? `try await Serveur.commun.appel(${adresse}, comme: ${type}.self${fin})` : `await Serveur.commun.lire(${adresse}, comme: ${type}.self${fin})`;
+    const appel = c.essai ? `try await Serveur.commun.appel(${adresse}, comme: ${type}.self${fin})` : `await Serveur.commun.lire(${adresse}, comme: ${type}.self${fin}${this.hote.estHorsLigne(a.resultat!) ? ', horsLigne: true' : ''})`;
     const nom = `reponse${++this.numero}`;
     const lecture = a.mode !== 'envoyer';
     // Une lecture sait se rejouer : « recharger » et le bouton « Réessayer » s'en servent.

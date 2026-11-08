@@ -1,0 +1,45 @@
+# L'essai des fonctions de l'appareil sur Apple.
+paquet swift "https://github.com/apple/swift-collections" version "1.1.0" produit "DequeModule"
+utiliser composant "Compte" depuis "./Compte" sur apple "./Compte.swift"
+
+serveur "boutique" :
+    donnee produit :
+        nom : texte
+    route "produits" :
+        tout le monde peut lire produit
+
+page "accueil" :
+    variable produits = [] avec hors ligne
+    variable trace = ""
+    variable valeur = "vide"
+    variable cliche = rien
+    variable identite = "inconnue"
+    variable secousse = "non"
+    titre "Appareil"
+    quand la page se charge :
+        envoyer requete vers "produits" dans produits
+    Compte
+    pour chaque p dans produits :
+        texte "Produit {p.nom}"
+    signature dans trace
+    si trace n'est pas vide :
+        texte "Signature recue"
+    bouton "Vibrer"
+    quand l'utilisateur clique sur "Vibrer" :
+        vibrer
+        changer secousse par "oui"
+    texte "Secousse {secousse}"
+    bouton "Scanner"
+    quand l'utilisateur clique sur "Scanner" :
+        scanner code dans valeur
+    texte "Code {valeur}"
+    bouton "Verifier"
+    quand l'utilisateur clique sur "Verifier" :
+        verifier identite :
+            changer identite par "confirmee"
+        sinon :
+            changer identite par "refusee"
+    texte "Identite {identite}"
+    bouton "Photo"
+    quand l'utilisateur clique sur "Photo" :
+        photo dans cliche

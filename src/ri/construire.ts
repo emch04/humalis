@@ -104,6 +104,7 @@ export function construireRepresentation(
           },
         }
       : {}),
+    ...(programme.paquetsSwift?.length ? { paquetsSwift: programme.paquetsSwift } : {}),
     composantsReact: programme.composantsReact.map((c) => ({ nom: c.nom, chemin: c.chemin, ligne: c.ligne, ...(c.module ? { module: true as const } : {}), ...(c.apple !== undefined ? { apple: c.apple } : {}) })),
     fonctions: [...analyse.fonctions.values()].map(({ definition, retour, appels }) => ({
       nom: definition.nom,
@@ -276,6 +277,7 @@ function etatDe(declaration: DeclarationVariable, analyse: ResultatAnalyse): Eta
     ligne: declaration.ligne,
   };
   if (declaration.options?.memorisee) etat.memorisee = true;
+  if (declaration.options?.horsLigne) etat.horsLigne = true;
   if (declaration.options?.secret) etat.secret = true;
   if (analyse.facultatives.has(declaration)) etat.facultatif = true;
   if (declaration.fichierDonnees) etat.lectureSeule = true;
@@ -283,7 +285,7 @@ function etatDe(declaration: DeclarationVariable, analyse: ResultatAnalyse): Eta
 }
 
 /** Les éléments d'écran d'une ligne. */
-const WIDGETS = new Set(['icone', 'badge', 'avatar', 'progression', 'chargement', 'etoiles', 'compteur', 'qr', 'fichier', 'audio', 'selecteurLangue']);
+const WIDGETS = new Set(['icone', 'badge', 'avatar', 'progression', 'chargement', 'etoiles', 'compteur', 'qr', 'signature', 'fichier', 'audio', 'selecteurLangue']);
 /** Les options qui ne sont pas des styles (elles ne font pas de classe CSS). */
 const REGLAGES = new Set(['icone', 'description', 'decoratif', 'photo', 'modifiable', 'ouvert', 'plusieurs', 'pourcentage', 'automatique', 'visibles', 'transcription', 'boucle']);
 
@@ -717,6 +719,18 @@ class Construction {
           break;
         case 'ActivationNotifications':
           actions.push({ type: 'activationNotifications' });
+          break;
+        case 'PrisePhoto':
+          actions.push({ type: 'prisePhoto', variable: instruction.variable });
+          break;
+        case 'ScanCode':
+          actions.push({ type: 'scanCode', variable: instruction.variable });
+          break;
+        case 'VerificationIdentite':
+          actions.push({ type: 'verificationIdentite', alors: this.actions(instruction.alors), sinon: this.actions(instruction.sinon) });
+          break;
+        case 'Vibration':
+          actions.push({ type: 'vibration' });
           break;
         case 'FaireAction':
           // Une action passe par le même chemin qu'une modification : droits, jeton, erreurs et relecture sont déjà là.

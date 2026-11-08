@@ -13,7 +13,7 @@ const RESERVES = new Set([
   'repeat', 'rethrows', 'return', 'self', 'Self', 'static', 'struct', 'subscript', 'super', 'switch', 'throw', 'throws',
   'true', 'try', 'typealias', 'var', 'where', 'while', 'Any', 'some', 'any', 'body', 'type', 'min', 'max', 'abs',
   // Les fonctions de la bibliothèque d'aide : une variable de ce nom les cacherait.
-  'accorder', 'activerNotifications', 'apparence', 'directs', 'arrondi', 'confirmer', 'copier', 'dateDuJour', 'decalerDate', 'formaterArgent', 'formaterDate',
+  'accorder', 'activerNotifications', 'prendrePhoto', 'scannerCode', 'verifierIdentite', 'vibrer', 'apparence', 'directs', 'arrondi', 'confirmer', 'copier', 'dateDuJour', 'decalerDate', 'formaterArgent', 'formaterDate',
   'formaterDepuis', 'formaterNombre', 'formaterTaille', 'grouper', 'hasard', 'jetons', 'joursEntre', 'maintenant', 'maximum',
   'minimum', 'minuterie', 'moyenne', 'mouvementReduit', 'nombreDe', 'ouvrirExterne', 'partager', 'planificateur', 'raisonDe',
   'relances', 'retirerPremier', 'somme', 't', 'telechargerCsv', 'texteDe', 'texteRiche', 'textes', 'trier', 'visibilite',

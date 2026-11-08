@@ -75,6 +75,7 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
   const donneesFichiers: Programme['donneesFichiers'] = [];
   const partages: DeclarationVariable[] = [];
   const composantsReact: ComposantReact[] = [];
+  let paquetsSwift: NonNullable<Programme['paquetsSwift']> | undefined;
   const fichiersHumalis: { chemin: string; ligne: number }[] = [];
   const composants: DefinitionComposant[] = [];
   const serveurs: Serveur[] = [];
@@ -204,6 +205,23 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
       continue;
     }
 
+    // « paquet swift "https://…" version "1.2" » : une bibliothèque Swift pour les vues écrites à la main.
+    if (estLeMot(flux.actuel(), 'paquet') && estLeMot(flux.regarder(1), 'swift')) {
+      const debut = flux.avancer();
+      flux.avancer();
+      const adresse = flux.attendre('CHAINE', undefined, 'l’adresse du paquet entre guillemets').valeur;
+      flux.attendre('IDENTIFIANT', 'version', '« version » puis le numéro entre guillemets');
+      const version = flux.attendre('CHAINE', undefined, 'le numéro de version entre guillemets').valeur;
+      let produit: string | undefined;
+      if (estLeMot(flux.actuel(), 'produit')) {
+        flux.avancer();
+        produit = flux.attendre('CHAINE', undefined, 'le nom du produit entre guillemets').valeur;
+      }
+      (paquetsSwift ??= []).push({ adresse, version, ...(produit ? { produit } : {}), ligne: debut.ligne });
+      flux.sauterFinsDeLigne();
+      continue;
+    }
+
     // « utiliser composant » : du React. « utiliser module » : du JavaScript simple, sans framework.
     if (flux.verifier('MOT_CLE', 'utiliser') && (estLeMot(flux.regarder(1), 'composant') || estLeMot(flux.regarder(1), 'module'))) {
       const debut = flux.avancer();
@@ -279,7 +297,7 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
     for (const lieu of [...pages, ...composants, ...(entete ? [entete] : []), ...(pied ? [pied] : [])]) lieu.corps.unshift(...enTete.map((c) => ({ ...c })));
   }
   for (const lieu of [...pages, ...composants, ...(entete ? [entete] : []), ...(pied ? [pied] : [])]) lieu.corps = selonEnConditions(lieu.corps);
-  const programme: Programme = { type: 'Programme', pages, ...(enTete.length > 0 ? { calculsPartages: enTete } : {}), styles, fichiersStyle, donneesFichiers, partages, composantsReact, composants, serveurs, sources, fichiersHumalis, fonctions, tests, ...(theme ? { theme } : {}), ...(site ? { site } : {}), ...(langues ? { langues } : {}), ...(traductions.length ? { traductions } : {}), ...(entete ? { entete } : {}), ...(pied ? { pied } : {}) };
+  const programme: Programme = { type: 'Programme', pages, ...(paquetsSwift ? { paquetsSwift } : {}), ...(enTete.length > 0 ? { calculsPartages: enTete } : {}), styles, fichiersStyle, donneesFichiers, partages, composantsReact, composants, serveurs, sources, fichiersHumalis, fonctions, tests, ...(theme ? { theme } : {}), ...(site ? { site } : {}), ...(langues ? { langues } : {}), ...(traductions.length ? { traductions } : {}), ...(entete ? { entete } : {}), ...(pied ? { pied } : {}) };
   // Les appels de fonctions d'actions sont remplacés par leur corps (src/parser/fonctionsActions.ts).
   const actions = deplierFonctionsActions(programme);
   if (actions.length) programme.fonctionsActions = actions;
@@ -1234,6 +1252,33 @@ function analyserInstruction(flux: FluxTokens): Instruction {
     return { type: 'DemandeIa', question, variable: flux.attendreNom('la variable qui reçoit la réponse').nom, ligne: debut.ligne } satisfies DemandeIa;
   }
 
+  // Les fonctions de l'appareil : ces mots restent des noms ailleurs.
+  if (estLeMot(flux.actuel(), 'photo') && estLeMot(flux.regarder(1), 'dans')) {
+    const debut = flux.avancer();
+    flux.avancer();
+    return { type: 'PrisePhoto', variable: flux.attendreNom('la variable qui reçoit la photo').nom, ligne: debut.ligne };
+  }
+  if (estLeMot(flux.actuel(), 'scanner') && estLeMot(flux.regarder(1), 'code') && estLeMot(flux.regarder(2), 'dans')) {
+    const debut = flux.avancer();
+    flux.avancer();
+    flux.avancer();
+    return { type: 'ScanCode', variable: flux.attendreNom('la variable qui reçoit le code').nom, ligne: debut.ligne };
+  }
+  if (estLeMot(flux.actuel(), 'verifier') && estLeMot(flux.regarder(1), 'identite')) {
+    const debut = flux.avancer();
+    flux.avancer();
+    flux.attendre('PONCTUATION', ':', 'deux-points à la fin de « verifier identite », puis ce qu’il faut faire si la personne est reconnue');
+    const alors = analyserBloc(flux);
+    let sinon: Instruction[] = [];
+    flux.sauterFinsDeLigne();
+    if (flux.accepter('MOT_CLE', 'sinon')) {
+      flux.attendre('PONCTUATION', ':', 'deux-points après « sinon »');
+      sinon = analyserBloc(flux);
+    }
+    return { type: 'VerificationIdentite', alors, sinon, ligne: debut.ligne };
+  }
+  if (estLeMot(flux.actuel(), 'vibrer') && flux.regarder(1).type === 'FIN_LIGNE') return { type: 'Vibration', ligne: flux.avancer().ligne };
+
   // « activer notifications » ; « activer » seul reste un nom possible.
   if (estLeMot(flux.actuel(), 'activer') && estLeMot(flux.regarder(1), 'notifications')) {
     const debut = flux.avancer();
@@ -1288,6 +1333,14 @@ function analyserInstruction(flux: FluxTokens): Instruction {
   const ligne = flux.actuel().ligne;
   const sorte = lireTournure(flux, ELEMENTS_CHAMP);
   if (sorte) return analyserElement(flux, { element: 'champ', ligne, sorte });
+
+  // « signature dans trace » : la personne signe à l'écran, la variable reçoit l'image.
+  if (estLeMot(flux.actuel(), 'signature') && estLeMot(flux.regarder(1), 'dans')) {
+    const debut = flux.avancer();
+    flux.avancer();
+    const variable = flux.attendreNom('la variable qui reçoit la signature');
+    return { type: 'Element', element: 'signature', contenu: { type: 'Reference', nom: variable.nom, ligne: debut.ligne }, styles: [], classes: [], ligne: debut.ligne };
+  }
 
   // « fichier "Choisir une photo" dans photo accepte images » : le choix d'un fichier.
   if (estChoixFichier(flux)) return analyserChoixFichier(flux, analyserExpression);
@@ -1381,6 +1434,9 @@ function analyserVariable(flux: FluxTokens): DeclarationVariable {
     const mot = normaliser(option.nom);
     if (mot === 'partagee') {
       options.partagee = true;
+    } else if (mot === 'hors' && estLeMot(flux.actuel(), 'ligne')) {
+      flux.avancer();
+      options.horsLigne = true;
     } else if (mot === 'memorisee') {
       options.memorisee = true;
       const suite = flux.actuel();

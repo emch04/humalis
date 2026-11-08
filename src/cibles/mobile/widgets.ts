@@ -63,6 +63,9 @@ export const WIDGETS_MOBILE: RenduWidgets = {
         const t = { petite: 128, normale: 192, grande: 256, tres_grande: 320 }[taille(w) ?? 'normale'] ?? 192;
         return `<View accessibilityRole="image" accessibilityLabel=${w.reglages.descriptionLangues ? etiquette : JSON.stringify(w.reglages.description ?? 'Code QR')}${styleDe(['qr'])}><QRCode value={${w.valeur}} size={${t}} backgroundColor="#ffffff" color="#000000" /></View>`;
       }
+      // Refusée avant d'arriver ici : voir cibles/appareil.ts.
+      case 'signature':
+        return '';
       case 'selecteurLangue':
         return '<SelecteurLangue />';
       case 'audio': {

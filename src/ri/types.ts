@@ -22,6 +22,8 @@ export interface Application {
   partages: Etat[];
   /** Les composants React utilisés (« utiliser composant … depuis … »). */
   composantsReact: { nom: string; chemin: string; ligne: number; module?: true; /** « sur apple "Carte.swift" » : la vue écrite à la main. */ apple?: string }[];
+  /** « paquet swift "https://…" version "1.2" ». */
+  paquetsSwift?: { adresse: string; version: string; produit?: string; ligne: number }[];
   /** Les composants écrits en Humalis : des écrans qui reçoivent des paramètres. */
   composants: ComposantHumalis[];
   /** Les serveurs : données, routes et droits. */
@@ -298,6 +300,8 @@ export interface Etat {
   initiale: Valeur;
   /** « avec memorisee » : gardée après un rechargement. */
   memorisee?: boolean;
+  /** « avec hors ligne » : la dernière réponse du serveur reste lisible sans réseau. */
+  horsLigne?: boolean;
   /** « avec memorisee en secret » : à garder dans un coffre sûr. */
   secret?: boolean;
   /** « = rien » : pas encore de valeur (null dans le code produit). */
@@ -318,7 +322,7 @@ export interface Calcul {
 export type GenreElement = 'titre' | 'soustitre' | 'texte' | 'image' | 'bouton' | 'lien' | 'champ';
 
 /** Les éléments d'écran d'une ligne (plan 2026-10-30, chapitre 5). */
-export type GenreWidget = 'icone' | 'badge' | 'avatar' | 'progression' | 'chargement' | 'etoiles' | 'compteur' | 'qr' | 'fichier' | 'audio' | 'selecteurLangue';
+export type GenreWidget = 'icone' | 'badge' | 'avatar' | 'progression' | 'chargement' | 'etoiles' | 'compteur' | 'qr' | 'fichier' | 'audio' | 'selecteurLangue' | 'signature';
 
 /**
  * Un texte écrit en clair dans chaque langue du site, la langue de base en
@@ -724,6 +728,14 @@ export type Action =
   | { type: 'demandeIa'; question: Valeur; variable: string }
   /** « activer notifications » : cet appareil reçoit celles du compte. */
   | { type: 'activationNotifications' }
+  /** « photo dans image ». */
+  | { type: 'prisePhoto'; variable: string }
+  /** « scanner code dans valeur ». */
+  | { type: 'scanCode'; variable: string }
+  /** « verifier identite : … sinon : … ». */
+  | { type: 'verificationIdentite'; alors: Action[]; sinon: Action[] }
+  /** « vibrer ». */
+  | { type: 'vibration' }
   /** « changer role de c en "vendeur" ». */
   | { type: 'changementRole'; cible: Valeur; role: Valeur }
   /** « demander un lien de mot de passe pour champ "Email" ». */

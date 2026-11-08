@@ -1792,6 +1792,44 @@ In a page, after a gesture: `activer notifications`. The web needs `HUMALIS_VAPI
 `HUMALIS_APNS_CLE_ID`, `HUMALIS_APNS_EQUIPE` and `HUMALIS_APNS_SUJET` (`HUMALIS_APNS_HOTE`
 for the sandbox).
 
+#### Device features
+
+On the Apple target, a page can use the device. These phrases are written in an event,
+except `signature`, which is an element of the page:
+
+```humalis
+page "accueil" :
+    titre "Livraison"
+    variable cliche = rien
+    variable code = ""
+    variable trace = ""
+    signature dans trace
+    bouton "Prendre une photo"
+    quand l'utilisateur clique sur "Prendre une photo" :
+        photo dans cliche
+    bouton "Scanner"
+    quand l'utilisateur clique sur "Scanner" :
+        scanner code dans code
+        vibrer
+    bouton "Valider"
+    quand l'utilisateur clique sur "Valider" :
+        verifier identite :
+            afficher "Confirmé"
+        sinon :
+            afficher "Non reconnu"
+```
+
+`photo` gives a file, like `fichier … dans`. `scanner code` reads a QR code or a barcode.
+`signature` gives an image as text. `verifier identite` uses Face ID, Touch ID or the
+device passcode. A variable `avec hors ligne` keeps the server's last response and shows
+it when there is no network: `variable produits = [] avec hors ligne`.
+
+To use a Swift library in a hand-written view, write at the top of the file
+`paquet swift "https://github.com/example/package" version "1.2"`. If the product is not
+named after the repository, add `produit "Name"`.
+
+On other targets, the compiler says these phrases are not available yet.
+
 #### Asking an AI
 
 ```humalis
@@ -2765,6 +2803,7 @@ target, the compiler says so clearly instead of producing something wrong.
 | Keyboard shortcuts | yes | yes | no | yes | yes |
 | React components | yes | no | yes (in React Native) | yes | no (`sur apple "View.swift"`) |
 | The engine without React (`--moteur humalis`) | yes | no | no | no | no |
+| Photo, scanner, Face ID, vibration, signature, offline | no | no | no | no | yes |
 | Sitemap, share preview | yes | yes | no | no | no |
 
 The server (`--cible serveur`) is generated separately, from the `serveur`

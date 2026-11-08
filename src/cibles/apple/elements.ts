@@ -934,6 +934,204 @@ struct CarteHumalis<Lieux: MapContent>: View {
 }
 `;
 
+const APPAREIL = String.raw`// Produit par Humalis : l'appareil photo, le scanner, Face ID, la vibration et la signature.
+import SwiftUI
+import LocalAuthentication
+import UniformTypeIdentifiers
+#if os(iOS)
+import VisionKit
+#endif
+
+/** « vibrer » : un petit retour au toucher ; rien sur un appareil qui ne sait pas le faire. */
+@MainActor func vibrer() {
+    #if os(iOS)
+    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+    #else
+    NSHapticFeedbackManager.defaultPerformer.perform(.generic, performanceTime: .now)
+    #endif
+}
+
+/** « verifier identite » : Face ID, Touch ID ou, à défaut, le code de l'appareil. */
+@MainActor func verifierIdentite() async -> Bool {
+    let contexte = LAContext()
+    var probleme: NSError?
+    guard contexte.canEvaluatePolicy(.deviceOwnerAuthentication, error: &probleme) else {
+        Messages.commun.afficher("Cet appareil ne peut pas vérifier votre identité.", .avertissement)
+        return false
+    }
+    return (try? await contexte.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "Confirmez que c'est bien vous.")) ?? false
+}
+
+/** Une photo prise ou choisie, rangée comme un fichier choisi. */
+private func fichierPhoto(_ donnees: Data) -> FichierChoisi? {
+    let url = FileManager.default.temporaryDirectory.appendingPathComponent("photo-\(UUID().uuidString).jpg")
+    guard (try? donnees.write(to: url)) != nil else { return nil }
+    return FichierChoisi(nom: url.lastPathComponent, taille: Double(donnees.count), type: "image", apercu: url.absoluteString, mime: "image/jpeg", url: url)
+}
+
+#if os(iOS)
+/** Présente un écran du système au-dessus de tout ce qui est ouvert. */
+@MainActor private func presenter(_ ecran: UIViewController) {
+    let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+    guard var haut = scene?.keyWindow?.rootViewController else { return }
+    while let suivante = haut.presentedViewController { haut = suivante }
+    haut.present(ecran, animated: true)
+}
+
+/** Garde le délégué en vie pendant que l'écran du système est ouvert. */
+@MainActor private var delegueOuvert: AnyObject?
+
+private final class DeleguePhoto: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+    let fin: (Data?) -> Void
+    init(fin: @escaping (Data?) -> Void) { self.fin = fin }
+
+    func imagePickerController(_ ecran: UIImagePickerController, didFinishPickingMediaWithInfo infos: [UIImagePickerController.InfoKey: Any]) {
+        ecran.dismiss(animated: true)
+        fin((infos[.originalImage] as? UIImage)?.jpegData(compressionQuality: 0.85))
+    }
+
+    func imagePickerControllerDidCancel(_ ecran: UIImagePickerController) {
+        ecran.dismiss(animated: true)
+        fin(nil)
+    }
+}
+
+@MainActor private final class DelegueScanner: NSObject, DataScannerViewControllerDelegate {
+    let fin: (String?) -> Void
+    private var fini = false
+    init(fin: @escaping (String?) -> Void) { self.fin = fin }
+
+    private func terminer(_ valeur: String?, _ ecran: UIViewController) {
+        guard !fini else { return }
+        fini = true
+        ecran.dismiss(animated: true)
+        fin(valeur)
+    }
+
+    func dataScanner(_ ecran: DataScannerViewController, didAdd elements: [RecognizedItem], allItems: [RecognizedItem]) {
+        for element in elements {
+            if case .barcode(let code) = element, let valeur = code.payloadStringValue { terminer(valeur, ecran); return }
+        }
+    }
+
+    @objc func annuler(_ bouton: UIBarButtonItem) {
+        if let ecran = bouton.target as? UIViewController { terminer(nil, ecran) }
+    }
+}
+#endif
+
+/** « photo dans image » : l'appareil photo ; sans appareil photo, le choix d'une image. */
+@MainActor func prendrePhoto() async -> FichierChoisi? {
+    #if os(iOS)
+    let donnees: Data? = await withCheckedContinuation { suite in
+        let ecran = UIImagePickerController()
+        ecran.sourceType = UIImagePickerController.isSourceTypeAvailable(.camera) ? .camera : .photoLibrary
+        let delegue = DeleguePhoto { valeur in
+            delegueOuvert = nil
+            suite.resume(returning: valeur)
+        }
+        delegueOuvert = delegue
+        ecran.delegate = delegue
+        presenter(ecran)
+    }
+    return donnees.flatMap(fichierPhoto)
+    #else
+    let panneau = NSOpenPanel()
+    panneau.allowedContentTypes = [.image]
+    panneau.allowsMultipleSelection = false
+    guard panneau.runModal() == .OK, let url = panneau.url, let donnees = try? Data(contentsOf: url) else { return nil }
+    return fichierPhoto(donnees)
+    #endif
+}
+
+/** « scanner code dans valeur » : un code QR ou un code-barres, avec l'appareil photo. */
+@MainActor func scannerCode() async -> String? {
+    #if os(iOS)
+    guard DataScannerViewController.isSupported, DataScannerViewController.isAvailable else {
+        Messages.commun.afficher("Cet appareil ne peut pas scanner de code.", .avertissement)
+        return nil
+    }
+    return await withCheckedContinuation { suite in
+        let scanner = DataScannerViewController(recognizedDataTypes: [.barcode()], isHighlightingEnabled: true)
+        let delegue = DelegueScanner { valeur in
+            delegueOuvert = nil
+            suite.resume(returning: valeur)
+        }
+        delegueOuvert = delegue
+        scanner.delegate = delegue
+        scanner.navigationItem.leftBarButtonItem = UIBarButtonItem(title: "Annuler", primaryAction: UIAction { [weak scanner, weak delegue] _ in
+            guard let scanner, let delegue else { return }
+            scanner.dismiss(animated: true)
+            delegue.fin(nil)
+        })
+        let cadre = UINavigationController(rootViewController: scanner)
+        cadre.modalPresentationStyle = .fullScreen
+        presenter(cadre)
+        try? scanner.startScanning()
+    }
+    #else
+    Messages.commun.afficher("Le scan d'un code n'est pas disponible sur Mac.", .avertissement)
+    return nil
+    #endif
+}
+
+/** « signature dans trace » : la personne signe, la variable reçoit l'image en texte (PNG). */
+struct SignatureHumalis: View {
+    @Binding var trace: String
+    @State private var traits: [[CGPoint]] = []
+    @State private var courant: [CGPoint] = []
+
+    private func dessin(_ tous: [[CGPoint]], largeur: CGFloat) -> some View {
+        Canvas { contexte, _ in
+            var chemin = Path()
+            for trait in tous {
+                guard let premier = trait.first else { continue }
+                chemin.move(to: premier)
+                trait.dropFirst().forEach { chemin.addLine(to: $0) }
+            }
+            contexte.stroke(chemin, with: .color(.black), style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+        }
+        .frame(width: largeur, height: 180)
+        .background(Color.white)
+    }
+
+    @MainActor private func exporter(largeur: CGFloat) {
+        let rendu = ImageRenderer(content: dessin(traits, largeur: largeur))
+        rendu.scale = 2
+        guard let image = rendu.cgImage else { return }
+        #if os(macOS)
+        let donnees = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])
+        #else
+        let donnees = UIImage(cgImage: image).pngData()
+        #endif
+        if let donnees { trace = "data:image/png;base64," + donnees.base64EncodedString() }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            GeometryReader { cadre in
+                dessin(traits + [courant], largeur: cadre.size.width)
+                    .gesture(DragGesture(minimumDistance: 0).onChanged { courant.append($0.location) }.onEnded { _ in
+                        traits.append(courant)
+                        courant = []
+                        exporter(largeur: cadre.size.width)
+                    })
+            }
+            .frame(height: 180)
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(.secondary.opacity(0.5)))
+            .accessibilityElement()
+            .accessibilityLabel("Zone de signature")
+            .accessibilityIdentifier("zone_signature")
+            Button("Effacer la signature") {
+                traits = []
+                trace = ""
+            }
+            .buttonStyle(.bordered)
+        }
+    }
+}
+`;
+
 /** Les fichiers d'aide dont les pages ont besoin, d'après leur code. */
 export function fichiersElements(code: string): Map<string, string> {
   const emploie = (motif: RegExp) => motif.test(code);
@@ -944,6 +1142,10 @@ export function fichiersElements(code: string): Map<string, string> {
   if (emploie(/\b(AnimeHumalis|EffetSurvolHumalis)\b/)) fichiers.set('Humalis/Mouvement.swift', MOUVEMENT);
   if (emploie(/\b(ImageHumalis|BadgeHumalis|AvatarHumalis|ProgressionHumalis|ChargementHumalis|EtoilesHumalis|CompteurHumalis|LecteurHumalis)\b/)) fichiers.set('Humalis/Images.swift', IMAGES);
   if (emploie(/\b(ChoixFichierHumalis|FichierChoisi|televerser)\b/)) fichiers.set('Humalis/Fichiers.swift', FICHIERS);
+  if (emploie(/\b(prendrePhoto|scannerCode|verifierIdentite|vibrer|SignatureHumalis)\(/)) {
+    fichiers.set('Humalis/Appareil.swift', APPAREIL);
+    fichiers.set('Humalis/Fichiers.swift', FICHIERS);
+  }
   if (emploie(/\bQrHumalis\b/)) fichiers.set('Humalis/Qr.swift', QR);
   if (emploie(/\bLecteurHumalis\b/)) fichiers.set('Humalis/Audio.swift', AUDIO);
   if (emploie(/\bGraphiqueHumalis\b/)) fichiers.set('Humalis/Graphiques.swift', GRAPHIQUES);

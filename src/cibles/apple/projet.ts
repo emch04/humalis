@@ -20,7 +20,7 @@ import { chaineSwift, nomApplication, nomComposant, nomPage, nomRoute, nomSwift 
 import { GenerateurPage, type ContexteApple } from './page.js';
 import { LANGUES_SWIFT, MEMOIRE_SWIFT, MESSAGES_SWIFT, MINUTERIES_SWIFT, NOTIFICATIONS_SWIFT, SERVEUR_SWIFT, SYSTEME_SWIFT } from './systeme.js';
 import { Types, Valeurs, plusPrecis, type Portee } from './valeurs.js';
-import { CONFIDENTIALITE, assets, infoSupplementaire, droits, projetXcode, schemaXcode } from './xcode.js';
+import { CONFIDENTIALITE, assets, infoSupplementaire, type PaquetSwift, droits, projetXcode, schemaXcode } from './xcode.js';
 
 export const MARQUE_APPLE = '.humalis-projet';
 
@@ -148,12 +148,12 @@ function partageSwift(partages: Etat[], types: Types, cle: string, v: Valeurs): 
       const initiale = v.expr(p.initiale, p.type);
       const valeur = p.facultatif ? v.versOpt(initiale, p.type) : v.vers(initiale, p.type);
       const nom = nomSwift(p.nom);
-      if (p.memorisee) e.ligne(`var ${nom}: ${types.swift(p.type, p.facultatif)} = ${valeur} { didSet { Memoire.ecrire(${chaineSwift(`${cle}:partage:${simplifier(p.nom)}`)}, ${nom}${p.secret ? ', secret: true' : ''}) } }`);
+      if (p.memorisee || p.horsLigne) e.ligne(`var ${nom}: ${types.swift(p.type, p.facultatif)} = ${valeur} { didSet { Memoire.ecrire(${chaineSwift(`${cle}:partage:${simplifier(p.nom)}`)}, ${nom}${p.secret ? ', secret: true' : ''}${p.horsLigne ? ', fichier: true' : ''}) } }`);
       else e.ligne(`var ${nom}: ${types.swift(p.type, p.facultatif)} = ${valeur}`);
     }
     e.ligne();
     e.bloc('private init() {', () => {
-      for (const p of partages.filter((x) => x.memorisee)) e.ligne(`if let lue: ${types.swift(p.type, p.facultatif)} = Memoire.lire(${chaineSwift(`${cle}:partage:${simplifier(p.nom)}`)}${p.secret ? ', secret: true' : ''}) { ${nomSwift(p.nom)} = lue }`);
+      for (const p of partages.filter((x) => x.memorisee || x.horsLigne)) e.ligne(`if let lue: ${types.swift(p.type, p.facultatif)} = Memoire.lire(${chaineSwift(`${cle}:partage:${simplifier(p.nom)}`)}${p.secret ? ', secret: true' : ''}${p.horsLigne ? ', fichier: true' : ''}) { ${nomSwift(p.nom)} = lue }`);
     });
   });
   e.ligne('}');
@@ -177,6 +177,7 @@ function fonctionsSwift(application: Application, app: ContexteApple, portee: Po
       etatsRequetes: new Set(),
       estEtat: () => false,
       nomEtatRequete: (n) => n,
+      estHorsLigne: () => false,
     };
     ligne = f.ligne;
     const corps = new Ecrivain();
@@ -693,7 +694,7 @@ export function genererProjetApple(application: Application, options: OptionsApp
   const octetsLogo = logo ? options.images?.get(logo) : undefined;
   for (const [chemin, contenu] of assets(octetsLogo !== undefined, marqueDe(application.theme))) ecrire(chemin, contenu);
   if (octetsLogo !== undefined) ecrire('Assets.xcassets/AppIcon.appiconset/icone.png', contenuBinaire(octetsLogo));
-  const avecFichiers = /\bChoixFichierHumalis\b/.test(tout);
+  const avecFichiers = /\b(ChoixFichierHumalis|prendrePhoto)\b/.test(tout);
   ecrire(`${nom}.entitlements`, droits(avecFichiers, notifications && options.equipe ? 'ios' : undefined));
   if (notifications && options.equipe) ecrire(`${nom}-mac.entitlements`, droits(avecFichiers, 'mac'));
   if (notifications) ecrire('Humalis/Notifications.swift', NOTIFICATIONS_SWIFT);
@@ -706,7 +707,7 @@ export function genererProjetApple(application: Application, options: OptionsApp
   for (const adresse of new Set(adresses)) {
     if (/^http:\/\//i.test(adresse) && !/^http:\/\/(localhost|127\.0\.0\.1)([:/]|$)/i.test(adresse)) avertir(1, `l'application Apple ne peut pas appeler « ${adresse} » : le système bloque http://. Utilisez https://.`);
   }
-  fichiers.set('Info.plist', infoSupplementaire(serveurLocal));
+  fichiers.set('Info.plist', infoSupplementaire(serveurLocal, { camera: /\b(prendrePhoto|scannerCode)\(/.test(tout), identite: /\bverifierIdentite\(/.test(tout) }));
   fichiers.set(
     `${nom}.xcodeproj/project.pbxproj`,
     projetXcode({
@@ -716,6 +717,7 @@ export function genererProjetApple(application: Application, options: OptionsApp
       ...(options.equipe ? { equipe: options.equipe } : {}),
       icone: octetsLogo !== undefined,
       serveurLocal,
+      paquets: paquetsDe(application, refuser),
       droitsMac: notifications && options.equipe !== undefined,
       essaisUi: options.essaisUi !== undefined,
       fichiers: avecFichiers,
@@ -729,6 +731,23 @@ export function genererProjetApple(application: Application, options: OptionsApp
 }
 
 const nomFichierPlat = (chemin: string): string => chemin.replace(/^(\.\/)+/, '').replace(/[^A-Za-z0-9._-]/g, '_');
+
+/** Les paquets Swift, avec leur nom de produit : celui du dépôt, sauf s'il est écrit. */
+function paquetsDe(application: Application, refuser: (ligne: number, message: string) => void): PaquetSwift[] {
+  return (application.paquetsSwift ?? []).flatMap((p) => {
+    if (!/^https:\/\/\S+$/.test(p.adresse)) {
+      refuser(p.ligne, `l'adresse du paquet « ${p.adresse} » doit commencer par https://`);
+      return [];
+    }
+    if (!/^\d+(\.\d+){0,2}$/.test(p.version)) {
+      refuser(p.ligne, `la version « ${p.version} » du paquet doit s'écrire avec des chiffres, comme "1.2" ou "1.2.3"`);
+      return [];
+    }
+    const parties = p.version.split('.');
+    while (parties.length < 3) parties.push('0');
+    return [{ adresse: p.adresse, version: parties.join('.'), produit: p.produit ?? p.adresse.replace(/\/$/, '').split('/').pop()!.replace(/\.git$/, '') }];
+  });
+}
 
 function marqueDe(theme: ThemeRI | undefined): { clair: string; sombre: string } | undefined {
   const marque = theme?.couleurs.find((c) => c.nom === 'marque');
