@@ -442,6 +442,12 @@ try {
       await page.getByRole('button', { name: 'Entrer' }).click();
       await page.getByRole('button', { name: 'Question' }).waitFor({ timeout: 15000 });
       verifier(true, `${nom} : la page réservée s'ouvre après la connexion`);
+      const avantDirect = await page.getByRole('button', { name: 'Rembourser' }).count();
+      await pause(400);
+      const glisse = page.waitForFunction(() => document.getAnimations().length > 0, null, { polling: 'raf', timeout: 8000 }).then(() => true, () => false);
+      await appeler(B, 'POST', '/api/commandes', gerantA.jeton, { total: 77 });
+      await page.waitForFunction((n) => [...document.querySelectorAll('button')].filter((b) => b.textContent.includes('Rembourser')).length > n, avantDirect, { timeout: 8000 }).then(() => verifier(true, `${nom} : « en direct » montre un ajout venu de l'autre serveur, sans recharger`), () => verifier(false, `${nom} : « en direct » montre un ajout venu de l'autre serveur, sans recharger`));
+      verifier(await glisse, `${nom} : « avec animation » anime la nouvelle ligne`);
       await page.getByRole('button', { name: 'Question' }).click();
       await page.getByText('Bonjour à vous').waitFor({ timeout: 8000 }).then(() => verifier(true, `${nom} : la réponse de l'IA s'affiche`), () => verifier(false, `${nom} : la réponse de l'IA s'affiche`));
       const reponseFaire = page.waitForResponse((r) => r.url().includes('/faire/rembourser/'));

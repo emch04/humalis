@@ -151,14 +151,13 @@ function compile(arguments_: string[]): number | Promise<number> {
     return 1;
   }
 
-  // « avec animation » n'existe que sur le moteur : dit plutôt que perdu en silence.
-  const surLeMoteur = cible === 'web' && (option(arguments_, 'moteur') ?? moteurDuProjet(chemin)) === 'humalis';
+  // « avec animation » et « en direct » n'existent que sur le web : dit plutôt que perdu en silence.
   const programme = JSON.stringify(application.ecrans);
-  if (programme.includes('"animation":true') && !surLeMoteur && cible !== 'serveur') {
-    console.error('Avertissement : « avec animation » n\'a d\'effet qu\'avec le moteur Humalis (--moteur humalis) : ici, les lignes changent sans glisser.');
+  if (programme.includes('"animation":true') && cible !== 'web' && cible !== 'serveur') {
+    console.error('Avertissement : « avec animation » n\'a d\'effet que sur le web : ici, les lignes changent sans glisser.');
   }
-  if (programme.includes('"direct":true') && !surLeMoteur && cible !== 'serveur') {
-    console.error('Avertissement : « en direct » n\'a d\'effet qu\'avec le moteur Humalis (--moteur humalis) : ici, la liste est lue une fois.');
+  if (programme.includes('"direct":true') && cible !== 'web' && cible !== 'serveur') {
+    console.error('Avertissement : « en direct » n\'a d\'effet que sur le web : ici, la liste est lue une fois.');
   }
 
   // Les tuiles d'une carte viennent d'un fournisseur qui reçoit l'adresse IP des visiteurs : dit une fois.

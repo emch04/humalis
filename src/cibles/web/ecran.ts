@@ -883,16 +883,22 @@ class GenerateurEcran {
 
   // ─── En-tête du composant ───────────────────────────────────────────────
 
+  /** « … en direct » : seulement sur le web, le canal du serveur s'écoute avec EventSource. */
+  private avecDirect(): boolean {
+    return !this.application.rendu && (JSON.stringify(this.ecran.gestionnaires) ?? '').includes('"direct":true');
+  }
+
   private imports(code: string): string {
     const react: string[] = [];
     if (this.besoins.fragment) react.push('Fragment');
-    if (this.chargements.length > 0) react.push('useEffect');
+    if (this.chargements.length > 0 || this.avecDirect()) react.push('useEffect');
     if (this.aDeLEtat() || (this.ecran.etatsRequetes?.length ?? 0) > 0) react.push('useState');
-    if ((this.ecran.etatsRequetes?.length ?? 0) > 0) react.push('useRef');
+    if ((this.ecran.etatsRequetes?.length ?? 0) > 0 || this.avecDirect()) react.push('useRef');
 
     const lignes: string[] = [];
     if (react.length) lignes.push(`import { ${react.join(', ')} } from 'react';`);
     lignes.push(...this.rendu.imports(code));
+    if (code.includes('<ListeAnimee')) lignes.push(`import { ListeAnimee } from '../humalis/liste-animee';`);
     lignes.push(...this.rendu.widgets.imports(code));
     if (this.besoins.messages) lignes.push(`import { useMessages } from '../humalis/messages';`);
     const outils = [
@@ -1015,6 +1021,13 @@ class GenerateurEcran {
     if (suivies.length > 0) {
       for (const nom of suivies) e.ligne(`const [${camel(nom)}Req, set${pascal(nom)}Req] = useState<EtatRequete>(REPOS);`);
       e.ligne('const relances = useRef<Record<string, (() => Promise<void>) | undefined>>({});');
+    }
+    if (this.avecDirect()) {
+      e.ligne('const arretsDirects = useRef(new Map<string, () => void>());');
+      e.bloc('useEffect(() => () => {', () => {
+        e.ligne('for (const arreter of arretsDirects.current.values()) arreter();');
+        e.ligne('arretsDirects.current.clear();');
+      }, '}, []);');
     }
   }
 
@@ -1351,7 +1364,8 @@ class GenerateurEcran {
           }
           if (action.resultat !== undefined) {
             const suivie = this.ecran.etatsRequetes?.includes(action.resultat) ?? false;
-            const lecture = action.source !== undefined && action.mode !== 'envoyer';
+            const direct = action.direct === true && !this.application.rendu;
+            const lecture = (action.source !== undefined && action.mode !== 'envoyer') || direct;
             if (action.source !== undefined) {
               // La page parle de l'état de la variable : elle montre l'erreur elle-même.
               const dernier = args.pop()!;
@@ -1361,9 +1375,13 @@ class GenerateurEcran {
             if (lecture) {
               // Une lecture sait se rejouer : le bouton « Réessayer » et « recharger » s'en servent.
               const n = ++this.chargeurs;
-              e.bloc(`const charger${n} = async (contourner = false) => {`, () => this.ecrireReponse(e, action.resultat!, `await serveur.${methode}(${args.join(', ')})`, changer), '};');
+              e.bloc(`const charger${n} = async (${action.source !== undefined ? 'contourner = false' : ''}) => {`, () => this.ecrireReponse(e, action.resultat!, `await serveur.${direct ? 'relire' : methode}(${args.join(', ')})`, changer), '};');
               if (suivie) e.ligne(`relances.current.${camel(action.resultat)} = charger${n};`);
               e.ligne(`await charger${n}();`);
+              if (direct) {
+                e.ligne(`arretsDirects.current.get(${chaine(action.adresse)})?.();`);
+                e.ligne(`arretsDirects.current.set(${chaine(action.adresse)}, serveur.ecouterDirect(${chaine(action.adresse)}, () => void charger${n}()));`);
+              }
             } else {
               this.ecrireReponse(e, action.resultat, `await serveur.${methode}(${args.join(', ')})`, changer);
             }
@@ -1814,9 +1832,13 @@ class GenerateurEcran {
             });
             for (const ligne of this.rendu.deplacement.fermer(nom)) e.ligne(ligne);
           } else if (locales.length === 0) {
+            // « avec animation » : une clé stable, pour que chaque ligne garde son élément et puisse glisser.
+            const anime = noeud.animation === true && !this.application.rendu;
+            const cle = anime ? `(${variable} as { id?: string | number }).id ?? ${index}` : index;
+            if (anime) e.ligne('<ListeAnimee>');
             e.ligne(`{${liste}.map((${variable}, ${index}) => (`);
             e.indenter(() => {
-              e.ligne(`<Fragment key={${index}}>`);
+              e.ligne(`<Fragment key={${cle}}>`);
               e.indenter(() => {
                 if (this.listeEnCours) e.ligne(this.application.rendu ? `<View style={{ flexDirection: "row" }}><Text>${this.listeEnCours === 'liste' ? '•' : `{${index} + 1}.`}</Text>` : '<li>');
                 this.ecrireVue(e, contenu);
@@ -1825,17 +1847,22 @@ class GenerateurEcran {
               e.ligne('</Fragment>');
             });
             e.ligne('))}');
+            if (anime) e.ligne('</ListeAnimee>');
           } else {
+            const anime = noeud.animation === true && !this.application.rendu;
+            const cle = anime ? `(${variable} as { id?: string | number }).id ?? ${index}` : index;
+            if (anime) e.ligne('<ListeAnimee>');
             e.bloc(`{${liste}.map((${variable}, ${index}) => {`, () => {
               this.ecrireLocales(e, locales);
               e.ligne('return (');
               e.indenter(() => {
-                e.ligne(`<Fragment key={${index}}>`);
+                e.ligne(`<Fragment key={${cle}}>`);
                 e.indenter(() => this.ecrireVue(e, contenu));
                 e.ligne('</Fragment>');
               });
               e.ligne(');');
             }, '})}');
+            if (anime) e.ligne('</ListeAnimee>');
           }
           break;
         }

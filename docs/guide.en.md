@@ -2857,8 +2857,8 @@ A click made before the page is ready is not lost: it is replayed as soon as the
 page is ready.
 
 `pour chaque t dans taches avec animation :` makes rows slide when the list
-changes, and new rows fade in (unless the person asked for less motion). It only
-works with this engine: elsewhere the compiler says so and rows change without
+changes, and new rows fade in (unless the person asked for less motion). It works
+on the web, with this engine as well as with React: elsewhere the compiler says so and rows change without
 sliding.
 
 #### Real time
@@ -2875,8 +2875,8 @@ page "commandes" :
 
 An order created elsewhere appears by itself, without a reload. The server only
 announces that something changed: the page then re-reads the normal route, with its
-access rules, so nothing private travels through this channel. It works with this
-engine.
+access rules, so nothing private travels through this channel. It works on the web,
+with this engine as well as with React.
 
 With a PostgreSQL database you can run several copies of the server: a change received
 by one is announced by all. Without PostgreSQL, keep a single copy. Changes close
