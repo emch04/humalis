@@ -22,6 +22,7 @@ export function verifierRoles(programme: Programme, diagnostics: Diagnostic[]): 
       declares.add(role);
     }
   }
+  const groupes = new Set(programme.serveurs.flatMap((s) => s.donnees.flatMap((d) => (d.par && d.par !== 'compte' ? [d.par] : []))));
   const verifier = (role: string, ligne: number) => {
     if (declares.has(role)) return;
     erreur(`le rôle « ${role} » n'est pas déclaré. Ajoutez-le au serveur : roles ${[...declares, role].join(', ')}.${proposerNom(role, [...declares])}`, ligne);
@@ -34,6 +35,14 @@ export function verifierRoles(programme: Programme, diagnostics: Diagnostic[]): 
     for (const role of rolesDe(n.qui)) verifier(role, ligne);
     if (n.type === 'EtatUtilisateur') for (const role of rolesDe(n.etat)) verifier(role, ligne);
     if (n.type === 'Invitation' && n.role !== undefined && n.role !== 'admin' && n.role !== 'membre') verifier(n.role, ligne);
+    if (n.type === 'ChangementRole') {
+      const role = (noeud as { role?: { type?: string; valeur?: string } }).role;
+      if (role?.type === 'Chaine' && role.valeur !== undefined && role.valeur !== 'admin' && role.valeur !== 'membre') verifier(role.valeur, ligne);
+    }
+    const groupe = n.type === 'Invitation' ? (noeud as { groupe?: { champ: string } }).groupe : undefined;
+    if (groupe && !groupes.has(groupe.champ)) {
+      erreur(`aucune donnée n'est séparée par « ${groupe.champ} ». Écrivez par exemple : donnee commande par ${groupe.champ} :${proposerNom(groupe.champ, [...groupes])}`, ligne);
+    }
     Object.values(noeud).forEach(visiter);
   };
   visiter(programme);

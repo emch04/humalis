@@ -1655,7 +1655,9 @@ interface Utilisateur {
   /** « changer le mot de passe avec … et … » : celui du compte connecté ; vrai si le serveur l'a accepté. */
   changerMotDePasse(actuel: string, nouveau: string, dansUnEssai?: boolean): Promise<boolean>;
   /** « inviter … » : un lien par e-mail ; vrai si le serveur l'a pris en charge. */
-  inviter(email: string, role: 'membre' | 'admin', dansUnEssai?: boolean): Promise<boolean>;
+  inviter(email: string, role: string, dansUnEssai?: boolean, groupes?: Record<string, string>): Promise<boolean>;
+  /** « changer role de c en … » : compte tout de suite. */
+  changerRole(id: string, role: string, dansUnEssai?: boolean): Promise<boolean>;
   /** « demander un lien de mot de passe pour … » : la réponse ne dit jamais si le compte existe. */
   demanderLienMotDePasse(email: string, dansUnEssai?: boolean): Promise<boolean>;
   /** « choisir le mot de passe avec … » : le jeton vient de l'adresse du lien reçu. */
@@ -1832,8 +1834,12 @@ export function Session({ children }: { children: ReactNode }) {
     return true;
   }
 
-  async function inviter(email: string, role: 'membre' | 'admin', dansUnEssai = false): Promise<boolean> {
-    return envoyerAuCompte('/auth/invitations', { email, role }, dansUnEssai, "L'invitation n'est pas partie.");
+  async function inviter(email: string, role: string, dansUnEssai = false, groupes?: Record<string, string>): Promise<boolean> {
+    return envoyerAuCompte('/auth/invitations', { email, role, groupes }, dansUnEssai, "L'invitation n'est pas partie.");
+  }
+
+  async function changerRole(id: string, role: string, dansUnEssai = false): Promise<boolean> {
+    return envoyerAuCompte(\`/auth/comptes/\${encodeURIComponent(id)}/role\`, { role }, dansUnEssai, "Le rôle n'a pas changé.");
   }
 
   async function demanderLienMotDePasse(email: string, dansUnEssai = false): Promise<boolean> {
@@ -1897,6 +1903,7 @@ export function Session({ children }: { children: ReactNode }) {
     seConnecterAvecGoogle,
     changerMotDePasse,
     inviter,
+    changerRole,
     demanderLienMotDePasse,
     choisirMotDePasse,
     seDeconnecter,

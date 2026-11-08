@@ -460,7 +460,10 @@ export class GenerateurMoteur extends GenerateurPage {
         e.ligne(`if (!(await utilisateur.changerMotDePasse(${lit(action.actuel)}, ${lit(action.nouveau)}${this.dansEssai ? ', true' : ''}))) return;`);
         return true;
       case 'invitation':
-        e.ligne(`if (!(await utilisateur.inviter(${lit(action.email)}, '${action.role}'${this.dansEssai ? ', true' : ''}))) return;`);
+        e.ligne(`if (!(await utilisateur.inviter(${lit(action.email)}, '${action.role}'${action.groupe ? `, ${this.dansEssai}` : this.dansEssai ? ', true' : ''}${action.groupe ? `, { ${JSON.stringify(camel(action.groupe.champ))}: String(${lit(action.groupe.valeur)}) }` : ''}))) return;`);
+        return true;
+      case 'changementRole':
+        e.ligne(`if (!(await utilisateur.changerRole(${lit(action.cible)}.id, ${lit(action.role)}, ${this.dansEssai}))) return;`);
         return true;
       case 'demandeLienMotDePasse':
         e.ligne(`if (!(await utilisateur.demanderLienMotDePasse(${lit(action.email)}${this.dansEssai ? ', true' : ''}))) return;`);

@@ -413,7 +413,7 @@ export const utilisateur = {
   get pret() { return pret.v; },
   get connecte() { return personne.v !== null; },
   get admin() { return personne.v?.role === 'admin'; },
-  seConnecter, seConnecterAvecGoogle, changerMotDePasse, inviter,
+  seConnecter, seConnecterAvecGoogle, changerMotDePasse, inviter, changerRole,
   demanderLienMotDePasse, choisirMotDePasse, seDeconnecter,
 };
 function entetesSession() { return ajouterCsrf(new Headers({ 'Content-Type': 'application/json' })); }
@@ -487,7 +487,8 @@ async function envoyerAuCompte(chemin, donnees, dansUnEssai, sansRaison) {
   }
   return true;
 }
-function inviter(email, role, dansUnEssai = false) { return envoyerAuCompte('/auth/invitations', { email, role }, dansUnEssai, "L'invitation n'est pas partie."); }
+function inviter(email, role, dansUnEssai = false, groupes) { return envoyerAuCompte('/auth/invitations', { email, role, groupes }, dansUnEssai, "L'invitation n'est pas partie."); }
+function changerRole(id, role, dansUnEssai = false) { return envoyerAuCompte('/auth/comptes/' + encodeURIComponent(id) + '/role', { role }, dansUnEssai, "Le rôle n'a pas changé."); }
 function demanderLienMotDePasse(email, dansUnEssai = false) { return envoyerAuCompte('/auth/forgot-password', { email }, dansUnEssai, "Cette adresse e-mail n'est pas valable."); }
 async function choisirMotDePasse(nouveau, dansUnEssai = false) {
   const jeton = new URLSearchParams(window.location.hash.slice(1)).get('jeton') ?? '';

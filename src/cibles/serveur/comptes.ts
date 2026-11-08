@@ -8,11 +8,12 @@
 import type { MorceauEmail, ServeurRI } from '../../ri/types.js';
 import { simplifier } from '../../analyse/elements.js';
 import { camel } from '../web/noms.js';
+import { champsDeGroupe } from './separation.js';
 
 const chaine = (texte: string) => JSON.stringify(texte);
 
 /** Vrai si le serveur a besoin du module des comptes. */
-export const avecComptes = (serveur: ServeurRI) => Boolean(serveur.invitations || serveur.motDePasseOublie || serveur.routeComptes);
+export const avecComptes = (serveur: ServeurRI) => Boolean(serveur.invitations || serveur.motDePasseOublie || serveur.routeComptes || serveur.changeDeRole);
 
 /** Vrai si le serveur produit a son module d'e-mails : une liste de comptes seule en a besoin aussi, sans jamais rien envoyer. */
 export const avecEmails = (serveur: ServeurRI) => Boolean(serveur.emails) || avecComptes(serveur);
@@ -54,10 +55,13 @@ export function codeCreationComptes(serveur: ServeurRI, chemins?: Map<string, st
     google: ${serveur.connexionGoogle ? 'true' : 'false'},
     pageInvitation: ${cheminDe(serveur.invitations, chemins)},
     rolesPermis: ${JSON.stringify(serveur.roles ?? [])},
+    champsDeGroupe: ${JSON.stringify(champsDeGroupe(serveur))},
     pageOublie: ${cheminDe(serveur.motDePasseOublie, chemins)},
   });
 `;
 }
+
+const gardeInvitation = (qui: string) => (qui.startsWith('role:') ? `roles(${JSON.stringify(qui.slice(5).split(','))})` : 'seulAdmin');
 
 /** Les routes des comptes, dans extendRoutes, avec les gardes du pack. */
 export function codeRoutesComptes(serveur: ServeurRI, adresseApi: (adresse: string) => string, variable: (adresse: string) => string): string {
@@ -66,8 +70,16 @@ export function codeRoutesComptes(serveur: ServeurRI, adresseApi: (adresse: stri
     parties.push(`
       // « inviter … » : réservé à l'admin, et trente invitations par heure au plus.
       const routeInvitations = express.Router();
-      routeInvitations.post('/', createApiLimiter({ windowMs: 60 * 60 * 1000, max: 30 }) as unknown as RequestHandler, ...acces.seulAdmin, csrfMiddleware, comptes.inviter);
+      routeInvitations.post('/', createApiLimiter({ windowMs: 60 * 60 * 1000, max: 30 }) as unknown as RequestHandler, ...acces.${serveur.routeComptes?.droits.creer ? gardeInvitation(serveur.routeComptes.droits.creer) : 'seulAdmin'}, csrfMiddleware, comptes.inviter);
       app.use('/auth/invitations', routeInvitations);
+`);
+  }
+  if (serveur.changeDeRole) {
+    parties.push(`
+      // « changer role de c en … » : réservé à l'admin ; le compte est relu à chaque requête, donc cela compte tout de suite.
+      const routeRoles = express.Router();
+      routeRoles.post('/:id/role', ...acces.seulAdmin, csrfMiddleware, comptes.changerRole);
+      app.use('/auth/comptes', routeRoles);
 `);
   }
   const route = serveur.routeComptes;
@@ -309,6 +321,7 @@ export function creerComptes({
   google,
   pageInvitation,
   rolesPermis,
+  champsDeGroupe = [],
   pageOublie,
   env = process.env,
 }: {
@@ -323,6 +336,8 @@ export function creerComptes({
   pageInvitation: string | null;
   /** Les rôles déclarés : seuls ceux-là peuvent être donnés par une invitation. */
   rolesPermis: string[];
+  /** Les groupes d'un compte (« donnee … par boutique ») : celui qui invite y fait entrer la personne. */
+  champsDeGroupe?: string[];
   pageOublie: string | null;
   env?: Record<string, string | undefined>;
 }) {
@@ -359,9 +374,21 @@ export function creerComptes({
     /** POST /auth/invitations : la même réponse si l'adresse a déjà un compte, qui ne change pas. */
     inviter: (async (req, res, next) => {
       try {
-        const corps = (req.body ?? {}) as { email?: unknown; role?: unknown };
+        const corps = (req.body ?? {}) as { email?: unknown; role?: unknown; groupes?: Record<string, unknown> };
+        const moi = (req as unknown as { user?: Record<string, unknown> }).user ?? {};
+        const estAdmin = moi.role === 'admin';
         const adresse = typeof corps.email === 'string' ? corps.email.trim().toLowerCase() : '';
         const role = corps.role === 'admin' ? 'admin' : typeof corps.role === 'string' && rolesPermis.includes(corps.role) ? corps.role : 'user';
+        if (role === 'admin' && !estAdmin) {
+          res.status(403).json({ erreur: 'seul un admin peut inviter un admin' });
+          return;
+        }
+        // Un membre fait entrer la personne dans ses propres groupes ; seul un admin choisit le groupe.
+        const groupes: Record<string, string> = {};
+        for (const champ of champsDeGroupe) {
+          const valeur = estAdmin ? corps.groupes?.[champ] : moi[champ];
+          if (typeof valeur === 'string' && valeur !== '') groupes[champ] = valeur;
+        }
         if (!ADRESSE.test(adresse)) {
           res.status(400).json({ erreur: "cette adresse e-mail n'est pas valable" });
           return;
@@ -376,8 +403,8 @@ export function creerComptes({
           return;
         }
         const compte = existant
-          ? await usersStore.update(String(existant.id), { role, invitation: true } as Compte)
-          : await usersStore.create({ email: adresse, role, invitation: true } as Compte);
+          ? await usersStore.update(String(existant.id), { role, invitation: true, ...groupes } as Compte)
+          : await usersStore.create({ email: adresse, role, invitation: true, ...groupes } as Compte);
         const id = String(compte?.id);
         // Une nouvelle invitation remplace la précédente : l'ancien lien ne sert plus.
         await jetons.deleteForUser(id);
@@ -392,6 +419,33 @@ export function creerComptes({
           return;
         }
         res.json({ envoye: true });
+      } catch (erreur) {
+        next(erreur);
+      }
+    }) as RequestHandler,
+
+    /** « changer role de c en … » : jamais son propre rôle, pour qu'un admin ne s'enferme pas dehors. */
+    changerRole: (async (req, res, next) => {
+      try {
+        const id = String(req.params.id);
+        const moi = (req as unknown as { user?: { id?: unknown } }).user?.id;
+        const demande = (req.body as { role?: unknown } | undefined)?.role;
+        const role = demande === 'admin' ? 'admin' : demande === 'membre' ? 'user' : typeof demande === 'string' && rolesPermis.includes(demande) ? demande : null;
+        if (role === null) {
+          res.status(400).json({ erreur: "ce rôle n'existe pas" });
+          return;
+        }
+        if (String(moi) === id) {
+          res.status(400).json({ erreur: 'vous ne pouvez pas changer votre propre rôle' });
+          return;
+        }
+        const compte = await usersStore.findById(id);
+        if (!compte || compte.role === ROLE_RETIRE) {
+          res.status(404).json({ erreur: "ce compte n'existe pas" });
+          return;
+        }
+        await usersStore.update(id, { role } as Compte);
+        res.json({ id, role: demande });
       } catch (erreur) {
         next(erreur);
       }

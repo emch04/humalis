@@ -19,17 +19,17 @@ import { chercherIcone } from '../vocabulaire/icones.js';
 import type { ResultatAnalyse } from '../analyse/analyse.js';
 import { INCONNU, NOMBRE, BOOLEEN, type TypeValeur } from '../analyse/types.js';
 import { optionCanonique } from '../analyse/styles.js';
-import { adresseNormalisee, droitsDeRoute } from '../analyse/serveur.js';
+import { adresseNormalisee, conditionsDeRoute, droitsDeRoute } from '../analyse/serveur.js';
 import { encreSur } from '../analyse/couleurs.js';
 import { lireCible } from '../analyse/navigation.js';
 import { imageDe, REGLAGES_IMAGE, choixFichierDe } from './medias.js';
 import { graphiqueDe } from './graphique.js';
 import { messageEnLangues } from '../i18n/messages.js';
 import type { PartieChaine } from '../lexer/types.js';
-import type { LitteralChaine, RegleChamp, Route } from '../parser/ast.js';
+import type { LitteralChaine, OperandeRegle, RegleChamp, Route } from '../parser/ast.js';
 import { texteSource } from '../parser/langues.js';
 import { langueDuMot } from '../i18n/langues.js';
-import type { TexteEnLangues, PartiesTexte, Reglages, GenreWidget, DispositionRI, ThemeRI, ServeurRI, SourceRI, Option, Etat, Application, Ecran, NoeudVue, Gestionnaire, Action, Valeur, Test, Saisie, MorceauEmail, EnvoiEmailRI, RegleChampRI } from './types.js';
+import type { TexteEnLangues, PartiesTexte, Reglages, GenreWidget, DispositionRI, ThemeRI, ServeurRI, OperandeRI, SourceRI, Option, Etat, Application, Ecran, NoeudVue, Gestionnaire, Action, Valeur, Test, Saisie, MorceauEmail, EnvoiEmailRI, RegleChampRI } from './types.js';
 import { lireTouches, millisecondesDe } from '../analyse/interactions.js';
 import { MILLISECONDES } from '../parser/interactions.js';
 
@@ -188,6 +188,12 @@ function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
       })),
       ...(dans ? { dans: champDe(apres.donnee, dans.champ) } : {}),
     }));
+  // « si facture.compte est dans … » : les noms de champs tels qu'ils sont déclarés.
+  const conditionsRI = (route: (typeof serveur.routes)[number]) => {
+    const donnee = route.regles[0].donnee;
+    const propre = (o: OperandeRegle): OperandeRI => (o.genre === 'fiche' ? { genre: 'fiche', champ: o.champ === 'id' ? 'id' : champDe(donnee, o.champ) } : o);
+    return Object.fromEntries(Object.entries(conditionsDeRoute(route)).map(([action, liste]) => [action, liste.map(({ qui, si }) => ({ qui, gauche: propre(si.gauche), dans: si.dans, droite: propre(si.droite) }))]));
+  };
   // Les noms lus par une règle sont ceux des champs déclarés, accents compris.
   const reglePropre = (regle: RegleChamp, donnee: string): RegleChampRI => {
     switch (regle.genre) {
@@ -203,7 +209,7 @@ function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
   };
   return {
     nom: serveur.nom,
-    donnees: serveur.donnees.filter((d) => !d.comptes).map((d) => ({ nom: d.nom, champs: d.champs.map((c) => ({ nom: c.nom, type: c.type, ...(c.regle ? { regle: reglePropre(c.regle, d.nom) } : {}), ...(c.nonVide ? { nonVide: true } : {}) })) })),
+    donnees: serveur.donnees.filter((d) => !d.comptes).map((d) => ({ nom: d.nom, ...(d.par !== undefined ? { par: d.par } : {}), champs: d.champs.map((c) => ({ nom: c.nom, type: c.type, ...(c.regle ? { regle: reglePropre(c.regle, d.nom) } : {}), ...(c.nonVide ? { nonVide: true } : {}) })) })),
     routes: serveur.routes
       .filter((r) => r.regles.length > 0 && !donneesComptes.has(r.regles[0].donnee))
       .map((route) => {
@@ -214,6 +220,7 @@ function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
           adresse: route.adresse,
           donnee: route.regles[0].donnee,
           droits,
+          ...(Object.keys(conditionsDeRoute(route)).length ? { conditions: conditionsRI(route) } : {}),
           ...(bon ? { bon } : {}),
           ...(direct ? { direct } : {}),
           ...(route.apresCreation?.envois.length ? { envois: envoisRI(route.apresCreation) } : {}),
@@ -227,6 +234,7 @@ function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
     ...(serveur.motDePasseOublie ? { motDePasseOublie: serveur.motDePasseOublie.page } : {}),
     ...(serveur.connexionGoogle !== undefined ? { connexionGoogle: true } : {}),
     ...(serveur.roles?.length ? { roles: serveur.roles } : {}),
+    ...(analyse.changeDeRole ? { changeDeRole: true } : {}),
     // L'analyse a déjà vérifié le bloc : ses deux lignes sont là, et le champ existe sous ce nom ou un nom voisin (accents).
     ...(fidelite?.gain && fidelite.objectif
       ? {
@@ -686,7 +694,10 @@ class Construction {
           break;
 
         case 'Invitation':
-          actions.push({ type: 'invitation', email: this.valeur(instruction.email), role: instruction.role });
+          actions.push({ type: 'invitation', email: this.valeur(instruction.email), role: instruction.role, ...(instruction.groupe ? { groupe: { champ: instruction.groupe.champ, valeur: this.valeur(instruction.groupe.valeur) } } : {}) });
+          break;
+        case 'ChangementRole':
+          actions.push({ type: 'changementRole', cible: this.valeur(instruction.cible), role: this.valeur(instruction.role) });
           break;
         case 'DemandeLienMotDePasse':
           actions.push({ type: 'demandeLienMotDePasse', email: this.valeur(instruction.email) });
