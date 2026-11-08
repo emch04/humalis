@@ -189,15 +189,25 @@ import SwiftUI
 
 /** Les préférences de l'application, et le Keychain pour les secrets. */
 enum Memoire {
-    static func lire<T: Decodable>(_ cle: String, secret: Bool = false) -> T? {
-        let donnees = secret ? Coffre.lire(cle) : UserDefaults.standard.data(forKey: cle)
+    /** Un fichier de l'application : les réponses du serveur gardées « hors ligne » peuvent être longues. */
+    private static func chemin(_ cle: String) -> URL? {
+        guard let dossier = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return nil }
+        let humalis = dossier.appendingPathComponent("humalis", isDirectory: true)
+        try? FileManager.default.createDirectory(at: humalis, withIntermediateDirectories: true)
+        return humalis.appendingPathComponent(cle.replacingOccurrences(of: "[^A-Za-z0-9_-]", with: "_", options: .regularExpression) + ".json")
+    }
+
+    static func lire<T: Decodable>(_ cle: String, secret: Bool = false, fichier: Bool = false) -> T? {
+        let donnees = fichier ? chemin(cle).flatMap { try? Data(contentsOf: $0) } : secret ? Coffre.lire(cle) : UserDefaults.standard.data(forKey: cle)
         guard let donnees else { return nil }
         return try? JSONDecoder().decode(T.self, from: donnees)
     }
 
-    static func ecrire<T: Encodable>(_ cle: String, _ valeur: T, secret: Bool = false) {
+    static func ecrire<T: Encodable>(_ cle: String, _ valeur: T, secret: Bool = false, fichier: Bool = false) {
         guard let donnees = try? JSONEncoder().encode(valeur) else { return }
-        if secret { Coffre.ecrire(cle, donnees) } else { UserDefaults.standard.set(donnees, forKey: cle) }
+        if fichier {
+            if let url = chemin(cle) { try? donnees.write(to: url, options: .atomic) }
+        } else if secret { Coffre.ecrire(cle, donnees) } else { UserDefaults.standard.set(donnees, forKey: cle) }
     }
 }
 
@@ -234,18 +244,20 @@ enum Coffre {
     @State private var valeur: Valeur
     private let cle: String
     private let secret: Bool
+    private let fichier: Bool
 
-    init(wrappedValue: Valeur, _ cle: String, secret: Bool = false) {
+    init(wrappedValue: Valeur, _ cle: String, secret: Bool = false, fichier: Bool = false) {
         self.cle = cle
         self.secret = secret
-        _valeur = State(initialValue: Memoire.lire(cle, secret: secret) ?? wrappedValue)
+        self.fichier = fichier
+        _valeur = State(initialValue: Memoire.lire(cle, secret: secret, fichier: fichier) ?? wrappedValue)
     }
 
     var wrappedValue: Valeur {
         get { valeur }
         nonmutating set {
             valeur = newValue
-            Memoire.ecrire(cle, newValue, secret: secret)
+            Memoire.ecrire(cle, newValue, secret: secret, fichier: fichier)
         }
     }
 
@@ -610,10 +622,12 @@ struct SourceHumalis: Sendable {
     }
 
     /** Une lecture ou un envoi : en cas d'échec, un message s'affiche et la valeur actuelle est gardée. */
-    func lire<T: Decodable>(_ adresse: String, comme type: T.Type, envoi: [String: ValeurHumalis]? = nil, id: String? = nil, source: SourceHumalis? = nil, filtres: [(String, String)] = [], dans: String? = nil, suivi: (@MainActor (EtatRequete) -> Void)? = nil) async -> T? {
+    func lire<T: Decodable>(_ adresse: String, comme type: T.Type, envoi: [String: ValeurHumalis]? = nil, id: String? = nil, source: SourceHumalis? = nil, filtres: [(String, String)] = [], dans: String? = nil, suivi: (@MainActor (EtatRequete) -> Void)? = nil, horsLigne: Bool = false) async -> T? {
         do {
             return try await appel(adresse, comme: type, envoi: envoi, id: id, source: source, filtres: filtres, dans: dans, suivi: suivi)
         } catch {
+            // Sans réseau, une variable « hors ligne » montre simplement ce qu'elle a gardé.
+            if horsLigne && raisonDe(error) == pasDeReponse { return nil }
             // La page parle de l'état de la variable : elle montre l'erreur elle-même.
             if suivi == nil { dire(error) }
             return nil

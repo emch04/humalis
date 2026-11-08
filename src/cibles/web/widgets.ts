@@ -169,6 +169,9 @@ export const WIDGETS_WEB: RenduWidgets = {
         const nom = w.reglages.descriptionLangues ? `{${messageEnCode(w.reglages.descriptionLangues, chaine)}}` : attributTexte(titre);
         return `<span className="${cls('humalis-qr', w.classes)}" role="img" aria-label=${nom}><QRCodeSVG value={${w.valeur}} size={${taille}} level="M" bgColor="#ffffff" fgColor="#000000" /></span>`;
       }
+      // Refusée avant d'arriver ici : voir cibles/appareil.ts.
+      case 'signature':
+        return '';
       case 'selecteurLangue':
         // Le sélecteur vit avec la langue (src/humalis/langue.tsx).
         return `<SelecteurLangue className="${cls('humalis-selecteur-langue', w.classes)}" />`;

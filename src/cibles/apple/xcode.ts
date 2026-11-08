@@ -5,6 +5,12 @@
  * fichiers, le projet n'a donc pas à les citer.
  */
 
+export interface PaquetSwift {
+  adresse: string;
+  version: string;
+  produit: string;
+}
+
 export interface OptionsXcode {
   /** L'identifiant Swift de l'application (« Boutique ») : la cible et le dossier. */
   nom: string;
@@ -20,6 +26,8 @@ export interface OptionsXcode {
   serveurLocal?: boolean;
   /** Le Mac peut lire les fichiers que la personne choisit. */
   fichiers?: boolean;
+  /** Les bibliothèques Swift du programme. */
+  paquets?: PaquetSwift[];
   /** Le Mac a son propre fichier de droits (les notifications s'y déclarent autrement). */
   droitsMac?: boolean;
   /** Vrai s'il y a une icône dans les assets. */
@@ -129,8 +137,25 @@ ${reglages.map((r) => `\t\t\t\t${r}`).join('\n')}
 /** Le fichier `project.pbxproj`. */
 export function projetXcode(o: OptionsXcode): string {
   const produit = `${o.nom}.app`;
-  const texte = projetDeBase(o, produit);
+  const texte = avecPaquets(projetDeBase(o, produit), o.paquets ?? []);
   return o.essaisUi ? avecEssaisUi(texte, o) : texte;
+}
+
+/** Ajoute au projet les bibliothèques Swift : la référence au dépôt, et le lien avec l'application. */
+function avecPaquets(texte: string, paquets: PaquetSwift[]): string {
+  if (paquets.length === 0) return texte;
+  const id = (genre: string, i: number) => `1B${genre}${String(i).padStart(21, '0')}`;
+  const liste = (cle: string) => paquets.map((_, i) => `\t\t\t\t${id(cle, i)},`).join('\n');
+  const remplacer = (avant: string, apres: string) => {
+    if (!texte.includes(avant)) throw new Error(`modèle du projet inattendu : ${avant}`);
+    texte = texte.replace(avant, apres);
+  };
+  remplacer('/* Begin PBXFileReference section */', `/* Begin PBXBuildFile section */\n${paquets.map((p, i) => `\t\t${id('A', i)} = {isa = PBXBuildFile; productRef = ${id('C', i)}; };`).join('\n')}\n/* End PBXBuildFile section */\n\n/* Begin PBXFileReference section */`);
+  remplacer(`${ID.phaseFrameworks} /* Frameworks */ = {\n\t\t\tisa = PBXFrameworksBuildPhase;\n\t\t\tbuildActionMask = 2147483647;\n\t\t\tfiles = (\n`, `${ID.phaseFrameworks} /* Frameworks */ = {\n\t\t\tisa = PBXFrameworksBuildPhase;\n\t\t\tbuildActionMask = 2147483647;\n\t\t\tfiles = (\n${liste('A')}\n`);
+  remplacer('\t\t\tfileSystemSynchronizedGroups = (', `\t\t\tpackageProductDependencies = (\n${liste('C')}\n\t\t\t);\n\t\t\tfileSystemSynchronizedGroups = (`);
+  remplacer('\t\t\tproductRefGroup =', `\t\t\tpackageReferences = (\n${liste('B')}\n\t\t\t);\n\t\t\tproductRefGroup =`);
+  remplacer('\t};\n\trootObject', `/* Begin XCRemoteSwiftPackageReference section */\n${paquets.map((p, i) => `\t\t${id('B', i)} = {\n\t\t\tisa = XCRemoteSwiftPackageReference;\n\t\t\trepositoryURL = ${pb(p.adresse)};\n\t\t\trequirement = {\n\t\t\t\tkind = upToNextMajorVersion;\n\t\t\t\tminimumVersion = ${pb(p.version)};\n\t\t\t};\n\t\t};`).join('\n')}\n/* End XCRemoteSwiftPackageReference section */\n\n/* Begin XCSwiftPackageProductDependency section */\n${paquets.map((p, i) => `\t\t${id('C', i)} = {\n\t\t\tisa = XCSwiftPackageProductDependency;\n\t\t\tpackage = ${id('B', i)};\n\t\t\tproductName = ${pb(p.produit)};\n\t\t};`).join('\n')}\n/* End XCSwiftPackageProductDependency section */\n\t};\n\trootObject`);
+  return texte;
 }
 
 /** Ajoute au projet une cible XCUITest, seulement pour l'essai de bout en bout. */
@@ -381,13 +406,17 @@ export function droits(fichiers: boolean, notifications?: 'ios' | 'mac'): string
  * (HTTPS, Keychain) : TestFlight ne repose donc pas la question du chiffrement à chaque envoi.
  * `http://` reste permis sur le réseau local, seulement pour essayer contre un serveur de cet ordinateur.
  */
-export function infoSupplementaire(serveurLocal: boolean): string {
+export function infoSupplementaire(serveurLocal: boolean, usages: { camera?: boolean; identite?: boolean } = {}): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
 	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>${serveurLocal ? `
+	<false/>${usages.camera ? `
+	<key>NSCameraUsageDescription</key>
+	<string>L'application utilise l'appareil photo pour prendre une photo ou scanner un code.</string>` : ''}${usages.identite ? `
+	<key>NSFaceIDUsageDescription</key>
+	<string>L'application vérifie qu'il s'agit bien de vous.</string>` : ''}${serveurLocal ? `
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>

@@ -1714,6 +1714,45 @@ Dans une page, après un geste : `activer notifications`. Il faut les variables
 et `HUMALIS_APNS_CLE`, `HUMALIS_APNS_CLE_ID`, `HUMALIS_APNS_EQUIPE` et
 `HUMALIS_APNS_SUJET` pour Apple (`HUMALIS_APNS_HOTE` pour le bac à sable).
 
+#### Les fonctions de l'appareil
+
+Sur la cible Apple, une page peut se servir de l'appareil. Ces phrases s'écrivent dans
+un événement, sauf `signature`, qui est un élément de la page :
+
+```humalis
+page "accueil" :
+    titre "Livraison"
+    variable cliche = rien
+    variable code = ""
+    variable trace = ""
+    signature dans trace
+    bouton "Prendre une photo"
+    quand l'utilisateur clique sur "Prendre une photo" :
+        photo dans cliche
+    bouton "Scanner"
+    quand l'utilisateur clique sur "Scanner" :
+        scanner code dans code
+        vibrer
+    bouton "Valider"
+    quand l'utilisateur clique sur "Valider" :
+        verifier identite :
+            afficher "Confirmé"
+        sinon :
+            afficher "Non reconnu"
+```
+
+`photo` donne un fichier, comme `fichier … dans`. `scanner code` lit un code QR ou un
+code-barres. `signature` donne une image en texte. `verifier identite` passe par Face ID,
+Touch ID ou le code de l'appareil. Une variable `avec hors ligne` garde la dernière
+réponse du serveur et la montre quand il n'y a pas de réseau :
+`variable produits = [] avec hors ligne`.
+
+Pour se servir d'une bibliothèque Swift dans une vue écrite à la main, écris en haut du
+fichier `paquet swift "https://github.com/exemple/paquet" version "1.2"`. Si le produit
+ne porte pas le nom du dépôt, ajoute `produit "Nom"`.
+
+Ailleurs que sur Apple, le compilateur dit que ces phrases ne sont pas encore disponibles.
+
 #### Interroger une IA
 
 ```humalis
@@ -2687,6 +2726,7 @@ chose de faux.
 | Raccourcis clavier | oui | oui | non | oui | oui |
 | Composants React | oui | non | oui (en React Native) | oui | non (`sur apple "Vue.swift"`) |
 | Le moteur sans React (`--moteur humalis`) | oui | non | non | non | non |
+| Photo, scanner, Face ID, vibration, signature, hors ligne | non | non | non | non | oui |
 | Plan du site, aperçu de partage | oui | oui | non | non | non |
 
 Le serveur (`--cible serveur`) se produit à part, depuis le bloc `serveur`.

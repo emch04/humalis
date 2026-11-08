@@ -105,6 +105,7 @@ export class GenerateurPage implements HotePage {
   ) {
     // Une variable qui reçoit un fichier choisi : son type est celui du fichier, pas une fiche ordinaire.
     const choisis = variablesDeFichier(ecran.vue);
+    for (const m of JSON.stringify([ecran.vue, ecran.gestionnaires]).matchAll(/"type":"prisePhoto","variable":"([^"]+)"/g)) choisis.add(m[1]);
     this.ecran = {
       ...ecran,
       etat: ecran.etat.map((e) => {
@@ -134,6 +135,10 @@ export class GenerateurPage implements HotePage {
 
   estEtat(nom: string): boolean {
     return this.portee.variables.has(nom);
+  }
+
+  estHorsLigne(nom: string): boolean {
+    return [...this.ecran.etat, ...this.app.partages].some((e) => e.nom === nom && e.horsLigne);
   }
 
   nomEtatRequete(nom: string): string {
@@ -449,9 +454,9 @@ export class GenerateurPage implements HotePage {
     const v = this.valeurs.expr(etat.initiale, etat.type);
     const initiale = opt ? this.valeurs.versOpt(v, etat.type) : this.valeurs.vers(v, etat.type);
     const nom = nomSwift(etat.nom);
-    if (etat.memorisee) {
+    if (etat.memorisee || etat.horsLigne) {
       const cle = `${this.app.cle}:${simplifier(this.ecran.nom)}:${simplifier(etat.nom)}`;
-      e.ligne(`@Memorisee(${chaineSwift(cle)}${etat.secret ? ', secret: true' : ''}) private var ${nom}: ${type} = ${initiale}`);
+      e.ligne(`@Memorisee(${chaineSwift(cle)}${etat.secret ? ', secret: true' : ''}${etat.horsLigne ? ', fichier: true' : ''}) private var ${nom}: ${type} = ${initiale}`);
     } else e.ligne(`@State private var ${nom}: ${type} = ${initiale}`);
   }
 
@@ -1016,6 +1021,10 @@ export class GenerateurPage implements HotePage {
         this.modifieurs(e, noeud.options, 'bloc', [id]);
         return;
       }
+      case 'signature':
+        e.ligne(`SignatureHumalis(trace: ${lien(TEXTE)})`);
+        this.modifieurs(e, noeud.options, 'bloc', [id]);
+        return;
       case 'selecteurLangue':
         e.ligne('SelecteurLangueHumalis()');
         this.modifieurs(e, noeud.options, 'bloc', [id]);

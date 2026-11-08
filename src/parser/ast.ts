@@ -14,6 +14,8 @@ export interface Programme {
   partages: DeclarationVariable[];
   /** Les « utiliser composant "Carte" depuis "./Carte" » : des composants React. */
   composantsReact: ComposantReact[];
+  /** « paquet swift "https://…" version "1.2" » : une bibliothèque Swift, pour les vues écrites à la main. */
+  paquetsSwift?: { adresse: string; version: string; produit?: string; ligne: number }[];
   /** Les « composant "Fiche" : » écrits en Humalis. */
   composants: DefinitionComposant[];
   /** Les « serveur "…" : » : données, routes et règles d'accès. */
@@ -507,6 +509,10 @@ export type Instruction =
   | FaireAction
   | TelechargementDocument
   | ActivationNotifications
+  | PrisePhoto
+  | ScanCode
+  | VerificationIdentite
+  | Vibration
   | DemandeIa
   | Paiement
   | DemandeLienMotDePasse
@@ -776,6 +782,34 @@ export interface Invitation {
 }
 
 /** « activer notifications » : cet appareil reçoit les notifications du compte connecté. */
+/** « photo dans image » : l'appareil photo, et la variable reçoit le fichier. */
+export interface PrisePhoto {
+  type: 'PrisePhoto';
+  variable: string;
+  ligne: number;
+}
+
+/** « scanner code dans valeur » : un code QR ou un code-barres. */
+export interface ScanCode {
+  type: 'ScanCode';
+  variable: string;
+  ligne: number;
+}
+
+/** « verifier identite : … sinon : … » : Face ID, Touch ID ou le code de l'appareil. */
+export interface VerificationIdentite {
+  type: 'VerificationIdentite';
+  alors: Instruction[];
+  sinon: Instruction[];
+  ligne: number;
+}
+
+/** « vibrer ». */
+export interface Vibration {
+  type: 'Vibration';
+  ligne: number;
+}
+
 export interface ActivationNotifications {
   type: 'ActivationNotifications';
   ligne: number;
@@ -854,6 +888,8 @@ export interface OptionsVariable {
   partagee?: boolean;
   /** Gardée après un rechargement, sur l'appareil du visiteur. */
   memorisee?: boolean;
+  /** « avec hors ligne » : la dernière réponse du serveur reste lisible sans réseau. */
+  horsLigne?: boolean;
   /** Avec « memorisee » : un secret, à garder dans le coffre de l'appareil. */
   secret?: boolean;
 }
@@ -936,7 +972,8 @@ export type NomElement =
   | 'audio'
   | 'marqueur'
   /** « selecteur de langue » : le choix de la langue (partie 1 du plan qualité). */
-  | 'selecteurLangue';
+  | 'selecteurLangue'
+  | 'signature';
 
 /**
  * La sorte d'un champ : « champ email "…" », « case a cocher "…" »,

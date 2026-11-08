@@ -4,7 +4,7 @@ import { langueDuMot } from '../i18n/langues.js';
 import { texteSource } from '../parser/langues.js';
 import { lireExpressionDuTexte } from '../parser/parser.js';
 import { ErreurSyntaxique } from '../parser/erreurs.js';
-import type { FaireAction, Paiement, TelechargementDocument } from '../parser/ast.js';
+import type { FaireAction, Paiement, PrisePhoto, ScanCode, TelechargementDocument, VerificationIdentite, Vibration } from '../parser/ast.js';
 import type {
   Programme,
   RegleSource,
@@ -1013,6 +1013,13 @@ class AnalysePage {
         return;
       }
 
+      case 'PrisePhoto':
+      case 'ScanCode':
+      case 'VerificationIdentite':
+      case 'Vibration':
+        this.fonctionAppareil(instruction, contexte, place);
+        return;
+
       case 'FaireAction': {
         this.litLaSession = true;
         if (contexte === 'vue') this.horsEvenement('faire', instruction.ligne);
@@ -1319,6 +1326,7 @@ class AnalysePage {
     if (verifierMouvement(element.styles, element.element, this.formulaireOuvert !== undefined, element.ligne, this.signaler())) this.defilements.push(element.ligne);
     if (element.element === 'image' && verifierImage(element, this.signaler())) this.prioritaires.push(element.ligne);
     if (element.element === 'fichier') this.choixFichier(element);
+    if (element.element === 'signature' && element.contenu.type === 'Reference') this.variableDeTexte(element.contenu.nom, element.ligne, 'une signature');
     if (element.element === 'audio') verifierAudio(element, this.signaler());
     if (element.element === 'marqueur') verifierMarqueur(element, this.pileBlocs.some((b) => b.genre === 'carte'), this.signaler());
     this.optionsDeChamp(element);
@@ -1326,6 +1334,39 @@ class AnalysePage {
     if (element.raccourci !== undefined) {
       const touches = verifierRaccourciElement(this.hote(), element);
       if (touches !== undefined) this.raccourci(touches, undefined, element.ligne);
+    }
+  }
+
+  /** « photo dans image », « scanner code dans valeur », « verifier identite : », « vibrer » : un geste de la personne les déclenche. */
+  private fonctionAppareil(instruction: PrisePhoto | ScanCode | VerificationIdentite | Vibration, contexte: Contexte, place: Place): void {
+    if (contexte === 'vue') this.horsEvenement(actionInterditeDansUneFonction(instruction)!, instruction.ligne);
+    if (instruction.type === 'VerificationIdentite') {
+      this.sousBloc(instruction.alors, contexte, place);
+      this.sousBloc(instruction.sinon, contexte, place);
+    } else if (instruction.type === 'PrisePhoto') {
+      const symbole = this.variable(instruction.variable, instruction.ligne);
+      if (!symbole) return;
+      const type = typeFichierChoisi(false);
+      if (!estConnu(symbole.type)) {
+        symbole.type = type;
+        if (symbole.origine) this.resultat.types.set(symbole.origine, type);
+      } else if (!compatibles(symbole.type, type)) {
+        this.erreur(`« ${instruction.variable} » est ${decrireType(symbole.type)} ; elle reçoit une photo. Déclarez variable ${instruction.variable} = rien.`, instruction.ligne);
+      }
+    } else if (instruction.type === 'ScanCode') {
+      this.variableDeTexte(instruction.variable, instruction.ligne, 'un code');
+    }
+  }
+
+  /** La variable d'un « scanner code » ou d'une « signature » reçoit un texte. */
+  private variableDeTexte(nom: string, ligne: number, quoi: string): void {
+    const symbole = this.variable(nom, ligne);
+    if (!symbole) return;
+    if (!estConnu(symbole.type)) {
+      symbole.type = TEXTE;
+      if (symbole.origine) this.resultat.types.set(symbole.origine, TEXTE);
+    } else if (symbole.type.genre !== 'texte') {
+      this.erreur(`« ${nom} » est ${decrireType(symbole.type)} ; elle reçoit ${quoi}, qui est un texte. Déclarez variable ${nom} = "".`, ligne);
     }
   }
 
@@ -2859,6 +2900,14 @@ function actionInterditeDansUneFonction(instruction: Instruction): string | unde
       return 'faire';
     case 'ActivationNotifications':
       return 'activer notifications';
+    case 'PrisePhoto':
+      return 'photo';
+    case 'ScanCode':
+      return 'scanner code';
+    case 'VerificationIdentite':
+      return 'verifier identite';
+    case 'Vibration':
+      return 'vibrer';
     case 'DemandeIa':
       return 'demander a ia';
     case 'Paiement':

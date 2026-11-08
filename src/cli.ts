@@ -18,6 +18,7 @@ import { lecturesPermises, lireLesDonnees, type ReglageLecture } from './cibles/
 import { genererProjetStatique, verifierPourLeStatique, MARQUE_STATIQUE } from './cibles/statique/projet.js';
 import { genererProjetDesktop, MARQUE_DESKTOP, SERVEUR_PAR_DEFAUT } from './cibles/desktop/projet.js';
 import { genererProjetApple, MARQUE_APPLE } from './cibles/apple/projet.js';
+import { verifierAppareilPourLaCible } from './cibles/appareil.js';
 import { gestionnairesDuProgramme, contientAction } from './cibles/web/interactions.js';
 import type { Application } from './ri/types.js';
 import { etatDesPacks, verifierProjet, ErreurPackageJson } from './packs.js';
@@ -165,6 +166,15 @@ function compile(arguments_: string[]): number | Promise<number> {
 
   // Les tuiles d'une carte viennent d'un fournisseur qui reçoit l'adresse IP des visiteurs : dit une fois.
   if (cible === 'web' || cible === 'statique' || cible === 'desktop') afficherDiagnostics(prevenirDesTuiles(application));
+
+  if (cible !== 'apple' && cible !== 'serveur') {
+    const appareil = verifierAppareilPourLaCible(application, cible);
+    if (appareil.length > 0) {
+      afficherDiagnostics(appareil);
+      console.error('\nLe programme ne peut pas être produit pour cette cible : rien n\'a été écrit.');
+      return 1;
+    }
+  }
 
   if (cible === 'serveur') return compileServeur(application, chemin, sortie);
   if (cible === 'mobile') return compileMobile(application, chemin, sortie);

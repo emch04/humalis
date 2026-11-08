@@ -141,6 +141,9 @@ export function arbreWidget(genre: GenreWidget, a: AideWidget): Enfant {
     }
     case 'qr':
       return n('span', [['class', cls('humalis-qr', a.classes)], ['role', 'img'], ['aria-label', description ?? 'Code QR']], { qr: a.valeur.js });
+    // Refusée avant d'arriver ici : voir cibles/appareil.ts.
+    case 'signature':
+      return null as unknown as Enfant;
     case 'selecteurLangue': {
       // Chaque langue écrite dans sa langue ; le HTML de départ choisit la première, le script la langue courante.
       const langues = a.langues ?? [];

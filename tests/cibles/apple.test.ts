@@ -309,3 +309,51 @@ describe('cible Apple — rôles, temps réel, IA, paiements, notifications', ()
     expect(signe.get('Essai/Essai-mac.entitlements')).toContain('com.apple.developer.aps-environment');
   });
 });
+
+describe('cible Apple — les fonctions de l\'appareil', () => {
+  const PAGE = `page "a" :\n    titre "t"\n    variable cliche = rien\n    variable code = ""\n    variable trace = ""\n    signature dans trace\n    bouton "Go"\n    quand l'utilisateur clique sur "Go" :\n        photo dans cliche\n        scanner code dans code\n        vibrer\n        verifier identite :\n            afficher "Oui"\n        sinon :\n            afficher "Non"\n`;
+
+  it('chaque fonction appelle l\'appareil, et la permission est déclarée', () => {
+    const f = projet(PAGE);
+    const page = f.get('Essai/Pages/PageA.swift')!;
+    expect(page).toContain('if let photo = await prendrePhoto() {');
+    expect(page).toContain('@State private var cliche: FichierChoisi? = nil');
+    expect(page).toContain('if let code = await scannerCode() {');
+    expect(page).toContain('if await verifierIdentite() {');
+    expect(page).toContain('vibrer()');
+    expect(page).toContain('SignatureHumalis(trace: $trace)');
+    expect(f.get('Info.plist')).toContain('NSCameraUsageDescription');
+    expect(f.get('Info.plist')).toContain('NSFaceIDUsageDescription');
+    expect(f.has('Essai/Humalis/Appareil.swift')).toBe(true);
+  });
+
+  it('sans ces fonctions, aucune permission demandée', () => {
+    expect(projet(COMPTEUR).get('Info.plist')).not.toContain('UsageDescription');
+    expect(projet(COMPTEUR).has('Essai/Humalis/Appareil.swift')).toBe(false);
+  });
+
+  it('une variable « avec hors ligne » garde sa dernière réponse dans un fichier, sans message sans réseau', () => {
+    const page = projet(`serveur "s" :\n    donnee d :\n        n : texte\n    route "d" :\n        tout le monde peut lire d\n\npage "a" :\n    variable d = [] avec hors ligne\n    titre "t"\n    quand la page se charge :\n        envoyer requete vers "d" dans d\n`).get('Essai/Pages/PageA.swift')!;
+    expect(page).toMatch(/@Memorisee\("[^"]+", fichier: true\) private var d/);
+    expect(page).toContain('horsLigne: true');
+  });
+
+  it('un paquet Swift entre dans le projet, avec le nom de son dépôt', () => {
+    const pbx = projet(`paquet swift "https://github.com/exemple/Super.git" version "1.2"\npage "a" :\n    titre "t"\n`).get('Essai.xcodeproj/project.pbxproj')!;
+    expect(pbx).toContain('XCRemoteSwiftPackageReference');
+    expect(pbx).toContain('minimumVersion = 1.2.0;');
+    expect(pbx).toContain('productName = Super;');
+  });
+
+  it('une version mal écrite est refusée', () => {
+    const { diagnostics } = produire(`paquet swift "https://exemple.fr/a" version "dernier"\npage "a" :\n    titre "t"\n`);
+    expect(diagnostics.some((d) => d.gravite === 'erreur' && d.message.includes('version'))).toBe(true);
+  });
+
+  it('les autres cibles le disent au lieu de produire un bouton vide', async () => {
+    const { verifierAppareilPourLaCible } = await import('../../src/cibles/appareil.js');
+    const refus = verifierAppareilPourLaCible(compile(PAGE), 'web');
+    expect(refus.length).toBe(5);
+    expect(refus[0].message).toContain('cible Apple');
+  });
+});

@@ -224,6 +224,7 @@ function reunir(programmes: Programme[], fichiers: string[], diagnostics: Diagno
     donneesFichiers: [...premier.donneesFichiers],
     partages: [...premier.partages],
     composantsReact: [...premier.composantsReact],
+    paquetsSwift: [...(premier.paquetsSwift ?? [])],
     composants: [...premier.composants],
     serveurs: [...premier.serveurs],
     sources: [...premier.sources],
@@ -289,6 +290,7 @@ function reunir(programmes: Programme[], fichiers: string[], diagnostics: Diagno
     tout.fichiersStyle.push(...p.fichiersStyle);
     tout.donneesFichiers.push(...p.donneesFichiers);
     tout.partages.push(...p.partages);
+    tout.paquetsSwift!.push(...(p.paquetsSwift ?? []));
     // Un composant (Humalis ou React) n'a qu'une définition dans toute l'application.
     for (const composant of [...p.composants, ...p.composantsReact]) {
       const deja = [...tout.composants, ...tout.composantsReact].find((x) => x.nom === composant.nom);
