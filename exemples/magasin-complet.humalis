@@ -1,0 +1,142 @@
+# Une application de A à Z : le serveur et les pages dans le même fichier.
+# Un catalogue lu sur le serveur, la fiche d'un produit, un panier partagé et
+# gardé sur l'appareil, une commande envoyée par un formulaire, et un espace
+# réservé à l'administrateur après une connexion.
+site :
+    nom "Magasin"
+
+theme :
+    couleur marque "#1f7a5c"
+
+serveur "magasin" :
+    donnee produit :
+        nom : texte
+        prix : nombre
+        description : texte
+    donnee commande :
+        client : texte
+        adresse : texte
+        articles : nombre
+        total : nombre
+    route "produits" :
+        tout le monde peut lire produit
+        seul admin peut creer produit
+        seul admin peut modifier produit
+        seul admin peut supprimer produit
+    route "commandes" :
+        tout le monde peut creer commande
+        seul admin peut lire commande
+
+variable panier = [] avec partagee et memorisee
+
+entete :
+    menu :
+        lien "Catalogue" vers "catalogue" avec icone "boutique"
+        lien "Panier" vers "panier" avec icone "panier"
+        lien "Gestion" vers "gestion" avec icone "parametres"
+
+page "catalogue" :
+    variable produits = []
+    titre "Notre catalogue"
+    quand la page se charge :
+        envoyer requete vers "produits" dans produits
+    si produits est vide :
+        texte "Aucun produit pour l'instant."
+    sinon :
+        grille avec colonnes 2 :
+            pour chaque p dans produits :
+                bloc avec fond gris et remplissage moyenne et bordure douce :
+                    soustitre p.nom
+                    texte "{p.prix en euros}"
+                    lien "Voir" vers "produit" avec id p.id
+                    bouton "Ajouter"
+                    quand l'utilisateur clique sur "Ajouter" :
+                        ajouter fiche avec nom p.nom et prix p.prix a panier
+                        afficher reussite "{p.nom} ajouté au panier"
+
+page "produit" avec parametre id :
+    variable produit = rien
+    quand la page se charge :
+        envoyer requete vers "produits" avec id dans produit
+    si produit est rien :
+        chargement "Chargement…"
+    sinon :
+        titre produit.nom
+        texte produit.description
+        texte "{produit.prix en euros}" avec taille grande
+        bouton "Ajouter au panier" avec fond vert
+        quand l'utilisateur clique sur "Ajouter au panier" :
+            ajouter fiche avec nom produit.nom et prix produit.prix a panier
+            afficher reussite "Ajouté"
+    bouton "Retour"
+    quand l'utilisateur clique sur "Retour" :
+        revenir vers "catalogue"
+
+page "panier" :
+    calcul total = somme de panier.prix
+    calcul articles = nombre de panier
+    titre "Votre panier"
+    si panier est vide :
+        texte "Votre panier est vide."
+    sinon :
+        pour chaque article dans panier :
+            ligne avec repartition entre :
+                texte article.nom
+                texte "{article.prix en euros}"
+                bouton "Retirer"
+                quand l'utilisateur clique sur "Retirer" :
+                    retirer article de panier
+        texte "{articles article} pour {total en euros}" avec taille grande
+        formulaire "commande" :
+            champ "client" avec obligatoire
+            champ "adresse" avec obligatoire
+            bouton "Commander" avec fond vert
+    quand le formulaire "commande" est soumis :
+        envoyer requete vers "commandes" avec champ "client" et champ "adresse" et articles = articles et total = total
+        changer panier par []
+        afficher reussite "Merci pour votre commande !"
+
+page "gestion" reservee a admin sinon vers "connexion" :
+    variable produits = []
+    variable commandes = []
+    titre "Gestion"
+    quand la page se charge :
+        envoyer requete vers "produits" dans produits
+        envoyer requete vers "commandes" dans commandes
+    formulaire "nouveau" :
+        champ "nom" avec obligatoire
+        champ nombre "prix" avec obligatoire et minimum 0
+        champ texte long "description"
+        bouton "Ajouter le produit"
+    quand le formulaire "nouveau" est soumis :
+        envoyer requete vers "produits" avec champ "nom" et prix = champ "prix" et champ "description"
+        envoyer requete vers "produits" dans produits
+        afficher reussite "Produit ajouté"
+    soustitre "Produits"
+    pour chaque p dans produits :
+        ligne avec repartition entre :
+            texte "{p.nom} : {p.prix en euros}"
+            bouton "Supprimer"
+            quand l'utilisateur clique sur "Supprimer" :
+                confirmer "Supprimer ce produit ?" :
+                    supprimer p de "produits"
+                    envoyer requete vers "produits" dans produits
+    soustitre "Commandes"
+    si commandes est vide :
+        texte "Pas encore de commande."
+    pour chaque c dans commandes :
+        texte "{c.client}, {c.adresse} : {c.articles article}, {c.total en euros}"
+    bouton "Se déconnecter"
+    quand l'utilisateur clique sur "Se déconnecter" :
+        se deconnecter
+        rediriger vers "catalogue"
+
+page "connexion" :
+    titre "Connexion"
+    formulaire "connexion" :
+        champ email "email" avec obligatoire
+        champ mot de passe "mot de passe" avec obligatoire
+        bouton "Se connecter"
+    quand le formulaire "connexion" est soumis :
+        se connecter avec champ "email" et champ "mot de passe"
+        continuer vers "catalogue"

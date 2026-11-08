@@ -413,7 +413,7 @@ export const utilisateur = {
   get pret() { return pret.v; },
   get connecte() { return personne.v !== null; },
   get admin() { return personne.v?.role === 'admin'; },
-  seConnecter, seConnecterAvecGoogle, changerMotDePasse, inviter, changerRole, changerCompte, activerNotifications, demanderIa, payer,
+  seConnecter, seConnecterAvecGoogle, seConnecterAvecApple, changerMotDePasse, inviter, changerRole, changerCompte, activerNotifications, demanderIa, payer,
   demanderLienMotDePasse, choisirMotDePasse, seDeconnecter,
 };
 function entetesSession() { return ajouterCsrf(new Headers({ 'Content-Type': 'application/json' })); }
@@ -471,6 +471,43 @@ async function seConnecterAvecGoogle(dansUnEssai = false) {
   if (!reponse.ok) {
     const corps = await reponse.json().catch(() => null);
     const raison = corps?.erreur ?? 'la connexion avec Google a été refusée';
+    return refuser(raison.charAt(0).toUpperCase() + raison.slice(1) + '.', dansUnEssai);
+  }
+  await relireSession(); return true;
+}
+function chargerApple() {
+  if (window.AppleID) return Promise.resolve(true);
+  return new Promise((resoudre) => {
+    const script = document.createElement('script');
+    script.src = 'https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/fr_FR/appleid.auth.js';
+    script.onload = () => resoudre(true);
+    script.onerror = () => resoudre(false);
+    document.head.appendChild(script);
+  });
+}
+async function seConnecterAvecApple(dansUnEssai = false) {
+  let clientId = null;
+  try {
+    const reponse = await fetch(BASE_AUTH + '/auth/apple', { credentials: CREDENTIALS_AUTH });
+    clientId = reponse.ok ? (await reponse.json()).clientId ?? null : null;
+  } catch { return refuser(REESSAYER(), dansUnEssai); }
+  if (!clientId) return refuser("La connexion avec Apple n'est pas encore réglée sur le serveur.", dansUnEssai);
+  if (!(await chargerApple())) return refuser("La fenêtre d'Apple n'a pas pu s'ouvrir. Réessayez dans un instant.", dansUnEssai);
+  const nonce = crypto.randomUUID(), etat = crypto.randomUUID();
+  let jeton = null;
+  try {
+    window.AppleID.auth.init({ clientId, scope: 'email', redirectURI: window.location.origin + '/', state: etat, nonce, usePopup: true });
+    const resultat = await window.AppleID.auth.signIn();
+    if (resultat?.authorization?.state === etat) jeton = resultat.authorization.id_token ?? null;
+  } catch { jeton = null; }
+  if (!jeton) return refuser('La connexion avec Apple a été annulée.', dansUnEssai);
+  let reponse;
+  try {
+    reponse = await fetch(BASE_AUTH + '/auth/apple', { method: 'POST', headers: entetesSession(), credentials: CREDENTIALS_AUTH, body: JSON.stringify({ idToken: jeton, nonce }) });
+  } catch { return refuser(REESSAYER(), dansUnEssai); }
+  if (!reponse.ok) {
+    const corps = await reponse.json().catch(() => null);
+    const raison = corps?.erreur ?? 'la connexion avec Apple a été refusée';
     return refuser(raison.charAt(0).toUpperCase() + raison.slice(1) + '.', dansUnEssai);
   }
   await relireSession(); return true;

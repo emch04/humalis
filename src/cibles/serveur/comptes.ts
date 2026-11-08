@@ -264,7 +264,7 @@ export function sansLesRetires(store: UsersStore): UsersStore {
     update: (id, modifs) => {
       const { password, ...reste } = modifs as Compte & { password?: unknown };
       const ecrit: Compte = { ...reste, ...(password !== undefined ? { passwordHash: password } : {}) };
-      if ('passwordHash' in ecrit || 'googleSubject' in ecrit) ecrit.invitation = false;
+      if ('passwordHash' in ecrit || 'googleSubject' in ecrit || 'appleSubject' in ecrit) ecrit.invitation = false;
       return store.update(id, ecrit);
     },
   };
@@ -526,7 +526,7 @@ export function creerComptes({
           res.status(404).json({ erreur: "ce compte n'existe pas" });
           return;
         }
-        await usersStore.update(id, { role: ROLE_RETIRE, invitation: false, passwordHash: null, googleSubject: null } as unknown as Compte);
+        await usersStore.update(id, { role: ROLE_RETIRE, invitation: false, passwordHash: null, googleSubject: null, appleSubject: null } as unknown as Compte);
         await jetons.deleteForUser(id);
         await renouvellement.revokeAllForUser(id);
         await revocations.revokeAllForUser?.(id, Date.now());

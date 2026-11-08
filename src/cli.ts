@@ -17,6 +17,8 @@ import { genererProjetMoteur, verifierPourLeMoteur, MARQUE_MOTEUR } from './cibl
 import { lecturesPermises, lireLesDonnees, type ReglageLecture } from './cibles/moteur/lecture-construction.js';
 import { genererProjetStatique, verifierPourLeStatique, MARQUE_STATIQUE } from './cibles/statique/projet.js';
 import { genererProjetDesktop, MARQUE_DESKTOP, SERVEUR_PAR_DEFAUT } from './cibles/desktop/projet.js';
+import { genererProjetApple, MARQUE_APPLE } from './cibles/apple/projet.js';
+import { verifierAppareilPourLaCible } from './cibles/appareil.js';
 import { gestionnairesDuProgramme, contientAction } from './cibles/web/interactions.js';
 import type { Application } from './ri/types.js';
 import { etatDesPacks, verifierProjet, ErreurPackageJson } from './packs.js';
@@ -39,6 +41,7 @@ const AIDE = `Utilisation :
   humalis compile <fichier.humalis> --cible web --composants <dossier>
   humalis compile <fichier.humalis> --cible mobile --sortie <dossier>
   humalis compile <fichier.humalis> --cible desktop --sortie <dossier> [--serveur https://…]
+  humalis compile <fichier.humalis> --cible apple --sortie <dossier> [--serveur https://…] [--identifiant com.exemple.app] [--equipe ABCDE12345]
   humalis compile <fichier.humalis> --cible serveur --sortie <dossier>
   humalis compile <fichier.humalis> --cible web --moteur humalis --sortie <dossier> [--adresse https://…] [--lire-serveur https://…]
   humalis compile <fichier.humalis> --cible statique --sortie <dossier> [--adresse https://…]
@@ -49,7 +52,7 @@ verifier  affiche les erreurs et les avertissements avec leur ligne. Avec
           travaille sur le compilateur).
 compile   produit un projet complet pour la cible choisie : web (Vite + React
           prérendu), mobile (Expo, iPhone et Android), desktop (Electron, Mac,
-          Windows et Linux), serveur (Node + packs Astratra) ou statique (HTML,
+          Windows et Linux), apple (SwiftUI natif, iPhone, iPad et Mac), serveur (Node + packs Astratra) ou statique (HTML,
           CSS, JavaScript, sans construction).
           Avec --composants, seulement les pages web et leurs outils, à
           déposer dans un projet React existant.
@@ -128,11 +131,11 @@ function compile(arguments_: string[]): number | Promise<number> {
     console.error(AIDE);
     return 2;
   }
-  if (cible !== 'web' && cible !== 'mobile' && cible !== 'desktop' && cible !== 'serveur' && cible !== 'statique') {
+  if (cible !== 'web' && cible !== 'mobile' && cible !== 'desktop' && cible !== 'apple' && cible !== 'serveur' && cible !== 'statique') {
     console.error(
       cible === undefined
-        ? 'Précisez la cible avec --cible web, --cible mobile, --cible desktop, --cible serveur ou --cible statique.'
-        : `La cible « ${cible} » n'existe pas encore. Cibles disponibles : web, mobile, desktop, serveur, statique.`,
+        ? 'Précisez la cible avec --cible web, --cible mobile, --cible desktop, --cible apple, --cible serveur ou --cible statique.'
+        : `La cible « ${cible} » n'existe pas encore. Cibles disponibles : web, mobile, desktop, apple, serveur, statique.`,
     );
     return 2;
   }
@@ -153,20 +156,30 @@ function compile(arguments_: string[]): number | Promise<number> {
 
   // « avec animation » et « en direct » n'existent que sur le web : dit plutôt que perdu en silence.
   const programme = JSON.stringify(application.ecrans);
-  if (programme.includes('"animation":true') && cible !== 'web' && cible !== 'serveur') {
+  if (programme.includes('"animation":true') && cible !== 'web' && cible !== 'serveur' && cible !== 'apple') {
     console.error('Avertissement : « avec animation » n\'a d\'effet que sur le web : ici, les lignes changent sans glisser.');
   }
-  if (programme.includes('"direct":true') && cible !== 'web' && cible !== 'serveur') {
+  if (programme.includes('"direct":true') && cible !== 'web' && cible !== 'serveur' && cible !== 'apple') {
     console.error('Avertissement : « en direct » n\'a d\'effet que sur le web : ici, la liste est lue une fois.');
   }
 
   // Les tuiles d'une carte viennent d'un fournisseur qui reçoit l'adresse IP des visiteurs : dit une fois.
   if (cible === 'web' || cible === 'statique' || cible === 'desktop') afficherDiagnostics(prevenirDesTuiles(application));
 
+  if (cible !== 'apple' && cible !== 'serveur') {
+    const appareil = verifierAppareilPourLaCible(application, cible);
+    if (appareil.length > 0) {
+      afficherDiagnostics(appareil);
+      console.error('\nLe programme ne peut pas être produit pour cette cible : rien n\'a été écrit.');
+      return 1;
+    }
+  }
+
   if (cible === 'serveur') return compileServeur(application, chemin, sortie);
   if (cible === 'mobile') return compileMobile(application, chemin, sortie);
   if (cible === 'statique') return compileStatique(application, chemin, sortie, option(arguments_, 'adresse'));
   if (cible === 'desktop') return compileDesktop(application, chemin, sortie, option(arguments_, 'serveur'));
+  if (cible === 'apple') return compileApple(application, chemin, sortie, arguments_);
 
   // Ce que la cible web ne sait pas faire (« memorisee en secret »).
   const pourLeWeb = verifierPourLeWeb(application);
@@ -523,6 +536,50 @@ async function compileMoteur(application: Application, chemin: string, sortie: s
   ecrire(sortie, fichiers);
   console.error(`Site écrit dans « ${sortie} » avec le moteur Humalis (${fichiers.size} fichiers).`);
   console.error(`Pour le lancer : cd ${sortie} && npm install && npm run dev`);
+  return 0;
+}
+
+function compileApple(application: Application, chemin: string, sortie: string, arguments_: string[]): number {
+  if (application.ecrans.length === 0) {
+    console.error(`Le fichier ${basename(chemin)} ne contient aucune page : rien n'a été écrit.`);
+    return 1;
+  }
+  const serveur = option(arguments_, 'serveur');
+  if (serveur !== undefined && !/^https?:\/\/[^/\s]+/.test(serveur)) {
+    console.error(`L'adresse du serveur « ${serveur} » doit commencer par http:// ou https:// (par exemple --serveur https://mon-serveur.fr).`);
+    return 2;
+  }
+  if (!dossierLibre(sortie, MARQUE_APPLE)) return 1;
+  const nom = basename(chemin).replace(/\.humalis$/, '');
+  const images = lireImagesDuSite(application, chemin);
+  if (!images) return 1;
+  const medias = lireMedias(application, chemin);
+  if (!medias) return 1;
+  const natifs = new Map<string, { nom: string; contenu: string }>();
+  for (const c of application.composantsReact) {
+    if (c.apple === undefined) continue;
+    const fichier = join(dirname(chemin), c.apple);
+    if (!existsSync(fichier) || statSync(fichier).isDirectory()) {
+      console.error(`Erreur, ${position(c.ligne)} : le fichier Swift du composant « ${c.nom} » est introuvable (${c.apple}, cherché à côté de ${basename(chemin)}).`);
+      return 1;
+    }
+    natifs.set(c.nom, { nom: basename(fichier), contenu: readFileSync(fichier, 'utf8') });
+  }
+  const polices = lirePolices(application, chemin);
+  if (!polices) return 1;
+  const identifiant = option(arguments_, 'identifiant');
+  const equipe = option(arguments_, 'equipe');
+  // « --essais-ui » : un test XCUITest ajouté au projet, pour l'essai de bout en bout (scripts/essai-apple-parcours.mjs).
+  const essaisUi = option(arguments_, 'essais-ui');
+  const { fichiers, diagnostics } = genererProjetApple(application, { nom, source: basename(chemin), images, medias, natifs, polices, ...(essaisUi ? { essaisUi: readFileSync(essaisUi, 'utf8') } : {}), ...(serveur ? { serveur } : {}), ...(identifiant ? { identifiant } : {}), ...(equipe ? { equipe } : {}) });
+  afficherDiagnostics(diagnostics);
+  if (diagnostics.some((d) => d.gravite === 'erreur')) {
+    console.error('\nLe programme ne peut pas être produit pour Apple : rien n\'a été écrit.');
+    return 1;
+  }
+  ecrire(sortie, fichiers);
+  console.error(`Projet Apple (SwiftUI) écrit dans « ${sortie} » (${fichiers.size} fichiers).`);
+  console.error(`Pour le lancer : ouvrez le fichier .xcodeproj dans Xcode (voir LISEZMOI.md).`);
   return 0;
 }
 

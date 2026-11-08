@@ -77,8 +77,8 @@ When you like the site, compile it to the target you want:
 humalis compile my-project.humalis --cible web --sortie my-project-web
 ```
 
-The targets (`--cible`) are `web`, `statique` (static), `mobile`, `desktop`
-and `serveur` (server); `--sortie` is the output folder. The
+The targets (`--cible`) are `web`, `statique` (static), `mobile`, `desktop`,
+`apple` and `serveur` (server); `--sortie` is the output folder. The
 [README](../README.en.md) explains how to run each generated project.
 
 ---
@@ -1879,6 +1879,66 @@ In a page, after a gesture: `activer notifications`. The web needs `HUMALIS_VAPI
 `HUMALIS_APNS_CLE_ID`, `HUMALIS_APNS_EQUIPE` and `HUMALIS_APNS_SUJET` (`HUMALIS_APNS_HOTE`
 for the sandbox).
 
+#### Device features
+
+On the Apple target, a page can use the device. These phrases are written in an event,
+except `signature`, which is an element of the page:
+
+```humalis
+page "accueil" :
+    titre "Livraison"
+    variable cliche = rien
+    variable code = ""
+    variable trace = ""
+    signature dans trace
+    bouton "Prendre une photo"
+    quand l'utilisateur clique sur "Prendre une photo" :
+        photo dans cliche
+    bouton "Scanner"
+    quand l'utilisateur clique sur "Scanner" :
+        scanner code dans code
+        vibrer
+    bouton "Valider"
+    quand l'utilisateur clique sur "Valider" :
+        verifier identite :
+            afficher "Confirmé"
+        sinon :
+            afficher "Non reconnu"
+```
+
+`photo` gives a file, like `fichier … dans`. `scanner code` reads a QR code or a barcode.
+`signature` gives an image as text. `verifier identite` uses Face ID, Touch ID or the
+device passcode. A variable `avec hors ligne` keeps the server's last response and shows
+it when there is no network: `variable produits = [] avec hors ligne`.
+
+`position dans lieu` asks for permission, then fills `lieu` (declared `= rien`) with
+`lieu.latitude`, `lieu.longitude` and `lieu.precision`, in metres.
+
+`liens profonds "magasin"`, at the top of the file, lets addresses such as
+`magasin://produit/42` open the app: the first word is the page, the next ones its
+parameters. A restricted page stays restricted. With
+`liens profonds "magasin" et domaine "example.com/test"`, addresses such as
+`https://example.com/test/produit/42` open the app too. Compile with `--equipe` and publish on
+the site the file written to `a-publier-sur-le-site/`.
+
+`en arriere plan :`, directly in a page, says what the app does when the system wakes it.
+The system picks the moment: never before 15 minutes, often much later. This block only
+sees `avec partagee` variables, since no page is open. On Mac, the app must be open.
+
+`hors ligne`, at the end of an `envoyer requete … avec …`, a `modifier` or a `supprimer`,
+keeps the request on the device when there is no network and sends it, in order, when the
+connection returns. A server refusal is shown. Each request belongs to the account that
+made it: on logout it is set aside and only leaves if the same person logs back in; it is
+deleted after 30 days, and the person is told at their next login. It
+does not work with `dans` (the answer would come later) or with an external API. To refresh
+the page afterwards, read the route `en direct`.
+
+To use a Swift library in a hand-written view, write at the top of the file
+`paquet swift "https://github.com/example/package" version "1.2"`. If the product is not
+named after the repository, add `produit "Name"`.
+
+On other targets, the compiler says these phrases are not available yet.
+
 #### Asking an AI
 
 ```humalis
@@ -1930,7 +1990,7 @@ confirms it through a signed webhook: send it to `/paiements/webhook`. It needs
 If the connection drops during a send, a program can safely try again: it sends the
 `X-Humalis-Envoi` header with a random id, the same one on every attempt. The server does the
 work once, even across several copies, then returns the same answer. It answers 409 while the
-first attempt is still running. The id is kept for one day.
+first attempt is still running. The id is kept for 30 days, as long as a request can wait on the device.
 
 #### Many people behind one address
 
@@ -2116,6 +2176,14 @@ page "order_page" :
 `essayer` means "try"; inside `si erreur :` ("if error"), `raison` says what
 went wrong. In a form, the fields stay filled in.
 
+
+### Logging in with Apple
+
+With the line `connexion apple` in the server, an account the server **already knows** can log
+in with its Apple account: `se connecter avec apple` opens Apple's window on iPhone, iPad, Mac
+and on the site. The first login links the account to that Apple account. If the person hides
+their address, they are not recognized and a message says so. Set `APPLE_APP_ID` for the app
+and `APPLE_SERVICE_ID` for the site, and compile the app with `--equipe`.
 
 ### Logging in with Google
 
@@ -2726,6 +2794,32 @@ a property changes, it is restarted. If it can update itself, it returns
 The other way round, `humalis compile … --composants <folder>` generates React
 components to import into an existing React project.
 
+### A hand-written Swift view
+
+The Apple target has neither React nor JavaScript. To use hand-written Swift
+there, add `sur apple`: the web keeps its component, the Apple app uses your
+SwiftUI view.
+
+```humalis
+utiliser composant "Carte" depuis "./composants/Carte" sur apple "./composants/Carte.swift"
+
+page "accueil" :
+    Carte avec titre "Bonjour"
+```
+
+```swift
+import SwiftUI
+
+struct Carte: View {
+    let titre: String
+    var body: some View { Text(titre).font(.title) }
+}
+```
+
+The view has the component's name, and its properties are written in the same
+order as in the page. Text is a `String`, a number a `Double`, true or false a
+`Bool`.
+
 ### Several files
 
 A large project is split into several files. At the top of the main file:
@@ -2785,8 +2879,13 @@ texte "…" est absent` (a text is not shown).
 | `humalis packs` | says whether the Astratra packs have updates |
 
 For web and static, `--adresse https://…` gives the site's final address
-(sitemap, share links). For desktop, `--serveur https://…` gives the address
+(sitemap, share links). For desktop and Apple, `--serveur https://…` gives the address
 of the server the application calls.
+
+`--cible apple` generates an Xcode project in SwiftUI: a single native application
+for iPhone, iPad and Mac, with no embedded browser (Xcode 16 or later; it runs on
+iOS 17 and macOS 14 and later). To sign it, add
+`--identifiant com.example.application` and `--equipe ABCDE12345`.
 
 With `humalis developper`, every element of the page carries its Humalis
 file and line: in the browser's inspector, a heading shows for example
@@ -2817,18 +2916,19 @@ completion and hover help.
 The same file produces every target. When a construct does not exist on a
 target, the compiler says so clearly instead of producing something wrong.
 
-| | web | static | mobile | desktop |
-|---|---|---|---|---|
-| Pages, elements, styles, theme | yes | yes | yes | yes |
-| Your own CSS | yes | yes | no (named styles only) | yes |
-| Requests to a server | yes | yes | yes | yes |
-| `memorisee` | yes | yes | yes | yes |
-| `memorisee en secret` | no | no | yes | yes |
-| `essayer` | yes | no | yes | yes |
-| Keyboard shortcuts | yes | yes | no | yes |
-| React components | yes | no | yes (in React Native) | yes |
-| The engine without React (`--moteur humalis`) | yes | no | no | no |
-| Sitemap, share preview | yes | yes | no | no |
+| | web | static | mobile | desktop | apple |
+|---|---|---|---|---|---|
+| Pages, elements, styles, theme | yes | yes | yes | yes | yes |
+| Your own CSS | yes | yes | no (named styles only) | yes | no (named styles only) |
+| Requests to a server | yes | yes | yes | yes | yes |
+| `memorisee` | yes | yes | yes | yes | yes |
+| `memorisee en secret` | no | no | yes | yes | yes (Keychain) |
+| `essayer` | yes | no | yes | yes | yes |
+| Keyboard shortcuts | yes | yes | no | yes | yes |
+| React components | yes | no | yes (in React Native) | yes | no (`sur apple "View.swift"`) |
+| The engine without React (`--moteur humalis`) | yes | no | no | no | no |
+| Photo, scanner, Face ID, vibration, signature, offline | no | no | no | no | yes |
+| Sitemap, share preview | yes | yes | no | no | no |
 
 The server (`--cible serveur`) is generated separately, from the `serveur`
 block.

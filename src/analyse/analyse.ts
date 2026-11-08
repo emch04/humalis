@@ -4,7 +4,7 @@ import { langueDuMot } from '../i18n/langues.js';
 import { texteSource } from '../parser/langues.js';
 import { lireExpressionDuTexte } from '../parser/parser.js';
 import { ErreurSyntaxique } from '../parser/erreurs.js';
-import type { FaireAction, Paiement, TelechargementDocument } from '../parser/ast.js';
+import type { FaireAction, Localisation, Paiement, PrisePhoto, ScanCode, TelechargementDocument, VerificationIdentite, Vibration } from '../parser/ast.js';
 import type {
   Programme,
   RegleSource,
@@ -199,6 +199,8 @@ interface Liens {
   serveur?: string;
   /** « connexion google » dans le serveur du fichier. */
   connexionGoogle?: boolean;
+  /** « connexion apple » dans le serveur du fichier. */
+  connexionApple?: boolean;
   /** « invitations vers … » et « mot de passe oublie vers … » dans le serveur du fichier. */
   comptes: { invitations: boolean; oublie: boolean };
   /** « fidelite par … de … : » dans le serveur du fichier. */
@@ -355,7 +357,7 @@ export function analyserSens(programme: Programme, classesCss?: Set<string>): Re
   );
   const partages = globale.declarerPartages(programme.partages);
 
-  const liens: Liens = { actionsParametres: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, (a.parametres ?? []).map((p) => p.nom)] as [string, string[]])))), resumes: new Set(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.resumes ?? []).map((x) => `${adresseNormalisee(r.adresse)}/${simplifier(x.nom).replace(/_/g, '-')}`)))), champsCompte: programme.serveurs.flatMap((s) => (s.champsCompte ?? []).map((c) => c.nom)), payees: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.apresPaiement ? [[r.apresPaiement.donnee, r.adresse] as [string, string]] : [])))), ia: programme.serveurs.some((s) => s.ia), actionsDonnees: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, a.donnee] as [string, string])))), documentsDonnees: new Map(programme.serveurs.flatMap((s) => (s.documents ?? []).map((d) => [d.nom, d.donnee] as [string, string]))), documents: new Map(programme.serveurs.flatMap((s) => (s.documents ?? []).flatMap((d) => { const route = s.routes.find((r) => r.regles.some((x) => x.donnee === d.donnee && x.actions.includes('lire'))); return route ? [[d.nom, route.adresse] as [string, string]] : []; }))), actions: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, r.adresse] as [string, string])))), sources: new Map(), serveur: programme.serveurs[0]?.nom, connexionGoogle: programme.serveurs[0]?.connexionGoogle !== undefined, comptes: { invitations: programme.serveurs[0]?.invitations !== undefined, oublie: programme.serveurs[0]?.motDePasseOublie !== undefined }, fidelite: programme.serveurs[0]?.fidelite, routes: new Map(), donnees: new Map() };
+  const liens: Liens = { actionsParametres: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, (a.parametres ?? []).map((p) => p.nom)] as [string, string[]])))), resumes: new Set(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.resumes ?? []).map((x) => `${adresseNormalisee(r.adresse)}/${simplifier(x.nom).replace(/_/g, '-')}`)))), champsCompte: programme.serveurs.flatMap((s) => (s.champsCompte ?? []).map((c) => c.nom)), payees: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.apresPaiement ? [[r.apresPaiement.donnee, r.adresse] as [string, string]] : [])))), ia: programme.serveurs.some((s) => s.ia), actionsDonnees: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, a.donnee] as [string, string])))), documentsDonnees: new Map(programme.serveurs.flatMap((s) => (s.documents ?? []).map((d) => [d.nom, d.donnee] as [string, string]))), documents: new Map(programme.serveurs.flatMap((s) => (s.documents ?? []).flatMap((d) => { const route = s.routes.find((r) => r.regles.some((x) => x.donnee === d.donnee && x.actions.includes('lire'))); return route ? [[d.nom, route.adresse] as [string, string]] : []; }))), actions: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, r.adresse] as [string, string])))), sources: new Map(), serveur: programme.serveurs[0]?.nom, connexionGoogle: programme.serveurs[0]?.connexionGoogle !== undefined, connexionApple: programme.serveurs[0]?.connexionApple !== undefined, comptes: { invitations: programme.serveurs[0]?.invitations !== undefined, oublie: programme.serveurs[0]?.motDePasseOublie !== undefined }, fidelite: programme.serveurs[0]?.fidelite, routes: new Map(), donnees: new Map() };
   for (const serveur of programme.serveurs) {
     for (const donnee of serveur.donnees) liens.donnees.set(donnee.nom, donnee);
     for (const route of serveur.routes) {
@@ -1019,6 +1021,14 @@ class AnalysePage {
         return;
       }
 
+      case 'PrisePhoto':
+      case 'Localisation':
+      case 'ScanCode':
+      case 'VerificationIdentite':
+      case 'Vibration':
+        this.fonctionAppareil(instruction, contexte, place);
+        return;
+
       case 'FaireAction': {
         this.litLaSession = true;
         if (contexte === 'vue') this.horsEvenement('faire', instruction.ligne);
@@ -1071,14 +1081,18 @@ class AnalysePage {
 
       case 'Connexion':
       case 'ConnexionGoogle':
+      case 'ConnexionApple':
       case 'Deconnexion': {
-        const nom = instruction.type === 'Deconnexion' ? 'se deconnecter' : instruction.type === 'ConnexionGoogle' ? 'se connecter avec google' : 'se connecter';
+        const nom = instruction.type === 'Deconnexion' ? 'se deconnecter' : instruction.type === 'ConnexionGoogle' ? 'se connecter avec google' : instruction.type === 'ConnexionApple' ? 'se connecter avec apple' : 'se connecter';
         this.litLaSession = true;
         if (contexte === 'vue') this.horsEvenement(nom, instruction.ligne);
         this.demandeUnServeur(nom, instruction.ligne);
         if (instruction.type === 'Connexion') this.connexion(instruction);
         if (instruction.type === 'ConnexionGoogle' && this.liens.serveur !== undefined && !this.liens.connexionGoogle) {
           this.erreur(`« se connecter avec google » demande la ligne « connexion google » dans le serveur "${this.liens.serveur}".`, instruction.ligne);
+        }
+        if (instruction.type === 'ConnexionApple' && this.liens.serveur !== undefined && !this.liens.connexionApple) {
+          this.erreur(`« se connecter avec apple » demande la ligne « connexion apple » dans le serveur "${this.liens.serveur}".`, instruction.ligne);
         }
         return;
       }
@@ -1345,6 +1359,7 @@ class AnalysePage {
     if (verifierMouvement(element.styles, element.element, this.formulaireOuvert !== undefined, element.ligne, this.signaler())) this.defilements.push(element.ligne);
     if (element.element === 'image' && verifierImage(element, this.signaler())) this.prioritaires.push(element.ligne);
     if (element.element === 'fichier') this.choixFichier(element);
+    if (element.element === 'signature' && element.contenu.type === 'Reference') this.variableDeTexte(element.contenu.nom, element.ligne, 'une signature');
     if (element.element === 'audio') verifierAudio(element, this.signaler());
     if (element.element === 'marqueur') verifierMarqueur(element, this.pileBlocs.some((b) => b.genre === 'carte'), this.signaler());
     this.optionsDeChamp(element);
@@ -1352,6 +1367,59 @@ class AnalysePage {
     if (element.raccourci !== undefined) {
       const touches = verifierRaccourciElement(this.hote(), element);
       if (touches !== undefined) this.raccourci(touches, undefined, element.ligne);
+    }
+  }
+
+  /** « photo dans image », « scanner code dans valeur », « verifier identite : », « vibrer » : un geste de la personne les déclenche. */
+  private fonctionAppareil(instruction: PrisePhoto | ScanCode | VerificationIdentite | Vibration | Localisation, contexte: Contexte, place: Place): void {
+    if (contexte === 'vue') this.horsEvenement(actionInterditeDansUneFonction(instruction)!, instruction.ligne);
+    if (this.cadre.evenement === 'arrierePlan' && instruction.type !== 'Vibration') {
+      this.erreur(`« ${actionInterditeDansUneFonction(instruction)} » demande la personne devant l’écran : cela ne se place pas dans « en arriere plan ».`, instruction.ligne);
+    }
+    if (instruction.type === 'Localisation') {
+      this.variablePosition(instruction);
+      return;
+    }
+    if (instruction.type === 'VerificationIdentite') {
+      this.sousBloc(instruction.alors, contexte, place);
+      this.sousBloc(instruction.sinon, contexte, place);
+    } else if (instruction.type === 'PrisePhoto') {
+      const symbole = this.variable(instruction.variable, instruction.ligne);
+      if (!symbole) return;
+      const type = typeFichierChoisi(false);
+      if (!estConnu(symbole.type)) {
+        symbole.type = type;
+        if (symbole.origine) this.resultat.types.set(symbole.origine, type);
+      } else if (!compatibles(symbole.type, type)) {
+        this.erreur(`« ${instruction.variable} » est ${decrireType(symbole.type)} ; elle reçoit une photo. Déclarez variable ${instruction.variable} = rien.`, instruction.ligne);
+      }
+    } else if (instruction.type === 'ScanCode') {
+      this.variableDeTexte(instruction.variable, instruction.ligne, 'un code');
+    }
+  }
+
+  /** « position dans lieu » : la variable reçoit une fiche de trois nombres. */
+  private variablePosition(instruction: Localisation): void {
+    const symbole = this.variable(instruction.variable, instruction.ligne);
+    if (!symbole) return;
+    const type: TypeValeur = { genre: 'fiche', champs: ['latitude', 'longitude', 'precision'].map((nom) => ({ nom, type: NOMBRE })) };
+    if (!estConnu(symbole.type)) {
+      symbole.type = type;
+      if (symbole.origine) this.resultat.types.set(symbole.origine, type);
+    } else if (!compatibles(symbole.type, type)) {
+      this.erreur(`« ${instruction.variable} » est ${decrireType(symbole.type)} ; elle reçoit une position. Déclarez variable ${instruction.variable} = rien.`, instruction.ligne);
+    }
+  }
+
+  /** La variable d'un « scanner code » ou d'une « signature » reçoit un texte. */
+  private variableDeTexte(nom: string, ligne: number, quoi: string): void {
+    const symbole = this.variable(nom, ligne);
+    if (!symbole) return;
+    if (!estConnu(symbole.type)) {
+      symbole.type = TEXTE;
+      if (symbole.origine) this.resultat.types.set(symbole.origine, TEXTE);
+    } else if (symbole.type.genre !== 'texte') {
+      this.erreur(`« ${nom} » est ${decrireType(symbole.type)} ; elle reçoit ${quoi}, qui est un texte. Déclarez variable ${nom} = "".`, ligne);
     }
   }
 
@@ -1694,6 +1762,9 @@ class AnalysePage {
       );
     }
 
+    if (evenement.genre === 'arrierePlan' && (place.genre !== 'page' || this.pileBlocs.length > 0)) {
+      this.erreur('« en arriere plan : » s’écrit directement dans la page, hors de tout bloc et de toute boucle.', evenement.ligne);
+    }
     if (evenement.genre === 'soumission') {
       this.soumission(evenement, place);
     } else if (['touche', 'saisie', 'pauseSaisie', 'bas', 'ordre'].includes(evenement.genre)) {
@@ -2417,6 +2488,9 @@ class AnalysePage {
    * la requête à un visiteur.
    */
   private requete(requete: Requete): void {
+    if (requete.enAttente && (requete.source !== undefined || requete.donnees.length === 0 || requete.resultat !== undefined)) {
+      this.erreur('« hors ligne » se met sur un envoi vers une route du serveur de ce fichier, sans « dans » : la réponse n’arrivera que plus tard.', requete.ligne);
+    }
     if (requete.direct && (requete.source !== undefined || requete.donnees.length > 0 || requete.resultat === undefined)) {
       this.erreur('« en direct » se met sur une lecture d’une route du serveur de ce fichier : envoyer requete vers "commandes" dans commandes en direct.', requete.ligne);
     }
@@ -2603,6 +2677,7 @@ class AnalysePage {
   /** « supprimer p de "produits" », « modifier p dans "produits" avec … » (trou G2). */
   private operationServeur(operation: Suppression | Modification): void {
     const verbe = operation.type === 'Suppression' ? 'supprimer' : 'modifier';
+    if (operation.enAttente && operation.source !== undefined) this.erreur(`« ${verbe} … hors ligne » ne marche qu’avec une route du serveur de ce fichier.`, operation.ligne);
     const typeObjet = this.typeDe(operation.objet);
     const types = operation.type === 'Modification' ? operation.changements.map((c) => this.typeDe(c.valeur)) : [];
     if (operation.source !== undefined) {
@@ -2888,6 +2963,8 @@ function actionInterditeDansUneFonction(instruction: Instruction): string | unde
       return 'se connecter';
     case 'ConnexionGoogle':
       return 'se connecter avec google';
+    case 'ConnexionApple':
+      return 'se connecter avec apple';
     case 'ChangementMotDePasse':
       return 'changer le mot de passe';
     case 'Invitation':
@@ -2900,6 +2977,16 @@ function actionInterditeDansUneFonction(instruction: Instruction): string | unde
       return 'faire';
     case 'ActivationNotifications':
       return 'activer notifications';
+    case 'PrisePhoto':
+      return 'photo';
+    case 'Localisation':
+      return 'position';
+    case 'ScanCode':
+      return 'scanner code';
+    case 'VerificationIdentite':
+      return 'verifier identite';
+    case 'Vibration':
+      return 'vibrer';
     case 'DemandeIa':
       return 'demander a ia';
     case 'Paiement':

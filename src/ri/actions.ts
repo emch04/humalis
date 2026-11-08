@@ -22,6 +22,7 @@ export function sousActions(action: Action): Action[][] {
     case 'minuterie':
       return [action.corps];
     case 'confirmation':
+    case 'verificationIdentite':
       return [action.alors, action.sinon];
     case 'message':
       return action.action ? [action.action.actions] : [];

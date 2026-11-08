@@ -93,7 +93,10 @@ export function compilerProjet(principal: string | undefined, lire: Lecteur, sou
       decaler(programme, decalage);
       // Les chemins CSS et React d'un fichier utilisé partent de son dossier : on les ramène au dossier principal.
       for (const f of programme.fichiersStyle) f.chemin = relatif(base, joindre(ici, f.chemin));
-      for (const c of programme.composantsReact) c.chemin = relatif(base, joindre(ici, c.chemin));
+      for (const c of programme.composantsReact) {
+        c.chemin = relatif(base, joindre(ici, c.chemin));
+        if (c.apple !== undefined) c.apple = relatif(base, joindre(ici, c.apple));
+      }
       for (const d of programme.donneesFichiers) d.chemin = './' + relatif(base, joindre(ici, d.chemin));
       for (const police of programme.theme?.polices ?? []) if (police.fichier) police.fichier = relatif(base, joindre(ici, police.fichier));
       for (const cle of ['image', 'logo'] as const) {
@@ -221,6 +224,8 @@ function reunir(programmes: Programme[], fichiers: string[], diagnostics: Diagno
     donneesFichiers: [...premier.donneesFichiers],
     partages: [...premier.partages],
     composantsReact: [...premier.composantsReact],
+    paquetsSwift: [...(premier.paquetsSwift ?? [])],
+    ...(premier.liensProfonds ? { liensProfonds: premier.liensProfonds } : {}),
     composants: [...premier.composants],
     serveurs: [...premier.serveurs],
     sources: [...premier.sources],
@@ -286,6 +291,8 @@ function reunir(programmes: Programme[], fichiers: string[], diagnostics: Diagno
     tout.fichiersStyle.push(...p.fichiersStyle);
     tout.donneesFichiers.push(...p.donneesFichiers);
     tout.partages.push(...p.partages);
+    tout.paquetsSwift!.push(...(p.paquetsSwift ?? []));
+    tout.liensProfonds ??= p.liensProfonds;
     // Un composant (Humalis ou React) n'a qu'une définition dans toute l'application.
     for (const composant of [...p.composants, ...p.composantsReact]) {
       const deja = [...tout.composants, ...tout.composantsReact].find((x) => x.nom === composant.nom);

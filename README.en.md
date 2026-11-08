@@ -69,6 +69,7 @@ humalis compile my-project.humalis --cible serveur --sortie my-project-server   
 | `serveur` | a Node server with the [Astratra](https://github.com/emch04/framework) packs (login, permissions, sessions) |
 | `mobile` | an Expo app (iPhone, Android) |
 | `desktop` | an Electron app (Mac, Windows, Linux) |
+| `apple` | a native SwiftUI app (iPhone, iPad and Mac), with no embedded browser |
 
 When a construct does not exist yet on a target, the compiler says so clearly instead of producing something wrong.
 
@@ -94,6 +95,8 @@ npx expo start   # then « i » for iPhone, « a » for Android, or scan the cod
 ```
 
 **Desktop**: an Electron app, with a French menu.
+
+**Apple**: an Xcode project in SwiftUI, a single app for iPhone, iPad and Mac. Open the `.xcodeproj` file in Xcode, pick a device, then run. Xcode 16 or later is required.
 
 ```sh
 cd my-project-desktop && npm install
