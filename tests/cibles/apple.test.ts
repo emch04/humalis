@@ -368,6 +368,8 @@ describe('cible Apple — position, liens profonds, arrière-plan et envois hors
     const f = projet(`${SERVEUR}page "a" :\n    titre "t"\n    bouton "Go"\n    quand l'utilisateur clique sur "Go" :\n        envoyer requete vers "m" avec n = "x" hors ligne\n`);
     expect(f.get('Essai/Pages/PageA.swift')).toContain('appelReussiOuGarder("/api/m"');
     expect(f.has('Essai/Humalis/Envois.swift')).toBe(true);
+    expect(f.get('Essai/Humalis/Serveur.swift')).toContain('"X-Humalis-Envoi"');
+    expect(f.get('Essai/Humalis/Envois.swift')).toContain('cleEnvoi: suivant.numero.uuidString');
     expect(projet(COMPTEUR).has('Essai/Humalis/Envois.swift')).toBe(false);
   });
 

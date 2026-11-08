@@ -38,6 +38,9 @@ page "accueil" :
         envoyer requete vers "messages" avec contenu = "deux" hors ligne
         changer etat par "fini"
     texte "Etat {etat}"
+    bouton "Couper"
+    quand l'utilisateur clique sur "Couper" :
+        envoyer requete vers "messages" avec contenu = "coupe" hors ligne
     bouton "Relire"
     quand l'utilisateur clique sur "Relire" :
         envoyer requete vers "messages" dans messages

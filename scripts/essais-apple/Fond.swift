@@ -67,6 +67,19 @@ final class Fond: XCTestCase {
         attendre("Etat attente", "le lien sans page revient à l'accueil")
     }
 
+    func testFCoupureApresReception() {
+        // Le serveur a reçu l'envoi, mais la réponse s'est perdue : il repart sous le même identifiant, sans doublon.
+        app.launch()
+        attendre("Etat attente")
+        toucher("Couper")
+        for _ in 0..<25 where !texte("Recu 3-coupe-rejoue").exists {
+            toucher("Relire")
+            _ = texte("Recu 3-coupe-rejoue").waitForExistence(timeout: 2)
+        }
+        attendre("Recu 3-coupe-rejoue", "le renvoi porte le même identifiant")
+        XCTAssertFalse(texte("Recu 4-").exists, "le serveur n'a fait le travail qu'une fois")
+    }
+
     func testEArrierePlan() {
         app.launchEnvironment["HUMALIS_ESSAI_ARRIERE_PLAN"] = "1"
         app.launch()
