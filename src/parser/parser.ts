@@ -65,7 +65,7 @@ import type {
   Boucle,
   Evenement,
   GenreEvenement,
-  Connexion, ConnexionGoogle, ChangementMotDePasse, Invitation, ChangementRole, ChangementCompte, ResumeServeur, DroitIa, DemandeIa, Paiement, ApresPaiement, FaireAction, TelechargementDocument, DocumentServeur, ActionServeur, TachePlanifiee, EnvoiNotification, ConditionRegle, OperandeRegle, DemandeLienMotDePasse, ChoixMotDePasse, ApresCreation, EnvoiEmail, CreationLiee, RegleChamp, ValeurFixe, TelechargementBon, TelechargementCsv, Fidelite, Suppression, Modification, EnvoiFichier, ArgumentPage } from './ast.js';
+  Connexion, ConnexionGoogle, ConnexionApple, ChangementMotDePasse, Invitation, ChangementRole, ChangementCompte, ResumeServeur, DroitIa, DemandeIa, Paiement, ApresPaiement, FaireAction, TelechargementDocument, DocumentServeur, ActionServeur, TachePlanifiee, EnvoiNotification, ConditionRegle, OperandeRegle, DemandeLienMotDePasse, ChoixMotDePasse, ApresCreation, EnvoiEmail, CreationLiee, RegleChamp, ValeurFixe, TelechargementBon, TelechargementCsv, Fidelite, Suppression, Modification, EnvoiFichier, ArgumentPage } from './ast.js';
 
 export function analyserSyntaxe(tokens: Token[]): Programme {
   const flux = new FluxTokens(tokens);
@@ -431,6 +431,7 @@ function analyserServeur(flux: FluxTokens): Serveur {
   const donnees: Donnee[] = [];
   const routes: Route[] = [];
   let connexionGoogle: number | undefined;
+  let connexionApple: number | undefined;
   let roles: string[] | undefined;
   let emails: Serveur['emails'];
   let invitations: Serveur['invitations'];
@@ -477,14 +478,15 @@ function analyserServeur(flux: FluxTokens): Serveur {
     } else if (estLeMot(token, 'route')) {
       routes.push(analyserRoute(flux, roles !== undefined));
     } else if (estLeMot(token, 'connexion')) {
-      // « connexion google » : la seule porte en plus de l'email et du mot de passe, pour l'instant.
+      // « connexion google », « connexion apple » : les portes en plus de l'email et du mot de passe.
       flux.avancer();
       const fournisseur = flux.actuel();
-      if (motDe(fournisseur) !== 'google') {
-        throw new ErreurSyntaxique(`après « connexion », écrivez le fournisseur : connexion google`, token.ligne);
+      if (motDe(fournisseur) !== 'google' && motDe(fournisseur) !== 'apple') {
+        throw new ErreurSyntaxique(`après « connexion », écrivez le fournisseur : connexion google ou connexion apple`, token.ligne);
       }
       flux.avancer();
-      connexionGoogle = token.ligne;
+      if (motDe(fournisseur) === 'apple') connexionApple = token.ligne;
+      else connexionGoogle = token.ligne;
     } else if (estLeMot(token, 'roles')) {
       // « roles directeur, enseignant et parent ».
       flux.avancer();
@@ -541,6 +543,7 @@ function analyserServeur(flux: FluxTokens): Serveur {
     donnees,
     routes,
     ...(connexionGoogle !== undefined ? { connexionGoogle } : {}),
+    ...(connexionApple !== undefined ? { connexionApple } : {}),
     ...(roles?.length ? { roles } : {}),
     ...(taches.length ? { taches } : {}),
     ...(documents.length ? { documents } : {}),
@@ -2030,13 +2033,18 @@ function analyserOperationServeur(flux: FluxTokens): Suppression | Modification 
 }
 
 /** « se connecter avec champ "email" et champ "mot de passe" » : l'email, puis le mot de passe. */
-function analyserConnexion(flux: FluxTokens): Connexion | ConnexionGoogle {
+function analyserConnexion(flux: FluxTokens): Connexion | ConnexionGoogle | ConnexionApple {
   const debut = flux.avancer();
   flux.attendre('MOT_CLE', 'avec', '« avec champ "email" et champ "mot de passe" » (ou « avec google ») après « se connecter »');
   // « se connecter avec google » : la fenêtre de Google.
   if (motDe(flux.actuel()) === 'google') {
     flux.avancer();
     return { type: 'ConnexionGoogle', ligne: debut.ligne };
+  }
+  // « se connecter avec apple » : la fenêtre d'Apple.
+  if (motDe(flux.actuel()) === 'apple') {
+    flux.avancer();
+    return { type: 'ConnexionApple', ligne: debut.ligne };
   }
   const email = analyserOperande(flux);
   flux.attendre('MOT_CLE', 'et', '« et » suivi du champ du mot de passe');

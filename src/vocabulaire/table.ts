@@ -2290,6 +2290,40 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     note: 'En tête de ligne dans un bloc « serveur » seulement : ailleurs, « connexion » reste un nom libre. Se lit avec « se connecter avec google » dans une page.',
   },
   {
+    mot: 'connexion apple',
+    variantes: [],
+    categorie: 'structure',
+    concept: 'serveur.connexionApple',
+    contextes: ['serveur'],
+    cibles: serveurSeul('POST /auth/apple : le jeton d’identité Apple est vérifié (@astratra/security), puis la session s’ouvre', 'les identifiants Apple viennent de l’environnement'),
+    couvre: ['oauth:apple'],
+    description:
+      'Dans le serveur, « connexion apple » ajoute une porte en plus de l’email et du mot de passe : un compte déjà connu peut se connecter avec son compte Apple.',
+    exemple: SERVEUR('    connexion apple\n    donnee commande :\n        nom : texte', '    route "commandes" :\n        seul admin peut lire commande'),
+    statut: 'supporte',
+    etape: 9,
+    note: 'En tête de ligne dans un bloc « serveur » seulement. Se lit avec « se connecter avec apple ».',
+  },
+  {
+    mot: 'connecter avec apple',
+    variantes: [],
+    categorie: 'action',
+    concept: 'action.connecterApple',
+    contextes: ['session'],
+    cibles: {
+      ...AUCUNE,
+      ...pageEtServeur('ouvre la fenêtre d’Apple, puis envoie le jeton au serveur'),
+    },
+    couvre: ['oauth:apple'],
+    description:
+      'Dans « se connecter avec apple » : ouvre la fenêtre d’Apple. Si Apple confirme une adresse qui correspond à un compte du serveur du même fichier, la session s’ouvre.',
+    exemple:
+      'serveur "boutique" :\n    connexion apple\n    donnee commande :\n        nom : texte\n    route "commandes" :\n        seul admin peut lire commande\n\npage "p" :\n    titre "P"\n    bouton "Apple"\n    quand l\'utilisateur clique sur "Apple" :\n        se connecter avec apple',
+    statut: 'supporte',
+    etape: 9,
+    note: 'Web et cible Apple. Le téléphone Expo, le bureau et le site statique refusent la phrase à la compilation.',
+  },
+  {
     mot: 'connecter avec google',
     variantes: [],
     categorie: 'action',

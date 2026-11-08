@@ -241,6 +241,7 @@ function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
     ...(serveur.invitations ? { invitations: serveur.invitations.page } : {}),
     ...(serveur.motDePasseOublie ? { motDePasseOublie: serveur.motDePasseOublie.page } : {}),
     ...(serveur.connexionGoogle !== undefined ? { connexionGoogle: true } : {}),
+    ...(serveur.connexionApple !== undefined ? { connexionApple: true } : {}),
     ...(serveur.roles?.length ? { roles: serveur.roles } : {}),
     ...(analyse.changeDeRole ? { changeDeRole: true } : {}),
     ...(analyse.changeDeCompte ? { changeDeCompte: true } : {}),
@@ -694,6 +695,10 @@ class Construction {
 
         case 'ConnexionGoogle':
           actions.push({ type: 'connexionGoogle' });
+          break;
+
+        case 'ConnexionApple':
+          actions.push({ type: 'connexionApple' });
           break;
 
         case 'TelechargementCsv':

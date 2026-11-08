@@ -225,6 +225,8 @@ export interface ServeurRI {
   motDePasseOublie?: string;
   /** « connexion google » : un compte déjà connu du serveur peut se connecter avec Google. */
   connexionGoogle?: boolean;
+  /** « connexion apple » dans le serveur. */
+  connexionApple?: boolean;
   /** « roles directeur, enseignant et parent ». */
   roles?: string[];
   /** « paiements par stripe ». */
@@ -748,6 +750,8 @@ export type Action =
   | { type: 'connexion'; email: Valeur; motDePasse: Valeur }
   /** « se connecter avec google » : la fenêtre de Google, puis la session d'un compte déjà connu. */
   | { type: 'connexionGoogle' }
+  /** « se connecter avec apple ». */
+  | { type: 'connexionApple' }
   /** « changer le mot de passe avec … et … » : celui du compte connecté, vérifié par le serveur. */
   | { type: 'changementMotDePasse'; actuel: Valeur; nouveau: Valeur }
   /** « inviter champ "Adresse" comme admin » : un lien par e-mail. */

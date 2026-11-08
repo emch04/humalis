@@ -383,7 +383,7 @@ export function schemaXcode(nom: string, essais = false): string {
  * Les droits de l'application : le Mac l'enferme dans son bac à sable, et lui
  * ouvre seulement le réseau sortant (et les fichiers choisis, s'il en faut).
  */
-export function droits(fichiers: boolean, notifications?: 'ios' | 'mac', position = false, domaine?: string): string {
+export function droits(fichiers: boolean, notifications?: 'ios' | 'mac', position = false, domaine?: string, connexionApple = false): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -399,6 +399,10 @@ export function droits(fichiers: boolean, notifications?: 'ios' | 'mac', positio
 	<key>com.apple.developer.associated-domains</key>
 	<array>
 		<string>applinks:${domaine.split('/')[0]}</string>
+	</array>` : ''}${connexionApple ? `
+	<key>com.apple.developer.applesignin</key>
+	<array>
+		<string>Default</string>
 	</array>` : ''}${notifications ? `
 	<key>${notifications === 'mac' ? 'com.apple.developer.aps-environment' : 'aps-environment'}</key>
 	<string>development</string>` : ''}

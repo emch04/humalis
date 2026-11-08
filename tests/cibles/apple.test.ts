@@ -311,6 +311,40 @@ describe('cible Apple — rôles, temps réel, IA, paiements, notifications', ()
   });
 });
 
+describe('connexion avec Apple', () => {
+  const SOURCE = `serveur "s" :\n    connexion apple\n    donnee d :\n        n : texte\n    route "d" :\n        seul admin peut lire d\n\npage "a" :\n    titre "t"\n    bouton "Go"\n    quand l'utilisateur clique sur "Go" :\n        se connecter avec apple\n`;
+
+  it('le serveur vérifie le jeton avec Astratra et lie le compte à son identifiant Apple', async () => {
+    const { genererProjetServeur } = await import('../../src/cibles/serveur/projet.js');
+    const f = genererProjetServeur(compile(SOURCE).serveurs[0], { nom: 's', source: 's.humalis' } as never);
+    const tout = [...f.values()].map(String).join('\n');
+    expect(tout).toContain('createAppleIdTokenVerifier({ audiences })');
+    expect(tout).toContain("app.use('/auth/apple', routeApple)");
+    expect(tout).toContain('APPLE_APP_ID');
+    expect(tout).toContain('APPLE_SERVICE_ID');
+  });
+
+  it('sur Apple : la fenêtre du système, et le droit seulement avec une équipe', () => {
+    const sans = projet(SOURCE);
+    expect(sans.get('Essai/Pages/PageA.swift')).toContain('seConnecterAvecApple()');
+    expect(sans.get('Essai/Humalis/Connexions.swift')).toContain('ASAuthorizationAppleIDProvider');
+    expect([...sans.entries()].find(([c]) => c.endsWith('.entitlements'))?.[1]).not.toContain('applesignin');
+    const avec = projet(SOURCE, { equipe: 'ABCDE12345' });
+    expect([...avec.entries()].find(([c]) => c.endsWith('.entitlements'))?.[1]).toContain('applesignin');
+  });
+
+  it('sans la ligne du serveur, c\'est refusé', () => {
+    const { diagnostics } = compiler(SOURCE.replace('    connexion apple\n', ''));
+    expect(diagnostics.map((d) => d.message).join()).toContain('demande la ligne « connexion apple »');
+  });
+
+  it('les cibles qui ne l\'ont pas le disent', async () => {
+    const { verifierAppareilPourLaCible } = await import('../../src/cibles/appareil.js');
+    for (const cible of ['mobile', 'desktop', 'statique']) expect(verifierAppareilPourLaCible(compile(SOURCE), cible).map((d) => d.message).join()).toContain('se connecter avec apple');
+    expect(verifierAppareilPourLaCible(compile(SOURCE), 'web')).toEqual([]);
+  });
+});
+
 describe('cible Apple — les champs du compte et les actions avec valeurs', () => {
   const SERVEUR = `serveur "s" :\n    compte :\n        telephone : texte\n    donnee d :\n        total : nombre\n    route "d" :\n        seul admin peut lire d\n        seul admin peut modifier d\n        seul admin peut faire "reduire" sur d avec montant : nombre :\n            changer d.total par d.total - montant\n    route "equipe" :\n        seul admin peut lire comptes\n        seul admin peut modifier comptes\n\n`;
 

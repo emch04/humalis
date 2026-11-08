@@ -210,6 +210,14 @@ const TSCONFIG = JSON.stringify(
   2,
 ) + '\n';
 
+/** « connexion apple » : les identifiants publics donnés par Apple (pas des secrets). */
+const ENV_APPLE = `# La connexion avec Apple (« connexion apple »). Ce ne sont pas des secrets.
+# APPLE_APP_ID : l'identifiant de l'application iPhone, iPad et Mac (dev.exemple.boutique).
+# APPLE_SERVICE_ID : l'identifiant de services créé chez Apple, pour le site.
+APPLE_APP_ID=
+APPLE_SERVICE_ID=
+`;
+
 /** « connexion google » : l'ID client OAuth de Google (pas un secret). */
 const ENV_GOOGLE = `# La connexion avec Google (« connexion google ») : l'ID client OAuth d'une
 # application Web, créé dans la Google Cloud Console (ce n'est pas un secret).
@@ -260,6 +268,7 @@ PORT=3000
 function envExemple(serveur: ServeurRI): string {
   const enPlus = [
     ...(serveur.connexionGoogle ? [ENV_GOOGLE] : []),
+    ...(serveur.connexionApple ? [ENV_APPLE] : []),
     ...(serveur.emails ? [ENV_EMAILS] : []),
     `# Requêtes par adresse et par 15 minutes (300 par défaut), tentatives de connexion (10 par défaut). À monter si beaucoup de personnes partagent une même adresse.\nHUMALIS_LIMITE_API=\nHUMALIS_LIMITE_CONNEXION=\n`,
     ...(avecIa(serveur) ? [ENV_IA] : []),
@@ -478,7 +487,7 @@ export function creerRenouvellement({ magasin, dureeMs, maximumMs, horloge }: Re
   return service;
 }
 
-const CHEMINS = new Set(['/auth/login', '/auth/refresh', '/auth/logout', '/auth/google', '/auth/mot-de-passe']);
+const CHEMINS = new Set(['/auth/login', '/auth/refresh', '/auth/logout', '/auth/google', '/auth/apple', '/auth/mot-de-passe']);
 
 /**
  * Autour des routes de session du pack : le jeton de renouvellement part dans le cookie HttpOnly et
@@ -607,7 +616,22 @@ function coffreTs(serveur: ServeurRI): string {
       },
 `
     : '';
-  const cles = clesGoogle + (serveur.emails ? CLES_BREVO : '');
+  const clesApple = serveur.connexionApple
+    ? `      {
+        key: 'APPLE_APP_ID',
+        label: 'Connexion avec Apple (application)',
+        help: "L'identifiant de l'application iPhone, iPad et Mac. Sans lui, l'application ne peut pas se connecter avec Apple.",
+        where: 'Apple Developer, Certificates, Identifiers & Profiles, Identifiers',
+      },
+      {
+        key: 'APPLE_SERVICE_ID',
+        label: 'Connexion avec Apple (site)',
+        help: "L'identifiant de services du site. Sans lui, le site ne peut pas se connecter avec Apple.",
+        where: 'Apple Developer, Certificates, Identifiers & Profiles, Identifiers, Services IDs',
+      },
+`
+    : '';
+  const cles = clesGoogle + clesApple + (serveur.emails ? CLES_BREVO : '');
   return `import type { RequestHandler, Router } from 'express';
 import type { PoolPostgres } from './stockage.js';
 
@@ -1219,7 +1243,7 @@ ${codePaiements(route, variable, garde('lire'), voir('lire'), separee, donnee)}$
     })
     .join('\n\n');
   const schemas = [...new Set(serveur.routes.map((r) => `SCHEMA_${simplifier(r.donnee).toUpperCase()}`))].join(', ');
-  const google = (serveur.connexionGoogle ? ROUTE_GOOGLE : '') + ROUTE_MOT_DE_PASSE;
+  const google = (serveur.connexionGoogle ? ROUTE_GOOGLE : '') + (serveur.connexionApple ? ROUTE_APPLE : '') + ROUTE_MOT_DE_PASSE;
   const boutique = JSON.stringify(serveur.nom);
   const fidelite = serveur.fidelite ? routeFidelite(serveur.fidelite) : '';
   const avecBon = serveur.routes.some((r) => r.bon);
@@ -1228,7 +1252,7 @@ ${codePaiements(route, variable, garde('lire'), voir('lire'), separee, donnee)}$
 
   return `// Produit par Humalis : le serveur « ${serveur.nom} », assemblé avec les packs Astratra.
 import { createSaasApp, ${comptes ? 'createMemoryPasswordResetStore, type PasswordResetStore, ' : ''}type UsersStore } from '@astratra/saas-kit';
-import { ${[...(serveur.connexionGoogle ? ['createGoogleIdTokenVerifier', 'IdTokenError'] : []), ...(serveur.invitations ? ['createApiLimiter'] : []), ...(comptes ? ['createMemoryRevocationStore'] : [])].map((n) => n + ', ').join('')}createLoginLimiter, hashPassword, isStrongPassword, verifyPasswordHash, WAF_PATTERNS } from '@astratra/security';
+import { ${[...(serveur.connexionGoogle ? ['createGoogleIdTokenVerifier'] : []), ...(serveur.connexionApple ? ['createAppleIdTokenVerifier'] : []), ...(serveur.connexionGoogle || serveur.connexionApple ? ['IdTokenError'] : []), ...(serveur.invitations ? ['createApiLimiter'] : []), ...(comptes ? ['createMemoryRevocationStore'] : [])].map((n) => n + ', ').join('')}createLoginLimiter, hashPassword, isStrongPassword, verifyPasswordHash, WAF_PATTERNS } from '@astratra/security';
 import express, { type RequestHandler, type Response } from 'express';
 ${serveur.routes.some((r) => r.direct) ? "import { direct } from './humalis/direct.js';\n" : ''}import { ${schemas} } from './donnees.js';
 import type { Surveillance } from './humalis/centrale.js';
@@ -1245,7 +1269,7 @@ export interface OptionsDuServeur {
   usersStore: UsersStore;
   stockages: {
 ${stockages}
-  };${serveur.connexionGoogle ? '\n  /** L\'ID client OAuth de Google (« connexion google »), relu à chaque demande ; sans lui, la connexion avec Google est fermée. */\n  googleClientId?: string | (() => string | undefined);' : ''}
+  };${serveur.connexionGoogle ? '\n  /** L\'ID client OAuth de Google (« connexion google »), relu à chaque demande ; sans lui, la connexion avec Google est fermée. */\n  googleClientId?: string | (() => string | undefined);' : ''}${serveur.connexionApple ? '\n  /** Les identifiants Apple (« connexion apple »), relus à chaque demande. */\n  identifiantsApple?: () => { application?: string; site?: string };' : ''}
 ${avecLogique(serveur) ? `  /** Comment écrire tout ou rien ; par défaut, en mémoire. */
   transaction?: Transaction<OptionsDuServeur['stockages']>;
 ` : ''}${serveur.taches?.length ? `  /** Donné par demarrer.ts : sans lui, aucune tâche ne tourne. */
@@ -1312,7 +1336,7 @@ const sansCache = (res: Response) => res.set('Cache-Control', 'no-store');
  * limites et les en-têtes de sécurité viennent de createSaasApp. Les
  * routes des données s'ajoutent par extendRoutes, avec les gardes du pack.
  */
-export function creerServeur({ envois = creerEnvoisMemoire(), jwtSecret, usersStore${comptes ? ': tousLesComptes' : ''}, stockages${avecLogique(serveur) ? ', transaction = transactionMemoire(stockages)' : ''}${serveur.taches?.length ? ', reclamerTache' : ''}${avecNotifications(serveur) ? ', appareils = creerStockageMemoire()' : ''}${avecIa(serveur) ? ', compterIa = compterMemoire()' : ''}${serveur.connexionGoogle ? ', googleClientId' : ''}, session = reglagesDeSession(process.env), surveillance, coffre${avecEmails(serveur) ? `, emails = creerEmails({ nom: ${boutique} })` : ''}${comptes ? ', jetons = createMemoryPasswordResetStore()' : ''} }: OptionsDuServeur) {
+export function creerServeur({ envois = creerEnvoisMemoire(), jwtSecret, usersStore${comptes ? ': tousLesComptes' : ''}, stockages${avecLogique(serveur) ? ', transaction = transactionMemoire(stockages)' : ''}${serveur.taches?.length ? ', reclamerTache' : ''}${avecNotifications(serveur) ? ', appareils = creerStockageMemoire()' : ''}${avecIa(serveur) ? ', compterIa = compterMemoire()' : ''}${serveur.connexionGoogle ? ', googleClientId' : ''}${serveur.connexionApple ? ', identifiantsApple = () => ({})' : ''}, session = reglagesDeSession(process.env), surveillance, coffre${avecEmails(serveur) ? `, emails = creerEmails({ nom: ${boutique} })` : ''}${comptes ? ', jetons = createMemoryPasswordResetStore()' : ''} }: OptionsDuServeur) {
   const renouvellement = creerRenouvellement(session);
 ${comptes ? codeCreationComptes(serveur, chemins).replace('usersStore,', 'usersStore: tousLesComptes,') + '  // Pour les packs, un compte retiré n\'existe plus.\n  const usersStore = sansLesRetires(tousLesComptes);\n' : ''}${envoisDansRoutes || employe(serveur, (i) => i.type === 'email' && i.a.genre === 'admins') ? `  const adressesDesAdmins = async () => (await usersStore.list({ role: 'admin', limit: 100 })).map((compte) => String(compte.email)).filter(Boolean);\n` : ''}${avecNotifications(serveur) ? '  const notifications = creerNotifications({ usersStore, appareils });\n' : ''}${avecPaiements(serveur) ? `  let surPaiement: SurPaiement<ReturnType<typeof nouveauTravail>, OptionsDuServeur['stockages']> = {};
   const paiements = creerPaiements({
@@ -1450,7 +1474,7 @@ try {
 const coffre = await ouvrirCoffre(pool);
 
 const port = Number(process.env.PORT ?? 3000);
-const app = creerServeur({ ...(pool ? { envois: creerEnvoisPostgres(pool) } : {}), jwtSecret, usersStore, stockages${avecLogique(serveur) ? `, ...(pool ? { transaction: transactionPostgres(pool, (client) => ({ ${serveur.donnees.map((d) => `${camel(d.nom)}: creerStockagePostgres(client, '${nomTable(d.nom)}')`).join(', ')} })) } : {})` : ''}${serveur.taches?.length ? ', reclamerTache: pool ? reclamerPostgres(pool) : reclamerMemoire()' : ''}${avecNotifications(serveur) ? ", ...(pool ? { appareils: creerStockagePostgres(pool, 'humalis_appareils') } : {})" : ''}${avecIa(serveur) ? ', ...(pool ? { compterIa: compterPostgres(pool) } : {})' : ''}${serveur.connexionGoogle ? ', googleClientId: () => process.env.GOOGLE_CLIENT_ID || undefined' : ''}${comptes ? ', jetons: creerMagasinJetons(pool)' : ''}, session, surveillance, coffre }) as unknown as { listen(port: number, pret: () => void): unknown };
+const app = creerServeur({ ...(pool ? { envois: creerEnvoisPostgres(pool) } : {}), jwtSecret, usersStore, stockages${avecLogique(serveur) ? `, ...(pool ? { transaction: transactionPostgres(pool, (client) => ({ ${serveur.donnees.map((d) => `${camel(d.nom)}: creerStockagePostgres(client, '${nomTable(d.nom)}')`).join(', ')} })) } : {})` : ''}${serveur.taches?.length ? ', reclamerTache: pool ? reclamerPostgres(pool) : reclamerMemoire()' : ''}${avecNotifications(serveur) ? ", ...(pool ? { appareils: creerStockagePostgres(pool, 'humalis_appareils') } : {})" : ''}${avecIa(serveur) ? ', ...(pool ? { compterIa: compterPostgres(pool) } : {})' : ''}${serveur.connexionGoogle ? ', googleClientId: () => process.env.GOOGLE_CLIENT_ID || undefined' : ''}${serveur.connexionApple ? ', identifiantsApple: () => ({ application: process.env.APPLE_APP_ID || undefined, site: process.env.APPLE_SERVICE_ID || undefined })' : ''}${comptes ? ', jetons: creerMagasinJetons(pool)' : ''}, session, surveillance, coffre }) as unknown as { listen(port: number, pret: () => void): unknown };
 // HUMALIS_ECOUTE : l'adresse d'écoute (127.0.0.1 derrière un relais) ; sans elle, toutes les adresses.
 const pret = () => console.log(\`Serveur « ${serveur.nom} » prêt : http://localhost:\${port}${premiere}\`);
 const ecoute = process.env.HUMALIS_ECOUTE?.trim();
@@ -2453,6 +2477,58 @@ describe('la carte de fidélité', () => {
 });
 `;
 }
+
+const ROUTE_APPLE = `
+      // « connexion apple » : un compte déjà connu du serveur, dont Apple confirme l'adresse, ouvre sa session.
+      // La première connexion lie le compte à cet identifiant Apple ; un autre compte Apple portant la même adresse est refusé.
+      let verificateurApple: { cle: string; verifier: ReturnType<typeof createAppleIdTokenVerifier> } | null = null;
+      const appleDuServeur = () => {
+        const { application, site } = identifiantsApple();
+        const audiences = [application, site].filter((id): id is string => Boolean(id));
+        if (audiences.length === 0) return null;
+        const cle = audiences.join('|');
+        if (verificateurApple?.cle !== cle) verificateurApple = { cle, verifier: createAppleIdTokenVerifier({ audiences }) };
+        return verificateurApple.verifier;
+      };
+      const routeApple = express.Router();
+      routeApple.get('/', (_req, res) => {
+        res.json({ clientId: identifiantsApple().site ?? null });
+      });
+      routeApple.post('/', createLoginLimiter() as unknown as RequestHandler, csrfMiddleware, async (req, res, next) => {
+        const apple = appleDuServeur();
+        if (!apple) {
+          res.status(503).json({ erreur: "la connexion avec Apple n'est pas réglée sur ce serveur (APPLE_APP_ID ou APPLE_SERVICE_ID)" });
+          return;
+        }
+        try {
+          const corps = (req.body ?? {}) as { idToken?: unknown; nonce?: unknown };
+          const profil = await apple(String(corps.idToken ?? ''), typeof corps.nonce === 'string' ? { nonce: corps.nonce } : undefined);
+          if (!profil.email || !profil.emailVerified) {
+            res.status(403).json({ erreur: "Apple n'a pas confirmé l'adresse de ce compte" });
+            return;
+          }
+          const compte = await usersStore.findByEmail(profil.email);
+          if (!compte) {
+            res.status(403).json({ erreur: profil.relayEmail ? "Apple a masqué votre adresse : reconnectez-vous en partageant votre adresse réelle" : "ce compte Apple n'a pas accès à l'application" });
+            return;
+          }
+          const lieA = (compte as Record<string, unknown>).appleSubject;
+          if (typeof lieA === 'string' && lieA !== profil.subject) {
+            res.status(403).json({ erreur: 'cette adresse est déjà liée à un autre compte Apple' });
+            return;
+          }
+          const lie = lieA === profil.subject ? compte : ((await usersStore.update(String(compte.id), { appleSubject: profil.subject } as never)) ?? compte);
+          res.json(await issueSession(res, lie));
+        } catch (erreur) {
+          if (erreur instanceof IdTokenError) {
+            res.status(401).json({ erreur: "la connexion avec Apple n'a pas pu être vérifiée" });
+            return;
+          }
+          next(erreur);
+        }
+      });
+      app.use('/auth/apple', routeApple);
+`;
 
 const ROUTE_GOOGLE = `
       // « connexion google » : un compte déjà connu du serveur, dont Google confirme l'adresse, ouvre sa session.

@@ -1,0 +1,8 @@
+# L'essai de la connexion avec Apple côté serveur.
+serveur "boutique" :
+    connexion apple
+    donnee produit :
+        nom : texte
+    route "produits" :
+        tout le monde peut lire produit
+        seul admin peut modifier produit

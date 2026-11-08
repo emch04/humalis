@@ -2177,6 +2177,14 @@ page "order_page" :
 went wrong. In a form, the fields stay filled in.
 
 
+### Logging in with Apple
+
+With the line `connexion apple` in the server, an account the server **already knows** can log
+in with its Apple account: `se connecter avec apple` opens Apple's window on iPhone, iPad, Mac
+and on the site. The first login links the account to that Apple account. If the person hides
+their address, they are not recognized and a message says so. Set `APPLE_APP_ID` for the app
+and `APPLE_SERVICE_ID` for the site, and compile the app with `--equipe`.
+
 ### Logging in with Google
 
 With the line `connexion google` in the server, an account the server
