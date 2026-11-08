@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 
 /** La clé publique du widget anti-robots ; vide tant qu'elle n'est pas créée : le formulaire renvoie alors vers l'e-mail. */
-const CLE_TURNSTILE = '';
+const CLE_TURNSTILE = '0x4AAAAAAF4zplx1IMVS1m6A';
 const CLE_TEST = '1x00000000000000000000AA';
 const ADRESSE = 'signalement@humalis.dev';
 
