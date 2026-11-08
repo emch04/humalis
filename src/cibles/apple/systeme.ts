@@ -4,6 +4,8 @@
  * Keychain), le thème, les langues, le presse-papier et le partage.
  */
 
+import { JOURS_ENVOIS_GARDES } from '../envois-gardes.js';
+
 export const MESSAGES_SWIFT = String.raw`// Produit par Humalis : les messages (« afficher ») et les questions (« confirmer »).
 import SwiftUI
 
@@ -1064,13 +1066,32 @@ struct EnvoiGarde: Codable {
     private var surveillance: NWPathMonitor?
     private var relance: Task<Void, Never>?
 
-    /** Un compte qui ne revient jamais (retiré, par exemple) ne laisse rien sur l'appareil pour toujours. */
-    private static let dureeMaximale: TimeInterval = 30 * 24 * 3600
+    private static let clePerdus = "humalis.envois-perdus"
+    /** Un compte qui ne revient jamais (retiré, par exemple) ne laisse pas ses envois sur l'appareil pour toujours. */
+    private static let dureeMaximale: TimeInterval = ProcessInfo.processInfo.environment["HUMALIS_ESSAI_DUREE_ENVOIS"].flatMap(TimeInterval.init) ?? ${JOURS_ENVOIS_GARDES} * 24 * 3600
+    /** Combien d'envois trop vieux chaque compte doit apprendre ; rien de leur contenu n'est gardé. */
+    private var perdus: [String: Int]
 
     private init() {
-        let lue: [EnvoiGarde] = Memoire.lire(EnvoisGardes.cle, fichier: true) ?? []
-        file = lue.filter { -$0.cree.timeIntervalSinceNow < EnvoisGardes.dureeMaximale }
-        if file.count != lue.count { enregistrer() }
+        file = Memoire.lire(EnvoisGardes.cle, fichier: true) ?? []
+        perdus = Memoire.lire(EnvoisGardes.clePerdus, fichier: true) ?? [:]
+    }
+
+    /** Trop vieux pour partir : effacés, et la bonne personne en est prévenue quand elle est là. */
+    private func retirerPerimes(annoncer: Bool) {
+        let perimes = file.filter { -$0.cree.timeIntervalSinceNow >= EnvoisGardes.dureeMaximale }
+        if !perimes.isEmpty {
+            let numeros = Set(perimes.map(\.numero))
+            file.removeAll { numeros.contains($0.numero) }
+            for envoi in perimes { perdus[envoi.compte ?? "", default: 0] += 1 }
+            enregistrer()
+        }
+        guard annoncer, let nombre = perdus.removeValue(forKey: Session.commun.compteGarde ?? "") else { return }
+        enregistrer()
+        let phrase = nombre == 1
+            ? "Votre envoi n'est pas parti : il a attendu plus de ${JOURS_ENVOIS_GARDES} jours sans pouvoir partir. Refaites-le si besoin."
+            : "\(nombre) envois ne sont pas partis : ils ont attendu plus de ${JOURS_ENVOIS_GARDES} jours sans pouvoir partir. Refaites-les si besoin."
+        Messages.commun.afficher(phrase, .avertissement, persistant: true)
     }
 
     /** Seulement ceux de la personne connectée ; les autres restent de côté. */
@@ -1100,7 +1121,8 @@ struct EnvoiGarde: Codable {
     }
 
     /** Dans l'ordre, pour la personne connectée : si le réseau manque encore, tout attend ; un refus du serveur est dit, et on passe au suivant. */
-    func envoyer() async {
+    func envoyer(annoncer: Bool = true) async {
+        retirerPerimes(annoncer: annoncer)
         guard !enCours, attend else { return }
         enCours = true
         defer {
@@ -1121,7 +1143,10 @@ struct EnvoiGarde: Codable {
         }
     }
 
-    private func enregistrer() { Memoire.ecrire(EnvoisGardes.cle, file, fichier: true) }
+    private func enregistrer() {
+        Memoire.ecrire(EnvoisGardes.cle, file, fichier: true)
+        Memoire.ecrire(EnvoisGardes.clePerdus, perdus, fichier: true)
+    }
 
     private func reessayerBientot() {
         guard attend, relance == nil else { return }

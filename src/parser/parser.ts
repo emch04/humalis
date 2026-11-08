@@ -215,7 +215,16 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
         throw new ErreurSyntaxique(`« ${schema} » ne peut pas servir de début d’adresse : choisissez un mot propre à l’application, sans espace ni « : », par exemple liens profonds "magasin".`, debut.ligne);
       }
       if (liensProfonds) throw new ErreurSyntaxique('« liens profonds » ne s’écrit qu’une fois par application.', debut.ligne);
-      liensProfonds = { schema, ligne: debut.ligne };
+      let domaine: string | undefined;
+      if (flux.accepter('MOT_CLE', 'et')) {
+        if (!estLeMot(flux.actuel(), 'domaine')) flux.attendre('IDENTIFIANT', 'domaine', '« domaine » puis le site entre guillemets');
+        flux.avancer();
+        domaine = flux.attendre('CHAINE', undefined, 'le site entre guillemets : domaine "exemple.fr/essai"').valeur;
+        if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+(\/[A-Za-z0-9._~-]+)*$/.test(domaine)) {
+          throw new ErreurSyntaxique(`« ${domaine} » n’est pas un domaine : écrivez seulement le site, sans https:// ni « / » à la fin, par exemple domaine "exemple.fr/essai".`, debut.ligne);
+        }
+      }
+      liensProfonds = { schema, ...(domaine ? { domaine } : {}), ligne: debut.ligne };
       flux.sauterFinsDeLigne();
       continue;
     }

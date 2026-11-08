@@ -20,7 +20,7 @@ import { chaineSwift, nomApplication, nomComposant, nomPage, nomRoute, nomSwift 
 import { GenerateurPage, type ContexteApple } from './page.js';
 import { ENVOIS_SWIFT, LANGUES_SWIFT, MEMOIRE_SWIFT, MESSAGES_SWIFT, MINUTERIES_SWIFT, NOTIFICATIONS_SWIFT, SERVEUR_SWIFT, SYSTEME_SWIFT } from './systeme.js';
 import { Types, Valeurs, plusPrecis, type Portee } from './valeurs.js';
-import { CONFIDENTIALITE, assets, infoSupplementaire, type PaquetSwift, droits, projetXcode, schemaXcode } from './xcode.js';
+import { CONFIDENTIALITE, assets, associationSite, infoSupplementaire, type PaquetSwift, droits, projetXcode, schemaXcode } from './xcode.js';
 
 export const MARQUE_APPLE = '.humalis-projet';
 
@@ -266,7 +266,7 @@ enum ArrierePlanHumalis {
 }
 
 @MainActor func tacheArrierePlanHumalis() async {
-${/\bjetons\./.test(texte) ? '  let jetons = JetonsRequetes()\n' : ''}${texte}${envois ? '  await EnvoisGardes.commun.envoyer()\n' : ''}}
+${/\bjetons\./.test(texte) ? '  let jetons = JetonsRequetes()\n' : ''}${texte}${envois ? '  await EnvoisGardes.commun.envoyer(annoncer: false)\n' : ''}}
 `;
 }
 
@@ -419,8 +419,27 @@ function routesSwift(application: Application, app: ContexteApple, entree: Ecran
 /** « magasin://produit/42 » : la page « produit » avec son paramètre ; une page protégée reste gardée par sa page. */
 function lienProfondSwift(e: Ecrivain, application: Application, app: ContexteApple, entree: Ecran, chemins: Map<string, string>): void {
   e.bloc('func ouvrirLien(_ url: URL) {', () => {
-    e.ligne(`guard url.scheme?.lowercased() == ${chaineSwift(application.liensProfonds!.schema)} else { return }`);
-    e.ligne('let morceaux = [url.host(percentEncoded: false)].compactMap { $0 } + url.pathComponents.filter { $0 != "/" }');
+    const { schema, domaine } = application.liensProfonds!;
+    const parLeSchema = `[url.host(percentEncoded: false)].compactMap { $0 } + url.pathComponents.filter { $0 != "/" }`;
+    if (domaine) {
+      const [hote, ...debut] = domaine.split('/');
+      e.ligne('let parties = url.pathComponents.filter { $0 != "/" }');
+      e.ligne('let morceaux: [String]');
+      e.ligne('if url.scheme?.lowercased() == "https" {');
+      e.indenter(() => {
+        e.ligne(`guard url.host(percentEncoded: false)?.lowercased() == ${chaineSwift(hote)}, parties.starts(with: [${debut.map(chaineSwift).join(', ')}] as [String]) else { return }`);
+        e.ligne(`morceaux = Array(parties.dropFirst(${debut.length}))`);
+      });
+      e.ligne('} else {');
+      e.indenter(() => {
+        e.ligne(`guard url.scheme?.lowercased() == ${chaineSwift(schema)} else { return }`);
+        e.ligne(`morceaux = ${parLeSchema}`);
+      });
+      e.ligne('}');
+    } else {
+      e.ligne(`guard url.scheme?.lowercased() == ${chaineSwift(schema)} else { return }`);
+      e.ligne(`let morceaux = ${parLeSchema}`);
+    }
     e.ligne('if morceaux.isEmpty { chemin = []; return }');
     for (const ecran of application.ecrans.filter((x) => x !== entree)) {
       const info = app.pages.get(ecran.nom)!;
@@ -459,7 +478,7 @@ function menuSwift(entrees: EntreeMenu[]): string {
   return e.texte();
 }
 
-function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, disposition: Disposition, polices: string[], policeTexte?: string, notifications = false, fonds: { liens?: boolean; envois?: boolean; arrierePlan?: boolean } = {}): string {
+function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, disposition: Disposition, polices: string[], policeTexte?: string, notifications = false, fonds: { liens?: boolean; domaine?: boolean; envois?: boolean; arrierePlan?: boolean } = {}): string {
   const racine = `${nomPage(entree.nom)}()`;
   const sans = (liste: string[]) => (liste.length ? `![${liste.map((r) => `Route.${r}`).join(', ')}].contains(Routeur.commun.chemin.last ?? .accueilHumalis)` : 'true');
   const entete = disposition.entete;
@@ -561,7 +580,7 @@ function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, dispos
 `
     : '';
   const phase = fonds.envois || fonds.arrierePlan;
-  const auLancement = [...(fonds.envois ? ['EnvoisGardes.commun.demarrer()'] : []), ...(fonds.arrierePlan ? ['ArrierePlanHumalis.lancerSiEssai()'] : [])];
+  const auLancement = [...(fonds.domaine ? ['if let lien = ProcessInfo.processInfo.environment["HUMALIS_ESSAI_LIEN"], let url = URL(string: lien) { Routeur.commun.ouvrirLien(url) }'] : []), ...(fonds.envois ? ['EnvoisGardes.commun.demarrer()'] : []), ...(fonds.arrierePlan ? ['ArrierePlanHumalis.lancerSiEssai()'] : [])];
   const racineScene = `RacineHumalis()${fonds.liens ? `
                 .onOpenURL { Routeur.commun.ouvrirLien($0) }
                 .handlesExternalEvents(preferring: ["*"], allowing: ["*"])` : ''}${auLancement.length ? `
@@ -780,7 +799,7 @@ export function genererProjetApple(application: Application, options: OptionsApp
   const notifications = JSON.stringify([application.ecrans, application.composants]).includes('"type":"activationNotifications"');
   if (notifications && !options.equipe) avertir(1, "« activer notifications » : sans --equipe, l'application demande la permission mais ne peut pas recevoir de notification d'Apple. Compilez avec --equipe pour qu'elle les reçoive.");
   const policesCopiees = (application.theme?.polices ?? []).flatMap((p) => (p.fichier && /\.(ttf|otf)$/i.test(p.fichier) && options.polices?.has(p.fichier) ? [p.fichier] : []));
-  ecrire(`${nom}App.swift`, applicationSwift(nom, application.site?.nom ?? options.nom, entree, disposition, policesCopiees.map(nomFichierPlat), application.theme?.polices.find((p) => p.role === 'texte')?.nom, notifications, { liens: application.liensProfonds !== undefined, envois: avecEnvois, arrierePlan: avecArrierePlan }));
+  ecrire(`${nom}App.swift`, applicationSwift(nom, application.site?.nom ?? options.nom, entree, disposition, policesCopiees.map(nomFichierPlat), application.theme?.polices.find((p) => p.role === 'texte')?.nom, notifications, { liens: application.liensProfonds !== undefined, domaine: application.liensProfonds?.domaine !== undefined, envois: avecEnvois, arrierePlan: avecArrierePlan }));
   if (disposition.menu?.length) ecrire('Humalis/Menu.swift', menuSwift(disposition.menu));
   for (const p of policesCopiees) ecrire(`Ressources/${nomFichierPlat(p)}`, contenuBinaire(options.polices!.get(p)!));
   ecrire('Humalis/Configuration.swift', configurationSwift(application, options));
@@ -823,8 +842,15 @@ export function genererProjetApple(application: Application, options: OptionsApp
   if (octetsLogo !== undefined) ecrire('Assets.xcassets/AppIcon.appiconset/icone.png', contenuBinaire(octetsLogo));
   const avecFichiers = /\b(ChoixFichierHumalis|prendrePhoto)\b/.test(tout);
   const avecPosition = /\blirePosition\(/.test(tout);
-  ecrire(`${nom}.entitlements`, droits(avecFichiers, notifications && options.equipe ? 'ios' : undefined, avecPosition));
-  if (notifications && options.equipe) ecrire(`${nom}-mac.entitlements`, droits(avecFichiers, 'mac', avecPosition));
+  // Sans équipe, l'application ne peut pas être signée avec ce droit : elle ne se construirait plus.
+  const domaineLiens = options.equipe ? application.liensProfonds?.domaine : undefined;
+  ecrire(`${nom}.entitlements`, droits(avecFichiers, notifications && options.equipe ? 'ios' : undefined, avecPosition, domaineLiens));
+  if (notifications && options.equipe) ecrire(`${nom}-mac.entitlements`, droits(avecFichiers, 'mac', avecPosition, domaineLiens));
+  if (application.liensProfonds?.domaine && !options.equipe) avertir(application.liensProfonds.ligne, `« domaine "${application.liensProfonds.domaine}" » : sans --equipe, les liens https:// ouvrent le site et pas l'application. Compilez avec --equipe.`);
+  if (domaineLiens) {
+    fichiers.set('a-publier-sur-le-site/.well-known/apple-app-site-association', associationSite(options.equipe!, identifiantApp, domaineLiens));
+    avertir(application.liensProfonds!.ligne, `« domaine "${domaineLiens}" » : publiez a-publier-sur-le-site/.well-known/apple-app-site-association sur ${domaineLiens.split('/')[0]} pour que les liens https:// ouvrent l'application.`);
+  }
   if (notifications) ecrire('Humalis/Notifications.swift', NOTIFICATIONS_SWIFT);
   ecrire('PrivacyInfo.xcprivacy', CONFIDENTIALITE);
 

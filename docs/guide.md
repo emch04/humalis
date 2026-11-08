@@ -1838,7 +1838,9 @@ réponse du serveur et la montre quand il n'y a pas de réseau :
 
 `liens profonds "magasin"`, en haut du fichier, fait ouvrir l'application par les adresses
 `magasin://produit/42` : le premier mot est la page, les suivants sont ses paramètres. Une
-page réservée reste réservée.
+page réservée reste réservée. Avec `liens profonds "magasin" et domaine "exemple.fr/essai"`,
+les adresses `https://exemple.fr/essai/produit/42` ouvrent aussi l'application. Il faut compiler
+avec `--equipe` et publier sur le site le fichier écrit dans `a-publier-sur-le-site/`.
 
 `en arriere plan :`, directement dans une page, dit ce que l'application fait quand le
 système la réveille. Le système choisit le moment : jamais avant 15 minutes, souvent bien
@@ -1849,7 +1851,8 @@ ouverte. Sur Mac, l'application doit être ouverte.
 garde l'envoi sur l'appareil s'il n'y a pas de réseau, et l'envoie dans l'ordre quand la
 connexion revient. Un refus du serveur est affiché. Chaque envoi appartient au compte qui
 l'a fait : à la déconnexion il est mis de côté, et repart seulement si la même personne se
-reconnecte ; il est effacé au bout de 30 jours.
+reconnecte. Au bout de 30 jours il est effacé, et la personne en est prévenue à sa prochaine
+connexion.
 Cette fin de phrase ne marche pas avec `dans` (la réponse arrivera plus tard) ni vers une
 API externe. Pour que la page se mette à jour ensuite, lis la route `en direct`.
 
@@ -1912,7 +1915,7 @@ seulement quand Stripe le confirme par un webhook signé : envoie-le vers
 Si la connexion coupe en plein envoi, un programme peut recommencer sans risque : il envoie
 l'en-tête `X-Humalis-Envoi` avec un identifiant au hasard, le même à chaque essai. Le serveur
 fait le travail une fois, même avec plusieurs exemplaires, puis redonne la même réponse.
-Il répond 409 tant que le premier essai tourne. L'identifiant est gardé un jour.
+Il répond 409 tant que le premier essai tourne. L'identifiant est gardé 30 jours, aussi longtemps qu'un envoi peut attendre sur l'appareil.
 
 #### Beaucoup de monde derrière une même adresse
 

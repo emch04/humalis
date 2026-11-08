@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { compiler } from '../../src/compilateur.js';
 import { genererProjetApple, MARQUE_APPLE } from '../../src/cibles/apple/projet.js';
+import { ENVOIS } from '../../src/cibles/serveur/envois.js';
 import { chaineSwift, nomSwift, nomType } from '../../src/cibles/apple/noms.js';
 import { touches } from '../../src/cibles/apple/styles.js';
 import { SYMBOLES } from '../../src/cibles/apple/icones.js';
@@ -347,6 +348,30 @@ describe('cible Apple — position, liens profonds, arrière-plan et envois hors
     expect(f.get('Essai/EssaiApp.swift')).toContain('.onOpenURL');
   });
 
+  describe('avec un domaine', () => {
+    const SOURCE = `liens profonds "magasin" et domaine "humalis.dev/essai"\npage "a" :\n    titre "t"\npage "b" avec parametre id :\n    titre "b"\n`;
+
+    it('vérifie le site et le début du chemin avant d\'ouvrir une page', () => {
+      const routes = projet(SOURCE).get('Essai/Humalis/Routes.swift')!;
+      expect(routes).toContain('url.host(percentEncoded: false)?.lowercased() == "humalis.dev", parties.starts(with: ["essai"] as [String])');
+      expect(routes).toContain('Array(parties.dropFirst(1))');
+    });
+
+    it('sans équipe, le droit n\'est pas écrit et le compilateur le dit', () => {
+      const { fichiers, diagnostics } = produire(SOURCE);
+      expect([...fichiers.entries()].find(([c]) => c.endsWith('.entitlements'))?.[1]).not.toContain('associated-domains');
+      expect(diagnostics.some((d) => d.gravite === 'avertissement' && d.message.includes('--equipe'))).toBe(true);
+    });
+
+    it('avec une équipe, le droit est écrit et le fichier du site limité au chemin', () => {
+      const f = projet(SOURCE, { equipe: 'ABCDE12345', identifiant: 'dev.humalis.essai' });
+      expect([...f.entries()].find(([c]) => c.endsWith('.entitlements'))?.[1]).toContain('applinks:humalis.dev');
+      const lu = JSON.parse(String(f.get('a-publier-sur-le-site/.well-known/apple-app-site-association')));
+      expect(lu.applinks.details[0].appIDs).toEqual(['ABCDE12345.dev.humalis.essai']);
+      expect(lu.applinks.details[0].components).toEqual([{ '/': '/essai' }, { '/': '/essai/*' }]);
+    });
+  });
+
   it('un début d\'adresse réservé est refusé', () => {
     expect(erreurs(`liens profonds "https"\npage "a" :\n    titre "t"\n`).join()).toContain('début d’adresse');
   });
@@ -371,6 +396,10 @@ describe('cible Apple — position, liens profonds, arrière-plan et envois hors
     expect(f.get('Essai/Humalis/Serveur.swift')).toContain('"X-Humalis-Envoi"');
     expect(f.get('Essai/Humalis/Envois.swift')).toContain('cleEnvoi: suivant.numero.uuidString');
     expect(f.get('Essai/Humalis/Envois.swift')).toContain('file.filter { $0.compte == Session.commun.compteGarde }');
+    expect(f.get('Essai/Humalis/Envois.swift')).toContain('?? 30 * 24 * 3600');
+    expect(f.get('Essai/Humalis/Envois.swift')).toContain("Votre envoi n'est pas parti");
+    expect(ENVOIS).toContain("interval '30 days'");
+    expect(ENVOIS).toContain('const DUREE = 30 * 24');
     expect(projet(COMPTEUR).has('Essai/Humalis/Envois.swift')).toBe(false);
   });
 

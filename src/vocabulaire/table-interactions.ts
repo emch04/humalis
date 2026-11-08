@@ -421,6 +421,16 @@ export const ENTREES_INTERACTIONS: EntreeVocabulaire[] = [
     exemple: 'liens profonds "magasin"\npage "p" :\n    titre "P"',
   }),
   mot({
+    mot: 'domaine',
+    categorie: 'action',
+    concept: 'action.liensProfonds.domaine',
+    contextes: ['tournure'],
+    cibles: { ...ecran('(cible Apple)', null, null) },
+    couvre: [],
+    description: 'Dans « liens profonds "magasin" et domaine "exemple.fr/essai" » : ces adresses https:// ouvrent aussi l’application (cible Apple).',
+    exemple: 'liens profonds "magasin" et domaine "exemple.fr/essai"\npage "p" :\n    titre "P"',
+  }),
+  mot({
     mot: 'arriere',
     categorie: 'action',
     concept: 'action.arrierePlan',

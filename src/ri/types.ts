@@ -25,7 +25,7 @@ export interface Application {
   /** « paquet swift "https://…" version "1.2" ». */
   paquetsSwift?: { adresse: string; version: string; produit?: string; ligne: number }[];
   /** « liens profonds "magasin" ». */
-  liensProfonds?: { schema: string; ligne: number };
+  liensProfonds?: { schema: string; domaine?: string; ligne: number };
   /** Les composants écrits en Humalis : des écrans qui reçoivent des paramètres. */
   composants: ComposantHumalis[];
   /** Les serveurs : données, routes et droits. */
