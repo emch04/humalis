@@ -596,7 +596,7 @@ class GenerateurEcran {
     const lignePartage = utilises.length > 0 ? `  const { ${utilises.join(', ')} } = usePartage();\n` : '';
     this.besoins.partage = utilises.length > 0;
     // La session, quand la page la lit (« utilisateur est … ») ou la change.
-    this.besoins.session = /\butilisateur\.(connecte|admin|seConnecter|seConnecterAvecGoogle|changerMotDePasse|inviter|demanderLienMotDePasse|choisirMotDePasse|seDeconnecter)\b/.test(code);
+    this.besoins.session = /\butilisateur\.(connecte|admin|personne|seConnecter|seConnecterAvecGoogle|changerMotDePasse|inviter|demanderLienMotDePasse|choisirMotDePasse|seDeconnecter)\b/.test(code);
     const ligneSession = this.besoins.session ? '  const utilisateur = useUtilisateur();\n' : '';
     // La langue (« t({ fr, en }) », « si langue est anglais », « changer langue par … »).
     const langue = ['t', 'langue', 'changerLangue'].filter((n) => new RegExp(n === 't' ? '\\bt\\(\\{' : `\\b${n}\\b`).test(code));
@@ -1076,7 +1076,7 @@ class GenerateurEcran {
       }
       // Un chargement qui lit la session attend la réponse de /auth/me :
       // sinon un admin déjà connecté serait pris pour un visiteur.
-      const session = /\butilisateur\.(connecte|admin)\b/.test(corps.texte());
+      const session = /\butilisateur\.(connecte|admin|personne)\b/.test(corps.texte());
       // Un paramètre d'adresse lu au chargement (« /produit/:id ») : passer d'un produit à un autre
       // garde la même page, le chargement se relance donc quand il change.
       const parametres = (this.ecran.parametresAdresse ?? []).map(camel).filter((nom) => new RegExp(`\\b${nom}\\b`).test(corps.texte()));
@@ -1762,7 +1762,7 @@ class GenerateurEcran {
           const test = condition(noeud.test, this.contexte);
           // Une condition sur la session attend la réponse du serveur : sinon la
           // page montrerait un instant la version « visiteur » à une personne connectée.
-          const attente = /\butilisateur\.(connecte|admin)\b/.test(test) ? 'utilisateur.pret && ' : '';
+          const attente = /\butilisateur\.(connecte|admin|personne)\b/.test(test) ? 'utilisateur.pret && ' : '';
           if (noeud.sinon.length === 0) {
             e.ligne(`{${attente}${test} && (`);
             e.indenter(() => this.ecrireGroupe(e, noeud.alors));

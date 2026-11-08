@@ -238,7 +238,7 @@ page "accueil" :
 - Recharger en dehors d’un événement : « recharger » ne s'utilise que dans un événement
 - L’état d’une variable qui ne reçoit pas de requête : ne reçoit aucune requête vers une source
 - Un champ qui parle d’une donnée absente : n'est ni un type (texte, nombre, booleen, date) ni une donnée de la source
-- Une page réservée à personne : « reservee » est suivi de « connecte » ou de « admin »
+- Une page réservée à personne : n'est pas déclaré
 - Une adresse de page qui ne commence pas par / : doit commencer par /
 - Deux pages à la même adresse : est déjà celle de la page
 - Une page 404 avec une adresse, un paramètre ou une réservation : est la page 404
@@ -406,7 +406,7 @@ page "accueil" :
 - Un destinataire qui n’est pas un champ de la fiche : le destinataire est un champ de
 - Un visiteur choisit où part l’e-mail : vers l'adresse de son choix
 - Un e-mail qui montre autre chose que la fiche : un e-mail montre les champs de la fiche créée
-- Un rôle inconnu après « comme » : après « comme », écrivez « admin »
+- Un rôle inconnu après « comme » : n'est pas déclaré
 - Une demande de lien mal écrite : on écrit : demander un lien de mot de passe
 - Une phrase des comptes sans sa ligne dans le serveur : demande la ligne « invitations vers
 - Une règle de champ mal écrite : on écrit par exemple :
@@ -544,3 +544,4 @@ page "accueil" :
 - « en csv » sur autre chose qu’une liste : « telecharger … en csv » attend une liste
 - « en csv » directement dans la page : telecharger … en csv
 - « en direct » sur autre chose qu’une lecture : « en direct » se met sur une lecture
+- Une lecture réservée à un rôle, depuis une page ouverte : seuls certains rôles peuvent

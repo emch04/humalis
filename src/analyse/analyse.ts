@@ -79,6 +79,7 @@ import { COULEURS_CSS } from '../cibles/web/styles.js';
 import { analyserServeur, droitsDeRoute, adresseNormalisee, type Droits } from './serveur.js';
 import { simplifier } from './elements.js';
 import { analyserNavigation, lireCible } from './navigation.js';
+import { verifierRoles } from './roles.js';
 import { analyserSources, indexerSources, verifierRequeteSource, verifierOperationSource, type InfoSource } from './sources.js';
 import { avertirNomsDuLangage } from './noms.js';
 import { Portees, type Symbole } from './portees.js';
@@ -207,10 +208,10 @@ interface Composants {
 }
 
 /** Ce que la page sait déjà de la personne : connectée, ou admin (« si utilisateur est … »). */
-type Garde = 'connecte' | 'admin' | undefined;
+type Garde = 'connecte' | 'admin' | `role:${string}` | undefined;
 
 /** La garde la plus forte des deux : admin passe avant connecté. */
-const plusForte = (a: Garde, b: Garde): Garde => (a === 'admin' || b === 'admin' ? 'admin' : (a ?? b));
+const plusForte = (a: Garde, b: Garde): Garde => (a === 'admin' || b === 'admin' ? 'admin' : a?.startsWith('role:') ? a : b?.startsWith('role:') ? b : (a ?? b));
 
 /** Vrai si ce bloc place le composant, à n'importe quelle profondeur. */
 function placeLeComposant(valeur: unknown, nom: string): boolean {
@@ -229,7 +230,9 @@ function gardeDuComposant(nom: string, programme: Programme): Garde {
   if (ailleurs.some((corps) => placeLeComposant(corps, nom))) return undefined;
   const pages = programme.pages.filter((p) => placeLeComposant(p.corps, nom));
   if (pages.length === 0 || pages.some((p) => !p.reservee)) return undefined;
-  return pages.some((p) => p.reservee?.qui === 'connecte') ? 'connecte' : 'admin';
+  if (pages.some((p) => p.reservee?.qui === 'connecte')) return 'connecte';
+  const qui = pages[0].reservee?.qui;
+  return pages.every((p) => p.reservee?.qui === qui) ? qui : 'connecte';
 }
 
 /** La garde que pose une condition « si utilisateur est connecte|admin ». */
@@ -410,6 +413,7 @@ export function analyserSens(programme: Programme, classesCss?: Set<string>): Re
   }
 
   for (const serveur of programme.serveurs) analyserServeur(serveur, resultat.diagnostics, programme.pages);
+  verifierRoles(programme, resultat.diagnostics);
   analyserSources(programme.sources, programme.serveurs, resultat.diagnostics);
   analyserNavigation(programme, resultat.diagnostics);
   analyserPublication(programme, resultat.diagnostics);
@@ -1897,7 +1901,7 @@ class AnalysePage {
         return BOOLEEN;
       case 'EtatUtilisateur':
         this.litLaSession = true;
-        this.demandeUnServeur(`utilisateur est ${expression.etat}`, expression.ligne);
+        this.demandeUnServeur(`utilisateur est ${expression.etat.replace(/^role:/, '')}`, expression.ligne);
         return BOOLEEN;
       case 'Compte': {
         const type = this.typeDe(expression.liste);
@@ -2580,10 +2584,13 @@ class AnalysePage {
     // une requête déjà gardée par « si utilisateur est … » ne sera pas refusée.
     if (qui === 'connecte' && this.garde !== undefined) return;
     if (qui === 'admin' && this.garde === 'admin') return;
+    if (qui?.startsWith('role:') && (this.garde === 'admin' || this.garde === qui)) return;
     if (qui === 'connecte') {
       this.avertissement(`il faut être connecté pour ${verbe} « ${route.donnee.nom} » : cette requête sera refusée à un visiteur.`, ligne);
     } else if (qui === 'admin') {
       this.avertissement(`seul un admin peut ${verbe} « ${route.donnee.nom} » : cette requête sera refusée à un visiteur.`, ligne);
+    } else if (qui?.startsWith('role:')) {
+      this.avertissement(`seuls certains rôles peuvent ${verbe} « ${route.donnee.nom} » (${qui.slice(5).split(',').join(', ')}) : cette requête sera refusée aux autres.`, ligne);
     }
   }
 

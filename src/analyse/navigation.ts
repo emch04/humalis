@@ -202,7 +202,7 @@ function analyserSousPages(programme: Programme, erreur: (message: string, ligne
       return undefined;
     };
     const duParent = protege(parent);
-    if (page.reservee && duParent?.qui === 'admin' && page.reservee.qui === 'connecte') {
+    if (page.reservee && duParent !== undefined && duParent.qui !== 'connecte' && page.reservee.qui === 'connecte') {
       erreur(`la page « ${page.nom} » est réservée aux connectés, mais son parent « ${parent.nom} » l'est aux admins : une sous-page peut être plus protégée que son parent, jamais moins.`, page.reservee.ligne);
     }
   }

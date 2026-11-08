@@ -344,3 +344,61 @@ page "accueil" :
     expect(diagnostics.some((d) => d.message.includes('en direct'))).toBe(true);
   });
 });
+
+describe('les rôles', () => {
+  const programme = (route: string, page = '') => `serveur "ecole" :
+    roles directeur, enseignant et parent
+    emails par brevo
+    invitations vers "bienvenue"
+    donnee note :
+        valeur : nombre
+    route "notes" :
+        ${route}
+
+page "accueil" :
+    titre "Accueil"
+
+page "bienvenue" :
+    titre "Bienvenue"
+${page}`;
+
+  it('« seul directeur peut » et « seuls … peuvent » deviennent des droits', () => {
+    expect(compiler(programme('seul directeur peut lire note')).application!.serveurs[0].routes[0].droits.lire).toBe('role:directeur');
+    expect(compiler(programme('seuls directeur et enseignant peuvent lire note')).application!.serveurs[0].routes[0].droits.lire).toBe('role:directeur,enseignant');
+  });
+
+  it('un rôle non déclaré est refusé, avec une proposition', () => {
+    const { diagnostics } = compiler(programme('seul directrice peut lire note'));
+    const erreur = diagnostics.find((d) => d.gravite === 'erreur');
+    expect(erreur?.message).toContain('le rôle « directrice » n\'est pas déclaré');
+  });
+
+  it('une page réservée à un rôle, et « si utilisateur est … »', () => {
+    const page = `
+page "profs" reservee a enseignant et directeur sinon vers "accueil" :
+    titre "Profs"
+    si utilisateur est directeur :
+        texte "Direction"
+`;
+    const { application } = compiler(programme('seul directeur peut lire note', page));
+    expect(application!.ecrans.find((e) => e.nom === 'profs')!.reservee!.qui).toBe('role:enseignant,directeur');
+    const code = genererProjetMoteur(application!, { nom: 'e', source: 'e.humalis' }).get('src/couches/profs.js')!;
+    expect(code).toContain("utilisateur.personne?.role === 'directeur'");
+  });
+
+  it('« inviter … comme directeur »', () => {
+    const page = `
+page "equipe" reservee a admin sinon vers "accueil" :
+    titre "Equipe"
+    bouton "Inviter"
+    quand l'utilisateur clique sur "Inviter" :
+        inviter "a@b.cd" comme directeur
+`;
+    expect(compiler(programme('seul directeur peut lire note', page)).diagnostics.filter((d) => d.gravite === 'erreur')).toEqual([]);
+  });
+
+  it('« admin » ne peut pas être redéclaré', () => {
+    const source = programme('seul directeur peut lire note').replace('roles directeur,', 'roles admin, directeur,');
+    expect(compiler(source).diagnostics.some((d) => d.message.includes('existe déjà'))).toBe(true);
+  });
+});

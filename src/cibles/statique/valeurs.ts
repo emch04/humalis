@@ -170,7 +170,7 @@ export function expressionJs(valeur: Valeur, contexte: ContexteJs): string {
       return 'null';
     case 'utilisateur':
       // Lu sur la session (humalis.js), jamais gardé par la page.
-      return `utilisateur.${valeur.etat}`;
+      return valeur.etat.startsWith('role:') ? `(utilisateur.personne?.role === '${valeur.etat.slice(5)}')` : `utilisateur.${valeur.etat}`;
     case 'mouvementReduit':
       // « réduire les animations » du système (humalis.js), relu à chaque dessin.
       return 'mouvementReduit()';

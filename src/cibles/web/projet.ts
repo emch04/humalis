@@ -870,12 +870,14 @@ export function changerFiltre(changer: SetURLSearchParams, cle: string, valeur: 
 const RESERVEE = `import { Navigate, Outlet, useLocation } from 'react-router';
 import { useUtilisateur } from './session';
 
-export function Reservee({ qui, sinon }: { qui: 'connecte' | 'admin'; sinon: string }) {
+export function Reservee({ qui, sinon }: { qui: string; sinon: string }) {
   const utilisateur = useUtilisateur();
   const location = useLocation();
   if (!utilisateur.pret) return <p className="humalis-attente" role="status">Vérification…</p>;
   // On note la page voulue : « continuer vers … » y revient après la connexion.
-  if (!utilisateur[qui]) return <Navigate to={sinon} replace state={{ apres: location.pathname + location.search }} />;
+  // Un rôle (« role:directeur,parent ») : un admin passe toujours.
+  const permis = qui.startsWith('role:') ? utilisateur.admin || qui.slice(5).split(',').includes(String(utilisateur.personne?.role)) : utilisateur[qui as 'connecte' | 'admin'];
+  if (!permis) return <Navigate to={sinon} replace state={{ apres: location.pathname + location.search }} />;
   return <Outlet />;
 }
 

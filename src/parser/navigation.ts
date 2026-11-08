@@ -28,16 +28,24 @@ export function analyserEntetePage(flux: FluxTokens): Pick<Page, 'adresse' | 're
     const debut = flux.avancer();
     const qui = flux.actuel();
     const mot = normaliser(qui.original ?? qui.valeur);
-    if (mot !== 'connecte' && mot !== 'admin') {
+    // « reservee a directeur » : un rôle déclaré dans le serveur (vérifié par l'analyse).
+    const estRole = qui.type === 'IDENTIFIANT' && mot !== 'connecte' && mot !== 'admin' && mot !== 'sinon';
+    if (mot !== 'connecte' && mot !== 'admin' && !estRole) {
       throw new ErreurSyntaxique(`« reservee » est suivi de « connecte » ou de « admin » (page "admin" reservee a admin) ; « ${qui.original ?? qui.valeur} » a été trouvé`, debut.ligne);
     }
     flux.avancer();
+    // « reservee a directeur et enseignant ».
+    const autres: string[] = [];
+    while (estRole && flux.accepter('MOT_CLE', 'et')) {
+      const suivant = flux.avancer();
+      autres.push(normaliser(suivant.original ?? suivant.valeur));
+    }
     let sinon: string | undefined;
     if (flux.accepter('MOT_CLE', 'sinon')) {
       flux.attendre('MOT_CLE', 'vers', '« vers » suivi de la page, après « sinon » (sinon vers "connexion")');
       sinon = flux.attendre('CHAINE', undefined, 'le nom de la page entre guillemets').valeur;
     }
-    entete.reservee = { qui: mot, ...(sinon !== undefined ? { sinon } : {}), ligne: debut.ligne };
+    entete.reservee = { qui: estRole ? `role:${[mot, ...autres].join(',')}` : (mot as 'connecte' | 'admin'), ...(sinon !== undefined ? { sinon } : {}), ligne: debut.ligne };
   }
   // Un morceau dans le désordre : on montre l'ordre attendu.
   const suivant = flux.actuel();

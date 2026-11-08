@@ -24,7 +24,7 @@ describe('navigation — parseur', () => {
   });
 
   it('refuse « reservee » suivi d\'un autre mot', () => {
-    expect(() => lire('page "a" reservee a tous :', '>titre "x"')).toThrow(/« connecte » ou de « admin »/);
+    expect(() => lire('page "a" reservee a 3 :', '>titre "x"')).toThrow(/« connecte » ou de « admin »/);
   });
 
   it('une page sans nouveauté se lit comme avant', () => {

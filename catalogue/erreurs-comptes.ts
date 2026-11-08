@@ -178,7 +178,7 @@ export const ENTREES_ERREURS_COMPTES: readonly EntreeErreur[] = [
     'Écris « comme admin », ou rien.',
     auClic(['emails par brevo', 'invitations vers "bienvenue"'], 'inviter champ "Adresse" comme gerant'),
     auClic(['emails par brevo', 'invitations vers "bienvenue"'], 'inviter champ "Adresse" comme admin'),
-    'après « comme », écrivez « admin »'),
+    "n'est pas déclaré"),
   e('demander-lien-forme', 'grammaire', 'Une demande de lien mal écrite',
     'La phrase dit exactement quel lien et pour quelle adresse.',
     'Écris : demander un lien de mot de passe pour champ "Adresse".',

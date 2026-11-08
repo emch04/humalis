@@ -131,6 +131,8 @@ export interface Serveur {
   routes: Route[];
   /** « connexion google » : un compte déjà connu du serveur peut se connecter avec Google (ligne). */
   connexionGoogle?: number;
+  /** « roles directeur, enseignant et parent ». */
+  roles?: string[];
   /** « emails par brevo » : le service qui envoie les e-mails du serveur. */
   emails?: { service: string; ligne: number };
   /** « invitations vers "bienvenue" » : un admin invite une adresse ; le lien ouvre cette page. */
@@ -245,7 +247,8 @@ export interface Donnee {
   ligne: number;
 }
 
-export type Qui = 'tout_le_monde' | 'connecte' | 'admin';
+/** « role:directeur,parent » : les rôles déclarés dans le serveur ; un admin passe toujours. */
+export type Qui = 'tout_le_monde' | 'connecte' | 'admin' | `role:${string}`;
 export type ActionDonnee = 'lire' | 'creer' | 'modifier' | 'supprimer';
 
 /** « route "produits" : », avec une règle d'accès par ligne. */
@@ -346,7 +349,7 @@ export interface Page {
   /** « page "collection" a l'adresse "/collections/:slug" : » : l'adresse choisie, au lieu de celle du nom. */
   adresse?: string;
   /** « page "admin" reservee a connecte sinon vers "connexion" : » : seulement pour les connectés (ou les admins). */
-  reservee?: { qui: 'connecte' | 'admin'; sinon?: string; ligne: number };
+  reservee?: { qui: 'connecte' | 'admin' | `role:${string}`; sinon?: string; ligne: number };
   /** « page "connexion" sans entete et sans pied : » : la page se passe de l'en-tête et du pied communs. */
   sansEntete?: boolean;
   sansPied?: boolean;
@@ -654,7 +657,7 @@ export interface ConnexionGoogle {
 export interface Invitation {
   type: 'Invitation';
   email: Expression;
-  role: 'membre' | 'admin';
+  role: string;
   ligne: number;
 }
 
@@ -1268,7 +1271,7 @@ export interface ThemeSombre {
 /** « utilisateur est connecte » (ou « admin ») : vrai ou faux, lu sur la session du serveur. */
 export interface EtatUtilisateur {
   type: 'EtatUtilisateur';
-  etat: 'connecte' | 'admin';
+  etat: 'connecte' | 'admin' | `role:${string}`;
   ligne: number;
 }
 

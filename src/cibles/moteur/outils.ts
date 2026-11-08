@@ -423,7 +423,7 @@ function chargerLesDonnees(couches) {
 function refuse(options) {
   ${options.session ? `const r = options?.reservee;
   if (!r) return null;
-  const permis = r.qui === 'admin' ? utilisateur.admin : utilisateur.connecte;
+  const permis = r.qui.startsWith('role:') ? utilisateur.admin || r.qui.slice(5).split(',').includes(utilisateur.personne?.role) : r.qui === 'admin' ? utilisateur.admin : utilisateur.connecte;
   return permis ? null : r.sinon;` : 'return null;'}
 }
 
