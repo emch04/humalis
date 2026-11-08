@@ -504,7 +504,7 @@ export default defineConfig({
 export function donneesDesPages(serveur: ServeurRI): ServeurRI['donnees'] {
   if (!serveur.routeComptes) return serveur.donnees;
   const champ = (nom: string) => ({ nom, type: { genre: 'texte' as const } });
-  return [...serveur.donnees, { nom: 'comptes', champs: ['email', 'role', 'statut'].map(champ) }];
+  return [...serveur.donnees, { nom: 'comptes', champs: [...['email', 'role', 'statut'].map(champ), ...(serveur.champsCompte ?? [])] }];
 }
 
 /** Les interfaces des données du serveur, lues par les pages. */
