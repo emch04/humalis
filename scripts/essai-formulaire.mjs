@@ -36,7 +36,7 @@ const EMAIL = 'admin@ateliers.cd';
 const MOT_DE_PASSE = 'Admin-Solide-2026!';
 
 execFileSync('node', ['dist/cli.js', 'compile', source, '--cible', 'serveur', '--sortie', serveur], { stdio: 'inherit' });
-execFileSync('node', ['dist/cli.js', 'compile', source, '--cible', 'web', '--sortie', web, '--adresse', 'https://ateliers.exemple.cd'], { stdio: 'inherit' });
+execFileSync('node', ['dist/cli.js', 'compile', source, '--cible', 'web', ...(process.env.HUMALIS_MOTEUR ? ['--moteur', process.env.HUMALIS_MOTEUR] : []), '--sortie', web, '--adresse', 'https://ateliers.exemple.cd'], { stdio: 'inherit' });
 // npm 11 (celui de Node 24) : npm 10 échoue parfois sur « edgesOut ».
 execFileSync('npx', ['-y', 'npm@11', 'install', '--no-audit', '--no-fund'], { cwd: serveur, stdio: 'inherit' });
 execFileSync('npm', ['run', 'build'], { cwd: serveur, stdio: 'inherit' });
@@ -75,7 +75,7 @@ const visible = (locator) => locator.first().waitFor({ timeout: 5000 }).then(() 
 const message = (page, texte) => visible(page.locator('.humalis-message').filter({ hasText: texte }));
 
 const require = createRequire(join(web, 'package.json'));
-const { chromium } = require('playwright');
+const { chromium } = (process.env.HUMALIS_MOTEUR ? createRequire(import.meta.url) : require)('playwright');
 const navigateur = await chromium.launch();
 try {
   const contexte = await navigateur.newContext();

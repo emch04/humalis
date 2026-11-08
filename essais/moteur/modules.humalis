@@ -1,0 +1,21 @@
+# Essai des adaptateurs : un module simple, React, un Web Component.
+utiliser module "Compteur3D" depuis "./modules/Compteur3D"
+utiliser composant "Salut" depuis "./modules/Salut"
+utiliser composant "MonBadge" depuis "./modules/mon-badge"
+
+page "accueil" :
+    variable n = 1
+    titre "Modules"
+    bouton "Plus"
+    quand l'utilisateur clique sur "Plus" :
+        changer n par n + 1
+    texte "Valeur : {n}"
+    Compteur3D avec valeur n
+    MonBadge avec etiquette n
+    lien "Page React" vers "reactive"
+
+page "reactive" :
+    variable nom = "Emch"
+    titre "Avec React"
+    Salut avec nom nom
+    lien "Retour" vers "accueil"

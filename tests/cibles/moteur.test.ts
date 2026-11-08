@@ -153,8 +153,8 @@ describe('le moteur : le projet produit', () => {
     expect(html).toContain('&lt;script&gt;x');
   });
 
-  it('refuse clairement ce qu’il ne sait pas encore faire', () => {
-    const { application } = compiler('page "a" :\n    variable t = []\n    pour chaque x dans t avec deplacement :\n        texte x\n');
+  it('refuse un secret dans le navigateur, comme la cible web', () => {
+    const { application } = compiler('page "a" :\n    variable t = "" avec memorisee en secret\n    texte t\n');
     if (application) expect(verifierPourLeMoteur(application).some((d) => d.gravite === 'erreur')).toBe(true);
   });
 });

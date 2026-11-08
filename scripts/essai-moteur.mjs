@@ -6,7 +6,7 @@
 import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { createServer } from 'node:http';
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { extname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -23,7 +23,7 @@ export const verifier = (condition, message) => {
 
 if (!existsSync(join(travail, 'node_modules/vite'))) {
   writeFileSync(join(travail, 'package.json'), '{"private":true}');
-  execFileSync('npm', ['i', 'vite@8.3.4', '--no-audit', '--no-fund', '--silent'], { cwd: travail, stdio: 'inherit' });
+  execFileSync('npm', ['i', 'vite@8.3.4', '@astratra/client@1.1.0', '@astratra/centrale@1.10.0', '@vitejs/plugin-react@6.1.2', 'react@19.3.1', 'react-dom@19.3.1', 'three@0.187.0', '--no-audit', '--no-fund', '--silent'], { cwd: travail, stdio: 'inherit' });
 }
 
 function compiler(fichier, nom) {
@@ -168,6 +168,62 @@ const bouton = (page, nom) => page.getByRole('button', { name: nom, exact: true 
   verifier(true, 'boutique : retirer du panier');
   verifier(erreurs.length === 0, `boutique : aucune erreur dans la console ${erreurs.join(' | ')}`);
   await page.context().close();
+  serveur.fermer();
+}
+
+// ─── Les adaptateurs : un seul contrat ──────────────────────────────────────
+{
+  const dossier = join(travail, 'modules');
+  execFileSync('node', [join(racineDepot, 'dist/cli.js'), 'compile', join(racineDepot, 'essais/moteur/modules.humalis'), '--cible', 'web', '--moteur', 'humalis', '--sortie', dossier], { stdio: ['ignore', 'ignore', 'inherit'] });
+  execFileSync('npm', ['install', '--no-audit', '--no-fund', '--silent'], { cwd: dossier, stdio: 'inherit' });
+  execFileSync('npx', ['vite', 'build', '--logLevel', 'warn'], { cwd: dossier, stdio: 'inherit' });
+  const serveur = await servir(join(dossier, 'dist'));
+  const { page, erreurs } = await ouvrir(serveur);
+  const reacts = [];
+  page.on('response', (r) => { if (/react|client-/i.test(r.url())) reacts.push(r.url()); });
+  await page.getByText('Module : 1', { exact: true }).waitFor();
+  await page.getByText('Web component : 1', { exact: true }).waitFor();
+  await bouton(page, 'Plus').click();
+  await page.getByText('Module : 2', { exact: true }).waitFor();
+  await page.getByText('Web component : 2', { exact: true }).waitFor();
+  verifier(await page.evaluate(() => window.__montages === 1 && window.__misesAJour === 1), 'modules : le module est mis à jour, jamais recréé');
+  const chargesAvant = await page.evaluate(() => performance.getEntriesByType('resource').map((r) => r.name).filter((n) => /react/i.test(n)));
+  verifier(chargesAvant.length === 0, `modules : React n'est pas chargé sur une page qui ne s'en sert pas (${chargesAvant.join()})`);
+  await page.getByRole('link', { name: 'Page React' }).click();
+  await page.waitForURL('**/reactive');
+  verifier(await page.evaluate(() => window.__destructions === 1), 'modules : quitter la page nettoie le module');
+  await bouton(page, 'React Emch 0').click();
+  await bouton(page, 'React Emch 1').waitFor();
+  verifier(true, 'modules : un composant React marche, avec son propre état');
+  verifier(erreurs.length === 0, `modules : aucune erreur ${erreurs.join(' | ')}`);
+  await page.context().close();
+  serveur.fermer();
+}
+
+// ─── Tous les exemples : chaque page s'ouvre, sans erreur, sans rien reconstruire ──
+const pagesDe = (d, prefixe = '/') => readdirSync(d, { withFileTypes: true }).flatMap((f) => {
+  if (f.isDirectory()) return f.name === 'assets' ? [] : pagesDe(join(d, f.name), `${prefixe}${f.name}/`);
+  return f.name === 'index.html' ? [prefixe.replace(/_\/$/, '1/')] : [];
+});
+for (const f of readdirSync('exemples').filter((n) => n.endsWith('.humalis')).map((n) => n.replace('.humalis', ''))) {
+  if (['boutique-serveur'].includes(f)) continue;
+  let dist;
+  try {
+    dist = compiler(`exemples/${f}.humalis`, `ex-${f}`);
+  } catch {
+    verifier(false, `${f} : compile et s'assemble`);
+    continue;
+  }
+  const serveur = await servir(dist);
+  for (const chemin of pagesDe(dist)) {
+    const { page, erreurs } = await ouvrir(serveur, chemin);
+    const m = await mutations(page);
+    const texte = (await page.locator('main').innerText()).trim();
+    verifier(erreurs.filter((e) => !/Failed to load resource|ERR_/.test(e)).length === 0, `${f} ${chemin} : sans erreur ${erreurs.join(' | ').slice(0, 300)}`);
+    verifier(texte.length > 0 || f === 'connexion' || f === 'sources', `${f} ${chemin} : la page montre quelque chose`);
+    console.log(`   reprise ${JSON.stringify(m)}`);
+    await page.context().close();
+  }
   serveur.fermer();
 }
 

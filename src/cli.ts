@@ -38,6 +38,8 @@ const AIDE = `Utilisation :
   humalis compile <fichier.humalis> --cible mobile --sortie <dossier>
   humalis compile <fichier.humalis> --cible desktop --sortie <dossier> [--serveur https://…]
   humalis compile <fichier.humalis> --cible serveur --sortie <dossier>
+  humalis compile <fichier.humalis> --cible web --moteur humalis --sortie <dossier> [--adresse https://…]
+          Le site web sans React : le moteur de rendu de Humalis.
   humalis compile <fichier.humalis> --cible statique --sortie <dossier> [--adresse https://…]
   humalis packs [--verifier <dossier>]
 
@@ -330,11 +332,11 @@ function lirePolices(application: Application, chemin: string): Map<string, stri
  * Les fichiers React de « utiliser composant … depuis "…" », cherchés à côté
  * du fichier Humalis, avec ou sans leur extension.
  */
-function lireComposantsReact(application: Application, chemin: string): Map<string, { nom: string; contenu: string }> | undefined {
+function lireComposantsReact(application: Application, chemin: string, extensions = ['', '.tsx', '.ts', '.jsx', '.js']): Map<string, { nom: string; contenu: string }> | undefined {
   const composantsReact = new Map<string, { nom: string; contenu: string }>();
   for (const composant of application.composantsReact) {
     const base = join(dirname(chemin), composant.chemin);
-    const trouve = ['', '.tsx', '.ts', '.jsx', '.js'].map((ext) => base + ext).find((c) => existsSync(c) && !statSync(c).isDirectory());
+    const trouve = extensions.map((ext) => base + ext).find((c) => existsSync(c) && !statSync(c).isDirectory());
     if (!trouve) {
       console.error(
         `Erreur, ${position(composant.ligne)} : le fichier du composant « ${composant.nom} » est introuvable (${composant.chemin}, cherché à côté de ${basename(chemin)}, avec ou sans .tsx, .ts, .jsx, .js).`,
@@ -440,7 +442,7 @@ function compileMoteur(application: Application, chemin: string, sortie: string,
   if (!dossierLibre(sortie, MARQUE_MOTEUR)) return 1;
   const fichiersStyle = lireFichiersStyle(application, chemin);
   if (!fichiersStyle) return 1;
-  const externes = lireComposantsReact(application, chemin);
+  const externes = lireComposantsReact(application, chemin, ['', '.tsx', '.ts', '.jsx', '.js', '.vue', '.svelte']);
   if (!externes) return 1;
   const polices = lirePolices(application, chemin);
   if (!polices) return 1;
