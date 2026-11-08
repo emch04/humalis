@@ -1,0 +1,19 @@
+# Essai du moteur : les données publiques lues à la construction.
+serveur "club" :
+    donnee produit :
+        nom : texte
+    route "produits" :
+        tout le monde peut lire produit
+
+page "accueil" :
+    variable produits = []
+    titre "Catalogue"
+    quand la page se charge :
+        envoyer requete vers "produits" dans produits
+    pour chaque p dans produits :
+        texte p.nom
+    bouton "Dire"
+    variable dit = 0
+    quand l'utilisateur clique sur "Dire" :
+        changer dit par dit + 1
+    texte "Dit {dit} fois"

@@ -393,13 +393,22 @@ function pousser(url, remplacer, extra) {
   history[remplacer ? 'replaceState' : 'pushState']({ cle: cleEntree, profondeur, ...extra }, '', url);
 }
 
-function lancerCouche(i, entree, parametres) {
+/** Ce que le compilateur a lu sur le serveur, écrit dans la page. */
+function donneesDe(doc) {
+  try {
+    return JSON.parse(doc.getElementById('humalis-donnees')?.textContent ?? '{}');
+  } catch {
+    return {};
+  }
+}
+
+function lancerCouche(i, entree, parametres, donnees) {
   const [, fonction] = entree;
   const id = empreinte(entree, parametres);
   const emplacement = document.querySelector('[data-c="' + i + '"]');
   const couche = { id, api: null, arreter: null };
   couche.arreter = racine(() => {
-    const api = fonction(parcourir(emplacement.firstChild, null, []), { parametres }) ?? {};
+    const api = fonction(parcourir(emplacement.firstChild, null, []), { parametres, donnees }) ?? {};
     couche.api = api;
 ${options.minuteries ? '    if (api.minuteries) minuteriesDeCouche(api.minuteries);\n' : ''}${options.raccourcis ? '    if (api.raccourcis) ecouterRaccourcis(api.raccourcis);\n' : ''}    api.relire?.();
   });
@@ -442,6 +451,19 @@ function aLAncre() {
   setTimeout(aller, 250);
 }
 
+/** Ce que la personne a cliqué avant que la page soit prête : rejoué, jamais perdu. */
+function rejouer() {
+  const attente = window.__humalis;
+  if (!attente) return;
+  delete window.__humalis;
+  attente.fin();
+  for (const [genre, cible] of attente.file) {
+    if (!cible.isConnected) continue;
+    if (genre === 'submit') cible.requestSubmit();
+    else cible.click();
+  }
+}
+
 /** Enregistre une route ; la première à arriver ouvre la page. */
 export function enregistrer(adresse, couches, options) {
   registre.set(adresse, { couches, options });
@@ -449,7 +471,8 @@ export function enregistrer(adresse, couches, options) {
   demarre = true;
   const trouve = trouverRoute(location.pathname.replace(/\\/+$/, '') || '/');
   const parametres = trouve?.parametres ?? {};
-  actives = couches.map((c, i) => lancerCouche(i, c, parametres));
+  const donnees = donneesDe(document);
+  actives = couches.map((c, i) => lancerCouche(i, c, parametres, donnees));
   ${options.partages ? 'relirePartages();' : ''}
   ${options.langues ? 'relireLangue();' : ''}
   ${options.session ? `relireSession().then(() => {
@@ -461,6 +484,7 @@ export function enregistrer(adresse, couches, options) {
   history.scrollRestoration = 'manual';
   history.replaceState({ cle: cleEntree }, '');
   appliquer();
+  rejouer();
   marquerLiens();
   aLAncre();
   new MutationObserver(marquerLiens).observe(document.body, { childList: true, subtree: true });
@@ -468,6 +492,7 @@ export function enregistrer(adresse, couches, options) {
 }
 
 const pagesChargees = new Map();
+const prepares = new Set();
 
 function chargerDocument(fichier) {
   if (!pagesChargees.has(fichier)) {
@@ -513,30 +538,36 @@ async function aller(url, { historique = true, remplacer = false, garde } = {}) 
       pousser(cible.href, remplacer, garde ? { apres: garde } : {});
     }
     cheminOuvert = cible.pathname.replace(/\\/+$/, '') || '/';
-    let commun = 0;
-    while (commun < actives.length && commun < couches.length - 1 && actives[commun].id === empreinte(couches[commun], trouve.parametres)) commun++;
-    for (let i = actives.length - 1; i >= commun; i--) actives[i].arreter();
-    ${options.planifie ? 'arreterMinuteries();' : ''}
-    const ici = document.querySelector('[data-c="' + commun + '"]');
-    const la = doc.querySelector('[data-c="' + commun + '"]');
-    ici.replaceChildren(...la.childNodes);
-    remplacerEntete(doc);
-    const gardees = actives.slice(0, commun);
-    const nouvelles = couches.slice(commun).map((c, i) => lancerCouche(commun + i, c, trouve.parametres));
-    actives = [...gardees, ...nouvelles];
-    appliquer();
-    chargerLesDonnees(nouvelles);
-    devoiler();
-    marquerLiens();
-    const position = historique ? 0 : (positions.get(history.state?.cle) ?? 0);
-    scrollTo(0, position);
-    if (cible.hash) aLAncre();
-    const titre = document.querySelector('main h1');
-    if (titre && historique) {
-      titre.setAttribute('tabindex', '-1');
-      titre.focus({ preventScroll: true });
-    }
-    avertirFiltres();
+    const echanger = () => {
+      let commun = 0;
+      while (commun < actives.length && commun < couches.length - 1 && actives[commun].id === empreinte(couches[commun], trouve.parametres)) commun++;
+      for (let i = actives.length - 1; i >= commun; i--) actives[i].arreter();
+      ${options.planifie ? 'arreterMinuteries();' : ''}
+      const ici = document.querySelector('[data-c="' + commun + '"]');
+      const la = doc.querySelector('[data-c="' + commun + '"]');
+      ici.replaceChildren(...la.childNodes);
+      remplacerEntete(doc);
+      const gardees = actives.slice(0, commun);
+      const nouvelles = couches.slice(commun).map((c, i) => lancerCouche(commun + i, c, trouve.parametres, donneesDe(doc)));
+      actives = [...gardees, ...nouvelles];
+      appliquer();
+      chargerLesDonnees(nouvelles);
+      devoiler();
+      marquerLiens();
+      const position = historique ? 0 : (positions.get(history.state?.cle) ?? 0);
+      scrollTo(0, position);
+      if (cible.hash) aLAncre();
+      const titre = document.querySelector('main h1');
+      if (titre && historique) {
+        titre.setAttribute('tabindex', '-1');
+        titre.focus({ preventScroll: true });
+      }
+      avertirFiltres();
+    };
+    // Une transition douce quand le navigateur sait la faire, jamais si la personne a demandé moins d'animations.
+    if (document.startViewTransition && document.visibilityState === 'visible' && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      await document.startViewTransition(echanger).updateCallbackDone;
+    } else echanger();
   } catch (erreur) {
     console.error(erreur);
     location.assign(cible.href);
@@ -648,7 +679,17 @@ function installer() {
     const cible = new URL(lien.href, location.href);
     if (cible.origin !== location.origin) return;
     const trouve = trouverRoute(cible.pathname.replace(/\\/+$/, '') || '/');
-    if (trouve) chargerDocument(trouve.route.f).catch(() => {});
+    if (!trouve || prepares.has(trouve.route.f)) return;
+    prepares.add(trouve.route.f);
+    // Le HTML et le code de la page visée : quand on clique, tout est déjà là.
+    chargerDocument(trouve.route.f).then((texte) => {
+      const source = /<script type="module"[^>]*src="([^"]+)"/.exec(texte)?.[1];
+      if (!source) return;
+      const lien = document.createElement('link');
+      lien.rel = 'modulepreload';
+      lien.href = source;
+      document.head.append(lien);
+    }).catch(() => prepares.delete(trouve.route.f));
   };
   document.addEventListener('pointerover', preparer, { passive: true });
   document.addEventListener('focusin', preparer);

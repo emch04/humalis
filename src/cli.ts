@@ -14,6 +14,7 @@ import { verifierSourcesPourLaCible, verifierNavigationPourLaCible, verifierFich
 import { genererProjetMobile, verifierPourLeMobile, verifierModulesPourLeMobile, MARQUE_MOBILE } from './cibles/mobile/projet.js';
 import { verifierFichiersPourLeMobile } from './cibles/mobile/fichiers.js';
 import { genererProjetMoteur, verifierPourLeMoteur, MARQUE_MOTEUR } from './cibles/moteur/projet.js';
+import { lecturesPermises, lireLesDonnees, type ReglageLecture } from './cibles/moteur/lecture-construction.js';
 import { genererProjetStatique, verifierPourLeStatique, MARQUE_STATIQUE } from './cibles/statique/projet.js';
 import { genererProjetDesktop, MARQUE_DESKTOP, SERVEUR_PAR_DEFAUT } from './cibles/desktop/projet.js';
 import { gestionnairesDuProgramme, contientAction } from './cibles/web/interactions.js';
@@ -38,7 +39,7 @@ const AIDE = `Utilisation :
   humalis compile <fichier.humalis> --cible mobile --sortie <dossier>
   humalis compile <fichier.humalis> --cible desktop --sortie <dossier> [--serveur https://…]
   humalis compile <fichier.humalis> --cible serveur --sortie <dossier>
-  humalis compile <fichier.humalis> --cible web --moteur humalis --sortie <dossier> [--adresse https://…]
+  humalis compile <fichier.humalis> --cible web --moteur humalis --sortie <dossier> [--adresse https://…] [--lire-serveur https://…]
   humalis compile <fichier.humalis> --cible statique --sortie <dossier> [--adresse https://…]
   humalis packs [--verifier <dossier>]
 
@@ -100,7 +101,7 @@ function option(arguments_: string[], nom: string): string | undefined {
   return position === -1 ? undefined : arguments_[position + 1];
 }
 
-function compile(arguments_: string[]): number {
+function compile(arguments_: string[]): number | Promise<number> {
   const [chemin] = arguments_;
   const cible = option(arguments_, 'cible');
   const composants = option(arguments_, 'composants');
@@ -155,7 +156,7 @@ function compile(arguments_: string[]): number {
     return 2;
   }
   // « --composants » écrit des composants React pour un projet React : le moteur n'a pas de sens ici.
-  if (moteur === 'humalis' && composants === undefined) return compileMoteur(application, chemin, sortie, option(arguments_, 'adresse'), option(arguments_, 'diagnostics-port'));
+  if (moteur === 'humalis' && composants === undefined) return compileMoteur(application, chemin, sortie, option(arguments_, 'adresse'), option(arguments_, 'diagnostics-port'), option(arguments_, 'lire-serveur'));
 
   // Ne jamais écraser un travail fait à la main : un dossier non vide doit
   // porter la marque d'un projet produit par Humalis.
@@ -429,6 +430,19 @@ function compileDesktop(application: Application, chemin: string, sortie: string
 }
 
 /** « "moteur": "humalis" » dans le humalis.projet.json à côté du fichier. */
+/** « lireServeur » et « lireSources » du humalis.projet.json, ou --lire-serveur : rien par défaut. */
+function reglageDeLecture(chemin: string, adresse: string | undefined): ReglageLecture | undefined {
+  let lu: { lireServeur?: unknown; lireSources?: unknown } = {};
+  try {
+    lu = JSON.parse(readFileSync(join(dirname(chemin), 'humalis.projet.json'), 'utf8')) as typeof lu;
+  } catch {
+    // Pas de projet : seule la commande peut le demander.
+  }
+  const serveur = adresse ?? (typeof lu.lireServeur === 'string' ? lu.lireServeur : undefined);
+  const sources = Array.isArray(lu.lireSources) ? lu.lireSources.filter((s): s is string => typeof s === 'string') : [];
+  return serveur !== undefined || sources.length > 0 ? { ...(serveur !== undefined ? { adresse: serveur } : {}), sources } : undefined;
+}
+
 function moteurDuProjet(chemin: string): string | undefined {
   try {
     const manifeste = JSON.parse(readFileSync(join(dirname(chemin), 'humalis.projet.json'), 'utf8')) as { moteur?: unknown };
@@ -438,7 +452,7 @@ function moteurDuProjet(chemin: string): string | undefined {
   }
 }
 
-function compileMoteur(application: Application, chemin: string, sortie: string, adresse?: string, portDiagnostics?: string): number {
+async function compileMoteur(application: Application, chemin: string, sortie: string, adresse?: string, portDiagnostics?: string, lireServeur?: string): Promise<number> {
   if (application.ecrans.length === 0) {
     console.error(`Le fichier ${basename(chemin)} ne contient aucune page : rien n'a été écrit.`);
     return 1;
@@ -461,7 +475,18 @@ function compileMoteur(application: Application, chemin: string, sortie: string,
   const medias = lireMedias(application, chemin);
   if (!medias) return 1;
   const nom = basename(chemin).replace(/\.humalis$/, '');
-  const fichiers = genererProjetMoteur(application, { nom, source: basename(chemin), fichiersStyle, polices, images, medias, externes, ...(adresse ?? application.site?.adresse ? { adresse: adresse ?? application.site?.adresse } : {}), ...(portDiagnostics !== undefined ? { sources: fichiersDuProjet } : {}) });
+  // Lire le serveur à la construction : seulement si le projet le demande, jamais en développement.
+  let donnees: Map<string, unknown> | undefined;
+  const reglage = portDiagnostics === undefined ? reglageDeLecture(chemin, lireServeur) : undefined;
+  if (reglage) {
+    const { lectures, refus } = lecturesPermises(application, reglage);
+    for (const raison of refus) console.error(`Avertissement : ${raison}`);
+    const lu = await lireLesDonnees(lectures);
+    for (const raison of lu.avertissements) console.error(`Avertissement : ${raison}`);
+    donnees = lu.donnees;
+    console.error(`Lu à la construction : ${donnees.size} sur ${lectures.length}.`);
+  }
+  const fichiers = genererProjetMoteur(application, { nom, source: basename(chemin), fichiersStyle, polices, images, medias, externes, ...(adresse ?? application.site?.adresse ? { adresse: adresse ?? application.site?.adresse } : {}), ...(portDiagnostics !== undefined ? { sources: fichiersDuProjet } : {}), ...(donnees ? { donnees } : {}) });
   // « humalis developper » : l'aide au survol et le panneau des erreurs, dans chaque page.
   if (portDiagnostics !== undefined) {
     for (const [nom, contenu] of fichiers) {
@@ -564,7 +589,7 @@ function packs(arguments_: string[]): number {
   return 0;
 }
 
-function principal(arguments_: string[]): number {
+function principal(arguments_: string[]): number | Promise<number> {
   const [commande, chemin] = arguments_;
 
   if (commande === 'nouveau') {
@@ -642,4 +667,4 @@ if (reponse !== undefined) {
     try { process.exitCode = await developper(fichiers[0] ?? trouverPrincipal(process.cwd()), port); }
     catch (erreur) { console.error((erreur as Error).message); process.exitCode = 1; }
   }
-} else process.exitCode = principal(argumentsCli);
+} else process.exitCode = await principal(argumentsCli);

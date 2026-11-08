@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { compiler } from '../../src/compilateur.js';
 import { genererProjetMoteur, verifierPourLeMoteur } from '../../src/cibles/moteur/projet.js';
 import { MOTEUR_JS } from '../../src/cibles/moteur/execution.js';
+import { adressePermise, donneesDansLaPage, lecturesPermises } from '../../src/cibles/moteur/lecture-construction.js';
 
 type Boite<T> = { v: T };
 type Moteur = {
@@ -172,5 +173,105 @@ describe('le moteur : le projet produit', () => {
   it('refuse un secret dans le navigateur, comme la cible web', () => {
     const { application } = compiler('page "a" :\n    variable t = "" avec memorisee en secret\n    texte t\n');
     if (application) expect(verifierPourLeMoteur(application).some((d) => d.gravite === 'erreur')).toBe(true);
+  });
+});
+
+describe('le moteur : un calcul qui redonne la même valeur', () => {
+  it('ne relance pas ce qui le lit', async () => {
+    const { signal, calcul, effet, appliquer } = await charger();
+    const a = signal(1);
+    const pair = calcul(() => a.v % 2 === 0);
+    let tours = 0;
+    effet(() => {
+      void pair();
+      tours++;
+    });
+    a.v = 3;
+    appliquer();
+    expect(tours).toBe(1);
+    a.v = 4;
+    appliquer();
+    expect(tours).toBe(2);
+  });
+});
+
+describe('le moteur : lire le serveur à la construction', () => {
+  const programme = `serveur "s" :
+    donnee produit :
+        nom : texte
+    donnee secret :
+        nom : texte
+    route "produits" :
+        tout le monde peut lire produit
+    route "secrets" :
+        seul admin peut lire secret
+
+page "accueil" :
+    variable produits = []
+    variable secrets = []
+    titre "Produits"
+    quand la page se charge :
+        envoyer requete vers "produits" dans produits
+        envoyer requete vers "secrets" dans secrets
+    pour chaque p dans produits :
+        texte p.nom
+
+page "prive" reservee a admin sinon vers "accueil" :
+    variable produits = []
+    titre "Privé"
+    quand la page se charge :
+        envoyer requete vers "produits" dans produits
+`;
+  const appli = () => compiler(programme).application!;
+
+  it('ne lit rien sans adresse', () => {
+    expect(lecturesPermises(appli(), {}).lectures).toEqual([]);
+  });
+
+  it('ne lit que les routes publiques des pages publiques', () => {
+    const { lectures } = lecturesPermises(appli(), { adresse: 'https://exemple.test' });
+    expect(lectures.map((l) => l.url)).toEqual(['https://exemple.test/api/produits']);
+    expect(lectures[0].cle).toBe('accueil:produits');
+  });
+
+  it('refuse une adresse sans https ou avec un mot de passe', () => {
+    expect(lecturesPermises(appli(), { adresse: 'http://exemple.test' }).lectures).toEqual([]);
+    expect(lecturesPermises(appli(), { adresse: 'http://exemple.test' }).refus.length).toBe(1);
+    expect(adressePermise('https://a:b@exemple.test')).toBe(false);
+    expect(adressePermise('file:///etc/passwd')).toBe(false);
+    expect(adressePermise('http://localhost:3000')).toBe(true);
+  });
+
+  it('une source n’est lue que si le projet la nomme, et jamais avec une clé', () => {
+    const avecSource = (entete: string) => compiler(`source "b" :
+    adresse "https://api.exemple.test"
+    enveloppe "data"
+${entete}    route "api/produits" :
+        lire une liste de produit dans "produits"
+    donnee produit :
+        nom : texte
+
+page "accueil" :
+    variable produits = []
+    quand la page se charge :
+        envoyer requete vers "api/produits" de la source "b" dans produits
+`).application!;
+    expect(lecturesPermises(avecSource(''), {}).lectures).toEqual([]);
+    const lu = lecturesPermises(avecSource(''), { sources: ['api/produits'] }).lectures;
+    expect(lu[0].url).toBe('https://api.exemple.test/api/produits');
+    const cle = lecturesPermises(avecSource('    jeton public "abc" dans l\'entete "X-Cle"\n'), { sources: ['api/produits'] });
+    expect(cle.refus.length).toBe(1);
+    expect(cle.lectures).toEqual([]);
+  });
+
+  it('une donnée ne peut ni fermer son bloc, ni devenir une balise', () => {
+    expect(donneesDansLaPage({ a: '</script><script>x</script>' })).not.toContain('</script><script>');
+    const { application } = compiler(programme);
+    const nom = '<img src=x onerror=alert(1)>';
+    const fichiers = genererProjetMoteur(application!, { nom: 'e', source: 'e.humalis', donnees: new Map([['accueil:produits', [{ id: '1', nom }]]]) });
+    const html = fichiers.get('index.html')!;
+    expect(html).toContain('&lt;img src=x');
+    expect(html).not.toContain('<img src=x');
+    expect(fichiers.get('prive/index.html')).not.toContain('humalis-donnees');
   });
 });

@@ -1,0 +1,12 @@
+# Essai des adaptateurs Vue et Svelte.
+utiliser composant "SalutVue" depuis "./modules/Salut.vue"
+utiliser composant "Bonjour" depuis "./modules/Bonjour.svelte"
+
+page "accueil" :
+    variable nom = "Emch"
+    titre "Frameworks"
+    SalutVue avec nom nom
+    Bonjour avec nom nom
+    bouton "Changer"
+    quand l'utilisateur clique sur "Changer" :
+        changer nom par "Rey"

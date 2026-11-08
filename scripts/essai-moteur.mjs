@@ -191,6 +191,7 @@ const bouton = (page, nom) => page.getByRole('button', { name: nom, exact: true 
   verifier(chargesAvant.length === 0, `modules : React n'est pas chargé sur une page qui ne s'en sert pas (${chargesAvant.join()})`);
   await page.getByRole('link', { name: 'Page React' }).click();
   await page.waitForURL('**/reactive');
+  await page.getByRole('heading', { name: 'Avec React' }).waitFor();
   verifier(await page.evaluate(() => window.__destructions === 1), 'modules : quitter la page nettoie le module');
   await bouton(page, 'React Emch 0').click();
   await bouton(page, 'React Emch 1').waitFor();

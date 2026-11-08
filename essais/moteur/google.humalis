@@ -1,0 +1,21 @@
+# Essai du moteur : la connexion avec Google.
+serveur "club" :
+    connexion google
+    donnee note :
+        nom : texte
+    route "notes" :
+        tout le monde peut lire note
+
+page "accueil" :
+    titre "Entrée"
+    si utilisateur est connecte :
+        texte "Vous êtes connecté"
+    sinon :
+        texte "Vous n'êtes pas connecté"
+    bouton "Google"
+    quand l'utilisateur clique sur "Google" :
+        essayer :
+            se connecter avec google
+            afficher reussite "Bienvenue"
+        si erreur :
+            afficher erreur "{raison}"
