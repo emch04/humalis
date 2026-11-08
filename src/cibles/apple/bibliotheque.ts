@@ -374,7 +374,13 @@ func couleurHumalis(_ clair: UInt32, _ sombre: UInt32) -> Color {
 }
 
 /** Une page : elle défile, garde une largeur lisible et donne son titre à la fenêtre. */
+extension EnvironmentValues {
+    /** Le pied commun qui n'est pas « colle » : il défile à la fin de chaque page, comme sur un site. */
+    @Entry var piedHumalis: AnyView? = nil
+}
+
 struct PageHumalis<Contenu: View>: View {
+    @Environment(\.piedHumalis) private var pied
     let titre: String
     var largeur: CGFloat = 768
     /** Une page avec une liste : seules les lignes visibles sont construites. */
@@ -384,17 +390,20 @@ struct PageHumalis<Contenu: View>: View {
     var body: some View {
         ScrollViewReader { lecteur in
             ScrollView {
-                Group {
-                    if paresseuse {
-                        LazyVStack(alignment: .leading, spacing: 12) { contenu() }
-                    } else {
-                        VStack(alignment: .leading, spacing: 12) { contenu() }
+                VStack(spacing: 0) {
+                    Group {
+                        if paresseuse {
+                            LazyVStack(alignment: .leading, spacing: 12) { contenu() }
+                        } else {
+                            VStack(alignment: .leading, spacing: 12) { contenu() }
+                        }
                     }
+                    .padding(16)
+                    .padding(.bottom, 32)
+                    .frame(maxWidth: largeur, alignment: .leading)
+                    .frame(maxWidth: .infinity)
+                    if let pied { pied }
                 }
-                .padding(16)
-                .padding(.bottom, 32)
-                .frame(maxWidth: largeur, alignment: .leading)
-                .frame(maxWidth: .infinity)
             }
             .scrollDismissesKeyboard(.interactively)
             .onChange(of: Routeur.commun.ancre) { _, ancre in

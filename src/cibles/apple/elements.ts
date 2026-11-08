@@ -601,11 +601,13 @@ struct ImageHumalis: View {
         switch source {
         case .locale(let nom):
             if let url = Bundle.main.url(forResource: nom, withExtension: nil), let donnees = try? Data(contentsOf: url) { chargee = ImageSysteme(data: donnees) }
+            // Un SVG vit dans le catalogue d'images, sous son nom sans extension.
+            if chargee == nil { chargee = ImageSysteme(named: (nom as NSString).deletingPathExtension) }
             if chargee == nil { echec = true }
         case .adresse(let adresse):
             var lues: Data?
             if adresse.hasPrefix("data:"), let virgule = adresse.firstIndex(of: ",") { lues = Data(base64Encoded: String(adresse[adresse.index(after: virgule)...])) }
-            else if let url = URL(string: adresse) { lues = try? await URLSession.shared.data(from: url).0 }
+            else if let url = URL(string: adresse.hasPrefix("/") ? (Configuration.adresseDuSite.isEmpty ? Configuration.serveur : Configuration.adresseDuSite) + adresse : adresse) { lues = try? await URLSession.shared.data(from: url).0 }
             if let lues, let image = ImageSysteme(data: lues) { chargee = image } else { echec = true }
         }
     }

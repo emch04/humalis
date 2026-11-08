@@ -357,10 +357,12 @@ export class CssApple {
     return `ecartHumalis(ios: ${ios ?? 12}, mac: ${mac ?? 12})`;
   }
 
-  modificateurs(classes: string[]): string[] {
+  /** Un bloc garde la hauteur de son contenu : une taille fixe pensée pour une page web le ferait déborder. */
+  modificateurs(classes: string[], sorte?: string): string[] {
     if (classes.length === 0) return [];
-    const ios = this.lignes(this.rendu(classes, 'ios'));
-    const mac = this.lignes(this.rendu(classes, 'macos'));
+    const ajuster = (r: Rendu): Rendu => (sorte === 'bloc' ? { ...r, hauteur: undefined, hauteurMin: undefined, hauteurMax: undefined, largeur: r.largeur === 'infini' ? 'infini' : undefined, largeurMin: undefined } : r);
+    const ios = this.lignes(ajuster(this.rendu(classes, 'ios')));
+    const mac = this.lignes(ajuster(this.rendu(classes, 'macos')));
     if (ios.join() === mac.join()) return ios;
     return ['#if os(iOS)', ...ios, '#else', ...mac, '#endif'];
   }
