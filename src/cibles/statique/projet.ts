@@ -309,7 +309,7 @@ export function verifierPourLeStatique(application: Application): Diagnostic[] {
   // Les invitations et les liens de mot de passe : pas encore écrits en JavaScript clair.
   for (const ecran of application.ecrans) {
     const actions = JSON.stringify(ecran.gestionnaires);
-    for (const [type, phrase] of [['invitation', 'inviter'], ['activationNotifications', 'activer notifications'], ['changementRole', 'changer role'], ['demandeLienMotDePasse', 'demander un lien de mot de passe'], ['choixMotDePasse', 'choisir le mot de passe']]) {
+    for (const [type, phrase] of [['invitation', 'inviter'], ['demandeIa', 'demander a ia'], ['activationNotifications', 'activer notifications'], ['changementRole', 'changer role'], ['demandeLienMotDePasse', 'demander un lien de mot de passe'], ['choixMotDePasse', 'choisir le mot de passe']]) {
       if (actions.includes(`"type":"${type}"`)) {
         diagnostics.push({ gravite: 'erreur', message: `la page « ${ecran.nom} » utilise « ${phrase} », qui n'est pas encore produit pour le site statique. Compile-la pour le web.`, ligne: ecran.ligne });
       }

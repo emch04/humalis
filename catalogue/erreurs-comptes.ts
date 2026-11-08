@@ -49,6 +49,11 @@ const PAGE_FICHE = (action: string) => `page "action" reservee a gerant sinon ve
 const documents = (lignes: string[]) => serveur('roles gerant', ...lignes, 'donnee commande :', '    total : nombre', 'donnee produit :', '    nom : texte', 'route "commandes" :', '    seul gerant peut lire commande', '    seul gerant peut modifier commande', 'route "produits" :', '    seul gerant peut lire produit', '    seul gerant peut modifier produit');
 const avecDocument = (action: string) => documents(['document "a" de commande :', '    titre "T"']).replace('page "bienvenue" :', PAGE_FICHE(action));
 
+/** Un serveur avec l'IA ; `lignes` va dans le serveur. */
+const serveurIa = (lignes: string[], route: string[] = []) => serveur('roles gerant', ...lignes, 'donnee commande :', '    total : nombre', 'route "commandes" :', '    seul gerant peut lire commande', '    seul gerant peut modifier commande', ...route.map((l) => `    ${l}`));
+const IA_OK = ['ia par anthropic', 'seul gerant peut demander a ia'];
+const pageIa = (lignes: string[], action: string) => serveurIa(lignes).replace('page "bienvenue" :', `page "action" :\n    variable reponse = ""\n    titre "Action"\n    texte reponse\n    bouton "Go"\n    quand l'utilisateur clique sur "Go" :\n        ${action}\n\npage "bienvenue" :`);
+
 /** Une page qui lance une action. */
 const avecAction = (action: string) => actions(['seul gerant peut faire "rembourser" sur commande :', '    refuser "Non"']).replace('page "bienvenue" :', PAGE_FICHE(action));
 
@@ -490,4 +495,58 @@ export const ENTREES_ERREURS_COMPTES: readonly EntreeErreur[] = [
     serveur().replace('page "bienvenue" :\n    titre "Bienvenue"', 'page "bienvenue" :\n    titre "Bienvenue"\n    activer notifications'),
     auClic([], 'activer notifications'),
     'activer notifications'),
+  e('ia-service', 'grammaire', 'Un service d’IA inconnu',
+    'Humalis sait parler à un seul service pour l’instant.',
+    'Écris : ia par anthropic.',
+    serveurIa(['ia par autre', 'seul gerant peut demander a ia']),
+    serveurIa(IA_OK),
+    'le seul service d’IA'),
+  e('droit-ia-dans-route', 'grammaire', 'Le droit de l’IA écrit dans une route',
+    'L’IA n’appartient à aucune donnée : son droit s’écrit au niveau du serveur.',
+    'Remonte la ligne dans le serveur.',
+    serveurIa(['ia par anthropic'], ['seul gerant peut demander a ia']),
+    serveurIa(IA_OK),
+    'directement dans le serveur'),
+  e('droit-ia-forme', 'grammaire', 'Un droit mal écrit après « demander »',
+    'Après « peut demander », on nomme l’IA.',
+    'Écris : connecte peut demander a ia.',
+    serveurIa(['ia par anthropic', 'seul gerant peut demander a autre']),
+    serveurIa(IA_OK),
+    'on écrit : connecte peut demander a ia'),
+  e('demander-ia-forme', 'grammaire', 'Une question sans sa variable',
+    'La réponse arrive dans une variable de la page.',
+    'Écris : demander a ia "…" dans reponse.',
+    pageIa(IA_OK, 'demander a ia "Bonjour" reponse'),
+    pageIa(IA_OK, 'demander a ia "Bonjour" dans reponse'),
+    'on écrit : demander a ia'),
+  e('ia-sans-droit', 'sens', 'Une IA que personne n’a le droit d’interroger',
+    'Chaque question coûte : le droit est obligatoire.',
+    'Ajoute par exemple : connecte peut demander a ia.',
+    serveurIa(['ia par anthropic']),
+    serveurIa(IA_OK),
+    'dites qui peut la poser'),
+  e('droit-ia-sans-service', 'sens', 'Un droit sur une IA non réglée',
+    'Il faut dire quel service répond.',
+    'Ajoute la ligne : ia par anthropic.',
+    serveurIa(['seul gerant peut demander a ia']),
+    serveurIa(IA_OK),
+    'demande la ligne « ia par anthropic »'),
+  e('droit-ia-public', 'sens', 'Une IA ouverte à tout le monde',
+    'N’importe qui pourrait dépenser ton crédit.',
+    'Réserve-la à des comptes connectés.',
+    serveurIa(['ia par anthropic', 'tout le monde peut demander a ia']),
+    serveurIa(IA_OK),
+    'réservez-la à des comptes connectés'),
+  e('demander-ia-hors-evenement', 'sens', 'Une question à l’IA dans la page',
+    'Une question suit un geste de la personne : chaque affichage coûterait sinon.',
+    'Place la phrase sous « quand l’utilisateur clique … ».',
+    pageIa(IA_OK, 'demander a ia "Bonjour" dans reponse').replace('    bouton "Go"\n    quand l\'utilisateur clique sur "Go" :\n        demander', '    demander'),
+    pageIa(IA_OK, 'demander a ia "Bonjour" dans reponse'),
+    'demander a ia'),
+  e('demander-ia-sans-service', 'sens', 'Une question sans IA dans le serveur',
+    'La page interroge l’IA par le serveur du fichier.',
+    'Ajoute dans le serveur : ia par anthropic, et le droit.',
+    pageIa([], 'demander a ia "Bonjour" dans reponse'),
+    pageIa(IA_OK, 'demander a ia "Bonjour" dans reponse'),
+    'demande la ligne « ia par anthropic »'),
 ];

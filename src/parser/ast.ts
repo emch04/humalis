@@ -133,6 +133,9 @@ export interface Serveur {
   connexionGoogle?: number;
   /** « roles directeur, enseignant et parent ». */
   roles?: string[];
+  /** « ia par anthropic » et « connecte peut demander a ia ». */
+  ia?: { service: string; ligne: number };
+  droitIa?: DroitIa;
   /** « document "facture" de commande : ». */
   documents?: DocumentServeur[];
   /** « tous les jours a 7 h : » : le travail que le serveur fait seul. */
@@ -317,6 +320,21 @@ export interface ConditionRegle {
   ligne: number;
 }
 
+/** « connecte peut demander a ia » : obligatoire, car chaque question coûte. */
+export interface DroitIa {
+  type: 'DroitIa';
+  qui: Qui;
+  ligne: number;
+}
+
+/** « demander a ia "…" dans reponse » : la réponse arrive au fil de l'eau dans la variable. */
+export interface DemandeIa {
+  type: 'DemandeIa';
+  question: Expression;
+  variable: string;
+  ligne: number;
+}
+
 /** « document "facture" de commande : » puis ses « titre "…" » et « texte "…" ». */
 export interface DocumentServeur {
   type: 'DocumentServeur';
@@ -469,6 +487,7 @@ export type Instruction =
   | FaireAction
   | TelechargementDocument
   | ActivationNotifications
+  | DemandeIa
   | DemandeLienMotDePasse
   | ChoixMotDePasse
   | TelechargementBon

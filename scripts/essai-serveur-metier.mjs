@@ -7,6 +7,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { createServer as creerHttps } from 'node:https';
+import { createServer as createHttp } from 'node:http';
 import { createSecureServer } from 'node:http2';
 import { createECDH, generateKeyPairSync, randomBytes as hasard } from 'node:crypto';
 import { join, resolve } from 'node:path';
@@ -65,6 +66,32 @@ const portPoussee = faussePoussee.address().port;
 const vapid = JSON.parse(execFileSync('node', ['-e', "console.log(JSON.stringify(require('web-push').generateVAPIDKeys()))"], { cwd: serveur, encoding: 'utf8' }));
 const cleApple = generateKeyPairSync('ec', { namedCurve: 'P-256' }).privateKey.export({ type: 'pkcs8', format: 'pem' });
 const envNotifications = { HUMALIS_VAPID_PUBLIQUE: vapid.publicKey, HUMALIS_VAPID_PRIVEE: vapid.privateKey, HUMALIS_VAPID_SUJET: 'mailto:essai@exemple.cd', HUMALIS_PUSH_HOTES: '127.0.0.1', NODE_TLS_REJECT_UNAUTHORIZED: '0', HUMALIS_APNS_CLE: cleApple, HUMALIS_APNS_CLE_ID: 'ABC123', HUMALIS_APNS_EQUIPE: 'EQUIPE1', HUMALIS_APNS_SUJET: 'dev.humalis.essai', HUMALIS_APNS_HOTE: `127.0.0.1:${fauxApns.address().port}` };
+// Un faux service Anthropic : le même format d'événements, sans dépense.
+const appelsIa = [];
+const fauxAnthropic = createHttp((req, res) => {
+  const m = [];
+  req.on('data', (d) => m.push(d));
+  req.on('end', async () => {
+    appelsIa.push({ cle: req.headers['x-api-key'] ?? req.headers.authorization?.replace('Bearer ', ''), beta: req.headers['anthropic-beta'], corps: JSON.parse(Buffer.concat(m).toString()) });
+    res.writeHead(200, { 'content-type': 'text/event-stream' });
+    const envoi = (type, corps) => res.write(`event: ${type}\ndata: ${JSON.stringify({ type, ...corps })}\n\n`);
+    envoi('message_start', { message: { id: 'msg_1', type: 'message', role: 'assistant', model: 'claude-opus-5-5', content: [], stop_reason: null, usage: { input_tokens: 1, output_tokens: 0 } } });
+    envoi('content_block_start', { index: 0, content_block: { type: 'text', text: '' } });
+    for (const t of ['Bon', 'jour ', 'à ', 'vous']) {
+      envoi('content_block_delta', { index: 0, delta: { type: 'text_delta', text: t } });
+      await new Promise((ok) => setTimeout(ok, 120));
+    }
+    envoi('content_block_stop', { index: 0 });
+    envoi('message_delta', { delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 4 } });
+    envoi('message_stop', {});
+    res.end();
+  });
+});
+await new Promise((ok) => fauxAnthropic.listen(0, ok));
+envNotifications.ANTHROPIC_API_KEY = 'cle-d-essai';
+envNotifications.ANTHROPIC_BASE_URL = `http://127.0.0.1:${fauxAnthropic.address().port}`;
+envNotifications.HUMALIS_IA_PAR_HEURE = '3';
+
 const demarrer = (port) => new Promise((ok, echec) => {
   const p = spawn('node', ['dist/src/demarrer.js'], { cwd: serveur, env: { ...process.env, ...envNotifications, DATABASE_URL: URL_BASE, JWT_SECRET: SECRET, HUMALIS_ADMIN_EMAIL: EMAIL, HUMALIS_ADMIN_MOT_DE_PASSE: MOT, PORT: String(port), NODE_ENV: 'development' } });
   processus.push(p);
@@ -241,10 +268,36 @@ try {
   await pause(1200);
   verifier(sql("select count(*) from humalis_appareils") === avantPerime, 'un appareil désabonné est oublié');
 
+  // ─── L'IA ─────────────────────────────────────────────────────────
+  const questionner = async (base, jeton) => {
+    const reponse = await fetch(`${base}/auth/ia`, { method: 'POST', headers: { ...json, ...(jeton ? { authorization: `Bearer ${jeton}` } : {}) }, body: JSON.stringify({ question: 'Bonjour' }) });
+    if (!reponse.ok) return { statut: reponse.status, morceaux: [] };
+    const morceaux = [];
+    const lecteur = reponse.body.getReader();
+    const decodeur = new TextDecoder();
+    for (;;) {
+      const { value, done } = await lecteur.read();
+      if (done) break;
+      morceaux.push(decodeur.decode(value));
+    }
+    return { statut: reponse.status, morceaux };
+  };
+  verifier((await questionner(A)).statut === 401, 'un visiteur ne pose pas de question (401)');
+  const vendeurPur = await compte('vendeur', { boutique: 'A' });
+  verifier((await questionner(A, vendeurPur.jeton)).statut === 403, 'un rôle sans droit ne pose pas de question (403)');
+  const q = await questionner(A, u1.jeton);
+  const texte = q.morceaux.join('').split('\n\n').filter(Boolean).map((b) => JSON.parse(b.replace('data: ', '')).t).join('');
+  verifier(q.statut === 200 && q.morceaux.length >= 3 && texte === 'Bonjour à vous', 'la réponse arrive au fil de l’eau, en plusieurs morceaux');
+  verifier(appelsIa.at(-1)?.corps.model === 'claude-opus-5-5' && appelsIa.at(-1)?.corps.fallbacks === 'default' && appelsIa.at(-1)?.cle === 'cle-d-essai' && appelsIa.at(-1)?.beta?.includes('server-side-fallback-2026-07-01'), 'le bon modèle, le secours et la clé sont envoyés');
+  await questionner(B, u1.jeton);
+  await questionner(A, u1.jeton);
+  verifier((await questionner(B, u1.jeton)).statut === 429, 'le plafond vaut pour tous les serveurs (429)');
+
   // EXTENSIONS
 } finally {
   for (const p of processus) p.kill();
   faussePoussee.close();
+  fauxAnthropic.close();
   fauxApns.close();
   execFileSync('pg_ctl', ['-D', donnees, '-m', 'fast', 'stop'], { stdio: 'ignore', env: envBase });
 }

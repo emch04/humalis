@@ -381,6 +381,16 @@ export const ENTREES_INTERACTIONS: EntreeVocabulaire[] = [
     exemple: 'serveur "s" :\n    roles gerant\n\npage "p" :\n    titre "P"\n    bouton "Go"\n    quand l\'utilisateur clique sur "Go" :\n        activer notifications\n',
   }),
   mot({
+    mot: 'ia',
+    categorie: 'action',
+    concept: 'action.demanderIa',
+    contextes: ['option'],
+    cibles: { ...ecran('utilisateur.demanderIa(…)', null, null) },
+    couvre: [],
+    description: '« ia par anthropic », « connecte peut demander a ia », « demander a ia "…" dans reponse » : une question à l’IA, la réponse au fil de l’eau.',
+    exemple: 'serveur "s" :\n    ia par anthropic\n    connecte peut demander a ia\n\npage "p" :\n    variable reponse = ""\n    titre "P"\n    texte reponse\n    bouton "Go"\n    quand l\'utilisateur clique sur "Go" :\n        demander a ia "Bonjour" dans reponse\n',
+  }),
+  mot({
     mot: 'role',
     accentue: 'rôle',
     categorie: 'action',

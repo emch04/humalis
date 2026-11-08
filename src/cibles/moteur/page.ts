@@ -462,6 +462,9 @@ export class GenerateurMoteur extends GenerateurPage {
       case 'invitation':
         e.ligne(`if (!(await utilisateur.inviter(${lit(action.email)}, '${action.role}'${action.groupe ? `, ${this.dansEssai}` : this.dansEssai ? ', true' : ''}${action.groupe ? `, { ${JSON.stringify(camel(action.groupe.champ))}: String(${lit(action.groupe.valeur)}) }` : ''}))) return;`);
         return true;
+      case 'demandeIa':
+        e.ligne(`if (!(await utilisateur.demanderIa(${lit(action.question)}, (texte) => { ${this.lu(action.variable)} = texte; }, ${this.dansEssai}))) return;`);
+        return true;
       case 'activationNotifications':
         e.ligne(`if (!(await utilisateur.activerNotifications(${this.dansEssai}))) return;`);
         return true;
