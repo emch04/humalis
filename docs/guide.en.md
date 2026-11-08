@@ -77,8 +77,8 @@ When you like the site, compile it to the target you want:
 humalis compile my-project.humalis --cible web --sortie my-project-web
 ```
 
-The targets (`--cible`) are `web`, `statique` (static), `mobile`, `desktop`
-and `serveur` (server); `--sortie` is the output folder. The
+The targets (`--cible`) are `web`, `statique` (static), `mobile`, `desktop`,
+`apple` and `serveur` (server); `--sortie` is the output folder. The
 [README](../README.en.md) explains how to run each generated project.
 
 ---
@@ -2632,6 +2632,32 @@ a property changes, it is restarted. If it can update itself, it returns
 The other way round, `humalis compile … --composants <folder>` generates React
 components to import into an existing React project.
 
+### A hand-written Swift view
+
+The Apple target has neither React nor JavaScript. To use hand-written Swift
+there, add `sur apple`: the web keeps its component, the Apple app uses your
+SwiftUI view.
+
+```humalis
+utiliser composant "Carte" depuis "./composants/Carte" sur apple "./composants/Carte.swift"
+
+page "accueil" :
+    Carte avec titre "Bonjour"
+```
+
+```swift
+import SwiftUI
+
+struct Carte: View {
+    let titre: String
+    var body: some View { Text(titre).font(.title) }
+}
+```
+
+The view has the component's name, and its properties are written in the same
+order as in the page. Text is a `String`, a number a `Double`, true or false a
+`Bool`.
+
 ### Several files
 
 A large project is split into several files. At the top of the main file:
@@ -2691,8 +2717,13 @@ texte "…" est absent` (a text is not shown).
 | `humalis packs` | says whether the Astratra packs have updates |
 
 For web and static, `--adresse https://…` gives the site's final address
-(sitemap, share links). For desktop, `--serveur https://…` gives the address
+(sitemap, share links). For desktop and Apple, `--serveur https://…` gives the address
 of the server the application calls.
+
+`--cible apple` generates an Xcode project in SwiftUI: a single native application
+for iPhone, iPad and Mac, with no embedded browser (Xcode 16 or later; it runs on
+iOS 17 and macOS 14 and later). To sign it, add
+`--identifiant com.example.application` and `--equipe ABCDE12345`.
 
 With `humalis developper`, every element of the page carries its Humalis
 file and line: in the browser's inspector, a heading shows for example
@@ -2723,18 +2754,18 @@ completion and hover help.
 The same file produces every target. When a construct does not exist on a
 target, the compiler says so clearly instead of producing something wrong.
 
-| | web | static | mobile | desktop |
-|---|---|---|---|---|
-| Pages, elements, styles, theme | yes | yes | yes | yes |
-| Your own CSS | yes | yes | no (named styles only) | yes |
-| Requests to a server | yes | yes | yes | yes |
-| `memorisee` | yes | yes | yes | yes |
-| `memorisee en secret` | no | no | yes | yes |
-| `essayer` | yes | no | yes | yes |
-| Keyboard shortcuts | yes | yes | no | yes |
-| React components | yes | no | yes (in React Native) | yes |
-| The engine without React (`--moteur humalis`) | yes | no | no | no |
-| Sitemap, share preview | yes | yes | no | no |
+| | web | static | mobile | desktop | apple |
+|---|---|---|---|---|---|
+| Pages, elements, styles, theme | yes | yes | yes | yes | yes |
+| Your own CSS | yes | yes | no (named styles only) | yes | no (named styles only) |
+| Requests to a server | yes | yes | yes | yes | yes |
+| `memorisee` | yes | yes | yes | yes | yes |
+| `memorisee en secret` | no | no | yes | yes | yes (Keychain) |
+| `essayer` | yes | no | yes | yes | yes |
+| Keyboard shortcuts | yes | yes | no | yes | yes |
+| React components | yes | no | yes (in React Native) | yes | no (`sur apple "View.swift"`) |
+| The engine without React (`--moteur humalis`) | yes | no | no | no | no |
+| Sitemap, share preview | yes | yes | no | no | no |
 
 The server (`--cible serveur`) is generated separately, from the `serveur`
 block.

@@ -21,7 +21,7 @@ export interface Application {
   /** Les variables partagées entre les pages (« avec partagee »). */
   partages: Etat[];
   /** Les composants React utilisés (« utiliser composant … depuis … »). */
-  composantsReact: { nom: string; chemin: string; ligne: number; module?: true }[];
+  composantsReact: { nom: string; chemin: string; ligne: number; module?: true; /** « sur apple "Carte.swift" » : la vue écrite à la main. */ apple?: string }[];
   /** Les composants écrits en Humalis : des écrans qui reçoivent des paramètres. */
   composants: ComposantHumalis[];
   /** Les serveurs : données, routes et droits. */

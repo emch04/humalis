@@ -381,6 +381,7 @@ struct PageHumalis<Contenu: View>: View {
                 .frame(maxWidth: largeur, alignment: .leading)
                 .frame(maxWidth: .infinity)
             }
+            .scrollDismissesKeyboard(.interactively)
             .onChange(of: Routeur.commun.ancre) { _, ancre in
                 guard let ancre else { return }
                 withAnimation { lecteur.scrollTo(ancre, anchor: .top) }
@@ -390,8 +391,27 @@ struct PageHumalis<Contenu: View>: View {
         .navigationTitle(titre)
         #if os(iOS)
         .toolbarTitleDisplayMode(.inline)
-        .toolbar { ToolbarItem(placement: .principal) { Color.clear.frame(width: 1, height: 1).accessibilityHidden(true) } }
+        .toolbar {
+            ToolbarItem(placement: .principal) { Color.clear.frame(width: 1, height: 1).accessibilityHidden(true) }
+            // Le pavé numérique de l'iPhone n'a pas de touche pour se fermer.
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("OK") { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) }
+            }
+        }
         #endif
+    }
+}
+
+extension EnvironmentValues {
+    /** Sur iPad et Mac, le menu de l'en-tête passe dans la barre latérale. */
+    @Entry var menuLateral = false
+}
+
+extension View {
+    /** Nomme un groupe sans donner ce nom à chacun de ses éléments. */
+    func identifiantHumalis(_ id: String) -> some View {
+        accessibilityElement(children: .contain).accessibilityIdentifier(id)
     }
 }
 

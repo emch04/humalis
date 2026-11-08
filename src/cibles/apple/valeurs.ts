@@ -13,6 +13,10 @@ const NOMBRE: TypeValeur = { genre: 'nombre' };
 const BOOLEEN: TypeValeur = { genre: 'booleen' };
 const INCONNU: TypeValeur = { genre: 'inconnu' };
 
+/** La marque d'une variable qui reçoit un fichier choisi : son type Swift est `FichierChoisi`. */
+export const FICHIER_CHOISI = 'humalis:fichier-choisi';
+const estFichierChoisi = (t: TypeValeur): boolean => t.genre === 'fiche' && t.fichier === FICHIER_CHOISI;
+
 /** Une expression Swift : son code, son type, et si elle peut ne pas avoir de valeur (`T?`). */
 export interface Expr {
   code: string;
@@ -107,6 +111,7 @@ export class Types {
 
   structDe(type: TypeValeur): StructSwift | undefined {
     if (type.genre === 'donnee') return this.donnees.get(type.nom);
+    if (estFichierChoisi(type)) return undefined;
     if (type.genre === 'fiche') return this.structFiche(type);
     return undefined;
   }
@@ -130,7 +135,7 @@ export class Types {
       case 'donnee':
         return this.donnees.get(type.nom)?.nom ?? 'ValeurHumalis';
       case 'fiche':
-        return type.fichier !== undefined ? 'FichierChoisi' : this.structFiche(type).nom;
+        return estFichierChoisi(type) ? 'FichierChoisi' : this.structFiche(type).nom;
       case 'inconnu':
         return 'ValeurHumalis';
     }
@@ -481,9 +486,9 @@ export class Valeurs {
     if (objet.type.genre === 'inconnu') {
       return { code: `${objet.opt ? `(${objet.code} ?? .rien)` : objet.code}[${chaineSwift(cleJson(nom))}]`, type: INCONNU, opt: false };
     }
-    if (objet.type.genre === 'fiche' && objet.type.fichier !== undefined) {
-      const type = objet.type.champs.find((c) => c.nom === nom)?.type ?? TEXTE;
-      return { code: `${objet.code}${point}${nomSwift(nom)}`, type, opt: objet.opt };
+    if (estFichierChoisi(objet.type)) {
+      const type = objet.type.genre === 'fiche' ? (objet.type.champs.find((c) => c.nom === nom)?.type ?? TEXTE) : TEXTE;
+      return { code: `${objet.code}${point}${cleJson(nom)}`, type, opt: objet.opt || nom === 'apercu' };
     }
     const champ = this.types.champ(objet.type, nom);
     if (!champ) {

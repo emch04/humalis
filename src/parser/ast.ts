@@ -407,6 +407,8 @@ export interface ComposantReact {
   ligne: number;
   /** « utiliser module » : du JavaScript simple, `(element, proprietes) => nettoyage`, sans React. */
   module?: true;
+  /** « sur apple "Carte.swift" » : la vue SwiftUI écrite à la main, pour la cible Apple. */
+  apple?: string;
 }
 
 /** « composant "Fiche" : » : un morceau de page réutilisable, avec ses paramètres. */

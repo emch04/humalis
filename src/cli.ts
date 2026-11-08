@@ -546,9 +546,23 @@ function compileApple(application: Application, chemin: string, sortie: string, 
   if (!images) return 1;
   const medias = lireMedias(application, chemin);
   if (!medias) return 1;
+  const natifs = new Map<string, { nom: string; contenu: string }>();
+  for (const c of application.composantsReact) {
+    if (c.apple === undefined) continue;
+    const fichier = join(dirname(chemin), c.apple);
+    if (!existsSync(fichier) || statSync(fichier).isDirectory()) {
+      console.error(`Erreur, ${position(c.ligne)} : le fichier Swift du composant « ${c.nom} » est introuvable (${c.apple}, cherché à côté de ${basename(chemin)}).`);
+      return 1;
+    }
+    natifs.set(c.nom, { nom: basename(fichier), contenu: readFileSync(fichier, 'utf8') });
+  }
+  const polices = lirePolices(application, chemin);
+  if (!polices) return 1;
   const identifiant = option(arguments_, 'identifiant');
   const equipe = option(arguments_, 'equipe');
-  const { fichiers, diagnostics } = genererProjetApple(application, { nom, source: basename(chemin), images, medias, ...(serveur ? { serveur } : {}), ...(identifiant ? { identifiant } : {}), ...(equipe ? { equipe } : {}) });
+  // « --essais-ui » : un test XCUITest ajouté au projet, pour l'essai de bout en bout (scripts/essai-apple-parcours.mjs).
+  const essaisUi = option(arguments_, 'essais-ui');
+  const { fichiers, diagnostics } = genererProjetApple(application, { nom, source: basename(chemin), images, medias, natifs, polices, ...(essaisUi ? { essaisUi: readFileSync(essaisUi, 'utf8') } : {}), ...(serveur ? { serveur } : {}), ...(identifiant ? { identifiant } : {}), ...(equipe ? { equipe } : {}) });
   afficherDiagnostics(diagnostics);
   if (diagnostics.some((d) => d.gravite === 'erreur')) {
     console.error('\nLe programme ne peut pas être produit pour Apple : rien n\'a été écrit.');

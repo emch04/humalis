@@ -6,7 +6,7 @@ Ce document s'adresse à ceux qui travaillent sur le compilateur lui-même. Pour
 
 ```
 fichier .humalis → lexer → parser → analyse → représentation intermédiaire
-                 → cibles : web (React) · mobile (Expo) · desktop (Electron) · serveur (Node + Astratra) · statique
+                 → cibles : web (React) · mobile (Expo) · desktop (Electron) · apple (SwiftUI) · serveur (Node + Astratra) · statique
 ```
 
 | Étape | État |
@@ -26,6 +26,7 @@ fichier .humalis → lexer → parser → analyse → représentation intermédi
 | Cible mobile (Expo) | faite, essayée dans le simulateur iPhone (Expo Go) : ajout au panier, panier partagé, navigation |
 | Cible desktop (Electron) | faite, lancée et pilotée dans Electron sur Mac et sous Linux, application `.app` construite et ouverte |
 | Cible statique (HTML, CSS, JavaScript) | faite, vérifiée dans un navigateur |
+| Cible Apple (SwiftUI, iPhone, iPad et Mac) | faite ; `npm run essai:apple` construit et lance chaque exemple sur le simulateur iPhone et sur Mac |
 
 Humalis produit donc déjà des sites web : un projet Vite + React lisible, prérendu (une page HTML par adresse, grâce à `@astratra/prerender`), qu'on peut reprendre à la main.
 
@@ -78,6 +79,7 @@ node dist/cli.js verifier exemples/boutique.humalis --ri   # avec la représenta
 | `src/cibles/web/` | la cible web : chaque écran devient un composant React |
 | `src/cibles/statique/` | la cible statique : chaque écran devient une page HTML et son script |
 | `src/cibles/moteur/` | le moteur de rendu sans React (`--cible web --moteur humalis`) : HTML écrit, reprise, mises à jour fines |
+| `src/cibles/apple/` | la cible Apple : chaque écran devient une vue SwiftUI, le tout dans un projet Xcode |
 | `scripts/essai-web.mjs` | l'essai en vrai de la cible web, dans Chromium |
 | `src/compilateur.ts` | `compiler(source)` : tout enchaîner, renvoyer la RI ou les diagnostics |
 | `editeur/vscode/` | l'extension VS Code (voir son README) |

@@ -7,7 +7,7 @@ import type { Diagnostic } from '../../analyse/erreurs.js';
 import { simplifier } from '../../analyse/elements.js';
 import { sousActions } from '../../ri/actions.js';
 import { nomDeLaCopie, type InfoMedia } from '../../ri/medias.js';
-import type { Action, Application, Ecran, Etat, SourceRI, ThemeRI } from '../../ri/types.js';
+import type { Action, Application, Ecran, Etat, NoeudVue, SourceRI, ThemeRI } from '../../ri/types.js';
 import { contenuBinaire } from '../binaire.js';
 import { Ecrivain } from '../web/ecrivain.js';
 import { donneesDesPages } from '../web/projet.js';
@@ -15,11 +15,12 @@ import { COULEURS_CSS } from '../web/styles.js';
 import { EcrivainActions, type HotePage } from './actions.js';
 import { FORMATS_SWIFT, INTERFACE_SWIFT, VALEURS_SWIFT } from './bibliotheque.js';
 import { fichiersElements } from './elements.js';
+import { nomIcone } from './icones.js';
 import { chaineSwift, nomApplication, nomComposant, nomPage, nomRoute, nomSwift } from './noms.js';
 import { GenerateurPage, type ContexteApple } from './page.js';
 import { LANGUES_SWIFT, MEMOIRE_SWIFT, MESSAGES_SWIFT, MINUTERIES_SWIFT, SERVEUR_SWIFT, SYSTEME_SWIFT } from './systeme.js';
 import { Types, Valeurs, plusPrecis, type Portee } from './valeurs.js';
-import { CONFIDENTIALITE, assets, droits, projetXcode, schemaXcode } from './xcode.js';
+import { CONFIDENTIALITE, assets, infoSupplementaire, droits, projetXcode, schemaXcode } from './xcode.js';
 
 export const MARQUE_APPLE = '.humalis-projet';
 
@@ -37,6 +38,10 @@ export interface OptionsApple {
   images?: Map<string, string>;
   /** Pour chaque composant Swift (« sur apple "Carte.swift" ») : son fichier. */
   natifs?: Map<string, { nom: string; contenu: string }>;
+  /** Les fichiers de police du thème, en base 64. */
+  polices?: Map<string, string>;
+  /** Un test XCUITest, ajouté au projet pour l'essai de bout en bout. */
+  essaisUi?: string;
 }
 
 /** Les données des pages : celles des serveurs et des sources. */
@@ -57,10 +62,12 @@ function verifier(application: Application): Diagnostic[] {
     avertir(application.fichiersStyle[0]?.ligne ?? 1, "le CSS ne s'applique pas sur la cible Apple : seuls les styles nommés (couleur, fond, taille, position, bordure…) y sont traduits.");
   }
   for (const c of application.composantsReact) {
-    if (c.module) refuser(c.ligne, `« utiliser module » (${c.nom}) charge une bibliothèque JavaScript : la cible Apple n'a pas de JavaScript. Écrivez une vue Swift à la place : « utiliser composant "${c.nom}" depuis "…" sur apple "${c.nom}.swift" ».`);
-    else if (!c.chemin.endsWith('.swift') && !('natif' in c)) refuser(c.ligne, `le composant React « ${c.nom} » n'existe pas sur la cible Apple : donnez-lui une vue Swift avec « utiliser composant "${c.nom}" depuis "${c.chemin}" sur apple "${c.nom}.swift" ».`);
+    if (c.module && c.apple === undefined) refuser(c.ligne, `« utiliser module » (${c.nom}) charge une bibliothèque JavaScript : la cible Apple n'a pas de JavaScript. Écrivez une vue Swift à la place : « utiliser composant "${c.nom}" depuis "…" sur apple "${c.nom}.swift" ».`);
+    else if (c.apple === undefined) refuser(c.ligne, `le composant React « ${c.nom} » n'existe pas sur la cible Apple : donnez-lui une vue Swift avec « utiliser composant "${c.nom}" depuis "${c.chemin}" sur apple "${c.nom}.swift" ».`);
   }
-  if ((application.theme?.polices.length ?? 0) > 0) avertir(1, "les polices du bloc « theme » ne sont pas encore chargées sur la cible Apple : la police du système est utilisée.");
+  for (const p of application.theme?.polices ?? []) {
+    if (p.fichier && !/\.(ttf|otf)$/i.test(p.fichier)) avertir(1, `la police « ${p.fichier} » n'est pas chargée sur la cible Apple, qui lit les fichiers .ttf et .otf : la police du système est utilisée à la place.`);
+  }
   const logo = application.site?.logo;
   if (logo && !/\.png$/i.test(logo)) refuser(application.site!.ligne, `le logo « ${logo} » ne peut pas servir d'icône sur la cible Apple : donnez un PNG carré de 1024×1024.`);
   const apercu = application.ecrans.find((e) => e.apercu);
@@ -200,6 +207,7 @@ function sourcesSwift(sources: SourceRI[]): string {
         ...(s.jetonPublic ? [`jeton: (${chaineSwift(s.jetonPublic.valeur)}, ${s.jetonPublic.place.genre === 'autorisation' ? '.autorisation' : `.${s.jetonPublic.place.genre}(${chaineSwift(s.jetonPublic.place.nom)})`})`] : []),
         ...(s.enveloppe !== undefined ? [`enveloppe: ${chaineSwift(s.enveloppe)}`] : []),
         ...(s.erreurDans !== undefined ? [`erreurDans: ${chaineSwift(s.erreurDans)}`] : []),
+        ...(s.session ? ['session: true'] : []),
         `essais: ${s.essais ?? 2}`,
         `delai: ${(s.delai ?? 10) * 1000}`,
       ];
@@ -209,9 +217,35 @@ function sourcesSwift(sources: SourceRI[]): string {
   return e.texte();
 }
 
+interface EntreeMenu {
+  titre: string;
+  icone?: string;
+  route: string;
+}
+
 interface Disposition {
   entete?: { nom: string; sans: string[] };
   pied?: { nom: string; sans: string[] };
+  /** Les liens du menu de l'en-tête : la barre latérale de l'iPad et du Mac, et le menu « Aller à ». */
+  menu?: EntreeMenu[];
+  /** L'en-tête montre autre chose que son menu : il reste au-dessus des pages, même avec la barre latérale. */
+  enteteAvecAutreChose?: boolean;
+}
+
+/** Le premier menu d'une suite de nœuds. */
+function premierMenu(noeuds: NoeudVue[]): Extract<NoeudVue, { type: 'bloc' }> | undefined {
+  for (const n of noeuds) {
+    if (n.type !== 'bloc') continue;
+    if (n.genre === 'menu') return n;
+    const dedans = premierMenu(n.corps);
+    if (dedans) return dedans;
+  }
+  return undefined;
+}
+
+/** Vrai si quelque chose d'autre que ce menu est montré. */
+function montreAutreChose(noeuds: NoeudVue[], menu: NoeudVue): boolean {
+  return noeuds.some((n) => n !== menu && (n.type !== 'bloc' || montreAutreChose(n.corps, menu)));
 }
 
 /** Le routeur : une route par page, et la vue de chaque route. */
@@ -263,6 +297,10 @@ function routesSwift(application: Application, app: ContexteApple, entree: Ecran
       e.ligne('self.ancre = ancre');
     });
     e.ligne();
+    e.bloc('/** Un lien du menu : la pile repart de cette page. */\n  func allerAuMenu(_ route: Route) {', () => {
+      e.ligne('chemin = route == .accueilHumalis ? [] : [route]');
+    });
+    e.ligne();
     e.bloc('func revenir(sinon: Route? = nil) {', () => {
       e.ligne('if !chemin.isEmpty { chemin.removeLast() } else if let sinon { aller(sinon) }');
     });
@@ -304,16 +342,132 @@ function routeSimple(page: string, app: ContexteApple): string {
   return `.${nomRoute(page)}${info && info.filtres.length ? '()' : ''}`;
 }
 
-function applicationSwift(nom: string, entree: Ecran, disposition: Disposition): string {
+function menuSwift(entrees: EntreeMenu[]): string {
+  const e = new Ecrivain();
+  e.ligne('// Produit par Humalis : le menu de l\'en-tête, dans la barre latérale de l\'iPad et du Mac.');
+  e.ligne('import SwiftUI');
+  e.ligne();
+  e.bloc('struct EntreeMenu: Identifiable {', () => {
+    e.ligne('let id: Int');
+    e.ligne('let titre: String');
+    e.ligne('let icone: String?');
+    e.ligne('let route: Route');
+  });
+  e.ligne();
+  e.bloc('@MainActor var entreesDuMenu: [EntreeMenu] {', () => {
+    e.ligne('[');
+    e.indenter(() => entrees.forEach((m, i) => e.ligne(`EntreeMenu(id: ${i}, titre: ${m.titre}, icone: ${m.icone ? chaineSwift(m.icone) : 'nil'}, route: ${m.route}),`)));
+    e.ligne(']');
+  });
+  return e.texte();
+}
+
+function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, disposition: Disposition, polices: string[], policeTexte?: string): string {
   const racine = `${nomPage(entree.nom)}()`;
   const sans = (liste: string[]) => (liste.length ? `![${liste.map((r) => `Route.${r}`).join(', ')}].contains(Routeur.commun.chemin.last ?? .accueilHumalis)` : 'true');
-  const enteteCond = disposition.entete ? sans(disposition.entete.sans) : '';
-  const piedCond = disposition.pied ? sans(disposition.pied.sans) : '';
+  const entete = disposition.entete;
+  const pied = disposition.pied;
+  const menu = disposition.menu && disposition.menu.length > 0 ? disposition.menu : undefined;
+  // Avec la barre latérale, un en-tête qui n'a que son menu disparaît.
+  const montrerEntete = entete ? `${sans(entete.sans)}${menu && !disposition.enteteAvecAutreChose ? ' && !large' : ''}` : '';
+  const insets = `${entete ? `
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if ${montrerEntete} {
+                    VStack(spacing: 0) {
+                        ${entete.nom}().padding(.horizontal, 16).padding(.vertical, 8)
+                        Divider()
+                    }
+                    .background(.bar)
+                }
+            }` : ''}${pied ? `
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if ${sans(pied.sans)} {
+                    VStack(spacing: 0) {
+                        Divider()
+                        ${pied.nom}().padding(.horizontal, 16).padding(.vertical, 8)
+                    }
+                    .background(.bar)
+                }
+            }` : ''}`;
+  const active = menu
+    ? `    /** La page montrée, surlignée dans la barre latérale. */
+    private var entreeActive: Int? {
+        let ici = Routeur.commun.chemin.last ?? .accueilHumalis
+        return entreesDuMenu.first { $0.route == ici }?.id
+    }
+
+`
+    : '';
+  const pile = `${active}    @ViewBuilder private var pile: some View {
+        @Bindable var routeur = Routeur.commun
+        NavigationStack(path: $routeur.chemin) {
+            ${racine}
+                .navigationDestination(for: Route.self) { $0.vue }
+        }${insets}
+    }
+`;
+  const largeur = `    #if os(iOS)
+    @Environment(\\.horizontalSizeClass) private var classe
+    private var large: Bool { classe == .regular }
+    #else
+    private let large = true
+    #endif
+`;
+  const commandes = menu
+    ? `
+        .commands {
+            CommandMenu("Aller à") {
+                ForEach(entreesDuMenu.prefix(9)) { entree in
+                    Button(entree.titre) { Routeur.commun.allerAuMenu(entree.route) }
+                        .keyboardShortcut(KeyEquivalent(Character("\\(entree.id + 1)")), modifiers: .command)
+                }
+            }
+        }`
+    : '';
+  const contenu = menu
+    ? `        Group {
+            if large {
+                NavigationSplitView {
+                    List(entreesDuMenu) { entree in
+                        Button { Routeur.commun.allerAuMenu(entree.route) } label: {
+                            Label {
+                                Text(verbatim: entree.titre)
+                            } icon: {
+                                if let icone = entree.icone { Image(systemName: icone) }
+                            }
+                            // Toute la ligne se clique, pas seulement son texte.
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .listRowBackground(entree.id == entreeActive ? Color.accentColor.opacity(0.18) : Color.clear)
+                        .accessibilityAddTraits(entree.id == entreeActive ? .isSelected : [])
+                        .accessibilityIdentifier("menu_\\(entree.id)")
+                    }
+                    .navigationTitle(${chaineSwift(nomAffiche)})
+                } detail: {
+                    pile
+                }
+                .environment(\\.menuLateral, true)
+            } else {
+                pile
+            }
+        }`
+    : '        pile';
+  const inscrire = polices.length
+    ? `
+    init() {
+        for fichier in [${polices.map(chaineSwift).join(', ')}] {
+            if let url = Bundle.main.url(forResource: fichier, withExtension: nil) { CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil) }
+        }
+    }
+`
+    : '';
   return `// Produit par Humalis : l'application.
-import SwiftUI
+import SwiftUI${polices.length ? '\nimport CoreText' : ''}
 
 @main
-struct ${nom}App: App {
+struct ${nom}App: App {${inscrire}
     var body: some Scene {
         WindowGroup {
             RacineHumalis()
@@ -321,45 +475,40 @@ struct ${nom}App: App {
         #if os(macOS)
         .windowResizability(.contentMinSize)
         .defaultSize(width: 1000, height: 720)
-        #endif
+        #endif${commandes}
     }
 }
 
 /** La pile des pages, l'en-tête et le pied communs, les messages et les questions. */
 struct RacineHumalis: View {
+${entete || pied || menu ? largeur : ''}${pile}
     var body: some View {
-        @Bindable var routeur = Routeur.commun
-        NavigationStack(path: $routeur.chemin) {
-            ${racine}
-                .navigationDestination(for: Route.self) { $0.vue }
-        }
-${disposition.entete ? `        .safeAreaInset(edge: .top, spacing: 0) {
-            if ${enteteCond} {
-                VStack(spacing: 0) {
-                    ${disposition.entete.nom}().padding(.horizontal, 16).padding(.vertical, 8)
-                    Divider()
-                }
-                .background(.bar)
-            }
-        }
-` : ''}${disposition.pied ? `        .safeAreaInset(edge: .bottom, spacing: 0) {
-            if ${piedCond} {
-                VStack(spacing: 0) {
-                    Divider()
-                    ${disposition.pied.nom}().padding(.horizontal, 16).padding(.vertical, 8)
-                }
-                .background(.bar)
-            }
-        }
-` : ''}        .overlay(alignment: .top) { PileMessagesHumalis() }
+${contenu}
+        .overlay(alignment: .top) { PileMessagesHumalis(${entete ? (menu && !disposition.enteteAvecAutreChose ? 'decalage: large ? 0 : 56' : 'decalage: 56') : ''}) }
         .modifier(QuestionHumalis())
-        .preferredColorScheme(Apparence.commun.schema)
+        .preferredColorScheme(Apparence.commun.schema)${policeTexte ? `
+        .font(.custom(${chaineSwift(policeTexte)}, size: 17, relativeTo: .body))` : ''}
         #if os(macOS)
         .frame(minWidth: 480, minHeight: 400)
         #endif
     }
 }
 `;
+}
+
+function entreesDuMenu(menu: Extract<NoeudVue, { type: 'bloc' }>, app: ContexteApple, valeurs: Valeurs): EntreeMenu[] {
+  const entrees: EntreeMenu[] = [];
+  for (const n of menu.corps) {
+    if (n.type !== 'element' || n.genre !== 'lien' || n.cible === undefined) continue;
+    const info = app.pages.get(n.cible);
+    if (!info || info.parametres.length > 0) continue;
+    entrees.push({
+      titre: valeurs.enTexte(n.contenu),
+      ...(n.reglages?.icone ? { icone: nomIcone(n.reglages.icone) } : {}),
+      route: `.${nomRoute(n.cible)}${info.filtres.length ? '()' : ''}`,
+    });
+  }
+  return entrees;
 }
 
 function configurationSwift(application: Application, options: OptionsApple): string {
@@ -370,7 +519,7 @@ import Foundation
 
 enum Configuration {
     /** L'adresse du serveur que l'application appelle (--serveur). */
-    static let serveur = ${chaineSwift(options.serveur ?? 'http://localhost:3000')}
+    static let serveur = ${chaineSwift(options.serveur ?? application.sources.find((s) => s.session)?.adresse ?? 'http://localhost:3000')}
     static let themeDeDepart: Apparence.Mode = .${mode}
     static let adresseDuSite = ${chaineSwift(adresse)}
 ${application.langues ? `    static let langues: [(code: String, nom: String)] = [${application.langues.map((l) => `(${chaineSwift(l.code)}, ${chaineSwift(l.nom)})`).join(', ')}]\n` : ''}}
@@ -405,7 +554,9 @@ ${options.equipe ? `Le projet est réglé pour l'équipe \`${options.equipe}\`.`
 xcodebuild -project ${nom}.xcodeproj -scheme ${nom} -destination 'generic/platform=iOS' -archivePath build/${nom}.xcarchive archive
 \`\`\`
 
-Ouvrez ensuite l'archive dans Xcode (Window > Organizer) pour l'envoyer sur TestFlight.
+Ouvrez ensuite l'archive dans Xcode (Window > Organizer) pour l'envoyer sur TestFlight. Apple demande une version récente d'Xcode pour accepter un envoi.
+
+Le fichier \`Info.plist\` déclare que l'application ne chiffre qu'avec ce que fournit le système (HTTPS, Keychain). Si vous ajoutez votre propre chiffrement en Swift, changez cette déclaration. Avec une adresse \`http://localhost\`, il permet aussi le réseau local : compilez avec \`--serveur https://…\` pour publier.
 `;
 }
 
@@ -431,7 +582,7 @@ export function genererProjetApple(application: Application, options: OptionsApp
     pages,
     cle,
     composants: new Map(application.composants.map((c) => [c.nom, c.parametres])),
-    natifs: new Set(application.composantsReact.filter((c) => c.chemin.endsWith('.swift') || 'natif' in c).map((c) => c.nom)),
+    natifs: new Set(application.composantsReact.filter((c) => c.apple !== undefined).map((c) => c.nom)),
     ressource(chemin) {
       const fichier = chemin.replace(/[^A-Za-z0-9._-]/g, '_');
       ressources.set(chemin, fichier);
@@ -440,6 +591,7 @@ export function genererProjetApple(application: Application, options: OptionsApp
     refuser,
     avertir,
     session: false,
+    ...(application.theme?.polices.find((p) => p.role === 'titres') ? { policeTitres: application.theme.polices.find((p) => p.role === 'titres')!.nom } : {}),
   };
 
   const portee: Portee = { variables: new Map(), champs: new Map(), fonctions, etatsRequetes: new Set(), besoins: new Set(), langues: application.langues !== undefined };
@@ -463,6 +615,10 @@ export function genererProjetApple(application: Application, options: OptionsApp
   }
   portee.variables.clear();
 
+  const simple = (e: Ecran) => !e.parametresAdresse?.length && e.parent === undefined;
+  const entree = application.ecrans.find((e) => e.nom === 'accueil' && simple(e)) ?? application.ecrans.find((e) => simple(e) && e.nom !== 'introuvable') ?? application.ecrans.find(simple) ?? application.ecrans[0];
+  app.pageEntree = entree.nom;
+
   const fichiers = new Map<string, string>();
   const dossier = nom;
   const ecrire = (chemin: string, contenu: string) => fichiers.set(`${dossier}/${chemin}`, contenu);
@@ -471,19 +627,25 @@ export function genererProjetApple(application: Application, options: OptionsApp
   const disposition: Disposition = {};
   for (const [genre, composant, d] of [['entete', 'EnteteSite', application.disposition?.entete], ['pied', 'PiedSite', application.disposition?.pied]] as const) {
     if (!d) continue;
-    ecrire(`Composants/${composant}.swift`, new GenerateurPage({ ...d.ecran, nom: composant }, app, [], composant).generer());
+    const menu = genre === 'entete' ? premierMenu(d.ecran.vue) : undefined;
+    ecrire(`Composants/${composant}.swift`, new GenerateurPage({ ...d.ecran, nom: composant }, app, [], composant, menu !== undefined).generer());
     const sans = application.ecrans.filter((e) => (genre === 'entete' ? e.sansEntete : e.sansPied)).map((e) => nomRoute(e.nom));
     disposition[genre] = { nom: composant, sans };
+    if (menu) {
+      disposition.menu = entreesDuMenu(menu, app, valeurs);
+      disposition.enteteAvecAutreChose = montreAutreChose(d.ecran.vue, menu);
+    }
   }
   for (const ecran of application.ecrans) ecrire(`Pages/${nomPage(ecran.nom)}.swift`, new GenerateurPage(ecran, app).generer());
   if (application.fonctions.length > 0) ecrire('Humalis/Fonctions.swift', fonctionsSwift(application, app, portee));
 
-  const simple = (e: Ecran) => !e.parametresAdresse?.length && e.parent === undefined;
-  const entree = application.ecrans.find((e) => e.nom === 'accueil' && simple(e)) ?? application.ecrans.find((e) => simple(e) && e.nom !== 'introuvable') ?? application.ecrans.find(simple) ?? application.ecrans[0];
   if (!simple(entree)) refuser(entree.ligne, `la page d'entrée « ${entree.nom} » attend un paramètre`);
   const cheminsPages = new Map(application.ecrans.map((e) => [e.nom, e === entree ? '/' : `/${simplifier(e.nom)}`]));
   ecrire('Humalis/Routes.swift', routesSwift(application, app, entree, cheminsPages));
-  ecrire(`${nom}App.swift`, applicationSwift(nom, entree, disposition));
+  const policesCopiees = (application.theme?.polices ?? []).flatMap((p) => (p.fichier && /\.(ttf|otf)$/i.test(p.fichier) && options.polices?.has(p.fichier) ? [p.fichier] : []));
+  ecrire(`${nom}App.swift`, applicationSwift(nom, application.site?.nom ?? options.nom, entree, disposition, policesCopiees.map(nomFichierPlat), application.theme?.polices.find((p) => p.role === 'texte')?.nom));
+  if (disposition.menu?.length) ecrire('Humalis/Menu.swift', menuSwift(disposition.menu));
+  for (const p of policesCopiees) ecrire(`Ressources/${nomFichierPlat(p)}`, contenuBinaire(options.polices!.get(p)!));
   ecrire('Humalis/Configuration.swift', configurationSwift(application, options));
   if (application.sources.length > 0) ecrire('Humalis/Sources.swift', sourcesSwift(application.sources));
 
@@ -527,6 +689,13 @@ export function genererProjetApple(application: Application, options: OptionsApp
   ecrire('PrivacyInfo.xcprivacy', CONFIDENTIALITE);
 
   const nomAffiche = application.site?.nom ?? options.nom;
+  // Le système refuse http:// : seul le réseau local reste permis, pour essayer.
+  const adresses = [...(reseau || application.sources.length > 0 ? [options.serveur ?? application.sources.find((x) => x.session)?.adresse ?? 'http://localhost:3000'] : []), ...application.sources.map((x) => x.adresse)];
+  const serveurLocal = adresses.some((a) => /^http:\/\/(localhost|127\.0\.0\.1)([:/]|$)/i.test(a));
+  for (const adresse of new Set(adresses)) {
+    if (/^http:\/\//i.test(adresse) && !/^http:\/\/(localhost|127\.0\.0\.1)([:/]|$)/i.test(adresse)) avertir(1, `l'application Apple ne peut pas appeler « ${adresse} » : le système bloque http://. Utilisez https://.`);
+  }
+  fichiers.set('Info.plist', infoSupplementaire(serveurLocal));
   fichiers.set(
     `${nom}.xcodeproj/project.pbxproj`,
     projetXcode({
@@ -535,14 +704,19 @@ export function genererProjetApple(application: Application, options: OptionsApp
       identifiant: options.identifiant ?? `local.humalis.${simplifier(options.nom).replace(/_/g, '-') || 'application'}`,
       ...(options.equipe ? { equipe: options.equipe } : {}),
       icone: octetsLogo !== undefined,
+      serveurLocal,
+      essaisUi: options.essaisUi !== undefined,
       fichiers: avecFichiers,
     }),
   );
-  fichiers.set(`${nom}.xcodeproj/xcshareddata/xcschemes/${nom}.xcscheme`, schemaXcode(nom));
+  fichiers.set(`${nom}.xcodeproj/xcshareddata/xcschemes/${nom}.xcscheme`, schemaXcode(nom, options.essaisUi !== undefined));
+  if (options.essaisUi !== undefined) fichiers.set(`${nom}Essais/Parcours.swift`, options.essaisUi);
   fichiers.set(MARQUE_APPLE, `Projet produit par Humalis depuis ${options.source}.\nLe compilateur réécrit ce dossier à chaque compilation.\n`);
   fichiers.set('LISEZMOI.md', lisezmoi(nom, options));
   return { fichiers, diagnostics };
 }
+
+const nomFichierPlat = (chemin: string): string => chemin.replace(/^(\.\/)+/, '').replace(/[^A-Za-z0-9._-]/g, '_');
 
 function marqueDe(theme: ThemeRI | undefined): { clair: string; sombre: string } | undefined {
   const marque = theme?.couleurs.find((c) => c.nom === 'marque');

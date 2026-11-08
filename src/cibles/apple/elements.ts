@@ -923,7 +923,7 @@ export function fichiersElements(code: string): Map<string, string> {
   if (emploie(/\b(ChampHumalis|MotDePasseHumalis|TexteLongHumalis|ChoixHumalis|ListeHumalis|ChampDateHumalis|estVideHumalis)\b/)) fichiers.set('Humalis/Champs.swift', CHAMPS);
   if (emploie(/\b(BadgeHumalis|AvatarHumalis|ProgressionHumalis|ChargementHumalis|EtoilesHumalis|CompteurHumalis)\b/)) fichiers.set('Humalis/Widgets.swift', WIDGETS);
   if (emploie(/\b(AnimeHumalis|EffetSurvolHumalis)\b/)) fichiers.set('Humalis/Mouvement.swift', MOUVEMENT);
-  if (emploie(/\b(ImageHumalis|AvatarHumalis|LecteurHumalis)\b/)) fichiers.set('Humalis/Images.swift', IMAGES);
+  if (emploie(/\b(ImageHumalis|BadgeHumalis|AvatarHumalis|ProgressionHumalis|ChargementHumalis|EtoilesHumalis|CompteurHumalis|LecteurHumalis)\b/)) fichiers.set('Humalis/Images.swift', IMAGES);
   if (emploie(/\b(ChoixFichierHumalis|FichierChoisi|televerser)\b/)) fichiers.set('Humalis/Fichiers.swift', FICHIERS);
   if (emploie(/\bQrHumalis\b/)) fichiers.set('Humalis/Qr.swift', QR);
   if (emploie(/\bLecteurHumalis\b/)) fichiers.set('Humalis/Audio.swift', AUDIO);
