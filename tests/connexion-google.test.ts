@@ -33,7 +33,7 @@ describe('connexion avec Google', () => {
   });
 
   it('après « connexion », le fournisseur est attendu', () => {
-    expect(() => erreurs(source().replace('connexion google', 'connexion apple'))).toThrow(/après « connexion », écrivez le fournisseur : connexion google/);
+    expect(() => erreurs(source().replace('connexion google', 'connexion facebook'))).toThrow(/après « connexion », écrivez le fournisseur : connexion google/);
   });
 
   it('web : la fenêtre de Google, la page de retour, et la raison d’un refus rendue à « si erreur »', () => {

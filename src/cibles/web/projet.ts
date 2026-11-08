@@ -1654,6 +1654,8 @@ interface Utilisateur {
   seConnecter(email: string, motDePasse: string, dansUnEssai?: boolean): Promise<boolean>;
   /** « se connecter avec google » : la fenêtre de Google, puis la session d'un compte déjà connu du serveur. */
   seConnecterAvecGoogle(dansUnEssai?: boolean): Promise<boolean>;
+  /** « se connecter avec apple » : la fenêtre d'Apple, puis la session d'un compte déjà connu du serveur. */
+  seConnecterAvecApple(dansUnEssai?: boolean): Promise<boolean>;
   /** « changer le mot de passe avec … et … » : celui du compte connecté ; vrai si le serveur l'a accepté. */
   changerMotDePasse(actuel: string, nouveau: string, dansUnEssai?: boolean): Promise<boolean>;
   /** « inviter … » : un lien par e-mail ; vrai si le serveur l'a pris en charge. */
@@ -1810,6 +1812,59 @@ export function Session({ children }: { children: ReactNode }) {
     if (!reponse.ok) {
       const corps = (await reponse.json().catch(() => null)) as { erreur?: string } | null;
       const raison = corps?.erreur ?? 'la connexion avec Google a été refusée';
+      return refuser(raison.charAt(0).toUpperCase() + raison.slice(1) + '.');
+    }
+    await relire();
+    return true;
+  }
+
+  /** « se connecter avec apple » : la fenêtre d'Apple s'ouvre, et le serveur ouvre la session si le compte est déjà connu. */
+  async function seConnecterAvecApple(dansUnEssai = false): Promise<boolean> {
+    const refuser = (texte: string): boolean => {
+      if (dansUnEssai) throw new Error(texte);
+      afficherMessage(texte, 'erreur');
+      return false;
+    };
+    let clientId: string | null = null;
+    try {
+      const lu = await fetch(BASE + '/auth/apple', { credentials: 'same-origin' });
+      clientId = lu.ok ? ((await lu.json()) as { clientId?: string | null }).clientId ?? null : null;
+    } catch {
+      return refuser("Le serveur n'a pas répondu. Réessayez dans un instant.");
+    }
+    if (!clientId) return refuser("La connexion avec Apple n'est pas encore réglée sur le serveur.");
+    type AppleJs = { auth: { init(o: object): void; signIn(): Promise<{ authorization?: { id_token?: string; state?: string } }> } };
+    const fenetre = window as unknown as { AppleID?: AppleJs };
+    if (!fenetre.AppleID) {
+      const charge = await new Promise<boolean>((resoudre) => {
+        const script = document.createElement('script');
+        script.src = 'https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/fr_FR/appleid.auth.js';
+        script.onload = () => resoudre(true);
+        script.onerror = () => resoudre(false);
+        document.head.appendChild(script);
+      });
+      if (!charge || !fenetre.AppleID) return refuser("La fenêtre d'Apple n'a pas pu s'ouvrir. Réessayez dans un instant.");
+    }
+    const nonce = crypto.randomUUID();
+    const etat = crypto.randomUUID();
+    let jeton: string | null = null;
+    try {
+      fenetre.AppleID!.auth.init({ clientId, scope: 'email', redirectURI: window.location.origin + '/', state: etat, nonce, usePopup: true });
+      const resultat = await fenetre.AppleID!.auth.signIn();
+      if (resultat.authorization?.state === etat) jeton = resultat.authorization.id_token ?? null;
+    } catch {
+      jeton = null;
+    }
+    if (!jeton) return refuser('La connexion avec Apple a été annulée.');
+    let reponse: Response;
+    try {
+      reponse = await fetch(BASE + '/auth/apple', { method: 'POST', headers: entetes(), credentials: 'same-origin', body: JSON.stringify({ idToken: jeton, nonce }) });
+    } catch {
+      return refuser("Le serveur n'a pas répondu. Réessayez dans un instant.");
+    }
+    if (!reponse.ok) {
+      const corps = (await reponse.json().catch(() => null)) as { erreur?: string } | null;
+      const raison = corps?.erreur ?? 'la connexion avec Apple a été refusée';
       return refuser(raison.charAt(0).toUpperCase() + raison.slice(1) + '.');
     }
     await relire();
@@ -1985,6 +2040,7 @@ export function Session({ children }: { children: ReactNode }) {
     },
     seConnecter,
     seConnecterAvecGoogle,
+    seConnecterAvecApple,
     changerMotDePasse,
     inviter,
     changerRole,

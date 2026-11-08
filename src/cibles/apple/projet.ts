@@ -18,7 +18,7 @@ import { fichiersElements } from './elements.js';
 import { nomIcone } from './icones.js';
 import { chaineSwift, nomApplication, nomComposant, nomPage, nomRoute, nomSwift } from './noms.js';
 import { GenerateurPage, type ContexteApple } from './page.js';
-import { ENVOIS_SWIFT, LANGUES_SWIFT, MEMOIRE_SWIFT, MESSAGES_SWIFT, MINUTERIES_SWIFT, NOTIFICATIONS_SWIFT, SERVEUR_SWIFT, SYSTEME_SWIFT } from './systeme.js';
+import { CONNEXIONS_SWIFT, ENVOIS_SWIFT, LANGUES_SWIFT, MEMOIRE_SWIFT, MESSAGES_SWIFT, MINUTERIES_SWIFT, NOTIFICATIONS_SWIFT, SERVEUR_SWIFT, SYSTEME_SWIFT } from './systeme.js';
 import { Types, Valeurs, plusPrecis, type Portee } from './valeurs.js';
 import { CONFIDENTIALITE, assets, associationSite, infoSupplementaire, type PaquetSwift, droits, projetXcode, schemaXcode } from './xcode.js';
 
@@ -821,6 +821,7 @@ export function genererProjetApple(application: Application, options: OptionsApp
   const reseau = /\b(Serveur\.commun|Session\.commun|GardeHumalis)\b/.test(pagesCode);
   // La session est lue par le serveur : les deux vont ensemble.
   if (reseau || application.sources.length > 0) ecrire('Humalis/Serveur.swift', SERVEUR_SWIFT);
+  if (/\bseConnecterAvecApple\(/.test(pagesCode)) ecrire('Humalis/Connexions.swift', CONNEXIONS_SWIFT);
   if (application.langues) ecrire('Humalis/Langues.swift', LANGUES_SWIFT);
   const tout = [...fichiers.values()].join('\n');
   for (const [chemin, contenu] of fichiersElements(tout)) ecrire(chemin, contenu);
@@ -844,8 +845,11 @@ export function genererProjetApple(application: Application, options: OptionsApp
   const avecPosition = /\blirePosition\(/.test(tout);
   // Sans équipe, l'application ne peut pas être signée avec ce droit : elle ne se construirait plus.
   const domaineLiens = options.equipe ? application.liensProfonds?.domaine : undefined;
-  ecrire(`${nom}.entitlements`, droits(avecFichiers, notifications && options.equipe ? 'ios' : undefined, avecPosition, domaineLiens));
-  if (notifications && options.equipe) ecrire(`${nom}-mac.entitlements`, droits(avecFichiers, 'mac', avecPosition, domaineLiens));
+  const avecConnexionApple = /\bseConnecterAvecApple\(/.test(tout);
+  if (avecConnexionApple && !options.equipe) avertir(1, "« se connecter avec apple » : sans --equipe, la fenêtre d'Apple ne peut pas s'ouvrir, et l'application le dit à la personne. Compilez avec --equipe.");
+  const droitConnexionApple = avecConnexionApple && options.equipe !== undefined;
+  ecrire(`${nom}.entitlements`, droits(avecFichiers, notifications && options.equipe ? 'ios' : undefined, avecPosition, domaineLiens, droitConnexionApple));
+  if (notifications && options.equipe) ecrire(`${nom}-mac.entitlements`, droits(avecFichiers, 'mac', avecPosition, domaineLiens, droitConnexionApple));
   if (application.liensProfonds?.domaine && !options.equipe) avertir(application.liensProfonds.ligne, `« domaine "${application.liensProfonds.domaine}" » : sans --equipe, les liens https:// ouvrent le site et pas l'application. Compilez avec --equipe.`);
   if (domaineLiens) {
     fichiers.set('a-publier-sur-le-site/.well-known/apple-app-site-association', associationSite(options.equipe!, identifiantApp, domaineLiens));

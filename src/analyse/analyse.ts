@@ -199,6 +199,8 @@ interface Liens {
   serveur?: string;
   /** « connexion google » dans le serveur du fichier. */
   connexionGoogle?: boolean;
+  /** « connexion apple » dans le serveur du fichier. */
+  connexionApple?: boolean;
   /** « invitations vers … » et « mot de passe oublie vers … » dans le serveur du fichier. */
   comptes: { invitations: boolean; oublie: boolean };
   /** « fidelite par … de … : » dans le serveur du fichier. */
@@ -355,7 +357,7 @@ export function analyserSens(programme: Programme, classesCss?: Set<string>): Re
   );
   const partages = globale.declarerPartages(programme.partages);
 
-  const liens: Liens = { actionsParametres: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, (a.parametres ?? []).map((p) => p.nom)] as [string, string[]])))), resumes: new Set(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.resumes ?? []).map((x) => `${adresseNormalisee(r.adresse)}/${simplifier(x.nom).replace(/_/g, '-')}`)))), champsCompte: programme.serveurs.flatMap((s) => (s.champsCompte ?? []).map((c) => c.nom)), payees: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.apresPaiement ? [[r.apresPaiement.donnee, r.adresse] as [string, string]] : [])))), ia: programme.serveurs.some((s) => s.ia), actionsDonnees: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, a.donnee] as [string, string])))), documentsDonnees: new Map(programme.serveurs.flatMap((s) => (s.documents ?? []).map((d) => [d.nom, d.donnee] as [string, string]))), documents: new Map(programme.serveurs.flatMap((s) => (s.documents ?? []).flatMap((d) => { const route = s.routes.find((r) => r.regles.some((x) => x.donnee === d.donnee && x.actions.includes('lire'))); return route ? [[d.nom, route.adresse] as [string, string]] : []; }))), actions: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, r.adresse] as [string, string])))), sources: new Map(), serveur: programme.serveurs[0]?.nom, connexionGoogle: programme.serveurs[0]?.connexionGoogle !== undefined, comptes: { invitations: programme.serveurs[0]?.invitations !== undefined, oublie: programme.serveurs[0]?.motDePasseOublie !== undefined }, fidelite: programme.serveurs[0]?.fidelite, routes: new Map(), donnees: new Map() };
+  const liens: Liens = { actionsParametres: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, (a.parametres ?? []).map((p) => p.nom)] as [string, string[]])))), resumes: new Set(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.resumes ?? []).map((x) => `${adresseNormalisee(r.adresse)}/${simplifier(x.nom).replace(/_/g, '-')}`)))), champsCompte: programme.serveurs.flatMap((s) => (s.champsCompte ?? []).map((c) => c.nom)), payees: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.apresPaiement ? [[r.apresPaiement.donnee, r.adresse] as [string, string]] : [])))), ia: programme.serveurs.some((s) => s.ia), actionsDonnees: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, a.donnee] as [string, string])))), documentsDonnees: new Map(programme.serveurs.flatMap((s) => (s.documents ?? []).map((d) => [d.nom, d.donnee] as [string, string]))), documents: new Map(programme.serveurs.flatMap((s) => (s.documents ?? []).flatMap((d) => { const route = s.routes.find((r) => r.regles.some((x) => x.donnee === d.donnee && x.actions.includes('lire'))); return route ? [[d.nom, route.adresse] as [string, string]] : []; }))), actions: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, r.adresse] as [string, string])))), sources: new Map(), serveur: programme.serveurs[0]?.nom, connexionGoogle: programme.serveurs[0]?.connexionGoogle !== undefined, connexionApple: programme.serveurs[0]?.connexionApple !== undefined, comptes: { invitations: programme.serveurs[0]?.invitations !== undefined, oublie: programme.serveurs[0]?.motDePasseOublie !== undefined }, fidelite: programme.serveurs[0]?.fidelite, routes: new Map(), donnees: new Map() };
   for (const serveur of programme.serveurs) {
     for (const donnee of serveur.donnees) liens.donnees.set(donnee.nom, donnee);
     for (const route of serveur.routes) {
@@ -1079,14 +1081,18 @@ class AnalysePage {
 
       case 'Connexion':
       case 'ConnexionGoogle':
+      case 'ConnexionApple':
       case 'Deconnexion': {
-        const nom = instruction.type === 'Deconnexion' ? 'se deconnecter' : instruction.type === 'ConnexionGoogle' ? 'se connecter avec google' : 'se connecter';
+        const nom = instruction.type === 'Deconnexion' ? 'se deconnecter' : instruction.type === 'ConnexionGoogle' ? 'se connecter avec google' : instruction.type === 'ConnexionApple' ? 'se connecter avec apple' : 'se connecter';
         this.litLaSession = true;
         if (contexte === 'vue') this.horsEvenement(nom, instruction.ligne);
         this.demandeUnServeur(nom, instruction.ligne);
         if (instruction.type === 'Connexion') this.connexion(instruction);
         if (instruction.type === 'ConnexionGoogle' && this.liens.serveur !== undefined && !this.liens.connexionGoogle) {
           this.erreur(`« se connecter avec google » demande la ligne « connexion google » dans le serveur "${this.liens.serveur}".`, instruction.ligne);
+        }
+        if (instruction.type === 'ConnexionApple' && this.liens.serveur !== undefined && !this.liens.connexionApple) {
+          this.erreur(`« se connecter avec apple » demande la ligne « connexion apple » dans le serveur "${this.liens.serveur}".`, instruction.ligne);
         }
         return;
       }
@@ -2957,6 +2963,8 @@ function actionInterditeDansUneFonction(instruction: Instruction): string | unde
       return 'se connecter';
     case 'ConnexionGoogle':
       return 'se connecter avec google';
+    case 'ConnexionApple':
+      return 'se connecter avec apple';
     case 'ChangementMotDePasse':
       return 'changer le mot de passe';
     case 'Invitation':

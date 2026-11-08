@@ -1947,7 +1947,7 @@ serveur "boutique" :
     'Écris connexion google.',
     p(`
 serveur "boutique" :
-    connexion apple
+    connexion facebook
     donnee produit :
         nom : texte
     route "produits" :
@@ -1998,6 +1998,39 @@ page "connexion" :
         se connecter avec google
 `),
     'demande la ligne « connexion google »'),
+  e('connexion-apple-sans-serveur', 'sens', 'Se connecter avec Apple sans le permettre au serveur',
+    "« se connecter avec apple » passe par le serveur du fichier : il doit l'accepter, avec la ligne « connexion apple ».",
+    'Ajoute connexion apple dans le bloc serveur.',
+    p(`
+serveur "boutique" :
+    donnee produit :
+        nom : texte
+    route "produits" :
+        tout le monde peut lire produit
+        seul admin peut modifier produit
+
+page "connexion" :
+    titre "Connexion"
+    bouton "Apple"
+    quand l'utilisateur clique sur "Apple" :
+        se connecter avec apple
+`),
+    p(`
+serveur "boutique" :
+    connexion apple
+    donnee produit :
+        nom : texte
+    route "produits" :
+        tout le monde peut lire produit
+        seul admin peut modifier produit
+
+page "connexion" :
+    titre "Connexion"
+    bouton "Apple"
+    quand l'utilisateur clique sur "Apple" :
+        se connecter avec apple
+`),
+    'demande la ligne « connexion apple »'),
   e('mot-de-passe-hors-evenement', 'sens', 'Changer le mot de passe en dehors d’un événement',
     'Changer le mot de passe, c’est une action : elle se fait quand la personne envoie le formulaire, pas pendant l’affichage de la page.',
     'Place « changer le mot de passe » dans « quand le formulaire … est soumis : ».',

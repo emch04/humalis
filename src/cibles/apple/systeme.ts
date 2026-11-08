@@ -983,6 +983,23 @@ private final class SuiviEnvoi: NSObject, URLSessionTaskDelegate, Sendable {
         await relire()
     }
 
+    /** Un jeton d'identité (Apple, Google) : le serveur le vérifie et ouvre la session d'un compte déjà connu. */
+    func ouvrirAvecJeton(_ chemin: String, jeton: String, nonce: String, fournisseur: String) async throws {
+        let (donnees, http) = try await envoyer(chemin, ["idToken": jeton, "nonce": nonce])
+        if http.statusCode == 429 { throw ErreurHumalis.refus("Trop de tentatives de connexion. Réessayez dans quelques minutes.") }
+        let corps = try? JSONDecoder().decode(ValeurHumalis.self, from: donnees)
+        guard (200..<300).contains(http.statusCode) else {
+            var raison = corps?["erreur"].enTexte ?? ""
+            if raison.isEmpty { raison = "la connexion avec \(fournisseur) a été refusée" }
+            throw ErreurHumalis.refus(raison.prefix(1).uppercased() + raison.dropFirst() + ".")
+        }
+        // Tant que la personne n'est pas reconnue, rien de ce qui attendait ne part avec sa session.
+        compteGarde = nil
+        Coffre.effacer(Session.cleCompte)
+        if let corps { garder(corps["token"].enTexte.isEmpty ? corps["data"] : corps) }
+        await relire()
+    }
+
     func seConnecterAvecGoogle() async throws {
         throw ErreurHumalis.refus("La connexion avec Google n'est pas encore disponible dans l'application Apple.")
     }
@@ -1185,6 +1202,63 @@ extension Serveur {
             Messages.commun.afficher(raison == pasDeReponse ? "Le serveur n'a pas répondu. Réessayez dans un instant." : raison, .erreur)
             return false
         }
+    }
+}
+`;
+
+export const CONNEXIONS_SWIFT = String.raw`// Produit par Humalis : la connexion avec un compte Apple.
+import AuthenticationServices
+import SwiftUI
+
+@MainActor final class ConnexionApple: NSObject, @preconcurrency ASAuthorizationControllerDelegate, @preconcurrency ASAuthorizationControllerPresentationContextProviding {
+    private var suite: CheckedContinuation<String, Error>?
+
+    func jeton(nonce: String) async throws -> String {
+        let demande = ASAuthorizationAppleIDProvider().createRequest()
+        demande.requestedScopes = [.email]
+        demande.nonce = nonce
+        let controleur = ASAuthorizationController(authorizationRequests: [demande])
+        controleur.delegate = self
+        controleur.presentationContextProvider = self
+        return try await withCheckedThrowingContinuation { suite in
+            self.suite = suite
+            controleur.performRequests()
+        }
+    }
+
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
+        let lu = (authorization.credential as? ASAuthorizationAppleIDCredential)?.identityToken.flatMap { String(data: $0, encoding: .utf8) }
+        if let lu { suite?.resume(returning: lu) } else { suite?.resume(throwing: ErreurHumalis.refus("Apple n'a pas confirmé votre compte.")) }
+        suite = nil
+    }
+
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
+        let annulee = (error as? ASAuthorizationError)?.code == .canceled
+        suite?.resume(throwing: ErreurHumalis.refus(annulee ? "La connexion avec Apple a été annulée." : "La connexion avec Apple n'a pas pu s'ouvrir sur cet appareil."))
+        suite = nil
+    }
+
+    func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
+        #if os(macOS)
+        return NSApplication.shared.keyWindow ?? NSApplication.shared.windows.first ?? NSWindow()
+        #else
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        return scenes.flatMap(\.windows).first { $0.isKeyWindow } ?? scenes.first.map { UIWindow(windowScene: $0) } ?? UIWindow()
+        #endif
+    }
+}
+
+extension Session {
+    /** « se connecter avec apple » : la fenêtre du système, puis la session d'un compte déjà connu du serveur. */
+    func seConnecterAvecApple() async throws {
+        let nonce = UUID().uuidString
+        let jeton: String
+        if let essai = ProcessInfo.processInfo.environment["HUMALIS_ESSAI_JETON_APPLE"] {
+            jeton = essai
+        } else {
+            jeton = try await ConnexionApple().jeton(nonce: nonce)
+        }
+        try await ouvrirAvecJeton("/auth/apple", jeton: jeton, nonce: nonce, fournisseur: "Apple")
     }
 }
 `;

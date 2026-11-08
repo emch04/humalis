@@ -254,6 +254,8 @@ export class EcrivainActions {
         return this.compte(e, c, `seConnecter(email: ${this.v.texte(a.email)}, motDePasse: ${this.motDePasse(e, a.motDePasse)})`);
       case 'connexionGoogle':
         return this.compte(e, c, 'seConnecterAvecGoogle()');
+      case 'connexionApple':
+        return this.compte(e, c, 'seConnecterAvecApple()');
       case 'changementMotDePasse':
         return this.compte(e, c, `changerMotDePasse(actuel: ${this.v.texte(a.actuel)}, nouveau: ${this.v.texte(a.nouveau)})`);
       case 'invitation':
@@ -412,7 +414,7 @@ export class EcrivainActions {
 
   /** Vrai si le corps fait un appel qui peut échouer : on écrit donc « try ». */
   private dernierCorps(actions: Action[]): string {
-    return contient(actions, ['requete', 'suppression', 'modification', 'connexion', 'connexionGoogle', 'changementMotDePasse', 'invitation', 'demandeLienMotDePasse', 'choixMotDePasse', 'envoiFichier', 'telechargementBon']) ? 'try await' : '';
+    return contient(actions, ['requete', 'suppression', 'modification', 'connexion', 'connexionGoogle', 'connexionApple', 'changementMotDePasse', 'invitation', 'demandeLienMotDePasse', 'choixMotDePasse', 'envoiFichier', 'telechargementBon']) ? 'try await' : '';
   }
 
   private message(e: Ecrivain, a: Extract<Action, { type: 'message' }>, c: Cadre): void {

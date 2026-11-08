@@ -135,6 +135,8 @@ export interface Serveur {
   routes: Route[];
   /** « connexion google » : un compte déjà connu du serveur peut se connecter avec Google (ligne). */
   connexionGoogle?: number;
+  /** « connexion apple ». */
+  connexionApple?: number;
   /** « roles directeur, enseignant et parent ». */
   roles?: string[];
   /** « compte : » puis ses champs. */
@@ -532,6 +534,7 @@ export type Instruction =
   | Evenement
   | Connexion
   | ConnexionGoogle
+  | ConnexionApple
   | ChangementMotDePasse
   | Invitation
   | ChangementRole
@@ -803,6 +806,12 @@ export interface Connexion {
 /** « se connecter avec google » : la fenêtre de Google, puis la session d'un compte déjà connu du serveur. */
 export interface ConnexionGoogle {
   type: 'ConnexionGoogle';
+  ligne: number;
+}
+
+/** « se connecter avec apple » : la fenêtre d'Apple, puis la session d'un compte déjà connu du serveur. */
+export interface ConnexionApple {
+  type: 'ConnexionApple';
   ligne: number;
 }
 

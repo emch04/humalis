@@ -2102,6 +2102,15 @@ Dans `si erreur :`, `raison` dit ce qui n'a pas marché. Dans un formulaire, les
 champs restent remplis.
 
 
+### Se connecter avec Apple
+
+Avec la ligne `connexion apple` dans le serveur, un compte **déjà connu** du serveur peut se
+connecter avec son compte Apple : `se connecter avec apple` ouvre la fenêtre d'Apple, sur
+iPhone, iPad, Mac et sur le site. La première connexion lie le compte à ce compte Apple. Si la
+personne choisit de masquer son adresse, elle n'est pas reconnue et un message le lui dit. Il
+faut `APPLE_APP_ID` pour l'application, `APPLE_SERVICE_ID` pour le site, et compiler
+l'application avec `--equipe`.
+
 ### Se connecter avec Google
 
 Avec la ligne `connexion google` dans le serveur, un compte **déjà connu** du
