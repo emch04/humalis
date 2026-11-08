@@ -718,6 +718,14 @@ page "vitrine" :
     Fiche avec nom "Livre"
 ```
 
+### Ajouter une scène 3D | Add a 3D scene
+```humalis racine
+utiliser composant "Scene3D" depuis "./composants/Scene3D"
+
+page "accueil" :
+    Scene3D avec couleur "#c1e928"
+```
+
 ### Écrire un test | Write a test
 ```humalis racine
 page "salut" :

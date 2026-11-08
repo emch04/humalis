@@ -2285,9 +2285,21 @@ Le fichier peut être en `.tsx`, `.ts`, `.jsx` ou `.js`. Les paquets qu'il
 importe (`three`, `gsap`…) sont ajoutés tout seuls au projet produit : il suffit
 de lancer `npm install`.
 
-Pour de la 3D, écris la scène dans un composant React avec Three.js. Un composant
-qui importe `three` ou `@react-three/…` est chargé à part : le texte de la page
-s'affiche sans attendre la 3D.
+Humalis ne dessine pas de 3D lui-même : écris la scène dans un composant React.
+
+```humalis
+utiliser composant "Scene3D" depuis "./composants/Scene3D"
+
+page "accueil" :
+    titre "Mon portfolio"
+    Scene3D avec couleur "#c1e928"
+```
+
+Un composant qui importe `three` ou `@react-three/…` est chargé à part : le texte
+de la page s'affiche sans attendre la 3D. Ces paquets ont des versions essayées
+ensemble : `three`, `@react-three/fiber`, `@react-three/drei`,
+`@react-three/postprocessing`, `postprocessing`, `gsap` et `lenis`. Un autre paquet
+est installé dans sa dernière version.
 
 Dans l'autre sens, `humalis compile … --composants <dossier>` produit des
 composants React à importer dans un projet React existant.

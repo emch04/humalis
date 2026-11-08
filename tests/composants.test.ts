@@ -163,6 +163,12 @@ const g = await import('gsap/ScrollTrigger');
     expect(dependancesDesComposantsReact(['export default function A() { return null; }'])).toEqual({ dependances: {}, dependancesDev: {} });
   });
 
+  it('fige three quand seul @react-three/… est importé', () => {
+    const { dependances, dependancesDev } = dependancesDesComposantsReact(["import { Float } from '@react-three/drei';"]);
+    expect(dependances.three).toBe('0.187.0');
+    expect(dependancesDev['@types/three']).toBe('0.187.0');
+  });
+
   it('accepte un composant .jsx : tsconfig avec allowJs, fichier recopié tel quel', () => {
     const f = avec('Carte.jsx', 'export default function Carte() { return null; }');
     expect(JSON.parse(f.get('tsconfig.json')!).compilerOptions.allowJs).toBe(true);

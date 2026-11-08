@@ -49,6 +49,8 @@ export function dependancesDesComposantsReact(codes: string[]): { dependances: R
   const dependances: Record<string, string> = {};
   const dependancesDev: Record<string, string> = {};
   for (const nom of codes.flatMap(paquetsImportes)) dependances[nom] = VERSIONS_PAQUETS_REACT[nom] ?? 'latest';
+  // @react-three/* attend three en pair : sans lui, npm en prendrait une version non essayée.
+  if (Object.keys(dependances).some((nom) => nom.startsWith('@react-three/'))) dependances.three ??= VERSIONS_PAQUETS_REACT.three;
   if (dependances.three) dependancesDev['@types/three'] = VERSION_TYPES_THREE;
   return { dependances, dependancesDev };
 }
