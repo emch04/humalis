@@ -2281,6 +2281,14 @@ page "accueil" :
     Carte avec titre "Fournitures scolaires"
 ```
 
+Le fichier peut être en `.tsx`, `.ts`, `.jsx` ou `.js`. Les paquets qu'il
+importe (`three`, `gsap`…) sont ajoutés tout seuls au projet produit : il suffit
+de lancer `npm install`.
+
+Pour de la 3D, écris la scène dans un composant React avec Three.js. Un composant
+qui importe `three` ou `@react-three/…` est chargé à part : le texte de la page
+s'affiche sans attendre la 3D.
+
 Dans l'autre sens, `humalis compile … --composants <dossier>` produit des
 composants React à importer dans un projet React existant.
 
