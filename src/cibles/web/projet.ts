@@ -1,3 +1,4 @@
+import { APPAREIL_JS, APPAREIL_TYPES, utiliseAppareil, utiliseFileEnvois } from '../commun/appareil-web.js';
 import { TRAVAILLEUR_NOTIFICATIONS } from '../serveur/logique.js';
 import { copiesDesMedias } from '../../ri/medias.js';
 import { dependancesDesComposantsReact, enveloppeDifferee, enveloppeModule, utiliseLa3D } from './composants-react.js';
@@ -260,7 +261,7 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
   // Les composants écrits en Humalis aussi : leurs variables « memorisee » utilisent le même fichier.
   const memorisees =
     application.partages.some((p) => p.memorisee) ||
-    [...application.ecrans, ...application.composants].some((e) => e.etat.some((v) => v.memorisee && !v.secret));
+    [...application.ecrans, ...application.composants].some((e) => e.etat.some((v) => (v.memorisee && !v.secret) || v.horsLigne));
   if (memorisees) fichiers.set('src/humalis/memoire.ts', MEMOIRE);
   if (application.partages.length > 0) fichiers.set('src/humalis/partage.tsx', partageTsx(application.partages, contexte.cle));
   if (application.serveurs.length > 0 || application.sources.length > 0) fichiers.set('src/humalis/donnees.ts', donneesTs(application));
@@ -268,6 +269,11 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
     const source = application.sources.find((x) => x.session);
     fichiers.set('src/humalis/session.tsx', source ? sessionDeLaSource(SESSION, source) : sessionDuServeur ? sessionRenouvelee(SESSION) : SESSION);
     // « se connecter avec google » : la page où Google renvoie, qui rend le jeton au site.
+    if (utiliseAppareil(application)) {
+      fichiers.set('src/humalis/appareil.js', APPAREIL_JS);
+      fichiers.set('src/humalis/appareil.d.ts', APPAREIL_TYPES);
+    }
+    if (JSON.stringify(application.ecrans).includes('"animation":true')) fichiers.set('src/humalis/liste-animee.tsx', LISTE_ANIMEE);
     if (application.serveurs.some((s) => s.connexionGoogle)) fichiers.set('public/auth-google.html', PAGE_RETOUR_GOOGLE);
     if (application.serveurs.some((s) => s.activeNotifications)) fichiers.set('public/humalis/notifications.js', TRAVAILLEUR_NOTIFICATIONS);
   }
@@ -338,6 +344,8 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
   // Plusieurs langues : les messages de Humalis (« Réessayer », la page introuvable…) passent par t().
   if (application.langues) messagesDuProjet(fichiers, application.langues.map((l) => l.code), 'src/humalis/', 'src/Introuvable.tsx');
 
+  // La file d'envois doit écouter la session dès le départ, sur toutes les pages.
+  if (utiliseFileEnvois(application)) fichiers.set('src/main.tsx', `import './humalis/appareil';\n${fichiers.get('src/main.tsx')}`);
   return fichiers;
 }
 
@@ -501,6 +509,34 @@ export default defineConfig({
 `;
 
 /** Les données que reçoivent les pages d'un serveur : « comptes » n'a pas de table sur le serveur, mais sa route donne ces champs. */
+/** « avec animation » : chaque ligne repart d'où elle était et glisse vers sa place ; une nouvelle apparaît en fondu. */
+const LISTE_ANIMEE = `// Produit par Humalis : « avec animation ». Rien si la personne a demandé moins d'animations.
+import { useLayoutEffect, useRef, type ReactNode } from 'react';
+
+export function ListeAnimee({ children }: { children: ReactNode }) {
+  const cadre = useRef<HTMLDivElement>(null);
+  const positions = useRef<Map<Element, DOMRect> | null>(null);
+  useLayoutEffect(() => {
+    const lignes = cadre.current ? [...cadre.current.children] : [];
+    const avant = positions.current;
+    positions.current = new Map(lignes.map((ligne) => [ligne, ligne.getBoundingClientRect()]));
+    if (!avant || lignes.length > 300 || !document.body.animate || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    for (const ligne of lignes) {
+      const ancienne = avant.get(ligne);
+      if (!ancienne) {
+        ligne.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: 'ease-out' });
+        continue;
+      }
+      const nouvelle = positions.current.get(ligne)!;
+      const dx = ancienne.left - nouvelle.left;
+      const dy = ancienne.top - nouvelle.top;
+      if (dx !== 0 || dy !== 0) ligne.animate([{ transform: \`translate(\${dx}px, \${dy}px)\` }, { transform: 'none' }], { duration: 220, easing: 'ease-out' });
+    }
+  });
+  return <div ref={cadre} role="none" style={{ display: 'contents' }}>{children}</div>;
+}
+`;
+
 export function donneesDesPages(serveur: ServeurRI): ServeurRI['donnees'] {
   if (!serveur.routeComptes) return serveur.donnees;
   const champ = (nom: string) => ({ nom, type: { genre: 'texte' as const } });
@@ -956,6 +992,16 @@ export function Messages({ children }: { children: ReactNode }) {
     setMessages((liste) => [...liste, message].slice(-PILE));
   }, []);
 
+  // Les messages venus d'en dehors d'une page : un envoi gardé qui part plus tard, par exemple.
+  useEffect(() => {
+    const ecouter = (evenement: Event) => {
+      const { texte, genre } = (evenement as CustomEvent<{ texte: string; genre: Genre }>).detail;
+      afficher(texte, genre);
+    };
+    window.addEventListener('humalis:message', ecouter);
+    return () => window.removeEventListener('humalis:message', ecouter);
+  }, [afficher]);
+
   return (
     <Contexte.Provider value={afficher}>
       <ul className="humalis-messages" aria-live="polite">
@@ -1215,6 +1261,12 @@ export function useServeur() {
     // La raison du dernier échec, que reçoit « si erreur » (« raison »).
     raison: () => derniereRaison,
     lire: (adresse: string, actuelle?: unknown) => appeler(adresse, { method: 'GET' }, actuelle),
+    // « en direct » : relire pour de vrai, sans la copie gardée par le navigateur ou la page.
+    relire: (adresse: string, actuelle?: unknown) => {
+      oublier(adresse, 'POST');
+      return appeler(adresse, { method: 'GET', cache: 'no-cache' }, actuelle);
+    },
+    ecouterDirect: (adresse: string, relire: () => void) => ecouterDirect(adresse, relire),
     // « avec id dans produit » : un seul élément, par son identifiant.
     lireUn: (adresse: string, id: string, actuelle?: unknown) =>
       appeler(\`\${adresse}/\${encodeURIComponent(id)}\`, { method: 'GET' }, actuelle),
@@ -1236,8 +1288,75 @@ export function useServeur() {
   } as Serveur;
 }
 
+/** Le canal du serveur : il annonce seulement « ça a changé ». Coupure muette, onglet caché et relectures étalées, comme sur le moteur. */
+function ecouterDirect(adresse: string, relire: () => void): () => void {
+  let flux: EventSource | undefined;
+  let attente: ReturnType<typeof setTimeout> | undefined;
+  let relance: ReturnType<typeof setTimeout> | undefined;
+  let veille: ReturnType<typeof setTimeout> | undefined;
+  let delai = 1000;
+  let dejaOuvert = false;
+  let enRetard = false;
+  let fini = false;
+  const rafraichir = () => {
+    if (document.hidden) {
+      enRetard = true;
+      return;
+    }
+    clearTimeout(attente);
+    attente = setTimeout(relire, 120 + Math.random() * 800);
+  };
+  const auRetour = () => {
+    if (document.hidden || !enRetard) return;
+    enRetard = false;
+    rafraichir();
+  };
+  const vivant = () => {
+    clearTimeout(veille);
+    veille = setTimeout(() => {
+      flux?.close();
+      ouvrir();
+    }, 60000);
+  };
+  function ouvrir() {
+    if (fini) return;
+    flux = new EventSource(BASE + adresse + '/direct', { withCredentials: BASE !== '' });
+    flux.onopen = () => {
+      vivant();
+      delai = 1000;
+      // Après une coupure, on rattrape ce qui a changé entre-temps.
+      if (dejaOuvert) rafraichir();
+      dejaOuvert = true;
+    };
+    flux.onmessage = () => {
+      vivant();
+      rafraichir();
+    };
+    flux.addEventListener('present', vivant);
+    flux.onerror = () => {
+      flux?.close();
+      clearTimeout(relance);
+      relance = setTimeout(ouvrir, delai + Math.random() * 500);
+      delai = Math.min(delai * 2, 30000);
+    };
+  }
+  document.addEventListener('visibilitychange', auRetour);
+  ouvrir();
+  return () => {
+    fini = true;
+    flux?.close();
+    clearTimeout(attente);
+    clearTimeout(relance);
+    clearTimeout(veille);
+    document.removeEventListener('visibilitychange', auRetour);
+  };
+}
+
 interface Serveur {
   raison(): string;
+  relire<T>(adresse: string, actuelle: T): Promise<T>;
+  /** « en direct » : prévient quand le serveur annonce un changement ; rend de quoi arrêter. */
+  ecouterDirect(adresse: string, relire: () => void): () => void;
   lire<T>(adresse: string, actuelle: T): Promise<T>;
   lire(adresse: string): Promise<unknown>;
   lireUn<T>(adresse: string, id: string, actuelle: T): Promise<T>;
@@ -1697,6 +1816,7 @@ function entetes(): Headers {
 export function Session({ children }: { children: ReactNode }) {
   const { afficherMessage } = useMessages();
   const [personne, setPersonne] = useState<Personne | null>(null);
+  const identifiant = (personne as { id?: unknown } | null)?.id;
   const [pret, setPret] = useState(false);
   // La dernière réponse de /auth/me : un événement en cours (juste après
   // « se connecter ») la lit, sans attendre le prochain affichage.
@@ -2021,6 +2141,7 @@ export function Session({ children }: { children: ReactNode }) {
   }
 
   async function seDeconnecter(): Promise<void> {
+    window.dispatchEvent(new CustomEvent('humalis:deconnexion'));
     try {
       await fetch(BASE + '/auth/logout', { method: 'POST', headers: entetes(), credentials: 'same-origin' });
     } catch {
@@ -2053,6 +2174,9 @@ export function Session({ children }: { children: ReactNode }) {
     seDeconnecter,
     demander,
   };
+  useEffect(() => {
+    if (pret) window.dispatchEvent(new CustomEvent('humalis:session', { detail: identifiant ?? null }));
+  }, [pret, identifiant]);
   return <Contexte.Provider value={valeur}>{children}</Contexte.Provider>;
 }
 

@@ -31,6 +31,7 @@ export type Enfant =
   | { icone: string; classe?: string; label?: string | { js: string; initial: string } }
   /** Un code QR dessiné par le script (aucun encodeur dans le compilateur). */
   | { qr: string }
+  | { signature: string }
   /** Le contenu d'un avatar : sa photo ou ses initiales. */
   | { avatar: { nom: string; photo?: string; initialNom: string; initialPhoto?: string } }
   /** Des étoiles (dessinées par `etoiles` dans le script, calculées ici pour le HTML de départ). */
@@ -141,9 +142,8 @@ export function arbreWidget(genre: GenreWidget, a: AideWidget): Enfant {
     }
     case 'qr':
       return n('span', [['class', cls('humalis-qr', a.classes)], ['role', 'img'], ['aria-label', description ?? 'Code QR']], { qr: a.valeur.js });
-    // Refusée avant d'arriver ici : voir cibles/appareil.ts.
     case 'signature':
-      return null as unknown as Enfant;
+      return n('span', [['class', cls('humalis-signature', a.classes)]], { signature: a.valeur.js });
     case 'selecteurLangue': {
       // Chaque langue écrite dans sa langue ; le HTML de départ choisit la première, le script la langue courante.
       const langues = a.langues ?? [];

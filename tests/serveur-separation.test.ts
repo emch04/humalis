@@ -30,6 +30,16 @@ page "p" :
         changer role de "x" en "gerant"
 `;
 
+describe('les fonctions de l’appareil sur le web', () => {
+  it('ce que le navigateur ne sait pas faire est dit, jamais simulé', async () => {
+    const { verifierAppareilPourLaCible } = await import('../src/cibles/appareil.js');
+    const programme = 'page "a" :\n    variable p = ""\n    titre "t"\n    en arriere plan :\n        vibrer\n    bouton "Go"\n    quand l\'utilisateur clique sur "Go" :\n        vibrer\n';
+    const dits = verifierAppareilPourLaCible(compiler(programme).application!, 'web');
+    expect(dits.find((d) => d.gravite === 'erreur')?.message).toContain('en arriere plan');
+    expect(dits.find((d) => d.gravite === 'avertissement')?.message).toContain('Android');
+  });
+});
+
 describe('groupes et droits sur ses fiches', () => {
   it('les champs de « compte : » se lisent dans une page', () => {
     const application = compiler('serveur "s" :\n    roles gerant\n    compte :\n        telephone : texte\n    route "equipe" :\n        seul gerant peut lire comptes\n\npage "p" :\n    titre "P"\n').application!;
