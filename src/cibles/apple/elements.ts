@@ -876,14 +876,33 @@ struct GraphiqueHumalis: View {
     }
 
     var body: some View {
-        Chart(points) { marques($0) }
-            .chartForegroundStyleScale(range: genre == .camembert ? [Couleurs.bleu, Couleurs.vert, Couleurs.orange, Couleurs.violet, Couleurs.rose, Couleurs.jaune, Couleurs.rouge, Couleurs.gris] : couleurs)
-            .chartYAxis { AxisMarks { valeur in
-                AxisGridLine()
-                AxisValueLabel { if let v = valeur.as(Double.self) { Text(verbatim: ecrire(v)) } }
-            } }
-            .aspectRatio(proportions ?? 16 / 9, contentMode: .fit)
-            .accessibilityLabel("\(titre). \(description)")
+        VStack(alignment: .leading, spacing: 8) {
+            Chart(points) { marques($0) }
+                .chartForegroundStyleScale(range: genre == .camembert ? [Couleurs.bleu, Couleurs.vert, Couleurs.orange, Couleurs.violet, Couleurs.rose, Couleurs.jaune, Couleurs.rouge, Couleurs.gris] : couleurs)
+                .chartYAxis { AxisMarks { valeur in
+                    AxisGridLine()
+                    AxisValueLabel { if let v = valeur.as(Double.self) { Text(verbatim: ecrire(v)) } }
+                } }
+                .aspectRatio(proportions ?? 16 / 9, contentMode: .fit)
+                .accessibilityLabel("\(titre). \(description)")
+            // Les mêmes chiffres en tableau, pour qui ne voit pas le dessin.
+            DisclosureGroup("Voir les données") {
+                Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 4) {
+                    GridRow {
+                        Text(verbatim: "")
+                        ForEach(series, id: \.nom) { Text(verbatim: $0.nom).bold() }
+                    }
+                    ForEach(Array(etiquettes.enumerated()), id: \.offset) { i, etiquette in
+                        GridRow {
+                            Text(verbatim: etiquette)
+                            ForEach(series, id: \.nom) { serie in Text(verbatim: i < serie.valeurs.count ? ecrire(serie.valeurs[i]) : "") }
+                        }
+                    }
+                }
+                .font(.footnote)
+                .padding(.top, 4)
+            }
+        }
     }
 }
 `;

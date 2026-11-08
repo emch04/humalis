@@ -102,6 +102,9 @@ for (const fichier of exemples) {
   console.log(`${ok ? '✓' : '✗'} ${nom} : iPhone ${iphoneVivant ? 'tourne' : 'ARRÊTÉ'}, Mac ${macVivant ? 'tourne' : 'ARRÊTÉ'}`);
 }
 
+// Le simulateur s'éteint à la fin : il occupe beaucoup de mémoire.
+spawnSync('xcrun', ['simctl', 'shutdown', appareil.udid]);
+
 const echecs = bilan.filter((b) => b.etat === 'ÉCHEC');
 console.log(`\n${bilan.filter((b) => b.etat === 'ok').length} construits et lancés, ${bilan.filter((b) => b.etat === 'refusé clairement').length} refusés clairement, ${echecs.length} en échec. Captures : ${join(travail, 'captures')}`);
 if (echecs.length > 0) process.exitCode = 1;
