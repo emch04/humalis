@@ -36,6 +36,6 @@ page "confidentialite" a l'adresse "/confidentialite" :
             lien "cnil.fr ↗" sans traduction vers "https://www.cnil.fr" avec nouvel onglet
         bloc avec style "legal-bloc" :
             soustitre "Une question ?" en anglais "A question?"
-            texte "Ouvre un ticket sur GitHub. Cette page sera mise à jour si le site change." en anglais "Open an issue on GitHub. This page will be updated if the website changes."
-            texte "Dernière mise à jour : 30 octobre 2026." en anglais "Last updated: October 30, 2026."
+            texte "Écris à contact@humalis.dev. Cette page sera mise à jour si le site change." en anglais "Write to contact@humalis.dev. This page will be updated if the website changes."
+            texte "Dernière mise à jour : 8 novembre 2026." en anglais "Last updated: November 8, 2026."
         lien "Voir les mentions légales →" en anglais "See the legal notice →" vers "mentions_legales" avec style "button button-secondary"
