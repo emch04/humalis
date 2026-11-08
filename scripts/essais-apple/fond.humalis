@@ -1,0 +1,47 @@
+# L'essai de la position, des liens profonds, du travail en arrière-plan et des envois hors ligne.
+liens profonds "essaifond"
+
+serveur "boutique" :
+    donnee message :
+        contenu : texte
+    route "messages" :
+        tout le monde peut lire message
+        tout le monde peut creer message
+
+variable reveil = "non" avec partagee
+variable derniers = [] avec partagee
+
+page "accueil" :
+    variable messages = []
+    variable lieu = rien
+    variable etat = "attente"
+    titre "Fond"
+    en arriere plan :
+        changer reveil par "oui"
+        envoyer requete vers "messages" dans derniers
+    quand la page se charge :
+        envoyer requete vers "messages" dans messages
+    pour chaque m dans messages :
+        texte "Recu {m.contenu}"
+    texte "Reveil {reveil}"
+    texte "Derniers {nombre de derniers}"
+    bouton "Position"
+    quand l'utilisateur clique sur "Position" :
+        position dans lieu
+    si lieu est rien :
+        texte "Sans position"
+    sinon :
+        texte "Latitude {lieu.latitude}"
+    bouton "Envoyer"
+    quand l'utilisateur clique sur "Envoyer" :
+        envoyer requete vers "messages" avec contenu = "un" hors ligne
+        envoyer requete vers "messages" avec contenu = "deux" hors ligne
+        changer etat par "fini"
+    texte "Etat {etat}"
+    bouton "Relire"
+    quand l'utilisateur clique sur "Relire" :
+        envoyer requete vers "messages" dans messages
+
+page "detail" avec parametre numero :
+    titre "Detail"
+    texte "Detail {numero}"

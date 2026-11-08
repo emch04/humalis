@@ -4,7 +4,7 @@ import { langueDuMot } from '../i18n/langues.js';
 import { texteSource } from '../parser/langues.js';
 import { lireExpressionDuTexte } from '../parser/parser.js';
 import { ErreurSyntaxique } from '../parser/erreurs.js';
-import type { FaireAction, Paiement, PrisePhoto, ScanCode, TelechargementDocument, VerificationIdentite, Vibration } from '../parser/ast.js';
+import type { FaireAction, Localisation, Paiement, PrisePhoto, ScanCode, TelechargementDocument, VerificationIdentite, Vibration } from '../parser/ast.js';
 import type {
   Programme,
   RegleSource,
@@ -1014,6 +1014,7 @@ class AnalysePage {
       }
 
       case 'PrisePhoto':
+      case 'Localisation':
       case 'ScanCode':
       case 'VerificationIdentite':
       case 'Vibration':
@@ -1338,8 +1339,15 @@ class AnalysePage {
   }
 
   /** « photo dans image », « scanner code dans valeur », « verifier identite : », « vibrer » : un geste de la personne les déclenche. */
-  private fonctionAppareil(instruction: PrisePhoto | ScanCode | VerificationIdentite | Vibration, contexte: Contexte, place: Place): void {
+  private fonctionAppareil(instruction: PrisePhoto | ScanCode | VerificationIdentite | Vibration | Localisation, contexte: Contexte, place: Place): void {
     if (contexte === 'vue') this.horsEvenement(actionInterditeDansUneFonction(instruction)!, instruction.ligne);
+    if (this.cadre.evenement === 'arrierePlan' && instruction.type !== 'Vibration') {
+      this.erreur(`« ${actionInterditeDansUneFonction(instruction)} » demande la personne devant l’écran : cela ne se place pas dans « en arriere plan ».`, instruction.ligne);
+    }
+    if (instruction.type === 'Localisation') {
+      this.variablePosition(instruction);
+      return;
+    }
     if (instruction.type === 'VerificationIdentite') {
       this.sousBloc(instruction.alors, contexte, place);
       this.sousBloc(instruction.sinon, contexte, place);
@@ -1355,6 +1363,19 @@ class AnalysePage {
       }
     } else if (instruction.type === 'ScanCode') {
       this.variableDeTexte(instruction.variable, instruction.ligne, 'un code');
+    }
+  }
+
+  /** « position dans lieu » : la variable reçoit une fiche de trois nombres. */
+  private variablePosition(instruction: Localisation): void {
+    const symbole = this.variable(instruction.variable, instruction.ligne);
+    if (!symbole) return;
+    const type: TypeValeur = { genre: 'fiche', champs: ['latitude', 'longitude', 'precision'].map((nom) => ({ nom, type: NOMBRE })) };
+    if (!estConnu(symbole.type)) {
+      symbole.type = type;
+      if (symbole.origine) this.resultat.types.set(symbole.origine, type);
+    } else if (!compatibles(symbole.type, type)) {
+      this.erreur(`« ${instruction.variable} » est ${decrireType(symbole.type)} ; elle reçoit une position. Déclarez variable ${instruction.variable} = rien.`, instruction.ligne);
     }
   }
 
@@ -1709,6 +1730,9 @@ class AnalysePage {
       );
     }
 
+    if (evenement.genre === 'arrierePlan' && (place.genre !== 'page' || this.pileBlocs.length > 0)) {
+      this.erreur('« en arriere plan : » s’écrit directement dans la page, hors de tout bloc et de toute boucle.', evenement.ligne);
+    }
     if (evenement.genre === 'soumission') {
       this.soumission(evenement, place);
     } else if (['touche', 'saisie', 'pauseSaisie', 'bas', 'ordre'].includes(evenement.genre)) {
@@ -2432,6 +2456,9 @@ class AnalysePage {
    * la requête à un visiteur.
    */
   private requete(requete: Requete): void {
+    if (requete.enAttente && (requete.source !== undefined || requete.donnees.length === 0 || requete.resultat !== undefined)) {
+      this.erreur('« hors ligne » se met sur un envoi vers une route du serveur de ce fichier, sans « dans » : la réponse n’arrivera que plus tard.', requete.ligne);
+    }
     if (requete.direct && (requete.source !== undefined || requete.donnees.length > 0 || requete.resultat === undefined)) {
       this.erreur('« en direct » se met sur une lecture d’une route du serveur de ce fichier : envoyer requete vers "commandes" dans commandes en direct.', requete.ligne);
     }
@@ -2605,6 +2632,7 @@ class AnalysePage {
   /** « supprimer p de "produits" », « modifier p dans "produits" avec … » (trou G2). */
   private operationServeur(operation: Suppression | Modification): void {
     const verbe = operation.type === 'Suppression' ? 'supprimer' : 'modifier';
+    if (operation.enAttente && operation.source !== undefined) this.erreur(`« ${verbe} … hors ligne » ne marche qu’avec une route du serveur de ce fichier.`, operation.ligne);
     const typeObjet = this.typeDe(operation.objet);
     const types = operation.type === 'Modification' ? operation.changements.map((c) => this.typeDe(c.valeur)) : [];
     if (operation.source !== undefined) {
@@ -2902,6 +2930,8 @@ function actionInterditeDansUneFonction(instruction: Instruction): string | unde
       return 'activer notifications';
     case 'PrisePhoto':
       return 'photo';
+    case 'Localisation':
+      return 'position';
     case 'ScanCode':
       return 'scanner code';
     case 'VerificationIdentite':

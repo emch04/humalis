@@ -16,6 +16,8 @@ export interface Programme {
   composantsReact: ComposantReact[];
   /** « paquet swift "https://…" version "1.2" » : une bibliothèque Swift, pour les vues écrites à la main. */
   paquetsSwift?: { adresse: string; version: string; produit?: string; ligne: number }[];
+  /** « liens profonds "magasin" » : les adresses magasin://… ouvrent les pages de l'application. */
+  liensProfonds?: { schema: string; ligne: number };
   /** Les « composant "Fiche" : » écrits en Humalis. */
   composants: DefinitionComposant[];
   /** Les « serveur "…" : » : données, routes et règles d'accès. */
@@ -510,6 +512,7 @@ export type Instruction =
   | TelechargementDocument
   | ActivationNotifications
   | PrisePhoto
+  | Localisation
   | ScanCode
   | VerificationIdentite
   | Vibration
@@ -717,6 +720,8 @@ export interface Suppression {
   adresse: string;
   /** « de la source "boutique" » : l'API visée, au lieu du serveur du fichier. */
   source?: string;
+  /** « … hors ligne » : sans réseau, gardée puis envoyée au retour de la connexion. */
+  enAttente?: boolean;
   ligne: number;
 }
 
@@ -751,6 +756,8 @@ export interface Modification {
   source?: string;
   /** Chaque champ changé : « prix = p.prix - 1 », ou « champ "prix" » (la valeur d'un champ de la page). */
   changements: { champ: string; valeur: Expression }[];
+  /** « … hors ligne » : sans réseau, gardée puis envoyée au retour de la connexion. */
+  enAttente?: boolean;
   ligne: number;
 }
 
@@ -783,6 +790,13 @@ export interface Invitation {
 
 /** « activer notifications » : cet appareil reçoit les notifications du compte connecté. */
 /** « photo dans image » : l'appareil photo, et la variable reçoit le fichier. */
+/** « position dans lieu » : la latitude, la longitude et la précision de l'appareil. */
+export interface Localisation {
+  type: 'Localisation';
+  variable: string;
+  ligne: number;
+}
+
 export interface PrisePhoto {
   type: 'PrisePhoto';
   variable: string;
@@ -947,6 +961,8 @@ export interface Requete {
   resultat?: string;
   /** « … dans commandes en direct » : relue quand le serveur change. */
   direct?: boolean;
+  /** « envoyer requete … hors ligne » : sans réseau, gardée puis envoyée au retour de la connexion. */
+  enAttente?: boolean;
   ligne: number;
 }
 
@@ -1264,7 +1280,9 @@ export type GenreEvenement =
   | 'saisie'
   | 'pauseSaisie'
   | 'bas'
-  | 'ordre';
+  | 'ordre'
+  /** « en arriere plan : » : quand le système réveille l'application. */
+  | 'arrierePlan';
 
 export interface Evenement {
   type: 'Evenement';

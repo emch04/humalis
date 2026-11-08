@@ -13,6 +13,9 @@ const CONSTRUCTIONS: { motif: RegExp; nom: string }[] = [
   { motif: /"type":"vibration"/, nom: '« vibrer »' },
   { motif: /"genre":"signature"/, nom: '« signature dans … »' },
   { motif: /"horsLigne":true/, nom: '« avec hors ligne »' },
+  { motif: /"type":"localisation"/, nom: '« position dans … »' },
+  { motif: /"enAttente":true/, nom: '« … hors ligne » sur un envoi' },
+  { motif: /"declencheur":"arrierePlan"/, nom: '« en arriere plan : »' },
 ];
 
 export function verifierAppareilPourLaCible(application: Application, cible: string): Diagnostic[] {
@@ -24,5 +27,6 @@ export function verifierAppareilPourLaCible(application: Application, cible: str
     const ligne = lieu?.ligne ?? partage?.ligne;
     if (ligne !== undefined) diagnostics.push({ gravite: 'erreur', ligne, message: `${nom} n'est disponible que sur la cible Apple pour l'instant : compilez avec --cible apple (ici, --cible ${cible}).` });
   }
+  if (application.liensProfonds) diagnostics.push({ gravite: 'erreur', ligne: application.liensProfonds.ligne, message: `« liens profonds » n'est disponible que sur la cible Apple pour l'instant : compilez avec --cible apple, ou retirez cette ligne.` });
   return diagnostics;
 }

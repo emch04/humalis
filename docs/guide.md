@@ -1747,6 +1747,24 @@ Touch ID ou le code de l'appareil. Une variable `avec hors ligne` garde la derni
 réponse du serveur et la montre quand il n'y a pas de réseau :
 `variable produits = [] avec hors ligne`.
 
+`position dans lieu` demande la permission puis remplit `lieu` (déclarée `= rien`) avec
+`lieu.latitude`, `lieu.longitude` et `lieu.precision`, en mètres.
+
+`liens profonds "magasin"`, en haut du fichier, fait ouvrir l'application par les adresses
+`magasin://produit/42` : le premier mot est la page, les suivants sont ses paramètres. Une
+page réservée reste réservée.
+
+`en arriere plan :`, directement dans une page, dit ce que l'application fait quand le
+système la réveille. Le système choisit le moment : jamais avant 15 minutes, souvent bien
+plus tard. Ce bloc ne voit que les variables `avec partagee`, puisqu'aucune page n'est
+ouverte. Sur Mac, l'application doit être ouverte.
+
+`hors ligne`, à la fin d'un `envoyer requete … avec …`, d'un `modifier` ou d'un `supprimer`,
+garde l'envoi sur l'appareil s'il n'y a pas de réseau, et l'envoie dans l'ordre quand la
+connexion revient. Un refus du serveur est affiché. Se déconnecter efface ce qui attendait.
+Cette fin de phrase ne marche pas avec `dans` (la réponse arrivera plus tard) ni vers une
+API externe. Pour que la page se mette à jour ensuite, lis la route `en direct`.
+
 Pour se servir d'une bibliothèque Swift dans une vue écrite à la main, écris en haut du
 fichier `paquet swift "https://github.com/exemple/paquet" version "1.2"`. Si le produit
 ne porte pas le nom du dépôt, ajoute `produit "Nom"`.

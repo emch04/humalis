@@ -108,6 +108,8 @@ export class GenerateurPage implements HotePage {
     for (const m of JSON.stringify([ecran.vue, ecran.gestionnaires]).matchAll(/"type":"prisePhoto","variable":"([^"]+)"/g)) choisis.add(m[1]);
     this.ecran = {
       ...ecran,
+      // « en arriere plan » n'appartient pas à la page ouverte : voir arrierePlanSwift.
+      gestionnaires: ecran.gestionnaires.filter((g) => g.declencheur !== 'arrierePlan'),
       etat: ecran.etat.map((e) => {
         if (!choisis.has(e.nom)) return e;
         const de = e.type.genre === 'liste' ? e.type.de : e.type;

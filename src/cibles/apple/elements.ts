@@ -934,6 +934,79 @@ struct CarteHumalis<Lieux: MapContent>: View {
 }
 `;
 
+const POSITION = String.raw`// Produit par Humalis : la position de l'appareil, demandée une fois, quand la page en a besoin.
+import CoreLocation
+
+struct PositionHumalis {
+    let latitude: Double
+    let longitude: Double
+    let precision: Double
+}
+
+@MainActor final class LecteurPosition: NSObject, CLLocationManagerDelegate {
+    static let commun = LecteurPosition()
+    private let gestionnaire = CLLocationManager()
+    private var attente: CheckedContinuation<PositionHumalis?, Never>?
+    private var delai: Task<Void, Never>?
+
+    override init() {
+        super.init()
+        gestionnaire.delegate = self
+    }
+
+    func lire() async -> PositionHumalis? {
+        // Une lecture à la fois : une deuxième demande attend la fin de la première.
+        guard attente == nil else { return nil }
+        return await withCheckedContinuation { suite in
+            attente = suite
+            delai = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(20))
+                if !Task.isCancelled { self?.terminer(nil, "La position n'a pas pu être lue. Réessayez dehors ou près d'une fenêtre.") }
+            }
+            avancer()
+        }
+    }
+
+    private func avancer() {
+        switch gestionnaire.authorizationStatus {
+        case .notDetermined: gestionnaire.requestWhenInUseAuthorization()
+        case .denied, .restricted: terminer(nil, "L'accès à la position est refusé. Vous pouvez l'autoriser dans les réglages de l'appareil.")
+        default: gestionnaire.requestLocation()
+        }
+    }
+
+    private func terminer(_ position: PositionHumalis?, _ message: String? = nil) {
+        guard let suite = attente else { return }
+        attente = nil
+        delai?.cancel()
+        delai = nil
+        if let message { Messages.commun.afficher(message, .erreur) }
+        suite.resume(returning: position)
+    }
+
+    nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        Task { @MainActor in
+            if self.attente != nil && self.gestionnaire.authorizationStatus != .notDetermined { self.avancer() }
+        }
+    }
+
+    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard let lieu = locations.last else { return }
+        let lue = PositionHumalis(latitude: lieu.coordinate.latitude, longitude: lieu.coordinate.longitude, precision: lieu.horizontalAccuracy)
+        Task { @MainActor in self.terminer(lue) }
+    }
+
+    nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        Task { @MainActor in self.terminer(nil, "La position n'a pas pu être lue. Réessayez dans un instant.") }
+    }
+}
+
+/** « position dans lieu ». */
+@MainActor func lirePosition() async -> PositionHumalis? {
+    await LecteurPosition.commun.lire()
+}
+`;
+
 const APPAREIL = String.raw`// Produit par Humalis : l'appareil photo, le scanner, Face ID, la vibration et la signature.
 import SwiftUI
 import LocalAuthentication
@@ -1146,6 +1219,7 @@ export function fichiersElements(code: string): Map<string, string> {
     fichiers.set('Humalis/Appareil.swift', APPAREIL);
     fichiers.set('Humalis/Fichiers.swift', FICHIERS);
   }
+  if (emploie(/\blirePosition\(/)) fichiers.set('Humalis/Position.swift', POSITION);
   if (emploie(/\bQrHumalis\b/)) fichiers.set('Humalis/Qr.swift', QR);
   if (emploie(/\bLecteurHumalis\b/)) fichiers.set('Humalis/Audio.swift', AUDIO);
   if (emploie(/\bGraphiqueHumalis\b/)) fichiers.set('Humalis/Graphiques.swift', GRAPHIQUES);

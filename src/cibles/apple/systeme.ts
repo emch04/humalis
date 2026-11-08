@@ -412,6 +412,8 @@ import SwiftUI
 
 enum ErreurHumalis: LocalizedError {
     case refus(String)
+    /** La requête n'est sûrement pas partie : pas de réseau, ou serveur injoignable. */
+    case sansReseau
     var errorDescription: String? {
         if case .refus(let raison) = self { return raison }
         return nil
@@ -543,6 +545,8 @@ struct SourceHumalis: Sendable {
                     tentative += 1
                     continue
                 }
+                let coupures: [URLError.Code] = [.notConnectedToInternet, .cannotConnectToHost, .cannotFindHost, .dnsLookupFailed, .dataNotAllowed, .internationalRoamingOff]
+                if let coupure = error as? URLError, coupures.contains(coupure.code) { throw ErreurHumalis.sansReseau }
                 throw ErreurHumalis.refus(pasDeReponse)
             }
         }
@@ -857,7 +861,11 @@ private final class SuiviEnvoi: NSObject, URLSessionTaskDelegate, Sendable {
         if case .texte(let v) = corps["refreshToken"] { Coffre.ecrire(Session.cleRenouvellement, Data(v.utf8)) }
     }
 
+    /** Appelée quand la session prend fin : ce qui attendait ne doit pas partir au nom d'une autre personne. */
+    var quandSessionFinie: (@MainActor () -> Void)?
+
     private func oublier() {
+        quandSessionFinie?()
         Coffre.effacer(Session.cleJeton)
         Coffre.effacer(Session.cleRenouvellement)
     }
@@ -1013,6 +1021,119 @@ struct GardeHumalis<Contenu: View>: View {
 `;
 
 /** Les notifications : ajoutées au projet seulement si une page écrit « activer notifications ». */
+export const ENVOIS_SWIFT = String.raw`// Produit par Humalis : les envois « hors ligne », gardés sur l'appareil puis envoyés dans l'ordre.
+import Foundation
+import Network
+
+struct EnvoiGarde: Codable {
+    let numero: UUID
+    let adresse: String
+    let methode: String?
+    let envoi: [String: ValeurHumalis]?
+    let cible: String?
+}
+
+@MainActor final class EnvoisGardes {
+    static let commun = EnvoisGardes()
+    private static let cle = "humalis.envois-gardes"
+    private var file: [EnvoiGarde]
+    private var enCours = false
+    private var surveillance: NWPathMonitor?
+    private var relance: Task<Void, Never>?
+
+    private init() { file = Memoire.lire(EnvoisGardes.cle, fichier: true) ?? [] }
+
+    var attend: Bool { !file.isEmpty }
+
+    /** Au lancement : écoute le retour du réseau et envoie ce qui attendait. */
+    func demarrer() {
+        if surveillance == nil {
+            Session.commun.quandSessionFinie = { EnvoisGardes.commun.vider() }
+            let suivi = NWPathMonitor()
+            suivi.pathUpdateHandler = { chemin in
+                guard chemin.status == .satisfied else { return }
+                Task { @MainActor in await EnvoisGardes.commun.envoyer() }
+            }
+            suivi.start(queue: DispatchQueue(label: "humalis.reseau"))
+            surveillance = suivi
+        }
+        Task { await envoyer() }
+    }
+
+    func garder(_ adresse: String, methode: String?, envoi: [String: ValeurHumalis]?, id: String?) {
+        file.append(EnvoiGarde(numero: UUID(), adresse: adresse, methode: methode, envoi: envoi, cible: id))
+        enregistrer()
+        reessayerBientot()
+    }
+
+    func vider() {
+        file = []
+        enregistrer()
+    }
+
+    /** Dans l'ordre : si le réseau manque encore, tout attend ; un refus du serveur est dit, et on passe au suivant. */
+    func envoyer() async {
+        guard !enCours, !file.isEmpty else { return }
+        enCours = true
+        defer {
+            enCours = false
+            reessayerBientot()
+        }
+        while let suivant = file.first {
+            do {
+                try await Serveur.commun.appelSansReponse(suivant.adresse, methode: suivant.methode, envoi: suivant.envoi, id: suivant.cible)
+            } catch {
+                let raison = raisonDe(error)
+                if raison == pasDeReponse || raison == "Connectez-vous pour continuer." { return }
+                Messages.commun.afficher("Un envoi gardé a été refusé : \(raison)", .erreur)
+            }
+            file.removeAll { $0.numero == suivant.numero }
+            enregistrer()
+        }
+    }
+
+    private func enregistrer() { Memoire.ecrire(EnvoisGardes.cle, file, fichier: true) }
+
+    private func reessayerBientot() {
+        guard !file.isEmpty, relance == nil else { return }
+        relance = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(15))
+            self?.relance = nil
+            await self?.envoyer()
+        }
+    }
+}
+
+extension Serveur {
+    /** Sans réseau, l'envoi attend et le geste continue. S'il y en a déjà en attente, celui-ci passe après eux. */
+    func appelOuGarder(_ adresse: String, methode: String? = nil, envoi: [String: ValeurHumalis]? = nil, id: String? = nil) async throws {
+        let attente = EnvoisGardes.commun
+        if attente.attend {
+            attente.garder(adresse, methode: methode, envoi: envoi, id: id)
+            await attente.envoyer()
+            return
+        }
+        do {
+            try await appelSansReponse(adresse, methode: methode, envoi: envoi, id: id)
+        } catch ErreurHumalis.sansReseau {
+            attente.garder(adresse, methode: methode, envoi: envoi, id: id)
+            Messages.commun.afficher("Pas de réseau : ce sera envoyé dès que la connexion revient.", .info)
+        }
+    }
+
+    func appelReussiOuGarder(_ adresse: String, methode: String? = nil, envoi: [String: ValeurHumalis]? = nil, id: String? = nil) async -> Bool {
+        do {
+            try await appelOuGarder(adresse, methode: methode, envoi: envoi, id: id)
+            return true
+        } catch {
+            let raison = raisonDe(error)
+            Messages.commun.afficher(raison == pasDeReponse ? "Le serveur n'a pas répondu. Réessayez dans un instant." : raison, .erreur)
+            return false
+        }
+    }
+}
+`;
+
 export const NOTIFICATIONS_SWIFT = String.raw`// Produit par Humalis : les notifications de l'appareil.
 import SwiftUI
 import UserNotifications

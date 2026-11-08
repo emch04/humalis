@@ -55,6 +55,7 @@ const DECLENCHEURS: Record<GenreEvenement, Gestionnaire['declencheur']> = {
   pauseSaisie: 'pauseSaisie',
   bas: 'bas',
   ordre: 'ordre',
+  arrierePlan: 'arrierePlan',
 };
 
 /** Les touches sous leur forme canonique (l'analyse a déjà refusé celles qui n'existent pas). */
@@ -105,6 +106,7 @@ export function construireRepresentation(
         }
       : {}),
     ...(programme.paquetsSwift?.length ? { paquetsSwift: programme.paquetsSwift } : {}),
+    ...(programme.liensProfonds ? { liensProfonds: programme.liensProfonds } : {}),
     composantsReact: programme.composantsReact.map((c) => ({ nom: c.nom, chemin: c.chemin, ligne: c.ligne, ...(c.module ? { module: true as const } : {}), ...(c.apple !== undefined ? { apple: c.apple } : {}) })),
     fonctions: [...analyse.fonctions.values()].map(({ definition, retour, appels }) => ({
       nom: definition.nom,
@@ -629,6 +631,7 @@ class Construction {
             ...(instruction.cles ? { cles: instruction.cles } : {}),
             resultat: instruction.resultat,
             ...(instruction.direct ? { direct: true } : {}),
+            ...(instruction.enAttente ? { enAttente: true } : {}),
             ...(instruction.source !== undefined
               ? {
                   source: instruction.source,
@@ -662,6 +665,7 @@ class Construction {
             adresse: this.analyse.adressesRequetes.get(instruction) ?? instruction.adresse,
             objet: this.valeur(instruction.objet),
             ...(instruction.source !== undefined ? { source: instruction.source } : {}),
+            ...(instruction.enAttente ? { enAttente: true } : {}),
           });
           break;
 
@@ -673,6 +677,7 @@ class Construction {
             changements: instruction.changements.map((c) => ({ champ: simplifier(c.champ), valeur: this.valeur(c.valeur) })),
             ...(instruction.source !== undefined ? { source: instruction.source } : {}),
             ...(this.analyse.reglesOperations.get(instruction)?.remplacement ? { remplacement: true } : {}),
+            ...(instruction.enAttente ? { enAttente: true } : {}),
           });
           break;
 
@@ -722,6 +727,10 @@ class Construction {
           break;
         case 'PrisePhoto':
           actions.push({ type: 'prisePhoto', variable: instruction.variable });
+          break;
+
+        case 'Localisation':
+          actions.push({ type: 'localisation', variable: instruction.variable });
           break;
         case 'ScanCode':
           actions.push({ type: 'scanCode', variable: instruction.variable });
