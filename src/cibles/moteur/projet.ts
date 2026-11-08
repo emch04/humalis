@@ -2,6 +2,7 @@
  * Le projet produit par le moteur : une page HTML par adresse, écrite par le
  * compilateur, un petit script par couche, et Vite pour assembler le tout.
  */
+import { TRAVAILLEUR_NOTIFICATIONS } from '../serveur/logique.js';
 import type { Application, ComposantHumalis, DispositionRI, Ecran, NoeudVue } from '../../ri/types.js';
 import { copiesDesMedias, type InfoMedia } from '../../ri/medias.js';
 import { simplifier } from '../../analyse/elements.js';
@@ -290,6 +291,7 @@ document.title = ${traduit('Page introuvable')};
     adressesRecues: emploie(/naviguer\(String\(/),
   };
   fichiers.set('public/humalis/reprise.js', `${REPRISE_DES_CLICS}\n`);
+  if (application.serveurs.some((s) => s.activeNotifications)) fichiers.set('public/humalis/notifications.js', TRAVAILLEUR_NOTIFICATIONS);
   fichiers.set('src/humalis/moteur.js', MOTEUR_JS);
   fichiers.set('src/humalis/outils.js', avecDureeDesErreurs(outilsJs({ usage, langues: application.langues, ...(bascule ? { theme: modeTheme ?? '' } : {}) }), application));
   fichiers.set(

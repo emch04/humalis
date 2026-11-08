@@ -62,6 +62,176 @@ function test(t: TestServeurRI): string {
   return t.negation ? `!(${brut[t.operateur]})` : `(${brut[t.operateur]})`;
 }
 
+/** La ligne qui prépare l'envoi : les textes sont lus tout de suite, l'envoi part après la transaction. */
+function destinataires(i: Extract<InstructionServeurRI, { type: 'notification' }>): string {
+  if (i.a.genre === 'compte') return `const compte = enTexte(${valeur(i.a.valeur)}); const notifier = (n: typeof envoi) => notifications.aUnCompte(compte, n);`;
+  const groupe = i.a.groupe ? `{ champ: ${chaine(camel(i.a.groupe.champ))}, valeur: ${fiche(i.a.groupe.fiche)}[${chaine(camel(i.a.groupe.champ))}] }` : 'undefined';
+  return `const groupe = ${groupe}; const notifier = (n: typeof envoi) => notifications.aDesRoles(${JSON.stringify(i.a.roles)}, n, groupe);`;
+}
+
+/** Après une création : la fiche créée, puis les notifications ; un échec n'annule pas la création. */
+export function codeNotificationsCreation(route: Route): string {
+  const nom = fiche(route.donnee);
+  return (route.notifications ?? [])
+    .map((n) => `          {
+            const ${nom} = cree as Record<string, unknown>;
+            const envoi = { titre: ${valeur(n.titre)}, texte: ${valeur(n.texte)} };
+            ${destinataires(n)}
+            void notifier(envoi).catch((erreur: unknown) => console.error('Une notification n\\'est pas partie :', erreur instanceof Error ? erreur.message : erreur));
+          }`)
+    .join('\n');
+}
+
+export const avecNotifications = (serveur: ServeurRI) => Boolean(serveur.activeNotifications) || serveur.routes.some((r) => r.notifications?.length) || employe(serveur, (i) => i.type === 'notification');
+
+/** Les routes des appareils, dans extendRoutes. */
+export const ROUTES_APPAREILS = `      const routeAppareils = express.Router();
+      routeAppareils.get('/cle', (_req, res) => {
+        res.json({ cle: process.env.HUMALIS_VAPID_PUBLIQUE ?? null });
+      });
+      routeAppareils.post('/', ...acces.connecte, csrfMiddleware, notifications.inscrire);
+      app.use('/auth/appareils', routeAppareils);
+`;
+
+/** src/humalis/notifications.ts */
+export const NOTIFICATIONS = String.raw`import { createPrivateKey, sign } from 'node:crypto';
+import { connect } from 'node:http2';
+import type { UsersStore } from '@astratra/saas-kit';
+import type { RequestHandler } from 'express';
+import webpush from 'web-push';
+import type { Enregistrement, Stockage } from './stockage.js';
+
+/**
+ * Produit par Humalis : les notifications web (VAPID) et Apple (APNs). Les clés viennent de
+ * l'environnement ; sans elles, rien ne part et le serveur le dit dans son journal.
+ */
+export interface Notification {
+  titre: string;
+  texte: string;
+}
+
+/** Une adresse d'abonnement ne peut viser que les services de notification connus : sinon, n'importe qui ferait appeler n'importe quelle adresse au serveur. */
+const HOTES_CONNUS = ['fcm.googleapis.com', 'web.push.apple.com', 'push.services.mozilla.com', 'notify.windows.com'];
+const permis = (adresse: string) => {
+  try {
+    const url = new URL(adresse);
+    const hotes = [...HOTES_CONNUS, ...(process.env.HUMALIS_PUSH_HOTES ?? '').split(',').filter(Boolean)];
+    return url.protocol === 'https:' && hotes.some((h) => url.hostname === h || url.hostname.endsWith('.' + h));
+  } catch {
+    return false;
+  }
+};
+
+const JETON = /^[0-9a-fA-F]{32,200}$/;
+
+let jetonApple: { valeur: string; depuis: number } | undefined;
+function jetonAPNs(): string | null {
+  const { HUMALIS_APNS_CLE: cle, HUMALIS_APNS_CLE_ID: id, HUMALIS_APNS_EQUIPE: equipe } = process.env;
+  if (!cle || !id || !equipe) return null;
+  const maintenant = Math.floor(Date.now() / 1000);
+  // Apple refuse un jeton renouvelé trop souvent : il sert cinquante minutes.
+  if (jetonApple && maintenant - jetonApple.depuis < 3000) return jetonApple.valeur;
+  const base = (o: object) => Buffer.from(JSON.stringify(o)).toString('base64url');
+  const corps = base({ alg: 'ES256', kid: id }) + '.' + base({ iss: equipe, iat: maintenant });
+  const signature = sign('sha256', Buffer.from(corps), { key: createPrivateKey(cle.replace(/\\n/g, '\n')), dsaEncoding: 'ieee-p1363' }).toString('base64url');
+  jetonApple = { valeur: corps + '.' + signature, depuis: maintenant };
+  return jetonApple.valeur;
+}
+
+function envoyerApple(jeton: string, n: Notification): Promise<number> {
+  return new Promise((ok, echec) => {
+    const autorisation = jetonAPNs();
+    const sujet = process.env.HUMALIS_APNS_SUJET;
+    if (!autorisation || !sujet) {
+      console.warn('Notification Apple non envoyée : HUMALIS_APNS_CLE, HUMALIS_APNS_CLE_ID, HUMALIS_APNS_EQUIPE et HUMALIS_APNS_SUJET ne sont pas réglées.');
+      ok(0);
+      return;
+    }
+    const client = connect('https://' + (process.env.HUMALIS_APNS_HOTE ?? 'api.push.apple.com'));
+    client.on('error', echec);
+    const requete = client.request({ ':method': 'POST', ':path': '/3/device/' + jeton, authorization: 'bearer ' + autorisation, 'apns-topic': sujet, 'apns-push-type': 'alert', 'content-type': 'application/json' });
+    let statut = 0;
+    requete.on('response', (entetes) => { statut = Number(entetes[':status']); });
+    requete.on('error', echec);
+    requete.on('end', () => { client.close(); ok(statut); });
+    requete.resume();
+    requete.end(JSON.stringify({ aps: { alert: { title: n.titre, body: n.texte } } }));
+  });
+}
+
+export function creerNotifications({ usersStore, appareils }: { usersStore: UsersStore; appareils: Stockage }) {
+  const envoyerA = async (appareil: Enregistrement, n: Notification): Promise<void> => {
+    try {
+      if (appareil.genre === 'apple') {
+        const statut = await envoyerApple(String(appareil.cle), n);
+        if (statut === 410 || statut === 400) await appareils.supprimer(appareil.id);
+        return;
+      }
+      const { HUMALIS_VAPID_PUBLIQUE: publique, HUMALIS_VAPID_PRIVEE: privee, HUMALIS_VAPID_SUJET: sujet } = process.env;
+      if (!publique || !privee || !sujet) {
+        console.warn('Notification web non envoyée : HUMALIS_VAPID_PUBLIQUE, HUMALIS_VAPID_PRIVEE et HUMALIS_VAPID_SUJET ne sont pas réglées.');
+        return;
+      }
+      await webpush.sendNotification(appareil.abonnement as webpush.PushSubscription, JSON.stringify(n), { vapidDetails: { subject: sujet, publicKey: publique, privateKey: privee }, TTL: 86400 });
+    } catch (erreur) {
+      // L'appareil s'est désabonné : on l'oublie.
+      const statut = (erreur as { statusCode?: number }).statusCode;
+      if (statut === 404 || statut === 410) await appareils.supprimer(appareil.id);
+      else console.error('Une notification n\'est pas partie :', erreur instanceof Error ? erreur.message : erreur);
+    }
+  };
+
+  const aUnCompte = async (compte: string, n: Notification): Promise<void> => {
+    await Promise.all((await appareils.lister({ egal: { compte } })).map((a) => envoyerA(a, n)));
+  };
+
+  return {
+    aUnCompte,
+    /** Tous les comptes de ces rôles ; avec un groupe, seulement ceux de ce groupe. */
+    async aDesRoles(roles: string[], n: Notification, groupe?: { champ: string; valeur: unknown }): Promise<void> {
+      for (const role of roles) {
+        const comptes = await usersStore.list({ role, limit: 1000 });
+        const vises = groupe ? comptes.filter((c) => (c as Record<string, unknown>)[groupe.champ] === groupe.valeur) : comptes;
+        await Promise.all(vises.map((c) => aUnCompte(String(c.id), n)));
+      }
+    },
+
+    /** POST /auth/appareils : { web: abonnement } ou { apple: jeton }. Un appareil n'appartient qu'à un compte. */
+    inscrire: (async (req, res, next) => {
+      try {
+        const compte = String((req as unknown as { user: { id: unknown } }).user.id);
+        const corps = (req.body ?? {}) as { web?: { endpoint?: unknown; keys?: { p256dh?: unknown; auth?: unknown } }; apple?: unknown };
+        let fiche: Record<string, unknown>;
+        if (typeof corps.apple === 'string' && JETON.test(corps.apple)) {
+          fiche = { genre: 'apple', cle: corps.apple };
+        } else if (corps.web && typeof corps.web.endpoint === 'string' && permis(corps.web.endpoint) && typeof corps.web.keys?.p256dh === 'string' && typeof corps.web.keys?.auth === 'string') {
+          fiche = { genre: 'web', cle: corps.web.endpoint, abonnement: { endpoint: corps.web.endpoint, keys: { p256dh: corps.web.keys.p256dh, auth: corps.web.keys.auth } } };
+        } else {
+          res.status(400).json({ erreur: "cet appareil n'est pas valable" });
+          return;
+        }
+        for (const ancien of await appareils.lister({ egal: { cle: fiche.cle as string } })) await appareils.supprimer(ancien.id);
+        await appareils.creer({ ...fiche, compte });
+        res.status(201).json({ inscrit: true });
+      } catch (erreur) {
+        next(erreur);
+      }
+    }) as RequestHandler,
+  };
+}
+`;
+
+/** public/humalis/notifications.js */
+export const TRAVAILLEUR_NOTIFICATIONS = `self.addEventListener('push', (evenement) => {
+  const message = evenement.data ? evenement.data.json() : {};
+  evenement.waitUntil(self.registration.showNotification(message.titre || '', { body: message.texte || '' }));
+});
+self.addEventListener('notificationclick', (evenement) => {
+  evenement.notification.close();
+  evenement.waitUntil(self.clients.openWindow('/'));
+});
+`;
+
 class Ecriture {
   constructor(private readonly serveur: ServeurRI, private readonly groupeImpose?: { champ: string; variable: string }) {}
 
@@ -104,8 +274,7 @@ class Ecriture {
         return `${r}{\n${r}  const envoi = { sujet: ${valeur(i.sujet)}, texte: ${valeur(i.texte)} };\n${r}  travail.apres.push(async () => { await emails.envoyer({ a: ${a}, ...envoi }); });\n${r}}`;
       }
       case 'notification': {
-        const appel = i.a.genre === 'roles' ? `notifications.aDesRoles(${JSON.stringify(i.a.roles)}, envoi)` : `notifications.aUnCompte(enTexte(${valeur(i.a.valeur)}), envoi)`;
-        return `${r}{\n${r}  const envoi = { titre: ${valeur(i.titre)}, texte: ${valeur(i.texte)} };\n${r}  travail.apres.push(() => ${appel});\n${r}}`;
+        return `${r}{\n${r}  const envoi = { titre: ${valeur(i.titre)}, texte: ${valeur(i.texte)} };\n${r}  ${destinataires(i)}\n${r}  travail.apres.push(() => notifier(envoi));\n${r}}`;
       }
     }
   }

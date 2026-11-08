@@ -2,7 +2,7 @@
  * Vérifie ce qui s'exécute sur le serveur et le traduit pour le générateur. Une seule passe :
  * l'analyse s'en sert pour les erreurs, la construction de la RI pour le résultat.
  */
-import type { ActionServeur, DocumentServeur, Donnee, Expression, InstructionServeur, Serveur, TachePlanifiee, Test } from '../parser/ast.js';
+import type { ActionServeur, DocumentServeur, EnvoiNotification, Donnee, Expression, InstructionServeur, Serveur, TachePlanifiee, Test } from '../parser/ast.js';
 import type { InstructionServeurRI, TestServeurRI, ValeurServeurRI } from '../ri/types.js';
 import { simplifier } from './elements.js';
 import { proposerNom } from './suggestions.js';
@@ -84,6 +84,20 @@ class Traduction {
     };
   }
 
+  /** Une notification : si une fiche séparée est là, seuls les comptes de son groupe la reçoivent. */
+  notification(envoi: EnvoiNotification, portee: Portee): Extract<InstructionServeurRI, { type: 'notification' }> {
+    const { destinataire: d, ligne } = envoi;
+    const texte = (morceaux: EnvoiNotification['titre']) => this.valeur({ type: 'Chaine', parties: morceaux, ligne }, portee);
+    if (d.genre === 'roles') for (const role of d.roles) if (!(this.serveur.roles ?? []).includes(role) && role !== 'admin') this.erreur(`le rôle « ${role} » n'est pas déclaré. Ajoutez-le au serveur : roles ${[...(this.serveur.roles ?? []), role].join(', ')}.`, ligne);
+    const groupe = [...portee.entries()].reverse().find(([, donnee]) => donnee.par !== undefined && donnee.par !== 'compte');
+    return {
+      type: 'notification',
+      a: d.genre === 'roles' ? { genre: 'roles', roles: d.roles, ...(groupe ? { groupe: { champ: groupe[1].par!, fiche: groupe[0] } } : {}) } : { genre: 'compte', valeur: this.acces(d.donnee, d.champ, portee, ligne) },
+      titre: texte(envoi.titre),
+      texte: texte(envoi.texte),
+    };
+  }
+
   corps(liste: InstructionServeur[], portee: Portee): InstructionServeurRI[] {
     return liste.map((i) => this.instruction(i, portee));
   }
@@ -155,14 +169,7 @@ class Traduction {
         };
       }
       case 'NotificationServeur': {
-        const { destinataire: d } = i.envoi;
-        const texte = (morceaux: typeof i.envoi.titre) => this.valeur({ type: 'Chaine', parties: morceaux, ligne: i.ligne }, portee);
-        return {
-          type: 'notification',
-          a: d.genre === 'roles' ? { genre: 'roles', roles: d.roles } : { genre: 'compte', valeur: this.acces(d.donnee, d.champ, portee, i.ligne) },
-          titre: texte(i.envoi.titre),
-          texte: texte(i.envoi.texte),
-        };
+        return this.notification(i.envoi, portee);
       }
     }
   }
@@ -186,6 +193,11 @@ export function traduireDocument(document: DocumentServeur, serveur: Serveur, er
   }
   const traduction = new Traduction(serveur, erreur, false);
   return document.lignes.map(({ genre, parties, ligne }) => ({ genre, valeur: traduction.valeur({ type: 'Chaine', parties, ligne }, new Map([[donnee.nom, donnee]])) }));
+}
+
+/** « quand commande est cree : envoyer notification … » : la fiche créée est connue. */
+export function traduireNotification(envoi: EnvoiNotification, donnee: Donnee, serveur: Serveur, erreur: Erreur): Extract<InstructionServeurRI, { type: 'notification' }> {
+  return new Traduction(serveur, erreur, false).notification(envoi, new Map([[donnee.nom, donnee]]));
 }
 
 export function traduireTache(tache: TachePlanifiee, serveur: Serveur, erreur: Erreur): InstructionServeurRI[] {
