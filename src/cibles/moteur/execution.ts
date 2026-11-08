@@ -265,9 +265,9 @@ export function gabarit(html) {
 function ouvrir(proprietaire, g, lier, fin, ...valeurs) {
   const fragment = g();
   const r = parcourir(fragment.firstChild, null, []);
-  const p = sous(proprietaire, () => lier(r, ...valeurs));
+  // Dans la page d'abord : une fenêtre qui s'ouvre tout de suite, un module qui mesure, ont besoin d'y être.
   fin.parentNode.insertBefore(fragment, fin);
-  return p;
+  return sous(proprietaire, () => lier(r, ...valeurs));
 }
 
 // ─── Les liaisons ───────────────────────────────────────────────────────────
@@ -396,7 +396,7 @@ function clefs(valeurs) {
     } else c = 'p' + typeof v + ':' + v;
     const n = vues.get(c) ?? 0;
     vues.set(c, n + 1);
-    return n === 0 ? c : c + '#' + n;
+    return n === 0 ? c : c + '\\0' + n;
   });
 }
 
@@ -482,6 +482,23 @@ export function chaque(debut, liste, g, lier) {
   }
 
   function accorder(valeurs, cles) {
+    // Le cas le plus courant : le début n'a pas bougé, seules des lignes s'ajoutent ou partent à la fin.
+    let communes = 0;
+    while (communes < lignes.length && communes < valeurs.length && lignes[communes].k === cles[communes]) communes++;
+    if (communes === lignes.length) {
+      for (let i = 0; i < communes; i++) lignes[i].s.v = valeurs[i];
+      for (let i = communes; i < valeurs.length; i++) lignes.push(creerLigne(cles[i], valeurs[i], fin));
+      return;
+    }
+    if (communes === valeurs.length) {
+      for (let i = 0; i < communes; i++) lignes[i].s.v = valeurs[i];
+      for (let i = communes; i < lignes.length; i++) fermer(lignes[i].p);
+      const depart = lignes[communes].d;
+      while (depart.nextSibling !== fin) depart.nextSibling.remove();
+      depart.remove();
+      lignes.length = communes;
+      return;
+    }
     const parCle = new Map(lignes.map((l) => [l.k, l]));
     const gardees = new Set();
     const anciens = new Map(lignes.map((l, i) => [l, i]));

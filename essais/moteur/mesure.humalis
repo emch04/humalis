@@ -1,0 +1,26 @@
+# La page du banc de mesure : une longue liste, un compteur.
+page "mesure" :
+    variable lignes = []
+    variable compteur = 0
+    variable montant = vrai
+    titre "Mesure"
+    texte "Compteur : {compteur}"
+    bouton "Plus"
+    quand l'utilisateur clique sur "Plus" :
+        changer compteur par compteur + 1
+    bouton "Inverser"
+    quand l'utilisateur clique sur "Inverser" :
+        si montant est vrai :
+            changer lignes par trier lignes decroissant
+            changer montant par faux
+        sinon :
+            changer lignes par trier lignes
+            changer montant par vrai
+    bouton "Ajouter"
+    quand l'utilisateur clique sur "Ajouter" :
+        ajouter "zzz" a lignes
+    pour chaque l dans lignes :
+        texte l
+    quand la page se charge :
+        repeter 5000 fois :
+            ajouter "ligne {nombre de lignes}" a lignes

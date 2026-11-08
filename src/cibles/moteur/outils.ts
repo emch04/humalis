@@ -124,7 +124,7 @@ function planifier(faire, millisecondes, options = {}) {
     if (!options.repete) annuler();
   };
   id = options.repete ? setInterval(tour, millisecondes) : setTimeout(tour, millisecondes);
-  minuteriesEnCours.add(annuler);
+  if (!options.couche) minuteriesEnCours.add(annuler);
   return annuler;
 }
 
@@ -145,7 +145,7 @@ function minuteriesDeCouche(liste) {
             m.arretee = true;
             arreter();
           });
-        }, m.millisecondes(), { repete: m.repete });
+        }, m.millisecondes(), { repete: m.repete, couche: true });
       } else if (!voulue && annuler) {
         annuler();
         annuler = undefined;
@@ -182,7 +182,7 @@ function titreDeLaPage(f) {
 /** Une fenêtre : le navigateur garde le focus dedans ; à la fermeture, il revient là où il était. */
 function fenetre(dialogue, ouverte, fermer, obligatoire) {
   let retour = null;
-  const compter = () => document.documentElement.classList.toggle('humalis-fenetre-ouverte', document.querySelector('main dialog[open]') !== null);
+  const compter = () => document.documentElement.classList.toggle('humalis-fenetre-ouverte', document.querySelector('dialog[open]') !== null);
   dialogue.addEventListener('cancel', (evenement) => {
     evenement.preventDefault();
     if (!obligatoire) executer(fermer);
@@ -328,7 +328,7 @@ export function navigationJs(routes: RouteMoteur[], options: { partages: boolean
   });
   return `// Produit par Humalis : ouvrir une page, changer de page sans recharger.
 import { racine, parcourir, nettoyer, appliquer, executer, signal } from './moteur.js';
-import { minuteriesDeCouche, ecouterRaccourcis, arreterMinuteries${options.langues ? ', relireLangue' : ''} } from './outils.js';
+import { minuteriesDeCouche, ecouterRaccourcis, arreterMinuteries, afficherMessage${options.langues ? ', relireLangue' : ''} } from './outils.js';
 ${options.partages ? "import { relirePartages } from './partages.js';\n" : ''}${options.session ? "import { relireSession, utilisateur } from './serveur.js';\n" : ''}
 const ROUTES = [
 ${table.join('\n')}
@@ -341,6 +341,8 @@ let demarre = false;
 let numero = 0;
 let positions = new Map();
 let cleEntree = 0;
+/** Le nombre d'entrées de l'historique créées depuis l'ouverture : « revenir » sait s'il y a où revenir. */
+let profondeur = 0;
 let cheminOuvert = location.pathname.replace(/\\/+$/, '') || '/';
 
 function trouverRoute(chemin) {
@@ -351,7 +353,17 @@ function trouverRoute(chemin) {
   return null;
 }
 
-function lancerCouche(i, id, fonction, parametres) {
+/** Ce qui identifie une couche : son nom, et les paramètres de l'adresse qu'elle lit. */
+const empreinte = ([id, , noms], parametres) => id + JSON.stringify((noms ?? []).map((n) => parametres[n]));
+
+function pousser(url, remplacer, extra) {
+  if (!remplacer) profondeur++;
+  history[remplacer ? 'replaceState' : 'pushState']({ cle: cleEntree, profondeur, ...extra }, '', url);
+}
+
+function lancerCouche(i, entree, parametres) {
+  const [, fonction] = entree;
+  const id = empreinte(entree, parametres);
   const emplacement = document.querySelector('[data-c="' + i + '"]');
   const couche = { id, api: null, arreter: null };
   couche.arreter = racine(() => {
@@ -407,7 +419,7 @@ export function enregistrer(adresse, couches, options) {
   demarre = true;
   const trouve = trouverRoute(location.pathname.replace(/\\/+$/, '') || '/');
   const parametres = trouve?.parametres ?? {};
-  actives = couches.map(([id, f], i) => lancerCouche(i, id, f, parametres));
+  actives = couches.map((c, i) => lancerCouche(i, c, parametres));
   ${options.partages ? 'relirePartages();' : ''}
   ${options.langues ? 'relireLangue();' : ''}
   ${options.session ? `relireSession().then(() => {
@@ -421,7 +433,7 @@ export function enregistrer(adresse, couches, options) {
   appliquer();
   marquerLiens();
   aLAncre();
-  new MutationObserver(marquerLiens).observe(document.querySelector('main'), { childList: true, subtree: true });
+  new MutationObserver(marquerLiens).observe(document.body, { childList: true, subtree: true });
   installer();
 }
 
@@ -468,11 +480,11 @@ async function aller(url, { historique = true, remplacer = false, garde } = {}) 
     if (historique) {
       positions.set(cleEntree, scrollY);
       cleEntree = Date.now();
-      history[remplacer ? 'replaceState' : 'pushState']({ cle: cleEntree, ...(garde ? { apres: garde } : {}) }, '', cible.href);
+      pousser(cible.href, remplacer, garde ? { apres: garde } : {});
     }
     cheminOuvert = cible.pathname.replace(/\\/+$/, '') || '/';
     let commun = 0;
-    while (commun < actives.length && commun < couches.length - 1 && actives[commun].id === couches[commun][0]) commun++;
+    while (commun < actives.length && commun < couches.length - 1 && actives[commun].id === empreinte(couches[commun], trouve.parametres)) commun++;
     for (let i = actives.length - 1; i >= commun; i--) actives[i].arreter();
     arreterMinuteries();
     const ici = document.querySelector('[data-c="' + commun + '"]');
@@ -480,7 +492,7 @@ async function aller(url, { historique = true, remplacer = false, garde } = {}) 
     ici.replaceChildren(...la.childNodes);
     remplacerEntete(doc);
     const gardees = actives.slice(0, commun);
-    const nouvelles = couches.slice(commun).map(([id, f], i) => lancerCouche(commun + i, id, f, trouve.parametres));
+    const nouvelles = couches.slice(commun).map((c, i) => lancerCouche(commun + i, c, trouve.parametres));
     actives = [...gardees, ...nouvelles];
     appliquer();
     chargerLesDonnees(nouvelles);
@@ -506,10 +518,11 @@ export function naviguer(url, remplacer = false) {
   const schema = /^([a-z][a-z0-9+.-]*):/i.exec(String(url).trim())?.[1]?.toLowerCase();
   if (schema !== undefined) {
     if (['http', 'https', 'mailto', 'tel'].includes(schema)) location.assign(url);
-    else console.error('Adresse refusée : ' + schema);
+    else afficherMessage('Adresse refusée : « ' + schema + ": » n'est pas permis (https, http, mailto et tel seulement).", 'erreur');
     return;
   }
-  return aller(url, { remplacer });
+  const adresse = String(url);
+  return aller(adresse.startsWith('/') && !adresse.startsWith('//') ? adresse : '/' + adresse.replace(/^\\/+/, ''), { remplacer });
 }
 
 /** « continuer vers » : la page voulue avant la connexion, si c'est bien une adresse de ce site. */
@@ -524,15 +537,15 @@ export function adresseDe(nom) {
 
 /** « revenir » : le retour du navigateur ; sinon la page de secours. */
 export function revenir(secours) {
-  if (cleEntree !== 0 || secours === undefined) history.back();
+  if (profondeur > 0 || secours === undefined) history.back();
   else naviguer(secours);
 }
 
-const filtres = new Map();
+const filtres = new Set();
 
 function avertirFiltres() {
   const ici = new URLSearchParams(location.search);
-  for (const [nom, { boite, nombre }] of filtres) boite.v = lireFiltre(ici, nom, nombre);
+  for (const { nom, boite, nombre } of filtres) boite.v = lireFiltre(ici, nom, nombre);
   marquerLiens();
 }
 
@@ -547,8 +560,9 @@ function lireFiltre(ici, nom, nombre) {
 /** « avec filtre categorie » : une variable lue dans l'adresse. */
 export function filtre(nom, nombre) {
   const boite = signal(lireFiltre(new URLSearchParams(location.search), nom, nombre));
-  filtres.set(nom, { boite, nombre });
-  nettoyer(() => filtres.delete(nom));
+  const entree = { nom, boite, nombre };
+  filtres.add(entree);
+  nettoyer(() => filtres.delete(entree));
   return boite;
 }
 
@@ -558,7 +572,8 @@ export function changerFiltre(nom, valeur) {
   if (valeur === null || valeur === undefined || valeur === '') suivants.delete(nom);
   else suivants.set(nom, String(valeur));
   const texte = suivants.toString();
-  history.pushState({ cle: cleEntree }, '', location.pathname + (texte ? '?' + texte : '') + location.hash);
+  numero++;
+  pousser(location.pathname + (texte ? '?' + texte : '') + location.hash, false);
   avertirFiltres();
 }
 
@@ -577,7 +592,8 @@ function installer() {
         return;
       }
       evenement.preventDefault();
-      history.pushState({ cle: cleEntree }, '', cible.href);
+      numero++;
+      pousser(cible.href, false);
       avertirFiltres();
       return;
     }
@@ -585,6 +601,8 @@ function installer() {
     aller(cible.href);
   });
   addEventListener('popstate', () => {
+    numero++;
+    profondeur = history.state?.profondeur ?? 0;
     const adresseActuelle = location.pathname.replace(/\\/+$/, '') || '/';
     const route = trouverRoute(adresseActuelle);
     if (route && actives.length && cheminOuvert === adresseActuelle) {

@@ -165,7 +165,7 @@ try {
   verifier(await message(page, 'Bienvenue'), 'web : Entrée envoie le formulaire de connexion');
   await page.getByRole('button', { name: 'Voir les inscriptions' }).click();
   verifier(
-    await visible(page.getByText('Emch (emch@exemple.cd) : 34 ans, né le 1992-05-14, taille M, Belgique, lettre : true')),
+    await visible(page.getByText('Emch (emch@exemple.cd) : 34 ans, né le 14 mai 1992, taille M, Belgique, lettre : true')),
     'web : l’admin voit l’inscription dans la page',
   );
   const lues = await page.evaluate(async () => (await fetch('/api/inscriptions')).json());
@@ -188,6 +188,8 @@ try {
   processusServeur.kill();
   await page.getByRole('link', { name: "Retour à l'inscription" }).click();
   await page.getByRole('heading', { name: "Inscription à l'atelier" }).waitFor({ timeout: 5000 });
+  // Le « Merci » de l'envoi précédent reste quelques secondes : on attend qu'il parte, pour ne pas le confondre.
+  await page.getByText('Merci, votre inscription est enregistrée.').waitFor({ state: 'detached', timeout: 15000 }).catch(() => {});
   await champ('champ_nom').fill('Zola');
   await champ('champ_email').fill('zola@exemple.cd');
   await champ('champ_age').fill('28');

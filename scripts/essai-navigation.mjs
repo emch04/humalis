@@ -91,7 +91,7 @@ try {
   verifier(!appels.includes('GET /api/admin/orders'), "… et la page réservée n'a rien demandé à l'API");
 
   await page.getByLabel('email').fill('rey@exemple.cd');
-  await page.getByLabel('mot de passe').fill('Mot-de-passe-solide-1');
+  await page.getByLabel('mot de passe').first().fill('Mot-de-passe-solide-1');
   await page.getByRole('button', { name: 'Se connecter' }).click();
   verifier(await visible(page.getByText('RS-0002')), '« continuer » ramène à la page voulue (/admin/commandes), dont la liste vient de l\'API');
   verifier(new URL(page.url()).pathname === '/admin/commandes', '… l\'adresse est /admin/commandes');
@@ -104,7 +104,7 @@ try {
   await page.context().clearCookies();
   await page.goto(`${adresseWeb}/connexion`);
   await page.getByLabel('email').fill('rey@exemple.cd');
-  await page.getByLabel('mot de passe').fill('Mot-de-passe-solide-1');
+  await page.getByLabel('mot de passe').first().fill('Mot-de-passe-solide-1');
   await page.getByRole('button', { name: 'Se connecter' }).click();
   verifier(await visible(page.getByRole('heading', { name: 'Rey Store' })), 'sans page voulue, « continuer vers "accueil" » mène à l\'accueil');
 
