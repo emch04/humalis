@@ -48,6 +48,7 @@
     "essai:apple": "node scripts/essai-apple.mjs",
     "essai:apple:parcours": "node scripts/essai-apple-parcours.mjs",
     "essai:apple:fonctions": "node scripts/essai-apple-fonctions.mjs",
+    "essai:apple:capacites": "node scripts/essai-apple-capacites.mjs",
     "essai:formulaire": "node scripts/essai-formulaire.mjs",
     "essai:vitrine": "node scripts/essai-vitrine.mjs",
     "site:doc": "node scripts/doc-site.mjs",

@@ -363,6 +363,7 @@ export class Valeurs {
       case 'champDonnee':
         return this.lireChamp(this.expr(valeur.objet), valeur.champ);
       case 'utilisateur':
+        if (valeur.etat.startsWith('role:')) return { code: `Session.commun.aRole([${valeur.etat.slice(5).split(',').map(chaineSwift).join(', ')}])`, type: BOOLEEN, opt: false };
         return { code: `Session.commun.${valeur.etat === 'connecte' ? 'connecte' : 'admin'}`, type: BOOLEEN, opt: false };
       case 'etatRequete':
         return { code: `${this.etatRequete(valeur.variable)}.statut == .${valeur.etat}`, type: BOOLEEN, opt: false };

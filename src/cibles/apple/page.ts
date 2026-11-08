@@ -387,7 +387,7 @@ export class GenerateurPage implements HotePage {
       corps.indenter(() => this.actions.ecrire(corps, g.actions));
       const texte = corps.texte();
       // Une page qui lit la session attend de savoir qui est connecté.
-      const session = /\bSession\.commun\.(connecte|admin)\b/.test(texte) ? '  await Session.commun.attendre()\n' : '';
+      const session = /\bSession\.commun\.(connecte|admin|aRole)\b/.test(texte) ? '  await Session.commun.attendre()\n' : '';
       const nom = `auChargement${this.chargements.length > 1 ? i + 1 : ''}`;
       return `private func ${nom}() async {\n${session}${texte}}\n`;
     });
@@ -426,6 +426,7 @@ export class GenerateurPage implements HotePage {
     if (/\brelances\[/.test(tout)) e.ligne('@State private var relances: [String: @MainActor () async -> Void] = [:]');
     if (/\bjetons\./.test(tout)) e.ligne('@State private var jetons = JetonsRequetes()');
     if (/\bplanificateur\./.test(tout)) e.ligne('@State private var planificateur = Planificateur()');
+    if (/\bdirects\./.test(tout)) e.ligne('@State private var directs = ConnexionsDirect()');
     if (this.portee.besoins.has('mouvementReduit')) e.ligne('@Environment(\\.accessibilityReduceMotion) private var mouvementReduit');
     if (this.portee.besoins.has('themeSombre')) e.ligne('@Environment(\\.colorScheme) private var apparence');
     if (/\bmenuLateral\b/.test(tout)) e.ligne('@Environment(\\.menuLateral) private var menuLateral');
@@ -496,7 +497,9 @@ export class GenerateurPage implements HotePage {
           else e.ligne(`.task(id: ${champ.variable}) { try? await Task.sleep(for: .milliseconds(${gestionnaire.millisecondes ?? 300})); if !Task.isCancelled { ${fonction.asynchrone ? 'await ' : ''}${fonction.nom}() } }`);
         }
         for (const { touches: t, fonction } of this.raccourcis) e.ligne(`.background { Button("") { ${this.appel(fonction)} }${touches(t)}.opacity(0).accessibilityHidden(true) }`);
-        if (/planificateur\./.test(this.fonctions.map((f) => f.code).join(''))) e.ligne('.onDisappear { planificateur.annuler() }');
+        const code = this.fonctions.map((f) => f.code).join('') + chargements.join('');
+        const fermer = [...(/planificateur\./.test(code) ? ['planificateur.annuler()'] : []), ...(/\bdirects\./.test(code) ? ['directs.annuler()'] : [])];
+        if (fermer.length > 0) e.ligne(`.onDisappear { ${fermer.join('; ')} }`);
       });
     });
   }
@@ -589,7 +592,7 @@ export class GenerateurPage implements HotePage {
   private ecrireCondition(e: Ecrivain, noeud: Extract<NoeudVue, { type: 'condition' }>): void {
     const test = this.valeurs.condition(noeud.test);
     // Une condition sur la session attend la réponse du serveur : sinon la page montrerait un instant la version « visiteur ».
-    const attente = /\bSession\.commun\.(connecte|admin)\b/.test(test);
+    const attente = /\bSession\.commun\.(connecte|admin|aRole)\b/.test(test);
     e.ligne(`if ${attente ? 'Session.commun.pret && ' : ''}${attente ? `(${test})` : test} {`);
     e.indenter(() => this.ecrireCorps(e, noeud.alors));
     if (noeud.sinon.length > 0) {
@@ -626,6 +629,10 @@ export class GenerateurPage implements HotePage {
         e.ligne(`let _ = ${index}`);
         this.ecrireCorps(e, noeud.corps);
       });
+    }
+    if (noeud.animation) {
+      this.portee.besoins.add('mouvementReduit');
+      e.indenter(() => e.ligne(`.animation(mouvementReduit ? nil : .default, value: ${liste.code})`));
     }
     this.restaurer(avant);
   }

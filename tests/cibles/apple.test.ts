@@ -276,3 +276,36 @@ describe('cible Apple — iPad, Mac et porte de sortie', () => {
     expect(f.get('Essai.xcodeproj/project.pbxproj')).toContain('ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon');
   });
 });
+
+describe('cible Apple — rôles, temps réel, IA, paiements, notifications', () => {
+  const SERVEUR = `serveur "s" :\n    roles gerant et vendeur\n    ia par anthropic\n    connecte peut demander a ia\n    paiements par stripe\n    donnee produit :\n        nom : texte\n        prix : nombre\n    route "produits" :\n        tout le monde peut lire produit\n        seul gerant peut creer produit\n`;
+
+  it('« si utilisateur est gerant » lit le rôle, une page se réserve à un rôle', () => {
+    const f = projet(`${SERVEUR}\npage "accueil" :\n    titre "a"\n    si utilisateur est gerant :\n        texte "g"\npage "connexion" :\n    titre "c"\npage "espace" reservee a gerant et vendeur sinon vers "connexion" :\n    titre "e"\n`);
+    expect(f.get('Essai/Pages/PageAccueil.swift')).toContain('Session.commun.aRole(["gerant"])');
+    expect(f.get('Essai/Humalis/Routes.swift')).toContain('GardeHumalis(qui: .roles(["gerant", "vendeur"]), sinon: .connexion, ici: .espace)');
+  });
+
+  it('« en direct » écoute la route et relit la page', () => {
+    const page = projet(`${SERVEUR}\npage "a" :\n    variable produits = []\n    titre "t"\n    quand la page se charge :\n        envoyer requete vers "produits" dans produits en direct\n`).get('Essai/Pages/PageA.swift')!;
+    expect(page).toContain('directs.ecouter("/api/produits", relire: charger1)');
+    expect(page).toContain('@State private var directs = ConnexionsDirect()');
+    expect(page).toContain('directs.annuler()');
+  });
+
+  it('« demander a ia » reçoit la réponse au fil de l\'eau', () => {
+    const page = projet(`${SERVEUR}\npage "a" :\n    variable reponse = ""\n    titre "t"\n    texte reponse\n    bouton "Demander"\n    quand l'utilisateur clique sur "Demander" :\n        demander a ia "Une idée" dans reponse\n`).get('Essai/Pages/PageA.swift')!;
+    expect(page).toMatch(/reponse = ""\s+await Serveur\.commun\.demanderIa\("Une idée"\) \{ reponse \+= \$0 \}/);
+  });
+
+  it('« activer notifications » ajoute le délégué, et dit ce qu\'il faut pour recevoir', () => {
+    const source = `${SERVEUR}\npage "a" :\n    titre "t"\n    bouton "Activer"\n    quand l'utilisateur clique sur "Activer" :\n        activer notifications\n`;
+    const { diagnostics, fichiers } = produire(source);
+    expect(diagnostics.some((d) => d.message.includes('--equipe'))).toBe(true);
+    expect(fichiers.get('Essai/EssaiApp.swift')).toContain('@UIApplicationDelegateAdaptor(DelegueNotifications.self)');
+    expect(fichiers.get('Essai/Essai.entitlements')).not.toContain('aps-environment');
+    const signe = projet(source, { equipe: 'ABCDE12345' });
+    expect(signe.get('Essai/Essai.entitlements')).toContain('<key>aps-environment</key>');
+    expect(signe.get('Essai/Essai-mac.entitlements')).toContain('com.apple.developer.aps-environment');
+  });
+});

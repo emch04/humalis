@@ -156,10 +156,10 @@ function compile(arguments_: string[]): number | Promise<number> {
   // « avec animation » n'existe que sur le moteur : dit plutôt que perdu en silence.
   const surLeMoteur = cible === 'web' && (option(arguments_, 'moteur') ?? moteurDuProjet(chemin)) === 'humalis';
   const programme = JSON.stringify(application.ecrans);
-  if (programme.includes('"animation":true') && !surLeMoteur && cible !== 'serveur') {
+  if (programme.includes('"animation":true') && !surLeMoteur && cible !== 'serveur' && cible !== 'apple') {
     console.error('Avertissement : « avec animation » n\'a d\'effet qu\'avec le moteur Humalis (--moteur humalis) : ici, les lignes changent sans glisser.');
   }
-  if (programme.includes('"direct":true') && !surLeMoteur && cible !== 'serveur') {
+  if (programme.includes('"direct":true') && !surLeMoteur && cible !== 'serveur' && cible !== 'apple') {
     console.error('Avertissement : « en direct » n\'a d\'effet qu\'avec le moteur Humalis (--moteur humalis) : ici, la liste est lue une fois.');
   }
 

@@ -20,6 +20,8 @@ export interface OptionsXcode {
   serveurLocal?: boolean;
   /** Le Mac peut lire les fichiers que la personne choisit. */
   fichiers?: boolean;
+  /** Le Mac a son propre fichier de droits (les notifications s'y déclarent autrement). */
+  droitsMac?: boolean;
   /** Vrai s'il y a une icône dans les assets. */
   icone?: boolean;
   /** Ajoute une cible de tests XCUITest (pour l'essai de bout en bout). */
@@ -68,6 +70,7 @@ function reglagesCible(o: OptionsXcode, debug: boolean): string[] {
     ...(o.icone ? ['ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;'] : []),
     'ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;',
     `CODE_SIGN_ENTITLEMENTS = ${pb(`${o.nom}/${o.nom}.entitlements`)};`,
+    ...(o.droitsMac ? [`"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = ${pb(`${o.nom}/${o.nom}-mac.entitlements`)};`] : []),
     // Sans équipe : signé pour cet ordinateur et le simulateur seulement.
     ...(o.equipe ? ['CODE_SIGN_STYLE = Automatic;', `DEVELOPMENT_TEAM = ${pb(o.equipe)};`] : ['CODE_SIGN_IDENTITY = "-";', 'CODE_SIGN_STYLE = Manual;', 'DEVELOPMENT_TEAM = "";']),
     'CURRENT_PROJECT_VERSION = 1;',
@@ -355,7 +358,7 @@ export function schemaXcode(nom: string, essais = false): string {
  * Les droits de l'application : le Mac l'enferme dans son bac à sable, et lui
  * ouvre seulement le réseau sortant (et les fichiers choisis, s'il en faut).
  */
-export function droits(fichiers: boolean): string {
+export function droits(fichiers: boolean, notifications?: 'ios' | 'mac'): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -365,7 +368,9 @@ export function droits(fichiers: boolean): string {
 	<key>com.apple.security.network.client</key>
 	<true/>${fichiers ? `
 	<key>com.apple.security.files.user-selected.read-only</key>
-	<true/>` : ''}
+	<true/>` : ''}${notifications ? `
+	<key>${notifications === 'mac' ? 'com.apple.developer.aps-environment' : 'aps-environment'}</key>
+	<string>development</string>` : ''}
 </dict>
 </plist>
 `;

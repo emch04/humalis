@@ -640,6 +640,84 @@ struct SourceHumalis: Sendable {
         Messages.commun.afficher(raison == pasDeReponse ? "Le serveur n'a pas répondu. Réessayez dans un instant." : raison, .erreur)
     }
 
+    /** La session ou le jeton CSRF d'un visiteur, posés sur une requête qui ne passe pas par « appel ». */
+    private func identifiee(_ requete: URLRequest) async -> URLRequest {
+        var r = requete
+        r.setValue("1", forHTTPHeaderField: "x-humalis-mobile")
+        if let jeton = Session.commun.jeton {
+            r.setValue("Bearer \(jeton)", forHTTPHeaderField: "Authorization")
+        } else if r.httpMethod != "GET" {
+            if jetonCsrf == nil, let url = URL(string: Serveur.base + "/auth/me"), let (_, reponse) = try? await session.data(from: url), let http = reponse as? HTTPURLResponse { retenirCsrf(http) }
+            if let jetonCsrf {
+                r.setValue("astratra_csrf=\(jetonCsrf)", forHTTPHeaderField: "Cookie")
+                r.setValue(jetonCsrf, forHTTPHeaderField: "x-csrf-token")
+            }
+        }
+        return r
+    }
+
+    /** « payer … pour c » : le serveur prépare le paiement, et sa page s'ouvre dans le navigateur. */
+    func payerOuEchouer(_ adresse: String, id: String) async throws {
+        guard let reponse = try await appel(adresse, comme: ValeurHumalis.self, methode: "POST", envoi: ["retour": .texte("/")], id: id) else { throw ErreurHumalis.refus(pasDeReponse) }
+        let url = reponse["url"].enTexte
+        guard url.hasPrefix("https://") || url.hasPrefix("http://localhost") else { throw ErreurHumalis.refus("Le paiement n'a pas pu s'ouvrir.") }
+        ouvrirExterne(url)
+    }
+
+    func payer(_ adresse: String, id: String) async {
+        do { try await payerOuEchouer(adresse, id: id) } catch { dire(error) }
+    }
+
+    /** « demander a ia » : la réponse arrive morceau par morceau. */
+    func demanderIaOuEchouer(_ question: String, recevoir: @MainActor (String) -> Void) async throws {
+        var demande = try requete("/auth/ia", methode: "POST", id: nil, envoi: ["question": .texte(question)], source: nil, filtres: [])
+        demande.timeoutInterval = 300
+        demande.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+        var (flux, reponse) = try await session.bytes(for: await identifiee(demande))
+        if (reponse as? HTTPURLResponse)?.statusCode == 401, await Session.commun.renouveler() {
+            (flux, reponse) = try await session.bytes(for: await identifiee(demande))
+        }
+        guard let http = reponse as? HTTPURLResponse else { throw ErreurHumalis.refus(pasDeReponse) }
+        guard (200..<300).contains(http.statusCode) else {
+            var corps = Data()
+            for try await octet in flux { corps.append(octet) }
+            throw refus(corps, code: http.statusCode, source: nil)
+        }
+        do {
+            for try await ligne in flux.lines where ligne.hasPrefix("data: ") {
+                guard let donnees = String(ligne.dropFirst(6)).data(using: .utf8), let lue = try? JSONDecoder().decode(ValeurHumalis.self, from: donnees) else { continue }
+                let erreur = lue["erreur"].enTexte
+                if !erreur.isEmpty { throw ErreurHumalis.refus(erreur) }
+                recevoir(lue["t"].enTexte)
+            }
+        } catch let erreur as ErreurHumalis {
+            throw erreur
+        } catch {
+            throw ErreurHumalis.refus(pasDeReponse)
+        }
+    }
+
+    func demanderIa(_ question: String, recevoir: @MainActor (String) -> Void) async {
+        do { try await demanderIaOuEchouer(question, recevoir: recevoir) } catch { dire(error) }
+    }
+
+    /** « en direct » : attend les annonces du serveur et appelle « changement » à chacune. */
+    func fluxDirect(_ adresse: String, changement: @MainActor () async -> Void) async throws {
+        guard let url = URL(string: Serveur.base + adresse + "/direct") else { return }
+        var demande = URLRequest(url: url)
+        demande.httpMethod = "GET"
+        demande.timeoutInterval = 3600
+        demande.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+        let (flux, reponse) = try await session.bytes(for: await identifiee(demande))
+        guard let http = reponse as? HTTPURLResponse, (200..<300).contains(http.statusCode) else { throw ErreurHumalis.refus(pasDeReponse) }
+        for try await ligne in flux.lines where ligne == "data: change" { await changement() }
+    }
+
+    /** Un appareil qui reçoit les notifications du compte. */
+    func enregistrerAppareil(_ jeton: String) async {
+        _ = await appelReussi("/auth/appareils", methode: "POST", envoi: ["apple": .texte(jeton)])
+    }
+
     /** « telecharger bon de … » : le PDF arrive avec la session, puis se montre. */
     func telechargerBonOuEchouer(_ adresse: String, id: String) async throws {
         let r = try requete(adresse + "/" + id + "/bon", methode: "GET", id: nil, envoi: nil, source: nil, filtres: [])
@@ -701,6 +779,32 @@ private final class SuiviEnvoi: NSObject, URLSessionTaskDelegate, Sendable {
     }
 }
 
+/** Les routes écoutées « en direct » par une page : fermées quand on la quitte, relancées après une coupure. */
+@MainActor final class ConnexionsDirect {
+    private var taches: [String: Task<Void, Never>] = [:]
+
+    func ecouter(_ adresse: String, relire: @escaping @MainActor () async -> Void) {
+        guard taches[adresse] == nil else { return }
+        taches[adresse] = Task { @MainActor in
+            var attente = 1.0
+            while !Task.isCancelled {
+                try? await Serveur.commun.fluxDirect(adresse) {
+                    attente = 1
+                    await relire()
+                }
+                if Task.isCancelled { return }
+                try? await Task.sleep(for: .seconds(attente))
+                attente = Swift.min(attente * 2, 30)
+            }
+        }
+    }
+
+    func annuler() {
+        taches.values.forEach { $0.cancel() }
+        taches = [:]
+    }
+}
+
 /** Qui est connecté : toujours lu sur /auth/me du serveur, jamais deviné par l'application. */
 @MainActor @Observable final class Session {
     static let commun = Session()
@@ -716,12 +820,20 @@ private final class SuiviEnvoi: NSObject, URLSessionTaskDelegate, Sendable {
 
     private var personne: Personne?
     /** Vrai dès que /auth/me a répondu : avant, la page ne sait pas encore qui est là. */
-    private(set) var pret = false
+    private var reponseRecue = false
+    var pret: Bool { demander(); return reponseRecue }
     private var demande: Task<Void, Never>?
     private var renouvellement: Task<Bool, Never>?
 
     var connecte: Bool { demander(); return personne != nil }
     var admin: Bool { demander(); return personne?.role == "admin" }
+
+    /** « si utilisateur est gerant » : un admin passe toujours. */
+    func aRole(_ roles: [String]) -> Bool {
+        demander()
+        guard let role = personne?.role else { return false }
+        return role == "admin" || roles.contains(role)
+    }
 
     var jeton: String? { Coffre.lire(Session.cleJeton).flatMap { String(data: $0, encoding: .utf8) } }
     private var jetonRenouvellement: String? { Coffre.lire(Session.cleRenouvellement).flatMap { String(data: $0, encoding: .utf8) } }
@@ -763,7 +875,7 @@ private final class SuiviEnvoi: NSObject, URLSessionTaskDelegate, Sendable {
     }
 
     private func relire() async {
-        defer { pret = true }
+        defer { reponseRecue = true }
         guard let r = requete("/auth/me", methode: "GET"), let (donnees, reponse) = try? await URLSession.shared.data(for: r), let http = reponse as? HTTPURLResponse else {
             personne = nil
             return
@@ -861,13 +973,19 @@ private final class SuiviEnvoi: NSObject, URLSessionTaskDelegate, Sendable {
 
 /** Une page réservée : les autres sont renvoyés vers « sinon », puis reviennent ici après s'être connectés. */
 struct GardeHumalis<Contenu: View>: View {
-    enum Qui { case connecte, admin }
+    enum Qui { case connecte, admin, roles([String]) }
     let qui: Qui
     let sinon: Route
     let ici: Route
     @ViewBuilder let contenu: () -> Contenu
 
-    private var autorise: Bool { qui == .admin ? Session.commun.admin : Session.commun.connecte }
+    private var autorise: Bool {
+        switch qui {
+        case .connecte: return Session.commun.connecte
+        case .admin: return Session.commun.admin
+        case .roles(let roles): return Session.commun.aRole(roles)
+        }
+    }
 
     var body: some View {
         Group {
@@ -876,6 +994,51 @@ struct GardeHumalis<Contenu: View>: View {
             else { Color.clear.task { Routeur.commun.remplacerPourConnexion(sinon, puis: ici) } }
         }
         .task { await Session.commun.attendre() }
+    }
+}
+`;
+
+/** Les notifications : ajoutées au projet seulement si une page écrit « activer notifications ». */
+export const NOTIFICATIONS_SWIFT = String.raw`// Produit par Humalis : les notifications de l'appareil.
+import SwiftUI
+import UserNotifications
+
+/** « activer notifications » : la permission du système, puis le jeton de cet appareil envoyé au serveur. */
+@MainActor func activerNotifications() async {
+    let accord = (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound])) ?? false
+    guard accord else {
+        Messages.commun.afficher("Les notifications sont désactivées. Vous pouvez les activer dans les réglages de l'appareil.", .avertissement)
+        return
+    }
+    #if os(macOS)
+    NSApplication.shared.registerForRemoteNotifications()
+    #else
+    UIApplication.shared.registerForRemoteNotifications()
+    #endif
+}
+
+#if os(macOS)
+typealias DelegueSysteme = NSApplicationDelegate
+typealias ApplicationSysteme = NSApplication
+#else
+typealias DelegueSysteme = UIApplicationDelegate
+typealias ApplicationSysteme = UIApplication
+#endif
+
+/** Ce que le système répond : le jeton de l'appareil, ou le refus. */
+final class DelegueNotifications: NSObject, DelegueSysteme, UNUserNotificationCenterDelegate {
+    func application(_ application: ApplicationSysteme, didRegisterForRemoteNotificationsWithDeviceToken jeton: Data) {
+        let texte = jeton.map { String(format: "%02x", $0) }.joined()
+        Task { @MainActor in await Serveur.commun.enregistrerAppareil(texte) }
+    }
+
+    func application(_ application: ApplicationSysteme, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        Task { @MainActor in Messages.commun.afficher("Cet appareil ne peut pas recevoir de notifications pour l'instant.", .avertissement) }
+    }
+
+    /** Une notification reçue pendant qu'on utilise l'application s'affiche quand même. */
+    func userNotificationCenter(_ centre: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
+        [.banner, .sound, .badge]
     }
 }
 `;
