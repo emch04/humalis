@@ -412,7 +412,7 @@ import SwiftUI
 
 enum ErreurHumalis: LocalizedError {
     case refus(String)
-    /** La requête n'est sûrement pas partie : pas de réseau, ou serveur injoignable. */
+    /** Pas de réponse à cause du réseau : l'envoi n'est peut-être pas arrivé, on peut le recommencer sous le même identifiant. */
     case sansReseau
     var errorDescription: String? {
         if case .refus(let raison) = self { return raison }
@@ -545,7 +545,7 @@ struct SourceHumalis: Sendable {
                     tentative += 1
                     continue
                 }
-                let coupures: [URLError.Code] = [.notConnectedToInternet, .cannotConnectToHost, .cannotFindHost, .dnsLookupFailed, .dataNotAllowed, .internationalRoamingOff]
+                let coupures: [URLError.Code] = [.notConnectedToInternet, .cannotConnectToHost, .cannotFindHost, .dnsLookupFailed, .dataNotAllowed, .internationalRoamingOff, .timedOut, .networkConnectionLost]
                 if let coupure = error as? URLError, coupures.contains(coupure.code) { throw ErreurHumalis.sansReseau }
                 throw ErreurHumalis.refus(pasDeReponse)
             }
@@ -587,12 +587,15 @@ struct SourceHumalis: Sendable {
     }
 
     /** Un appel qui lève son erreur ; nil pour une réponse vide ou un élément qui n'existe plus. */
-    func appel<T: Decodable>(_ adresse: String, comme type: T.Type, methode: String? = nil, envoi: [String: ValeurHumalis]? = nil, id: String? = nil, source: SourceHumalis? = nil, filtres: [(String, String)] = [], dans: String? = nil, suivi: (@MainActor (EtatRequete) -> Void)? = nil) async throws -> T? {
+    func appel<T: Decodable>(_ adresse: String, comme type: T.Type, methode: String? = nil, envoi: [String: ValeurHumalis]? = nil, id: String? = nil, source: SourceHumalis? = nil, filtres: [(String, String)] = [], dans: String? = nil, cleEnvoi: String? = nil, suivi: (@MainActor (EtatRequete) -> Void)? = nil) async throws -> T? {
         suivi?(EtatRequete(statut: .chargement))
         do {
             let verbe = methode ?? (envoi != nil ? "POST" : "GET")
-            let r = try requete(adresse, methode: verbe, id: id, envoi: envoi, source: source, filtres: filtres)
+            var r = try requete(adresse, methode: verbe, id: id, envoi: envoi, source: source, filtres: filtres)
+            if let cleEnvoi { r.setValue(cleEnvoi, forHTTPHeaderField: "X-Humalis-Envoi") }
             let (donnees, reponse) = try await envoyerRequete(r, source: source)
+            // Le premier essai de cet envoi tourne encore sur le serveur : on réessaiera.
+            if reponse.statusCode == 409 && cleEnvoi != nil { throw ErreurHumalis.sansReseau }
             if reponse.statusCode == 404 && verbe == "GET" && source == nil {
                 suivi?(EtatRequete(statut: .introuvable))
                 return nil
@@ -638,8 +641,8 @@ struct SourceHumalis: Sendable {
         }
     }
 
-    func appelSansReponse(_ adresse: String, methode: String? = nil, envoi: [String: ValeurHumalis]? = nil, id: String? = nil, source: SourceHumalis? = nil, filtres: [(String, String)] = [], dans: String? = nil) async throws {
-        _ = try await appel(adresse, comme: ValeurHumalis.self, methode: methode, envoi: envoi, id: id, source: source, filtres: filtres, dans: dans)
+    func appelSansReponse(_ adresse: String, methode: String? = nil, envoi: [String: ValeurHumalis]? = nil, id: String? = nil, source: SourceHumalis? = nil, filtres: [(String, String)] = [], dans: String? = nil, cleEnvoi: String? = nil) async throws {
+        _ = try await appel(adresse, comme: ValeurHumalis.self, methode: methode, envoi: envoi, id: id, source: source, filtres: filtres, dans: dans, cleEnvoi: cleEnvoi)
     }
 
     /** Vrai si l'appel a réussi ; sinon un message s'affiche. */
@@ -1026,6 +1029,7 @@ import Foundation
 import Network
 
 struct EnvoiGarde: Codable {
+    /** Le même à chaque essai : le serveur ne fait le travail qu'une fois. */
     let numero: UUID
     let adresse: String
     let methode: String?
@@ -1060,8 +1064,8 @@ struct EnvoiGarde: Codable {
         Task { await envoyer() }
     }
 
-    func garder(_ adresse: String, methode: String?, envoi: [String: ValeurHumalis]?, id: String?) {
-        file.append(EnvoiGarde(numero: UUID(), adresse: adresse, methode: methode, envoi: envoi, cible: id))
+    func garder(_ numero: UUID, _ adresse: String, methode: String?, envoi: [String: ValeurHumalis]?, id: String?) {
+        file.append(EnvoiGarde(numero: numero, adresse: adresse, methode: methode, envoi: envoi, cible: id))
         enregistrer()
         reessayerBientot()
     }
@@ -1081,7 +1085,7 @@ struct EnvoiGarde: Codable {
         }
         while let suivant = file.first {
             do {
-                try await Serveur.commun.appelSansReponse(suivant.adresse, methode: suivant.methode, envoi: suivant.envoi, id: suivant.cible)
+                try await Serveur.commun.appelSansReponse(suivant.adresse, methode: suivant.methode, envoi: suivant.envoi, id: suivant.cible, cleEnvoi: suivant.numero.uuidString)
             } catch {
                 let raison = raisonDe(error)
                 if raison == pasDeReponse || raison == "Connectez-vous pour continuer." { return }
@@ -1108,15 +1112,16 @@ extension Serveur {
     /** Sans réseau, l'envoi attend et le geste continue. S'il y en a déjà en attente, celui-ci passe après eux. */
     func appelOuGarder(_ adresse: String, methode: String? = nil, envoi: [String: ValeurHumalis]? = nil, id: String? = nil) async throws {
         let attente = EnvoisGardes.commun
+        let numero = UUID()
         if attente.attend {
-            attente.garder(adresse, methode: methode, envoi: envoi, id: id)
+            attente.garder(numero, adresse, methode: methode, envoi: envoi, id: id)
             await attente.envoyer()
             return
         }
         do {
-            try await appelSansReponse(adresse, methode: methode, envoi: envoi, id: id)
+            try await appelSansReponse(adresse, methode: methode, envoi: envoi, id: id, cleEnvoi: numero.uuidString)
         } catch ErreurHumalis.sansReseau {
-            attente.garder(adresse, methode: methode, envoi: envoi, id: id)
+            attente.garder(numero, adresse, methode: methode, envoi: envoi, id: id)
             Messages.commun.afficher("Pas de réseau : ce sera envoyé dès que la connexion revient.", .info)
         }
     }

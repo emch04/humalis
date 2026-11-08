@@ -11,7 +11,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { createServer as creerHttps } from 'node:https';
 import { createServer as createHttp } from 'node:http';
 import { createSecureServer } from 'node:http2';
-import { createECDH, createHmac, generateKeyPairSync, randomBytes as hasard } from 'node:crypto';
+import { randomUUID, createECDH, createHmac, generateKeyPairSync, randomBytes as hasard } from 'node:crypto';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -380,6 +380,43 @@ try {
   verifier((await champs(vendeurA.id, { telephone: 'x' }, vendeurA.jeton)).statut === 403, 'un rôle sans droit ne change rien (403)');
   verifier((await appeler(A, 'DELETE', `/api/equipe/${vendeurB.id}`, gerantA.jeton)).statut === 404, 'on ne retire pas un compte d’un autre groupe (404)');
   verifier((await appeler(A, 'DELETE', `/api/equipe/${vendeurA.id}`, gerantA.jeton)).statut === 204, 'un gérant retire un membre de son équipe');
+
+  // ─── Un envoi rejoué ne crée pas de doublon ───────────────────────
+  const envoyerUneFois = (base, jeton, id, corps, signal) => fetch(`${base}/api/messages`, { method: 'POST', headers: { ...json, authorization: `Bearer ${jeton}`, 'x-humalis-envoi': id }, body: JSON.stringify(corps), signal });
+  const textesDe = async (jeton) => (await appeler(A, 'GET', '/api/messages', jeton)).valeur.map((m) => m.texte);
+  const envoiUn = randomUUID();
+  const premier = await envoyerUneFois(A, u2.jeton, envoiUn, { texte: 'unique-1' });
+  const corpsPremier = await premier.json();
+  const rejoue = await envoyerUneFois(B, u2.jeton, envoiUn, { texte: 'unique-1' });
+  const corpsRejoue = await rejoue.json();
+  verifier(premier.status === 201 && rejoue.status === 201 && corpsRejoue.id === corpsPremier.id && rejoue.headers.get('x-humalis-rejoue') === '1', 'un renvoi, même sur l’autre serveur, redonne la même réponse');
+  verifier((await textesDe(u2.jeton)).filter((t) => t === 'unique-1').length === 1, 'la fiche n’existe qu’une fois');
+  verifier((await envoyerUneFois(A, u2.jeton, envoiUn, { texte: 'autre chose' })).status === 422, 'le même identifiant pour un autre envoi est refusé (422)');
+  const envoiPartage = randomUUID();
+  await envoyerUneFois(A, u1.jeton, envoiPartage, { texte: 'de-u1' });
+  verifier((await envoyerUneFois(A, u2.jeton, envoiPartage, { texte: 'de-u2' })).status === 201 && (await textesDe(u2.jeton)).includes('de-u2'), 'un identifiant ne vaut que pour son compte');
+  const envoiSimultane = randomUUID();
+  const rafale = await Promise.all(Array.from({ length: 12 }, (_, i) => envoyerUneFois(i % 2 ? A : B, u2.jeton, envoiSimultane, { texte: 'rafale' })));
+  verifier(rafale.every((r) => r.status === 201 || r.status === 409) && rafale.some((r) => r.status === 201) && (await textesDe(u2.jeton)).filter((t) => t === 'rafale').length === 1, 'douze envois simultanés sur deux serveurs : une seule fiche');
+  let coupe = 0;
+  for (let i = 0; i < 30; i++) {
+    const id = randomUUID();
+    const arret = new AbortController();
+    const envoi = envoyerUneFois(i % 2 ? A : B, u2.jeton, id, { texte: `coupe-${i}` }, arret.signal).catch(() => null);
+    setTimeout(() => arret.abort(), i % 6);
+    if ((await envoi) === null) coupe++;
+    let reponse;
+    for (let essai = 0; essai < 20; essai++) {
+      reponse = await envoyerUneFois(i % 2 ? B : A, u2.jeton, id, { texte: `coupe-${i}` });
+      if (reponse.status !== 409) break;
+      await pause(50);
+    }
+    if (reponse.status !== 201) verifier(false, `renvoi après coupure : statut ${reponse.status}`);
+  }
+  const apresCoupures = await textesDe(u2.jeton);
+  verifier(Array.from({ length: 30 }, (_, i) => apresCoupures.filter((t) => t === `coupe-${i}`).length).every((n) => n === 1), `30 envois renvoyés, dont ${coupe} coupés en route : aucun doublon, aucune perte`);
+  const refusUnique = randomUUID();
+  verifier((await envoyerUneFois(A, u2.jeton, refusUnique, {})).status === 400 && (await envoyerUneFois(A, u2.jeton, refusUnique, { texte: 'corrige' })).status === 201, 'un envoi refusé ne bloque pas son identifiant');
 
   // ─── Dans un vrai navigateur, sur les deux sortes de site ──────────
   const navigateur = await chromium.launch();

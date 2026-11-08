@@ -1905,6 +1905,13 @@ seulement quand Stripe le confirme par un webhook signé : envoie-le vers
 `/paiements/webhook`. Il faut `STRIPE_CLE_SECRETE`, `STRIPE_SECRET_WEBHOOK` et
 `HUMALIS_ADRESSE_SITE`.
 
+#### Renvoyer sans créer de doublon
+
+Si la connexion coupe en plein envoi, un programme peut recommencer sans risque : il envoie
+l'en-tête `X-Humalis-Envoi` avec un identifiant au hasard, le même à chaque essai. Le serveur
+fait le travail une fois, même avec plusieurs exemplaires, puis redonne la même réponse.
+Il répond 409 tant que le premier essai tourne. L'identifiant est gardé un jour.
+
 #### Beaucoup de monde derrière une même adresse
 
 Par défaut, une adresse a droit à 300 requêtes par 15 minutes et 10 tentatives de connexion.
