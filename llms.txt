@@ -472,6 +472,34 @@ page "accueil" :
 - Un paiement lancé dans la page : payer
 - « payer » sur autre chose qu’une fiche payable : attend une fiche
 - « payer » un champ qui n’est pas un nombre : ce doit être un champ nombre
+- Une action mal écrite : on écrit : seul gerant peut faire
+- Une tâche planifiée mal écrite : on écrit : tous les jours a 7 h
+- Une tâche sans heure : à quelle heure ?
+- Une heure qui n’existe pas : n'est pas une heure
+- Une heure sans « h » : écrivez « h »
+- Des minutes qui n’existent pas : n'est pas un nombre de minutes
+- Un compte dans une tâche planifiée : une tâche planifiée tourne sans personne connectée
+- Une ligne de document mal écrite : dans un document, on écrit
+- Un « pour chaque » mal écrit sur le serveur : on écrit : pour chaque c dans commande
+- Un « changer » mal écrit : on écrit : changer commande.statut par
+- Une instruction inconnue sur le serveur : sur le serveur, on écrit « si »
+- Un nom inconnu dans une valeur du serveur : « oups » n'existe pas ici
+- Un champ inconnu dans une valeur du serveur : n'a pas de champ « oups »
+- Une accolade sans champ sur le serveur : on montre le champ d'une fiche
+- Une valeur que le serveur ne comprend pas : une valeur est un texte, un nombre
+- Une notification pour un rôle non déclaré : n'est pas déclaré
+- Un « pour chaque » sur une donnée inconnue : n'existe pas. Données
+- Un filtre sur un champ inconnu : n'a pas de champ « oups »
+- Une fiche que l’action ne connaît pas : « oups » n'existe pas ici
+- Changer le groupe d’une fiche : on ne le change pas
+- Créer une fiche d’une donnée inconnue : cette donnée n'existe pas
+- Créer une fiche avec un champ inconnu : la donnée n'a pas de champ « oups »
+- Créer une fiche sans tous ses champs : il manque « total »
+- Créer une fiche séparée sans savoir pour quel groupe : aucune fiche ici n'indique lequel
+- Un e-mail sans service d’e-mails : demande la ligne « emails par brevo »
+- Une action sur une donnée inconnue : n'existe pas dans le serveur
+- Un document sur une donnée inconnue : n'existe pas. Données
+- Un « refuser » après un paiement : le paiement est déjà fait
 - Une durée oubliée : il manque une durée
 - Une durée sans unité : il manque l’unité de la durée
 - Une durée qui n’est pas un nombre : une durée est un nombre suivi de son unité

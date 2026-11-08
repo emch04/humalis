@@ -259,6 +259,7 @@ function envExemple(serveur: ServeurRI): string {
   const enPlus = [
     ...(serveur.connexionGoogle ? [ENV_GOOGLE] : []),
     ...(serveur.emails ? [ENV_EMAILS] : []),
+    `# Requêtes par adresse et par 15 minutes (300 par défaut), tentatives de connexion (10 par défaut). À monter si beaucoup de personnes partagent une même adresse.\nHUMALIS_LIMITE_API=\nHUMALIS_LIMITE_CONNEXION=\n`,
     ...(avecIa(serveur) ? [ENV_IA] : []),
     ...(avecPaiements(serveur) ? [`# Les paiements (« paiements par stripe ») : une clé de test d'abord (sk_test_…), et le secret du webhook vers /paiements/webhook.\nSTRIPE_CLE_SECRETE=\nSTRIPE_SECRET_WEBHOOK=\nHUMALIS_PAIEMENT_DEVISE=eur\n`] : []),
     ...(serveur.invitations || serveur.motDePasseOublie || serveur.donnees.some((d) => d.champs.some((c) => c.regle?.genre === 'site')) ? [ENV_LIENS] : []),
@@ -1321,6 +1322,9 @@ ${comptes ? codeCreationComptes(serveur, chemins).replace('usersStore,', 'usersS
     // Le pare-feu du pack, sans son motif des commentaires SQL : le stockage passe par des requêtes paramétrées,
     // et « avenue #12 » ou « appeler -- après 18h » sont de vrais textes. Les autres motifs restent.
     waf: { patterns: WAF_PATTERNS.filter((motif) => !motif.source.includes('--')).map((motif) => new MotifDuPareFeu(motif.source, motif.flags)) },
+    // Les limites par adresse : un établissement entier peut sortir par une seule adresse.
+    ...(process.env.HUMALIS_LIMITE_API ? { apiRateLimit: { max: Number(process.env.HUMALIS_LIMITE_API) } } : {}),
+    ...(process.env.HUMALIS_LIMITE_CONNEXION ? { loginRateLimit: { max: Number(process.env.HUMALIS_LIMITE_CONNEXION) } } : {}),
     // Derrière un relais (nginx) : son nombre, pour que les limites comptent chaque visiteur et non le relais.
     ...(process.env.HUMALIS_RELAIS ? { trustProxy: Number(process.env.HUMALIS_RELAIS) } : {}),
     // Un jeton d'accès court, renouvelé tant que la personne revient : voir src/humalis/sessions.ts.

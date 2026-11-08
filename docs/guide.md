@@ -1574,7 +1574,200 @@ page "accueil" :
   c'est la règle de la route qui protège.
 - Un `admin` passe toujours.
 - `inviter … comme directeur` crée un compte avec ce rôle.
-- Le rôle est écrit dans la session : s'il change, il compte à la prochaine connexion.
+- Le rôle est écrit dans la session : s'il change, il compte à la prochaine connexion, ou
+  tout de suite avec `changer role` (plus bas).
+
+#### Séparer les données par groupe ou par compte
+
+`par` sépare les fiches : chaque groupe, ou chaque compte, ne voit que les siennes.
+Le nom du groupe est celui de ton métier : `boutique`, `equipe`, `agence`…
+
+```humalis
+serveur "commerce" :
+    roles gerant et vendeur
+    donnee commande par boutique :
+        total : nombre
+    donnee note par compte :
+        texte : texte
+    route "commandes" :
+        seuls gerant et vendeur peuvent lire commande
+        seul gerant peut modifier commande
+    route "notes" :
+        connecte peut lire note
+        connecte peut creer note
+```
+
+- Une fiche créée prend le groupe de la personne ; on ne peut pas le choisir en l'envoyant.
+- La fiche d'un autre groupe répond « introuvable » (404), comme si elle n'existait pas.
+- Un `admin` voit tous les groupes, et précise le groupe quand il crée une fiche.
+- `inviter champ "Adresse" comme vendeur dans boutique b` place un nouveau compte dans
+  un groupe. Un membre qui invite y fait entrer la personne dans son propre groupe.
+  `seul gerant peut creer comptes` dit qui peut inviter.
+- Une page `en direct` n'est prévenue que des changements de son groupe.
+
+#### Un droit sur certaines fiches seulement
+
+`si` limite une règle aux fiches concernées :
+
+```humalis
+serveur "commerce" :
+    roles gerant et client
+    donnee facture :
+        montant : nombre
+        clients : liste de texte
+    route "factures" :
+        seul gerant peut lire facture
+        client peut lire facture si utilisateur.id est dans facture.clients
+        seul gerant peut modifier facture
+```
+
+Chaque côté est un champ de la fiche, un champ de `utilisateur` (`id`, `email`, `role`,
+un groupe) ou une valeur. On écrit `est` ou `est dans`.
+
+#### Changer le rôle d'un compte
+
+`changer role de c en "vendeur"`, après un geste dans une page, compte tout de suite :
+dès que cette phrase existe dans le programme, le serveur relit le compte à chaque
+requête. Seul un admin peut le faire, et jamais sur son propre compte.
+
+#### Une action écrite sur le serveur
+
+Une action fait tout ou rien : `refuser` arrête, annule ce qui a déjà été écrit et
+montre son message à la personne.
+
+```humalis
+serveur "commerce" :
+    roles gerant
+    donnee commande :
+        total : nombre
+        statut : texte au depart "ouverte"
+    route "commandes" :
+        seul gerant peut lire commande
+        seul gerant peut modifier commande
+        seul gerant peut faire "rembourser" sur commande :
+            si commande.statut est egal a "remboursee" :
+                refuser "Déjà remboursée"
+            changer commande.statut par "remboursee"
+
+page "commandes" reservee a gerant sinon vers "accueil" :
+    variable commandes = []
+    titre "Commandes"
+    quand la page se charge :
+        envoyer requete vers "commandes" dans commandes
+    pour chaque c dans commandes :
+        bouton "Rembourser"
+        quand l'utilisateur clique sur "Rembourser" :
+            faire "rembourser" sur c
+
+page "accueil" :
+    titre "Accueil"
+```
+
+Dans une action, on écrit `si`, `pour chaque c dans commande ou statut est "ouverte" :`,
+`changer c.statut par …`, `creer … avec …`, `supprimer c`, `refuser "…"`, `envoyer email …`
+et `envoyer notification …`. Les e-mails et notifications partent seulement si tout a réussi.
+
+#### Une tâche planifiée
+
+```humalis
+serveur "commerce" :
+    donnee commande :
+        statut : texte
+    route "commandes" :
+        seul admin peut lire commande
+        seul admin peut modifier commande
+    tous les jours a 7 h :
+        pour chaque c dans commande ou statut est "brouillon" :
+            supprimer c
+```
+
+On écrit aussi `toutes les heures :` et `chaque lundi a 8 h 30 :`. Même avec plusieurs
+serveurs, une seule exécution a lieu. L'heure est celle du serveur (variable `TZ`). Un serveur
+arrêté au moment prévu rattrape la tâche dans l'heure qui suit, pas au-delà.
+
+#### Un document PDF
+
+```humalis
+serveur "commerce" :
+    document "recu" de commande :
+        titre "Reçu"
+        texte "Total : {commande.total} euros"
+    donnee commande :
+        total : nombre
+    route "commandes" :
+        seul admin peut lire commande
+        seul admin peut modifier commande
+```
+
+`telecharger document "recu" de c` le télécharge depuis une page, avec les droits de la
+lecture de cette donnée.
+
+#### Les notifications
+
+`envoyer notification aux gerant avec titre "Nouveau" et texte "{commande.total}"` s'écrit
+dans une action, une tâche ou `quand commande est cree :`. On peut aussi viser le compte
+écrit dans une fiche : `envoyer notification a commande.compte avec …`. Si la fiche est
+séparée par groupe, seuls les comptes de ce groupe la reçoivent.
+
+Dans une page, après un geste : `activer notifications`. Il faut les variables
+`HUMALIS_VAPID_PUBLIQUE`, `HUMALIS_VAPID_PRIVEE` et `HUMALIS_VAPID_SUJET` pour le web,
+et `HUMALIS_APNS_CLE`, `HUMALIS_APNS_CLE_ID`, `HUMALIS_APNS_EQUIPE` et
+`HUMALIS_APNS_SUJET` pour Apple (`HUMALIS_APNS_HOTE` pour le bac à sable).
+
+#### Interroger une IA
+
+```humalis
+serveur "commerce" :
+    ia par anthropic
+    connecte peut demander a ia
+
+page "aide" :
+    variable reponse = ""
+    titre "Aide"
+    texte reponse
+    bouton "Demander"
+    quand l'utilisateur clique sur "Demander" :
+        demander a ia "Donne une idée de slogan" dans reponse
+```
+
+La réponse s'affiche au fil de l'eau. La clé `ANTHROPIC_API_KEY` reste sur le serveur.
+Chaque compte a un plafond, commun à tous les serveurs : 30 questions par heure,
+`HUMALIS_IA_PAR_HEURE` le change. `HUMALIS_IA_MODELE` choisit le modèle
+(`claude-opus-5-5` par défaut).
+
+#### Encaisser un paiement
+
+```humalis
+serveur "commerce" :
+    paiements par stripe
+    donnee reservation :
+        nom : texte
+        total : nombre
+    donnee journal :
+        nom : texte
+    route "reservations" :
+        connecte peut lire reservation
+        connecte peut creer reservation
+        seul admin peut modifier reservation
+        quand reservation est payee :
+            creer journal avec nom reservation.nom
+    route "journaux" :
+        seul admin peut lire journal
+        seul admin peut modifier journal
+```
+
+`payer total pour r`, dans une page, ouvre la page de paiement de Stripe. Le montant est
+relu par le serveur, jamais envoyé par la page. La fiche reçoit un champ `paye`, écrit
+seulement quand Stripe le confirme par un webhook signé : envoie-le vers
+`/paiements/webhook`. Il faut `STRIPE_CLE_SECRETE`, `STRIPE_SECRET_WEBHOOK` et
+`HUMALIS_ADRESSE_SITE`.
+
+#### Beaucoup de monde derrière une même adresse
+
+Par défaut, une adresse a droit à 300 requêtes par 15 minutes et 10 tentatives de connexion.
+Un établissement entier peut sortir par une seule adresse : monte alors
+`HUMALIS_LIMITE_API` et `HUMALIS_LIMITE_CONNEXION`. Derrière un relais, règle aussi
+`HUMALIS_RELAIS`.
 
 Pour le produire et le lancer :
 

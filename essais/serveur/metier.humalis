@@ -1,6 +1,8 @@
 # Essai du serveur : groupes, droits sur ses fiches, rôles qui changent.
 serveur "commerce" :
     roles gerant, vendeur et client
+    emails par brevo
+    invitations vers "bienvenue"
     paiements par stripe
     ia par anthropic
     seuls gerant et client peuvent demander a ia
@@ -61,8 +63,19 @@ serveur "commerce" :
         seul gerant peut modifier facture
     route "equipe" :
         seul admin peut lire comptes
+        seul gerant peut creer comptes
 
-page "accueil" :
+page "bienvenue" :
+    titre "Bienvenue"
+    formulaire "entree" :
+        champ email "Email"
+        champ mot de passe "Mot de passe"
+        bouton "Entrer"
+    quand le formulaire "entree" est soumis :
+        se connecter avec champ "Email" et champ "Mot de passe"
+        rediriger vers "accueil"
+
+page "accueil" reservee a connecte sinon vers "bienvenue" :
     variable commandes = []
     variable reservations = []
     variable reponse = ""

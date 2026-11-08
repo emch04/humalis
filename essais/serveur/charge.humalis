@@ -1,0 +1,28 @@
+# Essai de charge : un temps réel séparé par groupe, avec le compte relu à chaque requête.
+serveur "charge" :
+    roles gerant
+    donnee fiche par boutique :
+        nom : texte
+    donnee libre :
+        nom : texte
+    route "fiches" :
+        seul gerant peut lire fiche
+        seul gerant peut modifier fiche
+    route "libres" :
+        connecte peut lire libre
+        seul gerant peut modifier libre
+
+page "accueil" reservee a gerant sinon vers "dehors" :
+    variable fiches = []
+    variable libres = []
+    titre "Charge"
+    quand la page se charge :
+        envoyer requete vers "fiches" dans fiches en direct
+        envoyer requete vers "libres" dans libres
+    pour chaque f dans fiches :
+        texte f.nom
+    pour chaque l dans libres :
+        texte l.nom
+
+page "dehors" :
+    titre "Dehors"

@@ -1653,7 +1653,196 @@ page "accueil" :
   rule does.
 - An `admin` always passes.
 - `inviter … comme directeur` creates an account with that role.
-- The role is stored in the session: if it changes, it counts at the next login.
+- The role is stored in the session: if it changes, it counts at the next login, or at once
+  with `changer role` (below).
+
+#### Separating data by group or by account
+
+`par` separates records: each group, or each account, only sees its own. The group name
+comes from your own business: `boutique`, `equipe`, `agence`…
+
+```humalis
+serveur "commerce" :
+    roles gerant et vendeur
+    donnee commande par boutique :
+        total : nombre
+    donnee note par compte :
+        texte : texte
+    route "commandes" :
+        seuls gerant et vendeur peuvent lire commande
+        seul gerant peut modifier commande
+    route "notes" :
+        connecte peut lire note
+        connecte peut creer note
+```
+
+- A new record takes the person's group; nobody can pick it by sending it.
+- A record from another group answers "not found" (404), as if it did not exist.
+- An `admin` sees every group, and names the group when creating a record.
+- `inviter champ "Adresse" comme vendeur dans boutique b` puts a new account in a group.
+  A member who invites brings the person into their own group.
+  `seul gerant peut creer comptes` says who may invite.
+- An `en direct` page is only told about changes in its own group.
+
+#### A right on some records only
+
+`si` limits a rule to the records concerned:
+
+```humalis
+serveur "commerce" :
+    roles gerant et client
+    donnee facture :
+        montant : nombre
+        clients : liste de texte
+    route "factures" :
+        seul gerant peut lire facture
+        client peut lire facture si utilisateur.id est dans facture.clients
+        seul gerant peut modifier facture
+```
+
+Each side is a field of the record, a field of `utilisateur` (`id`, `email`, `role`, a group)
+or a value. Write `est` or `est dans`.
+
+#### Changing an account's role
+
+`changer role de c en "vendeur"`, after a gesture in a page, takes effect at once: as soon as
+the program uses this sentence, the server re-reads the account on every request. Only an
+admin can do it, and never on their own account.
+
+#### An action written on the server
+
+An action is all or nothing: `refuser` stops, cancels what was already written and shows its
+message to the person.
+
+```humalis
+serveur "commerce" :
+    roles gerant
+    donnee commande :
+        total : nombre
+        statut : texte au depart "ouverte"
+    route "commandes" :
+        seul gerant peut lire commande
+        seul gerant peut modifier commande
+        seul gerant peut faire "rembourser" sur commande :
+            si commande.statut est egal a "remboursee" :
+                refuser "Déjà remboursée"
+            changer commande.statut par "remboursee"
+
+page "commandes" reservee a gerant sinon vers "accueil" :
+    variable commandes = []
+    titre "Commandes"
+    quand la page se charge :
+        envoyer requete vers "commandes" dans commandes
+    pour chaque c dans commandes :
+        bouton "Rembourser"
+        quand l'utilisateur clique sur "Rembourser" :
+            faire "rembourser" sur c
+
+page "accueil" :
+    titre "Accueil"
+```
+
+Inside an action you can write `si`, `pour chaque c dans commande ou statut est "ouverte" :`,
+`changer c.statut par …`, `creer … avec …`, `supprimer c`, `refuser "…"`, `envoyer email …` and
+`envoyer notification …`. Emails and notifications leave only if everything succeeded.
+
+#### A scheduled task
+
+```humalis
+serveur "commerce" :
+    donnee commande :
+        statut : texte
+    route "commandes" :
+        seul admin peut lire commande
+        seul admin peut modifier commande
+    tous les jours a 7 h :
+        pour chaque c dans commande ou statut est "brouillon" :
+            supprimer c
+```
+
+`toutes les heures :` and `chaque lundi a 8 h 30 :` work too. Even with several servers, it
+runs once. The time is the server's (`TZ` variable). A server that was down at the scheduled
+time catches up within the following hour, not later.
+
+#### A PDF document
+
+```humalis
+serveur "commerce" :
+    document "recu" de commande :
+        titre "Reçu"
+        texte "Total : {commande.total} euros"
+    donnee commande :
+        total : nombre
+    route "commandes" :
+        seul admin peut lire commande
+        seul admin peut modifier commande
+```
+
+`telecharger document "recu" de c` downloads it from a page, with the read rights of that data.
+
+#### Notifications
+
+`envoyer notification aux gerant avec titre "Nouveau" et texte "{commande.total}"` goes in an
+action, a task or `quand commande est cree :`. You can also target the account stored in a
+record: `envoyer notification a commande.compte avec …`. If the record is separated by group,
+only accounts in that group receive it.
+
+In a page, after a gesture: `activer notifications`. The web needs `HUMALIS_VAPID_PUBLIQUE`,
+`HUMALIS_VAPID_PRIVEE` and `HUMALIS_VAPID_SUJET`; Apple needs `HUMALIS_APNS_CLE`,
+`HUMALIS_APNS_CLE_ID`, `HUMALIS_APNS_EQUIPE` and `HUMALIS_APNS_SUJET` (`HUMALIS_APNS_HOTE`
+for the sandbox).
+
+#### Asking an AI
+
+```humalis
+serveur "commerce" :
+    ia par anthropic
+    connecte peut demander a ia
+
+page "aide" :
+    variable reponse = ""
+    titre "Aide"
+    texte reponse
+    bouton "Demander"
+    quand l'utilisateur clique sur "Demander" :
+        demander a ia "Donne une idée de slogan" dans reponse
+```
+
+The answer appears as it is written. The `ANTHROPIC_API_KEY` key stays on the server. Each
+account has a cap shared by all servers: 30 questions an hour, changed by
+`HUMALIS_IA_PAR_HEURE`. `HUMALIS_IA_MODELE` picks the model (`claude-opus-5-5` by default).
+
+#### Taking a payment
+
+```humalis
+serveur "commerce" :
+    paiements par stripe
+    donnee reservation :
+        nom : texte
+        total : nombre
+    donnee journal :
+        nom : texte
+    route "reservations" :
+        connecte peut lire reservation
+        connecte peut creer reservation
+        seul admin peut modifier reservation
+        quand reservation est payee :
+            creer journal avec nom reservation.nom
+    route "journaux" :
+        seul admin peut lire journal
+        seul admin peut modifier journal
+```
+
+`payer total pour r`, in a page, opens Stripe's payment page. The amount is re-read by the
+server, never sent by the page. The record gets a `paye` field, written only when Stripe
+confirms it through a signed webhook: send it to `/paiements/webhook`. It needs
+`STRIPE_CLE_SECRETE`, `STRIPE_SECRET_WEBHOOK` and `HUMALIS_ADRESSE_SITE`.
+
+#### Many people behind one address
+
+By default, one address gets 300 requests per 15 minutes and 10 login attempts. A whole
+organisation can share one address: raise `HUMALIS_LIMITE_API` and `HUMALIS_LIMITE_CONNEXION`.
+Behind a proxy, also set `HUMALIS_RELAIS`.
 
 To generate and run it:
 
