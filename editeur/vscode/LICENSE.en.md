@@ -89,3 +89,12 @@ This license is governed by French law.
 This license applies only to the versions released under it. The versions released under the Apache
 License 2.0 (1.0.0 to 1.0.3) remain under that license. Third-party components keep their own
 licenses.
+
+11. Unauthorised use
+
+Any use of the Software contrary to this license, in particular its Commercialisation without the prior
+written consent of the Humalis authors, is not authorised and may constitute copyright infringement.
+The Humalis authors reserve the right to bring any civil or criminal action permitted by law to stop
+such use and obtain compensation for the harm suffered.
+
+Requests for authorisation should be sent to contact@humalis.dev.

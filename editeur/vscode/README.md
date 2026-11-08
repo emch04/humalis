@@ -27,7 +27,7 @@ page "accueil" :
 
 ## Tout le langage
 
-L'extension connaît le langage de Humalis 1.8.0, y compris les constructions les plus récentes :
+L'extension connaît le langage de Humalis 1.8.1, y compris les constructions les plus récentes :
 
 - **Les messages d'un site :** `erreurs pendant 5 secondes`.
 - **Les comptes :** `emails par brevo`, `invitations vers "bienvenue"`, `mot de passe oublie vers "bienvenue"`, `seul admin peut lire comptes`, et dans les pages `inviter champ "Adresse" comme admin`, `demander un lien de mot de passe pour champ "Email"`, `choisir le mot de passe avec champ "Nouveau"`.
