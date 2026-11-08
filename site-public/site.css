@@ -453,3 +453,12 @@ html[data-theme=clair] .cible-code{color:#5c7a00}
 @media(min-width:900px){.aide-entree pre,.aide-entree .humalis-bloc-code{min-height:58px;padding:12px 92px 12px 14px}}
 .aide-eviter+.humalis-bloc-code-conteneur button{display:none}
 .aide .aide-eviter+.humalis-bloc-code-conteneur pre{padding:12px 14px;min-height:0}
+.signaler{display:flex;flex-direction:column;gap:18px;max-width:640px}
+.signaler label{display:flex;flex-direction:column;gap:7px;font-weight:600;font-size:15px}
+.signaler input,.signaler select,.signaler textarea{font:inherit;font-weight:400;color:var(--text);background:var(--surface);border:1px solid color-mix(in srgb,var(--text) 18%,transparent);border-radius:10px;padding:11px 13px}
+.signaler textarea{resize:vertical;min-height:150px}
+.signaler input:focus-visible,.signaler select:focus-visible,.signaler textarea:focus-visible{outline:2px solid var(--brand,#d7ff3a);outline-offset:1px}
+.signaler button{align-self:flex-start}.signaler button:disabled{opacity:.55;cursor:not-allowed}
+.signaler-piege{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.signaler-erreur{margin:0;color:#ff8a7a}.signaler-merci{font-size:20px;font-weight:600}
+.signaler-note{color:var(--muted);font-size:14.5px;max-width:640px;margin-top:22px}

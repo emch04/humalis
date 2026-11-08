@@ -21,7 +21,7 @@ pied avec style "site-footer" :
         colonne avec style "footer-col" :
             texte "Projet" en anglais "Project" avec style "footer-titre"
             lien "GitHub" sans traduction vers "https://github.com/emch04/humalis" avec nouvel onglet
-            lien "Signaler un problème" en anglais "Report an issue" vers "https://github.com/emch04/humalis/issues" avec nouvel onglet
+            lien "Signaler un problème" en anglais "Report an issue" vers "signaler"
             lien "Paquet npm" en anglais "npm package" vers "https://www.npmjs.com/package/humalis" avec nouvel onglet
             lien "Licence Humalis" en anglais "Humalis License" vers "https://github.com/emch04/humalis/blob/main/LICENSE" avec nouvel onglet
     ligne avec style "footer-bas" :
