@@ -1658,6 +1658,8 @@ interface Utilisateur {
   changerMotDePasse(actuel: string, nouveau: string, dansUnEssai?: boolean): Promise<boolean>;
   /** « inviter … » : un lien par e-mail ; vrai si le serveur l'a pris en charge. */
   inviter(email: string, role: string, dansUnEssai?: boolean, groupes?: Record<string, string>): Promise<boolean>;
+  /** « payer … pour c » : part vers la page de paiement. */
+  payer(adresse: string, id: string, dansUnEssai?: boolean): Promise<boolean>;
   /** « demander a ia … » : la réponse arrive au fil de l'eau. */
   demanderIa(question: string, surTexte: (texte: string) => void, dansUnEssai?: boolean): Promise<boolean>;
   /** « activer notifications » : cet appareil reçoit celles du compte. */
@@ -1844,6 +1846,24 @@ export function Session({ children }: { children: ReactNode }) {
     return envoyerAuCompte('/auth/invitations', { email, role, groupes }, dansUnEssai, "L'invitation n'est pas partie.");
   }
 
+  async function payer(adresse: string, id: string, dansUnEssai = false): Promise<boolean> {
+    const dire = (texte: string): boolean => {
+      if (dansUnEssai) throw new Error(texte);
+      afficherMessage(texte, 'erreur');
+      return false;
+    };
+    let reponse: Response;
+    try {
+      reponse = await fetch(BASE + adresse + '/' + encodeURIComponent(id), { method: 'POST', headers: entetes(), credentials: 'same-origin', body: JSON.stringify({ retour: window.location.pathname }) });
+    } catch {
+      return dire("Le serveur n'a pas répondu. Réessayez dans un instant.");
+    }
+    const corps = (await reponse.json().catch(() => null)) as { url?: string; erreur?: string } | null;
+    if (!reponse.ok || !corps?.url) return dire(corps?.erreur ? corps.erreur.charAt(0).toUpperCase() + corps.erreur.slice(1) + '.' : "Le paiement n'a pas pu commencer.");
+    window.location.assign(corps.url);
+    return true;
+  }
+
   async function demanderIa(question: string, surTexte: (texte: string) => void, dansUnEssai = false): Promise<boolean> {
     const dire = (texte: string): boolean => {
       if (dansUnEssai) throw new Error(texte);
@@ -1964,6 +1984,7 @@ export function Session({ children }: { children: ReactNode }) {
     changerRole,
     activerNotifications,
     demanderIa,
+    payer,
     demanderLienMotDePasse,
     choisirMotDePasse,
     seDeconnecter,

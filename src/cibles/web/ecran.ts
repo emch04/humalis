@@ -596,7 +596,7 @@ class GenerateurEcran {
     const lignePartage = utilises.length > 0 ? `  const { ${utilises.join(', ')} } = usePartage();\n` : '';
     this.besoins.partage = utilises.length > 0;
     // La session, quand la page la lit (« utilisateur est … ») ou la change.
-    this.besoins.session = /\butilisateur\.(connecte|admin|personne|seConnecter|seConnecterAvecGoogle|changerMotDePasse|inviter|changerRole|activerNotifications|demanderIa|demanderLienMotDePasse|choisirMotDePasse|seDeconnecter)\b/.test(code);
+    this.besoins.session = /\butilisateur\.(connecte|admin|personne|seConnecter|seConnecterAvecGoogle|changerMotDePasse|inviter|changerRole|activerNotifications|demanderIa|payer|demanderLienMotDePasse|choisirMotDePasse|seDeconnecter)\b/.test(code);
     const ligneSession = this.besoins.session ? '  const utilisateur = useUtilisateur();\n' : '';
     // La langue (« t({ fr, en }) », « si langue est anglais », « changer langue par … »).
     const langue = ['t', 'langue', 'changerLangue'].filter((n) => new RegExp(n === 't' ? '\\bt\\(\\{' : `\\b${n}\\b`).test(code));
@@ -1413,6 +1413,9 @@ class GenerateurEcran {
         case 'invitation':
           // Refusée (adresse fausse, e-mails non réglés) : un message s'affiche (ou « si erreur » le reçoit) et la suite ne s'exécute pas.
           e.ligne(`if (!(await utilisateur.inviter(String(${x(action.email)}), '${action.role}'${action.groupe ? `, ${this.dansEssai}` : this.dansEssai ? ', true' : ''}${action.groupe ? `, { ${JSON.stringify(camel(action.groupe.champ))}: String(${x(action.groupe.valeur)}) }` : ''}))) return;`);
+          break;
+        case 'paiement':
+          e.ligne(`if (!(await utilisateur.payer(${chaine(action.adresse)}, String((${x(action.objet)} as unknown as { id: unknown }).id), ${this.dansEssai}))) return;`);
           break;
         case 'demandeIa':
           e.ligne(`if (!(await utilisateur.demanderIa(String(${x(action.question)}), ${setter(action.variable)}, ${this.dansEssai}))) return;`);
@@ -2300,7 +2303,7 @@ function arrete(actions: Action[]): boolean {
   return actions.some((a) => a.type === 'arreter' || (!['repetition', 'tantQue', 'repeter', 'minuterie', 'message'].includes(a.type) && sousActions(a).some(arrete)));
 }
 
-const ATTENTES = new Set<Action['type']>(['requete', 'recharger', 'suppression', 'modification', 'connexion', 'connexionGoogle', 'invitation', 'changementRole', 'activationNotifications', 'demandeIa', 'demandeLienMotDePasse', 'choixMotDePasse', 'changementMotDePasse', 'telechargementBon', 'deconnexion', 'envoiFichier', 'confirmation', 'copie', 'partage', 'telechargementCsv']);
+const ATTENTES = new Set<Action['type']>(['requete', 'recharger', 'suppression', 'modification', 'connexion', 'connexionGoogle', 'invitation', 'changementRole', 'activationNotifications', 'demandeIa', 'paiement', 'demandeLienMotDePasse', 'choixMotDePasse', 'changementMotDePasse', 'telechargementBon', 'deconnexion', 'envoiFichier', 'confirmation', 'copie', 'partage', 'telechargementCsv']);
 
 /** Les noms changés par des actions : affectations, ajouts, retraits, réponses. */
 function modifiees(actions: Action[], noms = new Set<string>()): Set<string> {

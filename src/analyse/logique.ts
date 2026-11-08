@@ -2,7 +2,7 @@
  * Vérifie ce qui s'exécute sur le serveur et le traduit pour le générateur. Une seule passe :
  * l'analyse s'en sert pour les erreurs, la construction de la RI pour le résultat.
  */
-import type { ActionServeur, DocumentServeur, EnvoiNotification, Donnee, Expression, InstructionServeur, Serveur, TachePlanifiee, Test } from '../parser/ast.js';
+import type { ApresPaiement, ActionServeur, DocumentServeur, EnvoiNotification, Donnee, Expression, InstructionServeur, Serveur, TachePlanifiee, Test } from '../parser/ast.js';
 import type { InstructionServeurRI, TestServeurRI, ValeurServeurRI } from '../ri/types.js';
 import { simplifier } from './elements.js';
 import { proposerNom } from './suggestions.js';
@@ -193,6 +193,13 @@ export function traduireDocument(document: DocumentServeur, serveur: Serveur, er
   }
   const traduction = new Traduction(serveur, erreur, false);
   return document.lignes.map(({ genre, parties, ligne }) => ({ genre, valeur: traduction.valeur({ type: 'Chaine', parties, ligne }, new Map([[donnee.nom, donnee]])) }));
+}
+
+/** « quand commande est payee : » : l'argent est déjà pris, « refuser » n'y a pas de sens. */
+export function traduireApresPaiement(apres: ApresPaiement, donnee: Donnee, serveur: Serveur, erreur: Erreur): InstructionServeurRI[] {
+  const contientRefus = (liste: InstructionServeur[]): boolean => liste.some((i) => i.type === 'Refuser' || (i.type === 'SiServeur' && (contientRefus(i.alors) || contientRefus(i.sinon))) || (i.type === 'PourChaqueServeur' && contientRefus(i.corps)));
+  if (contientRefus(apres.corps)) erreur('le paiement est déjà fait : « refuser » ne peut plus l’annuler ici.', apres.ligne);
+  return new Traduction(serveur, erreur, false).corps(apres.corps, new Map([[donnee.nom, donnee]]));
 }
 
 /** « quand commande est cree : envoyer notification … » : la fiche créée est connue. */

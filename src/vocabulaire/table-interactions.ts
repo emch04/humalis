@@ -391,6 +391,17 @@ export const ENTREES_INTERACTIONS: EntreeVocabulaire[] = [
     exemple: 'serveur "s" :\n    ia par anthropic\n    connecte peut demander a ia\n\npage "p" :\n    variable reponse = ""\n    titre "P"\n    texte reponse\n    bouton "Go"\n    quand l\'utilisateur clique sur "Go" :\n        demander a ia "Bonjour" dans reponse\n',
   }),
   mot({
+    mot: 'payer',
+    variantes: ['payee', 'paiements'],
+    categorie: 'action',
+    concept: 'action.payer',
+    contextes: ['option'],
+    cibles: { ...ecran('utilisateur.payer(…)', null, null) },
+    couvre: [],
+    description: '« paiements par stripe », « payer total pour commande », « quand commande est payee : » : le montant est relu par le serveur, et seul un webhook signé marque la fiche payée.',
+    exemple: 'serveur "s" :\n    paiements par stripe\n    donnee r :\n        total : nombre\n    route "rs" :\n        seul admin peut lire r\n        seul admin peut modifier r\n        quand r est payee :\n            supprimer r\n',
+  }),
+  mot({
     mot: 'role',
     accentue: 'rôle',
     categorie: 'action',

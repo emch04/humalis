@@ -13,7 +13,8 @@ type Route = ServeurRI['routes'][number];
 const chaine = (t: string) => JSON.stringify(t);
 const fiche = (nom: string) => `f_${camel(nom)}`;
 
-export const avecLogique = (serveur: ServeurRI) => Boolean(serveur.taches?.length) || Boolean(serveur.documents?.length) || serveur.routes.some((r) => r.actions?.length);
+export const avecPaiements = (serveur: ServeurRI) => serveur.routes.some((r) => r.apresPaiement !== undefined);
+export const avecLogique = (serveur: ServeurRI) => serveur.routes.some((r) => r.apresPaiement !== undefined) || Boolean(serveur.taches?.length) || Boolean(serveur.documents?.length) || serveur.routes.some((r) => r.actions?.length);
 const parcourir = (liste: InstructionServeurRI[], voir: (i: InstructionServeurRI) => void): void => {
   for (const i of liste) {
     voir(i);
@@ -364,6 +365,135 @@ export function creerDocument(nom: string, lignes: { genre: 'titre' | 'texte'; t
     }
     doc.end();
   });
+}
+`;
+
+const CENTS = (champ: string) => `Math.round(Number(fiche[${chaine(camel(champ))}]) * 100)`;
+
+/** POST /payer/<champ>/:id : le montant vient de la fiche, jamais de la page. */
+export function codePaiements(route: Route, variable: string, garde: string, voir: string, separee: boolean, donnee: string): string {
+  return (route.payables ?? [])
+    .map((champ) => `      ${variable}.post('/payer/${slug(champ)}/:id', ${garde}, csrfMiddleware, async (req, res, next) => {
+        try {
+${voir}          const fiche = ${separee ? 'visible' : `await stockages.${donnee}.trouver(String(req.params.id))`};
+          if (!fiche) {
+            res.status(404).json({ erreur: introuvable('${route.donnee}') });
+            return;
+          }
+          if (fiche.paye === true) {
+            res.status(409).json({ erreur: 'déjà payé' });
+            return;
+          }
+          const resultat = await paiements.creer({ donnee: ${chaine(route.donnee)}, champ: ${chaine(champ)}, id: fiche.id, centimes: ${CENTS(champ)}, retour: (req.body as { retour?: unknown } | undefined)?.retour });
+          if ('erreur' in resultat) res.status(resultat.statut).json({ erreur: resultat.erreur });
+          else res.json(resultat);
+        } catch (erreur) {
+          next(erreur);
+        }
+      });
+`)
+    .join('');
+}
+
+/** Ce que fait un paiement confirmé, donnée par donnée. Le webhook rejoué ne refait rien : « paye » est lu sous verrou. */
+export function codeSurPaiement(serveur: ServeurRI): string {
+  const lignes = serveur.routes.filter((r) => r.apresPaiement).map((route) => {
+    const nom = fiche(route.donnee);
+    const donnee = serveur.donnees.find((d) => d.nom === route.donnee)!;
+    return `        ${chaine(route.donnee)}: async (travail, s, id, champ, montant) => {
+          const ${nom} = await s.${camel(route.donnee)}.trouver(id, true);
+          if (!${nom} || ${nom}.paye === true) return;
+          if (Math.round(Number(${nom}[champ]) * 100) !== montant) {
+            console.error('Paiement ignoré : le montant ne correspond plus à la fiche', id);
+            return;
+          }
+          Object.assign(${nom}, await s.${camel(route.donnee)}.modifier(id, { paye: true }));
+          noter(travail, ${chaine(route.donnee)}${donnee.par ? `, ${nom}[${chaine(camel(donnee.par))}]` : ''});
+${new Ecriture(serveur, undefined).lignes(route.apresPaiement!, '          ')}
+        },`;
+  });
+  return `      surPaiement = {
+${lignes.join('\n')}
+      };
+`;
+}
+
+/** src/humalis/paiements.ts */
+export const PAIEMENTS = String.raw`import express, { type RequestHandler } from 'express';
+import Stripe from 'stripe';
+
+/**
+ * Produit par Humalis : les paiements par Stripe Checkout. La page ne donne jamais de montant, et
+ * rien n'est marqué payé sans un webhook dont la signature est vérifiée.
+ */
+export type SurPaiement<T, S> = Record<string, (travail: T, s: S, id: string, champ: string, montant: number) => Promise<void>>;
+
+const client = () => {
+  const cle = process.env.STRIPE_CLE_SECRETE;
+  if (!cle) return null;
+  const hote = process.env.HUMALIS_STRIPE_HOTE;
+  return new Stripe(cle, hote ? { host: hote.split(':')[0], port: Number(hote.split(':')[1]), protocol: 'http' } : {});
+};
+
+const adresseDuSite = () => {
+  const adresse = (process.env.HUMALIS_ADRESSE_SITE ?? '').trim().replace(/\/+$/, '');
+  return /^https:\/\/[^/]|^http:\/\/localhost(:\d+)?$/.test(adresse) ? adresse : null;
+};
+
+export function creerPaiements<T, S>({ surConfirme }: { surConfirme: (donnee: string, id: string, champ: string, montant: number) => Promise<void> }) {
+  return {
+    async creer({ donnee, champ, id, centimes, retour }: { donnee: string; champ: string; id: string; centimes: number; retour: unknown }): Promise<{ url: string } | { erreur: string; statut: number }> {
+      const stripe = client();
+      const site = adresseDuSite();
+      if (!stripe || !site) return { erreur: "les paiements ne sont pas réglés sur ce serveur (STRIPE_CLE_SECRETE, HUMALIS_ADRESSE_SITE)", statut: 503 };
+      if (!Number.isInteger(centimes) || centimes <= 0) return { erreur: 'ce montant ne peut pas être payé', statut: 400 };
+      // Seulement un chemin de ce site : un lien de retour ne doit jamais mener ailleurs.
+      const chemin = typeof retour === 'string' && /^\/(?!\/)/.test(retour) ? retour : '/';
+      const session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        line_items: [{ quantity: 1, price_data: { currency: process.env.HUMALIS_PAIEMENT_DEVISE ?? 'eur', unit_amount: centimes, product_data: { name: donnee } } }],
+        success_url: site + chemin,
+        cancel_url: site + chemin,
+        metadata: { donnee, id, champ },
+      });
+      return session.url ? { url: session.url } : { erreur: "le paiement n'a pas pu commencer", statut: 502 };
+    },
+
+    /** Stripe rappelle ici. Le corps brut est nécessaire pour vérifier la signature. */
+    webhook: [
+      express.raw({ type: '*/*', limit: '1mb' }),
+      (async (req, res) => {
+        const stripe = client();
+        const secret = process.env.STRIPE_SECRET_WEBHOOK;
+        if (!stripe || !secret) {
+          res.status(503).end();
+          return;
+        }
+        let evenement: Stripe.Event;
+        try {
+          evenement = stripe.webhooks.constructEvent(req.body as Buffer, String(req.headers['stripe-signature']), secret);
+        } catch {
+          res.status(400).json({ erreur: 'signature invalide' });
+          return;
+        }
+        if (evenement.type === 'checkout.session.completed') {
+          const session = evenement.data.object;
+          const { donnee, id, champ } = session.metadata ?? {};
+          if (session.payment_status === 'paid' && donnee && id && champ && typeof session.amount_total === 'number') {
+            try {
+              await surConfirme(donnee, id, champ, session.amount_total);
+            } catch (erreur) {
+              // Une erreur ici : Stripe rappellera, et rien n'a été écrit.
+              console.error('Un paiement n\'a pas été enregistré :', erreur instanceof Error ? erreur.message : erreur);
+              res.status(500).end();
+              return;
+            }
+          }
+        }
+        res.json({ recu: true });
+      }) as RequestHandler,
+    ] as RequestHandler[],
+  };
 }
 `;
 

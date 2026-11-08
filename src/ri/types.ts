@@ -173,6 +173,10 @@ export interface ServeurRI {
     droits: Record<'lire' | 'creer' | 'modifier' | 'supprimer', QuiPeut | null> & { lireUn?: QuiPeut };
     /** « client peut lire facture si … » : ces règles s'ajoutent aux droits sans condition. */
     conditions?: Partial<Record<'lire' | 'creer' | 'modifier' | 'supprimer', ConditionRegleRI[]>>;
+    /** « quand commande est payee : ». */
+    apresPaiement?: InstructionServeurRI[];
+    /** Les champs que « payer … pour c » demande : POST /payer/<champ>/:id. */
+    payables?: string[];
     /** « seul gerant peut faire "rembourser" sur commande : ». */
     actions?: { nom: string; qui: QuiPeut; corps: InstructionServeurRI[] }[];
     /** « quand commande est cree : envoyer notification … ». */
@@ -199,6 +203,8 @@ export interface ServeurRI {
   connexionGoogle?: boolean;
   /** « roles directeur, enseignant et parent ». */
   roles?: string[];
+  /** « paiements par stripe ». */
+  paiements?: boolean;
   /** « connecte peut demander a ia ». */
   droitIa?: QuiPeut;
   /** « document "facture" de commande : ». */
@@ -712,6 +718,8 @@ export type Action =
   | { type: 'changementMotDePasse'; actuel: Valeur; nouveau: Valeur }
   /** « inviter champ "Adresse" comme admin » : un lien par e-mail. */
   | { type: 'invitation'; email: Valeur; role: string; groupe?: { champ: string; valeur: Valeur } }
+  /** « payer total pour commande ». */
+  | { type: 'paiement'; adresse: string; objet: Valeur }
   /** « demander a ia "…" dans reponse ». */
   | { type: 'demandeIa'; question: Valeur; variable: string }
   /** « activer notifications » : cet appareil reçoit celles du compte. */

@@ -1,6 +1,7 @@
 # Essai du serveur : groupes, droits sur ses fiches, rôles qui changent.
 serveur "commerce" :
     roles gerant, vendeur et client
+    paiements par stripe
     ia par anthropic
     seuls gerant et client peuvent demander a ia
     document "recu" de commande :
@@ -13,6 +14,9 @@ serveur "commerce" :
         statut : texte au depart "ouverte"
     donnee message par compte :
         texte : texte
+    donnee reservation :
+        nom : texte
+        total : nombre
     donnee journal :
         nom : texte
     donnee suivi par boutique :
@@ -38,6 +42,12 @@ serveur "commerce" :
     route "suivis" :
         seul gerant peut lire suivi
         seul gerant peut modifier suivi
+    route "reservations" :
+        connecte peut lire reservation
+        connecte peut creer reservation
+        seul admin peut modifier reservation
+        quand reservation est payee :
+            creer journal avec nom reservation.nom
     route "journaux" :
         connecte peut lire journal
         seul admin peut modifier journal
@@ -54,10 +64,12 @@ serveur "commerce" :
 
 page "accueil" :
     variable commandes = []
+    variable reservations = []
     variable reponse = ""
     titre "Commerce"
     quand la page se charge :
         envoyer requete vers "commandes" dans commandes en direct
+        envoyer requete vers "reservations" dans reservations
     bouton "Promouvoir"
     quand l'utilisateur clique sur "Promouvoir" :
         changer role de "abc" en "gerant"
@@ -65,6 +77,10 @@ page "accueil" :
     bouton "Question"
     quand l'utilisateur clique sur "Question" :
         demander a ia "Bonjour" dans reponse
+    pour chaque r dans reservations :
+        bouton "Payer"
+        quand l'utilisateur clique sur "Payer" :
+            payer total pour r
     bouton "Activer"
     quand l'utilisateur clique sur "Activer" :
         activer notifications

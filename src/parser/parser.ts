@@ -5,7 +5,7 @@ import { OPTIONS } from '../analyse/styles.js';
 import type { Token, PartieChaine } from '../lexer/types.js';
 import { analyser as analyserLexique } from '../lexer/lexer.js';
 import { FluxTokens } from './fluxTokens.js';
-import { analyserActionServeur, analyserDocument, analyserTache, estTache } from './logique.js';
+import { analyserActionServeur, analyserCorpsServeur, analyserDocument, analyserTache, estTache } from './logique.js';
 import { analyserSource, analyserClausesRequete, analyserSourceSeule } from './source.js';
 import { analyserEntetePage, analyserAvecPage } from './navigation.js';
 import { ErreurSyntaxique } from './erreurs.js';
@@ -65,7 +65,7 @@ import type {
   Boucle,
   Evenement,
   GenreEvenement,
-  Connexion, ConnexionGoogle, ChangementMotDePasse, Invitation, ChangementRole, DroitIa, DemandeIa, FaireAction, TelechargementDocument, DocumentServeur, ActionServeur, TachePlanifiee, EnvoiNotification, ConditionRegle, OperandeRegle, DemandeLienMotDePasse, ChoixMotDePasse, ApresCreation, EnvoiEmail, CreationLiee, RegleChamp, ValeurFixe, TelechargementBon, TelechargementCsv, Fidelite, Suppression, Modification, EnvoiFichier, ArgumentPage } from './ast.js';
+  Connexion, ConnexionGoogle, ChangementMotDePasse, Invitation, ChangementRole, DroitIa, DemandeIa, Paiement, ApresPaiement, FaireAction, TelechargementDocument, DocumentServeur, ActionServeur, TachePlanifiee, EnvoiNotification, ConditionRegle, OperandeRegle, DemandeLienMotDePasse, ChoixMotDePasse, ApresCreation, EnvoiEmail, CreationLiee, RegleChamp, ValeurFixe, TelechargementBon, TelechargementCsv, Fidelite, Suppression, Modification, EnvoiFichier, ArgumentPage } from './ast.js';
 
 export function analyserSyntaxe(tokens: Token[]): Programme {
   const flux = new FluxTokens(tokens);
@@ -390,6 +390,7 @@ function analyserServeur(flux: FluxTokens): Serveur {
   const taches: TachePlanifiee[] = [];
   const documents: DocumentServeur[] = [];
   let ia: Serveur['ia'];
+  let paiements: Serveur['paiements'];
   let droitIa: DroitIa | undefined;
 
   chaqueLigne(flux, () => {
@@ -397,6 +398,12 @@ function analyserServeur(flux: FluxTokens): Serveur {
     if (estDroitIa(flux)) {
       const droit = analyserRegle(flux, roles !== undefined);
       if (droit.type === 'DroitIa') droitIa = droit;
+    } else if (estLeMot(token, 'paiements') && estLeMot(flux.regarder(1), 'par')) {
+      flux.avancer();
+      flux.avancer();
+      if (motDe(flux.actuel()) !== 'stripe') throw new ErreurSyntaxique('le seul service de paiement est Stripe pour l’instant : paiements par stripe', token.ligne);
+      flux.avancer();
+      paiements = { service: 'stripe', ligne: token.ligne };
     } else if (estLeMot(token, 'ia') && estLeMot(flux.regarder(1), 'par')) {
       flux.avancer();
       flux.avancer();
@@ -456,6 +463,13 @@ function analyserServeur(flux: FluxTokens): Serveur {
     }
   });
 
+  // Une donnée payée reçoit un champ « paye », que seul le serveur écrit.
+  for (const route of routes) {
+    if (!route.apresPaiement) continue;
+    const payee = donnees.find((d) => d.nom === route.apresPaiement!.donnee);
+    if (payee) payee.champs.push({ nom: 'paye', type: { genre: 'booleen' }, regle: { genre: 'depart', valeur: { genre: 'valeur', valeur: false } }, ligne: route.apresPaiement.ligne });
+  }
+
   // « comptes » dans une règle : les comptes de la connexion, s'il n'existe pas de donnée de ce nom.
   const regleComptes = routes.flatMap((r) => r.regles).find((r) => r.donnee === 'comptes');
   if (regleComptes && !donnees.some((d) => d.nom === 'comptes')) {
@@ -473,6 +487,7 @@ function analyserServeur(flux: FluxTokens): Serveur {
     ...(taches.length ? { taches } : {}),
     ...(documents.length ? { documents } : {}),
     ...(ia ? { ia } : {}),
+    ...(paiements ? { paiements } : {}),
     ...(droitIa ? { droitIa } : {}),
     ...(emails ? { emails } : {}),
     ...(invitations ? { invitations } : {}),
@@ -679,8 +694,17 @@ function analyserRoute(flux: FluxTokens, avecRoles = false): Route {
   const regles: Regle[] = [];
   const actions: ActionServeur[] = [];
   let apresCreation: ApresCreation | undefined;
+  let apresPaiement: ApresPaiement | undefined;
   chaqueLigne(flux, () => {
-    if (flux.verifier('MOT_CLE', 'quand') || estLeMot(flux.actuel(), 'quand')) {
+    if ((flux.verifier('MOT_CLE', 'quand') || estLeMot(flux.actuel(), 'quand')) && estLeMot(flux.regarder(3), 'payee')) {
+      const debutQuand = flux.avancer();
+      const { nom: donnee } = flux.attendreNom('le nom de la donnée');
+      flux.avancer();
+      flux.avancer();
+      flux.attendre('PONCTUATION', ':', 'deux-points après « est payee »');
+      if (apresPaiement) throw new ErreurSyntaxique(`une route n'a qu'un seul « quand … est payee » : il est déjà écrit ligne ${apresPaiement.ligne}.`, debutQuand.ligne);
+      apresPaiement = { donnee, corps: analyserCorpsServeur(flux), ligne: debutQuand.ligne };
+    } else if (flux.verifier('MOT_CLE', 'quand') || estLeMot(flux.actuel(), 'quand')) {
       if (apresCreation) throw new ErreurSyntaxique(`une route n'a qu'un seul « quand … est cree » : il est déjà écrit ligne ${apresCreation.ligne}.`, flux.actuel().ligne);
       apresCreation = analyserApresCreation(flux);
     } else {
@@ -690,7 +714,7 @@ function analyserRoute(flux: FluxTokens, avecRoles = false): Route {
       else throw new ErreurSyntaxique('« … peut demander a ia » s’écrit directement dans le serveur, pas dans une route.', lue.ligne);
     }
   });
-  return { type: 'Route', adresse, regles, ...(actions.length ? { actions } : {}), ...(apresCreation ? { apresCreation } : {}), ligne: debut.ligne };
+  return { type: 'Route', adresse, regles, ...(actions.length ? { actions } : {}), ...(apresCreation ? { apresCreation } : {}), ...(apresPaiement ? { apresPaiement } : {}), ligne: debut.ligne };
 }
 
 /** « quand message est cree : » puis, décalés, les « envoyer email … ». */
@@ -1183,6 +1207,14 @@ function analyserInstruction(flux: FluxTokens): Instruction {
   // « telecharger commandes en csv » : un fichier fait dans l'appareil, à partir d'une liste.
   if (estLeMot(flux.actuel(), 'telecharger') && finitParEnCsv(flux)) {
     return analyserTelechargementCsv(flux);
+  }
+
+  // « payer total pour commande » ; « payer » seul reste un nom possible.
+  if (estLeMot(flux.actuel(), 'payer') && estUnNom(flux.regarder(1)) && estLeMot(flux.regarder(2), 'pour')) {
+    const debut = flux.avancer();
+    const champ = flux.avancer().valeur;
+    flux.avancer();
+    return { type: 'Paiement', champ, objet: analyserOperande(flux), ligne: debut.ligne } satisfies Paiement;
   }
 
   // « demander a ia "…" dans reponse » (« a » est déjà sauté par le lexer).

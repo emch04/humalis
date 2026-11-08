@@ -2,7 +2,7 @@ import type { Regle, Serveur, ActionDonnee, Route, Qui, Page, EnvoiEmail, Creati
 import type { Diagnostic } from './erreurs.js';
 import { simplifier } from './elements.js';
 import { proposerNom } from './suggestions.js';
-import { traduireAction, traduireDocument, traduireNotification, traduireTache } from './logique.js';
+import { traduireAction, traduireApresPaiement, traduireDocument, traduireNotification, traduireTache } from './logique.js';
 
 const ACTIONS: ActionDonnee[] = ['lire', 'creer', 'modifier', 'supprimer'];
 
@@ -86,6 +86,14 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[], pag
           erreur('les comptes ne se modifient pas par une règle : un compte naît de « inviter … », et son rôle change avec « changer role de c en … ».', regle.ligne);
         }
       }
+    }
+
+    if (route.apresPaiement) {
+      const { donnee, ligne } = route.apresPaiement;
+      const payee = serveur.donnees.find((d) => d.nom === donnee);
+      if (!serveur.paiements) erreur(`« quand ${donnee} est payee » demande la ligne « paiements par stripe » dans le serveur "${serveur.nom}".`, ligne);
+      if (donnee !== (servie ?? route.regles[0]?.donnee) || !payee) erreur(`la route « ${route.adresse} » sert « ${servie ?? 'aucune donnée'} » : elle ne voit pas le paiement de « ${donnee} ».`, ligne);
+      else traduireApresPaiement(route.apresPaiement, payee, serveur, erreur);
     }
 
     for (const action of route.actions ?? []) {
