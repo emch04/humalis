@@ -20,6 +20,8 @@ final class Fond: XCTestCase {
     private func toucher(_ nom: String) {
         let bouton = app.buttons[nom].firstMatch
         XCTAssertTrue(bouton.waitForExistence(timeout: 20), "le bouton « \(nom) » n'apparaît pas")
+        for _ in 0..<4 where !bouton.isHittable { app.swipeUp() }
+        for _ in 0..<4 where !bouton.isHittable { app.swipeDown() }
         bouton.tap()
     }
 
@@ -78,6 +80,61 @@ final class Fond: XCTestCase {
         }
         attendre("Recu 3-coupe-rejoue", "le renvoi porte le même identifiant")
         XCTAssertFalse(texte("Recu 4-").exists, "le serveur n'a fait le travail qu'une fois")
+    }
+
+    private func coupure(_ etat: String) async throws {
+        var r = URLRequest(url: URL(string: "http://localhost:4979/essai/coupure")!)
+        r.httpMethod = "POST"
+        r.httpBody = Data(etat.utf8)
+        _ = try await URLSession.shared.data(for: r)
+    }
+
+    private func entrer(_ nom: String) {
+        let email = app.textFields.firstMatch
+        for _ in 0..<4 where !email.isHittable { app.swipeDown() }
+        email.tap()
+        let deja = (email.value as? String) ?? ""
+        email.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: deja.count) + "\(nom)@essai.test")
+        let secret = app.secureTextFields.firstMatch
+        secret.tap()
+        let cache = (secret.value as? String) ?? ""
+        secret.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: cache.count) + "Essai-2026!")
+        toucher("Entrer")
+        attendre("Personne connectee")
+    }
+
+    private func sortir() {
+        toucher("Sortir")
+        attendre("Personne absente")
+    }
+
+    func testGMisDeCoteParCompte() async throws {
+        app.launch()
+        entrer("ana")
+        try await coupure("oui")
+        toucher("Garder")
+        attendre("ce sera envoyé")
+        sortir()
+        try await coupure("non")
+
+        // Bob se connecte et attend plus longtemps qu'un nouvel essai : rien ne doit partir.
+        entrer("bob")
+        try await Task.sleep(for: .seconds(20))
+        toucher("Relire")
+        try await Task.sleep(for: .seconds(2))
+        XCTAssertFalse(texte("-garde").exists, "l'envoi d'Ana ne part pas au nom de Bob")
+        sortir()
+
+        // Ana revient, même après avoir fermé l'application.
+        app.terminate()
+        app.launch()
+        entrer("ana")
+        for _ in 0..<20 where !texte("-garde-ana").exists {
+            toucher("Relire")
+            _ = texte("-garde-ana").waitForExistence(timeout: 2)
+        }
+        attendre("-garde-ana", "l'envoi repart quand la même personne revient")
+        sortir()
     }
 
     func testEArrierePlan() {

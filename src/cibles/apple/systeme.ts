@@ -839,7 +839,22 @@ private final class SuiviEnvoi: NSObject, URLSessionTaskDelegate, Sendable {
     private static let cleJeton = "humalis.jeton"
     private static let cleRenouvellement = "humalis.renouvellement"
 
-    private var personne: Personne?
+    private static let cleCompte = "humalis.compte"
+
+    private var personne: Personne? {
+        didSet {
+            let id = personne?.id?.enTexte ?? ""
+            guard !id.isEmpty, id != compteGarde else { return }
+            compteGarde = id
+            Coffre.ecrire(Session.cleCompte, Data(id.utf8))
+            quandCompteConnu?()
+        }
+    }
+
+    /** Le compte connecté, connu aussi sans réseau ; nil pour un visiteur. */
+    private(set) var compteGarde: String? = Coffre.lire(Session.cleCompte).flatMap { String(data: $0, encoding: .utf8) }
+    /** Appelée quand une personne est reconnue : ce qui attendait pour elle peut partir. */
+    var quandCompteConnu: (@MainActor () -> Void)?
     /** Vrai dès que /auth/me a répondu : avant, la page ne sait pas encore qui est là. */
     private var reponseRecue = false
     var pret: Bool { demander(); return reponseRecue }
@@ -864,11 +879,9 @@ private final class SuiviEnvoi: NSObject, URLSessionTaskDelegate, Sendable {
         if case .texte(let v) = corps["refreshToken"] { Coffre.ecrire(Session.cleRenouvellement, Data(v.utf8)) }
     }
 
-    /** Appelée quand la session prend fin : ce qui attendait ne doit pas partir au nom d'une autre personne. */
-    var quandSessionFinie: (@MainActor () -> Void)?
-
     private func oublier() {
-        quandSessionFinie?()
+        compteGarde = nil
+        Coffre.effacer(Session.cleCompte)
         Coffre.effacer(Session.cleJeton)
         Coffre.effacer(Session.cleRenouvellement)
     }
@@ -961,6 +974,9 @@ private final class SuiviEnvoi: NSObject, URLSessionTaskDelegate, Sendable {
         if http.statusCode == 429 { throw ErreurHumalis.refus("Trop de tentatives de connexion. Réessayez dans quelques minutes.") }
         // Jamais lequel des deux est faux : on ne dit pas si un compte existe.
         guard (200..<300).contains(http.statusCode) else { throw ErreurHumalis.refus("Email ou mot de passe incorrect.") }
+        // Tant que la personne n'est pas reconnue, rien de ce qui attendait ne part avec sa session.
+        compteGarde = nil
+        Coffre.effacer(Session.cleCompte)
         if let corps = try? JSONDecoder().decode(ValeurHumalis.self, from: donnees) { garder(corps["data"]) }
         await relire()
     }
@@ -1028,7 +1044,10 @@ export const ENVOIS_SWIFT = String.raw`// Produit par Humalis : les envois « ho
 import Foundation
 import Network
 
+/** Chaque envoi appartient au compte qui l'a fait : il ne part jamais au nom d'une autre personne. */
 struct EnvoiGarde: Codable {
+    let compte: String?
+    let cree: Date
     /** Le même à chaque essai : le serveur ne fait le travail qu'une fois. */
     let numero: UUID
     let adresse: String
@@ -1045,14 +1064,24 @@ struct EnvoiGarde: Codable {
     private var surveillance: NWPathMonitor?
     private var relance: Task<Void, Never>?
 
-    private init() { file = Memoire.lire(EnvoisGardes.cle, fichier: true) ?? [] }
+    /** Un compte qui ne revient jamais (retiré, par exemple) ne laisse rien sur l'appareil pour toujours. */
+    private static let dureeMaximale: TimeInterval = 30 * 24 * 3600
 
-    var attend: Bool { !file.isEmpty }
+    private init() {
+        let lue: [EnvoiGarde] = Memoire.lire(EnvoisGardes.cle, fichier: true) ?? []
+        file = lue.filter { -$0.cree.timeIntervalSinceNow < EnvoisGardes.dureeMaximale }
+        if file.count != lue.count { enregistrer() }
+    }
+
+    /** Seulement ceux de la personne connectée ; les autres restent de côté. */
+    private var aEnvoyer: [EnvoiGarde] { file.filter { $0.compte == Session.commun.compteGarde } }
+
+    var attend: Bool { !aEnvoyer.isEmpty }
 
     /** Au lancement : écoute le retour du réseau et envoie ce qui attendait. */
     func demarrer() {
         if surveillance == nil {
-            Session.commun.quandSessionFinie = { EnvoisGardes.commun.vider() }
+            Session.commun.quandCompteConnu = { Task { await EnvoisGardes.commun.envoyer() } }
             let suivi = NWPathMonitor()
             suivi.pathUpdateHandler = { chemin in
                 guard chemin.status == .satisfied else { return }
@@ -1065,30 +1094,26 @@ struct EnvoiGarde: Codable {
     }
 
     func garder(_ numero: UUID, _ adresse: String, methode: String?, envoi: [String: ValeurHumalis]?, id: String?) {
-        file.append(EnvoiGarde(numero: numero, adresse: adresse, methode: methode, envoi: envoi, cible: id))
+        file.append(EnvoiGarde(compte: Session.commun.compteGarde, cree: Date(), numero: numero, adresse: adresse, methode: methode, envoi: envoi, cible: id))
         enregistrer()
         reessayerBientot()
     }
 
-    func vider() {
-        file = []
-        enregistrer()
-    }
-
-    /** Dans l'ordre : si le réseau manque encore, tout attend ; un refus du serveur est dit, et on passe au suivant. */
+    /** Dans l'ordre, pour la personne connectée : si le réseau manque encore, tout attend ; un refus du serveur est dit, et on passe au suivant. */
     func envoyer() async {
-        guard !enCours, !file.isEmpty else { return }
+        guard !enCours, attend else { return }
         enCours = true
         defer {
             enCours = false
             reessayerBientot()
         }
-        while let suivant = file.first {
+        while let suivant = aEnvoyer.first {
             do {
                 try await Serveur.commun.appelSansReponse(suivant.adresse, methode: suivant.methode, envoi: suivant.envoi, id: suivant.cible, cleEnvoi: suivant.numero.uuidString)
             } catch {
                 let raison = raisonDe(error)
-                if raison == pasDeReponse || raison == "Connectez-vous pour continuer." { return }
+                // Une session à refaire attend ; un visiteur qui n'a pas le droit n'aura jamais de session à refaire.
+                if raison == pasDeReponse || (raison == "Connectez-vous pour continuer." && suivant.compte != nil) { return }
                 Messages.commun.afficher("Un envoi gardé a été refusé : \(raison)", .erreur)
             }
             file.removeAll { $0.numero == suivant.numero }
@@ -1099,7 +1124,7 @@ struct EnvoiGarde: Codable {
     private func enregistrer() { Memoire.ecrire(EnvoisGardes.cle, file, fichier: true) }
 
     private func reessayerBientot() {
-        guard !file.isEmpty, relance == nil else { return }
+        guard attend, relance == nil else { return }
         relance = Task { [weak self] in
             try? await Task.sleep(for: .seconds(15))
             self?.relance = nil

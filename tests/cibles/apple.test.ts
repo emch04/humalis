@@ -370,6 +370,7 @@ describe('cible Apple — position, liens profonds, arrière-plan et envois hors
     expect(f.has('Essai/Humalis/Envois.swift')).toBe(true);
     expect(f.get('Essai/Humalis/Serveur.swift')).toContain('"X-Humalis-Envoi"');
     expect(f.get('Essai/Humalis/Envois.swift')).toContain('cleEnvoi: suivant.numero.uuidString');
+    expect(f.get('Essai/Humalis/Envois.swift')).toContain('file.filter { $0.compte == Session.commun.compteGarde }');
     expect(projet(COMPTEUR).has('Essai/Humalis/Envois.swift')).toBe(false);
   });
 
