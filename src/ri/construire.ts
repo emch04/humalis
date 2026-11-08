@@ -20,7 +20,7 @@ import type { ResultatAnalyse } from '../analyse/analyse.js';
 import { INCONNU, NOMBRE, BOOLEEN, type TypeValeur } from '../analyse/types.js';
 import { optionCanonique } from '../analyse/styles.js';
 import { adresseNormalisee, conditionsDeRoute, droitsDeRoute } from '../analyse/serveur.js';
-import { traduireAction, traduireApresPaiement, traduireDocument, traduireNotification, traduireTache } from '../analyse/logique.js';
+import { traduireAction, traduireApresPaiement, traduireDocument, traduireNotification, traduireResume, traduireTache } from '../analyse/logique.js';
 import { encreSur } from '../analyse/couleurs.js';
 import { lireCible } from '../analyse/navigation.js';
 import { imageDe, REGLAGES_IMAGE, choixFichierDe } from './medias.js';
@@ -224,7 +224,8 @@ function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
           ...(Object.keys(conditionsDeRoute(route)).length ? { conditions: conditionsRI(route) } : {}),
           ...(route.apresCreation?.notifications?.length ? { notifications: route.apresCreation.notifications.map((n) => traduireNotification(n, serveur.donnees.find((d) => d.nom === route.regles[0].donnee)!, serveur, () => undefined)) } : {}),
           ...(route.apresPaiement ? { apresPaiement: traduireApresPaiement(route.apresPaiement, serveur.donnees.find((d) => d.nom === route.apresPaiement!.donnee)!, serveur, () => undefined), payables: serveur.donnees.find((d) => d.nom === route.apresPaiement!.donnee)!.champs.filter((c) => c.type.genre === 'nombre').map((c) => c.nom) } : {}),
-          ...(route.actions?.length ? { actions: route.actions.map((a) => ({ nom: a.nom, qui: a.qui, corps: traduireAction(a, serveur, () => undefined) })) } : {}),
+          ...(route.actions?.length ? { actions: route.actions.map((a) => ({ nom: a.nom, qui: a.qui, ...(a.parametres?.length ? { parametres: a.parametres.map((p) => ({ nom: p.nom, type: p.type })) } : {}), corps: traduireAction(a, serveur, () => undefined) })) } : {}),
+          ...(route.resumes?.length ? { resumes: route.resumes.map((r) => traduireResume(r, serveur, () => undefined)) } : {}),
           ...(bon ? { bon } : {}),
           ...(direct ? { direct } : {}),
           ...(route.apresCreation?.envois.length ? { envois: envoisRI(route.apresCreation) } : {}),
@@ -239,6 +240,8 @@ function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
     ...(serveur.connexionGoogle !== undefined ? { connexionGoogle: true } : {}),
     ...(serveur.roles?.length ? { roles: serveur.roles } : {}),
     ...(analyse.changeDeRole ? { changeDeRole: true } : {}),
+    ...(analyse.changeDeCompte ? { changeDeCompte: true } : {}),
+    ...(serveur.champsCompte?.length ? { champsCompte: serveur.champsCompte.map((c) => ({ nom: c.nom, type: c.type })) } : {}),
     ...(analyse.activeNotifications ? { activeNotifications: true } : {}),
     ...(serveur.paiements ? { paiements: true } : {}),
     ...(serveur.droitIa ? { droitIa: serveur.droitIa.qui } : {}),
@@ -703,7 +706,7 @@ class Construction {
           break;
 
         case 'Invitation':
-          actions.push({ type: 'invitation', email: this.valeur(instruction.email), role: instruction.role, ...(instruction.groupe ? { groupe: { champ: instruction.groupe.champ, valeur: this.valeur(instruction.groupe.valeur) } } : {}) });
+          actions.push({ type: 'invitation', email: this.valeur(instruction.email), role: instruction.role, ...(instruction.groupe ? { groupe: { champ: instruction.groupe.champ, valeur: this.valeur(instruction.groupe.valeur) } } : {}), ...(instruction.champs ? { champs: instruction.champs.map((c) => ({ champ: c.champ, valeur: this.valeur(c.valeur) })) } : {}) });
           break;
         case 'TelechargementDocument':
           // Le même chemin qu'un bon : droits et téléchargement sont déjà là.
@@ -720,7 +723,10 @@ class Construction {
           break;
         case 'FaireAction':
           // Une action passe par le même chemin qu'une modification : droits, jeton, erreurs et relecture sont déjà là.
-          actions.push({ type: 'modification', adresse: this.analyse.adressesRequetes.get(instruction) ?? '', objet: this.valeur(instruction.objet), changements: [] });
+          actions.push({ type: 'modification', adresse: this.analyse.adressesRequetes.get(instruction) ?? '', objet: this.valeur(instruction.objet), changements: (instruction.avec ?? []).map((v) => ({ champ: v.champ, valeur: this.valeur(v.valeur) })) });
+          break;
+        case 'ChangementCompte':
+          actions.push({ type: 'changementCompte', cible: this.valeur(instruction.cible), champs: instruction.champs.map((c) => ({ champ: c.champ, valeur: this.valeur(c.valeur) })) });
           break;
         case 'ChangementRole':
           actions.push({ type: 'changementRole', cible: this.valeur(instruction.cible), role: this.valeur(instruction.role) });

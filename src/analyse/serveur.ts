@@ -2,7 +2,7 @@ import type { Regle, Serveur, ActionDonnee, Route, Qui, Page, EnvoiEmail, Creati
 import type { Diagnostic } from './erreurs.js';
 import { simplifier } from './elements.js';
 import { proposerNom } from './suggestions.js';
-import { traduireAction, traduireApresPaiement, traduireDocument, traduireNotification, traduireTache } from './logique.js';
+import { traduireAction, traduireApresPaiement, traduireDocument, traduireNotification, traduireResume, traduireTache } from './logique.js';
 
 const ACTIONS: ActionDonnee[] = ['lire', 'creer', 'modifier', 'supprimer'];
 
@@ -34,6 +34,10 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[], pag
   if (serveur.ia && !serveur.droitIa) erreur(`chaque question à l'IA coûte : dites qui peut la poser, par exemple « connecte peut demander a ia ».`, serveur.ia.ligne);
   if (serveur.droitIa && !serveur.ia) erreur(`« peut demander a ia » demande la ligne « ia par anthropic » dans le serveur "${serveur.nom}".`, serveur.droitIa.ligne);
   if (serveur.droitIa?.qui === 'tout_le_monde') erreur(`chaque question à l'IA coûte : réservez-la à des comptes connectés, par exemple « connecte peut demander a ia ».`, serveur.droitIa.ligne);
+  const RESERVES_COMPTE = new Set(['id', 'email', 'role', 'statut', 'password', 'passwordhash', 'invitation', 'googlesubject', ...serveur.donnees.flatMap((d) => (d.par ? [simplifier(d.par)] : []))]);
+  for (const champ of serveur.champsCompte ?? []) {
+    if (RESERVES_COMPTE.has(simplifier(champ.nom))) erreur(`« ${champ.nom} » existe déjà sur un compte : donnez un autre nom à ce champ.`, champ.ligne);
+  }
   const nomsDocuments = new Map<string, number>();
   for (const document of serveur.documents ?? []) {
     traduireDocument(document, serveur, erreur);
@@ -76,15 +80,11 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[], pag
       } else if (lue?.par !== undefined && regle.qui === 'tout_le_monde') {
         avertissement(`tout le monde peut lire « ${lue.nom} » : les fiches de chaque ${lue.par} sont publiques. Seules les écritures restent séparées.`, regle.ligne);
       }
-      if (regle.si) verifierConditionRegle(regle, lue, serveur.donnees.flatMap((d) => (d.par ? [simplifier(d.par)] : [])), erreur, avertissement);
+      if (regle.si) verifierConditionRegle(regle, lue, [...serveur.donnees.flatMap((d) => (d.par ? [simplifier(d.par)] : [])), ...(serveur.champsCompte ?? []).map((c) => simplifier(c.nom))], erreur, avertissement);
       for (const action of regle.actions) permises.add(action);
       if (serveur.donnees.find((d) => d.nom === regle.donnee)?.comptes) {
         // Les comptes de la connexion : qui s'y trouve ne regarde que l'administration, et ils naissent d'une invitation.
-        if (regle.actions.some((a) => a !== 'creer') && regle.qui !== 'admin') erreur(`seul un admin peut voir ou retirer les comptes : écrivez « seul admin peut ${regle.actions.join(' et ')} comptes ».`, regle.ligne);
-        if (regle.actions.includes('creer') && (regle.qui === 'tout_le_monde' || regle.qui === 'connecte')) erreur('« creer comptes » dit qui peut inviter : réservez-le à un rôle, par exemple « seul gerant peut creer comptes ».', regle.ligne);
-        if (regle.actions.includes('modifier')) {
-          erreur('les comptes ne se modifient pas par une règle : un compte naît de « inviter … », et son rôle change avec « changer role de c en … ».', regle.ligne);
-        }
+        if (regle.qui === 'tout_le_monde' || regle.qui === 'connecte') erreur(`les comptes se réservent à un rôle : écrivez par exemple « seul gerant peut ${regle.actions.join(' et ')} comptes ».`, regle.ligne);
       }
     }
 
@@ -94,6 +94,12 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[], pag
       if (!serveur.paiements) erreur(`« quand ${donnee} est payee » demande la ligne « paiements par stripe » dans le serveur "${serveur.nom}".`, ligne);
       if (donnee !== (servie ?? route.regles[0]?.donnee) || !payee) erreur(`la route « ${route.adresse} » sert « ${servie ?? 'aucune donnée'} » : elle ne voit pas le paiement de « ${donnee} ».`, ligne);
       else traduireApresPaiement(route.apresPaiement, payee, serveur, erreur);
+    }
+
+    for (const resume of route.resumes ?? []) {
+      traduireResume(resume, serveur, erreur);
+      if (resume.donnee !== (servie ?? route.regles[0]?.donnee)) erreur(`la route « ${route.adresse} » sert « ${servie ?? 'aucune donnée'} » : le résumé « ${resume.nom} » ne peut pas lire « ${resume.donnee} ».`, resume.ligne);
+      if (resume.qui === 'tout_le_monde' && serveur.donnees.find((d) => d.nom === resume.donnee)?.par) erreur(`« ${resume.donnee} » est séparée par groupe : réservez ce résumé à des comptes connectés.`, resume.ligne);
     }
 
     for (const action of route.actions ?? []) {

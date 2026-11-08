@@ -3,7 +3,7 @@
  * Une action tourne dans une transaction : un « refuser » ou une panne annule tout ce
  * qu'elle a écrit. Les e-mails et notifications partent seulement après la validation.
  */
-import type { InstructionServeurRI, ServeurRI, TestServeurRI, ValeurServeurRI } from '../../ri/types.js';
+import type { FiltreServeurRI, InstructionServeurRI, ServeurRI, TestServeurRI, TypeChamp, ValeurServeurRI } from '../../ri/types.js';
 import { simplifier } from '../../analyse/elements.js';
 import { camel, pascal } from '../web/noms.js';
 import { aCompleter } from './regles.js';
@@ -14,7 +14,7 @@ const chaine = (t: string) => JSON.stringify(t);
 const fiche = (nom: string) => `f_${camel(nom)}`;
 
 export const avecPaiements = (serveur: ServeurRI) => serveur.routes.some((r) => r.apresPaiement !== undefined);
-export const avecLogique = (serveur: ServeurRI) => serveur.routes.some((r) => r.apresPaiement !== undefined) || Boolean(serveur.taches?.length) || Boolean(serveur.documents?.length) || serveur.routes.some((r) => r.actions?.length);
+export const avecLogique = (serveur: ServeurRI) => serveur.routes.some((r) => r.apresPaiement !== undefined || r.resumes?.length) || Boolean(serveur.taches?.length) || Boolean(serveur.documents?.length) || serveur.routes.some((r) => r.actions?.length);
 const parcourir = (liste: InstructionServeurRI[], voir: (i: InstructionServeurRI) => void): void => {
   for (const i of liste) {
     voir(i);
@@ -34,11 +34,31 @@ function valeur(v: ValeurServeurRI): string {
     case 'valeur': return JSON.stringify(v.valeur);
     case 'aujourdhui': return 'new Date().toISOString().slice(0, 10)';
     case 'champ': return `${fiche(v.fiche)}[${chaine(v.champ === 'id' ? 'id' : camel(v.champ))}]`;
+    case 'local': return `l_${camel(v.nom)}`;
     case 'utilisateur': return `moi[${chaine(camel(v.champ))}]`;
     case 'texte': return v.parties.map((p) => ('texte' in p ? chaine(p.texte) : `enTexte(${valeur(p.valeur)})`)).join(' + ') || "''";
     case 'calcul': return `(Number(${valeur(v.gauche)}) ${v.operateur} Number(${valeur(v.droite)}))`;
   }
 }
+
+const COMPARAISONS = { superieur: '>', inferieur: '<' } as const;
+
+/** La lecture filtrée : les égalités sont faites par la base, le reste ensuite. L'identifiant n'est pas dans le JSON de la base. */
+function lecture(source: string, donnee: string, filtres: FiltreServeurRI[], egalEnPlus: string[]): string {
+  const parBase = filtres.filter((f) => f.operateur === 'egal' && f.champ !== 'id');
+  const apres = filtres.filter((f) => !parBase.includes(f));
+  const egal = [...parBase.map((f) => `${chaine(camel(f.champ))}: ${valeur(f.valeur)}`), ...egalEnPlus];
+  const base = `(await ${source}.${camel(donnee)}.lister({ egal: { ${egal.join(', ')} } as Record<string, string | number | boolean> }))`;
+  if (apres.length === 0) return base;
+  const conditions = apres.map((f) => {
+    const a = `ligne[${chaine(f.champ === 'id' ? 'id' : camel(f.champ))}]`;
+    const b = valeur(f.valeur);
+    return f.operateur === 'egal' ? `${a} === ${b}` : f.operateur === 'different' ? `${a} !== ${b}` : `Number(${a}) ${COMPARAISONS[f.operateur]} Number(${b})`;
+  });
+  return `${base}.filter((ligne) => ${conditions.join(' && ')})`;
+}
+
+const schemaDe = (type: TypeChamp): string => (type.genre === 'texte' && type.image ? "'image'" : type.genre === 'liste' ? `{ liste: ${schemaDe(type.de)} }` : `'${type.genre}'`);
 
 function test(t: TestServeurRI): string {
   if (t.genre === 'combinaison') return `(${test(t.gauche)} ${t.operateur === 'et' ? '&&' : '||'} ${test(t.droite)})`;
@@ -241,6 +261,12 @@ class Ecriture {
     return par ? `, ${variable}[${chaine(camel(par))}]` : '';
   }
 
+  /** Une action sur une fiche séparée ne parcourt que son groupe. */
+  private egalDuGroupe(donnee: string): string[] {
+    const par = this.serveur.donnees.find((d) => d.nom === donnee)?.par;
+    return par && this.groupeImpose?.champ === par ? [`${chaine(camel(par))}: ${this.groupeImpose.variable}[${chaine(camel(par))}]`] : [] as string[];
+  }
+
   lignes(liste: InstructionServeurRI[], retrait: string): string {
     return liste.map((i) => this.instruction(i, retrait)).join('\n');
   }
@@ -251,11 +277,10 @@ class Ecriture {
         const sinon = i.sinon.length ? ` else {\n${this.lignes(i.sinon, r + '  ')}\n${r}}` : '';
         return `${r}if (${test(i.test)}) {\n${this.lignes(i.alors, r + '  ')}\n${r}}${sinon}`;
       }
-      case 'pourChaque': {
-        const par = this.serveur.donnees.find((d) => d.nom === i.donnee)?.par;
-        const egal = [...(i.filtre ? [`${chaine(camel(i.filtre.champ))}: ${valeur(i.filtre.valeur) } as string`] : []), ...(par && this.groupeImpose?.champ === par ? [`${chaine(camel(par))}: ${this.groupeImpose.variable}[${chaine(camel(par))}] as string`] : [])];
-        return `${r}for (const ${fiche(i.variable)} of await s.${camel(i.donnee)}.lister({ egal: { ${egal.join(', ')} } })) {\n${this.lignes(i.corps, r + '  ')}\n${r}}`;
-      }
+      case 'pourChaque':
+        return `${r}for (const ${fiche(i.variable)} of ${lecture('s', i.donnee, i.filtres, this.egalDuGroupe(i.donnee))}) {\n${this.lignes(i.corps, r + '  ')}\n${r}}`;
+      case 'calcul':
+        return `${r}const l_${camel(i.nom)} = agreger(${chaine(i.operation)}, ${lecture('s', i.donnee, i.filtres, this.egalDuGroupe(i.donnee))}${i.champ !== undefined ? `, ${chaine(camel(i.champ))}` : ''});`;
       case 'changer':
         return `${r}Object.assign(${fiche(i.fiche)}, await s.${camel(i.donnee)}.modifier(${fiche(i.fiche)}.id, { ${chaine(camel(i.champ))}: ${valeur(i.valeur)} }));\n${r}noter(travail, ${chaine(i.donnee)}${this.groupeDe(i.donnee, fiche(i.fiche))});`;
       case 'supprimer':
@@ -299,6 +324,12 @@ ${donnee.par ? `          const portee = porteeDe(moiDe(req), separation${variab
             res.status(403).json({ erreur: REFUS_FICHES });
             return;
           }
+` : ''}${action.parametres?.length ? `          const entrees = verifierEnvoi({ ${action.parametres.map((p) => `${chaine(camel(p.nom))}: ${schemaDe(p.type)}`).join(', ')} } as const, req.body, true);
+          if ('erreur' in entrees) {
+            res.status(400).json({ erreur: entrees.erreur });
+            return;
+          }
+${action.parametres.map((p) => `          const l_${camel(p.nom)} = entrees.valeur[${chaine(camel(p.nom))}];`).join('\n')}
 ` : ''}          const travail = nouveauTravail();
           const resultat = await transaction(async (s) => {
             const ${nomFiche} = await s.${camel(route.donnee)}.trouver(String(req.params.id), true);
@@ -321,6 +352,28 @@ ${new Ecriture(serveur, groupe).lignes(action.corps, '            ')}
     .join('');
 }
 
+/** Les résumés d'une route : GET /<nom>, avant « /:id ». */
+export function codeResumes(route: Route, variable: string, separee: boolean): string {
+  return (route.resumes ?? [])
+    .map((resume) => `      ${variable}.get('/${slug(resume.nom)}', lecturePrivee, ${gardeAction(resume.qui)}, async (req, res, next) => {
+        try {
+${separee ? `          const portee = porteeDe(moiDe(req), separation${variable}, undefined);
+          if (!portee) {
+            res.status(403).json({ erreur: REFUS_FICHES });
+            return;
+          }
+` : ''}          const lignes = ${lecture('stockages', route.donnee, resume.filtres, separee ? ['...portee.egal'] : [])};
+          res.json(resumer(lignes, ${JSON.stringify(resume.calculs.map((c) => ({ nom: camel(c.nom), operation: c.operation, ...(c.champ !== undefined ? { champ: camel(c.champ) } : {}) })))}${resume.regroupePar !== undefined ? `, ${chaine(camel(resume.regroupePar))}` : ''}));
+        } catch (erreur) {
+          next(erreur);
+        }
+      });
+`)
+    .join('');
+}
+
+const libelleColonne = (nom: string) => (nom.charAt(0).toUpperCase() + nom.slice(1)).replace(/_/g, ' ');
+
 /** Les documents d'une route : GET /documents/<nom>/:id/bon, avec les droits de la lecture. */
 export function codeDocuments(serveur: ServeurRI, route: Route, variable: string, garde: string, separee: boolean, voir: string): string {
   const nomFiche = fiche(route.donnee);
@@ -333,7 +386,13 @@ ${voir}          const ${nomFiche} = ${separee ? 'visible' : `await stockages.${
             res.status(404).json({ erreur: introuvable('${route.donnee}') });
             return;
           }
-          const fichier = await creerDocument(${chaine(document.nom)}, [${document.lignes.map((l) => `{ genre: '${l.genre}', texte: ${valeur(l.valeur)} }`).join(', ')}]);
+          const fichier = await creerDocument(${chaine(document.nom)}, [${document.lignes.map((l) => {
+            if (l.genre !== 'tableau') return `{ genre: '${l.genre}' as const, texte: ${valeur(l.valeur)} }`;
+            const par = serveur.donnees.find((d) => d.nom === l.donnee)?.par;
+            const groupe = l.groupeDe !== undefined && par !== undefined ? [`${chaine(camel(par))}: ${fiche(l.groupeDe)}[${chaine(camel(par))}]`] : [];
+            const cellules = l.colonnes.map((c) => `ligne[${chaine(c === 'id' ? 'id' : camel(c))}]`).join(', ');
+            return `{ genre: 'tableau' as const, colonnes: ${JSON.stringify(l.colonnes.map(libelleColonne))}, rangees: ${lecture('stockages', l.donnee, l.filtres, groupe)}.map((ligne) => [${cellules}]) }`;
+          }).join(', ')}]);
           res.set('Content-Type', 'application/pdf');
           res.set('Content-Disposition', 'attachment; filename="${slug(document.nom)}.pdf"');
           res.send(fichier);
@@ -352,16 +411,43 @@ import { enTexte } from './logique.js';
 /** Produit par Humalis : un document PDF écrit dans le programme. Les valeurs ne sont jamais interprétées. */
 const espaces = (texte: string) => texte.replace(/[  ]/g, ' ');
 
-export function creerDocument(nom: string, lignes: { genre: 'titre' | 'texte'; texte: string }[]): Promise<Buffer> {
+type LigneDocument = { genre: 'titre' | 'texte'; texte: string } | { genre: 'tableau'; colonnes: string[]; rangees: unknown[][] };
+
+const enClair = (valeur: unknown) => (typeof valeur === 'number' ? espaces(valeur.toLocaleString('fr-FR')) : espaces(enTexte(valeur)));
+
+/** Un tableau simple : colonnes égales, une nouvelle page si la rangée ne tient plus. */
+function dessinerTableau(doc: PDFKit.PDFDocument, colonnes: string[], rangees: unknown[][]): void {
+  const gauche = doc.page.margins.left;
+  const largeur = (doc.page.width - gauche - doc.page.margins.right) / Math.max(colonnes.length, 1);
+  const dessiner = (cellules: string[], gras: boolean) => {
+    doc.font(gras ? 'Helvetica-Bold' : 'Helvetica').fontSize(10);
+    const hauteur = Math.max(...cellules.map((c) => doc.heightOfString(c, { width: largeur - 8 }))) + 8;
+    if (doc.y + hauteur > doc.page.height - doc.page.margins.bottom) doc.addPage();
+    const haut = doc.y;
+    cellules.forEach((c, i) => doc.text(c, gauche + i * largeur + 4, haut + 4, { width: largeur - 8 }));
+    doc.moveTo(gauche, haut + hauteur).lineTo(gauche + largeur * colonnes.length, haut + hauteur).strokeColor('#cccccc').stroke();
+    doc.x = gauche;
+    doc.y = haut + hauteur;
+  };
+  dessiner(colonnes, true);
+  for (const rangee of rangees) dessiner(rangee.map(enClair), false);
+  doc.moveDown(0.5);
+}
+
+export function creerDocument(nom: string, lignes: LigneDocument[]): Promise<Buffer> {
   return new Promise((resoudre, rejeter) => {
     const doc = new PDFDocument({ size: 'A4', margin: 50, info: { Title: espaces(enTexte(nom)) } });
     const morceaux: Buffer[] = [];
     doc.on('data', (morceau: Buffer) => morceaux.push(morceau));
     doc.on('end', () => resoudre(Buffer.concat(morceaux)));
     doc.on('error', rejeter);
-    for (const { genre, texte } of lignes) {
-      doc.font(genre === 'titre' ? 'Helvetica-Bold' : 'Helvetica').fontSize(genre === 'titre' ? 20 : 12).text(espaces(texte));
-      doc.moveDown(genre === 'titre' ? 1 : 0.5);
+    for (const ligne of lignes) {
+      if (ligne.genre === 'tableau') {
+        dessinerTableau(doc, ligne.colonnes, ligne.rangees);
+        continue;
+      }
+      doc.font(ligne.genre === 'titre' ? 'Helvetica-Bold' : 'Helvetica').fontSize(ligne.genre === 'titre' ? 20 : 12).text(espaces(ligne.texte));
+      doc.moveDown(ligne.genre === 'titre' ? 1 : 0.5);
     }
     doc.end();
   });
@@ -547,6 +633,26 @@ export function terminer(travail: Travail, annoncer?: (cle: string) => void): vo
 
 export const enTexte = (valeur: unknown) => (valeur === null || valeur === undefined ? '' : String(valeur));
 export const estVide = (valeur: unknown) => valeur === null || valeur === undefined || valeur === '' || (Array.isArray(valeur) && valeur.length === 0);
+/** « somme de … », « nombre de … » : une liste vide donne 0. */
+export function agreger(operation: string, lignes: Record<string, unknown>[], champ?: string): number {
+  if (operation === 'nombre') return lignes.length;
+  const valeurs = lignes.map((l) => Number(l[champ as string])).filter(Number.isFinite);
+  if (valeurs.length === 0) return 0;
+  if (operation === 'minimum') return Math.min(...valeurs);
+  if (operation === 'maximum') return Math.max(...valeurs);
+  const somme = valeurs.reduce((a, b) => a + b, 0);
+  return operation === 'moyenne' ? somme / valeurs.length : somme;
+}
+
+/** Un résumé : une fiche de calculs, ou une par valeur du champ « regroupe par ». */
+export function resumer(lignes: Record<string, unknown>[], calculs: { nom: string; operation: string; champ?: string }[], regroupePar?: string): unknown {
+  const calculer = (groupe: Record<string, unknown>[]) => Object.fromEntries(calculs.map((c) => [c.nom, agreger(c.operation, groupe, c.champ)]));
+  if (regroupePar === undefined) return calculer(lignes);
+  const groupes = new Map<unknown, Record<string, unknown>[]>();
+  for (const ligne of lignes) groupes.set(ligne[regroupePar], [...(groupes.get(ligne[regroupePar]) ?? []), ligne]);
+  return [...groupes].map(([valeur, groupe]) => ({ [regroupePar]: valeur, ...calculer(groupe) }));
+}
+
 export const contient = (liste: unknown, valeur: unknown) => (Array.isArray(liste) ? liste.includes(valeur) : typeof liste === 'string' && liste.includes(enTexte(valeur)));
 
 export type Transaction<S> = <T>(corps: (s: S) => Promise<T>) => Promise<T>;

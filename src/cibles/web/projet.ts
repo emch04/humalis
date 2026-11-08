@@ -1657,7 +1657,9 @@ interface Utilisateur {
   /** « changer le mot de passe avec … et … » : celui du compte connecté ; vrai si le serveur l'a accepté. */
   changerMotDePasse(actuel: string, nouveau: string, dansUnEssai?: boolean): Promise<boolean>;
   /** « inviter … » : un lien par e-mail ; vrai si le serveur l'a pris en charge. */
-  inviter(email: string, role: string, dansUnEssai?: boolean, groupes?: Record<string, string>): Promise<boolean>;
+  inviter(email: string, role: string, dansUnEssai?: boolean, groupes?: Record<string, string>, champs?: Record<string, unknown>): Promise<boolean>;
+  /** « changer compte de c avec … ». */
+  changerCompte(id: string, champs: Record<string, unknown>, dansUnEssai?: boolean): Promise<boolean>;
   /** « payer … pour c » : part vers la page de paiement. */
   payer(adresse: string, id: string, dansUnEssai?: boolean): Promise<boolean>;
   /** « demander a ia … » : la réponse arrive au fil de l'eau. */
@@ -1842,8 +1844,12 @@ export function Session({ children }: { children: ReactNode }) {
     return true;
   }
 
-  async function inviter(email: string, role: string, dansUnEssai = false, groupes?: Record<string, string>): Promise<boolean> {
-    return envoyerAuCompte('/auth/invitations', { email, role, groupes }, dansUnEssai, "L'invitation n'est pas partie.");
+  async function inviter(email: string, role: string, dansUnEssai = false, groupes?: Record<string, string>, champs?: Record<string, unknown>): Promise<boolean> {
+    return envoyerAuCompte('/auth/invitations', { email, role, groupes, champs }, dansUnEssai, "L'invitation n'est pas partie.");
+  }
+
+  async function changerCompte(id: string, champs: Record<string, unknown>, dansUnEssai = false): Promise<boolean> {
+    return envoyerAuCompte(\`/auth/comptes/\${encodeURIComponent(id)}/champs\`, champs, dansUnEssai, "Ce compte n'a pas changé.");
   }
 
   async function payer(adresse: string, id: string, dansUnEssai = false): Promise<boolean> {
@@ -1982,6 +1988,7 @@ export function Session({ children }: { children: ReactNode }) {
     changerMotDePasse,
     inviter,
     changerRole,
+    changerCompte,
     activerNotifications,
     demanderIa,
     payer,
