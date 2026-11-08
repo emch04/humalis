@@ -57,5 +57,13 @@
       "    afficher \"${5:Merci !}\"$0"
     ],
     "description": "Un formulaire : ses champs, son bouton, et ce qui se passe quand on l'envoie (Entrée ou bouton)"
+  },
+  "Composant React": {
+    "prefix": "composant-react",
+    "body": [
+      "utiliser composant \"${1:Scene3D}\" depuis \"./composants/${1:Scene3D}\"",
+      "$0"
+    ],
+    "description": "Utilise un composant React (.tsx ou .jsx), par exemple une scène 3D"
   }
 }

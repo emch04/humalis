@@ -3,6 +3,7 @@
  * du nom sous le curseur à la ligne qui le déclare, dans ce fichier ou
  * dans un fichier utilisé.
  */
+import { statSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { normaliser } from '../../../../src/vocabulaire/normaliser.js';
 import { dansStyle, jetonsDeLigne, longueurJeton, texteJeton, type Token } from './document.js';
@@ -57,6 +58,22 @@ export function jetonPlace(lignes: readonly string[], ligne: number, colonne: nu
   return interpolation ? { jeton, avant, interpolation } : { jeton, avant };
 }
 
+/** Dit si un chemin est un fichier ; remplaçable dans les tests. */
+export type Existe = (chemin: string) => boolean;
+const existeSurLeDisque: Existe = (chemin) => {
+  try {
+    return statSync(chemin).isFile();
+  } catch {
+    return false;
+  }
+};
+
+/** Le fichier d'un « utiliser composant … depuis "chemin" », dans le même ordre que le compilateur. */
+export function fichierComposantReact(depuis: string, chemin: string, existe: Existe = existeSurLeDisque): string | undefined {
+  const base = resolve(dirname(depuis), chemin);
+  return ['', '.tsx', '.ts', '.jsx', '.js'].map((ext) => base + ext).find(existe);
+}
+
 const motDe = (j: Token | undefined) => (j === undefined ? '' : normaliser(texteJeton(j)));
 const sansBarre = (adresse: string) => adresse.replace(/^\/+/, '');
 
@@ -73,7 +90,7 @@ function estLue(index: Index, ligne: number, nom: string): boolean {
 }
 
 /** Le symbole nommé sous le curseur (variable, page, route…), s'il y en a un. */
-export function symboleA(index: Index, ligne: number, colonne: number): Symbole | Lieu | undefined {
+export function symboleA(index: Index, ligne: number, colonne: number, existe: Existe = existeSurLeDisque): Symbole | Lieu | undefined {
   const { chemin, doc } = principal(index.projet);
   const lignes = doc.lignes;
   const place = jetonPlace(lignes, ligne, colonne);
@@ -87,6 +104,10 @@ export function symboleA(index: Index, ligne: number, colonne: number): Symbole 
     const valeur = jeton.valeur;
     if (precedent === 'fichier' && chemin !== undefined) {
       return { fichier: resolve(dirname(chemin), valeur), ligne: 1, colonne: 1, fin: 1 };
+    }
+    if (precedent === 'depuis' && premier === 'utiliser' && chemin !== undefined) {
+      const fichier = fichierComposantReact(chemin, valeur, existe);
+      return fichier === undefined ? undefined : { fichier, ligne: 1, colonne: 1, fin: 1 };
     }
     const routeVisee =
       (precedent === 'vers' && avant.some((j) => motDe(j) === 'requete')) ||
@@ -125,8 +146,8 @@ export function symboleA(index: Index, ligne: number, colonne: number): Symbole 
 }
 
 /** Le lieu de la déclaration du nom sous le curseur. */
-export function definir(index: Index, ligne: number, colonne: number): Lieu | undefined {
-  const s = symboleA(index, ligne, colonne);
+export function definir(index: Index, ligne: number, colonne: number, existe?: Existe): Lieu | undefined {
+  const s = symboleA(index, ligne, colonne, existe);
   if (!s) return undefined;
   return { ...(s.fichier !== undefined ? { fichier: s.fichier } : {}), ligne: s.ligne, colonne: s.colonne, fin: s.fin };
 }
