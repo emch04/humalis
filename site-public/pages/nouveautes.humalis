@@ -14,8 +14,16 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
             colonne avec style "frise" et animation montee au defilement et en cascade :
                 bloc avec style "version version-recente" :
                     ligne avec style "version-tete" :
-                        texte "1.8.0" sans traduction avec style "version-numero"
+                        texte "1.8.1" sans traduction avec style "version-numero"
                         texte "Dernière version" en anglais "Latest" avec style "pastille pastille-vive"
+                        texte "8 novembre 2026" en anglais "November 8, 2026" avec style "version-date"
+                    soustitre "Une licence qui protège mieux Humalis" en anglais "A license that better protects Humalis"
+                    liste :
+                        texte "Proposer Humalis comme service commercial (hébergement, plateforme, génération d’applications) demande désormais un accord écrit, à demander à contact@humalis.dev." en anglais "Offering Humalis as a commercial service (hosting, platform, app generation) now requires written consent, requested at contact@humalis.dev."
+                        texte "Tes applications restent entièrement à toi : tu peux toujours les vendre, les héberger et travailler pour tes clients." en anglais "Your applications remain entirely yours: you can still sell them, host them and work for your clients."
+                bloc avec style "version" :
+                    ligne avec style "version-tete" :
+                        texte "1.8.0" sans traduction avec style "version-numero"
                         texte "8 novembre 2026" en anglais "November 8, 2026" avec style "version-date"
                     soustitre "De la 3D dans une page Humalis" en anglais "3D in a Humalis page"
                     liste :
@@ -180,7 +188,7 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
         colonne avec style "nouveautes-aside" et animation montee au defilement et en cascade :
             bloc avec style "aside-carte aside-vive" :
                 texte "Version actuelle" en anglais "Current version" avec style "aside-etiquette"
-                texte "1.8.0" sans traduction avec style "aside-version"
+                texte "1.8.1" sans traduction avec style "aside-version"
                 texte "Pour mettre à jour Humalis sur ta machine :" en anglais "To update Humalis on your machine:"
                 ligne avec style "install-command" :
                     texte "npm install -g humalis" sans traduction avec style "install-code"
@@ -191,7 +199,7 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
                 texte "En bref" en anglais "At a glance" avec style "aside-etiquette"
                 ligne avec style "aside-chiffres" :
                     colonne avec style "aside-chiffre" :
-                        texte "20" sans traduction avec style "aside-nombre"
+                        texte "21" sans traduction avec style "aside-nombre"
                         texte "versions" sans traduction
                     colonne avec style "aside-chiffre" :
                         texte "5" sans traduction avec style "aside-nombre"
