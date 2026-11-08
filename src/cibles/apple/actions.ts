@@ -263,6 +263,34 @@ export class EcrivainActions {
       case 'deconnexion':
         e.ligne('await Session.commun.seDeconnecter()');
         return;
+      case 'paiement': {
+        const appel = `Serveur.commun.payer(${chaineSwift(a.adresse)}, id: ${this.identifiant(a.objet)})`;
+        e.ligne(c.essai ? `try await ${appel.replace('payer(', 'payerOuEchouer(')}` : `await ${appel}`);
+        return;
+      }
+      case 'demandeIa': {
+        const reponse = this.variable(a.variable);
+        if (!reponse) return this.hote.refuser(this.hote.ligne, `« dans ${a.variable} » : cette variable est inconnue ici`);
+        e.ligne(`${reponse.code} = ""`);
+        const appel = `Serveur.commun.demanderIa(${this.v.texte(a.question)}) { ${reponse.code} += $0 }`;
+        e.ligne(c.essai ? `try await ${appel.replace('demanderIa(', 'demanderIaOuEchouer(')}` : `await ${appel}`);
+        return;
+      }
+      case 'activationNotifications':
+        e.ligne('await activerNotifications()');
+        return;
+      case 'changementRole': {
+        const envoi = `["role": ValeurHumalis(${this.v.texte(a.role)})]`;
+        const appel = `"/auth/comptes/:id/role", methode: "POST", envoi: ${envoi}, id: ${this.identifiant(a.cible)}`;
+        if (c.essai) e.ligne(`try await Serveur.commun.appelSansReponse(${appel})`);
+        else e.ligne(`_ = await Serveur.commun.appelReussi(${appel})`);
+        return;
+      }
+      default: {
+        // Une action ajoutée au langage doit être traitée ici : sinon le compilateur TypeScript s'arrête.
+        const oubliee: never = a;
+        void oubliee;
+      }
     }
   }
 
@@ -463,13 +491,15 @@ export class EcrivainActions {
     const nom = `reponse${++this.numero}`;
     const lecture = a.mode !== 'envoyer';
     // Une lecture sait se rejouer : « recharger » et le bouton « Réessayer » s'en servent.
-    if (lecture && suivie && !c.essai) {
+    if (lecture && (suivie || a.direct) && !c.essai) {
       const charge = `charger${this.numero}`;
       e.bloc(`let ${charge}: @MainActor () async -> Void = {`, () => {
         e.bloc(`if let ${nom} = ${appel} {`, () => e.ligne(`${resultat.code} = ${nom}`));
       });
-      e.ligne(`relances[${chaineSwift(a.resultat!)}] = ${charge}`);
+      if (suivie) e.ligne(`relances[${chaineSwift(a.resultat!)}] = ${charge}`);
       e.ligne(`await ${charge}()`);
+      // « en direct » : le serveur annonce un changement, la page relit la route avec ses droits.
+      if (a.direct) e.ligne(`directs.ecouter(${adresse}, relire: ${charge})`);
       return;
     }
     // Une réponse arrivée après celle d'une requête plus récente (une recherche tapée vite) ne remplace rien.

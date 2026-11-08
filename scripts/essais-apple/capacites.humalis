@@ -1,0 +1,46 @@
+# L'essai des capacités serveur sur Apple : rôles, temps réel, IA et paiement.
+serveur "boutique" :
+    roles gerant et vendeur
+    ia par anthropic
+    connecte peut demander a ia
+    paiements par stripe
+    donnee produit :
+        nom : texte
+        total : nombre
+    donnee journal :
+        nom : texte
+    route "produits" :
+        tout le monde peut lire produit
+        seul gerant peut creer produit
+        seul admin peut modifier produit
+        quand produit est payee :
+            creer journal avec nom produit.nom
+    route "journaux" :
+        seul admin peut lire journal
+        seul admin peut modifier journal
+
+page "accueil" :
+    variable produits = []
+    variable reponse = ""
+    titre "Boutique"
+    quand la page se charge :
+        envoyer requete vers "produits" dans produits en direct
+    si utilisateur est gerant :
+        texte "Espace gerant"
+    sinon :
+        texte "Espace visiteur"
+    pour chaque p dans produits :
+        texte p.nom
+        bouton "Payer"
+        quand l'utilisateur clique sur "Payer" :
+            payer total pour p
+    formulaire "connexion" :
+        champ email "email"
+        champ mot de passe "mot de passe"
+        bouton "Se connecter"
+    quand le formulaire "connexion" est soumis :
+        se connecter avec champ "email" et champ "mot de passe"
+    bouton "Demander"
+    quand l'utilisateur clique sur "Demander" :
+        demander a ia "Une idée" dans reponse
+    texte "IA : {reponse}"

@@ -18,7 +18,7 @@ import { fichiersElements } from './elements.js';
 import { nomIcone } from './icones.js';
 import { chaineSwift, nomApplication, nomComposant, nomPage, nomRoute, nomSwift } from './noms.js';
 import { GenerateurPage, type ContexteApple } from './page.js';
-import { LANGUES_SWIFT, MEMOIRE_SWIFT, MESSAGES_SWIFT, MINUTERIES_SWIFT, SERVEUR_SWIFT, SYSTEME_SWIFT } from './systeme.js';
+import { LANGUES_SWIFT, MEMOIRE_SWIFT, MESSAGES_SWIFT, MINUTERIES_SWIFT, NOTIFICATIONS_SWIFT, SERVEUR_SWIFT, SYSTEME_SWIFT } from './systeme.js';
 import { Types, Valeurs, plusPrecis, type Portee } from './valeurs.js';
 import { CONFIDENTIALITE, assets, infoSupplementaire, droits, projetXcode, schemaXcode } from './xcode.js';
 
@@ -276,7 +276,8 @@ function routesSwift(application: Application, app: ContexteApple, entree: Ecran
             const contenu = parent ? `${nomPage(parent.nom)}(sousPage: AnyView(${appel}))` : appel;
             if (ecran.reservee) {
               const ici = noms.length ? `.${nomRoute(ecran.nom)}(${noms.map((n) => `${n}: ${n}`).join(', ')})` : `.${nomRoute(ecran.nom)}`;
-              e.ligne(`GardeHumalis(qui: .${ecran.reservee.qui}, sinon: ${routeSimple(ecran.reservee.sinon, app)}, ici: ${ici}) { ${contenu} }`);
+              const qui = ecran.reservee.qui.startsWith('role:') ? `.roles([${ecran.reservee.qui.slice(5).split(',').map(chaineSwift).join(', ')}])` : `.${ecran.reservee.qui}`;
+              e.ligne(`GardeHumalis(qui: ${qui}, sinon: ${routeSimple(ecran.reservee.sinon, app)}, ici: ${ici}) { ${contenu} }`);
             } else e.ligne(contenu);
           });
         }
@@ -362,7 +363,7 @@ function menuSwift(entrees: EntreeMenu[]): string {
   return e.texte();
 }
 
-function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, disposition: Disposition, polices: string[], policeTexte?: string): string {
+function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, disposition: Disposition, polices: string[], policeTexte?: string, notifications = false): string {
   const racine = `${nomPage(entree.nom)}()`;
   const sans = (liste: string[]) => (liste.length ? `![${liste.map((r) => `Route.${r}`).join(', ')}].contains(Routeur.commun.chemin.last ?? .accueilHumalis)` : 'true');
   const entete = disposition.entete;
@@ -467,7 +468,13 @@ function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, dispos
 import SwiftUI${polices.length ? '\nimport CoreText' : ''}
 
 @main
-struct ${nom}App: App {${inscrire}
+struct ${nom}App: App {${notifications ? `
+    #if os(macOS)
+    @NSApplicationDelegateAdaptor(DelegueNotifications.self) private var delegue
+    #else
+    @UIApplicationDelegateAdaptor(DelegueNotifications.self) private var delegue
+    #endif
+` : ''}${inscrire}
     var body: some Scene {
         WindowGroup {
             RacineHumalis()
@@ -642,8 +649,10 @@ export function genererProjetApple(application: Application, options: OptionsApp
   if (!simple(entree)) refuser(entree.ligne, `la page d'entrée « ${entree.nom} » attend un paramètre`);
   const cheminsPages = new Map(application.ecrans.map((e) => [e.nom, e === entree ? '/' : `/${simplifier(e.nom)}`]));
   ecrire('Humalis/Routes.swift', routesSwift(application, app, entree, cheminsPages));
+  const notifications = JSON.stringify([application.ecrans, application.composants]).includes('"type":"activationNotifications"');
+  if (notifications && !options.equipe) avertir(1, "« activer notifications » : sans --equipe, l'application demande la permission mais ne peut pas recevoir de notification d'Apple. Compilez avec --equipe pour qu'elle les reçoive.");
   const policesCopiees = (application.theme?.polices ?? []).flatMap((p) => (p.fichier && /\.(ttf|otf)$/i.test(p.fichier) && options.polices?.has(p.fichier) ? [p.fichier] : []));
-  ecrire(`${nom}App.swift`, applicationSwift(nom, application.site?.nom ?? options.nom, entree, disposition, policesCopiees.map(nomFichierPlat), application.theme?.polices.find((p) => p.role === 'texte')?.nom));
+  ecrire(`${nom}App.swift`, applicationSwift(nom, application.site?.nom ?? options.nom, entree, disposition, policesCopiees.map(nomFichierPlat), application.theme?.polices.find((p) => p.role === 'texte')?.nom, notifications));
   if (disposition.menu?.length) ecrire('Humalis/Menu.swift', menuSwift(disposition.menu));
   for (const p of policesCopiees) ecrire(`Ressources/${nomFichierPlat(p)}`, contenuBinaire(options.polices!.get(p)!));
   ecrire('Humalis/Configuration.swift', configurationSwift(application, options));
@@ -685,7 +694,9 @@ export function genererProjetApple(application: Application, options: OptionsApp
   for (const [chemin, contenu] of assets(octetsLogo !== undefined, marqueDe(application.theme))) ecrire(chemin, contenu);
   if (octetsLogo !== undefined) ecrire('Assets.xcassets/AppIcon.appiconset/icone.png', contenuBinaire(octetsLogo));
   const avecFichiers = /\bChoixFichierHumalis\b/.test(tout);
-  ecrire(`${nom}.entitlements`, droits(avecFichiers));
+  ecrire(`${nom}.entitlements`, droits(avecFichiers, notifications && options.equipe ? 'ios' : undefined));
+  if (notifications && options.equipe) ecrire(`${nom}-mac.entitlements`, droits(avecFichiers, 'mac'));
+  if (notifications) ecrire('Humalis/Notifications.swift', NOTIFICATIONS_SWIFT);
   ecrire('PrivacyInfo.xcprivacy', CONFIDENTIALITE);
 
   const nomAffiche = application.site?.nom ?? options.nom;
@@ -705,6 +716,7 @@ export function genererProjetApple(application: Application, options: OptionsApp
       ...(options.equipe ? { equipe: options.equipe } : {}),
       icone: octetsLogo !== undefined,
       serveurLocal,
+      droitsMac: notifications && options.equipe !== undefined,
       essaisUi: options.essaisUi !== undefined,
       fichiers: avecFichiers,
     }),
