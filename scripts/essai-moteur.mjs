@@ -138,6 +138,29 @@ const bouton = (page, nom) => page.getByRole('button', { name: nom, exact: true 
   verifier(true, 'labo : un événement de ligne lit bien sa ligne');
   verifier(erreurs.length === 0, `labo : aucune erreur dans la console ${erreurs.join(' | ')}`);
   await page.context().close();
+
+  // « avec animation » : les lignes glissent ; rien ne bouge si la personne a demandé moins d'animations.
+  const animations = (p) => p.evaluate(() => document.getAnimations().map((a) => a.effect.getKeyframes().map((k) => Object.keys(k).filter((c) => c === 'transform' || c === 'opacity').join()).join('|')));
+  const cliquerSur = (p, nom) => p.evaluate((n) => [...document.querySelectorAll('button')].find((b) => b.textContent === n).click(), nom);
+  const ordreInverse = () => [...document.querySelectorAll('p')].map((p) => p.textContent).join() === 'Lettre c,Lettre b,Lettre a';
+  const animee = await (await navigateur.newContext()).newPage();
+  await animee.goto(`${serveur.url}/animee`);
+  await animee.evaluate(() => { window.__b = [...document.querySelectorAll('p')].find((p) => p.textContent === 'Lettre a'); });
+  await cliquerSur(animee, 'Inverser');
+  await animee.waitForFunction(ordreInverse);
+  verifier((await animations(animee)).some((a) => a.includes('transform')), 'animation : les lignes glissent quand la liste change');
+  verifier(await animee.evaluate(() => window.__b.isConnected), 'animation : les lignes ne sont pas recréées');
+  await animee.waitForTimeout(350);
+  await cliquerSur(animee, 'Ajouter');
+  await animee.getByText('Lettre z', { exact: true }).waitFor();
+  verifier((await animations(animee)).some((a) => a.includes('opacity')), 'animation : une nouvelle ligne apparaît en fondu');
+  await animee.context().close();
+  const calme = await (await navigateur.newContext({ reducedMotion: 'reduce' })).newPage();
+  await calme.goto(`${serveur.url}/animee`);
+  await cliquerSur(calme, 'Inverser');
+  await calme.waitForFunction(ordreInverse);
+  verifier((await animations(calme)).length === 0, 'animation : aucune si la personne a demandé moins d’animations');
+  await calme.context().close();
   serveur.fermer();
 }
 

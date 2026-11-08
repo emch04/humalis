@@ -59,6 +59,7 @@ export interface MChaque {
   variable: string;
   corps?: M[];
   lignes?: M[][];
+  animation?: boolean;
   h?: number;
 }
 export interface MZone {
@@ -779,11 +780,11 @@ ${this.avecPlanificateur(corps.texte())}}
       case 'repetition':
         if (noeud.deplacement && noeud.liste.type === 'variable') {
           const surOrdre = this.ordresDe().get(noeud.liste.nom);
-          const lignes = this.chaqueM(noeud.liste, noeud.variable, (dedans) => [el('div', [['role', 'listitem'], ['data-deplacable', 'true']], this.groupe(noeud.corps, dedans))], env);
+          const lignes: MChaque = { ...this.chaqueM(noeud.liste, noeud.variable, (dedans) => [el('div', [['role', 'listitem'], ['data-deplacable', 'true']], this.groupe(noeud.corps, dedans))], env), ...(noeud.animation ? { animation: true } : {}) };
           sortie.push(el('div', [['role', 'list'], ['class', 'humalis-liste-deplacable']], [lignes], [`listeDeplacable(@, ${nomJs(noeud.liste.nom)}${surOrdre ? `, ${surOrdre}` : ''});`]));
           break;
         }
-        sortie.push(this.chaqueM(noeud.liste, noeud.variable, (dedans) => this.groupe(noeud.corps, dedans), env));
+        sortie.push({ ...this.chaqueM(noeud.liste, noeud.variable, (dedans) => this.groupe(noeud.corps, dedans), env), ...(noeud.animation ? { animation: true } : {}) });
         break;
       case 'widget':
         if (noeud.genre === 'fichier') {
@@ -886,7 +887,7 @@ ${this.avecPlanificateur(corps.texte())}}
     if (noeud.genre === 'liste' || noeud.genre === 'listeNumerotee') {
       const enfants: M[] = noeud.corps.map((enfant) =>
         enfant.type === 'repetition'
-          ? this.chaqueM(enfant.liste, enfant.variable, (dedans) => [el('li', [], this.groupe(enfant.corps, dedans))], env)
+          ? { ...this.chaqueM(enfant.liste, enfant.variable, (dedans) => [el('li', [], this.groupe(enfant.corps, dedans))], env), ...(enfant.animation ? { animation: true } : {}) }
           : el('li', [], this.groupe([enfant], env)),
       );
       sortie.push(el(noeud.genre === 'liste' ? 'ul' : 'ol', [this.repereHtml(noeud.ligne) as [string, Attr | undefined], ['class', 'humalis-liste']], enfants));
@@ -1196,7 +1197,7 @@ ${this.avecPlanificateur(corps.texte())}}
       });
       e.ligne(']);');
     } else if ('chaque' in m) {
-      this.bloc(m.corps ?? [], e, `chaque(r[${m.h}], () => ${m.chaque}, `, ');', `(r, ${m.variable})`);
+      this.bloc(m.corps ?? [], e, `chaque(r[${m.h}], () => ${m.chaque}, `, m.animation ? ', animerListe);' : ');', `(r, ${m.variable})`);
     } else if ('zone' in m) {
       e.ligne(`zone(r[${m.h}], () => ${m.zone});`);
     } else if ('js' in m && !m.seul) {
@@ -1222,7 +1223,7 @@ export const NOMS_RESERVES = (): Set<string> => new Set(['r', 'adresse', 'couche
 
 export const ADAPTATEURS = { module: 'monterModule', react: 'monterReact', vue: 'monterVue', svelte: 'monterSvelte', web: 'monterWeb' } as const;
 
-const NOMS_MOTEUR = ['signal', 'calcul', 'lecture', 'effet', 'nettoyer', 'gabarit', 'texte', 'attribut', 'ecouter', 'soumettre', 'ecouterLaPause', 'modele', 'si', 'chaque', 'zone', 'contenu', 'executer'];
+const NOMS_MOTEUR = ['animerListe', 'signal', 'calcul', 'lecture', 'effet', 'nettoyer', 'gabarit', 'texte', 'attribut', 'ecouter', 'soumettre', 'ecouterLaPause', 'modele', 'si', 'chaque', 'zone', 'contenu', 'executer'];
 const NOMS_OUTILS = ['creer', 'icone', 'avatar', 'etoiles', 'codeQr', 'carteLieux', 'fenetre', 'observerLeBas', 'titreDeLaPage', 'descriptionDeLaPage', 'activerCarrousel', 'activerMotDePasse', 'afficherMessage', 'planifier', 'planificateur', 'minuteriesDeCouche', 'ecouterRaccourcis', 'mouvementReduit', 'themeSombre', 'copier', 'partager', 'telechargerCsv', 'confirmer', 'retirerPremier', 'grouper', 'formaterNombre', 'formaterDate', 'formaterArgent', 'accorder', 'formaterTaille', 'dateDuJour', 'maintenant', 'decalerDate', 'joursEntre', 'formaterDepuis', 'lireMemoire', 'garderMemoire', 'cliquer', 'focaliser', 't', 'langue', 'changerLangue', 'definirTheme'];
 const NOMS_NAV = ['naviguer', 'adresseDe', 'filtre', 'revenir', 'changerFiltre', 'apresLaGarde'];
 const NOMS_ADAPT = ['monterModule', 'monterReact', 'monterVue', 'monterSvelte', 'monterWeb'];

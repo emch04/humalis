@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { compiler } from '../../src/compilateur.js';
 import { genererProjetMoteur, verifierPourLeMoteur } from '../../src/cibles/moteur/projet.js';
 import { MOTEUR_JS } from '../../src/cibles/moteur/execution.js';
+import { extraitDeCode } from '../../src/outils/extrait.js';
 import { adressePermise, donneesDansLaPage, lecturesPermises } from '../../src/cibles/moteur/lecture-construction.js';
 
 type Boite<T> = { v: T };
@@ -273,5 +274,36 @@ page "accueil" :
     expect(html).toContain('&lt;img src=x');
     expect(html).not.toContain('<img src=x');
     expect(fichiers.get('prive/index.html')).not.toContain('humalis-donnees');
+  });
+});
+
+describe('le moteur : avec animation', () => {
+  it('une liste « avec animation » reçoit son outil, une autre non', () => {
+    const avec = projet('page "a" :\n    variable t = ["x"]\n    pour chaque l dans t avec animation :\n        texte l\n').get('src/couches/a.js')!;
+    const sans = projet('page "a" :\n    variable t = ["x"]\n    pour chaque l dans t :\n        texte l\n').get('src/couches/a.js')!;
+    expect(avec).toContain(', animerListe);');
+    expect(sans).not.toContain('animerListe');
+  });
+
+  it('se combine avec le déplacement', () => {
+    const code = projet('page "a" :\n    variable t = ["x"]\n    pour chaque l dans t avec deplacement et animation :\n        texte l\n').get('src/couches/a.js')!;
+    expect(code).toContain('listeDeplacable');
+    expect(code).toContain(', animerListe);');
+  });
+});
+
+describe('le code en cause sous une erreur', () => {
+  const source = 'page "a" :\n    variable prix = 3\n    texte "{prixx}"\n';
+
+  it('montre la ligne d’avant, la ligne fautive et le mot', () => {
+    expect(extraitDeCode(source, 3, 'la variable « prixx » n’est pas déclarée')).toBe('    2 │     variable prix = 3\n  > 3 │     texte "{prixx}"\n      │             ^^^^^');
+  });
+
+  it('sans mot trouvé, pas de trait plutôt qu’un trait faux', () => {
+    expect(extraitDeCode(source, 3, 'autre chose')).not.toContain('^');
+  });
+
+  it('une ligne hors du fichier ne casse rien', () => {
+    expect(extraitDeCode(source, 99, 'x')).toBeUndefined();
   });
 });

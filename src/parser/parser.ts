@@ -2085,11 +2085,19 @@ function analyserBoucle(flux: FluxTokens): Boucle {
   const { nom: variable } = flux.attendreNom('le nom de la variable de boucle');
   flux.attendre('MOT_CLE', 'dans', '« dans » suivi de la liste à parcourir');
   const liste = analyserExpression(flux);
-  // « avec deplacement » : chaque élément peut être pris et déplacé.
-  const deplacement = flux.verifier('MOT_CLE', 'avec') && estLeMot(flux.regarder(1), 'deplacement');
-  if (deplacement) {
+  // « avec deplacement » : chaque élément peut être pris et déplacé. « avec animation » : les lignes glissent quand la liste change.
+  let deplacement = false;
+  let animation = false;
+  if (flux.verifier('MOT_CLE', 'avec') && (estLeMot(flux.regarder(1), 'deplacement') || estLeMot(flux.regarder(1), 'animation'))) {
     flux.avancer();
-    flux.avancer();
+    for (;;) {
+      if (estLeMot(flux.regarder(0), 'deplacement')) deplacement = true;
+      else if (estLeMot(flux.regarder(0), 'animation')) animation = true;
+      else break;
+      flux.avancer();
+      if (!flux.verifier('MOT_CLE', 'et')) break;
+      flux.avancer();
+    }
   }
   flux.attendre('PONCTUATION', ':', 'deux-points à la fin de la boucle');
   const corps = analyserBloc(flux);
@@ -2099,6 +2107,7 @@ function analyserBoucle(flux: FluxTokens): Boucle {
     variable,
     liste,
     ...(deplacement ? { deplacement } : {}),
+    ...(animation ? { animation } : {}),
     corps,
     ligne: debut.ligne,
   };

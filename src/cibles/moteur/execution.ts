@@ -454,7 +454,7 @@ function placer(parent, n, avant) {
 }
 
 /** Une liste : seules les lignes ajoutées, retirées ou déplacées touchent la page. */
-export function chaque(debut, liste, g, lier) {
+export function chaque(debut, liste, g, lier, animer) {
   const fin = finDe(debut);
   const proprietaire = portee;
   let lignes = [];
@@ -496,6 +496,12 @@ export function chaque(debut, liste, g, lier) {
   }
 
   function accorder(valeurs, cles) {
+    const positions = animer?.avant(lignes, fin);
+    miseAJour(valeurs, cles);
+    if (positions) animer.apres(lignes, fin, positions);
+  }
+
+  function miseAJour(valeurs, cles) {
     // Le cas le plus courant : le début n'a pas bougé, seules des lignes s'ajoutent ou partent à la fin.
     let communes = 0;
     while (communes < lignes.length && communes < valeurs.length && lignes[communes].k === cles[communes]) communes++;
@@ -576,6 +582,36 @@ export function chaque(debut, liste, g, lier) {
     });
   });
 }
+
+function elementsDes(lignes, fin) {
+  const elements = [];
+  lignes.forEach((l, i) => {
+    const arret = lignes[i + 1]?.d ?? fin;
+    for (let n = l.d.nextSibling; n && n !== arret; n = n.nextSibling) if (n.nodeType === 1) elements.push(n);
+  });
+  return elements;
+}
+
+/** « avec animation » : chaque ligne repart d'où elle était et glisse vers sa place ; une nouvelle apparaît en fondu. */
+export const animerListe = {
+  avant(lignes, fin) {
+    if (lignes.length > 300 || !document.body.animate || matchMedia('(prefers-reduced-motion: reduce)').matches) return null;
+    return new Map(elementsDes(lignes, fin).map((e) => [e, e.getBoundingClientRect()]));
+  },
+  apres(lignes, fin, positions) {
+    for (const e of elementsDes(lignes, fin)) {
+      const avant = positions.get(e);
+      if (!avant) {
+        e.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: 'ease-out' });
+        continue;
+      }
+      const apres = e.getBoundingClientRect();
+      const dx = avant.left - apres.left;
+      const dy = avant.top - apres.top;
+      if (dx !== 0 || dy !== 0) e.animate([{ transform: 'translate(' + dx + 'px, ' + dy + 'px)' }, { transform: 'none' }], { duration: 220, easing: 'cubic-bezier(0.2, 0, 0, 1)' });
+    }
+  },
+};
 
 /** Une zone dessinée d'un bloc : une carte, un graphique, un code QR. Seules ses propres lectures la refont. */
 export function zone(debut, f) {
