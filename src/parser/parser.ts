@@ -691,11 +691,13 @@ function analyserApresCreation(flux: FluxTokens): ApresCreation {
   flux.attendre('PONCTUATION', ':', 'deux-points après « est cree »');
   const envois: EnvoiEmail[] = [];
   const creations: CreationLiee[] = [];
+  const notifications: EnvoiNotification[] = [];
   chaqueLigne(flux, () => {
     if (estLeMot(flux.actuel(), 'creer')) creations.push(analyserCreationLiee(flux));
+    else if (estLeMot(flux.actuel(), 'envoyer') && estLeMot(flux.regarder(1), 'notification')) notifications.push(analyserEnvoiNotification(flux));
     else envois.push(analyserEnvoiEmail(flux));
   });
-  return { donnee, envois, creations, ligne: debut.ligne };
+  return { donnee, envois, creations, ...(notifications.length ? { notifications } : {}), ligne: debut.ligne };
 }
 
 /** « creer suivi avec etape "en_attente" et total commande.total dans commande.suivi ». */
@@ -1153,6 +1155,13 @@ function analyserInstruction(flux: FluxTokens): Instruction {
   // « telecharger commandes en csv » : un fichier fait dans l'appareil, à partir d'une liste.
   if (estLeMot(flux.actuel(), 'telecharger') && finitParEnCsv(flux)) {
     return analyserTelechargementCsv(flux);
+  }
+
+  // « activer notifications » ; « activer » seul reste un nom possible.
+  if (estLeMot(flux.actuel(), 'activer') && estLeMot(flux.regarder(1), 'notifications')) {
+    const debut = flux.avancer();
+    flux.avancer();
+    return { type: 'ActivationNotifications', ligne: debut.ligne };
   }
 
   // « telecharger document "facture" de c » : le PDF écrit dans le serveur.

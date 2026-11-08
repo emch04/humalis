@@ -23,10 +23,13 @@ serveur "commerce" :
         seuls gerant et vendeur peuvent creer commande
         seul gerant peut modifier commande
         seul gerant peut supprimer commande
+        quand commande est cree :
+            envoyer notification aux vendeur avec titre "Nouvelle commande" et texte "{commande.total}"
         seul gerant peut faire "rembourser" sur commande :
             si commande.statut est egal a "remboursee" :
                 refuser "Déjà remboursée"
             changer commande.statut par "remboursee"
+            envoyer notification aux gerant avec titre "Remboursement" et texte "Commande {commande.total}"
             creer suivi avec total commande.total
             si commande.total est superieur a 1000 :
                 refuser "Trop cher pour un remboursement"
@@ -55,6 +58,10 @@ page "accueil" :
     bouton "Promouvoir"
     quand l'utilisateur clique sur "Promouvoir" :
         changer role de "abc" en "gerant"
-    bouton "Rembourser"
-    quand l'utilisateur clique sur "Rembourser" :
-        faire "rembourser" sur commandes
+    bouton "Activer"
+    quand l'utilisateur clique sur "Activer" :
+        activer notifications
+    pour chaque c dans commandes :
+        bouton "Rembourser"
+        quand l'utilisateur clique sur "Rembourser" :
+            faire "rembourser" sur c

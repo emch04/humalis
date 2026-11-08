@@ -5,7 +5,10 @@
 // Il faut PostgreSQL (initdb, pg_ctl).
 import { execFileSync, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { mkdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { createServer as creerHttps } from 'node:https';
+import { createSecureServer } from 'node:http2';
+import { createECDH, generateKeyPairSync, randomBytes as hasard } from 'node:crypto';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -28,6 +31,15 @@ try {
   verifier(false, `les tests produits avec le serveur passent\n${String(erreur.stdout).slice(-1800)}`);
 }
 
+// Les pages aussi : le site React passe par tsc, le moteur par Vite.
+for (const [nom, options] of [['site-react', []], ['site-moteur', ['--moteur', 'humalis']]]) {
+  const dossier = join(travail, nom);
+  execFileSync('node', ['dist/cli.js', 'compile', 'essais/serveur/metier.humalis', '--cible', 'web', ...options, '--sortie', dossier], { stdio: ['ignore', 'ignore', 'inherit'] });
+  execFileSync('npm', ['install', '--no-audit', '--no-fund', '--silent'], { cwd: dossier, stdio: 'inherit' });
+  execFileSync('npm', ['run', 'build'], { cwd: dossier, stdio: 'inherit' });
+  verifier(existsSync(join(dossier, 'public', 'humalis', 'notifications.js')) || existsSync(join(dossier, 'dist', 'humalis', 'notifications.js')), `le site (${nom}) se construit, avec son travailleur de notifications`);
+}
+
 const portBase = 5800 + Math.floor(Math.random() * 90);
 const donnees = join(travail, 'pg');
 const envBase = { ...process.env, LC_ALL: 'C', LANG: 'C' };
@@ -40,8 +52,21 @@ const processus = [];
 const EMAIL = 'chef@commerce.cd';
 const MOT = 'Admin-Solide-1!';
 const SECRET = randomBytes(32).toString('hex');
+// Un faux service de notifications web et un faux APNs, en TLS comme les vrais.
+execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', join(travail, 'cle.pem'), '-out', join(travail, 'cert.pem'), '-days', '1', '-subj', '/CN=127.0.0.1'], { stdio: 'ignore' });
+const tls = { key: readFileSync(join(travail, 'cle.pem')), cert: readFileSync(join(travail, 'cert.pem')) };
+const recusWeb = [];
+const recusApple = [];
+const faussePoussee = creerHttps(tls, (req, res) => { const m = []; req.on('data', (d) => m.push(d)); req.on('end', () => { recusWeb.push({ chemin: req.url, encodage: req.headers['content-encoding'], autorisation: req.headers.authorization, taille: Buffer.concat(m).length }); res.statusCode = req.url.includes('perime') ? 410 : 201; res.end(); }); });
+const fauxApns = createSecureServer({ ...tls, allowHTTP1: false }, (req, res) => { const m = []; req.on('data', (d) => m.push(d)); req.on('end', () => { recusApple.push({ chemin: req.url, autorisation: req.headers.authorization, sujet: req.headers['apns-topic'], corps: JSON.parse(Buffer.concat(m).toString()) }); res.statusCode = 200; res.end(); }); });
+await new Promise((ok) => faussePoussee.listen(0, ok));
+await new Promise((ok) => fauxApns.listen(0, ok));
+const portPoussee = faussePoussee.address().port;
+const vapid = JSON.parse(execFileSync('node', ['-e', "console.log(JSON.stringify(require('web-push').generateVAPIDKeys()))"], { cwd: serveur, encoding: 'utf8' }));
+const cleApple = generateKeyPairSync('ec', { namedCurve: 'P-256' }).privateKey.export({ type: 'pkcs8', format: 'pem' });
+const envNotifications = { HUMALIS_VAPID_PUBLIQUE: vapid.publicKey, HUMALIS_VAPID_PRIVEE: vapid.privateKey, HUMALIS_VAPID_SUJET: 'mailto:essai@exemple.cd', HUMALIS_PUSH_HOTES: '127.0.0.1', NODE_TLS_REJECT_UNAUTHORIZED: '0', HUMALIS_APNS_CLE: cleApple, HUMALIS_APNS_CLE_ID: 'ABC123', HUMALIS_APNS_EQUIPE: 'EQUIPE1', HUMALIS_APNS_SUJET: 'dev.humalis.essai', HUMALIS_APNS_HOTE: `127.0.0.1:${fauxApns.address().port}` };
 const demarrer = (port) => new Promise((ok, echec) => {
-  const p = spawn('node', ['dist/src/demarrer.js'], { cwd: serveur, env: { ...process.env, DATABASE_URL: URL_BASE, JWT_SECRET: SECRET, HUMALIS_ADMIN_EMAIL: EMAIL, HUMALIS_ADMIN_MOT_DE_PASSE: MOT, PORT: String(port), NODE_ENV: 'development' } });
+  const p = spawn('node', ['dist/src/demarrer.js'], { cwd: serveur, env: { ...process.env, ...envNotifications, DATABASE_URL: URL_BASE, JWT_SECRET: SECRET, HUMALIS_ADMIN_EMAIL: EMAIL, HUMALIS_ADMIN_MOT_DE_PASSE: MOT, PORT: String(port), NODE_ENV: 'development' } });
   processus.push(p);
   const fin = setTimeout(() => echec(new Error('délai de lancement dépassé')), 30000);
   p.stderr.on('data', (m) => console.error(String(m).slice(0, 300)));
@@ -192,9 +217,35 @@ try {
   verifier((await pdf(gerantB.jeton, chere.valeur.id)).status === 404, 'le document d’une fiche d’un autre groupe est introuvable (404)');
   verifier((await pdf(vendeur.jeton, chere.valeur.id)).status === 403, 'un rôle qui ne lit pas la donnée n’a pas le document (403)');
 
+  // ─── Les notifications ────────────────────────────────────────────
+  const abonnement = (chemin) => ({ endpoint: `https://127.0.0.1:${portPoussee}/${chemin}`, keys: { p256dh: createECDH('prime256v1').generateKeys('base64url'), auth: hasard(16).toString('base64url') } });
+  const inscrire = (jeton, corps) => appeler(A, 'POST', '/auth/appareils', jeton, corps);
+  verifier((await appeler(A, 'GET', '/auth/appareils/cle')).valeur.cle === vapid.publicKey, 'la clé publique est servie aux pages');
+  verifier((await inscrire(null, { web: abonnement('x') })).statut === 401, 'un visiteur n’inscrit pas d’appareil (401)');
+  verifier((await inscrire(gerantA.jeton, { web: { ...abonnement('x'), endpoint: 'https://169.254.169.254/latest' } })).statut === 400, 'une adresse hors des services connus est refusée (400)');
+  verifier((await inscrire(gerantA.jeton, { web: abonnement('gerant-a') })).statut === 201, 'un appareil web s’inscrit');
+  verifier((await inscrire(gerantB.jeton, { web: abonnement('gerant-b') })).statut === 201, 'un autre groupe aussi');
+  const jetonIphone = hasard(32).toString('hex');
+  verifier((await inscrire(gerantA.jeton, { apple: jetonIphone })).statut === 201, 'un appareil Apple s’inscrit');
+  const notifiee = await appeler(A, 'POST', '/api/commandes', gerantA.jeton, { total: 9 });
+  await faire(gerantA.jeton, notifiee.valeur.id);
+  await pause(1200);
+  const web = recusWeb.filter((r) => r.chemin === '/gerant-a');
+  verifier(web.length === 1 && web[0].encodage === 'aes128gcm' && web[0].autorisation?.startsWith('vapid ') && web[0].taille > 100, 'la notification web part chiffrée, signée, vers son groupe');
+  verifier(!recusWeb.some((r) => r.chemin === '/gerant-b'), 'un autre groupe ne la reçoit pas');
+  verifier(recusApple.length === 1 && recusApple[0].chemin === `/3/device/${jetonIphone}` && recusApple[0].sujet === 'dev.humalis.essai' && recusApple[0].autorisation?.startsWith('bearer ') && recusApple[0].corps.aps.alert.title === 'Remboursement', 'la notification Apple part signée');
+  const avantPerime = sql("select count(*) from humalis_appareils");
+  await inscrire(gerantA.jeton, { web: abonnement('perime') });
+  const deuxiemeNotif = await appeler(A, 'POST', '/api/commandes', gerantA.jeton, { total: 8 });
+  await faire(gerantA.jeton, deuxiemeNotif.valeur.id);
+  await pause(1200);
+  verifier(sql("select count(*) from humalis_appareils") === avantPerime, 'un appareil désabonné est oublié');
+
   // EXTENSIONS
 } finally {
   for (const p of processus) p.kill();
+  faussePoussee.close();
+  fauxApns.close();
   execFileSync('pg_ctl', ['-D', donnees, '-m', 'fast', 'stop'], { stdio: 'ignore', env: envBase });
 }
 console.log(problemes.length ? `\n${problemes.length} problème(s)` : '\nTout est vérifié.');

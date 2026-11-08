@@ -462,8 +462,11 @@ export class GenerateurMoteur extends GenerateurPage {
       case 'invitation':
         e.ligne(`if (!(await utilisateur.inviter(${lit(action.email)}, '${action.role}'${action.groupe ? `, ${this.dansEssai}` : this.dansEssai ? ', true' : ''}${action.groupe ? `, { ${JSON.stringify(camel(action.groupe.champ))}: String(${lit(action.groupe.valeur)}) }` : ''}))) return;`);
         return true;
+      case 'activationNotifications':
+        e.ligne(`if (!(await utilisateur.activerNotifications(${this.dansEssai}))) return;`);
+        return true;
       case 'changementRole':
-        e.ligne(`if (!(await utilisateur.changerRole(${lit(action.cible)}.id, ${lit(action.role)}, ${this.dansEssai}))) return;`);
+        e.ligne(`if (!(await utilisateur.changerRole(String(${x(action.cible)}?.id ?? ${x(action.cible)}), ${lit(action.role)}, ${this.dansEssai}))) return;`);
         return true;
       case 'demandeLienMotDePasse':
         e.ligne(`if (!(await utilisateur.demanderLienMotDePasse(${lit(action.email)}${this.dansEssai ? ', true' : ''}))) return;`);
@@ -612,7 +615,7 @@ export class GenerateurMoteur extends GenerateurPage {
       corps.ligne(`return { ${options.join(', ')} };`);
     });
     const code = this.avecPlanificateur(corps.texte());
-    const session = /\butilisateur\.(connecte|admin|personne|seConnecter|seDeconnecter)\b/.test(code);
+    const session = /\butilisateur\.\w+/.test(code);
     return {
       script: `${this.entete(code)}
 

@@ -2,7 +2,7 @@ import type { Regle, Serveur, ActionDonnee, Route, Qui, Page, EnvoiEmail, Creati
 import type { Diagnostic } from './erreurs.js';
 import { simplifier } from './elements.js';
 import { proposerNom } from './suggestions.js';
-import { traduireAction, traduireDocument, traduireTache } from './logique.js';
+import { traduireAction, traduireDocument, traduireNotification, traduireTache } from './logique.js';
 
 const ACTIONS: ActionDonnee[] = ['lire', 'creer', 'modifier', 'supprimer'];
 
@@ -101,6 +101,8 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[], pag
       else {
         for (const envoi of envois) verifierEnvoiEmail(envoi, donnee, serveur, droitsDeRoute(route).creer ?? droitsDeRoute(route).modifier, erreur, avertissement);
         for (const creation of creations) verifierCreationLiee(creation, donnee, serveur, erreur);
+        const cible = serveur.donnees.find((d) => d.nom === donnee);
+        if (cible) for (const envoi of route.apresCreation.notifications ?? []) traduireNotification(envoi, cible, serveur, erreur);
       }
     }
 

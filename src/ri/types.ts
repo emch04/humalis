@@ -157,7 +157,7 @@ export type InstructionServeurRI =
   | { type: 'refuser'; message: ValeurServeurRI }
   | { type: 'creer'; donnee: string; valeurs: { champ: string; valeur: ValeurServeurRI }[]; groupeDe?: string }
   | { type: 'email'; a: { genre: 'admins' } | { genre: 'valeur'; valeur: ValeurServeurRI }; sujet: ValeurServeurRI; texte: ValeurServeurRI }
-  | { type: 'notification'; a: { genre: 'roles'; roles: string[] } | { genre: 'compte'; valeur: ValeurServeurRI }; titre: ValeurServeurRI; texte: ValeurServeurRI };
+  | { type: 'notification'; a: { genre: 'roles'; roles: string[]; groupe?: { champ: string; fiche: string } } | { genre: 'compte'; valeur: ValeurServeurRI }; titre: ValeurServeurRI; texte: ValeurServeurRI };
 
 export type FrequenceRI = { genre: 'heure' } | { genre: 'jour'; heure: number; minute: number } | { genre: 'semaine'; jour: number; heure: number; minute: number };
 
@@ -175,6 +175,8 @@ export interface ServeurRI {
     conditions?: Partial<Record<'lire' | 'creer' | 'modifier' | 'supprimer', ConditionRegleRI[]>>;
     /** « seul gerant peut faire "rembourser" sur commande : ». */
     actions?: { nom: string; qui: QuiPeut; corps: InstructionServeurRI[] }[];
+    /** « quand commande est cree : envoyer notification … ». */
+    notifications?: Extract<InstructionServeurRI, { type: 'notification' }>[];
     /** « creer suivi avec … dans commande.suivi » : les fiches liées, créées avant la réponse. */
     creations?: { donnee: string; valeurs: { champ: string; valeur: ValeurLieeRI }[]; dans?: string }[];
     /** Une page écrit « telecharger bon de … » : la route sert aussi GET /:id/bon. */
@@ -201,6 +203,8 @@ export interface ServeurRI {
   documents?: { nom: string; donnee: string; lignes: { genre: 'titre' | 'texte'; valeur: ValeurServeurRI }[] }[];
   /** « tous les jours a 7 h : ». */
   taches?: { nom: string; frequence: FrequenceRI; corps: InstructionServeurRI[] }[];
+  /** Une page écrit « activer notifications ». */
+  activeNotifications?: boolean;
   /** Une page écrit « changer role de … ». */
   changeDeRole?: boolean;
   /** « fidelite par telephone de commande : » : la lecture réservée à l'admin de /api/fidelite/… */
@@ -706,6 +710,8 @@ export type Action =
   | { type: 'changementMotDePasse'; actuel: Valeur; nouveau: Valeur }
   /** « inviter champ "Adresse" comme admin » : un lien par e-mail. */
   | { type: 'invitation'; email: Valeur; role: string; groupe?: { champ: string; valeur: Valeur } }
+  /** « activer notifications » : cet appareil reçoit celles du compte. */
+  | { type: 'activationNotifications' }
   /** « changer role de c en "vendeur" ». */
   | { type: 'changementRole'; cible: Valeur; role: Valeur }
   /** « demander un lien de mot de passe pour champ "Email" ». */

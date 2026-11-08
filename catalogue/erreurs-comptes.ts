@@ -42,12 +42,15 @@ const separee = (regle: string) => serveur('roles client', 'donnee commande par 
 /** Une route avec les lignes d'action données, et deux données pour tester une action mal placée. */
 const actions = (lignes: string[]) => serveur('roles gerant', 'donnee commande :', '    total : nombre', 'donnee produit :', '    nom : texte', 'route "commandes" :', '    seul gerant peut lire commande', '    seul gerant peut modifier commande', ...lignes.map((l) => `    ${l}`), 'route "produits" :', '    seul gerant peut lire produit', '    seul gerant peut modifier produit');
 
+/** Une page qui agit sur une fiche lue sur sa route. */
+const PAGE_FICHE = (action: string) => `page "action" reservee a gerant sinon vers "bienvenue" :\n    variable liste = []\n    titre "Action"\n    quand la page se charge :\n        envoyer requete vers "commandes" dans liste\n    pour chaque c dans liste :\n        bouton "Go"\n        quand l'utilisateur clique sur "Go" :\n            ${action}\n\npage "bienvenue" :`;
+
 /** Un serveur avec des documents. */
 const documents = (lignes: string[]) => serveur('roles gerant', ...lignes, 'donnee commande :', '    total : nombre', 'donnee produit :', '    nom : texte', 'route "commandes" :', '    seul gerant peut lire commande', '    seul gerant peut modifier commande', 'route "produits" :', '    seul gerant peut lire produit', '    seul gerant peut modifier produit');
-const avecDocument = (action: string) => documents(['document "a" de commande :', '    titre "T"']).replace('page "bienvenue" :', `page "action" :\n    titre "Action"\n    bouton "Go"\n    quand l'utilisateur clique sur "Go" :\n        ${action}\n\npage "bienvenue" :`);
+const avecDocument = (action: string) => documents(['document "a" de commande :', '    titre "T"']).replace('page "bienvenue" :', PAGE_FICHE(action));
 
 /** Une page qui lance une action. */
-const avecAction = (action: string) => actions(['seul gerant peut faire "rembourser" sur commande :', '    refuser "Non"']).replace('page "bienvenue" :', `page "action" :\n    titre "Action"\n    bouton "Go"\n    quand l'utilisateur clique sur "Go" :\n        ${action}\n\npage "bienvenue" :`);
+const avecAction = (action: string) => actions(['seul gerant peut faire "rembourser" sur commande :', '    refuser "Non"']).replace('page "bienvenue" :', PAGE_FICHE(action));
 
 /** Une page qui fait une action au clic. */
 const auClic = (lignesServeur: string[], action: string) =>
@@ -400,20 +403,20 @@ export const ENTREES_ERREURS_COMPTES: readonly EntreeErreur[] = [
   e('faire-forme', 'grammaire', 'Un « faire » sans sa fiche',
     'Une action agit sur une fiche.',
     'Écris : faire "rembourser" sur c.',
-    avecAction('faire "rembourser" "abc"'),
-    avecAction('faire "rembourser" sur "abc"'),
+    avecAction('faire "rembourser" c'),
+    avecAction('faire "rembourser" sur c'),
     'on écrit : faire'),
   e('faire-hors-evenement', 'sens', 'Un « faire » dans la page',
     'Une action se lance après un geste de la personne.',
     'Place la phrase sous « quand l’utilisateur clique … ».',
-    avecAction('faire "rembourser" sur "abc"').replace('    bouton "Go"\n    quand l\'utilisateur clique sur "Go" :\n        faire "rembourser" sur "abc"', '    faire "rembourser" sur "abc"'),
-    avecAction('faire "rembourser" sur "abc"'),
+    avecAction('faire "rembourser" sur c').replace('        bouton "Go"\n        quand l\'utilisateur clique sur "Go" :\n            faire "rembourser" sur c', '        faire "rembourser" sur c'),
+    avecAction('faire "rembourser" sur c'),
     'faire'),
   e('faire-inconnue', 'sens', 'Une action qui n’existe pas',
     'La page lance une action écrite dans le serveur.',
     'Corrige le nom, ou écris cette action dans une route.',
-    avecAction('faire "oups" sur "abc"'),
-    avecAction('faire "rembourser" sur "abc"'),
+    avecAction('faire "oups" sur c'),
+    avecAction('faire "rembourser" sur c'),
     'aucune action « oups »'),
   e('action-double', 'sens', 'Deux actions du même nom',
     'La page désigne une action par son nom.',
@@ -466,13 +469,25 @@ export const ENTREES_ERREURS_COMPTES: readonly EntreeErreur[] = [
   e('telecharger-document-hors-evenement', 'sens', 'Un téléchargement de document dans la page',
     'Un téléchargement suit un geste de la personne.',
     'Place la phrase sous « quand l’utilisateur clique … ».',
-    documents(['document "a" de commande :', '    titre "T"']).replace('page "bienvenue" :\n    titre "Bienvenue"', 'page "bienvenue" :\n    titre "Bienvenue"\n    telecharger document "a" de "abc"'),
-    avecDocument('telecharger document "a" de "abc"'),
+    avecDocument('telecharger document "a" de c').replace('        bouton "Go"\n        quand l\'utilisateur clique sur "Go" :\n            telecharger document "a" de c', '        telecharger document "a" de c'),
+    avecDocument('telecharger document "a" de c'),
     'telecharger document'),
   e('document-inconnu', 'sens', 'Un document qui n’existe pas',
     'La page télécharge un document écrit dans le serveur.',
     'Corrige le nom, ou écris ce document dans le serveur.',
-    avecDocument('telecharger document "oups" de "abc"'),
-    avecDocument('telecharger document "a" de "abc"'),
+    avecDocument('telecharger document "oups" de c'),
+    avecDocument('telecharger document "a" de c'),
     'aucun document « oups »'),
+  e('faire-sur-autre-chose', 'sens', 'Un « faire » sur autre chose qu’une fiche',
+    'Une action agit sur une fiche lue sur la route de sa donnée.',
+    'Donne la fiche, par exemple celle d’un « pour chaque ».',
+    avecAction('faire "rembourser" sur liste'),
+    avecAction('faire "rembourser" sur c'),
+    'attend une fiche'),
+  e('activer-notifications-hors-evenement', 'sens', 'Activer les notifications dans la page',
+    'Le navigateur demande l’accord de la personne : il faut un geste de sa part.',
+    'Place la phrase sous « quand l’utilisateur clique … ».',
+    serveur().replace('page "bienvenue" :\n    titre "Bienvenue"', 'page "bienvenue" :\n    titre "Bienvenue"\n    activer notifications'),
+    auClic([], 'activer notifications'),
+    'activer notifications'),
 ];

@@ -413,7 +413,7 @@ export const utilisateur = {
   get pret() { return pret.v; },
   get connecte() { return personne.v !== null; },
   get admin() { return personne.v?.role === 'admin'; },
-  seConnecter, seConnecterAvecGoogle, changerMotDePasse, inviter, changerRole,
+  seConnecter, seConnecterAvecGoogle, changerMotDePasse, inviter, changerRole, activerNotifications,
   demanderLienMotDePasse, choisirMotDePasse, seDeconnecter,
 };
 function entetesSession() { return ajouterCsrf(new Headers({ 'Content-Type': 'application/json' })); }
@@ -488,6 +488,16 @@ async function envoyerAuCompte(chemin, donnees, dansUnEssai, sansRaison) {
   return true;
 }
 function inviter(email, role, dansUnEssai = false, groupes) { return envoyerAuCompte('/auth/invitations', { email, role, groupes }, dansUnEssai, "L'invitation n'est pas partie."); }
+async function activerNotifications(dansUnEssai = false) {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return refuser('Cet appareil ne reçoit pas les notifications.', dansUnEssai);
+  if ((await Notification.requestPermission()) !== 'granted') return refuser('Les notifications sont refusées sur cet appareil.', dansUnEssai);
+  const { cle } = await (await fetch(BASE_AUTH + '/auth/appareils/cle')).json();
+  if (!cle) return refuser('Les notifications ne sont pas réglées sur ce serveur.', dansUnEssai);
+  const travailleur = await navigator.serviceWorker.register('/humalis/notifications.js');
+  const brut = atob(cle.replace(/-/g, '+').replace(/_/g, '/'));
+  const abonnement = await travailleur.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: Uint8Array.from(brut, (c) => c.charCodeAt(0)) });
+  return envoyerAuCompte('/auth/appareils', { web: abonnement.toJSON() }, dansUnEssai, "Cet appareil n'a pas été inscrit.");
+}
 function changerRole(id, role, dansUnEssai = false) { return envoyerAuCompte('/auth/comptes/' + encodeURIComponent(id) + '/role', { role }, dansUnEssai, "Le rôle n'a pas changé."); }
 function demanderLienMotDePasse(email, dansUnEssai = false) { return envoyerAuCompte('/auth/forgot-password', { email }, dansUnEssai, "Cette adresse e-mail n'est pas valable."); }
 async function choisirMotDePasse(nouveau, dansUnEssai = false) {

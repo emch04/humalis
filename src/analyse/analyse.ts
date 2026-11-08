@@ -126,6 +126,8 @@ export interface ResultatAnalyse {
   bons: Set<string>;
   /** Les routes (adresse normalisée) qu'une page lit « en direct » : le serveur annonce leurs changements. */
   directs: Set<string>;
+  /** Une page écrit « activer notifications ». */
+  activeNotifications?: boolean;
   /** Une page écrit « changer role de … » : le serveur ouvre cette route et relit le compte à chaque requête. */
   changeDeRole?: boolean;
   /** Le type d'une variable déclarée, ou de la variable d'une boucle. */
@@ -203,6 +205,8 @@ interface Liens {
   donnees: Map<string, Donnee>;
   /** Le nom de chaque « … peut faire "x" », et l'adresse de sa route. */
   actions?: Map<string, string>;
+  actionsDonnees?: Map<string, string>;
+  documentsDonnees?: Map<string, string>;
   /** Le nom de chaque « document "x" », et l'adresse de la route qui lit sa donnée. */
   documents?: Map<string, string>;
 }
@@ -342,7 +346,7 @@ export function analyserSens(programme: Programme, classesCss?: Set<string>): Re
   );
   const partages = globale.declarerPartages(programme.partages);
 
-  const liens: Liens = { documents: new Map(programme.serveurs.flatMap((s) => (s.documents ?? []).flatMap((d) => { const route = s.routes.find((r) => r.regles.some((x) => x.donnee === d.donnee && x.actions.includes('lire'))); return route ? [[d.nom, route.adresse] as [string, string]] : []; }))), actions: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, r.adresse] as [string, string])))), sources: new Map(), serveur: programme.serveurs[0]?.nom, connexionGoogle: programme.serveurs[0]?.connexionGoogle !== undefined, comptes: { invitations: programme.serveurs[0]?.invitations !== undefined, oublie: programme.serveurs[0]?.motDePasseOublie !== undefined }, fidelite: programme.serveurs[0]?.fidelite, routes: new Map(), donnees: new Map() };
+  const liens: Liens = { actionsDonnees: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, a.donnee] as [string, string])))), documentsDonnees: new Map(programme.serveurs.flatMap((s) => (s.documents ?? []).map((d) => [d.nom, d.donnee] as [string, string]))), documents: new Map(programme.serveurs.flatMap((s) => (s.documents ?? []).flatMap((d) => { const route = s.routes.find((r) => r.regles.some((x) => x.donnee === d.donnee && x.actions.includes('lire'))); return route ? [[d.nom, route.adresse] as [string, string]] : []; }))), actions: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, r.adresse] as [string, string])))), sources: new Map(), serveur: programme.serveurs[0]?.nom, connexionGoogle: programme.serveurs[0]?.connexionGoogle !== undefined, comptes: { invitations: programme.serveurs[0]?.invitations !== undefined, oublie: programme.serveurs[0]?.motDePasseOublie !== undefined }, fidelite: programme.serveurs[0]?.fidelite, routes: new Map(), donnees: new Map() };
   for (const serveur of programme.serveurs) {
     for (const donnee of serveur.donnees) liens.donnees.set(donnee.nom, donnee);
     for (const route of serveur.routes) {
@@ -963,10 +967,18 @@ class AnalysePage {
         this.litLaSession = true;
         if (contexte === 'vue') this.horsEvenement('telecharger document', instruction.ligne);
         this.demandeUnServeur('telecharger document', instruction.ligne);
-        this.typeDe(instruction.objet);
+        this.ficheAttendue(instruction.objet, 'telecharger document', this.liens.documentsDonnees?.get(instruction.nom), instruction.ligne);
         const trouve = this.liens.documents?.get(instruction.nom);
         if (trouve !== undefined) this.resultat.adressesRequetes.set(instruction, `/api/${adresseNormalisee(trouve)}/documents/${simplifier(instruction.nom).replace(/_/g, '-')}`);
         else if (this.liens.serveur !== undefined) this.erreur(`aucun document « ${instruction.nom} » n'est écrit dans le serveur "${this.liens.serveur}".`, instruction.ligne);
+        return;
+      }
+
+      case 'ActivationNotifications': {
+        this.litLaSession = true;
+        this.resultat.activeNotifications = true;
+        if (contexte === 'vue') this.horsEvenement('activer notifications', instruction.ligne);
+        this.demandeUnServeur('activer notifications', instruction.ligne);
         return;
       }
 
@@ -974,7 +986,7 @@ class AnalysePage {
         this.litLaSession = true;
         if (contexte === 'vue') this.horsEvenement('faire', instruction.ligne);
         this.demandeUnServeur('faire', instruction.ligne);
-        this.typeDe(instruction.objet);
+        this.ficheAttendue(instruction.objet, 'faire', this.liens.actionsDonnees?.get(instruction.nom), instruction.ligne);
         const trouvee = this.liens.actions?.get(instruction.nom);
         if (trouvee !== undefined) this.resultat.adressesRequetes.set(instruction, `/api/${adresseNormalisee(trouvee)}/faire/${simplifier(instruction.nom).replace(/_/g, '-')}`);
         else if (this.liens.serveur !== undefined) this.erreur(`aucune action « ${instruction.nom} » n'est écrite dans le serveur "${this.liens.serveur}".`, instruction.ligne);
@@ -2444,6 +2456,14 @@ class AnalysePage {
   }
 
   /** « telecharger bon de commande de c » : une fiche de cette donnée, lue sur sa route, avec les droits de la lecture. */
+  /** « faire … sur c » et « telecharger document … de c » agissent sur une fiche : c'est elle qui donne l'identifiant. */
+  private ficheAttendue(objet: Expression, phrase: string, donnee: string | undefined, ligne: number): void {
+    const type = this.typeDe(objet);
+    if (donnee !== undefined && estConnu(type) && !(type.genre === 'donnee' && type.nom === donnee)) {
+      this.erreur(`${decrire(objet)} est ${decrireType(type)} : « ${phrase} » attend une fiche « ${donnee} », lue sur sa route.`, ligne);
+    }
+  }
+
   private telechargementBon(telechargement: TelechargementBon): void {
     const typeObjet = this.typeDe(telechargement.objet);
     if (this.liens.serveur === undefined) {
@@ -2806,6 +2826,8 @@ function actionInterditeDansUneFonction(instruction: Instruction): string | unde
       return 'changer role';
     case 'FaireAction':
       return 'faire';
+    case 'ActivationNotifications':
+      return 'activer notifications';
     case 'TelechargementDocument':
       return 'telecharger document';
     case 'DemandeLienMotDePasse':

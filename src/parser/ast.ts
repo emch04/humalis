@@ -276,6 +276,7 @@ export interface ApresCreation {
   donnee: string;
   envois: EnvoiEmail[];
   creations: CreationLiee[];
+  notifications?: EnvoiNotification[];
   ligne: number;
 }
 
@@ -467,6 +468,7 @@ export type Instruction =
   | ChangementRole
   | FaireAction
   | TelechargementDocument
+  | ActivationNotifications
   | DemandeLienMotDePasse
   | ChoixMotDePasse
   | TelechargementBon
@@ -730,6 +732,12 @@ export interface Invitation {
   role: string;
   /** « dans boutique b » : le groupe du nouveau compte. */
   groupe?: { champ: string; valeur: Expression };
+  ligne: number;
+}
+
+/** « activer notifications » : cet appareil reçoit les notifications du compte connecté. */
+export interface ActivationNotifications {
+  type: 'ActivationNotifications';
   ligne: number;
 }
 

@@ -1,3 +1,4 @@
+import { TRAVAILLEUR_NOTIFICATIONS } from '../serveur/logique.js';
 import { copiesDesMedias } from '../../ri/medias.js';
 import { dependancesDesComposantsReact, enveloppeDifferee, enveloppeModule, utiliseLa3D } from './composants-react.js';
 import { robotsTxt, manifeste, fichiersDuSite, balisesIcone, estExterne } from '../publication.js';
@@ -268,6 +269,7 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
     fichiers.set('src/humalis/session.tsx', source ? sessionDeLaSource(SESSION, source) : sessionDuServeur ? sessionRenouvelee(SESSION) : SESSION);
     // « se connecter avec google » : la page où Google renvoie, qui rend le jeton au site.
     if (application.serveurs.some((s) => s.connexionGoogle)) fichiers.set('public/auth-google.html', PAGE_RETOUR_GOOGLE);
+    if (application.serveurs.some((s) => s.activeNotifications)) fichiers.set('public/humalis/notifications.js', TRAVAILLEUR_NOTIFICATIONS);
   }
   fichiers.set(
     'src/humalis/styles.css',
@@ -1656,6 +1658,8 @@ interface Utilisateur {
   changerMotDePasse(actuel: string, nouveau: string, dansUnEssai?: boolean): Promise<boolean>;
   /** « inviter … » : un lien par e-mail ; vrai si le serveur l'a pris en charge. */
   inviter(email: string, role: string, dansUnEssai?: boolean, groupes?: Record<string, string>): Promise<boolean>;
+  /** « activer notifications » : cet appareil reçoit celles du compte. */
+  activerNotifications(dansUnEssai?: boolean): Promise<boolean>;
   /** « changer role de c en … » : compte tout de suite. */
   changerRole(id: string, role: string, dansUnEssai?: boolean): Promise<boolean>;
   /** « demander un lien de mot de passe pour … » : la réponse ne dit jamais si le compte existe. */
@@ -1838,6 +1842,23 @@ export function Session({ children }: { children: ReactNode }) {
     return envoyerAuCompte('/auth/invitations', { email, role, groupes }, dansUnEssai, "L'invitation n'est pas partie.");
   }
 
+  async function activerNotifications(dansUnEssai = false): Promise<boolean> {
+    const dire = (texte: string): boolean => {
+      if (dansUnEssai) throw new Error(texte);
+      afficherMessage(texte, 'erreur');
+      return false;
+    };
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return dire('Cet appareil ne reçoit pas les notifications.');
+    if ((await Notification.requestPermission()) !== 'granted') return dire('Les notifications sont refusées sur cet appareil.');
+    const { cle } = (await (await fetch(BASE + '/auth/appareils/cle')).json()) as { cle: string | null };
+    if (!cle) return dire("Les notifications ne sont pas réglées sur ce serveur.");
+    const travailleur = await navigator.serviceWorker.register('/humalis/notifications.js');
+    const brut = atob(cle.replace(/-/g, '+').replace(/_/g, '/'));
+    const applicationServerKey = Uint8Array.from(brut, (c) => c.charCodeAt(0));
+    const abonnement = await travailleur.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey });
+    return envoyerAuCompte('/auth/appareils', { web: abonnement.toJSON() }, dansUnEssai, "Cet appareil n'a pas été inscrit.");
+  }
+
   async function changerRole(id: string, role: string, dansUnEssai = false): Promise<boolean> {
     return envoyerAuCompte(\`/auth/comptes/\${encodeURIComponent(id)}/role\`, { role }, dansUnEssai, "Le rôle n'a pas changé.");
   }
@@ -1904,6 +1925,7 @@ export function Session({ children }: { children: ReactNode }) {
     changerMotDePasse,
     inviter,
     changerRole,
+    activerNotifications,
     demanderLienMotDePasse,
     choisirMotDePasse,
     seDeconnecter,

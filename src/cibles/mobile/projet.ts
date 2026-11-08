@@ -959,6 +959,7 @@ interface Utilisateur {
   changerMotDePasse(actuel: string, nouveau: string, dansUnEssai?: boolean): Promise<boolean>;
   inviter(email: string, role: string, dansUnEssai?: boolean, groupes?: Record<string, string>): Promise<boolean>;
   changerRole(id: string, role: string, dansUnEssai?: boolean): Promise<boolean>;
+  activerNotifications(dansUnEssai?: boolean): Promise<boolean>;
   demanderLienMotDePasse(email: string, dansUnEssai?: boolean): Promise<boolean>;
   choisirMotDePasse(nouveau: string, dansUnEssai?: boolean): Promise<boolean>;
   seDeconnecter(): Promise<void>;
@@ -1064,6 +1065,7 @@ export function Session({ children }: { children: ReactNode }) {
     return false;
   }
   const inviter = async (_email: string, _role: string, dansUnEssai = false, _groupes?: Record<string, string>): Promise<boolean> => comptesSurLeSite(dansUnEssai);
+  const activerNotifications = async (dansUnEssai = false): Promise<boolean> => comptesSurLeSite(dansUnEssai);
   const changerRole = async (_id: string, _role: string, dansUnEssai = false): Promise<boolean> => comptesSurLeSite(dansUnEssai);
   const demanderLienMotDePasse = async (_email: string, dansUnEssai = false): Promise<boolean> => comptesSurLeSite(dansUnEssai);
   const choisirMotDePasse = async (_nouveau: string, dansUnEssai = false): Promise<boolean> => comptesSurLeSite(dansUnEssai);
@@ -1129,6 +1131,7 @@ export function Session({ children }: { children: ReactNode }) {
     changerMotDePasse,
     inviter,
     changerRole,
+    activerNotifications,
     demanderLienMotDePasse,
     choisirMotDePasse,
     seDeconnecter,

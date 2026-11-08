@@ -351,6 +351,7 @@ export const ENTREES_INTERACTIONS: EntreeVocabulaire[] = [
   }),
   mot({
     mot: 'notification',
+    variantes: ['notifications'],
     categorie: 'action',
     concept: 'action.notification',
     contextes: ['option'],
@@ -368,6 +369,16 @@ export const ENTREES_INTERACTIONS: EntreeVocabulaire[] = [
     couvre: [],
     description: '« document "facture" de commande : » : un PDF écrit dans le serveur, avec les droits de la lecture de sa donnée.',
     exemple: 'serveur "s" :\n    document "a" de commande :\n        titre "T"\n    donnee commande :\n        total : nombre\n    route "commandes" :\n        seul admin peut lire commande\n        seul admin peut modifier commande\n',
+  }),
+  mot({
+    mot: 'activer',
+    categorie: 'action',
+    concept: 'action.activerNotifications',
+    contextes: ['option'],
+    cibles: { ...ecran('utilisateur.activerNotifications()', null, null) },
+    couvre: [],
+    description: '« activer notifications » : après un geste, cet appareil reçoit les notifications du compte connecté.',
+    exemple: 'serveur "s" :\n    roles gerant\n\npage "p" :\n    titre "P"\n    bouton "Go"\n    quand l\'utilisateur clique sur "Go" :\n        activer notifications\n',
   }),
   mot({
     mot: 'role',
