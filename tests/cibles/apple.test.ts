@@ -152,6 +152,14 @@ describe('cible Apple — les écrans courants', () => {
     expect(code).toContain('ForEach(Array(noms.enumerated()), id: \\.offset)');
   });
 
+  it('une longue liste ne construit que les lignes visibles', () => {
+    const code = page(`page "a" :\n    variable noms = ["x"]\n    titre "t"\n    pour chaque n dans noms :\n        texte n\n`, 'PageA');
+    expect(code).toContain('paresseuse: true');
+    const bloc = page(`page "a" :\n    variable noms = ["x"]\n    titre "t"\n    section :\n        pour chaque n dans noms :\n            texte n\n`, 'PageA');
+    expect(bloc).toContain('LazyVStack(alignment: .leading, spacing: 12)');
+    expect(page(`page "a" :\n    variable noms = ["x"]\n    titre "t"\n    texte "z" avec ancre "b"\n    pour chaque n dans noms :\n        texte n\n`, 'PageA')).not.toContain('paresseuse: true');
+  });
+
   it('un style nommé devient un modificateur, un bouton plein prend sa couleur', () => {
     const code = page(`page "a" :\n    titre "t" avec couleur bleu\n    bouton "b" avec fond vert\n`, 'PageA');
     expect(code).toContain('.foregroundStyle(Couleurs.bleu)');

@@ -368,13 +368,19 @@ func couleurHumalis(_ clair: UInt32, _ sombre: UInt32) -> Color {
 struct PageHumalis<Contenu: View>: View {
     let titre: String
     var largeur: CGFloat = 768
+    /** Une page avec une liste : seules les lignes visibles sont construites. */
+    var paresseuse = false
     @ViewBuilder let contenu: () -> Contenu
 
     var body: some View {
         ScrollViewReader { lecteur in
             ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    contenu()
+                Group {
+                    if paresseuse {
+                        LazyVStack(alignment: .leading, spacing: 12) { contenu() }
+                    } else {
+                        VStack(alignment: .leading, spacing: 12) { contenu() }
+                    }
                 }
                 .padding(16)
                 .padding(.bottom, 32)
