@@ -8,7 +8,7 @@ Humalis est un langage en français. Un fichier .humalis décrit des pages, des 
 - Les éléments d’écran pris en charge : titre, texte, image, bouton, lien, champ, formulaire, section, bloc, ligne, colonne, grille, liste numérotée, sous-titre, liste, tableau, fenêtre, menu, icône, badge, avatar, progression, chargement, étoiles, compteur, code QR, onglets, onglet, déroulant, accordéon, carrousel, fil d’Ariane, audio, fichier, carte, marqueur, graphique, série, sélecteur. Leur texte s’écrit entre guillemets.
 - Déclare une valeur avec `variable nom = valeur` ; une condition commence par `si ... :`.
 - Les événements pris en charge : quand, utilisateur, clique, sur, survole, charge, soumis, ecrit, arrête d’écrire, appuie, arrive en bas de, l’ordre de … change. Écris l’événement sous l’élément visé, puis l’action dans son bloc.
-- Les actions prises en charge : afficher, erreur, montrer, cacher, changer, rediriger, ajouter, retirer, envoyer, requête, connecter, déconnecter, connecter avec google, inviter … comme admin, demander un lien de mot de passe pour …, choisir le mot de passe avec …, csv, télécharger bon, recharger, basculer thème, continuer vers, revenir, réussite, avertissement, pendant, disparaître, action, après, toutes, copier, partager, confirmer, faire, refuser, notification, document, activer, ia, payer, rôle.
+- Les actions prises en charge : afficher, erreur, montrer, cacher, changer, rediriger, ajouter, retirer, envoyer, requête, connecter, déconnecter, connecter avec apple, connecter avec google, inviter … comme admin, demander un lien de mot de passe pour …, choisir le mot de passe avec …, csv, télécharger bon, recharger, basculer thème, continuer vers, revenir, réussite, avertissement, pendant, disparaître, action, après, toutes, copier, partager, confirmer, faire, refuser, notification, document, verifier, hors, position, liens, profonds, domaine, arriere, plan, scanner, vibrer, identité, signature, paquet, swift, produit, activer, ia, payer, rôle.
 - Les mots de liaison (ignorés dans une phrase mais interdits comme nom de variable) : le, la, les, un, une, des, de, du, à, au, aux, se, l', d', s', n', c', j', m', t'.
 
 ## Pièges fréquents
@@ -161,6 +161,7 @@ page "accueil" :
 - Une ligne inconnue dans un serveur : dans un serveur, on écrit
 - Une connexion sans fournisseur : écrivez le fournisseur : connexion google
 - Se connecter avec Google sans le permettre au serveur : demande la ligne « connexion google »
+- Se connecter avec Apple sans le permettre au serveur : demande la ligne « connexion apple »
 - Changer le mot de passe en dehors d’un événement : « changer le mot de passe » ne s'utilise que dans un événement
 - Un champ image qui reçoit autre chose qu’une image : doit accepter seulement des images
 - Deux cartes de fidélité : un serveur n'a qu'une seule « fidelite »
@@ -543,6 +544,17 @@ page "accueil" :
 - Copier une liste : « copier » attend un texte ou un nombre
 - Un message de copie vide : le message de « copier » est vide
 - Une option inconnue de « partager » : après « partager … avec », on écrit
+- Une fonction de l’appareil dans la page : « vibrer » ne s'utilise que dans un événement
+- Un début d’adresse réservé : « https » ne peut pas servir de début d’adresse
+- Deux fois les liens profonds : « liens profonds » ne s’écrit qu’une fois
+- Un domaine mal écrit : n’est pas un domaine
+- La position dans une tâche en arrière-plan : demande la personne devant l’écran
+- Une tâche en arrière-plan dans une boucle : s’écrit directement dans la page
+- Une position rangée dans un nombre : elle reçoit une position
+- « hors ligne » sur une lecture : « hors ligne » se met sur un envoi
+- « hors ligne » vers une API externe : ne marche qu’avec une route du serveur
+- Une photo rangée dans un nombre : elle reçoit une photo
+- Un code ou une signature rangés dans un nombre : qui est un texte
 - « confirmer » dans la page : pose une question à la personne
 - « confirmer » sans geste : personne n’a rien demandé à ce moment-là
 - Une question dans le bouton d’un message : pas de « confirmer » dans le bouton d’un message

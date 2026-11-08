@@ -67,6 +67,7 @@ humalis compile mon-projet.humalis --cible serveur --sortie mon-projet-serveur  
 | `serveur` | un serveur Node avec les packs [Astratra](https://github.com/emch04/framework) (connexion, droits, sessions) |
 | `mobile` | une application Expo (iPhone, Android) |
 | `desktop` | une application Electron (Mac, Windows, Linux) |
+| `apple` | une application native en SwiftUI (iPhone, iPad et Mac), sans navigateur embarqué |
 
 Quand une construction n'existe pas encore sur une cible, le compilateur le dit clairement au lieu de produire quelque chose de faux.
 
@@ -92,6 +93,8 @@ npx expo start   # puis « i » pour l'iPhone, « a » pour Android, ou scanne l
 ```
 
 **Desktop** : une application Electron, avec un menu en français.
+
+**Apple** : un projet Xcode en SwiftUI, une seule application pour iPhone, iPad et Mac. Ouvrez le fichier `.xcodeproj` dans Xcode, choisissez un appareil, puis lancez. Il faut Xcode 16 ou plus récent.
 
 ```sh
 cd mon-projet-desktop && npm install

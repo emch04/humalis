@@ -68,7 +68,7 @@ Quand le site te plaît, compile-le vers la cible voulue :
 humalis compile mon-projet.humalis --cible web --sortie mon-projet-web
 ```
 
-Les cibles sont `web`, `statique`, `mobile`, `desktop` et `serveur`. Le
+Les cibles sont `web`, `statique`, `mobile`, `desktop`, `apple` et `serveur`. Le
 [README](../README.md) explique comment lancer chaque projet produit.
 
 ---
@@ -1800,6 +1800,68 @@ Dans une page, après un geste : `activer notifications`. Il faut les variables
 et `HUMALIS_APNS_CLE`, `HUMALIS_APNS_CLE_ID`, `HUMALIS_APNS_EQUIPE` et
 `HUMALIS_APNS_SUJET` pour Apple (`HUMALIS_APNS_HOTE` pour le bac à sable).
 
+#### Les fonctions de l'appareil
+
+Sur la cible Apple, une page peut se servir de l'appareil. Ces phrases s'écrivent dans
+un événement, sauf `signature`, qui est un élément de la page :
+
+```humalis
+page "accueil" :
+    titre "Livraison"
+    variable cliche = rien
+    variable code = ""
+    variable trace = ""
+    signature dans trace
+    bouton "Prendre une photo"
+    quand l'utilisateur clique sur "Prendre une photo" :
+        photo dans cliche
+    bouton "Scanner"
+    quand l'utilisateur clique sur "Scanner" :
+        scanner code dans code
+        vibrer
+    bouton "Valider"
+    quand l'utilisateur clique sur "Valider" :
+        verifier identite :
+            afficher "Confirmé"
+        sinon :
+            afficher "Non reconnu"
+```
+
+`photo` donne un fichier, comme `fichier … dans`. `scanner code` lit un code QR ou un
+code-barres. `signature` donne une image en texte. `verifier identite` passe par Face ID,
+Touch ID ou le code de l'appareil. Une variable `avec hors ligne` garde la dernière
+réponse du serveur et la montre quand il n'y a pas de réseau :
+`variable produits = [] avec hors ligne`.
+
+`position dans lieu` demande la permission puis remplit `lieu` (déclarée `= rien`) avec
+`lieu.latitude`, `lieu.longitude` et `lieu.precision`, en mètres.
+
+`liens profonds "magasin"`, en haut du fichier, fait ouvrir l'application par les adresses
+`magasin://produit/42` : le premier mot est la page, les suivants sont ses paramètres. Une
+page réservée reste réservée. Avec `liens profonds "magasin" et domaine "exemple.fr/essai"`,
+les adresses `https://exemple.fr/essai/produit/42` ouvrent aussi l'application. Il faut compiler
+avec `--equipe` et publier sur le site le fichier écrit dans `a-publier-sur-le-site/`.
+
+`en arriere plan :`, directement dans une page, dit ce que l'application fait quand le
+système la réveille. Le système choisit le moment : jamais avant 15 minutes, souvent bien
+plus tard. Ce bloc ne voit que les variables `avec partagee`, puisqu'aucune page n'est
+ouverte. Sur Mac, l'application doit être ouverte.
+
+`hors ligne`, à la fin d'un `envoyer requete … avec …`, d'un `modifier` ou d'un `supprimer`,
+garde l'envoi sur l'appareil s'il n'y a pas de réseau, et l'envoie dans l'ordre quand la
+connexion revient. Un refus du serveur est affiché. Chaque envoi appartient au compte qui
+l'a fait : à la déconnexion il est mis de côté, et repart seulement si la même personne se
+reconnecte. Au bout de 30 jours il est effacé, et la personne en est prévenue à sa prochaine
+connexion.
+Cette fin de phrase ne marche pas avec `dans` (la réponse arrivera plus tard) ni vers une
+API externe. Pour que la page se mette à jour ensuite, lis la route `en direct`.
+
+Pour se servir d'une bibliothèque Swift dans une vue écrite à la main, écris en haut du
+fichier `paquet swift "https://github.com/exemple/paquet" version "1.2"`. Si le produit
+ne porte pas le nom du dépôt, ajoute `produit "Nom"`.
+
+Ailleurs que sur Apple, le compilateur dit que ces phrases ne sont pas encore disponibles.
+
 #### Interroger une IA
 
 ```humalis
@@ -1853,7 +1915,7 @@ seulement quand Stripe le confirme par un webhook signé : envoie-le vers
 Si la connexion coupe en plein envoi, un programme peut recommencer sans risque : il envoie
 l'en-tête `X-Humalis-Envoi` avec un identifiant au hasard, le même à chaque essai. Le serveur
 fait le travail une fois, même avec plusieurs exemplaires, puis redonne la même réponse.
-Il répond 409 tant que le premier essai tourne. L'identifiant est gardé un jour.
+Il répond 409 tant que le premier essai tourne. L'identifiant est gardé 30 jours, aussi longtemps qu'un envoi peut attendre sur l'appareil.
 
 #### Beaucoup de monde derrière une même adresse
 
@@ -2039,6 +2101,15 @@ page "commande" :
 Dans `si erreur :`, `raison` dit ce qui n'a pas marché. Dans un formulaire, les
 champs restent remplis.
 
+
+### Se connecter avec Apple
+
+Avec la ligne `connexion apple` dans le serveur, un compte **déjà connu** du serveur peut se
+connecter avec son compte Apple : `se connecter avec apple` ouvre la fenêtre d'Apple, sur
+iPhone, iPad, Mac et sur le site. La première connexion lie le compte à ce compte Apple. Si la
+personne choisit de masquer son adresse, elle n'est pas reconnue et un message le lui dit. Il
+faut `APPLE_APP_ID` pour l'application, `APPLE_SERVICE_ID` pour le site, et compiler
+l'application avec `--equipe`.
 
 ### Se connecter avec Google
 
@@ -2645,6 +2716,32 @@ Le module est chargé à part, et ses paquets sont ajoutés au projet. Quand une
 propriété change, il est relancé. S'il sait se mettre à jour lui-même, il rend
 `{ mettreAJour(proprietes) { … }, detruire() { … } }`.
 
+### Une vue Swift écrite à la main
+
+Sur la cible Apple, il n'y a ni React ni JavaScript. Pour y mettre du Swift écrit
+à la main, ajoute `sur apple` : le web garde son composant, l'application Apple
+utilise ta vue SwiftUI.
+
+```humalis
+utiliser composant "Carte" depuis "./composants/Carte" sur apple "./composants/Carte.swift"
+
+page "accueil" :
+    Carte avec titre "Bonjour"
+```
+
+```swift
+import SwiftUI
+
+struct Carte: View {
+    let titre: String
+    var body: some View { Text(titre).font(.title) }
+}
+```
+
+La vue porte le nom du composant, et ses propriétés sont écrites dans le même
+ordre que dans la page. Un texte est un `String`, un nombre un `Double`, vrai ou
+faux un `Bool`.
+
 Dans l'autre sens, `humalis compile … --composants <dossier>` produit des
 composants React à importer dans un projet React existant.
 
@@ -2705,8 +2802,13 @@ Les autres étapes : `remplir champ "email" avec "…"`, `aller vers "panier"`,
 | `humalis packs` | dit si les packs Astratra ont des mises à jour |
 
 Pour le web et le statique, `--adresse https://…` donne l'adresse finale du
-site (plan du site, liens de partage). Pour le desktop, `--serveur https://…`
+site (plan du site, liens de partage). Pour le desktop et Apple, `--serveur https://…`
 donne l'adresse du serveur que l'application appelle.
+
+`--cible apple` produit un projet Xcode en SwiftUI : une seule application native
+pour iPhone, iPad et Mac, sans navigateur embarqué (Xcode 16 ou plus récent ; elle
+tourne à partir d'iOS 17 et de macOS 14). Pour la signer, ajoute
+`--identifiant com.exemple.application` et `--equipe ABCDE12345`.
 
 Avec `humalis developper`, chaque élément de la page porte son fichier
 Humalis et sa ligne : dans l'inspecteur du navigateur, un titre montre par
@@ -2738,18 +2840,19 @@ Le même fichier donne toutes les cibles. Quand une construction n'existe pas
 sur une cible, le compilateur le dit clairement au lieu de produire quelque
 chose de faux.
 
-| | web | statique | mobile | desktop |
-|---|---|---|---|---|
-| Pages, éléments, styles, thème | oui | oui | oui | oui |
-| Ton propre CSS | oui | oui | non (styles nommés seulement) | oui |
-| Requêtes vers un serveur | oui | oui | oui | oui |
-| `memorisee` | oui | oui | oui | oui |
-| `memorisee en secret` | non | non | oui | oui |
-| `essayer` | oui | non | oui | oui |
-| Raccourcis clavier | oui | oui | non | oui |
-| Composants React | oui | non | oui (en React Native) | oui |
-| Le moteur sans React (`--moteur humalis`) | oui | non | non | non |
-| Plan du site, aperçu de partage | oui | oui | non | non |
+| | web | statique | mobile | desktop | apple |
+|---|---|---|---|---|---|
+| Pages, éléments, styles, thème | oui | oui | oui | oui | oui |
+| Ton propre CSS | oui | oui | non (styles nommés seulement) | oui | non (styles nommés seulement) |
+| Requêtes vers un serveur | oui | oui | oui | oui | oui |
+| `memorisee` | oui | oui | oui | oui | oui |
+| `memorisee en secret` | non | non | oui | oui | oui (Keychain) |
+| `essayer` | oui | non | oui | oui | oui |
+| Raccourcis clavier | oui | oui | non | oui | oui |
+| Composants React | oui | non | oui (en React Native) | oui | non (`sur apple "Vue.swift"`) |
+| Le moteur sans React (`--moteur humalis`) | oui | non | non | non | non |
+| Photo, scanner, Face ID, vibration, signature, hors ligne | non | non | non | non | oui |
+| Plan du site, aperçu de partage | oui | oui | non | non | non |
 
 Le serveur (`--cible serveur`) se produit à part, depuis le bloc `serveur`.
 

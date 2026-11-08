@@ -14,6 +14,10 @@ export interface Programme {
   partages: DeclarationVariable[];
   /** Les « utiliser composant "Carte" depuis "./Carte" » : des composants React. */
   composantsReact: ComposantReact[];
+  /** « paquet swift "https://…" version "1.2" » : une bibliothèque Swift, pour les vues écrites à la main. */
+  paquetsSwift?: { adresse: string; version: string; produit?: string; ligne: number }[];
+  /** « liens profonds "magasin" » : les adresses magasin://… ouvrent les pages de l'application. */
+  liensProfonds?: { schema: string; /** Le site, et éventuellement le début du chemin. */ domaine?: string; ligne: number };
   /** Les « composant "Fiche" : » écrits en Humalis. */
   composants: DefinitionComposant[];
   /** Les « serveur "…" : » : données, routes et règles d'accès. */
@@ -131,6 +135,8 @@ export interface Serveur {
   routes: Route[];
   /** « connexion google » : un compte déjà connu du serveur peut se connecter avec Google (ligne). */
   connexionGoogle?: number;
+  /** « connexion apple ». */
+  connexionApple?: number;
   /** « roles directeur, enseignant et parent ». */
   roles?: string[];
   /** « compte : » puis ses champs. */
@@ -434,6 +440,8 @@ export interface ComposantReact {
   ligne: number;
   /** « utiliser module » : du JavaScript simple, `(element, proprietes) => nettoyage`, sans React. */
   module?: true;
+  /** « sur apple "Carte.swift" » : la vue SwiftUI écrite à la main, pour la cible Apple. */
+  apple?: string;
 }
 
 /** « composant "Fiche" : » : un morceau de page réutilisable, avec ses paramètres. */
@@ -526,6 +534,7 @@ export type Instruction =
   | Evenement
   | Connexion
   | ConnexionGoogle
+  | ConnexionApple
   | ChangementMotDePasse
   | Invitation
   | ChangementRole
@@ -533,6 +542,11 @@ export type Instruction =
   | FaireAction
   | TelechargementDocument
   | ActivationNotifications
+  | PrisePhoto
+  | Localisation
+  | ScanCode
+  | VerificationIdentite
+  | Vibration
   | DemandeIa
   | Paiement
   | DemandeLienMotDePasse
@@ -737,6 +751,8 @@ export interface Suppression {
   adresse: string;
   /** « de la source "boutique" » : l'API visée, au lieu du serveur du fichier. */
   source?: string;
+  /** « … hors ligne » : sans réseau, gardée puis envoyée au retour de la connexion. */
+  enAttente?: boolean;
   ligne: number;
 }
 
@@ -771,6 +787,8 @@ export interface Modification {
   source?: string;
   /** Chaque champ changé : « prix = p.prix - 1 », ou « champ "prix" » (la valeur d'un champ de la page). */
   changements: { champ: string; valeur: Expression }[];
+  /** « … hors ligne » : sans réseau, gardée puis envoyée au retour de la connexion. */
+  enAttente?: boolean;
   ligne: number;
 }
 
@@ -791,6 +809,12 @@ export interface ConnexionGoogle {
   ligne: number;
 }
 
+/** « se connecter avec apple » : la fenêtre d'Apple, puis la session d'un compte déjà connu du serveur. */
+export interface ConnexionApple {
+  type: 'ConnexionApple';
+  ligne: number;
+}
+
 /** « inviter champ "Adresse" comme admin » : un lien par e-mail pour rejoindre l'application. */
 export interface Invitation {
   type: 'Invitation';
@@ -804,6 +828,41 @@ export interface Invitation {
 }
 
 /** « activer notifications » : cet appareil reçoit les notifications du compte connecté. */
+/** « photo dans image » : l'appareil photo, et la variable reçoit le fichier. */
+/** « position dans lieu » : la latitude, la longitude et la précision de l'appareil. */
+export interface Localisation {
+  type: 'Localisation';
+  variable: string;
+  ligne: number;
+}
+
+export interface PrisePhoto {
+  type: 'PrisePhoto';
+  variable: string;
+  ligne: number;
+}
+
+/** « scanner code dans valeur » : un code QR ou un code-barres. */
+export interface ScanCode {
+  type: 'ScanCode';
+  variable: string;
+  ligne: number;
+}
+
+/** « verifier identite : … sinon : … » : Face ID, Touch ID ou le code de l'appareil. */
+export interface VerificationIdentite {
+  type: 'VerificationIdentite';
+  alors: Instruction[];
+  sinon: Instruction[];
+  ligne: number;
+}
+
+/** « vibrer ». */
+export interface Vibration {
+  type: 'Vibration';
+  ligne: number;
+}
+
 export interface ActivationNotifications {
   type: 'ActivationNotifications';
   ligne: number;
@@ -891,6 +950,8 @@ export interface OptionsVariable {
   partagee?: boolean;
   /** Gardée après un rechargement, sur l'appareil du visiteur. */
   memorisee?: boolean;
+  /** « avec hors ligne » : la dernière réponse du serveur reste lisible sans réseau. */
+  horsLigne?: boolean;
   /** Avec « memorisee » : un secret, à garder dans le coffre de l'appareil. */
   secret?: boolean;
 }
@@ -948,6 +1009,8 @@ export interface Requete {
   resultat?: string;
   /** « … dans commandes en direct » : relue quand le serveur change. */
   direct?: boolean;
+  /** « envoyer requete … hors ligne » : sans réseau, gardée puis envoyée au retour de la connexion. */
+  enAttente?: boolean;
   ligne: number;
 }
 
@@ -973,7 +1036,8 @@ export type NomElement =
   | 'audio'
   | 'marqueur'
   /** « selecteur de langue » : le choix de la langue (partie 1 du plan qualité). */
-  | 'selecteurLangue';
+  | 'selecteurLangue'
+  | 'signature';
 
 /**
  * La sorte d'un champ : « champ email "…" », « case a cocher "…" »,
@@ -1264,7 +1328,9 @@ export type GenreEvenement =
   | 'saisie'
   | 'pauseSaisie'
   | 'bas'
-  | 'ordre';
+  | 'ordre'
+  /** « en arriere plan : » : quand le système réveille l'application. */
+  | 'arrierePlan';
 
 export interface Evenement {
   type: 'Evenement';

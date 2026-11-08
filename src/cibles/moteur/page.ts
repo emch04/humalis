@@ -456,6 +456,9 @@ export class GenerateurMoteur extends GenerateurPage {
       case 'connexionGoogle':
         e.ligne(`if (!(await utilisateur.seConnecterAvecGoogle(${this.dansEssai ? 'true' : ''}))) return;`);
         return true;
+      case 'connexionApple':
+        e.ligne(`if (!(await utilisateur.seConnecterAvecApple(${this.dansEssai ? 'true' : ''}))) return;`);
+        return true;
       case 'changementMotDePasse':
         e.ligne(`if (!(await utilisateur.changerMotDePasse(${lit(action.actuel)}, ${lit(action.nouveau)}${this.dansEssai ? ', true' : ''}))) return;`);
         return true;

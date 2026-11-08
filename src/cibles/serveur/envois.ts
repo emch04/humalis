@@ -4,6 +4,8 @@
  * une seule fois, puis redonne la même réponse. Sans cet en-tête, rien ne change.
  */
 
+import { JOURS_ENVOIS_GARDES } from '../envois-gardes.js';
+
 /** src/humalis/envois.ts */
 export const ENVOIS = String.raw`import { createHash } from 'node:crypto';
 import type { RequestHandler } from 'express';
@@ -12,7 +14,8 @@ import type { PoolPostgres } from './stockage.js';
 /** Produit par Humalis : chaque envoi identifié n'est fait qu'une fois, même sur plusieurs serveurs. */
 const ENTETE = 'x-humalis-envoi';
 const FORME = /^[A-Za-z0-9_-]{16,128}$/;
-const JOUR = 24 * 60 * 60 * 1000;
+// Aussi longtemps qu'une application peut garder un envoi avant de le renvoyer.
+const DUREE = ${JOURS_ENVOIS_GARDES} * 24 * 60 * 60 * 1000;
 // Un envoi resté « en cours » si longtemps vient d'un serveur tombé pendant le travail.
 const ABANDON = 10 * 60 * 1000;
 
@@ -30,10 +33,14 @@ export interface MagasinEnvois {
 
 export function creerEnvoisMemoire(horloge: () => number = Date.now): MagasinEnvois {
   const lignes = new Map<string, { empreinte: string; depuis: number; reponse?: ReponseGardee }>();
+  let dernierMenage = 0;
   return {
     async reserver(cle, empreinte) {
       const maintenant = horloge();
-      for (const [c, l] of lignes) if (l.depuis <= maintenant - JOUR) lignes.delete(c);
+      if (maintenant - dernierMenage > 60_000) {
+        dernierMenage = maintenant;
+        for (const [c, l] of lignes) if (l.depuis <= maintenant - DUREE) lignes.delete(c);
+      }
       const ligne = lignes.get(cle);
       if (!ligne || (!ligne.reponse && ligne.depuis <= maintenant - ABANDON)) {
         lignes.set(cle, { empreinte, depuis: maintenant });
@@ -67,7 +74,7 @@ export function creerEnvoisPostgres(pool: PoolPostgres): MagasinEnvois {
       await preparer();
       if (Date.now() - dernierMenage > 60_000) {
         dernierMenage = Date.now();
-        await pool.query("DELETE FROM humalis_envois WHERE cree_le < now() - interval '1 day'");
+        await pool.query("DELETE FROM humalis_envois WHERE cree_le < now() - interval '${JOURS_ENVOIS_GARDES} days'");
       }
       // La clé primaire tranche entre deux serveurs : un seul obtient la ligne.
       const { rows } = await pool.query(

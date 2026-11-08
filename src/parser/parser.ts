@@ -65,7 +65,7 @@ import type {
   Boucle,
   Evenement,
   GenreEvenement,
-  Connexion, ConnexionGoogle, ChangementMotDePasse, Invitation, ChangementRole, ChangementCompte, ResumeServeur, DroitIa, DemandeIa, Paiement, ApresPaiement, FaireAction, TelechargementDocument, DocumentServeur, ActionServeur, TachePlanifiee, EnvoiNotification, ConditionRegle, OperandeRegle, DemandeLienMotDePasse, ChoixMotDePasse, ApresCreation, EnvoiEmail, CreationLiee, RegleChamp, ValeurFixe, TelechargementBon, TelechargementCsv, Fidelite, Suppression, Modification, EnvoiFichier, ArgumentPage } from './ast.js';
+  Connexion, ConnexionGoogle, ConnexionApple, ChangementMotDePasse, Invitation, ChangementRole, ChangementCompte, ResumeServeur, DroitIa, DemandeIa, Paiement, ApresPaiement, FaireAction, TelechargementDocument, DocumentServeur, ActionServeur, TachePlanifiee, EnvoiNotification, ConditionRegle, OperandeRegle, DemandeLienMotDePasse, ChoixMotDePasse, ApresCreation, EnvoiEmail, CreationLiee, RegleChamp, ValeurFixe, TelechargementBon, TelechargementCsv, Fidelite, Suppression, Modification, EnvoiFichier, ArgumentPage } from './ast.js';
 
 export function analyserSyntaxe(tokens: Token[]): Programme {
   const flux = new FluxTokens(tokens);
@@ -75,6 +75,8 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
   const donneesFichiers: Programme['donneesFichiers'] = [];
   const partages: DeclarationVariable[] = [];
   const composantsReact: ComposantReact[] = [];
+  let paquetsSwift: NonNullable<Programme['paquetsSwift']> | undefined;
+  let liensProfonds: Programme['liensProfonds'];
   const fichiersHumalis: { chemin: string; ligne: number }[] = [];
   const composants: DefinitionComposant[] = [];
   const serveurs: Serveur[] = [];
@@ -204,6 +206,46 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
       continue;
     }
 
+    // « liens profonds "magasin" » : les adresses magasin://… ouvrent les pages.
+    if (estLeMot(flux.actuel(), 'liens') && estLeMot(flux.regarder(1), 'profonds')) {
+      const debut = flux.avancer();
+      flux.avancer();
+      const schema = flux.attendre('CHAINE', undefined, 'le début des adresses entre guillemets : liens profonds "magasin"').valeur.toLowerCase();
+      if (!/^[a-z][a-z0-9+.-]*$/.test(schema) || ['http', 'https', 'file', 'mailto', 'tel'].includes(schema)) {
+        throw new ErreurSyntaxique(`« ${schema} » ne peut pas servir de début d’adresse : choisissez un mot propre à l’application, sans espace ni « : », par exemple liens profonds "magasin".`, debut.ligne);
+      }
+      if (liensProfonds) throw new ErreurSyntaxique('« liens profonds » ne s’écrit qu’une fois par application.', debut.ligne);
+      let domaine: string | undefined;
+      if (flux.accepter('MOT_CLE', 'et')) {
+        if (!estLeMot(flux.actuel(), 'domaine')) flux.attendre('IDENTIFIANT', 'domaine', '« domaine » puis le site entre guillemets');
+        flux.avancer();
+        domaine = flux.attendre('CHAINE', undefined, 'le site entre guillemets : domaine "exemple.fr/essai"').valeur;
+        if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+(\/[A-Za-z0-9._~-]+)*$/.test(domaine)) {
+          throw new ErreurSyntaxique(`« ${domaine} » n’est pas un domaine : écrivez seulement le site, sans https:// ni « / » à la fin, par exemple domaine "exemple.fr/essai".`, debut.ligne);
+        }
+      }
+      liensProfonds = { schema, ...(domaine ? { domaine } : {}), ligne: debut.ligne };
+      flux.sauterFinsDeLigne();
+      continue;
+    }
+
+    // « paquet swift "https://…" version "1.2" » : une bibliothèque Swift pour les vues écrites à la main.
+    if (estLeMot(flux.actuel(), 'paquet') && estLeMot(flux.regarder(1), 'swift')) {
+      const debut = flux.avancer();
+      flux.avancer();
+      const adresse = flux.attendre('CHAINE', undefined, 'l’adresse du paquet entre guillemets').valeur;
+      flux.attendre('IDENTIFIANT', 'version', '« version » puis le numéro entre guillemets');
+      const version = flux.attendre('CHAINE', undefined, 'le numéro de version entre guillemets').valeur;
+      let produit: string | undefined;
+      if (estLeMot(flux.actuel(), 'produit')) {
+        flux.avancer();
+        produit = flux.attendre('CHAINE', undefined, 'le nom du produit entre guillemets').valeur;
+      }
+      (paquetsSwift ??= []).push({ adresse, version, ...(produit ? { produit } : {}), ligne: debut.ligne });
+      flux.sauterFinsDeLigne();
+      continue;
+    }
+
     // « utiliser composant » : du React. « utiliser module » : du JavaScript simple, sans framework.
     if (flux.verifier('MOT_CLE', 'utiliser') && (estLeMot(flux.regarder(1), 'composant') || estLeMot(flux.regarder(1), 'module'))) {
       const debut = flux.avancer();
@@ -216,7 +258,14 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
       }
       flux.avancer();
       const chemin = flux.attendre('CHAINE', undefined, `le chemin du ${fichier} entre guillemets`).valeur;
-      composantsReact.push({ type: 'ComposantReact', nom, chemin, ligne: debut.ligne, ...(estModule ? { module: true as const } : {}) });
+      // « sur apple "Carte.swift" » : la vue écrite à la main pour les applications Apple.
+      let apple: string | undefined;
+      if (estLeMot(flux.actuel(), 'sur')) {
+        flux.avancer();
+        flux.attendre('IDENTIFIANT', 'apple', '« apple », puis le chemin du fichier Swift');
+        apple = flux.attendre('CHAINE', undefined, 'le chemin du fichier Swift entre guillemets').valeur;
+      }
+      composantsReact.push({ type: 'ComposantReact', nom, chemin, ligne: debut.ligne, ...(estModule ? { module: true as const } : {}), ...(apple !== undefined ? { apple } : {}) });
       flux.sauterFinsDeLigne();
       continue;
     }
@@ -272,7 +321,7 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
     for (const lieu of [...pages, ...composants, ...(entete ? [entete] : []), ...(pied ? [pied] : [])]) lieu.corps.unshift(...enTete.map((c) => ({ ...c })));
   }
   for (const lieu of [...pages, ...composants, ...(entete ? [entete] : []), ...(pied ? [pied] : [])]) lieu.corps = selonEnConditions(lieu.corps);
-  const programme: Programme = { type: 'Programme', pages, ...(enTete.length > 0 ? { calculsPartages: enTete } : {}), styles, fichiersStyle, donneesFichiers, partages, composantsReact, composants, serveurs, sources, fichiersHumalis, fonctions, tests, ...(theme ? { theme } : {}), ...(site ? { site } : {}), ...(langues ? { langues } : {}), ...(traductions.length ? { traductions } : {}), ...(entete ? { entete } : {}), ...(pied ? { pied } : {}) };
+  const programme: Programme = { type: 'Programme', pages, ...(paquetsSwift ? { paquetsSwift } : {}), ...(liensProfonds ? { liensProfonds } : {}), ...(enTete.length > 0 ? { calculsPartages: enTete } : {}), styles, fichiersStyle, donneesFichiers, partages, composantsReact, composants, serveurs, sources, fichiersHumalis, fonctions, tests, ...(theme ? { theme } : {}), ...(site ? { site } : {}), ...(langues ? { langues } : {}), ...(traductions.length ? { traductions } : {}), ...(entete ? { entete } : {}), ...(pied ? { pied } : {}) };
   // Les appels de fonctions d'actions sont remplacés par leur corps (src/parser/fonctionsActions.ts).
   const actions = deplierFonctionsActions(programme);
   if (actions.length) programme.fonctionsActions = actions;
@@ -382,6 +431,7 @@ function analyserServeur(flux: FluxTokens): Serveur {
   const donnees: Donnee[] = [];
   const routes: Route[] = [];
   let connexionGoogle: number | undefined;
+  let connexionApple: number | undefined;
   let roles: string[] | undefined;
   let emails: Serveur['emails'];
   let invitations: Serveur['invitations'];
@@ -428,14 +478,15 @@ function analyserServeur(flux: FluxTokens): Serveur {
     } else if (estLeMot(token, 'route')) {
       routes.push(analyserRoute(flux, roles !== undefined));
     } else if (estLeMot(token, 'connexion')) {
-      // « connexion google » : la seule porte en plus de l'email et du mot de passe, pour l'instant.
+      // « connexion google », « connexion apple » : les portes en plus de l'email et du mot de passe.
       flux.avancer();
       const fournisseur = flux.actuel();
-      if (motDe(fournisseur) !== 'google') {
-        throw new ErreurSyntaxique(`après « connexion », écrivez le fournisseur : connexion google`, token.ligne);
+      if (motDe(fournisseur) !== 'google' && motDe(fournisseur) !== 'apple') {
+        throw new ErreurSyntaxique(`après « connexion », écrivez le fournisseur : connexion google ou connexion apple`, token.ligne);
       }
       flux.avancer();
-      connexionGoogle = token.ligne;
+      if (motDe(fournisseur) === 'apple') connexionApple = token.ligne;
+      else connexionGoogle = token.ligne;
     } else if (estLeMot(token, 'roles')) {
       // « roles directeur, enseignant et parent ».
       flux.avancer();
@@ -492,6 +543,7 @@ function analyserServeur(flux: FluxTokens): Serveur {
     donnees,
     routes,
     ...(connexionGoogle !== undefined ? { connexionGoogle } : {}),
+    ...(connexionApple !== undefined ? { connexionApple } : {}),
     ...(roles?.length ? { roles } : {}),
     ...(taches.length ? { taches } : {}),
     ...(documents.length ? { documents } : {}),
@@ -1258,6 +1310,46 @@ function analyserInstruction(flux: FluxTokens): Instruction {
     return { type: 'DemandeIa', question, variable: flux.attendreNom('la variable qui reçoit la réponse').nom, ligne: debut.ligne } satisfies DemandeIa;
   }
 
+  // Les fonctions de l'appareil : ces mots restent des noms ailleurs.
+  if (estLeMot(flux.actuel(), 'photo') && estLeMot(flux.regarder(1), 'dans')) {
+    const debut = flux.avancer();
+    flux.avancer();
+    return { type: 'PrisePhoto', variable: flux.attendreNom('la variable qui reçoit la photo').nom, ligne: debut.ligne };
+  }
+  if (estLeMot(flux.actuel(), 'position') && estLeMot(flux.regarder(1), 'dans')) {
+    const debut = flux.avancer();
+    flux.avancer();
+    return { type: 'Localisation', variable: flux.attendreNom('la variable qui reçoit la position').nom, ligne: debut.ligne };
+  }
+  // « en arriere plan : » : ce que l'application fait quand le système la réveille.
+  if (estLeMot(flux.actuel(), 'en') && estLeMot(flux.regarder(1), 'arriere') && estLeMot(flux.regarder(2), 'plan')) {
+    const debut = flux.avancer();
+    flux.avancer();
+    flux.avancer();
+    flux.attendre('PONCTUATION', ':', 'deux-points à la fin de « en arriere plan »');
+    return { type: 'Evenement', genre: 'arrierePlan', corps: analyserBloc(flux), ligne: debut.ligne };
+  }
+  if (estLeMot(flux.actuel(), 'scanner') && estLeMot(flux.regarder(1), 'code') && estLeMot(flux.regarder(2), 'dans')) {
+    const debut = flux.avancer();
+    flux.avancer();
+    flux.avancer();
+    return { type: 'ScanCode', variable: flux.attendreNom('la variable qui reçoit le code').nom, ligne: debut.ligne };
+  }
+  if (estLeMot(flux.actuel(), 'verifier') && estLeMot(flux.regarder(1), 'identite')) {
+    const debut = flux.avancer();
+    flux.avancer();
+    flux.attendre('PONCTUATION', ':', 'deux-points à la fin de « verifier identite », puis ce qu’il faut faire si la personne est reconnue');
+    const alors = analyserBloc(flux);
+    let sinon: Instruction[] = [];
+    flux.sauterFinsDeLigne();
+    if (flux.accepter('MOT_CLE', 'sinon')) {
+      flux.attendre('PONCTUATION', ':', 'deux-points après « sinon »');
+      sinon = analyserBloc(flux);
+    }
+    return { type: 'VerificationIdentite', alors, sinon, ligne: debut.ligne };
+  }
+  if (estLeMot(flux.actuel(), 'vibrer') && flux.regarder(1).type === 'FIN_LIGNE') return { type: 'Vibration', ligne: flux.avancer().ligne };
+
   // « activer notifications » ; « activer » seul reste un nom possible.
   if (estLeMot(flux.actuel(), 'activer') && estLeMot(flux.regarder(1), 'notifications')) {
     const debut = flux.avancer();
@@ -1312,6 +1404,14 @@ function analyserInstruction(flux: FluxTokens): Instruction {
   const ligne = flux.actuel().ligne;
   const sorte = lireTournure(flux, ELEMENTS_CHAMP);
   if (sorte) return analyserElement(flux, { element: 'champ', ligne, sorte });
+
+  // « signature dans trace » : la personne signe à l'écran, la variable reçoit l'image.
+  if (estLeMot(flux.actuel(), 'signature') && estLeMot(flux.regarder(1), 'dans')) {
+    const debut = flux.avancer();
+    flux.avancer();
+    const variable = flux.attendreNom('la variable qui reçoit la signature');
+    return { type: 'Element', element: 'signature', contenu: { type: 'Reference', nom: variable.nom, ligne: debut.ligne }, styles: [], classes: [], ligne: debut.ligne };
+  }
 
   // « fichier "Choisir une photo" dans photo accepte images » : le choix d'un fichier.
   if (estChoixFichier(flux)) return analyserChoixFichier(flux, analyserExpression);
@@ -1405,6 +1505,9 @@ function analyserVariable(flux: FluxTokens): DeclarationVariable {
     const mot = normaliser(option.nom);
     if (mot === 'partagee') {
       options.partagee = true;
+    } else if (mot === 'hors' && estLeMot(flux.actuel(), 'ligne')) {
+      flux.avancer();
+      options.horsLigne = true;
     } else if (mot === 'memorisee') {
       options.memorisee = true;
       const suite = flux.actuel();
@@ -1890,8 +1993,17 @@ function analyserRequete(flux: FluxTokens, ligne: number): Requete {
     flux.avancer();
     flux.avancer();
   }
+  const enAttente = lireHorsLigne(flux);
 
-  return { type: 'Requete', adresse, ...clauses, donnees, ...(direct ? { direct } : {}), ...(parId ? { parId } : {}), ...(cles.some((c) => c !== undefined) ? { cles } : {}), resultat, ligne };
+  return { type: 'Requete', adresse, ...clauses, donnees, ...(direct ? { direct } : {}), ...(enAttente ? { enAttente } : {}), ...(parId ? { parId } : {}), ...(cles.some((c) => c !== undefined) ? { cles } : {}), resultat, ligne };
+}
+
+/** « … hors ligne » à la fin d'un envoi : il attendra le retour du réseau. */
+function lireHorsLigne(flux: FluxTokens): boolean {
+  if (!estLeMot(flux.regarder(0), 'hors') || !estLeMot(flux.regarder(1), 'ligne')) return false;
+  flux.avancer();
+  flux.avancer();
+  return true;
 }
 
 function analyserOperationServeur(flux: FluxTokens): Suppression | Modification {
@@ -1903,7 +2015,7 @@ function analyserOperationServeur(flux: FluxTokens): Suppression | Modification 
   if (!suppression) flux.attendre('MOT_CLE', 'dans', `« dans » suivi de la route, après « modifier ${nom} »`);
   const adresse = flux.attendre('CHAINE', undefined, 'la route entre guillemets').valeur;
   const source = analyserSourceSeule(flux);
-  if (suppression) return { type: 'Suppression', objet, adresse, ...(source !== undefined ? { source } : {}), ligne: debut.ligne };
+  if (suppression) return { type: 'Suppression', objet, adresse, ...(source !== undefined ? { source } : {}), ...(lireHorsLigne(flux) ? { enAttente: true } : {}), ligne: debut.ligne };
 
   flux.attendre('MOT_CLE', 'avec', '« avec » suivi des champs à changer (avec prix = 10)');
   const changements: Modification['changements'] = [];
@@ -1917,17 +2029,22 @@ function analyserOperationServeur(flux: FluxTokens): Suppression | Modification 
       changements.push({ champ, valeur: analyserExpression(flux) });
     }
   } while (flux.accepter('MOT_CLE', 'et'));
-  return { type: 'Modification', objet, adresse, ...(source !== undefined ? { source } : {}), changements, ligne: debut.ligne };
+  return { type: 'Modification', objet, adresse, ...(source !== undefined ? { source } : {}), changements, ...(lireHorsLigne(flux) ? { enAttente: true } : {}), ligne: debut.ligne };
 }
 
 /** « se connecter avec champ "email" et champ "mot de passe" » : l'email, puis le mot de passe. */
-function analyserConnexion(flux: FluxTokens): Connexion | ConnexionGoogle {
+function analyserConnexion(flux: FluxTokens): Connexion | ConnexionGoogle | ConnexionApple {
   const debut = flux.avancer();
   flux.attendre('MOT_CLE', 'avec', '« avec champ "email" et champ "mot de passe" » (ou « avec google ») après « se connecter »');
   // « se connecter avec google » : la fenêtre de Google.
   if (motDe(flux.actuel()) === 'google') {
     flux.avancer();
     return { type: 'ConnexionGoogle', ligne: debut.ligne };
+  }
+  // « se connecter avec apple » : la fenêtre d'Apple.
+  if (motDe(flux.actuel()) === 'apple') {
+    flux.avancer();
+    return { type: 'ConnexionApple', ligne: debut.ligne };
   }
   const email = analyserOperande(flux);
   flux.attendre('MOT_CLE', 'et', '« et » suivi du champ du mot de passe');

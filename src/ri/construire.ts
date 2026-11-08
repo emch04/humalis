@@ -55,6 +55,7 @@ const DECLENCHEURS: Record<GenreEvenement, Gestionnaire['declencheur']> = {
   pauseSaisie: 'pauseSaisie',
   bas: 'bas',
   ordre: 'ordre',
+  arrierePlan: 'arrierePlan',
 };
 
 /** Les touches sous leur forme canonique (l'analyse a déjà refusé celles qui n'existent pas). */
@@ -104,7 +105,9 @@ export function construireRepresentation(
           },
         }
       : {}),
-    composantsReact: programme.composantsReact.map((c) => ({ nom: c.nom, chemin: c.chemin, ligne: c.ligne, ...(c.module ? { module: true as const } : {}) })),
+    ...(programme.paquetsSwift?.length ? { paquetsSwift: programme.paquetsSwift } : {}),
+    ...(programme.liensProfonds ? { liensProfonds: programme.liensProfonds } : {}),
+    composantsReact: programme.composantsReact.map((c) => ({ nom: c.nom, chemin: c.chemin, ligne: c.ligne, ...(c.module ? { module: true as const } : {}), ...(c.apple !== undefined ? { apple: c.apple } : {}) })),
     fonctions: [...analyse.fonctions.values()].map(({ definition, retour, appels }) => ({
       nom: definition.nom,
       parametres: definition.parametres.map((p, i) => ({ nom: p.nom, type: typeParametre(appels.map((a) => a[i])) })),
@@ -238,6 +241,7 @@ function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
     ...(serveur.invitations ? { invitations: serveur.invitations.page } : {}),
     ...(serveur.motDePasseOublie ? { motDePasseOublie: serveur.motDePasseOublie.page } : {}),
     ...(serveur.connexionGoogle !== undefined ? { connexionGoogle: true } : {}),
+    ...(serveur.connexionApple !== undefined ? { connexionApple: true } : {}),
     ...(serveur.roles?.length ? { roles: serveur.roles } : {}),
     ...(analyse.changeDeRole ? { changeDeRole: true } : {}),
     ...(analyse.changeDeCompte ? { changeDeCompte: true } : {}),
@@ -279,6 +283,7 @@ function etatDe(declaration: DeclarationVariable, analyse: ResultatAnalyse): Eta
     ligne: declaration.ligne,
   };
   if (declaration.options?.memorisee) etat.memorisee = true;
+  if (declaration.options?.horsLigne) etat.horsLigne = true;
   if (declaration.options?.secret) etat.secret = true;
   if (analyse.facultatives.has(declaration)) etat.facultatif = true;
   if (declaration.fichierDonnees) etat.lectureSeule = true;
@@ -286,7 +291,7 @@ function etatDe(declaration: DeclarationVariable, analyse: ResultatAnalyse): Eta
 }
 
 /** Les éléments d'écran d'une ligne. */
-const WIDGETS = new Set(['icone', 'badge', 'avatar', 'progression', 'chargement', 'etoiles', 'compteur', 'qr', 'fichier', 'audio', 'selecteurLangue']);
+const WIDGETS = new Set(['icone', 'badge', 'avatar', 'progression', 'chargement', 'etoiles', 'compteur', 'qr', 'signature', 'fichier', 'audio', 'selecteurLangue']);
 /** Les options qui ne sont pas des styles (elles ne font pas de classe CSS). */
 const REGLAGES = new Set(['icone', 'description', 'decoratif', 'photo', 'modifiable', 'ouvert', 'plusieurs', 'pourcentage', 'automatique', 'visibles', 'transcription', 'boucle']);
 
@@ -630,6 +635,7 @@ class Construction {
             ...(instruction.cles ? { cles: instruction.cles } : {}),
             resultat: instruction.resultat,
             ...(instruction.direct ? { direct: true } : {}),
+            ...(instruction.enAttente ? { enAttente: true } : {}),
             ...(instruction.source !== undefined
               ? {
                   source: instruction.source,
@@ -663,6 +669,7 @@ class Construction {
             adresse: this.analyse.adressesRequetes.get(instruction) ?? instruction.adresse,
             objet: this.valeur(instruction.objet),
             ...(instruction.source !== undefined ? { source: instruction.source } : {}),
+            ...(instruction.enAttente ? { enAttente: true } : {}),
           });
           break;
 
@@ -674,6 +681,7 @@ class Construction {
             changements: instruction.changements.map((c) => ({ champ: simplifier(c.champ), valeur: this.valeur(c.valeur) })),
             ...(instruction.source !== undefined ? { source: instruction.source } : {}),
             ...(this.analyse.reglesOperations.get(instruction)?.remplacement ? { remplacement: true } : {}),
+            ...(instruction.enAttente ? { enAttente: true } : {}),
           });
           break;
 
@@ -687,6 +695,10 @@ class Construction {
 
         case 'ConnexionGoogle':
           actions.push({ type: 'connexionGoogle' });
+          break;
+
+        case 'ConnexionApple':
+          actions.push({ type: 'connexionApple' });
           break;
 
         case 'TelechargementCsv':
@@ -720,6 +732,22 @@ class Construction {
           break;
         case 'ActivationNotifications':
           actions.push({ type: 'activationNotifications' });
+          break;
+        case 'PrisePhoto':
+          actions.push({ type: 'prisePhoto', variable: instruction.variable });
+          break;
+
+        case 'Localisation':
+          actions.push({ type: 'localisation', variable: instruction.variable });
+          break;
+        case 'ScanCode':
+          actions.push({ type: 'scanCode', variable: instruction.variable });
+          break;
+        case 'VerificationIdentite':
+          actions.push({ type: 'verificationIdentite', alors: this.actions(instruction.alors), sinon: this.actions(instruction.sinon) });
+          break;
+        case 'Vibration':
+          actions.push({ type: 'vibration' });
           break;
         case 'FaireAction':
           // Une action passe par le même chemin qu'une modification : droits, jeton, erreurs et relecture sont déjà là.
