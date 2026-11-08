@@ -92,9 +92,10 @@ try {
   await page.getByRole('link', { name: 'Retour au catalogue' }).click();
   verifier(await visible(page.getByRole('heading', { name: 'Le catalogue' })), 'le lien « Retour au catalogue » ramène au catalogue');
 
-  // Un identifiant inconnu : le serveur répond 404, la page le dit et reste en attente.
+  // Un identifiant inconnu : le serveur répond 404, la page reste sur son état de départ, sans faux message.
   await page.goto(`${adresseWeb}/produit/inconnu`);
-  verifier(await visible(page.getByRole('alert')), 'un identifiant inconnu affiche un message d’erreur');
+  await page.waitForTimeout(500);
+  verifier(await page.getByRole('alert').count() === 0, 'un identifiant inconnu (404) ne dit pas faussement que le serveur n’a pas répondu');
   verifier(await visible(page.getByText('Chargement du produit…')), '… et la page ne casse pas (« est rien » reste vrai)');
   verifier(erreurs.length === 0, `aucune erreur JavaScript${erreurs.length ? ` (${erreurs.join(' | ')})` : ''}`);
 } finally {

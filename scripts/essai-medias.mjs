@@ -66,7 +66,7 @@ async function servir(dossier, entetes = {}) {
 
 function compiler(cible) {
   const dossier = join(travail, cible);
-  execFileSync('node', ['dist/cli.js', 'compile', 'exemples/medias.humalis', '--cible', cible, '--sortie', dossier, ...(cible === 'web' ? ['--adresse', 'https://lefleuve.cd'] : [])], { stdio: 'ignore' });
+  execFileSync('node', ['dist/cli.js', 'compile', 'exemples/medias.humalis', '--cible', cible, ...(cible === 'web' && process.env.HUMALIS_MOTEUR ? ['--moteur', process.env.HUMALIS_MOTEUR] : []), '--sortie', dossier, ...(cible === 'web' ? ['--adresse', 'https://lefleuve.cd'] : [])], { stdio: 'ignore' });
   return dossier;
 }
 
@@ -194,7 +194,7 @@ async function scenarioFichier(navigateur) {
   execFileSync('npm', ['run', 'build'], { cwd: dossier, stdio: 'ignore', env: { ...process.env, VITE_HUMALIS_SOURCE_BOUTIQUE: api.adresse } });
   verifier(true, 'fichier : le projet produit passe tsc et se construit (prérendu compris)');
   const fichiersProduits = readdirSync(join(dossier, 'src', 'humalis'));
-  verifier(fichiersProduits.includes('televerser.ts') && fichiersProduits.includes('choix-fichier.tsx'), 'fichier : les deux petits fichiers sont écrits');
+  verifier(process.env.HUMALIS_MOTEUR ? fichiersProduits.includes('serveur.js') && fichiersProduits.includes('fichier.js') : fichiersProduits.includes('televerser.ts') && fichiersProduits.includes('choix-fichier.tsx'), 'fichier : les deux petits fichiers sont écrits');
   verifier(!/axios|uppy|dropzone/.test(readFileSync(join(dossier, 'package.json'), 'utf8')), 'fichier : aucune bibliothèque de plus dans package.json');
 
   const site = await servir(join(dossier, 'dist'));

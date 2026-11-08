@@ -87,7 +87,7 @@ async function servir(dossier) {
 
 function compiler(source, cible, nom) {
   const dossier = join(travail, nom);
-  execFileSync('node', ['dist/cli.js', 'compile', source, '--cible', cible, '--sortie', dossier, '--adresse', 'http://127.0.0.1'], { stdio: 'pipe' });
+  execFileSync('node', ['dist/cli.js', 'compile', source, '--cible', cible, ...(cible === 'web' && process.env.HUMALIS_MOTEUR ? ['--moteur', process.env.HUMALIS_MOTEUR] : []), '--sortie', dossier, '--adresse', 'http://127.0.0.1'], { stdio: 'pipe' });
   return dossier;
 }
 

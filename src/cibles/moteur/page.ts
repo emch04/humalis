@@ -18,14 +18,14 @@ import { attributs, echapperTexte } from '../statique/html.js';
 import { Environnement, conditionJs, contenuJs, evaluer, expressionJs, nomJs, verifier } from '../statique/valeurs.js';
 import { Ecrivain } from '../web/ecrivain.js';
 import { camel, chaine, pascal } from '../web/noms.js';
-import { titreEtDescription } from '../web/ecran.js';
+import { premiereValeur, titreEtDescription } from '../web/ecran.js';
 import { ficheAvec } from '../web/valeurs.js';
 import { lireCible } from '../../analyse/navigation.js';
 import { lecturesDuChargement } from '../web/lectures.js';
 import { attributsFrappe } from '../commun/mouvement.js';
 import { colorerCodeHumalis } from '../commun/colorerCode.js';
 import { chercherIcone } from '../../vocabulaire/icones.js';
-import { messageEnCode } from '../../i18n/messages.js';
+import { messageEnCode, messageEnLangues } from '../../i18n/messages.js';
 import { simplifier } from '../../analyse/elements.js';
 import type { Action, ComposantHumalis, Ecran, Gestionnaire, NoeudVue, Valeur, ImageRI, ArgumentsPage, Etat } from '../../ri/types.js';
 
@@ -142,6 +142,8 @@ function html(liste: M[]): string {
 export interface ContexteMoteur extends ContexteSite {
   /** Les modules JavaScript et les composants d'autres frameworks : nom → chemin d'import depuis src/couches. */
   externes: Map<string, { chemin: string; sorte: 'module' | 'react' | 'vue' | 'svelte' | 'web'; balise?: string }>;
+  /** La description du site dans chaque langue, en JavaScript, quand une page n'a pas de texte à elle. */
+  descriptionSite?: string;
   /** Les chemins des pages (« /produit/:id »). */
   chemins: Map<string, string>;
   /** Les filtres d'adresse de chaque page : un lien n'est actif que si l'adresse a les mêmes. */
@@ -545,9 +547,15 @@ export class GenerateurMoteur extends GenerateurPage {
   /** Les variables « memorisee » de la page. */
   private ecrireMemoireMoteur(e: Ecrivain): string[] {
     const gardees = this.ecran.etat.filter((etat: Etat) => etat.memorisee);
-    if (gardees.length === 0) return [];
+    // Une page déjà vue s'affiche tout de suite avec sa dernière réponse, puis relit le serveur.
+    const lectures = lecturesDuChargement(this.ecran).map((l) => ({
+      variable: l.variable,
+      code: (this.ecran.parametresAdresse ?? []).concat((this.ecran.filtres ?? []).map((f) => f.nom)).reduce((c, p) => c.replace(new RegExp(`encodeURIComponent\\(${camel(p)}\\)`, 'g'), `encodeURIComponent(${this.lu(p)})`), l.code),
+    }));
+    if (gardees.length === 0 && lectures.length === 0) return [];
     const cle = (etat: Etat) => chaine(`${this.site.cle}:${simplifier(this.ecran.nom)}:${simplifier(etat.nom)}`);
     e.bloc('function relire() {', () => {
+      for (const l of lectures) e.ligne(`${this.lu(l.variable)} = lectureGardee(${l.code}, ${nomJs(l.variable)}.x);`);
       for (const etat of gardees) e.ligne(`${nomJs(etat.nom)}.v = lireMemoire(${cle(etat)}, ${nomJs(etat.nom)}.x);`);
       for (const etat of gardees) e.ligne(`effet(() => garderMemoire(${cle(etat)}, ${nomJs(etat.nom)}.v));`);
     });
@@ -576,9 +584,13 @@ export class GenerateurMoteur extends GenerateurPage {
       const arbre = this.groupe(this.ecran.vue, null);
       numeroter(arbre);
       this.liaisons(arbre, corps);
+      // La description de la page suit la langue, comme son titre.
+      const description = this.site.langues ? premiereValeur('texte', this.ecran.vue, this.site.langues) : undefined;
+      const enLangues = description?.type === 'texte' && description.versions ? expressionJs(description, this.contexte) : !this.parametres && this.ecran.vue.length > 0 ? this.moteur.descriptionSite : undefined;
+      if (enLangues) corps.ligne(`descriptionDeLaPage(() => ${enLangues});`);
       corps.ligne(`return { ${options.join(', ')} };`);
     });
-    const code = corps.texte();
+    const code = this.avecPlanificateur(corps.texte());
     const session = /\butilisateur\.(connecte|admin|seConnecter|seDeconnecter)\b/.test(code);
     return {
       script: `${this.entete(code)}
@@ -589,6 +601,11 @@ ${code}}
       session,
       serveur: this.besoins.serveur,
     };
+  }
+
+  /** Une minuterie lancée par un événement appartient à sa couche, ou à son composant. */
+  private avecPlanificateur(code: string): string {
+    return /\bplanifier\(/.test(code) ? `  const planifier = planificateur();\n${code}` : code;
   }
 
   /** Le HTML de départ de la couche, avec celui de sa sous-couche. */
@@ -651,7 +668,7 @@ ${this.gabarits.map((g) => `const ${g.nom} = /*#__PURE__*/ gabarit(${chaine(g.ht
       code: `${this.gabarits.map((g) => `const ${g.nom} = /*#__PURE__*/ gabarit(${chaine(g.html)});`).join('\n')}
 export const $g${nom} = /*#__PURE__*/ gabarit(${chaine(html(arbre))});
 export function ${nom}(r${parametres ? `, { ${parametres} }` : ''}) {
-${corps.texte()}}
+${this.avecPlanificateur(corps.texte())}}
 `,
     };
   }
@@ -782,7 +799,7 @@ ${corps.texte()}}
           el('h2', [['id', `${noeud.id}-titre`]], [{ texte: noeud.titre }]),
           ...(noeud.description !== undefined ? [el('p', [['id', `${noeud.id}-description`]], [{ texte: noeud.description }])] : []),
           ...this.groupe(noeud.corps, env),
-          el('button', [['type', 'button'], ['class', 'humalis-fenetre-fermer'], ['aria-label', 'Fermer'], ['onclick', fermer]], [{ texte: '×' }]),
+          el('button', [['type', 'button'], ['class', 'humalis-fenetre-fermer'], ['aria-label', this.messageAttr('Fermer', env)], ['onclick', fermer]], [{ texte: '×' }]),
         ];
         sortie.push(el('dialog', [['data-humalis', noeud.id], ['class', ['humalis-fenetre', ...noeud.classes].join(' ')], ['aria-labelledby', `${noeud.id}-titre`], ['aria-describedby', noeud.description !== undefined ? `${noeud.id}-description` : undefined]], [el('div', [['class', 'humalis-fenetre-contenu']], contenu)], [`fenetre(@, () => visibilite.v[${chaine(noeud.id)}], ${fermer}, ${noeud.obligatoire ? 'true' : 'false'});`]));
         break;
@@ -872,7 +889,7 @@ ${corps.texte()}}
     const fonction = bas.fonction;
     const m: M[] = [
       el('div', [['class', 'humalis-sentinelle'], ['data-humalis', `${noeud.id}-bas`], ['aria-hidden', 'true']], [], [`observerLeBas(@, ${fonction});`]),
-      ...(bas.gestionnaire.bouton === null ? [] : [el('button', [['type', 'button'], ['class', 'humalis-voir-plus'], ['data-humalis', `${noeud.id}-voir-plus`], ['onclick', fonction]], [{ texte: bas.gestionnaire.bouton ?? 'Voir plus' }])]),
+      ...(bas.gestionnaire.bouton === null ? [] : [el('button', [['type', 'button'], ['class', 'humalis-voir-plus'], ['data-humalis', `${noeud.id}-voir-plus`], ['onclick', fonction]], [this.messageM(bas.gestionnaire.bouton ?? 'Voir plus', env)])]),
     ];
     if (!bas.gestionnaire.tantQue) {
       sortie.push(...m);
@@ -1046,7 +1063,7 @@ ${corps.texte()}}
         return el('fieldset', [this.repereHtml(noeud.ligne) as [string, Attr | undefined], ['data-humalis', noeud.id], ['class', classes ? `${classes} humalis-choix` : 'humalis-choix']], [el('legend', [], libelle), radios]);
       }
       case 'liste': {
-        const premiere = el('option', [['value', ''], ['selected', 'true']], saisie?.indiceLangues ? [{ js: messageEnCode(saisie.indiceLangues, chaine), initial: env ? (saisie.indice ?? '') : '' }] : [{ texte: saisie?.indice ?? 'Choisissez…' }]);
+        const premiere = el('option', [['value', ''], ['selected', 'true']], saisie?.indiceLangues ? [{ js: messageEnCode(saisie.indiceLangues, chaine), initial: env ? (saisie.indice ?? '') : '' }] : [this.messageM(saisie?.indice ?? 'Choisissez…', env)]);
         const choix = parmi((v, initial) => el('option', [['value', { js: v, initial }]], [{ js: v, initial }]));
         return el('label', [['class', 'humalis-champ']], [...libelle, el('select', options(this.communM(noeud)), [premiere, choix], [`modele(@, ${boite});`])]);
       }
@@ -1066,15 +1083,30 @@ ${corps.texte()}}
     return aide;
   }
 
+  private versionsDe(texte: string): ReturnType<typeof messageEnLangues> {
+    return this.site.langues ? messageEnLangues(texte, this.site.langues.map((l) => l.code)) : undefined;
+  }
+
+  /** Un message de Humalis écrit dans la page : il suit la langue de la personne. */
+  private messageM(texte: string, env: Environnement | null): M {
+    const versions = this.versionsDe(texte);
+    return versions ? { js: messageEnCode(versions, chaine), initial: env ? texte : '' } : { texte };
+  }
+
+  private messageAttr(texte: string, env: Environnement | null): Attr {
+    const versions = this.versionsDe(texte);
+    return versions ? { js: messageEnCode(versions, chaine), initial: env ? texte : false } : texte;
+  }
+
   /** Un arbre de widgets.ts : le même arbre, relié finement. */
   private enfantM(enfant: Enfant, env: Environnement | null): M[] {
     if ('tag' in enfant) {
-      const attrs: [string, Attr][] = enfant.attrs.map(([nom, v]) => [nom, !env && typeof v === 'object' ? { js: v.js, initial: false } : v]);
+      const attrs: [string, Attr][] = enfant.attrs.map(([nom, v]) => [nom, nom === 'aria-label' && typeof v === 'string' ? this.messageAttr(v, env) : !env && typeof v === 'object' ? { js: v.js, initial: false } : v]);
       const fixees = attrs.filter(([, v]) => v !== false).map(([nom, v]): [string, Attr] => [nom, nom === 'src' && typeof v === 'string' && /^(audio|images)\//.test(v) ? `/${v}` : v]);
       const carrousel = enfant.attrs.some(([nom]) => nom === 'data-humalis-carrousel');
       return [{ tag: enfant.tag, attrs: fixees, enfants: enfant.enfants.flatMap((c) => this.enfantM(c, env)), ...(carrousel ? { liaisons: ['activerCarrousel(@);'] } : {}) }];
     }
-    if ('texte' in enfant) return [{ texte: enfant.texte }];
+    if ('texte' in enfant) return [this.messageM(enfant.texte, env)];
     if ('js' in enfant) return [{ js: enfant.js, initial: env ? enfant.initial : '' }];
     if ('vue' in enfant) return this.groupe(enfant.vue, env);
     if ('icone' in enfant) {
@@ -1167,12 +1199,12 @@ export const NOMS_RESERVES = (): Set<string> => new Set(['r', 'adresse', 'couche
 export const ADAPTATEURS = { module: 'monterModule', react: 'monterReact', vue: 'monterVue', svelte: 'monterSvelte', web: 'monterWeb' } as const;
 
 const NOMS_MOTEUR = ['signal', 'calcul', 'lecture', 'effet', 'nettoyer', 'gabarit', 'texte', 'attribut', 'ecouter', 'soumettre', 'ecouterLaPause', 'modele', 'si', 'chaque', 'zone', 'contenu', 'executer'];
-const NOMS_OUTILS = ['creer', 'icone', 'avatar', 'etoiles', 'codeQr', 'carteLieux', 'fenetre', 'observerLeBas', 'titreDeLaPage', 'activerCarrousel', 'activerMotDePasse', 'afficherMessage', 'planifier', 'mouvementReduit', 'themeSombre', 'copier', 'partager', 'telechargerCsv', 'confirmer', 'retirerPremier', 'grouper', 'formaterNombre', 'formaterDate', 'formaterArgent', 'accorder', 'formaterTaille', 'dateDuJour', 'maintenant', 'decalerDate', 'joursEntre', 'formaterDepuis', 'lireMemoire', 'garderMemoire', 'cliquer', 'focaliser', 't', 'langue', 'changerLangue', 'definirTheme'];
+const NOMS_OUTILS = ['creer', 'icone', 'avatar', 'etoiles', 'codeQr', 'carteLieux', 'fenetre', 'observerLeBas', 'titreDeLaPage', 'descriptionDeLaPage', 'activerCarrousel', 'activerMotDePasse', 'afficherMessage', 'planifier', 'planificateur', 'mouvementReduit', 'themeSombre', 'copier', 'partager', 'telechargerCsv', 'confirmer', 'retirerPremier', 'grouper', 'formaterNombre', 'formaterDate', 'formaterArgent', 'accorder', 'formaterTaille', 'dateDuJour', 'maintenant', 'decalerDate', 'joursEntre', 'formaterDepuis', 'lireMemoire', 'garderMemoire', 'cliquer', 'focaliser', 't', 'langue', 'changerLangue', 'definirTheme'];
 const NOMS_NAV = ['naviguer', 'adresseDe', 'filtre', 'revenir', 'changerFiltre', 'apresLaGarde'];
 const NOMS_ADAPT = ['monterModule', 'monterReact', 'monterVue', 'monterSvelte', 'monterWeb'];
-const NOMS_SERVEUR = ['serveur', 'derniereRequete', 'utilisateur', 'televerser', 'REPOS'];
+const NOMS_SERVEUR = ['serveur', 'derniereRequete', 'utilisateur', 'televerser', 'REPOS', 'lectureGardee'];
 
-const utilise = (nom: string, code: string) => new RegExp(`(?<![.\\w$])${nom}\\b(?=\\s*[(.{,\\)\\];]|$)`, 'm').test(code);
+const utilise = (nom: string, code: string) => new RegExp(`(?<![.\\w$])${nom}\\b(?=\\s*[(.{},\\)\\];]|$)`, 'm').test(code);
 
 function importsDe(code: string, dossier: string, moteur: ContexteMoteur, partages: string[]): string {
   const prendre = (noms: string[]) => noms.filter((n) => utilise(n, code));

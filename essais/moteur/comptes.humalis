@@ -1,0 +1,84 @@
+# Essai du moteur : les comptes, le bon en PDF, le déplacement.
+serveur "club" :
+    emails par brevo
+    invitations vers "bienvenue"
+    mot de passe oublie vers "bienvenue"
+    donnee commande :
+        nom : texte
+        total : nombre
+    route "commandes" :
+        tout le monde peut creer commande
+        seul admin peut lire commande
+    route "equipe" :
+        seul admin peut lire comptes
+
+page "accueil" :
+    titre "Connexion"
+    variable taches = ["Un", "Deux", "Trois"]
+    pour chaque t dans taches avec deplacement :
+        texte t
+    quand l'ordre de taches change :
+        afficher reussite "Ordre enregistré"
+    formulaire "entree" :
+        champ email "Email"
+        champ mot de passe "Mot de passe"
+        bouton "Entrer"
+    quand le formulaire "entree" est soumis :
+        se connecter avec champ "Email" et champ "Mot de passe"
+        rediriger vers "equipe"
+
+page "equipe" reservee a admin sinon vers "accueil" :
+    titre "L'équipe"
+    variable membres = []
+    variable commandes = []
+    quand la page se charge :
+        envoyer requete vers "equipe" dans membres
+        envoyer requete vers "commandes" dans commandes
+    pour chaque m dans membres :
+        texte "{m.email} ({m.role})"
+    pour chaque c dans commandes :
+        texte c.nom
+        bouton "Bon"
+        quand l'utilisateur clique sur "Bon" :
+            telecharger bon de commande de c
+    formulaire "invitation" :
+        champ email "Adresse" avec obligatoire
+        bouton "Inviter"
+    quand le formulaire "invitation" est soumis :
+        essayer :
+            inviter champ "Adresse" comme admin
+            afficher reussite "Invitation envoyée"
+        si erreur :
+            afficher erreur "{raison}"
+    formulaire "secret" :
+        champ mot de passe "Actuel" avec obligatoire
+        champ mot de passe "Nouveau" avec obligatoire
+        bouton "Changer"
+    quand le formulaire "secret" est soumis :
+        changer le mot de passe avec champ "Actuel" et champ "Nouveau"
+        afficher reussite "Mot de passe changé"
+    bouton "Sortir"
+    quand l'utilisateur clique sur "Sortir" :
+        se deconnecter
+        rediriger vers "accueil"
+
+page "oublie" :
+    titre "Mot de passe oublié"
+    formulaire "demande" :
+        champ email "Email" avec obligatoire
+        bouton "Recevoir un lien"
+    quand le formulaire "demande" est soumis :
+        demander un lien de mot de passe pour champ "Email"
+        afficher reussite "Un lien vient de partir"
+
+page "bienvenue" :
+    titre "Choisis ton mot de passe"
+    formulaire "choix" :
+        champ mot de passe "Mot de passe" avec obligatoire
+        bouton "Enregistrer"
+    quand le formulaire "choix" est soumis :
+        essayer :
+            choisir le mot de passe avec champ "Mot de passe"
+            afficher reussite "Mot de passe enregistré"
+        si erreur :
+            afficher erreur "{raison}"

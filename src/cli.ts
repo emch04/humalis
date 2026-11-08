@@ -39,7 +39,6 @@ const AIDE = `Utilisation :
   humalis compile <fichier.humalis> --cible desktop --sortie <dossier> [--serveur https://…]
   humalis compile <fichier.humalis> --cible serveur --sortie <dossier>
   humalis compile <fichier.humalis> --cible web --moteur humalis --sortie <dossier> [--adresse https://…]
-          Le site web sans React : le moteur de rendu de Humalis.
   humalis compile <fichier.humalis> --cible statique --sortie <dossier> [--adresse https://…]
   humalis packs [--verifier <dossier>]
 
@@ -150,12 +149,13 @@ function compile(arguments_: string[]): number {
   }
 
   // « --moteur humalis » : le site sans React (le moteur de rendu de Humalis).
-  const moteur = option(arguments_, 'moteur');
+  const moteur = option(arguments_, 'moteur') ?? moteurDuProjet(chemin);
   if (moteur !== undefined && moteur !== 'humalis' && moteur !== 'react') {
     console.error(`Le moteur « ${moteur} » n'existe pas. Moteurs disponibles : react (par défaut), humalis.`);
     return 2;
   }
-  if (moteur === 'humalis') return compileMoteur(application, chemin, sortie, option(arguments_, 'adresse'));
+  // « --composants » écrit des composants React pour un projet React : le moteur n'a pas de sens ici.
+  if (moteur === 'humalis' && composants === undefined) return compileMoteur(application, chemin, sortie, option(arguments_, 'adresse'), option(arguments_, 'diagnostics-port'));
 
   // Ne jamais écraser un travail fait à la main : un dossier non vide doit
   // porter la marque d'un projet produit par Humalis.
@@ -428,7 +428,17 @@ function compileDesktop(application: Application, chemin: string, sortie: string
   return 0;
 }
 
-function compileMoteur(application: Application, chemin: string, sortie: string, adresse?: string): number {
+/** « "moteur": "humalis" » dans le humalis.projet.json à côté du fichier. */
+function moteurDuProjet(chemin: string): string | undefined {
+  try {
+    const manifeste = JSON.parse(readFileSync(join(dirname(chemin), 'humalis.projet.json'), 'utf8')) as { moteur?: unknown };
+    return typeof manifeste.moteur === 'string' ? manifeste.moteur : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function compileMoteur(application: Application, chemin: string, sortie: string, adresse?: string, portDiagnostics?: string): number {
   if (application.ecrans.length === 0) {
     console.error(`Le fichier ${basename(chemin)} ne contient aucune page : rien n'a été écrit.`);
     return 1;
@@ -451,7 +461,13 @@ function compileMoteur(application: Application, chemin: string, sortie: string,
   const medias = lireMedias(application, chemin);
   if (!medias) return 1;
   const nom = basename(chemin).replace(/\.humalis$/, '');
-  const fichiers = genererProjetMoteur(application, { nom, source: basename(chemin), fichiersStyle, polices, images, medias, externes, ...(adresse ?? application.site?.adresse ? { adresse: adresse ?? application.site?.adresse } : {}) });
+  const fichiers = genererProjetMoteur(application, { nom, source: basename(chemin), fichiersStyle, polices, images, medias, externes, ...(adresse ?? application.site?.adresse ? { adresse: adresse ?? application.site?.adresse } : {}), ...(portDiagnostics !== undefined ? { sources: fichiersDuProjet } : {}) });
+  // « humalis developper » : l'aide au survol et le panneau des erreurs, dans chaque page.
+  if (portDiagnostics !== undefined) {
+    for (const [nom, contenu] of fichiers) {
+      if (nom.endsWith('.html')) fichiers.set(nom, contenu.replace('</body>', `<script type="module" src="http://localhost:${portDiagnostics}/diagnostics.js"></script></body>`));
+    }
+  }
   ecrire(sortie, fichiers);
   console.error(`Site écrit dans « ${sortie} » avec le moteur Humalis (${fichiers.size} fichiers).`);
   console.error(`Pour le lancer : cd ${sortie} && npm install && npm run dev`);

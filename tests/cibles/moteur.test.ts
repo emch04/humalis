@@ -164,6 +164,11 @@ describe('le moteur : le projet produit', () => {
     if (code) expect(code).not.toContain("attribut(r[0], 'href', () => u.v)");
   });
 
+  it('un outil passé en valeur est bien importé', () => {
+    const code = projet('page "a" :\n    apres 1 secondes :\n        afficher "x"\n').get('src/couches/a.js')!;
+    expect(code).toMatch(/import \{[^}]*afficherMessage[^}]*\} from '\.\.\/humalis\/outils\.js'/);
+  });
+
   it('refuse un secret dans le navigateur, comme la cible web', () => {
     const { application } = compiler('page "a" :\n    variable t = "" avec memorisee en secret\n    texte t\n');
     if (application) expect(verifierPourLeMoteur(application).some((d) => d.gravite === 'erreur')).toBe(true);

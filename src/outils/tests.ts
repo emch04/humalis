@@ -34,6 +34,7 @@ import { fileURLToPath } from 'node:url';
 import { trouverPrincipal } from './developpement.js';
 import { executerDansChromium } from './tests-web.js';
 import { ligneVerification, resumeVerifications } from './rapport-tests.js';
+import { VERSIONS } from '../cibles/web/projet.js';
 
 export async function testerProjet(cible: string, detail = false): Promise<number> {
   const fichierUnique = cible.endsWith('.test.humalis');
@@ -51,6 +52,11 @@ export async function testerProjet(cible: string, detail = false): Promise<numbe
   if (!existsSync(join(sortie, 'node_modules', 'vite'))) {
     const installation = spawnSync('npm', ['install', '--no-audit', '--no-fund'], { cwd: sortie, encoding: 'utf8' });
     if (installation.status !== 0) { console.error(`Installation impossible dans « ${sortie} » : ${installation.stderr || installation.error?.message}`); return 1; }
+  }
+  // Un projet du moteur n'a pas besoin de Playwright pour se construire : seulement pour ces tests.
+  if (!existsSync(join(sortie, 'node_modules', 'playwright'))) {
+    const installation = spawnSync('npm', ['install', '--no-save', '--no-audit', '--no-fund', `playwright@${VERSIONS.playwright}`], { cwd: sortie, encoding: 'utf8' });
+    if (installation.status !== 0) { console.error(`Installation de Playwright impossible : ${installation.stderr || installation.error?.message}`); return 1; }
   }
   const construction = spawnSync('npm', ['run', 'build'], { cwd: sortie, encoding: 'utf8' });
   if (construction.status !== 0) { console.error(`Construction impossible : ${construction.stderr || construction.error?.message}`); return 1; }

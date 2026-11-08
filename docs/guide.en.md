@@ -2512,6 +2512,7 @@ target, the compiler says so clearly instead of producing something wrong.
 | `essayer` | yes | no | yes | yes |
 | Keyboard shortcuts | yes | yes | no | yes |
 | React components | yes | no | yes (in React Native) | yes |
+| The engine without React (`--moteur humalis`) | yes | no | no | no |
 | Sitemap, share preview | yes | yes | no | no |
 
 The server (`--cible serveur`) is generated separately, from the `serveur`
@@ -2529,7 +2530,9 @@ humalis compile site.humalis --cible web --moteur humalis --sortie site
 
 Each page is an HTML file already written by the compiler, which a small script
 picks up without rebuilding it. When a variable changes, only what reads it
-changes. Without this option, the site is still produced with React.
+changes. Without this option, the site is still produced with React. For a project, write
+it once in `humalis.projet.json`: `"moteur": "humalis"`; `humalis developper` and
+`humalis tester` use it too.
 
 Modules (`utiliser module`), React components and Web Components work the same
 way: the file is loaded only by the pages that use it. Anything shown after

@@ -12,7 +12,7 @@ import { LEAFLET_JS, LEAFLET_CSS } from '../statique/leaflet-donnees.js';
 import { GRAPHIQUE_JS } from '../statique/graphique.js';
 import { avecDisposition } from '../statique/disposition.js';
 import { connaitreFonctions, nomJs, expressionJs, reserverNoms } from '../statique/valeurs.js';
-import { messagesDuSiteStatique } from '../../i18n/messages.js';
+import { choixFichierEnLangues, messageEnCode, messageEnLangues, messagesDuSiteStatique, traduireMessages } from '../../i18n/messages.js';
 import { echapperAttribut, echapperTexte } from '../statique/html.js';
 import { cheminsDesPages, styles, nomsDesStyles, VERSIONS, verifierPourLeWeb, CENTRALE_WEB } from '../web/projet.js';
 import { cssEcran } from '../web/css-ecran.js';
@@ -44,6 +44,8 @@ export interface OptionsMoteur {
   adresse?: string;
   /** Les modules et composants externes : leur nom de fichier et leur contenu. */
   externes?: Map<string, { nom: string; contenu: string }>;
+  /** Le mode développement : les fichiers du projet ; chaque élément porte alors son fichier et sa ligne. */
+  sources?: readonly string[];
 }
 
 const ecranVide = (nom: string): Ecran => ({ nom, etat: [], calculs: [], vue: [], gestionnaires: [], ligne: 0 });
@@ -76,12 +78,14 @@ function produire(application: Application, options: OptionsMoteur): Map<string,
     cle: `humalis:${simplifier(options.nom) || 'application'}`,
     fichiers: chemins,
     chemins,
+    ...(application.site?.descriptionLangues ? { descriptionSite: messageEnCode(application.site.descriptionLangues, chaine) } : {}),
     filtresDesPages: new Map(application.ecrans.filter((e) => e.filtres?.length).map((e) => [e.nom, e.filtres!.map((f) => f.nom)])),
     composants: new Map(application.composants.map((c) => [c.nom, c])),
     externes,
     medias: options.medias,
     fonctionsGlobales: application.fonctions.map((f) => nomJs(f.nom)),
     ...(application.langues ? { langues: application.langues } : {}),
+    ...(options.sources ? { reperes: options.sources } : {}),
   };
   connaitreFonctions(application.fonctions);
 
@@ -216,7 +220,24 @@ enregistrer(import.meta.url, [${couches.map((c, i) => `[${chaine(c.id)}, c${i}${
     if (ecran.nom !== 'introuvable') routes.push({ chemin, fichier: chemin.includes(':') ? `/${dossierDe(chemin)}/` : chemin === '/' ? '/' : `${chemin.replace(/\/+$/, '')}/` });
   }
   if (!fichiers.has('404.html')) {
-    fichiers.set('404.html', pageHtml('Page introuvable', "Cette page n'existe pas.", feuilles, undefined, '<h1>Page introuvable</h1>\n<p>Cette page n\'existe pas.</p>\n<a href="/">Revenir à l\'accueil</a>', { bascule: false, langue }, []));
+    // Plusieurs langues : la page introuvable passe dans la langue de la personne.
+    const codes = application.langues?.map((l) => l.code);
+    const traduit = (texte: string) => {
+      const versions = codes ? messageEnLangues(texte, codes) : undefined;
+      return versions ? messageEnCode(versions, chaine) : chaine(texte);
+    };
+    if (codes) {
+      fichiers.set('src/routes/introuvable.js', `// Produit par Humalis : la page introuvable, dans la langue de la personne.
+import { t, relireLangue } from '../humalis/outils.js';
+
+relireLangue();
+document.querySelector('h1').textContent = ${traduit('Page introuvable')};
+document.querySelector('p').textContent = ${traduit("Cette page n'existe pas.")};
+document.querySelector('main a').textContent = ${traduit("Revenir à l'accueil")};
+document.title = ${traduit('Page introuvable')};
+`);
+    }
+    fichiers.set('404.html', pageHtml('Page introuvable', "Cette page n'existe pas.", feuilles, codes ? '/src/routes/introuvable.js' : undefined, '<h1>Page introuvable</h1>\n<p>Cette page n\'existe pas.</p>\n<a href="/">Revenir à l\'accueil</a>', { bascule: false, langue }, []));
     entrees.push(['introuvable', '404.html']);
   }
 
@@ -241,11 +262,20 @@ enregistrer(import.meta.url, [${couches.map((c, i) => `[${chaine(c.id)}, c${i}${
   if (textes.some((c) => c.includes('humalis-menu-bouton'))) site.push(MENU_REPLIABLE_JS);
   if (suitLEntete(textes)) site.push(`${SUIVI_ENTETE}\nsuivreLaHauteurDeLEntete();`);
   if (animeAuDefilement(textes)) site.push(`${OBSERVATEUR_DEFILEMENT}\nobserverLeDefilement();`);
+  const codes = [...fichiers.entries()].filter(([n]) => n.endsWith('.js')).map(([, c]) => c);
+  const emploie = (motif: RegExp) => codes.some((c) => motif.test(c));
+  const besoinsNavigation = {
+    minuteries: emploie(/return \{[^}]*\bminuteries\b/),
+    raccourcis: emploie(/return \{[^}]*\braccourcis\b/),
+    // Une minuterie des fonctions écrites en haut du fichier : sans couche, elle s'arrête au changement de page.
+    planifie: /\bplanifier\(/.test(fichiers.get('src/humalis/fonctions.js') ?? ''),
+    adressesRecues: emploie(/naviguer\(String\(/),
+  };
   fichiers.set('src/humalis/moteur.js', MOTEUR_JS);
   fichiers.set('src/humalis/outils.js', avecDureeDesErreurs(outilsJs({ usage, langues: application.langues, ...(bascule ? { theme: modeTheme ?? '' } : {}) }), application));
   fichiers.set(
     'src/humalis/navigation.js',
-    `${surveillee ? "import './centrale.ts';\n" : ''}${site.length ? "import './site.js';\n" : ''}${navigationJs(routes, { partages: application.partages.length > 0, session, langues: application.langues !== undefined, pages: pagesTable })}`,
+    `${surveillee ? "import './centrale.ts';\n" : ''}${site.length ? "import './site.js';\n" : ''}${navigationJs(routes, { partages: application.partages.length > 0, session, langues: application.langues !== undefined, pages: pagesTable, ...besoinsNavigation })}`,
   );
   if (site.length) fichiers.set('src/humalis/site.js', `// Produit par Humalis : ce qui vaut pour tout le site.\n${site.join('\n')}\n`);
   if (application.composantsReact.length > 0) fichiers.set('src/humalis/adaptateurs.js', adaptateursJs(externes));
@@ -289,7 +319,14 @@ enregistrer(import.meta.url, [${couches.map((c, i) => `[${chaine(c.id)}, c${i}${
   // Plusieurs langues : les messages de Humalis passent par t().
   if (application.langues) {
     const noms: [string, string][] = [['src/humalis/outils.js', 'humalis/humalis.js'], ['src/humalis/graphique.js', 'humalis/graphique.js']];
-    const temporaire = new Map([...fichiers].filter(([n]) => n.endsWith('.js') && n !== 'src/humalis/moteur.js' && n !== 'src/humalis/navigation.js' && !n.startsWith('public/')).map(([n, c]): [string, string] => [noms.find(([a]) => a === n)?.[1] ?? n, c]));
+    const seuls = ['src/humalis/fichier.js', 'src/humalis/deplacement.js', 'src/humalis/serveur.js'];
+    for (const n of seuls) {
+      const c = fichiers.get(n);
+      if (c === undefined) continue;
+      const traduit = traduireMessages(c, application.langues.map((l) => l.code), { partout: true, importer: './outils.js' });
+      fichiers.set(n, n.endsWith('fichier.js') ? choixFichierEnLangues(traduit) : traduit);
+    }
+    const temporaire = new Map([...fichiers].filter(([n]) => n.endsWith('.js') && !seuls.includes(n) && n !== 'src/humalis/moteur.js' && n !== 'src/humalis/navigation.js' && !n.startsWith('public/')).map(([n, c]): [string, string] => [noms.find(([a]) => a === n)?.[1] ?? n, c]));
     messagesDuSiteStatique(temporaire, application.langues.map((l) => l.code));
     for (const [n, c] of temporaire) {
       const vrai = noms.find(([, b]) => b === n)?.[0] ?? n;
@@ -312,7 +349,7 @@ enregistrer(import.meta.url, [${couches.map((c, i) => `[${chaine(c.id)}, c${i}${
     private: true,
     version: '0.1.0',
     type: 'module',
-    scripts: { dev: 'vite', build: 'vite build', preview: 'vite preview' },
+    scripts: { dev: 'vite', build: 'vite build', 'build:sans-prerendu': 'vite build', preview: 'vite preview' },
     ...(Object.keys(dependances).length ? { dependencies: dependances } : {}),
     devDependencies: { vite: VERSIONS.vite, ...paquets.dependancesDev },
   }, null, 2) + '\n');
