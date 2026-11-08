@@ -1975,7 +1975,7 @@ function routeDirect(variable: string, garde: string): string {
         res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', 'X-Accel-Buffering': 'no', Connection: 'keep-alive' });
         res.write(': ouvert\\n\\n');
         ecoutes${variable}.add(res);
-        const battement = setInterval(() => res.write(': present\\n\\n'), 25000);
+        const battement = setInterval(() => res.write('event: present\\ndata: 1\\n\\n'), 25000);
         req.on('close', () => {
           clearInterval(battement);
           ecoutes${variable}.delete(res);

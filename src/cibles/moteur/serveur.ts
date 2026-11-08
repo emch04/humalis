@@ -83,7 +83,20 @@ export function directDeCouche() {
   return (adresse, relire) => {
     if (ouverts.has(adresse)) return;
     let attente;
+    let relance;
+    let flux;
     let dejaOuvert = false;
+    let delai = 1000;
+    let fini = false;
+    let veille;
+    // Une coupure peut être muette (un relais qui garde la connexion ouverte) : sans nouvelles du serveur, on rouvre.
+    const vivant = () => {
+      clearTimeout(veille);
+      veille = setTimeout(() => {
+        flux.close();
+        ouvrir();
+      }, 60000);
+    };
     const rafraichir = () => {
       clearTimeout(attente);
       attente = setTimeout(() => {
@@ -91,14 +104,38 @@ export function directDeCouche() {
         relire();
       }, 120);
     };
-    const flux = new EventSource(BASE + adresse + '/direct', { withCredentials: BASE !== '' });
-    flux.onmessage = rafraichir;
-    // Une reconnexion : on rattrape ce qui a changé pendant la coupure.
-    flux.onopen = () => {
-      if (dejaOuvert) rafraichir();
-      dejaOuvert = true;
+    const ouvrir = () => {
+      flux = new EventSource(BASE + adresse + '/direct', { withCredentials: BASE !== '' });
+      flux.onmessage = () => {
+        vivant();
+        rafraichir();
+      };
+      flux.addEventListener('present', vivant);
+      // Une reconnexion : on rattrape ce qui a changé pendant la coupure.
+      flux.onopen = () => {
+        vivant();
+        delai = 1000;
+        if (dejaOuvert) rafraichir();
+        dejaOuvert = true;
+      };
+      // Un relais qui répond une erreur ferme le flux pour de bon : on rouvre nous-mêmes, de plus en plus lentement.
+      flux.onerror = () => {
+        if (fini || flux.readyState !== 2) return;
+        clearTimeout(veille);
+        relance = setTimeout(ouvrir, delai);
+        delai = Math.min(delai * 2, 30000);
+      };
     };
-    ouverts.set(adresse, flux);
+    ouvrir();
+    ouverts.set(adresse, {
+      close() {
+        fini = true;
+        clearTimeout(attente);
+        clearTimeout(relance);
+        clearTimeout(veille);
+        flux.close();
+      },
+    });
   };
 }
 
