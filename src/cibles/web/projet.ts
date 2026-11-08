@@ -1,5 +1,5 @@
 import { copiesDesMedias } from '../../ri/medias.js';
-import { dependancesDesComposantsReact, enveloppeDifferee, utiliseLa3D } from './composants-react.js';
+import { dependancesDesComposantsReact, enveloppeDifferee, enveloppeModule, utiliseLa3D } from './composants-react.js';
 import { robotsTxt, manifeste, fichiersDuSite, balisesIcone, estExterne } from '../publication.js';
 import { sousActions } from '../../ri/actions.js';
 import { cssEcran } from './css-ecran.js';
@@ -101,7 +101,10 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
     if (!fichier) throw new Error(`le composant « ${c.nom} » (${c.chemin}) n'a pas été lu`);
     fichiers.set(`src/composants/${fichier.nom}`, fichier.contenu);
     const module = fichier.nom.replace(/\.(tsx|ts|jsx|js)$/, '');
-    if (utiliseLa3D(fichier.contenu)) {
+    if (c.module) {
+      fichiers.set(`src/composants/${module}.module.tsx`, enveloppeModule(module));
+      modulesComposants.set(c.nom, `${module}.module`);
+    } else if (utiliseLa3D(fichier.contenu)) {
       fichiers.set(`src/composants/${module}.differe.tsx`, enveloppeDifferee(module));
       modulesComposants.set(c.nom, `${module}.differe`);
     } else {

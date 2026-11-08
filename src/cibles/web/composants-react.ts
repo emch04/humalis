@@ -74,3 +74,64 @@ export default function ComposantDiffere(props: Proprietes) {
 }
 `;
 }
+
+/**
+ * L'enveloppe d'un « utiliser module » : le contrat est `(element, proprietes) => retour`, sans framework.
+ * Le retour est une fonction de nettoyage, ou `{ mettreAJour(proprietes), detruire() }` ; sans `mettreAJour`,
+ * le module est relancé quand ses propriétés changent. Le fichier est chargé à part.
+ */
+export function enveloppeModule(module: string): string {
+  return `// Produit par Humalis : relie un module JavaScript à la page. Le module ne dépend d'aucun framework.
+import { useEffect, useRef, useState } from 'react';
+
+type Proprietes = Record<string, unknown>;
+type Instance = void | (() => void) | { mettreAJour?: (proprietes: Proprietes) => void; detruire?: () => void };
+type Module = (element: HTMLElement, proprietes: Proprietes) => Instance | Promise<Instance>;
+
+const charger = () => import('./${module}') as unknown as Promise<{ default: Module }>;
+const fermer = (instance: Instance) => {
+  if (typeof instance === 'function') instance();
+  else instance?.detruire?.();
+};
+
+export default function ModuleHumalis(props: Proprietes) {
+  const cadre = useRef<HTMLDivElement>(null);
+  const proprietes = useRef(props);
+  proprietes.current = props;
+  const instance = useRef<Instance>(undefined);
+  const premiere = useRef(true);
+  const [relance, relancer] = useState(0);
+  const cle = JSON.stringify(props);
+
+  useEffect(() => {
+    let fini = false;
+    const element = cadre.current!;
+    charger()
+      .then((m) => m.default(element, proprietes.current))
+      .then((i) => {
+        if (fini) fermer(i);
+        else instance.current = i;
+      })
+      .catch((erreur) => console.error(erreur));
+    return () => {
+      fini = true;
+      fermer(instance.current);
+      instance.current = undefined;
+      element.replaceChildren();
+    };
+  }, [relance]);
+
+  useEffect(() => {
+    if (premiere.current) {
+      premiere.current = false;
+      return;
+    }
+    const i = instance.current;
+    if (i && typeof i === 'object' && i.mettreAJour) i.mettreAJour(proprietes.current);
+    else relancer((n) => n + 1);
+  }, [cle]);
+
+  return <div ref={cadre} />;
+}
+`;
+}

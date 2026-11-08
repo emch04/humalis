@@ -2382,6 +2382,32 @@ together: `three`, `@react-three/fiber`, `@react-three/drei`,
 `@react-three/postprocessing`, `postprocessing`, `gsap` and `lenis`. Any other
 package is installed at its latest version.
 
+### A JavaScript module
+
+To use a JavaScript library without React (Three.js, GSAP…), write a module. It
+receives the element to draw in and its properties, and returns a function that
+cleans up when the page is left (web and desktop):
+
+```humalis
+utiliser module "Scene3D" depuis "./modules/Scene3D"
+
+page "home" :
+    Scene3D avec couleur "#c1e928"
+```
+
+```js
+export default function Scene3D(element, properties) {
+  // draw in "element"
+  return () => {
+    // clean up
+  };
+}
+```
+
+The module is loaded separately and its packages are added to the project. When
+a property changes, it is restarted. If it can update itself, it returns
+`{ mettreAJour(properties) { … }, detruire() { … } }`.
+
 The other way round, `humalis compile … --composants <folder>` generates React
 components to import into an existing React project.
 

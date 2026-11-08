@@ -203,16 +203,19 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
       continue;
     }
 
-    if (flux.verifier('MOT_CLE', 'utiliser') && estLeMot(flux.regarder(1), 'composant')) {
+    // « utiliser composant » : du React. « utiliser module » : du JavaScript simple, sans framework.
+    if (flux.verifier('MOT_CLE', 'utiliser') && (estLeMot(flux.regarder(1), 'composant') || estLeMot(flux.regarder(1), 'module'))) {
       const debut = flux.avancer();
-      flux.avancer();
-      const nom = flux.attendre('CHAINE', undefined, 'le nom du composant entre guillemets').valeur;
+      const estModule = estLeMot(flux.avancer(), 'module');
+      const genre = estModule ? 'module' : 'composant';
+      const fichier = estModule ? 'fichier JavaScript' : 'fichier React';
+      const nom = flux.attendre('CHAINE', undefined, `le nom du ${genre} entre guillemets`).valeur;
       if (!estLeMot(flux.actuel(), 'depuis')) {
-        flux.attendre('IDENTIFIANT', 'depuis', '« depuis » suivi du chemin du fichier React');
+        flux.attendre('IDENTIFIANT', 'depuis', `« depuis » suivi du chemin du ${fichier}`);
       }
       flux.avancer();
-      const chemin = flux.attendre('CHAINE', undefined, 'le chemin du fichier React entre guillemets').valeur;
-      composantsReact.push({ type: 'ComposantReact', nom, chemin, ligne: debut.ligne });
+      const chemin = flux.attendre('CHAINE', undefined, `le chemin du ${fichier} entre guillemets`).valeur;
+      composantsReact.push({ type: 'ComposantReact', nom, chemin, ligne: debut.ligne, ...(estModule ? { module: true as const } : {}) });
       flux.sauterFinsDeLigne();
       continue;
     }

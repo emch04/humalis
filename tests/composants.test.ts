@@ -3,6 +3,8 @@ import { analyser } from '../src/lexer/lexer.js';
 import { analyserSyntaxe } from '../src/parser/parser.js';
 import { compiler } from './aide-qualite.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
+import { verifierModulesPourLeMobile } from '../src/cibles/mobile/projet.js';
+import { verifierNomsPourLeWeb } from '../src/cibles/sources.js';
 import { dependancesDesComposantsReact, paquetsImportes } from '../src/cibles/web/composants-react.js';
 import { programme, erreurs, avertissements } from './analyse/aide.js';
 
@@ -182,5 +184,49 @@ const g = await import('gsap/ScrollTrigger');
     const ordinaire = avec('Carte.tsx', 'export default function Carte() { return null; }');
     expect(ordinaire.has('src/composants/Carte.differe.tsx')).toBe(false);
     expect(ordinaire.get('src/pages/Accueil.tsx')).toContain("composants/Carte'");
+  });
+});
+
+describe('utiliser module — JavaScript sans framework', () => {
+  const source = 'utiliser module "Scene3D" depuis "./modules/Scene3D"\n\npage "accueil" :\n    variable c = "#fff"\n    Scene3D avec couleur c\n';
+  const genere = () =>
+    genererProjetWeb(compiler(source).application!, {
+      nom: 'b', adresse: 'http://localhost', source: 'b.humalis',
+      composantsReact: new Map([['./modules/Scene3D', { nom: 'Scene3D.js', contenu: "import * as THREE from 'three';\nexport default function Scene3D(e) { return () => {}; }" }]]),
+    });
+
+  it('se lit, avec le genre module', () => {
+    expect(analyserSyntaxe(analyser(source)).composantsReact).toEqual([
+      { type: 'ComposantReact', nom: 'Scene3D', chemin: './modules/Scene3D', ligne: 1, module: true },
+    ]);
+  });
+
+  it('dit ce qui manque', () => {
+    expect(() => analyserSyntaxe(analyser('utiliser module "A" "./a"\npage "a" :\n    titre "A"'))).toThrow(/depuis/);
+  });
+
+  it('recopie le fichier, le relie par une enveloppe chargée à part, ajoute ses paquets', () => {
+    const f = genere();
+    expect(f.get('src/composants/Scene3D.js')).toContain('function Scene3D');
+    expect(f.get('src/composants/Scene3D.module.tsx')).toContain("import('./Scene3D')");
+    expect(f.get('src/pages/Accueil.tsx')).toContain('composants/Scene3D.module');
+    expect(f.get('src/pages/Accueil.tsx')).toContain('<Scene3D couleur={c} />');
+    expect(f.has('src/composants/Scene3D.differe.tsx')).toBe(false);
+    expect(JSON.parse(f.get('package.json')!).dependencies.three).toBe('0.187.0');
+  });
+
+  it('refuse un nom déjà pris par un élément de Humalis', () => {
+    const application = compiler('utiliser module "Compteur" depuis "./m"\n\npage "accueil" :\n    Compteur\n').application!;
+    expect(verifierNomsPourLeWeb(application)[0]).toMatchObject({ gravite: 'erreur', ligne: 1 });
+    expect(verifierNomsPourLeWeb(compiler(source).application!)).toEqual([]);
+  });
+
+  it('un module est refusé sur le mobile', () => {
+    expect(verifierModulesPourLeMobile(compiler(source).application!)[0]).toMatchObject({ gravite: 'erreur', ligne: 1 });
+    expect(verifierModulesPourLeMobile(compiler(avecCarte).application!)).toEqual([]);
+  });
+
+  it('un composant React reste un composant React', () => {
+    expect(analyserSyntaxe(analyser(avecCarte)).composantsReact[0]).not.toHaveProperty('module');
   });
 });

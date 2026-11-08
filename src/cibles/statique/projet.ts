@@ -329,7 +329,7 @@ export function verifierPourLeStatique(application: Application): Diagnostic[] {
     diagnostics.push({
       gravite: 'erreur',
       ligne: c.ligne,
-      message: `le composant React « ${c.nom} » ne peut pas être utilisé sur la cible statique : un site statique n'a pas React. Écris-le en Humalis (composant "${c.nom}" :), ou compile pour le web.`,
+      message: c.module ? `le module « ${c.nom} » n'est pas encore pris en charge sur la cible statique. Utilise la cible web.` : `le composant React « ${c.nom} » ne peut pas être utilisé sur la cible statique : un site statique n'a pas React. Écris-le en Humalis (composant "${c.nom}" :), ou compile pour le web.`,
     });
   }
   // « avec deplacement » : pas encore écrit en JavaScript clair pour le site statique.

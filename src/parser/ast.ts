@@ -298,6 +298,8 @@ export interface ComposantReact {
   nom: string;
   chemin: string;
   ligne: number;
+  /** « utiliser module » : du JavaScript simple, `(element, proprietes) => nettoyage`, sans React. */
+  module?: true;
 }
 
 /** « composant "Fiche" : » : un morceau de page réutilisable, avec ses paramètres. */

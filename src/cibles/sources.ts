@@ -26,6 +26,20 @@ export function verifierSourcesPourLaCible(application: Application, cible: 'mob
  * d'adresse, les ancres, « revenir » et les liens externes ne sont produits que pour le
  * web et le desktop.
  */
+/** Les éléments que le code React produit importe déjà sous ce nom. */
+const NOMS_INTERNES_WEB = new Set(['Avatar', 'Etoiles', 'Compteur', 'Carrousel', 'CarteLieux', 'Graphique', 'ChoixFichier', 'MotDePasse', 'SelecteurLangue', 'QRCodeSVG']);
+
+/** Web et bureau : un composant nommé comme un élément de Humalis ne compilerait pas. */
+export function verifierNomsPourLeWeb(application: Application): Diagnostic[] {
+  return application.composantsReact
+    .filter((c) => NOMS_INTERNES_WEB.has(c.nom))
+    .map((c) => ({
+      gravite: 'erreur' as const,
+      ligne: c.ligne,
+      message: `le nom « ${c.nom} » est déjà celui d'un élément de Humalis : renommez-le (par exemple « Mon${c.nom} »).`,
+    }));
+}
+
 export function verifierNavigationPourLaCible(application: Application, cible: 'mobile' | 'statique'): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
   for (const e of application.ecrans) {

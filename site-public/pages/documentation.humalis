@@ -3359,6 +3359,21 @@ page "documentation_30" dans "documentation" adresse "/documentation/composants-
                 titre "My portfolio"
                 Scene3D avec couleur "#c1e928"
         texte "A component that imports `three` or `@react-three/…` is loaded separately: the page text appears without waiting for the 3D. These packages have versions tried together: `three`, `@react-three/fiber`, `@react-three/drei`, `@react-three/postprocessing`, `postprocessing`, `gsap` and `lenis`. Any other package is installed at its latest version."
+        soustitre "A JavaScript module"
+        texte "To use a JavaScript library without React (Three.js, GSAP…), write a module. It receives the element to draw in and its properties, and returns a function that cleans up when the page is left (web and desktop):"
+        code humalis :
+            utiliser module "Scene3D" depuis "./modules/Scene3D"
+
+            page "home" :
+                Scene3D avec couleur "#c1e928"
+        code texte :
+            export default function Scene3D(element, properties) {
+              // draw in "element"
+              return () => {
+                // clean up
+              };
+            }
+        texte "The module is loaded separately and its packages are added to the project. When a property changes, it is restarted. If it can update itself, it returns `{ mettreAJour(properties) { … }, detruire() { … } }`."
         texte "The other way round, `humalis compile … --composants <folder>` generates React components to import into an existing React project."
         soustitre "Several files"
         texte "A large project is split into several files. At the top of the main file:"
@@ -3400,6 +3415,21 @@ page "documentation_30" dans "documentation" adresse "/documentation/composants-
                 titre "Mon portfolio"
                 Scene3D avec couleur "#c1e928"
         texte "Un composant qui importe `three` ou `@react-three/…` est chargé à part : le texte de la page s'affiche sans attendre la 3D. Ces paquets ont des versions essayées ensemble : `three`, `@react-three/fiber`, `@react-three/drei`, `@react-three/postprocessing`, `postprocessing`, `gsap` et `lenis`. Un autre paquet est installé dans sa dernière version."
+        soustitre "Un module JavaScript"
+        texte "Pour utiliser une bibliothèque JavaScript sans React (Three.js, GSAP…), écris un module. Il reçoit l'élément où dessiner et ses propriétés, et rend une fonction qui nettoie quand on quitte la page (web et desktop) :"
+        code humalis :
+            utiliser module "Scene3D" depuis "./modules/Scene3D"
+
+            page "accueil" :
+                Scene3D avec couleur "#c1e928"
+        code texte :
+            export default function Scene3D(element, proprietes) {
+              // dessine dans « element »
+              return () => {
+                // nettoie
+              };
+            }
+        texte "Le module est chargé à part, et ses paquets sont ajoutés au projet. Quand une propriété change, il est relancé. S'il sait se mettre à jour lui-même, il rend `{ mettreAJour(proprietes) { … }, detruire() { … } }`."
         texte "Dans l'autre sens, `humalis compile … --composants <dossier>` produit des composants React à importer dans un projet React existant."
         soustitre "Plusieurs fichiers"
         texte "Un grand projet se range en plusieurs fichiers. En haut du fichier principal :"
