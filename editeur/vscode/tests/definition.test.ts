@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { definir } from '../src/langage/definition.js';
+import { definir, fichierComposantReact } from '../src/langage/definition.js';
 import { col, exemple, indexDe } from './aide-langage.js';
 
 const BOUTIQUE = exemple('boutique.humalis');
@@ -140,5 +140,24 @@ describe('definir : dans un bloc de mise en page (section, ligne…)', () => {
   const SOURCE = 'page "a" :\n    section "Compteur" :\n        variable n = 0\n        ligne :\n            texte "{n}"\n';
   it('mène d’une variable lue dans une ligne à sa déclaration dans la section', () => {
     expect(definir(indexDe(SOURCE), 5, col(SOURCE, 5, 'n'))).toMatchObject({ ligne: 3, colonne: col(SOURCE, 3, 'n') });
+  });
+});
+
+describe('definir : un composant React', () => {
+  const SOURCE = 'utiliser composant "Scene" depuis "./composants/Scene"\n\npage "a" :\n    Scene\n';
+  const CHEMIN = '/projet/site.humalis';
+
+  it('ouvre le fichier .jsx depuis le chemin écrit après « depuis »', () => {
+    const lieu = definir(indexDe(SOURCE, CHEMIN), 1, col(SOURCE, 1, './composants', 2), (c) => c === '/projet/composants/Scene.jsx');
+    expect(lieu).toMatchObject({ fichier: '/projet/composants/Scene.jsx', ligne: 1 });
+  });
+
+  it('préfère .tsx à .jsx, comme le compilateur', () => {
+    const present = new Set(['/projet/Scene.jsx', '/projet/Scene.tsx']);
+    expect(fichierComposantReact(CHEMIN, './Scene', (c) => present.has(c))).toBe('/projet/Scene.tsx');
+  });
+
+  it('ne mène nulle part si le fichier n’existe pas', () => {
+    expect(definir(indexDe(SOURCE, CHEMIN), 1, col(SOURCE, 1, './composants', 2), () => false)).toBeUndefined();
   });
 });
