@@ -4,7 +4,7 @@ import { langueDuMot } from '../i18n/langues.js';
 import { texteSource } from '../parser/langues.js';
 import { lireExpressionDuTexte } from '../parser/parser.js';
 import { ErreurSyntaxique } from '../parser/erreurs.js';
-import type { FaireAction, TelechargementDocument } from '../parser/ast.js';
+import type { FaireAction, Paiement, TelechargementDocument } from '../parser/ast.js';
 import type {
   Programme,
   RegleSource,
@@ -119,7 +119,7 @@ export interface ResultatAnalyse {
   champs: Map<Expression, string>;
   /** L'adresse réelle d'une requête vers une route du serveur (« /api/produits »). */
   /** L'adresse réelle (« /api/produits ») d'une requête, d'une modification ou d'une suppression. */
-  adressesRequetes: Map<Requete | Suppression | Modification | TelechargementBon | FaireAction | TelechargementDocument, string>;
+  adressesRequetes: Map<Requete | Suppression | Modification | TelechargementBon | FaireAction | TelechargementDocument | Paiement, string>;
   /** Les « {…} » qui sont des calculs : « {nombre de panier} ». */
   expressions: Map<PartieChaine, Expression>;
   /** Les routes (adresse normalisée) dont une page télécharge le bon : le serveur produit ne sert que celles-là. */
@@ -205,6 +205,8 @@ interface Liens {
   donnees: Map<string, Donnee>;
   /** Le nom de chaque « … peut faire "x" », et l'adresse de sa route. */
   actions?: Map<string, string>;
+  /** Chaque donnée payable, et l'adresse de sa route. */
+  payees?: Map<string, string>;
   /** « ia par anthropic » dans le serveur du fichier. */
   ia?: boolean;
   actionsDonnees?: Map<string, string>;
@@ -348,7 +350,7 @@ export function analyserSens(programme: Programme, classesCss?: Set<string>): Re
   );
   const partages = globale.declarerPartages(programme.partages);
 
-  const liens: Liens = { ia: programme.serveurs.some((s) => s.ia), actionsDonnees: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, a.donnee] as [string, string])))), documentsDonnees: new Map(programme.serveurs.flatMap((s) => (s.documents ?? []).map((d) => [d.nom, d.donnee] as [string, string]))), documents: new Map(programme.serveurs.flatMap((s) => (s.documents ?? []).flatMap((d) => { const route = s.routes.find((r) => r.regles.some((x) => x.donnee === d.donnee && x.actions.includes('lire'))); return route ? [[d.nom, route.adresse] as [string, string]] : []; }))), actions: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, r.adresse] as [string, string])))), sources: new Map(), serveur: programme.serveurs[0]?.nom, connexionGoogle: programme.serveurs[0]?.connexionGoogle !== undefined, comptes: { invitations: programme.serveurs[0]?.invitations !== undefined, oublie: programme.serveurs[0]?.motDePasseOublie !== undefined }, fidelite: programme.serveurs[0]?.fidelite, routes: new Map(), donnees: new Map() };
+  const liens: Liens = { payees: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.apresPaiement ? [[r.apresPaiement.donnee, r.adresse] as [string, string]] : [])))), ia: programme.serveurs.some((s) => s.ia), actionsDonnees: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, a.donnee] as [string, string])))), documentsDonnees: new Map(programme.serveurs.flatMap((s) => (s.documents ?? []).map((d) => [d.nom, d.donnee] as [string, string]))), documents: new Map(programme.serveurs.flatMap((s) => (s.documents ?? []).flatMap((d) => { const route = s.routes.find((r) => r.regles.some((x) => x.donnee === d.donnee && x.actions.includes('lire'))); return route ? [[d.nom, route.adresse] as [string, string]] : []; }))), actions: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, r.adresse] as [string, string])))), sources: new Map(), serveur: programme.serveurs[0]?.nom, connexionGoogle: programme.serveurs[0]?.connexionGoogle !== undefined, comptes: { invitations: programme.serveurs[0]?.invitations !== undefined, oublie: programme.serveurs[0]?.motDePasseOublie !== undefined }, fidelite: programme.serveurs[0]?.fidelite, routes: new Map(), donnees: new Map() };
   for (const serveur of programme.serveurs) {
     for (const donnee of serveur.donnees) liens.donnees.set(donnee.nom, donnee);
     for (const route of serveur.routes) {
@@ -973,6 +975,23 @@ class AnalysePage {
         const trouve = this.liens.documents?.get(instruction.nom);
         if (trouve !== undefined) this.resultat.adressesRequetes.set(instruction, `/api/${adresseNormalisee(trouve)}/documents/${simplifier(instruction.nom).replace(/_/g, '-')}`);
         else if (this.liens.serveur !== undefined) this.erreur(`aucun document « ${instruction.nom} » n'est écrit dans le serveur "${this.liens.serveur}".`, instruction.ligne);
+        return;
+      }
+
+      case 'Paiement': {
+        this.litLaSession = true;
+        if (contexte === 'vue') this.horsEvenement('payer', instruction.ligne);
+        this.demandeUnServeur('payer', instruction.ligne);
+        const type = this.typeDe(instruction.objet);
+        const donnee = estConnu(type) && type.genre === 'donnee' ? type.nom : undefined;
+        const route = donnee === undefined ? undefined : this.liens.payees?.get(donnee);
+        if (route === undefined) {
+          if (this.liens.serveur !== undefined) this.erreur(`« payer » attend une fiche d'une donnée payable, lue sur sa route. Écrivez dans sa route : quand ${donnee ?? 'commande'} est payee :`, instruction.ligne);
+          return;
+        }
+        const champ = this.liens.donnees.get(donnee!)?.champs.find((c) => simplifier(c.nom) === simplifier(instruction.champ));
+        if (champ?.type.genre !== 'nombre') this.erreur(`« payer ${instruction.champ} » : ce doit être un champ nombre de « ${donnee} ».`, instruction.ligne);
+        this.resultat.adressesRequetes.set(instruction, `/api/${adresseNormalisee(route)}/payer/${simplifier(champ?.nom ?? instruction.champ).replace(/_/g, '-')}`);
         return;
       }
 
@@ -2842,6 +2861,8 @@ function actionInterditeDansUneFonction(instruction: Instruction): string | unde
       return 'activer notifications';
     case 'DemandeIa':
       return 'demander a ia';
+    case 'Paiement':
+      return 'payer';
     case 'TelechargementDocument':
       return 'telecharger document';
     case 'DemandeLienMotDePasse':

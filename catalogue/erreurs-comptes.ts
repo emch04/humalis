@@ -54,6 +54,12 @@ const serveurIa = (lignes: string[], route: string[] = []) => serveur('roles ger
 const IA_OK = ['ia par anthropic', 'seul gerant peut demander a ia'];
 const pageIa = (lignes: string[], action: string) => serveurIa(lignes).replace('page "bienvenue" :', `page "action" :\n    variable reponse = ""\n    titre "Action"\n    texte reponse\n    bouton "Go"\n    quand l'utilisateur clique sur "Go" :\n        ${action}\n\npage "bienvenue" :`);
 
+/** Un serveur avec une donnée payable ; `apres` remplace la ligne « quand … est payee ». */
+const QUAND_PAYEE = ['quand reservation est payee :', '    creer journal avec nom "x"'];
+const serveurPaye = (entete: string[], apres: string[] = QUAND_PAYEE) => serveur('roles gerant', ...entete, 'donnee reservation :', '    total : nombre', '    nom : texte', 'donnee journal :', '    nom : texte', 'route "reservations" :', '    seul gerant peut lire reservation', '    seul gerant peut modifier reservation', ...apres.map((l) => `    ${l}`), 'route "journaux" :', '    seul gerant peut lire journal', '    seul gerant peut modifier journal');
+const PAIEMENTS_OK = ['paiements par stripe'];
+const pagePaye = (action: string, sansEvenement = false) => serveurPaye(PAIEMENTS_OK).replace('page "bienvenue" :', `page "action" reservee a gerant sinon vers "bienvenue" :\n    variable liste = []\n    titre "Action"\n    quand la page se charge :\n        envoyer requete vers "reservations" dans liste\n    pour chaque r dans liste :\n${sansEvenement ? `        ${action}` : `        bouton "Go"\n        quand l'utilisateur clique sur "Go" :\n            ${action}`}\n\npage "bienvenue" :`);
+
 /** Une page qui lance une action. */
 const avecAction = (action: string) => actions(['seul gerant peut faire "rembourser" sur commande :', '    refuser "Non"']).replace('page "bienvenue" :', PAGE_FICHE(action));
 
@@ -549,4 +555,46 @@ export const ENTREES_ERREURS_COMPTES: readonly EntreeErreur[] = [
     pageIa([], 'demander a ia "Bonjour" dans reponse'),
     pageIa(IA_OK, 'demander a ia "Bonjour" dans reponse'),
     'demande la ligne « ia par anthropic »'),
+  e('paiements-service', 'grammaire', 'Un service de paiement inconnu',
+    'Humalis sait parler à un seul service de paiement pour l’instant.',
+    'Écris : paiements par stripe.',
+    serveurPaye(['paiements par autre']),
+    serveurPaye(PAIEMENTS_OK),
+    'le seul service de paiement'),
+  e('payee-double', 'grammaire', 'Deux « quand … est payee » dans une route',
+    'Un paiement déclenche un seul bloc.',
+    'Regroupe les instructions sous un seul « quand … est payee : ».',
+    serveurPaye(PAIEMENTS_OK, [...QUAND_PAYEE, ...QUAND_PAYEE]),
+    serveurPaye(PAIEMENTS_OK),
+    'qu\'un seul « quand … est payee »'),
+  e('payee-sans-service', 'sens', 'Un paiement sans service',
+    'Il faut dire quel service encaisse.',
+    'Ajoute la ligne : paiements par stripe.',
+    serveurPaye([]),
+    serveurPaye(PAIEMENTS_OK),
+    'demande la ligne « paiements par stripe »'),
+  e('payee-autre-donnee', 'sens', 'Un paiement sur la donnée d’une autre route',
+    'Une route ne voit que les paiements de sa donnée.',
+    'Déplace le bloc dans la route de cette donnée.',
+    serveurPaye(PAIEMENTS_OK, ['quand journal est payee :', '    creer journal avec nom "x"']),
+    serveurPaye(PAIEMENTS_OK),
+    'elle ne voit pas le paiement'),
+  e('payer-hors-evenement', 'sens', 'Un paiement lancé dans la page',
+    'Un paiement suit toujours un geste de la personne.',
+    'Place la phrase sous « quand l’utilisateur clique … ».',
+    pagePaye('payer total pour r', true),
+    pagePaye('payer total pour r'),
+    'payer'),
+  e('payer-pas-une-fiche', 'sens', '« payer » sur autre chose qu’une fiche payable',
+    'Le serveur relit le montant dans une fiche : il lui faut cette fiche.',
+    'Donne une fiche, par exemple celle d’un « pour chaque ».',
+    pagePaye('payer total pour liste'),
+    pagePaye('payer total pour r'),
+    'attend une fiche'),
+  e('payer-pas-un-nombre', 'sens', '« payer » un champ qui n’est pas un nombre',
+    'Un montant est un nombre.',
+    'Nomme un champ nombre de la fiche.',
+    pagePaye('payer nom pour r'),
+    pagePaye('payer total pour r'),
+    'ce doit être un champ nombre'),
 ];

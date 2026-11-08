@@ -133,6 +133,8 @@ export interface Serveur {
   connexionGoogle?: number;
   /** « roles directeur, enseignant et parent ». */
   roles?: string[];
+  /** « paiements par stripe ». */
+  paiements?: { service: string; ligne: number };
   /** « ia par anthropic » et « connecte peut demander a ia ». */
   ia?: { service: string; ligne: number };
   droitIa?: DroitIa;
@@ -271,6 +273,7 @@ export interface Route {
   apresCreation?: ApresCreation;
   /** « seul gerant peut faire "rembourser" sur commande : ». */
   actions?: ActionServeur[];
+  apresPaiement?: ApresPaiement;
   ligne: number;
 }
 
@@ -317,6 +320,21 @@ export interface ConditionRegle {
   gauche: OperandeRegle;
   dans: boolean;
   droite: OperandeRegle;
+  ligne: number;
+}
+
+/** « payer total pour commande » : le montant est relu par le serveur, jamais envoyé par la page. */
+export interface Paiement {
+  type: 'Paiement';
+  champ: string;
+  objet: Expression;
+  ligne: number;
+}
+
+/** « quand commande est payee : ». */
+export interface ApresPaiement {
+  donnee: string;
+  corps: InstructionServeur[];
   ligne: number;
 }
 
@@ -488,6 +506,7 @@ export type Instruction =
   | TelechargementDocument
   | ActivationNotifications
   | DemandeIa
+  | Paiement
   | DemandeLienMotDePasse
   | ChoixMotDePasse
   | TelechargementBon

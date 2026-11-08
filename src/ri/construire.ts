@@ -20,7 +20,7 @@ import type { ResultatAnalyse } from '../analyse/analyse.js';
 import { INCONNU, NOMBRE, BOOLEEN, type TypeValeur } from '../analyse/types.js';
 import { optionCanonique } from '../analyse/styles.js';
 import { adresseNormalisee, conditionsDeRoute, droitsDeRoute } from '../analyse/serveur.js';
-import { traduireAction, traduireDocument, traduireNotification, traduireTache } from '../analyse/logique.js';
+import { traduireAction, traduireApresPaiement, traduireDocument, traduireNotification, traduireTache } from '../analyse/logique.js';
 import { encreSur } from '../analyse/couleurs.js';
 import { lireCible } from '../analyse/navigation.js';
 import { imageDe, REGLAGES_IMAGE, choixFichierDe } from './medias.js';
@@ -223,6 +223,7 @@ function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
           droits,
           ...(Object.keys(conditionsDeRoute(route)).length ? { conditions: conditionsRI(route) } : {}),
           ...(route.apresCreation?.notifications?.length ? { notifications: route.apresCreation.notifications.map((n) => traduireNotification(n, serveur.donnees.find((d) => d.nom === route.regles[0].donnee)!, serveur, () => undefined)) } : {}),
+          ...(route.apresPaiement ? { apresPaiement: traduireApresPaiement(route.apresPaiement, serveur.donnees.find((d) => d.nom === route.apresPaiement!.donnee)!, serveur, () => undefined), payables: serveur.donnees.find((d) => d.nom === route.apresPaiement!.donnee)!.champs.filter((c) => c.type.genre === 'nombre').map((c) => c.nom) } : {}),
           ...(route.actions?.length ? { actions: route.actions.map((a) => ({ nom: a.nom, qui: a.qui, corps: traduireAction(a, serveur, () => undefined) })) } : {}),
           ...(bon ? { bon } : {}),
           ...(direct ? { direct } : {}),
@@ -239,6 +240,7 @@ function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
     ...(serveur.roles?.length ? { roles: serveur.roles } : {}),
     ...(analyse.changeDeRole ? { changeDeRole: true } : {}),
     ...(analyse.activeNotifications ? { activeNotifications: true } : {}),
+    ...(serveur.paiements ? { paiements: true } : {}),
     ...(serveur.droitIa ? { droitIa: serveur.droitIa.qui } : {}),
     ...(serveur.documents?.length ? { documents: serveur.documents.map((d) => ({ nom: d.nom, donnee: d.donnee, lignes: traduireDocument(d, serveur, () => undefined) })) } : {}),
     ...(serveur.taches?.length ? { taches: serveur.taches.map((t, i) => ({ nom: `tache-${i + 1}`, frequence: t.frequence, corps: traduireTache(t, serveur, () => undefined) })) } : {}),
@@ -706,6 +708,9 @@ class Construction {
         case 'TelechargementDocument':
           // Le même chemin qu'un bon : droits et téléchargement sont déjà là.
           actions.push({ type: 'telechargementBon', adresse: this.analyse.adressesRequetes.get(instruction) ?? '', objet: this.valeur(instruction.objet) });
+          break;
+        case 'Paiement':
+          actions.push({ type: 'paiement', adresse: this.analyse.adressesRequetes.get(instruction) ?? '', objet: this.valeur(instruction.objet) });
           break;
         case 'DemandeIa':
           actions.push({ type: 'demandeIa', question: this.valeur(instruction.question), variable: instruction.variable });
