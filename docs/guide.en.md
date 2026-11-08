@@ -1925,6 +1925,13 @@ server, never sent by the page. The record gets a `paye` field, written only whe
 confirms it through a signed webhook: send it to `/paiements/webhook`. It needs
 `STRIPE_CLE_SECRETE`, `STRIPE_SECRET_WEBHOOK` and `HUMALIS_ADRESSE_SITE`.
 
+#### Resending without duplicates
+
+If the connection drops during a send, a program can safely try again: it sends the
+`X-Humalis-Envoi` header with a random id, the same one on every attempt. The server does the
+work once, even across several copies, then returns the same answer. It answers 409 while the
+first attempt is still running. The id is kept for one day.
+
 #### Many people behind one address
 
 By default, one address gets 300 requests per 15 minutes and 10 login attempts. A whole
