@@ -259,7 +259,7 @@ export class EcrivainActions {
       case 'changementMotDePasse':
         return this.compte(e, c, `changerMotDePasse(actuel: ${this.v.texte(a.actuel)}, nouveau: ${this.v.texte(a.nouveau)})`);
       case 'invitation':
-        return this.compte(e, c, `inviter(email: ${this.v.texte(a.email)}, role: ${chaineSwift(a.role)})`);
+        return this.compte(e, c, `inviter(email: ${this.v.texte(a.email)}, role: ${chaineSwift(a.role)}${a.groupe ? `, groupes: [${chaineSwift(cleJson(a.groupe.champ))}: .texte(${this.v.enTexte(a.groupe.valeur)})]` : ''}${a.champs?.length ? `, champs: [${a.champs.map((ch) => `${chaineSwift(cleJson(ch.champ))}: ValeurHumalis(${this.x(ch.valeur).code})`).join(', ')}]` : ''})`);
       case 'demandeLienMotDePasse':
         return this.compte(e, c, `demanderLienMotDePasse(email: ${this.v.texte(a.email)})`);
       case 'choixMotDePasse':

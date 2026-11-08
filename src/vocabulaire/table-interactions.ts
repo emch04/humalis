@@ -420,6 +420,16 @@ export const ENTREES_INTERACTIONS: EntreeVocabulaire[] = [
     description: 'Dans « liens profonds "…" ».',
     exemple: 'liens profonds "magasin"\npage "p" :\n    titre "P"',
   }),
+  ...[['apple', 'iPhone, iPad et Mac'], ['ios', 'iPhone et iPad'], ['macos', 'Mac'], ['application', 'toutes les applications natives'], ['site', 'le web'], ['android', 'réservé : la cible n’existe pas encore']].map(([nom, sens]) => mot({
+    mot: nom,
+    categorie: 'action',
+    concept: `style.plateforme.${nom}`,
+    contextes: ['tournure'],
+    cibles: { ...ecran('(toutes les cibles)', null, null) },
+    couvre: [],
+    description: `Après « sur » : ${sens}. « utiliser style "x.css" sur ${nom} », « et sur ${nom} style "y" », « sur ${nom} : ».`,
+    exemple: 'page "p" :\n    titre "P"\n    sur site :\n        texte "x"',
+  })),
   mot({
     mot: 'domaine',
     categorie: 'action',

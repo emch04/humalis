@@ -36,7 +36,7 @@ for (const classe of choisis) {
   rmSync(sortie, { recursive: true, force: true });
   execFileSync('node', [join(racine, 'dist/cli.js'), 'compile', join(racine, 'exemples', `${exemple}.humalis`), '--cible', 'apple', '--sortie', sortie, '--essais-ui', join(racine, 'scripts/essais-apple/Fonctions.swift')], { stdio: 'ignore' });
   const schema = exemple.split('-').map((m) => m[0].toUpperCase() + m.slice(1)).join('');
-  const r = spawnSync('xcodebuild', ['-project', join(sortie, `${schema}.xcodeproj`), '-scheme', schema, '-destination', `platform=iOS Simulator,name=${simulateur}`, '-derivedDataPath', join(travail, 'derive', exemple), `-only-testing:${schema}Essais/${classe}`, 'test'], { encoding: 'utf8', maxBuffer: 1 << 28 });
+  const r = spawnSync('xcodebuild', ['-project', join(sortie, `${schema}.xcodeproj`), '-scheme', schema, '-destination', `platform=iOS Simulator,name=${simulateur}`, '-collect-test-diagnostics', 'never', '-derivedDataPath', join(travail, 'derive', exemple), `-only-testing:${schema}Essais/${classe}`, 'test'], { encoding: 'utf8', maxBuffer: 1 << 28 });
   const texte = `${r.stdout}\n${r.stderr}`;
   const ok = r.status === 0 && texte.includes('** TEST SUCCEEDED **');
   console.log(`${ok ? '✓' : '✗'} ${classe}`);

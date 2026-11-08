@@ -392,6 +392,28 @@ page "login" :
         montrer "waiting"
 ```
 
+### One design per platform
+
+The logic stays the same; only the design changes. `sur apple` means iPhone, iPad and Mac,
+`sur ios` iPhone and iPad, `sur macos` Mac, `sur application` every native app, `sur site` the
+web. A phrase aimed at another platform has no effect, and the most precise one wins.
+
+```humalis
+utiliser style "./iphone.css" sur ios
+utiliser style "./mac.css" sur macos
+
+page "accueil" :
+    bouton "Commander" avec style "principal" et sur apple style "plein-ecran"
+    sur application :
+        texte "Thanks for using the app"
+    sur site :
+        lien "Install the app" vers "installer"
+```
+
+On the Apple target, each `.class { … }` rule becomes SwiftUI. What has no equivalent
+(`@media`, hover, compound selectors, free positioning…) is counted at compile time and listed,
+with its reason, in `CSS-SUR-APPLE.md`.
+
 ### Your own CSS
 
 A `style :` block at the top of the file holds ordinary CSS. Apply it with
@@ -2919,7 +2941,7 @@ target, the compiler says so clearly instead of producing something wrong.
 | | web | static | mobile | desktop | apple |
 |---|---|---|---|---|---|
 | Pages, elements, styles, theme | yes | yes | yes | yes | yes |
-| Your own CSS | yes | yes | no (named styles only) | yes | no (named styles only) |
+| Your own CSS | yes | yes | no (named styles only) | yes | partly (single-class rules; the rest is listed) |
 | Requests to a server | yes | yes | yes | yes | yes |
 | `memorisee` | yes | yes | yes | yes | yes |
 | `memorisee en secret` | no | no | yes | yes | yes (Keychain) |

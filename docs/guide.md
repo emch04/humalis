@@ -373,6 +373,29 @@ page "connexion" :
         montrer "attente"
 ```
 
+### Un design par plateforme
+
+La logique reste la même ; seul le design change. `sur apple` vaut pour iPhone, iPad et Mac,
+`sur ios` pour iPhone et iPad, `sur macos` pour Mac, `sur application` pour toutes les
+applications natives, `sur site` pour le web. Une phrase qui vise une autre plateforme n'a
+aucun effet, et la plus précise gagne.
+
+```humalis
+utiliser style "./iphone.css" sur ios
+utiliser style "./mac.css" sur macos
+
+page "accueil" :
+    bouton "Commander" avec style "principal" et sur apple style "plein-ecran"
+    sur application :
+        texte "Merci d'utiliser l'application"
+    sur site :
+        lien "Installer l'application" vers "installer"
+```
+
+Sur la cible Apple, chaque règle `.classe { … }` est traduite en SwiftUI. Ce qui n'a pas
+d'équivalent (`@media`, survols, sélecteurs composés, placement libre…) est compté à la
+compilation et listé, avec sa raison, dans `CSS-SUR-APPLE.md`.
+
 ### Ton propre CSS
 
 Un bloc `style :` en haut du fichier contient du CSS ordinaire. On l'applique
@@ -2843,7 +2866,7 @@ chose de faux.
 | | web | statique | mobile | desktop | apple |
 |---|---|---|---|---|---|
 | Pages, éléments, styles, thème | oui | oui | oui | oui | oui |
-| Ton propre CSS | oui | oui | non (styles nommés seulement) | oui | non (styles nommés seulement) |
+| Ton propre CSS | oui | oui | non (styles nommés seulement) | oui | en partie (règles d'une classe ; le reste est listé) |
 | Requêtes vers un serveur | oui | oui | oui | oui | oui |
 | `memorisee` | oui | oui | oui | oui | oui |
 | `memorisee en secret` | non | non | oui | oui | oui (Keychain) |

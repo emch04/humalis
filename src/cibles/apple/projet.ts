@@ -10,7 +10,7 @@ import { nomDeLaCopie, type InfoMedia } from '../../ri/medias.js';
 import type { Action, Application, Ecran, Etat, NoeudVue, SourceRI, ThemeRI } from '../../ri/types.js';
 import { contenuBinaire } from '../binaire.js';
 import { Ecrivain } from '../web/ecrivain.js';
-import { donneesDesPages } from '../web/projet.js';
+import { cheminsDesPages, donneesDesPages } from '../web/projet.js';
 import { COULEURS_CSS } from '../web/styles.js';
 import { EcrivainActions, type HotePage } from './actions.js';
 import { FORMATS_SWIFT, INTERFACE_SWIFT, VALEURS_SWIFT } from './bibliotheque.js';
@@ -18,6 +18,7 @@ import { fichiersElements } from './elements.js';
 import { nomIcone } from './icones.js';
 import { chaineSwift, nomApplication, nomComposant, nomPage, nomRoute, nomSwift } from './noms.js';
 import { GenerateurPage, type ContexteApple } from './page.js';
+import { CssApple } from './css.js';
 import { CONNEXIONS_SWIFT, ENVOIS_SWIFT, LANGUES_SWIFT, MEMOIRE_SWIFT, MESSAGES_SWIFT, MINUTERIES_SWIFT, NOTIFICATIONS_SWIFT, SERVEUR_SWIFT, SYSTEME_SWIFT } from './systeme.js';
 import { Types, Valeurs, plusPrecis, type Portee } from './valeurs.js';
 import { CONFIDENTIALITE, assets, associationSite, infoSupplementaire, type PaquetSwift, droits, projetXcode, schemaXcode } from './xcode.js';
@@ -34,6 +35,8 @@ export interface OptionsApple {
   identifiant?: string;
   /** L'équipe Apple Developer, pour signer. */
   equipe?: string;
+  /** Le contenu des fichiers CSS du projet. */
+  fichiersStyle?: Map<string, string>;
   medias?: Map<string, InfoMedia>;
   images?: Map<string, string>;
   /** Pour chaque composant Swift (« sur apple "Carte.swift" ») : son fichier. */
@@ -58,9 +61,6 @@ function verifier(application: Application): Diagnostic[] {
   const avertir = (ligne: number, message: string) => d.push({ gravite: 'avertissement', ligne, message });
   const refuser = (ligne: number, message: string) => d.push({ gravite: 'erreur', ligne, message });
 
-  if (application.css.length > 0 || application.fichiersStyle.length > 0) {
-    avertir(application.fichiersStyle[0]?.ligne ?? 1, "le CSS ne s'applique pas sur la cible Apple : seuls les styles nommés (couleur, fond, taille, position, bordure…) y sont traduits.");
-  }
   for (const c of application.composantsReact) {
     if (c.module && c.apple === undefined) refuser(c.ligne, `« utiliser module » (${c.nom}) charge une bibliothèque JavaScript : la cible Apple n'a pas de JavaScript. Écrivez une vue Swift à la place : « utiliser composant "${c.nom}" depuis "…" sur apple "${c.nom}.swift" ».`);
     else if (c.apple === undefined) refuser(c.ligne, `le composant React « ${c.nom} » n'existe pas sur la cible Apple : donnez-lui une vue Swift avec « utiliser composant "${c.nom}" depuis "${c.chemin}" sur apple "${c.nom}.swift" ».`);
@@ -69,11 +69,10 @@ function verifier(application: Application): Diagnostic[] {
     if (p.fichier && !/\.(ttf|otf)$/i.test(p.fichier)) avertir(1, `la police « ${p.fichier} » n'est pas chargée sur la cible Apple, qui lit les fichiers .ttf et .otf : la police du système est utilisée à la place.`);
   }
   const logo = application.site?.logo;
-  if (logo && !/\.png$/i.test(logo)) refuser(application.site!.ligne, `le logo « ${logo} » ne peut pas servir d'icône sur la cible Apple : donnez un PNG carré de 1024×1024.`);
+  if (logo && !/\.png$/i.test(logo)) avertir(application.site!.ligne, `le logo « ${logo} » ne peut pas servir d'icône sur la cible Apple, qui demande un PNG carré de 1024×1024 : l'application garde l'icône par défaut.`);
   const apercu = application.ecrans.find((e) => e.apercu);
   if (apercu) avertir(apercu.ligne, "« apercu » est sans effet sur la cible Apple : une application n'a ni onglet, ni moteur de recherche, ni aperçu de partage.");
-  if (JSON.stringify(application.ecrans).includes('"type":"connexionGoogle"')) avertir(1, "« se connecter avec google » n'est pas encore disponible sur la cible Apple : le bouton répond par un message clair.");
-  if (/"type":"(invitation|demandeLienMotDePasse|choixMotDePasse)"/.test(JSON.stringify(application.ecrans))) avertir(1, "les invitations et les liens de mot de passe s'ouvrent sur le site : sur la cible Apple, ces actions répondent par un message clair.");
+  if (JSON.stringify(application.ecrans).includes('"type":"choixMotDePasse"') && !application.liensProfonds?.domaine) avertir(1, "« choisir le mot de passe » : le lien reçu par e-mail ouvre le site. Pour qu'il ouvre l'application, ajoutez « liens profonds \"…\" et domaine \"…\" ».");
   return d;
 }
 
@@ -440,13 +439,17 @@ function lienProfondSwift(e: Ecrivain, application: Application, app: ContexteAp
       e.ligne(`guard url.scheme?.lowercased() == ${chaineSwift(schema)} else { return }`);
       e.ligne(`let morceaux = ${parLeSchema}`);
     }
+    e.ligne('if let fragment = url.fragment(percentEncoded: false), fragment.hasPrefix("jeton=") { Session.commun.jetonDeLien = String(fragment.dropFirst(6)) }');
     e.ligne('if morceaux.isEmpty { chemin = []; return }');
     for (const ecran of application.ecrans.filter((x) => x !== entree)) {
       const info = app.pages.get(ecran.nom)!;
-      const base = (chemins.get(ecran.nom) ?? `/${ecran.nom}`).split('/').filter(Boolean);
-      const valeurs = info.parametres.map((p, i) => `${nomSwift(p)}: morceaux[${base.length + i}]`);
+      // « /collections/:slug » : un morceau fixe se compare, un « : » reçoit un paramètre, dans l'ordre.
+      const morceaux = (chemins.get(ecran.nom) ?? `/${ecran.nom}`).split('/').filter(Boolean);
+      let rang = 0;
+      const valeurs = morceaux.flatMap((m, i) => (m.startsWith(':') && rang < info.parametres.length ? [`${nomSwift(info.parametres[rang++])}: morceaux[${i}]`] : []));
+      const fixes = morceaux.flatMap((m, i) => (m.startsWith(':') ? [] : [`morceaux[${i}] == ${chaineSwift(m)}`]));
       const route = `.${nomRoute(ecran.nom)}${valeurs.length ? `(${valeurs.join(', ')})` : info.filtres.length ? '()' : ''}`;
-      e.ligne(`if morceaux.count == ${base.length + info.parametres.length} && Array(morceaux.prefix(${base.length})) == [${base.map(chaineSwift).join(', ')}] { allerAuMenu(${route}); return }`);
+      e.ligne(`if ${[`morceaux.count == ${morceaux.length}`, ...fixes].join(' && ')} { allerAuMenu(${route}); return }`);
     }
     e.ligne('Messages.commun.afficher("Cette page n\'existe pas.", .erreur)');
   });
@@ -719,7 +722,13 @@ export function genererProjetApple(application: Application, options: OptionsApp
   const fonctions: Portee['fonctions'] = new Map();
   const pages: HotePage['pages'] = new Map(application.ecrans.map((e) => [e.nom, { parametres: e.parametresAdresse ?? [], filtres: e.filtres ?? [] }]));
   const ressources = new Map<string, string>();
+  const feuilles = application.fichiersStyle.flatMap((f) => (options.fichiersStyle?.has(f.chemin) ? [{ css: options.fichiersStyle.get(f.chemin)!, ...(f.plateforme === 'ios' || f.plateforme === 'macos' ? { os: f.plateforme } : {}) }] : []));
+  const css = new CssApple([...application.css.map((c) => ({ css: c })), ...feuilles]);
+  if (css.total > 0) {
+    avertir(application.fichiersStyle[0]?.ligne ?? 1, `CSS : ${css.traduites} déclarations sur ${css.total} traduites en SwiftUI (${Math.round((css.traduites * 100) / css.total)} %). Le reste est listé, avec sa raison, dans CSS-SUR-APPLE.md.`);
+  }
   const app: ContexteApple = {
+    css,
     types,
     partages: application.partages,
     fonctions,
@@ -765,6 +774,7 @@ export function genererProjetApple(application: Application, options: OptionsApp
   app.pageEntree = entree.nom;
 
   const fichiers = new Map<string, string>();
+  if (css.total > 0) fichiers.set('CSS-SUR-APPLE.md', css.rapport());
   const dossier = nom;
   const ecrire = (chemin: string, contenu: string) => fichiers.set(`${dossier}/${chemin}`, contenu);
 
@@ -794,7 +804,7 @@ export function genererProjetApple(application: Application, options: OptionsApp
   if (avecEnvois) ecrire('Humalis/Envois.swift', ENVOIS_SWIFT);
 
   if (!simple(entree)) refuser(entree.ligne, `la page d'entrée « ${entree.nom} » attend un paramètre`);
-  const cheminsPages = new Map(application.ecrans.map((e) => [e.nom, e === entree ? '/' : `/${simplifier(e.nom)}`]));
+  const cheminsPages = cheminsDesPages(application);
   ecrire('Humalis/Routes.swift', routesSwift(application, app, entree, cheminsPages));
   const notifications = JSON.stringify([application.ecrans, application.composants]).includes('"type":"activationNotifications"');
   if (notifications && !options.equipe) avertir(1, "« activer notifications » : sans --equipe, l'application demande la permission mais ne peut pas recevoir de notification d'Apple. Compilez avec --equipe pour qu'elle les reçoive.");
@@ -821,7 +831,7 @@ export function genererProjetApple(application: Application, options: OptionsApp
   const reseau = /\b(Serveur\.commun|Session\.commun|GardeHumalis)\b/.test(pagesCode);
   // La session est lue par le serveur : les deux vont ensemble.
   if (reseau || application.sources.length > 0) ecrire('Humalis/Serveur.swift', SERVEUR_SWIFT);
-  if (/\bseConnecterAvecApple\(/.test(pagesCode)) ecrire('Humalis/Connexions.swift', CONNEXIONS_SWIFT);
+  if (/\bseConnecterAvec(Apple|Google)\(/.test(pagesCode)) ecrire('Humalis/Connexions.swift', CONNEXIONS_SWIFT);
   if (application.langues) ecrire('Humalis/Langues.swift', LANGUES_SWIFT);
   const tout = [...fichiers.values()].join('\n');
   for (const [chemin, contenu] of fichiersElements(tout)) ecrire(chemin, contenu);
@@ -838,14 +848,14 @@ export function genererProjetApple(application: Application, options: OptionsApp
   }
 
   const logo = application.site?.logo;
-  const octetsLogo = logo ? options.images?.get(logo) : undefined;
+  const octetsLogo = logo && /\.png$/i.test(logo) ? options.images?.get(logo) : undefined;
   for (const [chemin, contenu] of assets(octetsLogo !== undefined, marqueDe(application.theme))) ecrire(chemin, contenu);
   if (octetsLogo !== undefined) ecrire('Assets.xcassets/AppIcon.appiconset/icone.png', contenuBinaire(octetsLogo));
   const avecFichiers = /\b(ChoixFichierHumalis|prendrePhoto)\b/.test(tout);
   const avecPosition = /\blirePosition\(/.test(tout);
   // Sans équipe, l'application ne peut pas être signée avec ce droit : elle ne se construirait plus.
   const domaineLiens = options.equipe ? application.liensProfonds?.domaine : undefined;
-  const avecConnexionApple = /\bseConnecterAvecApple\(/.test(tout);
+  const avecConnexionApple = /\bseConnecterAvecApple\(/.test(pagesCode);
   if (avecConnexionApple && !options.equipe) avertir(1, "« se connecter avec apple » : sans --equipe, la fenêtre d'Apple ne peut pas s'ouvrir, et l'application le dit à la personne. Compilez avec --equipe.");
   const droitConnexionApple = avecConnexionApple && options.equipe !== undefined;
   ecrire(`${nom}.entitlements`, droits(avecFichiers, notifications && options.equipe ? 'ios' : undefined, avecPosition, domaineLiens, droitConnexionApple));

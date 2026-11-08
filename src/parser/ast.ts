@@ -477,6 +477,8 @@ export interface BlocStyle {
 export interface FichierStyle {
   type: 'FichierStyle';
   chemin: string;
+  /** « utiliser style "…" sur apple » : pour cette plateforme seulement. */
+  plateforme?: string;
   ligne: number;
 }
 
@@ -1118,6 +1120,8 @@ export type GenreBloc =
 export interface Bloc {
   type: 'Bloc';
   genre: GenreBloc;
+  /** « sur application : », « sur site : » : montré sur cette plateforme seulement. */
+  plateforme?: string;
   /** Les styles nommés (« avec fond vert »). */
   styles: Style[];
   /** Les classes CSS données par « avec style "…" ». */

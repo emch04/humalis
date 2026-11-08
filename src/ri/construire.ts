@@ -75,7 +75,7 @@ export function construireRepresentation(
   return {
     ecrans: programme.pages.map((page) => new Construction(page, analyse).ecran()),
     css: programme.styles.map((b) => b.css),
-    fichiersStyle: programme.fichiersStyle.map((f) => ({ chemin: f.chemin, ligne: f.ligne })),
+    fichiersStyle: programme.fichiersStyle.map((f) => ({ chemin: f.chemin, ligne: f.ligne, ...(f.plateforme ? { plateforme: f.plateforme } : {}) })),
     partages: programme.partages.map((d) => etatDe(d, analyse)),
     serveurs: programme.serveurs.map((serveur) => serveurRI(serveur, analyse)),
     sources: programme.sources.map(sourceRI),
@@ -457,7 +457,7 @@ class Construction {
           break;
 
         case 'Bloc':
-          noeuds.push(instruction.genre === 'carte' ? this.carte(instruction, gestionnaires) : this.bloc(instruction, gestionnaires));
+          noeuds.push(instruction.genre === 'carte' ? this.carte(instruction, gestionnaires) : { ...this.bloc(instruction, gestionnaires), ...(instruction.plateforme ? { plateforme: instruction.plateforme } : {}) } as NoeudVue);
           break;
 
         case 'CodeDocumentation':

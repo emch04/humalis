@@ -103,6 +103,41 @@ export function analyserSurAppareil(flux: FluxTokens, lecteur: Lecteur): Bloc {
   return { type: 'Bloc', genre: 'appareil', styles, classes: [], corps: lecteur.corps(flux), ligne: debut.ligne };
 }
 
+const PLATEFORMES = ['apple', 'ios', 'macos', 'site', 'application'];
+
+/** Le nom de la plateforme après « sur » ; « android » viendra avec sa cible. */
+export function lirePlateforme(flux: FluxTokens): string {
+  const jeton = flux.avancer();
+  const nom = normaliser(jeton.original ?? jeton.valeur);
+  if (nom === 'android') throw new ErreurSyntaxique('« sur android » n’existe pas encore : la cible Android n’est pas écrite.', jeton.ligne);
+  if (!PLATEFORMES.includes(nom)) throw new ErreurSyntaxique(`« ${jeton.valeur} » n’est pas une plateforme. Plateformes possibles : ${PLATEFORMES.join(', ')}.`, jeton.ligne);
+  return nom;
+}
+
+/** « sur application : », « sur site : » : un bloc réservé à une plateforme. */
+export function estSurPlateforme(flux: FluxTokens): boolean {
+  return flux.verifier('MOT_CLE', 'sur') && estMot(flux.regarder(1)) && [...PLATEFORMES, 'android'].includes(normaliser(flux.regarder(1).original ?? flux.regarder(1).valeur)) && flux.regarder(2).valeur === ':';
+}
+
+export function analyserSurPlateforme(flux: FluxTokens, lecteur: Lecteur): Bloc {
+  const debut = flux.avancer();
+  const plateforme = lirePlateforme(flux);
+  flux.attendre('PONCTUATION', ':', 'deux-points après la plateforme');
+  return { type: 'Bloc', genre: 'bloc', plateforme, styles: [], classes: [], corps: lecteur.corps(flux), ligne: debut.ligne };
+}
+
+/** « sur apple style "plein-ecran" » dans les options d'un élément ou d'un bloc. */
+export function estStylePlateforme(flux: FluxTokens): boolean {
+  return flux.verifier('MOT_CLE', 'sur') && estMot(flux.regarder(1)) && flux.regarder(2).type === 'MOT_CLE' && flux.regarder(2).valeur === 'style';
+}
+
+export function lireStylePlateforme(flux: FluxTokens): string[] {
+  flux.avancer();
+  const plateforme = lirePlateforme(flux);
+  flux.avancer();
+  return flux.attendre('CHAINE', undefined, 'le nom de la classe CSS entre guillemets').valeur.split(/\s+/).filter(Boolean).map((c) => `${plateforme}:${c}`);
+}
+
 // ─── L'en-tête et le pied de page communs ────────────────────────────────
 
 /** « entete : », « pied avec colle : » en haut du fichier. */
@@ -119,7 +154,9 @@ export function analyserDisposition(flux: FluxTokens, lecteur: Required<Lecteur>
   const classes: string[] = [];
   if (flux.accepter('MOT_CLE', 'avec')) {
     do {
-      if (flux.verifier('MOT_CLE', 'style')) {
+      if (estStylePlateforme(flux)) {
+        classes.push(...lireStylePlateforme(flux));
+      } else if (flux.verifier('MOT_CLE', 'style')) {
         flux.avancer();
         const valeur = flux.attendre('CHAINE', undefined, 'le nom de la classe CSS entre guillemets').valeur;
         classes.push(...valeur.split(/\s+/).filter(Boolean));

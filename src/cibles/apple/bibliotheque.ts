@@ -348,6 +348,15 @@ func formaterDepuis(_ valeur: String?) -> String {
 export const INTERFACE_SWIFT = String.raw`// Produit par Humalis : la page, la ligne et la grille, partagées par l'iPhone, l'iPad et le Mac.
 import SwiftUI
 
+/** L'écart entre les enfants d'un bloc, quand iOS et macOS en ont un différent. */
+func ecartHumalis(ios: CGFloat, mac: CGFloat) -> CGFloat {
+    #if os(iOS)
+    return ios
+    #else
+    return mac
+    #endif
+}
+
 /** Une couleur en clair et en sombre. */
 func couleurHumalis(_ clair: UInt32, _ sombre: UInt32) -> Color {
     func composante(_ valeur: UInt32, _ decalage: UInt32) -> CGFloat { CGFloat((valeur >> decalage) & 255) / 255 }

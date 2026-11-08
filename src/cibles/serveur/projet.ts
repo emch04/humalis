@@ -223,6 +223,8 @@ const ENV_GOOGLE = `# La connexion avec Google (« connexion google ») : l'ID c
 # application Web, créé dans la Google Cloud Console (ce n'est pas un secret).
 # Adresses de redirection autorisées : https://ton-site/auth-google.html
 GOOGLE_CLIENT_ID=
+# L'ID client de type « iOS » (com.xxx.apps.googleusercontent.com), pour l'application iPhone, iPad et Mac.
+GOOGLE_CLIENT_ID_APPLE=
 `;
 
 const ENV_EXEMPLE = `# Copie ce fichier en .env et remplis-le. Ne le publie jamais.
@@ -612,6 +614,12 @@ function coffreTs(serveur: ServeurRI): string {
         key: 'GOOGLE_CLIENT_ID',
         label: 'Connexion avec Google',
         help: "L'ID client OAuth de l'application Web. Sans lui, la connexion avec Google reste fermée.",
+        where: 'Google Cloud Console, API et services, Identifiants',
+      },
+      {
+        key: 'GOOGLE_CLIENT_ID_APPLE',
+        label: 'Connexion avec Google (application Apple)',
+        help: "L'ID client de type iOS. Sans lui, l'application iPhone, iPad et Mac ne peut pas se connecter avec Google.",
         where: 'Google Cloud Console, API et services, Identifiants',
       },
 `
@@ -1269,7 +1277,7 @@ export interface OptionsDuServeur {
   usersStore: UsersStore;
   stockages: {
 ${stockages}
-  };${serveur.connexionGoogle ? '\n  /** L\'ID client OAuth de Google (« connexion google »), relu à chaque demande ; sans lui, la connexion avec Google est fermée. */\n  googleClientId?: string | (() => string | undefined);' : ''}${serveur.connexionApple ? '\n  /** Les identifiants Apple (« connexion apple »), relus à chaque demande. */\n  identifiantsApple?: () => { application?: string; site?: string };' : ''}
+  };${serveur.connexionGoogle ? '\n  /** L\'ID client OAuth de Google (« connexion google »), relu à chaque demande ; sans lui, la connexion avec Google est fermée. */\n  googleClientId?: string | (() => string | undefined);\n  /** L\'ID client de type iOS, pour l\'application Apple. */\n  googleClientIdApple?: () => string | undefined;' : ''}${serveur.connexionApple ? '\n  /** Les identifiants Apple (« connexion apple »), relus à chaque demande. */\n  identifiantsApple?: () => { application?: string; site?: string };' : ''}
 ${avecLogique(serveur) ? `  /** Comment écrire tout ou rien ; par défaut, en mémoire. */
   transaction?: Transaction<OptionsDuServeur['stockages']>;
 ` : ''}${serveur.taches?.length ? `  /** Donné par demarrer.ts : sans lui, aucune tâche ne tourne. */
@@ -1336,7 +1344,7 @@ const sansCache = (res: Response) => res.set('Cache-Control', 'no-store');
  * limites et les en-têtes de sécurité viennent de createSaasApp. Les
  * routes des données s'ajoutent par extendRoutes, avec les gardes du pack.
  */
-export function creerServeur({ envois = creerEnvoisMemoire(), jwtSecret, usersStore${comptes ? ': tousLesComptes' : ''}, stockages${avecLogique(serveur) ? ', transaction = transactionMemoire(stockages)' : ''}${serveur.taches?.length ? ', reclamerTache' : ''}${avecNotifications(serveur) ? ', appareils = creerStockageMemoire()' : ''}${avecIa(serveur) ? ', compterIa = compterMemoire()' : ''}${serveur.connexionGoogle ? ', googleClientId' : ''}${serveur.connexionApple ? ', identifiantsApple = () => ({})' : ''}, session = reglagesDeSession(process.env), surveillance, coffre${avecEmails(serveur) ? `, emails = creerEmails({ nom: ${boutique} })` : ''}${comptes ? ', jetons = createMemoryPasswordResetStore()' : ''} }: OptionsDuServeur) {
+export function creerServeur({ envois = creerEnvoisMemoire(), jwtSecret, usersStore${comptes ? ': tousLesComptes' : ''}, stockages${avecLogique(serveur) ? ', transaction = transactionMemoire(stockages)' : ''}${serveur.taches?.length ? ', reclamerTache' : ''}${avecNotifications(serveur) ? ', appareils = creerStockageMemoire()' : ''}${avecIa(serveur) ? ', compterIa = compterMemoire()' : ''}${serveur.connexionGoogle ? ', googleClientId, googleClientIdApple = () => undefined' : ''}${serveur.connexionApple ? ', identifiantsApple = () => ({})' : ''}, session = reglagesDeSession(process.env), surveillance, coffre${avecEmails(serveur) ? `, emails = creerEmails({ nom: ${boutique} })` : ''}${comptes ? ', jetons = createMemoryPasswordResetStore()' : ''} }: OptionsDuServeur) {
   const renouvellement = creerRenouvellement(session);
 ${comptes ? codeCreationComptes(serveur, chemins).replace('usersStore,', 'usersStore: tousLesComptes,') + '  // Pour les packs, un compte retiré n\'existe plus.\n  const usersStore = sansLesRetires(tousLesComptes);\n' : ''}${envoisDansRoutes || employe(serveur, (i) => i.type === 'email' && i.a.genre === 'admins') ? `  const adressesDesAdmins = async () => (await usersStore.list({ role: 'admin', limit: 100 })).map((compte) => String(compte.email)).filter(Boolean);\n` : ''}${avecNotifications(serveur) ? '  const notifications = creerNotifications({ usersStore, appareils });\n' : ''}${avecPaiements(serveur) ? `  let surPaiement: SurPaiement<ReturnType<typeof nouveauTravail>, OptionsDuServeur['stockages']> = {};
   const paiements = creerPaiements({
@@ -1474,7 +1482,7 @@ try {
 const coffre = await ouvrirCoffre(pool);
 
 const port = Number(process.env.PORT ?? 3000);
-const app = creerServeur({ ...(pool ? { envois: creerEnvoisPostgres(pool) } : {}), jwtSecret, usersStore, stockages${avecLogique(serveur) ? `, ...(pool ? { transaction: transactionPostgres(pool, (client) => ({ ${serveur.donnees.map((d) => `${camel(d.nom)}: creerStockagePostgres(client, '${nomTable(d.nom)}')`).join(', ')} })) } : {})` : ''}${serveur.taches?.length ? ', reclamerTache: pool ? reclamerPostgres(pool) : reclamerMemoire()' : ''}${avecNotifications(serveur) ? ", ...(pool ? { appareils: creerStockagePostgres(pool, 'humalis_appareils') } : {})" : ''}${avecIa(serveur) ? ', ...(pool ? { compterIa: compterPostgres(pool) } : {})' : ''}${serveur.connexionGoogle ? ', googleClientId: () => process.env.GOOGLE_CLIENT_ID || undefined' : ''}${serveur.connexionApple ? ', identifiantsApple: () => ({ application: process.env.APPLE_APP_ID || undefined, site: process.env.APPLE_SERVICE_ID || undefined })' : ''}${comptes ? ', jetons: creerMagasinJetons(pool)' : ''}, session, surveillance, coffre }) as unknown as { listen(port: number, pret: () => void): unknown };
+const app = creerServeur({ ...(pool ? { envois: creerEnvoisPostgres(pool) } : {}), jwtSecret, usersStore, stockages${avecLogique(serveur) ? `, ...(pool ? { transaction: transactionPostgres(pool, (client) => ({ ${serveur.donnees.map((d) => `${camel(d.nom)}: creerStockagePostgres(client, '${nomTable(d.nom)}')`).join(', ')} })) } : {})` : ''}${serveur.taches?.length ? ', reclamerTache: pool ? reclamerPostgres(pool) : reclamerMemoire()' : ''}${avecNotifications(serveur) ? ", ...(pool ? { appareils: creerStockagePostgres(pool, 'humalis_appareils') } : {})" : ''}${avecIa(serveur) ? ', ...(pool ? { compterIa: compterPostgres(pool) } : {})' : ''}${serveur.connexionGoogle ? ', googleClientId: () => process.env.GOOGLE_CLIENT_ID || undefined, googleClientIdApple: () => process.env.GOOGLE_CLIENT_ID_APPLE || undefined' : ''}${serveur.connexionApple ? ', identifiantsApple: () => ({ application: process.env.APPLE_APP_ID || undefined, site: process.env.APPLE_SERVICE_ID || undefined })' : ''}${comptes ? ', jetons: creerMagasinJetons(pool)' : ''}, session, surveillance, coffre }) as unknown as { listen(port: number, pret: () => void): unknown };
 // HUMALIS_ECOUTE : l'adresse d'écoute (127.0.0.1 derrière un relais) ; sans elle, toutes les adresses.
 const pret = () => console.log(\`Serveur « ${serveur.nom} » prêt : http://localhost:\${port}${premiere}\`);
 const ecoute = process.env.HUMALIS_ECOUTE?.trim();
@@ -2538,14 +2546,15 @@ const ROUTE_GOOGLE = `
       const idGoogle = () => (typeof googleClientId === 'function' ? googleClientId() : googleClientId) || null;
       let verificateur: { id: string; verifier: ReturnType<typeof createGoogleIdTokenVerifier> } | null = null;
       const verificateurGoogle = () => {
-        const id = idGoogle();
-        if (!id) return null;
-        if (verificateur?.id !== id) verificateur = { id, verifier: createGoogleIdTokenVerifier({ audiences: [id] }) };
+        const audiences = [idGoogle(), googleClientIdApple()].filter((id): id is string => Boolean(id));
+        if (audiences.length === 0) return null;
+        const id = audiences.join('|');
+        if (verificateur?.id !== id) verificateur = { id, verifier: createGoogleIdTokenVerifier({ audiences }) };
         return verificateur.verifier;
       };
       const routeGoogle = express.Router();
       routeGoogle.get('/', (_req, res) => {
-        res.json({ clientId: idGoogle() });
+        res.json({ clientId: idGoogle(), clientIdApple: googleClientIdApple() ?? null });
       });
       routeGoogle.post('/', createLoginLimiter() as unknown as RequestHandler, csrfMiddleware, async (req, res, next) => {
         const google = verificateurGoogle();

@@ -1,6 +1,13 @@
-# L'essai des capacités serveur sur Apple : rôles, temps réel, IA et paiement.
+# L'essai des capacités serveur sur Apple : rôles, temps réel, IA, paiement, connexions, invitations.
+liens profonds "capacites"
+
 serveur "boutique" :
     roles gerant et vendeur
+    connexion apple
+    connexion google
+    emails par brevo
+    invitations vers "bienvenue"
+    mot de passe oublie vers "bienvenue"
     compte :
         telephone : texte
     ia par anthropic
@@ -24,6 +31,7 @@ serveur "boutique" :
     route "equipe" :
         seul admin peut lire comptes
         seul admin peut modifier comptes
+        seul admin peut creer comptes
     route "journaux" :
         seul admin peut lire journal
         seul admin peut modifier journal
@@ -71,7 +79,43 @@ page "accueil" :
         bouton "Se connecter"
     quand le formulaire "connexion" est soumis :
         se connecter avec champ "email" et champ "mot de passe"
+    formulaire "invitation" :
+        champ email "Adresse invitee"
+        bouton "Inviter"
+    quand le formulaire "invitation" est soumis :
+        essayer :
+            inviter champ "Adresse invitee" comme vendeur
+            afficher reussite "Invitation partie"
+        si erreur :
+            afficher erreur "Invitation refusee : {raison}"
+    formulaire "oubli" :
+        champ email "Adresse oubliee"
+        bouton "Recevoir"
+    quand le formulaire "oubli" est soumis :
+        demander un lien de mot de passe pour champ "Adresse oubliee"
+        afficher reussite "Lien demande"
+    bouton "Apple"
+    quand l'utilisateur clique sur "Apple" :
+        se connecter avec apple
+    bouton "Google"
+    quand l'utilisateur clique sur "Google" :
+        se connecter avec google
+    bouton "Sortir"
+    quand l'utilisateur clique sur "Sortir" :
+        se deconnecter
     bouton "Demander"
     quand l'utilisateur clique sur "Demander" :
         demander a ia "Une idée" dans reponse
     texte "IA : {reponse}"
+
+page "bienvenue" a l'adresse "/bienvenue" :
+    titre "Choisir"
+    formulaire "choix" :
+        champ mot de passe "Nouveau"
+        bouton "Enregistrer"
+    quand le formulaire "choix" est soumis :
+        essayer :
+            choisir le mot de passe avec champ "Nouveau"
+            afficher reussite "Mot de passe choisi"
+        si erreur :
+            afficher erreur "Lien refuse : {raison}"

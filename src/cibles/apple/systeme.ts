@@ -985,7 +985,15 @@ private final class SuiviEnvoi: NSObject, URLSessionTaskDelegate, Sendable {
 
     /** Un jeton d'identité (Apple, Google) : le serveur le vérifie et ouvre la session d'un compte déjà connu. */
     func ouvrirAvecJeton(_ chemin: String, jeton: String, nonce: String, fournisseur: String) async throws {
-        let (donnees, http) = try await envoyer(chemin, ["idToken": jeton, "nonce": nonce])
+        guard var demande = requete(chemin, methode: "POST", corps: ["idToken": jeton, "nonce": nonce]) else { throw ErreurHumalis.refus(pasDeReponse) }
+        // Un visiteur : le serveur demande le jeton CSRF qu'il pose à la première lecture.
+        if let amorce = requete(chemin, methode: "GET"), let (_, lue) = try? await URLSession.shared.data(for: amorce), let cookies = (lue as? HTTPURLResponse)?.value(forHTTPHeaderField: "Set-Cookie"), let debut = cookies.range(of: "astratra_csrf=") {
+            let valeur = String(cookies[debut.upperBound...].prefix { $0 != ";" && $0 != "," })
+            demande.httpShouldHandleCookies = false
+            demande.setValue("astratra_csrf=\(valeur)", forHTTPHeaderField: "Cookie")
+            demande.setValue(valeur, forHTTPHeaderField: "x-csrf-token")
+        }
+        guard let (donnees, reponse) = try? await URLSession.shared.data(for: demande), let http = reponse as? HTTPURLResponse else { throw ErreurHumalis.refus(pasDeReponse) }
         if http.statusCode == 429 { throw ErreurHumalis.refus("Trop de tentatives de connexion. Réessayez dans quelques minutes.") }
         let corps = try? JSONDecoder().decode(ValeurHumalis.self, from: donnees)
         guard (200..<300).contains(http.statusCode) else {
@@ -1000,10 +1008,6 @@ private final class SuiviEnvoi: NSObject, URLSessionTaskDelegate, Sendable {
         await relire()
     }
 
-    func seConnecterAvecGoogle() async throws {
-        throw ErreurHumalis.refus("La connexion avec Google n'est pas encore disponible dans l'application Apple.")
-    }
-
     func changerMotDePasse(actuel: String, nouveau: String) async throws {
         let (donnees, http) = try await envoyer("/auth/mot-de-passe", ["actuel": actuel, "nouveau": nouveau])
         if http.statusCode == 429 { throw ErreurHumalis.refus("Trop de tentatives. Réessayez dans quelques minutes.") }
@@ -1016,13 +1020,25 @@ private final class SuiviEnvoi: NSObject, URLSessionTaskDelegate, Sendable {
         if let corps { garder(corps) }
     }
 
-    private func surLeSite() -> ErreurHumalis {
-        .refus("Les invitations et les liens de mot de passe ne sont pas encore disponibles dans l'application Apple : passez par le site.")
+    /** Le jeton reçu par un lien d'invitation ou de mot de passe oublié (#jeton=…). */
+    var jetonDeLien: String?
+
+    func inviter(email: String, role: String, groupes: [String: ValeurHumalis] = [:], champs: [String: ValeurHumalis] = [:]) async throws {
+        var envoi: [String: ValeurHumalis] = ["email": .texte(email), "role": .texte(role)]
+        if !groupes.isEmpty { envoi["groupes"] = .fiche(groupes) }
+        if !champs.isEmpty { envoi["champs"] = .fiche(champs) }
+        try await Serveur.commun.appelSansReponse("/auth/invitations", methode: "POST", envoi: envoi)
     }
 
-    func inviter(email: String, role: String) async throws { throw surLeSite() }
-    func demanderLienMotDePasse(email: String) async throws { throw surLeSite() }
-    func choisirMotDePasse(nouveau: String) async throws { throw surLeSite() }
+    func demanderLienMotDePasse(email: String) async throws {
+        try await Serveur.commun.appelSansReponse("/auth/forgot-password", methode: "POST", envoi: ["email": .texte(email)])
+    }
+
+    func choisirMotDePasse(nouveau: String) async throws {
+        guard let jeton = jetonDeLien else { throw ErreurHumalis.refus("Ouvrez le lien reçu par e-mail pour choisir votre mot de passe.") }
+        try await Serveur.commun.appelSansReponse("/auth/reset-password", methode: "POST", envoi: ["token": .texte(jeton), "password": .texte(nouveau)])
+        jetonDeLien = nil
+    }
 
     func seDeconnecter() async {
         _ = try? await envoyer("/auth/logout", [:])
@@ -1206,9 +1222,62 @@ extension Serveur {
 }
 `;
 
-export const CONNEXIONS_SWIFT = String.raw`// Produit par Humalis : la connexion avec un compte Apple.
+export const CONNEXIONS_SWIFT = String.raw`// Produit par Humalis : la connexion avec un compte Apple ou Google.
 import AuthenticationServices
+import CryptoKit
 import SwiftUI
+
+@MainActor private func fenetreDeConnexion() -> ASPresentationAnchor {
+    #if os(macOS)
+    return NSApplication.shared.keyWindow ?? NSApplication.shared.windows.first ?? NSWindow()
+    #else
+    let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+    return scenes.flatMap(\.windows).first { $0.isKeyWindow } ?? scenes.first.map { UIWindow(windowScene: $0) } ?? UIWindow()
+    #endif
+}
+
+@MainActor final class ConnexionGoogle: NSObject, @preconcurrency ASWebAuthenticationPresentationContextProviding {
+    private static var service: String { ProcessInfo.processInfo.environment["HUMALIS_ESSAI_GOOGLE"] ?? "" }
+
+    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor { fenetreDeConnexion() }
+
+    /** La page de Google dans une fenêtre du système ; un code à usage unique revient, puis Google l'échange contre le jeton. */
+    func jeton(identifiant: String, nonce: String) async throws -> String {
+        let base = identifiant.replacingOccurrences(of: ".apps.googleusercontent.com", with: "")
+        let schema = "com.googleusercontent.apps." + base
+        let retour = schema + ":/oauth2redirect"
+        let verificateur = UUID().uuidString + UUID().uuidString
+        let empreinte = Data(SHA256.hash(data: Data(verificateur.utf8))).base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "=", with: "")
+        let etat = UUID().uuidString
+        let essai = ConnexionGoogle.service
+        guard var adresse = URLComponents(string: essai.isEmpty ? "https://accounts.google.com/o/oauth2/v2/auth" : essai + "/auth") else { throw ErreurHumalis.refus(pasDeReponse) }
+        adresse.queryItems = ["client_id": identifiant, "redirect_uri": retour, "response_type": "code", "scope": "openid email", "code_challenge": empreinte, "code_challenge_method": "S256", "nonce": nonce, "state": etat, "prompt": "select_account"].map { URLQueryItem(name: $0.key, value: $0.value) }
+        guard let url = adresse.url else { throw ErreurHumalis.refus(pasDeReponse) }
+        let reponse: URL = try await withCheckedThrowingContinuation { suite in
+            let session = ASWebAuthenticationSession(url: url, callbackURLScheme: schema) { lu, erreur in
+                if let lu { suite.resume(returning: lu) }
+                else {
+                    let annulee = (erreur as? ASWebAuthenticationSessionError)?.code == .canceledLogin
+                    suite.resume(throwing: ErreurHumalis.refus(annulee ? "La connexion avec Google a été annulée." : "La fenêtre de Google n'a pas pu s'ouvrir. Réessayez dans un instant."))
+                }
+            }
+            session.presentationContextProvider = self
+            session.start()
+        }
+        let lus = URLComponents(url: reponse, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        guard lus.first(where: { $0.name == "state" })?.value == etat, let code = lus.first(where: { $0.name == "code" })?.value else { throw ErreurHumalis.refus("La connexion avec Google a été annulée.") }
+        guard let echange = URL(string: essai.isEmpty ? "https://oauth2.googleapis.com/token" : essai + "/token") else { throw ErreurHumalis.refus(pasDeReponse) }
+        var demande = URLRequest(url: echange)
+        demande.httpMethod = "POST"
+        demande.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        var corps = URLComponents()
+        corps.queryItems = [URLQueryItem(name: "client_id", value: identifiant), URLQueryItem(name: "code", value: code), URLQueryItem(name: "code_verifier", value: verificateur), URLQueryItem(name: "grant_type", value: "authorization_code"), URLQueryItem(name: "redirect_uri", value: retour)]
+        demande.httpBody = corps.percentEncodedQuery?.data(using: .utf8)
+        guard let (donnees, _) = try? await URLSession.shared.data(for: demande), let lu = try? JSONDecoder().decode(ValeurHumalis.self, from: donnees), !lu["id_token"].enTexte.isEmpty else { throw ErreurHumalis.refus("Google n'a pas confirmé votre compte.") }
+        return lu["id_token"].enTexte
+    }
+}
 
 @MainActor final class ConnexionApple: NSObject, @preconcurrency ASAuthorizationControllerDelegate, @preconcurrency ASAuthorizationControllerPresentationContextProviding {
     private var suite: CheckedContinuation<String, Error>?
@@ -1238,20 +1307,13 @@ import SwiftUI
         suite = nil
     }
 
-    func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
-        #if os(macOS)
-        return NSApplication.shared.keyWindow ?? NSApplication.shared.windows.first ?? NSWindow()
-        #else
-        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-        return scenes.flatMap(\.windows).first { $0.isKeyWindow } ?? scenes.first.map { UIWindow(windowScene: $0) } ?? UIWindow()
-        #endif
-    }
+    func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor { fenetreDeConnexion() }
 }
 
 extension Session {
     /** « se connecter avec apple » : la fenêtre du système, puis la session d'un compte déjà connu du serveur. */
     func seConnecterAvecApple() async throws {
-        let nonce = UUID().uuidString
+        let nonce = ProcessInfo.processInfo.environment["HUMALIS_ESSAI_NONCE_APPLE"] ?? UUID().uuidString
         let jeton: String
         if let essai = ProcessInfo.processInfo.environment["HUMALIS_ESSAI_JETON_APPLE"] {
             jeton = essai
@@ -1259,6 +1321,16 @@ extension Session {
             jeton = try await ConnexionApple().jeton(nonce: nonce)
         }
         try await ouvrirAvecJeton("/auth/apple", jeton: jeton, nonce: nonce, fournisseur: "Apple")
+    }
+
+    /** « se connecter avec google » : la page de Google, puis la session d'un compte déjà connu du serveur. */
+    func seConnecterAvecGoogle() async throws {
+        guard let url = URL(string: Serveur.base + "/auth/google"), let (donnees, _) = try? await URLSession.shared.data(from: url), let lu = try? JSONDecoder().decode(ValeurHumalis.self, from: donnees) else { throw ErreurHumalis.refus(pasDeReponse) }
+        let identifiant = lu["clientIdApple"].enTexte
+        if identifiant.isEmpty { throw ErreurHumalis.refus("La connexion avec Google n'est pas encore réglée pour l'application.") }
+        let nonce = UUID().uuidString
+        let jeton = try await ConnexionGoogle().jeton(identifiant: identifiant, nonce: nonce)
+        try await ouvrirAvecJeton("/auth/google", jeton: jeton, nonce: nonce, fournisseur: "Google")
     }
 }
 `;

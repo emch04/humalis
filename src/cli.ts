@@ -19,6 +19,7 @@ import { genererProjetStatique, verifierPourLeStatique, MARQUE_STATIQUE } from '
 import { genererProjetDesktop, MARQUE_DESKTOP, SERVEUR_PAR_DEFAUT } from './cibles/desktop/projet.js';
 import { genererProjetApple, MARQUE_APPLE } from './cibles/apple/projet.js';
 import { verifierAppareilPourLaCible } from './cibles/appareil.js';
+import { pourLaCible } from './ri/plateforme.js';
 import { gestionnairesDuProgramme, contientAction } from './cibles/web/interactions.js';
 import type { Application } from './ri/types.js';
 import { etatDesPacks, verifierProjet, ErreurPackageJson } from './packs.js';
@@ -144,7 +145,7 @@ function compile(arguments_: string[]): number | Promise<number> {
   if (source === undefined) return 2;
 
   const resultat = compilerLeFichier(chemin, source);
-  const { application } = resultat;
+  const application = resultat.application ? pourLaCible(resultat.application, cible) : undefined;
   const diagnostics = appliquerExigence(resultat.diagnostics, arguments_.includes('--exigeant'));
   afficherDiagnostics(diagnostics);
   const resume = resumerQualite(diagnostics);
@@ -552,6 +553,8 @@ function compileApple(application: Application, chemin: string, sortie: string, 
   }
   if (!dossierLibre(sortie, MARQUE_APPLE)) return 1;
   const nom = basename(chemin).replace(/\.humalis$/, '');
+  const styles = lireFichiersStyle(application, chemin);
+  if (!styles) return 1;
   const images = lireImagesDuSite(application, chemin);
   if (!images) return 1;
   const medias = lireMedias(application, chemin);
@@ -572,7 +575,7 @@ function compileApple(application: Application, chemin: string, sortie: string, 
   const equipe = option(arguments_, 'equipe');
   // « --essais-ui » : un test XCUITest ajouté au projet, pour l'essai de bout en bout (scripts/essai-apple-parcours.mjs).
   const essaisUi = option(arguments_, 'essais-ui');
-  const { fichiers, diagnostics } = genererProjetApple(application, { nom, source: basename(chemin), images, medias, natifs, polices, ...(essaisUi ? { essaisUi: readFileSync(essaisUi, 'utf8') } : {}), ...(serveur ? { serveur } : {}), ...(identifiant ? { identifiant } : {}), ...(equipe ? { equipe } : {}) });
+  const { fichiers, diagnostics } = genererProjetApple(application, { nom, source: basename(chemin), fichiersStyle: styles, images, medias, natifs, polices, ...(essaisUi ? { essaisUi: readFileSync(essaisUi, 'utf8') } : {}), ...(serveur ? { serveur } : {}), ...(identifiant ? { identifiant } : {}), ...(equipe ? { equipe } : {}) });
   afficherDiagnostics(diagnostics);
   if (diagnostics.some((d) => d.gravite === 'erreur')) {
     console.error('\nLe programme ne peut pas être produit pour Apple : rien n\'a été écrit.');

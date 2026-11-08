@@ -311,6 +311,48 @@ describe('cible Apple — rôles, temps réel, IA, paiements, notifications', ()
   });
 });
 
+describe('le CSS et les styles par plateforme', () => {
+  const CSS = `style :\n    :root { --nuit: #0A1330; }\n    .a { color: var(--nuit); padding: 8px 16px; border-radius: 12px; }\n    .a:hover { color: red; }\n    .b { position: absolute; }\n    @media (max-width: 600px) { .a { color: red; } }\n`;
+
+  it('une règle de classe devient des modificateurs, le reste est compté et listé', () => {
+    const f = projet(`${CSS}page "accueil" :\n    titre "t"\n    texte "x" avec style "a"\n`);
+    const page = f.get('Essai/Pages/PageAccueil.swift')!;
+    expect(page).toContain('.padding(.top, 8)');
+    expect(page).toContain('.clipShape(RoundedRectangle(cornerRadius: 12))');
+    const rapport = f.get('CSS-SUR-APPLE.md')!;
+    expect(rapport).toContain('3 déclarations sur 6');
+    expect(rapport).toContain('@media');
+    expect(rapport).toContain('placement libre');
+  });
+
+  it('pourLaCible garde ce qui vise la cible, et seulement cela', async () => {
+    const { pourLaCible } = await import('../../src/ri/plateforme.js');
+    const app = compile(`style :\n    .a { color: red; }\n    .b { color: blue; }\npage "accueil" :\n    titre "t"\n    texte "x" avec style "a" et sur apple style "b"\n    sur site :\n        texte "web"\n    sur application :\n        texte "appli"\n`);
+    const web = JSON.stringify(pourLaCible(app, 'web').ecrans);
+    const apple = JSON.stringify(pourLaCible(app, 'apple').ecrans);
+    expect(web).toContain('"classes":["a"]');
+    expect(web).toContain('web');
+    expect(web).not.toContain('appli');
+    expect(apple).toContain('"classes":["a","b"]');
+    expect(apple).toContain('appli');
+    expect(apple).not.toContain('"web"');
+  });
+
+  it('iOS et macOS ont chacun leur rendu sous « #if os »', async () => {
+    const { pourLaCible } = await import('../../src/ri/plateforme.js');
+    const app = pourLaCible(compile(`style :\n    .a { padding: 8px; }\n    .b { padding: 40px; }\npage "accueil" :\n    titre "t"\n    texte "x" avec style "a" et sur macos style "b"\n    sur ios :\n        texte "iphone"\n`), 'apple');
+    const page = genererProjetApple(app, { nom: 'essai', source: 'e.humalis' }).fichiers.get('Essai/Pages/PageAccueil.swift')!;
+    expect(page).toContain('#if os(iOS)\n');
+    expect(page).toMatch(/#else[\s\S]*\.padding\(\.top, 40\)/);
+    expect(page).toContain('iphone');
+  });
+
+  it('sur android est dit clairement', () => {
+    expect(() => compiler(`page "accueil" :\n    titre "t"\n    sur android :\n        texte "x"\n`)).not.toThrow();
+    expect(compiler(`page "accueil" :\n    titre "t"\n    sur android :\n        texte "x"\n`).diagnostics.map((d) => d.message).join()).toContain('Android');
+  });
+});
+
 describe('connexion avec Apple', () => {
   const SOURCE = `serveur "s" :\n    connexion apple\n    donnee d :\n        n : texte\n    route "d" :\n        seul admin peut lire d\n\npage "a" :\n    titre "t"\n    bouton "Go"\n    quand l'utilisateur clique sur "Go" :\n        se connecter avec apple\n`;
 

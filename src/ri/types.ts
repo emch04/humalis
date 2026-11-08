@@ -17,7 +17,7 @@ export interface Application {
   /** Le CSS des blocs « style : », recopié tel quel. */
   css: string[];
   /** Les fichiers CSS séparés (« utiliser style "…" »), à copier par la commande. */
-  fichiersStyle: { chemin: string; ligne: number }[];
+  fichiersStyle: { chemin: string; ligne: number; plateforme?: string }[];
   /** Les variables partagées entre les pages (« avec partagee »). */
   partages: Etat[];
   /** Les composants React utilisés (« utiliser composant … depuis … »). */
@@ -510,6 +510,8 @@ export type NoeudVue =
   | {
       type: 'bloc';
       genre: GenreBloc;
+      /** « sur application : », « sur site : ». */
+      plateforme?: string;
       options: Option[];
       classes: string[];
       /** « avec ancre "desserts" » : un endroit de la page où un lien peut mener. */
