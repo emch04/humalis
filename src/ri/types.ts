@@ -145,9 +145,26 @@ export type ValeurServeurRI =
   | { genre: 'valeur'; valeur: string | number | boolean }
   | { genre: 'aujourdhui' }
   | { genre: 'champ'; fiche: string; champ: string }
+  | { genre: 'local'; nom: string }
   | { genre: 'utilisateur'; champ: string }
   | { genre: 'texte'; parties: ({ texte: string } | { valeur: ValeurServeurRI })[] }
   | { genre: 'calcul'; operateur: '+' | '-' | '*' | '/'; gauche: ValeurServeurRI; droite: ValeurServeurRI };
+
+export interface FiltreServeurRI {
+  champ: string;
+  operateur: 'egal' | 'superieur' | 'inferieur' | 'different';
+  valeur: ValeurServeurRI;
+}
+export interface ResumeRI {
+  nom: string;
+  qui: QuiPeut;
+  filtres: FiltreServeurRI[];
+  calculs: { nom: string; operation: string; champ?: string }[];
+  regroupePar?: string;
+}
+export type LigneDocumentRI =
+  | { genre: 'titre' | 'texte'; valeur: ValeurServeurRI }
+  | { genre: 'tableau'; donnee: string; filtres: FiltreServeurRI[]; colonnes: string[]; groupeDe?: string };
 
 export type TestServeurRI =
   | { genre: 'comparaison'; operateur: string; gauche: ValeurServeurRI; droite?: ValeurServeurRI; negation?: boolean }
@@ -155,7 +172,8 @@ export type TestServeurRI =
 
 export type InstructionServeurRI =
   | { type: 'si'; test: TestServeurRI; alors: InstructionServeurRI[]; sinon: InstructionServeurRI[] }
-  | { type: 'pourChaque'; variable: string; donnee: string; filtre?: { champ: string; valeur: ValeurServeurRI }; corps: InstructionServeurRI[] }
+  | { type: 'pourChaque'; variable: string; donnee: string; filtres: FiltreServeurRI[]; corps: InstructionServeurRI[] }
+  | { type: 'calcul'; nom: string; operation: string; donnee: string; champ?: string; filtres: FiltreServeurRI[] }
   | { type: 'changer'; fiche: string; donnee: string; champ: string; valeur: ValeurServeurRI }
   | { type: 'supprimer'; fiche: string; donnee: string }
   | { type: 'refuser'; message: ValeurServeurRI }
@@ -182,7 +200,9 @@ export interface ServeurRI {
     /** Les champs que « payer … pour c » demande : POST /payer/<champ>/:id. */
     payables?: string[];
     /** « seul gerant peut faire "rembourser" sur commande : ». */
-    actions?: { nom: string; qui: QuiPeut; corps: InstructionServeurRI[] }[];
+    actions?: { nom: string; qui: QuiPeut; corps: InstructionServeurRI[]; parametres?: { nom: string; type: TypeChamp }[] }[];
+    /** « seul gerant peut lire "resume" de commande … : ». */
+    resumes?: ResumeRI[];
     /** « quand commande est cree : envoyer notification … ». */
     notifications?: Extract<InstructionServeurRI, { type: 'notification' }>[];
     /** « creer suivi avec … dans commande.suivi » : les fiches liées, créées avant la réponse. */
@@ -212,7 +232,11 @@ export interface ServeurRI {
   /** « connecte peut demander a ia ». */
   droitIa?: QuiPeut;
   /** « document "facture" de commande : ». */
-  documents?: { nom: string; donnee: string; lignes: { genre: 'titre' | 'texte'; valeur: ValeurServeurRI }[] }[];
+  documents?: { nom: string; donnee: string; lignes: LigneDocumentRI[] }[];
+  /** « compte : » puis ses champs. */
+  champsCompte?: { nom: string; type: TypeChamp }[];
+  /** Une page écrit « changer compte de … ». */
+  changeDeCompte?: boolean;
   /** « tous les jours a 7 h : ». */
   taches?: { nom: string; frequence: FrequenceRI; corps: InstructionServeurRI[] }[];
   /** Une page écrit « activer notifications ». */
@@ -727,7 +751,9 @@ export type Action =
   /** « changer le mot de passe avec … et … » : celui du compte connecté, vérifié par le serveur. */
   | { type: 'changementMotDePasse'; actuel: Valeur; nouveau: Valeur }
   /** « inviter champ "Adresse" comme admin » : un lien par e-mail. */
-  | { type: 'invitation'; email: Valeur; role: string; groupe?: { champ: string; valeur: Valeur } }
+  | { type: 'invitation'; email: Valeur; role: string; groupe?: { champ: string; valeur: Valeur }; champs?: { champ: string; valeur: Valeur }[] }
+  /** « changer compte de c avec telephone = … ». */
+  | { type: 'changementCompte'; cible: Valeur; champs: { champ: string; valeur: Valeur }[] }
   /** « payer total pour commande ». */
   | { type: 'paiement'; adresse: string; objet: Valeur }
   /** « demander a ia "…" dans reponse ». */

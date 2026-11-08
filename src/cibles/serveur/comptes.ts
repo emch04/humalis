@@ -13,7 +13,7 @@ import { champsDeGroupe } from './separation.js';
 const chaine = (texte: string) => JSON.stringify(texte);
 
 /** Vrai si le serveur a besoin du module des comptes. */
-export const avecComptes = (serveur: ServeurRI) => Boolean(serveur.invitations || serveur.motDePasseOublie || serveur.routeComptes || serveur.changeDeRole);
+export const avecComptes = (serveur: ServeurRI) => Boolean(serveur.invitations || serveur.motDePasseOublie || serveur.routeComptes || serveur.changeDeRole || serveur.changeDeCompte);
 
 /** Vrai si le serveur produit a son module d'e-mails : une liste de comptes seule en a besoin aussi, sans jamais rien envoyer. */
 export const avecEmails = (serveur: ServeurRI) => Boolean(serveur.emails) || avecComptes(serveur);
@@ -56,10 +56,13 @@ export function codeCreationComptes(serveur: ServeurRI, chemins?: Map<string, st
     pageInvitation: ${cheminDe(serveur.invitations, chemins)},
     rolesPermis: ${JSON.stringify(serveur.roles ?? [])},
     champsDeGroupe: ${JSON.stringify(champsDeGroupe(serveur))},
+    schemaCompte: { ${(serveur.champsCompte ?? []).map((c) => `${chaine(camel(c.nom))}: ${schemaCompte(c.type)}`).join(', ')} },
     pageOublie: ${cheminDe(serveur.motDePasseOublie, chemins)},
   });
 `;
 }
+
+const schemaCompte = (type: NonNullable<ServeurRI['champsCompte']>[number]['type']): string => (type.genre === 'liste' ? `{ liste: ${schemaCompte(type.de)} }` : `'${type.genre}'`);
 
 const gardeInvitation = (qui: string) => (qui.startsWith('role:') ? `roles(${JSON.stringify(qui.slice(5).split(','))})` : 'seulAdmin');
 
@@ -74,17 +77,16 @@ export function codeRoutesComptes(serveur: ServeurRI, adresseApi: (adresse: stri
       app.use('/auth/invitations', routeInvitations);
 `);
   }
-  if (serveur.changeDeRole) {
+  if (serveur.changeDeRole || serveur.changeDeCompte) {
     parties.push(`
-      // « changer role de c en … » : réservé à l'admin ; le compte est relu à chaque requête, donc cela compte tout de suite.
+      // « changer role » est réservé à l'admin ; « changer compte » à la règle « … peut modifier comptes ». Le compte est relu à chaque requête.
       const routeRoles = express.Router();
-      routeRoles.post('/:id/role', ...acces.seulAdmin, csrfMiddleware, comptes.changerRole);
-      app.use('/auth/comptes', routeRoles);
+${serveur.changeDeRole ? "      routeRoles.post('/:id/role', ...acces.seulAdmin, csrfMiddleware, comptes.changerRole);\n" : ''}${serveur.changeDeCompte ? `      routeRoles.post('/:id/champs', ...acces.${gardeInvitation(serveur.routeComptes?.droits.modifier ?? 'admin')}, csrfMiddleware, comptes.changerChamps);\n` : ''}      app.use('/auth/comptes', routeRoles);
 `);
   }
   const route = serveur.routeComptes;
   if (route) {
-    const garde = (action: 'lire' | 'supprimer') => (route.droits[action] === null ? 'refuse' : '...acces.seulAdmin');
+    const garde = (action: 'lire' | 'supprimer') => (route.droits[action] === null ? 'refuse' : `...acces.${gardeInvitation(route.droits[action]!)}`);
     const nom = variable(route.adresse);
     parties.push(`
       // « ${route.adresse} » : les comptes de la connexion, sans aucun secret.
@@ -228,6 +230,7 @@ import { isStrongPassword, type RefreshTokenService, type RevocationStore } from
 import type { RequestHandler } from 'express';
 import type { Emails } from './emails.js';
 import type { PoolPostgres } from './stockage.js';
+import { verifierEnvoi, type Schema } from './verifier.js';
 
 /**
  * Produit par Humalis : les invitations, le lien du mot de passe oublié et la liste des comptes.
@@ -322,6 +325,7 @@ export function creerComptes({
   pageInvitation,
   rolesPermis,
   champsDeGroupe = [],
+  schemaCompte = {},
   pageOublie,
   env = process.env,
 }: {
@@ -338,6 +342,8 @@ export function creerComptes({
   rolesPermis: string[];
   /** Les groupes d'un compte (« donnee … par boutique ») : celui qui invite y fait entrer la personne. */
   champsDeGroupe?: string[];
+  /** Les champs déclarés dans « compte : ». */
+  schemaCompte?: Schema;
   pageOublie: string | null;
   env?: Record<string, string | undefined>;
 }) {
@@ -360,6 +366,11 @@ export function creerComptes({
     return false;
   };
 
+  // Un membre ne voit et ne touche que les comptes de son groupe, jamais un admin.
+  const portee = (moi: Record<string, unknown>, compte: Record<string, unknown>) =>
+    moi.role === 'admin' || (compte.role !== 'admin' && champsDeGroupe.every((champ) => moi[champ] === compte[champ]));
+  const moiDe = (req: unknown) => (req as { user?: Record<string, unknown> }).user ?? {};
+
   return {
     /** Le « send » du mot de passe oublié du pack : il a déjà créé le jeton et gardé son empreinte. */
     async envoyerLienOublie({ user, token }: { user: SaasUser; token: string }): Promise<void> {
@@ -374,7 +385,12 @@ export function creerComptes({
     /** POST /auth/invitations : la même réponse si l'adresse a déjà un compte, qui ne change pas. */
     inviter: (async (req, res, next) => {
       try {
-        const corps = (req.body ?? {}) as { email?: unknown; role?: unknown; groupes?: Record<string, unknown> };
+        const corps = (req.body ?? {}) as { email?: unknown; role?: unknown; groupes?: Record<string, unknown>; champs?: unknown };
+        const envoi = verifierEnvoi(schemaCompte, corps.champs ?? {}, false);
+        if ('erreur' in envoi) {
+          res.status(400).json({ erreur: envoi.erreur });
+          return;
+        }
         const moi = (req as unknown as { user?: Record<string, unknown> }).user ?? {};
         const estAdmin = moi.role === 'admin';
         const adresse = typeof corps.email === 'string' ? corps.email.trim().toLowerCase() : '';
@@ -403,8 +419,8 @@ export function creerComptes({
           return;
         }
         const compte = existant
-          ? await usersStore.update(String(existant.id), { role, invitation: true, ...groupes } as Compte)
-          : await usersStore.create({ email: adresse, role, invitation: true, ...groupes } as Compte);
+          ? await usersStore.update(String(existant.id), { role, invitation: true, ...groupes, ...envoi.valeur } as Compte)
+          : await usersStore.create({ email: adresse, role, invitation: true, ...groupes, ...envoi.valeur } as Compte);
         const id = String(compte?.id);
         // Une nouvelle invitation remplace la précédente : l'ancien lien ne sert plus.
         await jetons.deleteForUser(id);
@@ -451,11 +467,33 @@ export function creerComptes({
       }
     }) as RequestHandler,
 
+    /** « changer compte de c avec … » : seulement les champs déclarés, seulement dans son groupe. */
+    changerChamps: (async (req, res, next) => {
+      try {
+        const id = String(req.params.id);
+        const envoi = verifierEnvoi(schemaCompte, req.body, false);
+        if ('erreur' in envoi) {
+          res.status(400).json({ erreur: envoi.erreur });
+          return;
+        }
+        const compte = await usersStore.findById(id);
+        if (!compte || compte.role === ROLE_RETIRE || !portee(moiDe(req), compte)) {
+          res.status(404).json({ erreur: "ce compte n'existe pas" });
+          return;
+        }
+        await usersStore.update(id, envoi.valeur as Compte);
+        res.json({ id });
+      } catch (erreur) {
+        next(erreur);
+      }
+    }) as RequestHandler,
+
     /** La liste des comptes, sans aucun secret. */
-    lister: (async (_req, res, next) => {
+    lister: (async (req, res, next) => {
       try {
         const tous = (await usersStore.list({ limit: 500 })) as Compte[];
-        const presents = tous.filter((compte) => compte.role !== ROLE_RETIRE);
+        const moi = moiDe(req);
+        const presents = tous.filter((compte) => compte.role !== ROLE_RETIRE && portee(moi, compte));
         presents.sort((a, b) => String(a.email).localeCompare(String(b.email)));
         res.json(
           presents.map((compte) => ({
@@ -463,6 +501,7 @@ export function creerComptes({
             email: String(compte.email ?? ''),
             role: compte.role === 'admin' ? 'admin' : rolesPermis.includes(String(compte.role)) ? String(compte.role) : 'membre',
             statut: compte.invitation === true ? 'invite' : 'actif',
+            ...Object.fromEntries(Object.keys(schemaCompte).map((champ) => [champ, (compte as Record<string, unknown>)[champ] ?? null])),
           })),
         );
       } catch (erreur) {
@@ -483,7 +522,7 @@ export function creerComptes({
           return;
         }
         const compte = await usersStore.findById(id);
-        if (!compte || compte.role === ROLE_RETIRE) {
+        if (!compte || compte.role === ROLE_RETIRE || !portee(moiDe(req), compte)) {
           res.status(404).json({ erreur: "ce compte n'existe pas" });
           return;
         }
@@ -545,6 +584,7 @@ export function testsComptes(serveur: ServeurRI, stockages: string): string {
   const [groupe] = champsDeGroupe(serveur);
   if (serveur.invitations && groupe && qui?.startsWith('role:')) {
     const role = qui.slice(5).split(',')[0];
+    const texteCompte = serveur.champsCompte?.find((c) => c.type.genre === 'texte')?.nom;
     blocs.push(`  it('un membre invite dans son propre groupe, jamais un admin ; seul un admin choisit le groupe', async () => {
     const { app, usersStore, passwordHash, entree, entreeAdmin } = await preparer();
     await usersStore.create({ email: 'chef@exemple.cd', role: '${role}', passwordHash, ${chaine(groupe)}: 'groupe-a' } as never);
@@ -552,7 +592,9 @@ export function testsComptes(serveur: ServeurRI, stockages: string): string {
     await request(app).post('/auth/invitations').set(chef).send({ email: 'admin2@exemple.cd', role: 'admin' }).expect(403);
     await request(app).post('/auth/invitations').set(chef).send({ email: 'neuf@exemple.cd', role: '${role}', groupes: { ${chaine(groupe)}: 'groupe-b' } }).expect(200);
     expect((await usersStore.findByEmail('neuf@exemple.cd') as Record<string, unknown>)[${chaine(groupe)}]).toBe('groupe-a');
-    await request(app).post('/auth/invitations').set(entreeAdmin).send({ email: 'autre@exemple.cd', role: '${role}', groupes: { ${chaine(groupe)}: 'groupe-b' } }).expect(200);
+    await request(app).post('/auth/invitations').set(entreeAdmin).send({ email: 'autre@exemple.cd', role: '${role}', groupes: { ${chaine(groupe)}: 'groupe-b' }${texteCompte ? `, champs: { ${chaine(texteCompte)}: 'valeur' }` : ''} }).expect(200);${texteCompte ? `
+    expect((await usersStore.findByEmail('autre@exemple.cd') as Record<string, unknown>)[${chaine(texteCompte)}]).toBe('valeur');
+    await request(app).post('/auth/invitations').set(entreeAdmin).send({ email: 'mauvais@exemple.cd', champs: { inconnu: 'x' } }).expect(400);` : ''}
     expect((await usersStore.findByEmail('autre@exemple.cd') as Record<string, unknown>)[${chaine(groupe)}]).toBe('groupe-b');
   });`);
   }
@@ -580,7 +622,7 @@ export function testsComptes(serveur: ServeurRI, stockages: string): string {
     await request(app).get('${route}').set(entreeMembre).expect(403);
     const liste = await request(app).get('${route}').set(entreeAdmin).expect(200);
     expect(liste.body.map((c: { email: string }) => c.email)).toEqual(expect.arrayContaining(['admin@exemple.cd', 'awa@exemple.cd']));
-    expect(Object.keys(liste.body[0]).sort()).toEqual(['email', 'id', 'role', 'statut']);
+    expect(Object.keys(liste.body[0]).sort()).toEqual(${JSON.stringify(['email', 'id', 'role', 'statut', ...(serveur.champsCompte ?? []).map((c) => camel(c.nom))].sort())});
   });`);
     }
     if (retirer) {

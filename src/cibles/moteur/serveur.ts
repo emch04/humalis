@@ -413,7 +413,7 @@ export const utilisateur = {
   get pret() { return pret.v; },
   get connecte() { return personne.v !== null; },
   get admin() { return personne.v?.role === 'admin'; },
-  seConnecter, seConnecterAvecGoogle, changerMotDePasse, inviter, changerRole, activerNotifications, demanderIa, payer,
+  seConnecter, seConnecterAvecGoogle, changerMotDePasse, inviter, changerRole, changerCompte, activerNotifications, demanderIa, payer,
   demanderLienMotDePasse, choisirMotDePasse, seDeconnecter,
 };
 function entetesSession() { return ajouterCsrf(new Headers({ 'Content-Type': 'application/json' })); }
@@ -487,7 +487,8 @@ async function envoyerAuCompte(chemin, donnees, dansUnEssai, sansRaison) {
   }
   return true;
 }
-function inviter(email, role, dansUnEssai = false, groupes) { return envoyerAuCompte('/auth/invitations', { email, role, groupes }, dansUnEssai, "L'invitation n'est pas partie."); }
+function inviter(email, role, dansUnEssai = false, groupes, champs) { return envoyerAuCompte('/auth/invitations', { email, role, groupes, champs }, dansUnEssai, "L'invitation n'est pas partie."); }
+function changerCompte(id, champs, dansUnEssai = false) { return envoyerAuCompte('/auth/comptes/' + encodeURIComponent(id) + '/champs', champs, dansUnEssai, "Ce compte n'a pas changé."); }
 async function payer(adresse, id, dansUnEssai = false) {
   let reponse;
   try { reponse = await fetch(BASE_AUTH + adresse + '/' + encodeURIComponent(id), { method: 'POST', headers: entetesSession(), credentials: CREDENTIALS_AUTH, body: JSON.stringify({ retour: location.pathname }) }); }

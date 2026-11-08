@@ -957,7 +957,8 @@ interface Utilisateur {
   seConnecterAvecGoogle(dansUnEssai?: boolean): Promise<boolean>;
   /** « changer le mot de passe avec … et … » : celui du compte connecté ; vrai si le serveur l'a accepté. */
   changerMotDePasse(actuel: string, nouveau: string, dansUnEssai?: boolean): Promise<boolean>;
-  inviter(email: string, role: string, dansUnEssai?: boolean, groupes?: Record<string, string>): Promise<boolean>;
+  inviter(email: string, role: string, dansUnEssai?: boolean, groupes?: Record<string, string>, champs?: Record<string, unknown>): Promise<boolean>;
+  changerCompte(id: string, champs: Record<string, unknown>, dansUnEssai?: boolean): Promise<boolean>;
   changerRole(id: string, role: string, dansUnEssai?: boolean): Promise<boolean>;
   activerNotifications(dansUnEssai?: boolean): Promise<boolean>;
   demanderIa(question: string, surTexte: (texte: string) => void, dansUnEssai?: boolean): Promise<boolean>;
@@ -1066,7 +1067,8 @@ export function Session({ children }: { children: ReactNode }) {
     afficherMessage(texte, 'erreur');
     return false;
   }
-  const inviter = async (_email: string, _role: string, dansUnEssai = false, _groupes?: Record<string, string>): Promise<boolean> => comptesSurLeSite(dansUnEssai);
+  const inviter = async (_email: string, _role: string, dansUnEssai = false, _groupes?: Record<string, string>, _champs?: Record<string, unknown>): Promise<boolean> => comptesSurLeSite(dansUnEssai);
+  const changerCompte = async (_id: string, _champs: Record<string, unknown>, dansUnEssai = false): Promise<boolean> => comptesSurLeSite(dansUnEssai);
   const payer = async (_adresse: string, _id: string, dansUnEssai = false): Promise<boolean> => comptesSurLeSite(dansUnEssai);
   const demanderIa = async (_question: string, _surTexte: (texte: string) => void, dansUnEssai = false): Promise<boolean> => comptesSurLeSite(dansUnEssai);
   const activerNotifications = async (dansUnEssai = false): Promise<boolean> => comptesSurLeSite(dansUnEssai);
@@ -1135,6 +1137,7 @@ export function Session({ children }: { children: ReactNode }) {
     changerMotDePasse,
     inviter,
     changerRole,
+    changerCompte,
     activerNotifications,
     demanderIa,
     payer,

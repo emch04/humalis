@@ -5,7 +5,7 @@ import { OPTIONS } from '../analyse/styles.js';
 import type { Token, PartieChaine } from '../lexer/types.js';
 import { analyser as analyserLexique } from '../lexer/lexer.js';
 import { FluxTokens } from './fluxTokens.js';
-import { analyserActionServeur, analyserCorpsServeur, analyserDocument, analyserTache, estTache } from './logique.js';
+import { analyserResume, analyserActionServeur, analyserCorpsServeur, analyserDocument, analyserTache, estTache } from './logique.js';
 import { analyserSource, analyserClausesRequete, analyserSourceSeule } from './source.js';
 import { analyserEntetePage, analyserAvecPage } from './navigation.js';
 import { ErreurSyntaxique } from './erreurs.js';
@@ -65,7 +65,7 @@ import type {
   Boucle,
   Evenement,
   GenreEvenement,
-  Connexion, ConnexionGoogle, ChangementMotDePasse, Invitation, ChangementRole, DroitIa, DemandeIa, Paiement, ApresPaiement, FaireAction, TelechargementDocument, DocumentServeur, ActionServeur, TachePlanifiee, EnvoiNotification, ConditionRegle, OperandeRegle, DemandeLienMotDePasse, ChoixMotDePasse, ApresCreation, EnvoiEmail, CreationLiee, RegleChamp, ValeurFixe, TelechargementBon, TelechargementCsv, Fidelite, Suppression, Modification, EnvoiFichier, ArgumentPage } from './ast.js';
+  Connexion, ConnexionGoogle, ChangementMotDePasse, Invitation, ChangementRole, ChangementCompte, ResumeServeur, DroitIa, DemandeIa, Paiement, ApresPaiement, FaireAction, TelechargementDocument, DocumentServeur, ActionServeur, TachePlanifiee, EnvoiNotification, ConditionRegle, OperandeRegle, DemandeLienMotDePasse, ChoixMotDePasse, ApresCreation, EnvoiEmail, CreationLiee, RegleChamp, ValeurFixe, TelechargementBon, TelechargementCsv, Fidelite, Suppression, Modification, EnvoiFichier, ArgumentPage } from './ast.js';
 
 export function analyserSyntaxe(tokens: Token[]): Programme {
   const flux = new FluxTokens(tokens);
@@ -430,12 +430,21 @@ function analyserServeur(flux: FluxTokens): Serveur {
   const taches: TachePlanifiee[] = [];
   const documents: DocumentServeur[] = [];
   let ia: Serveur['ia'];
+  const champsCompte: NonNullable<Serveur['champsCompte']> = [];
   let paiements: Serveur['paiements'];
   let droitIa: DroitIa | undefined;
 
   chaqueLigne(flux, () => {
     const token = flux.actuel();
-    if (estDroitIa(flux)) {
+    if (estLeMot(token, 'compte') && flux.regarder(1).valeur === ':') {
+      flux.avancer();
+      flux.avancer();
+      chaqueLigne(flux, () => {
+        const champ = flux.attendreNom('le nom du champ du compte');
+        flux.attendre('PONCTUATION', ':', 'deux-points entre le nom du champ et son type');
+        champsCompte.push({ nom: champ.nom, type: analyserTypeChamp(flux), ligne: champ.ligne });
+      });
+    } else if (estDroitIa(flux)) {
       const droit = analyserRegle(flux, roles !== undefined);
       if (droit.type === 'DroitIa') droitIa = droit;
     } else if (estLeMot(token, 'paiements') && estLeMot(flux.regarder(1), 'par')) {
@@ -514,7 +523,7 @@ function analyserServeur(flux: FluxTokens): Serveur {
   const regleComptes = routes.flatMap((r) => r.regles).find((r) => r.donnee === 'comptes');
   if (regleComptes && !donnees.some((d) => d.nom === 'comptes')) {
     const champ = (nom: string) => ({ nom, type: { genre: 'texte' as const }, ligne: regleComptes.ligne });
-    donnees.push({ type: 'Donnee', nom: 'comptes', champs: ['email', 'role', 'statut'].map(champ), comptes: true, ligne: regleComptes.ligne });
+    donnees.push({ type: 'Donnee', nom: 'comptes', champs: [...['email', 'role', 'statut'].map(champ), ...champsCompte], comptes: true, ligne: regleComptes.ligne });
   }
 
   return {
@@ -527,6 +536,7 @@ function analyserServeur(flux: FluxTokens): Serveur {
     ...(taches.length ? { taches } : {}),
     ...(documents.length ? { documents } : {}),
     ...(ia ? { ia } : {}),
+    ...(champsCompte.length ? { champsCompte } : {}),
     ...(paiements ? { paiements } : {}),
     ...(droitIa ? { droitIa } : {}),
     ...(emails ? { emails } : {}),
@@ -710,7 +720,7 @@ function analyserRegleChamp(flux: FluxTokens): RegleChamp | undefined {
 }
 
 /** « texte », « nombre », « booleen », « date », « liste de … ». */
-function analyserTypeChamp(flux: FluxTokens, ouverte = false): TypeChamp {
+export function analyserTypeChamp(flux: FluxTokens, ouverte = false): TypeChamp {
   const token = flux.avancer();
   const mot = motDe(token);
   if (mot === 'texte' || mot === 'nombre' || mot === 'booleen' || mot === 'date') return { genre: mot };
@@ -733,6 +743,7 @@ function analyserRoute(flux: FluxTokens, avecRoles = false): Route {
   flux.attendre('PONCTUATION', ':', "deux-points après l'adresse de la route");
   const regles: Regle[] = [];
   const actions: ActionServeur[] = [];
+  const resumes: ResumeServeur[] = [];
   let apresCreation: ApresCreation | undefined;
   let apresPaiement: ApresPaiement | undefined;
   chaqueLigne(flux, () => {
@@ -751,10 +762,11 @@ function analyserRoute(flux: FluxTokens, avecRoles = false): Route {
       const lue = analyserRegle(flux, avecRoles);
       if (lue.type === 'Regle') regles.push(lue);
       else if (lue.type === 'ActionServeur') actions.push(lue);
+      else if (lue.type === 'ResumeServeur') resumes.push(lue);
       else throw new ErreurSyntaxique('« … peut demander a ia » s’écrit directement dans le serveur, pas dans une route.', lue.ligne);
     }
   });
-  return { type: 'Route', adresse, regles, ...(actions.length ? { actions } : {}), ...(apresCreation ? { apresCreation } : {}), ...(apresPaiement ? { apresPaiement } : {}), ligne: debut.ligne };
+  return { type: 'Route', adresse, regles, ...(actions.length ? { actions } : {}), ...(resumes.length ? { resumes } : {}), ...(apresCreation ? { apresCreation } : {}), ...(apresPaiement ? { apresPaiement } : {}), ligne: debut.ligne };
 }
 
 /** « quand message est cree : » puis, décalés, les « envoyer email … ». */
@@ -873,6 +885,18 @@ export function analyserEnvoiEmail(flux: FluxTokens): EnvoiEmail {
 
 /** « tout le monde peut lire produit », « seul admin peut modifier produit ». */
 /** La ligne dit-elle qui peut interroger l'IA ? */
+/** « avec montant = 10 et raison = champ "Raison" ». */
+function lireAvec(flux: FluxTokens): { champ: string; valeur: Expression }[] {
+  const liste: { champ: string; valeur: Expression }[] = [];
+  flux.avancer();
+  do {
+    const champ = flux.attendreNom('le nom de la valeur').nom;
+    flux.attendre('PONCTUATION', '=', `« = » suivi de la valeur de « ${champ} »`);
+    liste.push({ champ, valeur: analyserOperande(flux) });
+  } while (flux.accepter('MOT_CLE', 'et'));
+  return liste;
+}
+
 function estDroitIa(flux: FluxTokens): boolean {
   for (let i = 0; i < 12 && flux.regarder(i).type !== 'FIN_LIGNE'; i++) {
     if (estLeMot(flux.regarder(i), 'peut') || estLeMot(flux.regarder(i), 'peuvent')) return estLeMot(flux.regarder(i + 1), 'demander');
@@ -880,7 +904,7 @@ function estDroitIa(flux: FluxTokens): boolean {
   return false;
 }
 
-function analyserRegle(flux: FluxTokens, avecRoles = false): Regle | ActionServeur | DroitIa {
+function analyserRegle(flux: FluxTokens, avecRoles = false): Regle | ActionServeur | ResumeServeur | DroitIa {
   const debut = flux.actuel();
   const mots: string[] = [];
   while (!estLeMot(flux.actuel(), 'peut') && !estLeMot(flux.actuel(), 'peuvent') && !flux.verifier('FIN_LIGNE') && !flux.estFini()) {
@@ -902,6 +926,7 @@ function analyserRegle(flux: FluxTokens, avecRoles = false): Regle | ActionServe
   else flux.attendre(flux.actuel().type === 'MOT_CLE' ? 'MOT_CLE' : 'IDENTIFIANT', 'peut', '« peut » suivi d\'une action');
 
   if (estLeMot(flux.actuel(), 'faire')) return analyserActionServeur(flux, qui, debut.ligne);
+  if (estLeMot(flux.actuel(), 'lire') && flux.regarder(1).type === 'CHAINE') return analyserResume(flux, qui, debut.ligne);
   if (estLeMot(flux.actuel(), 'demander')) {
     flux.avancer();
     if (!estLeMot(flux.actuel(), 'ia')) throw new ErreurSyntaxique('on écrit : connecte peut demander a ia', debut.ligne);
@@ -1231,7 +1256,13 @@ function analyserInstruction(flux: FluxTokens): Instruction {
     const nom = flux.avancer().valeur;
     if (!estLeMot(flux.actuel(), 'sur')) throw new ErreurSyntaxique(`on écrit : faire "${nom}" sur c`, debut.ligne);
     flux.avancer();
-    return { type: 'FaireAction', nom, objet: analyserOperande(flux), ligne: debut.ligne } satisfies FaireAction;
+    const objet = analyserOperande(flux);
+    return { type: 'FaireAction', nom, objet, ...(estLeMot(flux.actuel(), 'avec') ? { avec: lireAvec(flux) } : {}), ligne: debut.ligne } satisfies FaireAction;
+  }
+
+  // « changer compte de c avec … » ; « changer compte par 2 » reste une variable de ce nom.
+  if (flux.verifier('MOT_CLE', 'changer') && estLeMot(flux.regarder(1), 'compte') && !estLeMot(flux.regarder(2), 'par') && flux.regarder(2).type !== 'FIN_LIGNE') {
+    return analyserChangementCompte(flux);
   }
 
   // « changer role de c en "vendeur" » ; « changer role par 2 » reste une variable de ce nom.
@@ -2010,10 +2041,14 @@ function analyserInvitation(flux: FluxTokens): Invitation {
   const email = analyserOperande(flux);
   // « dans boutique b », après le rôle : le groupe du nouveau compte.
   const groupe = () => {
-    if (!estLeMot(flux.actuel(), 'dans')) return {};
-    flux.avancer();
-    const champ = flux.attendreNom('le groupe : inviter champ "Adresse" comme vendeur dans boutique b').nom;
-    return { groupe: { champ, valeur: analyserOperande(flux) } };
+    const lu: Pick<Invitation, 'groupe' | 'champs'> = {};
+    if (estLeMot(flux.actuel(), 'dans')) {
+      flux.avancer();
+      const champ = flux.attendreNom('le groupe : inviter champ "Adresse" comme vendeur dans boutique b').nom;
+      lu.groupe = { champ, valeur: analyserOperande(flux) };
+    }
+    if (estLeMot(flux.actuel(), 'avec')) lu.champs = lireAvec(flux);
+    return lu;
   };
   if (!estLeMot(flux.actuel(), 'comme')) return { type: 'Invitation', email, role: 'membre', ...groupe(), ligne: debut.ligne };
   flux.avancer();
@@ -2025,6 +2060,15 @@ function analyserInvitation(flux: FluxTokens): Invitation {
   if (!estLeMot(flux.actuel(), 'admin')) throw new ErreurSyntaxique('après « comme », écrivez « admin » ; sans « comme », la personne invitée est un simple compte connecté.', debut.ligne);
   flux.avancer();
   return { type: 'Invitation', email, role: 'admin', ...groupe(), ligne: debut.ligne };
+}
+
+/** « changer compte de c avec telephone = champ "Tél" » (« de » est déjà sauté). */
+function analyserChangementCompte(flux: FluxTokens): ChangementCompte {
+  const debut = flux.avancer();
+  flux.avancer();
+  const cible = analyserOperande(flux);
+  if (!estLeMot(flux.actuel(), 'avec')) throw new ErreurSyntaxique('on écrit : changer compte de c avec telephone = champ "Téléphone"', debut.ligne);
+  return { type: 'ChangementCompte', cible, champs: lireAvec(flux), ligne: debut.ligne };
 }
 
 /** « changer role de c en "vendeur" » (« de » est déjà sauté). */
