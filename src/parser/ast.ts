@@ -762,6 +762,8 @@ export interface Requete {
   /** « avec customer = client » : le nom de chaque donnée envoyée, quand il est écrit (sinon celui de la variable ou du champ). */
   cles?: (string | undefined)[];
   resultat?: string;
+  /** « … dans commandes en direct » : relue quand le serveur change. */
+  direct?: boolean;
   ligne: number;
 }
 

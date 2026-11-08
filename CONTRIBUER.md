@@ -45,7 +45,7 @@ Pour le serveur : `node dist/cli.js compile exemples/boutique-serveur.humalis --
 Pour un site statique, sans React ni construction : `node dist/cli.js compile exemples/boutique.humalis --cible statique --sortie ../boutique-site`, puis ouvrez `index.html` ou déposez le dossier chez un hébergeur. `npm run essai:statique` le vérifie dans Chromium (avec `-- --avec-serveur`, la connexion contre le vrai serveur).
 `exemples/inscription.humalis` montre un formulaire complet (`formulaire "…" :`, chaque sorte de champ, case à cocher, choix, liste déroulante, champs obligatoires) : `npm run essai:formulaire` le pilote dans Chromium, sur le web avec son serveur et sur le mobile.
 
-`npm run essai:moteur` et `npm run essai:moteur-comptes` vérifient le moteur de rendu dans Chromium (`npm run mesure:moteur` mesure son poids et sa vitesse). Les autres essais tournent aussi sur le moteur avec `HUMALIS_MOTEUR=humalis` devant la commande.
+`npm run essai:moteur`, `npm run essai:moteur-comptes` et `npm run essai:moteur-direct` vérifient le moteur de rendu dans Chromium (`npm run mesure:moteur` mesure son poids et sa vitesse). Les autres essais tournent aussi sur le moteur avec `HUMALIS_MOTEUR=humalis` devant la commande.
 
 `npm run essai:web` compile les deux exemples (la boutique a un panier partagé entre ses deux pages), les construit et les pilote dans Chromium pour vérifier qu'ils marchent vraiment.
 

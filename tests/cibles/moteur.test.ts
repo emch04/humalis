@@ -307,3 +307,40 @@ describe('le code en cause sous une erreur', () => {
     expect(extraitDeCode(source, 99, 'x')).toBeUndefined();
   });
 });
+
+describe('le temps réel : « en direct »', () => {
+  const programme = (ligne: string) => `serveur "s" :
+    donnee produit :
+        nom : texte
+    route "produits" :
+        tout le monde peut lire produit
+        seul admin peut creer produit
+
+page "accueil" :
+    variable produits = []
+    titre "Produits"
+    quand la page se charge :
+        ${ligne}
+    pour chaque p dans produits :
+        texte p.nom
+`;
+
+  it('la route annonce ses changements seulement si une page la lit en direct', () => {
+    const avec = compiler(programme('envoyer requete vers "produits" dans produits en direct')).application!;
+    const sans = compiler(programme('envoyer requete vers "produits" dans produits')).application!;
+    expect(avec.serveurs[0].routes[0].direct).toBe(true);
+    expect(sans.serveurs[0].routes[0].direct).toBeUndefined();
+  });
+
+  it('la page écoute sa route, et se relit', () => {
+    const fichiers = genererProjetMoteur(compiler(programme('envoyer requete vers "produits" dans produits en direct')).application!, { nom: 'e', source: 'e.humalis' });
+    const code = fichiers.get('src/couches/accueil.js')!;
+    expect(code).toContain('const enDirect = directDeCouche();');
+    expect(code).toMatch(/enDirect\('\/api\/produits', \(\) => \$charger1\(true\)\);/);
+  });
+
+  it('refuse « en direct » sur un envoi', () => {
+    const { diagnostics } = compiler(programme('envoyer requete vers "produits" avec "x" dans produits en direct'));
+    expect(diagnostics.some((d) => d.message.includes('en direct'))).toBe(true);
+  });
+});

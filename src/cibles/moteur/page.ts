@@ -384,7 +384,7 @@ export class GenerateurMoteur extends GenerateurPage {
         if (action.resultat !== undefined) args.push(this.lu(action.resultat));
         else if (action.source !== undefined) args.push('undefined');
         const suivie = action.resultat !== undefined && (this.ecran.etatsRequetes?.includes(action.resultat) ?? false);
-        const lecture = action.source !== undefined && action.mode !== 'envoyer';
+        const lecture = (action.source !== undefined && action.mode !== 'envoyer') || action.direct === true;
         if (action.source !== undefined) {
           const filtres = (action.filtrant ?? []).map((f) => `${/^[A-Za-z_]\w*$/.test(f.cle) ? f.cle : chaine(f.cle)}: ${x(f.valeur)}`);
           const n = this.compteurs.chargeurs + 1;
@@ -404,6 +404,7 @@ export class GenerateurMoteur extends GenerateurPage {
             e.bloc(`const $charger${n} = async (contourner = false) => {`, () => this.reponse(e, action.resultat!, appel), '};');
             if (suivie) e.ligne(`relances.${camel(action.resultat)} = $charger${n};`);
             e.ligne(`await $charger${n}();`);
+            if (action.direct) e.ligne(`enDirect(${chaine(action.adresse)}, () => $charger${n}(true));`);
           } else this.reponse(e, action.resultat, appel);
         } else e.ligne(`await serveur.${action.mode}(${args.join(', ')});`);
         this.apresAppel(e, action.mode === 'envoyer');
@@ -622,7 +623,8 @@ ${code}}
 
   /** Une minuterie lancée par un événement appartient à sa couche, ou à son composant. */
   private avecPlanificateur(code: string): string {
-    return /\bplanifier\(/.test(code) ? `  const planifier = planificateur();\n${code}` : code;
+    const direct = /\benDirect\(/.test(code) ? '  const enDirect = directDeCouche();\n' : '';
+    return direct + (/\bplanifier\(/.test(code) ? `  const planifier = planificateur();\n${code}` : code);
   }
 
   /** Le HTML de départ de la couche, avec celui de sa sous-couche. */
@@ -1227,7 +1229,7 @@ const NOMS_MOTEUR = ['animerListe', 'signal', 'calcul', 'lecture', 'effet', 'net
 const NOMS_OUTILS = ['creer', 'icone', 'avatar', 'etoiles', 'codeQr', 'carteLieux', 'fenetre', 'observerLeBas', 'titreDeLaPage', 'descriptionDeLaPage', 'activerCarrousel', 'activerMotDePasse', 'afficherMessage', 'planifier', 'planificateur', 'minuteriesDeCouche', 'ecouterRaccourcis', 'mouvementReduit', 'themeSombre', 'copier', 'partager', 'telechargerCsv', 'confirmer', 'retirerPremier', 'grouper', 'formaterNombre', 'formaterDate', 'formaterArgent', 'accorder', 'formaterTaille', 'dateDuJour', 'maintenant', 'decalerDate', 'joursEntre', 'formaterDepuis', 'lireMemoire', 'garderMemoire', 'cliquer', 'focaliser', 't', 'langue', 'changerLangue', 'definirTheme'];
 const NOMS_NAV = ['naviguer', 'adresseDe', 'filtre', 'revenir', 'changerFiltre', 'apresLaGarde'];
 const NOMS_ADAPT = ['monterModule', 'monterReact', 'monterVue', 'monterSvelte', 'monterWeb'];
-const NOMS_SERVEUR = ['serveur', 'derniereRequete', 'utilisateur', 'televerser', 'REPOS', 'lectureGardee'];
+const NOMS_SERVEUR = ['serveur', 'derniereRequete', 'utilisateur', 'televerser', 'REPOS', 'lectureGardee', 'directDeCouche'];
 
 const utilise = (nom: string, code: string) => new RegExp(`(?<![.\\w$])${nom}\\b(?=\\s*[(.{},\\)\\];]|$)`, 'm').test(code);
 

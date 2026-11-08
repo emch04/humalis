@@ -543,3 +543,4 @@ page "accueil" :
 - Un calcul illisible entre accolades : que Humalis ne sait pas lire
 - « en csv » sur autre chose qu’une liste : « telecharger … en csv » attend une liste
 - « en csv » directement dans la page : telecharger … en csv
+- « en direct » sur autre chose qu’une lecture : « en direct » se met sur une lecture

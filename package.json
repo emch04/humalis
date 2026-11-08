@@ -37,6 +37,7 @@
     "essai:statique": "node scripts/essai-statique.mjs",
     "essai:moteur": "node scripts/essai-moteur.mjs",
     "essai:moteur-comptes": "node scripts/essai-moteur-comptes.mjs",
+    "essai:moteur-direct": "node scripts/essai-moteur-direct.mjs",
     "mesure:moteur": "node scripts/mesure-moteur.mjs",
     "essai:sources": "node scripts/essai-sources.mjs",
     "essai:navigation": "node scripts/essai-navigation.mjs",

@@ -2546,6 +2546,23 @@ changes, and new rows fade in (unless the person asked for less motion). It only
 works with this engine: elsewhere the compiler says so and rows change without
 sliding.
 
+#### Real time
+
+`en direct` keeps a page up to date when the server changes:
+
+```humalis
+page "commandes" :
+    variable commandes = []
+    titre "Commandes"
+    quand la page se charge :
+        envoyer requete vers "commandes" dans commandes en direct
+```
+
+An order created elsewhere appears by itself, without a reload. The server only
+announces that something changed: the page then re-reads the normal route, with its
+access rules, so nothing private travels through this channel. It works with this
+engine and a single running Humalis server.
+
 #### Reading the server at build time
 
 To have public pages carry their content in the HTML, give your server's address

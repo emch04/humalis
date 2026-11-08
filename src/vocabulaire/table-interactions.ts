@@ -298,6 +298,19 @@ export const ENTREES_INTERACTIONS: EntreeVocabulaire[] = [
     exemple: PAGE('    variable produits = ["Robe"]\n    section "Nos produits" avec nom "catalogue" :\n        pour chaque p dans produits :\n            texte p\n    quand l\'utilisateur arrive en bas de "catalogue" :\n        ajouter "Pagne" a produits'),
   }),
 
+  mot({
+    mot: 'direct',
+    categorie: 'option',
+    concept: 'option.direct',
+    contextes: ['option'],
+    cibles: {
+      ...ecran('EventSource sur /api/…/direct (moteur Humalis)', null, null),
+    },
+    couvre: ['dom:eventsource'],
+    description: '« envoyer requete vers "commandes" dans commandes en direct » : la page se relit quand le serveur annonce un changement (moteur Humalis).',
+    exemple: PAGE('    variable commandes = []\n    quand la page se charge :\n        envoyer requete vers "commandes" dans commandes en direct'),
+  }),
+
   // ─── Le glisser-déposer ──────────────────────────────────────────────
   mot({
     mot: 'deplacement',

@@ -1110,7 +1110,7 @@ function serveurTs(serveur: ServeurRI, chemins?: Map<string, string>): string {
       const cache = route.droits.lire === 'tout_le_monde' ? 'lecturePublique' : 'lecturePrivee';
       return `      // « ${route.adresse} » (ligne ${ligneLocale(route.ligne)}) — ${decrireDroits(route.droits)}.
       const ${variable} = express.Router();
-      ${variable}.get('/', ${cache}, ${garde('lire')}, async (req, res, next) => {
+${route.direct ? routeDirect(variable, garde('lire')) : ''}      ${variable}.get('/', ${cache}, ${garde('lire')}, async (req, res, next) => {
         try {
           // « ?produit=… » : seulement ce qui est demandé, pas toute la liste.
           const filtres = lireFiltres(${schema}, req.query as Record<string, unknown>);
@@ -1953,6 +1953,37 @@ const ROUTE_MOT_DE_PASSE = `
  * « telecharger bon de … » : les mêmes gardes que la lecture de la route, et jamais gardé en cache,
  * même sur une route publique : c'est un fichier nominatif.
  */
+/**
+ * Le temps réel : une page qui lit une route « en direct » apprend qu'elle a changé.
+ * Aucune donnée ne passe par ce canal : la page relit par la route normale, avec ses droits.
+ */
+function routeDirect(variable: string, garde: string): string {
+  return `      const ecoutes${variable} = new Set<Response>();
+      ${variable}.use((req, res, next) => {
+        if (req.method !== 'GET') {
+          res.on('finish', () => {
+            if (res.statusCode < 400) for (const ecoute of ecoutes${variable}) ecoute.write('data: change\\n\\n');
+          });
+        }
+        next();
+      });
+      ${variable}.get('/direct', ${garde}, (req, res) => {
+        if (ecoutes${variable}.size >= 1000) {
+          res.status(503).end();
+          return;
+        }
+        res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', 'X-Accel-Buffering': 'no', Connection: 'keep-alive' });
+        res.write(': ouvert\\n\\n');
+        ecoutes${variable}.add(res);
+        const battement = setInterval(() => res.write(': present\\n\\n'), 25000);
+        req.on('close', () => {
+          clearInterval(battement);
+          ecoutes${variable}.delete(res);
+        });
+      });
+`;
+}
+
 function routeBon(variable: string, route: ServeurRI['routes'][number], garde: string, schema: string, donnee: string): string {
   const fichier = simplifier(route.donnee).replace(/_/g, '-');
   return `      ${variable}.get('/:id/bon', lecturePrivee, ${garde}, async (req, res, next) => {

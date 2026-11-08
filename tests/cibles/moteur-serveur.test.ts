@@ -22,7 +22,7 @@ const application = compilation.application!;
 if (!application) throw new Error('le programme de test ne compile pas : ' + JSON.stringify(compilation.diagnostics));
 
 const messages: [string, string, unknown?][] = [];
-const signalUrl = 'data:text/javascript,' + encodeURIComponent('export const signal = (v) => ({ get v() { return v; }, set v(n) { v = n; } });');
+const signalUrl = 'data:text/javascript,' + encodeURIComponent('export const nettoyer = () => {}; export const signal = (v) => ({ get v() { return v; }, set v(n) { v = n; } });');
 const outilsUrl = 'data:text/javascript,' + encodeURIComponent("export const afficherMessage = (...args) => globalThis.__messages.push(args);");
 const clientUrl = 'data:text/javascript,' + encodeURIComponent(`export class SessionExpiredError extends Error {}
 export const createSessionClient = ({ request, refresh }) => ({ call: async (_chemin, lancer) => {

@@ -1,0 +1,26 @@
+# Essai du moteur : les pages qui se mettent à jour quand le serveur change.
+serveur "club" :
+    donnee produit :
+        nom : texte
+    donnee commande :
+        nom : texte
+    route "produits" :
+        tout le monde peut lire produit
+        seul admin peut creer produit
+    route "commandes" :
+        seul admin peut lire commande
+        tout le monde peut creer commande
+
+page "accueil" :
+    variable produits = []
+    titre "Catalogue"
+    quand la page se charge :
+        envoyer requete vers "produits" dans produits en direct
+    si produits est vide :
+        texte "Aucun produit"
+    pour chaque p dans produits avec animation :
+        texte p.nom
+    lien "Autre" vers "autre"
+
+page "autre" :
+    titre "Autre page"

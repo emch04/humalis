@@ -209,11 +209,13 @@ function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
       .map((route) => {
         const droits = droitsDeRoute(route);
         const bon = analyse.bons.has(adresseNormalisee(route.adresse));
+        const direct = analyse.directs.has(adresseNormalisee(route.adresse));
         return {
           adresse: route.adresse,
           donnee: route.regles[0].donnee,
           droits,
           ...(bon ? { bon } : {}),
+          ...(direct ? { direct } : {}),
           ...(route.apresCreation?.envois.length ? { envois: envoisRI(route.apresCreation) } : {}),
           ...(route.apresCreation?.creations.length ? { creations: creationsRI(route.apresCreation) } : {}),
           ligne: route.ligne,
@@ -606,6 +608,7 @@ class Construction {
             donnees: instruction.donnees.map((d) => this.valeur(d)),
             ...(instruction.cles ? { cles: instruction.cles } : {}),
             resultat: instruction.resultat,
+            ...(instruction.direct ? { direct: true } : {}),
             ...(instruction.source !== undefined
               ? {
                   source: instruction.source,
