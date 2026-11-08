@@ -464,8 +464,9 @@ export class GenerateurPage implements HotePage {
     const { titre } = titreEtDescription(this.ecran, this.app.langues);
     const titreCode = this.titreCode(titre);
     e.bloc('var body: some View {', () => {
-      const largeur = '';
-      e.ligne(this.parametres || this.nomForce ? 'Group {' : `PageHumalis(titre: ${titreCode}${largeur}) {`);
+      // Une ancre doit exister pour qu'on y aille : une page qui en a construit tout son contenu.
+      const paresseuse = this.ecran.vue.some((n) => n.type === 'repetition') && !JSON.stringify(this.ecran.vue).includes('"ancre"');
+      e.ligne(this.parametres || this.nomForce ? 'Group {' : `PageHumalis(titre: ${titreCode}${paresseuse ? ', paresseuse: true' : ''}) {`);
       for (const l of corps.trimEnd().split('\n')) if (l !== '') e.ligne(l.slice(2));
       e.ligne('}');
       e.indenter(() => {
@@ -619,7 +620,9 @@ export class GenerateurPage implements HotePage {
         e.ligne('}');
       });
     } else {
-      e.bloc(`ForEach(Array(${liste.code}.enumerated()), id: \\.offset) { ${index}, ${nom} in`, () => {
+      // Une donnée du serveur a son identifiant : une ligne garde son état quand la liste change.
+      const identite = type.genre === 'donnee' && this.app.types.champ(type, 'id') ? '\\.element.id' : '\\.offset';
+      e.bloc(`ForEach(Array(${liste.code}.enumerated()), id: ${identite}) { ${index}, ${nom} in`, () => {
         e.ligne(`let _ = ${index}`);
         this.ecrireCorps(e, noeud.corps);
       });
@@ -672,7 +675,9 @@ export class GenerateurPage implements HotePage {
       case 'colonne': {
         const alignement = { debut: '.leading', centree: '.center', fin: '.trailing', etire: '.leading' }[valeurDe('alignement') ?? 'debut'] ?? '.leading';
         this.dansLigne = false;
-        e.bloc(`VStack(alignment: ${alignement}, spacing: ${espace ?? 12}) {`, () => this.ecrireCorps(e, noeud.corps));
+        // Une liste longue dans un bloc : seules les lignes visibles sont construites.
+        const pile = noeud.corps.some((n) => n.type === 'repetition') && noeud.ancre === undefined ? 'LazyVStack' : 'VStack';
+        e.bloc(`${pile}(alignment: ${alignement}, spacing: ${espace ?? 12}) {`, () => this.ecrireCorps(e, noeud.corps));
         this.dansLigne = dansLigneAvant;
         this.modifieurs(e, options, 'bloc', avecAncre);
         break;
