@@ -3,6 +3,7 @@ import { analyser } from '../src/lexer/lexer.js';
 import { analyserSyntaxe } from '../src/parser/parser.js';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetServeur } from '../src/cibles/serveur/projet.js';
+import { donneesTs } from '../src/cibles/web/projet.js';
 import { erreurs } from './analyse/aide.js';
 
 const serveurDe = (source: string) => genererProjetServeur(compiler(source).application!.serveurs[0], { nom: 's', source: 's.humalis' });
@@ -30,6 +31,11 @@ page "p" :
 `;
 
 describe('groupes et droits sur ses fiches', () => {
+  it('les champs de « compte : » se lisent dans une page', () => {
+    const application = compiler('serveur "s" :\n    roles gerant\n    compte :\n        telephone : texte\n    route "equipe" :\n        seul gerant peut lire comptes\n\npage "p" :\n    titre "P"\n').application!;
+    expect(donneesTs(application)).toMatch(/interface Comptes \{[^}]*telephone: string;/);
+  });
+
   it('lit les nouvelles phrases', () => {
     const ast = analyserSyntaxe(analyser(programme));
     const serveur = ast.serveurs[0];
