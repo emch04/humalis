@@ -142,6 +142,8 @@ function html(liste: M[]): string {
 export interface ContexteMoteur extends ContexteSite {
   /** Les modules JavaScript et les composants d'autres frameworks : nom → chemin d'import depuis src/couches. */
   externes: Map<string, { chemin: string; sorte: 'module' | 'react' | 'vue' | 'svelte' | 'web'; balise?: string }>;
+  /** Ce que le compilateur a lu sur le serveur : « page:variable » → valeur. */
+  donnees?: Map<string, unknown>;
   /** La description du site dans chaque langue, en JavaScript, quand une page n'a pas de texte à elle. */
   descriptionSite?: string;
   /** Les chemins des pages (« /produit/:id »). */
@@ -528,7 +530,11 @@ export class GenerateurMoteur extends GenerateurPage {
     const adresse = this.ecran.parametresAdresse ?? [];
     for (const p of adresse) e.ligne(`const ${nomJs(p)} = signal(adresse.parametres[${chaine(camel(p))}] ?? '');`);
     for (const f of this.ecran.filtres ?? []) e.ligne(`const ${nomJs(f.nom)} = filtre(${chaine(f.nom)}, ${f.nombre ? 'true' : 'false'});`);
-    for (const etat of this.ecran.etat) e.ligne(`const ${nomJs(etat.nom)} = signal(${expressionJs(etat.initiale, this.contexte)});`);
+    for (const etat of this.ecran.etat) {
+      const initiale = expressionJs(etat.initiale, this.contexte);
+      const cle = `${this.ecran.nom}:${etat.nom}`;
+      e.ligne(`const ${nomJs(etat.nom)} = signal(${this.moteur.donnees?.has(cle) ? `adresse.donnees[${chaine(cle)}] ?? ${initiale}` : initiale});`);
+    }
     for (const [id, variable] of this.contexte.champs) {
       e.ligne(`const ${variable.replace(/\.v$/, '')} = signal(${this.contexte.sortes?.get(id) === 'case' ? 'false' : "''"});`);
     }
@@ -560,6 +566,16 @@ export class GenerateurMoteur extends GenerateurPage {
       for (const etat of gardees) e.ligne(`effet(() => garderMemoire(${cle(etat)}, ${nomJs(etat.nom)}.v));`);
     });
     return ['relire'];
+  }
+
+  /** Les valeurs de départ, avec ce que le compilateur a lu sur le serveur. */
+  protected override environnement(): Environnement {
+    const env = super.environnement();
+    for (const e of this.ecran.etat) {
+      const cle = `${this.ecran.nom}:${e.nom}`;
+      if (this.moteur.donnees?.has(cle)) env.definir(e.nom, this.moteur.donnees.get(cle));
+    }
+    return env;
   }
 
   /** Le script de la couche : une fois par écran. */
@@ -653,9 +669,15 @@ ${this.gabarits.map((g) => `const ${g.nom} = /*#__PURE__*/ gabarit(${chaine(g.ht
       this.ecrireEtatMoteur(corps);
       for (const calcul of this.ecran.calculs) this.ecrireCalcul(corps, calcul.nom, calcul.valeur);
       for (const fonction of this.fonctions) this.ecrireFonction(corps, fonction);
+      const options: string[] = [];
+      if (this.minuteries.length > 0) this.ecrireMinuteries(corps, options);
+      if (options.length > 0) corps.ligne('minuteriesDeCouche(minuteries);');
+      if (this.raccourcis.length > 0) corps.bloc('ecouterRaccourcis([', () => this.raccourcis.forEach((r) => corps.ligne(`${r},`)), ']);');
+      const memoire = this.ecrireMemoireMoteur(corps);
       const arbre = this.groupe(this.ecran.vue, null);
       numeroter(arbre);
       this.liaisons(arbre, corps);
+      if (memoire.length > 0) corps.ligne('relire();');
       if (this.chargements.length > 0) {
         corps.bloc('executer(async () => {', () => this.avecHors([], () => this.ecrireActions(corps, this.chargements, new Set(), modifiees(this.chargements))), '});');
       }
@@ -676,6 +698,8 @@ ${this.avecPlanificateur(corps.texte())}}
   /** Le HTML de départ d'un composant, avec ses propriétés. */
   departComposant(proprietes: Map<string, unknown>): string {
     const env = new Environnement(this.contexte.types);
+    if (this.site.langues) env.definir('langue', this.site.langues[0].code);
+    for (const p of this.site.partages) env.definir(p.nom, evaluer(p.initiale, env));
     for (const p of this.parametres ?? []) env.definir(p.nom, proprietes.get(p.nom));
     for (const e of this.ecran.etat) env.definir(e.nom, evaluer(e.initiale, env));
     for (const c of this.ecran.calculs) env.definirCalcul(c.nom, c.valeur);
@@ -1199,7 +1223,7 @@ export const NOMS_RESERVES = (): Set<string> => new Set(['r', 'adresse', 'couche
 export const ADAPTATEURS = { module: 'monterModule', react: 'monterReact', vue: 'monterVue', svelte: 'monterSvelte', web: 'monterWeb' } as const;
 
 const NOMS_MOTEUR = ['signal', 'calcul', 'lecture', 'effet', 'nettoyer', 'gabarit', 'texte', 'attribut', 'ecouter', 'soumettre', 'ecouterLaPause', 'modele', 'si', 'chaque', 'zone', 'contenu', 'executer'];
-const NOMS_OUTILS = ['creer', 'icone', 'avatar', 'etoiles', 'codeQr', 'carteLieux', 'fenetre', 'observerLeBas', 'titreDeLaPage', 'descriptionDeLaPage', 'activerCarrousel', 'activerMotDePasse', 'afficherMessage', 'planifier', 'planificateur', 'mouvementReduit', 'themeSombre', 'copier', 'partager', 'telechargerCsv', 'confirmer', 'retirerPremier', 'grouper', 'formaterNombre', 'formaterDate', 'formaterArgent', 'accorder', 'formaterTaille', 'dateDuJour', 'maintenant', 'decalerDate', 'joursEntre', 'formaterDepuis', 'lireMemoire', 'garderMemoire', 'cliquer', 'focaliser', 't', 'langue', 'changerLangue', 'definirTheme'];
+const NOMS_OUTILS = ['creer', 'icone', 'avatar', 'etoiles', 'codeQr', 'carteLieux', 'fenetre', 'observerLeBas', 'titreDeLaPage', 'descriptionDeLaPage', 'activerCarrousel', 'activerMotDePasse', 'afficherMessage', 'planifier', 'planificateur', 'minuteriesDeCouche', 'ecouterRaccourcis', 'mouvementReduit', 'themeSombre', 'copier', 'partager', 'telechargerCsv', 'confirmer', 'retirerPremier', 'grouper', 'formaterNombre', 'formaterDate', 'formaterArgent', 'accorder', 'formaterTaille', 'dateDuJour', 'maintenant', 'decalerDate', 'joursEntre', 'formaterDepuis', 'lireMemoire', 'garderMemoire', 'cliquer', 'focaliser', 't', 'langue', 'changerLangue', 'definirTheme'];
 const NOMS_NAV = ['naviguer', 'adresseDe', 'filtre', 'revenir', 'changerFiltre', 'apresLaGarde'];
 const NOMS_ADAPT = ['monterModule', 'monterReact', 'monterVue', 'monterSvelte', 'monterWeb'];
 const NOMS_SERVEUR = ['serveur', 'derniereRequete', 'utilisateur', 'televerser', 'REPOS', 'lectureGardee'];

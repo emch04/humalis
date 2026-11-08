@@ -2,7 +2,7 @@
  * Le projet produit par le moteur : une page HTML par adresse, écrite par le
  * compilateur, un petit script par couche, et Vite pour assembler le tout.
  */
-import type { Application, Ecran, NoeudVue } from '../../ri/types.js';
+import type { Application, ComposantHumalis, DispositionRI, Ecran, NoeudVue } from '../../ri/types.js';
 import { copiesDesMedias, type InfoMedia } from '../../ri/medias.js';
 import { simplifier } from '../../analyse/elements.js';
 import { MENU_REPLIABLE_JS, enTetePublication, planDuSite } from '../statique/projet.js';
@@ -10,11 +10,10 @@ import { usageElements } from '../statique/elements-js.js';
 import { QRCODE_GENERATOR } from '../statique/qrcode-donnees.js';
 import { LEAFLET_JS, LEAFLET_CSS } from '../statique/leaflet-donnees.js';
 import { GRAPHIQUE_JS } from '../statique/graphique.js';
-import { avecDisposition } from '../statique/disposition.js';
 import { connaitreFonctions, nomJs, expressionJs, reserverNoms } from '../statique/valeurs.js';
 import { choixFichierEnLangues, messageEnCode, messageEnLangues, messagesDuSiteStatique, traduireMessages } from '../../i18n/messages.js';
 import { echapperAttribut, echapperTexte } from '../statique/html.js';
-import { cheminsDesPages, styles, nomsDesStyles, VERSIONS, verifierPourLeWeb, CENTRALE_WEB } from '../web/projet.js';
+import { cheminsDesPages, styles, nomsDesStyles, VERSIONS, verifierPourLeWeb, CENTRALE_WEB, PAGE_RETOUR_GOOGLE } from '../web/projet.js';
 import { cssEcran } from '../web/css-ecran.js';
 import { cssElements, cssSautsDeLigne } from '../web/css-elements.js';
 import { cssInteractions } from '../web/interactions.js';
@@ -30,6 +29,7 @@ import { GenerateurMoteur, NOMS_RESERVES, type ContexteMoteur } from './page.js'
 import { outilsJs, navigationJs } from './outils.js';
 import { adaptateursJs, baliseDe, paquetsDesExternes, sorteDe } from './adaptateurs.js';
 import { serveurJs } from './serveur.js';
+import { donneesDansLaPage } from './lecture-construction.js';
 import { DEPLACEMENT_JS, CHOIX_FICHIER_JS } from './interactions.js';
 
 export const MARQUE_MOTEUR = '.humalis-projet';
@@ -46,6 +46,8 @@ export interface OptionsMoteur {
   externes?: Map<string, { nom: string; contenu: string }>;
   /** Le mode développement : les fichiers du projet ; chaque élément porte alors son fichier et sa ligne. */
   sources?: readonly string[];
+  /** Ce que le compilateur a lu sur le serveur (voir lecture-construction.ts). */
+  donnees?: Map<string, unknown>;
 }
 
 const ecranVide = (nom: string): Ecran => ({ nom, etat: [], calculs: [], vue: [], gestionnaires: [], ligne: 0 });
@@ -86,17 +88,25 @@ function produire(application: Application, options: OptionsMoteur): Map<string,
     fonctionsGlobales: application.fonctions.map((f) => nomJs(f.nom)),
     ...(application.langues ? { langues: application.langues } : {}),
     ...(options.sources ? { reperes: options.sources } : {}),
+    ...(options.donnees ? { donnees: options.donnees } : {}),
   };
   connaitreFonctions(application.fonctions);
+  const dispositions: ComposantHumalis[] = [
+    ...(application.disposition?.entete ? [{ ...application.disposition.entete.ecran, nom: 'humalisEntete', parametres: [] }] : []),
+    ...(application.disposition?.pied ? [{ ...application.disposition.pied.ecran, nom: 'humalisPied', parametres: [] }] : []),
+  ];
+  for (const d of dispositions) contexte.composants.set(d.nom, d);
+  const composants = [...application.composants, ...dispositions];
 
   // Les fichiers partagés par les pages.
   if (application.fonctions.length > 0) {
     const g = new GenerateurMoteur(ecranVide('fonctions'), contexte, '', []);
     const code = application.fonctions.map((f) => g.fonctionGlobale(f)).join('\n');
-    fichiers.set('src/humalis/fonctions.js', `${g.importsDuFichier(code)}\n\n${code}`);
+    // Une fonction peut en appeler une autre : le fichier ne s'importe pas lui-même.
+    fichiers.set('src/humalis/fonctions.js', `${g.importsDuFichier(code).split('\n').filter((l) => !l.endsWith("'./fonctions.js';")).join('\n')}\n\n${code}`);
   }
-  if (application.composants.length > 0) {
-    const parties = application.composants.map((c) => new GenerateurMoteur(c, contexte, '', c.parametres).composantMoteur().code);
+  if (composants.length > 0) {
+    const parties = composants.map((c) => new GenerateurMoteur(c, contexte, '', c.parametres).composantMoteur().code);
     const code = parties.join('\n');
     const g = new GenerateurMoteur(ecranVide('composants'), contexte, '', []);
     // Un composant peut en placer un autre : le fichier ne s'importe pas lui-même.
@@ -116,7 +126,15 @@ function produire(application: Application, options: OptionsMoteur): Map<string,
   const generateurDisposition = (e: Ecran, cle: string): GenerateurMoteur => {
     let g = generateurs.get(cle);
     if (!g) {
-      const ecran = avecDisposition({ ...ecranVide(cle), sansEntete: e.sansEntete, sansPied: e.sansPied }, application.disposition);
+      // L'en-tête et le pied sont des composants à part, comme sur le web : chacun a ses variables.
+      const bloc = (genre: 'entete' | 'pied', nom: string, d: DispositionRI): NoeudVue => ({ type: 'bloc', genre, options: d.options, classes: d.classes, corps: [{ type: 'composant', nom, proprietes: [], ligne: d.ecran.ligne }], ligne: d.ecran.ligne });
+      const entete = application.disposition?.entete && !e.sansEntete ? application.disposition.entete : undefined;
+      const pied = application.disposition?.pied && !e.sansPied ? application.disposition.pied : undefined;
+      const ecran: Ecran = { ...ecranVide(cle), vue: [
+        ...(entete ? [bloc('entete', 'humalisEntete', entete)] : []),
+        { type: 'bloc', genre: 'contenu', options: [], classes: ['humalis-page'], corps: [], ligne: 0 },
+        ...(pied ? [bloc('pied', 'humalisPied', pied)] : []),
+      ] };
       g = new GenerateurMoteur(ecran, contexte, options.source);
       g.niveau = 0;
       g.coucheContenu = 1;
@@ -213,7 +231,7 @@ ${couches.map((c, i) => `import c${i} from '../couches/${c.fichier.split('/').po
 
 enregistrer(import.meta.url, [${couches.map((c, i) => `[${chaine(c.id)}, c${i}${c.parametres.length ? `, ${JSON.stringify(c.parametres)}` : ''}]`).join(', ')}], ${reservee});
 `);
-    const html = pageHtml(apercu.titre, apercu.description, feuilles, `/${entree}`, contenu ?? '', { mode: modeTheme, bascule, site: avecEntete, langue, cache: garde !== undefined }, apercu.balises);
+    const html = pageHtml(apercu.titre, apercu.description, feuilles, `/${entree}`, contenu ?? '', { mode: modeTheme, bascule, site: avecEntete, langue, cache: garde !== undefined, donnees: donneesDeLaRoute(pages, options.donnees) }, apercu.balises);
     const fichierHtml = ecran.nom === 'introuvable' ? '404.html' : htmlDe(chemin);
     fichiers.set(fichierHtml, html);
     entrees.push([cleEntree, fichierHtml]);
@@ -271,6 +289,7 @@ document.title = ${traduit('Page introuvable')};
     planifie: /\bplanifier\(/.test(fichiers.get('src/humalis/fonctions.js') ?? ''),
     adressesRecues: emploie(/naviguer\(String\(/),
   };
+  fichiers.set('public/humalis/reprise.js', `${REPRISE_DES_CLICS}\n`);
   fichiers.set('src/humalis/moteur.js', MOTEUR_JS);
   fichiers.set('src/humalis/outils.js', avecDureeDesErreurs(outilsJs({ usage, langues: application.langues, ...(bascule ? { theme: modeTheme ?? '' } : {}) }), application));
   fichiers.set(
@@ -298,7 +317,7 @@ document.title = ${traduit('Page introuvable')};
   const tout = [...fichiers.values()];
   const formulaires = JSON.stringify([...application.ecrans, ...application.composants].map((e) => e.vue)).match(/"type":"formulaire"|"saisie":/) !== null;
   const blocs = JSON.stringify([...application.ecrans, ...application.composants].map((e: { vue: NoeudVue[] }) => e.vue)).includes('"type":"bloc"');
-  fichiers.set('src/humalis/styles.css', styles(formulaires, blocs) + cssEcran(tout) + cssElements(tout) + cssSautsDeLigne(application) + cssMouvement(tout) + cssInteractions(tout) + cssGraphique(tout, application.theme?.couleurs.map((c) => c.nom)) + cssTheme(application.theme, bascule, options.polices));
+  fichiers.set('src/humalis/styles.css', styles(formulaires, blocs) + cssEcran(tout) + cssElements(tout) + cssSautsDeLigne(application) + cssMouvement(tout) + cssInteractions(tout) + cssGraphique(tout, application.theme?.couleurs.map((c) => c.nom)) + cssTheme(application.theme, bascule, options.polices) + '\n::view-transition-old(root), ::view-transition-new(root) { animation-duration: 0.15s; }\n');
 
   if (application.site) {
     fichiers.set('public/robots.txt', robotsTxt(application.site, application.site.indexation ? adresse : undefined));
@@ -313,6 +332,7 @@ document.title = ${traduit('Page introuvable')};
   for (const [c, contenu] of copiesDesMedias(options.medias, 'public/images/')) fichiers.set(c, contenu);
   for (const [c, contenu] of copiesDesMedias(options.medias, 'public/audio/', 'audio')) fichiers.set(c, contenu);
 
+  if (application.serveurs.some((x) => x.connexionGoogle)) fichiers.set('public/auth-google.html', PAGE_RETOUR_GOOGLE);
   const dynamiques = routes.filter((r) => r.chemin.includes(':'));
   if (dynamiques.length > 0) fichiers.set('public/_redirects', dynamiques.map((r) => `${r.chemin.replace(/:[A-Za-z0-9_]+/g, '*')} ${r.fichier} 200`).join('\n') + '\n');
 
@@ -384,18 +404,28 @@ ${gardees.map((p) => `  effet(() => ${p.memorisee ? 'garderMemoire' : 'garderPar
 `;
 }
 
-function pageHtml(titre: string, description: string, feuilles: string[], script: string | undefined, contenu: string, theme: { mode?: string; bascule: boolean; site?: boolean; langue?: string; cache?: boolean }, balises: string[]): string {
+/** Le bloc de données d'une page : seulement ce que ses couches ont lu. */
+function donneesDeLaRoute(pages: Ecran[], donnees: Map<string, unknown> | undefined): string | undefined {
+  if (!donnees) return undefined;
+  const miennes = Object.fromEntries([...donnees].filter(([cle]) => pages.some((p) => cle.startsWith(`${p.nom}:`))));
+  return Object.keys(miennes).length > 0 ? donneesDansLaPage(miennes) : undefined;
+}
+
+/** Avant la reprise : un clic sur un bouton ou l'envoi d'un formulaire est gardé, puis rejoué. Un fichier à part : une politique de contenu stricte interdit le script en ligne. */
+const REPRISE_DES_CLICS = `(function(){var f=[];function c(e){var b=e.target.closest&&e.target.closest('button');if(b&&b.type!=='submit')f.push(['click',b])}function s(e){e.preventDefault();f.push(['submit',e.target])}addEventListener('click',c,true);addEventListener('submit',s,true);window.__humalis={file:f,fin:function(){removeEventListener('click',c,true);removeEventListener('submit',s,true)}}})()`;
+
+function pageHtml(titre: string, description: string, feuilles: string[], script: string | undefined, contenu: string, theme: { mode?: string; bascule: boolean; site?: boolean; langue?: string; cache?: boolean; donnees?: string }, balises: string[]): string {
   return `<!doctype html>
 <html lang="${theme.langue ?? 'fr'}"${theme.mode ? ` data-theme="${theme.mode}"` : ''}>
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>${echapperTexte(titre)}</title>${theme.bascule ? `\n    <script>${SCRIPT_THEME}</script>` : ''}
+    <title>${echapperTexte(titre)}</title>${script ? '\n    <script src="/humalis/reprise.js" async></script>' : ''}${theme.bascule ? `\n    <script>${SCRIPT_THEME}</script>` : ''}
     <meta name="description" content="${echapperAttribut(description)}">
 ${balises.map((b) => `    ${b}\n`).join('')}${feuilles.map((f) => `    <link rel="stylesheet" href="${echapperAttribut(f)}">\n`).join('')}${script ? `    <script type="module" src="${echapperAttribut(script)}"></script>\n` : ''}  </head>
   <body>
     <ul class="humalis-messages" aria-live="polite"></ul>
-    ${theme.site ? `<div id="racine" data-c="0">${contenu}</div>` : `<div id="racine"><main class="humalis-page" data-c="0"${theme.cache ? ' hidden' : ''}>${contenu}</main></div>`}
+    ${theme.site ? `<div id="racine" data-c="0">${contenu}</div>` : `<div id="racine"><main class="humalis-page" data-c="0"${theme.cache ? ' hidden' : ''}>${contenu}</main></div>`}${theme.donnees ? `\n    ${theme.donnees}` : ''}
   </body>
 </html>
 `;

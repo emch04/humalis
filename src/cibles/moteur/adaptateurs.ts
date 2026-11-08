@@ -33,12 +33,12 @@ export function paquetsDesExternes(codes: string[], sortes: Set<SorteExterne>): 
     dependancesDev['@vitejs/plugin-react'] = VERSIONS.pluginReact;
   }
   if (sortes.has('vue')) {
-    dependances.vue = 'latest';
-    dependancesDev['@vitejs/plugin-vue'] = 'latest';
+    dependances.vue = '3.5.45';
+    dependancesDev['@vitejs/plugin-vue'] = '6.0.10';
   }
   if (sortes.has('svelte')) {
-    dependances.svelte = 'latest';
-    dependancesDev['@sveltejs/vite-plugin-svelte'] = 'latest';
+    dependances.svelte = '5.57.3';
+    dependancesDev['@sveltejs/vite-plugin-svelte'] = '7.3.1';
   }
   return { dependances, dependancesDev };
 }

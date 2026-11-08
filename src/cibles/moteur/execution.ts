@@ -30,6 +30,7 @@ class Boite {
   constructor(valeur) {
     this.x = valeur;
     this.o = new Set();
+    this.ver = 0;
   }
   get v() {
     suivre(this);
@@ -38,13 +39,14 @@ class Boite {
   set v(valeur) {
     if (Object.is(valeur, this.x)) return;
     this.x = valeur;
+    this.ver++;
     prevenir(this);
   }
 }
 
 function suivre(source) {
   if (observateur && !observateur.d.has(source)) {
-    observateur.d.add(source);
+    observateur.d.set(source, source.ver);
     source.o.add(observateur);
   }
 }
@@ -65,13 +67,13 @@ function marquer(n) {
 }
 
 function noeud(f, o) {
-  const n = { f, o, d: new Set(), sale: false, x: undefined, n: ++rang, e: null, c: null, p: portee, mort: false };
+  const n = { f, o, d: new Map(), sale: false, x: undefined, ver: 0, n: ++rang, e: null, c: null, p: portee, mort: false };
   if (portee) (portee.e ??= new Set()).add(n);
   return n;
 }
 
 function delier(n) {
-  for (const s of n.d) s.o.delete(n);
+  for (const s of n.d.keys()) s.o.delete(n);
   n.d.clear();
 }
 
@@ -109,12 +111,24 @@ function tourner(n) {
   delier(n);
   n.sale = false;
   try {
-    n.x = n.f();
+    const valeur = n.f();
+    if (n.o && !Object.is(valeur, n.x)) n.ver++;
+    n.x = valeur;
   } catch (erreur) {
     console.error(erreur);
   } finally {
     [observateur, portee] = avant;
   }
+}
+
+/** Vrai si une de ses lectures a vraiment changé : un calcul qui redonne la même valeur ne relance rien. */
+function aChange(n) {
+  for (const [source, ver] of n.d) {
+    if (source.f && source.sale && !source.mort) tourner(source);
+    if (source.ver !== ver) return true;
+  }
+  n.sale = false;
+  return false;
 }
 
 /** Une variable : on la lit et on l'écrit par .v. */
@@ -187,7 +201,7 @@ export function appliquer() {
     }
     const liste = [...file].sort((a, b) => a.n - b.n);
     file.clear();
-    for (const n of liste) if (!n.mort && n.sale) tourner(n);
+    for (const n of liste) if (!n.mort && n.sale && aChange(n)) tourner(n);
   }
 }
 

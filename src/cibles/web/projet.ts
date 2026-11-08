@@ -2175,7 +2175,7 @@ Ce dossier est réécrit à chaque compilation Humalis (fichier \`${MARQUE}\`).
 const genererNomComposant = (nom: string) => pascal(nom);
 
 /** La page de retour de Google : elle rend le jeton d'identité au site par un canal du même site, puis se ferme. */
-const PAGE_RETOUR_GOOGLE = `<!doctype html>
+export const PAGE_RETOUR_GOOGLE = `<!doctype html>
 <html lang="fr">
 <head>
 <meta charset="utf-8">

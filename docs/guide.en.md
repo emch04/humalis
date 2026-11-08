@@ -2534,9 +2534,34 @@ changes. Without this option, the site is still produced with React. For a proje
 it once in `humalis.projet.json`: `"moteur": "humalis"`; `humalis developper` and
 `humalis tester` use it too.
 
-Modules (`utiliser module`), React components and Web Components work the same
-way: the file is loaded only by the pages that use it. Anything shown after
+Modules (`utiliser module`), React, Vue and Svelte components and Web Components
+work the same way: the file is loaded only by the pages that use it. Anything shown after
 loading (data from the server, a React component) is not in the initial HTML.
+
+A click made before the page is ready is not lost: it is replayed as soon as the
+page is ready.
+
+#### Reading the server at build time
+
+To have public pages carry their content in the HTML, give your server's address
+in `humalis.projet.json`:
+
+```json
+{ "principal": "site.humalis", "moteur": "humalis", "lireServeur": "https://api.example.com" }
+```
+
+Nothing is read unless you ask. Four rules always apply:
+
+- only `tout le monde peut lire` routes are read, never a restricted page;
+- the read is anonymous: no key, no cookie;
+- whatever comes from the server is written as text, never as code;
+- the address uses https, and a redirect is not followed.
+
+For a `source`, name each public route: `"lireSources": ["api/products"]`.
+A source that sends a key is never read.
+
+Data removed from the server stays in the HTML until the next build: rebuild the
+site after an important deletion.
 
 ## French keywords at a glance
 

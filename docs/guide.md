@@ -2447,7 +2447,32 @@ lit change. Sans cette option, le site reste produit avec React. Pour un projet,
 une fois dans `humalis.projet.json` : `"moteur": "humalis"` ; `humalis developper`
 et `humalis tester` s'en servent aussi.
 
-Les modules (`utiliser module`), les composants React et les Web Components
-marchent de la même façon : le fichier n'est chargé que par les pages qui s'en
+Les modules (`utiliser module`), les composants React, Vue et Svelte et les Web
+Components marchent de la même façon : le fichier n'est chargé que par les pages qui s'en
 servent. Tout ce qui s'affiche après le chargement (ce qui vient du serveur,
 un composant React) n'est pas dans le HTML de départ.
+
+Un clic fait avant que la page soit prête n'est pas perdu : il est rejoué dès
+qu'elle l'est.
+
+#### Lire le serveur à la construction
+
+Pour que les pages publiques portent déjà leur contenu dans le HTML, indique
+l'adresse de ton serveur dans `humalis.projet.json` :
+
+```json
+{ "principal": "site.humalis", "moteur": "humalis", "lireServeur": "https://api.monsite.fr" }
+```
+
+Rien n'est lu si tu ne le demandes pas. Quatre règles s'appliquent toujours :
+
+- seules les routes `tout le monde peut lire` sont lues, jamais une page réservée ;
+- la lecture se fait comme un visiteur anonyme : ni clé, ni cookie ;
+- tout ce qui vient du serveur est écrit comme du texte, jamais comme du code ;
+- l'adresse est en https, et une redirection n'est pas suivie.
+
+Pour une `source`, nomme chaque route publique : `"lireSources": ["api/produits"]`.
+Une source qui envoie une clé n'est jamais lue.
+
+Une donnée retirée du serveur reste dans le HTML jusqu'à la prochaine construction :
+reconstruis le site après une suppression importante.
