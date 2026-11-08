@@ -68,7 +68,7 @@ Quand le site te plaît, compile-le vers la cible voulue :
 humalis compile mon-projet.humalis --cible web --sortie mon-projet-web
 ```
 
-Les cibles sont `web`, `statique`, `mobile`, `desktop` et `serveur`. Le
+Les cibles sont `web`, `statique`, `mobile`, `desktop`, `apple` et `serveur`. Le
 [README](../README.md) explique comment lancer chaque projet produit.
 
 ---
@@ -2552,6 +2552,32 @@ Le module est chargé à part, et ses paquets sont ajoutés au projet. Quand une
 propriété change, il est relancé. S'il sait se mettre à jour lui-même, il rend
 `{ mettreAJour(proprietes) { … }, detruire() { … } }`.
 
+### Une vue Swift écrite à la main
+
+Sur la cible Apple, il n'y a ni React ni JavaScript. Pour y mettre du Swift écrit
+à la main, ajoute `sur apple` : le web garde son composant, l'application Apple
+utilise ta vue SwiftUI.
+
+```humalis
+utiliser composant "Carte" depuis "./composants/Carte" sur apple "./composants/Carte.swift"
+
+page "accueil" :
+    Carte avec titre "Bonjour"
+```
+
+```swift
+import SwiftUI
+
+struct Carte: View {
+    let titre: String
+    var body: some View { Text(titre).font(.title) }
+}
+```
+
+La vue porte le nom du composant, et ses propriétés sont écrites dans le même
+ordre que dans la page. Un texte est un `String`, un nombre un `Double`, vrai ou
+faux un `Bool`.
+
 Dans l'autre sens, `humalis compile … --composants <dossier>` produit des
 composants React à importer dans un projet React existant.
 
@@ -2612,8 +2638,13 @@ Les autres étapes : `remplir champ "email" avec "…"`, `aller vers "panier"`,
 | `humalis packs` | dit si les packs Astratra ont des mises à jour |
 
 Pour le web et le statique, `--adresse https://…` donne l'adresse finale du
-site (plan du site, liens de partage). Pour le desktop, `--serveur https://…`
+site (plan du site, liens de partage). Pour le desktop et Apple, `--serveur https://…`
 donne l'adresse du serveur que l'application appelle.
+
+`--cible apple` produit un projet Xcode en SwiftUI : une seule application native
+pour iPhone, iPad et Mac, sans navigateur embarqué (Xcode 16 ou plus récent ; elle
+tourne à partir d'iOS 17 et de macOS 14). Pour la signer, ajoute
+`--identifiant com.exemple.application` et `--equipe ABCDE12345`.
 
 Avec `humalis developper`, chaque élément de la page porte son fichier
 Humalis et sa ligne : dans l'inspecteur du navigateur, un titre montre par
@@ -2645,18 +2676,18 @@ Le même fichier donne toutes les cibles. Quand une construction n'existe pas
 sur une cible, le compilateur le dit clairement au lieu de produire quelque
 chose de faux.
 
-| | web | statique | mobile | desktop |
-|---|---|---|---|---|
-| Pages, éléments, styles, thème | oui | oui | oui | oui |
-| Ton propre CSS | oui | oui | non (styles nommés seulement) | oui |
-| Requêtes vers un serveur | oui | oui | oui | oui |
-| `memorisee` | oui | oui | oui | oui |
-| `memorisee en secret` | non | non | oui | oui |
-| `essayer` | oui | non | oui | oui |
-| Raccourcis clavier | oui | oui | non | oui |
-| Composants React | oui | non | oui (en React Native) | oui |
-| Le moteur sans React (`--moteur humalis`) | oui | non | non | non |
-| Plan du site, aperçu de partage | oui | oui | non | non |
+| | web | statique | mobile | desktop | apple |
+|---|---|---|---|---|---|
+| Pages, éléments, styles, thème | oui | oui | oui | oui | oui |
+| Ton propre CSS | oui | oui | non (styles nommés seulement) | oui | non (styles nommés seulement) |
+| Requêtes vers un serveur | oui | oui | oui | oui | oui |
+| `memorisee` | oui | oui | oui | oui | oui |
+| `memorisee en secret` | non | non | oui | oui | oui (Keychain) |
+| `essayer` | oui | non | oui | oui | oui |
+| Raccourcis clavier | oui | oui | non | oui | oui |
+| Composants React | oui | non | oui (en React Native) | oui | non (`sur apple "Vue.swift"`) |
+| Le moteur sans React (`--moteur humalis`) | oui | non | non | non | non |
+| Plan du site, aperçu de partage | oui | oui | non | non | non |
 
 Le serveur (`--cible serveur`) se produit à part, depuis le bloc `serveur`.
 

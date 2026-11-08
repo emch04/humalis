@@ -59,7 +59,8 @@ export function modificateurs(options: Option[], sorte: SorteVue, contexte: { da
 
   if (fond && sorte !== 'bouton') {
     if (estTexte && !remplissage) lignes.push('.padding(.horizontal, 8)', '.padding(.vertical, 4)');
-    if (!couleur && estTexte) lignes.push(`.foregroundStyle(Couleurs.encre${majuscule(nomSwift(fond))})`);
+    // Le texte posé sur un fond prend la couleur d'encre de ce fond.
+    if (!couleur && (estTexte || sorte === 'bloc')) lignes.push(`.foregroundStyle(Couleurs.encre${majuscule(nomSwift(fond))})`);
     lignes.push(`.background(Couleurs.${nomSwift(fond)})`);
   }
   if (degrade) {

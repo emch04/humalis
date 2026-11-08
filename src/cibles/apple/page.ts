@@ -13,7 +13,7 @@ import { EcrivainActions, type HotePage } from './actions.js';
 import { nomIcone } from './icones.js';
 import { chaineSwift, cleJson, nomComposant, nomPage, nomSwift } from './noms.js';
 import { clavier, modificateurs, touches, ESPACES, type Option } from './styles.js';
-import { plusPrecis, Valeurs, type Expr, type Lecture, type Portee, type Types } from './valeurs.js';
+import { FICHIER_CHOISI, plusPrecis, Valeurs, type Expr, type Lecture, type Portee, type Types } from './valeurs.js';
 
 const TEXTE: TypeValeur = { genre: 'texte' };
 const NOMBRE: TypeValeur = { genre: 'nombre' };
@@ -40,6 +40,10 @@ export interface ContexteApple {
   avertir(ligne: number, message: string): void;
   /** Vrai si la page lit la session. */
   session: boolean;
+  /** La police des titres du bloc « theme ». */
+  policeTitres?: string;
+  /** La page d'entrée : elle reste sous les autres, et se relit quand on y revient. */
+  pageEntree?: string;
 }
 
 interface Fonction {
@@ -88,13 +92,28 @@ export class GenerateurPage implements HotePage {
   private titreVu = false;
   private dansLigne = false;
 
+  private readonly ecran: Ecran;
+
   constructor(
-    private readonly ecran: Ecran,
+    ecran: Ecran,
     private readonly app: ContexteApple,
     private readonly parametres?: { nom: string; type: TypeValeur }[],
     /** Le nom du type, quand ce n'est pas celui de la page (l'en-tête, le pied). */
     private readonly nomForce?: string,
+    /** L'en-tête : son premier menu passe dans la barre latérale, sur iPad et Mac. */
+    private menuAReplier = false,
   ) {
+    // Une variable qui reçoit un fichier choisi : son type est celui du fichier, pas une fiche ordinaire.
+    const choisis = variablesDeFichier(ecran.vue);
+    this.ecran = {
+      ...ecran,
+      etat: ecran.etat.map((e) => {
+        if (!choisis.has(e.nom)) return e;
+        const de = e.type.genre === 'liste' ? e.type.de : e.type;
+        const type: TypeValeur = de.genre === 'fiche' ? { ...de, fichier: FICHIER_CHOISI } : { genre: 'fiche', champs: [], fichier: FICHIER_CHOISI };
+        return { ...e, type: e.type.genre === 'liste' ? { genre: 'liste', de: type } : type };
+      }),
+    };
     this.pages = app.pages;
     this.etatsRequetes = new Set(ecran.etatsRequetes ?? []);
     this.portee = {
@@ -409,6 +428,7 @@ export class GenerateurPage implements HotePage {
     if (/\bplanificateur\./.test(tout)) e.ligne('@State private var planificateur = Planificateur()');
     if (this.portee.besoins.has('mouvementReduit')) e.ligne('@Environment(\\.accessibilityReduceMotion) private var mouvementReduit');
     if (this.portee.besoins.has('themeSombre')) e.ligne('@Environment(\\.colorScheme) private var apparence');
+    if (/\bmenuLateral\b/.test(tout)) e.ligne('@Environment(\\.menuLateral) private var menuLateral');
     for (const c of this.ecran.calculs) {
       const lecture = this.calculs(c.nom);
       if (!lecture) continue;
@@ -452,6 +472,11 @@ export class GenerateurPage implements HotePage {
         chargements.forEach((_, i) => {
           const nom = `auChargement${chargements.length > 1 ? i + 1 : ''}`;
           const parametres = (this.ecran.parametresAdresse ?? []).map(nomSwift);
+          if (this.ecran.nom === this.app.pageEntree && !this.parametres && !this.nomForce) {
+            // Sur Mac, la page d'entrée reste sous les autres : son chargement ne repart pas seul au retour.
+            e.ligne(`.task(id: Routeur.commun.chemin.isEmpty) { if Routeur.commun.chemin.isEmpty { await ${nom}() } }`);
+            return;
+          }
           e.ligne(`.task${parametres.length ? `(id: ${parametres.length === 1 ? parametres[0] : `[${parametres.join(', ')}]`})` : ''} { await ${nom}() }`);
         });
         for (const m of minuteries) {
@@ -520,7 +545,7 @@ export class GenerateurPage implements HotePage {
       case 'formulaire':
         return this.visible(e, noeud.id, () => {
           e.bloc('VStack(alignment: .leading, spacing: 12) {', () => this.ecrireCorps(e, noeud.corps));
-          e.indenter(() => e.ligne(`.accessibilityIdentifier(${chaineSwift(noeud.id)})`));
+          e.indenter(() => e.ligne(`.identifiantHumalis(${chaineSwift(noeud.id)})`));
         });
       case 'bloc':
         return this.ecrireBloc(e, noeud);
@@ -609,7 +634,8 @@ export class GenerateurPage implements HotePage {
       return;
     }
     const parametres = this.app.composants.get(noeud.nom);
-    if (!parametres) return this.refuser(noeud.ligne, `le composant « ${noeud.nom} » est écrit pour React : sur la cible Apple, donnez-lui une vue Swift avec « sur apple "${noeud.nom}.swift" »`);
+    // Un composant React sans vue Swift : déjà refusé par la vérification du programme.
+    if (!parametres) return;
     // Les arguments dans l'ordre de la déclaration : c'est l'ordre des paramètres en Swift.
     const args = parametres.flatMap((p) => {
       const donne = noeud.proprietes.find((x) => cleJson(x.nom) === cleJson(p.nom));
@@ -654,6 +680,11 @@ export class GenerateurPage implements HotePage {
       case 'ligne':
       case 'menu': {
         const vertical = noeud.genre === 'menu' && valeurDe('menu') === 'vertical';
+        if (noeud.genre === 'menu' && this.menuAReplier) {
+          this.menuAReplier = false;
+          e.bloc('if !menuLateral {', () => this.ecrireBloc(e, noeud));
+          break;
+        }
         if (vertical) {
           e.bloc(`VStack(alignment: .leading, spacing: ${espace ?? 12}) {`, () => this.ecrireCorps(e, noeud.corps));
         } else {
@@ -779,7 +810,8 @@ export class GenerateurPage implements HotePage {
         e.ligne(this.contenuTexte(noeud.contenu, noeud.id));
         e.indenter(() => {
           const aTaille = noeud.options.some((o) => o.nom === 'taille');
-          if (!aTaille) e.ligne(premier ? '.font(.largeTitle)' : '.font(.title2)');
+          const police = this.app.policeTitres;
+          if (!aTaille) e.ligne(police ? `.font(.custom(${chaineSwift(police)}, size: ${premier ? 34 : 22}, relativeTo: ${premier ? '.largeTitle' : '.title2'}))` : premier ? '.font(.largeTitle)' : '.font(.title2)');
           e.ligne('.bold()');
           e.ligne('.accessibilityAddTraits(.isHeader)');
         });
@@ -868,7 +900,8 @@ export class GenerateurPage implements HotePage {
     this.modifieurs(e, noeud.options, 'image', [...this.toucher(clics), ...survol, id, ...ancre]);
   }
 
-  private ecrireChamp(e: Ecrivain, noeud: Extract<NoeudVue, { type: 'element' }>, id: string): void {
+  private ecrireChamp(e: Ecrivain, noeud: Extract<NoeudVue, { type: 'element' }>, idBrut: string): void {
+    const id = idBrut.replace('.accessibilityIdentifier(', '.identifiantHumalis(');
     const champ = this.portee.champs.get(noeud.id)!;
     const saisie = noeud.saisie;
     const sorte = saisie?.sorte ?? 'texte';
@@ -913,7 +946,7 @@ export class GenerateurPage implements HotePage {
   // ─── Les éléments d'écran ────────────────────────────────────────────────
 
   private ecrireWidget(e: Ecrivain, noeud: Extract<NoeudVue, { type: 'widget' }>): void {
-    const id = `.accessibilityIdentifier(${chaineSwift(noeud.id)})`;
+    const id = `.identifiantHumalis(${chaineSwift(noeud.id)})`;
     const r = noeud.reglages;
     const description = r.description !== undefined ? chaineSwift(r.description) : 'nil';
     const lue = noeud.contenu.type === 'variable' ? this.portee.variables.get(noeud.contenu.nom) : undefined;
@@ -1043,6 +1076,22 @@ export class GenerateurPage implements HotePage {
       }
     }
   }
+}
+
+/** Les variables qui reçoivent un fichier (« fichier "…" dans photo »). */
+function variablesDeFichier(noeuds: NoeudVue[]): Set<string> {
+  const noms = new Set<string>();
+  const voir = (liste: NoeudVue[]) => {
+    for (const n of liste) {
+      if (n.type === 'widget' && n.fichier) noms.add(n.fichier.variable);
+      if (n.type === 'condition') {
+        voir(n.alors);
+        voir(n.sinon);
+      } else if ('corps' in n && Array.isArray(n.corps)) voir(n.corps as NoeudVue[]);
+    }
+  };
+  voir(noeuds);
+  return noms;
 }
 
 /** Les tests Swift, dans l'ordre des messages de `verificationsDuChamp`. */

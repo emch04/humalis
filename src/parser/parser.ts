@@ -216,7 +216,14 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
       }
       flux.avancer();
       const chemin = flux.attendre('CHAINE', undefined, `le chemin du ${fichier} entre guillemets`).valeur;
-      composantsReact.push({ type: 'ComposantReact', nom, chemin, ligne: debut.ligne, ...(estModule ? { module: true as const } : {}) });
+      // « sur apple "Carte.swift" » : la vue écrite à la main pour les applications Apple.
+      let apple: string | undefined;
+      if (estLeMot(flux.actuel(), 'sur')) {
+        flux.avancer();
+        flux.attendre('IDENTIFIANT', 'apple', '« apple », puis le chemin du fichier Swift');
+        apple = flux.attendre('CHAINE', undefined, 'le chemin du fichier Swift entre guillemets').valeur;
+      }
+      composantsReact.push({ type: 'ComposantReact', nom, chemin, ligne: debut.ligne, ...(estModule ? { module: true as const } : {}), ...(apple !== undefined ? { apple } : {}) });
       flux.sauterFinsDeLigne();
       continue;
     }

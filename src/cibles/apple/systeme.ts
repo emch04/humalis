@@ -48,6 +48,9 @@ struct MessageHumalis: Identifiable {
 }
 
 struct PileMessagesHumalis: View {
+    /** Avec un en-tête, les messages s'affichent dessous : ils ne cachent pas le menu. */
+    var decalage: CGFloat = 0
+
     private func couleur(_ genre: GenreMessage) -> Color {
         switch genre {
         case .info: return Couleurs.bleu
@@ -78,12 +81,12 @@ struct PileMessagesHumalis: View {
                 .background(couleur(message.genre), in: RoundedRectangle(cornerRadius: 10))
                 .shadow(color: .black.opacity(0.2), radius: 8, y: 3)
                 .transition(.move(edge: .top).combined(with: .opacity))
-                .accessibilityIdentifier("message")
+                .identifiantHumalis("message")
             }
         }
         .frame(maxWidth: 560)
         .padding(.horizontal, 16)
-        .padding(.top, 8)
+        .padding(.top, 8 + decalage)
         .animation(.default, value: Messages.commun.liste.map(\.id))
     }
 }
@@ -427,8 +430,10 @@ struct SourceHumalis: Sendable {
     var jeton: (valeur: String, place: Place)? = nil
     var enveloppe: String? = nil
     var erreurDans: String? = nil
-    var essais: Int = 0
-    var delai: Double? = nil
+    /** Les jetons de session de l'application voyagent avec les appels (« session astratra »). */
+    var session: Bool = false
+    var essais: Int = 2
+    var delai: Double = 10_000
 }
 
 @MainActor final class Serveur {
@@ -438,6 +443,9 @@ struct SourceHumalis: Sendable {
         let reglages = URLSessionConfiguration.default
         reglages.httpCookieStorage = nil
         reglages.httpShouldSetCookies = false
+        // Pas de cache caché : après un envoi, une lecture doit voir la nouvelle réponse.
+        reglages.urlCache = nil
+        reglages.requestCachePolicy = .reloadIgnoringLocalCacheData
         return URLSession(configuration: reglages)
     }()
 
@@ -446,13 +454,27 @@ struct SourceHumalis: Sendable {
         (ProcessInfo.processInfo.environment["HUMALIS_SERVEUR"] ?? Configuration.serveur).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
     }
 
+    /** Le jeton CSRF posé par le serveur : un visiteur sans connexion le renvoie avec ses envois. */
+    private var jetonCsrf: String?
+
+    private func retenirCsrf(_ reponse: HTTPURLResponse) {
+        guard let cookies = reponse.value(forHTTPHeaderField: "Set-Cookie"), let debut = cookies.range(of: "astratra_csrf=") else { return }
+        let valeur = cookies[debut.upperBound...].prefix { $0 != ";" && $0 != "," }
+        if !valeur.isEmpty { jetonCsrf = String(valeur) }
+    }
+
     private func url(_ adresse: String, id: String?, source: SourceHumalis?, filtres: [(String, String)]) throws -> URL {
         let base = source?.adresse ?? Serveur.base
-        var texte = base.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + (adresse.hasPrefix("/") ? adresse : "/" + adresse)
-        if let id { texte += "/" + (id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed.subtracting(CharacterSet(charactersIn: "/"))) ?? id) }
+        var chemin = adresse.hasPrefix("/") ? adresse : "/" + adresse
+        if let id {
+            let propre = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed.subtracting(CharacterSet(charactersIn: "/"))) ?? id
+            if chemin.contains(":id") { chemin = chemin.replacingOccurrences(of: ":id", with: propre) } else { chemin += "/" + propre }
+        }
+        let texte = base.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + chemin
         guard var composantes = URLComponents(string: texte) else { throw ErreurHumalis.refus(pasDeReponse) }
         var parametres = composantes.queryItems ?? []
-        for (cle, valeur) in filtres { parametres.append(URLQueryItem(name: cle, value: valeur)) }
+        // Une valeur absente n'est pas envoyée : un filtre vide ne fait pas « ?categorie= ».
+        for (cle, valeur) in filtres where !valeur.isEmpty { parametres.append(URLQueryItem(name: cle, value: valeur)) }
         if case .parametre(let nom)? = source?.jeton?.place, let jeton = source?.jeton?.valeur { parametres.append(URLQueryItem(name: nom, value: jeton)) }
         if !parametres.isEmpty { composantes.queryItems = parametres }
         guard let url = composantes.url else { throw ErreurHumalis.refus(pasDeReponse) }
@@ -462,27 +484,53 @@ struct SourceHumalis: Sendable {
     /** Un appel brut, avec le jeton de session ; sur un 401, la session se renouvelle et l'appel repart une fois. */
     private func envoyerRequete(_ requete: URLRequest, source: SourceHumalis?) async throws -> (Data, HTTPURLResponse) {
         var essai = requete
-        if source == nil, let jeton = Session.commun.jeton { essai.setValue("Bearer \(jeton)", forHTTPHeaderField: "Authorization") }
+        let avecSession = source == nil || source?.session == true
+        if avecSession, let jeton = Session.commun.jeton {
+            essai.setValue("Bearer \(jeton)", forHTTPHeaderField: "Authorization")
+        } else if avecSession, requete.httpMethod != "GET" {
+            // Un visiteur : le serveur demande le jeton CSRF qu'il a posé à la première lecture.
+            if jetonCsrf == nil, var amorce = Optional(requete) {
+                amorce.httpMethod = "GET"
+                amorce.httpBody = nil
+                if let (_, premiere) = try? await lancer(amorce, source: source) { retenirCsrf(premiere) }
+            }
+            if let jetonCsrf {
+                essai.setValue("astratra_csrf=\(jetonCsrf)", forHTTPHeaderField: "Cookie")
+                essai.setValue(jetonCsrf, forHTTPHeaderField: "x-csrf-token")
+            }
+        }
         var (donnees, reponse) = try await lancer(essai, source: source)
-        if reponse.statusCode == 401, source == nil, await Session.commun.renouveler(), let jeton = Session.commun.jeton {
+        if reponse.statusCode == 401, avecSession, await Session.commun.renouveler(), let jeton = Session.commun.jeton {
             essai.setValue("Bearer \(jeton)", forHTTPHeaderField: "Authorization")
             (donnees, reponse) = try await lancer(essai, source: source)
         }
+        retenirCsrf(reponse)
         return (donnees, reponse)
     }
 
     private func lancer(_ requete: URLRequest, source: SourceHumalis?) async throws -> (Data, HTTPURLResponse) {
-        var restants = requete.httpMethod == "GET" ? (source?.essais ?? 0) : 0
+        // Seules les lectures sont rejouées : un envoi rejoué pourrait commander deux fois.
+        let essais = requete.httpMethod == "GET" ? (source?.essais ?? 0) : 0
+        var tentative = 0
+        func pause() async { try? await Task.sleep(for: .milliseconds(tentative == 0 ? 500 : 1500)) }
         while true {
             do {
                 let (donnees, reponse) = try await session.data(for: requete)
                 guard let http = reponse as? HTTPURLResponse else { throw ErreurHumalis.refus(pasDeReponse) }
-                if http.statusCode >= 500 && restants > 0 { restants -= 1; continue }
+                if tentative < essais && [429, 502, 503, 504].contains(http.statusCode) {
+                    await pause()
+                    tentative += 1
+                    continue
+                }
                 return (donnees, http)
             } catch let erreur as ErreurHumalis {
                 throw erreur
             } catch {
-                if restants > 0 { restants -= 1; continue }
+                if tentative < essais {
+                    await pause()
+                    tentative += 1
+                    continue
+                }
                 throw ErreurHumalis.refus(pasDeReponse)
             }
         }
@@ -493,7 +541,7 @@ struct SourceHumalis: Sendable {
         r.httpMethod = methode
         if let delai = source?.delai { r.timeoutInterval = delai / 1000 }
         r.setValue("application/json", forHTTPHeaderField: "Accept")
-        if source == nil { r.setValue("1", forHTTPHeaderField: "x-humalis-mobile") }
+        if source == nil || source?.session == true { r.setValue("1", forHTTPHeaderField: "x-humalis-mobile") }
         for (nom, valeur) in source?.entetes ?? [] { r.setValue(valeur, forHTTPHeaderField: nom) }
         switch source?.jeton?.place {
         case .autorisation?: r.setValue("Bearer \(source!.jeton!.valeur)", forHTTPHeaderField: "Authorization")
@@ -507,13 +555,17 @@ struct SourceHumalis: Sendable {
         return r
     }
 
-    private func refus(_ donnees: Data, source: SourceHumalis?) -> ErreurHumalis {
+    private func suivre(_ depart: ValeurHumalis, _ chemin: String?) -> ValeurHumalis {
+        (chemin ?? "").split(separator: ".").reduce(depart) { $0[String($1)] }
+    }
+
+    private func refus(_ donnees: Data, code: Int, source: SourceHumalis?) -> ErreurHumalis {
+        if source != nil && code == 429 { return .refus("Trop de demandes en peu de temps. Patientez un moment, puis réessayez.") }
+        if source != nil && code == 401 { return .refus("Connectez-vous pour continuer.") }
         let corps = try? JSONDecoder().decode(ValeurHumalis.self, from: donnees)
-        let chemin = source?.erreurDans ?? "erreur"
-        var valeur = corps ?? .rien
-        for morceau in chemin.split(separator: ".") { valeur = valeur[String(morceau)] }
-        var texte = valeur.enTexte
-        if texte.isEmpty { return .refus(pasDeReponse) }
+        var texte = suivre(corps ?? .rien, source?.erreurDans ?? "erreur").enTexte
+        if source != nil && code == 404 && texte.isEmpty { return .refus("Ce que vous cherchez n'existe pas.") }
+        if texte.isEmpty || (source != nil && code >= 500) { return .refus(pasDeReponse) }
         texte = texte.prefix(1).uppercased() + texte.dropFirst()
         return .refus(texte.hasSuffix(".") ? texte : texte + ".")
     }
@@ -525,17 +577,24 @@ struct SourceHumalis: Sendable {
             let verbe = methode ?? (envoi != nil ? "POST" : "GET")
             let r = try requete(adresse, methode: verbe, id: id, envoi: envoi, source: source, filtres: filtres)
             let (donnees, reponse) = try await envoyerRequete(r, source: source)
-            if reponse.statusCode == 404 && verbe == "GET" {
+            if reponse.statusCode == 404 && verbe == "GET" && source == nil {
                 suivi?(EtatRequete(statut: .introuvable))
                 return nil
             }
-            if reponse.statusCode == 401 && source == nil { throw ErreurHumalis.refus("Connectez-vous pour continuer.") }
-            guard (200..<300).contains(reponse.statusCode) else { throw refus(donnees, source: source) }
+            if reponse.statusCode == 401 && (source == nil || source?.session == true) { throw ErreurHumalis.refus("Connectez-vous pour continuer.") }
+            guard (200..<300).contains(reponse.statusCode) else {
+                let erreur = refus(donnees, code: reponse.statusCode, source: source)
+                if reponse.statusCode == 404 {
+                    suivi?(EtatRequete(statut: .introuvable, message: raisonDe(erreur)))
+                    if suivi != nil { return nil }
+                }
+                throw erreur
+            }
             suivi?(EtatRequete(statut: .repos))
             if donnees.isEmpty { return nil }
-            var valeur = try JSONDecoder().decode(ValeurHumalis.self, from: donnees)
-            if let enveloppe = source?.enveloppe { valeur = valeur[enveloppe] }
-            for morceau in (dans ?? "").split(separator: ".") { valeur = valeur[String(morceau)] }
+            guard let lue = try? JSONDecoder().decode(ValeurHumalis.self, from: donnees) else { return nil }
+            let valeur = suivre(suivre(lue, source?.enveloppe), dans)
+            if valeur == .rien { return nil }
             // On attendait une liste et on reçoit autre chose : la valeur actuelle est gardée.
             guard let lue = Serveur.decoder(valeur, T.self) else { return nil }
             return lue
@@ -585,7 +644,7 @@ struct SourceHumalis: Sendable {
     func telechargerBonOuEchouer(_ adresse: String, id: String) async throws {
         let r = try requete(adresse + "/" + id + "/bon", methode: "GET", id: nil, envoi: nil, source: nil, filtres: [])
         let (donnees, reponse) = try await envoyerRequete(r, source: nil)
-        guard (200..<300).contains(reponse.statusCode) else { throw refus(donnees, source: nil) }
+        guard (200..<300).contains(reponse.statusCode) else { throw refus(donnees, code: reponse.statusCode, source: nil) }
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("bon-\(id).pdf")
         do { try donnees.write(to: url) } catch { throw ErreurHumalis.refus("Le fichier n'a pas pu être écrit.") }
         partagerFichier(url)
@@ -619,9 +678,11 @@ struct SourceHumalis: Sendable {
         let donnees: Data
         do { (donnees, reponse) = try await session.upload(for: r, from: corps, delegate: suivi) }
         catch { throw ErreurHumalis.refus(pasDeReponse) }
-        guard let http = reponse as? HTTPURLResponse, (200..<300).contains(http.statusCode) else { throw refus(donnees, source: source) }
+        guard let http = reponse as? HTTPURLResponse else { throw ErreurHumalis.refus(pasDeReponse) }
+        guard (200..<300).contains(http.statusCode) else { throw refus(donnees, code: http.statusCode, source: source) }
         progression?(100)
-        return try? JSONDecoder().decode(T.self, from: donnees)
+        guard let lue = try? JSONDecoder().decode(ValeurHumalis.self, from: donnees) else { return nil }
+        return Serveur.decoder(suivre(lue, source?.enveloppe), T.self)
     }
 
     func televerser<T: Decodable>(_ fichier: FichierChoisi?, vers adresse: String, comme type: T.Type, source: SourceHumalis?, corpsBrut: Bool = false, champ: String = "fichier", progression: (@MainActor (Double) -> Void)? = nil) async -> T? {
@@ -679,6 +740,7 @@ private final class SuiviEnvoi: NSObject, URLSessionTaskDelegate, Sendable {
         guard let url = URL(string: Serveur.base + chemin) else { return nil }
         var r = URLRequest(url: url)
         r.httpMethod = methode
+        r.cachePolicy = .reloadIgnoringLocalCacheData
         r.setValue("1", forHTTPHeaderField: "x-humalis-mobile")
         if let jeton { r.setValue("Bearer \(jeton)", forHTTPHeaderField: "Authorization") }
         if let corps {

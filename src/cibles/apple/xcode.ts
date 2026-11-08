@@ -22,6 +22,8 @@ export interface OptionsXcode {
   fichiers?: boolean;
   /** Vrai s'il y a une icône dans les assets. */
   icone?: boolean;
+  /** Ajoute une cible de tests XCUITest (pour l'essai de bout en bout). */
+  essaisUi?: boolean;
 }
 
 /** Les versions minimales : celles de `@Observable` (et de Muzika). */
@@ -44,6 +46,17 @@ const ID = {
   releaseProjet: '1A000000000000000000000D',
   debugCible: '1A000000000000000000000E',
   releaseCible: '1A000000000000000000000F',
+  essais: '1A0000000000000000000010',
+  essaisSources: '1A0000000000000000000011',
+  essaisProduit: '1A0000000000000000000012',
+  essaisPhaseSources: '1A0000000000000000000013',
+  essaisPhaseFrameworks: '1A0000000000000000000014',
+  essaisPhaseRessources: '1A0000000000000000000015',
+  essaisConfigs: '1A0000000000000000000016',
+  essaisDebug: '1A0000000000000000000017',
+  essaisRelease: '1A0000000000000000000018',
+  proxy: '1A0000000000000000000019',
+  dependance: '1A000000000000000000001A',
 };
 
 /** Une valeur du fichier du projet, entre guillemets si elle en a besoin. */
@@ -61,6 +74,7 @@ function reglagesCible(o: OptionsXcode, debug: boolean): string[] {
     'ENABLE_HARDENED_RUNTIME = YES;',
     'ENABLE_PREVIEWS = YES;',
     'GENERATE_INFOPLIST_FILE = YES;',
+    'INFOPLIST_FILE = Info.plist;',
     `INFOPLIST_KEY_CFBundleDisplayName = ${pb(o.nomAffiche)};`,
     'INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";',
     '"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;',
@@ -112,6 +126,38 @@ ${reglages.map((r) => `\t\t\t\t${r}`).join('\n')}
 /** Le fichier `project.pbxproj`. */
 export function projetXcode(o: OptionsXcode): string {
   const produit = `${o.nom}.app`;
+  const texte = projetDeBase(o, produit);
+  return o.essaisUi ? avecEssaisUi(texte, o) : texte;
+}
+
+/** Ajoute au projet une cible XCUITest, seulement pour l'essai de bout en bout. */
+function avecEssaisUi(texte: string, o: OptionsXcode): string {
+  const nom = `${o.nom}Essais`;
+  const reglages = (debug: boolean) => [
+    'CODE_SIGN_IDENTITY = "-";', 'CODE_SIGN_STYLE = Manual;', 'DEVELOPMENT_TEAM = "";', 'GENERATE_INFOPLIST_FILE = YES;', 'PRODUCT_BUNDLE_IDENTIFIER = local.humalis.essais;',
+    'PRODUCT_NAME = "$(TARGET_NAME)";', 'SDKROOT = auto;', 'SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";', 'SWIFT_VERSION = 6.0;', 'TARGETED_DEVICE_FAMILY = "1,2";', `TEST_TARGET_NAME = ${pb(o.nom)};`,
+    ...(debug ? [] : ['VALIDATE_PRODUCT = YES;']),
+  ].sort();
+  const ajouter = (repere: string, ajout: string) => {
+    if (!texte.includes(repere)) throw new Error(`modèle du projet inattendu : ${repere}`);
+    texte = texte.replace(repere, ajout + repere);
+  };
+  const phase = (id: string, genre: string) => `\t\t${id} = {\n\t\t\tisa = ${genre};\n\t\t\tbuildActionMask = 2147483647;\n\t\t\tfiles = (\n\t\t\t);\n\t\t\trunOnlyForDeploymentPostprocessing = 0;\n\t\t};\n`;
+  ajouter('/* End PBXFileReference section */', `\t\t${ID.essaisProduit} = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ${pb(`${nom}.xctest`)}; sourceTree = BUILT_PRODUCTS_DIR; };\n`);
+  ajouter('/* End PBXFileSystemSynchronizedRootGroup section */', `\t\t${ID.essaisSources} = {isa = PBXFileSystemSynchronizedRootGroup; path = ${pb(nom)}; sourceTree = "<group>"; };\n`);
+  ajouter('/* End PBXFrameworksBuildPhase section */', phase(ID.essaisPhaseFrameworks, 'PBXFrameworksBuildPhase'));
+  ajouter('/* End PBXResourcesBuildPhase section */', phase(ID.essaisPhaseRessources, 'PBXResourcesBuildPhase'));
+  ajouter('/* End PBXSourcesBuildPhase section */', phase(ID.essaisPhaseSources, 'PBXSourcesBuildPhase'));
+  ajouter('/* End PBXNativeTarget section */', `\t\t${ID.essais} = {\n\t\t\tisa = PBXNativeTarget;\n\t\t\tbuildConfigurationList = ${ID.essaisConfigs};\n\t\t\tbuildPhases = (\n\t\t\t\t${ID.essaisPhaseSources},\n\t\t\t\t${ID.essaisPhaseFrameworks},\n\t\t\t\t${ID.essaisPhaseRessources},\n\t\t\t);\n\t\t\tbuildRules = (\n\t\t\t);\n\t\t\tdependencies = (\n\t\t\t\t${ID.dependance},\n\t\t\t);\n\t\t\tfileSystemSynchronizedGroups = (\n\t\t\t\t${ID.essaisSources},\n\t\t\t);\n\t\t\tname = ${pb(nom)};\n\t\t\tproductName = ${pb(nom)};\n\t\t\tproductReference = ${ID.essaisProduit};\n\t\t\tproductType = "com.apple.product-type.bundle.ui-testing";\n\t\t};\n`);
+  ajouter('/* Begin PBXProject section */', `/* Begin PBXContainerItemProxy section */\n\t\t${ID.proxy} = {\n\t\t\tisa = PBXContainerItemProxy;\n\t\t\tcontainerPortal = ${ID.projet};\n\t\t\tproxyType = 1;\n\t\t\tremoteGlobalIDString = ${ID.cible};\n\t\t\tremoteInfo = ${pb(o.nom)};\n\t\t};\n/* End PBXContainerItemProxy section */\n\n/* Begin PBXTargetDependency section */\n\t\t${ID.dependance} = {\n\t\t\tisa = PBXTargetDependency;\n\t\t\ttarget = ${ID.cible};\n\t\t\ttargetProxy = ${ID.proxy};\n\t\t};\n/* End PBXTargetDependency section */\n\n`);
+  ajouter('/* End XCBuildConfiguration section */', `${config(ID.essaisDebug, 'Debug', reglages(true))}\n${config(ID.essaisRelease, 'Release', reglages(false))}\n`);
+  ajouter('/* End XCConfigurationList section */', `\t\t${ID.essaisConfigs} = {\n\t\t\tisa = XCConfigurationList;\n\t\t\tbuildConfigurations = (\n\t\t\t\t${ID.essaisDebug},\n\t\t\t\t${ID.essaisRelease},\n\t\t\t);\n\t\t\tdefaultConfigurationIsVisible = 0;\n\t\t\tdefaultConfigurationName = Release;\n\t\t};\n`);
+  texte = texte.replace(`\t\t\t\t${ID.cible} /* ${o.nom} */,\n\t\t\t);\n\t\t};\n/* End PBXProject section */`, `\t\t\t\t${ID.cible} /* ${o.nom} */,\n\t\t\t\t${ID.essais},\n\t\t\t);\n\t\t};\n/* End PBXProject section */`);
+  texte = texte.replace(`\t\t\t\t${ID.sources} /* ${o.nom} */,\n\t\t\t\t${ID.produits} /* Products */,`, `\t\t\t\t${ID.sources} /* ${o.nom} */,\n\t\t\t\t${ID.essaisSources},\n\t\t\t\t${ID.produits} /* Products */,`);
+  return texte;
+}
+
+function projetDeBase(o: OptionsXcode, produit: string): string {
   return `// !$*UTF8*$!
 {
 \tarchiveVersion = 1;
@@ -263,7 +309,7 @@ ${config(ID.releaseCible, 'Release', reglagesCible(o, false))}
 }
 
 /** Le schéma partagé : `xcodebuild -scheme` le trouve sans ouvrir Xcode. */
-export function schemaXcode(nom: string): string {
+export function schemaXcode(nom: string, essais = false): string {
   const reference = `<BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "${ID.cible}"
@@ -280,7 +326,12 @@ export function schemaXcode(nom: string): string {
          </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
-   <TestAction buildConfiguration = "Debug" selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB" shouldUseLaunchSchemeArgsEnv = "YES">
+   <TestAction buildConfiguration = "Debug" selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB" shouldUseLaunchSchemeArgsEnv = "YES">${essais ? `
+      <Testables>
+         <TestableReference skipped = "NO">
+            <BuildableReference BuildableIdentifier = "primary" BlueprintIdentifier = "${ID.essais}" BuildableName = "${nom}Essais.xctest" BlueprintName = "${nom}Essais" ReferencedContainer = "container:${nom}.xcodeproj"></BuildableReference>
+         </TestableReference>
+      </Testables>` : ''}
    </TestAction>
    <LaunchAction buildConfiguration = "Debug" selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB" launchStyle = "0" useCustomWorkingDirectory = "NO" ignoresPersistentStateOnLaunch = "NO" debugDocumentVersioning = "YES" allowLocationSimulation = "YES">
       <BuildableProductRunnable runnableDebuggingMode = "0">
@@ -315,6 +366,28 @@ export function droits(fichiers: boolean): string {
 	<true/>${fichiers ? `
 	<key>com.apple.security.files.user-selected.read-only</key>
 	<true/>` : ''}
+</dict>
+</plist>
+`;
+}
+
+/**
+ * Les réglages ajoutés au fichier Info. L'application ne chiffre qu'avec ce que le système fournit
+ * (HTTPS, Keychain) : TestFlight ne repose donc pas la question du chiffrement à chaque envoi.
+ * `http://` reste permis sur le réseau local, seulement pour essayer contre un serveur de cet ordinateur.
+ */
+export function infoSupplementaire(serveurLocal: boolean): string {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>${serveurLocal ? `
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>` : ''}
 </dict>
 </plist>
 `;

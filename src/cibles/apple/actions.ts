@@ -397,7 +397,7 @@ export class EcrivainActions {
         return [`${nomSwift(f.nom)}: ${this.v.versOpt(this.x(donne.valeur, type), type)}`];
       }),
     ];
-    return `.${nomRoute(page)}${valeurs.length ? `(${valeurs.join(', ')})` : ''}`;
+    return `.${nomRoute(page)}${valeurs.length || info.filtres.length ? `(${valeurs.join(', ')})` : ''}`;
   }
 
   /** L'instruction qui va vers une cible écrite (« produit », « carte#desserts », « https://… »). */
@@ -493,7 +493,7 @@ export class EcrivainActions {
       if (a.type === 'suppression') appel = `methode: "DELETE", id: ${id}${source}`;
       else {
         const paires = a.changements.map((ch) => `${chaineSwift(a.source === undefined ? cleJson(ch.champ) : ch.champ)}: ValeurHumalis(${this.x(ch.valeur).code})`);
-        appel = `methode: ${a.remplacement ? '"PUT"' : '"PATCH"'}, id: ${id}, envoi: [${paires.length ? paires.join(', ') : ':'}]${source}`;
+        appel = `methode: ${a.remplacement ? '"PUT"' : '"PATCH"'}, envoi: [${paires.length ? paires.join(', ') : ':'}], id: ${id}${source}`;
       }
       if (c.essai) e.ligne(`try await Serveur.commun.appelSansReponse(${adresse}, ${appel})`);
       else if (c.formulaire) e.ligne(`guard await Serveur.commun.appelReussi(${adresse}, ${appel}) else { return }`);
