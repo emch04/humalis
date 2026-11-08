@@ -673,7 +673,7 @@ export class GenerateurPage implements HotePage {
 
   private modifieurs(e: Ecrivain, noeudOptions: Option[], sorte: Parameters<typeof modificateurs>[1], extra: string[] = []): void {
     const classes = noeudOptions.find((o) => o.nom === 'css')?.valeur.split(' ').filter(Boolean) ?? [];
-    const lignes = [...modificateurs(noeudOptions, sorte, { dansLigne: this.dansLigne }), ...this.app.css.modificateurs(classes), ...extra];
+    const lignes = [...modificateurs(noeudOptions, sorte, { dansLigne: this.dansLigne }), ...this.app.css.modificateurs(classes, sorte), ...extra];
     e.indenter(() => lignes.forEach((l) => e.ligne(l)));
   }
 

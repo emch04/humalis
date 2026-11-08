@@ -301,8 +301,8 @@ interface EntreeMenu {
 }
 
 interface Disposition {
-  entete?: { nom: string; sans: string[] };
-  pied?: { nom: string; sans: string[] };
+  entete?: { nom: string; sans: string[]; css: string[] };
+  pied?: { nom: string; sans: string[]; colle: boolean; css: string[] };
   /** Les liens du menu de l'en-tête : la barre latérale de l'iPad et du Mac, et le menu « Aller à ». */
   menu?: EntreeMenu[];
   /** L'en-tête montre autre chose que son menu : il reste au-dessus des pages, même avec la barre latérale. */
@@ -490,6 +490,8 @@ function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, dispos
   const menu = disposition.menu && disposition.menu.length > 0 ? disposition.menu : undefined;
   // Avec la barre latérale, un en-tête qui n'a que son menu disparaît.
   const montrerEntete = entete ? `${sans(entete.sans)}${menu && !disposition.enteteAvecAutreChose ? ' && !large' : ''}` : '';
+  const piedColle = pied?.colle ? pied : undefined;
+  const piedQuiDefile = pied && !pied.colle ? pied : undefined;
   const insets = `${entete ? `
             .safeAreaInset(edge: .top, spacing: 0) {
                 if ${montrerEntete} {
@@ -497,18 +499,19 @@ function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, dispos
                         ${entete.nom}().padding(.horizontal, 16).padding(.vertical, 8)
                         Divider()
                     }
-                    .background(.bar)
+                    .background(.bar)${entete.css.map((l) => `\n                    ${l}`).join('')}
                 }
-            }` : ''}${pied ? `
+            }` : ''}${piedColle ? `
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                if ${sans(pied.sans)} {
+                if ${sans(piedColle.sans)} {
                     VStack(spacing: 0) {
                         Divider()
-                        ${pied.nom}().padding(.horizontal, 16).padding(.vertical, 8)
+                        ${piedColle.nom}().padding(.horizontal, 16).padding(.vertical, 8)
                     }
-                    .background(.bar)
+                    .background(.bar)${piedColle.css.map((l) => `\n                    ${l}`).join('')}
                 }
-            }` : ''}`;
+            }` : ''}${piedQuiDefile ? `
+            .environment(\\.piedHumalis, ${sans(piedQuiDefile.sans)} ? AnyView(${piedQuiDefile.nom}().padding(.horizontal, 16).padding(.vertical, 24).frame(maxWidth: .infinity, alignment: .leading)${piedQuiDefile.css.join('')}) : nil)` : ''}`;
   const active = menu
     ? `    /** La page montrée, surlignée dans la barre latérale. */
     private var entreeActive: Int? {
@@ -786,7 +789,9 @@ export function genererProjetApple(application: Application, options: OptionsApp
     const menu = genre === 'entete' ? premierMenu(d.ecran.vue) : undefined;
     ecrire(`Composants/${composant}.swift`, new GenerateurPage({ ...d.ecran, nom: composant }, app, [], composant, menu !== undefined).generer());
     const sans = application.ecrans.filter((e) => (genre === 'entete' ? e.sansEntete : e.sansPied)).map((e) => nomRoute(e.nom));
-    disposition[genre] = { nom: composant, sans };
+    const cssCommun = app.css.modificateurs([`humalis-${genre}`, ...d.classes], 'bloc');
+    if (genre === 'pied') disposition.pied = { nom: composant, sans, colle: d.options.some((o) => o.nom === 'colle'), css: cssCommun };
+    else disposition.entete = { nom: composant, sans, css: cssCommun };
     if (menu) {
       disposition.menu = entreesDuMenu(menu, app, valeurs);
       disposition.enteteAvecAutreChose = montreAutreChose(d.ecran.vue, menu);
@@ -845,7 +850,13 @@ export function genererProjetApple(application: Application, options: OptionsApp
   for (const [chemin, info] of options.medias ?? []) {
     const copie = nomDeLaCopie(chemin);
     const fichier = ressources.get(copie) ?? ressources.get(chemin);
-    if (fichier && info.contenu !== undefined) ecrire(`Ressources/${fichier}`, contenuBinaire(info.contenu));
+    if (!fichier || info.contenu === undefined) continue;
+    // Un SVG passe par le catalogue d'images : c'est là que le système sait le dessiner.
+    if (/\.svg$/i.test(fichier)) {
+      const nomAsset = fichier.replace(/\.svg$/i, '');
+      ecrire(`Assets.xcassets/${nomAsset}.imageset/${fichier}`, contenuBinaire(info.contenu));
+      ecrire(`Assets.xcassets/${nomAsset}.imageset/Contents.json`, `${JSON.stringify({ images: [{ filename: fichier, idiom: 'universal' }], info: { author: 'xcode', version: 1 }, properties: { 'preserves-vector-representation': true } }, null, 2)}\n`);
+    } else ecrire(`Ressources/${fichier}`, contenuBinaire(info.contenu));
   }
 
   const logo = application.site?.logo;
