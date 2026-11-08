@@ -3715,7 +3715,7 @@ page "accueil" :
     "n'est ni un type (texte, nombre, booleen, date) ni une donnée de la source"),
   // --- La navigation (adresses, page 404, pages réservées) ---
   e('page-reservee-mot', 'grammaire', 'Une page réservée à personne',
-    'Une page peut être réservée aux personnes connectées ou aux admins. Les deux seuls mots permis après « reservee » sont « connecte » et « admin », comme dans les règles du serveur.',
+    'Une page peut être réservée aux personnes connectées ou aux admins. Les mots permis après « reservee » sont « connecte » et « admin », comme dans les règles du serveur.',
     'Écris « reservee a connecte » ou « reservee a admin ».',
     p(`
 source "boutique" :
@@ -3739,7 +3739,7 @@ page "compte" reservee a connecte :
 page "connexion" :
     titre "Connexion"
 `),
-    '« reservee » est suivi de « connecte » ou de « admin »'),
+    "n'est pas déclaré"),
   e('page-adresse-slash', 'sens', 'Une adresse de page qui ne commence pas par /',
     'L’adresse choisie d’une page est un chemin du site : elle commence toujours par une barre oblique. Un morceau « :slug » déclare une valeur lue dans l’adresse.',
     'Écris l’adresse avec une barre au début : "/collections/:slug".',
@@ -5291,4 +5291,42 @@ page "accueil" :
         envoyer requete vers "produits" dans produits en direct
 `),
     '« en direct » se met sur une lecture'),
+  e('requete-reservee-a-un-role', 'avertissement', 'Une lecture réservée à un rôle, depuis une page ouverte',
+    'La route ne répond qu’à certains rôles : un visiteur qui ouvre cette page verra la requête refusée.',
+    'Réserve la page à ce rôle, ou place la requête sous « si utilisateur est … ».',
+    p(`
+serveur "ecole" :
+    roles directeur
+    donnee note :
+        valeur : nombre
+    route "notes" :
+        seul directeur peut lire note
+        seul admin peut modifier note
+
+page "accueil" :
+    titre "Accueil"
+    variable notes = []
+    quand la page se charge :
+        envoyer requete vers "notes" dans notes
+`),
+    p(`
+serveur "ecole" :
+    roles directeur
+    donnee note :
+        valeur : nombre
+    route "notes" :
+        seul directeur peut lire note
+        seul admin peut modifier note
+
+page "accueil" reservee a directeur sinon vers "entree" :
+    titre "Accueil"
+    variable notes = []
+    quand la page se charge :
+        envoyer requete vers "notes" dans notes
+
+page "entree" :
+    titre "Entrée"
+`),
+    'seuls certains rôles peuvent',
+    { gravite: 'avertissement' }),
 ];

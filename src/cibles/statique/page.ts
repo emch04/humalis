@@ -440,7 +440,7 @@ export class GenerateurPage {
     if (this.chargements.length > 0) options.push('auChargement');
     if (this.minuteries.length > 0) options.push('minuteries');
     if (this.raccourcis.length > 0) options.push('raccourcis');
-    this.besoins.session = /\butilisateur\.(connecte|admin|seConnecter|seDeconnecter)\b/.test(corps);
+    this.besoins.session = /\butilisateur\.(connecte|admin|personne|seConnecter|seDeconnecter)\b/.test(corps);
     if (this.besoins.session) options.push('session: true');
 
     // Un écrivain vide rend une ligne vide : elle est laissée de côté.

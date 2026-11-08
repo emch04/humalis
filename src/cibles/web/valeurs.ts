@@ -179,7 +179,7 @@ export function expression(valeur: Valeur, contexte: Contexte): string {
       return 'null';
     case 'utilisateur':
       // Lu sur la session (src/humalis/session.tsx), jamais gardé par la page.
-      return `utilisateur.${valeur.etat}`;
+      return valeur.etat.startsWith('role:') ? `(utilisateur.personne?.role === '${valeur.etat.slice(5)}')` : `utilisateur.${valeur.etat}`;
     case 'mouvementReduit':
       // « réduire les animations » du système, suivi en direct (src/humalis/temps.ts).
       return 'mouvementReduit';

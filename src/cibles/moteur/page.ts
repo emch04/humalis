@@ -609,7 +609,7 @@ export class GenerateurMoteur extends GenerateurPage {
       corps.ligne(`return { ${options.join(', ')} };`);
     });
     const code = this.avecPlanificateur(corps.texte());
-    const session = /\butilisateur\.(connecte|admin|seConnecter|seDeconnecter)\b/.test(code);
+    const session = /\butilisateur\.(connecte|admin|personne|seConnecter|seDeconnecter)\b/.test(code);
     return {
       script: `${this.entete(code)}
 

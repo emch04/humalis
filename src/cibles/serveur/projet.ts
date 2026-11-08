@@ -74,6 +74,7 @@ export function genererProjetServeur(serveur: ServeurRI, options: OptionsServeur
   fichiers.set('src/demarrer.ts', demarrerTs(serveur));
   fichiers.set('tests/regles.test.ts', testsRegles(serveur));
   fichiers.set('tests/sessions.test.ts', testsSessions(serveur));
+  if (serveur.routes.some((r) => r.direct)) fichiers.set('src/humalis/direct.ts', DIRECT);
   if (serveur.routes.some((r) => r.bon)) {
     fichiers.set('src/humalis/bon.ts', BON);
     fichiers.set('tests/bon.test.ts', testsBon(serveur));
@@ -1086,14 +1087,19 @@ ${blocs.join('\n\n')}
 `;
 }
 
-const GARDES: Record<QuiPeut, string> = {
+const GARDES: Record<'tout_le_monde' | 'connecte' | 'admin', string> = {
   tout_le_monde: 'toutLeMonde',
   connecte: 'connecte',
   admin: 'seulAdmin',
 };
 
+/** Les intergiciels d'accès d'un droit : un rôle déclaré passe par acces.roles, un admin passe toujours. */
+export function gardeDe(qui: QuiPeut): string {
+  return qui.startsWith('role:') ? `roles(${JSON.stringify(qui.slice(5).split(','))})` : GARDES[qui as keyof typeof GARDES];
+}
+
 function decrireDroits(droits: Record<Action, QuiPeut | null>): string {
-  const qui = (q: QuiPeut | null) => (q === null ? 'personne' : q === 'tout_le_monde' ? 'tout le monde' : q === 'connecte' ? 'un utilisateur connecté' : 'seul un admin');
+  const qui = (q: QuiPeut | null) => (q === null ? 'personne' : q === 'tout_le_monde' ? 'tout le monde' : q === 'connecte' ? 'un utilisateur connecté' : q === 'admin' ? 'seul un admin' : `les rôles ${q.slice(5).split(',').join(', ')}`);
   return ACTIONS.map((a) => `${a} : ${qui(droits[a])}`).join(' ; ');
 }
 
@@ -1104,13 +1110,14 @@ function serveurTs(serveur: ServeurRI, chemins?: Map<string, string>): string {
       const donnee = camel(route.donnee);
       const schema = `SCHEMA_${simplifier(route.donnee).toUpperCase()}`;
       const variable = `route${pascal(route.adresse)}`;
-      const garde = (a: Action) => (route.droits[a] === null ? 'refuse' : `...acces.${GARDES[route.droits[a]!]}`);
+      const garde = (a: Action) => (route.droits[a] === null ? 'refuse' : `...acces.${gardeDe(route.droits[a]!)}`);
       const csrf = (a: Action) => (route.droits[a] === null ? '' : ', csrfMiddleware');
       // Ce que tout le monde peut lire se garde un peu (navigateur, relais) ; une lecture réservée, jamais.
       const cache = route.droits.lire === 'tout_le_monde' ? 'lecturePublique' : 'lecturePrivee';
       return `      // « ${route.adresse} » (ligne ${ligneLocale(route.ligne)}) — ${decrireDroits(route.droits)}.
       const ${variable} = express.Router();
-${route.direct ? routeDirect(variable, garde('lire')) : ''}      ${variable}.get('/', ${cache}, ${garde('lire')}, async (req, res, next) => {
+${clesAnnoncees(serveur, route).length ? `      ${variable}.use(direct.apres(${JSON.stringify(clesAnnoncees(serveur, route))}));
+` : ''}${route.direct ? routeDirect(variable, garde('lire'), route.donnee) : ''}      ${variable}.get('/', ${cache}, ${garde('lire')}, async (req, res, next) => {
         try {
           // « ?produit=… » : seulement ce qui est demandé, pas toute la liste.
           const filtres = lireFiltres(${schema}, req.query as Record<string, unknown>);
@@ -1120,7 +1127,7 @@ ${route.direct ? routeDirect(variable, garde('lire')) : ''}      ${variable}.get
           next(erreur);
         }
       });
-      ${variable}.get('/:id', ${route.droits.lireUn ? `lecturePrivee, ...acces.${GARDES[route.droits.lireUn]}` : `${cache}, ${garde('lire')}`}, async (req, res, next) => {
+      ${variable}.get('/:id', ${route.droits.lireUn ? `lecturePrivee, ...acces.${gardeDe(route.droits.lireUn)}` : `${cache}, ${garde('lire')}`}, async (req, res, next) => {
         try {
           const trouve = await stockages.${donnee}.trouver(req.params.id);
           if (trouve) res.json(trouve);
@@ -1174,7 +1181,7 @@ ${codeCreation(serveur, route, serveur.donnees.find((d) => d.nom === route.donne
 import { createSaasApp, ${comptes ? 'createMemoryPasswordResetStore, type PasswordResetStore, ' : ''}type UsersStore } from '@astratra/saas-kit';
 import { ${[...(serveur.connexionGoogle ? ['createGoogleIdTokenVerifier', 'IdTokenError'] : []), ...(serveur.invitations ? ['createApiLimiter'] : []), ...(comptes ? ['createMemoryRevocationStore'] : [])].map((n) => n + ', ').join('')}createLoginLimiter, hashPassword, isStrongPassword, verifyPasswordHash, WAF_PATTERNS } from '@astratra/security';
 import express, { type RequestHandler, type Response } from 'express';
-import { ${schemas} } from './donnees.js';
+${serveur.routes.some((r) => r.direct) ? "import { direct } from './humalis/direct.js';\n" : ''}import { ${schemas} } from './donnees.js';
 import type { Surveillance } from './humalis/centrale.js';
 import type { Coffre } from './humalis/coffre.js';
 ${comptes ? "import { creerComptes, refuserMotDePasseFaible, sansLesRetires } from './humalis/comptes.js';\n" : ''}${avecEmails(serveur) ? `import { creerEmails, ${envoisDansRoutes ? 'enTexte, ' : ''}type Emails } from './humalis/emails.js';\n` : ''}import { compresser } from './humalis/compresser.js';${avecBon ? "\nimport { creerBon } from './humalis/bon.js';" : ''}${serveur.fidelite ? "\nimport { carteDeFidelite } from './humalis/fidelite.js';" : ''}
@@ -1270,12 +1277,15 @@ ${comptes ? codeCreationComptes(serveur, chemins).replace('usersStore,', 'usersS
       // Les gardes du pack, telles quelles.
       const authMiddleware = contexte.authMiddleware as unknown as RequestHandler;
       const authorizeAdmin = contexte.authorizeAdmin as unknown as RequestHandler;
+      const authorizeRoles = contexte.authorizeRoles as unknown as (...roles: string[]) => RequestHandler;
       const csrfMiddleware = contexte.csrfMiddleware as unknown as RequestHandler;
       const issueSession = (contexte as unknown as { issueSession: (res: unknown, compte: unknown) => Promise<object> }).issueSession;
       const acces = {
         toutLeMonde: [] as RequestHandler[],
         connecte: [authMiddleware],
         seulAdmin: [authMiddleware, authorizeAdmin],
+        // « seul directeur peut … » : le rôle vient de la session, vérifié par le pack de sécurité. Un admin passe toujours.
+        roles: (permis: string[]): RequestHandler[] => [authMiddleware, authorizeRoles('admin', ...permis)],
       };
       // Les réponses des routes ci-dessous partent compressées (brotli ou gzip) quand le navigateur l'accepte.
       app.use(compresser);
@@ -1314,7 +1324,7 @@ import { hashPassword, isStrongPassword } from '@astratra/security';
 import { createPostgresUsersStore } from '@astratra/store-postgres';
 import pg from 'pg';
 import { creerServeur } from './serveur.js';
-import { demarrerCentrale } from './humalis/centrale.js';
+${serveur.routes.some((r) => r.direct) ? "import { direct } from './humalis/direct.js';\n" : ''}import { demarrerCentrale } from './humalis/centrale.js';
 import { ouvrirCoffre } from './humalis/coffre.js';${comptes ? "\nimport { creerMagasinJetons } from './humalis/comptes.js';" : ''}
 import { creerMagasinMemoire, creerMagasinPostgres } from './humalis/renouvellements.js';
 import { reglagesDeSession, type ReglagesSession } from './humalis/sessions.js';
@@ -1338,7 +1348,7 @@ if (!pool) {
   console.warn('Sans DATABASE_URL, les données restent en mémoire et sont perdues à l\\'arrêt : développement seulement.');
 }
 
-const usersStore = (pool ? createPostgresUsersStore({ pool }) : createMemoryUsersStore()) as UsersStore;
+${serveur.routes.some((r) => r.direct) ? "if (pool) await direct.brancher(pool);\n" : ''}const usersStore = (pool ? createPostgresUsersStore({ pool }) : createMemoryUsersStore()) as UsersStore;
 const stockages = {
 ${stockages}
 };
@@ -1957,32 +1967,122 @@ const ROUTE_MOT_DE_PASSE = `
  * Le temps réel : une page qui lit une route « en direct » apprend qu'elle a changé.
  * Aucune donnée ne passe par ce canal : la page relit par la route normale, avec ses droits.
  */
-function routeDirect(variable: string, garde: string): string {
-  return `      const ecoutes${variable} = new Set<Response>();
-      ${variable}.use((req, res, next) => {
-        if (req.method !== 'GET') {
-          res.on('finish', () => {
-            if (res.statusCode < 400) for (const ecoute of ecoutes${variable}) ecoute.write('data: change\\n\\n');
-          });
-        }
-        next();
-      });
-      ${variable}.get('/direct', ${garde}, (req, res) => {
-        if (ecoutes${variable}.size >= 1000) {
-          res.status(503).end();
-          return;
-        }
-        res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', 'X-Accel-Buffering': 'no', Connection: 'keep-alive' });
-        res.write(': ouvert\\n\\n');
-        ecoutes${variable}.add(res);
-        const battement = setInterval(() => res.write('event: present\\ndata: 1\\n\\n'), 25000);
-        req.on('close', () => {
-          clearInterval(battement);
-          ecoutes${variable}.delete(res);
-        });
-      });
+function routeDirect(variable: string, garde: string, cle: string): string {
+  return `      ${variable}.get('/direct', ${garde}, (req, res) => direct.ecouter(${JSON.stringify(cle)}, req, res));
 `;
 }
+
+/** Ce qu'un envoi réussi sur cette route doit annoncer : sa donnée, et celles qu'elle crée au passage. */
+function clesAnnoncees(serveur: ServeurRI, route: ServeurRI['routes'][number]): string[] {
+  const ecoutees = new Set(serveur.routes.filter((r) => r.direct).map((r) => r.donnee));
+  return [...new Set([route.donnee, ...(route.creations ?? []).map((c) => c.donnee)])].filter((d) => ecoutees.has(d));
+}
+
+/** humalis/direct.ts : un seul serveur en mémoire, plusieurs serveurs par PostgreSQL. */
+const DIRECT = String.raw`import type { Request, RequestHandler, Response } from 'express';
+import type pg from 'pg';
+
+/**
+ * Produit par Humalis : le temps réel des pages qui lisent « en direct ».
+ * Ce canal annonce seulement qu'une donnée a changé ; la page relit ensuite la route
+ * normale, avec ses droits. Avec DATABASE_URL, l'annonce passe par PostgreSQL
+ * (NOTIFY) : tous les exemplaires du serveur la reçoivent.
+ */
+const CANAL = 'humalis_direct';
+const MAXIMUM = Number(process.env.HUMALIS_DIRECT_MAX ?? 10000);
+const TAMPON = 64 * 1024;
+
+const ecoutes = new Map<string, Set<Response>>();
+let total = 0;
+let pool: pg.Pool | null = null;
+const enAttente = new Set<string>();
+let minuteur: ReturnType<typeof setTimeout> | undefined;
+
+/** Un client trop lent est fermé plutôt que de gonfler la mémoire : il se reconnectera et relira. */
+function ecrire(res: Response, texte: string): void {
+  if (res.writableLength > TAMPON) res.end();
+  else res.write(texte);
+}
+
+function diffuser(cle: string): void {
+  for (const res of ecoutes.get(cle) ?? []) ecrire(res, 'data: change\n\n');
+}
+
+function publier(): void {
+  minuteur = undefined;
+  const cles = [...enAttente];
+  enAttente.clear();
+  for (const cle of cles) {
+    if (pool) pool.query('SELECT pg_notify($1, $2)', [CANAL, cle]).catch(() => diffuser(cle));
+    else diffuser(cle);
+  }
+}
+
+/** Plusieurs envois rapprochés ne font qu'une annonce. */
+function annoncer(cle: string): void {
+  enAttente.add(cle);
+  minuteur ??= setTimeout(publier, 100);
+}
+
+// Un seul battement pour tout le monde : le navigateur sait ainsi que la liaison vit encore.
+setInterval(() => {
+  for (const liste of ecoutes.values()) for (const res of liste) ecrire(res, 'event: present\ndata: 1\n\n');
+}, 25000).unref();
+
+export const direct = {
+  ecouter(cle: string, req: Request, res: Response): void {
+    if (total >= MAXIMUM) {
+      res.status(503).end();
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', 'X-Accel-Buffering': 'no', Connection: 'keep-alive' });
+    res.write(': ouvert\n\n');
+    const liste = ecoutes.get(cle) ?? new Set<Response>();
+    ecoutes.set(cle, liste);
+    liste.add(res);
+    total++;
+    req.on('close', () => {
+      if (liste.delete(res)) total--;
+    });
+  },
+
+  /** Après un envoi réussi, annonce ces données. */
+  apres(cles: string[]): RequestHandler {
+    return (req, res, next) => {
+      if (req.method !== 'GET') {
+        res.on('finish', () => {
+          if (res.statusCode < 400) for (const cle of cles) annoncer(cle);
+        });
+      }
+      next();
+    };
+  },
+
+  /** Plusieurs exemplaires du serveur : chacun écoute PostgreSQL. Une coupure fait relire tout le monde. */
+  async brancher(base: pg.Pool): Promise<void> {
+    pool = base;
+    let dejaBranche = false;
+    const ecouterBase = async (): Promise<void> => {
+      try {
+        const client = await base.connect();
+        client.on('notification', (message) => {
+          if (message.payload) diffuser(message.payload);
+        });
+        client.once('error', () => {
+          client.release(true);
+          setTimeout(() => void ecouterBase(), 2000);
+        });
+        await client.query('LISTEN ' + CANAL);
+        if (dejaBranche) for (const cle of ecoutes.keys()) diffuser(cle);
+        dejaBranche = true;
+      } catch {
+        setTimeout(() => void ecouterBase(), 2000);
+      }
+    };
+    await ecouterBase();
+  },
+};
+`;
 
 function routeBon(variable: string, route: ServeurRI['routes'][number], garde: string, schema: string, donnee: string): string {
   const fichier = simplifier(route.donnee).replace(/_/g, '-');
@@ -2177,7 +2277,7 @@ function testsBon(serveur: ServeurRI): string {
   const stockages = serveur.donnees.map((d) => `  ${camel(d.nom)}: creerStockageMemoire(),`).join('\n');
   const blocs = serveur.routes.filter((r) => r.bon).map((route) => {
     const adresse = adresseApi(route.adresse);
-    const refus = route.droits.lire === 'admin' ? [401, 403] : route.droits.lire === 'connecte' ? [401, 200] : [200, 200];
+    const refus = route.droits.lire === 'admin' || route.droits.lire?.startsWith('role:') ? [401, 403] : route.droits.lire === 'connecte' ? [401, 200] : [200, 200];
     return `describe('le bon de « ${route.donnee} »', () => {
   it('suit les droits de la lecture : visiteur ${refus[0]}, utilisateur ${refus[1]}', async () => {
     const fiche = await stockages.${camel(route.donnee)}.creer(${ficheExemple(serveur, route.donnee)});

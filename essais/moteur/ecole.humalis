@@ -1,0 +1,43 @@
+# Essai du moteur : des rôles, et le temps réel avec plusieurs serveurs.
+serveur "ecole" :
+    roles directeur, enseignant et parent
+    donnee note :
+        nom : texte
+    donnee annonce :
+        titre_annonce : texte
+    route "notes" :
+        seuls directeur et enseignant peuvent lire note
+        seul directeur peut modifier note
+    route "annonces" :
+        tout le monde peut lire annonce
+        seul directeur peut modifier annonce
+
+page "accueil" :
+    variable annonces = []
+    titre "Ecole"
+    quand la page se charge :
+        envoyer requete vers "annonces" dans annonces en direct
+    pour chaque ligne_annonce dans annonces :
+        texte ligne_annonce.titre_annonce
+    formulaire "entree" :
+        champ email "Email"
+        champ mot de passe "Mot de passe"
+        bouton "Entrer"
+    quand le formulaire "entree" est soumis :
+        se connecter avec champ "Email" et champ "Mot de passe"
+        rediriger vers "notes"
+
+page "notes" reservee a directeur et enseignant sinon vers "refuse" :
+    variable notes = []
+    titre "Notes"
+    quand la page se charge :
+        envoyer requete vers "notes" dans notes
+    si utilisateur est directeur :
+        texte "Bonjour la direction"
+    si utilisateur est enseignant :
+        texte "Bonjour les enseignants"
+    pour chaque n dans notes :
+        texte n.nom
+
+page "refuse" :
+    titre "Accès refusé"

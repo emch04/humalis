@@ -97,13 +97,25 @@ export function directDeCouche() {
         ouvrir();
       }, 60000);
     };
+    let enRetard = false;
+    // Un onglet caché ne relit rien : il rattrape quand on revient. Le hasard évite que tous les visiteurs relisent au même instant.
     const rafraichir = () => {
+      if (document.hidden) {
+        enRetard = true;
+        return;
+      }
       clearTimeout(attente);
       attente = setTimeout(() => {
         oublier(adresse, 'POST');
         relire();
-      }, 120);
+      }, 120 + Math.random() * 800);
     };
+    const auRetour = () => {
+      if (document.hidden || !enRetard) return;
+      enRetard = false;
+      rafraichir();
+    };
+    document.addEventListener('visibilitychange', auRetour);
     const ouvrir = () => {
       flux = new EventSource(BASE + adresse + '/direct', { withCredentials: BASE !== '' });
       flux.onmessage = () => {
@@ -133,6 +145,7 @@ export function directDeCouche() {
         clearTimeout(attente);
         clearTimeout(relance);
         clearTimeout(veille);
+        document.removeEventListener('visibilitychange', auRetour);
         flux.close();
       },
     });

@@ -98,7 +98,8 @@ export interface ThemeRI {
   largeur: 'etroite' | 'normale' | 'large' | 'pleine';
 }
 
-export type QuiPeut = 'tout_le_monde' | 'connecte' | 'admin';
+/** « role:directeur,parent » : des rôles déclarés dans le serveur ; un admin passe toujours. */
+export type QuiPeut = 'tout_le_monde' | 'connecte' | 'admin' | `role:${string}`;
 
 export type TypeChamp =
   /** « photo : image » : un texte (l'image réduite par la page), vérifié comme une image par le serveur. */
@@ -157,6 +158,8 @@ export interface ServeurRI {
   motDePasseOublie?: string;
   /** « connexion google » : un compte déjà connu du serveur peut se connecter avec Google. */
   connexionGoogle?: boolean;
+  /** « roles directeur, enseignant et parent ». */
+  roles?: string[];
   /** « fidelite par telephone de commande : » : la lecture réservée à l'admin de /api/fidelite/… */
   fidelite?: { champ: string; donnee: string; tampons: number; statut: string; objectif: number; recompense: string };
 }
@@ -180,7 +183,7 @@ export interface Ecran {
   /** L'adresse choisie (« /collections/:slug »), au lieu de celle du nom de la page. */
   adresse?: string;
   /** Une page réservée aux connectés (ou aux admins) ; `sinon` est la page où l'on renvoie les autres. */
-  reservee?: { qui: 'connecte' | 'admin'; sinon: string };
+  reservee?: { qui: 'connecte' | 'admin' | `role:${string}`; sinon: string };
   /** « page "commandes" dans "admin" » : la page parente, qui montre celle-ci à l'endroit de sa « sous page ». */
   parent?: string;
   /** « avec filtre categorie » : les valeurs lues dans la requête de l'adresse (?categorie=…). */
@@ -659,7 +662,7 @@ export type Action =
   /** « changer le mot de passe avec … et … » : celui du compte connecté, vérifié par le serveur. */
   | { type: 'changementMotDePasse'; actuel: Valeur; nouveau: Valeur }
   /** « inviter champ "Adresse" comme admin » : un lien par e-mail. */
-  | { type: 'invitation'; email: Valeur; role: 'membre' | 'admin' }
+  | { type: 'invitation'; email: Valeur; role: string }
   /** « demander un lien de mot de passe pour champ "Email" ». */
   | { type: 'demandeLienMotDePasse'; email: Valeur }
   /** « choisir le mot de passe avec champ "Nouveau" » : le jeton est dans l'adresse du lien. */
@@ -733,7 +736,7 @@ export type Valeur =
   /** « p.prix » : le champ d'une donnée du serveur. */
   | { type: 'champDonnee'; objet: Valeur; champ: string }
   /** « utilisateur est connecte » (ou « admin ») : vrai ou faux, selon la session. */
-  | { type: 'utilisateur'; etat: 'connecte' | 'admin' }
+  | { type: 'utilisateur'; etat: 'connecte' | 'admin' | `role:${string}` }
   /** « produits est en chargement » : l'état de la requête qui remplit la variable. */
   | { type: 'etatRequete'; variable: string; etat: 'chargement' | 'erreur' | 'introuvable' }
   /** « erreur de produits » : le message de la dernière requête refusée. */

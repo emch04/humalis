@@ -1623,6 +1623,38 @@ serveur "library" :
 - An action without a rule is **refused to everyone**. Humalis warns when no
   one can reach a piece of data.
 
+#### Your own roles
+
+`admin` and `connecte` are not enough for a school or a company. Declare your roles
+in the server, then use them everywhere:
+
+```humalis
+serveur "ecole" :
+    roles directeur, enseignant et parent
+    donnee note :
+        nom : texte
+    route "notes" :
+        seuls directeur et enseignant peuvent lire note
+        seul directeur peut modifier note
+
+page "notes" reservee a directeur et enseignant sinon vers "accueil" :
+    titre "Notes"
+    si utilisateur est directeur :
+        texte "Bonjour la direction"
+
+page "accueil" :
+    titre "Ecole"
+```
+
+- `roles …` names the allowed roles. A misspelled role elsewhere is a compile error
+  that names what to fix.
+- The server checks the role on every request: a visitor gets 401, an account without
+  the right role gets 403. Hiding a button in the page protects nothing; the route's
+  rule does.
+- An `admin` always passes.
+- `inviter … comme directeur` creates an account with that role.
+- The role is stored in the session: if it changes, it counts at the next login.
+
 To generate and run it:
 
 ```sh
@@ -2561,7 +2593,11 @@ page "commandes" :
 An order created elsewhere appears by itself, without a reload. The server only
 announces that something changed: the page then re-reads the normal route, with its
 access rules, so nothing private travels through this channel. It works with this
-engine and a single running Humalis server.
+engine.
+
+With a PostgreSQL database you can run several copies of the server: a change received
+by one is announced by all. Without PostgreSQL, keep a single copy. Changes close
+together are grouped, and pages do not all re-read at the same moment.
 
 #### Reading the server at build time
 

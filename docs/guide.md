@@ -1544,6 +1544,38 @@ serveur "bibliotheque" :
 - Une action sans règle est **refusée à tout le monde**. Humalis prévient quand
   une donnée n'est accessible à personne.
 
+#### Des rôles à toi
+
+`admin` et `connecte` ne suffisent pas à une école ou à une entreprise. Déclare tes
+rôles dans le serveur, puis utilise-les partout :
+
+```humalis
+serveur "ecole" :
+    roles directeur, enseignant et parent
+    donnee note :
+        nom : texte
+    route "notes" :
+        seuls directeur et enseignant peuvent lire note
+        seul directeur peut modifier note
+
+page "notes" reservee a directeur et enseignant sinon vers "accueil" :
+    titre "Notes"
+    si utilisateur est directeur :
+        texte "Bonjour la direction"
+
+page "accueil" :
+    titre "Ecole"
+```
+
+- `roles …` nomme les rôles permis. Un rôle mal écrit ailleurs est une erreur de
+  compilation, avec le nom à corriger.
+- Le serveur vérifie le rôle à chaque requête : un visiteur reçoit 401, un compte
+  sans le bon rôle reçoit 403. Masquer un bouton dans la page ne protège rien ;
+  c'est la règle de la route qui protège.
+- Un `admin` passe toujours.
+- `inviter … comme directeur` crée un compte avec ce rôle.
+- Le rôle est écrit dans la session : s'il change, il compte à la prochaine connexion.
+
 Pour le produire et le lancer :
 
 ```sh
@@ -2476,8 +2508,12 @@ page "commandes" :
 
 Une commande créée ailleurs apparaît seule, sans recharger. Le serveur annonce
 seulement « ça a changé » : la page relit ensuite la route normale, avec ses droits,
-donc rien de privé ne passe par ce canal. Cela marche avec ce moteur et un serveur
-Humalis lancé en un seul exemplaire.
+donc rien de privé ne passe par ce canal. Cela marche avec ce moteur.
+
+Avec une base PostgreSQL, tu peux lancer plusieurs exemplaires du serveur : un
+changement reçu par l'un est annoncé par tous. Sans PostgreSQL, garde un seul
+exemplaire. Les changements rapprochés sont regroupés, et les pages ne relisent
+pas toutes au même instant.
 
 #### Lire le serveur à la construction
 

@@ -381,6 +381,7 @@ function analyserServeur(flux: FluxTokens): Serveur {
   const donnees: Donnee[] = [];
   const routes: Route[] = [];
   let connexionGoogle: number | undefined;
+  let roles: string[] | undefined;
   let emails: Serveur['emails'];
   let invitations: Serveur['invitations'];
   let motDePasseOublie: Serveur['motDePasseOublie'];
@@ -401,6 +402,14 @@ function analyserServeur(flux: FluxTokens): Serveur {
       }
       flux.avancer();
       connexionGoogle = token.ligne;
+    } else if (estLeMot(token, 'roles')) {
+      // « roles directeur, enseignant et parent ».
+      flux.avancer();
+      roles = [];
+      while (!flux.verifier('FIN_LIGNE') && !flux.estFini()) {
+        const mot = flux.avancer();
+        if (motDe(mot) !== 'et' && mot.valeur !== ',') roles.push(motDe(mot));
+      }
     } else if (estLeMot(token, 'emails')) {
       // « emails par brevo » : un seul service pour l'instant.
       flux.avancer();
@@ -442,6 +451,7 @@ function analyserServeur(flux: FluxTokens): Serveur {
     donnees,
     routes,
     ...(connexionGoogle !== undefined ? { connexionGoogle } : {}),
+    ...(roles?.length ? { roles } : {}),
     ...(emails ? { emails } : {}),
     ...(invitations ? { invitations } : {}),
     ...(motDePasseOublie ? { motDePasseOublie } : {}),
@@ -732,19 +742,22 @@ function analyserEnvoiEmail(flux: FluxTokens): EnvoiEmail {
 function analyserRegle(flux: FluxTokens): Regle {
   const debut = flux.actuel();
   const mots: string[] = [];
-  while (!estLeMot(flux.actuel(), 'peut') && !flux.verifier('FIN_LIGNE') && !flux.estFini()) {
+  while (!estLeMot(flux.actuel(), 'peut') && !estLeMot(flux.actuel(), 'peuvent') && !flux.verifier('FIN_LIGNE') && !flux.estFini()) {
     mots.push(motDe(flux.avancer()));
   }
+  // « seul directeur peut … », « seuls directeur et enseignant peuvent … » : des rôles déclarés dans le serveur. Un admin passe toujours.
+  const nommes = mots.slice(1).filter((m) => m !== 'et' && m !== ',' && m !== 'admin');
   const qui: Qui | undefined = (
     { 'tout monde': 'tout_le_monde', connecte: 'connecte', 'utilisateur connecte': 'connecte', 'seul admin': 'admin', admin: 'admin' } as Record<string, Qui>
-  )[mots.join(' ')];
+  )[mots.join(' ')] ?? ((mots[0] === 'seul' || mots[0] === 'seuls') && nommes.length > 0 ? (`role:${nommes.join(',')}` as Qui) : undefined);
   if (!qui) {
     throw new ErreurSyntaxique(
       `qui peut agir ? Écrivez « tout le monde », « connecte » ou « seul admin », puis « peut … »`,
       debut.ligne,
     );
   }
-  flux.attendre(flux.actuel().type === 'MOT_CLE' ? 'MOT_CLE' : 'IDENTIFIANT', 'peut', '« peut » suivi d\'une action');
+  if (estLeMot(flux.actuel(), 'peuvent')) flux.avancer();
+  else flux.attendre(flux.actuel().type === 'MOT_CLE' ? 'MOT_CLE' : 'IDENTIFIANT', 'peut', '« peut » suivi d\'une action');
 
   const actions: ActionDonnee[] = [];
   do {
@@ -1714,6 +1727,8 @@ function analyserInvitation(flux: FluxTokens): Invitation {
   const email = analyserOperande(flux);
   if (!estLeMot(flux.actuel(), 'comme')) return { type: 'Invitation', email, role: 'membre', ligne: debut.ligne };
   flux.avancer();
+  // « comme directeur » : un rôle déclaré dans le serveur (vérifié par l'analyse).
+  if (flux.actuel().type === 'IDENTIFIANT' && !estLeMot(flux.actuel(), 'admin')) return { type: 'Invitation', email, role: motDe(flux.avancer()), ligne: debut.ligne };
   if (!estLeMot(flux.actuel(), 'admin')) throw new ErreurSyntaxique('après « comme », écrivez « admin » ; sans « comme », la personne invitée est un simple compte connecté.', debut.ligne);
   flux.avancer();
   return { type: 'Invitation', email, role: 'admin', ligne: debut.ligne };
@@ -1836,7 +1851,7 @@ function analyserComparaison(flux: FluxTokens): Comparaison {
     estLeMot(flux.actuel(), 'utilisateur') &&
     flux.regarder(1).type === 'MOT_CLE' &&
     flux.regarder(1).valeur === 'est' &&
-    (estLeMot(etat, 'connecte') || estLeMot(etat, 'admin') || (estLeMot(etat, 'pas') && (estLeMot(flux.regarder(3), 'connecte') || estLeMot(flux.regarder(3), 'admin'))))
+    (etat.type === 'IDENTIFIANT' || estLeMot(etat, 'connecte') || estLeMot(etat, 'admin') || (estLeMot(etat, 'pas') && (flux.regarder(3).type === 'IDENTIFIANT' || estLeMot(flux.regarder(3), 'connecte') || estLeMot(flux.regarder(3), 'admin'))))
   ) {
     // « utilisateur n'est pas connecte » : le contraire.
     const nie = estLeMot(etat, 'pas');
@@ -1844,7 +1859,9 @@ function analyserComparaison(flux: FluxTokens): Comparaison {
     flux.avancer();
     if (nie) flux.avancer();
     const lu = flux.avancer();
-    const gauche: Expression = { type: 'EtatUtilisateur', etat: motDe(lu) as 'connecte' | 'admin', ligne: debut.ligne };
+    // « utilisateur est directeur » : un rôle déclaré dans le serveur (vérifié par l'analyse).
+    const nomme = motDe(lu);
+    const gauche: Expression = { type: 'EtatUtilisateur', etat: nomme === 'connecte' || nomme === 'admin' ? nomme : `role:${nomme}`, ligne: debut.ligne };
     return { type: 'Comparaison', gauche, operateur: nie ? 'faux' : 'vrai', ligne: debut.ligne };
   }
 

@@ -53,6 +53,7 @@ export function codeCreationComptes(serveur: ServeurRI, chemins?: Map<string, st
     nom: ${chaine(serveur.nom)},
     google: ${serveur.connexionGoogle ? 'true' : 'false'},
     pageInvitation: ${cheminDe(serveur.invitations, chemins)},
+    rolesPermis: ${JSON.stringify(serveur.roles ?? [])},
     pageOublie: ${cheminDe(serveur.motDePasseOublie, chemins)},
   });
 `;
@@ -307,6 +308,7 @@ export function creerComptes({
   nom,
   google,
   pageInvitation,
+  rolesPermis,
   pageOublie,
   env = process.env,
 }: {
@@ -319,6 +321,8 @@ export function creerComptes({
   nom: string;
   google: boolean;
   pageInvitation: string | null;
+  /** Les rôles déclarés : seuls ceux-là peuvent être donnés par une invitation. */
+  rolesPermis: string[];
   pageOublie: string | null;
   env?: Record<string, string | undefined>;
 }) {
@@ -357,7 +361,7 @@ export function creerComptes({
       try {
         const corps = (req.body ?? {}) as { email?: unknown; role?: unknown };
         const adresse = typeof corps.email === 'string' ? corps.email.trim().toLowerCase() : '';
-        const role = corps.role === 'admin' ? 'admin' : 'user';
+        const role = corps.role === 'admin' ? 'admin' : typeof corps.role === 'string' && rolesPermis.includes(corps.role) ? corps.role : 'user';
         if (!ADRESSE.test(adresse)) {
           res.status(400).json({ erreur: "cette adresse e-mail n'est pas valable" });
           return;
@@ -403,7 +407,7 @@ export function creerComptes({
           presents.map((compte) => ({
             id: String(compte.id),
             email: String(compte.email ?? ''),
-            role: compte.role === 'admin' ? 'admin' : 'membre',
+            role: compte.role === 'admin' ? 'admin' : rolesPermis.includes(String(compte.role)) ? String(compte.role) : 'membre',
             statut: compte.invitation === true ? 'invite' : 'actif',
           })),
         );
