@@ -401,6 +401,7 @@ class Construction {
             corps: this.vue(instruction.corps, dansLaBoucle),
             gestionnaires: dansLaBoucle,
             ...(instruction.deplacement ? { deplacement: true } : {}),
+            ...(instruction.animation ? { animation: true } : {}),
             ligne: instruction.ligne,
           });
           break;

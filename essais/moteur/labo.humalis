@@ -31,3 +31,15 @@ page "labo" :
         bouton "Choisir"
         quand l'utilisateur clique sur "Choisir" :
             changer compteur par compteur + 10
+
+page "animee" :
+    variable lettres = ["a", "b", "c"]
+    titre "Animée"
+    bouton "Inverser"
+    quand l'utilisateur clique sur "Inverser" :
+        changer lettres par trier lettres decroissant
+    bouton "Ajouter"
+    quand l'utilisateur clique sur "Ajouter" :
+        ajouter "z" a lettres
+    pour chaque l dans lettres avec animation :
+        texte "Lettre {l}"

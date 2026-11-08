@@ -2407,6 +2407,8 @@ correction :
 Erreur, ligne 3 : le texte utilise {totl}, mais la variable « totl » n'est pas déclarée. Peut-être « total » ?
 ```
 
+Une erreur montre aussi la ligne de code en cause, avec un trait sous le mot fautif.
+
 L'extension VS Code « Humalis » les affiche pendant que tu écris, avec la
 coloration, la complétion et le survol des mots.
 
@@ -2454,6 +2456,11 @@ un composant React) n'est pas dans le HTML de départ.
 
 Un clic fait avant que la page soit prête n'est pas perdu : il est rejoué dès
 qu'elle l'est.
+
+`pour chaque t dans taches avec animation :` fait glisser les lignes quand la
+liste change, et apparaître en fondu celles qui arrivent (sauf si la personne a
+demandé moins d'animations). Cela ne marche qu'avec ce moteur : ailleurs, le
+compilateur le dit et les lignes changent sans glisser.
 
 #### Lire le serveur à la construction
 

@@ -1062,6 +1062,8 @@ export interface Boucle {
   liste: Expression;
   /** « pour chaque t dans taches avec deplacement : » : chaque élément peut être pris et déplacé. */
   deplacement?: boolean;
+  /** « pour chaque t dans taches avec animation : » : les lignes glissent quand la liste change. */
+  animation?: boolean;
   corps: Instruction[];
   ligne: number;
 }

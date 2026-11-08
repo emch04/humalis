@@ -2541,6 +2541,11 @@ loading (data from the server, a React component) is not in the initial HTML.
 A click made before the page is ready is not lost: it is replayed as soon as the
 page is ready.
 
+`pour chaque t dans taches avec animation :` makes rows slide when the list
+changes, and new rows fade in (unless the person asked for less motion). It only
+works with this engine: elsewhere the compiler says so and rows change without
+sliding.
+
 #### Reading the server at build time
 
 To have public pages carry their content in the HTML, give your server's address

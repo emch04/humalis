@@ -23,6 +23,7 @@ import { etatDesPacks, verifierProjet, ErreurPackageJson } from './packs.js';
 import { creerProjet } from './outils/nouveau.js';
 import { formaterSource } from './outils/formatage.js';
 import { developper, trouverPrincipal } from './outils/developpement.js';
+import { extraitDeCode } from './outils/extrait.js';
 import { ecrireSiChange, retirerAnciensProduits } from './outils/ecriture.js';
 import { testerProjet } from './outils/tests.js';
 import { reponseSimple } from './outils/version.js';
@@ -64,6 +65,22 @@ function afficherDiagnostics(diagnostics: Diagnostic[]): void {
     const genre = d.gravite === 'erreur' ? 'Erreur' : 'Avertissement';
     const ou = d.fichier === undefined ? '' : `${d.fichier}, `;
     console.error(`${genre}, ${ou}ligne ${d.ligne} : ${d.message}`);
+    // Une erreur montre le code en cause ; les avertissements restent sur une ligne.
+    if (d.gravite === 'erreur') {
+      const extrait = extraitDuFichier(d.fichier, d.ligne, d.message);
+      if (extrait) console.error(`${extrait}\n`);
+    }
+  }
+}
+
+let cheminPrincipal: string | undefined;
+
+function extraitDuFichier(fichier: string | undefined, ligne: number, message: string): string | undefined {
+  if (cheminPrincipal === undefined) return undefined;
+  try {
+    return extraitDeCode(readFileSync(fichier === undefined ? cheminPrincipal : join(dirname(cheminPrincipal), fichier), 'utf8'), ligne, message);
+  } catch {
+    return undefined;
   }
 }
 
@@ -75,6 +92,7 @@ function position(ligne: number): string {
 
 /** Compile le fichier et ceux qu'il utilise (« utiliser fichier "…" »), lus sur le disque. */
 function compilerLeFichier(chemin: string, source: string) {
+  cheminPrincipal = chemin;
   const resultat = compilerProjet(chemin, (autre) => {
     try {
       return statSync(autre).isFile() ? readFileSync(autre, 'utf8') : undefined;
@@ -131,6 +149,11 @@ function compile(arguments_: string[]): number | Promise<number> {
   if (!application || diagnostics.some((d) => d.gravite === 'erreur')) {
     console.error('\nLe programme a des erreurs : rien n\'a été écrit.');
     return 1;
+  }
+
+  // « avec animation » n'existe que sur le moteur : dit plutôt que perdu en silence.
+  if (JSON.stringify(application.ecrans).includes('"animation":true') && !(cible === 'web' && (option(arguments_, 'moteur') ?? moteurDuProjet(chemin)) === 'humalis')) {
+    console.error('Avertissement : « avec animation » n\'a d\'effet qu\'avec le moteur Humalis (--moteur humalis) : ici, les lignes changent sans glisser.');
   }
 
   // Les tuiles d'une carte viennent d'un fournisseur qui reçoit l'adresse IP des visiteurs : dit une fois.

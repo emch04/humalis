@@ -477,6 +477,8 @@ export type NoeudVue =
       gestionnaires: Gestionnaire[];
       /** « avec deplacement » : les éléments se déplacent ; la liste est une variable de la page. */
       deplacement?: boolean;
+      /** « avec animation » : les lignes glissent quand la liste change (moteur de rendu). */
+      animation?: boolean;
       ligne: number;
     }
   /** Un composant placé dans la vue : « Carte avec titre "…" ». */
