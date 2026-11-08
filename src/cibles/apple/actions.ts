@@ -318,6 +318,13 @@ export class EcrivainActions {
         else e.ligne(`_ = await Serveur.commun.appelReussi(${appel})`);
         return;
       }
+      case 'changementCompte': {
+        const paires = a.champs.map((ch) => `${chaineSwift(cleJson(ch.champ))}: ValeurHumalis(${this.x(ch.valeur).code})`);
+        const appel = `"/auth/comptes/:id/champs", methode: "POST", envoi: [${paires.length ? paires.join(', ') : ':'}], id: ${this.identifiant(a.cible)}`;
+        if (c.essai) e.ligne(`try await Serveur.commun.appelSansReponse(${appel})`);
+        else e.ligne(`_ = await Serveur.commun.appelReussi(${appel})`);
+        return;
+      }
       default: {
         // Une action ajoutée au langage doit être traitée ici : sinon le compilateur TypeScript s'arrête.
         const oubliee: never = a;

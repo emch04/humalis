@@ -393,8 +393,27 @@ page "accueil" :
 - Un lien par e-mail sans service d’e-mails : envoie un lien par e-mail
 - Le lien ouvre une page qui n’existe pas : cette page n'existe pas
 - Le lien ouvre une page qui attend une valeur : attend une valeur dans son adresse
-- Les comptes ouverts à tout le monde : seul un admin peut voir ou retirer les comptes
-- Créer ou modifier un compte par une route : les comptes ne se modifient pas par une règle
+- Les comptes ouverts à tout le monde : les comptes se réservent à un rôle
+- Inviter ou modifier des comptes sans rôle : les comptes se réservent à un rôle
+- « changer compte » sans « avec » : on écrit : changer compte de c avec telephone
+- « changer compte » dans la page : « changer compte » ne s'utilise que dans un événement
+- Un champ qui n’est pas sur le compte : n'est pas un champ du compte
+- Un champ du compte qui existe déjà : existe déjà sur un compte
+- Une valeur que l’action n’attend pas : n'attend pas « raison »
+- Une valeur que l’action attend : il manque « montant »
+- Un calcul qui n’en est pas un : un calcul est une somme, une moyenne
+- Un calcul sans champ : quel champ ?
+- Un calcul sur un champ qui n’est pas un nombre : doit être un champ nombre
+- Une ligne de résumé mal écrite : dans un résumé, on écrit
+- Un résumé sans calcul : est vide
+- Un résumé regroupé par un champ inconnu : n'a pas de champ « oups »
+- Un résumé sur une donnée inconnue : n'existe pas. Données
+- Un résumé sur la donnée d’une autre route : ne peut pas lire « produit »
+- Un résumé public sur une donnée séparée par groupe : est séparée par groupe : réservez ce résumé
+- Un tableau de document mal écrit : on écrit : tableau de ligne
+- Un tableau de document sur une donnée inconnue : n'existe pas. Données
+- Une colonne qui n’existe pas : n'a pas de champ « oups »
+- Un tableau entre fiches séparées différemment : Les deux doivent l'être de la même façon
 - Deux « quand … est cree » dans une route : une route n'a qu'un seul « quand
 - Un « quand » de route mal écrit : dans une route, on écrit
 - La création d’une autre donnée : elle ne voit pas la création de

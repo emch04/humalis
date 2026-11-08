@@ -1,6 +1,8 @@
 # L'essai des capacités serveur sur Apple : rôles, temps réel, IA et paiement.
 serveur "boutique" :
     roles gerant et vendeur
+    compte :
+        telephone : texte
     ia par anthropic
     connecte peut demander a ia
     paiements par stripe
@@ -13,8 +15,15 @@ serveur "boutique" :
         tout le monde peut lire produit
         seul gerant peut creer produit
         seul admin peut modifier produit
+        seul admin peut lire "bilan" de produit :
+            calcul recette = somme de total
+        seul admin peut faire "reduire" sur produit avec montant : nombre :
+            changer produit.total par produit.total - montant
         quand produit est payee :
             creer journal avec nom produit.nom
+    route "equipe" :
+        seul admin peut lire comptes
+        seul admin peut modifier comptes
     route "journaux" :
         seul admin peut lire journal
         seul admin peut modifier journal
@@ -22,6 +31,8 @@ serveur "boutique" :
 page "accueil" :
     variable produits = []
     variable reponse = ""
+    variable bilan = rien
+    variable membres = []
     titre "Boutique"
     quand la page se charge :
         envoyer requete vers "produits" dans produits en direct
@@ -31,9 +42,29 @@ page "accueil" :
         texte "Espace visiteur"
     pour chaque p dans produits :
         texte p.nom
+        texte "Total {p.total}"
+        bouton "Reduire"
+        quand l'utilisateur clique sur "Reduire" :
+            faire "reduire" sur p avec montant = 2
         bouton "Payer"
         quand l'utilisateur clique sur "Payer" :
             payer total pour p
+    bouton "Bilan"
+    quand l'utilisateur clique sur "Bilan" :
+        envoyer requete vers "produits/bilan" dans bilan
+    si bilan est rien :
+        texte "Sans bilan"
+    sinon :
+        texte "Recette {bilan.recette}"
+    bouton "Equipe"
+    quand l'utilisateur clique sur "Equipe" :
+        envoyer requete vers "equipe" dans membres
+    pour chaque c dans membres :
+        texte "Tel {c.telephone}"
+        bouton "Changer"
+        quand l'utilisateur clique sur "Changer" :
+            changer compte de c avec telephone = "0102"
+            envoyer requete vers "equipe" dans membres
     formulaire "connexion" :
         champ email "email"
         champ mot de passe "mot de passe"

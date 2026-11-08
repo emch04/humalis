@@ -4,6 +4,7 @@
 // Lancer : npm run build && node scripts/essai-serveur-metier.mjs [dossier-de-travail]
 // Il faut PostgreSQL (initdb, pg_ctl).
 import { execFileSync, spawn } from 'node:child_process';
+import { inflateSync } from 'node:zlib';
 import { createRequire } from 'node:module';
 import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
@@ -67,7 +68,7 @@ await new Promise((ok) => fauxApns.listen(0, ok));
 const portPoussee = faussePoussee.address().port;
 const vapid = JSON.parse(execFileSync('node', ['-e', "console.log(JSON.stringify(require('web-push').generateVAPIDKeys()))"], { cwd: serveur, encoding: 'utf8' }));
 const cleApple = generateKeyPairSync('ec', { namedCurve: 'P-256' }).privateKey.export({ type: 'pkcs8', format: 'pem' });
-const envNotifications = { HUMALIS_VAPID_PUBLIQUE: vapid.publicKey, HUMALIS_VAPID_PRIVEE: vapid.privateKey, HUMALIS_VAPID_SUJET: 'mailto:essai@exemple.cd', HUMALIS_PUSH_HOTES: '127.0.0.1', NODE_TLS_REJECT_UNAUTHORIZED: '0', HUMALIS_APNS_CLE: cleApple, HUMALIS_APNS_CLE_ID: 'ABC123', HUMALIS_APNS_EQUIPE: 'EQUIPE1', HUMALIS_APNS_SUJET: 'dev.humalis.essai', HUMALIS_APNS_HOTE: `127.0.0.1:${fauxApns.address().port}` };
+const envNotifications = { HUMALIS_LIMITE_API: '100000', HUMALIS_LIMITE_CONNEXION: '1000', HUMALIS_VAPID_PUBLIQUE: vapid.publicKey, HUMALIS_VAPID_PRIVEE: vapid.privateKey, HUMALIS_VAPID_SUJET: 'mailto:essai@exemple.cd', HUMALIS_PUSH_HOTES: '127.0.0.1', NODE_TLS_REJECT_UNAUTHORIZED: '0', HUMALIS_APNS_CLE: cleApple, HUMALIS_APNS_CLE_ID: 'ABC123', HUMALIS_APNS_EQUIPE: 'EQUIPE1', HUMALIS_APNS_SUJET: 'dev.humalis.essai', HUMALIS_APNS_HOTE: `127.0.0.1:${fauxApns.address().port}` };
 // Un faux service Anthropic : le même format d'événements, sans dépense.
 const appelsIa = [];
 const fauxAnthropic = createHttp((req, res) => {
@@ -331,6 +332,55 @@ try {
   verifier(await combienJournal() === 1, 'un webhook rejoué sur deux serveurs ne refait rien');
   verifier((await appeler(A, 'POST', `/api/reservations/payer/total/${reservation.valeur.id}`, u1.jeton, {})).statut === 409, 'on ne paie pas deux fois (409)');
 
+  // ─── Actions avec valeurs, filtres, résumés ───────────────────────
+  const aReduire = await appeler(A, 'POST', '/api/commandes', gerantA.jeton, { total: 40 });
+  const reduire = (corps) => appeler(A, 'PATCH', `/api/commandes/faire/reduire/${aReduire.valeur.id}`, gerantA.jeton, corps);
+  verifier((await reduire({ raison: 'x' })).statut === 400, 'une valeur manquante est refusée (400)');
+  verifier((await reduire({ montant: 'beaucoup', raison: 'x' })).statut === 400, 'une valeur du mauvais type est refusée (400)');
+  verifier((await reduire({ montant: 1, raison: 'x', autre: 1 })).statut === 400, 'une valeur inconnue est refusée (400)');
+  const tropGros = await reduire({ montant: 41, raison: 'x' });
+  verifier(tropGros.statut === 400 && tropGros.valeur.erreur === 'Montant trop élevé', 'une action se sert des valeurs reçues');
+  const ouvertesA = (await appeler(A, 'GET', '/api/commandes', gerantA.jeton)).valeur.filter((c) => c.statut === 'ouverte' && c.total > 1).length;
+  const reduite = await reduire({ montant: 15, raison: 'geste' });
+  verifier(reduite.statut === 200 && reduite.valeur.total === 25, 'une action écrit un calcul avec une valeur reçue');
+  verifier(reduite.valeur.note === `geste / ${ouvertesA}`, 'un calcul à deux conditions ne compte que son groupe');
+  const dansA = (await appeler(A, 'GET', '/api/commandes', gerantA.jeton)).valeur.filter((c) => c.statut === 'ouverte' && c.total > 2);
+  const bilan = (await appeler(B, 'GET', '/api/commandes/bilan', gerantA.jeton)).valeur;
+  verifier(bilan.combien === dansA.length && bilan.recette === dansA.reduce((n, c) => n + c.total, 0) && bilan.plus_gros === undefined && bilan.plusGros === Math.max(...dansA.map((c) => c.total)), 'un résumé filtre et calcule, sur son seul groupe');
+  verifier(Array.isArray((await appeler(A, 'GET', '/api/commandes/par-statut', gerantA.jeton)).valeur) && (await appeler(A, 'GET', '/api/commandes/par-statut', gerantA.jeton)).valeur.every((l) => typeof l.statut === 'string' && l.combien > 0), '« regroupe par » donne une ligne par valeur');
+  verifier((await appeler(A, 'GET', '/api/commandes/bilan', vendeurPur.jeton)).statut === 403, 'un résumé garde ses droits (403)');
+
+  // ─── Le tableau du PDF ────────────────────────────────────────────
+  const texteDuPdf = (octets) => {
+    const brut = octets.toString('latin1');
+    const morceaux = [];
+    for (const m of brut.matchAll(/stream\r?\n([\s\S]*?)\r?\nendstream/g)) {
+      try { morceaux.push(inflateSync(Buffer.from(m[1], 'latin1')).toString('latin1')); } catch { /* pas un texte */ }
+    }
+    return morceaux.join('\n').split('\n').filter((l) => l.endsWith('TJ')).map((l) => [...l.matchAll(/<([0-9a-f]+)>/g)].map((x) => Buffer.from(x[1], 'hex').toString('latin1')).join('')).join('|');
+  };
+  await appeler(A, 'POST', '/api/articles', jetonAdmin, { commande: aReduire.valeur.id, produit: 'Stylo', quantite: 3, prix: 2.5, boutique: 'A' });
+  await appeler(A, 'POST', '/api/articles', jetonAdmin, { commande: 'autre', produit: 'Gomme', quantite: 1, prix: 1, boutique: 'A' });
+  const texteRecu = texteDuPdf(Buffer.from(await (await fetch(`${A}/api/commandes/documents/recu/${aReduire.valeur.id}/bon`, { headers: { authorization: `Bearer ${gerantA.jeton}` } })).arrayBuffer()));
+  verifier(texteRecu.includes('Produit') && texteRecu.includes('Stylo') && texteRecu.includes('2,5'), `le PDF contient le tableau et ses valeurs`);
+  verifier(!texteRecu.includes('Gomme'), 'le tableau ne montre que les lignes de cette fiche');
+
+  // ─── Les comptes et l'équipe ──────────────────────────────────────
+  const vendeurA = await compte('vendeur', { boutique: 'A' });
+  const vendeurB = await compte('vendeur', { boutique: 'B' });
+  const equipe = (await appeler(A, 'GET', '/api/equipe', gerantA.jeton)).valeur;
+  verifier(equipe.some((c) => c.email === vendeurA.email) && !equipe.some((c) => c.email === vendeurB.email) && !equipe.some((c) => c.role === 'admin'), 'un gérant voit son équipe, ni un autre groupe, ni un admin');
+  verifier((await appeler(A, 'GET', '/api/equipe', jetonAdmin)).valeur.some((c) => c.email === vendeurB.email), 'un admin voit tout le monde');
+  const champs = (id, corps, jeton = gerantA.jeton) => appeler(A, 'POST', `/auth/comptes/${id}/champs`, jeton, corps);
+  verifier((await champs(vendeurA.id, { telephone: '0102' })).statut === 200 && sql(`select data->>'telephone' from astratra_users where id='${vendeurA.id}'`) === '0102', 'un gérant modifie un champ déclaré de son équipe');
+  verifier((await appeler(A, 'GET', '/api/equipe', gerantA.jeton)).valeur.find((c) => c.email === vendeurA.email).telephone === '0102', 'le champ se relit dans la liste');
+  verifier((await champs(vendeurA.id, { role: 'admin' })).statut === 400, 'on ne se donne pas un rôle par ce chemin (400)');
+  verifier((await champs(vendeurB.id, { telephone: 'x' })).statut === 404, 'pas de changement hors de son groupe (404)');
+  verifier((await champs(moiAdmin, { telephone: 'x' })).statut === 404, 'pas de changement sur un admin (404)');
+  verifier((await champs(vendeurA.id, { telephone: 'x' }, vendeurA.jeton)).statut === 403, 'un rôle sans droit ne change rien (403)');
+  verifier((await appeler(A, 'DELETE', `/api/equipe/${vendeurB.id}`, gerantA.jeton)).statut === 404, 'on ne retire pas un compte d’un autre groupe (404)');
+  verifier((await appeler(A, 'DELETE', `/api/equipe/${vendeurA.id}`, gerantA.jeton)).statut === 204, 'un gérant retire un membre de son équipe');
+
   // ─── Dans un vrai navigateur, sur les deux sortes de site ──────────
   const navigateur = await chromium.launch();
   try {
@@ -360,6 +410,10 @@ try {
       const reponseFaire = page.waitForResponse((r) => r.url().includes('/faire/rembourser/'));
       await page.getByRole('button', { name: 'Rembourser' }).last().click();
       verifier((await reponseFaire).status() === 200, `${nom} : « faire » lance l'action`);
+      await page.getByText(/Combien : \d+/).waitFor({ timeout: 5000 }).then(() => verifier(true, `${nom} : la page affiche un résumé du serveur`), () => verifier(false, `${nom} : la page affiche un résumé du serveur`));
+      const reponseReduire = page.waitForResponse((r) => r.url().includes('/faire/reduire/'));
+      await page.getByRole('button', { name: 'Reduire' }).last().click();
+      verifier((await reponseReduire).status() === 200, `${nom} : « faire … avec » envoie ses valeurs`);
       const reponseActiver = page.getByText(/notifications/i).first().waitFor({ timeout: 5000 });
       await page.getByRole('button', { name: 'Activer' }).click();
       await reponseActiver.then(() => verifier(true, `${nom} : « activer notifications » répond à la personne`), () => verifier(false, `${nom} : « activer notifications » répond à la personne`));

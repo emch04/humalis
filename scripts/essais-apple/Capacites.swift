@@ -33,6 +33,13 @@ final class Capacites: XCTestCase {
         _ = try await envoi("/api/produits", ["nom": nom, "total": 12], jeton: jeton)
     }
 
+    private func toucher(_ nom: String) {
+        let bouton = app.buttons[nom].firstMatch
+        XCTAssertTrue(bouton.waitForExistence(timeout: 20), "le bouton « \(nom) » n'apparaît pas")
+        for _ in 0..<4 where !bouton.isHittable { app.swipeUp() }
+        bouton.tap()
+    }
+
     func testRolesEtDirect() async throws {
         app.launch()
         attendre("Espace visiteur", "un visiteur n'a pas le rôle")
@@ -44,6 +51,17 @@ final class Capacites: XCTestCase {
         attendre("Espace gerant", "un admin passe toujours")
         try await creerProduit("Produit en direct")
         attendre("Produit en direct", "le serveur annonce le changement, la page se relit seule")
+        attendre("Total 12")
+
+        toucher("Bilan")
+        attendre("Recette 12", "un résumé calculé par le serveur se lit comme une route")
+
+        toucher("Reduire")
+        attendre("Total 10", "l'action reçoit sa valeur, le serveur l'applique")
+
+        toucher("Equipe")
+        toucher("Changer")
+        attendre("Tel 0102", "le champ du compte a changé sur le serveur")
     }
 
     func testIaAuFilDeLEauEtPaiement() {

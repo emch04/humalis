@@ -460,7 +460,7 @@ export class GenerateurMoteur extends GenerateurPage {
         e.ligne(`if (!(await utilisateur.changerMotDePasse(${lit(action.actuel)}, ${lit(action.nouveau)}${this.dansEssai ? ', true' : ''}))) return;`);
         return true;
       case 'invitation':
-        e.ligne(`if (!(await utilisateur.inviter(${lit(action.email)}, '${action.role}'${action.groupe ? `, ${this.dansEssai}` : this.dansEssai ? ', true' : ''}${action.groupe ? `, { ${JSON.stringify(camel(action.groupe.champ))}: String(${lit(action.groupe.valeur)}) }` : ''}))) return;`);
+        e.ligne(`if (!(await utilisateur.inviter(${lit(action.email)}, '${action.role}'${action.groupe || action.champs ? `, ${this.dansEssai}, ${action.groupe ? `{ ${JSON.stringify(camel(action.groupe.champ))}: String(${x(action.groupe.valeur)}) }` : 'undefined'}${action.champs ? `, { ${action.champs.map((c) => `${JSON.stringify(camel(c.champ))}: ${x(c.valeur)}`).join(', ')} }` : ''}` : this.dansEssai ? ', true' : ''}))) return;`);
         return true;
       case 'paiement':
         e.ligne(`if (!(await utilisateur.payer(${chaine(action.adresse)}, ${x(action.objet)}.id, ${this.dansEssai}))) return;`);
@@ -470,6 +470,9 @@ export class GenerateurMoteur extends GenerateurPage {
         return true;
       case 'activationNotifications':
         e.ligne(`if (!(await utilisateur.activerNotifications(${this.dansEssai}))) return;`);
+        return true;
+      case 'changementCompte':
+        e.ligne(`if (!(await utilisateur.changerCompte(String(${x(action.cible)}?.id ?? ${x(action.cible)}), { ${action.champs.map((c) => `${JSON.stringify(camel(c.champ))}: ${x(c.valeur)}`).join(', ')} }, ${this.dansEssai}))) return;`);
         return true;
       case 'changementRole':
         e.ligne(`if (!(await utilisateur.changerRole(String(${x(action.cible)}?.id ?? ${x(action.cible)}), ${lit(action.role)}, ${this.dansEssai}))) return;`);

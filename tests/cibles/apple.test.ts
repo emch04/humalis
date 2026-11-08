@@ -310,6 +310,20 @@ describe('cible Apple — rôles, temps réel, IA, paiements, notifications', ()
   });
 });
 
+describe('cible Apple — les champs du compte et les actions avec valeurs', () => {
+  const SERVEUR = `serveur "s" :\n    compte :\n        telephone : texte\n    donnee d :\n        total : nombre\n    route "d" :\n        seul admin peut lire d\n        seul admin peut modifier d\n        seul admin peut faire "reduire" sur d avec montant : nombre :\n            changer d.total par d.total - montant\n    route "equipe" :\n        seul admin peut lire comptes\n        seul admin peut modifier comptes\n\n`;
+
+  it('« changer compte » envoie seulement les champs nommés à la route du compte', () => {
+    const page = projet(`${SERVEUR}page "a" :\n    variable l = []\n    titre "t"\n    quand la page se charge :\n        envoyer requete vers "equipe" dans l\n    pour chaque c dans l :\n        bouton "Go"\n        quand l'utilisateur clique sur "Go" :\n            changer compte de c avec telephone = "01"\n`).get('Essai/Pages/PageA.swift')!;
+    expect(page).toContain('"/auth/comptes/:id/champs", methode: "POST", envoi: ["telephone": ValeurHumalis("01")]');
+  });
+
+  it('« faire … avec … » envoie ses valeurs', () => {
+    const page = projet(`${SERVEUR}page "a" :\n    variable l = []\n    titre "t"\n    quand la page se charge :\n        envoyer requete vers "d" dans l\n    pour chaque x dans l :\n        bouton "Go"\n        quand l'utilisateur clique sur "Go" :\n            faire "reduire" sur x avec montant = 2\n`).get('Essai/Pages/PageA.swift')!;
+    expect(page).toMatch(/"\/api\/d\/faire\/reduire", methode: "PATCH", envoi: \["montant": ValeurHumalis\(2(\.0)?\)\]/);
+  });
+});
+
 describe('cible Apple — position, liens profonds, arrière-plan et envois hors ligne', () => {
   const SERVEUR = `serveur "s" :\n    donnee m :\n        n : texte\n    route "m" :\n        tout le monde peut lire m\n        tout le monde peut creer m\n        tout le monde peut supprimer m\n\n`;
   const erreurs = (source: string) => compiler(source).diagnostics.filter((d) => d.gravite === 'erreur').map((d) => d.message);

@@ -13,11 +13,12 @@ export type ActionSeparee = 'lire' | 'creer' | 'modifier' | 'supprimer';
 export const conditionsDe = (route: Route, action: ActionSeparee) => route.conditions?.[action] ?? [];
 export const estSeparee = (donnee: Donnee, route: Route) => donnee.par !== undefined || Object.values(route.conditions ?? {}).some((c) => c.length > 0);
 
-export const gardeAction = (qui: string) => `...acces.${qui.startsWith('role:') ? `roles(${JSON.stringify(qui.slice(5).split(','))})` : qui === 'admin' ? 'seulAdmin' : 'connecte'}`;
+export const gardeAction = (qui: string) => `...acces.${qui.startsWith('role:') ? `roles(${JSON.stringify(qui.slice(5).split(','))})` : qui === 'admin' ? 'seulAdmin' : qui === 'tout_le_monde' ? 'toutLeMonde' : 'connecte'}`;
 
 /** Vrai si le serveur doit relire le compte à chaque requête. */
 export function compteRelu(serveur: ServeurRI): boolean {
-  return Boolean(serveur.changeDeRole) || serveur.routes.some((r) => estSeparee(serveur.donnees.find((d) => d.nom === r.donnee)!, r));
+  const droitsComptes = Object.values(serveur.routeComptes?.droits ?? {});
+  return Boolean(serveur.changeDeRole) || Boolean(serveur.changeDeCompte) || droitsComptes.some((d) => d?.startsWith('role:')) || serveur.routes.some((r) => estSeparee(serveur.donnees.find((d) => d.nom === r.donnee)!, r));
 }
 
 /** Les champs de groupe que porte un compte : « par boutique » oui, « par compte » non. */
