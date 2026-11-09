@@ -2912,7 +2912,7 @@ function analyserFacteurSeul(flux: FluxTokens): Expression {
   }
 
   // Le texte (tâche 2) : « majuscules de nom », « remplacer "a" par "b" dans nom ».
-  for (const operation of ['majuscules', 'minuscules', 'longueur'] as const) {
+  for (const operation of ['majuscules', 'minuscules', 'longueur', 'initiales'] as const) {
     if (estLeMot(token, operation) && commenceUneValeur(flux.regarder(1))) {
       flux.avancer();
       return { type: 'OperationTexte', operation, valeur: analyserFacteur(flux), ligne: token.ligne };

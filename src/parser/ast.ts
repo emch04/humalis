@@ -1426,7 +1426,7 @@ export type Expression =
 /** « majuscules de nom », « minuscules de nom », « longueur de nom ». */
 export interface OperationTexte {
   type: 'OperationTexte';
-  operation: 'majuscules' | 'minuscules' | 'longueur';
+  operation: 'majuscules' | 'minuscules' | 'longueur' | 'initiales';
   valeur: Expression;
   ligne: number;
 }

@@ -905,7 +905,7 @@ class GenerateurEcran {
     lignes.push(...this.rendu.widgets.imports(code));
     if (this.besoins.messages) lignes.push(`import { useMessages } from '../humalis/messages';`);
     const outils = [
-      ...['accorder', 'dateDuJour', 'decalerDate', 'formaterArgent', 'formaterDate', 'formaterDepuis', 'formaterNombre', 'formaterTaille', 'grouper', 'joursEntre', 'maintenant'].filter((o) => new RegExp(`\\b${o}\\(`).test(code)),
+      ...['accorder', 'avecMajuscule', 'dateDuJour', 'decalerDate', 'formaterArgent', 'formaterDate', 'formaterDateLongue', 'formaterDepuis', 'formaterEnLettres', 'formaterNombre', 'formaterTaille', 'grouper', 'initialesDe', 'joursEntre', 'maintenant'].filter((o) => new RegExp(`\\b${o}\\(`).test(code)),
       ...(this.besoins.retirer ? ['retirerPremier'] : []),
     ];
     if (outils.length) lignes.push(`import { ${outils.join(', ')} } from '../humalis/outils';`);

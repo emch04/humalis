@@ -421,12 +421,19 @@ export function operationDeListe(
  * qui l'habille (`formaterNombre(x)`, `formaterArgent(x, 'FC')`, `accorder(x, 'article')`), ou rien.
  */
 export function habillage(p: PartieVariable, langue?: string): ((x: string) => string) | undefined {
+  const base = habillageSeul(p, langue);
+  return base && p.majuscule ? (x) => `avecMajuscule(${base(x)})` : base;
+}
+
+function habillageSeul(p: PartieVariable, langue?: string): ((x: string) => string) | undefined {
   // La langue d'une version (« en ») : le français reste la langue par défaut des fonctions.
   const en = langue !== undefined && langue !== 'fr' ? `, '${langue}'` : '';
   if (p.pluriel) return (x) => `accorder(${x}, ${chaine(p.pluriel!)}${en})`;
   if (p.format === 'date') return (x) => `formaterDate(${x}${en})`;
   if (p.format === 'nombre') return (x) => `formaterNombre(${x}${en})`;
   if (p.format === 'depuis') return (x) => `formaterDepuis(${x})`;
+  if (p.format === 'dateLongue') return (x) => `formaterDateLongue(${x})`;
+  if (p.format === 'lettres') return (x) => `formaterEnLettres(${x})`;
   if (p.format === 'Ko' || p.format === 'Mo') return (x) => `formaterTaille(${x}, '${p.format}'${en})`;
   if (p.format) return (x) => `formaterArgent(${x}, '${p.format}'${en})`;
   return undefined;
@@ -453,5 +460,7 @@ export function operationDeTexte(
       return `${membre(valeur.valeur)}.toLocaleLowerCase('fr')`;
     case 'longueur':
       return `${membre(valeur.valeur)}.length`;
+    case 'initiales':
+      return `initialesDe(${x(valeur.valeur)})`;
   }
 }

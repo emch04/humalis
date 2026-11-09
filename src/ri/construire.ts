@@ -1101,6 +1101,7 @@ function traduireValeur(expression: Expression, analyse: ResultatAnalyse): Valeu
             variable: analyse.chemins.get(p) ?? p.valeur,
             ...(analyse.expressions.has(p) ? { expression: valeur(analyse.expressions.get(p)!) } : {}),
             ...(format ? { format } : {}),
+            ...(analyse.majuscules.has(p) ? { majuscule: true } : {}),
             ...(pluriel ? { pluriel } : {}),
           };
         });

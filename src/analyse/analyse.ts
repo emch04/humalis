@@ -151,7 +151,9 @@ export interface ResultatAnalyse {
   /** Les requêtes qui lisent un seul élément par son identifiant (« avec id » d'une page à paramètre). */
   lecturesUn: Set<Requete>;
   /** Le format français d'un « {…} » de texte : un nombre, la date d'un champ du serveur (F1), ou une devise (L6). */
-  formats: Map<PartieChaine, 'nombre' | 'date' | 'depuis' | 'FC' | 'EUR' | 'USD' | 'Ko' | 'Mo'>;
+  formats: Map<PartieChaine, 'nombre' | 'date' | 'depuis' | 'dateLongue' | 'lettres' | 'FC' | 'EUR' | 'USD' | 'Ko' | 'Mo'>;
+  /** « {x en lettres avec majuscule} » : la première lettre du résultat. */
+  majuscules: Set<PartieChaine>;
   /** « {n article} » : le mot à accorder (décision L6). */
   pluriels: Map<PartieChaine, string>;
   /** « {prix en FC} » : le chemin de la valeur (« prix »), quand il diffère du texte entre accolades. */
@@ -314,6 +316,7 @@ export function analyserSens(programme: Programme, classesCss?: Set<string>): Re
     reglesOperations: new Map(),
     adressesRequetes: new Map(),
     formats: new Map(),
+    majuscules: new Set(),
     pluriels: new Map(),
     chemins: new Map(),
     expressions: new Map(),
@@ -2327,6 +2330,7 @@ class AnalysePage {
         continue;
       }
       // « {nombre de panier} », « {l.prix * l.quantite} » : un calcul, pas un simple nom.
+      if ('majuscule' in habillage && habillage.majuscule) this.resultat.majuscules.add(partie);
       if (/[\s*+/-]/.test(habillage.chemin)) {
         this.calculDuTexte(partie, habillage, chaine.ligne);
         continue;
@@ -2344,6 +2348,15 @@ class AnalysePage {
       let expression: Expression = { type: 'Reference', nom: racine, ligne: chaine.ligne };
       for (const champ of champs) expression = { type: 'AccesChamp', objet: expression, champ, ligne: chaine.ligne };
       const type = champs.length > 0 ? this.typeDe(expression) : this.portees.chercher(racine)!.type;
+      if ('forme' in habillage && habillage.forme) {
+        const attendu = habillage.forme === 'lettres' ? 'nombre' : 'texte';
+        if (estConnu(type) && type.genre !== attendu) {
+          this.erreur(`« ${habillage.chemin} » est ${decrireType(type)} ; « ${habillage.forme === 'lettres' ? 'en lettres' : 'en date longue'} » s'écrit après ${attendu === 'nombre' ? 'un nombre' : 'une date'}.`, chaine.ligne);
+          continue;
+        }
+        this.resultat.formats.set(partie, habillage.forme);
+        continue;
+      }
       if ('depuis' in habillage && habillage.depuis) {
         if (estConnu(type) && type.genre !== 'texte') {
           this.erreur(`« ${habillage.chemin} » est ${decrireType(type)} ; « depuis » s'écrit après une date.`, chaine.ligne);
@@ -2369,7 +2382,7 @@ class AnalysePage {
     }
   }
 
-  private calculDuTexte(partie: PartieChaine, habillage: { chemin: string; devise?: FormatDevise }, ligne: number): void {
+  private calculDuTexte(partie: PartieChaine, habillage: { chemin: string; devise?: FormatDevise; forme?: 'dateLongue' | 'lettres' }, ligne: number): void {
     let expression: Expression;
     try {
       expression = lireExpressionDuTexte(habillage.chemin, ligne);
@@ -2380,7 +2393,8 @@ class AnalysePage {
     }
     const type = this.typeDe(expression);
     this.resultat.expressions.set(partie, expression);
-    if (habillage.devise) this.resultat.formats.set(partie, habillage.devise);
+    if (habillage.forme) this.resultat.formats.set(partie, habillage.forme);
+    else if (habillage.devise) this.resultat.formats.set(partie, habillage.devise);
     else if (type.genre === 'nombre') this.resultat.formats.set(partie, 'nombre');
   }
 
@@ -3087,7 +3101,15 @@ function nomsChanges(instructions: Instruction[], noms = new Set<string>()): Set
  */
 type FormatDevise = 'FC' | 'EUR' | 'USD' | 'Ko' | 'Mo';
 
-function habillageDe(texte: string): { chemin: string; devise?: FormatDevise; mot?: string; pluriel?: string; depuis?: boolean } | { erreur: string } {
+function habillageDe(texteLu: string): { chemin: string; devise?: FormatDevise; mot?: string; pluriel?: string; depuis?: boolean; forme?: 'dateLongue' | 'lettres'; majuscule?: boolean } | { erreur: string } {
+  // « {jour en date longue avec majuscule} », « {total en lettres} ».
+  const majuscule = /^(.+?)\s+avec\s+majuscule$/u.exec(texteLu);
+  const texte = majuscule ? majuscule[1] : texteLu;
+  const longue = /^(.+?)\s+en\s+date\s+longue$/u.exec(texte);
+  if (longue) return { chemin: longue[1], forme: 'dateLongue', ...(majuscule ? { majuscule: true } : {}) };
+  const lettres = /^(.+?)\s+en\s+lettres$/u.exec(texte);
+  if (lettres) return { chemin: lettres[1], forme: 'lettres', ...(majuscule ? { majuscule: true } : {}) };
+  if (majuscule) return { erreur: '« avec majuscule » s\'écrit après « en date longue » ou « en lettres » : {jour en date longue avec majuscule}.' };
   // « {r.cree depuis} » : « il y a 3 jours ».
   const depuis = /^(\S+)\s+depuis$/u.exec(texte);
   if (depuis) return { chemin: depuis[1], depuis: true };

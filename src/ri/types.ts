@@ -78,7 +78,9 @@ export interface PartieVariable {
   variable: string;
   /** « {nombre de panier} » : un calcul ; `variable` garde alors ce qui est écrit. */
   expression?: Valeur;
-  format?: 'nombre' | 'date' | 'depuis' | 'FC' | 'EUR' | 'USD' | 'Ko' | 'Mo';
+  format?: 'nombre' | 'date' | 'depuis' | 'dateLongue' | 'lettres' | 'FC' | 'EUR' | 'USD' | 'Ko' | 'Mo';
+  /** « avec majuscule » : la première lettre du résultat. */
+  majuscule?: boolean;
   pluriel?: string;
 }
 
@@ -867,7 +869,7 @@ export type Valeur =
   /** « premier de … » : le premier élément, ou rien. */
   | { type: 'premier'; liste: Valeur }
   /** « majuscules de nom », « minuscules de … », « longueur de … ». */
-  | { type: 'operationTexte'; operation: 'majuscules' | 'minuscules' | 'longueur'; valeur: Valeur }
+  | { type: 'operationTexte'; operation: 'majuscules' | 'minuscules' | 'longueur' | 'initiales'; valeur: Valeur }
   /** « remplacer "a" par "b" dans nom ». */
   | { type: 'remplacement'; cherche: Valeur; remplace: Valeur; dans: Valeur }
   /** « les n premiers de … ». */

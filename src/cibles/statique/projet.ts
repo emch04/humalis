@@ -18,7 +18,7 @@ import { cssMouvement, animeAuDefilement, OBSERVATEUR_DEFILEMENT, SUIVI_ENTETE, 
 import { avecDureeDesErreurs } from '../commun/messages.js';
 import type { InfoMedia } from '../../ri/medias.js';
 import { cssTheme, changeLeTheme, modeParDefaut, SCRIPT_THEME, CLE_THEME } from '../web/theme.js';
-import { FORMAT_JS, FORMAT_JS_LANGUES, TAILLE_JS, DATES_JS } from '../format.js';
+import { FORMAT_JS, FORMAT_JS_LANGUES, TAILLE_JS, DATES_JS, FORMES_TEXTE_JS } from '../format.js';
 import { CLE_LANGUE } from '../web/langue.js';
 import { messagesDuSiteStatique } from '../../i18n/messages.js';
 import type { Application, Gestionnaire, NoeudVue, LangueRI } from '../../ri/types.js';
@@ -524,6 +524,10 @@ function humalisJs(
     'decalerDate',
     'joursEntre',
     'formaterDepuis',
+    'formaterDateLongue',
+    'formaterEnLettres',
+    'avecMajuscule',
+    'initialesDe',
     'adresseDe',
     'lirePartage',
     'garderPartage',
@@ -803,6 +807,7 @@ ${MESSAGES_JS}${LISTES_JS}  // ─── Le format français (décision F1) ─�
 ${langues ? FORMAT_JS_LANGUES : FORMAT_JS}
 ${TAILLE_JS}
 ${DATES_JS}
+${FORMES_TEXTE_JS}
 ${STOCKAGE_JS}${theme !== undefined ? themeJs(theme) : ''}${langues ? langueJs(langues) : ''}${elements ? elementsJs(elements) : ''}${interactions.pressePapier ? PRESSE_PAPIER_JS : ''}${interactions.bas ? BAS_JS : ''}${interactions.fenetres ? FENETRES_JS : ''}${interactions.questions ? QUESTIONS_JS : ''}${serveur || session ? SERVEUR_JS : ''}${session ? SESSION_JS : ''}
   return { ${exportes.join(', ')} };
 })();

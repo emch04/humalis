@@ -47,10 +47,14 @@ export function pourLaCible(application: Application, cible: string): Applicatio
       return v.flatMap((n) => {
         const plateforme = n && typeof n === 'object' ? (n as { plateforme?: string }).plateforme : undefined;
         if (plateforme === undefined) return [adapter(n)];
-        if (visees.includes(plateforme) && DANS_LE_PROJET.has(plateforme)) return [adapter(n)];
-        if (visees.includes(plateforme)) return adapter((n as { corps: unknown[] }).corps) as unknown[];
-        noter(n);
-        return [];
+        const voulues = plateforme.split('+').filter((p) => visees.includes(p));
+        if (voulues.length === 0) {
+          noter(n);
+          return [];
+        }
+        // Une seule plateforme du projet Xcode reste écrite sous « #if os(…) » ; sinon, le bloc vaut partout ici.
+        if (voulues.length === 1 && DANS_LE_PROJET.has(voulues[0])) return [adapter({ ...(n as object), plateforme: voulues[0] })];
+        return adapter((n as { corps: unknown[] }).corps) as unknown[];
       });
     }
     if (!v || typeof v !== 'object') return v;

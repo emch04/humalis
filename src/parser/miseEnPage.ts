@@ -116,12 +116,15 @@ export function lirePlateforme(flux: FluxTokens): string {
 
 /** « sur application : », « sur site : » : un bloc réservé à une plateforme. */
 export function estSurPlateforme(flux: FluxTokens): boolean {
-  return flux.verifier('MOT_CLE', 'sur') && estMot(flux.regarder(1)) && [...PLATEFORMES, 'android'].includes(normaliser(flux.regarder(1).original ?? flux.regarder(1).valeur)) && flux.regarder(2).valeur === ':';
+  return flux.verifier('MOT_CLE', 'sur') && estMot(flux.regarder(1)) && [...PLATEFORMES, 'android'].includes(normaliser(flux.regarder(1).original ?? flux.regarder(1).valeur)) && (flux.regarder(2).valeur === ':' || flux.regarder(2).valeur === 'et');
 }
 
 export function analyserSurPlateforme(flux: FluxTokens, lecteur: Lecteur): Bloc {
   const debut = flux.avancer();
-  const plateforme = lirePlateforme(flux);
+  // « sur site et macos : » : le même bloc pour plusieurs plateformes.
+  const plateformes = [lirePlateforme(flux)];
+  while (flux.accepter('MOT_CLE', 'et')) plateformes.push(lirePlateforme(flux));
+  const plateforme = plateformes.join('+');
   flux.attendre('PONCTUATION', ':', 'deux-points après la plateforme');
   return { type: 'Bloc', genre: 'bloc', plateforme, styles: [], classes: [], corps: lecteur.corps(flux), ligne: debut.ligne };
 }
