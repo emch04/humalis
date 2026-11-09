@@ -59,7 +59,7 @@ export function derniereRequete(variable) {
 const LECTURES = String.raw`
 const MAXIMUM = 60, FRAICHEUR = 330000;
 const CLE = 'humalis:lectures', TAILLE_UNE = 200000, TAILLE_TOUTES = 1000000;
-const gardees = new Map(), textes = new Map(), enCours = new Map(), envois = new Map(), preparees = new Map();
+const gardees = new Map(), textes = new Map(), enCours = new Map(), envois = new Map();
 try {
   const stockees = JSON.parse(sessionStorage.getItem(CLE) ?? '{}');
   for (const [adresse, texte] of Object.entries(stockees)) { gardees.set(adresse, JSON.parse(texte)); textes.set(adresse, texte); }
@@ -159,7 +159,7 @@ export function lectureGardee(adresse, initiale) {
 }
 const deLaRoute = (adresse, route) => adresse === route || adresse.startsWith(route + '/') || adresse.startsWith(route + '?');
 function garder(adresse, valeur, texte) {
-  gardees.delete(adresse); gardees.set(adresse, valeur); preparees.set(adresse, Date.now());
+  gardees.delete(adresse); gardees.set(adresse, valeur);
   for (const ancienne of gardees.keys()) {
     if (gardees.size <= MAXIMUM) break;
     gardees.delete(ancienne); textes.delete(ancienne);
@@ -171,11 +171,11 @@ function garder(adresse, valeur, texte) {
 function oublier(adresse, methode) {
   const chemin = adresse.split('?')[0];
   const route = methode === 'POST' ? chemin : chemin.replace(/\/[^/]*$/, '');
+  for (const [connue, quand] of envois) if (Date.now() - quand >= FRAICHEUR) envois.delete(connue);
   envois.set(route, Date.now());
   for (const cle of [...gardees.keys()]) if (deLaRoute(cle, route)) gardees.delete(cle);
   for (const cle of [...textes.keys()]) if (deLaRoute(cle, route)) textes.delete(cle);
   for (const cle of [...enCours.keys()]) if (deLaRoute(cle, route)) enCours.delete(cle);
-  for (const cle of [...preparees.keys()]) if (deLaRoute(cle, route)) preparees.delete(cle);
   enregistrer();
 }
 const seGarde = (reponse) => { const cache = reponse.headers.get('Cache-Control') ?? ''; return /\bmax-age=[1-9]/.test(cache) && !/\bno-store\b/.test(cache); };
@@ -194,8 +194,20 @@ async function lireEnCommun(adresse, url, options) {
 
 const SOURCES = String.raw`
 class ErreurSource extends Error { constructor(code, message) { super(message); this.code = code; } }
+const MAXIMUM_SOURCES = 100;
 const cacheDesSources = {
   valeurs: new Map(), enCours: new Map(),
+  /** Garde une réponse : ce qui a expiré part d'abord, puis les plus anciennes au-delà du plafond. */
+  garder(cle, valeur, fin) {
+    const maintenant = Date.now();
+    for (const [connue, garde] of this.valeurs) if (garde.fin <= maintenant) this.valeurs.delete(connue);
+    this.valeurs.delete(cle);
+    this.valeurs.set(cle, { valeur, fin });
+    for (const ancienne of this.valeurs.keys()) {
+      if (this.valeurs.size <= MAXIMUM_SOURCES) break;
+      this.valeurs.delete(ancienne);
+    }
+  },
   vider(base) { for (const cle of [...this.valeurs.keys()]) if (cle.split(' ')[1].startsWith(base)) this.valeurs.delete(cle); },
 };
 const avecId = (adresse, id) => adresse.includes(':id') ? adresse.replace(':id', encodeURIComponent(id)) : adresse + '/' + encodeURIComponent(id);
@@ -268,7 +280,7 @@ async function appelerSource(adresse, options, actuelle, appel) {
       if (lecture) {
         cacheDesSources.enCours.set(cle, attente);
         void attente.then(
-          (valeur) => { cacheDesSources.enCours.delete(cle); if (source.cache > 0) cacheDesSources.valeurs.set(cle, { valeur, fin: Date.now() + source.cache * 1000 }); },
+          (valeur) => { cacheDesSources.enCours.delete(cle); if (source.cache > 0) cacheDesSources.garder(cle, valeur, Date.now() + source.cache * 1000); },
           () => cacheDesSources.enCours.delete(cle),
         );
       }

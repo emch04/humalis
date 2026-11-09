@@ -373,6 +373,16 @@ let actives = [];
 let demarre = false;
 let numero = 0;
 let positions = new Map();
+const MAX_POSITIONS = 200;
+/** La position d'une page de l'historique ; les plus anciennes finissent par être oubliées. */
+function retenirPosition(cle, valeur) {
+  positions.delete(cle);
+  positions.set(cle, valeur);
+  for (const ancienne of positions.keys()) {
+    if (positions.size <= MAX_POSITIONS) break;
+    positions.delete(ancienne);
+  }
+}
 let cleEntree = 0;
 /** Le nombre d'entrées de l'historique créées depuis l'ouverture : « revenir » sait s'il y a où revenir. */
 let profondeur = 0;
@@ -534,7 +544,7 @@ async function aller(url, { historique = true, remplacer = false, garde } = {}) 
     const { couches, options } = registre.get(adresse);
     if (refuse(options)) return aller(refuse(options), { remplacer, garde: cible.pathname + cible.search });
     if (historique) {
-      positions.set(cleEntree, scrollY);
+      retenirPosition(cleEntree, scrollY);
       cleEntree = Date.now();
       pousser(cible.href, remplacer, garde ? { apres: garde } : {});
     }

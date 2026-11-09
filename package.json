@@ -38,6 +38,7 @@
     "essai:moteur": "node scripts/essai-moteur.mjs",
     "essai:moteur-comptes": "node scripts/essai-moteur-comptes.mjs",
     "essai:moteur-direct": "node scripts/essai-moteur-direct.mjs",
+    "essai:endurance": "node scripts/essai-endurance.mjs",
     "essai:moteur-roles": "node scripts/essai-moteur-roles.mjs",
     "essai:serveur-metier": "node scripts/essai-serveur-metier.mjs",
     "essai:charge-serveur": "node scripts/essai-charge-serveur.mjs",

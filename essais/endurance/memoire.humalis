@@ -1,0 +1,29 @@
+# Essai d'endurance : des pages, une source externe, un serveur et du temps réel.
+source "externe" :
+    adresse "http://127.0.0.1:5987"
+    cache 5 minutes
+
+serveur "endurance" :
+    donnee produit :
+        nom : texte
+    route "produits" :
+        tout le monde peut lire produit
+        tout le monde peut creer produit
+
+page "accueil" :
+    variable produits = []
+    titre "Accueil"
+    quand la page se charge :
+        envoyer requete vers "produits" dans produits en direct
+    pour chaque p dans produits :
+        texte p.nom
+
+page "fiche" avec parametre id :
+    variable fiche = rien
+    quand la page se charge :
+        envoyer requete vers "fiches" de la source "externe" filtrant par id = id dans fiche
+    titre "Fiche {id}"
+    si fiche est rien :
+        texte "Chargement"
+    sinon :
+        texte fiche.nom
