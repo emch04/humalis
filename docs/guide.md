@@ -1696,6 +1696,37 @@ l'invitation, et `changer compte de c avec telephone = champ "Tél"` le modifie 
 champs déclarés sont acceptés. Un gérant ne voit et ne touche que les comptes de son groupe,
 jamais un admin. `utilisateur.telephone` se lit dans une règle avec `si`.
 
+#### Lire son propre compte
+
+`connecte peut lire son compte` donne à la personne connectée ses propres champs, jamais ceux des
+autres. La réponse est une liste d'une seule fiche :
+
+```humalis
+serveur "equipe" :
+    compte :
+        nom : texte
+        postes : liste de texte
+    route "moi" :
+        connecte peut lire son compte
+
+page "accueil" reservee a connecte sinon vers "connexion" :
+    variable profil = []
+    calcul moi = premier de profil
+    quand la page se charge :
+        envoyer requete vers "moi" dans profil
+    titre "Bonjour {moi.nom}"
+    si moi.postes contient "direction" :
+        lien "Équipe" vers "equipe"
+
+page "equipe" :
+    titre "Équipe"
+
+page "connexion" :
+    titre "Connexion"
+```
+
+Une condition dans la page ne protège rien : c'est la règle de la route qui protège.
+
 #### Changer le rôle d'un compte
 
 `changer role de c en "vendeur"`, après un geste dans une page, compte tout de suite :

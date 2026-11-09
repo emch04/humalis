@@ -13,7 +13,7 @@ import { champsDeGroupe } from './separation.js';
 const chaine = (texte: string) => JSON.stringify(texte);
 
 /** Vrai si le serveur a besoin du module des comptes. */
-export const avecComptes = (serveur: ServeurRI) => Boolean(serveur.invitations || serveur.motDePasseOublie || serveur.routeComptes || serveur.changeDeRole || serveur.changeDeCompte);
+export const avecComptes = (serveur: ServeurRI) => Boolean(serveur.invitations || serveur.motDePasseOublie || serveur.routeComptes || serveur.routeMonCompte || serveur.changeDeRole || serveur.changeDeCompte);
 
 /** Vrai si le serveur produit a son module d'e-mails : une liste de comptes seule en a besoin aussi, sans jamais rien envoyer. */
 export const avecEmails = (serveur: ServeurRI) => Boolean(serveur.emails) || avecComptes(serveur);
@@ -82,6 +82,15 @@ export function codeRoutesComptes(serveur: ServeurRI, adresseApi: (adresse: stri
       // « changer role » est réservé à l'admin ; « changer compte » à la règle « … peut modifier comptes ». Le compte est relu à chaque requête.
       const routeRoles = express.Router();
 ${serveur.changeDeRole ? "      routeRoles.post('/:id/role', ...acces.seulAdmin, csrfMiddleware, comptes.changerRole);\n" : ''}${serveur.changeDeCompte ? `      routeRoles.post('/:id/champs', ...acces.${gardeInvitation(serveur.routeComptes?.droits.modifier ?? 'admin')}, csrfMiddleware, comptes.changerChamps);\n` : ''}      app.use('/auth/comptes', routeRoles);
+`);
+  }
+  if (serveur.routeMonCompte) {
+    const nom = variable(serveur.routeMonCompte.adresse);
+    parties.push(`
+      // « ${serveur.routeMonCompte.adresse} » : la personne connectée lit son propre compte, sans aucun secret.
+      const ${nom} = express.Router();
+      ${nom}.get('/', lecturePrivee, ...acces.connecte, comptes.monCompte);
+      app.use('${adresseApi(serveur.routeMonCompte.adresse)}', ${nom});
 `);
   }
   const route = serveur.routeComptes;
@@ -483,6 +492,23 @@ export function creerComptes({
         }
         await usersStore.update(id, envoi.valeur as Compte);
         res.json({ id });
+      } catch (erreur) {
+        next(erreur);
+      }
+    }) as RequestHandler,
+
+    /** Le compte de la personne connectée, dans une liste d'une seule fiche, sans aucun secret. */
+    monCompte: (async (req, res, next) => {
+      try {
+        const moi = moiDe(req);
+        const compte = ((await usersStore.list({ limit: 500 })) as Compte[]).find((c) => String(c.id) === String(moi.id));
+        res.json(compte ? [{
+          id: String(compte.id),
+          email: String(compte.email ?? ''),
+          role: compte.role === 'admin' ? 'admin' : rolesPermis.includes(String(compte.role)) ? String(compte.role) : 'membre',
+          statut: compte.invitation === true ? 'invite' : 'actif',
+          ...Object.fromEntries(Object.keys(schemaCompte).map((champ) => [champ, (compte as Record<string, unknown>)[champ] ?? null])),
+        }] : []);
       } catch (erreur) {
         next(erreur);
       }

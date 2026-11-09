@@ -1013,6 +1013,13 @@ function analyserRegle(flux: FluxTokens, avecRoles = false): Regle | ActionServe
     actions.push(action);
   } while (flux.accepter('MOT_CLE', 'et'));
 
+  // « connecte peut lire son compte » : une liste d'une seule fiche, celle de la personne.
+  if (estLeMot(flux.actuel(), 'son') && estLeMot(flux.regarder(1), 'compte')) {
+    if (actions.some((a) => a !== 'lire')) throw new ErreurSyntaxique('« son compte » ne se lit que : connecte peut lire son compte', debut.ligne);
+    flux.avancer();
+    flux.avancer();
+    return { type: 'Regle', qui, actions, donnee: 'comptes', soi: true, ligne: debut.ligne };
+  }
   const { nom: donnee } = flux.attendreNom('le nom de la donnée');
   if (estLeMot(flux.actuel(), 'si')) {
     flux.avancer();

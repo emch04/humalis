@@ -357,9 +357,10 @@ export function ecouterLaPause(el, { faire, millisecondes }) {
 export function modele(el, boite, propriete = 'value') {
   const deja = el[propriete];
   if (deja && deja !== boite.x) boite.v = deja;
+  // En capture : un « quand … ecrit dans » branché avant doit lire la valeur qui vient d'être tapée.
   el.addEventListener('input', () => {
     boite.v = el[propriete];
-  });
+  }, true);
   effet(() => {
     const v = boite.v;
     if (el[propriete] !== v) el[propriete] = v;

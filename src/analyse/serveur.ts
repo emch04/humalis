@@ -84,7 +84,9 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[], pag
       for (const action of regle.actions) permises.add(action);
       if (serveur.donnees.find((d) => d.nom === regle.donnee)?.comptes) {
         // Les comptes de la connexion : qui s'y trouve ne regarde que l'administration, et ils naissent d'une invitation.
-        if (regle.qui === 'tout_le_monde' || regle.qui === 'connecte') erreur(`les comptes se réservent à un rôle : écrivez par exemple « seul gerant peut ${regle.actions.join(' et ')} comptes ».`, regle.ligne);
+        if (regle.soi) {
+          if (regle.qui === 'tout_le_monde') erreur('un visiteur n’a pas de compte : écrivez « connecte peut lire son compte ».', regle.ligne);
+        } else if (regle.qui === 'tout_le_monde' || regle.qui === 'connecte') erreur(`les comptes se réservent à un rôle : écrivez par exemple « seul gerant peut ${regle.actions.join(' et ')} comptes ».`, regle.ligne);
       }
     }
 
