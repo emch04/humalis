@@ -27,6 +27,8 @@ export interface Application {
   /** « liens profonds "magasin" ». */
   /** « onglets de l'application : ». */
   ongletsApplication?: { titre: string; page: string; icone?: string; groupe?: string; ligne: number }[];
+  /** « avec barre laterale "X" » : la barre du Mac est dessinée par ce module. */
+  barreLaterale?: string;
   liensProfonds?: { schema: string; domaine?: string; ligne: number };
   /** Les composants écrits en Humalis : des écrans qui reçoivent des paramètres. */
   composants: ComposantHumalis[];

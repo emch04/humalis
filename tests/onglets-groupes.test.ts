@@ -30,4 +30,10 @@ describe('groupes dans les onglets de l’application', () => {
     const menu = JSON.stringify(analyserSyntaxe(analyser(source)).entete);
     expect(menu.match(/humalis-menu-groupe/g)).toHaveLength(1);
   });
+
+  it('lit la barre latérale dessinée par un module', () => {
+    const avecBarre = source.replace("onglets de l'application :", 'onglets de l\'application avec barre laterale "MaBarre" :');
+    expect(analyserSyntaxe(analyser(avecBarre)).barreLaterale).toBe('MaBarre');
+    expect(analyserSyntaxe(analyser(source)).barreLaterale).toBeUndefined();
+  });
 });

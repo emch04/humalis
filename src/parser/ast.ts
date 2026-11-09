@@ -19,6 +19,8 @@ export interface Programme {
   /** « liens profonds "magasin" » : les adresses magasin://… ouvrent les pages de l'application. */
   /** « onglets de l'application : » : les pages principales. */
   ongletsApplication?: { titre: string; page: string; icone?: string; groupe?: string; ligne: number }[];
+  /** « avec barre laterale "X" » : la barre du Mac est dessinée par ce module. */
+  barreLaterale?: string;
   liensProfonds?: { schema: string; /** Le site, et éventuellement le début du chemin. */ domaine?: string; ligne: number };
   /** Les « composant "Fiche" : » écrits en Humalis. */
   composants: DefinitionComposant[];

@@ -626,6 +626,7 @@ web avec un équivalent simple.
 |---|---|---|---|
 | `onglets de l'application :` puis `onglet "A" vers "accueil" avec icone "maison"` | barre d'onglets | barre latérale | menu |
 | `groupe "Équipe" :` puis ses `onglet`, décalés, dans `onglets de l'application` | onglets à plat | liste à plat | intertitre dans le menu |
+| `onglets de l'application avec barre laterale "MaBarre" :` | sans effet | sans effet | la barre du Mac est dessinée par la vue Swift `MaBarre`, qui reçoit la page en contenu |
 | `recherche dans q avec indice "…"` | recherche native | recherche native | champ |
 | `action en glissant "Supprimer" :` dans un `pour chaque` | glisser la ligne | clic droit | bouton |
 | `actualiser en tirant :` | tirer pour actualiser | bouton dans la barre d'outils | bouton |
