@@ -19,6 +19,8 @@ import { nomIcone } from './icones.js';
 import { chaineSwift, nomApplication, nomComposant, nomPage, nomRoute, nomSwift } from './noms.js';
 import { GenerateurPage, type ContexteApple } from './page.js';
 import { CssApple } from './css.js';
+import { CssExact } from './css-exact.js';
+import { DESSIN_SWIFT, tablesDessin } from './dessin.js';
 import { touches } from './styles.js';
 import { CONNEXIONS_SWIFT, ENVOIS_SWIFT, LANGUES_SWIFT, MEMOIRE_SWIFT, MESSAGES_SWIFT, MINUTERIES_SWIFT, NOTIFICATIONS_SWIFT, SERVEUR_SWIFT, SYSTEME_SWIFT } from './systeme.js';
 import { Types, Valeurs, plusPrecis, type Portee } from './valeurs.js';
@@ -550,7 +552,7 @@ export function avecPoliceDuTheme(code: string, police: string): string {
       `.font(.custom(${nom}, size: ${STYLES_POLICE[style]}, relativeTo: .${style})${style === 'headline' ? '.weight(.semibold)' : ''})`);
 }
 
-function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, disposition: Disposition, polices: { fichier: string; nom: string }[], policeTexte?: string, notifications = false, fonds: { barreLaterale?: string; liens?: boolean; domaine?: boolean; envois?: boolean; arrierePlan?: boolean; onglets?: { titre: string; route: string; icone: string }[]; menus?: ReturnType<typeof commandesSwift>['menus']; reglages?: string } = {}): string {
+function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, disposition: Disposition, polices: { fichier: string; nom: string }[], policeTexte?: string, notifications = false, fonds: { dessin?: { largeur: number; hauteur: number; barre: boolean }; barreLaterale?: string; liens?: boolean; domaine?: boolean; envois?: boolean; arrierePlan?: boolean; onglets?: { titre: string; route: string; icone: string }[]; menus?: ReturnType<typeof commandesSwift>['menus']; reglages?: string } = {}): string {
   // Par la route, et non la page directement : une page d'entrée réservée garde sa protection.
   const racine = entree.reservee ? 'Route.accueilHumalis.vue' : `${nomPage(entree.nom)}()`;
   const sans = (liste: string[]) => (liste.length ? `![${liste.map((r) => `Route.${r}`).join(', ')}].contains(Routeur.commun.chemin.last ?? .accueilHumalis)` : 'true');
@@ -561,7 +563,7 @@ function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, dispos
   const montrerEntete = entete ? `${sans(entete.sans)}${menu && !disposition.enteteAvecAutreChose ? (fonds.onglets ? ' && false' : ' && !large') : ''}${entete.haut ? ' && large' : ''}` : '';
   const piedColle = pied?.colle ? pied : undefined;
   const piedQuiDefile = pied && !pied.colle ? pied : undefined;
-  const enteteDansLaPage = entete ? `AnyView(${entete.nom}().padding(.horizontal, 16).padding(.vertical, 8).frame(maxWidth: .infinity, alignment: .leading)${entete.css.join('')})` : '';
+  const enteteDansLaPage = entete ? `AnyView(${entete.nom}().padding(.horizontal, 16).padding(.vertical, 8).frame(maxWidth: .infinity, alignment: .leading)${entete.css.length ? `\n${entete.css.join("\n")}\n` : ""})` : '';
   const insets = `${entete ? `
             #if os(iOS)
             .safeAreaInset(edge: .top, spacing: 0) {
@@ -587,7 +589,7 @@ function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, dispos
                     .background(.bar)${piedColle.css.map((l) => `\n                    ${l}`).join('')}
                 }
             }` : ''}${piedQuiDefile ? `
-            .environment(\\.piedHumalis, ${sans(piedQuiDefile.sans)} ? AnyView(${piedQuiDefile.nom}().padding(.horizontal, 16).padding(.vertical, 24).frame(maxWidth: .infinity, alignment: .leading)${piedQuiDefile.css.join('')}) : nil)` : ''}`;
+            .environment(\\.piedHumalis, ${sans(piedQuiDefile.sans)} ? AnyView(${piedQuiDefile.nom}().padding(.horizontal, 16).padding(.vertical, 24).frame(maxWidth: .infinity, alignment: .leading)${piedQuiDefile.css.length ? `\n${piedQuiDefile.css.join("\n")}\n` : ""}) : nil)` : ''}`;
   const active = menu
     ? `    /** La page montrée, surlignée dans la barre latérale. */
     private var entreeActive: Int? {
@@ -738,7 +740,7 @@ struct ${nom}App: App {${notifications ? `
         .handlesExternalEvents(matching: ["*"])` : ''}${aLaPhase}${tacheFond}
         #if os(macOS)
         .windowResizability(.contentMinSize)
-        .defaultSize(width: 1000, height: 720)
+        .defaultSize(width: ${fonds.dessin ? Math.floor(fonds.dessin.largeur * 0.82) : 1000}, height: ${fonds.dessin ? Math.floor(fonds.dessin.hauteur * 0.82) : 720})
         #endif${commandes}${fonds.reglages ? `
         #if os(macOS)
         Settings {
@@ -752,13 +754,19 @@ struct ${nom}App: App {${notifications ? `
 struct RacineHumalis: View {
 ${entete || pied || menu ? largeur : ''}${pile}${ongletsVue}
     var body: some View {
+${fonds.dessin?.barre ? `        Group {
+            #if os(macOS)
+            CoquilleDessineeHumalis(largeur: ${fonds.dessin.largeur}, hauteur: ${fonds.dessin.hauteur}, sansBarre: Routeur.commun.chemin.last?.sansRetour == true) { BarreSite() } contenu: { pile }
+            #else
 ${contenu}
+            #endif
+        }` : contenu}
         .overlay(alignment: .top) { PileMessagesHumalis(${entete ? (menu && !disposition.enteteAvecAutreChose ? 'decalage: large ? 0 : 56' : 'decalage: 56') : ''}) }
         .modifier(QuestionHumalis())
         .preferredColorScheme(Apparence.commun.schema)${policeTexte ? `
         .font(.custom(PolicesHumalis.vrai(${chaineSwift(policeTexte)}), size: 17, relativeTo: .body))` : ''}
         #if os(macOS)
-        .frame(minWidth: 480, minHeight: 400)
+        .frame(minWidth: ${fonds.dessin ? 720 : 480}, minHeight: ${fonds.dessin ? 450 : 400})
         #endif
     }
 }
@@ -848,8 +856,14 @@ export function genererProjetApple(application: Application, options: OptionsApp
   if (css.total > 0) {
     avertir(application.fichiersStyle[0]?.ligne ?? 1, `CSS : ${css.traduites} déclarations sur ${css.total} traduites en SwiftUI (${Math.round((css.traduites * 100) / css.total)} %). Le reste est listé, avec sa raison, dans CSS-SUR-APPLE.md.`);
   }
+  const dessinPrincipal = application.ecrans.find((e) => e.dessin)?.dessin;
+  const cssExact = dessinPrincipal
+    ? new CssExact([...application.css.map((c) => ({ css: c })), ...feuilles], new Set((application.theme?.polices ?? []).map((p) => p.nom)))
+    : undefined;
   const app: ContexteApple = {
     css,
+    ...(cssExact ? { cssExact } : {}),
+    ...(application.iconesDessinees?.length ? { iconesDessinees: new Set(application.iconesDessinees.map((i) => i.nom)) } : {}),
     types,
     partages: application.partages,
     fonctions,
@@ -916,7 +930,17 @@ export function genererProjetApple(application: Application, options: OptionsApp
       disposition.enteteAvecAutreChose = montreAutreChose(d.ecran.vue, menu);
     }
   }
+  // « barre laterale » : une racine qui porte ses styles, écrite comme une page, à l'échelle de la fenêtre.
+  const barre = application.disposition?.barre;
+  if (barre && dessinPrincipal) {
+    const racine: NoeudVue = { type: 'bloc', genre: 'bloc', options: barre.options, classes: ['humalis-barre-laterale', ...barre.classes], corps: barre.ecran.vue, ligne: barre.ecran.ligne };
+    ecrire('Composants/BarreSite.swift', new GenerateurPage({ ...barre.ecran, nom: 'BarreSite', vue: [racine], dessin: dessinPrincipal }, app, [], 'BarreSite').generer());
+  }
   for (const ecran of application.ecrans) ecrire(`Pages/${nomPage(ecran.nom)}.swift`, new GenerateurPage(ecran, app).generer());
+  // Les styles ne sont connus qu'une fois toutes les pages écrites.
+  if (cssExact || application.iconesDessinees?.length) {
+    ecrire('Humalis/Dessin.swift', DESSIN_SWIFT + tablesDessin(application.iconesDessinees ?? [], cssExact?.iconesDeMasque ?? [], (cssExact ?? new CssExact([], new Set())).swift()));
+  }
   if (application.fonctions.length > 0) ecrire('Humalis/Fonctions.swift', fonctionsSwift(application, app, portee));
   const identifiantApp = options.identifiant ?? `local.humalis.${simplifier(options.nom).replace(/_/g, '-') || 'application'}`;
   for (const c of application.composants) {
@@ -942,7 +966,7 @@ export function genererProjetApple(application: Application, options: OptionsApp
   const notifications = JSON.stringify([application.ecrans, application.composants]).includes('"type":"activationNotifications"');
   if (notifications && !options.equipe) avertir(1, "« activer notifications » : sans --equipe, l'application demande la permission mais ne peut pas recevoir de notification d'Apple. Compilez avec --equipe pour qu'elle les reçoive.");
   const policesCopiees = (application.theme?.polices ?? []).flatMap((p) => (p.fichier && /\.(ttf|otf|woff2?)$/i.test(p.fichier) && options.polices?.has(p.fichier) ? [{ fichier: p.fichier, nom: p.nom }] : []));
-  ecrire(`${nom}App.swift`, applicationSwift(nom, application.site?.nom ?? options.nom, entree, disposition, policesCopiees.map((p) => ({ fichier: nomFichierPlat(p.fichier), nom: p.nom })), application.theme?.polices.find((p) => p.role === 'texte')?.nom, notifications, { barreLaterale: application.barreLaterale, liens: application.liensProfonds !== undefined, domaine: application.liensProfonds?.domaine !== undefined, envois: avecEnvois, arrierePlan: avecArrierePlan, ...(ongletsSwift ? { onglets: ongletsSwift } : {}), ...(commandesEcrites.menus.length ? { menus: commandesEcrites.menus } : {}), ...(pageReglages ? { reglages: `Route${routeSimple(pageReglages.nom, app)}` } : {}) }));
+  ecrire(`${nom}App.swift`, applicationSwift(nom, application.site?.nom ?? options.nom, entree, disposition, policesCopiees.map((p) => ({ fichier: nomFichierPlat(p.fichier), nom: p.nom })), application.theme?.polices.find((p) => p.role === 'texte')?.nom, notifications, { ...(dessinPrincipal ? { dessin: { ...dessinPrincipal, barre: application.disposition?.barre !== undefined } } : {}), barreLaterale: application.barreLaterale, liens: application.liensProfonds !== undefined, domaine: application.liensProfonds?.domaine !== undefined, envois: avecEnvois, arrierePlan: avecArrierePlan, ...(ongletsSwift ? { onglets: ongletsSwift } : {}), ...(commandesEcrites.menus.length ? { menus: commandesEcrites.menus } : {}), ...(pageReglages ? { reglages: `Route${routeSimple(pageReglages.nom, app)}` } : {}) }));
   if (disposition.menu?.length) ecrire('Humalis/Menu.swift', menuSwift(disposition.menu));
   for (const p of policesCopiees) ecrire(`Ressources/${nomFichierPlat(p.fichier)}`, contenuBinaire(options.polices!.get(p.fichier)!));
   ecrire('Humalis/Configuration.swift', configurationSwift(application, options));

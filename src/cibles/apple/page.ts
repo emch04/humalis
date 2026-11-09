@@ -14,6 +14,7 @@ import { nomIcone } from './icones.js';
 import { chaineSwift, cleJson, nomComposant, nomPage, nomSwift } from './noms.js';
 import { clavier, modificateurs, touches, ESPACES, type Option } from './styles.js';
 import type { CssApple } from './css.js';
+import type { CssExact, EntreeStyle, ResolutionPage } from './css-exact.js';
 import { FICHIER_CHOISI, plusPrecis, Valeurs, type Expr, type Lecture, type Portee, type Types } from './valeurs.js';
 
 const TEXTE: TypeValeur = { genre: 'texte' };
@@ -23,6 +24,10 @@ const BOOLEEN: TypeValeur = { genre: 'booleen' };
 export interface ContexteApple {
   /** Le CSS du projet, traduit en modificateurs. */
   css: CssApple;
+  /** Le CSS résolu élément par élément, pour les pages « dessinee pour ». */
+  cssExact?: CssExact;
+  /** Les noms des icônes apportées par le projet. */
+  iconesDessinees?: Set<string>;
   types: Types;
   partages: Etat[];
   fonctions: Portee['fonctions'];
@@ -99,6 +104,11 @@ export class GenerateurPage implements HotePage {
   private dansLigne = false;
 
   private readonly ecran: Ecran;
+
+  /** Sur Mac, dans une page « dessinee pour » : le style de chaque nœud. */
+  private exact?: ResolutionPage;
+  /** Dans une boucle : l'index de la ligne, et leur nombre. */
+  private readonly rangsExacts: string[] = [];
 
   constructor(
     ecran: Ecran,
@@ -326,7 +336,18 @@ export class GenerateurPage implements HotePage {
     vue.indenter(() => vue.indenter(() => vue.indenter(() => this.ecrireVue(vue, this.ecran.vue))));
     const corps = vue.texte();
 
-    const tout = corps + this.fonctions.map((f) => f.code ?? '').join('') + chargements.join('') + minuteries.map((m) => m.corps).join('');
+    // « dessinee pour » : sur Mac, la même page au point près ; ailleurs, la page ordinaire écrite ci-dessus.
+    let corpsExact: string | undefined;
+    if (this.ecran.dessin && this.app.cssExact) {
+      this.exact = this.app.cssExact.resoudre(this.ecran.vue, this.ecran.dessin);
+      const dessinee = new Ecrivain();
+      this.restaurer(variablesDeLaPage);
+      dessinee.indenter(() => dessinee.indenter(() => dessinee.indenter(() => this.ecrireVue(dessinee, this.ecran.vue))));
+      corpsExact = dessinee.texte();
+      this.exact = undefined;
+    }
+
+    const tout = corps + (corpsExact ?? '') + this.fonctions.map((f) => f.code ?? '').join('') + chargements.join('') + minuteries.map((m) => m.corps).join('');
     const e = new Ecrivain();
     e.ligne('// Produit par Humalis.');
     e.ligne('import SwiftUI');
@@ -335,7 +356,7 @@ export class GenerateurPage implements HotePage {
     e.bloc(`struct ${this.nomStruct}: View {`, () => {
       this.ecrireProprietes(e, tout);
       e.ligne();
-      this.ecrireBody(e, corps, chargements, minuteries);
+      this.ecrireBody(e, corps, chargements, minuteries, corpsExact);
       for (const f of this.fonctions) e.ligne(`\n${f.code}`.trimEnd());
       chargements.forEach((c) => {
         e.ligne();
@@ -479,7 +500,7 @@ export class GenerateurPage implements HotePage {
     return f.asynchrone ? `Task { await ${f.nom}(${args}) }` : `${f.nom}(${args})`;
   }
 
-  private ecrireBody(e: Ecrivain, corps: string, chargements: string[], minuteries: ReturnType<GenerateurPage['corpsDesMinuteries']>): void {
+  private ecrireBody(e: Ecrivain, corps: string, chargements: string[], minuteries: ReturnType<GenerateurPage['corpsDesMinuteries']>, corpsExact?: string): void {
     const { titre } = titreEtDescription(this.ecran, this.app.langues);
     const titreCode = this.titreCode(titre);
     e.bloc('var body: some View {', () => {
@@ -488,9 +509,22 @@ export class GenerateurPage implements HotePage {
       const directs = this.noeudsDirects();
       const paresseuse = directs.some((n) => n.type === 'repetition') && !JSON.stringify(this.ecran.vue).includes('"ancre"');
       const racine = this.ecran.vue.some((n) => n.type === 'formulaire' && n.reglages) ? ', racine: .reglages' : directs.some((n) => n.type === 'repetition' && n.corps.some((c) => c.type === 'bloc' && c.natif?.genre === 'glisser')) ? ', racine: .liste' : '';
+      if (corpsExact !== undefined) {
+        const d = this.ecran.dessin!;
+        e.ligne('Group {');
+        e.ligne('#if os(macOS)');
+        e.ligne(this.nomForce ? 'Group {' : `PageDessineeHumalis(largeur: ${d.largeur}, hauteur: ${d.hauteur}) {`);
+        for (const l of corpsExact.trimEnd().split('\n')) if (l !== '') e.ligne(l.slice(2));
+        e.ligne('}');
+        e.ligne('#else');
+      }
       e.ligne(this.parametres || this.nomForce ? 'Group {' : `PageHumalis(titre: ${titreCode}${paresseuse ? ', paresseuse: true' : ''}${racine}${this.ecran.pleineFenetre ? ', pleineFenetre: true' : ''}) {`);
       for (const l of corps.trimEnd().split('\n')) if (l !== '') e.ligne(l.slice(2));
       e.ligne('}');
+      if (corpsExact !== undefined) {
+        e.ligne('#endif');
+        e.ligne('}');
+      }
       e.indenter(() => {
         for (const n of this.ecran.vue) if (n.type === 'bloc' && n.natif) this.modificateurNatif(e, n);
         chargements.forEach((_, i) => {
@@ -693,6 +727,7 @@ export class GenerateurPage implements HotePage {
 
   private ecrireNoeud(e: Ecrivain, noeud: NoeudVue): void {
     this.ligne = noeud.ligne;
+    if (this.exact && this.ecrireExact(e, noeud)) return;
     switch (noeud.type) {
       case 'element':
         return this.visible(e, noeud.id, () => this.ecrireElement(e, noeud));
@@ -748,6 +783,127 @@ export class GenerateurPage implements HotePage {
     }
   }
 
+  // ─── « dessinee pour » : chaque élément dans sa boîte CSS ───
+
+  private codeExact(entree: EntreeStyle): string {
+    return entree.code.replace('§', this.rangsExacts.at(-1) ?? '0, 1');
+  }
+
+  private pseudoExact(code: string): string {
+    const lu = code.replace('§', this.rangsExacts.at(-1) ?? '0, 1');
+    return `BoiteHumalis(${lu}) { EmptyView() }.itemHumalis(${lu})`;
+  }
+
+  /** La boîte d'un élément, ses éléments ::before et ::after autour de ce qu'elle contient. */
+  private boiteExacte(e: Ecrivain, noeud: NoeudVue, interieur: () => void, extra: string[] = [], code?: string): void {
+    const entree = this.exact!.de(noeud);
+    if (entree?.masque) return;
+    const style = code ?? (entree ? this.codeExact(entree) : 'StyleHumalis.racine');
+    e.bloc(`BoiteHumalis(${style}) {`, () => {
+      if (entree?.avant) e.ligne(this.pseudoExact(entree.avant));
+      interieur();
+      if (entree?.apres) e.ligne(this.pseudoExact(entree.apres));
+    });
+    e.indenter(() => [`.itemHumalis(${style})`, ...extra].forEach((l) => e.ligne(l)));
+  }
+
+  private texteExact(e: Ecrivain, noeud: Extract<NoeudVue, { type: 'element' }>, code: string): void {
+    const icone = noeud.reglages?.icone;
+    if (icone) {
+      const style = this.exact!.icone(noeud) ?? 'StyleHumalis.racine';
+      const dessin = this.app.iconesDessinees?.has(icone) ? `IconeDessineeHumalis(nom: ${chaineSwift(icone)})` : `Image(systemName: ${chaineSwift(nomIcone(icone))}).resizable().scaledToFit()`;
+      e.ligne(`BoiteHumalis(${style}) { ${dessin}.foregroundStyle(couleurHumalis(${style})).accessibilityHidden(true).itemHumalis(StyleHumalis.plein) }.itemHumalis(${style})`);
+    }
+    e.ligne(this.contenuTexte(noeud.contenu, noeud.id));
+    e.indenter(() => e.ligne(`.modifier(StyleTexteHumalis(${code}))`));
+  }
+
+  /** Vrai si le nœud est écrit ici ; sinon, il suit le chemin ordinaire. */
+  private ecrireExact(e: Ecrivain, noeud: NoeudVue): boolean {
+    if (noeud.type === 'fenetre') {
+      // Une fenêtre reste celle du système : ce qu'elle contient n'est pas à l'échelle de la page.
+      const avant = this.exact;
+      this.exact = undefined;
+      this.ecrireFenetre(e, noeud);
+      this.exact = avant;
+      return true;
+    }
+    if (noeud.type === 'bloc') {
+      if (noeud.plateforme === 'ios') return true;
+      if (noeud.plateforme === 'macos') { this.ecrireCorps(e, noeud.corps); return true; }
+      if (noeud.natif?.genre === 'recherche' && noeud.natif.variable) {
+        const lue = this.portee.variables.get(noeud.natif.variable);
+        if (!lue) return false;
+        const entree = this.exact!.de(noeud);
+        const code = entree ? this.codeExact(entree) : 'StyleHumalis.racine';
+        this.boiteExacte(e, noeud, () => {
+          e.ligne(`TextField("", text: $${lue.code}, prompt: Text(verbatim: ${chaineSwift(noeud.natif!.indice ?? '')}))`);
+          e.indenter(() => { e.ligne('.textFieldStyle(.plain)'); e.ligne(`.modifier(StyleTexteHumalis(${code}))`); });
+        });
+        return true;
+      }
+      if (noeud.natif) return false;
+      if (!['section', 'bloc', 'contenu', 'entete', 'pied', 'colonne', 'ligne', 'grille', 'menu'].includes(noeud.genre)) return false;
+      this.boiteExacte(e, noeud, () => this.ecrireCorps(e, noeud.corps), noeud.ancre !== undefined ? [`.id(${chaineSwift(noeud.ancre)})`] : []);
+      return true;
+    }
+    if (noeud.type === 'widget' && noeud.genre === 'icone') {
+      const entree = this.exact!.de(noeud);
+      if (!entree) return false;
+      const code = this.codeExact(entree);
+      this.boiteExacte(e, noeud, () => {
+        const lu = noeud.reglages.icone ?? (this.valeurs.enTexte(noeud.contenu).replace(/^"|"$/g, '') || 'info');
+        e.ligne(`${this.app.iconesDessinees?.has(lu) ? `IconeDessineeHumalis(nom: ${chaineSwift(lu)})` : `Image(systemName: ${chaineSwift(nomIcone(lu))}).resizable().scaledToFit()`}.foregroundStyle(couleurHumalis(${code})).itemHumalis(StyleHumalis.plein)`);
+      });
+      return true;
+    }
+    if (noeud.type !== 'element') return false;
+    const entree = this.exact!.de(noeud);
+    if (!entree) return false;
+    if (entree.masque) return true;
+    const code = this.codeExact(entree);
+    const id = `.accessibilityIdentifier(${chaineSwift(noeud.id)})`;
+    const clics = this.clics.get(noeud.id) ?? [];
+    switch (noeud.genre) {
+      case 'titre': case 'soustitre': case 'texte':
+        this.visible(e, noeud.id, () => this.boiteExacte(e, noeud, () => this.texteExact(e, noeud, code), [...this.toucher(clics), ...(noeud.genre === 'texte' ? [] : ['.accessibilityAddTraits(.isHeader)']), id]));
+        return true;
+      case 'image':
+        this.visible(e, noeud.id, () => this.ecrireImage(e, noeud, id, [], clics, []));
+        return true;
+      case 'bouton': case 'lien': {
+        let faire = clics.map((f) => this.appel(f));
+        let style = code;
+        if (noeud.genre === 'bouton') {
+          const formulaire = this.formulaireDe.get(noeud.id);
+          const soumission = formulaire !== undefined && clics.length === 0 ? this.formulaires.get(formulaire)?.fonction : undefined;
+          if (soumission) faire = [this.appel(soumission)];
+        } else if (noeud.cible !== undefined) {
+          const route = this.actions.route(noeud.cible, noeud.arguments);
+          faire.push(this.nomForce === 'BarreSite' ? `Routeur.commun.allerAuMenu(${route})` : `Routeur.commun.aller(${route})`);
+          if (entree.actif) style = `(estOuverteHumalis(${route}) ? ${entree.actif} : ${code})`;
+        } else if (noeud.externeValeur !== undefined) faire.push(`ouvrirExterne(${this.valeurs.enTexte(noeud.externeValeur)})`);
+        else if (noeud.externe !== undefined) faire.push(`ouvrirExterne(${chaineSwift(noeud.externe)})`);
+        this.visible(e, noeud.id, () => {
+          e.ligne(`Button { ${faire.join('; ')} } label: {`);
+          e.indenter(() => {
+            e.bloc(`BoiteHumalis(${style}) {`, () => {
+              if (entree.avant) e.ligne(this.pseudoExact(entree.avant));
+              this.texteExact(e, noeud, style);
+              if (entree.apres) e.ligne(this.pseudoExact(entree.apres));
+            });
+            e.indenter(() => e.ligne('.contentShape(Rectangle())'));
+          });
+          e.ligne('}');
+          e.indenter(() => [`.buttonStyle(.plain)`, `.itemHumalis(${style})`, ...(noeud.genre === 'lien' ? ['.accessibilityAddTraits(.isLink)'] : []), id].forEach((l) => e.ligne(l)));
+        });
+        return true;
+      }
+      default:
+        return false;
+    }
+  }
+
   private ecrireCondition(e: Ecrivain, noeud: Extract<NoeudVue, { type: 'condition' }>): void {
     const test = this.valeurs.condition(noeud.test);
     // Une condition sur la session attend la réponse du serveur : sinon la page montrerait un instant la version « visiteur ».
@@ -770,6 +926,7 @@ export class GenerateurPage implements HotePage {
     const avant = new Map(this.portee.variables);
     this.portee.variables.set(noeud.variable, { code: nom, type, opt: false });
     const index = `index${majuscule(nom)}`;
+    this.rangsExacts.push(`${index}, ${liste.code}.count`);
     if (noeud.deplacement && noeud.liste.type === 'variable') {
       const lue = this.portee.variables.get(noeud.liste.nom);
       const ordre = this.ordres.get(noeud.liste.nom);
@@ -793,6 +950,7 @@ export class GenerateurPage implements HotePage {
       this.portee.besoins.add('mouvementReduit');
       e.indenter(() => e.ligne(`.animation(mouvementReduit ? nil : .default, value: ${liste.code})`));
     }
+    this.rangsExacts.pop();
     this.restaurer(avant);
   }
 
@@ -1020,6 +1178,7 @@ export class GenerateurPage implements HotePage {
   }
 
   private icone(nom: string | undefined): string {
+    if (nom && this.app.iconesDessinees?.has(nom)) return `IconeDessineeHumalis(nom: ${chaineSwift(nom)}).accessibilityHidden(true)`;
     return nom ? `Image(systemName: ${chaineSwift(nomIcone(nom))}).accessibilityHidden(true)` : '';
   }
 
@@ -1076,7 +1235,12 @@ export class GenerateurPage implements HotePage {
     const description = noeud.reglages?.decoratif ? '""' : image?.description ? this.valeurs.enTexte(image.description) : noeud.reglages?.description ? chaineSwift(noeud.reglages.description) : texte !== undefined && !image?.locale ? chaineSwift(texte.replace(/\.[a-z0-9]+$/i, '').replace(/[_-]+/g, ' ')) : '""';
     const proportions = image?.proportions ? `, proportions: ${image.proportions[0]} / ${image.proportions[1]}` : '';
     const ajustement = noeud.options.find((o) => o.nom === 'ajustement')?.valeur;
-    e.ligne(`ImageHumalis(source: ${source}, description: ${description}${proportions}${ajustement ? `, ajustement: .${ajustement}` : ''})`);
+    const ligneImage = `ImageHumalis(source: ${source}, description: ${description}${proportions}${ajustement ? `, ajustement: .${ajustement}` : ''})`;
+    if (this.exact) {
+      this.boiteExacte(e, noeud, () => e.ligne(`${ligneImage}.itemHumalis(StyleHumalis.plein)`), [id, ...ancre]);
+      return;
+    }
+    e.ligne(ligneImage);
     this.modifieurs(e, noeud.options, 'image', [...(this.nomForce === 'EnteteSite' ? ['.frame(maxHeight: 44, alignment: .leading)'] : []), ...this.toucher(clics), ...survol, id, ...ancre]);
   }
 
@@ -1140,8 +1304,9 @@ export class GenerateurPage implements HotePage {
     switch (noeud.genre) {
       case 'icone': {
         // Le nom est le texte de l'élément : « icone "panier" ».
-        const nom = nomIcone(r.icone ?? (this.valeurs.enTexte(noeud.contenu).replace(/^"|"$/g, '') || 'info'));
-        e.ligne(`Image(systemName: ${chaineSwift(nom)})`);
+        const lu = r.icone ?? (this.valeurs.enTexte(noeud.contenu).replace(/^"|"$/g, '') || 'info');
+        const nom = nomIcone(lu);
+        e.ligne(this.app.iconesDessinees?.has(lu) ? `IconeDessineeHumalis(nom: ${chaineSwift(lu)})` : `Image(systemName: ${chaineSwift(nom)})`);
         this.modifieurs(e, noeud.options, 'texte', [r.description !== undefined ? `.accessibilityLabel(${chaineSwift(r.description)})` : '.accessibilityHidden(true)', id]);
         return;
       }

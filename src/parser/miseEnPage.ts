@@ -142,6 +142,10 @@ export function lireStylePlateforme(flux: FluxTokens): string[] {
 
 /** « entete : », « pied avec colle : » en haut du fichier. */
 export function estDisposition(flux: FluxTokens): boolean {
+  if (estLeMot(flux.actuel(), 'barre') && estLeMot(flux.regarder(1), 'laterale')) {
+    const apres = flux.regarder(2);
+    return (apres.type === 'PONCTUATION' && apres.valeur === ':') || (apres.type === 'MOT_CLE' && apres.valeur === 'avec');
+  }
   if (!(estLeMot(flux.actuel(), 'entete') || estLeMot(flux.actuel(), 'pied'))) return false;
   const suivant = flux.regarder(1);
   return (suivant.type === 'PONCTUATION' && suivant.valeur === ':') || (suivant.type === 'MOT_CLE' && suivant.valeur === 'avec');
@@ -149,7 +153,9 @@ export function estDisposition(flux: FluxTokens): boolean {
 
 export function analyserDisposition(flux: FluxTokens, lecteur: Required<Lecteur>): Disposition {
   const debut = flux.avancer();
-  const genre = normaliser(debut.original ?? debut.valeur) as 'entete' | 'pied';
+  const mot = normaliser(debut.original ?? debut.valeur);
+  if (mot === 'barre') flux.avancer();
+  const genre = mot as 'entete' | 'pied' | 'barre';
   const styles: Style[] = [];
   const classes: string[] = [];
   if (flux.accepter('MOT_CLE', 'avec')) {
@@ -165,7 +171,7 @@ export function analyserDisposition(flux: FluxTokens, lecteur: Required<Lecteur>
       }
     } while (flux.accepter('MOT_CLE', 'et'));
   }
-  flux.attendre('PONCTUATION', ':', `deux-points à la fin de la ligne « ${genre} », puis son contenu en dessous, décalé`);
+  flux.attendre('PONCTUATION', ':', `deux-points à la fin de la ligne « ${genre === 'barre' ? 'barre laterale' : genre} », puis son contenu en dessous, décalé`);
   return { type: 'Disposition', genre, styles, classes, corps: lecteur.corps(flux), ligne: debut.ligne };
 }
 

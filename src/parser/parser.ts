@@ -72,6 +72,8 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
   const pages: Page[] = [];
   const styles: BlocStyle[] = [];
   const fichiersStyle: FichierStyle[] = [];
+  const fichiersIcones: { chemin: string; ligne: number }[] = [];
+  let barreDessinee: Programme['barreDessinee'];
   const donneesFichiers: Programme['donneesFichiers'] = [];
   const partages: DeclarationVariable[] = [];
   const composantsReact: ComposantReact[] = [];
@@ -112,10 +114,11 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
     // « entete : » et « pied : » : communs à toutes les pages.
     if (estDisposition(flux)) {
       const disposition = analyserDisposition(flux, { corps: analyserBloc, style: analyserStyle });
-      if (disposition.genre === 'entete' ? entete : pied) {
-        throw new ErreurSyntaxique(`un seul « ${disposition.genre} » par application : il est déjà déclaré plus haut.`, disposition.ligne);
+      if (disposition.genre === 'barre' ? barreDessinee : disposition.genre === 'entete' ? entete : pied) {
+        throw new ErreurSyntaxique(`un seul « ${disposition.genre === 'barre' ? 'barre laterale' : disposition.genre} » par application : il est déjà déclaré plus haut.`, disposition.ligne);
       }
-      if (disposition.genre === 'entete') entete = disposition;
+      if (disposition.genre === 'barre') barreDessinee = disposition;
+      else if (disposition.genre === 'entete') entete = disposition;
       else pied = disposition;
       flux.sauterFinsDeLigne();
       continue;
@@ -351,6 +354,15 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
       continue;
     }
 
+    // « utiliser icones "./icones.svg" » : des dessins que le projet apporte.
+    if (flux.verifier('MOT_CLE', 'utiliser') && estLeMot(flux.regarder(1), 'icones')) {
+      const debut = flux.avancer();
+      flux.avancer();
+      fichiersIcones.push({ chemin: flux.attendre('CHAINE', undefined, 'le chemin du fichier SVG entre guillemets').valeur, ligne: debut.ligne });
+      flux.sauterFinsDeLigne();
+      continue;
+    }
+
     if (flux.verifier('MOT_CLE', 'utiliser')) {
       const debut = flux.avancer();
       flux.attendre('MOT_CLE', 'style', '« style » après « utiliser »');
@@ -397,7 +409,7 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
     if (pages.length === 0) throw new ErreurSyntaxique('« menu de l’application » demande au moins une page dans le fichier.', commandesMenu[0].ligne);
     pages[0].corps.push(...commandesMenu);
   }
-  const programme: Programme = { type: 'Programme', pages, ...(ongletsApplication ? { ongletsApplication } : {}), ...(barreLaterale ? { barreLaterale } : {}), ...(paquetsSwift ? { paquetsSwift } : {}), ...(liensProfonds ? { liensProfonds } : {}), ...(enTete.length > 0 ? { calculsPartages: enTete } : {}), styles, fichiersStyle, donneesFichiers, partages, composantsReact, composants, serveurs, sources, fichiersHumalis, fonctions, tests, ...(theme ? { theme } : {}), ...(site ? { site } : {}), ...(langues ? { langues } : {}), ...(traductions.length ? { traductions } : {}), ...(entete ? { entete } : {}), ...(pied ? { pied } : {}) };
+  const programme: Programme = { type: 'Programme', pages, ...(fichiersIcones.length ? { fichiersIcones } : {}), ...(barreDessinee ? { barreDessinee } : {}), ...(ongletsApplication ? { ongletsApplication } : {}), ...(barreLaterale ? { barreLaterale } : {}), ...(paquetsSwift ? { paquetsSwift } : {}), ...(liensProfonds ? { liensProfonds } : {}), ...(enTete.length > 0 ? { calculsPartages: enTete } : {}), styles, fichiersStyle, donneesFichiers, partages, composantsReact, composants, serveurs, sources, fichiersHumalis, fonctions, tests, ...(theme ? { theme } : {}), ...(site ? { site } : {}), ...(langues ? { langues } : {}), ...(traductions.length ? { traductions } : {}), ...(entete ? { entete } : {}), ...(pied ? { pied } : {}) };
   // Les appels de fonctions d'actions sont remplacés par leur corps (src/parser/fonctionsActions.ts).
   const actions = deplierFonctionsActions(programme);
   if (actions.length) programme.fonctionsActions = actions;
@@ -1105,9 +1117,20 @@ function analyserPage(flux: FluxTokens): Page {
   const sans = analyserSansDisposition(flux);
   const reglages = lireEnReglages(flux);
   let pleineFenetre = false;
-  if (estLeMot(flux.actuel(), 'en') && estLeMot(flux.regarder(1), 'pleine') && estLeMot(flux.regarder(2), 'fenetre')) {
-    flux.avancer(); flux.avancer(); flux.avancer();
-    pleineFenetre = true;
+  let dessin: Page['dessin'];
+  for (let i = 0; i < 2; i++) {
+    if (estLeMot(flux.actuel(), 'en') && estLeMot(flux.regarder(1), 'pleine') && estLeMot(flux.regarder(2), 'fenetre')) {
+      flux.avancer(); flux.avancer(); flux.avancer();
+      pleineFenetre = true;
+    }
+    if (estLeMot(flux.actuel(), 'dessinee') && estLeMot(flux.regarder(1), 'pour')) {
+      flux.avancer(); flux.avancer();
+      const largeur = Number(flux.attendre('NOMBRE', undefined, 'la largeur du dessin : dessinee pour 1440 par 900').valeur);
+      if (!estLeMot(flux.actuel(), 'par')) throw new ErreurSyntaxique('après la largeur, il faut « par » : dessinee pour 1440 par 900', flux.actuel().ligne);
+      flux.avancer();
+      const hauteur = Number(flux.attendre('NOMBRE', undefined, 'la hauteur du dessin : dessinee pour 1440 par 900').valeur);
+      dessin = { largeur, hauteur };
+    }
   }
   flux.attendre('PONCTUATION', ':', 'deux-points après le nom de la page');
 
@@ -1125,6 +1148,7 @@ function analyserPage(flux: FluxTokens): Page {
     nom: nom.valeur,
     ...(reglages ? { reglages } : {}),
     ...(pleineFenetre ? { pleineFenetre } : {}),
+    ...(dessin ? { dessin } : {}),
     parametres,
     ...(filtres.length > 0 ? { filtres } : {}),
     ...entete,

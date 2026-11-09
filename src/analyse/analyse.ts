@@ -73,6 +73,7 @@ import { contraste, FOND_PAGE } from './couleurs.js';
 import { verifierAccessibilite } from './accessibilite.js';
 import { niveauxDesSousTitres } from './niveaux.js';
 import { verifierElementEcran, verifierBlocEcran, type Signaler } from './ecran.js';
+import { connaitreIconesDessinees } from '../vocabulaire/icones.js';
 import { verifierChoixFichier, verifierEnvoiFichier, typeFichierChoisi, aUnApercu, recenserFichiers, type FichiersDeLaPage } from './fichiers.js';
 import { verifierCarte, verifierMarqueur } from './carte.js';
 import { verifierMouvement, verifierDefilementsDeLaPage, verifierImage, verifierAudio, verifierPrioritairesDeLaPage, verifierGraphique } from './medias.js';
@@ -249,7 +250,7 @@ function placeLeComposant(valeur: unknown, nom: string): boolean {
  * que dans des pages réservées ; rien s'il est dans une page ouverte, l'en-tête, le pied ou un autre composant.
  */
 function gardeDuComposant(nom: string, programme: Programme): Garde {
-  const ailleurs = [programme.entete?.corps, programme.pied?.corps, ...programme.composants.map((c) => c.corps)];
+  const ailleurs = [programme.entete?.corps, programme.pied?.corps, programme.barreDessinee?.corps, ...programme.composants.map((c) => c.corps)];
   if (ailleurs.some((corps) => placeLeComposant(corps, nom))) return undefined;
   const pages = programme.pages.filter((p) => placeLeComposant(p.corps, nom));
   if (pages.length === 0 || pages.some((p) => !p.reservee)) return undefined;
@@ -294,6 +295,7 @@ function modesVus(programme: Programme): readonly ('clair' | 'sombre')[] {
 }
 
 export function analyserSens(programme: Programme, classesCss?: Set<string>): ResultatAnalyse {
+  connaitreIconesDessinees(programme.iconesDessinees ?? []);
   const resultat: ResultatAnalyse = {
     diagnostics: [],
     elements: new Map(),
@@ -331,7 +333,7 @@ export function analyserSens(programme: Programme, classesCss?: Set<string>): Re
   };
   // Les langues d'abord : avec elles, « langue » et « anglais » sont des valeurs intégrées.
   // Le niveau automatique des sous-titres, avant tout ce qui lit ces niveaux.
-  for (const corps of [...programme.pages.map((p) => p.corps), programme.entete?.corps, programme.pied?.corps, ...programme.composants.map((c) => c.corps)]) {
+  for (const corps of [...programme.pages.map((p) => p.corps), programme.entete?.corps, programme.pied?.corps, programme.barreDessinee?.corps, ...programme.composants.map((c) => c.corps)]) {
     if (corps) niveauxDesSousTitres(corps);
   }
   resultat.langues = analyserLangues(programme, resultat.diagnostics);
@@ -410,7 +412,7 @@ export function analyserSens(programme: Programme, classesCss?: Set<string>): Re
   }
 
   // L'en-tête et le pied communs s'analysent comme une page : ils voient les variables partagées et la session.
-  for (const disposition of [programme.entete, programme.pied]) {
+  for (const disposition of [programme.entete, programme.pied, programme.barreDessinee]) {
     if (!disposition) continue;
     const page: Page = { type: 'Page', nom: disposition.genre, parametres: [], corps: disposition.corps, ligne: disposition.ligne };
     resultat.pagesDispositions.set(disposition, page);

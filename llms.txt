@@ -132,6 +132,7 @@ page "accueil" :
 - Un thème qui n’existe pas : prend clair, sombre ou automatique
 - Deux blocs theme : un seul bloc « theme » par application
 - Deux en-têtes (ou deux pieds de page) : un seul « entete » par application
+- La taille d’un dessin sans « par » : après la largeur, il faut « par »
 - Une page sans en-tête, dans une application qui n’en a pas : se passe d'un en-tête, mais l'application n'en a pas
 - Un texte de couleur trop pâle : se voit mal sur le fond de la page
 - Un formulaire dans un formulaire : un formulaire ne peut pas contenir un autre formulaire

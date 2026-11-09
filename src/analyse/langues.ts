@@ -166,7 +166,7 @@ export function analyserLangues(programme: Programme, diagnostics: Diagnostic[])
   const avertir = (message: string, ligne: number) => signaler('avertissement', message, ligne);
 
   const textes: LitteralChaine[] = [];
-  tousLesTextes([programme.pages, programme.partages, programme.composants, programme.fonctions, programme.entete, programme.pied, programme.site?.textes], textes);
+  tousLesTextes([programme.pages, programme.partages, programme.composants, programme.fonctions, programme.entete, programme.pied, programme.barreDessinee, programme.site?.textes], textes);
   const traductions = new Map<string, Map<string, PartieChaine[]>>();
 
   // Sans bloc « langues » : une version écrite est refusée, une fois par ligne.
@@ -272,7 +272,7 @@ export function analyserLangues(programme: Programme, diagnostics: Diagnostic[])
     textesVisibles(page.corps, visibles, uneLangue);
     if (page.apercu) textesVisibles([page.apercu], visibles, uneLangue);
   }
-  for (const disposition of [programme.entete, programme.pied]) if (disposition) textesVisibles(disposition.corps, visibles, uneLangue);
+  for (const disposition of [programme.entete, programme.pied, programme.barreDessinee]) if (disposition) textesVisibles(disposition.corps, visibles, uneLangue);
   for (const composant of programme.composants) textesVisibles(composant.corps, visibles, uneLangue);
   for (const cle of ['nom', 'description'] as const) {
     const valeur = programme.site?.[cle];

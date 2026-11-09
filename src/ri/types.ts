@@ -1,3 +1,4 @@
+import type { IconeDessinee } from '../icones-svg.js';
 /**
  * La représentation intermédiaire (RI) : un arbre neutre, sans aucun mot
  * de plateforme, que chaque cible (React, Expo, Electron, statique) lit
@@ -18,6 +19,8 @@ export interface Application {
   css: string[];
   /** Les fichiers CSS séparés (« utiliser style "…" »), à copier par la commande. */
   fichiersStyle: { chemin: string; ligne: number; plateforme?: string }[];
+  /** « utiliser icones "…" » : les dessins propres au projet. */
+  iconesDessinees?: IconeDessinee[];
   /** Les variables partagées entre les pages (« avec partagee »). */
   partages: Etat[];
   /** Les composants React utilisés (« utiliser composant … depuis … »). */
@@ -48,7 +51,7 @@ export interface Application {
    */
   langues?: LangueRI[];
   /** « entete : » et « pied : » : communs à toutes les pages qui ne s'en passent pas. */
-  disposition?: { entete?: DispositionRI; pied?: DispositionRI };
+  disposition?: { entete?: DispositionRI; pied?: DispositionRI; barre?: DispositionRI };
 }
 
 /** Une API existante : ce que le code produit doit savoir pour l'appeler. Un jeton secret n'y figure jamais. */
@@ -265,6 +268,8 @@ export interface Ecran {
   reglages?: boolean;
   /** « page "x" en pleine fenetre : » : sur Apple, sans marges ni largeur limitée. */
   pleineFenetre?: boolean;
+  /** « dessinee pour 1440 par 900 » : sur Mac, le rendu suit le CSS au point près. */
+  dessin?: { largeur: number; hauteur: number };
   /** Les variables déclarées au premier niveau de la page. */
   etat: Etat[];
   /** Les « calcul x = … » de la page : recalculés à chaque changement de l'état. */

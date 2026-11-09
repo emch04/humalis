@@ -68,7 +68,7 @@ export function mediasLocaux(application: Application): MediaLocal[] {
     }
   };
   for (const ecran of [...application.ecrans, ...application.composants]) parcourir(ecran.vue);
-  for (const d of [application.disposition?.entete, application.disposition?.pied]) if (d) parcourir(d.ecran.vue);
+  for (const d of [application.disposition?.entete, application.disposition?.pied, application.disposition?.barre]) if (d) parcourir(d.ecran.vue);
   return [...vus.values()];
 }
 

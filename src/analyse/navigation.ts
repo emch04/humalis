@@ -264,9 +264,9 @@ function analyserAncres(programme: Programme, diagnostics: Diagnostic[], erreur:
   }
   // L'en-tête et le pied sont sur chaque page : « carte#desserts » se vérifie comme ailleurs ;
   // « #desserts » vise la page affichée, qui change : il faut au moins une page qui l'ait.
-  for (const disposition of [programme.entete, programme.pied]) {
+  for (const disposition of [programme.entete, programme.pied, programme.barreDessinee]) {
     if (!disposition) continue;
-    const de = disposition.genre === 'entete' ? "de l'en-tête" : 'du pied de page';
+    const de = disposition.genre === 'entete' ? "de l'en-tête" : disposition.genre === 'barre' ? 'de la barre latérale' : 'du pied de page';
     parcourir(disposition.corps, (i) => {
       if (i.type !== 'Element' || (i as Element).cible === undefined) return;
       const lue = lireCible((i as Element).cible!);
@@ -276,7 +276,7 @@ function analyserAncres(programme: Programme, diagnostics: Diagnostic[], erreur:
         if (visee) verifier(visee, (i as Element).cible!, i.ligne);
         return;
       }
-      const montrees = programme.pages.filter((p) => !(disposition.genre === 'entete' ? p.sansEntete : p.sansPied) && p.parametres.length === 0);
+      const montrees = programme.pages.filter((p) => !(disposition.genre === 'entete' ? p.sansEntete : disposition.genre === 'pied' && p.sansPied) && p.parametres.length === 0);
       if (!montrees.some((p) => ancres.get(p.nom)?.includes(lue.ancre!))) {
         erreur(
           `l'ancre « ${lue.ancre} » ${de} n'existe dans aucune page : écrivez avec ancre "${lue.ancre}" sur l'élément ou le bloc où le lien doit mener, ou écrivez le nom de la page (par exemple "accueil#${lue.ancre}").`,

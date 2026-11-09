@@ -1,3 +1,4 @@
+import type { IconeDessinee } from '../icones-svg.js';
 import type { PartieChaine } from '../lexer/types.js';
 
 export interface Programme {
@@ -9,6 +10,12 @@ export interface Programme {
   styles: BlocStyle[];
   /** Les « utiliser style "…" » : des fichiers CSS séparés. */
   fichiersStyle: FichierStyle[];
+  /** « utiliser icones "./icones.svg" » : les dessins propres au projet. */
+  fichiersIcones?: { chemin: string; ligne: number }[];
+  /** Les icônes lues dans ces fichiers (rempli à la lecture des fichiers). */
+  iconesDessinees?: IconeDessinee[];
+  /** « barre laterale avec style "x" : » : la barre latérale écrite comme une page. */
+  barreDessinee?: Disposition;
   donneesFichiers: { nom: string; chemin: string; ligne: number }[];
   /** Les variables déclarées en haut du fichier (« avec partagee »). */
   partages: DeclarationVariable[];
@@ -125,7 +132,7 @@ export interface Theme {
 /** « entete : » ou « pied : » : un bloc commun à toutes les pages. */
 export interface Disposition {
   type: 'Disposition';
-  genre: 'entete' | 'pied';
+  genre: 'entete' | 'pied' | 'barre';
   styles: Style[];
   classes: string[];
   corps: Instruction[];
@@ -495,6 +502,8 @@ export interface Page {
   reglages?: boolean;
   /** « page "x" en pleine fenetre : » : sur Apple, le contenu va jusqu'aux bords de la fenêtre. */
   pleineFenetre?: boolean;
+  /** « page "x" dessinee pour 1440 par 900 : » : sur Mac, le rendu suit le CSS au point près, à l'échelle de la fenêtre. */
+  dessin?: { largeur: number; hauteur: number };
   /** « page "produit" avec parametre id : » : les valeurs lues dans l'adresse de la page. */
   parametres: string[];
   /** « page "collection" a l'adresse "/collections/:slug" : » : l'adresse choisie, au lieu de celle du nom. */

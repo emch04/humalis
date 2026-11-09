@@ -4,13 +4,16 @@
  * produit seulement quand l'essai mobile le passe ; jamais regardé dans le
  * simulateur.
  */
-import { composantLucide, ICONES } from '../../vocabulaire/icones.js';
+import { composantLucide, estIconeDuProjet, ICONES } from '../../vocabulaire/icones.js';
 import { camel, chaine } from '../web/noms.js';
 import { messageEnCode } from '../../i18n/messages.js';
-import { composantIcone, type RenduWidgets, type WidgetProduit } from '../web/widgets.js';
+import { composantIcone as composantIconeWeb, type RenduWidgets, type WidgetProduit } from '../web/widgets.js';
 import { estFichierLocal } from '../../ri/medias.js';
 import { CARTE_MOBILE_TSX, REACT_NATIVE_MAPS, carteMobile } from './carte.js';
 import { VERSIONS_FICHIERS, choixFichierMobileTsx } from './fichiers.js';
+
+/** Une icône propre au projet n'existe que sur le web et Apple : ici, l'icône d'aide la remplace. */
+const composantIcone = (nom: string): string => (estIconeDuProjet(nom) ? 'CircleHelpIcon' : composantIconeWeb(nom));
 
 /** Les icônes (`icone={ShoppingCart}`) que le code utilise. */
 const iconesMobile = (code: string): string[] =>
