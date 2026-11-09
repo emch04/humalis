@@ -2172,6 +2172,8 @@ export const direct = {
     total++;
     req.on('close', () => {
       if (liste.delete(res)) total--;
+      // Une clé par groupe : sans cela, chaque groupe déjà écouté laisserait une liste vide.
+      if (liste.size === 0 && ecoutes.get(cle) === liste) ecoutes.delete(cle);
     });
   },
 
