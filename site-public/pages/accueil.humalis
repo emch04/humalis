@@ -8,7 +8,7 @@ page "accueil" :
             colonne avec style "hero-copy" :
                 texte "Le code prend la parole" en anglais "Code finds its voice" avec style "eyebrow"
                 titre "Écris ton application comme une {accent "phrase."}" en anglais "Write your app like a {accent "sentence."}" avec style "hero-title"
-                texte "Un seul langage, en français, pour le web, le mobile, le bureau et le serveur. Tu écris une fois. Humalis donne vie à ton idée partout." en anglais "One language, in French, for web, mobile, desktop and server. Write once. Humalis brings your idea to life everywhere." avec style "hero-intro"
+                texte "Un seul langage, en français, pour le web, le mobile, le bureau et le serveur. Tu écris une fois. Humalis donne vie à ton idée partout." en anglais "Simple sentences, written in French, become your website, your mobile and desktop apps, and your server. Write once. Humalis brings your idea to life everywhere." avec style "hero-intro"
                 ligne avec style "hero-actions" :
                     lien "Essayer maintenant →" en anglais "Try it now →" vers "bac_a_sable" avec style "button button-primary"
                     lien "Lire la documentation" en anglais "Read the docs" vers "documentation" avec style "button button-secondary"
@@ -111,40 +111,40 @@ page "accueil" :
             texte "↳ Vérifie l’orthographe du nom de la variable." en anglais "↳ Check the spelling of the variable name." avec style "terminal-hint"
     bloc avec style "section" :
         colonne avec style "section-heading" :
-            soustitre "Un site pour aller plus loin." en anglais "A site to go further."
-            texte "Une vue sur les pages qui accompagneront tes premières lignes de code." en anglais "A look at the pages that will guide your first lines of code."
+            soustitre "Tout pour commencer." en anglais "Everything to get started."
+            texte "La documentation, des exemples à ouvrir et un éditeur qui marche dans ton navigateur." en anglais "The docs, examples to open, and an editor that runs in your browser."
         grille avec colonnes 3 et style "page-grid" :
             bloc avec ancre "documentation" et style "page-card" :
                 bloc avec style "page-mini mini-learn" :
                     texte "Tes premiers pas" en anglais "Your first steps" avec style "mini-title"
-                    texte "page bonjour :" en anglais "page hello :" avec style "mini-code"
-                    texte "texte Bienvenue !" en anglais "texte Welcome!" avec style "mini-code"
+                    texte "page \"bonjour\" :" en anglais "page \"hello\" :" avec style "mini-code"
+                    texte "    texte \"Bienvenue !\"" en anglais "    texte \"Welcome!\"" avec style "mini-code"
                 soustitre "Documentation" en anglais "Documentation" avec niveau 3
                 texte "Un parcours clair, du premier mot à ta première application." en anglais "A clear path from your first word to your first app."
-                lien "Lire la documentation ↗" en anglais "Read the docs ↗" vers "documentation"
+                lien "Lire la documentation →" en anglais "Read the docs →" vers "documentation"
             bloc avec ancre "exemples" et style "page-card" :
                 bloc avec style "page-mini" :
-                    texte "Des idées à explorer" en anglais "Ideas to explore" avec style "mini-title"
+                    texte "Six exemples à ouvrir" en anglais "Six examples to open" avec style "mini-title"
                     grille avec colonnes 2 et style "mini-gallery" :
                         bloc avec style "mini-tile" :
-                            texte "A" en anglais "A"
+                            texte "Boutique" en anglais "Shop"
                         bloc avec style "mini-tile" :
-                            texte "B" en anglais "B"
+                            texte "Compteur" en anglais "Counter"
                         bloc avec style "mini-tile" :
-                            texte "C" en anglais "C"
+                            texte "Formulaire" en anglais "Form"
                         bloc avec style "mini-tile" :
-                            texte "D" en anglais "D"
+                            texte "Restaurant" en anglais "Restaurant"
                 soustitre "Exemples" en anglais "Examples" avec niveau 3
-                texte "Des projets concrets pour découvrir ce que Humalis peut faire." en anglais "Real projects to discover what Humalis can do."
-                lien "Voir le concept ↗" en anglais "Explore the concept ↗" vers "exemples"
+                texte "De petites applications complètes, à ouvrir et à modifier." en anglais "Small complete apps to open and change."
+                lien "Voir les exemples →" en anglais "See the examples →" vers "exemples"
             bloc avec ancre "bac-a-sable" et style "page-card" :
                 bloc avec style "page-mini mini-sandbox" :
-                    texte "page carte :" en anglais "page card :" avec style "mini-code"
-                    texte "titre Bonjour" en anglais "titre Hello" avec style "mini-code"
-                    texte "bouton Entrer" en anglais "bouton Enter" avec style "mini-code"
+                    texte "page \"carte\" :" en anglais "page \"card\" :" avec style "mini-code"
+                    texte "    titre \"Bonjour\"" en anglais "    titre \"Hello\"" avec style "mini-code"
+                    texte "    bouton \"Entrer\"" en anglais "    bouton \"Enter\"" avec style "mini-code"
                 soustitre "Bac à sable" en anglais "Playground" avec niveau 3
                 texte "Un éditeur et son aperçu pour essayer une idée tout de suite." en anglais "An editor and preview to try an idea right away."
-                lien "Voir le concept ↗" en anglais "Explore the concept ↗" vers "bac_a_sable"
+                lien "Ouvrir le bac à sable →" en anglais "Open the playground →" vers "bac_a_sable"
     bloc avec style "final-call" :
         colonne avec style "call-panel" :
             soustitre "Ta première application en cinq minutes." en anglais "Your first app in five minutes."

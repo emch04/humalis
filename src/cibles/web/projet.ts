@@ -13,7 +13,7 @@ import { fichiersDesElements, dependancesDesElements, dependancesDeDeveloppement
 import { fichiersGraphique, cssGraphique } from './graphique.js';
 import { cssTheme, changeLeTheme, modeParDefaut, themeTs, SCRIPT_THEME } from './theme.js';
 import { FORMAT_TS, FORMAT_TS_LANGUES, TAILLE_TS, DATES_TS } from '../format.js';
-import { langueWebTsx } from './langue.js';
+import { balisesLangueDeDepart, langueWebTsx } from './langue.js';
 import { messagesDuProjet } from '../../i18n/messages.js';
 import type { Application, Ecran, Etat, Action, NoeudVue, ServeurRI, SiteRI } from '../../ri/types.js';
 import { simplifier } from '../../analyse/elements.js';
@@ -160,7 +160,7 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
   fichiers.set(MARQUE, `Projet produit par Humalis depuis ${options.source}.\nLe compilateur réécrit ce dossier à chaque compilation.\n`);
   fichiers.set('package.json', packageJson(options.nom));
   const bascule = changeLeTheme(application);
-  fichiers.set('index.html', indexHtml(pages[0]?.page.titre ?? options.nom, modeParDefaut(application.theme), bascule, application.site, application.langues?.[0].code));
+  fichiers.set('index.html', indexHtml(pages[0]?.page.titre ?? options.nom, modeParDefaut(application.theme), bascule, application.site, application.langues?.[0].code, application.langues?.map((l) => l.code)));
   // Plusieurs langues : t(), la langue courante, le sélecteur (src/humalis/langue.tsx).
   if (application.langues) fichiers.set('src/humalis/langue.tsx', langueWebTsx(application.langues));
   if (application.site) {
@@ -461,7 +461,7 @@ function packageJson(nom: string): string {
   ) + '\n';
 }
 
-function indexHtml(titre: string, mode?: 'clair' | 'sombre', bascule = false, site?: SiteRI, langue = 'fr'): string {
+function indexHtml(titre: string, mode?: 'clair' | 'sombre', bascule = false, site?: SiteRI, langue = 'fr', langues: string[] = []): string {
   // Les balises du site, communes à toutes les pages ; chaque page pose les siennes en s'affichant.
   const publication = site ? [...balisesIcone(site, '/'), ...(site.nom ? [`<meta property="og:site_name" content="${echapperHtml(site.nom)}" />`] : [])] : [];
   return `<!doctype html>
@@ -469,7 +469,7 @@ function indexHtml(titre: string, mode?: 'clair' | 'sombre', bascule = false, si
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>${echapperHtml(titre)}</title>${publication.map((b) => `\n    ${b}`).join('')}${bascule ? `\n    <script>${SCRIPT_THEME}</script>` : ''}
+    <title>${echapperHtml(titre)}</title>${publication.map((b) => `\n    ${b}`).join('')}${bascule ? `\n    <script>${SCRIPT_THEME}</script>` : ''}${langues.length > 1 ? balisesLangueDeDepart(langues) : ''}
   </head>
   <body>
     <div id="racine"></div>

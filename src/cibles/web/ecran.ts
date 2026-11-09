@@ -899,7 +899,8 @@ class GenerateurEcran {
     const lignes: string[] = [];
     if (react.length) lignes.push(`import { ${react.join(', ')} } from 'react';`);
     lignes.push(...this.rendu.imports(code));
-    if (/\bappareil\./.test(code)) lignes.push(`import { appareil } from '../humalis/appareil';`);
+    // Un appel, pas une phrase qui finit par « … ton appareil. ».
+    if (/\bappareil\.\w+\(/.test(code)) lignes.push(`import { appareil } from '../humalis/appareil';`);
     if (code.includes('<ListeAnimee')) lignes.push(`import { ListeAnimee } from '../humalis/liste-animee';`);
     lignes.push(...this.rendu.widgets.imports(code));
     if (this.besoins.messages) lignes.push(`import { useMessages } from '../humalis/messages';`);
