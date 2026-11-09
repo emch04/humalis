@@ -364,6 +364,9 @@ export class CssApple {
     const ios = this.lignes(ajuster(this.rendu(classes, 'ios')));
     const mac = this.lignes(ajuster(this.rendu(classes, 'macos')));
     if (ios.join() === mac.join()) return ios;
+    // Swift refuse une branche vide devant des modificateurs : on n'écrit que la plateforme concernée.
+    if (ios.length === 0) return mac.length ? ['#if os(macOS)', ...mac, '#endif'] : [];
+    if (mac.length === 0) return ['#if os(iOS)', ...ios, '#endif'];
     return ['#if os(iOS)', ...ios, '#else', ...mac, '#endif'];
   }
 

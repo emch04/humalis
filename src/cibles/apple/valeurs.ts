@@ -560,7 +560,9 @@ export class Valeurs {
         if (gauche.type.genre === 'liste') {
           return `${this.versListe(gauche)}.contains(${this.vers(lireDroite(gauche.type.de), gauche.type.de)})`;
         }
-        return `${this.vers(gauche, TEXTE)}.contains(${this.vers(lireDroite(TEXTE), TEXTE)})`;
+        // Une recherche vide trouve tout, comme sur le web : Foundation répond non pour un texte vide.
+        const cherche = this.vers(lireDroite(TEXTE), TEXTE);
+        return `(${cherche}.isEmpty || ${this.vers(gauche, TEXTE)}.contains(${cherche}))`;
       }
       case 'commencePar':
         return `${this.vers(gauche, TEXTE)}.hasPrefix(${this.vers(lireDroite(TEXTE), TEXTE)})`;

@@ -406,7 +406,7 @@ function routesSwift(application: Application, app: ContexteApple, entree: Ecran
     e.ligne('static let commun = Routeur()');
     e.ligne('var chemin: [Route] = []');
     e.ligne('var ancre: String?');
-    e.ligne('private var apresConnexion: Route?');
+    e.ligne('private(set) var apresConnexion: Route?');
     e.ligne();
     e.bloc('func aller(_ route: Route, ancre: String? = nil) {', () => {
       if (application.ongletsApplication) e.ligne('if enOnglets, let rang = racinesDesOnglets.firstIndex(of: route) { choisirOnglet(rang); self.ancre = ancre; return }');
@@ -584,7 +584,7 @@ function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, dispos
         @Bindable var routeur = Routeur.commun
         NavigationStack(path: $routeur.chemin) {
             ${racine}
-                .navigationDestination(for: Route.self) { $0.vue }
+                .navigationDestination(for: Route.self) { $0.vue.navigationBarBackButtonHidden(routeur.apresConnexion != nil) }
         }${insets}
     }
 `;
@@ -619,7 +619,7 @@ function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, dispos
         return TabView(selection: Binding(get: { routeur.onglet }, set: { routeur.choisirOnglet($0) })) {${fonds.onglets.map((o, i) => `
             NavigationStack(path: routeur.onglet == ${i} ? $routeur.chemin : .constant([])) {
                 ${o.route}.vue
-                    .navigationDestination(for: Route.self) { $0.vue }
+                    .navigationDestination(for: Route.self) { $0.vue.navigationBarBackButtonHidden(routeur.apresConnexion != nil) }
             }
             .tabItem { Label(${chaineSwift(o.titre)}, systemImage: ${chaineSwift(o.icone)}) }
             .tag(${i})`).join('')}
