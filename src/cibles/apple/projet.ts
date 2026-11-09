@@ -670,7 +670,6 @@ function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, dispos
                         .accessibilityIdentifier("menu_\\(entree.id)")
                     }
                     .navigationTitle(${chaineSwift(nomAffiche)})
-                    .navigationSplitViewColumnWidth(min: 200, ideal: 244, max: 320)
                 } detail: {
                     pile
                 }
