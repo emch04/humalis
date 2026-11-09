@@ -2,6 +2,17 @@
 // Rejoué sur iPhone, iPad et Mac par scripts/essai-apple-parcours.mjs.
 import XCTest
 
+extension XCUIElement {
+    /** Sur Mac, un vrai clic : le « toucher » d'iPhone n'atteint pas les lignes de la barre latérale. */
+    func appuyer() {
+        #if os(macOS)
+        click()
+        #else
+        tap()
+        #endif
+    }
+}
+
 @MainActor
 final class ParcoursMagasin: XCTestCase {
     private let app = XCUIApplication()
@@ -22,7 +33,7 @@ final class ParcoursMagasin: XCTestCase {
     private func toucher(_ nom: String) {
         #if os(iOS)
         // Le clavier ouvert peut cacher le bouton : on le ferme d'abord.
-        if app.keyboards.count > 0, app.buttons["OK"].firstMatch.exists { app.buttons["OK"].firstMatch.tap() }
+        if app.keyboards.count > 0, app.buttons["OK"].firstMatch.exists { app.buttons["OK"].firstMatch.appuyer() }
         #endif
         #if os(macOS)
         // Un clic sur une fenêtre qui n'est pas devant ne fait que l'activer.
@@ -32,11 +43,16 @@ final class ParcoursMagasin: XCTestCase {
         while !bouton(nom).exists && Date() < fin { RunLoop.current.run(until: Date().addingTimeInterval(0.5)) }
         let visibles = app.debugDescription.split(separator: "\n").filter { $0.contains("Button") || $0.contains("StaticText") }.compactMap { ligne in ligne.range(of: "label: '").map { r in String(ligne[r.upperBound...].prefix(40)) } }
         XCTAssertTrue(bouton(nom).exists, "le bouton « \(nom) » n'apparaît pas. À l'écran : \(visibles.joined(separator: " | "))")
-        bouton(nom).tap()
+        bouton(nom).appuyer()
     }
 
     private func texte(_ morceau: String) -> XCUIElement {
+        #if os(macOS)
+        // Sur Mac, le texte se cherche sur l'élément lui-même : un titre n'a pas de descendant.
+        app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@ OR value CONTAINS %@", morceau, morceau)).firstMatch
+        #else
         app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@ OR value CONTAINS %@", morceau, morceau)).firstMatch
+        #endif
     }
 
     /** Attend un texte ; s'il ne vient pas, l'erreur dit ce qui a été vu à l'écran entre-temps. */
@@ -45,6 +61,10 @@ final class ParcoursMagasin: XCTestCase {
         let fin = Date().addingTimeInterval(20)
         while Date() < fin {
             if texte(morceau).exists { return }
+            #if os(macOS)
+            // Sur Mac, un titre de section n'est trouvé que par sa ligne dans l'arbre d'accessibilité.
+            if app.debugDescription.contains(morceau) { return }
+            #endif
             // Une lecture d'un seul bloc : l'écran peut changer entre deux lectures.
             for ligne in app.debugDescription.split(separator: "\n") where ligne.contains("StaticText") || ligne.contains("TextField") {
                 if let debut = ligne.range(of: "label: '") ?? ligne.range(of: "value: ") {
@@ -66,7 +86,7 @@ final class ParcoursMagasin: XCTestCase {
         #if os(macOS)
         app.activate()
         #endif
-        champ.tap()
+        champ.appuyer()
         champ.typeText(valeur)
     }
 

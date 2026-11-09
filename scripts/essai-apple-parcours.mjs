@@ -66,7 +66,12 @@ for (const nom of choisies) {
     // Le Mac aussi repart de zéro : le panier gardé par un essai précédent fausserait celui-ci.
     spawnSync('defaults', ['delete', 'local.humalis.magasin-complet']);
   }
+  // macOS peut laisser l'application derrière une autre fenêtre : les clics iraient ailleurs.
+  const devant = nom === 'mac'
+    ? spawn('zsh', ['-c', 'while true; do osascript -e \'tell application "System Events" to if exists process "MagasinComplet" then if not (frontmost of process "MagasinComplet") then set frontmost of process "MagasinComplet" to true\' >/dev/null 2>&1; sleep 1; done'], { stdio: 'ignore' })
+    : undefined;
   const r = spawnSync('xcodebuild', ['-project', join(apple, 'MagasinComplet.xcodeproj'), '-scheme', 'MagasinComplet', '-destination', cibles[nom], '-collect-test-diagnostics', 'never', '-derivedDataPath', join(travail, 'derive'), '-resultBundlePath', join(travail, `resultat-${nom}-${Date.now()}`), 'test'], { encoding: 'utf8', maxBuffer: 1 << 28 });
+  devant?.kill();
   processus.kill();
   // Un seul simulateur à la fois : celui-ci s'éteint avant le suivant.
   if (nom !== 'mac') spawnSync('xcrun', ['simctl', 'shutdown', cibles[nom].split('name=')[1]]);

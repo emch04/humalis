@@ -433,6 +433,8 @@ function routesSwift(application: Application, app: ContexteApple, entree: Ecran
     });
     e.ligne();
     e.bloc('/** Vers la page de connexion, en se souvenant de la page voulue. */\n  func remplacerPourConnexion(_ route: Route, puis ici: Route) {', () => {
+      // Déjà partie de cette page (une déconnexion suivie d'une redirection) : rien à faire.
+      e.ligne('guard chemin.last == ici || (chemin.isEmpty && ici == .accueilHumalis) else { return }');
       e.ligne('apresConnexion = ici');
       e.ligne('if chemin.last == ici { chemin.removeLast() }');
       e.ligne('aller(route)');
