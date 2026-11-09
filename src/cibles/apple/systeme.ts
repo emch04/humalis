@@ -895,6 +895,8 @@ private final class SuiviEnvoi: NSObject, URLSessionTaskDelegate, Sendable {
         var r = URLRequest(url: url)
         r.httpMethod = methode
         r.cachePolicy = .reloadIgnoringLocalCacheData
+        // Sur Apple, la session passe par le jeton du Keychain : un ancien cookie ne doit pas faire croire qu'on est connecté.
+        r.httpShouldHandleCookies = false
         r.setValue("1", forHTTPHeaderField: "x-humalis-mobile")
         if let jeton { r.setValue("Bearer \(jeton)", forHTTPHeaderField: "Authorization") }
         if let corps {
