@@ -204,3 +204,14 @@ describe('plusieurs fichiers — les fichiers de style', () => {
     expect(statique.get('styles/pages-style.css')).toBe('/* b */');
   });
 });
+
+describe('barre latérale du Mac écrite dans un fichier utilisé', () => {
+  it('reste connue du programme réuni', () => {
+    const d = disque({
+      'app/main.humalis': programme('utiliser fichier "./barre.humalis"', '', 'page "accueil" :', '>titre "Accueil"'),
+      'app/barre.humalis': programme('onglets de l\'application avec barre laterale "MaBarre" :', '>onglet "Accueil" vers "accueil"'),
+    });
+    const r = compilerProjet('app/main.humalis', d);
+    expect(r.application?.barreLaterale).toBe('MaBarre');
+  });
+});
