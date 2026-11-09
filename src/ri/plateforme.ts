@@ -23,13 +23,23 @@ export const sansPlateforme = (classe: string): string => MARQUE.exec(classe)?.[
 
 export function pourLaCible(application: Application, cible: string): Application {
   const visees = VISEES[cible] ?? [];
-  const retires = new Set<string>();
+  // Un identifiant n'est unique que dans son écran : ce qui est retiré d'une page ne dit rien de l'en-tête ni des autres pages.
+  let retires = new Set<string>();
   const noter = (v: unknown): void => {
     if (Array.isArray(v)) v.forEach(noter);
     else if (v && typeof v === 'object') {
       const o = v as Record<string, unknown>;
       if (typeof o.id === 'string') retires.add(o.id);
       Object.values(o).forEach(noter);
+    }
+  };
+  // Un événement d'un élément retiré n'a plus d'élément à écouter.
+  const nettoyer = (v: unknown): void => {
+    if (Array.isArray(v)) v.forEach(nettoyer);
+    else if (v && typeof v === 'object') {
+      const o = v as Record<string, unknown>;
+      if (Array.isArray(o.gestionnaires)) o.gestionnaires = (o.gestionnaires as { cibles: string[] }[]).filter((g) => g.cibles.length === 0 || !g.cibles.every((c) => retires.has(c)));
+      Object.values(o).forEach(nettoyer);
     }
   };
   const adapter = (v: unknown): unknown => {
@@ -44,7 +54,7 @@ export function pourLaCible(application: Application, cible: string): Applicatio
       });
     }
     if (!v || typeof v !== 'object') return v;
-    return Object.fromEntries(
+    const champs = () => Object.fromEntries(
       Object.entries(v).map(([cle, valeur]) => {
         if (cle === 'classes' && Array.isArray(valeur)) {
           return [cle, (valeur as string[]).flatMap((c) => {
@@ -58,20 +68,18 @@ export function pourLaCible(application: Application, cible: string): Applicatio
         return [cle, adapter(valeur)];
       }),
     );
+    // Une page, un composant, l'en-tête ou le pied : les seuls objets qui ont une vue et leurs événements.
+    if (!('vue' in v && 'gestionnaires' in v)) return champs();
+    const autour = retires;
+    retires = new Set();
+    const ecran = champs();
+    if (retires.size > 0) nettoyer(ecran);
+    retires = autour;
+    return ecran;
   };
   // Les fichiers de style n'ont pas de nœud : « plateforme » n'y marque pas un bloc à déplier.
   const fichiersStyle = application.fichiersStyle.filter((f) => f.plateforme === undefined || visees.includes(f.plateforme));
   const adaptee = adapter({ ...application, fichiersStyle: [] }) as Application;
   adaptee.fichiersStyle = fichiersStyle;
-  // Un événement d'un élément retiré n'a plus d'élément à écouter.
-  const nettoyer = (v: unknown): void => {
-    if (Array.isArray(v)) v.forEach(nettoyer);
-    else if (v && typeof v === 'object') {
-      const o = v as Record<string, unknown>;
-      if (Array.isArray(o.gestionnaires)) o.gestionnaires = (o.gestionnaires as { cibles: string[] }[]).filter((g) => g.cibles.length === 0 || !g.cibles.every((c) => retires.has(c)));
-      Object.values(o).forEach(nettoyer);
-    }
-  };
-  if (retires.size > 0) nettoyer(adaptee);
   return adaptee;
 }
