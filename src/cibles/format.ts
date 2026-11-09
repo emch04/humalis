@@ -121,7 +121,7 @@ export function formaterDate(valeur: string | null | undefined): string {
 export function formaterArgent(valeur: number | null | undefined, devise: 'FC' | 'EUR' | 'USD'): string {
   if (typeof valeur !== 'number') return '';
   if (devise === 'EUR') return valeur.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
-  if (devise === 'USD') return \`\${valeur.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $\`;
+  if (devise === 'USD') return \`\${valeur.toLocaleString('fr-FR', { minimumFractionDigits: Number.isInteger(valeur) ? 0 : 2, maximumFractionDigits: 2 }).replace(/\\u202f/g, '\\u00a0')} $\`;
   return \`\${valeur.toLocaleString('fr-FR')} FC\`;
 }
 
@@ -153,7 +153,7 @@ export const FORMAT_JS = `  /** 28000 → « 28 000 », 3.5 → « 3,5 » ; rien
   function formaterArgent(valeur, devise) {
     if (typeof valeur !== 'number') return '';
     if (devise === 'EUR') return valeur.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
-    if (devise === 'USD') return \`\${valeur.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $\`;
+    if (devise === 'USD') return \`\${valeur.toLocaleString('fr-FR', { minimumFractionDigits: Number.isInteger(valeur) ? 0 : 2, maximumFractionDigits: 2 }).replace(/\\u202f/g, '\\u00a0')} $\`;
     return \`\${valeur.toLocaleString('fr-FR')} FC\`;
   }
 
@@ -202,7 +202,7 @@ export function formaterArgent(valeur: number | null | undefined, devise: 'FC' |
     return valeur.toLocaleString('en-US', { style: 'currency', currency: devise === 'EUR' ? 'EUR' : 'USD' });
   }
   if (devise === 'EUR') return valeur.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
-  if (devise === 'USD') return \`\${valeur.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $\`;
+  if (devise === 'USD') return \`\${valeur.toLocaleString('fr-FR', { minimumFractionDigits: Number.isInteger(valeur) ? 0 : 2, maximumFractionDigits: 2 }).replace(/\\u202f/g, '\\u00a0')} $\`;
   return \`\${valeur.toLocaleString('fr-FR')} FC\`;
 }
 
