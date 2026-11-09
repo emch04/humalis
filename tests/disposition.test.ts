@@ -6,6 +6,8 @@ import { compilerProjet } from './aide-qualite.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
 import { genererProjetStatique } from '../src/cibles/statique/projet.js';
 import { genererProjetMobile } from '../src/cibles/mobile/projet.js';
+import { genererProjetMoteur } from '../src/cibles/moteur/projet.js';
+import { pourLaCible } from '../src/ri/plateforme.js';
 import { erreurs, avertissements } from './analyse/aide.js';
 
 const SOURCE = `entete avec colle :
@@ -195,5 +197,64 @@ describe('en-tête et pied communs — le mobile', () => {
   it('ne change rien sans en-tête ni pied', () => {
     const sans = genererProjetMobile(compile('page "p" :\n    titre "a"'), { nom: 'e', source: 'e.humalis' });
     expect(sans.get('app/_layout.tsx')).not.toContain('usePathname');
+  });
+});
+
+describe('en-tête et page : un même libellé sur des plateformes différentes', () => {
+  const DEUX_BOUTONS = `entete :
+    sur site :
+        bouton "Se déconnecter"
+        quand l'utilisateur clique sur "Se déconnecter" :
+            rediriger vers "connexion"
+
+page "accueil" :
+    titre "Bienvenue"
+    sur macos :
+        barre d'outils :
+            bouton "Se déconnecter"
+            quand l'utilisateur clique sur "Se déconnecter" :
+                rediriger vers "connexion"
+
+page "connexion" :
+    titre "Connexion"
+`;
+  const enteteDe = (application: ReturnType<typeof compile>) => application.disposition!.entete!.ecran;
+
+  it('le bouton de l’en-tête garde son gestionnaire sur le web', () => {
+    const web = pourLaCible(compile(DEUX_BOUTONS), 'web');
+    expect(enteteDe(web).gestionnaires.flatMap((g) => g.cibles)).toEqual(['bouton_se_deconnecter']);
+    const fichiers = genererProjetMoteur(web, { nom: 'essai', source: 'essai.humalis' });
+    const composants = fichiers.get('src/humalis/composants.js') as string;
+    expect(composants).toMatch(/<button [^>]*data-humalis="bouton_se_deconnecter"[^>]*data-h="0"/);
+    expect(composants).toContain("ecouter(r[0], 'click', quandCliqueSeDeconnecter)");
+  });
+
+  it('le gestionnaire du bouton retiré de la page part, lui', () => {
+    const web = pourLaCible(compile(DEUX_BOUTONS), 'web');
+    expect(web.ecrans.find((e) => e.nom === 'accueil')!.gestionnaires).toEqual([]);
+  });
+
+  it('dans l’autre sens : le bouton macOS de la page garde le sien sur Apple', () => {
+    const apple = pourLaCible(compile(DEUX_BOUTONS), 'apple');
+    expect(apple.ecrans.find((e) => e.nom === 'accueil')!.gestionnaires.flatMap((g) => g.cibles)).toEqual(['bouton_se_deconnecter']);
+    expect(enteteDe(apple).gestionnaires).toEqual([]);
+  });
+
+  it('un bouton réservé à une plateforme ne touche pas celui d’une autre page', () => {
+    const web = pourLaCible(compile(`page "a" :
+    titre "A"
+    sur macos :
+        bouton "Envoyer"
+        quand l'utilisateur clique sur "Envoyer" :
+            rediriger vers "b"
+
+page "b" :
+    titre "B"
+    bouton "Envoyer"
+    quand l'utilisateur clique sur "Envoyer" :
+        rediriger vers "a"
+`), 'web');
+    expect(web.ecrans.find((e) => e.nom === 'a')!.gestionnaires).toEqual([]);
+    expect(web.ecrans.find((e) => e.nom === 'b')!.gestionnaires.flatMap((g) => g.cibles)).toEqual(['bouton_envoyer']);
   });
 });
