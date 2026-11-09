@@ -708,6 +708,9 @@ ${prise}${code}}
         case 'changerTexte':
           for (const id of action.ids) e.ligne(`textes = { ...textes, ${chaine(id)}: ${x(action.texte)} };`);
           break;
+        case 'viderChamp':
+          e.ligne(`${this.contexte.champs.get(action.id)!} = ${this.contexte.sortes?.get(action.id) === 'case' ? 'false' : "''"};`);
+          break;
         case 'theme':
           e.ligne(`definirTheme(${chaine(action.valeur)});`);
           break;

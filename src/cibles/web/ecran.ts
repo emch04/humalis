@@ -1321,6 +1321,9 @@ class GenerateurEcran {
         case 'rendre':
           e.ligne(`return ${x(action.valeur)};`);
           break;
+        case 'viderChamp':
+          e.ligne(`${setterDe(this.contexte.champs.get(action.id)!)}(${this.vide(action.id)});`);
+          break;
         case 'theme':
           e.ligne(`definirTheme(${chaine(action.valeur)});`);
           break;

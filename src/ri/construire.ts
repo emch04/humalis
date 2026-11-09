@@ -347,6 +347,7 @@ class Construction {
       ...(this.page.reservee ? { reservee: { qui: this.page.reservee.qui, sinon: this.page.reservee.sinon ?? 'connexion' } } : {}),
       ...(this.analyse.etatsLus.get(this.page)?.size ? { etatsRequetes: [...this.analyse.etatsLus.get(this.page)!] } : {}),
       ...(this.page.reglages ? { reglages: true } : {}),
+      ...(this.page.pleineFenetre ? { pleineFenetre: true } : {}),
       ...(this.page.sansEntete ? { sansEntete: true } : {}),
       ...(this.page.sansPied ? { sansPied: true } : {}),
       ...(this.page.apercu
@@ -1036,6 +1037,10 @@ class Construction {
         };
       case 'changerTexte':
         return { type: 'changerTexte', ids, texte: this.valeur(action.arguments[1]) };
+      case 'viderChamp': {
+        const champ = this.valeur(action.arguments[0]);
+        return { type: 'viderChamp', id: champ.type === 'champ' ? champ.id : '' };
+      }
       case 'changerTheme': {
         const texte = this.valeur(action.arguments[0]);
         const valeur = texte.type === 'texte' && 'texte' in texte.parties[0] ? texte.parties[0].texte : 'automatique';

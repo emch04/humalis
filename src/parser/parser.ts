@@ -1082,6 +1082,11 @@ function analyserPage(flux: FluxTokens): Page {
   const { parametres, filtres } = analyserAvecPage(flux);
   const sans = analyserSansDisposition(flux);
   const reglages = lireEnReglages(flux);
+  let pleineFenetre = false;
+  if (estLeMot(flux.actuel(), 'en') && estLeMot(flux.regarder(1), 'pleine') && estLeMot(flux.regarder(2), 'fenetre')) {
+    flux.avancer(); flux.avancer(); flux.avancer();
+    pleineFenetre = true;
+  }
   flux.attendre('PONCTUATION', ':', 'deux-points après le nom de la page');
 
   const corps = analyserBloc(flux);
@@ -1097,6 +1102,7 @@ function analyserPage(flux: FluxTokens): Page {
     type: 'Page',
     nom: nom.valeur,
     ...(reglages ? { reglages } : {}),
+    ...(pleineFenetre ? { pleineFenetre } : {}),
     parametres,
     ...(filtres.length > 0 ? { filtres } : {}),
     ...entete,
@@ -1582,6 +1588,12 @@ function analyserInstruction(flux: FluxTokens): Instruction {
   // « telecharger bon de commande de c » : le PDF d'une fiche du serveur.
   if (estLeMot(flux.actuel(), 'telecharger') && estLeMot(flux.regarder(1), 'bon') && estUnNom(flux.regarder(2))) {
     return analyserTelechargementBon(flux);
+  }
+
+  // « vider champ "Message" » : remet un champ à vide, après un envoi par exemple.
+  if (estLeMot(flux.actuel(), 'vider') && estLeMot(flux.regarder(1), 'champ') && flux.regarder(2).type === 'CHAINE') {
+    const debut = flux.avancer();
+    return { type: 'Action', action: 'viderChamp', arguments: [analyserOperande(flux)], ligne: debut.ligne };
   }
 
   // « changer theme par sombre » : le choix clair ou sombre du visiteur.

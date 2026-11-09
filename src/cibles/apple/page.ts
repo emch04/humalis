@@ -488,7 +488,7 @@ export class GenerateurPage implements HotePage {
       const directs = this.noeudsDirects();
       const paresseuse = directs.some((n) => n.type === 'repetition') && !JSON.stringify(this.ecran.vue).includes('"ancre"');
       const racine = this.ecran.vue.some((n) => n.type === 'formulaire' && n.reglages) ? ', racine: .reglages' : directs.some((n) => n.type === 'repetition' && n.corps.some((c) => c.type === 'bloc' && c.natif?.genre === 'glisser')) ? ', racine: .liste' : '';
-      e.ligne(this.parametres || this.nomForce ? 'Group {' : `PageHumalis(titre: ${titreCode}${paresseuse ? ', paresseuse: true' : ''}${racine}) {`);
+      e.ligne(this.parametres || this.nomForce ? 'Group {' : `PageHumalis(titre: ${titreCode}${paresseuse ? ', paresseuse: true' : ''}${racine}${this.ecran.pleineFenetre ? ', pleineFenetre: true' : ''}) {`);
       for (const l of corps.trimEnd().split('\n')) if (l !== '') e.ligne(l.slice(2));
       e.ligne('}');
       e.indenter(() => {

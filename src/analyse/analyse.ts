@@ -469,6 +469,7 @@ const NOMS_ACTIONS: Record<string, string> = {
   revenir: 'revenir',
   changerTexte: 'changer texte',
   changerTheme: 'changer theme',
+  viderChamp: 'vider champ',
 };
 
 const NOMS_OPERATEURS: Record<string, string> = {
@@ -1629,6 +1630,10 @@ class AnalysePage {
     switch (action.action) {
       case 'afficher':
       case 'afficherErreur':
+        this.typeDe(action.arguments[0]);
+        return;
+
+      case 'viderChamp':
         this.typeDe(action.arguments[0]);
         return;
 

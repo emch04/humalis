@@ -635,6 +635,7 @@ web avec un équivalent simple.
 | `table l :` puis `colonne "Total" avec c.total` | lignes | tableau | lignes |
 | `menu de l'application "Fichier" :` puis `commande "N" avec raccourci "cmd+n" :` | raccourcis (iPad) | barre de menus | refusé |
 | `page "x" en reglages :` | page | fenêtre Réglages | page |
+| `page "x" en pleine fenetre :` | page | page jusqu'aux bords | page jusqu'aux bords |
 | `barre d'outils :` | barre du haut | barre d'outils | rangée |
 
 ### Le fil d'Ariane et le menu
@@ -1173,6 +1174,7 @@ Les actions s'écrivent dans un événement.
 | `montrer "nom"`, `cacher "nom"` | fait apparaître ou disparaître un élément |
 | `changer x par …` | change une variable |
 | `changer x par champ "Libellé"` | prend la valeur actuelle d'un champ |
+| `vider champ "Libellé"` | remet le champ à vide, après un envoi par exemple |
 | `changer texte de "nom" par "…"` | change le texte d'un élément |
 | `ajouter … à liste`, `retirer … de liste` | modifie une liste |
 | `ajouter champ "Libellé" à liste` | ajoute la valeur actuelle d'un champ |
