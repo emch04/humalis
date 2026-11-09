@@ -590,9 +590,12 @@ export class GenerateurPage implements HotePage {
           return lue.type.genre === 'nombre' ? `.nombre(${lue.opt ? `${lue.code} ?? 0` : lue.code})` : `.texte(${this.valeurs.enTexte(cellule.contenu)})`;
         });
         e.ligne('#if os(macOS)');
-        e.bloc(`Table(${liste.code}.enumerated().map { rangTable, ${nom} in LigneTableHumalis(id: rangTable, valeur: ${nom}, cles: [${cles.join(', ')}]) }.sorted(using: ${tri}), sortOrder: $${tri}) {`, () => {
+        // Les types écrits en entier : sans eux, le compilateur Swift abandonne à partir de quatre colonnes.
+        const ligneTable = `LigneTableHumalis<${typeLigne}>`;
+        e.ligne(`let lignes${tri}: [${ligneTable}] = ${liste.code}.enumerated().map { (rangTable: Int, ${nom}: ${typeLigne}) -> ${ligneTable} in ${ligneTable}(id: rangTable, valeur: ${nom}, cles: [${cles.join(', ')}]) }.sorted(using: ${tri})`);
+        e.bloc(`Table(lignes${tri}, sortOrder: $${tri}) {`, () => {
           (natif.colonnes ?? []).forEach((titre, i) => {
-            e.bloc(`TableColumn(${chaineSwift(titre)}, value: \\.cles[${i}]) { rangee in`, () => {
+            e.bloc(`TableColumn(${chaineSwift(titre)}, value: \\${ligneTable}.cles[${i}]) { rangee in`, () => {
               e.ligne(`let ${nom} = rangee.valeur`);
               this.ecrireNoeud(e, ligne.corps[i]);
             });
@@ -1031,7 +1034,7 @@ export class GenerateurPage implements HotePage {
     const fond = noeud.options.find((o) => o.nom === 'fond')?.valeur;
     const raccourci = noeud.raccourci !== undefined ? [touches(noeud.raccourci)] : [];
     this.modifieurs(e, noeud.options, 'bouton', [
-      ...(fond ? ['.buttonStyle(.borderedProminent)', `.tint(Couleurs.${nomSwift(fond)})`] : ['.buttonStyle(.bordered)']),
+      ...(fond ? ['.buttonStyle(.borderedProminent)', `.tint(Couleurs.${nomSwift(fond)})`, `.foregroundStyle(Couleurs.encre${nomSwift(fond).charAt(0).toUpperCase()}${nomSwift(fond).slice(1)})`] : ['.buttonStyle(.bordered)']),
       ...raccourci,
       ...survol,
       id,
@@ -1124,7 +1127,8 @@ export class GenerateurPage implements HotePage {
     };
     switch (noeud.genre) {
       case 'icone': {
-        const nom = nomIcone(r.icone ?? 'info');
+        // Le nom est le texte de l'élément : « icone "panier" ».
+        const nom = nomIcone(r.icone ?? (this.valeurs.enTexte(noeud.contenu).replace(/^"|"$/g, '') || 'info'));
         e.ligne(`Image(systemName: ${chaineSwift(nom)})`);
         this.modifieurs(e, noeud.options, 'texte', [r.description !== undefined ? `.accessibilityLabel(${chaineSwift(r.description)})` : '.accessibilityHidden(true)', id]);
         return;

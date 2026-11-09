@@ -637,6 +637,8 @@ struct SourceHumalis: Sendable {
         } catch {
             // Sans réseau, une variable « hors ligne » montre simplement ce qu'elle a gardé.
             if horsLigne && raisonDe(error) == pasDeReponse { return nil }
+            // La page a été quittée pendant la lecture : ce n'est pas une panne, il n'y a rien à dire.
+            if Task.isCancelled { return nil }
             // La page parle de l'état de la variable : elle montre l'erreur elle-même.
             if suivi == nil { dire(error) }
             return nil
