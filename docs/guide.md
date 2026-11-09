@@ -625,6 +625,7 @@ web avec un équivalent simple.
 | Phrase | iPhone et iPad | Mac | Web |
 |---|---|---|---|
 | `onglets de l'application :` puis `onglet "A" vers "accueil" avec icone "maison"` | barre d'onglets | barre latérale | menu |
+| `groupe "Équipe" :` puis ses `onglet`, décalés, dans `onglets de l'application` | onglets à plat | liste à plat | intertitre dans le menu |
 | `recherche dans q avec indice "…"` | recherche native | recherche native | champ |
 | `action en glissant "Supprimer" :` dans un `pour chaque` | glisser la ligne | clic droit | bouton |
 | `actualiser en tirant :` | tirer pour actualiser | bouton dans la barre d'outils | bouton |

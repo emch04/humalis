@@ -18,7 +18,7 @@ export interface Programme {
   paquetsSwift?: { adresse: string; version: string; produit?: string; ligne: number }[];
   /** « liens profonds "magasin" » : les adresses magasin://… ouvrent les pages de l'application. */
   /** « onglets de l'application : » : les pages principales. */
-  ongletsApplication?: { titre: string; page: string; icone?: string; ligne: number }[];
+  ongletsApplication?: { titre: string; page: string; icone?: string; groupe?: string; ligne: number }[];
   liensProfonds?: { schema: string; /** Le site, et éventuellement le début du chemin. */ domaine?: string; ligne: number };
   /** Les « composant "Fiche" : » écrits en Humalis. */
   composants: DefinitionComposant[];
