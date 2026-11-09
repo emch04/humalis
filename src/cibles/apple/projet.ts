@@ -537,6 +537,18 @@ function menuSwift(entrees: EntreeMenu[]): string {
   return e.texte();
 }
 
+/** Tailles du système, pour garder les mêmes hauteurs avec la police du thème. */
+const STYLES_POLICE: Record<string, number> = { largeTitle: 34, title: 28, title2: 22, title3: 20, headline: 17, body: 17, callout: 16, subheadline: 15, footnote: 13 };
+
+/** Une taille écrite en CSS, ou un style de texte, garde la police du thème au lieu de repasser à celle du système. */
+export function avecPoliceDuTheme(code: string, police: string): string {
+  const nom = `PolicesHumalis.vrai(${chaineSwift(police)})`;
+  return code
+    .replace(/\.font\(\.system\(size: ([\d.]+)\)\)/g, `.font(.custom(${nom}, size: $1))`)
+    .replace(/\.font\(\.(largeTitle|title3?|title2|headline|callout|subheadline|footnote)\)/g, (_, style: string) =>
+      `.font(.custom(${nom}, size: ${STYLES_POLICE[style]}, relativeTo: .${style})${style === 'headline' ? '.weight(.semibold)' : ''})`);
+}
+
 function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, disposition: Disposition, polices: { fichier: string; nom: string }[], policeTexte?: string, notifications = false, fonds: { liens?: boolean; domaine?: boolean; envois?: boolean; arrierePlan?: boolean; onglets?: { titre: string; route: string; icone: string }[]; menus?: ReturnType<typeof commandesSwift>['menus']; reglages?: string } = {}): string {
   // Par la route, et non la page directement : une page d'entrée réservée garde sa protection.
   const racine = entree.reservee ? 'Route.accueilHumalis.vue' : `${nomPage(entree.nom)}()`;
@@ -644,7 +656,7 @@ function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, dispos
                     List(entreesDuMenu) { entree in
                         Button { Routeur.commun.allerAuMenu(entree.route) } label: {
                             Label {
-                                Text(verbatim: entree.titre)
+                                Text(verbatim: entree.titre)${policeTexte ? `.font(.custom(PolicesHumalis.vrai(${chaineSwift(policeTexte)}), size: 13))` : ''}
                             } icon: {
                                 if let icone = entree.icone { Image(systemName: icone) }
                             }
@@ -658,6 +670,7 @@ function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, dispos
                         .accessibilityIdentifier("menu_\\(entree.id)")
                     }
                     .navigationTitle(${chaineSwift(nomAffiche)})
+                    .navigationSplitViewColumnWidth(min: 200, ideal: 244, max: 320)
                 } detail: {
                     pile
                 }
@@ -880,7 +893,9 @@ export function genererProjetApple(application: Application, options: OptionsApp
   const fichiers = new Map<string, string>();
   if (css.total > 0) fichiers.set('CSS-SUR-APPLE.md', css.rapport());
   const dossier = nom;
-  const ecrire = (chemin: string, contenu: string) => fichiers.set(`${dossier}/${chemin}`, contenu);
+  const policeDuTheme = application.theme?.polices.find((p) => p.role === 'texte')?.nom;
+  const ecrire = (chemin: string, contenu: string) =>
+    fichiers.set(`${dossier}/${chemin}`, policeDuTheme && chemin.endsWith('.swift') && !chemin.startsWith('Natif/') ? avecPoliceDuTheme(contenu, policeDuTheme) : contenu);
 
   for (const c of application.composants) ecrire(`Composants/${nomComposant(c.nom)}.swift`, new GenerateurPage(c, app, c.parametres).generer());
   const disposition: Disposition = {};
