@@ -16,6 +16,7 @@ const CONSTRUCTIONS: { motif: RegExp; nom: string }[] = [
   { motif: /"type":"localisation"/, nom: '« position dans … »' },
   { motif: /"enAttente":true/, nom: '« … hors ligne » sur un envoi' },
   { motif: /"declencheur":"arrierePlan"/, nom: '« en arriere plan : »' },
+  { motif: /"declencheur":"commandeMenu"/, nom: '« menu de l’application »' },
 ];
 
 /** Sur le web, presque tout existe. Ce que le navigateur ne peut pas faire est dit, jamais simulé. */
@@ -25,6 +26,8 @@ function verifierPourLeNavigateur(application: Application): Diagnostic[] {
   const ligneDe = (motif: RegExp) => lieux.find((e) => motif.test(JSON.stringify(e)))?.ligne;
   const fond = ligneDe(/"declencheur":"arrierePlan"/);
   if (fond !== undefined) diagnostics.push({ gravite: 'erreur', ligne: fond, message: "« en arriere plan : » n'existe pas sur le web : une page fermée ne peut pas être réveillée par le navigateur. Compilez avec --cible apple, ou faites ce travail sur le serveur avec une tâche planifiée." });
+  const commande = ligneDe(/"declencheur":"commandeMenu"/);
+  if (commande !== undefined) diagnostics.push({ gravite: 'erreur', ligne: commande, message: "« menu de l'application » n'existe pas sur le web : un site n'a pas de barre de menus. Compilez avec --cible apple, ou retirez ce bloc." });
   const vibration = ligneDe(/"type":"vibration"/);
   if (vibration !== undefined) diagnostics.push({ gravite: 'avertissement', ligne: vibration, message: "« vibrer » n'a d'effet sur le web que sur les téléphones Android : rien ne se passe sur iPhone ni sur un ordinateur." });
   if (application.liensProfonds) diagnostics.push({ gravite: 'avertissement', ligne: application.liensProfonds.ligne, message: "« liens profonds » ne change rien sur le web : chaque page a déjà sa propre adresse." });

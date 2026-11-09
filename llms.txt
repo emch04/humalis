@@ -8,7 +8,7 @@ Humalis est un langage en français. Un fichier .humalis décrit des pages, des 
 - Les éléments d’écran pris en charge : titre, texte, image, bouton, lien, champ, formulaire, section, bloc, ligne, colonne, grille, liste numérotée, sous-titre, liste, tableau, fenêtre, menu, icône, badge, avatar, progression, chargement, étoiles, compteur, code QR, onglets, onglet, déroulant, accordéon, carrousel, fil d’Ariane, audio, fichier, carte, marqueur, graphique, série, sélecteur. Leur texte s’écrit entre guillemets.
 - Déclare une valeur avec `variable nom = valeur` ; une condition commence par `si ... :`.
 - Les événements pris en charge : quand, utilisateur, clique, sur, survole, charge, soumis, ecrit, arrête d’écrire, appuie, arrive en bas de, l’ordre de … change. Écris l’événement sous l’élément visé, puis l’action dans son bloc.
-- Les actions prises en charge : afficher, erreur, montrer, cacher, changer, rediriger, ajouter, retirer, envoyer, requête, connecter, déconnecter, connecter avec apple, connecter avec google, inviter … comme admin, demander un lien de mot de passe pour …, choisir le mot de passe avec …, csv, télécharger bon, recharger, basculer thème, continuer vers, revenir, réussite, avertissement, pendant, disparaître, action, après, toutes, copier, partager, confirmer, faire, refuser, notification, document, verifier, hors, position, liens, profonds, apple, ios, macos, application, site, android, domaine, arriere, plan, scanner, vibrer, identité, signature, paquet, swift, produit, activer, ia, payer, rôle.
+- Les actions prises en charge : afficher, erreur, montrer, cacher, changer, rediriger, ajouter, retirer, envoyer, requête, connecter, déconnecter, connecter avec apple, connecter avec google, inviter … comme admin, demander un lien de mot de passe pour …, choisir le mot de passe avec …, csv, télécharger bon, recharger, basculer thème, continuer vers, revenir, réussite, avertissement, pendant, disparaître, action, après, toutes, copier, partager, confirmer, faire, refuser, notification, document, verifier, hors, position, liens, profonds, apple, ios, macos, application, site, android, reglages, recherche, glissant, actualiser, tirant, options, etat, outils, groupe, table, domaine, arriere, plan, scanner, vibrer, identité, signature, paquet, swift, produit, activer, ia, payer, rôle.
 - Les mots de liaison (ignorés dans une phrase mais interdits comme nom de variable) : le, la, les, un, une, des, de, du, à, au, aux, se, l', d', s', n', c', j', m', t'.
 
 ## Pièges fréquents
@@ -547,6 +547,10 @@ page "accueil" :
 - Une fonction de l’appareil dans la page : « vibrer » ne s'utilise que dans un événement
 - Un début d’adresse réservé : « https » ne peut pas servir de début d’adresse
 - Deux fois les liens profonds : « liens profonds » ne s’écrit qu’une fois
+- Des onglets sans onglet : attend au moins un onglet
+- Une ligne inattendue sous un composant : on écrit ici
+- Un menu sans page : demande au moins une page
+- Une table sans colonne lisible : attend des colonnes
 - Un domaine mal écrit : n’est pas un domaine
 - La position dans une tâche en arrière-plan : demande la personne devant l’écran
 - Une tâche en arrière-plan dans une boucle : s’écrit directement dans la page

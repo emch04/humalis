@@ -17,6 +17,8 @@ export interface Programme {
   /** « paquet swift "https://…" version "1.2" » : une bibliothèque Swift, pour les vues écrites à la main. */
   paquetsSwift?: { adresse: string; version: string; produit?: string; ligne: number }[];
   /** « liens profonds "magasin" » : les adresses magasin://… ouvrent les pages de l'application. */
+  /** « onglets de l'application : » : les pages principales. */
+  ongletsApplication?: { titre: string; page: string; icone?: string; ligne: number }[];
   liensProfonds?: { schema: string; /** Le site, et éventuellement le début du chemin. */ domaine?: string; ligne: number };
   /** Les « composant "Fiche" : » écrits en Humalis. */
   composants: DefinitionComposant[];
@@ -485,6 +487,8 @@ export interface FichierStyle {
 export interface Page {
   type: 'Page';
   nom: string;
+  /** « page "x" en reglages : » : la fenêtre Réglages sur Mac. */
+  reglages?: boolean;
   /** « page "produit" avec parametre id : » : les valeurs lues dans l'adresse de la page. */
   parametres: string[];
   /** « page "collection" a l'adresse "/collections/:slug" : » : l'adresse choisie, au lieu de celle du nom. */
@@ -1064,6 +1068,8 @@ export type SorteChamp =
 export interface Formulaire {
   type: 'Formulaire';
   nom: string;
+  /** « formulaire "x" en reglages : ». */
+  reglages?: boolean;
   /** « avec style "carte" » : les classes CSS du formulaire. */
   classes?: string[];
   corps: Instruction[];
@@ -1117,8 +1123,18 @@ export type GenreBloc =
  * « grille : » : un groupe d'instructions de la vue. Le titre d'une
  * section est le premier élément de son corps (un « titre »).
  */
+/** Un composant natif : le bloc garde un équivalent simple pour les cibles qui ne l'ont pas. */
+export interface NatifBloc {
+  genre: 'outils' | 'vide' | 'recherche' | 'glisser' | 'options' | 'actualiser' | 'groupe' | 'table';
+  icone?: string;
+  variable?: string;
+  indice?: string;
+  colonnes?: string[];
+}
+
 export interface Bloc {
   type: 'Bloc';
+  natif?: NatifBloc;
   genre: GenreBloc;
   /** « sur application : », « sur site : » : montré sur cette plateforme seulement. */
   plateforme?: string;
@@ -1333,11 +1349,16 @@ export type GenreEvenement =
   | 'pauseSaisie'
   | 'bas'
   | 'ordre'
+  /** « commande "Nouveau" » d'un « menu de l'application ». */
+  | 'commandeMenu'
   /** « en arriere plan : » : quand le système réveille l'application. */
   | 'arrierePlan';
 
 export interface Evenement {
   type: 'Evenement';
+  /** « menu de l'application "Fichier" » : le menu et le titre de la commande. */
+  menuApplication?: string;
+  titreCommande?: string;
   genre: GenreEvenement;
   cible?: string;
   /** « appuie sur "controle+k" » : les touches, telles qu'elles sont écrites. */

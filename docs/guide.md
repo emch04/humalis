@@ -617,6 +617,26 @@ page "aide" :
         image "terrasse.jpg" avec description "La terrasse"
 ```
 
+### Des composants natifs
+
+Ces phrases décrivent une intention. Chaque plateforme la rend avec son vrai composant, et le
+web avec un équivalent simple.
+
+| Phrase | iPhone et iPad | Mac | Web |
+|---|---|---|---|
+| `onglets de l'application :` puis `onglet "A" vers "accueil" avec icone "maison"` | barre d'onglets | barre latérale | menu |
+| `recherche dans q avec indice "…"` | recherche native | recherche native | champ |
+| `action en glissant "Supprimer" :` dans un `pour chaque` | glisser la ligne | clic droit | bouton |
+| `actualiser en tirant :` | tirer pour actualiser | bouton dans la barre d'outils | bouton |
+| `menu d'options :` puis `option "Copier" :` sous un élément | toucher prolongé | clic droit | menu dépliant |
+| `formulaire "x" en reglages :` puis `groupe "Profil" :` | formulaire façon Réglages | formulaire groupé | formulaire |
+| `etat vide "Rien" avec icone "boite" et description "…"` | écran vide | écran vide | bloc |
+| `avec fond translucide` | verre ou matériau | verre ou matériau | flou |
+| `table l :` puis `colonne "Total" avec c.total` | lignes | tableau | lignes |
+| `menu de l'application "Fichier" :` puis `commande "N" avec raccourci "cmd+n" :` | raccourcis (iPad) | barre de menus | refusé |
+| `page "x" en reglages :` | page | fenêtre Réglages | page |
+| `barre d'outils :` | barre du haut | barre d'outils | rangée |
+
 ### Le fil d'Ariane et le menu
 
 ```humalis

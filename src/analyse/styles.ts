@@ -73,6 +73,7 @@ export function optionCanonique(propriete: string, valeur: string, couleursTheme
 
   const normalisee = normaliser(valeur);
   const canonique = option.accords[normalisee] ?? normalisee;
+  if (nom === 'fond' && canonique === 'translucide') return { propriete: nom, valeur: canonique };
   // Les couleurs du thème (bloc « theme : ») valent comme les couleurs de base.
   if (['couleur', 'fond', 'texte'].includes(nom) && couleursTheme.has(canonique)) return { propriete: nom, valeur: canonique };
   if (!option.valeurs.includes(canonique)) {

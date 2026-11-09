@@ -1,0 +1,61 @@
+# L'essai des composants natifs : une phrase, un vrai composant sur iPhone et sur Mac.
+onglets de l'application :
+    onglet "Accueil" vers "accueil" avec icone "maison"
+    onglet "Compte" vers "compte" avec icone "utilisateur"
+
+menu de l'application "Fichier" :
+    commande "Voir le compte" avec raccourci "cmd+j" :
+        rediriger vers "compte"
+
+serveur "essai" :
+    donnee tache :
+        nom : texte
+        total : nombre
+    route "taches" :
+        tout le monde peut lire tache
+        tout le monde peut creer tache
+        tout le monde peut supprimer tache
+
+page "accueil" :
+    variable taches = []
+    variable q = ""
+    variable note = "attente"
+    titre "Accueil"
+    quand la page se charge :
+        envoyer requete vers "taches" dans taches
+    recherche dans q avec indice "Chercher une tache"
+    barre d'outils :
+        bouton "Ajouter" avec icone "plus"
+        quand l'utilisateur clique sur "Ajouter" :
+            envoyer requete vers "taches" avec nom = "Nouvelle" et total = 3
+            envoyer requete vers "taches" dans taches
+    actualiser en tirant :
+        changer note par "actualise"
+        envoyer requete vers "taches" dans taches
+    texte "Recherche {q}"
+    texte "Note {note}"
+    si taches est vide :
+        etat vide "Aucune tache" avec icone "boite" et description "Ajoutez-en une."
+    pour chaque t dans taches :
+        texte t.nom avec fond translucide
+        action en glissant "Supprimer" avec icone "corbeille" :
+            supprimer t de "taches"
+            envoyer requete vers "taches" dans taches
+    texte "Options ici"
+    menu d'options :
+        option "Marquer" :
+            changer note par "marque"
+    table taches :
+        colonne "Nom" avec t.nom
+        colonne "Total" avec t.total
+
+page "compte" :
+    titre "Compte"
+    formulaire "profil" en reglages :
+        groupe "Profil" :
+            champ "Nom"
+        bouton "Enregistrer"
+
+page "preferences" en reglages :
+    titre "Preferences"
+    texte "Mes reglages"

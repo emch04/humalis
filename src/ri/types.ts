@@ -25,6 +25,8 @@ export interface Application {
   /** « paquet swift "https://…" version "1.2" ». */
   paquetsSwift?: { adresse: string; version: string; produit?: string; ligne: number }[];
   /** « liens profonds "magasin" ». */
+  /** « onglets de l'application : ». */
+  ongletsApplication?: { titre: string; page: string; icone?: string; ligne: number }[];
   liensProfonds?: { schema: string; domaine?: string; ligne: number };
   /** Les composants écrits en Humalis : des écrans qui reçoivent des paramètres. */
   composants: ComposantHumalis[];
@@ -255,6 +257,8 @@ export interface ComposantHumalis extends Ecran {
 
 export interface Ecran {
   nom: string;
+  /** « page "x" en reglages : ». */
+  reglages?: boolean;
   /** Les variables déclarées au premier niveau de la page. */
   etat: Etat[];
   /** Les « calcul x = … » de la page : recalculés à chaque changement de l'état. */
@@ -502,7 +506,7 @@ export type NoeudVue =
    * Un formulaire : ses champs et ses boutons, envoyés ensemble (touche
    * Entrée ou bouton). Son gestionnaire de soumission le vise par `id`.
    */
-  | { type: 'formulaire'; id: string; nom: string; classes?: string[]; corps: NoeudVue[]; ligne: number }
+  | { type: 'formulaire'; id: string; nom: string; reglages?: boolean; classes?: string[]; corps: NoeudVue[]; ligne: number }
   /**
    * Un bloc de mise en page (« section », « bloc », « ligne », « colonne »,
    * « grille ») : il regroupe des nœuds, que le CSS met en forme.
@@ -510,6 +514,8 @@ export type NoeudVue =
   | {
       type: 'bloc';
       genre: GenreBloc;
+      /** Un composant natif ; sans lui, le bloc et ses enfants font l'équivalent. */
+      natif?: { genre: 'outils' | 'vide' | 'recherche' | 'glisser' | 'options' | 'actualiser' | 'groupe' | 'table'; icone?: string; variable?: string; indice?: string; colonnes?: string[] };
       /** « sur application : », « sur site : ». */
       plateforme?: string;
       options: Option[];
@@ -632,8 +638,13 @@ export interface Gestionnaire {
     | 'bas'
     /** « l'ordre de taches change » : après chaque déplacement d'un élément de la liste. */
     | 'ordre'
+    /** Une commande d'un « menu de l'application ». */
+    | 'commandeMenu'
     /** « en arriere plan : » : quand le système réveille l'application. */
     | 'arrierePlan';
+  /** Pour une commande de menu : le menu et son titre. */
+  menu?: string;
+  titreCommande?: string;
   /** Les éléments visés (vide pour « chargement »). */
   cibles: string[];
   actions: Action[];

@@ -77,6 +77,8 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
   const composantsReact: ComposantReact[] = [];
   let paquetsSwift: NonNullable<Programme['paquetsSwift']> | undefined;
   let liensProfonds: Programme['liensProfonds'];
+  let ongletsApplication: Programme['ongletsApplication'];
+  const commandesMenu: Evenement[] = [];
   const fichiersHumalis: { chemin: string; ligne: number }[] = [];
   const composants: DefinitionComposant[] = [];
   const serveurs: Serveur[] = [];
@@ -206,6 +208,46 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
       continue;
     }
 
+    // « onglets de l'application : » : les pages principales.
+    if (estLeMot(flux.actuel(), 'onglets') && estLeMot(flux.regarder(1), 'application')) {
+      const debut = flux.avancer();
+      flux.avancer();
+      flux.attendre('PONCTUATION', ':', 'deux-points à la fin de la ligne');
+      ongletsApplication = [];
+      lignesDuBloc(flux, () => {
+        const ligne = motAttendu(flux, 'onglet', 'onglet "Accueil" vers "accueil" avec icone "maison"');
+        const titre = flux.attendre('CHAINE', undefined, 'le titre de l’onglet entre guillemets').valeur;
+        flux.attendre('MOT_CLE', 'vers', '« vers » puis la page entre guillemets');
+        const page = flux.attendre('CHAINE', undefined, 'la page entre guillemets').valeur;
+        const icone = lireIcone(flux);
+        ongletsApplication!.push({ titre, page, ...(icone ? { icone } : {}), ligne });
+      });
+      if (ongletsApplication.length === 0) throw new ErreurSyntaxique('« onglets de l’application » attend au moins un onglet en dessous, décalé.', debut.ligne);
+      flux.sauterFinsDeLigne();
+      continue;
+    }
+
+    // « menu de l'application "Fichier" : » puis ses commandes.
+    if (estLeMot(flux.actuel(), 'menu') && estLeMot(flux.regarder(1), 'application') && flux.regarder(2).type === 'CHAINE') {
+      flux.avancer();
+      flux.avancer();
+      const menu = flux.avancer().valeur;
+      flux.attendre('PONCTUATION', ':', 'deux-points à la fin de la ligne');
+      lignesDuBloc(flux, () => {
+        const ligne = motAttendu(flux, 'commande', 'commande "Nouveau" avec raccourci "cmd+n" :');
+        const titreCommande = flux.attendre('CHAINE', undefined, 'le titre de la commande entre guillemets').valeur;
+        let touches: string | undefined;
+        if (flux.accepter('MOT_CLE', 'avec')) {
+          motAttendu(flux, 'raccourci', 'commande "Nouveau" avec raccourci "cmd+n" :');
+          touches = flux.attendre('CHAINE', undefined, 'le raccourci entre guillemets').valeur.replace(/\b(cmd|commande)\b/gi, 'controle');
+        }
+        flux.attendre('PONCTUATION', ':', 'deux-points à la fin de la commande');
+        commandesMenu.push({ type: 'Evenement', genre: 'commandeMenu', menuApplication: menu, titreCommande, ...(touches ? { touches } : {}), corps: analyserBloc(flux), ligne });
+      });
+      flux.sauterFinsDeLigne();
+      continue;
+    }
+
     // « liens profonds "magasin" » : les adresses magasin://… ouvrent les pages.
     if (estLeMot(flux.actuel(), 'liens') && estLeMot(flux.regarder(1), 'profonds')) {
       const debut = flux.avancer();
@@ -322,7 +364,18 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
     for (const lieu of [...pages, ...composants, ...(entete ? [entete] : []), ...(pied ? [pied] : [])]) lieu.corps.unshift(...enTete.map((c) => ({ ...c })));
   }
   for (const lieu of [...pages, ...composants, ...(entete ? [entete] : []), ...(pied ? [pied] : [])]) lieu.corps = selonEnConditions(lieu.corps);
-  const programme: Programme = { type: 'Programme', pages, ...(paquetsSwift ? { paquetsSwift } : {}), ...(liensProfonds ? { liensProfonds } : {}), ...(enTete.length > 0 ? { calculsPartages: enTete } : {}), styles, fichiersStyle, donneesFichiers, partages, composantsReact, composants, serveurs, sources, fichiersHumalis, fonctions, tests, ...(theme ? { theme } : {}), ...(site ? { site } : {}), ...(langues ? { langues } : {}), ...(traductions.length ? { traductions } : {}), ...(entete ? { entete } : {}), ...(pied ? { pied } : {}) };
+  // Les onglets donnent un menu aux cibles sans barre d'onglets : c'est aussi la barre latérale du Mac.
+  if (ongletsApplication) {
+    const liens = ongletsApplication.map((o) => `        lien "${sansGuillemets(o.titre)}" vers "${o.page}"${o.icone ? ` avec icone "${o.icone}"` : ''}`).join('\n');
+    const menuOnglets = analyserSyntaxe(analyserLexique(`entete :\n    menu :\n${liens}\n`).map((t) => ({ ...t, ligne: ongletsApplication![0].ligne }))).entete!;
+    if (entete) entete.corps.push(...menuOnglets.corps);
+    else entete = menuOnglets;
+  }
+  if (commandesMenu.length > 0) {
+    if (pages.length === 0) throw new ErreurSyntaxique('« menu de l’application » demande au moins une page dans le fichier.', commandesMenu[0].ligne);
+    pages[0].corps.push(...commandesMenu);
+  }
+  const programme: Programme = { type: 'Programme', pages, ...(ongletsApplication ? { ongletsApplication } : {}), ...(paquetsSwift ? { paquetsSwift } : {}), ...(liensProfonds ? { liensProfonds } : {}), ...(enTete.length > 0 ? { calculsPartages: enTete } : {}), styles, fichiersStyle, donneesFichiers, partages, composantsReact, composants, serveurs, sources, fichiersHumalis, fonctions, tests, ...(theme ? { theme } : {}), ...(site ? { site } : {}), ...(langues ? { langues } : {}), ...(traductions.length ? { traductions } : {}), ...(entete ? { entete } : {}), ...(pied ? { pied } : {}) };
   // Les appels de fonctions d'actions sont remplacés par leur corps (src/parser/fonctionsActions.ts).
   const actions = deplierFonctionsActions(programme);
   if (actions.length) programme.fonctionsActions = actions;
@@ -1007,12 +1060,21 @@ function analyserDefinitionComposant(flux: FluxTokens): DefinitionComposant {
   return { type: 'DefinitionComposant', nom, parametres, corps, ligne: debut.ligne };
 }
 
+/** « en reglages » à la fin de l'en-tête d'une page ou d'un formulaire. */
+function lireEnReglages(flux: FluxTokens): boolean {
+  if (!estLeMot(flux.actuel(), 'en') || !estLeMot(flux.regarder(1), 'reglages')) return false;
+  flux.avancer();
+  flux.avancer();
+  return true;
+}
+
 function analyserPage(flux: FluxTokens): Page {
   const debut = flux.attendre('MOT_CLE', 'page', 'une déclaration de page');
   const nom = flux.attendre('CHAINE', undefined, 'le nom de la page entre guillemets');
   const entete = analyserEntetePage(flux);
   const { parametres, filtres } = analyserAvecPage(flux);
   const sans = analyserSansDisposition(flux);
+  const reglages = lireEnReglages(flux);
   flux.attendre('PONCTUATION', ':', 'deux-points après le nom de la page');
 
   const corps = analyserBloc(flux);
@@ -1027,6 +1089,7 @@ function analyserPage(flux: FluxTokens): Page {
   return {
     type: 'Page',
     nom: nom.valeur,
+    ...(reglages ? { reglages } : {}),
     parametres,
     ...(filtres.length > 0 ? { filtres } : {}),
     ...entete,
@@ -1038,6 +1101,146 @@ function analyserPage(flux: FluxTokens): Page {
 }
 
 /** Un bloc est la suite d'instructions indentées sous une en-tête. */
+const sansGuillemets = (texte: string) => texte.replace(/"/g, '”');
+
+/** Quelques lignes Humalis, lues comme le corps d'une page : l'équivalent simple d'un composant natif. */
+function phrases(source: string, ligne: number): Instruction[] {
+  const decale = source.split('\n').map((l) => `    ${l}`).join('\n');
+  return analyserSyntaxe(analyserLexique(`page "x" :\n${decale}\n`).map((t) => ({ ...t, ligne }))).pages[0].corps;
+}
+
+function motAttendu(flux: FluxTokens, mot: string, exemple: string): number {
+  if (!estLeMot(flux.actuel(), mot)) throw new ErreurSyntaxique(`on écrit ici : ${exemple}`, flux.actuel().ligne);
+  return flux.avancer().ligne;
+}
+
+/** Chaque ligne décalée sous la ligne courante. */
+function lignesDuBloc(flux: FluxTokens, lire: () => void): void {
+  flux.sauterFinsDeLigne();
+  if (!flux.accepter('INDENT')) return;
+  flux.sauterFinsDeLigne();
+  while (!flux.verifier('DEDENT') && !flux.estFini()) {
+    lire();
+    flux.sauterFinsDeLigne();
+  }
+  flux.accepter('DEDENT');
+}
+
+/** « avec icone "x" » à la fin d'une ligne. */
+function lireIcone(flux: FluxTokens): string | undefined {
+  if (!flux.verifier('MOT_CLE', 'avec') || !estLeMot(flux.regarder(1), 'icone')) return undefined;
+  flux.avancer();
+  flux.avancer();
+  return flux.attendre('CHAINE', undefined, 'le nom de l’icône entre guillemets').valeur;
+}
+
+/** Un bouton et son clic : c'est ce qu'un composant natif affiche, à sa façon, sur chaque cible. */
+function boutonEtClic(titre: string, icone: string | undefined, corps: Instruction[], ligne: number): Instruction[] {
+  return [...phrases(`bouton "${sansGuillemets(titre)}"${icone ? ` avec icone "${icone}"` : ''}`, ligne), { type: 'Evenement', genre: 'clic', cible: sansGuillemets(titre), corps, ligne }];
+}
+
+const blocNatif = (natif: Bloc['natif'], corps: Instruction[], ligne: number, genre: GenreBloc = 'bloc', titre?: Expression): Bloc => ({ type: 'Bloc', genre, natif, styles: [], classes: [], corps, ...(titre ? { titre } : {}), ligne });
+
+/** Les composants natifs ; undefined si la ligne n'en est pas un. Ces mots restent des noms ailleurs. */
+function analyserComposantNatif(flux: FluxTokens): Instruction | undefined {
+  const a = flux.actuel();
+  const b = flux.regarder(1);
+  const c = flux.regarder(2);
+  if (estLeMot(a, 'recherche') && estLeMot(b, 'dans')) {
+    const ligne = flux.avancer().ligne;
+    flux.avancer();
+    const variable = flux.attendreNom('la variable qui reçoit la recherche').nom;
+    let indice = 'Rechercher';
+    if (flux.accepter('MOT_CLE', 'avec')) {
+      motAttendu(flux, 'indice', 'recherche dans q avec indice "Chercher…"');
+      indice = flux.attendre('CHAINE', undefined, 'l’indice entre guillemets').valeur;
+    }
+    const corps = phrases(`champ "Rechercher" avec indice "${sansGuillemets(indice)}"\nquand l'utilisateur ecrit dans "Rechercher" :\n    changer ${variable} par champ "Rechercher"`, ligne);
+    return blocNatif({ genre: 'recherche', variable, indice }, corps, ligne);
+  }
+  if (estLeMot(a, 'action') && estLeMot(b, 'en') && estLeMot(c, 'glissant')) {
+    const ligne = flux.avancer().ligne;
+    flux.avancer();
+    flux.avancer();
+    const titre = flux.attendre('CHAINE', undefined, 'le titre de l’action entre guillemets').valeur;
+    const icone = lireIcone(flux);
+    flux.attendre('PONCTUATION', ':', 'deux-points à la fin de la ligne');
+    return blocNatif({ genre: 'glisser' }, boutonEtClic(titre, icone, analyserBloc(flux), ligne), ligne);
+  }
+  if (estLeMot(a, 'actualiser') && estLeMot(b, 'en') && estLeMot(c, 'tirant')) {
+    const ligne = flux.avancer().ligne;
+    flux.avancer();
+    flux.avancer();
+    flux.attendre('PONCTUATION', ':', 'deux-points à la fin de « actualiser en tirant »');
+    return blocNatif({ genre: 'actualiser' }, boutonEtClic('Actualiser', 'recharger', analyserBloc(flux), ligne), ligne);
+  }
+  if (estLeMot(a, 'menu') && estLeMot(b, 'options') && c.valeur === ':') {
+    const ligne = flux.avancer().ligne;
+    flux.avancer();
+    flux.avancer();
+    const corps: Instruction[] = [];
+    lignesDuBloc(flux, () => {
+      const ici = motAttendu(flux, 'option', 'option "Copier" :');
+      const titre = flux.attendre('CHAINE', undefined, 'le titre de l’option entre guillemets').valeur;
+      const icone = lireIcone(flux);
+      flux.attendre('PONCTUATION', ':', 'deux-points à la fin de l’option');
+      corps.push(...boutonEtClic(titre, icone, analyserBloc(flux), ici));
+    });
+    return blocNatif({ genre: 'options' }, corps, ligne, 'deroulant', (phrases('texte "…"', ligne)[0] as Element).contenu);
+  }
+  if (estLeMot(a, 'etat') && estLeMot(b, 'vide') && c.type === 'CHAINE') {
+    const ligne = flux.avancer().ligne;
+    flux.avancer();
+    const titre = flux.avancer().valeur;
+    let icone: string | undefined;
+    let description: string | undefined;
+    if (flux.accepter('MOT_CLE', 'avec')) {
+      do {
+        if (estLeMot(flux.actuel(), 'icone')) {
+          flux.avancer();
+          icone = flux.attendre('CHAINE', undefined, 'le nom de l’icône entre guillemets').valeur;
+        } else {
+          motAttendu(flux, 'description', 'etat vide "Aucune commande" avec icone "boite" et description "…"');
+          description = flux.attendre('CHAINE', undefined, 'la description entre guillemets').valeur;
+        }
+      } while (flux.accepter('MOT_CLE', 'et'));
+    }
+    return blocNatif({ genre: 'vide', ...(icone ? { icone } : {}) }, phrases(`soustitre "${sansGuillemets(titre)}"${description !== undefined ? `\ntexte "${sansGuillemets(description)}"` : ''}`, ligne), ligne);
+  }
+  if (estLeMot(a, 'barre') && estLeMot(b, 'outils')) {
+    const ligne = flux.avancer().ligne;
+    flux.avancer();
+    flux.attendre('PONCTUATION', ':', 'deux-points à la fin de « barre d’outils »');
+    return blocNatif({ genre: 'outils' }, analyserBloc(flux), ligne, 'ligne');
+  }
+  if (estLeMot(a, 'groupe') && b.type === 'CHAINE') {
+    const ligne = flux.avancer().ligne;
+    const titre = flux.avancer().valeur;
+    flux.attendre('PONCTUATION', ':', 'deux-points à la fin du groupe');
+    return blocNatif({ genre: 'groupe' }, [...phrases(`soustitre "${sansGuillemets(titre)}"`, ligne), ...analyserBloc(flux)], ligne, 'section');
+  }
+  if (estLeMot(a, 'table') && (b.type === 'IDENTIFIANT' || b.type === 'MOT_CLE') && c.valeur === ':') {
+    const ligne = flux.avancer().ligne;
+    const liste = flux.attendreNom('la liste à montrer').nom;
+    flux.avancer();
+    const colonnes: { titre: string; valeur: Expression }[] = [];
+    lignesDuBloc(flux, () => {
+      motAttendu(flux, 'colonne', 'colonne "Total" avec c.total');
+      const titre = flux.attendre('CHAINE', undefined, 'le titre de la colonne entre guillemets').valeur;
+      flux.attendre('MOT_CLE', 'avec', '« avec » puis la valeur de la colonne');
+      colonnes.push({ titre, valeur: analyserExpression(flux) });
+    });
+    const premiere = colonnes[0]?.valeur as { objet?: { nom?: string }; nom?: string } | undefined;
+    const variable = premiere?.objet?.nom ?? premiere?.nom;
+    if (!variable) throw new ErreurSyntaxique('« table » attend des colonnes écrites sur un élément : colonne "Total" avec c.total', ligne);
+    const modele = phrases('texte "x"', ligne)[0] as Element;
+    const rangee = phrases(`pour chaque ${variable} dans ${liste} :\n    ligne :\n        texte "x"`, ligne)[0] as Boucle;
+    (rangee.corps[0] as Bloc).corps = colonnes.map((col) => ({ ...modele, contenu: col.valeur }));
+    return blocNatif({ genre: 'table', colonnes: colonnes.map((col) => col.titre) }, [rangee], ligne);
+  }
+  return undefined;
+}
+
 function analyserBloc(flux: FluxTokens): Instruction[] {
   const instructions: Instruction[] = [];
   flux.sauterFinsDeLigne();
@@ -1058,6 +1261,9 @@ function analyserBloc(flux: FluxTokens): Instruction[] {
 }
 
 function analyserInstruction(flux: FluxTokens): Instruction {
+  const natif = analyserComposantNatif(flux);
+  if (natif) return natif;
+
   if (estLeMot(flux.actuel(), 'tableau') && (flux.regarder(1).type === 'CHAINE' || flux.regarder(1).valeur === ':')) {
     const debut = flux.avancer();
     const legende = flux.verifier('PONCTUATION', ':') ? undefined : analyserValeur(flux);
@@ -1600,8 +1806,9 @@ function analyserFormulaire(flux: FluxTokens): Formulaire {
       classes.push(...flux.attendre('CHAINE', undefined, 'le nom de la classe CSS entre guillemets').valeur.split(/\s+/).filter(Boolean));
     } while (flux.accepter('MOT_CLE', 'et'));
   }
+  const reglages = lireEnReglages(flux);
   flux.attendre('PONCTUATION', ':', 'deux-points après le nom du formulaire');
-  return { type: 'Formulaire', nom, ...(classes.length > 0 ? { classes } : {}), corps: analyserBloc(flux), ligne: debut.ligne };
+  return { type: 'Formulaire', nom, ...(reglages ? { reglages } : {}), ...(classes.length > 0 ? { classes } : {}), corps: analyserBloc(flux), ligne: debut.ligne };
 }
 
 /** « minimum 1 », « maximum -5 » : un nombre entier, peut-être négatif. */

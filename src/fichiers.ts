@@ -226,6 +226,7 @@ function reunir(programmes: Programme[], fichiers: string[], diagnostics: Diagno
     composantsReact: [...premier.composantsReact],
     paquetsSwift: [...(premier.paquetsSwift ?? [])],
     ...(premier.liensProfonds ? { liensProfonds: premier.liensProfonds } : {}),
+    ...(premier.ongletsApplication ? { ongletsApplication: premier.ongletsApplication } : {}),
     composants: [...premier.composants],
     serveurs: [...premier.serveurs],
     sources: [...premier.sources],
@@ -293,6 +294,7 @@ function reunir(programmes: Programme[], fichiers: string[], diagnostics: Diagno
     tout.partages.push(...p.partages);
     tout.paquetsSwift!.push(...(p.paquetsSwift ?? []));
     tout.liensProfonds ??= p.liensProfonds;
+    tout.ongletsApplication ??= p.ongletsApplication;
     // Un composant (Humalis ou React) n'a qu'une définition dans toute l'application.
     for (const composant of [...p.composants, ...p.composantsReact]) {
       const deja = [...tout.composants, ...tout.composantsReact].find((x) => x.nom === composant.nom);
