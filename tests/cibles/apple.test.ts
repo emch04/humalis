@@ -364,6 +364,7 @@ describe('la page d\'entrée réservée', () => {
   it('passe par sa garde, comme les autres pages', () => {
     const f = projet(`serveur "s" :\n    donnee d :\n        n : texte\n    route "d" :\n        seul admin peut lire d\n\npage "a" reservee a admin sinon vers "b" :\n    titre "a"\n\npage "b" :\n    titre "b"\n`);
     expect(f.get('Essai/EssaiApp.swift')).toContain('Route.accueilHumalis.vue');
+    expect(f.get('Essai/Humalis/Routes.swift')).toContain('guard chemin.last == ici || (chemin.isEmpty && ici == .accueilHumalis) else { return }');
   });
 });
 
