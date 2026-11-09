@@ -593,8 +593,10 @@ function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, dispos
     private let large = true
     #endif
 `;
+  // Un menu que le système a déjà s'enrichit au lieu d'apparaître en double.
+  const groupes: Record<string, string> = { fichier: '.newItem', edition: '.pasteboard', presentation: '.toolbar', affichage: '.toolbar', fenetre: '.windowSize', aide: '.help' };
   const menusEcrits = (fonds.menus ?? []).map((m) => `
-            CommandMenu(${chaineSwift(m.menu)}) {${m.commandes.map((c) => `
+            ${groupes[simplifier(m.menu)] ? `CommandGroup(after: ${groupes[simplifier(m.menu)]})` : `CommandMenu(${chaineSwift(m.menu)})`} {${m.commandes.map((c) => `
                 Button(${chaineSwift(c.titre)}) { Task { await ${c.fonction}() } }${c.raccourci ? touches(c.raccourci) : ''}`).join('')}
             }`).join('');
   const commandes = menu || menusEcrits
