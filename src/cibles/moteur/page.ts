@@ -663,7 +663,7 @@ export class GenerateurMoteur extends GenerateurPage {
     const code = this.avecPlanificateur(corps.texte());
     const session = /\butilisateur\.\w+/.test(code);
     return {
-      script: `${/\bappareil\./.test(code) ? "import { appareil } from '../humalis/appareil.js';\n" : ''}${this.entete(code)}
+      script: `${/\bappareil\.\w+\(/.test(code) ? "import { appareil } from '../humalis/appareil.js';\n" : ''}${this.entete(code)}
 
 export default function couche(r, adresse) {
 ${code}}

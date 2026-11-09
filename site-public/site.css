@@ -462,3 +462,12 @@ html[data-theme=clair] .cible-code{color:#5c7a00}
 .signaler-piege{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
 .signaler-erreur{margin:0;color:#ff8a7a}.signaler-merci{font-size:20px;font-weight:600}
 .signaler-note{color:var(--muted);font-size:14.5px;max-width:640px;margin-top:22px}
+
+/* En-tête sur tablette et téléphone : tout aligné à gauche, comme sur grand écran. */
+@media(max-width:1050px){.hero-copy{text-align:left}.hero-copy>p{margin-inline:0}.hero-actions{justify-content:flex-start}.hero-title{margin-inline:0;text-align:left}.hero-copy>.eyebrow{align-self:flex-start;margin-inline:0}}
+.mini-code{white-space:pre}
+@media(min-width:701px) and (max-width:900px){.nav-row{gap:10px}.nav-links{gap:9px;font-size:12.5px}.nav-row a[href*="github"]{display:none!important}}
+/* Les extraits de code des cartes : un seul bloc, pas une case par ligne. */
+.page-mini .mini-code{border:0;border-radius:0;margin:0;padding:1px 11px;font-size:10px;background:none}
+.page-mini .mini-gallery{grid-template-columns:1fr 1fr!important;gap:8px}
+.page-mini .mini-tile{min-height:0!important;height:auto;padding:12px 6px}

@@ -17,6 +17,19 @@ import { chaine } from './noms.js';
 /** La clé du stockage du navigateur (ou du téléphone) où le choix est gardé. */
 export const CLE_LANGUE = 'humalis-langue';
 
+/** La classe qui cache la page prérendue tant que la bonne langue n'est pas dessinée. */
+const CLASSE_ATTENTE = 'humalis-langue-attente';
+
+/**
+ * Les balises du haut de page d'un site en plusieurs langues : le prérendu est écrit dans la
+ * première langue ; si la personne en attend une autre, on le cache jusqu'au premier dessin,
+ * pour qu'elle ne voie pas une langue puis l'autre. Au bout de 3 secondes, on montre quand même.
+ */
+export function balisesLangueDeDepart(codes: string[]): string {
+  const script = `(function(){try{if(navigator.webdriver)return;var L=${JSON.stringify(codes)},c=null;try{var g=localStorage.getItem(${JSON.stringify(CLE_LANGUE)});if(L.indexOf(g)>=0)c=g}catch(e){}if(!c){var n=navigator.languages||[navigator.language];for(var i=0;i<n.length&&!c;i++){var d=n[i].slice(0,2).toLowerCase();if(L.indexOf(d)>=0)c=d}}if(c&&c!==L[0]){var r=document.documentElement;r.lang=c;r.classList.add(${JSON.stringify(CLASSE_ATTENTE)});setTimeout(function(){r.classList.remove(${JSON.stringify(CLASSE_ATTENTE)})},3000)}}catch(e){}})()`;
+  return `\n    <style>html.${CLASSE_ATTENTE} #racine{visibility:hidden}</style>\n    <script>${script}</script>`;
+}
+
 /** Les lignes communes : la liste des langues et leurs noms écrits dans leur langue. */
 function entete(langues: LangueRI[]): string {
   return `/** Les langues du site : la première est celle des textes écrits. */
@@ -87,7 +100,11 @@ function langueDeDepart(): Langue {
 
 let actuelle: Langue = langueDeDepart();
 // Les lecteurs d'écran prononcent la page dans la bonne langue.
-if (typeof document !== 'undefined') document.documentElement.lang = actuelle;
+if (typeof document !== 'undefined') {
+  document.documentElement.lang = actuelle;
+  // Ce fichier arrive avec la page : deux images plus tard, elle est dessinée dans la bonne langue.
+  requestAnimationFrame(() => requestAnimationFrame(() => document.documentElement.classList.remove('humalis-langue-attente')));
+}
 
 /** Change la langue, et la garde dans ce navigateur : c'est un choix de la personne. */
 export function changerLangue(langue: Langue): void {
