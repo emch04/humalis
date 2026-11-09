@@ -56,6 +56,7 @@ const DECLENCHEURS: Record<GenreEvenement, Gestionnaire['declencheur']> = {
   bas: 'bas',
   ordre: 'ordre',
   arrierePlan: 'arrierePlan',
+  commandeMenu: 'commandeMenu',
 };
 
 /** Les touches sous leur forme canonique (l'analyse a déjà refusé celles qui n'existent pas). */
@@ -107,6 +108,7 @@ export function construireRepresentation(
       : {}),
     ...(programme.paquetsSwift?.length ? { paquetsSwift: programme.paquetsSwift } : {}),
     ...(programme.liensProfonds ? { liensProfonds: programme.liensProfonds } : {}),
+    ...(programme.ongletsApplication?.length ? { ongletsApplication: programme.ongletsApplication } : {}),
     composantsReact: programme.composantsReact.map((c) => ({ nom: c.nom, chemin: c.chemin, ligne: c.ligne, ...(c.module ? { module: true as const } : {}), ...(c.apple !== undefined ? { apple: c.apple } : {}) })),
     fonctions: [...analyse.fonctions.values()].map(({ definition, retour, appels }) => ({
       nom: definition.nom,
@@ -342,6 +344,7 @@ class Construction {
       ...(this.page.filtres?.length ? { filtres: this.page.filtres.map((f) => ({ nom: f.nom, ...(f.nombre ? { nombre: true } : {}) })) } : {}),
       ...(this.page.reservee ? { reservee: { qui: this.page.reservee.qui, sinon: this.page.reservee.sinon ?? 'connexion' } } : {}),
       ...(this.analyse.etatsLus.get(this.page)?.size ? { etatsRequetes: [...this.analyse.etatsLus.get(this.page)!] } : {}),
+      ...(this.page.reglages ? { reglages: true } : {}),
       ...(this.page.sansEntete ? { sansEntete: true } : {}),
       ...(this.page.sansPied ? { sansPied: true } : {}),
       ...(this.page.apercu
@@ -369,6 +372,7 @@ class Construction {
       ...(evenement.tantQue ? { tantQue: this.test(evenement.tantQue) } : {}),
       ...(evenement.genre === 'bas' ? { bouton: evenement.bouton === undefined ? 'Voir plus' : evenement.bouton } : {}),
       ...(evenement.variable !== undefined ? { variable: evenement.variable } : {}),
+      ...(evenement.menuApplication !== undefined ? { menu: evenement.menuApplication, titreCommande: evenement.titreCommande } : {}),
       ligne: evenement.ligne,
     };
   }
@@ -457,7 +461,7 @@ class Construction {
           break;
 
         case 'Bloc':
-          noeuds.push(instruction.genre === 'carte' ? this.carte(instruction, gestionnaires) : { ...this.bloc(instruction, gestionnaires), ...(instruction.plateforme ? { plateforme: instruction.plateforme } : {}) } as NoeudVue);
+          noeuds.push(instruction.genre === 'carte' ? this.carte(instruction, gestionnaires) : { ...this.bloc(instruction, gestionnaires), ...(instruction.plateforme ? { plateforme: instruction.plateforme } : {}), ...(instruction.natif ? { natif: instruction.natif } : {}) } as NoeudVue);
           break;
 
         case 'CodeDocumentation':
@@ -475,6 +479,7 @@ class Construction {
               this.analyse.elements.get(this.page)?.formulaires.find((f) => f.noeud === instruction)?.id ??
               `formulaire_ligne_${instruction.ligne}`,
             nom: instruction.nom,
+            ...(instruction.reglages ? { reglages: true } : {}),
             ...(instruction.classes ? { classes: instruction.classes } : {}),
             corps: this.vue(instruction.corps, gestionnaires),
             ligne: instruction.ligne,

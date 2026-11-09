@@ -354,6 +354,25 @@ enum PolicesHumalis {
     static func vrai(_ nom: String) -> String { noms[nom] ?? nom }
 }
 
+/** « avec fond translucide » : le verre des systèmes récents, sinon le matériau translucide. */
+struct FondTranslucideHumalis: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26, macOS 26, *) {
+            content.glassEffect(in: RoundedRectangle(cornerRadius: 12))
+        } else {
+            content.background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        }
+    }
+}
+
+/** Une ligne d'une « table » : un tableau Mac demande un identifiant par ligne. */
+struct LigneTableHumalis<Valeur>: Identifiable {
+    let id: Int
+    let valeur: Valeur
+}
+
+enum RacinePageHumalis { case defilement, liste, reglages }
+
 /** L'écart entre les enfants d'un bloc, quand iOS et macOS en ont un différent. */
 func ecartHumalis(ios: CGFloat, mac: CGFloat) -> CGFloat {
     #if os(iOS)
@@ -394,9 +413,41 @@ struct PageHumalis<Contenu: View>: View {
     var largeur: CGFloat = 768
     /** Une page avec une liste : seules les lignes visibles sont construites. */
     var paresseuse = false
+    /** Une liste système (pour glisser une ligne) ou un formulaire façon Réglages remplacent le défilement. */
+    var racine: RacinePageHumalis = .defilement
     @ViewBuilder let contenu: () -> Contenu
 
+    private var natif: Bool {
+        #if os(iOS)
+        return racine != .defilement
+        #else
+        return racine == .reglages
+        #endif
+    }
+
+    @ViewBuilder private var pageNative: some View {
+        if racine == .reglages {
+            Form {
+                if let enteteDefilante { enteteDefilante }
+                contenu()
+                if let pied { pied }
+            }
+            .formStyle(.grouped)
+        } else {
+            List {
+                if let enteteDefilante { enteteDefilante }
+                contenu().listRowSeparator(.hidden)
+                if let pied { pied }
+            }
+            .listStyle(.plain)
+        }
+    }
+
     var body: some View {
+        if natif { pageNative.navigationTitle(titre) } else { pageDefilante }
+    }
+
+    private var pageDefilante: some View {
         ScrollViewReader { lecteur in
             ScrollView {
                 VStack(spacing: 0) {

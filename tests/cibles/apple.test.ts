@@ -311,6 +311,54 @@ describe('cible Apple — rôles, temps réel, IA, paiements, notifications', ()
   });
 });
 
+describe('les composants natifs', () => {
+  const SERVEUR = `serveur "s" :\n    donnee d :\n        nom : texte\n    route "d" :\n        tout le monde peut lire d\n        tout le monde peut supprimer d\n\n`;
+  const page = (corps: string) => `${SERVEUR}page "accueil" :\n    variable l = []\n    variable q = ""\n    titre "t"\n${corps.split('\n').map((x) => `    ${x}`).join('\n')}\n`;
+  const swift = (corps: string) => projet(page(corps)).get('Essai/Pages/PageAccueil.swift')!;
+
+  it('la recherche, la barre d\'outils et l\'écran vide sont les vrais composants', () => {
+    expect(swift('recherche dans q avec indice "Chercher"')).toContain('.searchable(text: $q, prompt: "Chercher")');
+    expect(swift('barre d\'outils :\n    bouton "Plus"')).toContain('ToolbarItemGroup(placement: .primaryAction)');
+    expect(swift('etat vide "Rien" avec icone "boite" et description "Ajoutez"')).toContain('ContentUnavailableView');
+  });
+
+  it('une action en glissant passe la page en liste système', () => {
+    const code = swift('pour chaque x dans l :\n    texte x\n    action en glissant "Suppr" :\n        afficher "ok"');
+    expect(code).toContain('racine: .liste');
+    expect(code).toContain('.swipeActions(edge: .trailing)');
+    expect(code).toContain('.contextMenu');
+  });
+
+  it('un menu d\'options se pose sur l\'élément au-dessus', () => {
+    expect(swift('texte "x"\nmenu d\'options :\n    option "Copier" :\n        afficher "ok"')).toContain('.contextMenu');
+  });
+
+  it('une table est un vrai tableau sur Mac', () => {
+    const code = swift('table l :\n    colonne "Nom" avec x.nom');
+    expect(code).toContain('#if os(macOS)');
+    expect(code).toContain('TableColumn("Nom")');
+  });
+
+  it('les onglets, les menus et la page de réglages arrivent dans l\'application', () => {
+    const f = projet(`onglets de l'application :\n    onglet "A" vers "accueil" avec icone "maison"\n\nmenu de l'application "Fichier" :\n    commande "N" avec raccourci "cmd+n" :\n        rediriger vers "accueil"\n\npage "accueil" :\n    titre "t"\n\npage "prefs" en reglages :\n    titre "p"\n`);
+    const app = f.get('Essai/EssaiApp.swift')!;
+    expect(app).toContain('TabView(selection:');
+    expect(app).toContain('CommandMenu("Fichier")');
+    expect(app).toContain('.keyboardShortcut(KeyEquivalent(Character("n")), modifiers: [.command])');
+    expect(app).toContain('Settings {');
+  });
+
+  it('avec fond translucide suit le système', () => {
+    expect(swift('texte "x" avec fond translucide')).toContain('FondTranslucideHumalis');
+  });
+
+  it('un menu de l\'application est refusé clairement sur le web', async () => {
+    const { verifierAppareilPourLaCible } = await import('../../src/cibles/appareil.js');
+    const app = compile(`menu de l'application "F" :\n    commande "N" :\n        rediriger vers "accueil"\n\npage "accueil" :\n    titre "t"\n`);
+    expect(verifierAppareilPourLaCible(app, 'web').some((d) => d.message.includes('barre de menus'))).toBe(true);
+  });
+});
+
 describe('la page d\'entrée réservée', () => {
   it('passe par sa garde, comme les autres pages', () => {
     const f = projet(`serveur "s" :\n    donnee d :\n        n : texte\n    route "d" :\n        seul admin peut lire d\n\npage "a" reservee a admin sinon vers "b" :\n    titre "a"\n\npage "b" :\n    titre "b"\n`);

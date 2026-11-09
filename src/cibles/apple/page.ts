@@ -64,6 +64,7 @@ const UNE_LIGNE = new Set(['texte', 'email', 'telephone', 'nombre', 'date', 'heu
 
 export class GenerateurPage implements HotePage {
   valeurs!: Valeurs;
+  private dansReglages = false;
   ligne = 0;
   pages: HotePage['pages'];
   etatsRequetes: Set<string>;
@@ -112,7 +113,7 @@ export class GenerateurPage implements HotePage {
     this.ecran = {
       ...ecran,
       // « en arriere plan » n'appartient pas à la page ouverte : voir arrierePlanSwift.
-      gestionnaires: ecran.gestionnaires.filter((g) => g.declencheur !== 'arrierePlan'),
+      gestionnaires: ecran.gestionnaires.filter((g) => g.declencheur !== 'arrierePlan' && g.declencheur !== 'commandeMenu'),
       etat: ecran.etat.map((e) => {
         if (!choisis.has(e.nom)) return e;
         const de = e.type.genre === 'liste' ? e.type.de : e.type;
@@ -477,10 +478,12 @@ export class GenerateurPage implements HotePage {
     e.bloc('var body: some View {', () => {
       // Une ancre doit exister pour qu'on y aille : une page qui en a construit tout son contenu.
       const paresseuse = this.ecran.vue.some((n) => n.type === 'repetition') && !JSON.stringify(this.ecran.vue).includes('"ancre"');
-      e.ligne(this.parametres || this.nomForce ? 'Group {' : `PageHumalis(titre: ${titreCode}${paresseuse ? ', paresseuse: true' : ''}) {`);
+      const racine = this.ecran.vue.some((n) => n.type === 'formulaire' && n.reglages) ? ', racine: .reglages' : this.ecran.vue.some((n) => n.type === 'repetition' && n.corps.some((c) => c.type === 'bloc' && c.natif?.genre === 'glisser')) ? ', racine: .liste' : '';
+      e.ligne(this.parametres || this.nomForce ? 'Group {' : `PageHumalis(titre: ${titreCode}${paresseuse ? ', paresseuse: true' : ''}${racine}) {`);
       for (const l of corps.trimEnd().split('\n')) if (l !== '') e.ligne(l.slice(2));
       e.ligne('}');
       e.indenter(() => {
+        for (const n of this.ecran.vue) if (n.type === 'bloc' && n.natif) this.modificateurNatif(e, n);
         chargements.forEach((_, i) => {
           const nom = `auChargement${chargements.length > 1 ? i + 1 : ''}`;
           const parametres = (this.ecran.parametresAdresse ?? []).map(nomSwift);
@@ -514,6 +517,83 @@ export class GenerateurPage implements HotePage {
     });
   }
 
+  /** Ce qu'un composant natif pose sur la page entière : barre d'outils, recherche, actualisation. */
+  private modificateurNatif(e: Ecrivain, n: Extract<NoeudVue, { type: 'bloc' }>): void {
+    const natif = n.natif!;
+    if (natif.genre === 'outils') {
+      e.bloc('.toolbar {', () => e.bloc('ToolbarItemGroup(placement: .primaryAction) {', () => this.ecrireCorps(e, n.corps)));
+    } else if (natif.genre === 'recherche') {
+      const lue = this.portee.variables.get(natif.variable!);
+      if (!lue) return this.refuser(n.ligne, `« recherche dans ${natif.variable} » : cette variable est inconnue ici`);
+      const lien = lue.code.includes('.') ? `Binding(get: { ${lue.code} }, set: { ${lue.code} = $0 })` : `$${lue.code}`;
+      e.ligne(`.searchable(text: ${lien}, prompt: ${chaineSwift(natif.indice ?? 'Rechercher')})`);
+    } else if (natif.genre === 'actualiser') {
+      const bouton = n.corps.find((c) => c.type === 'element');
+      const f = bouton && bouton.type === 'element' ? this.clics.get(bouton.id)?.[0] : undefined;
+      if (!f) return;
+      const args = f.parametres.map((p) => nomSwift(p.nom)).join(', ');
+      e.ligne('#if os(iOS)');
+      e.ligne(`.refreshable { ${f.asynchrone ? 'await ' : ''}${f.nom}(${args}) }`);
+      e.ligne('#else');
+      e.bloc('.toolbar {', () => e.bloc('ToolbarItem(placement: .primaryAction) {', () => this.ecrireCorps(e, n.corps)));
+      e.ligne('#endif');
+    }
+  }
+
+  /** Vrai si le composant natif s'est écrit ; sinon, le bloc s'écrit comme son équivalent. */
+  private ecrireNatif(e: Ecrivain, n: Extract<NoeudVue, { type: 'bloc' }>): boolean {
+    const natif = n.natif!;
+    const enTete = this.ecran.vue.includes(n);
+    switch (natif.genre) {
+      case 'vide': {
+        const titre = n.corps[0];
+        const description = n.corps[1];
+        const texte = (v: NoeudVue | undefined) => (v && v.type === 'element' ? this.valeurs.enTexte(v.contenu) : '""');
+        e.ligne(`ContentUnavailableView { Label(${texte(titre)}, systemImage: ${chaineSwift(natif.icone ? nomIcone(natif.icone) : 'tray')}) }${description ? ` description: { Text(verbatim: ${texte(description)}) }` : ''}`);
+        return true;
+      }
+      case 'outils':
+      case 'recherche':
+      case 'actualiser':
+        return enTete;
+      case 'options':
+      case 'glisser':
+        return true;
+      case 'groupe': {
+        if (!this.dansReglages) return false;
+        const titre = n.corps[0];
+        e.bloc(`Section(${titre && titre.type === 'element' ? this.valeurs.enTexte(titre.contenu) : '""'}) {`, () => this.ecrireCorps(e, n.corps.slice(1)));
+        return true;
+      }
+      case 'table': {
+        const rangee = n.corps[0];
+        const ligne = rangee?.type === 'repetition' ? rangee.corps[0] : undefined;
+        if (rangee?.type !== 'repetition' || ligne?.type !== 'bloc') return false;
+        const liste = this.valeurs.listePresente(rangee.liste);
+        const nom = nomSwift(rangee.variable);
+        const avant = new Map(this.portee.variables);
+        this.portee.variables.set(rangee.variable, { code: nom, type: plusPrecis(rangee.typeVariable, this.valeurs.elementDe(liste.type)), opt: false });
+        e.ligne('#if os(macOS)');
+        e.bloc(`Table(${liste.code}.enumerated().map { LigneTableHumalis(id: $0.offset, valeur: $0.element) }) {`, () => {
+          (natif.colonnes ?? []).forEach((titre, i) => {
+            e.bloc(`TableColumn(${chaineSwift(titre)}) { rangee in`, () => {
+              e.ligne(`let ${nom} = rangee.valeur`);
+              this.ecrireNoeud(e, ligne.corps[i]);
+            });
+          });
+        });
+        e.indenter(() => e.ligne('.frame(minHeight: 320)'));
+        e.ligne('#else');
+        this.restaurer(avant);
+        this.ecrireCorps(e, n.corps);
+        e.ligne('#endif');
+        return true;
+      }
+      default:
+        return false;
+    }
+  }
+
   private titreCode(titre: string): string {
     const premier = (noeuds: NoeudVue[]): Valeur | undefined => {
       for (const n of noeuds) {
@@ -532,7 +612,38 @@ export class GenerateurPage implements HotePage {
   // ─── La vue ──────────────────────────────────────────────────────────────
 
   private ecrireVue(e: Ecrivain, noeuds: NoeudVue[]): void {
-    for (const noeud of noeuds) this.ecrireNoeud(e, noeud);
+    noeuds.forEach((noeud, i) => {
+      const suivant = noeuds[i + 1];
+      // « menu d'options » : il se pose sur l'élément juste au-dessus.
+      if (suivant?.type === 'bloc' && suivant.natif?.genre === 'options') {
+        e.bloc('Group {', () => this.ecrireNoeud(e, noeud));
+        e.indenter(() => e.bloc('.contextMenu {', () => this.boutonsSysteme(e, suivant.corps)));
+      } else this.ecrireNoeud(e, noeud);
+    });
+  }
+
+  /** Glisser et menus n'acceptent que des boutons simples : un titre et une icône, sans mise en forme. */
+  private boutonsSysteme(e: Ecrivain, noeuds: NoeudVue[]): void {
+    for (const n of noeuds) {
+      if (n.type !== 'element' || n.genre !== 'bouton') continue;
+      const faire = (this.clics.get(n.id) ?? []).map((f) => this.appel(f)).join('; ');
+      const titre = this.valeurs.enTexte(n.contenu);
+      e.ligne(n.reglages?.icone ? `Button(${titre}, systemImage: ${chaineSwift(nomIcone(n.reglages.icone))}) { ${faire} }` : `Button(${titre}) { ${faire} }`);
+    }
+  }
+
+  /** Le corps d'une ligne de boucle, avec ses actions en glissant. */
+  private ecrireLigneDeBoucle(e: Ecrivain, noeud: Extract<NoeudVue, { type: 'repetition' }>): void {
+    const actions = noeud.corps.flatMap((n) => (n.type === 'bloc' && n.natif?.genre === 'glisser' ? n.corps : []));
+    if (actions.length === 0) return this.ecrireCorps(e, noeud.corps);
+    if (!this.ecran.vue.includes(noeud)) this.app.avertir(noeud.ligne, "« action en glissant » : la boucle n'est pas directement dans la page, l'action est proposée au toucher prolongé.");
+    e.bloc('Group {', () => this.ecrireCorps(e, noeud.corps));
+    e.indenter(() => {
+      e.bloc('.contextMenu {', () => this.boutonsSysteme(e, actions));
+      e.ligne('#if os(iOS)');
+      e.bloc('.swipeActions(edge: .trailing) {', () => this.boutonsSysteme(e, actions));
+      e.ligne('#endif');
+    });
   }
 
   /** Les enfants d'un bloc ; rien à montrer : une vue vide (un `if` vide ne se compile pas toujours). */
@@ -558,6 +669,13 @@ export class GenerateurPage implements HotePage {
         return this.visible(e, noeud.id, () => this.ecrireWidget(e, noeud));
       case 'formulaire':
         return this.visible(e, noeud.id, () => {
+          if (noeud.reglages) {
+            const avant = this.dansReglages;
+            this.dansReglages = true;
+            this.ecrireCorps(e, noeud.corps);
+            this.dansReglages = avant;
+            return;
+          }
           e.bloc('VStack(alignment: .leading, spacing: 12) {', () => this.ecrireCorps(e, noeud.corps));
           e.indenter(() => e.ligne(`.identifiantHumalis(${chaineSwift(noeud.id)})`));
         });
@@ -637,7 +755,7 @@ export class GenerateurPage implements HotePage {
       const identite = type.genre === 'donnee' && this.app.types.champ(type, 'id') ? '\\.element.id' : '\\.offset';
       e.bloc(`ForEach(Array(${liste.code}.enumerated()), id: ${identite}) { ${index}, ${nom} in`, () => {
         e.ligne(`let _ = ${index}`);
-        this.ecrireCorps(e, noeud.corps);
+        this.ecrireLigneDeBoucle(e, noeud);
       });
     }
     if (noeud.animation) {
@@ -678,6 +796,7 @@ export class GenerateurPage implements HotePage {
   }
 
   private ecrireBloc(e: Ecrivain, noeudLu: Extract<NoeudVue, { type: 'bloc' }>): void {
+    if (noeudLu.natif && this.ecrireNatif(e, noeudLu)) return;
     // « sur ios : », « sur macos : » : le projet Xcode est commun aux deux.
     if (noeudLu.plateforme === 'ios' || noeudLu.plateforme === 'macos') {
       e.ligne(`#if os(${noeudLu.plateforme === 'ios' ? 'iOS' : 'macOS'})`);

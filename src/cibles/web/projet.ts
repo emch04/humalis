@@ -2258,7 +2258,8 @@ export function styles(formulaires = false, blocs = false): string {
         `.humalis-fond-${nom} { background: var(--humalis-${nom}); color: var(--humalis-${nom}-encre); border-color: transparent; }`,
     )
     .join('\n');
-  return `/* Produit par Humalis : le jeu de styles nommés (couleur, fond, texte, taille, position, bordure). */
+  const translucide = '\n.humalis-fond-translucide { background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }';
+  return `/* Produit par Humalis : le jeu de styles nommés (couleur, fond, texte, taille, position, bordure). */${translucide}
 :root {
   color-scheme: light dark;
   --humalis-page: #ffffff;

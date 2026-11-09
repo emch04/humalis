@@ -57,7 +57,8 @@ export function modificateurs(options: Option[], sorte: SorteVue, contexte: { da
 
   if (valeur('hauteur') === 'ecran') lignes.push('.containerRelativeFrame(.vertical)');
 
-  if (fond && sorte !== 'bouton') {
+  if (fond === 'translucide') lignes.push('.modifier(FondTranslucideHumalis())');
+  else if (fond && sorte !== 'bouton') {
     if (estTexte && !remplissage) lignes.push('.padding(.horizontal, 8)', '.padding(.vertical, 4)');
     // Le texte posé sur un fond prend la couleur d'encre de ce fond.
     if (!couleur && (estTexte || sorte === 'bloc')) lignes.push(`.foregroundStyle(Couleurs.encre${majuscule(nomSwift(fond))})`);

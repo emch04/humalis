@@ -19,6 +19,7 @@ import { nomIcone } from './icones.js';
 import { chaineSwift, nomApplication, nomComposant, nomPage, nomRoute, nomSwift } from './noms.js';
 import { GenerateurPage, type ContexteApple } from './page.js';
 import { CssApple } from './css.js';
+import { touches } from './styles.js';
 import { CONNEXIONS_SWIFT, ENVOIS_SWIFT, LANGUES_SWIFT, MEMOIRE_SWIFT, MESSAGES_SWIFT, MINUTERIES_SWIFT, NOTIFICATIONS_SWIFT, SERVEUR_SWIFT, SYSTEME_SWIFT } from './systeme.js';
 import { Types, Valeurs, plusPrecis, type Portee } from './valeurs.js';
 import { CONFIDENTIALITE, assets, associationSite, infoSupplementaire, type PaquetSwift, droits, projetXcode, schemaXcode } from './xcode.js';
@@ -270,6 +271,43 @@ ${/\bjetons\./.test(texte) ? '  let jetons = JetonsRequetes()\n' : ''}${texte}${
 `;
 }
 
+/** Les commandes des « menu de l'application » : du code sans page ouverte, comme le travail en arrière-plan. */
+function commandesSwift(application: Application, app: ContexteApple, portee: Portee): { code: string; menus: { menu: string; commandes: { titre: string; fonction: string; raccourci?: string }[] }[] } {
+  portee.variables.clear();
+  for (const p of application.partages) portee.variables.set(p.nom, { code: `Partage.commun.${nomSwift(p.nom)}`, type: p.type, opt: p.facultatif ?? false });
+  const e = new Ecrivain();
+  e.ligne("// Produit par Humalis : les commandes des menus de l'application.");
+  e.ligne('import SwiftUI');
+  const menus: { menu: string; commandes: { titre: string; fonction: string; raccourci?: string }[] }[] = [];
+  let n = 0;
+  for (const g of application.ecrans.flatMap((x) => x.gestionnaires.filter((y) => y.declencheur === 'commandeMenu'))) {
+    const hote: HotePage = {
+      valeurs: new Valeurs(app.types, portee, (quoi) => app.refuser(g.ligne, `${quoi} : une commande de menu ne voit que les variables partagées.`)),
+      refuser: (l, quoi) => app.refuser(l, `${quoi} : une commande de menu ne voit que les variables partagées.`),
+      ligne: g.ligne,
+      pages: app.pages,
+      etatsRequetes: new Set(),
+      estEtat: () => false,
+      nomEtatRequete: (x) => x,
+      estHorsLigne: () => false,
+    };
+    const corps = new Ecrivain();
+    corps.indenter(() => new EcrivainActions(hote, new Map()).ecrire(corps, g.actions));
+    const texte = corps.texte();
+    if (/\b(planificateur\.|directs\.|relances\[)/.test(texte)) app.refuser(g.ligne, 'une commande de menu ne peut pas lancer de minuterie ni de lecture « en direct ».');
+    const fonction = `commandeMenu${++n}`;
+    e.ligne();
+    e.ligne(`@MainActor func ${fonction}() async {`);
+    if (/\bjetons\./.test(texte)) e.ligne('  let jetons = JetonsRequetes()');
+    for (const l of texte.trimEnd().split('\n')) e.ligne(l);
+    e.ligne('}');
+    let menu = menus.find((m) => m.menu === g.menu);
+    if (!menu) menus.push((menu = { menu: g.menu ?? '', commandes: [] }));
+    menu.commandes.push({ titre: g.titreCommande ?? '', fonction, ...(g.touches ? { raccourci: g.touches } : {}) });
+  }
+  return { code: e.texte(), menus };
+}
+
 function sourcesSwift(sources: SourceRI[]): string {
   const e = new Ecrivain();
   e.ligne("// Produit par Humalis : les API que les pages appellent. Un jeton public part avec l'application ; un secret n'est jamais écrit ici.");
@@ -371,6 +409,7 @@ function routesSwift(application: Application, app: ContexteApple, entree: Ecran
     e.ligne('private var apresConnexion: Route?');
     e.ligne();
     e.bloc('func aller(_ route: Route, ancre: String? = nil) {', () => {
+      if (application.ongletsApplication) e.ligne('if enOnglets, let rang = racinesDesOnglets.firstIndex(of: route) { choisirOnglet(rang); self.ancre = ancre; return }');
       e.ligne('if route == .accueilHumalis { chemin = [] } else if chemin.last != route { chemin.append(route) }');
       e.ligne('self.ancre = ancre');
     });
@@ -379,6 +418,16 @@ function routesSwift(application: Application, app: ContexteApple, entree: Ecran
       e.ligne('chemin = route == .accueilHumalis ? [] : [route]');
     });
     e.ligne();
+    if (application.ongletsApplication) {
+      e.ligne('var onglet = 0');
+      e.ligne('var enOnglets = false');
+      e.ligne(`private let racinesDesOnglets: [Route] = [${application.ongletsApplication.map((o) => routeSimple(o.page, app)).join(', ')}]`);
+      e.bloc('func choisirOnglet(_ rang: Int) {', () => {
+        e.ligne('onglet = rang');
+        e.ligne('chemin = []');
+      });
+      e.ligne();
+    }
     e.bloc('func revenir(sinon: Route? = nil) {', () => {
       e.ligne('if !chemin.isEmpty { chemin.removeLast() } else if let sinon { aller(sinon) }');
     });
@@ -482,7 +531,7 @@ function menuSwift(entrees: EntreeMenu[]): string {
   return e.texte();
 }
 
-function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, disposition: Disposition, polices: { fichier: string; nom: string }[], policeTexte?: string, notifications = false, fonds: { liens?: boolean; domaine?: boolean; envois?: boolean; arrierePlan?: boolean } = {}): string {
+function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, disposition: Disposition, polices: { fichier: string; nom: string }[], policeTexte?: string, notifications = false, fonds: { liens?: boolean; domaine?: boolean; envois?: boolean; arrierePlan?: boolean; onglets?: { titre: string; route: string; icone: string }[]; menus?: ReturnType<typeof commandesSwift>['menus']; reglages?: string } = {}): string {
   // Par la route, et non la page directement : une page d'entrée réservée garde sa protection.
   const racine = entree.reservee ? 'Route.accueilHumalis.vue' : `${nomPage(entree.nom)}()`;
   const sans = (liste: string[]) => (liste.length ? `![${liste.map((r) => `Route.${r}`).join(', ')}].contains(Routeur.commun.chemin.last ?? .accueilHumalis)` : 'true');
@@ -490,7 +539,7 @@ function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, dispos
   const pied = disposition.pied;
   const menu = disposition.menu && disposition.menu.length > 0 ? disposition.menu : undefined;
   // Avec la barre latérale, un en-tête qui n'a que son menu disparaît.
-  const montrerEntete = entete ? `${sans(entete.sans)}${menu && !disposition.enteteAvecAutreChose ? ' && !large' : ''}${entete.haut ? ' && large' : ''}` : '';
+  const montrerEntete = entete ? `${sans(entete.sans)}${menu && !disposition.enteteAvecAutreChose ? (fonds.onglets ? ' && false' : ' && !large') : ''}${entete.haut ? ' && large' : ''}` : '';
   const piedColle = pied?.colle ? pied : undefined;
   const piedQuiDefile = pied && !pied.colle ? pied : undefined;
   const enteteDansLaPage = entete ? `AnyView(${entete.nom}().padding(.horizontal, 16).padding(.vertical, 8).frame(maxWidth: .infinity, alignment: .leading)${entete.css.join('')})` : '';
@@ -544,16 +593,38 @@ function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, dispos
     private let large = true
     #endif
 `;
-  const commandes = menu
+  const menusEcrits = (fonds.menus ?? []).map((m) => `
+            CommandMenu(${chaineSwift(m.menu)}) {${m.commandes.map((c) => `
+                Button(${chaineSwift(c.titre)}) { Task { await ${c.fonction}() } }${c.raccourci ? touches(c.raccourci) : ''}`).join('')}
+            }`).join('');
+  const commandes = menu || menusEcrits
     ? `
-        .commands {
+        .commands {${menu ? `
             CommandMenu("Aller à") {
                 ForEach(entreesDuMenu.prefix(9)) { entree in
                     Button(entree.titre) { Routeur.commun.allerAuMenu(entree.route) }
                         .keyboardShortcut(KeyEquivalent(Character("\\(entree.id + 1)")), modifiers: .command)
                 }
-            }
+            }` : ''}${menusEcrits}
         }`
+    : '';
+  const ongletsVue = fonds.onglets
+    ? `    /** Sur iPhone, la vraie barre d'onglets ; chaque onglet garde sa page de départ. */
+    private var ongletsCompacts: some View {
+        @Bindable var routeur = Routeur.commun
+        return TabView(selection: Binding(get: { routeur.onglet }, set: { routeur.choisirOnglet($0) })) {${fonds.onglets.map((o, i) => `
+            NavigationStack(path: routeur.onglet == ${i} ? $routeur.chemin : .constant([])) {
+                ${o.route}.vue
+                    .navigationDestination(for: Route.self) { $0.vue }
+            }
+            .tabItem { Label(${chaineSwift(o.titre)}, systemImage: ${chaineSwift(o.icone)}) }
+            .tag(${i})`).join('')}
+        }${insets}
+        .onAppear { routeur.enOnglets = true }
+        .onDisappear { routeur.enOnglets = false }
+    }
+
+`
     : '';
   const contenu = menu
     ? `        Group {
@@ -581,10 +652,10 @@ function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, dispos
                 }
                 .environment(\\.menuLateral, true)
             } else {
-                pile
+                ${fonds.onglets ? 'ongletsCompacts' : 'pile'}
             }
         }`
-    : '        pile';
+    : `        ${fonds.onglets ? 'ongletsCompacts' : 'pile'}`;
   const inscrire = polices.length
     ? `
     init() {
@@ -640,13 +711,18 @@ struct ${nom}App: App {${notifications ? `
         #if os(macOS)
         .windowResizability(.contentMinSize)
         .defaultSize(width: 1000, height: 720)
-        #endif${commandes}
+        #endif${commandes}${fonds.reglages ? `
+        #if os(macOS)
+        Settings {
+            ${fonds.reglages}.vue.frame(minWidth: 480, minHeight: 360)
+        }
+        #endif` : ''}
     }
 }
 
 /** La pile des pages, l'en-tête et le pied communs, les messages et les questions. */
 struct RacineHumalis: View {
-${entete || pied || menu ? largeur : ''}${pile}
+${entete || pied || menu ? largeur : ''}${pile}${ongletsVue}
     var body: some View {
 ${contenu}
         .overlay(alignment: .top) { PileMessagesHumalis(${entete ? (menu && !disposition.enteteAvecAutreChose ? 'decalage: large ? 0 : 56' : 'decalage: 56') : ''}) }
@@ -819,6 +895,14 @@ export function genererProjetApple(application: Application, options: OptionsApp
   const avecEnvois = /\b(appelOuGarder|appelReussiOuGarder)\(/.test([...fichiers.values()].join('\n'));
   const avecArrierePlan = application.ecrans.some((x) => x.gestionnaires.some((g) => g.declencheur === 'arrierePlan'));
   const identifiantFond = `${identifiantApp}.arriere-plan`;
+  const commandesEcrites = commandesSwift(application, app, portee);
+  if (commandesEcrites.menus.length > 0) ecrire('Humalis/Commandes.swift', commandesEcrites.code);
+  const ongletsSwift = application.ongletsApplication?.map((o) => {
+    if (!app.pages.has(o.page) || app.pages.get(o.page)!.parametres.length > 0) refuser(o.ligne, `l'onglet « ${o.titre} » vise la page « ${o.page} », qui n'existe pas ou attend un paramètre.`);
+    return { titre: o.titre, route: `Route${routeSimple(o.page, app)}`, icone: o.icone ? nomIcone(o.icone) : 'circle' };
+  });
+  const pageReglages = application.ecrans.find((x) => x.reglages);
+  if (pageReglages && (app.pages.get(pageReglages.nom)?.parametres.length ?? 0) > 0) refuser(pageReglages.ligne, `« page "${pageReglages.nom}" en reglages » : une page de réglages n'attend pas de paramètre.`);
   if (avecArrierePlan) ecrire('Humalis/ArrierePlan.swift', arrierePlanSwift(application, app, portee, identifiantFond, avecEnvois));
   if (avecEnvois) ecrire('Humalis/Envois.swift', ENVOIS_SWIFT);
 
@@ -828,7 +912,7 @@ export function genererProjetApple(application: Application, options: OptionsApp
   const notifications = JSON.stringify([application.ecrans, application.composants]).includes('"type":"activationNotifications"');
   if (notifications && !options.equipe) avertir(1, "« activer notifications » : sans --equipe, l'application demande la permission mais ne peut pas recevoir de notification d'Apple. Compilez avec --equipe pour qu'elle les reçoive.");
   const policesCopiees = (application.theme?.polices ?? []).flatMap((p) => (p.fichier && /\.(ttf|otf|woff2?)$/i.test(p.fichier) && options.polices?.has(p.fichier) ? [{ fichier: p.fichier, nom: p.nom }] : []));
-  ecrire(`${nom}App.swift`, applicationSwift(nom, application.site?.nom ?? options.nom, entree, disposition, policesCopiees.map((p) => ({ fichier: nomFichierPlat(p.fichier), nom: p.nom })), application.theme?.polices.find((p) => p.role === 'texte')?.nom, notifications, { liens: application.liensProfonds !== undefined, domaine: application.liensProfonds?.domaine !== undefined, envois: avecEnvois, arrierePlan: avecArrierePlan }));
+  ecrire(`${nom}App.swift`, applicationSwift(nom, application.site?.nom ?? options.nom, entree, disposition, policesCopiees.map((p) => ({ fichier: nomFichierPlat(p.fichier), nom: p.nom })), application.theme?.polices.find((p) => p.role === 'texte')?.nom, notifications, { liens: application.liensProfonds !== undefined, domaine: application.liensProfonds?.domaine !== undefined, envois: avecEnvois, arrierePlan: avecArrierePlan, ...(ongletsSwift ? { onglets: ongletsSwift } : {}), ...(commandesEcrites.menus.length ? { menus: commandesEcrites.menus } : {}), ...(pageReglages ? { reglages: `Route${routeSimple(pageReglages.nom, app)}` } : {}) }));
   if (disposition.menu?.length) ecrire('Humalis/Menu.swift', menuSwift(disposition.menu));
   for (const p of policesCopiees) ecrire(`Ressources/${nomFichierPlat(p.fichier)}`, contenuBinaire(options.polices!.get(p.fichier)!));
   ecrire('Humalis/Configuration.swift', configurationSwift(application, options));
