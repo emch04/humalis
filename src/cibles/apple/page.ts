@@ -841,7 +841,7 @@ export class GenerateurPage implements HotePage {
         e.indenter(() => {
           const aTaille = noeud.options.some((o) => o.nom === 'taille');
           const police = this.app.policeTitres;
-          if (!aTaille) e.ligne(police ? `.font(.custom(${chaineSwift(police)}, size: ${premier ? 34 : 22}, relativeTo: ${premier ? '.largeTitle' : '.title2'}))` : premier ? '.font(.largeTitle)' : '.font(.title2)');
+          if (!aTaille) e.ligne(police ? `.font(.custom(PolicesHumalis.vrai(${chaineSwift(police)}), size: ${premier ? 34 : 22}, relativeTo: ${premier ? '.largeTitle' : '.title2'}))` : premier ? '.font(.largeTitle)' : '.font(.title2)');
           e.ligne('.bold()');
           e.ligne('.accessibilityAddTraits(.isHeader)');
         });

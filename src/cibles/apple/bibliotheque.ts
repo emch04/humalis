@@ -348,6 +348,12 @@ func formaterDepuis(_ valeur: String?) -> String {
 export const INTERFACE_SWIFT = String.raw`// Produit par Humalis : la page, la ligne et la grille, partagées par l'iPhone, l'iPad et le Mac.
 import SwiftUI
 
+/** Le nom réel de chaque police du thème, lu dans son fichier au lancement. */
+enum PolicesHumalis {
+    nonisolated(unsafe) static var noms: [String: String] = [:]
+    static func vrai(_ nom: String) -> String { noms[nom] ?? nom }
+}
+
 /** L'écart entre les enfants d'un bloc, quand iOS et macOS en ont un différent. */
 func ecartHumalis(ios: CGFloat, mac: CGFloat) -> CGFloat {
     #if os(iOS)

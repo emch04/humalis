@@ -66,7 +66,7 @@ function verifier(application: Application): Diagnostic[] {
     else if (c.apple === undefined) refuser(c.ligne, `le composant React « ${c.nom} » n'existe pas sur la cible Apple : donnez-lui une vue Swift avec « utiliser composant "${c.nom}" depuis "${c.chemin}" sur apple "${c.nom}.swift" ».`);
   }
   for (const p of application.theme?.polices ?? []) {
-    if (p.fichier && !/\.(ttf|otf)$/i.test(p.fichier)) avertir(1, `la police « ${p.fichier} » n'est pas chargée sur la cible Apple, qui lit les fichiers .ttf et .otf : la police du système est utilisée à la place.`);
+    if (p.fichier && !/\.(ttf|otf|woff2?)$/i.test(p.fichier)) avertir(1, `la police « ${p.fichier} » n'est pas chargée sur la cible Apple, qui lit les fichiers .ttf, .otf, .woff et .woff2 : la police du système est utilisée à la place.`);
   }
   const logo = application.site?.logo;
   if (logo && !/\.png$/i.test(logo)) avertir(application.site!.ligne, `le logo « ${logo} » ne peut pas servir d'icône sur la cible Apple, qui demande un PNG carré de 1024×1024 : l'application garde l'icône par défaut.`);
@@ -482,7 +482,7 @@ function menuSwift(entrees: EntreeMenu[]): string {
   return e.texte();
 }
 
-function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, disposition: Disposition, polices: string[], policeTexte?: string, notifications = false, fonds: { liens?: boolean; domaine?: boolean; envois?: boolean; arrierePlan?: boolean } = {}): string {
+function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, disposition: Disposition, polices: { fichier: string; nom: string }[], policeTexte?: string, notifications = false, fonds: { liens?: boolean; domaine?: boolean; envois?: boolean; arrierePlan?: boolean } = {}): string {
   // Par la route, et non la page directement : une page d'entrée réservée garde sa protection.
   const racine = entree.reservee ? 'Route.accueilHumalis.vue' : `${nomPage(entree.nom)}()`;
   const sans = (liste: string[]) => (liste.length ? `![${liste.map((r) => `Route.${r}`).join(', ')}].contains(Routeur.commun.chemin.last ?? .accueilHumalis)` : 'true');
@@ -588,8 +588,13 @@ function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, dispos
   const inscrire = polices.length
     ? `
     init() {
-        for fichier in [${polices.map(chaineSwift).join(', ')}] {
-            if let url = Bundle.main.url(forResource: fichier, withExtension: nil) { CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil) }
+        for (fichier, nom) in [${polices.map((p) => `(${chaineSwift(p.fichier)}, ${chaineSwift(p.nom)})`).join(', ')}] {
+            guard let url = Bundle.main.url(forResource: fichier, withExtension: nil) else { continue }
+            CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
+            // Le nom écrit dans le thème n'est pas toujours celui que porte le fichier.
+            let descripteurs = CTFontManagerCreateFontDescriptorsFromURL(url as CFURL) as? [CTFontDescriptor] ?? []
+            let noms = descripteurs.compactMap { CTFontDescriptorCopyAttribute($0, kCTFontNameAttribute) as? String }
+            if let vrai = noms.first(where: { $0.lowercased().contains("regular") }) ?? noms.first { PolicesHumalis.noms[nom] = vrai }
         }
     }
 `
@@ -647,7 +652,7 @@ ${contenu}
         .overlay(alignment: .top) { PileMessagesHumalis(${entete ? (menu && !disposition.enteteAvecAutreChose ? 'decalage: large ? 0 : 56' : 'decalage: 56') : ''}) }
         .modifier(QuestionHumalis())
         .preferredColorScheme(Apparence.commun.schema)${policeTexte ? `
-        .font(.custom(${chaineSwift(policeTexte)}, size: 17, relativeTo: .body))` : ''}
+        .font(.custom(PolicesHumalis.vrai(${chaineSwift(policeTexte)}), size: 17, relativeTo: .body))` : ''}
         #if os(macOS)
         .frame(minWidth: 480, minHeight: 400)
         #endif
@@ -822,10 +827,10 @@ export function genererProjetApple(application: Application, options: OptionsApp
   ecrire('Humalis/Routes.swift', routesSwift(application, app, entree, cheminsPages));
   const notifications = JSON.stringify([application.ecrans, application.composants]).includes('"type":"activationNotifications"');
   if (notifications && !options.equipe) avertir(1, "« activer notifications » : sans --equipe, l'application demande la permission mais ne peut pas recevoir de notification d'Apple. Compilez avec --equipe pour qu'elle les reçoive.");
-  const policesCopiees = (application.theme?.polices ?? []).flatMap((p) => (p.fichier && /\.(ttf|otf)$/i.test(p.fichier) && options.polices?.has(p.fichier) ? [p.fichier] : []));
-  ecrire(`${nom}App.swift`, applicationSwift(nom, application.site?.nom ?? options.nom, entree, disposition, policesCopiees.map(nomFichierPlat), application.theme?.polices.find((p) => p.role === 'texte')?.nom, notifications, { liens: application.liensProfonds !== undefined, domaine: application.liensProfonds?.domaine !== undefined, envois: avecEnvois, arrierePlan: avecArrierePlan }));
+  const policesCopiees = (application.theme?.polices ?? []).flatMap((p) => (p.fichier && /\.(ttf|otf|woff2?)$/i.test(p.fichier) && options.polices?.has(p.fichier) ? [{ fichier: p.fichier, nom: p.nom }] : []));
+  ecrire(`${nom}App.swift`, applicationSwift(nom, application.site?.nom ?? options.nom, entree, disposition, policesCopiees.map((p) => ({ fichier: nomFichierPlat(p.fichier), nom: p.nom })), application.theme?.polices.find((p) => p.role === 'texte')?.nom, notifications, { liens: application.liensProfonds !== undefined, domaine: application.liensProfonds?.domaine !== undefined, envois: avecEnvois, arrierePlan: avecArrierePlan }));
   if (disposition.menu?.length) ecrire('Humalis/Menu.swift', menuSwift(disposition.menu));
-  for (const p of policesCopiees) ecrire(`Ressources/${nomFichierPlat(p)}`, contenuBinaire(options.polices!.get(p)!));
+  for (const p of policesCopiees) ecrire(`Ressources/${nomFichierPlat(p.fichier)}`, contenuBinaire(options.polices!.get(p.fichier)!));
   ecrire('Humalis/Configuration.swift', configurationSwift(application, options));
   if (application.sources.length > 0) ecrire('Humalis/Sources.swift', sourcesSwift(application.sources));
 
