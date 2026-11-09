@@ -369,6 +369,22 @@ struct FondTranslucideHumalis: ViewModifier {
 struct LigneTableHumalis<Valeur>: Identifiable {
     let id: Int
     let valeur: Valeur
+    let cles: [CleTriHumalis]
+}
+
+/** Un nombre se compare comme un nombre, un texte selon la langue. */
+enum CleTriHumalis: Comparable {
+    case nombre(Double)
+    case texte(String)
+
+    static func < (a: CleTriHumalis, b: CleTriHumalis) -> Bool {
+        switch (a, b) {
+        case let (.nombre(x), .nombre(y)): return x < y
+        case let (.texte(x), .texte(y)): return x.localizedStandardCompare(y) == .orderedAscending
+        case (.nombre, .texte): return true
+        case (.texte, .nombre): return false
+        }
+    }
 }
 
 enum RacinePageHumalis { case defilement, liste, reglages }

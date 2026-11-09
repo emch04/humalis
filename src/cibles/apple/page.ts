@@ -65,6 +65,8 @@ const UNE_LIGNE = new Set(['texte', 'email', 'telephone', 'nombre', 'date', 'heu
 export class GenerateurPage implements HotePage {
   valeurs!: Valeurs;
   private dansReglages = false;
+  /** Les tables de la page : chacune garde son ordre de tri. */
+  private readonly tablesTriees: { nom: string; type: string }[] = [];
   ligne = 0;
   pages: HotePage['pages'];
   etatsRequetes: Set<string>;
@@ -436,6 +438,11 @@ export class GenerateurPage implements HotePage {
     for (const nom of this.etatsRequetes) e.ligne(`@State private var ${this.nomEtatRequete(nom)} = EtatRequete()`);
     if (/\brelances\[/.test(tout)) e.ligne('@State private var relances: [String: @MainActor () async -> Void] = [:]');
     if (/\bjetons\./.test(tout)) e.ligne('@State private var jetons = JetonsRequetes()');
+    if (this.tablesTriees.length > 0) {
+      e.ligne('#if os(macOS)');
+      for (const t of this.tablesTriees) e.ligne(`@State private var ${t.nom}: [KeyPathComparator<LigneTableHumalis<${t.type}>>] = []`);
+      e.ligne('#endif');
+    }
     if (/\bplanificateur\./.test(tout)) e.ligne('@State private var planificateur = Planificateur()');
     if (/\bdirects\./.test(tout)) e.ligne('@State private var directs = ConnexionsDirect()');
     if (this.portee.besoins.has('mouvementReduit')) e.ligne('@Environment(\\.accessibilityReduceMotion) private var mouvementReduit');
@@ -573,10 +580,19 @@ export class GenerateurPage implements HotePage {
         const nom = nomSwift(rangee.variable);
         const avant = new Map(this.portee.variables);
         this.portee.variables.set(rangee.variable, { code: nom, type: plusPrecis(rangee.typeVariable, this.valeurs.elementDe(liste.type)), opt: false });
+        const typeLigne = this.app.types.swift(this.portee.variables.get(rangee.variable)!.type);
+        const tri = `triTable${this.tablesTriees.length + 1}`;
+        this.tablesTriees.push({ nom: tri, type: typeLigne });
+        // Chaque colonne a sa clé de tri : un nombre se trie comme un nombre, le reste comme un texte.
+        const cles = ligne.corps.map((cellule) => {
+          if (cellule.type !== 'element') return '.texte("")';
+          const lue = this.valeurs.expr(cellule.contenu);
+          return lue.type.genre === 'nombre' ? `.nombre(${lue.opt ? `${lue.code} ?? 0` : lue.code})` : `.texte(${this.valeurs.enTexte(cellule.contenu)})`;
+        });
         e.ligne('#if os(macOS)');
-        e.bloc(`Table(${liste.code}.enumerated().map { LigneTableHumalis(id: $0.offset, valeur: $0.element) }) {`, () => {
+        e.bloc(`Table(${liste.code}.enumerated().map { rangTable, ${nom} in LigneTableHumalis(id: rangTable, valeur: ${nom}, cles: [${cles.join(', ')}]) }.sorted(using: ${tri}), sortOrder: $${tri}) {`, () => {
           (natif.colonnes ?? []).forEach((titre, i) => {
-            e.bloc(`TableColumn(${chaineSwift(titre)}) { rangee in`, () => {
+            e.bloc(`TableColumn(${chaineSwift(titre)}, value: \\.cles[${i}]) { rangee in`, () => {
               e.ligne(`let ${nom} = rangee.valeur`);
               this.ecrireNoeud(e, ligne.corps[i]);
             });
