@@ -343,7 +343,7 @@ describe('les composants natifs', () => {
     const f = projet(`onglets de l'application :\n    onglet "A" vers "accueil" avec icone "maison"\n\nmenu de l'application "Fichier" :\n    commande "N" avec raccourci "cmd+n" :\n        rediriger vers "accueil"\n\npage "accueil" :\n    titre "t"\n\npage "prefs" en reglages :\n    titre "p"\n`);
     const app = f.get('Essai/EssaiApp.swift')!;
     expect(app).toContain('TabView(selection:');
-    expect(app).toContain('CommandMenu("Fichier")');
+    expect(app).toContain('CommandGroup(after: .newItem)');
     expect(app).toContain('.keyboardShortcut(KeyEquivalent(Character("n")), modifiers: [.command])');
     expect(app).toContain('Settings {');
   });

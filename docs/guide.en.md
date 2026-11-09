@@ -653,6 +653,15 @@ page "help" :
 `accordeon` (accordion), `carrousel` (carousel: `automatique 5` turns every 5
 seconds, `visibles 1` shows one item at a time).
 
+### Native components
+
+These phrases describe an intent. Each platform uses its real component, and the web a simple
+equivalent: `onglets de l'application :`, `recherche dans q avec indice "…"`,
+`action en glissant "…" :`, `actualiser en tirant :`, `menu d'options :`,
+`formulaire "x" en reglages :` with `groupe "…" :`, `etat vide "…"`, `avec fond translucide`,
+`table l :` with `colonne "…" avec c.x`, `menu de l'application "…" :`, `page "x" en reglages :`
+and `barre d'outils :`. The application menu has no web equivalent: the compiler refuses it.
+
 ### Breadcrumb and menu
 
 ```humalis
