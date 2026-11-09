@@ -109,6 +109,7 @@ export function construireRepresentation(
     ...(programme.paquetsSwift?.length ? { paquetsSwift: programme.paquetsSwift } : {}),
     ...(programme.liensProfonds ? { liensProfonds: programme.liensProfonds } : {}),
     ...(programme.ongletsApplication?.length ? { ongletsApplication: programme.ongletsApplication } : {}),
+    ...(programme.barreLaterale ? { barreLaterale: programme.barreLaterale } : {}),
     composantsReact: programme.composantsReact.map((c) => ({ nom: c.nom, chemin: c.chemin, ligne: c.ligne, ...(c.module ? { module: true as const } : {}), ...(c.apple !== undefined ? { apple: c.apple } : {}) })),
     fonctions: [...analyse.fonctions.values()].map(({ definition, retour, appels }) => ({
       nom: definition.nom,

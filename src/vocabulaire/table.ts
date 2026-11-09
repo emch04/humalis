@@ -500,6 +500,19 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     etape: 9,
   },
 
+  {
+    mot: 'laterale',
+    variantes: [],
+    categorie: 'controle',
+    concept: 'onglets.barre-laterale',
+    contextes: ['tournure'],
+    cibles: partout('La barre du Mac est dessinée par une vue Swift'),
+    couvre: [],
+    description: 'Dans « onglets de l’application avec barre laterale "MaBarre" : », le module qui dessine la barre latérale du Mac à la place de celle du système.',
+    exemple: 'onglets de l\'application avec barre laterale "MaBarre" :\n    onglet "Accueil" vers "accueil" avec icone "maison"',
+    statut: 'supporte',
+    etape: 9,
+  },
   // ─── Le cœur du langage (plan du langage de base, tâches 1 et 2) : des tournures reconnues à leur texte ───
   {
     mot: 'fonction',

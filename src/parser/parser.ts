@@ -78,6 +78,7 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
   let paquetsSwift: NonNullable<Programme['paquetsSwift']> | undefined;
   let liensProfonds: Programme['liensProfonds'];
   let ongletsApplication: Programme['ongletsApplication'];
+  let barreLaterale: string | undefined;
   const commandesMenu: Evenement[] = [];
   const fichiersHumalis: { chemin: string; ligne: number }[] = [];
   const composants: DefinitionComposant[] = [];
@@ -212,6 +213,11 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
     if (estLeMot(flux.actuel(), 'onglets') && estLeMot(flux.regarder(1), 'application')) {
       const debut = flux.avancer();
       flux.avancer();
+      // « avec barre laterale "Module" » : sur Mac, l'application dessine sa propre barre.
+      if (estLeMot(flux.actuel(), 'avec') && estLeMot(flux.regarder(1), 'barre') && estLeMot(flux.regarder(2), 'laterale')) {
+        flux.avancer(); flux.avancer(); flux.avancer();
+        barreLaterale = flux.attendre('CHAINE', undefined, 'le nom du module de la barre latérale entre guillemets').valeur;
+      }
       flux.attendre('PONCTUATION', ':', 'deux-points à la fin de la ligne');
       ongletsApplication = [];
       const lireOnglet = (groupe?: string) => {
@@ -391,7 +397,7 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
     if (pages.length === 0) throw new ErreurSyntaxique('« menu de l’application » demande au moins une page dans le fichier.', commandesMenu[0].ligne);
     pages[0].corps.push(...commandesMenu);
   }
-  const programme: Programme = { type: 'Programme', pages, ...(ongletsApplication ? { ongletsApplication } : {}), ...(paquetsSwift ? { paquetsSwift } : {}), ...(liensProfonds ? { liensProfonds } : {}), ...(enTete.length > 0 ? { calculsPartages: enTete } : {}), styles, fichiersStyle, donneesFichiers, partages, composantsReact, composants, serveurs, sources, fichiersHumalis, fonctions, tests, ...(theme ? { theme } : {}), ...(site ? { site } : {}), ...(langues ? { langues } : {}), ...(traductions.length ? { traductions } : {}), ...(entete ? { entete } : {}), ...(pied ? { pied } : {}) };
+  const programme: Programme = { type: 'Programme', pages, ...(ongletsApplication ? { ongletsApplication } : {}), ...(barreLaterale ? { barreLaterale } : {}), ...(paquetsSwift ? { paquetsSwift } : {}), ...(liensProfonds ? { liensProfonds } : {}), ...(enTete.length > 0 ? { calculsPartages: enTete } : {}), styles, fichiersStyle, donneesFichiers, partages, composantsReact, composants, serveurs, sources, fichiersHumalis, fonctions, tests, ...(theme ? { theme } : {}), ...(site ? { site } : {}), ...(langues ? { langues } : {}), ...(traductions.length ? { traductions } : {}), ...(entete ? { entete } : {}), ...(pied ? { pied } : {}) };
   // Les appels de fonctions d'actions sont remplacés par leur corps (src/parser/fonctionsActions.ts).
   const actions = deplierFonctionsActions(programme);
   if (actions.length) programme.fonctionsActions = actions;

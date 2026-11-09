@@ -549,7 +549,7 @@ export function avecPoliceDuTheme(code: string, police: string): string {
       `.font(.custom(${nom}, size: ${STYLES_POLICE[style]}, relativeTo: .${style})${style === 'headline' ? '.weight(.semibold)' : ''})`);
 }
 
-function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, disposition: Disposition, polices: { fichier: string; nom: string }[], policeTexte?: string, notifications = false, fonds: { liens?: boolean; domaine?: boolean; envois?: boolean; arrierePlan?: boolean; onglets?: { titre: string; route: string; icone: string }[]; menus?: ReturnType<typeof commandesSwift>['menus']; reglages?: string } = {}): string {
+function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, disposition: Disposition, polices: { fichier: string; nom: string }[], policeTexte?: string, notifications = false, fonds: { barreLaterale?: string; liens?: boolean; domaine?: boolean; envois?: boolean; arrierePlan?: boolean; onglets?: { titre: string; route: string; icone: string }[]; menus?: ReturnType<typeof commandesSwift>['menus']; reglages?: string } = {}): string {
   // Par la route, et non la page directement : une page d'entrée réservée garde sa protection.
   const racine = entree.reservee ? 'Route.accueilHumalis.vue' : `${nomPage(entree.nom)}()`;
   const sans = (liste: string[]) => (liste.length ? `![${liste.map((r) => `Route.${r}`).join(', ')}].contains(Routeur.commun.chemin.last ?? .accueilHumalis)` : 'true');
@@ -651,7 +651,10 @@ function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, dispos
             // Une page de connexion occupe toute la fenêtre : ni menu ni barre latérale.
             if Routeur.commun.chemin.last?.sansRetour == true {
                 pile
-            } else if large {
+            } else if large {${fonds.barreLaterale ? `
+                #if os(macOS)
+                ${fonds.barreLaterale} { pile }
+                #else` : ''}
                 NavigationSplitView {
                     List(entreesDuMenu) { entree in
                         Button { Routeur.commun.allerAuMenu(entree.route) } label: {
@@ -673,7 +676,8 @@ function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, dispos
                 } detail: {
                     pile
                 }
-                .environment(\\.menuLateral, true)
+                .environment(\\.menuLateral, true)${fonds.barreLaterale ? `
+                #endif` : ''}
             } else {
                 ${fonds.onglets ? 'ongletsCompacts' : 'pile'}
             }
@@ -937,7 +941,7 @@ export function genererProjetApple(application: Application, options: OptionsApp
   const notifications = JSON.stringify([application.ecrans, application.composants]).includes('"type":"activationNotifications"');
   if (notifications && !options.equipe) avertir(1, "« activer notifications » : sans --equipe, l'application demande la permission mais ne peut pas recevoir de notification d'Apple. Compilez avec --equipe pour qu'elle les reçoive.");
   const policesCopiees = (application.theme?.polices ?? []).flatMap((p) => (p.fichier && /\.(ttf|otf|woff2?)$/i.test(p.fichier) && options.polices?.has(p.fichier) ? [{ fichier: p.fichier, nom: p.nom }] : []));
-  ecrire(`${nom}App.swift`, applicationSwift(nom, application.site?.nom ?? options.nom, entree, disposition, policesCopiees.map((p) => ({ fichier: nomFichierPlat(p.fichier), nom: p.nom })), application.theme?.polices.find((p) => p.role === 'texte')?.nom, notifications, { liens: application.liensProfonds !== undefined, domaine: application.liensProfonds?.domaine !== undefined, envois: avecEnvois, arrierePlan: avecArrierePlan, ...(ongletsSwift ? { onglets: ongletsSwift } : {}), ...(commandesEcrites.menus.length ? { menus: commandesEcrites.menus } : {}), ...(pageReglages ? { reglages: `Route${routeSimple(pageReglages.nom, app)}` } : {}) }));
+  ecrire(`${nom}App.swift`, applicationSwift(nom, application.site?.nom ?? options.nom, entree, disposition, policesCopiees.map((p) => ({ fichier: nomFichierPlat(p.fichier), nom: p.nom })), application.theme?.polices.find((p) => p.role === 'texte')?.nom, notifications, { barreLaterale: application.barreLaterale, liens: application.liensProfonds !== undefined, domaine: application.liensProfonds?.domaine !== undefined, envois: avecEnvois, arrierePlan: avecArrierePlan, ...(ongletsSwift ? { onglets: ongletsSwift } : {}), ...(commandesEcrites.menus.length ? { menus: commandesEcrites.menus } : {}), ...(pageReglages ? { reglages: `Route${routeSimple(pageReglages.nom, app)}` } : {}) }));
   if (disposition.menu?.length) ecrire('Humalis/Menu.swift', menuSwift(disposition.menu));
   for (const p of policesCopiees) ecrire(`Ressources/${nomFichierPlat(p.fichier)}`, contenuBinaire(options.polices!.get(p.fichier)!));
   ecrire('Humalis/Configuration.swift', configurationSwift(application, options));
