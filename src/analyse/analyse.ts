@@ -898,7 +898,10 @@ class AnalysePage {
         return;
 
       case 'Bloc':
+        // Deux blocs « sur site » et « sur application » n'existent jamais ensemble, comme « si » et « sinon ».
+        if (instruction.plateforme) this.branches.push(this.elements.elementsDe(instruction.corps));
         this.blocMiseEnPage(instruction, contexte, place);
+        if (instruction.plateforme) this.branches.pop();
         return;
 
       case 'CodeDocumentation':
@@ -1250,7 +1253,7 @@ class AnalysePage {
       case 'saisie':
       case 'pauseSaisie': {
         const nom = evenement.cible ?? '';
-        const resolution = this.elements.resoudre(nom, 'champ', parmi);
+        const resolution = this.resoudreChamp(nom, parmi);
         if (!('ids' in resolution)) {
           const champs = this.elements.elements.filter((e) => e.noeud.element === 'champ').map((e) => e.nom ?? e.libelle).filter((n): n is string => !!n);
           champIntrouvable(this.hote(), nom, this.page.nom, champs, evenement.ligne);
@@ -2095,7 +2098,7 @@ class AnalysePage {
         return NOMBRE;
       }
       case 'Champ': {
-        const resolution = this.elements.resoudre(expression.nom, 'champ');
+        const resolution = this.resoudreChamp(expression.nom);
         if ('ids' in resolution) {
           this.resultat.champs.set(expression, resolution.ids[0]);
         } else {
@@ -2222,7 +2225,7 @@ class AnalysePage {
 
   /** La sorte du champ que désigne « champ "…" », s'il est trouvé. */
   private sorteDuChamp(expression: Extract<Expression, { type: 'Champ' }>): Element['sorte'] {
-    const resolution = this.elements.resoudre(expression.nom, 'champ');
+    const resolution = this.resoudreChamp(expression.nom);
     return 'ids' in resolution ? this.elements.parId(resolution.ids[0])?.noeud.sorte : undefined;
   }
 
@@ -2859,6 +2862,17 @@ class AnalysePage {
       );
     }
     return undefined;
+  }
+
+  /** Un champ par son nom ; s'il existe dans deux branches qui ne coexistent pas, celui de la branche en cours. */
+  private resoudreChamp(nom: string, parmi?: ElementRecense[]) {
+    const resolution = this.elements.resoudre(nom, 'champ', parmi);
+    if (!('erreur' in resolution) || resolution.erreur === 'inconnu') return resolution;
+    for (const branche of [...this.branches].reverse()) {
+      const dansLaBranche = this.elements.resoudre(nom, 'champ', branche.filter((e) => !parmi || parmi.includes(e)));
+      if ('ids' in dansLaBranche) return dansLaBranche;
+    }
+    return resolution;
   }
 
   private cible(instruction: Evenement | Action, texte: string, parmi?: ElementRecense[]): void {

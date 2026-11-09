@@ -1175,9 +1175,9 @@ export function gardeDe(qui: QuiPeut): string {
   return qui.startsWith('role:') ? `roles(${JSON.stringify(qui.slice(5).split(','))})` : GARDES[qui as keyof typeof GARDES];
 }
 
-function decrireDroits(droits: Record<Action, QuiPeut | null>): string {
+function decrireDroits(droits: Record<Action, QuiPeut | null>, conditions?: Record<string, unknown[]>): string {
   const qui = (q: QuiPeut | null) => (q === null ? 'personne' : q === 'tout_le_monde' ? 'tout le monde' : q === 'connecte' ? 'un utilisateur connecté' : q === 'admin' ? 'seul un admin' : `les rôles ${q.slice(5).split(',').join(', ')}`);
-  return ACTIONS.map((a) => `${a} : ${qui(droits[a])}`).join(' ; ');
+  return ACTIONS.map((a) => `${a} : ${droits[a] === null && conditions?.[a]?.length ? 'un utilisateur connecté, selon une condition' : qui(droits[a])}`).join(' ; ');
 }
 
 function serveurTs(serveur: ServeurRI, chemins?: Map<string, string>): string {
@@ -1951,7 +1951,7 @@ function lisezmoiEnPlus(serveur: ServeurRI): string {
 
 function lisezmoi(serveur: ServeurRI, options: OptionsServeur): string {
   const routes = serveur.routes
-    .map((r) => `| \`${adresseApi(r.adresse)}\` | ${r.donnee} | ${decrireDroits(r.droits)} |`)
+    .map((r) => `| \`${adresseApi(r.adresse)}\` | ${r.donnee} | ${decrireDroits(r.droits, r.conditions)} |`)
     .join('\n');
   return `# Serveur « ${serveur.nom} »
 

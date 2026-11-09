@@ -57,3 +57,17 @@ describe('une saisie suivie (moteur natif)', () => {
     expect(source).toMatch(/addEventListener\('input', \(\) => \{\s*boite\.v = el\[propriete\];\s*\}, true\)/);
   });
 });
+
+describe('les défauts trouvés avec Cortex', () => {
+  const pagesAvec = (...corps: string[]) => compiler(programme('page "accueil" :', '>titre "Accueil"', ...corps));
+  const erreurs = (r: ReturnType<typeof compiler>) => r.diagnostics.filter((d) => d.gravite === 'erreur').map((d) => d.message);
+
+  it('un bloc stylé peut n’avoir aucun contenu', () => {
+    expect(erreurs(pagesAvec('>bloc avec style "tuile"', '>texte "Suite"'))).toEqual([]);
+  });
+
+  it('le même champ dans deux blocs de plateforme : chaque action vise le sien', () => {
+    const champ = (plateforme: string) => [`>sur ${plateforme} :`, `>>formulaire "${plateforme}" :`, '>>>champ "Nom"', '>>>bouton "Envoyer"', `>>quand le formulaire "${plateforme}" est soumis :`, '>>>afficher champ "Nom"'];
+    expect(erreurs(pagesAvec(...champ('site'), ...champ('application')))).toEqual([]);
+  });
+});
