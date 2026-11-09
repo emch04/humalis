@@ -4,6 +4,7 @@ import { CssExact } from '../src/cibles/apple/css-exact.js';
 import { pourLaCible } from '../src/ri/plateforme.js';
 import type { Application, NoeudVue } from '../src/ri/types.js';
 import { connaitreIconesDessinees, chercherIcone } from '../src/vocabulaire/icones.js';
+import { formaterEnLettres, formaterDateLongue, avecMajuscule, initialesDe, FORMES_TEXTE_JS } from '../src/cibles/format.js';
 import { iconeHtml } from '../src/cibles/statique/html-elements.js';
 import { composantIcone, fichiersDesElements } from '../src/cibles/web/widgets.js';
 
@@ -101,5 +102,34 @@ describe('les icônes du projet sur le web', () => {
     expect(f).toContain('export function ProjetClocheIcon');
     expect(f).not.toContain('ProjetGrandIcon');
     connaitreIconesDessinees([]);
+  });
+});
+
+describe('les formes de texte', () => {
+  it('écrit les nombres en lettres', () => {
+    const cas: [number, string][] = [[0, 'zéro'], [1, 'un'], [4, 'quatre'], [17, 'dix-sept'], [21, 'vingt et un'], [71, 'soixante et onze'], [72, 'soixante-douze'], [80, 'quatre-vingts'], [81, 'quatre-vingt-un'], [91, 'quatre-vingt-onze'], [100, 'cent'], [200, 'deux cents'], [201, 'deux cent un'], [1000, 'mille'], [2000, 'deux mille'], [80000, 'quatre-vingt mille'], [200000, 'deux cent mille'], [1000000, 'un million'], [-3, 'moins trois']];
+    for (const [n, attendu] of cas) expect(formaterEnLettres(n)).toBe(attendu);
+    expect(formaterEnLettres(null)).toBe('');
+  });
+  it('écrit la date longue, la majuscule et les initiales', () => {
+    expect(formaterDateLongue('2026-11-09')).toBe('lundi 9 novembre');
+    expect(avecMajuscule('lundi 9 novembre')).toBe('Lundi 9 novembre');
+    expect(initialesDe('Direction générale')).toBe('DG');
+    expect(initialesDe('  awa  ')).toBe('A');
+  });
+  it('recopie des fonctions qui marchent seules', () => {
+    const f = new Function(`${FORMES_TEXTE_JS}; return { formaterEnLettres, initialesDe };`)() as { formaterEnLettres: (n: number) => string; initialesDe: (t: string) => string };
+    expect(f.formaterEnLettres(71)).toBe('soixante et onze');
+    expect(f.initialesDe('Direction générale')).toBe('DG');
+  });
+});
+
+describe('sur site et macos', () => {
+  const app = () => ({ fichiersStyle: [], ecrans: [{ nom: 'a', vue: [{ type: 'bloc', genre: 'bloc', plateforme: 'site+macos', options: [], classes: [], corps: [{ type: 'bloc', genre: 'bloc', options: [], classes: ['x'], corps: [], ligne: 1 }], ligne: 1 }] }] }) as unknown as Application;
+  it('vaut sur le site, sans le bloc autour', () => {
+    expect((pourLaCible(app(), 'web').ecrans[0].vue[0] as { classes: string[] }).classes).toEqual(['x']);
+  });
+  it('reste réservé au Mac dans le projet Apple', () => {
+    expect((pourLaCible(app(), 'apple').ecrans[0].vue[0] as { plateforme?: string }).plateforme).toBe('macos');
   });
 });

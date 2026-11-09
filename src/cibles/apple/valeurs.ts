@@ -356,6 +356,7 @@ export class Valeurs {
       case 'operationTexte': {
         const texte = this.texte(valeur.valeur);
         if (valeur.operation === 'longueur') return { code: `Double(${texte}.count)`, type: NOMBRE, opt: false };
+        if (valeur.operation === 'initiales') return { code: `initialesDe(${texte})`, type: TEXTE, opt: false };
         return { code: `${texte}.${valeur.operation === 'majuscules' ? 'uppercased' : 'lowercased'}(with: Locale(identifier: "fr_FR"))`, type: TEXTE, opt: false };
       }
       case 'remplacement':
@@ -407,6 +408,10 @@ export class Valeurs {
     const valeur = p.expression ?? this.cheminVersValeur(p.variable);
     const e = this.expr(valeur);
     const en = langue !== undefined && langue !== 'fr' ? `, langue: ${chaineSwift(langue)}` : '';
+    if (p.format === 'dateLongue' || p.format === 'lettres') {
+      const lu = p.format === 'lettres' ? `formaterEnLettres(${this.versOpt(e, NOMBRE)})` : `formaterDateLongue(${this.versOpt(e, TEXTE)})`;
+      return p.majuscule ? `avecMajuscule(${lu})` : lu;
+    }
     if (p.pluriel) return `accorder(${this.versOpt(e, NOMBRE)}, ${chaineSwift(p.pluriel)}${en})`;
     if (p.format === 'date') return `formaterDate(${this.versOpt(e, TEXTE)}${en})`;
     if (p.format === 'nombre') return `formaterNombre(${this.versOpt(e, NOMBRE)}${en})`;

@@ -304,3 +304,60 @@ export const DATES_JS = DATES_TS.replace(/^export /gm, '')
   .replace(/\(n: number, mot: string\)/g, '(n, mot)')
   .replace(/\): (string|number) \{/g, ') {')
   .replace(/^/gm, '  ');
+
+/** « 2026-11-09 » → « lundi 9 novembre » ; un texte qui n'est pas une date reste tel quel. */
+export function formaterDateLongue(valeur: string | null | undefined): string {
+  if (!valeur) return '';
+  const date = new Date(`${valeur.slice(0, 10)}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? valeur : date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
+/** 4 → « quatre », 71 → « soixante et onze », 280 → « deux cent quatre-vingts » ; un nombre à virgule reste en chiffres. */
+export function formaterEnLettres(valeur: number | null | undefined): string {
+  if (typeof valeur !== 'number' || !Number.isFinite(valeur)) return '';
+  if (!Number.isInteger(valeur) || Math.abs(valeur) >= 1e12) return valeur.toLocaleString('fr-FR');
+  const U = ['zéro', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf', 'dix', 'onze', 'douze', 'treize', 'quatorze', 'quinze', 'seize', 'dix-sept', 'dix-huit', 'dix-neuf'];
+  const D = ['', '', 'vingt', 'trente', 'quarante', 'cinquante', 'soixante', 'soixante', 'quatre-vingt', 'quatre-vingt'];
+  const dizaines = (n = 0): string => {
+    if (n < 20) return U[n];
+    const d = Math.floor(n / 10), u = n % 10;
+    if (d === 7 || d === 9) return D[d] + (n === 71 ? ' et ' : '-') + U[n - (d - 1) * 10];
+    if (u === 0) return d === 8 ? 'quatre-vingts' : D[d];
+    if (u === 1 && d !== 8) return `${D[d]} et un`;
+    return `${D[d]}-${U[u]}`;
+  };
+  // « final » : devant « mille », ni « cents » ni « quatre-vingts » ne prennent de s.
+  const centaines = (n = 0, final = false): string => {
+    const c = Math.floor(n / 100), r = n % 100;
+    const fin = r === 0 ? '' : final ? dizaines(r) : dizaines(r).replace(/quatre-vingts$/, 'quatre-vingt');
+    if (c === 0) return fin;
+    const tete = c === 1 ? 'cent' : `${U[c]} cent${r === 0 && final ? 's' : ''}`;
+    return fin ? `${tete} ${fin}` : tete;
+  };
+  const n = Math.abs(valeur);
+  if (n === 0) return U[0];
+  const milliards = Math.floor(n / 1e9), millions = Math.floor(n / 1e6) % 1000, milliers = Math.floor(n / 1000) % 1000, reste = n % 1000;
+  const mots: string[] = [];
+  if (milliards) mots.push(`${centaines(milliards, true)} milliard${milliards > 1 ? 's' : ''}`);
+  if (millions) mots.push(`${centaines(millions, true)} million${millions > 1 ? 's' : ''}`);
+  if (milliers) mots.push(milliers === 1 ? 'mille' : `${centaines(milliers, false)} mille`);
+  if (reste) mots.push(centaines(reste, true));
+  return `${valeur < 0 ? 'moins ' : ''}${mots.join(' ')}`;
+}
+
+/** « lundi 9 novembre » → « Lundi 9 novembre ». */
+export function avecMajuscule(texte: string | null | undefined): string {
+  if (!texte) return '';
+  return texte.charAt(0).toLocaleUpperCase('fr') + texte.slice(1);
+}
+
+/** « Direction générale » → « DG » : la première lettre des deux premiers mots. */
+export function initialesDe(texte: string | null | undefined): string {
+  return String(texte ?? '').trim().split(/\s+/).filter(Boolean).slice(0, 2).map((m) => m.charAt(0)).join('').toLocaleUpperCase('fr');
+}
+
+/** Ces quatre fonctions, recopiées telles quelles dans les projets produits. */
+const FORMES_TEXTE = { formaterDateLongue, formaterEnLettres, avecMajuscule, initialesDe };
+export const NOMS_FORMES_TEXTE = Object.keys(FORMES_TEXTE);
+export const FORMES_TEXTE_TS = Object.entries(FORMES_TEXTE).map(([nom, f]) => `export const ${nom}: (valeur: any) => string = ${f.toString()};`).join('\n') + '\n';
+export const FORMES_TEXTE_JS = Object.entries(FORMES_TEXTE).map(([nom, f]) => `  const ${nom} = ${f.toString()};`).join('\n') + '\n';

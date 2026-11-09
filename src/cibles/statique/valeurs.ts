@@ -12,7 +12,7 @@
 import { estCombine, type Valeur, type Test, type TypeValeur, type Action, type FonctionRI, type PartiesTexte } from '../../ri/types.js';
 import { camel, chaine } from '../web/noms.js';
 import { typeDe, dateEnCode, combiner, aParentheser, calculDeListe, operationDeListe, operationDeTexte, habillage } from '../web/valeurs.js';
-import { formaterDate, formaterNombre, formaterArgent, formaterTaille, accorder } from '../format.js';
+import { formaterDate, formaterNombre, formaterArgent, formaterTaille, accorder, formaterDateLongue, formaterEnLettres, avecMajuscule, initialesDe } from '../format.js';
 
 /**
  * Les noms que le script d'une page ne peut pas prendre : ceux du
@@ -23,7 +23,7 @@ const PRIS = new Set([
   'document', 'window', 'location', 'history', 'navigator', 'console', 'self', 'top', 'parent', 'frames',
   'localStorage', 'sessionStorage', 'fetch', 'setTimeout', 'clearTimeout', 'addEventListener',
   'JSON', 'Math', 'Object', 'Array', 'String', 'Number', 'Boolean', 'Promise', 'Error', 'CSS',
-  'humalis', 'creer', 'demarrer', 'afficherMessage', 'retirerPremier', 'formaterNombre', 'formaterDate', 'formaterArgent', 'formaterTaille', 'accorder', 'adresseDe', 'dateDuJour', 'maintenant', 'decalerDate', 'joursEntre', 'formaterDepuis',
+  'humalis', 'creer', 'demarrer', 'afficherMessage', 'retirerPremier', 'formaterNombre', 'formaterDate', 'formaterArgent', 'formaterTaille', 'accorder', 'adresseDe', 'dateDuJour', 'maintenant', 'decalerDate', 'joursEntre', 'formaterDepuis', 'formaterDateLongue', 'formaterEnLettres', 'avecMajuscule', 'initialesDe',
   'lirePartage', 'garderPartage', 'lireMemoire', 'garderMemoire', 'serveur', 'utilisateur',
   'dessiner', 'relire', 'garder', 'auChargement', 'visibilite', 'textes', 'evenement', 'motDePasseSaisi',
 ]);
@@ -307,6 +307,10 @@ export function evaluer(valeur: Valeur, env: Environnement): unknown {
           if (p.format === 'nombre') return formaterNombre(v as number | null | undefined);
           if (p.format === 'date') return v === '' ? '' : formaterDate(v as string | null | undefined);
           if (p.format === 'depuis') return '';
+          if (p.format === 'dateLongue' || p.format === 'lettres') {
+            const lu = p.format === 'lettres' ? formaterEnLettres(v as number | null | undefined) : formaterDateLongue(v as string | null | undefined);
+            return p.majuscule ? avecMajuscule(lu) : lu;
+          }
           if (p.format === 'Ko' || p.format === 'Mo') return formaterTaille(v as number | null | undefined, p.format);
           if (p.format) return formaterArgent(v as number | null | undefined, p.format);
           // Le champ d'une variable « = rien » encore vide : `?? ''` dans le script, rien ici non plus.
@@ -387,6 +391,7 @@ export function evaluer(valeur: Valeur, env: Environnement): unknown {
     }
     case 'operationTexte': {
       const texte = String(evaluer(valeur.valeur, env) ?? '');
+      if (valeur.operation === 'initiales') return initialesDe(texte);
       return valeur.operation === 'majuscules'
         ? texte.toLocaleUpperCase('fr')
         : valeur.operation === 'minuscules'

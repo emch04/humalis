@@ -5,7 +5,7 @@
  */
 import { MESSAGES_JS, LISTES_JS, STOCKAGE_JS, PRESSE_PAPIER_JS, QUESTIONS_JS } from '../statique/projet.js';
 import { elementsJs, exportsElements, type UsageElements } from '../statique/elements-js.js';
-import { FORMAT_JS, FORMAT_JS_LANGUES, TAILLE_JS, DATES_JS } from '../format.js';
+import { FORMAT_JS, FORMAT_JS_LANGUES, TAILLE_JS, DATES_JS, FORMES_TEXTE_JS, NOMS_FORMES_TEXTE } from '../format.js';
 import { CLE_LANGUE } from '../web/langue.js';
 import { CLE_THEME } from '../web/theme.js';
 import { chaine } from '../web/noms.js';
@@ -34,7 +34,7 @@ export function outilsJs(b: BesoinsOutils): string {
   const { usage, langues, theme } = b;
   const exportes = [
     'creer', 'afficherMessage', 'planifier', 'planificateur', 'arreterMinuteries', 'minuteriesDeCouche', 'ecouterRaccourcis', 'mouvementReduit', 'themeSombre', 'cliquer', 'focaliser', 'fenetre', 'observerLeBas', 'titreDeLaPage', 'descriptionDeLaPage',
-    'retirerPremier', 'grouper', 'formaterNombre', 'formaterDate', 'formaterArgent', 'accorder', 'formaterTaille', 'dateDuJour', 'maintenant', 'decalerDate', 'joursEntre', 'formaterDepuis',
+    'retirerPremier', 'grouper', 'formaterNombre', 'formaterDate', 'formaterArgent', 'accorder', 'formaterTaille', 'dateDuJour', 'maintenant', 'decalerDate', 'joursEntre', 'formaterDepuis', ...NOMS_FORMES_TEXTE,
     'lireMemoire', 'garderMemoire', 'lirePartage', 'garderPartage', 'copier', 'partager', 'telechargerCsv', 'confirmer',
     ...exportsElements(usage),
     ...(usage.carrousel ? ['activerCarrousel'] : []),
@@ -264,6 +264,7 @@ ${MESSAGES_JS}${LISTES_JS}
 ${langues ? FORMAT_JS_LANGUES : FORMAT_JS}
 ${TAILLE_JS}
 ${DATES_JS}
+${FORMES_TEXTE_JS}
 ${STOCKAGE_JS}${elementsMoteur(usage)}${PRESSE_PAPIER_JS}${QUESTIONS_JS}${langues ? langueMoteur(langues) : ''}${theme !== undefined ? themeMoteur(theme) : ''}
 export { ${[...new Set(exportes)].join(', ')} };
 `;

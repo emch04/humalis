@@ -327,6 +327,61 @@ func joursEntre(_ debut: String?, _ fin: String?) -> Double {
     return Double(Calendar(identifier: .gregorian).dateComponents([.day], from: a, to: b).day ?? 0)
 }
 
+/** « 2026-11-09 » → « lundi 9 novembre » ; un texte qui n'est pas une date reste tel quel. */
+func formaterDateLongue(_ valeur: String?) -> String {
+    guard let valeur, !valeur.isEmpty else { return "" }
+    guard let date = jourDe(valeur) else { return valeur }
+    let f = DateFormatter()
+    f.locale = Locale(identifier: "fr_FR")
+    f.dateFormat = "EEEE d MMMM"
+    return f.string(from: date)
+}
+
+/** 4 → « quatre », 71 → « soixante et onze » ; un nombre à virgule reste en chiffres. */
+func formaterEnLettres(_ valeur: Double?) -> String {
+    guard let valeur, valeur.isFinite else { return "" }
+    guard valeur == valeur.rounded(), abs(valeur) < 1e12 else { return formaterNombre(valeur) }
+    let U = ["zéro", "un", "deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf", "dix", "onze", "douze", "treize", "quatorze", "quinze", "seize", "dix-sept", "dix-huit", "dix-neuf"]
+    let D = ["", "", "vingt", "trente", "quarante", "cinquante", "soixante", "soixante", "quatre-vingt", "quatre-vingt"]
+    func dizaines(_ n: Int) -> String {
+        if n < 20 { return U[n] }
+        let d = n / 10, u = n % 10
+        if d == 7 || d == 9 { return D[d] + (n == 71 ? " et " : "-") + U[n - (d - 1) * 10] }
+        if u == 0 { return d == 8 ? "quatre-vingts" : D[d] }
+        if u == 1 && d != 8 { return D[d] + " et un" }
+        return D[d] + "-" + U[u]
+    }
+    // « final » : devant « mille », ni « cents » ni « quatre-vingts » ne prennent de s.
+    func centaines(_ n: Int, _ final: Bool) -> String {
+        let c = n / 100, r = n % 100
+        var fin = r == 0 ? "" : dizaines(r)
+        if !final && fin.hasSuffix("quatre-vingts") { fin.removeLast() }
+        if c == 0 { return fin }
+        let tete = c == 1 ? "cent" : U[c] + " cent" + (r == 0 && final ? "s" : "")
+        return fin.isEmpty ? tete : tete + " " + fin
+    }
+    let n = Int(abs(valeur))
+    if n == 0 { return U[0] }
+    let milliards = n / 1_000_000_000, millions = (n / 1_000_000) % 1000, milliers = (n / 1000) % 1000, reste = n % 1000
+    var mots: [String] = []
+    if milliards > 0 { mots.append(centaines(milliards, true) + " milliard" + (milliards > 1 ? "s" : "")) }
+    if millions > 0 { mots.append(centaines(millions, true) + " million" + (millions > 1 ? "s" : "")) }
+    if milliers > 0 { mots.append(milliers == 1 ? "mille" : centaines(milliers, false) + " mille") }
+    if reste > 0 { mots.append(centaines(reste, true)) }
+    return (valeur < 0 ? "moins " : "") + mots.joined(separator: " ")
+}
+
+/** « lundi 9 novembre » → « Lundi 9 novembre ». */
+func avecMajuscule(_ texte: String?) -> String {
+    guard let texte, let premiere = texte.first else { return "" }
+    return String(premiere).uppercased(with: Locale(identifier: "fr_FR")) + texte.dropFirst()
+}
+
+/** « Direction générale » → « DG » : la première lettre des deux premiers mots. */
+func initialesDe(_ texte: String?) -> String {
+    (texte ?? "").split(whereSeparator: { $0.isWhitespace }).prefix(2).compactMap { $0.first.map(String.init) }.joined().uppercased(with: Locale(identifier: "fr_FR"))
+}
+
 /** « il y a 3 jours », « il y a 2 heures », « à l’instant » ; rien pour une valeur absente. */
 func formaterDepuis(_ valeur: String?) -> String {
     guard let valeur, !valeur.isEmpty else { return "" }

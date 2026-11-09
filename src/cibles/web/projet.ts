@@ -12,7 +12,7 @@ import type { InfoMedia } from '../../ri/medias.js';
 import { fichiersDesElements, dependancesDesElements, dependancesDeDeveloppement } from './widgets.js';
 import { fichiersGraphique, cssGraphique } from './graphique.js';
 import { cssTheme, changeLeTheme, modeParDefaut, themeTs, SCRIPT_THEME } from './theme.js';
-import { FORMAT_TS, FORMAT_TS_LANGUES, TAILLE_TS, DATES_TS } from '../format.js';
+import { FORMAT_TS, FORMAT_TS_LANGUES, TAILLE_TS, DATES_TS, FORMES_TEXTE_TS } from '../format.js';
 import { balisesLangueDeDepart, langueWebTsx } from './langue.js';
 import { messagesDuProjet } from '../../i18n/messages.js';
 import type { Application, Ecran, Etat, Action, NoeudVue, ServeurRI, SiteRI } from '../../ri/types.js';
@@ -2197,7 +2197,8 @@ export function outils(codes: string[], langues = false): string {
   const groupes = codes.some((c) => /\bgrouper\(/.test(c)) ? `\n${GROUPER_TS}` : '';
   const taille = codes.some((c) => /\bformaterTaille\(/.test(c)) ? `\n${TAILLE_TS}` : '';
   const dates = codes.some((c) => /\b(dateDuJour|maintenant|decalerDate|joursEntre|formaterDepuis)\(/.test(c)) ? `\n${DATES_TS}` : '';
-  return `${OUTILS}${format}${groupes}${taille}${dates}`;
+  const formes = codes.some((c) => /\b(formaterDateLongue|formaterEnLettres|avecMajuscule|initialesDe)\(/.test(c)) ? `\n${FORMES_TEXTE_TS}` : '';
+  return `${OUTILS}${format}${groupes}${taille}${dates}${formes}`;
 }
 
 /** « grouper produits par categorie », écrit seulement si une page s'en sert. */

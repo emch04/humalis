@@ -1494,6 +1494,20 @@ page "accueil" :
     titre "Le Fleuve"
 `),
     'un seul « entete » par application'),
+  e('forme-sur-mauvais-type', 'sens', '« en lettres » ou « en date longue » sur la mauvaise valeur',
+    '« en lettres » s’écrit après un nombre, « en date longue » après une date.',
+    'Mettez un nombre avant « en lettres », une date avant « en date longue ».',
+    p(`
+page "accueil" :
+    variable nom = "Awa"
+    titre "{nom en lettres}"
+`),
+    p(`
+page "accueil" :
+    variable total = 4
+    titre "{total en lettres}"
+`),
+    's\'écrit après un nombre'),
   e('dessinee-sans-par', 'grammaire', 'La taille d’un dessin sans « par »',
     '« dessinee pour » attend une largeur, le mot « par », puis une hauteur.',
     'Écrivez les deux nombres avec « par » entre eux.',
