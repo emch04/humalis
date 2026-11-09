@@ -504,7 +504,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     mot: 'laterale',
     variantes: [],
     categorie: 'controle',
-    concept: 'onglets.barre-laterale',
+    concept: 'onglets.barreLaterale',
     contextes: ['tournure'],
     cibles: partout('La barre du Mac est dessinée par une vue Swift'),
     couvre: [],
