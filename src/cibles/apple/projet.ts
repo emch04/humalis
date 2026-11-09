@@ -379,7 +379,8 @@ function routesSwift(application: Application, app: ContexteApple, entree: Ecran
     e.ligne(`static let accueilHumalis: Route = .${nomRoute(entree.nom)}`);
     e.ligne();
     // Revenir en arrière depuis une page de connexion ne ferait que renvoyer vers elle.
-    const pagesConnexion = application.ecrans.filter((ecran) => /"type":"connexion(Google|Apple)?"/.test(JSON.stringify(ecran))).map((ecran) => `.${nomRoute(ecran.nom)}`);
+    // Une page sans entete et en pleine fenetre occupe aussi toute la fenêtre, sans barre latérale.
+    const pagesConnexion = application.ecrans.filter((ecran) => /"type":"connexion(Google|Apple)?"/.test(JSON.stringify(ecran)) || (ecran.sansEntete && ecran.pleineFenetre)).map((ecran) => `.${nomRoute(ecran.nom)}`);
     e.ligne(pagesConnexion.length ? `var sansRetour: Bool { switch self { case ${pagesConnexion.join(', ')}: return true; default: return false } }` : 'var sansRetour: Bool { false }');
     e.ligne();
     e.ligne('/** La vue de chaque page ; une sous-page se montre dans sa page parente. */');
