@@ -217,6 +217,11 @@ export class EcrivainActions {
       case 'retour':
         e.ligne(`Routeur.commun.revenir(${a.vers !== undefined ? `sinon: ${this.route(a.vers)}` : ''})`);
         return;
+      case 'viderChamp': {
+        const champ = this.v.portee.champs.get(a.id);
+        if (champ) e.ligne(`${champ.variable} = ${champ.sorte === 'case' ? 'false' : '""'}`);
+        return;
+      }
       case 'theme':
         e.ligne(`Apparence.commun.definir(.${a.valeur})`);
         return;

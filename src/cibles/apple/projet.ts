@@ -636,7 +636,10 @@ function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, dispos
     : '';
   const contenu = menu
     ? `        Group {
-            if large {
+            // Une page de connexion occupe toute la fenêtre : ni menu ni barre latérale.
+            if Routeur.commun.chemin.last?.sansRetour == true {
+                pile
+            } else if large {
                 NavigationSplitView {
                     List(entreesDuMenu) { entree in
                         Button { Routeur.commun.allerAuMenu(entree.route) } label: {

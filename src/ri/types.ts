@@ -261,6 +261,8 @@ export interface Ecran {
   nom: string;
   /** « page "x" en reglages : ». */
   reglages?: boolean;
+  /** « page "x" en pleine fenetre : » : sur Apple, sans marges ni largeur limitée. */
+  pleineFenetre?: boolean;
   /** Les variables déclarées au premier niveau de la page. */
   etat: Etat[];
   /** Les « calcul x = … » de la page : recalculés à chaque changement de l'état. */
@@ -695,6 +697,8 @@ export type Action =
   /** « revenir » : le retour du navigateur ; avec `vers`, la page où aller si l'on n'a pas d'historique. */
   | { type: 'retour'; vers?: string }
   | { type: 'changerTexte'; ids: string[]; texte: Valeur }
+  /** « vider champ "Message" » : le champ revient à vide. */
+  | { type: 'viderChamp'; id: string }
   /** « changer theme par sombre » : le choix du visiteur, gardé par son appareil. */
   | { type: 'theme'; valeur: 'clair' | 'sombre' | 'automatique' | 'bascule' }
   /** « changer langue par anglais » : le choix de la personne, gardé par son appareil. */

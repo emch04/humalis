@@ -291,6 +291,9 @@ export class GenerateurMoteur extends GenerateurPage {
         case 'visibilite':
           for (const id of action.ids) e.ligne(`visibilite.v = { ...visibilite.v, ${chaine(id)}: ${action.visible} };`);
           break;
+        case 'viderChamp':
+          e.ligne(`${this.contexte.champs.get(action.id)!} = ${this.contexte.sortes?.get(action.id) === 'case' ? 'false' : "''"};`);
+          break;
         case 'changerTexte':
           for (const id of action.ids) e.ligne(`textes.v = { ...textes.v, ${chaine(id)}: ${x(action.texte)} };`);
           break;

@@ -431,6 +431,8 @@ struct PageHumalis<Contenu: View>: View {
     var paresseuse = false
     /** Une liste système (pour glisser une ligne) ou un formulaire façon Réglages remplacent le défilement. */
     var racine: RacinePageHumalis = .defilement
+    /** « en pleine fenetre » : le contenu va jusqu'aux bords. */
+    var pleineFenetre = false
     @ViewBuilder let contenu: () -> Contenu
 
     private var natif: Bool {
@@ -482,9 +484,9 @@ struct PageHumalis<Contenu: View>: View {
                             VStack(alignment: .leading, spacing: 12) { contenu() }
                         }
                     }
-                    .padding(16)
-                    .padding(.bottom, 32)
-                    .frame(maxWidth: largeur, alignment: .leading)
+                    .padding(pleineFenetre ? 0 : 16)
+                    .padding(.bottom, pleineFenetre ? 0 : 32)
+                    .frame(maxWidth: pleineFenetre ? .infinity : largeur, alignment: .leading)
                     .frame(maxWidth: .infinity)
                     if let pied { pied }
                 }

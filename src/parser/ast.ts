@@ -491,6 +491,8 @@ export interface Page {
   nom: string;
   /** « page "x" en reglages : » : la fenêtre Réglages sur Mac. */
   reglages?: boolean;
+  /** « page "x" en pleine fenetre : » : sur Apple, le contenu va jusqu'aux bords de la fenêtre. */
+  pleineFenetre?: boolean;
   /** « page "produit" avec parametre id : » : les valeurs lues dans l'adresse de la page. */
   parametres: string[];
   /** « page "collection" a l'adresse "/collections/:slug" : » : l'adresse choisie, au lieu de celle du nom. */
@@ -1264,6 +1266,7 @@ export type NomAction =
   | 'revenir'
   | 'changerTexte'
   | 'changerTheme'
+  | 'viderChamp'
   | 'afficherErreur';
 
 export interface Action {
