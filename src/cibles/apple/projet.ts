@@ -493,7 +493,9 @@ function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, dispos
   const montrerEntete = entete ? `${sans(entete.sans)}${menu && !disposition.enteteAvecAutreChose ? ' && !large' : ''}${entete.haut ? ' && large' : ''}` : '';
   const piedColle = pied?.colle ? pied : undefined;
   const piedQuiDefile = pied && !pied.colle ? pied : undefined;
+  const enteteDansLaPage = entete ? `AnyView(${entete.nom}().padding(.horizontal, 16).padding(.vertical, 8).frame(maxWidth: .infinity, alignment: .leading)${entete.css.join('')})` : '';
   const insets = `${entete ? `
+            #if os(iOS)
             .safeAreaInset(edge: .top, spacing: 0) {
                 if ${montrerEntete} {
                     VStack(spacing: 0) {
@@ -502,8 +504,12 @@ function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, dispos
                     }
                     .background(.bar)${entete.css.map((l) => `\n                    ${l}`).join('')}
                 }
-            }` : ''}${entete?.haut ? `
-            .environment(\\.enteteHumalis, !large && ${sans(entete.sans)} ? AnyView(${entete.nom}().padding(.horizontal, 16).padding(.vertical, 8).frame(maxWidth: .infinity, alignment: .leading)${entete.css.join('')}) : nil)` : ''}${piedColle ? `
+            }${entete.haut ? `
+            .environment(\\.enteteHumalis, !large && ${sans(entete.sans)} ? ${enteteDansLaPage} : nil)` : ''}
+            #else
+            // Sur Mac, le haut de la fenêtre appartient à la barre de titre : l'en-tête vit dans la page.${menu && !disposition.enteteAvecAutreChose ? '' : `
+            .environment(\\.enteteHumalis, ${sans(entete.sans)} ? ${enteteDansLaPage} : nil)`}
+            #endif` : ''}${piedColle ? `
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 if ${sans(piedColle.sans)} {
                     VStack(spacing: 0) {
