@@ -959,7 +959,9 @@ export function genererProjetApple(application: Application, options: OptionsApp
   const reseau = /\b(Serveur\.commun|Session\.commun|GardeHumalis)\b/.test(pagesCode);
   // La session est lue par le serveur : les deux vont ensemble.
   if (reseau || application.sources.length > 0) ecrire('Humalis/Serveur.swift', SERVEUR_SWIFT);
-  if (/\bseConnecterAvec(Apple|Google)\(/.test(pagesCode)) ecrire('Humalis/Connexions.swift', CONNEXIONS_SWIFT);
+  // Une vue Swift écrite à la main peut aussi appeler la connexion Apple ou Google.
+  const codeAvecNatifs = [pagesCode, ...[...(options.natifs ?? [])].map(([, natif]) => natif.contenu)].join('\n');
+  if (/\bseConnecterAvec(Apple|Google)\(/.test(codeAvecNatifs)) ecrire('Humalis/Connexions.swift', CONNEXIONS_SWIFT);
   if (application.langues) ecrire('Humalis/Langues.swift', LANGUES_SWIFT);
   const tout = [...fichiers.values()].join('\n');
   for (const [chemin, contenu] of fichiersElements(tout)) ecrire(chemin, contenu);
@@ -989,7 +991,7 @@ export function genererProjetApple(application: Application, options: OptionsApp
   const avecPosition = /\blirePosition\(/.test(tout);
   // Sans équipe, l'application ne peut pas être signée avec ce droit : elle ne se construirait plus.
   const domaineLiens = options.equipe ? application.liensProfonds?.domaine : undefined;
-  const avecConnexionApple = /\bseConnecterAvecApple\(/.test(pagesCode);
+  const avecConnexionApple = /\bseConnecterAvecApple\(/.test(codeAvecNatifs);
   if (avecConnexionApple && !options.equipe) avertir(1, "« se connecter avec apple » : sans --equipe, la fenêtre d'Apple ne peut pas s'ouvrir, et l'application le dit à la personne. Compilez avec --equipe.");
   const droitConnexionApple = avecConnexionApple && options.equipe !== undefined;
   ecrire(`${nom}.entitlements`, droits(avecFichiers, notifications && options.equipe ? 'ios' : undefined, avecPosition, domaineLiens, droitConnexionApple));
