@@ -1,6 +1,7 @@
 import { analyser } from './lexer/lexer.js';
 import { ErreurLexicale } from './lexer/types.js';
 import { analyserSyntaxe } from './parser/parser.js';
+import { lireIconesSvg } from './icones-svg.js';
 import { ErreurSyntaxique } from './parser/erreurs.js';
 import type { Programme } from './parser/ast.js';
 import type { Expression } from './parser/ast.js';
@@ -93,6 +94,7 @@ export function compilerProjet(principal: string | undefined, lire: Lecteur, sou
       decaler(programme, decalage);
       // Les chemins CSS et React d'un fichier utilisé partent de son dossier : on les ramène au dossier principal.
       for (const f of programme.fichiersStyle) f.chemin = relatif(base, joindre(ici, f.chemin));
+      for (const f of programme.fichiersIcones ?? []) f.chemin = relatif(base, joindre(ici, f.chemin));
       for (const c of programme.composantsReact) {
         c.chemin = relatif(base, joindre(ici, c.chemin));
         if (c.apple !== undefined) c.apple = relatif(base, joindre(ici, c.apple));
@@ -188,6 +190,13 @@ export function compilerProjet(principal: string | undefined, lire: Lecteur, sou
     for (const nom of resultat.classes) classesCss.add(nom);
     diagnostics.push(...resultat.diagnostics);
   }
+  for (const fichier of programme.fichiersIcones ?? []) {
+    const contenu = lire(joindre(base, fichier.chemin));
+    if (contenu === undefined) continue;
+    const icones = lireIconesSvg(contenu);
+    if (icones.length === 0 && contenu.includes('<svg')) diagnostics.push({ gravite: 'erreur', message: `« ${fichier.chemin} » ne contient aucune icône : chaque dessin s'écrit <symbol id="nom" viewBox="0 0 24 24">…</symbol>.`, ligne: fichier.ligne });
+    (programme.iconesDessinees ??= []).push(...icones);
+  }
   const analyse = analyserSens(programme, cssIllisible ? undefined : classesCss);
   diagnostics.push(...analyse.diagnostics);
   if (diagnostics.some((d) => d.gravite === 'erreur')) return fin();
@@ -209,7 +218,7 @@ function reunir(programmes: Programme[], fichiers: string[], diagnostics: Diagno
   for (const source of programmes) {
     for (const calcul of [...(source.calculsPartages ?? [])].reverse()) {
       for (const p of programmes.filter((x) => x !== source)) {
-        for (const lieu of [...p.pages, ...p.composants, ...(p.entete ? [p.entete] : []), ...(p.pied ? [p.pied] : [])]) {
+        for (const lieu of [...p.pages, ...p.composants, ...(p.entete ? [p.entete] : []), ...(p.pied ? [p.pied] : []), ...(p.barreDessinee ? [p.barreDessinee] : [])]) {
           if (!lieu.corps.some((i) => i.type === 'Variable' && i.nom === calcul.nom)) lieu.corps.unshift({ ...calcul });
         }
       }
@@ -221,6 +230,7 @@ function reunir(programmes: Programme[], fichiers: string[], diagnostics: Diagno
     pages: [...premier.pages],
     styles: [...premier.styles],
     fichiersStyle: [...premier.fichiersStyle],
+    fichiersIcones: [...(premier.fichiersIcones ?? [])],
     donneesFichiers: [...premier.donneesFichiers],
     partages: [...premier.partages],
     composantsReact: [...premier.composantsReact],
@@ -278,19 +288,20 @@ function reunir(programmes: Programme[], fichiers: string[], diagnostics: Diagno
         });
       } else tout.theme = p.theme;
     }
-    for (const genre of ['entete', 'pied'] as const) {
-      const autre = p[genre];
+    for (const [genre, champ] of [['entete', 'entete'], ['pied', 'pied'], ['barre laterale', 'barreDessinee']] as const) {
+      const autre = p[champ];
       if (!autre) continue;
-      if (tout[genre]) {
+      if (tout[champ]) {
         diagnostics.push({
           gravite: 'erreur',
-          message: `un seul « ${genre} » par application : il est déjà déclaré (ligne ${tout[genre]!.ligne}).`,
+          message: `un seul « ${genre} » par application : il est déjà déclaré (ligne ${tout[champ]!.ligne}).`,
           ligne: autre.ligne,
         });
-      } else tout[genre] = autre;
+      } else tout[champ] = autre;
     }
     tout.styles.push(...p.styles);
     tout.fichiersStyle.push(...p.fichiersStyle);
+    tout.fichiersIcones!.push(...(p.fichiersIcones ?? []));
     tout.donneesFichiers.push(...p.donneesFichiers);
     tout.partages.push(...p.partages);
     tout.paquetsSwift!.push(...(p.paquetsSwift ?? []));

@@ -1494,6 +1494,18 @@ page "accueil" :
     titre "Le Fleuve"
 `),
     'un seul « entete » par application'),
+  e('dessinee-sans-par', 'grammaire', 'La taille d’un dessin sans « par »',
+    '« dessinee pour » attend une largeur, le mot « par », puis une hauteur.',
+    'Écrivez les deux nombres avec « par » entre eux.',
+    p(`
+page "accueil" dessinee pour 1440 sur 900 :
+    titre "Le Fleuve"
+`),
+    p(`
+page "accueil" dessinee pour 1440 par 900 :
+    titre "Le Fleuve"
+`),
+    'après la largeur, il faut « par »'),
   e('sans-entete-inutile', 'sens', 'Une page sans en-tête, dans une application qui n’en a pas',
     '« sans entete » dit à une page de se passer de l’en-tête commun. Il n’y en a pas, donc la précision ne sert à rien.',
     'Écris le bloc « entete : » en haut du fichier, ou retire « sans entete ».',

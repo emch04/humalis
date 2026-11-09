@@ -1,3 +1,5 @@
+import { FORMES_LUCIDE } from '../cibles/icones-donnees.js';
+import type { IconeDessinee } from '../icones-svg.js';
 /**
  * Les icônes de Humalis (plan 2026-10-30-mise-en-page-et-elements, 5.1) :
  * des noms français, d'une liste fermée, qui désignent chacun une icône de
@@ -154,8 +156,28 @@ for (const icone of ICONES) {
 
 /** L'icône que désigne ce nom (ou un de ses alias), sans souci des accents ni des majuscules. */
 export function chercherIcone(nom: string): Icone | undefined {
-  return parNom.get(normaliser(nom));
+  const cle = normaliser(nom);
+  return iconesDuProjet.get(cle)?.icone ?? parNom.get(cle);
 }
+
+/** « utiliser icones "…" » : les dessins du projet passent avant ceux du catalogue. */
+const iconesDuProjet = new Map<string, { icone: Icone; dessin: IconeDessinee }>();
+
+/** Le dessin SVG d'une icône du projet, dans le carré de 24 où vivent les autres. */
+export const interieurIconeProjet = (d: IconeDessinee): string => (d.largeur === 24 && d.hauteur === 24 ? d.svg : `<svg width="24" height="24" viewBox="0 0 ${d.largeur} ${d.hauteur}">${d.svg}</svg>`);
+
+export function connaitreIconesDessinees(icones: IconeDessinee[]): void {
+  for (const { icone } of iconesDuProjet.values()) delete FORMES_LUCIDE[icone.lucide];
+  iconesDuProjet.clear();
+  for (const dessin of icones) {
+    const lucide = `projet-${normaliser(dessin.nom).replace(/[^a-z0-9]+/g, '-')}`;
+    iconesDuProjet.set(normaliser(dessin.nom), { icone: { nom: dessin.nom, lucide }, dessin });
+    FORMES_LUCIDE[lucide] = interieurIconeProjet(dessin);
+  }
+}
+
+export const iconesDessineesConnues = (): { icone: Icone; dessin: IconeDessinee }[] => [...iconesDuProjet.values()];
+export const estIconeDuProjet = (nom: string): boolean => iconesDuProjet.has(normaliser(nom));
 
 /** La distance entre deux mots (nombre de lettres à changer), pour proposer une orthographe. */
 function distance(a: string, b: string): number {

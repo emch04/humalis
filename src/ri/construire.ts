@@ -98,9 +98,11 @@ export function construireRepresentation(
           },
         }
       : {}),
-    ...(programme.entete || programme.pied
+    ...(programme.iconesDessinees?.length ? { iconesDessinees: programme.iconesDessinees } : {}),
+    ...(programme.entete || programme.pied || programme.barreDessinee
       ? {
           disposition: {
+            ...(programme.barreDessinee ? { barre: dispositionRI(programme.barreDessinee, analyse) } : {}),
             ...(programme.entete ? { entete: dispositionRI(programme.entete, analyse) } : {}),
             ...(programme.pied ? { pied: dispositionRI(programme.pied, analyse) } : {}),
           },
@@ -349,6 +351,7 @@ class Construction {
       ...(this.analyse.etatsLus.get(this.page)?.size ? { etatsRequetes: [...this.analyse.etatsLus.get(this.page)!] } : {}),
       ...(this.page.reglages ? { reglages: true } : {}),
       ...(this.page.pleineFenetre ? { pleineFenetre: true } : {}),
+      ...(this.page.dessin ? { dessin: this.page.dessin } : {}),
       ...(this.page.sansEntete ? { sansEntete: true } : {}),
       ...(this.page.sansPied ? { sansPied: true } : {}),
       ...(this.page.apercu

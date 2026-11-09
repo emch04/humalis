@@ -12,7 +12,7 @@ import { setterDe } from './noms.js';
 import type { GenreBloc } from '../../parser/ast.js';
 import type { ChoixFichierRI, GenreWidget, Reglages, TexteEnLangues } from '../../ri/types.js';
 import { messageEnCode } from '../../i18n/messages.js';
-import { chercherIcone, composantLucide, ICONES } from '../../vocabulaire/icones.js';
+import { chercherIcone, composantLucide, iconesDessineesConnues, ICONES } from '../../vocabulaire/icones.js';
 import { chaine } from './noms.js';
 import { CHOIX_FICHIER_TSX, TELEVERSER_TS } from './fichiers.js';
 import { CARTE_TSX, LEAFLET, carteWeb, type CarteProduite } from './carte.js';
@@ -100,6 +100,8 @@ export const WIDGETS_WEB: RenduWidgets = {
     const lignes: string[] = [];
     const icones = iconesUtilisees(code);
     if (icones.length > 0) lignes.push(`import { ${icones.join(', ')} } from 'lucide-react';`);
+    const propres = iconesProjetUtilisees(code);
+    if (propres.length > 0) lignes.push(`import { ${propres.join(', ')} } from '../humalis/icones-projet';`);
     if (/<QRCodeSVG\b/.test(code)) lignes.push(`import { QRCodeSVG } from 'qrcode.react';`);
     for (const [composant, fichier] of [['Avatar', 'avatar'], ['Etoiles', 'etoiles'], ['Compteur', 'compteur'], ['Carrousel', 'carrousel'], ['CarteLieux', 'carte-lieux'], ['Graphique', 'graphique']]) {
       if (new RegExp(`<${composant}\\b`).test(code)) lignes.push(`import ${composant} from '../humalis/${fichier}';`);
@@ -239,10 +241,21 @@ export function iconesUtilisees(code: string): string[] {
   return ICONES.map((i) => composantLucide(i.lucide) + 'Icon').filter((c, i, tout) => tout.indexOf(c) === i && new RegExp(`<${c}[\\s/>]`).test(code));
 }
 
+const composantDuProjet = (lucide: string) => composantLucide(lucide) + 'Icon';
+const iconesProjetUtilisees = (code: string): string[] =>
+  iconesDessineesConnues().map(({ icone }) => composantDuProjet(icone.lucide)).filter((c) => new RegExp(`<${c}[\\s/>]`).test(code));
+
+/** Les icônes apportées par le projet : leur dessin, écrit tel quel dans le SVG. */
+function iconesProjetTsx(codes: string[]): string {
+  const employees = iconesDessineesConnues().filter(({ icone }) => codes.some((c) => new RegExp(`<${composantDuProjet(icone.lucide)}[\\s/>]`).test(c)));
+  return `import type { SVGProps } from 'react';\n\n${employees.map(({ icone, dessin }) => `export function ${composantDuProjet(icone.lucide)}(props: SVGProps<SVGSVGElement>) {\n  return <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 ${dessin.largeur} ${dessin.hauteur}" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" {...props} dangerouslySetInnerHTML={{ __html: ${JSON.stringify(dessin.svg)} }} />;\n}\n`).join('\n')}`;
+}
+
 /** Les petits fichiers de `src/humalis/` dont le code produit a besoin, d'après ce qu'il emploie. */
 export function fichiersDesElements(codes: string[]): Map<string, string> {
   const fichiers = new Map<string, string>();
   const emploie = (motif: RegExp) => codes.some((c) => motif.test(c));
+  if (codes.some((c) => iconesProjetUtilisees(c).length > 0)) fichiers.set('icones-projet.tsx', iconesProjetTsx(codes));
   if (emploie(/<Avatar\b/)) fichiers.set('avatar.tsx', AVATAR_TSX);
   if (emploie(/<Etoiles\b/)) fichiers.set('etoiles.tsx', ETOILES_TSX);
   if (emploie(/<Compteur\b/)) fichiers.set('compteur.tsx', COMPTEUR_TSX);

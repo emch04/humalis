@@ -81,5 +81,11 @@ export function pourLaCible(application: Application, cible: string): Applicatio
   const fichiersStyle = application.fichiersStyle.filter((f) => f.plateforme === undefined || visees.includes(f.plateforme));
   const adaptee = adapter({ ...application, fichiersStyle: [] }) as Application;
   adaptee.fichiersStyle = fichiersStyle;
+  // Une barre latérale est propre au Mac ; ailleurs elle prend la place de l'en-tête si le projet n'en a pas.
+  if (cible !== 'apple' && adaptee.disposition?.barre) {
+    const { barre, ...reste } = adaptee.disposition;
+    adaptee.disposition = reste.entete ? reste : { ...reste, entete: { ...barre, classes: ['humalis-barre-laterale', ...barre.classes] } };
+    if (!adaptee.disposition.entete && !adaptee.disposition.pied) delete adaptee.disposition;
+  }
   return adaptee;
 }
