@@ -1879,8 +1879,10 @@ function analyserBlocMiseEnPage(flux: FluxTokens): Bloc {
       }
     } while (flux.accepter('MOT_CLE', 'et'));
   }
-  flux.attendre('PONCTUATION', ':', `deux-points à la fin de la ligne « ${genre} », puis son contenu en dessous, décalé`);
-  return { type: 'Bloc', genre, styles, classes, ...(titreBloc ? { titre: titreBloc } : {}), ...(ancre !== undefined ? { ancre } : {}), ...(nom !== undefined ? { nom } : {}), ...(repliable ? { repliable } : {}), ...(vertical ? { vertical } : {}), corps: [...titre, ...analyserBloc(flux)], ligne: debut.ligne };
+  // « bloc avec style "tuile" » sans deux-points : une forme purement visuelle, sans contenu.
+  const sansContenu = ['bloc', 'ligne', 'colonne'].includes(genre) && (classes.length > 0 || styles.length > 0) && (flux.estFini() || (flux.verifier('FIN_LIGNE') && flux.regarder(1).type !== 'INDENT'));
+  if (!sansContenu) flux.attendre('PONCTUATION', ':', `deux-points à la fin de la ligne « ${genre} », puis son contenu en dessous, décalé`);
+  return { type: 'Bloc', genre, styles, classes, ...(titreBloc ? { titre: titreBloc } : {}), ...(ancre !== undefined ? { ancre } : {}), ...(nom !== undefined ? { nom } : {}), ...(repliable ? { repliable } : {}), ...(vertical ? { vertical } : {}), corps: [...titre, ...(sansContenu ? [] : analyserBloc(flux))], ligne: debut.ligne };
 }
 
 function lireNombre(flux: FluxTokens, description: string): number {

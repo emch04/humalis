@@ -378,6 +378,10 @@ function routesSwift(application: Application, app: ContexteApple, entree: Ecran
     e.ligne();
     e.ligne(`static let accueilHumalis: Route = .${nomRoute(entree.nom)}`);
     e.ligne();
+    // Revenir en arrière depuis une page de connexion ne ferait que renvoyer vers elle.
+    const pagesConnexion = application.ecrans.filter((ecran) => /"type":"connexion(Google|Apple)?"/.test(JSON.stringify(ecran))).map((ecran) => `.${nomRoute(ecran.nom)}`);
+    e.ligne(pagesConnexion.length ? `var sansRetour: Bool { switch self { case ${pagesConnexion.join(', ')}: return true; default: return false } }` : 'var sansRetour: Bool { false }');
+    e.ligne();
     e.ligne('/** La vue de chaque page ; une sous-page se montre dans sa page parente. */');
     e.bloc('@MainActor @ViewBuilder var vue: some View {', () => {
       e.bloc('switch self {', () => {
@@ -584,7 +588,7 @@ function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, dispos
         @Bindable var routeur = Routeur.commun
         NavigationStack(path: $routeur.chemin) {
             ${racine}
-                .navigationDestination(for: Route.self) { $0.vue.navigationBarBackButtonHidden(routeur.apresConnexion != nil) }
+                .navigationDestination(for: Route.self) { route in route.vue.navigationBarBackButtonHidden(routeur.apresConnexion != nil || route.sansRetour${menu ? ' || entreesDuMenu.contains { $0.route == route }' : ''}) }
         }${insets}
     }
 `;
@@ -619,7 +623,7 @@ function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, dispos
         return TabView(selection: Binding(get: { routeur.onglet }, set: { routeur.choisirOnglet($0) })) {${fonds.onglets.map((o, i) => `
             NavigationStack(path: routeur.onglet == ${i} ? $routeur.chemin : .constant([])) {
                 ${o.route}.vue
-                    .navigationDestination(for: Route.self) { $0.vue.navigationBarBackButtonHidden(routeur.apresConnexion != nil) }
+                    .navigationDestination(for: Route.self) { route in route.vue.navigationBarBackButtonHidden(routeur.apresConnexion != nil || route.sansRetour${menu ? ' || entreesDuMenu.contains { $0.route == route }' : ''}) }
             }
             .tabItem { Label(${chaineSwift(o.titre)}, systemImage: ${chaineSwift(o.icone)}) }
             .tag(${i})`).join('')}

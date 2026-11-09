@@ -484,8 +484,10 @@ export class GenerateurPage implements HotePage {
     const titreCode = this.titreCode(titre);
     e.bloc('var body: some View {', () => {
       // Une ancre doit exister pour qu'on y aille : une page qui en a construit tout son contenu.
-      const paresseuse = this.ecran.vue.some((n) => n.type === 'repetition') && !JSON.stringify(this.ecran.vue).includes('"ancre"');
-      const racine = this.ecran.vue.some((n) => n.type === 'formulaire' && n.reglages) ? ', racine: .reglages' : this.ecran.vue.some((n) => n.type === 'repetition' && n.corps.some((c) => c.type === 'bloc' && c.natif?.genre === 'glisser')) ? ', racine: .liste' : '';
+      // Un bloc « sur ios : » ne change pas la forme de la page : ses enfants comptent comme ceux de la page.
+      const directs = this.noeudsDirects();
+      const paresseuse = directs.some((n) => n.type === 'repetition') && !JSON.stringify(this.ecran.vue).includes('"ancre"');
+      const racine = this.ecran.vue.some((n) => n.type === 'formulaire' && n.reglages) ? ', racine: .reglages' : directs.some((n) => n.type === 'repetition' && n.corps.some((c) => c.type === 'bloc' && c.natif?.genre === 'glisser')) ? ', racine: .liste' : '';
       e.ligne(this.parametres || this.nomForce ? 'Group {' : `PageHumalis(titre: ${titreCode}${paresseuse ? ', paresseuse: true' : ''}${racine}) {`);
       for (const l of corps.trimEnd().split('\n')) if (l !== '') e.ligne(l.slice(2));
       e.ligne('}');
@@ -533,7 +535,12 @@ export class GenerateurPage implements HotePage {
       const lue = this.portee.variables.get(natif.variable!);
       if (!lue) return this.refuser(n.ligne, `« recherche dans ${natif.variable} » : cette variable est inconnue ici`);
       const lien = lue.code.includes('.') ? `Binding(get: { ${lue.code} }, set: { ${lue.code} = $0 })` : `$${lue.code}`;
+      // Sur iPhone, dans une liste, la recherche se cacherait jusqu'à ce qu'on tire la page.
+      e.ligne('#if os(iOS)');
+      e.ligne(`.searchable(text: ${lien}, placement: .navigationBarDrawer(displayMode: .always), prompt: ${chaineSwift(natif.indice ?? 'Rechercher')})`);
+      e.ligne('#else');
       e.ligne(`.searchable(text: ${lien}, prompt: ${chaineSwift(natif.indice ?? 'Rechercher')})`);
+      e.ligne('#endif');
     } else if (natif.genre === 'actualiser') {
       const bouton = n.corps.find((c) => c.type === 'element');
       const f = bouton && bouton.type === 'element' ? this.clics.get(bouton.id)?.[0] : undefined;
@@ -651,11 +658,16 @@ export class GenerateurPage implements HotePage {
     }
   }
 
+  /** Les éléments de la page, en traversant les blocs « sur ios : » et « sur macos : ». */
+  private noeudsDirects(): NoeudVue[] {
+    return this.ecran.vue.flatMap((n) => (n.type === 'bloc' && n.plateforme ? n.corps : [n]));
+  }
+
   /** Le corps d'une ligne de boucle, avec ses actions en glissant. */
   private ecrireLigneDeBoucle(e: Ecrivain, noeud: Extract<NoeudVue, { type: 'repetition' }>): void {
     const actions = noeud.corps.flatMap((n) => (n.type === 'bloc' && n.natif?.genre === 'glisser' ? n.corps : []));
     if (actions.length === 0) return this.ecrireCorps(e, noeud.corps);
-    if (!this.ecran.vue.includes(noeud)) this.app.avertir(noeud.ligne, "« action en glissant » : la boucle n'est pas directement dans la page, l'action est proposée au toucher prolongé.");
+    if (!this.noeudsDirects().includes(noeud)) this.app.avertir(noeud.ligne, "« action en glissant » : la boucle n'est pas directement dans la page, l'action est proposée au toucher prolongé.");
     e.bloc('Group {', () => this.ecrireCorps(e, noeud.corps));
     e.indenter(() => {
       e.bloc('.contextMenu {', () => this.boutonsSysteme(e, actions));
@@ -1034,7 +1046,7 @@ export class GenerateurPage implements HotePage {
     const fond = noeud.options.find((o) => o.nom === 'fond')?.valeur;
     const raccourci = noeud.raccourci !== undefined ? [touches(noeud.raccourci)] : [];
     this.modifieurs(e, noeud.options, 'bouton', [
-      ...(fond ? ['.buttonStyle(.borderedProminent)', `.tint(Couleurs.${nomSwift(fond)})`, `.foregroundStyle(Couleurs.encre${nomSwift(fond).charAt(0).toUpperCase()}${nomSwift(fond).slice(1)})`] : ['.buttonStyle(.bordered)']),
+      ...(fond ? ['.buttonStyle(.borderedProminent)', `.tint(Couleurs.${nomSwift(fond)})`, `.foregroundStyle(Couleurs.encre${nomSwift(fond).charAt(0).toUpperCase()}${nomSwift(fond).slice(1)})`] : ['.buttonStyle(.bordered)', '.tint(Couleurs.accent)']),
       ...raccourci,
       ...survol,
       id,
@@ -1054,7 +1066,7 @@ export class GenerateurPage implements HotePage {
     e.indenter(() => this.ecrireLibelle(e, noeud));
     e.ligne('}');
     const couleur = noeud.options.some((o) => o.nom === 'couleur' || o.nom === 'texte');
-    this.modifieurs(e, noeud.options, 'lien', ['.buttonStyle(.plain)', ...(couleur ? [] : ['.foregroundStyle(.tint)']), '.accessibilityAddTraits(.isLink)', ...(noeud.raccourci !== undefined ? [touches(noeud.raccourci)] : []), ...survol, id, ...ancre]);
+    this.modifieurs(e, noeud.options, 'lien', ['.buttonStyle(.plain)', ...(couleur ? [] : ['.foregroundStyle(Couleurs.accent)']), '.accessibilityAddTraits(.isLink)', ...(noeud.raccourci !== undefined ? [touches(noeud.raccourci)] : []), ...survol, id, ...ancre]);
   }
 
   private ecrireImage(e: Ecrivain, noeud: Extract<NoeudVue, { type: 'element' }>, id: string, ancre: string[], clics: Fonction[], survol: string[]): void {

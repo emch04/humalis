@@ -460,7 +460,14 @@ struct PageHumalis<Contenu: View>: View {
     }
 
     var body: some View {
-        if natif { pageNative.navigationTitle(titre) } else { pageDefilante }
+        if natif {
+            pageNative.navigationTitle(titre)
+                #if os(iOS)
+                // Le titre est déjà dans la page : la barre du haut ne le répète pas.
+                .toolbarTitleDisplayMode(.inline)
+                .toolbar { ToolbarItem(placement: .principal) { Color.clear.frame(width: 1, height: 1).accessibilityHidden(true) } }
+                #endif
+        } else { pageDefilante }
     }
 
     private var pageDefilante: some View {
