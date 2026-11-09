@@ -81,7 +81,8 @@ function texteJs(parties: PartiesTexte, contexte: ContexteJs, langue?: string): 
     const formater = 'variable' in p ? habillage(p, langue) : undefined;
     // Une variable « = rien » pas encore lue : rien ne s'affiche à la place du champ.
     if (reste.length > 0 && contexte.facultatives?.has(premier)) {
-      const champ = `${contexte.lu?.(premier) ?? nomJs(premier)}?.${reste.map(camel).join('.')}`;
+      // Un « calcul » se lit en l'appelant, comme plus bas : sinon la page ne se met jamais à jour.
+      const champ = `${contexte.calculs.has(premier) ? `${nomJs(premier)}()` : (contexte.lu?.(premier) ?? nomJs(premier))}?.${reste.map(camel).join('.')}`;
       return formater ? `\${${formater(champ)}}` : `\${${champ} ?? ''}`;
     }
     if (formater) return `\${${formater(chemin(p.variable, contexte))}}`;

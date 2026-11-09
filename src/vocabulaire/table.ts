@@ -2589,6 +2589,22 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     note: 'Les identifiants sont tirés au hasard.',
   },
   {
+    mot: 'son',
+    accentue: 'son compte',
+    variantes: [],
+    categorie: 'structure',
+    concept: 'serveur.sonCompte',
+    contextes: ['serveur'],
+    cibles: serveurSeul('GET de la route : une liste d’une seule fiche, le compte de la personne connectée, sans aucun secret'),
+    couvre: [],
+    description:
+      'Dans une route : « connecte peut lire son compte » donne à la personne connectée ses propres champs, et jamais ceux des autres.',
+    exemple: 'serveur "equipe" :\n    compte :\n        nom : texte\n    route "moi" :\n        connecte peut lire son compte\n\npage "accueil" reservee a connecte sinon vers "connexion" :\n    variable profil = []\n    calcul moi = premier de profil\n    quand la page se charge :\n        envoyer requete vers "moi" dans profil\n    titre "Bonjour {moi.nom}"\n\npage "connexion" :\n    titre "Connexion"\n    texte "Entrez pour retrouver votre espace."',
+    statut: 'supporte',
+    etape: 9,
+    note: 'Le compte vient de la session : on ne peut pas demander celui d’une autre personne.',
+  },
+  {
     mot: 'creer avec dans',
     accentue: 'creer … avec … dans …',
     variantes: [],

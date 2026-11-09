@@ -432,6 +432,7 @@ page "accueil" :
 - Une règle de champ mal écrite : on écrit par exemple :
 - « au depart » sans valeur : est suivi de la valeur que le serveur donne
 - « par identifiant » sur autre chose que la lecture : ne vaut que pour la lecture
+- « son compte » sur autre chose que la lecture : ne se lit que
 - Un calcul qui lit une donnée inconnue : qui n'existe pas. Données
 - Un calcul qui lit autre chose qu’un nombre : ce doit être un champ nombre.
 - Une valeur « au depart » du mauvais type : ne convient pas à son type

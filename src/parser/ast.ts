@@ -321,6 +321,8 @@ export interface Regle {
   donnee: string;
   /** « tout le monde peut lire suivi par identifiant » : une fiche à la fois, jamais la liste. */
   parIdentifiant?: boolean;
+  /** « connecte peut lire son compte » : la personne lit seulement son propre compte. */
+  soi?: boolean;
   /** « … si facture.compte est dans utilisateur.comptes_lies » : la règle ne vaut que pour ces fiches. */
   si?: ConditionRegle;
   ligne: number;

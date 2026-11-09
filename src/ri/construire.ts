@@ -175,7 +175,8 @@ function themeRI(theme: NonNullable<Programme['theme']>): ThemeRI {
 function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
   const fidelite = serveur.fidelite;
   const donneesComptes = new Set(serveur.donnees.filter((d) => d.comptes).map((d) => d.nom));
-  const routeComptes = serveur.routes.find((r) => donneesComptes.has(r.regles[0]?.donnee ?? ''));
+  const routeComptes = serveur.routes.find((r) => donneesComptes.has(r.regles[0]?.donnee ?? '') && !r.regles[0].soi);
+  const routeMonCompte = serveur.routes.find((r) => r.regles[0]?.soi);
   const champDe = (donnee: string, champ: string) => serveur.donnees.find((d) => d.nom === donnee)?.champs.find((c) => simplifier(c.nom) === simplifier(champ))?.nom ?? champ;
   const morceaux = (parties: PartieChaine[], donnee: string): MorceauEmail[] =>
     parties.map((p) => (p.type === 'variable' ? { champ: champDe(donnee, p.valeur.split('.')[1] ?? '') } : { texte: p.valeur }));
@@ -239,6 +240,7 @@ function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
         };
       }),
     ...(routeComptes ? { routeComptes: { adresse: routeComptes.adresse, droits: droitsDeRoute(routeComptes), ligne: routeComptes.ligne } } : {}),
+    ...(routeMonCompte ? { routeMonCompte: { adresse: routeMonCompte.adresse, ligne: routeMonCompte.ligne } } : {}),
     ...(serveur.emails ? { emails: { service: serveur.emails.service } } : {}),
     ...(serveur.invitations ? { invitations: serveur.invitations.page } : {}),
     ...(serveur.motDePasseOublie ? { motDePasseOublie: serveur.motDePasseOublie.page } : {}),

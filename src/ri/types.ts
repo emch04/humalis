@@ -219,6 +219,8 @@ export interface ServeurRI {
   }[];
   /** « seul admin peut lire comptes » : la route des comptes de la connexion, servie par les packs et non par une table. */
   routeComptes?: { adresse: string; droits: Record<'lire' | 'creer' | 'modifier' | 'supprimer', QuiPeut | null>; ligne: number };
+  /** « connecte peut lire son compte » : une liste d'une seule fiche, celle de la personne connectée. */
+  routeMonCompte?: { adresse: string; ligne: number };
   /** « emails par brevo ». */
   emails?: { service: string };
   /** « invitations vers "bienvenue" » : la page qu'ouvre le lien. */
