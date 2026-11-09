@@ -251,7 +251,7 @@ func formaterArgent(_ valeur: Double?, _ devise: DeviseHumalis, langue: String =
         return valeur.formatted(.currency(code: "EUR").locale(region(langue)))
     case .USD:
         if langue == "en" { return valeur.formatted(.currency(code: "USD").locale(region(langue))) }
-        return "\(valeur.formatted(.number.locale(region(langue)).precision(.fractionLength(2)))) $"
+        return "\(valeur.formatted(.number.locale(region(langue)).precision(.fractionLength(valeur.rounded() == valeur ? 0 : 2)))) $"
     }
 }
 

@@ -30,11 +30,12 @@ export function formaterDate(valeur: string | null | undefined): string {
   return Number.isNaN(date.getTime()) ? valeur : date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
-/** 15000, « FC » → « 15 000 FC » ; 12.5, « EUR » → « 12,50 € » ; 12.5, « USD » → « 12,50 $ ». */
+/** 15000, « FC » → « 15 000 FC » ; 12.5, « EUR » → « 12,50 € » ; 12.5, « USD » → « 12,50 $ » ; 12400, « USD » → « 12 400 $ ». */
 export function formaterArgent(valeur: number | null | undefined, devise: 'FC' | 'EUR' | 'USD'): string {
   if (typeof valeur !== 'number') return '';
   if (devise === 'EUR') return valeur.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
-  if (devise === 'USD') return `${valeur.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $`;
+  // Un montant rond s'écrit sans centimes : « 12 400 $ », avec un espace visible dans toutes les polices.
+  if (devise === 'USD') return `${valeur.toLocaleString('fr-FR', { minimumFractionDigits: Number.isInteger(valeur) ? 0 : 2, maximumFractionDigits: 2 }).replace(/\u202f/g, '\u00a0')} $`;
   return `${valeur.toLocaleString('fr-FR')} FC`;
 }
 
