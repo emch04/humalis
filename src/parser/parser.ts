@@ -214,13 +214,24 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
       flux.avancer();
       flux.attendre('PONCTUATION', ':', 'deux-points à la fin de la ligne');
       ongletsApplication = [];
-      lignesDuBloc(flux, () => {
+      const lireOnglet = (groupe?: string) => {
         const ligne = motAttendu(flux, 'onglet', 'onglet "Accueil" vers "accueil" avec icone "maison"');
         const titre = flux.attendre('CHAINE', undefined, 'le titre de l’onglet entre guillemets').valeur;
         flux.attendre('MOT_CLE', 'vers', '« vers » puis la page entre guillemets');
         const page = flux.attendre('CHAINE', undefined, 'la page entre guillemets').valeur;
         const icone = lireIcone(flux);
-        ongletsApplication!.push({ titre, page, ...(icone ? { icone } : {}), ligne });
+        ongletsApplication!.push({ titre, page, ...(icone ? { icone } : {}), ...(groupe ? { groupe } : {}), ligne });
+      };
+      lignesDuBloc(flux, () => {
+        // « groupe "Équipe" : » puis ses onglets, décalés : un intertitre dans le menu.
+        if (estLeMot(flux.actuel(), 'groupe')) {
+          flux.avancer();
+          const groupe = flux.attendre('CHAINE', undefined, 'le titre du groupe entre guillemets').valeur;
+          flux.attendre('PONCTUATION', ':', 'deux-points après le titre du groupe');
+          lignesDuBloc(flux, () => lireOnglet(groupe));
+          return;
+        }
+        lireOnglet();
       });
       if (ongletsApplication.length === 0) throw new ErreurSyntaxique('« onglets de l’application » attend au moins un onglet en dessous, décalé.', debut.ligne);
       flux.sauterFinsDeLigne();
@@ -366,7 +377,12 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
   for (const lieu of [...pages, ...composants, ...(entete ? [entete] : []), ...(pied ? [pied] : [])]) lieu.corps = selonEnConditions(lieu.corps);
   // Les onglets donnent un menu aux cibles sans barre d'onglets : c'est aussi la barre latérale du Mac.
   if (ongletsApplication) {
-    const liens = ongletsApplication.map((o) => `        lien "${sansGuillemets(o.titre)}" vers "${o.page}"${o.icone ? ` avec icone "${o.icone}"` : ''}`).join('\n');
+    let groupeEnCours: string | undefined;
+    const liens = ongletsApplication.flatMap((o) => {
+      const intertitre = o.groupe && o.groupe !== groupeEnCours ? [`        texte "${sansGuillemets(o.groupe)}" avec style "humalis-menu-groupe"`] : [];
+      groupeEnCours = o.groupe;
+      return [...intertitre, `        lien "${sansGuillemets(o.titre)}" vers "${o.page}"${o.icone ? ` avec icone "${o.icone}"` : ''}`];
+    }).join('\n');
     const menuOnglets = analyserSyntaxe(analyserLexique(`entete :\n    menu :\n${liens}\n`).map((t) => ({ ...t, ligne: ongletsApplication![0].ligne }))).entete!;
     if (entete) entete.corps.push(...menuOnglets.corps);
     else entete = menuOnglets;

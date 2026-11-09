@@ -26,7 +26,7 @@ export interface Application {
   paquetsSwift?: { adresse: string; version: string; produit?: string; ligne: number }[];
   /** « liens profonds "magasin" ». */
   /** « onglets de l'application : ». */
-  ongletsApplication?: { titre: string; page: string; icone?: string; ligne: number }[];
+  ongletsApplication?: { titre: string; page: string; icone?: string; groupe?: string; ligne: number }[];
   liensProfonds?: { schema: string; domaine?: string; ligne: number };
   /** Les composants écrits en Humalis : des écrans qui reçoivent des paramètres. */
   composants: ComposantHumalis[];
