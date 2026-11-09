@@ -336,7 +336,8 @@ describe('les composants natifs', () => {
   it('une table est un vrai tableau sur Mac', () => {
     const code = swift('table l :\n    colonne "Nom" avec x.nom');
     expect(code).toContain('#if os(macOS)');
-    expect(code).toContain('TableColumn("Nom")');
+    expect(code).toContain('TableColumn("Nom", value: \\.cles[0])');
+    expect(code).toContain('sortOrder: $triTable1');
   });
 
   it('les onglets, les menus et la page de réglages arrivent dans l\'application', () => {
