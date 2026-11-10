@@ -39,7 +39,7 @@ const CLASSES_PRISES = new Set([
   'Humalis', 'System', 'Windows', 'Microsoft', 'Application', 'Programme', 'Pages', 'Sources', 'Fonctions', 'Partage', 'Styles',
   'Couleurs', 'V', 'UI', 'Session', 'Serveur', 'Routeur', 'Messages', 'Memoire', 'Coffre', 'Apparence', 'Configuration', 'Icones',
   'Minuterie', 'Pause', 'Signal', 'Effet', 'Liste', 'Fiche', 'Arguments', 'Fermeture', 'Entete', 'Pied', 'Source',
-  'Langues', 'Svg', 'Palette', 'GraphiqueHumalis', 'GraphiqueFabrique', 'SerieGraphique', 'Fichiers', 'Qr',
+  'Langues', 'Svg', 'Palette', 'GraphiqueHumalis', 'GraphiqueFabrique', 'SerieGraphique', 'Fichiers', 'Qr', 'Medias', 'Marqueur', 'CarteHumalis',
 ]);
 
 /** Le nom de l'application en identifiant C# (« ma-boutique » → MaBoutique ; « sources » → SourcesApp). */

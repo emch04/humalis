@@ -7,7 +7,7 @@ import type { ComposantHumalis, Ecran, Etat, Gestionnaire, NoeudVue, Option, Sai
 import type { Diagnostic } from '../../analyse/erreurs.js';
 import { simplifier } from '../../analyse/elements.js';
 import { sousActions } from '../../ri/actions.js';
-import { nomDeLaCopie } from '../../ri/medias.js';
+import { estFichierLocal, nomDeLaCopie } from '../../ri/medias.js';
 import { libellesEnLangues, verificationsDuChamp } from '../../i18n/messages.js';
 import { Ecrivain } from '../web/ecrivain.js';
 import { EcrivainActions, type HoteActions } from './actions.js';
@@ -38,7 +38,7 @@ interface Methode {
   boucles: string[];
 }
 
-const GLYPHES_WIDGETS = new Set(['icone', 'badge', 'avatar', 'progression', 'chargement', 'etoiles', 'compteur', 'selecteurLangue', 'fichier', 'qr']);
+const GLYPHES_WIDGETS = new Set(['icone', 'badge', 'avatar', 'progression', 'chargement', 'etoiles', 'compteur', 'selecteurLangue', 'fichier', 'qr', 'audio', 'video']);
 
 /** Indente un morceau de code de plusieurs lignes (sauf sa première ligne). */
 const decaler = (code: string, espaces = '  ') => code.replace(/\n/g, `\n${espaces}`);
@@ -293,6 +293,7 @@ export class GenerateurBloc implements HoteActions {
 
     e.ligne('// Produit par Humalis : ne pas modifier à la main, recompiler le fichier .humalis.');
     e.ligne('using System;');
+    e.ligne('using System.Linq;');
     e.ligne('using System.Threading.Tasks;');
     e.ligne('using System.Windows;');
     e.ligne('using System.Windows.Controls;');
@@ -451,12 +452,37 @@ export class GenerateurBloc implements HoteActions {
       case 'graphique':
         return this.graphique(n);
       case 'carte':
-        this.refuser('une carte');
-        return undefined;
+        return this.carte(n);
       case 'marqueur':
       case 'locale':
         return undefined;
     }
+  }
+
+  /** Un fichier du projet (« extrait.wav ») : le nom de sa copie dans l'application ; une adresse reste telle quelle. */
+  private copieLocale(chemin: string): string {
+    return estFichierLocal(chemin) ? nomDeLaCopie(chemin) : chemin;
+  }
+
+  /** Une carte : son centre et son zoom écrits, sinon ses marqueurs (dans des boucles et des conditions). */
+  private carte(n: Extract<NoeudVue, { type: 'carte' }>): string {
+    const nombre = (v: Valeur | undefined) => (v === undefined ? '(double?)null' : `(double?)${this.x.enNombre(v)}`);
+    const marqueurs = (noeuds: NoeudVue[]): string => {
+      const morceaux = noeuds.flatMap((m): string[] => {
+        if (m.type === 'marqueur') return [`new[] { new Marqueur(${this.x.enNombre(m.latitude)}, ${this.x.enNombre(m.longitude)}, ${this.x.enTexte(m.nom)}, ${m.adresse ? this.x.enTexte(m.adresse) : 'null'}) }`];
+        if (m.type === 'repetition') {
+          const nom = nomCs(m.variable);
+          const dedans = this.x.avec([[m.variable, { lire: nom, locale: nom }]], () => marqueurs(m.corps));
+          return [`V.L(${this.x.expr(m.liste)}).SelectMany((object? ${nom}) => ${dedans})`];
+        }
+        if (m.type === 'condition') return [`(${this.x.condition(m.test)} ? ${marqueurs(m.alors)} : ${marqueurs(m.sinon)})`];
+        return [];
+      });
+      return morceaux.length === 0 ? 'Array.Empty<Marqueur>()' : morceaux.length === 1 ? morceaux[0] : `${morceaux[0]}${morceaux.slice(1).map((x) => `.Concat(${x})`).join('')}.ToArray()`;
+    };
+    const args = [this.x.enTexte(n.nom), `() => (${nombre(n.latitude)}, ${nombre(n.longitude)}, ${nombre(n.zoom)})`, `() => ${marqueurs(n.corps)}.ToArray()`];
+    if (n.tuiles) args.push(`modele: ${chaineCs(n.tuiles.adresse)}`, `attribution: ${chaineCs(n.tuiles.attribution.replace(/<[^>]+>/g, ''))}`, 'lienAttribution: null');
+    return this.styler(`CarteHumalis.Creer(${args.join(', ')})`, n.classes, [], 'bloc');
   }
 
   /** Un graphique : la liste, ses libellés, ses séries ; le dessin est fait par la bibliothèque. */
@@ -614,6 +640,18 @@ export class GenerateurBloc implements HoteActions {
         break;
       case 'selecteurLangue':
         return 'UI.SelecteurLangue()';
+      case 'audio':
+      case 'video': {
+        const source = n.contenu.type === 'texte' && !n.contenu.versions && n.contenu.parties.every((p) => 'texte' in p)
+          ? chaineCs(this.copieLocale(n.contenu.parties.map((p) => ('texte' in p ? p.texte : '')).join('')))
+          : this.x.enTexte(n.contenu);
+        const description = n.textes?.description ? this.x.enTexte(n.textes.description) : chaineCs(n.reglages.description ?? (n.genre === 'audio' ? 'Audio' : 'Vidéo'));
+        const args = [`() => ${source}`, description, n.genre === 'video' ? 'true' : 'false'];
+        if (n.reglages.boucle) args.push('boucle: true');
+        if (n.textes?.transcription) args.push(`transcription: ${this.x.enTexte(n.textes.transcription)}`);
+        code = `Medias.Lecteur(${args.join(', ')})`;
+        break;
+      }
       case 'qr': {
         const taille = { petite: 128, normale: 192, grande: 256, tres_grande: 320 }[n.options.find((o) => o.nom === 'taille')?.valeur ?? 'normale'] ?? 192;
         const description = n.reglages.descriptionLangues?.length ? `Langues.T(${n.reglages.descriptionLangues.map((l) => `(${chaineCs(l.code)}, ${chaineCs(l.texte)})`).join(', ')})` : chaineCs(n.reglages.description ?? 'Code QR');

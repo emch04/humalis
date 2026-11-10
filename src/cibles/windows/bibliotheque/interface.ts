@@ -211,7 +211,7 @@ public static class Icones
         ["telecharger"] = "", ["envoyer"] = "", ["info"] = "", ["attention"] = "", ["erreur"] = "", ["cadenas"] = "",
         ["deconnexion"] = "", ["connexion"] = "", ["image"] = "", ["fichier"] = "", ["dossier"] = "", ["carte"] = "",
         ["lieu"] = "", ["argent"] = "", ["camion"] = "", ["livraison"] = "", ["lien"] = "", ["copier"] = "",
-        ["actualiser"] = "", ["filtre"] = "", ["graphique"] = "", ["notification"] = "", ["cloche"] = "", ["oeil"] = "",
+        ["actualiser"] = "", ["filtre"] = "", ["graphique"] = "", ["notification"] = "", ["cloche"] = "", ["oeil"] = "", ["lecture"] = "", ["pause"] = "",
     };
 
     public static string Glyphe(string nom) => glyphes.TryGetValue(nom, out var g) ? g : "";

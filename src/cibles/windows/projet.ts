@@ -20,6 +20,7 @@ import { SVG_CS } from './bibliotheque/svg.js';
 import { GRAPHIQUE_CS } from './bibliotheque/graphique.js';
 import { FICHIERS_CS } from './bibliotheque/fichiers.js';
 import { QR_CS } from './bibliotheque/qr.js';
+import { MEDIAS_CS } from './bibliotheque/medias.js';
 import { chaineCs, commentaireCs, nomApplication, nomCs, nomMethode } from './noms.js';
 import { GenerateurBloc, classeDe, quatreEspaces, type ContexteWindows } from './page.js';
 import { reglesDeClasses, styleDesDeclarations } from './styles.js';
@@ -471,6 +472,7 @@ ${application.ongletsApplication?.length ? `        FenetrePrincipale.Onglets = 
   fichiers.set('Humalis/Graphique.cs', GRAPHIQUE_CS);
   fichiers.set('Humalis/Fichiers.cs', FICHIERS_CS);
   fichiers.set('Humalis/Qr.cs', QR_CS);
+  fichiers.set('Humalis/Medias.cs', MEDIAS_CS);
   for (const [chemin, info] of options.medias ?? []) {
     if (info.contenu !== undefined) fichiers.set(`Ressources/${nomDeLaCopie(chemin)}`, contenuBinaire(info.contenu));
   }
