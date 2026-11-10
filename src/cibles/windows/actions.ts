@@ -245,6 +245,19 @@ export class EcrivainActions {
       case 'telechargementCsv':
         e.ligne(`await Messages.TelechargerCsv(${this.x.expr(a.liste)}, ${chaineCs(a.fichier)});`);
         return;
+      case 'enregistrerAudio':
+      case 'enregistrerVideo':
+      case 'recadrerPhoto': {
+        if (!this.hote.dansUnePage) return this.hote.refuser('un enregistrement ou un recadrage dans une fonction');
+        const lieu = this.lieu(a.variable);
+        if (!lieu) return;
+        const appel = a.type === 'recadrerPhoto' ? `Recadrage.Photo(${lieu.lire})` : `Enregistrement.Media(${chaineCs(a.type === 'enregistrerAudio' ? 'audio' : 'video')})`;
+        const n = ++this.numero;
+        e.ligne(`var hMedia${n} = await ${appel};`);
+        const ecrire = this.affecter(lieu, a.variable, `hMedia${n}`);
+        if (ecrire) e.ligne(`if (hMedia${n} is not null) ${ecrire}`);
+        return;
+      }
       case 'requete':
         return this.requete(e, a, c);
       case 'recharger':
