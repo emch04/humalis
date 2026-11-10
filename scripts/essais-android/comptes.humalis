@@ -1,0 +1,111 @@
+# L'essai du compte sur Android : connexion, invitation, rôle et champs d'un
+# compte, connexion avec Google et Apple, paiement, IA et choix du mot de passe.
+liens profonds "comptes"
+
+serveur "commerce" :
+    roles gerant et vendeur
+    connexion google
+    connexion apple
+    invitations vers "bienvenue"
+    mot de passe oublie vers "bienvenue"
+    emails par brevo
+    paiements par stripe
+    ia par anthropic
+    connecte peut demander a ia
+    compte :
+        telephone : texte
+    donnee reservation :
+        nom : texte
+        total : nombre
+    route "reservations" :
+        connecte peut lire reservation
+        connecte peut creer reservation
+        seul admin peut modifier reservation
+        quand reservation est payee :
+            creer journal avec nom reservation.nom
+    donnee journal :
+        nom : texte
+    route "journaux" :
+        seul admin peut lire journal
+    route "equipe" :
+        seul admin peut lire comptes
+        seul admin peut creer comptes
+        seul admin peut modifier comptes
+
+page "connexion" :
+    titre "Connexion"
+    formulaire "connexion" :
+        champ email "Email" avec obligatoire
+        champ mot de passe "Mot de passe" avec obligatoire
+        bouton "Entrer"
+    quand le formulaire "connexion" est soumis :
+        se connecter avec champ "Email" et champ "Mot de passe"
+        rediriger vers "equipe"
+    bouton "Google"
+    quand l'utilisateur clique sur "Google" :
+        essayer :
+            se connecter avec google
+            rediriger vers "equipe"
+        si erreur :
+            afficher erreur "Google : {raison}"
+    bouton "Apple"
+    quand l'utilisateur clique sur "Apple" :
+        essayer :
+            se connecter avec apple
+            rediriger vers "equipe"
+        si erreur :
+            afficher erreur "Apple : {raison}"
+
+page "equipe" reservee a admin sinon vers "connexion" :
+    variable membres = []
+    variable reservations = []
+    variable reponse = ""
+    titre "L'équipe"
+    quand la page se charge :
+        envoyer requete vers "equipe" dans membres
+        envoyer requete vers "reservations" dans reservations
+    formulaire "invitation" :
+        champ email "Adresse" avec obligatoire
+        champ "Tél"
+        bouton "Inviter"
+    quand le formulaire "invitation" est soumis :
+        essayer :
+            inviter champ "Adresse" comme vendeur avec telephone = champ "Tél"
+            afficher reussite "Invitation envoyée"
+            envoyer requete vers "equipe" dans membres
+        si erreur :
+            afficher erreur "Invitation : {raison}"
+    pour chaque m dans membres :
+        ligne :
+            texte "{m.email} {m.role} {m.telephone}"
+            bouton "Gérant"
+            quand l'utilisateur clique sur "Gérant" :
+                changer role de m en "gerant"
+                changer compte de m avec telephone = "0600000000"
+                envoyer requete vers "equipe" dans membres
+    pour chaque r dans reservations :
+        ligne :
+            texte r.nom
+            bouton "Payer"
+            quand l'utilisateur clique sur "Payer" :
+                payer total pour r
+    bouton "Demander"
+    quand l'utilisateur clique sur "Demander" :
+        demander a ia "Donne une idée de slogan" dans reponse
+    texte reponse
+    bouton "Sortir"
+    quand l'utilisateur clique sur "Sortir" :
+        se deconnecter
+        rediriger vers "connexion"
+
+page "bienvenue" :
+    titre "Bienvenue"
+    formulaire "mot de passe" :
+        champ mot de passe "Nouveau" avec obligatoire
+        bouton "Choisir"
+    quand le formulaire "mot de passe" est soumis :
+        essayer :
+            choisir le mot de passe avec champ "Nouveau"
+            afficher reussite "Mot de passe choisi"
+        si erreur :
+            afficher erreur "{raison}"

@@ -2562,6 +2562,12 @@ personne choisit de masquer son adresse, elle n'est pas reconnue et un message l
 faut `APPLE_APP_ID` pour l'application, `APPLE_SERVICE_ID` pour le site, et compiler
 l'application avec `--equipe`.
 
+Sur Android, la page d'Apple s'ouvre dans un onglet du navigateur, puis Apple renvoie la
+personne sur le serveur, qui la renvoie dans l'application. Il faut `liens profonds "…"`
+dans le programme, `APPLE_RETOUR_ANDROID=magasin://connexion-apple` sur le serveur (avec le
+schéma des liens profonds), et l'adresse `https://ton-serveur/auth/apple/retour` dans les
+adresses de retour de l'identifiant de services, chez Apple.
+
 ### Se connecter avec Google
 
 Avec la ligne `connexion google` dans le serveur, un compte **déjà connu** du
@@ -2592,7 +2598,9 @@ page "connexion" :
 
 Il faut un ID client OAuth de Google (type « application Web »), dans la
 variable `GOOGLE_CLIENT_ID` du serveur, avec l'adresse de redirection
-`https://ton-site/auth-google.html`. Cible web et bureau seulement, pour l'instant.
+`https://ton-site/auth-google.html`. Sur Android, le compte Google se choisit dans la
+fenêtre du système : crée aussi un ID client de type « Android » (le nom de l'application
+et l'empreinte SHA-1 de son certificat) ; le serveur garde l'ID client Web.
 
 ### Inviter des personnes et retrouver un mot de passe
 
@@ -3446,8 +3454,12 @@ web, et gardent leur table « Voir les données » ; les cartes montrent les tui
 d'OpenStreetMap et leur attribution ; le son et la vidéo passent par le lecteur d'Android,
 sans démarrer seuls ; le code QR et les tableaux s'affichent comme sur le web.
 
-Ce qui n'existe pas encore sur Android, et que la compilation refuse en le disant : la
-connexion avec Google ou Apple, le paiement, l'IA et les notifications.
+Le compte aussi : invitations, rôles et champs du compte, choix du mot de passe par le lien
+reçu, connexion avec Google ou Apple, paiement (la page de Stripe s'ouvre dans le
+navigateur) et `demander a ia`, dont la réponse s'écrit au fil de l'eau.
+
+Ce qui n'existe pas encore sur Android, et que la compilation refuse en le disant : les
+notifications.
 
 Le CSS se traduit en Compose, règle par règle, quand une règle vise une classe
 (`.carte { … }`) : fond, couleur, taille et graisse du texte, marges et remplissage,

@@ -217,6 +217,9 @@ const ENV_APPLE = `# La connexion avec Apple (« connexion apple »). Ce ne sont
 # APPLE_SERVICE_ID : l'identifiant de services créé chez Apple, pour le site.
 APPLE_APP_ID=
 APPLE_SERVICE_ID=
+# APPLE_RETOUR_ANDROID : le lien profond de l'application Android (magasin://connexion-apple).
+# Apple renvoie la personne sur /auth/apple/retour, puis le serveur la renvoie dans l'application.
+APPLE_RETOUR_ANDROID=
 `;
 
 /** « connexion google » : l'ID client OAuth de Google (pas un secret). */
@@ -2513,6 +2516,21 @@ const ROUTE_APPLE = `
       const routeApple = express.Router();
       routeApple.get('/', (_req, res) => {
         res.json({ clientId: identifiantsApple().site ?? null });
+      });
+      // Sur Android, Apple renvoie la personne ici (« form_post ») ; le serveur la renvoie dans l'application
+      // par son lien profond, réglé dans APPLE_RETOUR_ANDROID. Rien n'est ouvert ici : l'application vérifie
+      // son « state », puis envoie le jeton à POST /auth/apple, qui le vérifie comme les autres.
+      routeApple.post('/retour', express.urlencoded({ extended: false, limit: '16kb' }) as unknown as RequestHandler, (req, res) => {
+        const retour = process.env.APPLE_RETOUR_ANDROID ?? '';
+        const schema = retour.split(':')[0] ?? '';
+        if (!/^[a-z][a-z0-9+.-]*$/i.test(schema) || retour !== schema + '://connexion-apple' || /^(https?|javascript|data|file|content|intent)$/i.test(schema)) {
+          res.status(404).json({ erreur: "le retour vers l'application Android n'est pas réglé sur ce serveur (APPLE_RETOUR_ANDROID)" });
+          return;
+        }
+        const corps = (req.body ?? {}) as { id_token?: unknown; state?: unknown };
+        const etat = typeof corps.state === 'string' ? corps.state.slice(0, 200) : '';
+        const jeton = typeof corps.id_token === 'string' ? corps.id_token.slice(0, 8000) : '';
+        res.redirect(303, retour + '?etat=' + encodeURIComponent(etat) + '#jeton=' + encodeURIComponent(jeton));
       });
       routeApple.post('/', createLoginLimiter() as unknown as RequestHandler, csrfMiddleware, async (req, res, next) => {
         const apple = appleDuServeur();

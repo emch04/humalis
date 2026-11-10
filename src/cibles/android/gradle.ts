@@ -18,6 +18,9 @@ export const VERSIONS = {
   zxingCore: '3.5.3',
   media3: '1.8.0',
   osmdroid: '6.1.20',
+  identifiants: '1.5.0',
+  googleid: '1.1.1',
+  navigateur: '1.9.0',
   sdkMinimum: 26,
   sdkCible: 36,
 } as const;
@@ -63,7 +66,7 @@ zipStoreBase=GRADLE_USER_HOME
 zipStorePath=wrapper/dists
 `;
 
-export function constructionApp(identifiant: string, nomAffiche: string, avec: { appareil?: boolean; scanner?: boolean; qr?: boolean; lecteurs?: boolean; cartes?: boolean } = {}): string {
+export function constructionApp(identifiant: string, nomAffiche: string, avec: { appareil?: boolean; scanner?: boolean; qr?: boolean; lecteurs?: boolean; cartes?: boolean; google?: boolean; apple?: boolean } = {}): string {
   return `// Produit par Humalis.
 plugins {
     id("com.android.application")
@@ -108,6 +111,10 @@ ${avec.appareil ? `    implementation("androidx.biometric:biometric:${VERSIONS.b
 ` : ''}${avec.lecteurs ? `    implementation("androidx.media3:media3-exoplayer:${VERSIONS.media3}")
     implementation("androidx.media3:media3-ui:${VERSIONS.media3}")
 ` : ''}${avec.cartes ? `    implementation("org.osmdroid:osmdroid-android:${VERSIONS.osmdroid}")
+` : ''}${avec.google ? `    implementation("androidx.credentials:credentials:${VERSIONS.identifiants}")
+    implementation("androidx.credentials:credentials-play-services-auth:${VERSIONS.identifiants}")
+    implementation("com.google.android.libraries.identity.googleid:googleid:${VERSIONS.googleid}")
+` : ''}${avec.apple ? `    implementation("androidx.browser:browser:${VERSIONS.navigateur}")
 ` : ''}    debugImplementation("androidx.compose.ui:ui-tooling")
 }
 `;

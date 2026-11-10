@@ -46,7 +46,7 @@ export function verifierAppareilPourLaCible(application: Application, cible: str
     const ligne = lieu?.ligne ?? partage?.ligne;
     if (ligne !== undefined) diagnostics.push({ gravite: 'erreur', ligne, message: android ? `${nom} n'est disponible que sur les cibles Apple et Android pour l'instant : compilez avec --cible apple ou --cible android (ici, --cible ${cible}).` : `${nom} n'est disponible que sur la cible Apple pour l'instant : compilez avec --cible apple (ici, --cible ${cible}).` });
   }
-  if (['mobile', 'desktop', 'statique', 'android'].includes(cible)) {
+  if (['mobile', 'desktop', 'statique'].includes(cible)) {
     const lieu = lieux.find((e) => /"type":"connexionApple"/.test(JSON.stringify(e)));
     if (lieu) diagnostics.push({ gravite: 'erreur', ligne: lieu.ligne, message: `« se connecter avec apple » n'existe pas pour cette cible : compilez avec --cible web ou --cible apple, ou retirez cette ligne.` });
   }
