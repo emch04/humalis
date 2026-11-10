@@ -29,6 +29,8 @@ import { GenerateurPage, type ContexteAndroid } from './page.js';
 import { Valeurs, type Portee } from './valeurs.js';
 import { dansLePaquet, lireVueNatifKt, stylesKotlinNommes, type VueNatifKt } from './natifs.js';
 import { ecrireFormes, lisezmoiFormes, VERSIONS_FORMES } from './formes.js';
+import { captureErreursKotlin } from './capture-erreurs.js';
+import { requetesCapture } from '../capture-erreurs.js';
 
 export const MARQUE_ANDROID = '.humalis-projet';
 
@@ -888,6 +890,11 @@ export function genererProjetAndroid(complete: Application, options: OptionsAndr
 
   const avecApple = application.liensProfonds !== undefined && /\bseConnecterAvecApple\(/.test([...fichiers.values()].join('\n'));
   ecrireCode('MainActivity.kt', applicationKotlin(paquet, application, routes, entree, disposition, onglets, avecApple, menus.length > 0));
+  if (application.formes?.erreurArrive) {
+    ecrireCode('CaptureErreurs.kt', kotlin(paquet, captureErreursKotlin(requetesCapture(application.formes).requetes)));
+    const cheminActivite = `${dossierCode}/MainActivity.kt`;
+    fichiers.set(cheminActivite, fichiers.get(cheminActivite)!.replace('        setContent { ApplicationHumalis() }', '        CaptureErreurs.installer(applicationContext)\n        setContent { ApplicationHumalis() }'));
+  }
   // Les polices livrées avec le projet (.ttf, .otf) : des ressources de l'application.
   const policesCopiees = new Set<string>();
   for (const p of application.theme?.polices ?? []) {

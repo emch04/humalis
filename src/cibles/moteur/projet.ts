@@ -5,6 +5,7 @@
 import { avecLangueDeRendu } from '../statique/valeurs.js';
 import { TRAVAILLEUR_NOTIFICATIONS } from '../serveur/logique.js';
 import type { Application, ComposantHumalis, DispositionRI, Ecran, NoeudVue } from '../../ri/types.js';
+import { codeCaptureNavigateur, requetesCapture } from '../capture-erreurs.js';
 import { copiesDesMedias, type InfoMedia } from '../../ri/medias.js';
 import { simplifier } from '../../analyse/elements.js';
 import { MENU_REPLIABLE_JS, enTetePublication, planDuSite } from '../statique/projet.js';
@@ -432,6 +433,10 @@ document.title = ${traduit('Page introuvable')};
   }, null, 2) + '\n');
   fichiers.set('vite.config.js', viteConfig(entrees, routes.filter((r) => r.chemin !== '/'), application.serveurs.length > 0, sortes));
   fichiers.set('LISEZMOI.md', `# ${options.nom}\n\nSite produit par Humalis depuis \`${options.source}\`, avec son moteur de rendu, sans React.\n\n\`\`\`sh\nnpm install\nnpm run dev\nnpm run build\nnpm run preview\n\`\`\`\n\nChaque page est un fichier HTML déjà écrit ; un petit script la reprend.\n`);
+  if (application.formes?.erreurArrive) {
+    fichiers.set('public/humalis/capture-erreurs.js', codeCaptureNavigateur(requetesCapture(application.formes).requetes));
+    for (const [nom, contenu] of fichiers) if (nom.endsWith('.html')) fichiers.set(nom, contenu.replace('</head>', '<script src="/humalis/capture-erreurs.js"></script></head>'));
+  }
   return fichiers;
 }
 

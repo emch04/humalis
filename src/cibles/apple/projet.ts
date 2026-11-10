@@ -28,6 +28,8 @@ import { langueDuStyle, stylesSwiftDu } from '../commun/styles-natifs.js';
 import { CONNEXIONS_SWIFT, ENVOIS_SWIFT, LANGUES_SWIFT, MEMOIRE_SWIFT, MESSAGES_SWIFT, MINUTERIES_SWIFT, NOTIFICATIONS_SWIFT, SERVEUR_SWIFT, SYSTEME_SWIFT } from './systeme.js';
 import { Types, Valeurs, plusPrecis, type Portee } from './valeurs.js';
 import { genererFormesApple, aDesFormes, type FormesProduites } from './formes.js';
+import { requetesCapture } from '../capture-erreurs.js';
+import { captureErreursSwift } from './capture-erreurs.js';
 import { CONFIDENTIALITE, assets, associationSite, infoSupplementaire, type PaquetSwift, droits, projetXcode, schemaXcode } from './xcode.js';
 
 export const MARQUE_APPLE = '.humalis-projet';
@@ -1089,7 +1091,12 @@ export function genererProjetApple(application: Application, options: OptionsApp
   }
   if (notifications && !options.equipe) avertir(1, "« activer notifications » : sans --equipe, l'application demande la permission mais ne peut pas recevoir de notification d'Apple. Compilez avec --equipe pour qu'elle les reçoive.");
   const policesCopiees = (application.theme?.polices ?? []).flatMap((p) => (p.fichier && /\.(ttf|otf|woff2?)$/i.test(p.fichier) && options.polices?.has(p.fichier) ? [{ fichier: p.fichier, nom: p.nom }] : []));
-  ecrire(`${nom}App.swift`, applicationSwift(nom, application.site?.nom ?? options.nom, entree, disposition, policesCopiees.map((p) => ({ fichier: nomFichierPlat(p.fichier), nom: p.nom })), application.theme?.polices.find((p) => p.role === 'texte')?.nom, notifications, { ...(dessinPrincipal ? { dessin: { ...dessinPrincipal, barre: application.disposition?.barre !== undefined, ...(barreVisible ? { barreVisible } : {}) } } : {}), barreLaterale: application.barreLaterale, liens: application.liensProfonds !== undefined, domaine: application.liensProfonds?.domaine !== undefined, envois: avecEnvois, arrierePlan: avecArrierePlan, ...(ongletsSwift ? { onglets: ongletsSwift } : {}), ...(commandesEcrites.menus.length ? { menus: commandesEcrites.menus } : {}), ...(pageReglages ? { reglages: `Route${routeSimple(pageReglages.nom, app)}` } : {}), ...(formes ? { formes: formes.app } : {}) }));
+  let codeApplication = applicationSwift(nom, application.site?.nom ?? options.nom, entree, disposition, policesCopiees.map((p) => ({ fichier: nomFichierPlat(p.fichier), nom: p.nom })), application.theme?.polices.find((p) => p.role === 'texte')?.nom, notifications, { ...(dessinPrincipal ? { dessin: { ...dessinPrincipal, barre: application.disposition?.barre !== undefined, ...(barreVisible ? { barreVisible } : {}) } } : {}), barreLaterale: application.barreLaterale, liens: application.liensProfonds !== undefined, domaine: application.liensProfonds?.domaine !== undefined, envois: avecEnvois, arrierePlan: avecArrierePlan, ...(ongletsSwift ? { onglets: ongletsSwift } : {}), ...(commandesEcrites.menus.length ? { menus: commandesEcrites.menus } : {}), ...(pageReglages ? { reglages: `Route${routeSimple(pageReglages.nom, app)}` } : {}), ...(formes ? { formes: formes.app } : {}) });
+  if (application.formes?.erreurArrive) {
+    ecrire('Humalis/CaptureErreurs.swift', captureErreursSwift(requetesCapture(application.formes).requetes));
+    codeApplication = codeApplication.replace(`struct ${nom}App: App {`, `struct ${nom}App: App {\n    init() { CaptureErreurs.installer() }`);
+  }
+  ecrire(`${nom}App.swift`, codeApplication);
   if (disposition.menu?.length) ecrire('Humalis/Menu.swift', menuSwift(disposition.menu));
   for (const p of policesCopiees) ecrire(`Ressources/${nomFichierPlat(p.fichier)}`, contenuBinaire(options.polices!.get(p.fichier)!));
   ecrire('Humalis/Configuration.swift', configurationSwift(application, options));

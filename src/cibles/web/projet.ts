@@ -17,6 +17,7 @@ import { adresseDuLienJs } from '../commun/liens-et-champs.js';
 import { balisesLangueDeDepart, langueWebTsx } from './langue.js';
 import { messagesDuProjet } from '../../i18n/messages.js';
 import type { Application, Ecran, Etat, Action, NoeudVue, ServeurRI, SiteRI } from '../../ri/types.js';
+import { codeCaptureNavigateur, requetesCapture } from '../capture-erreurs.js';
 import { simplifier } from '../../analyse/elements.js';
 import { genererEcran, genererFonctions, type ContexteApplication } from './ecran.js';
 import { camel, setter, chaine, pascal } from './noms.js';
@@ -360,6 +361,10 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
 
   // La file d'envois doit écouter la session dès le départ, sur toutes les pages.
   if (utiliseFileEnvois(application)) fichiers.set('src/main.tsx', `import './humalis/appareil';\n${fichiers.get('src/main.tsx')}`);
+  if (application.formes?.erreurArrive) {
+    fichiers.set('src/humalis/capture-erreurs.ts', `// @ts-nocheck\n${codeCaptureNavigateur(requetesCapture(application.formes).requetes)}`);
+    fichiers.set('src/main.tsx', `import './humalis/capture-erreurs';\n${fichiers.get('src/main.tsx')}`);
+  }
   return fichiers;
 }
 

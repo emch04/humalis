@@ -183,6 +183,22 @@ export function analyserCorpsServeur(flux: FluxTokens): InstructionServeur[] {
 function analyserInstructionServeur(flux: FluxTokens): InstructionServeur {
   const debut = flux.actuel();
   const { ligne } = debut;
+  if (estLeMot(debut, 'envoyer') && estLeMot(flux.regarder(1), 'requete')) {
+    flux.avancer(); flux.avancer();
+    if (!estLeMot(flux.actuel(), 'vers')) throw new ErreurSyntaxique('on écrit : envoyer requete vers "https://…" avec message = erreur.message', ligne);
+    flux.avancer();
+    const adresse = flux.attendre('CHAINE', undefined, 'l’adresse HTTPS de la requête entre guillemets').valeur;
+    if (!/^https:\/\/[^\s/?#]+(?:[/?#][^\s]*)?$/i.test(adresse)) throw new ErreurSyntaxique('une requête du serveur exige une adresse HTTPS complète.', ligne);
+    if (!estLeMot(flux.actuel(), 'avec')) throw new ErreurSyntaxique('une requête du serveur demande des champs : avec message = erreur.message', ligne);
+    flux.avancer();
+    const champs: { nom: string; valeur: Expression }[] = [];
+    do {
+      const nom = flux.attendreNom('le nom du champ envoyé').nom;
+      flux.attendre('PONCTUATION', '=', '« = » après le nom du champ envoyé');
+      champs.push({ nom, valeur: analyserExpression(flux) });
+    } while (estLeMot(flux.actuel(), 'et') && flux.avancer());
+    return { type: 'RequeteServeur', adresse, champs, ligne };
+  }
   if (estLeMot(debut, 'si')) {
     flux.avancer();
     const test = analyserTestCombine(flux);

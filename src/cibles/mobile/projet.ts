@@ -4,6 +4,7 @@ import { cartesDe } from '../../analyse/carte.js';
 import { contenuBinaire } from '../binaire.js';
 import { sousActions } from '../../ri/actions.js';
 import type { Application, Action, Gestionnaire, NoeudVue, ThemeRI } from '../../ri/types.js';
+import { codeCaptureExpo, requetesCapture } from '../capture-erreurs.js';
 import { APPAREIL_TSX, DEGRADE_TSX, MOUVEMENT_TSX, ZONE_TSX } from './composants-ecran.js';
 import type { InfoMedia } from '../../ri/medias.js';
 import { fichiersMobiles, dependancesMobiles, stylesDesElements } from './widgets.js';
@@ -168,6 +169,10 @@ export function genererProjetMobile(applicationLue: Application, options: Option
   fichiers.set('LISEZMOI.md', lisezmoi(options, carte));
   const confirmations = codesPages.some((c) => /\buseConfirmer\(/.test(c));
   fichiers.set('app/_layout.tsx', disposition(application.partages.length > 0, session, { ...dispositions, sansEntete: sans('sansEntete'), sansPied: sans('sansPied') }, confirmations));
+  if (application.formes?.erreurArrive) {
+    fichiers.set('humalis/capture-erreurs.ts', codeCaptureExpo(requetesCapture(application.formes).requetes));
+    fichiers.set('app/_layout.tsx', `import '../humalis/capture-erreurs';\n${fichiers.get('app/_layout.tsx')}`);
+  }
   fichiers.set('app/+not-found.tsx', INTROUVABLE);
   fichiers.set('humalis/messages.tsx', avecDureeDesErreurs(MESSAGES, application));
   fichiers.set('humalis/page.ts', PAGE);

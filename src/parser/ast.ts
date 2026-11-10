@@ -149,6 +149,8 @@ export interface Disposition {
 
 export interface Serveur {
   type: 'Serveur';
+  /** Capture des erreurs du processus et d'Express. */
+  captureErreurs?: { corps: InstructionServeur[]; ligne: number };
   /** « donnees de depart pour produit : » : les fiches écrites au premier démarrage, si la table est vide. */
   departs?: { donnee: string; fiches: { champs: { champ: string; valeur: string | number | boolean; ligne: number }[]; ligne: number }[]; ligne: number }[];
   nom: string;
@@ -457,6 +459,7 @@ export interface EnvoiNotification {
 type MorceauTexte = EnvoiEmail['sujet'][number];
 
 export type InstructionServeur =
+  | { type: 'RequeteServeur'; adresse: string; champs: { nom: string; valeur: Expression }[]; ligne: number }
   | { type: 'SiServeur'; test: Test; alors: InstructionServeur[]; sinon: InstructionServeur[]; ligne: number }
   | { type: 'PourChaqueServeur'; variable: string; donnee: string; filtres: FiltreServeur[]; corps: InstructionServeur[]; ligne: number }
   | { type: 'CalculServeur'; nom: string; operation: OperationCalcul; donnee: string; champ?: string; filtres: FiltreServeur[]; ligne: number }
@@ -1802,6 +1805,8 @@ export interface CorpsForme {
 }
 
 export interface Formes {
+  /** « quand une erreur arrive : » : actions exécutées avec la fiche erreur. */
+  erreurArrive?: CorpsForme & { ligne: number };
   /** « widget "solde" avec taille petite vers "compte" : » ; « actualiser toutes les 30 minutes ». */
   widgets: (CorpsForme & { nom: string; taille?: 'petite' | 'moyenne' | 'grande'; vers?: string; actualiser?: { nombre: number; unite: 'minutes' | 'heures' }; ligne: number })[];
   /** « activite en direct "livraison" : » (titre, texte, progression). */

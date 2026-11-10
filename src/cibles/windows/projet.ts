@@ -22,6 +22,8 @@ import { FICHIERS_CS } from './bibliotheque/fichiers.js';
 import { QR_CS } from './bibliotheque/qr.js';
 import { MEDIAS_CS } from './bibliotheque/medias.js';
 import { FORMES_CS, TOASTS_CS, ZONE_CS } from './bibliotheque/formes.js';
+import { captureErreursCs } from './capture-erreurs.js';
+import { requetesCapture } from '../capture-erreurs.js';
 import { formesWindows, type FormesWindows } from './formes.js';
 import { chaineCs, commentaireCs, nomApplication, nomCs, nomMethode } from './noms.js';
 import { GenerateurBloc, classeDe, quatreEspaces, type ContexteWindows } from './page.js';
@@ -499,6 +501,7 @@ ${formes.actives ? `        // Les formes de l'application : un seul lancement �
 ` : ''}${application.langues?.length ? `        Langues.Toutes = new[] { ${application.langues.map((l) => `(${chaineCs(l.code)}, ${chaineCs(l.nom)})`).join(', ')} };
 ` : ''}        Langues.Initialiser();
         var application = new System.Windows.Application { ShutdownMode = ShutdownMode.OnMainWindowClose };
+${application.formes?.erreurArrive ? '        CaptureErreurs.Installer(application);\n' : ''}
         Apparence.Appliquer();
 ${dictionnaires.map((d) => `        // « utiliser style "${d.nom}" sur windows » : chargé après le thème, il passe devant.
         application.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri(${chaineCs(`/${app};component/Styles/${d.nom}`)}, UriKind.Relative) });
@@ -516,6 +519,7 @@ ${dictionnaires.map((d) => `        // « utiliser style "${d.nom}" sur windows 
   const aDesRessources = (options.medias?.size ?? 0) > 0;
   fichiers.set(MARQUE_WINDOWS, 'Ce dossier a été produit par Humalis (cible Windows). Recompiler le fichier .humalis le remplace.\n');
   fichiers.set(`${app}.csproj`, csproj(options.nom, application, aDesRessources, formes));
+  if (application.formes?.erreurArrive) fichiers.set('Humalis/CaptureErreurs.cs', captureErreursCs(requetesCapture(application.formes).requetes));
   // Les dictionnaires de styles XAML : compilés avec le projet (une erreur XAML arrête dotnet build).
   for (const d of dictionnaires) fichiers.set(`Styles/${d.nom}`, d.contenu);
   // Les vues C# écrites à la main, recopiées telles quelles.

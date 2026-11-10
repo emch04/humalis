@@ -19,6 +19,7 @@ class Traduction {
     private readonly erreur: Erreur,
     private readonly avecUtilisateur: boolean,
     private locaux = new Set<string>(),
+    private readonly avecErreur = false,
   ) {}
 
   /** « statut est "ouverte" et total est superieur a 100 » : les champs existent. */
@@ -32,6 +33,11 @@ class Traduction {
 
   /** « commande.total », « utilisateur.id » : ce que la valeur désigne. */
   private acces(nom: string, champ: string, portee: Portee, ligne: number): ValeurServeurRI {
+    if (nom === 'erreur' && this.avecErreur) {
+      if (champ === 'message' || champ === 'pile' || champ === 'page' || champ === 'version') return { genre: 'erreur', champ };
+      this.erreur(`la capture ne connaît pas « erreur.${champ} » : champs disponibles : message, pile, page et version.`, ligne);
+      return vide;
+    }
     if (nom === 'utilisateur') {
       if (!this.avecUtilisateur) this.erreur('une tâche planifiée tourne sans personne connectée : « utilisateur » n’existe pas ici.', ligne);
       return { genre: 'utilisateur', champ };
@@ -150,6 +156,22 @@ class Traduction {
 
   private instruction(i: InstructionServeur, portee: Portee): InstructionServeurRI {
     switch (i.type) {
+      case 'RequeteServeur': {
+        if (!this.avecErreur) {
+          this.erreur('« envoyer requete » s’écrit seulement dans « quand une erreur arrive » du serveur.', i.ligne);
+          return { type: 'requete', adresse: i.adresse, champs: [] };
+        }
+        const vus = new Set<string>();
+        for (const champ of i.champs) {
+          if (vus.has(champ.nom)) this.erreur(`le champ « ${champ.nom} » est envoyé deux fois dans la requête.`, i.ligne);
+          vus.add(champ.nom);
+          if (/mot.?de.?passe|password|secret|formulaire|token|jeton/i.test(champ.nom)) this.erreur(`le champ « ${champ.nom} » ne peut pas être envoyé par une capture d'erreur.`, i.ligne);
+        }
+        const champs = i.champs.map((c) => ({ nom: c.nom, valeur: this.valeur(c.valeur, portee) }));
+        const sure = (v: ValeurServeurRI): boolean => v.genre === 'erreur' || (v.genre === 'valeur' && v.valeur === '') || (v.genre === 'texte' && v.parties.every((p) => 'texte' in p || sure(p.valeur)));
+        if (this.avecErreur && champs.some((c) => !sure(c.valeur))) this.erreur('la capture du serveur n’envoie que erreur.message, erreur.pile, erreur.page, erreur.version ou un texte fixe.', i.ligne);
+        return { type: 'requete', adresse: i.adresse, champs };
+      }
       case 'SiServeur':
         return { type: 'si', test: this.test(i.test, portee), alors: this.corps(i.alors, portee), sinon: this.corps(i.sinon, portee) };
       case 'PourChaqueServeur': {
@@ -285,4 +307,10 @@ export function traduireResume(resume: ResumeServeur, serveur: Serveur, erreur: 
 
 export function traduireTache(tache: TachePlanifiee, serveur: Serveur, erreur: Erreur): InstructionServeurRI[] {
   return new Traduction(serveur, erreur, false).corps(tache.corps, new Map());
+}
+
+/** Le corps de capture voit seulement les quatre informations sûres de l'erreur. */
+export function traduireCaptureErreurs(capture: NonNullable<Serveur['captureErreurs']>, serveur: Serveur, erreur: Erreur): InstructionServeurRI[] {
+  for (const instruction of capture.corps) if (instruction.type !== 'RequeteServeur') erreur('dans la capture du serveur, seules les requêtes HTTP sont disponibles.', instruction.ligne);
+  return new Traduction(serveur, erreur, false, new Set(), true).corps(capture.corps, new Map());
 }

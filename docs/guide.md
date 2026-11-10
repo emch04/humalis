@@ -3985,3 +3985,14 @@ Une source qui envoie une clé n'est jamais lue.
 
 Une donnée retirée du serveur reste dans le HTML jusqu'à la prochaine construction :
 reconstruis le site après une suppression importante.
+
+## Capturer les erreurs de l’application
+
+Placez cette forme en haut du fichier. Le bloc reçoit `erreur.message`, `erreur.pile`, `erreur.page` et `erreur.version`.
+
+```humalis
+quand une erreur arrive :
+    envoyer requete vers "https://centrale.exemple.fr/v1/envoi" avec message = erreur.message et pile = erreur.pile
+```
+
+La capture écoute les erreurs natives de chaque cible. Les erreurs fatales Apple et Android sont enregistrées puis envoyées au lancement suivant. Le serveur accepte la même forme dans `serveur "api" :`. Les envois HTTPS expirent après trois secondes, leurs échecs sont absorbés et une même erreur est limitée à trois rapports par minute. Les mots de passe, les secrets, les paramètres d’URL et le contenu des formulaires ne sont pas envoyés.

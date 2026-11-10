@@ -325,6 +325,7 @@ function reunir(programmes: Programme[], fichiers: string[], diagnostics: Diagno
       for (const cle of ['widgets', 'activites', 'raccourcisIcone', 'commandesVocales', 'recherches', 'tuiles', 'minis', 'voitures', 'menusClicDroit', 'claviers', 'fichiersOuverts', 'boutonsNotification', 'donneesLocales'] as const) (f[cle] as unknown[]).push(...p.formes[cle]);
       f.demarrage ??= p.formes.demarrage;
       f.partageRecu ??= p.formes.partageRecu;
+      f.erreurArrive ??= p.formes.erreurArrive;
     }
     tout.liensProfonds ??= p.liensProfonds;
     tout.ongletsApplication ??= p.ongletsApplication;
