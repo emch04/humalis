@@ -5,6 +5,7 @@
  * ni JavaScript.
  */
 import type { Diagnostic } from '../../analyse/erreurs.js';
+import { MESSAGES, versionDe } from '../../i18n/messages.js';
 import { simplifier } from '../../analyse/elements.js';
 import { nomDeLaCopie, type InfoMedia } from '../../ri/medias.js';
 import type { Application, Ecran, SourceRI, ThemeRI } from '../../ri/types.js';
@@ -13,7 +14,8 @@ import { cheminsDesPages } from '../web/projet.js';
 import { COULEURS_CSS } from '../web/styles.js';
 import { EcrivainActions } from './actions.js';
 import { CssAndroid, type Portee as PorteeCss } from './css.js';
-import { FORMATS_KT, INTERFACE_KT, MEMOIRE_KT, SERVEUR_KT, VALEURS_KT, kotlin } from './bibliotheque.js';
+import { FORMATS_KT } from './formats.js';
+import { LANGUES_KT, traduireMessagesKotlin, INTERFACE_KT, MEMOIRE_KT, SERVEUR_KT, VALEURS_KT, kotlin } from './bibliotheque.js';
 import { EcrivainKotlin } from './ecrivain.js';
 import { AVANT_PLAN_ICONE, CONSTRUCTION_RACINE, ENVELOPPE_GRADLE, IGNORES_GIT, PROPRIETES_GRADLE, SECURITE_RESEAU, THEME_XML, VERSIONS, constructionApp, couleurIcone, iconeAdaptative, manifeste, reglagesGradle } from './gradle.js';
 import { iconesKotlin } from './icones.js';
@@ -33,6 +35,8 @@ export interface OptionsAndroid {
   identifiant?: string;
   medias?: Map<string, InfoMedia>;
   images?: Map<string, string>;
+  /** Les fichiers de police du thème, en base 64. */
+  polices?: Map<string, string>;
   /** Le contenu des fichiers CSS du projet (« utiliser style "…" », avec ou sans « sur android »). */
   fichiersStyle?: Map<string, string>;
 }
@@ -44,7 +48,6 @@ function verifier(application: Application): Diagnostic[] {
   const d: Diagnostic[] = [];
   const avertir = (ligne: number, message: string) => d.push({ gravite: 'avertissement', ligne, message });
   const refuser = (ligne: number, message: string) => d.push({ gravite: 'erreur', ligne, message: `${message} : ${PAS_ENCORE}.` });
-  if (application.langues) refuser(1, '« langues : » (plusieurs langues)');
   const utilises = new Set<string>();
   const parcourir = (v: unknown): void => {
     if (Array.isArray(v)) v.forEach(parcourir);
@@ -64,7 +67,7 @@ function verifier(application: Application): Diagnostic[] {
   }
   for (const s of application.sources) if (s.passerelle) refuser(1, `la source « ${s.nom} » à jeton secret (la passerelle du serveur)`);
   for (const p of application.theme?.polices ?? []) {
-    if (p.fichier) avertir(1, `la police « ${p.nom} » n'est pas encore chargée sur Android : la police du système est utilisée à la place.`);
+    if (p.fichier && !/\.(ttf|otf)$/i.test(p.fichier)) avertir(1, `la police « ${p.fichier} » n'est pas chargée sur Android, qui lit les fichiers .ttf et .otf : la police du système est utilisée à la place. Ajoutez une version .ttf de « ${p.nom} ».`);
   }
   if (application.barreLaterale) avertir(1, "« avec barre laterale » est sans effet sur Android.");
   const logo = application.site?.logo;
@@ -76,7 +79,18 @@ function verifier(application: Application): Diagnostic[] {
 
 const hex = (c: string) => `0xFF${c.slice(1, 7).toUpperCase()}`;
 
-function themeKotlin(paquet: string, theme: ThemeRI | undefined): string {
+/** Le nom d'une ressource de police : des minuscules, des chiffres et des « _ », commençant par une lettre. */
+const nomRessource = (nom: string): string => `police_${nom.toLowerCase().replace(/\.[a-z0-9]+$/, '').replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')}`;
+
+/** La famille d'une police du thème : son fichier, sinon la famille du système qui lui ressemble. */
+function familleKotlin(p: ThemeRI['polices'][number], fichiers: Set<string>): string {
+  if (p.fichier && fichiers.has(p.fichier)) return `FontFamily(Font(R.font.${nomRessource(p.fichier)}))`;
+  if (p.role === 'code' || /mono|code|courier/i.test(p.nom)) return 'FontFamily.Monospace';
+  if (/serif|georgia|times|garamond|playfair|merriweather|lora|baskerville/i.test(p.nom) && !/sans/i.test(p.nom)) return 'FontFamily.Serif';
+  return 'FontFamily.Default';
+}
+
+function themeKotlin(paquet: string, theme: ThemeRI | undefined, polices: Set<string> = new Set()): string {
   const couleurs = new Map(Object.entries(COULEURS_CSS));
   for (const c of theme?.couleurs ?? []) couleurs.set(c.nom, { clair: c.clair, sombre: c.sombre, encreClair: c.encreClair, encreSombre: c.encreSombre });
   const marque = theme?.couleurs.find((c) => c.nom === 'marque') ?? { clair: '#1f5fbf', sombre: '#7fb0ff', encreClair: '#ffffff', encreSombre: '#141416' };
@@ -84,7 +98,7 @@ function themeKotlin(paquet: string, theme: ThemeRI | undefined): string {
   e.ligne('// Produit par Humalis : les couleurs, en clair et en sombre, et le thème de l\'application.');
   e.ligne(`package ${paquet}`);
   e.ligne();
-  for (const i of ['androidx.compose.foundation.isSystemInDarkTheme', 'androidx.compose.material3.MaterialTheme', 'androidx.compose.material3.darkColorScheme', 'androidx.compose.material3.lightColorScheme', 'androidx.compose.runtime.Composable', 'androidx.compose.runtime.getValue', 'androidx.compose.runtime.setValue', 'androidx.compose.ui.graphics.Color']) e.ligne(`import ${i}`);
+  for (const i of ['androidx.compose.foundation.isSystemInDarkTheme', 'androidx.compose.material3.MaterialTheme', 'androidx.compose.material3.Typography', 'androidx.compose.ui.text.font.Font', 'androidx.compose.ui.text.font.FontFamily', 'androidx.compose.material3.darkColorScheme', 'androidx.compose.material3.lightColorScheme', 'androidx.compose.runtime.Composable', 'androidx.compose.runtime.getValue', 'androidx.compose.runtime.setValue', 'androidx.compose.ui.graphics.Color']) e.ligne(`import ${i}`);
   e.ligne();
   e.bloc('object Couleurs {', () => {
     e.ligne(`val accent = CouleurHumalis(${hex(marque.clair)}, ${hex(marque.sombre)})`);
@@ -113,11 +127,31 @@ function themeKotlin(paquet: string, theme: ThemeRI | undefined): string {
     });
   });
   e.ligne();
+  const titres = theme?.polices.find((p) => p.role === 'titres');
+  const texte = theme?.polices.find((p) => p.role === 'texte');
+  if (titres || texte) {
+    e.ligne();
+    e.ligne('/** Les polices du thème : celle des titres, celle du texte. */');
+    e.bloc('object Polices {', () => {
+      e.ligne(`val titres: FontFamily = ${titres ? familleKotlin(titres, polices) : texte ? familleKotlin(texte, polices) : 'FontFamily.Default'}`);
+      e.ligne(`val texte: FontFamily = ${texte ? familleKotlin(texte, polices) : 'FontFamily.Default'}`);
+    });
+    e.ligne();
+    e.bloc('private val typographie: Typography = Typography().let { t ->', () => {
+      e.ligne('t.copy(');
+      e.indenter(() => {
+        for (const s of ['displayLarge', 'displayMedium', 'displaySmall', 'headlineLarge', 'headlineMedium', 'headlineSmall', 'titleLarge', 'titleMedium', 'titleSmall']) e.ligne(`${s} = t.${s}.copy(fontFamily = Polices.titres),`);
+        for (const s of ['bodyLarge', 'bodyMedium', 'bodySmall', 'labelLarge', 'labelMedium', 'labelSmall']) e.ligne(`${s} = t.${s}.copy(fontFamily = Polices.texte),`);
+      });
+      e.ligne(')');
+    });
+  }
+  e.ligne();
   e.ligne('@Composable');
   e.bloc('fun ThemeHumalis(contenu: @Composable () -> Unit) {', () => {
     e.ligne('val sombre = Apparence.sombre()');
     e.ligne('val schema = if (sombre) darkColorScheme(primary = Couleurs.accent.lue(), onPrimary = Couleurs.encreAccent.lue()) else lightColorScheme(primary = Couleurs.accent.lue(), onPrimary = Couleurs.encreAccent.lue())');
-    e.ligne('MaterialTheme(colorScheme = schema, content = contenu)');
+    e.ligne(`MaterialTheme(colorScheme = schema${titres || texte ? ', typography = typographie' : ''}, content = contenu)`);
   });
   return e.texte();
 }
@@ -408,6 +442,7 @@ export function genererProjetAndroid(application: Application, options: OptionsA
     icones,
     refuser,
     avertir,
+    ...(application.langues && application.langues.length > 1 ? { langues: application.langues.map((l) => l.code) } : {}),
     ...(application.theme && application.theme.largeur !== 'pleine' ? { largeur: { etroite: 576, normale: 768, large: 1152 }[application.theme.largeur] } : {}),
   };
 
@@ -504,13 +539,30 @@ export function genererProjetAndroid(application: Application, options: OptionsA
   }
 
   ecrireCode('MainActivity.kt', applicationKotlin(paquet, application, routes, entree, disposition, onglets));
-  ecrireCode('Theme.kt', themeKotlin(paquet, application.theme));
+  // Les polices livrées avec le projet (.ttf, .otf) : des ressources de l'application.
+  const policesCopiees = new Set<string>();
+  for (const p of application.theme?.polices ?? []) {
+    if (!p.fichier || !/\.(ttf|otf)$/i.test(p.fichier) || !options.polices?.has(p.fichier)) continue;
+    fichiers.set(`app/src/main/res/font/${nomRessource(p.fichier)}.${p.fichier.split('.').pop()!.toLowerCase()}`, contenuBinaire(options.polices.get(p.fichier)!));
+    policesCopiees.add(p.fichier);
+  }
+  ecrireCode('Theme.kt', themeKotlin(paquet, application.theme, policesCopiees));
   ecrireCode('Valeurs.kt', kotlin(paquet, VALEURS_KT));
   ecrireCode('Formats.kt', kotlin(paquet, FORMATS_KT));
   ecrireCode('Interface.kt', kotlin(paquet, INTERFACE_KT));
   ecrireCode('Memoire.kt', kotlin(paquet, MEMOIRE_KT));
   ecrireCode('Serveur.kt', kotlin(paquet, SERVEUR_KT));
   ecrireCode('Icones.kt', iconesKotlin(paquet, icones));
+  if (app.langues) {
+    const codes = app.langues;
+    ecrireCode('Langues.kt', kotlin(paquet, LANGUES_KT).replace('LANGUES_DU_SITE', `listOf(${application.langues!.map((l) => `${chaineKotlin(l.code)} to ${chaineKotlin(l.nom)}`).join(', ')})`));
+    // Les messages de Humalis écrits dans la bibliothèque passent par t(), dans chaque langue du site.
+    const messages = MESSAGES.map((m) => ({ fr: m.fr, versions: Object.fromEntries(codes.map((c) => [c, versionDe(m, c)])) }));
+    for (const fichier of ['Interface.kt', 'Serveur.kt', 'MainActivity.kt']) {
+      const chemin = `${dossierCode}/${fichier}`;
+      fichiers.set(chemin, traduireMessagesKotlin(fichiers.get(chemin)!, codes, messages));
+    }
+  }
 
   // Les images : recopiées dans assets/, sous un nom plat.
   for (const [chemin, info] of options.medias ?? []) {

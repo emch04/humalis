@@ -5,7 +5,7 @@
  */
 import { simplifier } from '../../analyse/elements.js';
 import { lireCible } from '../../analyse/navigation.js';
-import { verificationsDuChamp } from '../../i18n/messages.js';
+import { libellesEnLangues, messageEnLangues, verificationsDuChamp } from '../../i18n/messages.js';
 import { nomDeLaCopie } from '../../ri/medias.js';
 import type { Action, ArgumentsPage, Ecran, Gestionnaire, NoeudVue, Option, Saisie, Valeur } from '../../ri/types.js';
 import { EcrivainActions, type HoteActions } from './actions.js';
@@ -35,6 +35,8 @@ export interface ContexteAndroid {
   ressource(chemin: string): string;
   /** « largeur etroite » du thème : la largeur maximale d'une page, en dp. */
   largeur?: number;
+  /** « langues : » : les codes des langues du site, la langue de base en premier. */
+  langues?: string[];
   /** Les icônes employées, dessinées dans Icones.kt. */
   icones: Set<string>;
   refuser(ligne: number, message: string): void;
@@ -52,6 +54,8 @@ interface Champ {
   id: string;
   variable: string;
   libelle: string;
+  /** Le libellé dans chaque langue du site. */
+  libelles: Map<string, string>;
   saisie?: Saisie;
   sorte?: 'nombre' | 'case';
 }
@@ -134,6 +138,7 @@ export class GenerateurPage implements HoteActions {
 
   private declarerVariables(): void {
     const v = this.portee.variables;
+    if (this.app.langues) v.set('langue', 'Langues.code');
     for (const [nom, code] of this.app.partages) v.set(nom, code);
     for (const p of this.parametres ?? []) v.set(p.nom, nomKotlin(p.nom));
     for (const p of this.ecran.parametresAdresse ?? []) v.set(p, nomKotlin(p));
@@ -189,7 +194,7 @@ export class GenerateurPage implements HoteActions {
     const variable = this.nomUnique(nomKotlin(`champ_${simplifier(libelle) || noeud.id}`));
     const sorte = noeud.saisie?.sorte === 'nombre' || noeud.saisie?.sorte === 'case' ? noeud.saisie.sorte : undefined;
     this.portee.champs.set(noeud.id, { variable, ...(sorte ? { sorte } : {}) });
-    this.champs.push({ id: noeud.id, variable, libelle, ...(noeud.saisie ? { saisie: noeud.saisie } : {}), ...(sorte ? { sorte } : {}) });
+    this.champs.push({ id: noeud.id, variable, libelle, libelles: libellesEnLangues(noeud.contenu), ...(noeud.saisie ? { saisie: noeud.saisie } : {}), ...(sorte ? { sorte } : {}) });
     this.clesChamps.set(noeud.id, cleJson(libelle));
     if (formulaire !== undefined) this.champsDuFormulaire.get(formulaire)?.push(noeud.id);
   }
@@ -392,10 +397,11 @@ export class GenerateurPage implements HoteActions {
     for (const id of this.champsDuFormulaire.get(formulaire) ?? []) {
       const champ = this.champs.find((c) => c.id === id);
       if (!champ) continue;
-      const messages = verificationsDuChamp(champ.variable, champ.saisie, [{ code: 'fr', libelle: champ.libelle }]).map(([, m]) => m[0].texte);
+      const langues = (this.app.langues ?? ['fr']).map((code) => ({ code, libelle: champ.libelles.get(code) ?? champ.libelle }));
+      const messages = verificationsDuChamp(champ.variable, champ.saisie, langues).map(([, m]) => (m.length === 1 ? chaineKotlin(m[0].texte) : `t(mapOf(${m.map((x) => `${chaineKotlin(x.code)} to ${chaineKotlin(x.texte)}`).join(', ')}))`));
       const tests = testsDuChamp(champ.variable, champ.saisie);
       messages.forEach((message, i) => {
-        if (tests[i]) e.ligne(`if (${tests[i]}) { Messages.afficher(${chaineKotlin(message)}, "erreur"); return }`);
+        if (tests[i]) e.ligne(`if (${tests[i]}) { Messages.afficher(${message}, "erreur"); return }`);
       });
     }
   }
@@ -531,6 +537,18 @@ export class GenerateurPage implements HoteActions {
     e.ligne(`ImageHumalis(${source}, ${description}, Modifier.fillMaxWidth()${proportions}${m}${proportions ? ', remplir = true' : ''})`);
   }
 
+  /** Un message de Humalis (« Fermer »), dans chaque langue du site s'il en a plusieurs. */
+  private fixe(fr: string): string {
+    const versions = this.app.langues ? messageEnLangues(fr, this.app.langues) : undefined;
+    return versions ? `t(mapOf(${versions.map((v) => `${chaineKotlin(v.code)} to ${chaineKotlin(v.texte)}`).join(', ')}))` : chaineKotlin(fr);
+  }
+
+  /** Un texte fixe, et ses versions dans les autres langues du site. */
+  private enLangues(texte: string, versions?: { code: string; texte: string }[]): string {
+    if (!versions || versions.length < 2) return chaineKotlin(texte);
+    return `t(mapOf(${versions.map((v) => `${chaineKotlin(v.code)} to ${chaineKotlin(v.texte)}`).join(', ')}))`;
+  }
+
   /** Ce que le CSS des classes donne à cet élément. */
   private css(classes: string[] | undefined, sorte: 'texte' | 'bouton' | 'bloc' | 'autre'): StyleCompose {
     return this.app.css.style(classes ?? [], sorte);
@@ -620,7 +638,7 @@ export class GenerateurPage implements HoteActions {
     const desactive = noeud.desactive === true ? 'enabled = false, ' : noeud.desactive ? `enabled = !(${this.valeurs.b(noeud.desactive)}), ` : '';
     const libelle = this.valeurs.t(noeud.contenu);
     const m = modificateurs(noeud.options, 'champ', this.css(noeud.classes, 'autre'));
-    const indice = saisie?.indiceValeur ? this.valeurs.t(saisie.indiceValeur) : saisie?.indice ? chaineKotlin(saisie.indice) : undefined;
+    const indice = saisie?.indiceValeur ? this.valeurs.t(saisie.indiceValeur) : saisie?.indice ? this.enLangues(saisie.indice, saisie.indiceLangues) : undefined;
     switch (sorte) {
       case 'case':
         e.bloc(`Row(Modifier.toggleable(value = ${v}, role = Role.Checkbox, ${desactive}onValueChange = ${changer})${m}, verticalAlignment = Alignment.CenterVertically) {`, () => {
@@ -670,7 +688,7 @@ export class GenerateurPage implements HoteActions {
 
   private ecrireWidget(e: EcrivainKotlin, noeud: Extract<NoeudVue, { type: 'widget' }>): void {
     const contenu = noeud.contenu;
-    const description = noeud.reglages.description ? chaineKotlin(noeud.reglages.description) : 'null';
+    const description = noeud.reglages.description ? this.enLangues(noeud.reglages.description, noeud.reglages.descriptionLangues) : 'null';
     const m = modificateurs(noeud.options, 'bloc', this.css(noeud.classes, 'autre'));
     switch (noeud.genre) {
       case 'icone': {
@@ -708,6 +726,10 @@ export class GenerateurPage implements HoteActions {
         });
         return;
       }
+      case 'selecteurLangue':
+        if (!this.app.langues) return;
+        e.ligne(`SelecteurLangueHumalis(${m ? `Modifier${m}` : ''})`);
+        return;
       case 'compteur':
         e.ligne(`Text(texte(${this.valeurs.x(contenu)}), style = MaterialTheme.typography.displaySmall${m ? `, modifier = Modifier${m}` : ''})`);
         return;
@@ -814,7 +836,7 @@ export class GenerateurPage implements HoteActions {
       const f = this.basDesBlocs.get(noeud.id)!;
       const tantQue = f.gestionnaire.tantQue ? this.valeurs.b(f.gestionnaire.tantQue) : 'true';
       const args = f.parametres.map((p) => this.portee.variables.get(p) ?? nomKotlin(p)).join(', ');
-      e.bloc(`if (${tantQue}) {`, () => e.ligne(`TextButton(onClick = { portee.launch { ${f.nom}(${args}) } }) { Text(${chaineKotlin(f.gestionnaire.bouton ?? 'Voir plus')}) }`));
+      e.bloc(`if (${tantQue}) {`, () => e.ligne(`TextButton(onClick = { portee.launch { ${f.nom}(${args}) } }) { Text(${f.gestionnaire.bouton ? chaineKotlin(f.gestionnaire.bouton) : this.fixe('Voir plus')}) }`));
     }
   }
 
@@ -827,7 +849,7 @@ export class GenerateurPage implements HoteActions {
             e.ligne(`Text(${chaineKotlin(noeud.titre)}, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.semantics { heading() })`);
             if (noeud.description) e.ligne(`Text(${chaineKotlin(noeud.description)}, color = MaterialTheme.colorScheme.onSurfaceVariant)`);
             this.ecrireCorps(e, noeud.corps);
-            if (!noeud.obligatoire) e.ligne(`TextButton(onClick = { ${visible} = false }, modifier = Modifier.align(Alignment.End)) { Text("Fermer") }`);
+            if (!noeud.obligatoire) e.ligne(`TextButton(onClick = { ${visible} = false }, modifier = Modifier.align(Alignment.End)) { Text(${this.fixe('Fermer')}) }`);
           });
         });
       });

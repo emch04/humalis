@@ -44,7 +44,6 @@ const PHRASES: Partial<Record<Action['type'], string>> = {
   connexionGoogle: '« se connecter avec google »',
   connexionApple: '« se connecter avec apple »',
   choixMotDePasse: '« choisir le mot de passe »',
-  langue: '« changer langue par … »',
 };
 
 /** Ce qui arrête la suite des actions : une fonction écrite en haut rend « rien ». */
@@ -218,6 +217,9 @@ export class EcrivainActions {
           if (!route) return this.hote.refuser(`« revenir vers "${a.vers}" » : cette page n'existe pas`);
           e.ligne(`if (!nav.popBackStack()) allerVers(nav, ${route})`);
         } else e.ligne('nav.popBackStack()');
+        return;
+      case 'langue':
+        e.ligne(`Langues.changer(${chaineKotlin(a.code)})`);
         return;
       case 'theme':
         e.ligne(`Apparence.changer(${chaineKotlin(a.valeur)})`);
