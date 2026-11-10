@@ -30,6 +30,7 @@ import type { PartieChaine } from '../lexer/types.js';
 import type { LitteralChaine, OperandeRegle, RegleChamp, Route } from '../parser/ast.js';
 import { texteSource } from '../parser/langues.js';
 import { langueDuMot } from '../i18n/langues.js';
+import { espacerLesTextes } from './typographie.js';
 import type { TexteEnLangues, PartiesTexte, Reglages, GenreWidget, DispositionRI, ThemeRI, ServeurRI, OperandeRI, SourceRI, Option, Etat, Application, Ecran, NoeudVue, Gestionnaire, Action, Valeur, Test, Saisie, MorceauEmail, EnvoiEmailRI, RegleChampRI } from './types.js';
 import { lireTouches, millisecondesDe } from '../analyse/interactions.js';
 import { MILLISECONDES } from '../parser/interactions.js';
@@ -73,7 +74,7 @@ export function construireRepresentation(
   programme: Programme,
   analyse: ResultatAnalyse,
 ): Application {
-  return {
+  const application: Application = {
     ecrans: programme.pages.map((page) => new Construction(page, analyse).ecran()),
     css: programme.styles.map((b) => b.css),
     fichiersStyle: programme.fichiersStyle.map((f) => ({ chemin: f.chemin, ligne: f.ligne, ...(f.plateforme ? { plateforme: f.plateforme } : {}) })),
@@ -131,6 +132,10 @@ export function construireRepresentation(
       })),
     })),
   };
+  // Les espaces insécables du français dans les textes affichés : la langue de base est la première du bloc « langues ».
+  const codes = analyse.langues.langues.map((l) => l.code);
+  espacerLesTextes(application, codes[0] ?? 'fr', codes);
+  return application;
 }
 
 function sourceRI(source: Source): SourceRI {

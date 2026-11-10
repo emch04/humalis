@@ -12,10 +12,10 @@
  */
 import type { NoeudVue, Reglages, GenreWidget, LangueRI } from '../../ri/types.js';
 import { messageEnCode } from '../../i18n/messages.js';
+import { NOM_DU_CHOIX } from '../../i18n/messages-langues.js';
 import { chaine } from '../web/noms.js';
 
 /** « Langue » dans chaque langue : le nom du sélecteur, lu par les lecteurs d'écran. */
-const NOM_DU_CHOIX: Record<string, string> = { fr: 'Langue', en: 'Language' };
 import { chercherIcone } from '../../vocabulaire/icones.js';
 
 /** Un attribut : fixe, ou calculé par le script avec sa valeur de départ. */

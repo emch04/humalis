@@ -1,4 +1,4 @@
-import { verificationsDuChamp, messageEnCode, libellesEnLangues, type MessageEnLangues } from '../../i18n/messages.js';
+import { verificationsDuChamp, messageEnCode, messageFixeEnCode, libellesEnLangues, type MessageEnLangues } from '../../i18n/messages.js';
 import { titreComplet, adresseImage, sansBarreFinale } from '../publication.js';
 import { sousActions } from '../../ri/actions.js';
 import { nomDeLaCopie, estFichierLocal, type InfoMedia } from '../../ri/medias.js';
@@ -1810,8 +1810,9 @@ class GenerateurEcran {
         case 'codeDocumentation':
           if (this.application.rendu) e.ligne(`<ScrollView horizontal><Text style={{ fontFamily: 'monospace' }}>{${chaine(noeud.code)}}</Text></ScrollView>`);
           else {
-            const copie = this.application.langues ? `t({ fr: 'Copié', en: 'Copied' })` : `'Copié'`;
-            const libelle = this.application.langues ? `{t({ fr: 'Copier', en: 'Copy' })}` : 'Copier';
+            const codes = this.application.langues?.map((l) => l.code);
+            const copie = codes ? messageFixeEnCode('Copié', codes) : `'Copié'`;
+            const libelle = codes ? `{${messageFixeEnCode('Copier', codes)}}` : 'Copier';
             const frappe = attributsFrappe(noeud);
             const animation = frappe ? ` ${frappe.classe}` : '';
             const marques = frappe ? ` data-humalis-frappe="${frappe.frappe}" data-humalis-frappe-cle="${frappe.cle}"` : '';
@@ -1989,7 +1990,7 @@ class GenerateurEcran {
             const { nom, gestionnaire } = this.basDesBlocs.get(noeud.id)!;
             // Le texte par défaut est celui de Humalis : avec des langues, il suit la langue choisie.
             const bouton = gestionnaire.bouton ?? null;
-            const texte = bouton === null ? null : bouton === 'Voir plus' && this.application.langues ? "{t({ fr: 'Voir plus', en: 'See more' })}" : contenuTexte(bouton);
+            const texte = bouton === null ? null : bouton === 'Voir plus' && this.application.langues ? `{${messageFixeEnCode('Voir plus', this.application.langues.map((l) => l.code))}}` : contenuTexte(bouton);
             const lignes = this.rendu.voirPlus(nom, texte);
             const tantQue = gestionnaire.tantQue ? condition(gestionnaire.tantQue, this.contexte) : undefined;
             if (tantQue) {
