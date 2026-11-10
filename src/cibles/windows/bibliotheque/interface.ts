@@ -308,12 +308,65 @@ public static class UI
                 continue;
             }
             var cible = style.TargetType ?? typeof(FrameworkElement);
-            if (cible.IsInstanceOfType(resultat)) resultat.Style = style;
-            else if (typeof(Border).IsAssignableFrom(cible)) resultat = new Border { Child = resultat, Style = style };
-            else if (resultat is Decorator { Child: FrameworkElement enfant } && cible.IsInstanceOfType(enfant)) enfant.Style = style;
-            else System.Diagnostics.Debug.WriteLine($"Humalis : le style « {cle} » vise {cible.Name}, pas {resultat.GetType().Name}.");
+            FrameworkElement? habille = null;
+            if (cible.IsInstanceOfType(resultat)) habille = resultat;
+            else if (typeof(Border).IsAssignableFrom(cible)) resultat = habille = new Border { Child = resultat };
+            else if (resultat is Decorator { Child: FrameworkElement enfant } && cible.IsInstanceOfType(enfant)) habille = enfant;
+            if (habille is null)
+            {
+                System.Diagnostics.Debug.WriteLine($"Humalis : le style « {cle} » vise {cible.Name}, pas {resultat.GetType().Name}.");
+                continue;
+            }
+            habille.Style = style;
+            Completer(habille, style);
         }
         return resultat;
+    }
+
+    /// <summary>La valeur qu'un style (ou celui dont il part, BasedOn) donne à une propriété, par son nom.</summary>
+    private static object? ValeurDuStyle(Style? style, string propriete)
+    {
+        for (var s = style; s is not null; s = s.BasedOn)
+            foreach (var b in s.Setters)
+                if (b is Setter setter && setter.Property.Name == propriete) return setter.Value;
+        return null;
+    }
+
+    private static bool RessourceDuStyle(Style? style, string cle)
+    {
+        for (var s = style; s is not null; s = s.BasedOn) if (s.Resources.Contains(cle)) return true;
+        return false;
+    }
+
+    private static Color Nuance(Color c, double t)
+    {
+        byte vers(byte v) => (byte)Math.Clamp(Math.Round(t >= 0 ? v + (255 - v) * t : v * (1 + t)), 0, 255);
+        return Color.FromArgb(c.A, vers(c.R), vers(c.G), vers(c.B));
+    }
+
+    /// <summary>
+    /// Ce qu'un style XAML oublie souvent, complété sans rien remplacer : un texte lisible sur le fond qu'il pose
+    /// (en thème clair comme en sombre), et, pour un bouton, des couleurs de survol et d'appui tirées de son fond
+    /// (le thème Fluent poserait les siennes, et le bouton disparaîtrait sous la souris).
+    /// </summary>
+    private static void Completer(FrameworkElement element, Style style)
+    {
+        if (ValeurDuStyle(style, "Background") is not SolidColorBrush fond) return;
+        var clair = (0.2126 * fond.Color.R + 0.7152 * fond.Color.G + 0.0722 * fond.Color.B) / 255 > 0.55;
+        var premierPlan = ValeurDuStyle(style, "Foreground") as Brush;
+        if (premierPlan is null)
+        {
+            premierPlan = new SolidColorBrush(clair ? Color.FromRgb(0x1B, 0x1B, 0x1B) : Colors.White);
+            if (element is Control c) c.Foreground = premierPlan;
+            else if (element is TextBlock t) t.Foreground = premierPlan;
+            else TextElement.SetForeground(element, premierPlan);
+        }
+        if (element is not System.Windows.Controls.Primitives.ButtonBase) return;
+        void poser(string cle, object valeur) { if (!RessourceDuStyle(style, cle) && !element.Resources.Contains(cle)) element.Resources[cle] = valeur; }
+        poser("ButtonBackgroundPointerOver", new SolidColorBrush(Nuance(fond.Color, clair ? -0.06 : 0.10)));
+        poser("ButtonBackgroundPressed", new SolidColorBrush(Nuance(fond.Color, clair ? -0.12 : -0.10)));
+        poser("ButtonForegroundPointerOver", premierPlan);
+        poser("ButtonForegroundPressed", premierPlan);
     }
 
     /// <summary>Une vue C# écrite à la main : recréée quand une valeur qu'elle reçoit change.</summary>

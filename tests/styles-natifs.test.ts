@@ -89,6 +89,13 @@ describe('les styles écrits dans la langue de la plateforme', () => {
     expect(page).not.toContain('Styles.Carte');
   });
 
+  it('Windows : un fond sans couleur de texte reçoit un texte lisible, et un bouton ses couleurs de survol', () => {
+    const { fichiers } = genererProjetWindows(compile(SOURCE), { nom: 'essai', source: 'essai.humalis', fichiersStyle });
+    const interfaceCs = fichiers.get('Humalis/Interface.cs')!;
+    expect(interfaceCs).toContain('private static void Completer(FrameworkElement element, Style style)');
+    for (const cle of ['ButtonBackgroundPointerOver', 'ButtonBackgroundPressed', 'ButtonForegroundPointerOver', 'ButtonForegroundPressed']) expect(interfaceCs).toContain(`"${cle}"`);
+  });
+
   it('Windows : un fichier qui n’est pas un ResourceDictionary est refusé', () => {
     const { diagnostics } = genererProjetWindows(compile('utiliser style "./windows.xaml" sur windows\npage "a" :\n    titre "A"\n'), { nom: 'essai', source: 'essai.humalis', fichiersStyle: new Map([['./windows.xaml', '<Style x:Key="a"/>']]) });
     expect(diagnostics.map((d) => d.message).join()).toContain('doit être un dictionnaire de styles WPF');
