@@ -378,10 +378,6 @@ page "compte" reservee a connecte sinon vers "connexion" :
 });
 
 describe('cible Android — ce qui n\'existe pas encore est dit', () => {
-  it('les langues, les sous-pages et les composants React sont refusés clairement', () => {
-    expect(erreurs('langues :\n    francais\n    anglais\npage "a" :\n    titre "Accueil" en anglais "Home"\n').join('\n')).toMatch(/langues.*pas encore disponible sur la cible Android/);
-  });
-
   it('la photo et le scanner restent propres à Apple', () => {
     const app = compile('page "a" :\n    variable image = rien\n    titre "A"\n    bouton "Photo"\n    quand l\'utilisateur clique sur "Photo" :\n        photo dans image\n');
     expect(verifierAppareilPourLaCible(app, 'android').map((d) => d.message).join('\n')).toMatch(/que sur la cible Apple.*--cible android/);
@@ -496,6 +492,68 @@ page "accueil" :
   it('un style écrit en Humalis passe aussi sur Android', () => {
     const c = page(projet('style "prix" :\n    couleur rouge\n    gras\n\npage "a" :\n    titre "A"\n    texte "12 €" avec style "prix"\n'), 'PageA');
     expect(c).toMatch(/Text\("12 €", .*fontWeight = FontWeight\.Bold/);
+  });
+});
+
+describe('cible Android — langues et polices', () => {
+  const LANGUES = `langues :
+    francais
+    anglais
+
+page "accueil" :
+    selecteur de langue
+    titre "Bienvenue" en anglais "Welcome"
+    variable total = 1234,5
+    texte "Total : {total en euros}" en anglais "Total: {total en euros}"
+    formulaire "contact" :
+        champ email "Email" en anglais "Email address" avec obligatoire
+        bouton "Envoyer" en anglais "Send"
+    quand le formulaire "contact" est soumis :
+        afficher "Merci" en anglais "Thanks"
+    bouton "English"
+    quand l'utilisateur clique sur "English" :
+        si langue est anglais :
+            changer langue par francais
+        sinon :
+            changer langue par anglais
+`;
+  const f = projet(LANGUES);
+  const c = page(f, 'PageAccueil');
+
+  it('chaque texte a ses versions, choisies par t() selon la langue de la personne', () => {
+    expect(c).toContain('Text(t(mapOf("fr" to "Bienvenue", "en" to "Welcome"))');
+    expect(c).toContain('formaterArgent(nombre(total), "EUR", "en")');
+    expect(c).toContain('SelecteurLangueHumalis()');
+  });
+
+  it('la langue se lit et se change ; elle est gardée sur l\'appareil', () => {
+    expect(c).toContain('if (egal(Langues.code, "en")) {');
+    expect(c).toContain('Langues.changer("fr")');
+    const langues = f.get(`${CODE}/Langues.kt`)!;
+    expect(langues).toContain('val disponibles: List<Pair<String, String>> = listOf("fr" to "Français", "en" to "English")');
+    expect(langues).toContain('private var gardee by EtatMemorise("humalis.langue", null)');
+  });
+
+  it('l\'erreur d\'un champ est dans la langue de la personne, avec son libellé', () => {
+    expect(c).toContain('Messages.afficher(t(mapOf("fr" to "Le champ « Email » est obligatoire.", "en" to "The field “Email address” is required.")), "erreur")');
+  });
+
+  it('les messages de Humalis passent par t()', () => {
+    expect(f.get(`${CODE}/Serveur.kt`)).toContain('t(mapOf("fr" to "Connectez-vous pour continuer.", "en" to "Sign in to continue."))');
+    expect(projet('page "a" :\n    titre "A"\n').get(`${CODE}/Serveur.kt`)).not.toContain('t(mapOf');
+  });
+
+  it('une police .ttf du thème devient une ressource de l\'application', () => {
+    const g = projet('theme :\n    police titres "Georgia" depuis "./georgia.ttf"\npage "a" :\n    titre "A"\n', { polices: new Map([['./georgia.ttf', 'AAAA']]) });
+    expect(g.has('app/src/main/res/font/police_georgia.ttf')).toBe(true);
+    const theme = g.get(`${CODE}/Theme.kt`)!;
+    expect(theme).toContain('val titres: FontFamily = FontFamily(Font(R.font.police_georgia))');
+    expect(theme).toContain('MaterialTheme(colorScheme = schema, typography = typographie, content = contenu)');
+  });
+
+  it('une police .woff2 est dite : Android lit les .ttf et .otf', () => {
+    const { diagnostics } = produire('theme :\n    police titres "Inter" depuis "./inter.woff2"\npage "a" :\n    titre "A"\n', { polices: new Map([['./inter.woff2', 'AAAA']]) });
+    expect(diagnostics.map((d) => d.message).join('\n')).toContain('qui lit les fichiers .ttf et .otf');
   });
 });
 

@@ -33,7 +33,7 @@ export class Valeurs {
   x(v: Valeur): string {
     switch (v.type) {
       case 'texte':
-        return this.parties(v.parties);
+        return this.texteLitteral(v);
       case 'nombre':
         return nombreKotlin(v.valeur);
       case 'booleen':
@@ -116,7 +116,7 @@ export class Valeurs {
 
   /** Une valeur lue comme un texte (`String`). */
   t(v: Valeur): string {
-    if (v.type === 'texte') return this.parties(v.parties);
+    if (v.type === 'texte') return this.texteLitteral(v);
     // Un champ de saisie est déjà un texte.
     if (v.type === 'champ' && this.portee.champs.get(v.id) && !this.portee.champs.get(v.id)!.sorte) return this.portee.champs.get(v.id)!.variable;
     return `texte(${this.x(v)})`;
@@ -136,39 +136,46 @@ export class Valeurs {
     return 'null';
   }
 
-  /** Une chaîne Kotlin : le texte écrit et les valeurs « ${…} ». */
-  parties(parties: PartiesTexte): string {
-    return `"${parties.map((p) => ('texte' in p ? echapper(p.texte) : `\${${this.partie(p)}}`)).join('')}"`;
+  /** Un texte écrit ; avec des langues, chaque version, choisie par t() selon la langue de la personne. */
+  private texteLitteral(v: Extract<Valeur, { type: 'texte' }>): string {
+    if (v.versions && v.versions.length > 1) return `t(mapOf(${v.versions.map((version) => `${chaineKotlin(version.code)} to ${this.parties(version.parties, version.code)}`).join(', ')}))`;
+    return this.parties(v.parties);
   }
 
-  private partie(p: PartieVariable): string {
+  /** Une chaîne Kotlin : le texte écrit et les valeurs « ${…} », formatées dans la langue du texte. */
+  parties(parties: PartiesTexte, langue?: string): string {
+    return `"${parties.map((p) => ('texte' in p ? echapper(p.texte) : `\${${this.partie(p, langue)}}`)).join('')}"`;
+  }
+
+  private partie(p: PartieVariable, langue?: string): string {
     const valeur = p.expression ?? cheminVersValeur(p.variable);
     const x = this.x(valeur);
+    const en = langue !== undefined && langue !== 'fr' ? `, ${chaineKotlin(langue)}` : '';
     const lu = (() => {
-      if (p.pluriel) return `accorder(nombre(${x}), ${chaineKotlin(p.pluriel)})`;
+      if (p.pluriel) return `accorder(nombre(${x}), ${chaineKotlin(p.pluriel)}${en})`;
       switch (p.format) {
         case 'lettres':
-          return `formaterEnLettres(nombre(${x}))`;
+          return `formaterEnLettres(nombre(${x})${en})`;
         case 'dateLongue':
-          return `formaterDateLongue(texte(${x}))`;
+          return `formaterDateLongue(texte(${x})${en})`;
         case 'date':
-          return `formaterDate(texte(${x}))`;
+          return `formaterDate(texte(${x})${en})`;
         case 'nombre':
-          return `formaterNombre(nombre(${x}))`;
+          return `formaterNombre(nombre(${x})${en})`;
         case 'depuis':
           return `formaterDepuis(texte(${x}))`;
         case 'Ko':
         case 'Mo':
-          return `formaterTaille(nombre(${x}), ${chaineKotlin(p.format)})`;
+          return `formaterTaille(nombre(${x}), ${chaineKotlin(p.format)}${en})`;
         case 'FC':
         case 'EUR':
         case 'USD':
-          return `formaterArgent(nombre(${x}), ${chaineKotlin(p.format)})`;
+          return `formaterArgent(nombre(${x}), ${chaineKotlin(p.format)}${en})`;
         default:
           return `texte(${x})`;
       }
     })();
-    return p.majuscule ? `avecMajuscule(${lu})` : lu;
+    return p.majuscule ? `avecMajuscule(${lu}${en})` : lu;
   }
 
   /** Dans « produits dont prix est inferieur a 10 », chaque nom de champ est lu sur l'élément. */

@@ -3424,11 +3424,14 @@ humalis compile taches.humalis --cible android --sortie taches-android --serveur
   `http://localhost:3000` y est appelé tout seul. Sinon, seul `https://` est permis.
 - Les onglets de l'application sont une barre en bas de l'écran.
 
+Les langues du site sont celles de l'application : elle démarre dans celle de l'appareil
+si le site l'a, et `selecteur de langue` ou `changer langue par …` la changent. Les polices
+du thème livrées en `.ttf` ou `.otf` sont chargées.
+
 Ce qui n'existe pas encore sur Android, et que la compilation refuse en le disant :
-plusieurs langues, les sous-pages (`page "…" dans "…"`), les graphiques, les cartes,
+les sous-pages (`page "…" dans "…"`), les graphiques, les cartes,
 le son, la vidéo, le code QR, le choix d'un fichier, la photo, le scanner, la
-connexion avec Google ou Apple, le paiement, l'IA et les notifications. Les polices du
-thème ne sont pas encore chargées : l'application garde celle du système.
+connexion avec Google ou Apple, le paiement, l'IA et les notifications.
 
 Le CSS se traduit en Compose, règle par règle, quand une règle vise une classe
 (`.carte { … }`) : fond, couleur, taille et graisse du texte, marges et remplissage,

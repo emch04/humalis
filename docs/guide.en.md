@@ -3504,10 +3504,13 @@ humalis compile taches.humalis --cible android --sortie taches-android --serveur
   `http://localhost:3000` is reached automatically. Otherwise only `https://` is allowed.
 - The application tabs are a bar at the bottom of the screen.
 
+The site's languages are the application's: it starts in the device's language when the
+site has it, and `selecteur de langue` or `changer langue par …` change it. Theme fonts
+shipped as `.ttf` or `.otf` are loaded.
+
 What does not exist on Android yet, and that compilation refuses with a clear message:
-several languages, sub-pages (`page "…" dans "…"`), charts, maps, audio, video, QR codes,
-file picking, photo, scanner, Google or Apple login, payment, AI and notifications. The
-theme fonts are not loaded yet: the application keeps the system font.
+sub-pages (`page "…" dans "…"`), charts, maps, audio, video, QR codes,
+file picking, photo, scanner, Google or Apple login, payment, AI and notifications.
 
 CSS becomes Compose, rule by rule, when a rule targets a class (`.card { … }`): background,
 color, text size and weight, margins and padding, border, corner radius, shadow, width, and

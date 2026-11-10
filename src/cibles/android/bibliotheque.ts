@@ -189,174 +189,6 @@ private fun enJson(v: Any?): Any = when (v) {
 }
 `;
 
-export const FORMATS_KT = String.raw`// Produit par Humalis : les nombres, les dates et les montants, comme sur les autres cibles.
-package PAQUET
-
-import java.text.NumberFormat
-import java.time.LocalDate
-import java.time.OffsetDateTime
-import java.time.ZonedDateTime
-import java.time.format.DateTimeFormatter
-import java.time.temporal.ChronoUnit
-import java.util.Currency
-import java.util.Locale
-
-private val FRANCE: Locale = Locale.FRANCE
-
-/** 28000 → « 28 000 », 3.5 → « 3,5 ». */
-fun formaterNombre(valeur: Double?): String {
-    if (valeur == null || valeur.isNaN() || valeur.isInfinite()) return ""
-    val f = NumberFormat.getNumberInstance(FRANCE)
-    f.maximumFractionDigits = 3
-    return f.format(valeur)
-}
-
-/** 15000, « FC » → « 15 000 FC » ; 12.5, « EUR » → « 12,50 € » ; 12.5, « USD » → « 12,50 $ ». */
-fun formaterArgent(valeur: Double?, devise: String): String {
-    if (valeur == null || valeur.isNaN() || valeur.isInfinite()) return ""
-    return when (devise) {
-        "EUR" -> NumberFormat.getCurrencyInstance(FRANCE).also { it.currency = Currency.getInstance("EUR") }.format(valeur)
-        "USD" -> NumberFormat.getNumberInstance(FRANCE).also {
-            val chiffres = if (valeur == Math.rint(valeur)) 0 else 2
-            it.minimumFractionDigits = chiffres
-            it.maximumFractionDigits = chiffres
-        }.format(valeur) + " $"
-        else -> formaterNombre(valeur) + " " + devise
-    }
-}
-
-/** 1, « article » → « 1 article » ; 3 → « 3 articles » ; 2, « journal » → « 2 journaux ». */
-fun accorder(nombre: Double?, mot: String): String {
-    if (nombre == null) return ""
-    val ecrit = formaterNombre(nombre)
-    return when {
-        Math.abs(nombre) < 2 -> "#{ecrit} #{mot}"
-        Regex("[sxz]$").containsMatchIn(mot) -> "#{ecrit} #{mot}"
-        mot.endsWith("al") -> "#{ecrit} #{mot.dropLast(2)}aux"
-        Regex("(eau|au|eu)$").containsMatchIn(mot) -> "#{ecrit} #{mot}x"
-        else -> "#{ecrit} #{mot}s"
-    }
-}
-
-/** 1572864 octets, « Mo » → « 1,5 Mo ». */
-fun formaterTaille(octets: Double?, unite: String): String {
-    if (octets == null) return ""
-    val valeur = if (unite == "Mo") octets / 1048576 else octets / 1024
-    val f = NumberFormat.getNumberInstance(FRANCE)
-    f.maximumFractionDigits = 1
-    return f.format(valeur) + " " + unite
-}
-
-/** « 2026-11-07 », lu comme un jour ; rien si ce n'en est pas un. */
-private fun jourDe(texte: String?): LocalDate? = try {
-    if (texte == null || texte.length < 10) null else LocalDate.parse(texte.take(10))
-} catch (e: Exception) {
-    null
-}
-
-/** « 2026-11-07 » → « 7 novembre 2026 » ; un texte qui n'est pas une date reste tel quel. */
-fun formaterDate(valeur: String?): String {
-    if (valeur.isNullOrEmpty()) return ""
-    val jour = jourDe(valeur) ?: return valeur
-    return jour.format(DateTimeFormatter.ofPattern("d MMMM yyyy", FRANCE))
-}
-
-/** « 2026-11-09 » → « lundi 9 novembre ». */
-fun formaterDateLongue(valeur: String?): String {
-    if (valeur.isNullOrEmpty()) return ""
-    val jour = jourDe(valeur) ?: return valeur
-    return jour.format(DateTimeFormatter.ofPattern("EEEE d MMMM", FRANCE))
-}
-
-fun dateDuJour(): String = LocalDate.now().toString()
-
-fun maintenant(): String = OffsetDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZ"))
-
-/** « 2026-10-30 » plus 3 jours → « 2026-11-02 » ; un mois trop court garde son dernier jour. */
-fun decalerDate(valeur: String?, nombre: Double, unite: String): String {
-    val jour = jourDe(valeur) ?: return ""
-    val n = nombre.toLong()
-    return when (unite) {
-        "semaines" -> jour.plusWeeks(n)
-        "mois" -> jour.plusMonths(n)
-        else -> jour.plusDays(n)
-    }.toString()
-}
-
-/** Le nombre de jours de la première date à la seconde (négatif si elle est avant). */
-fun joursEntre(debut: String?, fin: String?): Double {
-    val a = jourDe(debut) ?: return 0.0
-    val b = jourDe(fin) ?: return 0.0
-    return ChronoUnit.DAYS.between(a, b).toDouble()
-}
-
-/** « lundi 9 novembre » → « Lundi 9 novembre ». */
-fun avecMajuscule(texte: String?): String =
-    if (texte.isNullOrEmpty()) "" else texte.substring(0, 1).uppercase(FRANCE) + texte.substring(1)
-
-/** « Direction générale » → « DG » : la première lettre des deux premiers mots. */
-fun initialesDe(texte: String?): String =
-    (texte ?: "").trim().split(Regex("\\s+")).filter { it.isNotEmpty() }.take(2).joinToString("") { it.take(1) }.uppercase(FRANCE)
-
-/** « il y a 3 jours », « il y a 2 heures », « à l’instant ». */
-fun formaterDepuis(valeur: String?): String {
-    if (valeur.isNullOrEmpty()) return ""
-    val lue = try {
-        if (valeur.length == 10) LocalDate.parse(valeur).atStartOfDay(java.time.ZoneId.systemDefault()) else ZonedDateTime.parse(valeur.replace(Regex("([+-]\\d\\d)(\\d\\d)$"), "$1:$2"))
-    } catch (e: Exception) {
-        null
-    } ?: return ""
-    val minutes = ChronoUnit.MINUTES.between(lue, ZonedDateTime.now())
-    fun dire(n: Long, mot: String) = "il y a #{n} #{mot}" + if (n > 1 && !mot.endsWith("s")) "s" else ""
-    return when {
-        minutes < 1 -> "à l’instant"
-        minutes < 60 -> dire(minutes, "minute")
-        minutes < 1440 -> dire(minutes / 60, "heure")
-        minutes < 43200 -> dire(minutes / 1440, "jour")
-        minutes < 525600 -> dire(minutes / 43200, "mois")
-        else -> dire(minutes / 525600, "an")
-    }
-}
-
-/** Un nombre entier en lettres (comme src/cibles/format.ts) ; un nombre à virgule ou trop grand reste en chiffres. */
-fun formaterEnLettres(valeur: Double?): String {
-    if (valeur == null || valeur.isNaN() || valeur.isInfinite()) return ""
-    if (valeur != Math.rint(valeur) || Math.abs(valeur) >= 1e12) return formaterNombre(valeur)
-    val n = Math.abs(valeur).toLong()
-    val u = listOf("zéro", "un", "deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf", "dix", "onze", "douze", "treize", "quatorze", "quinze", "seize", "dix-sept", "dix-huit", "dix-neuf")
-    val d = listOf("", "", "vingt", "trente", "quarante", "cinquante", "soixante", "soixante", "quatre-vingt", "quatre-vingt")
-    fun dizaines(x: Int): String {
-        if (x < 20) return u[x]
-        val dz = x / 10
-        val un = x % 10
-        if (dz == 7 || dz == 9) return d[dz] + (if (x == 71) " et " else "-") + u[x - (dz - 1) * 10]
-        if (un == 0) return if (dz == 8) "quatre-vingts" else d[dz]
-        if (un == 1 && dz != 8) return d[dz] + " et un"
-        return d[dz] + "-" + u[un]
-    }
-    fun centaines(x: Int, final: Boolean): String {
-        val c = x / 100
-        val r = x % 100
-        var fin = if (r == 0) "" else dizaines(r)
-        if (!final && fin.endsWith("quatre-vingts")) fin = fin.dropLast(1)
-        if (c == 0) return fin
-        val tete = if (c == 1) "cent" else u[c] + " cent" + (if (r == 0 && final) "s" else "")
-        return if (fin.isEmpty()) tete else "#{tete} #{fin}"
-    }
-    if (n == 0L) return u[0]
-    val milliards = (n / 1_000_000_000).toInt()
-    val millions = ((n / 1_000_000) % 1000).toInt()
-    val milliers = ((n / 1000) % 1000).toInt()
-    val reste = (n % 1000).toInt()
-    val mots = mutableListOf<String>()
-    if (milliards > 0) mots.add(centaines(milliards, true) + " milliard" + (if (milliards > 1) "s" else ""))
-    if (millions > 0) mots.add(centaines(millions, true) + " million" + (if (millions > 1) "s" else ""))
-    if (milliers > 0) mots.add(if (milliers == 1) "mille" else centaines(milliers, false) + " mille")
-    if (reste > 0) mots.add(centaines(reste, true))
-    return (if (valeur < 0) "moins " else "") + mots.joinToString(" ")
-}
-`;
-
 export const INTERFACE_KT = String.raw`// Produit par Humalis : les messages, la confirmation, la ligne, la grille et les images.
 package PAQUET
 
@@ -1053,3 +885,76 @@ object Session {
     }
 }
 `;
+
+export const LANGUES_KT = String.raw`// Produit par Humalis : la langue choisie par la personne, gardée par son appareil.
+package PAQUET
+
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import java.util.Locale
+
+object Langues {
+    /** Les langues du site, la langue de base en premier : son code et son nom écrit dans cette langue. */
+    val disponibles: List<Pair<String, String>> = LANGUES_DU_SITE
+
+    private var gardee by EtatMemorise("humalis.langue", null)
+
+    /** Celle choisie, sinon celle de l'appareil si le site l'a, sinon la langue de base. */
+    val code: String
+        get() {
+            val choisie = gardee as? String
+            if (choisie != null && disponibles.any { it.first == choisie }) return choisie
+            val appareil = Locale.getDefault().language
+            return if (disponibles.any { it.first == appareil }) appareil else disponibles[0].first
+        }
+
+    fun changer(nouvelle: String) {
+        gardee = nouvelle
+    }
+}
+
+/** Le texte dans la langue choisie, sinon dans la langue de base du site. */
+fun t(versions: Map<String, String>): String =
+    versions[Langues.code] ?: versions[Langues.disponibles[0].first] ?: versions.values.firstOrNull() ?: ""
+
+/** « selecteur de langue » : un bouton par langue, celle choisie est cochée. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SelecteurLangueHumalis(modifier: Modifier = Modifier) {
+    SingleChoiceSegmentedButtonRow(modifier) {
+        Langues.disponibles.forEachIndexed { i, (code, nom) ->
+            SegmentedButton(
+                selected = Langues.code == code,
+                onClick = { Langues.changer(code) },
+                shape = SegmentedButtonDefaults.itemShape(i, Langues.disponibles.size),
+                label = { Text(nom) },
+            )
+        }
+    }
+}
+`;
+
+/**
+ * Avec des langues : les messages de Humalis écrits dans la bibliothèque
+ * (« Le serveur n'a pas répondu. ») passent par t(), dans chaque langue du site.
+ */
+export function traduireMessagesKotlin(code: string, codes: string[], messages: { fr: string; versions: Record<string, string> }[]): string {
+  let resultat = code;
+  for (const m of messages) {
+    if (m.fr.includes('${')) continue;
+    const litteral = `"${m.fr.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\$/g, '\\$')}"`;
+    if (!resultat.includes(litteral)) continue;
+    const traduit = `t(mapOf(${codes.map((c) => `"${c}" to "${(m.versions[c] ?? m.fr).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\$/g, '\\$')}"`).join(', ')}))`;
+    // Une constante (« const val ») ne peut pas appeler t() : elle devient une propriété relue à chaque fois.
+    resultat = resultat.split(`const val PAS_DE_REPONSE = ${litteral}`).join(`val PAS_DE_REPONSE: String get() = ${traduit}`);
+    resultat = resultat.split(litteral).join(traduit);
+  }
+  return resultat;
+}
