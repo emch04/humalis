@@ -571,6 +571,14 @@ export class EcrivainActions {
       return;
     }
     e.bloc(`if let ${nom} = ${appel}, jetons.estDernier(${chaineSwift(a.resultat!)}, ${jeton}) {`, () => e.ligne(`${resultat.code} = ${nom}`));
+    // Dans « essayer », la lecture lève son erreur ; la relecture, elle, se contente de la dire.
+    if (a.direct && c.essai) {
+      const relire = `relire${this.numero}`;
+      e.bloc(`let ${relire}: @MainActor () async -> Void = {`, () => {
+        e.bloc(`if let direct = await Serveur.commun.lire(${adresse}, comme: ${type}.self${fin}) {`, () => e.ligne(`${resultat.code} = direct`));
+      });
+      e.ligne(`directs.ecouter(${adresse}, relire: ${relire})`);
+    }
   }
 
   private ecriture(e: Ecrivain, a: Extract<Action, { type: 'suppression' | 'modification' }>, c: Cadre): void {

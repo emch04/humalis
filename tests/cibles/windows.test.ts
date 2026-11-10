@@ -236,6 +236,38 @@ page "commandes" a l'adresse "/compte/commandes" :
   });
 });
 
+describe('cible Windows — « en direct »', () => {
+  const programme = (requete: string) => `serveur "magasin" :
+    donnee produit :
+        nom : texte
+    route "produits" :
+        tout le monde peut lire produit
+        tout le monde peut creer produit
+
+page "catalogue" :
+    variable produits = []
+    titre "Catalogue"
+    quand la page se charge :
+        ${requete}
+`;
+
+  it('écoute la route, la relit, et s\'arrête avec la page', () => {
+    const fichiers = projet(programme('envoyer requete vers "produits" dans produits en direct'));
+    const page = fichiers.get('Pages/PageCatalogue.cs')!;
+    expect(page).toContain('EnDirect("/api/produits", relances["produits"]);');
+    const direct = fichiers.get('Humalis/Direct.cs')!;
+    expect(direct).toContain('"/direct"');
+    expect(direct).toContain('if (ligne == "data: change") Demander();');
+    expect(direct).toContain('if (dejaOuvert) Demander();');
+    expect(direct).toContain('await Session.Renouveler();');
+    expect(fichiers.get('Humalis/Systeme.cs')).toContain('aArreter.Add(direct);');
+  });
+
+  it('une lecture simple n\'écoute rien', () => {
+    expect(projet(programme('envoyer requete vers "produits" dans produits')).get('Pages/PageCatalogue.cs')).not.toContain('EnDirect(');
+  });
+});
+
 describe('cible Windows — le serveur et la connexion', () => {
   const SOURCE = `serveur "magasin" :
     donnee produit :

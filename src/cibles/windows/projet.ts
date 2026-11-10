@@ -14,6 +14,7 @@ import { EcrivainActions, sourceCs } from './actions.js';
 import { INTERFACE_CS } from './bibliotheque/interface.js';
 import { REACTIF_CS } from './bibliotheque/reactif.js';
 import { SERVEUR_CS } from './bibliotheque/serveur.js';
+import { DIRECT_CS } from './bibliotheque/temps-reel.js';
 import { SYSTEME_CS } from './bibliotheque/systeme.js';
 import { VALEURS_CS } from './bibliotheque/valeurs.js';
 import { SVG_CS } from './bibliotheque/svg.js';
@@ -533,6 +534,7 @@ ${dictionnaires.map((d) => `        // « utiliser style "${d.nom}" sur windows 
   fichiers.set('Humalis/Interface.cs', INTERFACE_CS);
   fichiers.set('Humalis/Systeme.cs', SYSTEME_CS);
   fichiers.set('Humalis/Serveur.cs', SERVEUR_CS);
+  fichiers.set('Humalis/Direct.cs', DIRECT_CS);
   fichiers.set('Humalis/Svg.cs', SVG_CS);
   fichiers.set('Humalis/Graphique.cs', GRAPHIQUE_CS);
   fichiers.set('Humalis/Fichiers.cs', FICHIERS_CS);

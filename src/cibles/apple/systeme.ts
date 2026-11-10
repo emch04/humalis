@@ -735,14 +735,19 @@ struct SourceHumalis: Sendable {
     }
 
     /** « en direct » : attend les annonces du serveur et appelle « changement » à chacune. */
-    func fluxDirect(_ adresse: String, changement: @MainActor () async -> Void) async throws {
+    func fluxDirect(_ adresse: String, ouvert: @MainActor () async -> Void, changement: @MainActor () async -> Void) async throws {
         guard let url = URL(string: Serveur.base + adresse + "/direct") else { return }
         var demande = URLRequest(url: url)
         demande.httpMethod = "GET"
-        demande.timeoutInterval = 3600
+        // Le serveur bat toutes les 25 secondes : un silence plus long est une coupure muette.
+        demande.timeoutInterval = 60
         demande.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-        let (flux, reponse) = try await session.bytes(for: await identifiee(demande))
+        var (flux, reponse) = try await session.bytes(for: await identifiee(demande))
+        if (reponse as? HTTPURLResponse)?.statusCode == 401, await Session.commun.renouveler() {
+            (flux, reponse) = try await session.bytes(for: await identifiee(demande))
+        }
         guard let http = reponse as? HTTPURLResponse, (200..<300).contains(http.statusCode) else { throw ErreurHumalis.refus(pasDeReponse) }
+        await ouvert()
         for try await ligne in flux.lines where ligne == "data: change" { await changement() }
     }
 
@@ -820,11 +825,18 @@ private final class SuiviEnvoi: NSObject, URLSessionTaskDelegate, Sendable {
         guard taches[adresse] == nil else { return }
         taches[adresse] = Task { @MainActor in
             var attente = 1.0
+            var dejaOuvert = false
             while !Task.isCancelled {
-                try? await Serveur.commun.fluxDirect(adresse) {
+                try? await Serveur.commun.fluxDirect(adresse, ouvert: {
                     attente = 1
-                    await relire()
-                }
+                    // Après une coupure, on rattrape ce qui a changé entre-temps.
+                    if dejaOuvert { await relire() }
+                    dejaOuvert = true
+                }, changement: {
+                    // Le hasard évite que tout le monde relise au même instant.
+                    try? await Task.sleep(for: .milliseconds(Int.random(in: 120...920)))
+                    if !Task.isCancelled { await relire() }
+                })
                 if Task.isCancelled { return }
                 try? await Task.sleep(for: .seconds(attente))
                 attente = Swift.min(attente * 2, 30)

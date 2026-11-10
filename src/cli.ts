@@ -163,13 +163,13 @@ function compile(arguments_: string[]): number | Promise<number> {
     return 1;
   }
 
-  // « avec animation » et « en direct » n'existent que sur le web : dit plutôt que perdu en silence.
+  // « avec animation » n'existe que sur le web et Apple et Android ; « en direct » partout sauf Expo et les pages statiques : dit plutôt que perdu en silence.
   const programme = JSON.stringify(application.ecrans);
   if (programme.includes('"animation":true') && cible !== 'web' && cible !== 'serveur' && cible !== 'apple' && cible !== 'android') {
     console.error('Avertissement : « avec animation » n\'a d\'effet que sur le web : ici, les lignes changent sans glisser.');
   }
-  if (programme.includes('"direct":true') && cible !== 'web' && cible !== 'serveur' && cible !== 'apple' && cible !== 'android') {
-    console.error('Avertissement : « en direct » n\'a d\'effet que sur le web : ici, la liste est lue une fois.');
+  if (programme.includes('"direct":true') && (cible === 'mobile' || cible === 'statique')) {
+    console.error(`Avertissement : « en direct » n'a pas d'effet sur la cible ${cible} : ici, la liste est lue une fois.`);
   }
 
   // Les tuiles d'une carte viennent d'un fournisseur qui reçoit l'adresse IP des visiteurs : dit une fois.

@@ -433,17 +433,27 @@ export class EcrivainActions {
     }
     const n = ++this.numero;
     const appel = c.essai ? `Serveur.appel(${adresse}${fin})` : `Serveur.lire(${adresse}${fin})`;
+    // « en direct » : tant que la page est ouverte, une annonce du serveur la fait relire. Une écoute par route ; la dernière lecture écrite gagne.
+    const ecouter = (relire: string): void => {
+      if (!a.direct || a.source !== undefined) return;
+      const cle = chaineKotlin(`direct:${a.adresse}`);
+      e.ligne(`if (relances.put(${cle}, ${relire}) == null) portee.launch { ecouterDirect(${adresse}) { relances[${cle}]?.invoke() } }`);
+    };
     // Une lecture sait se rejouer : « recharger » s'en sert.
     if (a.mode !== 'envoyer' && !c.essai) {
       e.bloc(`val charger${n}: suspend () -> Unit = {`, () => e.ligne(`${appel}?.let { ${resultat} = it }`));
       e.ligne(`relances[${chaineKotlin(a.resultat!)}] = charger${n}`);
       e.ligne(`charger${n}()`);
-      // « en direct » : tant que la page est ouverte, une annonce du serveur la fait relire.
-      if (a.direct && a.source === undefined) e.ligne(`portee.launch { ecouterDirect(${adresse}) { charger${n}() } }`);
+      ecouter(`charger${n}`);
       return;
     }
     if (c.essai) e.ligne(`${resultat} = ${appel}`);
     else e.ligne(`${appel}?.let { ${resultat} = it }`);
+    if (c.essai && a.direct) {
+      // Dans « essayer », la lecture lève son erreur ; la relecture, elle, se contente de la dire.
+      e.bloc(`val relire${n}: suspend () -> Unit = {`, () => e.ligne(`Serveur.lire(${adresse}${fin})?.let { ${resultat} = it }`));
+      ecouter(`relire${n}`);
+    }
   }
 
   private ecriture(e: EcrivainKotlin, a: Extract<Action, { type: 'suppression' | 'modification' }>, c: Cadre): void {
