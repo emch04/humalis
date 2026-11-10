@@ -3508,8 +3508,14 @@ The site's languages are the application's: it starts in the device's language w
 site has it, and `selecteur de langue` or `changer langue par …` change it. Theme fonts
 shipped as `.ttf` or `.otf` are loaded.
 
+Sub-pages show inside their parent page, and a link to an anchor (`carte#desserts`)
+scrolls down to it. `liens profonds "magasin"` opens the application from
+`magasin://produit/42`; with `et domaine "…"`, `https://` links open it too: compile with
+`--empreinte` (the certificate's SHA-256 fingerprint, given by `keytool -list -v`) and
+publish the file written in `a-publier-sur-le-site/`.
+
 What does not exist on Android yet, and that compilation refuses with a clear message:
-sub-pages (`page "…" dans "…"`), charts, maps, audio, video, QR codes,
+charts, maps, audio, video, QR codes,
 file picking, photo, scanner, Google or Apple login, payment, AI and notifications.
 
 CSS becomes Compose, rule by rule, when a rule targets a class (`.card { … }`): background,

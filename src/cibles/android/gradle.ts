@@ -100,7 +100,28 @@ dependencies {
 `;
 }
 
-export function manifeste(reseau: boolean): string {
+export function manifeste(reseau: boolean, liens?: { schema: string; domaine?: string }): string {
+  const hote = liens?.domaine?.split('/')[0];
+  const debut = liens?.domaine?.split('/').slice(1).filter(Boolean).join('/');
+  const profonds = liens
+    ? `
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="${liens.schema}" />
+            </intent-filter>${
+              hote
+                ? `
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="${hote}"${debut ? ` android:pathPrefix="/${debut}"` : ''} />
+            </intent-filter>`
+                : ''
+            }`
+    : '';
   return `<?xml version="1.0" encoding="utf-8"?>
 <!-- Produit par Humalis. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
@@ -115,11 +136,12 @@ ${reseau ? '    <uses-permission android:name="android.permission.INTERNET" />\n
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTop"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
+            </intent-filter>${profonds}
         </activity>
     </application>
 </manifest>

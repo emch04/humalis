@@ -35,6 +35,8 @@ export interface OptionsAndroid {
   identifiant?: string;
   medias?: Map<string, InfoMedia>;
   images?: Map<string, string>;
+  /** L'empreinte SHA-256 du certificat qui signe l'application, pour les liens https:// d'un domaine. */
+  empreinte?: string;
   /** Les fichiers de police du thème, en base 64. */
   polices?: Map<string, string>;
   /** Le contenu des fichiers CSS du projet (« utiliser style "…" », avec ou sans « sur android »). */
@@ -62,7 +64,8 @@ function verifier(application: Application): Diagnostic[] {
     if (utilises.has(c.nom)) refuser(c.ligne, `le composant React « ${c.nom} » (Android n'exécute pas de JavaScript)`);
   }
   for (const e of application.ecrans) {
-    if (e.parent !== undefined) refuser(e.ligne, `« page "${e.nom}" dans "${e.parent}" » (les sous-pages)`);
+    const parent = e.parent !== undefined ? application.ecrans.find((x) => x.nom === e.parent) : undefined;
+    if (parent?.parametresAdresse?.length) refuser(e.ligne, `« page "${e.nom}" dans "${e.parent}" » : une page parente qui attend un paramètre`);
     if (e.dessin) avertir(e.ligne, `« dessinee pour » est sans effet sur Android : la page « ${e.nom} » suit les styles nommés.`);
   }
   for (const s of application.sources) if (s.passerelle) refuser(1, `la source « ${s.nom} » à jeton secret (la passerelle du serveur)`);
@@ -191,6 +194,8 @@ const ROUTES_KT = String.raw`
 /** Où revenir après la connexion : la page réservée qui a renvoyé vers « sinon ». */
 object Routes {
     var apresConnexion: String? = null
+    /** « carte#desserts » : l'ancre où la page qui s'ouvre doit descendre. */
+    var ancre: String? = null
 }
 
 fun allerVers(nav: NavHostController, route: String) {
@@ -279,6 +284,8 @@ function routeKotlin(r: RouteAndroid, parametres: string[], filtres: string[]): 
 
 function applicationKotlin(paquet: string, application: Application, routes: Map<string, RouteAndroid>, entree: Ecran, disposition: { entete?: string; sansEntete: string[]; pied?: string; sansPied: string[] }, onglets: { titre: string; route: string; icone?: string }[]): string {
   const e = new EcrivainKotlin();
+  const parentDe = (x: Ecran) => (x.parent !== undefined ? application.ecrans.find((p) => p.nom === x.parent) : undefined);
+  const liensProfonds = liensProfondsDe(application, routes, entree);
   e.ligne("// Produit par Humalis : l'application, ses pages et leur navigation.");
   e.ligne(`package ${paquet}`);
   e.ligne();
@@ -300,6 +307,8 @@ function applicationKotlin(paquet: string, application: Application, routes: Map
     'androidx.navigation.compose.currentBackStackEntryAsState',
     'androidx.navigation.compose.rememberNavController',
     'androidx.navigation.navArgument',
+    'androidx.navigation.navDeepLink',
+    'android.content.Intent',
     'kotlinx.coroutines.launch',
   ]) e.ligne(`import ${i}`);
   e.ligne();
@@ -310,7 +319,19 @@ function applicationKotlin(paquet: string, application: Application, routes: Map
       e.ligne('enableEdgeToEdge()');
       e.ligne('setContent { ApplicationHumalis() }');
     });
+    if (application.liensProfonds) {
+      e.ligne();
+      e.ligne('/** Un lien profond reçu quand l\'application est déjà ouverte : la navigation le suit. */');
+      e.bloc('override fun onNewIntent(intent: Intent) {', () => {
+        e.ligne('super.onNewIntent(intent)');
+        e.ligne('Liens.recu = intent');
+      });
+    }
   });
+  if (application.liensProfonds) {
+    e.ligne();
+    e.bloc('object Liens {', () => e.ligne('var recu by mutableStateOf<Intent?>(null)'));
+  }
   e.ligne();
   e.ligne('/** Les adresses des pages du site et leur route dans l\'application (pour « lien … vers variable »). */');
   const chemins = cheminsDesPages(application);
@@ -322,6 +343,7 @@ function applicationKotlin(paquet: string, application: Application, routes: Map
       e.ligne('val nav = rememberNavController()');
       e.ligne('val portee = rememberCoroutineScope()');
       e.ligne('val actuelle = nav.currentBackStackEntryAsState().value?.destination?.route');
+      if (application.liensProfonds) e.ligne('LaunchedEffect(Liens.recu) { Liens.recu?.let { nav.handleDeepLink(it); Liens.recu = null } }');
       if (onglets.length) {
         e.bloc('Scaffold(bottomBar = {', () => {
           e.bloc('NavigationBar {', () => {
@@ -338,11 +360,17 @@ function applicationKotlin(paquet: string, application: Application, routes: Map
             e.bloc(`NavHost(nav, startDestination = ${chaineKotlin(routes.get(entree.nom)!.motif)}, modifier = Modifier.weight(1f)) {`, () => {
               for (const [, r] of routes) {
                 const args = r.filtres.length ? `, arguments = listOf(${r.filtres.map((f) => `navArgument(${chaineKotlin(f)}) { type = NavType.StringType; defaultValue = "" }`).join(', ')})` : '';
+                const liens = liensProfonds.get(r.ecran.nom) ?? [];
+                const profonds = liens.length ? `, deepLinks = listOf(${liens.map((l) => `navDeepLink { uriPattern = ${chaineKotlin(l)} }`).join(', ')})` : '';
                 const lus = [...r.parametres.map((p) => `${p} = e.arguments?.getString(${chaineKotlin(p)}) ?: ""`), ...r.filtres.map((f) => `${f}Lu = e.arguments?.getString(${chaineKotlin(f)}) ?: ""`)];
-                const appel = `Page${nomApplication(simplifier(r.ecran.nom) || 'page')}(${['nav', ...lus].join(', ')})`;
+                let appel = `Page${nomApplication(simplifier(r.ecran.nom) || 'page')}(${['nav', ...lus, ...(r.ecran.parent !== undefined ? ['imbriquee = true'] : [])].join(', ')})`;
+                // Une sous-page se montre dans sa page parente, à l'endroit de « sous page » (et ainsi de suite).
+                for (let parent = parentDe(r.ecran), vus = 0; parent && vus < 8; parent = parentDe(parent), vus++) {
+                  appel = `Page${nomApplication(simplifier(parent.nom) || 'page')}(nav, sousPage = { ${appel} })`;
+                }
                 const reservee = r.ecran.reservee;
                 const sinon = reservee ? routes.get(reservee.sinon) : undefined;
-                e.bloc(`composable(${chaineKotlin(r.motif)}${args}) { e ->`, () => {
+                e.bloc(`composable(${chaineKotlin(r.motif)}${args}${profonds}) { e ->`, () => {
                   if (reservee && sinon) {
                     const ici = routeKotlin(r, r.parametres.map((p) => `e.arguments?.getString(${chaineKotlin(p)}) ?: ""`), []);
                     e.ligne(`GardeHumalis(nav, ${chaineKotlin(reservee.qui)}, ${chaineKotlin(sinon.motif.split('/{')[0].split('?')[0])}, ${ici}) { ${appel} }`);
@@ -361,6 +389,37 @@ function applicationKotlin(paquet: string, application: Application, routes: Map
   });
   e.ligne(ROUTES_KT.replace(/^\n/, ''));
   return e.texte().replace(/\n+$/, '\n');
+}
+
+/**
+ * Les liens profonds de chaque page : « magasin://produit/42 » (le schéma), et
+ * « https://exemple.fr/essai/produit/42 » avec un domaine. Les morceaux suivent
+ * l'adresse de la page sur le site ; « :id » reçoit un paramètre.
+ */
+function liensProfondsDe(application: Application, routes: Map<string, RouteAndroid>, entree: Ecran): Map<string, string[]> {
+  const liens = new Map<string, string[]>();
+  const profonds = application.liensProfonds;
+  if (!profonds) return liens;
+  const chemins = cheminsDesPages(application);
+  for (const [nom, r] of routes) {
+    // La page d'entrée a l'adresse « / » : « magasin://accueil » l'ouvre aussi.
+    if (r.ecran === entree) {
+      liens.set(nom, [`${profonds.schema}://${r.motif}`]);
+      continue;
+    }
+    let rang = 0;
+    const morceaux = (chemins.get(nom) ?? `/${nom}`).split('/').filter(Boolean).map((m) => (m.startsWith(':') && rang < r.parametres.length ? `{${r.parametres[rang++]}}` : m));
+    if (morceaux.length === 0) continue;
+    const suite = r.filtres.length ? `?${r.filtres.map((f) => `${f}={${f}}`).join('&')}` : '';
+    const chemin = morceaux.join('/');
+    liens.set(nom, [`${profonds.schema}://${chemin}${suite}`, ...(profonds.domaine ? [`https://${profonds.domaine.replace(/\/+$/, '')}/${chemin}${suite}`] : [])]);
+  }
+  return liens;
+}
+
+/** Le fichier qui dit à Android que le site confie ses liens https:// à l'application. */
+function liensDuSite(identifiant: string, empreinte: string): string {
+  return `${JSON.stringify([{ relation: ['delegate_permission/common.handle_all_urls'], target: { namespace: 'android_app', package_name: identifiant, sha256_cert_fingerprints: [empreinte.toUpperCase()] } }], null, 2)}\n`;
 }
 
 function lisezmoi(nom: string, identifiant: string, serveur: string | undefined): string {
@@ -488,6 +547,7 @@ export function genererProjetAndroid(application: Application, options: OptionsA
         visibilite: () => '',
         texteChange: () => '',
         route: () => undefined,
+        allerAncre: () => undefined,
         clesChamps: new Map(),
         refuser: (m) => refuser(f.ligne, `${m} dans une fonction`),
       });
@@ -578,7 +638,14 @@ export function genererProjetAndroid(application: Application, options: OptionsA
   fichiers.set('gradle.properties', PROPRIETES_GRADLE);
   fichiers.set('gradle/wrapper/gradle-wrapper.properties', ENVELOPPE_GRADLE);
   fichiers.set('app/build.gradle.kts', constructionApp(identifiant, nomAffiche));
-  fichiers.set('app/src/main/AndroidManifest.xml', manifeste(true));
+  fichiers.set('app/src/main/AndroidManifest.xml', manifeste(true, application.liensProfonds));
+  const domaine = application.liensProfonds?.domaine;
+  if (domaine && options.empreinte) {
+    fichiers.set('a-publier-sur-le-site/.well-known/assetlinks.json', liensDuSite(identifiant, options.empreinte));
+    avertir(application.liensProfonds!.ligne, `« domaine "${domaine}" » : publiez a-publier-sur-le-site/.well-known/assetlinks.json sur ${domaine.split('/')[0]} pour que les liens https:// ouvrent l'application.`);
+  } else if (domaine) {
+    avertir(application.liensProfonds!.ligne, `« domaine "${domaine}" » : sans --empreinte, Android ne peut pas vérifier que le site confie ses liens https:// à l'application ; il les propose dans une liste. Compilez avec --empreinte (l'empreinte SHA-256 du certificat, donnée par « keytool -list -v »).`);
+  }
   fichiers.set('app/src/main/res/values/themes.xml', THEME_XML);
   fichiers.set('app/src/main/res/xml/network_security_config.xml', SECURITE_RESEAU);
   const logo = application.site?.logo;

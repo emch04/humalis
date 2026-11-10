@@ -3428,8 +3428,14 @@ Les langues du site sont celles de l'application : elle démarre dans celle de l
 si le site l'a, et `selecteur de langue` ou `changer langue par …` la changent. Les polices
 du thème livrées en `.ttf` ou `.otf` sont chargées.
 
+Les sous-pages se montrent dans leur page parente, et un lien vers une ancre
+(`carte#desserts`) descend jusqu'à elle. `liens profonds "magasin"` ouvre l'application
+par `magasin://produit/42` ; avec `et domaine "…"`, les liens `https://` l'ouvrent aussi :
+compile avec `--empreinte` (l'empreinte SHA-256 du certificat, donnée par
+`keytool -list -v`) et publie le fichier écrit dans `a-publier-sur-le-site/`.
+
 Ce qui n'existe pas encore sur Android, et que la compilation refuse en le disant :
-les sous-pages (`page "…" dans "…"`), les graphiques, les cartes,
+les graphiques, les cartes,
 le son, la vidéo, le code QR, le choix d'un fichier, la photo, le scanner, la
 connexion avec Google ou Apple, le paiement, l'IA et les notifications.
 

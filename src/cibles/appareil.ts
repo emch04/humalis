@@ -48,6 +48,6 @@ export function verifierAppareilPourLaCible(application: Application, cible: str
     const lieu = lieux.find((e) => /"type":"connexionApple"/.test(JSON.stringify(e)));
     if (lieu) diagnostics.push({ gravite: 'erreur', ligne: lieu.ligne, message: `« se connecter avec apple » n'existe pas pour cette cible : compilez avec --cible web ou --cible apple, ou retirez cette ligne.` });
   }
-  if (application.liensProfonds) diagnostics.push({ gravite: 'erreur', ligne: application.liensProfonds.ligne, message: `« liens profonds » n'est disponible que sur la cible Apple pour l'instant : compilez avec --cible apple, ou retirez cette ligne.` });
+  if (application.liensProfonds && cible !== 'android') diagnostics.push({ gravite: 'erreur', ligne: application.liensProfonds.ligne, message: `« liens profonds » n'est disponible que sur les cibles Apple et Android pour l'instant : compilez avec --cible apple ou --cible android, ou retirez cette ligne.` });
   return diagnostics;
 }

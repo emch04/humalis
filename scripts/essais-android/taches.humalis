@@ -1,6 +1,8 @@
 # L'essai de bout en bout de la cible Android (scripts/essai-android.mjs) :
 # lire le serveur, se connecter, revenir à la page réservée, ajouter et
 # supprimer, dans une vraie application sur l'émulateur.
+liens profonds "taches"
+
 theme :
     couleur marque "#0f766e"
 

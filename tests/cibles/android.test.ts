@@ -557,6 +557,63 @@ page "accueil" :
   });
 });
 
+describe('cible Android — sous-pages, ancres et liens profonds', () => {
+  const SOURCE = `liens profonds "magasin" et domaine "exemple.fr/essai"
+
+page "accueil" :
+    titre "Accueil"
+    lien "Nos desserts" vers "carte#desserts"
+
+page "carte" :
+    titre "Carte"
+    lien "Aller aux desserts" vers "#desserts"
+    section "Desserts" avec ancre "desserts" :
+        texte "Beignets"
+
+page "produit" avec parametre id :
+    titre "Produit {id}"
+
+page "espace" :
+    titre "Espace"
+    sous page
+
+page "profil" dans "espace" :
+    texte "Votre profil"
+`;
+  const f = projet(SOURCE, { empreinte: 'aa:bb:cc' });
+  const app = f.get(`${CODE}/MainActivity.kt`)!;
+
+  it('une sous-page se montre dans sa page parente, sans défiler deux fois', () => {
+    expect(app).toContain('PageEspace(nav, sousPage = { PageProfil(nav, imbriquee = true) })');
+    expect(page(f, 'PageEspace')).toContain('sousPage?.invoke()');
+    expect(page(f, 'PageProfil')).toContain('ColonneHumalis(if (imbriquee) Modifier.fillMaxWidth() else Modifier.fillMaxSize().verticalScroll(rememberScrollState())');
+  });
+
+  it('un lien vers une ancre descend jusqu\'à elle, sur la page ou sur une autre', () => {
+    const carte = page(f, 'PageCarte');
+    expect(carte).toContain('val ancreDesserts = remember { BringIntoViewRequester() }');
+    expect(carte).toContain('Box(Modifier.bringIntoViewRequester(ancreDesserts)) {');
+    expect(carte).toContain('portee.launch { allerAncre("desserts") }');
+    expect(page(f, 'PageAccueil')).toContain('Routes.ancre = "desserts"; allerVers(nav, "carte")');
+  });
+
+  it('« magasin://produit/42 » et « https://exemple.fr/essai/produit/42 » ouvrent la page', () => {
+    expect(app).toContain('navDeepLink { uriPattern = "magasin://produit/{id}" }, navDeepLink { uriPattern = "https://exemple.fr/essai/produit/{id}" }');
+    expect(app).toContain('LaunchedEffect(Liens.recu) { Liens.recu?.let { nav.handleDeepLink(it); Liens.recu = null } }');
+    const manifeste = f.get('app/src/main/AndroidManifest.xml')!;
+    expect(manifeste).toContain('<data android:scheme="magasin" />');
+    expect(manifeste).toContain('<intent-filter android:autoVerify="true">');
+    expect(manifeste).toContain('<data android:scheme="https" android:host="exemple.fr" android:pathPrefix="/essai" />');
+    expect(f.get('a-publier-sur-le-site/.well-known/assetlinks.json')).toContain('"sha256_cert_fingerprints": [\n        "AA:BB:CC"');
+  });
+
+  it('sans --empreinte, la compilation dit comment faire vérifier les liens https://', () => {
+    const { diagnostics, fichiers } = produire(SOURCE);
+    expect(diagnostics.map((d) => d.message).join('\n')).toContain('Compilez avec --empreinte');
+    expect(fichiers.has('a-publier-sur-le-site/.well-known/assetlinks.json')).toBe(false);
+  });
+});
+
 describe('cible Android — noms et icônes', () => {
   it('les noms Humalis deviennent des identifiants Kotlin sûrs', () => {
     expect(nomKotlin('nombre_articles')).toBe('nombreArticles');

@@ -18,6 +18,8 @@ export interface HoteActions {
   texteChange(id: string): string;
   /** L'expression Kotlin de la route d'une page, avec ses paramètres ; rien si la page n'existe pas. */
   route(page: string, args?: ArgumentsPage): string | undefined;
+  /** Aller à une ancre, sur cette page ou sur une autre ; rien si elle n'existe pas. */
+  allerAncre(page: string | undefined, ancre: string, args?: ArgumentsPage): string | undefined;
   /** Les clés JSON des champs envoyés (le libellé du champ). */
   clesChamps: Map<string, string>;
   /** Les variables de la page « avec memorisee » ou suivies : rien de particulier à faire ici. */
@@ -295,6 +297,11 @@ export class EcrivainActions {
     const lue = lireCible(ecrite);
     if (lue.externe) {
       e.ligne(`ouvrirExterne(${chaineKotlin(ecrite)})`);
+      return;
+    }
+    if (lue.ancre !== undefined) {
+      const aller = this.hote.allerAncre(lue.page, lue.ancre, a.arguments);
+      if (aller) e.ligne(aller);
       return;
     }
     if (!lue.page) return;
