@@ -30,6 +30,7 @@
     "essai:serveur": "node scripts/essai-serveur.mjs",
     "essai:lien": "node scripts/essai-lien.mjs",
     "essai:mobile": "node scripts/essai-mobile.mjs",
+    "essai:windows": "node scripts/essai-windows.mjs",
     "essai:packs": "npm run essai:serveur && npm run essai:lien && npm run essai:connexion && npm run essai:gestion && npm run essai:catalogue && npm run essai:web",
     "essai:connexion": "node scripts/essai-connexion.mjs",
     "essai:gestion": "node scripts/essai-gestion.mjs",
