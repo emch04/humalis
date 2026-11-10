@@ -76,7 +76,7 @@ import { verifierAccessibilite } from './accessibilite.js';
 import { niveauxDesSousTitres } from './niveaux.js';
 import { verifierElementEcran, verifierBlocEcran, type Signaler } from './ecran.js';
 import { connaitreIconesDessinees } from '../vocabulaire/icones.js';
-import { verifierChoixFichier, verifierEnvoiFichier, typeFichierChoisi, aUnApercu, recenserFichiers, type FichiersDeLaPage } from './fichiers.js';
+import { verifierChoixFichier, verifierEnvoiFichier, typeFichierChoisi, aUnApercu, recenserFichiers, recenserCaptures, type FichiersDeLaPage } from './fichiers.js';
 import { verifierCarte, verifierMarqueur } from './carte.js';
 import { verifierMouvement, verifierDefilementsDeLaPage, verifierImage, verifierAudio, verifierVideo, verifierPrioritairesDeLaPage, verifierGraphique } from './medias.js';
 import { DEVISES } from '../cibles/format.js';
@@ -527,6 +527,8 @@ class AnalysePage {
   private readonly prioritaires: number[] = [];
   /** Les choix de fichier de la page, par variable (pour vérifier « envoyer fichier »). */
   private fichiers: FichiersDeLaPage = new Map();
+  /** Les variables remplies par une capture de la page : elles s'envoient comme un fichier choisi. */
+  private captures = new Set<string>();
 
   // ─── Les interactions (plan 2026-10-30-interactions) ───────────────────
   /** L'événement ouvert, et les blocs où l'on se trouve (minuterie, question, bouton d'un message, fenêtre). */
@@ -630,6 +632,7 @@ class AnalysePage {
     }
     this.recenserGardes(this.page.corps, undefined);
     this.fichiers = recenserFichiers(this.page.corps);
+    this.captures = recenserCaptures(this.page.corps);
     this.bloc(this.page.corps, 'vue', { genre: 'page' });
     for (const { partie, fiche, champ } of this.datesEnAttente) {
       if (fiche.champs.some((c) => c.nom === champ && c.date)) this.resultat.formats.set(partie, 'date');
@@ -1521,7 +1524,7 @@ class AnalysePage {
   /** « envoyer fichier photo vers "…" de la source "…" » : voir `analyse/fichiers.ts`. */
   private envoiFichier(envoi: EnvoiFichier): void {
     const typeDe = (nom: string, ligne: number) => this.variable(nom, ligne)?.type;
-    verifierEnvoiFichier(envoi, { fichiers: this.fichiers, sources: this.liens.sources, typeDe }, this.signaler());
+    verifierEnvoiFichier(envoi, { fichiers: this.fichiers, captures: this.captures, sources: this.liens.sources, typeDe }, this.signaler());
     // La réponse peut être suivie comme celle d'une requête : « adresse est en chargement », « erreur de adresse ».
     if (envoi.resultat !== undefined) this.ciblesSources.add(envoi.resultat);
   }

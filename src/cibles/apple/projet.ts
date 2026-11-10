@@ -17,6 +17,7 @@ import { COULEURS_CSS } from '../web/styles.js';
 import { EcrivainActions, type HotePage } from './actions.js';
 import { FORMATS_SWIFT, INTERFACE_SWIFT, VALEURS_SWIFT } from './bibliotheque.js';
 import { fichiersElements } from './elements.js';
+import { besoinsCaptures } from './captures.js';
 import { nomIcone } from './icones.js';
 import { chaineSwift, nomApplication, nomComposant, nomPage, nomRoute, nomSwift } from './noms.js';
 import { GenerateurPage, type ContexteApple } from './page.js';
@@ -1150,17 +1151,18 @@ export function genererProjetApple(application: Application, options: OptionsApp
   const octetsLogo = logo && /\.png$/i.test(logo) ? options.images?.get(logo) : undefined;
   for (const [chemin, contenu] of assets(octetsLogo !== undefined, marqueDe(application.theme))) ecrire(chemin, contenu);
   if (octetsLogo !== undefined) ecrire('Assets.xcassets/AppIcon.appiconset/icone.png', contenuBinaire(octetsLogo));
-  const avecFichiers = /\b(ChoixFichierHumalis|prendrePhoto)\b/.test(tout);
+  const avecFichiers = /\b(ChoixFichierHumalis|prendrePhoto)\b|\bawait scannerDocument\(/.test(tout);
+  const appareilsCaptures = besoinsCaptures(tout);
   const avecPosition = /\blirePosition\(/.test(tout);
   // Sans équipe, l'application ne peut pas être signée avec ce droit : elle ne se construirait plus.
   const domaineLiens = options.equipe ? application.liensProfonds?.domaine : undefined;
   const avecConnexionApple = /\bseConnecterAvecApple\(/.test(codeAvecNatifs);
   if (avecConnexionApple && !options.equipe) avertir(1, "« se connecter avec apple » : sans --equipe, la fenêtre d'Apple ne peut pas s'ouvrir, et l'application le dit à la personne. Compilez avec --equipe.");
   const droitConnexionApple = avecConnexionApple && options.equipe !== undefined;
-  ecrire(`${nom}.entitlements`, droits(avecFichiers, (notifications || jetonActivite) && options.equipe ? 'ios' : undefined, avecPosition, domaineLiens, droitConnexionApple, formes?.groupe));
-  if ((notifications || jetonActivite) && options.equipe) ecrire(`${nom}-mac.entitlements`, droits(avecFichiers, 'mac', avecPosition, domaineLiens, droitConnexionApple, formes?.groupe));
+  ecrire(`${nom}.entitlements`, droits(avecFichiers, (notifications || jetonActivite) && options.equipe ? 'ios' : undefined, avecPosition, domaineLiens, droitConnexionApple, formes?.groupe, '', appareilsCaptures));
+  if ((notifications || jetonActivite) && options.equipe) ecrire(`${nom}-mac.entitlements`, droits(avecFichiers, 'mac', avecPosition, domaineLiens, droitConnexionApple, formes?.groupe, '', appareilsCaptures));
   // CarPlay demande un droit qu'Apple accorde sur demande : sans lui, seul le simulateur montre l'écran de voiture.
-  if (formes?.droitsSimulateur) ecrire(`${nom}-simulateur.entitlements`, droits(avecFichiers, (notifications || jetonActivite) && options.equipe ? 'ios' : undefined, avecPosition, domaineLiens, droitConnexionApple, formes.groupe, formes.droitsSimulateur));
+  if (formes?.droitsSimulateur) ecrire(`${nom}-simulateur.entitlements`, droits(avecFichiers, (notifications || jetonActivite) && options.equipe ? 'ios' : undefined, avecPosition, domaineLiens, droitConnexionApple, formes.groupe, formes.droitsSimulateur, appareilsCaptures));
   if (application.liensProfonds?.domaine && !options.equipe) avertir(application.liensProfonds.ligne, `« domaine "${application.liensProfonds.domaine}" » : sans --equipe, les liens https:// ouvrent le site et pas l'application. Compilez avec --equipe.`);
   if (domaineLiens) {
     fichiers.set('a-publier-sur-le-site/.well-known/apple-app-site-association', associationSite(options.equipe!, identifiantApp, domaineLiens));
@@ -1176,7 +1178,7 @@ export function genererProjetApple(application: Application, options: OptionsApp
   for (const adresse of new Set(adresses)) {
     if (/^http:\/\//i.test(adresse) && !/^http:\/\/(localhost|127\.0\.0\.1)([:/]|$)/i.test(adresse)) avertir(1, `l'application Apple ne peut pas appeler « ${adresse} » : le système bloque http://. Utilisez https://.`);
   }
-  fichiers.set('Info.plist', infoSupplementaire(serveurLocal, { camera: /\b(prendrePhoto|scannerCode)\(/.test(tout), identite: /\bverifierIdentite\(/.test(tout), position: avecPosition, ...(application.liensProfonds ? { liens: { schema: application.liensProfonds.schema, identifiant: identifiantApp } } : {}), ...(avecArrierePlan ? { arrierePlan: identifiantFond } : {}), ...(formes?.schemaInterne ? { schemaInterne: formes.schemaInterne } : {}), ...(formes?.infos ? { formes: formes.infos } : {}) }));
+  fichiers.set('Info.plist', infoSupplementaire(serveurLocal, { camera: /\b(prendrePhoto|scannerCode)\(/.test(tout) || appareilsCaptures.camera, micro: appareilsCaptures.micro, identite: /\bverifierIdentite\(/.test(tout), position: avecPosition, ...(application.liensProfonds ? { liens: { schema: application.liensProfonds.schema, identifiant: identifiantApp } } : {}), ...(avecArrierePlan ? { arrierePlan: identifiantFond } : {}), ...(formes?.schemaInterne ? { schemaInterne: formes.schemaInterne } : {}), ...(formes?.infos ? { formes: formes.infos } : {}) }));
   fichiers.set(
     `${nom}.xcodeproj/project.pbxproj`,
     projetXcode({

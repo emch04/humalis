@@ -3,6 +3,8 @@
  * que si une page s'en sert (voir `fichiersElements`).
  */
 
+import { CAPTURES, emploieCaptures } from './captures.js';
+
 const CHAMPS = String.raw`// Produit par Humalis : les champs d'un formulaire.
 import SwiftUI
 
@@ -1284,6 +1286,10 @@ export function fichiersElements(code: string): Map<string, string> {
   if (emploie(/\b(ChoixFichierHumalis|FichierChoisi|televerser)\b/)) fichiers.set('Humalis/Fichiers.swift', FICHIERS);
   if (emploie(/\b(prendrePhoto|scannerCode|verifierIdentite|vibrer|SignatureHumalis)\(/)) {
     fichiers.set('Humalis/Appareil.swift', APPAREIL);
+    fichiers.set('Humalis/Fichiers.swift', FICHIERS);
+  }
+  if (emploieCaptures(code)) {
+    fichiers.set('Humalis/Captures.swift', CAPTURES);
     fichiers.set('Humalis/Fichiers.swift', FICHIERS);
   }
   if (emploie(/\blirePosition\(/)) fichiers.set('Humalis/Position.swift', POSITION);
