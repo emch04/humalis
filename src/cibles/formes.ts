@@ -134,4 +134,6 @@ ECRITES.desktop = new Set<Forme>(['barreSysteme', 'fichierOuvert', 'demarrage', 
 
 // Le web et le bureau (IndexedDB, WebCrypto, WebAuthn) : src/cibles/commun/donnees-comptes-web.ts.
 ECRITES.web = new Set<Forme>(['donneeLocale', 'cleAcces', 'doubleAuthentification']);
-for (const forme of ECRITES.web) ECRITES.desktop.add(forme);
+// Le bureau sert ses pages depuis humalis://application, une origine que WebAuthn refuse : les clés d'accès y restent refusées.
+ECRITES.desktop.add('donneeLocale');
+ECRITES.desktop.add('doubleAuthentification');
