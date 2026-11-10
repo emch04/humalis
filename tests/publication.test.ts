@@ -167,7 +167,7 @@ describe('publication — le site web', () => {
   });
 
   it('robots.txt, manifest et fichiers du projet recopiés', () => {
-    expect(fichiers.get('public/robots.txt')).toBe('User-agent: *\nAllow: /\nSitemap: https://boutique.exemple.fr/sitemap.xml\n');
+    expect(fichiers.get('public/robots.txt')).toBe('User-agent: *\nContent-Signal: search=yes, ai-input=yes\nAllow: /\nSitemap: https://boutique.exemple.fr/sitemap.xml\n');
     expect(JSON.parse(fichiers.get('public/manifest.webmanifest')!)).toEqual({
       name: 'Boutique Démo',
       icons: [{ src: '/logo.svg', type: 'image/svg+xml', sizes: 'any' }],
@@ -214,13 +214,13 @@ describe('publication — le site statique', () => {
     expect(plan).toContain('<loc>https://boutique.exemple.fr/</loc>');
     expect(plan).toContain('<loc>https://boutique.exemple.fr/a_propos.html</loc>');
     expect(plan).not.toContain('panier');
-    expect(fichiers.get('robots.txt')).toBe('User-agent: *\nAllow: /\nSitemap: https://boutique.exemple.fr/sitemap.xml\n');
+    expect(fichiers.get('robots.txt')).toBe('User-agent: *\nContent-Signal: search=yes, ai-input=yes\nAllow: /\nSitemap: https://boutique.exemple.fr/sitemap.xml\n');
   });
 
   it('sans adresse, pas de plan du site', () => {
     const sansAdresse = genererProjetStatique(compiler(programme('site :', '>nom "R"', '', 'page "a" :', '>titre "A"')).application!, { nom: 'a', source: 'a.humalis' });
     expect(sansAdresse.has('sitemap.xml')).toBe(false);
-    expect(sansAdresse.get('robots.txt')).toBe('User-agent: *\nAllow: /\n');
+    expect(sansAdresse.get('robots.txt')).toBe('User-agent: *\nContent-Signal: search=yes, ai-input=yes\nAllow: /\n');
   });
 });
 

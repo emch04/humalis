@@ -3161,7 +3161,9 @@ page "a_propos" :
 ```
 
 Avec une `adresse`, la cible web écrit le plan du site (`sitemap.xml`) et
-`robots.txt`. Une page en `indexation non` n'y apparaît pas. Humalis prévient
+`robots.txt`. Une page en `indexation non` n'y apparaît pas. `robots.txt` dit aussi
+aux IA que le site peut apparaître dans leurs recherches et servir de source à leurs
+réponses (`Content-Signal: search=yes, ai-input=yes`). Humalis prévient
 quand un titre ou une description est trop long ou trop court pour les moteurs
 de recherche.
 
