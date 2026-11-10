@@ -4,6 +4,8 @@ import { genererProjetWindows } from '../../src/cibles/windows/projet.js';
 import { iconeWindows } from '../../src/cibles/windows/formes.js';
 import { verifierFormesPourLaCible } from '../../src/cibles/formes.js';
 import { verifierAppareilPourLaCible } from '../../src/cibles/appareil.js';
+import { readFileSync } from 'node:fs';
+import { pourLaCible } from '../../src/ri/plateforme.js';
 
 const compile = (source: string) => {
   const { application, diagnostics } = compiler(source);
@@ -193,5 +195,14 @@ ${ACCUEIL}`;
   it('« en arriere plan » reste refusé sur le web et le bureau', () => {
     const source = 'variable n = 0 avec partagee\n\npage "accueil" :\n    titre "A"\n    en arriere plan :\n        changer n par 1\n';
     expect(verifierAppareilPourLaCible(compile(source), 'desktop').map((d) => d.message).join('\n')).toContain('Apple, Android et Windows');
+  });
+
+  it('tests/formes/toutes.humalis se compile sur Windows : les formes sans sens et leurs actions (« commencer activite », « dire ») sont ignorées', () => {
+    const application = pourLaCible(compile(readFileSync('tests/formes/toutes.humalis', 'utf8')), 'windows');
+    const erreurs = [...verifierFormesPourLaCible(application, 'windows'), ...verifierAppareilPourLaCible(application, 'windows')].filter((d) => d.gravite === 'erreur');
+    expect(erreurs).toEqual([]);
+    const { fichiers, diagnostics } = genererProjetWindows(application, { nom: 'toutes', source: 'toutes.humalis' });
+    expect(diagnostics.filter((d) => d.gravite === 'erreur')).toEqual([]);
+    expect([...fichiers.values()].join('\n')).toContain('// « commencer activite "livraison" » : pas d\'activité en direct sur Windows.');
   });
 });
