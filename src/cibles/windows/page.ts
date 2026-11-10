@@ -11,7 +11,7 @@ import { nomDeLaCopie } from '../../ri/medias.js';
 import { libellesEnLangues, verificationsDuChamp } from '../../i18n/messages.js';
 import { Ecrivain } from '../web/ecrivain.js';
 import { EcrivainActions, type HoteActions } from './actions.js';
-import { chaineCs, cleJson, nomComposant, nomCs, nomMethode, nomPage } from './noms.js';
+import { chaineCs, cleJson, commentaireCs, nomComposant, nomCs, nomMethode, nomPage } from './noms.js';
 import { OPTIONS_NON_DESSINEES, styleDesOptions } from './styles.js';
 import { ExpressionsCs, type ChampPage, type Lieu, type Portee } from './valeurs.js';
 
@@ -301,7 +301,7 @@ export class GenerateurBloc implements HoteActions {
     e.ligne();
     e.ligne(`namespace ${espace};`);
     e.ligne();
-    e.ligne(`/// <summary>${this.genre === 'page' ? `La page « ${ecran.nom} »` : `Le composant « ${ecran.nom} »`} (ligne ${ecran.ligne}).</summary>`);
+    e.ligne(`/// <summary>${this.genre === 'page' ? `La page « ${commentaireCs(ecran.nom)} »` : `Le composant « ${commentaireCs(ecran.nom)} »`} (ligne ${ecran.ligne}).</summary>`);
     e.ligne(`public sealed class ${this.classe} : ${this.genre === 'page' ? 'PageHumalis' : 'ComposantHumalis'}`);
     e.ligne('{');
     e.indenter(() => {

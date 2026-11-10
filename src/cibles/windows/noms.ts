@@ -51,8 +51,20 @@ export const nomApplication = (nom: string): string => {
 
 /** Une chaîne C# entre guillemets, échappée. */
 export function chaineCs(texte: string): string {
-  return `"${texte.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t').replace(/\0/g, '\\0')}"`;
+  const echappee = texte
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '\\r')
+    .replace(/\t/g, '\\t')
+    // C# compte U+0085, U+2028 et U+2029 comme des fins de ligne (un texte copié depuis Word ou le web) :
+    // ces caractères, et les autres caractères de contrôle, s'écrivent en \uXXXX.
+    .replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
+  return `"${echappee}"`;
 }
+
+/** Un texte mis dans un commentaire C# : une fin de ligne y ferait sortir la suite du commentaire. */
+export const commentaireCs = (texte: string): string => texte.replace(/[\r\n\u0085\u2028\u2029]+/g, ' ');
 
 /** Un nombre C# de type double (« 12d », « 0.5d »). */
 export function nombreCs(n: number): string {

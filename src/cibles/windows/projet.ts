@@ -20,7 +20,7 @@ import { SVG_CS } from './bibliotheque/svg.js';
 import { GRAPHIQUE_CS } from './bibliotheque/graphique.js';
 import { FICHIERS_CS } from './bibliotheque/fichiers.js';
 import { QR_CS } from './bibliotheque/qr.js';
-import { chaineCs, nomApplication, nomCs, nomMethode } from './noms.js';
+import { chaineCs, commentaireCs, nomApplication, nomCs, nomMethode } from './noms.js';
 import { GenerateurBloc, classeDe, quatreEspaces, type ContexteWindows } from './page.js';
 import { reglesDeClasses, styleDesDeclarations } from './styles.js';
 import { ExpressionsCs, type Lieu } from './valeurs.js';
@@ -159,7 +159,7 @@ function fonctionsCs(application: Application, partages: Map<string, Lieu>, diag
       for (const p of f.parametres) variables.set(p.nom, { lire: nomCs(p.nom), locale: nomCs(p.nom) });
       const x = new ExpressionsCs({ variables, champs: new Map(), fonctions }, (quoi) => refuser(quoi));
       const actions = new EcrivainActions({ x, refuser, etatsRequetes: new Set(), fenetres: new Set(), dansUnePage: false });
-      e.ligne(`/// <summary>« fonction ${f.nom} » (ligne ${f.ligne}).</summary>`);
+      e.ligne(`/// <summary>« fonction ${commentaireCs(f.nom)} » (ligne ${f.ligne}).</summary>`);
       e.ligne(`public static object? ${nomMethode(f.nom)}(${f.parametres.map((p) => `object? ${nomCs(p.nom)}`).join(', ')})`);
       e.ligne('{');
       e.indenter(() => {
