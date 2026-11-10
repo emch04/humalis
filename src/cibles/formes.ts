@@ -24,7 +24,8 @@ export type Forme =
   | 'tuile'
   | 'miniApplication'
   | 'voiture'
-  | 'menuClicDroit';
+  | 'menuClicDroit'
+  | 'donneeLocale';
 
 /** Les cibles où chaque forme a un sens : ailleurs, elle est ignorée. */
 export const PREVUES: Record<Forme, string[]> = {
@@ -45,6 +46,7 @@ export const PREVUES: Record<Forme, string[]> = {
   miniApplication: ['apple'],
   voiture: ['apple', 'android'],
   menuClicDroit: ['apple', 'windows', 'desktop'],
+  donneeLocale: ['web', 'desktop', 'apple', 'android', 'windows'],
 };
 
 /** Les formes déjà écrites par chaque cible. */
@@ -71,6 +73,7 @@ function formesDuProgramme(application: Application): { forme: Forme; quoi: stri
   if (f?.partageRecu) ajouter('partageRecu', 'le partage reçu', f.partageRecu.ligne);
   for (const o of f?.fichiersOuverts ?? []) ajouter('fichierOuvert', `l'ouverture des fichiers ${o.extensions.join(', ')}`, o.ligne);
   for (const b of f?.boutonsNotification ?? []) ajouter('boutonsNotification', `le bouton « ${b.bouton} » d'une notification`, b.ligne);
+  for (const d of f?.donneesLocales ?? []) ajouter('donneeLocale', `la donnée locale « ${d.nom} »`, d.ligne);
   for (const e of application.ecrans) {
     if (e.barreSysteme) ajouter('barreSysteme', `la page « ${e.nom} » dans la barre du système`, e.ligne);
     if (e.appareil) ajouter(e.appareil, `la page « ${e.nom} » sur ${e.appareil === 'montre' ? 'la montre' : 'la télévision'}`, e.ligne);
