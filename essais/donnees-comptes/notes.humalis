@@ -34,6 +34,11 @@ page "accueil" :
         ajouter fiche avec titre champ "Titre" et lu faux a notes
     pour chaque n dans notes :
         texte n.titre
+    si utilisateur est connecte :
+        texte "Connecté"
+    bouton "Sortir"
+    quand l'utilisateur clique sur "Sortir" :
+        se deconnecter
     bouton "Ajouter une clé"
     quand l'utilisateur clique sur "Ajouter une clé" :
         ajouter cle d'acces

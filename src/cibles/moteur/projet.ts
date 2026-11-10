@@ -10,6 +10,7 @@ import { simplifier } from '../../analyse/elements.js';
 import { MENU_REPLIABLE_JS, enTetePublication, planDuSite } from '../statique/projet.js';
 import { usageElements } from '../statique/elements-js.js';
 import { QRCODE_GENERATOR } from '../statique/qrcode-donnees.js';
+import { avecDoubleWeb, avecLocalesSynchro, avecSecuriteWeb, COMPTE_SECURISE_JS, DONNEES_LOCALES_JS, reglagesLocale } from '../commun/donnees-comptes-web.js';
 import { LEAFLET_JS, LEAFLET_CSS } from '../statique/leaflet-donnees.js';
 import { GRAPHIQUE_JS } from '../statique/graphique.js';
 import { connaitreFonctions, nomJs, expressionJs, reserverNoms } from '../statique/valeurs.js';
@@ -315,6 +316,11 @@ document.title = ${traduit('Page introuvable')};
 
   // Une page réservée demande la session, même si elle ne la lit pas elle-même.
   session ||= application.ecrans.some((e) => e.reservee);
+  // Une donnée synchronisée suit le compte connecté ; un serveur à double authentification change la connexion.
+  session ||= avecLocalesSynchro(application);
+  if (session && avecSecuriteWeb(application)) fichiers.set('src/humalis/compte-securise.js', COMPTE_SECURISE_JS);
+  if (session && avecDoubleWeb(application)) fichiers.set('public/humalis/qrcode.js', QRCODE_GENERATOR);
+  if (application.partages.some((p) => p.locale)) fichiers.set('src/humalis/donnees-locales.js', DONNEES_LOCALES_JS);
   const parleAuServeur = [...fichiers.entries()].some(([n, c]) => n.endsWith('.js') && /from '[^']*serveur\.js'/.test(c));
   const sessionDuServeur = session && application.serveurs.length > 0 && !application.sources.some((x) => x.session);
   if (parleAuServeur || session) fichiers.set('src/humalis/serveur.js', serveurJs({ application, session, sessionDuServeur }));
@@ -437,15 +443,18 @@ document.title = ${traduit('Page introuvable')};
 
 function partagesJs(application: Application, contexte: ContexteMoteur): string {
   const g = new GenerateurMoteur(ecranVide('partages'), contexte, '', []);
-  const gardees = application.partages.filter((p) => !p.lectureSeule);
+  const gardees = application.partages.filter((p) => !p.lectureSeule && !p.locale);
+  const locales = application.partages.filter((p) => p.locale);
+  const synchro = avecLocalesSynchro(application);
   const lignes = application.partages.map((p) => `export const ${nomJs(p.nom)} = signal(${g.expression(p.initiale)});`);
   const cle = (nom: string) => chaine(`${contexte.cle}:partage:${nom}`);
   void expressionJs;
   return `// Produit par Humalis : les variables partagées entre les pages. Elles restent vivantes d'une page à l'autre.
 import { signal, effet, sansSuivi } from './moteur.js';
-import { lirePartage, garderPartage, lireMemoire, garderMemoire } from './outils.js';
-
+import { lirePartage, garderPartage, lireMemoire, garderMemoire${locales.length ? ', afficherMessage' : ''} } from './outils.js';
+${locales.length ? "import { creerDonneeLocale } from './donnees-locales.js';\n" : ''}${synchro ? "import { reseauLocal, utilisateur } from './serveur.js';\n" : ''}
 ${lignes.join('\n')}
+${locales.map((p) => `const locale${pascal(p.nom)} = creerDonneeLocale(${reglagesLocale(application, camel(p.nom), p.locale!, contexte.cle)}, { lire: () => ${nomJs(p.nom)}.x, ecrire: (liste) => { ${nomJs(p.nom)}.v = liste; }, dire: afficherMessage${synchro ? ', transport: reseauLocal' : ''} });`).join('\n')}
 
 let surveille = false;
 
@@ -457,6 +466,9 @@ ${gardees.map((p) => `    ${nomJs(p.nom)}.v = ${p.memorisee ? 'lireMemoire' : 'l
   if (surveille) return;
   surveille = true;
 ${gardees.map((p) => `  effet(() => ${p.memorisee ? 'garderMemoire' : 'garderPartage'}(${cle(p.nom)}, ${nomJs(p.nom)}.v));`).join('\n')}
+${locales.map((p) => `  effet(() => { const liste = ${nomJs(p.nom)}.v; sansSuivi(() => locale${pascal(p.nom)}.observer(liste)); });
+  locale${pascal(p.nom)}.demarrer();
+  ${p.locale!.synchronisee !== undefined ? `effet(() => { if (utilisateur.pret) { const id = utilisateur.personne?.id ?? null; sansSuivi(() => locale${pascal(p.nom)}.changerCompte(id)); } });` : `locale${pascal(p.nom)}.changerCompte(null);`}`).join('\n')}
 }
 `;
 }

@@ -492,7 +492,8 @@ export function creerSynchro(journal: JournalSynchro, { env = process.env, horlo
         const quand = Math.min(horloge(), envoi.modifieLe + ecart);
         const entree = await journal.entree(donnee, id);
         if (entree?.operation === operation) return { operation, id, etat: 'applique' };
-        if (entree && (entree.modifieLe > quand || (entree.modifieLe === quand && String(entree.operation ?? '') > operation))) {
+        // À égalité, le dernier arrivé gagne : le serveur tranche, et tous les appareils suivent.
+        if (entree && entree.modifieLe > quand) {
           return { operation, id, etat: 'ignore', actuelle: await actuelle(id) };
         }
         const existe = await stockage.trouver(id);

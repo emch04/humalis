@@ -131,3 +131,7 @@ ECRITES.apple = new Set<Forme>(['widget', 'barreSysteme', 'partageRecu', 'montre
 
 // Le bureau (Electron, Linux compris) : src/cibles/desktop/formes.ts.
 ECRITES.desktop = new Set<Forme>(['barreSysteme', 'fichierOuvert', 'demarrage', 'menuClicDroit']);
+
+// Le web et le bureau (IndexedDB, WebCrypto, WebAuthn) : src/cibles/commun/donnees-comptes-web.ts.
+ECRITES.web = new Set<Forme>(['donneeLocale', 'cleAcces', 'doubleAuthentification']);
+for (const forme of ECRITES.web) ECRITES.desktop.add(forme);
