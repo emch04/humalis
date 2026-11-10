@@ -379,10 +379,6 @@ page "compte" reservee a connecte sinon vers "connexion" :
 });
 
 describe('cible Android — ce qui n\'existe pas encore est dit', () => {
-  it('« avec hors ligne » reste propre à Apple pour l\'instant', () => {
-    const app = compile('page "a" :\n    variable p = [] avec hors ligne\n    titre "A"\n');
-    expect(verifierAppareilPourLaCible(app, 'android').map((d) => d.message).join('\n')).toMatch(/que sur la cible Apple/);
-  });
 
   it('« sur application : » est gardé, « sur site : » retiré', () => {
     const c = page(projet('page "a" :\n    titre "A"\n    sur application :\n        texte "Dans l\'app"\n    sur site :\n        texte "Sur le site"\n'), 'PageA');
@@ -818,6 +814,42 @@ describe('cible Android — le compte', () => {
     expect(serveur).toContain("routeApple.post('/retour'");
     expect(serveur).toContain("retour !== schema + '://connexion-apple'");
     expect(serveur).toContain('APPLE_RETOUR_ANDROID=');
+  });
+});
+
+describe('cible Android — temps réel, hors-ligne et arrière-plan', () => {
+  const f = projet(readFileSync('scripts/essais-android/hors-ligne.humalis', 'utf8'));
+  const c = page(f, 'PageAccueil');
+
+  it('ces phrases passent sur Android', () => {
+    expect(verifierAppareilPourLaCible(compile(readFileSync('scripts/essais-android/hors-ligne.humalis', 'utf8')), 'android')).toEqual([]);
+  });
+
+  it('« en direct » relit la route à chaque annonce, et après une coupure', () => {
+    expect(c).toContain('portee.launch { ecouterDirect("/api/notes") { charger1() } }');
+    expect(f.get(`${CODE}/Direct.kt`)).toContain('if (coupee) { connexion.disconnect(); return@withContext 2 }');
+  });
+
+  it('« avec hors ligne » garde la dernière réponse, et ne dit rien sans réseau', () => {
+    expect(c).toContain('var notes by remember { EtatMemorise("humalis.essai.accueil.notes", listOf<Any?>()) }');
+    expect(c).toContain('Serveur.lire("/api/notes", horsLigne = true)');
+  });
+
+  it('« … hors ligne » garde l\'envoi et le fait partir au retour du réseau', () => {
+    expect(c).toContain('if (!Serveur.appelReussiOuGarder("/api/notes", envoi = fiche("texte" to champNote))) return');
+    const envois = f.get(`${CODE}/Envois.kt`)!;
+    expect(envois).toContain('reseau.registerDefaultNetworkCallback(');
+    expect(envois).toContain('cleEnvoi = texte(suivant["numero"])');
+    expect(f.get(`${CODE}/MainActivity.kt`)).toContain('EnvoisGardes.demarrer()');
+  });
+
+  it('« en arriere plan : » est une tâche de WorkManager, qui ne voit que les variables partagées', () => {
+    const fond = f.get(`${CODE}/ArrierePlan.kt`)!;
+    expect(fond).toContain('PeriodicWorkRequestBuilder<TravailHumalis>(15, TimeUnit.MINUTES)');
+    expect(fond).toContain('Partage.reveils = plus(Partage.reveils, 1.0)');
+    expect(f.get(`${CODE}/MainActivity.kt`)).toContain('ArrierePlan.planifier(applicationContext)');
+    expect(f.get('app/build.gradle.kts')).toContain('androidx.work:work-runtime-ktx:');
+    expect(erreurs('page "a" :\n    variable x = 0\n    titre "A"\n    en arriere plan :\n        changer x par 1\n').join('\n')).toContain('ne voit que les variables partagées');
   });
 });
 

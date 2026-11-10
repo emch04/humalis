@@ -23,6 +23,8 @@ export interface ContexteAndroid {
   /** La route d'une page, avec ses paramètres déjà écrits en Kotlin. */
   route(page: string, parametres: string[], filtres: string[]): string;
   partages: Map<string, string>;
+  /** Les variables partagées « avec hors ligne ». */
+  partagesHorsLigne: Set<string>;
   fonctions: Set<string>;
   composants: Map<string, { nom: string; type: unknown }[]>;
   /** Les composants React : refusés une fois par la vérification du projet. */
@@ -95,7 +97,13 @@ export class GenerateurPage implements HoteActions {
     private readonly nomFonction?: string,
   ) {
     this.ligneCourante = ecran.ligne;
-    this.portee = { variables: new Map(), champs: new Map(), fonctions: app.fonctions, etatsRequetes: new Set(ecran.etatsRequetes ?? []) };
+    this.portee = {
+      variables: new Map(),
+      champs: new Map(),
+      fonctions: app.fonctions,
+      etatsRequetes: new Set(ecran.etatsRequetes ?? []),
+      horsLigne: new Set([...ecran.etat.filter((x) => x.horsLigne).map((x) => x.nom), ...app.partagesHorsLigne]),
+    };
     this.valeurs = new Valeurs(this.portee, (quoi) => this.refuser(`${quoi} ne se traduit pas en Kotlin`));
     this.actions = new EcrivainActions(this);
   }
@@ -239,6 +247,9 @@ export class GenerateurPage implements HoteActions {
       case 'survol':
         // Un écran tactile n'a pas de survol : l'événement n'a pas lieu d'être, rien n'est faux.
         return;
+      case 'arrierePlan':
+        // « en arriere plan : » s'écrit dans tacheArrierePlan(), hors de toute page (ArrierePlan.kt).
+        return;
       case 'touche':
         this.app.avertir(g.ligne, `« appuie sur "${g.touches}" » est sans effet sur Android : un téléphone n'a en général pas de clavier physique.`);
         return;
@@ -303,7 +314,7 @@ export class GenerateurPage implements HoteActions {
       }
       for (const etat of this.ecran.etat) {
         const depart = this.valeurs.x(etat.initiale);
-        if (etat.memorisee || etat.secret) e.ligne(`var ${nomKotlin(etat.nom)} by remember { EtatMemorise(${chaineKotlin(`${this.app.cle}.${this.ecran.nom}.${etat.nom}`)}, ${depart}${etat.secret ? ', secret = true' : ''}) }`);
+        if (etat.memorisee || etat.secret || etat.horsLigne) e.ligne(`var ${nomKotlin(etat.nom)} by remember { EtatMemorise(${chaineKotlin(`${this.app.cle}.${this.ecran.nom}.${etat.nom}`)}, ${depart}${etat.secret ? ', secret = true' : ''}) }`);
         else e.ligne(`var ${nomKotlin(etat.nom)} by remember { mutableStateOf<Any?>(${depart}) }`);
       }
       for (const v of this.portee.etatsRequetes) e.ligne(`var ${nomEtatRequete(v)} by remember { mutableStateOf(EtatRequete()) }`);

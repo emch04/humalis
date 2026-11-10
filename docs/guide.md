@@ -3409,8 +3409,8 @@ chose de faux.
 | Raccourcis clavier | oui | oui | non | oui | oui | non |
 | Composants React | oui | non | oui (en React Native) | oui | non (`sur apple "Vue.swift"`) | non |
 | Le moteur sans React (par défaut) | oui | non | non | oui (sauf composant React ou `memorisee en secret`) | non | non |
-| Photo, scanner, Face ID, vibration, signature, hors ligne | oui (vibration : Android) | non | non | non | oui | oui (sauf hors ligne) |
-| `en arriere plan` | non | non | non | non | oui | non |
+| Photo, scanner, Face ID, vibration, signature, hors ligne | oui (vibration : Android) | non | non | non | oui | oui |
+| `en arriere plan` | non | non | non | non | oui | oui |
 | Plan du site, aperçu de partage | oui | oui | non | non | non | non |
 
 Le serveur (`--cible serveur`) se produit à part, depuis le bloc `serveur`.
@@ -3457,6 +3457,10 @@ sans démarrer seuls ; le code QR et les tableaux s'affichent comme sur le web.
 Le compte aussi : invitations, rôles et champs du compte, choix du mot de passe par le lien
 reçu, connexion avec Google ou Apple, paiement (la page de Stripe s'ouvre dans le
 navigateur) et `demander a ia`, dont la réponse s'écrit au fil de l'eau.
+
+`en direct`, `avec hors ligne`, les envois `… hors ligne` (gardés sur l'appareil, envoyés
+dans l'ordre au retour du réseau) et `en arriere plan :` (lancé par le système, environ tous
+les quarts d'heure, quand le réseau est là) marchent aussi.
 
 Ce qui n'existe pas encore sur Android, et que la compilation refuse en le disant : les
 notifications.

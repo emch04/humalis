@@ -3488,8 +3488,8 @@ target, the compiler says so clearly instead of producing something wrong.
 | Keyboard shortcuts | yes | yes | no | yes | yes | no |
 | React components | yes | no | yes (in React Native) | yes | no (`sur apple "View.swift"`) | no |
 | The engine without React (the default) | yes | no | no | yes (except a React component or `memorisee en secret`) | no | no |
-| Photo, scanner, Face ID, vibration, signature, offline | yes (vibration: Android) | no | no | no | yes | yes (except offline) |
-| `en arriere plan` | no | no | no | no | yes | no |
+| Photo, scanner, Face ID, vibration, signature, offline | yes (vibration: Android) | no | no | no | yes | yes |
+| `en arriere plan` | no | no | no | no | yes | yes |
 | Sitemap, share preview | yes | yes | no | no | no | no |
 
 The server (`--cible serveur`) is generated separately, from the `serveur`
@@ -3537,6 +3537,10 @@ as on the web.
 The account too: invitations, account roles and fields, choosing a password from the link
 received, Google or Apple login, payment (Stripe's page opens in the browser) and
 `demander a ia`, whose answer appears as it comes.
+
+`en direct`, `avec hors ligne`, `… hors ligne` sends (kept on the device, sent in order
+when the network returns) and `en arriere plan :` (run by the system, about every quarter
+of an hour, when the network is there) work too.
 
 What does not exist on Android yet, and that compilation refuses with a clear message:
 notifications.

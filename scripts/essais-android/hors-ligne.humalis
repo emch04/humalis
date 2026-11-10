@@ -1,0 +1,27 @@
+# L'essai du temps réel et du hors-ligne sur Android : une liste lue en direct
+# et gardée sans réseau, des ajouts qui attendent le réseau, et une tâche
+# d'arrière-plan.
+variable reveils = 0 avec partagee et memorisee
+
+serveur "notes" :
+    donnee note :
+        texte : texte
+    route "notes" :
+        tout le monde peut lire note
+        tout le monde peut creer note
+
+page "accueil" :
+    variable notes = [] avec hors ligne
+    titre "Notes"
+    texte "{nombre de notes} notes, réveils {reveils}"
+    pour chaque n dans notes :
+        texte n.texte
+    formulaire "note" :
+        champ "Note" avec obligatoire
+        bouton "Ajouter"
+    quand le formulaire "note" est soumis :
+        envoyer requete vers "notes" avec texte = champ "Note" hors ligne
+    quand la page se charge :
+        envoyer requete vers "notes" dans notes en direct
+    en arriere plan :
+        changer reveils par reveils + 1

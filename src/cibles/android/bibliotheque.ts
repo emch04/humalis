@@ -28,7 +28,7 @@ import org.json.JSONTokener
  */
 
 /** Une erreur dite à la personne : le serveur a refusé, ou n'a pas répondu. */
-class ErreurHumalis(val raison: String) : Exception(raison)
+class ErreurHumalis(val raison: String, val sansReseau: Boolean = false) : Exception(raison)
 
 /** Un nombre écrit à la française (« 4,5 ») ou à l'anglaise ; 0 pour ce qui n'en est pas un. */
 fun nombre(v: Any?): Double = when (v) {
@@ -632,13 +632,15 @@ object Serveur {
                     tentative++
                     continue
                 }
-                throw ErreurHumalis(PAS_DE_REPONSE)
+                throw ErreurHumalis(PAS_DE_REPONSE, sansReseau = true)
             }
         }
     }
 
-    private suspend fun envoyerRequete(adresse: String, methode: String, corps: String?, source: SourceHumalis?): Reponse {
+    private suspend fun envoyerRequete(adresse: String, methode: String, corps: String?, source: SourceHumalis?, cleEnvoi: String? = null): Reponse {
         val entetes = entetesDe(adresse, methode, source)
+        // Le même numéro à chaque essai : le serveur ne fait le travail qu'une fois.
+        if (cleEnvoi != null) entetes["X-Humalis-Envoi"] = cleEnvoi
         var r = essayer(adresse, methode, corps, entetes, source)
         if (r.code == 401 && (source == null || source.session) && Session.renouveler()) {
             Session.jeton?.let { entetes["Authorization"] = "Bearer " + it }
@@ -848,11 +850,14 @@ object Serveur {
         filtres: List<Pair<String, String>> = emptyList(),
         dans: String? = null,
         suivi: ((EtatRequete) -> Unit)? = null,
+        cleEnvoi: String? = null,
     ): Any? {
         suivi?.invoke(EtatRequete("chargement"))
         try {
             val verbe = methode ?: if (envoi != null) "POST" else "GET"
-            val r = envoyerRequete(adresseComplete(adresse, id, source, filtres), verbe, envoi?.let { versJson(it) }, source)
+            val r = envoyerRequete(adresseComplete(adresse, id, source, filtres), verbe, envoi?.let { versJson(it) }, source, cleEnvoi)
+            // Le premier essai de cet envoi tourne encore sur le serveur : on réessaiera.
+            if (r.code == 409 && cleEnvoi != null) throw ErreurHumalis(PAS_DE_REPONSE, sansReseau = true)
             if (r.code == 404 && verbe == "GET" && source == null) {
                 suivi?.invoke(EtatRequete("introuvable"))
                 return null
@@ -885,11 +890,13 @@ object Serveur {
         filtres: List<Pair<String, String>> = emptyList(),
         dans: String? = null,
         suivi: ((EtatRequete) -> Unit)? = null,
+        horsLigne: Boolean = false,
     ): Any? = try {
         appel(adresse, methode, envoi, id, source, filtres, dans, suivi)
     } catch (e: ErreurHumalis) {
+        // Sans réseau, une variable « hors ligne » montre simplement ce qu'elle a gardé.
         // La page parle de l'état de la variable : elle montre l'erreur elle-même.
-        if (suivi == null) Messages.afficher(e.raison, "erreur")
+        if (suivi == null && !(horsLigne && e.sansReseau)) Messages.afficher(e.raison, "erreur")
         null
     }
 
@@ -920,6 +927,7 @@ object Serveur {
 object Session {
     private const val CLE_JETON = "humalis.jeton"
     private const val CLE_RENOUVELLEMENT = "humalis.renouvellement"
+    private const val CLE_COMPTE = "humalis.compte"
     private val portee = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     var personne by mutableStateOf<Map<*, *>?>(null)
@@ -991,8 +999,19 @@ object Session {
         if (r?.first == 401 && renouveler()) return relire()
         val lue = champ(r?.second, "data") as? Map<*, *>
         personne = if (lue?.get("id") != null) lue else null
+        // Le compte reconnu reste connu de l'appareil, même sans réseau : ses envois gardés lui appartiennent.
+        if (r != null) {
+            if (personne != null) Coffre.ecrire(CLE_COMPTE, identifiant(personne?.get("id"))) else if (r.first == 401 || r.first in 200..299) Coffre.effacer(CLE_COMPTE)
+        }
         pret = true
+        if (personne != null) quandCompteConnu?.invoke()
     }
+
+    /** L'identifiant du compte de la personne, gardé sur l'appareil ; rien pour un visiteur. */
+    val compteGarde: String? get() = Coffre.lire(CLE_COMPTE)
+
+    /** Appelée quand une personne est reconnue : ce qui attendait pour elle peut partir. */
+    var quandCompteConnu: (() -> Unit)? = null
 
     /** Le jeton d'accès dure peu ; celui de renouvellement en donne un autre. Plusieurs refus, un seul renouvellement. */
     suspend fun renouveler(): Boolean {
