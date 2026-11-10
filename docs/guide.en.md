@@ -4153,3 +4153,7 @@ quand une erreur arrive :
 ```
 
 The capture uses each target's native error hooks. Fatal Apple and Android errors are saved and sent on the next launch. The same form can appear inside `serveur "api" :`. HTTPS requests time out after three seconds; sending failures are swallowed, and the same error is limited to three reports per minute. Passwords, secrets, URL parameters, and form contents are not sent.
+
+## Recording and cropping media
+
+Inside an event, declare a file variable with `rien`, then use `enregistrer audio dans note`, `enregistrer video dans clip`, `scanner document dans facture`, or `recadrer photo`. These are French language keywords. The result is a file, like `photo dans photo`, which can be displayed or sent to a server. Canceling keeps the previous value. Recording and cropping are available on the web and desktop targets. Document scanning is planned only for Apple and Android; native targets reject these actions until implemented.

@@ -29,7 +29,8 @@ export type Forme =
   | 'menuClicDroit'
   | 'donneeLocale'
   | 'cleAcces'
-  | 'doubleAuthentification';
+  | 'doubleAuthentification'
+    | 'enregistrerAudio' | 'enregistrerVideo' | 'scannerDocument' | 'recadrerPhoto';
 
 /** Les cibles où chaque forme a un sens : ailleurs, elle est ignorée. */
 export const PREVUES: Record<Forme, string[]> = {
@@ -54,6 +55,10 @@ export const PREVUES: Record<Forme, string[]> = {
   donneeLocale: ['web', 'desktop', 'apple', 'android', 'windows'],
   cleAcces: ['web', 'desktop', 'apple', 'android', 'windows', 'serveur'],
   doubleAuthentification: ['web', 'desktop', 'apple', 'android', 'windows', 'serveur'],
+  enregistrerAudio: ['web', 'desktop', 'apple', 'android', 'windows'],
+  enregistrerVideo: ['web', 'desktop', 'apple', 'android', 'windows'],
+  scannerDocument: ['apple', 'android'],
+  recadrerPhoto: ['web', 'desktop', 'apple', 'android', 'windows'],
 };
 
 /** Les formes déjà écrites par chaque cible. */
@@ -62,7 +67,7 @@ ECRITES.web = new Set<Forme>(['captureErreur']);
 ECRITES.statique = new Set<Forme>(['captureErreur']);
 ECRITES.mobile = new Set<Forme>(['captureErreur']);
 
-const NOMS_CIBLES: Record<string, string> = { apple: 'Apple', android: 'Android', windows: 'Windows', desktop: 'bureau (Electron)', serveur: 'serveur' };
+const NOMS_CIBLES: Record<string, string> = { apple: 'Apple', android: 'Android', windows: 'Windows', desktop: 'bureau (Electron)', web: 'web', serveur: 'serveur' };
 
 /** Où chaque forme est écrite dans le programme : une ligne et un nom lisible. */
 function formesDuProgramme(application: Application): { forme: Forme; quoi: string; ligne: number }[] {
@@ -95,6 +100,10 @@ function formesDuProgramme(application: Application): { forme: Forme; quoi: stri
   if (/"type":"dire"/.test(lignes) && !trouvees.some((t) => t.forme === 'commandeVocale')) ajouter('commandeVocale', '« dire »', 1);
   if (/"quoi":"(connexionCle|ajoutCle)"/.test(lignes)) ajouter('cleAcces', 'les clés d’accès', 1);
   if (/"quoi":"doubleAuthentification"/.test(lignes)) ajouter('doubleAuthentification', 'la double authentification', 1);
+  for (const m of lignes.matchAll(/"type":"(enregistrerAudio|enregistrerVideo|scannerDocument|recadrerPhoto)","variable":"([^"]+)"/g)) {
+    const phrase = { enregistrerAudio: `enregistrer audio dans ${m[2]}`, enregistrerVideo: `enregistrer video dans ${m[2]}`, scannerDocument: `scanner document dans ${m[2]}`, recadrerPhoto: `recadrer ${m[2]}` }[m[1] as 'enregistrerAudio'];
+    ajouter(m[1] as Forme, `« ${phrase} »`, 1);
+  }
   // Le serveur : « mettre a jour activite », « … et boutons ».
   for (const s of application.serveurs ?? []) {
     if (s.captureErreurs) ajouter('captureErreur', 'la capture des erreurs du serveur', 1);
@@ -122,7 +131,9 @@ export function verifierFormesPourLaCible(application: Application, cible: strin
     if (cible === 'serveur' && !quoi.includes('serveur')) continue;
     if (cible !== 'serveur' && quoi.includes('du serveur')) continue;
     if (!prevues.includes(cible)) {
-      ignorees.push(quoi);
+      if (['enregistrerAudio', 'enregistrerVideo', 'scannerDocument', 'recadrerPhoto'].includes(forme)) {
+        diagnostics.push({ gravite: 'erreur', ligne, message: `${quoi} : cette action n'est pas disponible sur la cible ${NOMS_CIBLES[cible] ?? cible}. Cibles prévues : ${prevues.map((c) => NOMS_CIBLES[c] ?? c).join(', ')}.` });
+      } else ignorees.push(quoi);
       continue;
     }
     if (!ecrites.has(forme)) {
@@ -143,3 +154,6 @@ ECRITES.apple = new Set<Forme>(['widget', 'barreSysteme', 'partageRecu', 'montre
 
 // Le bureau (Electron, Linux compris) : src/cibles/desktop/formes.ts.
 ECRITES.desktop = new Set<Forme>(['barreSysteme', 'fichierOuvert', 'demarrage', 'menuClicDroit', 'captureErreur']);
+
+// Le navigateur et Electron partagent les fonctions de capture et de recadrage.
+for (const cible of ['web', 'desktop'] as const) for (const forme of ['enregistrerAudio', 'enregistrerVideo', 'recadrerPhoto'] as const) (ECRITES[cible] ??= new Set<Forme>()).add(forme);

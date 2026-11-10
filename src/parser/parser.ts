@@ -1756,6 +1756,22 @@ export function analyserInstruction(flux: FluxTokens): Instruction {
   }
 
   // Les fonctions de l'appareil : ces mots restent des noms ailleurs.
+  if (estLeMot(flux.actuel(), 'enregistrer') && (estLeMot(flux.regarder(1), 'audio') || estLeMot(flux.regarder(1), 'video')) && estLeMot(flux.regarder(2), 'dans')) {
+    const debut = flux.avancer();
+    const media = flux.avancer().valeur as 'audio' | 'video';
+    flux.avancer();
+    return { type: 'EnregistrementMedia', media, variable: flux.attendreNom('la variable qui reçoit le fichier').nom, ligne: debut.ligne };
+  }
+  if (estLeMot(flux.actuel(), 'scanner') && estLeMot(flux.regarder(1), 'document') && estLeMot(flux.regarder(2), 'dans')) {
+    const debut = flux.avancer(); flux.avancer(); flux.avancer();
+    return { type: 'ScanDocument', variable: flux.attendreNom('la variable qui reçoit le document').nom, ligne: debut.ligne };
+  }
+  // « recadrer photo » : la variable qui contient l'image, ici nommée « photo ».
+  if (estLeMot(flux.actuel(), 'recadrer') && estMot(flux.regarder(1)) && flux.regarder(2).type === 'FIN_LIGNE') {
+    const debut = flux.avancer();
+    const image = flux.avancer();
+    return { type: 'RecadragePhoto', variable: image.original ?? image.valeur, ligne: debut.ligne };
+  }
   if (estLeMot(flux.actuel(), 'photo') && estLeMot(flux.regarder(1), 'dans')) {
     const debut = flux.avancer();
     flux.avancer();

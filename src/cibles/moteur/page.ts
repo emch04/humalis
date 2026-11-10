@@ -481,6 +481,19 @@ export class GenerateurMoteur extends GenerateurPage {
       case 'paiement':
         e.ligne(`if (!(await utilisateur.payer(${chaine(action.adresse)}, ${x(action.objet)}.id, ${this.dansEssai}))) return;`);
         return true;
+      case 'enregistrerAudio':
+      case 'enregistrerVideo':
+        e.bloc('{', () => {
+          e.ligne('const resultatAppareil = await appareil.enregistrerMedia(' + JSON.stringify(action.type === 'enregistrerAudio' ? 'audio' : 'video') + ');');
+          e.ligne(`if (resultatAppareil) ${this.lu(action.variable)} = resultatAppareil;`);
+        }, '}');
+        return true;
+      case 'recadrerPhoto':
+        e.bloc('{', () => {
+          e.ligne(`const resultatAppareil = await appareil.recadrerPhoto(${this.lu(action.variable)});`);
+          e.ligne(`if (resultatAppareil) ${this.lu(action.variable)} = resultatAppareil;`);
+        }, '}');
+        return true;
       case 'prisePhoto':
         e.bloc('{', () => {
           e.ligne('const $resultat = await appareil.prendrePhoto();');

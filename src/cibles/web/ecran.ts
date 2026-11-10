@@ -1510,6 +1510,19 @@ class GenerateurEcran {
         case 'paiement':
           e.ligne(`if (!(await utilisateur.payer(${chaine(action.adresse)}, String((${x(action.objet)} as unknown as { id: unknown }).id), ${this.dansEssai}))) return;`);
           break;
+        case 'enregistrerAudio':
+        case 'enregistrerVideo':
+          e.bloc('{', () => {
+            e.ligne('const resultatAppareil = await appareil.enregistrerMedia(' + JSON.stringify(action.type === 'enregistrerAudio' ? 'audio' : 'video') + ');');
+            e.ligne(`if (resultatAppareil) ${setter(action.variable)}(resultatAppareil as never);`);
+          }, '}');
+          break;
+        case 'recadrerPhoto':
+          e.bloc('{', () => {
+            e.ligne(`const resultatAppareil = await appareil.recadrerPhoto(${actuel(action.variable)});`);
+            e.ligne(`if (resultatAppareil) ${setter(action.variable)}(resultatAppareil as never);`);
+          }, '}');
+          break;
         case 'prisePhoto':
           e.bloc('{', () => {
             e.ligne('const resultatAppareil = await appareil.prendrePhoto();');
@@ -2442,12 +2455,13 @@ function arrete(actions: Action[]): boolean {
   return actions.some((a) => a.type === 'arreter' || (!['repetition', 'tantQue', 'repeter', 'minuterie', 'message'].includes(a.type) && sousActions(a).some(arrete)));
 }
 
-const ATTENTES = new Set<Action['type']>(['requete', 'recharger', 'suppression', 'modification', 'connexion', 'connexionGoogle', 'connexionApple', 'invitation', 'changementRole', 'changementCompte', 'activationNotifications', 'demandeIa', 'paiement', 'prisePhoto', 'scanCode', 'localisation', 'verificationIdentite', 'demandeLienMotDePasse', 'choixMotDePasse', 'changementMotDePasse', 'telechargementBon', 'deconnexion', 'envoiFichier', 'confirmation', 'copie', 'partage', 'telechargementCsv']);
+const ATTENTES = new Set<Action['type']>(['requete', 'recharger', 'suppression', 'modification', 'connexion', 'connexionGoogle', 'connexionApple', 'invitation', 'changementRole', 'changementCompte', 'activationNotifications', 'demandeIa', 'paiement', 'prisePhoto', 'enregistrerAudio', 'enregistrerVideo', 'recadrerPhoto', 'scanCode', 'localisation', 'verificationIdentite', 'demandeLienMotDePasse', 'choixMotDePasse', 'changementMotDePasse', 'telechargementBon', 'deconnexion', 'envoiFichier', 'confirmation', 'copie', 'partage', 'telechargementCsv']);
 
 /** Les noms changés par des actions : affectations, ajouts, retraits, réponses. */
 function modifiees(actions: Action[], noms = new Set<string>()): Set<string> {
   for (const a of actions) {
     if (a.type === 'affectation') noms.add(a.nom);
+    if (a.type === 'prisePhoto' || a.type === 'enregistrerAudio' || a.type === 'enregistrerVideo' || a.type === 'recadrerPhoto') noms.add(a.variable);
     if (a.type === 'ajout' || a.type === 'retrait') noms.add(a.liste);
     if (a.type === 'requete' && a.resultat !== undefined) noms.add(a.resultat);
     if (a.type === 'envoiFichier') {
