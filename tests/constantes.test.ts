@@ -39,6 +39,6 @@ describe('constantes', () => {
     expect(page).toContain('const tva = 16;');
     expect(page).not.toContain('useState(16)');
     const html = genererProjetStatique(compiler(BOUTIQUE).application!, { nom: 'b', source: 'b.humalis' }).get('aide.html')!;
-    expect(html).toContain('TVA : 16 %');
+    expect(html).toContain('TVA\u00a0: 16 %');
   });
 });

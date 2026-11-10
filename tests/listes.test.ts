@@ -59,11 +59,11 @@ describe('listes — ce que produit chaque cible', () => {
 
   it('site statique : le HTML de départ est déjà filtré, trié et coupé', () => {
     const html = genererProjetStatique(compiler(source).application!, { nom: 'a', source: 'a.humalis' }).get('index.html')!;
-    expect(html).toContain('2 pas chers, le moins cher : Livre');
+    expect(html).toContain('2 pas chers, le moins cher\u00a0: Livre');
     expect(html).toContain('>Stylo</p>');
     expect(html).toContain('>Livre</p>');
     expect(html).not.toContain('>Pagne</p>');
-    expect(html).toContain('Un 15 !');
+    expect(html).toContain('Un 15\u202f!');
   });
 });
 
@@ -71,6 +71,6 @@ describe('listes — « premier de » peut ne rien trouver', () => {
   it('un champ lu sur son résultat est facultatif : rien ne s’affiche, et le TypeScript reste juste', () => {
     const source = programme('page "a" :', '>variable produits = [fiche avec nom "Livre" et prix 1]', '>calcul livre = premier de produits dont nom contient "Liv"', '>texte "Trouvé : {livre.nom}"');
     const page = genererProjetWeb(compiler(source).application!, { nom: 'a', adresse: 'https://a.cd', source: 'a.humalis' }).get('src/pages/A.tsx')!;
-    expect(page).toContain("{`Trouvé : ${livre?.nom ?? ''}`}");
+    expect(page).toContain("{`Trouvé\u00a0: ${livre?.nom ?? ''}`}");
   });
 });

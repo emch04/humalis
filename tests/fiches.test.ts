@@ -43,7 +43,7 @@ describe('fiches — l’analyse', () => {
 
   it('les nombres d’une fiche sont au format français dans un texte', () => {
     const vue = compiler(PROFIL).application!.ecrans[0].vue;
-    expect(vue[1]).toMatchObject({ corps: [{ contenu: { parties: [{ variable: 'article.nom' }, { texte: ' : ' }, { variable: 'article.prix', format: 'nombre' }, { texte: ' FC' }] } }] });
+    expect(vue[1]).toMatchObject({ corps: [{ contenu: { parties: [{ variable: 'article.nom' }, { texte: '\u00a0: ' }, { variable: 'article.prix', format: 'nombre' }, { texte: ' FC' }] } }] });
   });
 });
 
@@ -69,7 +69,7 @@ describe('fiches — ce que produit chaque cible', () => {
   it('site statique : des objets JavaScript, et le HTML de départ lit les champs', () => {
     const fichiers = genererProjetStatique(compiler(PROFIL).application!, { nom: 'a', source: 'a.humalis' });
     expect(fichiers.get('index.html')).toContain('Awa, Av. du Fleuve 12');
-    expect(fichiers.get('index.html')).toContain('Livre : 12 500 FC');
+    expect(fichiers.get('index.html')).toContain('Livre\u00a0: 12 500 FC');
     const script = [...fichiers.entries()].find(([c]) => c.endsWith('.js') && c !== 'humalis/humalis.js')![1];
     expect(script).toContain("client = { ...client, ville: 'Goma' };");
   });

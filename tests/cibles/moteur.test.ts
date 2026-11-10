@@ -130,7 +130,7 @@ describe('le moteur : le projet produit', () => {
   it('écrit le contenu dans le HTML, avec ses repères', () => {
     const html = projet(source).get('index.html')!;
     expect(html).toContain('Bonjour');
-    expect(html).toContain('Total : 2');
+    expect(html).toContain('Total\u00a0: 2');
     expect(html).toContain('<!--,-->');
     expect(html).toContain('data-c="0"');
   });
@@ -146,7 +146,7 @@ describe('le moteur : le projet produit', () => {
     const html = projet(source).get('index.html')!;
     expect(html).toMatch(/<h1[^>]*>Bonjour<\/h1>/);
     expect(html).not.toMatch(/<h1[^>]*data-h=/);
-    expect(html).toMatch(/<p[^>]*data-h="\d+"[^>]*>Total : 2<\/p>/);
+    expect(html).toMatch(/<p[^>]*data-h="\d+"[^>]*>Total\u00a0: 2<\/p>/);
   });
 
   it('une valeur du programme ne peut pas devenir une balise', () => {
