@@ -810,8 +810,11 @@ describe('cible Android — temps réel, hors-ligne et arrière-plan', () => {
   });
 
   it('« en direct » relit la route à chaque annonce, et après une coupure', () => {
-    expect(c).toContain('portee.launch { ecouterDirect("/api/notes") { charger1() } }');
-    expect(f.get(`${CODE}/Direct.kt`)).toContain('if (coupee) { connexion.disconnect(); return@withContext 2 }');
+    expect(c).toContain('if (relances.put("direct:/api/notes", charger1) == null) portee.launch { ecouterDirect("/api/notes") { relances["direct:/api/notes"]?.invoke() } }');
+    const direct = f.get(`${CODE}/Direct.kt`)!;
+    expect(direct).toContain('if (dejaOuvert) annonces.trySend(Unit)');
+    expect(direct).toContain('connexion.readTimeout = 60000');
+    expect(direct).toContain('if (code == 401) Session.renouveler()');
   });
 
   it('« avec hors ligne » garde la dernière réponse, et ne dit rien sans réseau', () => {

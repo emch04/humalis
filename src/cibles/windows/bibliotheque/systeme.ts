@@ -295,6 +295,22 @@ public abstract class BlocHumalis
     {
         foreach (var d in aArreter) d.Dispose();
         aArreter.Clear();
+        directs.Clear();
+    }
+
+    private readonly Dictionary<string, Direct> directs = new();
+
+    /// <summary>« … en direct » : une écoute par route, arrêtée quand la page est quittée ; la dernière lecture écrite gagne.</summary>
+    protected void EnDirect(string adresse, Func<Task> relire)
+    {
+        if (directs.TryGetValue(adresse, out var deja))
+        {
+            deja.Relire = relire;
+            return;
+        }
+        var direct = new Direct(adresse, relire);
+        directs[adresse] = direct;
+        aArreter.Add(direct);
     }
 
     protected void Arreter(IDisposable d) => aArreter.Add(d);

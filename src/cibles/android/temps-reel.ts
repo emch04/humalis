@@ -13,44 +13,75 @@ package PAQUET
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.random.Random
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlin.coroutines.coroutineContext
 
-/** Écoute « adresse/direct » tant que la page est ouverte ; à chaque annonce, relit. Une coupure attend puis reprend, et la page relit ce qu'elle a pu manquer. */
-suspend fun ecouterDirect(adresse: String, relire: suspend () -> Unit) {
+/**
+ * Écoute « adresse/direct » tant que la page est ouverte. La connexion reste ouverte : une annonce
+ * arrivée pendant une relecture n'est pas perdue. Une coupure attend puis reprend, et la page relit ce qu'elle a pu manquer.
+ */
+suspend fun ecouterDirect(adresse: String, relire: suspend () -> Unit): Unit = coroutineScope {
+    val annonces = Channel<Unit>(Channel.CONFLATED)
+    val ouverte = AtomicReference<HttpURLConnection?>(null)
+    val relecture = launch {
+        for (annonce in annonces) {
+            // Le hasard évite que tout le monde relise au même instant.
+            delay(Random.nextLong(120, 920))
+            relire()
+        }
+    }
+    // Quitter la page ferme la connexion tout de suite, sans attendre le prochain battement.
+    val veille = launch {
+        try { awaitCancellation() } finally { withContext(NonCancellable + Dispatchers.IO) { ouverte.get()?.disconnect() } }
+    }
     var attente = 1000L
-    var coupee = false
-    while (coroutineContext.isActive) {
-        // 0 : la connexion est tombée ; 1 : une annonce ; 2 : la connexion revient après une coupure.
-        val lu = withContext(Dispatchers.IO) {
-            try {
-                val connexion = URL(Configuration.SERVEUR.trimEnd('/') + (if (adresse.startsWith("/")) adresse else "/" + adresse) + "/direct").openConnection() as HttpURLConnection
-                connexion.setRequestProperty("Accept", "text/event-stream")
-                connexion.setRequestProperty("x-humalis-mobile", "1")
-                Session.jeton?.let { connexion.setRequestProperty("Authorization", "Bearer " + it) }
-                connexion.readTimeout = 0
-                if (connexion.responseCode !in 200..299) return@withContext 0
-                if (coupee) { connexion.disconnect(); return@withContext 2 }
-                connexion.inputStream.bufferedReader().useLines { lignes ->
-                    for (ligne in lignes) if (ligne == "data: change") return@withContext 1
+    var dejaOuvert = false
+    try {
+        while (isActive) {
+            val code = withContext(Dispatchers.IO) {
+                try {
+                    val connexion = URL(Configuration.SERVEUR.trimEnd('/') + (if (adresse.startsWith("/")) adresse else "/" + adresse) + "/direct").openConnection() as HttpURLConnection
+                    ouverte.set(connexion)
+                    connexion.setRequestProperty("Accept", "text/event-stream")
+                    connexion.setRequestProperty("x-humalis-mobile", "1")
+                    Session.jeton?.let { connexion.setRequestProperty("Authorization", "Bearer " + it) }
+                    connexion.connectTimeout = 15000
+                    // Le serveur bat toutes les 25 secondes : un silence plus long est une coupure muette.
+                    connexion.readTimeout = 60000
+                    val code = connexion.responseCode
+                    if (code !in 200..299) return@withContext code
+                    attente = 1000L
+                    if (dejaOuvert) annonces.trySend(Unit)
+                    dejaOuvert = true
+                    connexion.inputStream.bufferedReader().use { lecteur ->
+                        while (isActive) {
+                            val ligne = lecteur.readLine() ?: break
+                            if (ligne == "data: change") annonces.trySend(Unit)
+                        }
+                    }
+                    0
+                } catch (e: IOException) {
+                    0
+                } finally {
+                    ouverte.getAndSet(null)?.disconnect()
                 }
-                0
-            } catch (e: IOException) {
-                0
             }
+            if (code == 401) Session.renouveler()
+            delay(attente + Random.nextLong(0, 500))
+            attente = minOf(attente * 2, 30000L)
         }
-        if (lu == 0) {
-            coupee = true
-            delay(attente)
-            attente = Math.min(attente * 2, 30000L)
-            continue
-        }
-        coupee = false
-        attente = 1000L
-        relire()
+    } finally {
+        relecture.cancel()
+        veille.cancel()
     }
 }
 `;

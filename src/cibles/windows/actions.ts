@@ -338,11 +338,21 @@ export class EcrivainActions {
     if (c.essai) {
       e.ligne(`var hValeur${n} = await Serveur.Appel(${adresse}${fin});`);
       e.ligne(`if (hValeur${n} is not null) ${ecrire(`hValeur${n}`)}`);
+      // Dans « essayer », la lecture lève son erreur ; la relecture, elle, se contente de la dire.
+      if (a.direct) {
+        e.ligne(`EnDirect(${adresse}, async () =>`);
+        e.ligne('{');
+        e.indenter(() => {
+          e.ligne(`var (hOk${n}, hRelue${n}) = await Serveur.Lire(${adresse}${fin});`);
+          e.ligne(`if (hOk${n} && hRelue${n} is not null) ${ecrire(`hRelue${n}`)}`);
+        });
+        e.ligne('});');
+      }
       return;
     }
     const lecture = a.mode !== 'envoyer';
     // Une lecture sait se rejouer : « recharger » et la page s'en servent.
-    if (lecture && suivie) {
+    if (lecture && (suivie || a.direct)) {
       e.ligne(`relances[${chaineCs(a.resultat!)}] = async () =>`);
       e.ligne('{');
       e.indenter(() => {
@@ -351,6 +361,8 @@ export class EcrivainActions {
       });
       e.ligne('};');
       e.ligne(`await relances[${chaineCs(a.resultat!)}]();`);
+      // « en direct » : le serveur annonce un changement, la page relit la route avec ses droits.
+      if (a.direct) e.ligne(`EnDirect(${adresse}, relances[${chaineCs(a.resultat!)}]);`);
       return;
     }
     // Une réponse arrivée après celle d'une requête plus récente (une recherche tapée vite) ne remplace rien.

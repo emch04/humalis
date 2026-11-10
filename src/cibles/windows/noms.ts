@@ -13,7 +13,7 @@ const RESERVES = new Set([
   'public', 'readonly', 'ref', 'return', 'sbyte', 'sealed', 'short', 'sizeof', 'stackalloc', 'static', 'string',
   'struct', 'switch', 'this', 'throw', 'true', 'try', 'typeof', 'uint', 'ulong', 'unchecked', 'unsafe', 'ushort',
   'using', 'virtual', 'void', 'volatile', 'while', 'var', 'dynamic', 'async', 'await', 'nameof', 'value', 'record',
-  'relances', 'aArreter',
+  'relances', 'aArreter', 'directs',
 ]);
 
 /** Le nom d'une clé JSON : celui que le serveur et le web emploient (« prix_avant » → prixAvant). */
@@ -38,7 +38,7 @@ export const nomMethode = (nom: string): string => pascalJs(nom);
 const CLASSES_PRISES = new Set([
   'Humalis', 'System', 'Windows', 'Microsoft', 'Application', 'Programme', 'Pages', 'Sources', 'Fonctions', 'Partage', 'Styles',
   'Couleurs', 'V', 'UI', 'Session', 'Serveur', 'Routeur', 'Messages', 'Memoire', 'Coffre', 'Apparence', 'Configuration', 'Icones',
-  'Minuterie', 'Pause', 'Signal', 'Effet', 'Liste', 'Fiche', 'Arguments', 'Fermeture', 'Entete', 'Pied', 'Source',
+  'Minuterie', 'Pause', 'Direct', 'Signal', 'Effet', 'Liste', 'Fiche', 'Arguments', 'Fermeture', 'Entete', 'Pied', 'Source',
   'Langues', 'Svg', 'Palette', 'GraphiqueHumalis', 'GraphiqueFabrique', 'SerieGraphique', 'Fichiers', 'Qr', 'Medias', 'Marqueur', 'CarteHumalis',
 ]);
 
