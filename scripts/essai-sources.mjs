@@ -94,7 +94,7 @@ await new Promise((ok) => api.listen(0, '127.0.0.1', ok));
 const adresseApi = `http://127.0.0.1:${api.address().port}`;
 
 // --- Le site -------------------------------------------------------------------
-execFileSync('node', ['dist/cli.js', 'compile', 'exemples/sources.humalis', '--cible', 'web', ...(process.env.HUMALIS_MOTEUR ? ['--moteur', process.env.HUMALIS_MOTEUR] : []), '--sortie', web, '--adresse', 'https://boutique.exemple.cd'], { stdio: 'inherit' });
+execFileSync('node', ['dist/cli.js', 'compile', 'exemples/sources.humalis', '--cible', 'web', '--moteur', process.env.HUMALIS_MOTEUR ?? 'react', '--sortie', web, '--adresse', 'https://boutique.exemple.cd'], { stdio: 'inherit' });
 execFileSync('npm', ['install', '--no-audit', '--no-fund'], { cwd: web, stdio: 'inherit' });
 // L'adresse de l'API se règle sans recompiler Humalis : variable d'environnement de la construction.
 execFileSync('npm', ['run', 'build'], { cwd: web, stdio: 'inherit', env: { ...process.env, VITE_HUMALIS_SOURCE_BOUTIQUE: adresseApi } });

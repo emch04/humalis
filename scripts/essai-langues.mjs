@@ -63,7 +63,7 @@ async function servir(dossier) {
 
 function compiler(cible, exemple = 'deux-langues') {
   const dossier = join(travail, exemple === 'deux-langues' ? cible : `${exemple}-${cible}`);
-  execFileSync('node', ['dist/cli.js', 'compile', `exemples/${exemple}.humalis`, '--cible', cible, ...(cible === 'web' && process.env.HUMALIS_MOTEUR ? ['--moteur', process.env.HUMALIS_MOTEUR] : []), '--sortie', dossier], { stdio: 'inherit' });
+  execFileSync('node', ['dist/cli.js', 'compile', `exemples/${exemple}.humalis`, '--cible', cible, ...(cible === 'web' ? ['--moteur', process.env.HUMALIS_MOTEUR ?? 'react'] : []), '--sortie', dossier], { stdio: 'inherit' });
   return dossier;
 }
 

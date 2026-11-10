@@ -51,7 +51,7 @@ async function servir(dossier) {
 
 function compiler(cible) {
   const dossier = join(travail, cible);
-  execFileSync('node', ['dist/cli.js', 'compile', 'exemples/graphiques.humalis', '--cible', cible, ...(cible === 'web' && process.env.HUMALIS_MOTEUR ? ['--moteur', process.env.HUMALIS_MOTEUR] : []), '--sortie', dossier, ...(cible === 'web' ? ['--adresse', 'https://lefleuve.cd'] : [])], { stdio: ['ignore', 'ignore', 'inherit'] });
+  execFileSync('node', ['dist/cli.js', 'compile', 'exemples/graphiques.humalis', '--cible', cible, ...(cible === 'web' ? ['--moteur', process.env.HUMALIS_MOTEUR ?? 'react'] : []), '--sortie', dossier, ...(cible === 'web' ? ['--adresse', 'https://lefleuve.cd'] : [])], { stdio: ['ignore', 'ignore', 'inherit'] });
   return dossier;
 }
 

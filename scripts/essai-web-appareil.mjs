@@ -20,7 +20,7 @@ const serveur = join(travail, 'serveur');
 execFileSync('node', ['dist/cli.js', 'compile', source, '--cible', 'serveur', '--sortie', serveur], { stdio: ['ignore', 'ignore', 'inherit'] });
 execFileSync('npx', ['-y', 'npm@11', 'install', '--no-audit', '--no-fund', '--silent'], { cwd: serveur, stdio: 'inherit' });
 execFileSync('npm', ['run', 'build'], { cwd: serveur, stdio: 'ignore' });
-for (const [nom, options] of [['react', []], ['moteur', ['--moteur', 'humalis']]]) {
+for (const [nom, options] of [['react', ['--moteur', 'react']], ['moteur', ['--moteur', 'humalis']]]) {
   execFileSync('node', ['dist/cli.js', 'compile', source, '--cible', 'web', ...options, '--sortie', join(travail, nom)], { stdio: ['ignore', 'ignore', 'inherit'] });
   execFileSync('npm', ['install', '--no-audit', '--no-fund', '--silent'], { cwd: join(travail, nom), stdio: 'inherit' });
   execFileSync('npm', ['run', 'build'], { cwd: join(travail, nom), stdio: 'inherit' });
@@ -83,7 +83,7 @@ try {
     await voir('Code : CODE-123', '« scanner code » lit la valeur (détecteur simulé)');
     verifier(await page.evaluate(() => window.__vibre) === 1, `${nom} : « vibrer » appelle le navigateur`);
     await bouton('Position').click();
-    await voir(/Latitude : 48[.,]85/, '« position dans » donne la position');
+    await voir(/Latitude\s: 48[.,]85/, '« position dans » donne la position');
     await bouton('Identite').click();
     await voir('Identité : reconnue', '« verifier identite » : première fois, clé créée (authentificateur simulé)');
     await page.evaluate(() => undefined);

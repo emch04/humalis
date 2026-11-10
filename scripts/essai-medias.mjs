@@ -66,7 +66,7 @@ async function servir(dossier, entetes = {}) {
 
 function compiler(cible) {
   const dossier = join(travail, cible);
-  execFileSync('node', ['dist/cli.js', 'compile', 'exemples/medias.humalis', '--cible', cible, ...(cible === 'web' && process.env.HUMALIS_MOTEUR ? ['--moteur', process.env.HUMALIS_MOTEUR] : []), '--sortie', dossier, ...(cible === 'web' ? ['--adresse', 'https://lefleuve.cd'] : [])], { stdio: ['ignore', 'ignore', 'inherit'] });
+  execFileSync('node', ['dist/cli.js', 'compile', 'exemples/medias.humalis', '--cible', cible, ...(cible === 'web' ? ['--moteur', process.env.HUMALIS_MOTEUR ?? 'react'] : []), '--sortie', dossier, ...(cible === 'web' ? ['--adresse', 'https://lefleuve.cd'] : [])], { stdio: ['ignore', 'ignore', 'inherit'] });
   return dossier;
 }
 
@@ -189,7 +189,7 @@ async function scenarioFichier(navigateur) {
   const api = await lancerApiDeFichiers();
   const dossier = join(travail, 'fichier-web');
   rmSync(dossier, { recursive: true, force: true });
-  execFileSync('node', ['dist/cli.js', 'compile', 'exemples/fichier.humalis', '--cible', 'web', ...(process.env.HUMALIS_MOTEUR ? ['--moteur', process.env.HUMALIS_MOTEUR] : []), '--sortie', dossier, '--adresse', 'https://boutique.exemple.cd'], { stdio: ['ignore', 'ignore', 'inherit'] });
+  execFileSync('node', ['dist/cli.js', 'compile', 'exemples/fichier.humalis', '--cible', 'web', '--moteur', process.env.HUMALIS_MOTEUR ?? 'react', '--sortie', dossier, '--adresse', 'https://boutique.exemple.cd'], { stdio: ['ignore', 'ignore', 'inherit'] });
   execFileSync('npm', ['install', '--no-audit', '--no-fund', '--prefer-offline'], { cwd: dossier, stdio: ['ignore', 'ignore', 'inherit'] });
   execFileSync('npm', ['run', 'build'], { cwd: dossier, stdio: ['ignore', 'inherit', 'inherit'], env: { ...process.env, VITE_HUMALIS_SOURCE_BOUTIQUE: api.adresse } });
   verifier(true, 'fichier : le projet produit passe tsc et se construit (prérendu compris)');

@@ -225,3 +225,18 @@ describe('« avec adresse par langue » sur le moteur Humalis', () => {
     expect(f.get('src/humalis/navigation.js')).toContain('const LANGUES_ADRESSE = ["en"];');
   });
 });
+
+describe('l’application de bureau sur le moteur Humalis', () => {
+  it('ne dépend plus de React, et sert une page par adresse', async () => {
+    const { genererProjetDesktop } = await import('../src/cibles/desktop/projet.js');
+    const f = genererProjetDesktop(sansErreur(programme('page "accueil" :', '>titre "Boutique"', '>lien "Le panier" vers "panier"', 'page "panier" :', '>titre "Panier"')), { nom: 'b', source: 'b.humalis', moteur: 'humalis' });
+    const paquet = JSON.parse(f.get('package.json')!);
+    expect(Object.keys(paquet.devDependencies)).not.toContain('react');
+    expect(f.has('panier/index.html')).toBe(true);
+    expect(f.get('electron/principal.ts')).toContain("join(demande, 'index.html')");
+  });
+  it('garde React pour un secret en mémoire', async () => {
+    const { bureauSurLeMoteur } = await import('../src/cibles/desktop/projet.js');
+    expect(bureauSurLeMoteur(sansErreur(programme('page "accueil" :', '>variable jeton = "" avec memorisee en secret', '>titre "a"')), { nom: 'b', source: 'b.humalis', moteur: 'humalis' })).toBe(false);
+  });
+});
