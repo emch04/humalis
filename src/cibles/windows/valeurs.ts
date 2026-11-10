@@ -168,6 +168,7 @@ export class ExpressionsCs {
 
   /** Un texte et ses {variables}, écrits à la française. Les autres langues viendront avec « changer langue ». */
   texte(v: Extract<Valeur, { type: 'texte' }>): string {
+    if (v.versions?.length) return `Langues.T(${v.versions.map((ver) => `(${chaineCs(ver.code)}, ${this.parties(ver.parties)})`).join(', ')})`;
     return this.parties(v.parties);
   }
 

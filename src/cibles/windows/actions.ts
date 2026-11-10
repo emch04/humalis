@@ -263,7 +263,8 @@ export class EcrivainActions {
         e.ligne('await Session.SeDeconnecter();');
         return;
       case 'langue':
-        return this.hote.refuser('« changer langue » (une seule langue sur Windows pour l\'instant)');
+        e.ligne(`Langues.Changer(${chaineCs(a.code)});`);
+        return;
       default:
         return this.hote.refuser(`« ${NOMS_ACTIONS[a.type] ?? a.type} »`);
     }

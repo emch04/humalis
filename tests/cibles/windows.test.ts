@@ -440,6 +440,59 @@ page "accueil" :
   });
 });
 
+describe('cible Windows — plusieurs langues', () => {
+  const SOURCE = `langues :
+    francais
+    anglais
+
+page "accueil" :
+    variable panier = 3
+    selecteur de langue
+    titre "Bonjour" en anglais "Hello"
+    texte "{panier article}" en anglais "{panier item}"
+    formulaire "contact" :
+        champ email "Courriel" en anglais "Email" avec obligatoire
+        bouton "Envoyer" en anglais "Send"
+    quand le formulaire "contact" est soumis :
+        si langue est anglais :
+            changer langue par francais
+`;
+  const fichiers = projet(SOURCE);
+  const page = fichiers.get('Pages/PageAccueil.cs')!;
+
+  it('un texte traduit choisit sa version selon la langue', () => {
+    expect(page).toContain('UI.Titre(1, () => Langues.T(("fr", "Bonjour"), ("en", "Hello")), "titre_bonjour")');
+    expect(page).toContain('Langues.T(("fr", V.Accorder(panier.Lire(), "article")), ("en", V.Accorder(panier.Lire(), "item")))');
+  });
+
+  it('le sélecteur, la variable « langue » et « changer langue »', () => {
+    expect(page).toContain('UI.SelecteurLangue()');
+    expect(page).toContain('if (V.Egal(Langues.Actuelle, "en"))');
+    expect(page).toContain('Langues.Changer("fr");');
+  });
+
+  it('les messages de vérification sont dans chaque langue', () => {
+    expect(page).toContain('Langues.T(("fr", "Le champ « Courriel » est obligatoire."), ("en",');
+  });
+
+  it('le démarrage connaît les langues et reprend celle gardée', () => {
+    const app = fichiers.get('App.cs')!;
+    expect(app).toContain('Langues.Toutes = new[] { ("fr", "Français"), ("en", "English") };');
+    expect(app).toContain('Langues.Initialiser();');
+    expect(fichiers.get('Humalis/Valeurs.cs')).toContain('Langues.Culture');
+  });
+});
+
+describe('cible Windows — les images SVG', () => {
+  it('un SVG du projet est copié et dessiné par la bibliothèque', () => {
+    const { fichiers, diagnostics } = genererProjetWindows(compile(`page "a" :\n    titre "a"\n    image "logo.svg" avec description "Logo"\n`), { nom: 'essai', source: 'essai.humalis', medias: new Map([['logo.svg', { octets: 10, contenu: Buffer.from('<svg/>').toString('base64') }]]) });
+    expect(diagnostics.some((d) => d.message.includes('SVG'))).toBe(false);
+    expect(fichiers.has('Ressources/logo.svg')).toBe(true);
+    expect(fichiers.get('Humalis/Svg.cs')).toContain('public static DrawingImage? Lire(Stream flux)');
+    expect(fichiers.get('Humalis/Interface.cs')).toContain('Svg.Lire(ressource.Stream)');
+  });
+});
+
 describe('cible Windows — les fonctions et les composants', () => {
   const fichiers = projet(`fonction remise avec prix et taux :
     rendre prix - prix * taux / 100
@@ -503,11 +556,6 @@ describe('cible Windows — ce qui n\'existe pas ici est dit clairement', () => 
   it('un graphique est refusé', () => {
     const { diagnostics } = genererProjetWindows(compile(`page "a" :\n    variable visites = [1, 2]\n    graphique en barres visites avec etiquettes ["Lun", "Mar"] et description "Les visites."\n`), { nom: 'essai', source: 'essai.humalis' });
     expect(diagnostics.some((d) => d.gravite === 'erreur' && d.message.includes('graphique') && d.message.includes('Windows'))).toBe(true);
-  });
-
-  it('plusieurs langues : la première seulement, et c\'est dit', () => {
-    const { diagnostics } = produire(`langues :\n    francais\n    anglais\npage "a" :\n    titre "Bonjour" en anglais "Hello"\n`);
-    expect(diagnostics.some((d) => d.gravite === 'avertissement' && d.message.includes('première langue'))).toBe(true);
   });
 
   it('une animation est dite, sans bloquer', () => {
