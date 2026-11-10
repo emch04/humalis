@@ -735,7 +735,9 @@ struct ChoixFichierHumalis: View {
             ForEach(noms, id: \.self) { Text(verbatim: $0).font(.footnote) }
             if !erreur.isEmpty { Text(verbatim: erreur).foregroundStyle(Couleurs.rouge).font(.footnote) }
         }
+        #if !os(watchOS) && !os(tvOS)
         .fileImporter(isPresented: $ouvert, allowedContentTypes: types, allowsMultipleSelection: liste != nil, onCompletion: recevoir)
+        #endif
     }
 }
 `;
