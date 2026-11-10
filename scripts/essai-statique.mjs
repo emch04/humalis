@@ -188,7 +188,7 @@ await essayer('boutique', boutique, undefined, {
   async sansJavaScript(page, adresse) {
     verifier(await page.getByRole('heading', { name: 'Nos produits' }).isVisible(), 'boutique sans JavaScript : « Nos produits » est déjà dans la page');
     verifier((await page.getByRole('button', { name: 'Ajouter' }).count()) === 3, 'boutique sans JavaScript : les trois produits et leurs boutons « Ajouter » sont là');
-    verifier((await page.getByText('Articles dans le panier : 0').count()) === 1, 'boutique sans JavaScript : le compteur est écrit');
+    verifier((await page.getByText('Articles dans le panier\u00a0: 0').count()) === 1, 'boutique sans JavaScript : le compteur est écrit');
     await page.goto(`${adresse}/panier.html`);
     verifier(await page.getByText('Votre panier est vide.').isVisible(), 'panier sans JavaScript : « Votre panier est vide. » est déjà dans la page');
     const introuvable = await page.goto(`${adresse}/nulle-part.html`);
@@ -196,16 +196,16 @@ await essayer('boutique', boutique, undefined, {
   },
   async avecJavaScript(page) {
     const compteur = page.getByText(/Articles dans le panier/);
-    verifier((await compteur.textContent()) === 'Articles dans le panier : 0', 'boutique : le panier commence vide');
+    verifier((await compteur.textContent()) === 'Articles dans le panier\u00a0: 0', 'boutique : le panier commence vide');
     verifier(await page.getByText('Rupture de stock').isVisible(), 'boutique : « Rupture de stock » s’affiche (stock à 0)');
     await page.getByRole('button', { name: 'Ajouter' }).nth(0).click();
     await page.getByRole('button', { name: 'Ajouter' }).nth(2).click();
-    verifier((await compteur.textContent()) === 'Articles dans le panier : 2', 'boutique : deux clics sur « Ajouter » donnent 2 articles');
+    verifier((await compteur.textContent()) === 'Articles dans le panier\u00a0: 2', 'boutique : deux clics sur « Ajouter » donnent 2 articles');
     // Au clavier : après le redessin, le bouton garde le focus.
     await page.getByRole('button', { name: 'Ajouter' }).nth(1).focus();
     await page.keyboard.press('Enter');
     const focus = await page.evaluate(() => [document.activeElement?.textContent, [...document.querySelectorAll('[data-humalis="bouton_ajouter"]')].indexOf(document.activeElement)]);
-    verifier((await compteur.textContent()) === 'Articles dans le panier : 3' && focus[0] === 'Ajouter' && focus[1] === 1, `boutique : au clavier, « Entrée » ajoute et le même bouton garde le focus (${focus})`);
+    verifier((await compteur.textContent()) === 'Articles dans le panier\u00a0: 3' && focus[0] === 'Ajouter' && focus[1] === 1, `boutique : au clavier, « Entrée » ajoute et le même bouton garde le focus (${focus})`);
     await page.screenshot({ path: join(captures, 'boutique-1280.png'), fullPage: true });
 
     await page.getByRole('button', { name: 'Voir le panier' }).click();
@@ -223,7 +223,7 @@ await essayer('boutique', boutique, undefined, {
     await page.getByRole('link', { name: 'Retour à la boutique' }).click();
     await page.waitForURL(/\/index\.html$/);
     verifier(await apparait(page.getByRole('heading', { name: 'Nos produits' })), 'panier : le lien ramène à la boutique');
-    verifier((await compteur.textContent()) === 'Articles dans le panier : 2', 'boutique : de retour, le compteur dit 2');
+    verifier((await compteur.textContent()) === 'Articles dans le panier\u00a0: 2', 'boutique : de retour, le compteur dit 2');
 
     // Le bouton « retour » du navigateur, après un changement sur l'autre page.
     await page.getByRole('button', { name: 'Voir le panier' }).click();
@@ -231,7 +231,7 @@ await essayer('boutique', boutique, undefined, {
     await page.getByRole('button', { name: 'Retirer' }).first().click();
     await page.goBack();
     await page.waitForURL(/\/index\.html$/);
-    verifier(await page.waitForFunction(() => document.querySelector('main')?.textContent?.includes('Articles dans le panier : 1'), null, { timeout: 5000 }).then(() => true, () => false), 'boutique : avec le bouton « retour » du navigateur, le compteur suit le panier (1)');
+    verifier(await page.waitForFunction(() => document.querySelector('main')?.textContent?.includes('Articles dans le panier\u00a0: 1'), null, { timeout: 5000 }).then(() => true, () => false), 'boutique : avec le bouton « retour » du navigateur, le compteur suit le panier (1)');
   },
 });
 
