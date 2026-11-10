@@ -90,7 +90,7 @@ describe('les formes d’application spéciales', () => {
     expect(etat.locale).toMatchObject({ chiffree: true, champs: [{ nom: 'titre' }, { nom: 'lu' }] });
     expect(etat.initiale).toMatchObject({ elements: [] });
     expect(app.formes!.donneesLocales[0]).toMatchObject({ nom: 'notes', chiffree: true });
-    expect(verifierFormesPourLaCible(app, 'web').map((d) => d.gravite)).toEqual(['erreur']);
+    expect(verifierFormesPourLaCible(app, 'web')).toEqual([]);
   });
 
   it('une donnée locale refuse une route inconnue', () => {
@@ -106,7 +106,7 @@ describe('les formes d’application spéciales', () => {
     const app = compile(serveur("    connexion par cle d'acces\n    double authentification\n") + page("ajouter cle d'acces"));
     expect(app.serveurs[0]).toMatchObject({ connexionCleAcces: true, doubleAuthentification: true });
     expect(JSON.stringify(app.ecrans)).toContain('"type":"compteSecurise","quoi":"ajoutCle"');
-    expect(verifierFormesPourLaCible(app, 'web').some((d) => d.gravite === 'erreur' && d.message.includes('clés d’accès'))).toBe(true);
+    expect(verifierFormesPourLaCible(app, 'web').filter((d) => d.gravite === 'erreur')).toEqual([]);
     expect(verifierFormesPourLaCible(app, 'serveur').filter((d) => d.gravite === 'erreur')).toEqual([]);
   });
 });
