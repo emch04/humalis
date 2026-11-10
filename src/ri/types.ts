@@ -1,3 +1,4 @@
+import type { DonneeLocaleOptions } from '../parser/ast.js';
 import type { IconeDessinee } from '../icones-svg.js';
 /**
  * La représentation intermédiaire (RI) : un arbre neutre, sans aucun mot
@@ -390,6 +391,8 @@ export interface Etat {
   facultatif?: boolean;
   /** Les données d'un fichier (« utiliser donnees … depuis ») : en lecture seule, jamais gardées dans le navigateur. */
   lectureSeule?: boolean;
+  /** « donnee locale notes : » : la liste vit dans la base de l'appareil, partie vide au démarrage. */
+  locale?: DonneeLocaleOptions;
   ligne: number;
 }
 
@@ -1003,4 +1006,6 @@ export interface FormesRI {
   partageRecu?: { ecran: Ecran; ligne: number };
   fichiersOuverts: { extensions: string[]; ecran: Ecran; ligne: number }[];
   boutonsNotification: { bouton: string; ecran: Ecran; ligne: number }[];
+  /** « donnee locale notes avec chiffree : » : une vraie base sur l'appareil (SQLite, IndexedDB). */
+  donneesLocales: (DonneeLocaleOptions & { nom: string; ligne: number })[];
 }

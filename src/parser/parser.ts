@@ -13,7 +13,7 @@ import { ErreurSyntaxique } from './erreurs.js';
 import { estUnTest, analyserTest } from './test.js';
 import { normaliser } from '../lexer/motsCles.js';
 import { langueDuStyle, PLATEFORMES_DU_STYLE } from '../cibles/commun/styles-natifs.js';
-import { analyserForme, estUneForme, formesVides } from './formes.js';
+import { analyserForme, estUneForme, formesVides, variableDeDonneeLocale } from './formes.js';
 import { entreePrevue } from '../vocabulaire/recherche.js';
 import { langueDuMot } from '../i18n/langues.js';
 import { estMot } from './miseEnPage.js';
@@ -472,6 +472,7 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
   // Les styles écrits en Humalis deviennent des classes CSS, après le CSS écrit à la main.
   for (const s of stylesHumalis) styles.push({ type: 'BlocStyle', css: cssDuStyle(s, theme), ligne: s.ligne });
   const stylesDeclares = stylesHumalis.map((s) => ({ nom: s.nom, declarations: declarationsDuStyle(s, theme) }));
+  for (const d of formes?.donneesLocales ?? []) partages.push(variableDeDonneeLocale(d));
   const programme: Programme = { type: 'Programme', ...(stylesDeclares.length ? { stylesHumalis: stylesDeclares } : {}), pages, ...(fichiersIcones.length ? { fichiersIcones } : {}), ...(barreDessinee ? { barreDessinee } : {}), ...(ongletsApplication ? { ongletsApplication } : {}), ...(barreLaterale ? { barreLaterale } : {}), ...(paquetsSwift ? { paquetsSwift } : {}), ...(formes ? { formes } : {}), ...(paquetsAndroid ? { paquetsAndroid } : {}), ...(paquetsWindows ? { paquetsWindows } : {}), ...(liensProfonds ? { liensProfonds } : {}), ...(enTete.length > 0 ? { calculsPartages: enTete } : {}), styles, fichiersStyle, donneesFichiers, partages, composantsReact, composants, serveurs, sources, fichiersHumalis, fonctions, tests, ...(theme ? { theme } : {}), ...(site ? { site } : {}), ...(langues ? { langues } : {}), ...(traductions.length ? { traductions } : {}), ...(entete ? { entete } : {}), ...(pied ? { pied } : {}) };
   // Les appels de fonctions d'actions sont remplacés par leur corps (src/parser/fonctionsActions.ts).
   const actions = deplierFonctionsActions(programme);

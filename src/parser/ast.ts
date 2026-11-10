@@ -1006,6 +1006,16 @@ export interface OptionsVariable {
   horsLigne?: boolean;
   /** Avec « memorisee » : un secret, à garder dans le coffre de l'appareil. */
   secret?: boolean;
+  /** « donnee locale notes : » : la liste vit dans la base de l'appareil. */
+  locale?: DonneeLocaleOptions;
+}
+
+/** Ce qu'une donnée locale garde de sa déclaration. */
+export interface DonneeLocaleOptions {
+  chiffree: boolean;
+  champs: { nom: string; type: TypeChamp }[];
+  /** « synchronisee avec "notes" » : la route du serveur avec laquelle elle se synchronise. */
+  synchronisee?: string;
 }
 
 export interface DeclarationVariable {
@@ -1813,4 +1823,6 @@ export interface Formes {
   fichiersOuverts: (CorpsForme & { extensions: string[]; ligne: number })[];
   /** « quand l'utilisateur touche "Accepter" dans une notification : ». */
   boutonsNotification: (CorpsForme & { bouton: string; ligne: number })[];
+  /** « donnee locale notes avec chiffree : » : une vraie base sur l'appareil. */
+  donneesLocales: (DonneeLocaleOptions & { nom: string; ligne: number })[];
 }

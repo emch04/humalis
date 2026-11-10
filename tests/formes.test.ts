@@ -82,4 +82,19 @@ describe('les formes d’application spéciales', () => {
     // Le serveur les écrit (APNs et FCM) : rien n'y est refusé.
     expect(verifierFormesPourLaCible(app, 'serveur').filter((d) => d.gravite === 'erreur')).toEqual([]);
   });
+
+  it('une donnée locale se lit comme une liste, part vide, et garde ses réglages', () => {
+    const source = 'donnee locale notes avec chiffree :\n    titre : texte\n    lu : booleen\npage "a" :\n    titre "A"\n    pour chaque n dans notes :\n        texte n.titre\n    bouton "b"\n    quand l\'utilisateur clique sur "b" :\n        ajouter fiche avec titre "x" et lu faux a notes\n';
+    const app = compile(source);
+    const etat = app.partages.find((p) => p.nom === 'notes')!;
+    expect(etat.locale).toMatchObject({ chiffree: true, champs: [{ nom: 'titre' }, { nom: 'lu' }] });
+    expect(etat.initiale).toMatchObject({ elements: [] });
+    expect(app.formes!.donneesLocales[0]).toMatchObject({ nom: 'notes', chiffree: true });
+    expect(verifierFormesPourLaCible(app, 'web').map((d) => d.gravite)).toEqual(['erreur']);
+  });
+
+  it('une donnée locale refuse une route inconnue', () => {
+    const P = 'page "a" :\n    titre "A"\n';
+    expect(erreurs(`donnee locale notes :\n    titre : texte\n    synchronisee avec "notes"\n${P}`)[0]).toContain("n'existe pas dans le serveur");
+  });
 });

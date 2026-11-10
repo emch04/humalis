@@ -166,6 +166,7 @@ function formesRI(formes: NonNullable<Programme['formes']>, analyse: ResultatAna
     ...(formes.partageRecu ? { partageRecu: { ecran: ecran(formes.partageRecu), ligne: formes.partageRecu.ligne } } : {}),
     fichiersOuverts: formes.fichiersOuverts.map((f) => ({ extensions: f.extensions, ecran: ecran(f), ligne: f.ligne })),
     boutonsNotification: formes.boutonsNotification.map((b) => ({ bouton: b.bouton, ecran: ecran(b), ligne: b.ligne })),
+    donneesLocales: formes.donneesLocales,
   };
 }
 
@@ -351,6 +352,11 @@ function etatDe(declaration: DeclarationVariable, analyse: ResultatAnalyse): Eta
   if (declaration.options?.secret) etat.secret = true;
   if (analyse.facultatives.has(declaration)) etat.facultatif = true;
   if (declaration.fichierDonnees) etat.lectureSeule = true;
+  if (declaration.options?.locale) {
+    etat.locale = declaration.options.locale;
+    // L'exemple ne servait qu'à donner son type à l'analyse : la liste est lue dans la base de l'appareil.
+    if (etat.initiale.type === 'liste') etat.initiale = { ...etat.initiale, elements: [] };
+  }
   return etat;
 }
 

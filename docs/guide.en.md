@@ -3664,6 +3664,31 @@ running goes to the window already open; its actions run, then the app goes back
 were on (unless they change page). Opening files and the right-click menu need the Humalis engine
 (the default).
 
+### Data on the device
+
+Local data lives in a real database on the device (SQLite in apps, IndexedDB in the browser):
+it stays there without a network and after a restart. In pages, it reads and changes like a list.
+
+```humalis
+donnee locale notes avec chiffree :
+    titre : texte
+    lu : booleen
+    synchronisee avec "notes"
+
+page "accueil" :
+    titre "Notes"
+    pour chaque n dans notes :
+        texte n.titre
+    bouton "Ajouter"
+    quand l'utilisateur clique sur "Ajouter" :
+        ajouter fiche avec titre "New" et lu faux a notes
+```
+
+`avec chiffree` encrypts the database, with a key kept in the device's vault.
+`synchronisee avec "notes"` links it to a server route: changes made offline leave when the
+network returns, deletions follow, and on a conflict the most recent change wins. Each record's
+identifier is managed by the database.
+
 ### Several files
 
 A large project is split into several files. At the top of the main file:

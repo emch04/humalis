@@ -3588,6 +3588,32 @@ fichier ouvert pendant que l'application tourne va à la fenêtre déjà ouverte
 s'exécutent, puis l'application revient à la page où l'on était (sauf si elles changent de page).
 Le fichier et le menu clic droit demandent le moteur Humalis (le défaut).
 
+### Les données sur l'appareil
+
+Une donnée locale vit dans une vraie base sur l'appareil (SQLite dans les applications,
+IndexedDB dans le navigateur) : elle reste là sans réseau et après un redémarrage. Dans les
+pages, elle se lit et se change comme une liste.
+
+```humalis
+donnee locale notes avec chiffree :
+    titre : texte
+    lu : booleen
+    synchronisee avec "notes"
+
+page "accueil" :
+    titre "Notes"
+    pour chaque n dans notes :
+        texte n.titre
+    bouton "Ajouter"
+    quand l'utilisateur clique sur "Ajouter" :
+        ajouter fiche avec titre "Nouvelle" et lu faux a notes
+```
+
+`avec chiffree` chiffre la base, avec une clé gardée dans le coffre de l'appareil.
+`synchronisee avec "notes"` la relie à une route du serveur : les changements faits sans réseau
+partent quand il revient, les suppressions suivent, et en cas de conflit la modification la plus
+récente l'emporte. L'identifiant de chaque fiche est géré par la base.
+
 ### Plusieurs fichiers
 
 Un grand projet se range en plusieurs fichiers. En haut du fichier principal :
