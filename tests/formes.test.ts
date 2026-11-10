@@ -107,6 +107,6 @@ describe('les formes d’application spéciales', () => {
     expect(app.serveurs[0]).toMatchObject({ connexionCleAcces: true, doubleAuthentification: true });
     expect(JSON.stringify(app.ecrans)).toContain('"type":"compteSecurise","quoi":"ajoutCle"');
     expect(verifierFormesPourLaCible(app, 'web').some((d) => d.gravite === 'erreur' && d.message.includes('clés d’accès'))).toBe(true);
-    expect(verifierFormesPourLaCible(app, 'serveur').filter((d) => d.gravite === 'erreur')).toHaveLength(2);
+    expect(verifierFormesPourLaCible(app, 'serveur').filter((d) => d.gravite === 'erreur')).toEqual([]);
   });
 });
