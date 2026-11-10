@@ -53,7 +53,7 @@ async function servir(dossier) {
 
 function compiler(cible) {
   const dossier = join(travail, cible);
-  execFileSync('node', ['dist/cli.js', 'compile', 'exemples/vitrine-complete.humalis', '--cible', cible, ...(cible === 'web' && process.env.HUMALIS_MOTEUR ? ['--moteur', process.env.HUMALIS_MOTEUR] : []), '--sortie', dossier], { stdio: 'ignore' });
+  execFileSync('node', ['dist/cli.js', 'compile', 'exemples/vitrine-complete.humalis', '--cible', cible, ...(cible === 'web' && process.env.HUMALIS_MOTEUR ? ['--moteur', process.env.HUMALIS_MOTEUR] : []), '--sortie', dossier], { stdio: ['ignore', 'ignore', 'inherit'] });
   return dossier;
 }
 
@@ -237,7 +237,8 @@ async function scenarioElements(nom, adresse, navigateur) {
   }
   // Code QR et thème sombre : le code reste noir sur blanc.
   await page.emulateMedia({ colorScheme: 'dark' });
-  verifier((await page.locator('.humalis-qr').evaluate((el) => getComputedStyle(el).backgroundColor)) === 'rgb(255, 255, 255)', `${nom} : le code QR reste sur fond blanc en mode sombre`);
+  const fondQr = await page.locator('.humalis-qr').evaluate((el) => getComputedStyle(el).backgroundColor);
+  verifier(fondQr === 'rgb(255, 255, 255)', `${nom} : le code QR reste sur fond blanc en mode sombre (${fondQr})`);
   await page.screenshot({ path: join(travail, 'captures', `${nom}-plat-sombre.png`), fullPage: true });
   await page.emulateMedia({ colorScheme: 'light' });
   await page.screenshot({ path: join(travail, 'captures', `${nom}-plat-clair.png`), fullPage: true });
@@ -259,8 +260,8 @@ try {
 
   if (avecWeb) {
     const dossier = compiler('web');
-    execFileSync('npm', ['install', '--no-audit', '--no-fund'], { cwd: dossier, stdio: 'ignore' });
-    execFileSync('npm', ['run', 'build:sans-prerendu'], { cwd: dossier, stdio: 'ignore' });
+    execFileSync('npm', ['install', '--no-audit', '--no-fund'], { cwd: dossier, stdio: ['ignore', 'ignore', 'inherit'] });
+    execFileSync('npm', ['run', 'build:sans-prerendu'], { cwd: dossier, stdio: ['ignore', 'inherit', 'inherit'] });
     const vite = spawn(join(dossier, 'node_modules', '.bin', 'vite'), ['preview', '--port', '0'], { cwd: dossier });
     const adresse = await new Promise((ok, echec) => {
       vite.stdout.on('data', (m) => String(m).match(/http:\/\/localhost:\d+/) && ok(String(m).match(/http:\/\/localhost:\d+/)[0]));
