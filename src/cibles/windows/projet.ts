@@ -500,6 +500,8 @@ ${formes.actives ? `        // Les formes de l'application : un seul lancement �
 ` : ''}${application.langues?.length ? `        Langues.Toutes = new[] { ${application.langues.map((l) => `(${chaineCs(l.code)}, ${chaineCs(l.nom)})`).join(', ')} };
 ` : ''}        Langues.Initialiser();
         var application = new System.Windows.Application { ShutdownMode = ShutdownMode.OnMainWindowClose };
+        // La première page se charge avant application.Run() : sans ce contexte, la suite d'un « await » reprendrait hors du fil de l'interface.
+        System.Threading.SynchronizationContext.SetSynchronizationContext(new System.Windows.Threading.DispatcherSynchronizationContext(application.Dispatcher));
         Apparence.Appliquer();
 ${dictionnaires.map((d) => `        // « utiliser style "${d.nom}" sur windows » : chargé après le thème, il passe devant.
         application.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri(${chaineCs(`/${app};component/Styles/${d.nom}`)}, UriKind.Relative) });

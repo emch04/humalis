@@ -263,6 +263,12 @@ page "catalogue" :
     expect(fichiers.get('Humalis/Systeme.cs')).toContain('aArreter.Add(direct);');
   });
 
+  it('la première page peut lire le serveur : le fil de l\'interface est prêt avant application.Run()', () => {
+    const app = projet(programme('envoyer requete vers "produits" dans produits en direct')).get('App.cs')!;
+    expect(app.indexOf('SetSynchronizationContext(')).toBeGreaterThan(-1);
+    expect(app.indexOf('SetSynchronizationContext(')).toBeLessThan(app.indexOf('Routeur.Aller(Pages.Entree)'));
+  });
+
   it('une lecture simple n\'écoute rien', () => {
     expect(projet(programme('envoyer requete vers "produits" dans produits')).get('Pages/PageCatalogue.cs')).not.toContain('EnDirect(');
   });

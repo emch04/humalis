@@ -15,7 +15,7 @@ const args = process.argv.slice(2);
 const garder = args.includes('--garder');
 const iPort = args.indexOf('--port');
 const port = iPort >= 0 ? Number(args[iPort + 1]) : 5600 + Math.floor(Math.random() * 90);
-const positionnels = args.filter((a, i) => !a.startsWith('--') && i !== iPort + 1);
+const positionnels = args.filter((a, i) => !a.startsWith('--') && (iPort < 0 || i !== iPort + 1));
 const travail = resolve(positionnels[0] ?? join(tmpdir(), 'humalis-essai-temps-reel'));
 mkdirSync(travail, { recursive: true });
 const { chromium, _electron } = chargerPlaywright();

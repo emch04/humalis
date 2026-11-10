@@ -404,6 +404,24 @@ page "accueil" :
     titre "Accueil"
 ```
 
+### Une liste en direct | A live list
+```humalis racine
+serveur "notes" :
+    donnee note :
+        texte : texte
+    route "notes" :
+        tout le monde peut lire note
+        tout le monde peut creer note
+
+page "accueil" :
+    variable notes = []
+    titre "Notes"
+    quand la page se charge :
+        envoyer requete vers "notes" dans notes en direct
+    pour chaque n dans notes :
+        texte n.texte
+```
+
 ### Une activité en direct sur l'écran de verrouillage | A live activity on the lock screen
 ```humalis racine
 activite en direct "livraison" :
