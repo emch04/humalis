@@ -480,8 +480,8 @@ page "guide" :
 ```
 
 Sur le statique, la barre de défilement reste celle de la fenêtre. Sur le
-téléphone, toute la page défile : `hauteur ecran` et `defilement interne` n'ont
-pas d'effet, et un avertissement le dit.
+téléphone, `hauteur ecran` prend la hauteur visible de la page (sous la barre de
+navigation ou l'en-tête), et un bloc `defilement interne` défile seul, au doigt.
 
 ### Selon l'appareil
 

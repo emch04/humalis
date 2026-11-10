@@ -4,7 +4,7 @@ import { cartesDe } from '../../analyse/carte.js';
 import { contenuBinaire } from '../binaire.js';
 import { sousActions } from '../../ri/actions.js';
 import type { Application, Action, Gestionnaire, NoeudVue, ThemeRI } from '../../ri/types.js';
-import { APPAREIL_TSX, DEGRADE_TSX, MOUVEMENT_TSX } from './composants-ecran.js';
+import { APPAREIL_TSX, DEGRADE_TSX, MOUVEMENT_TSX, ZONE_TSX } from './composants-ecran.js';
 import type { InfoMedia } from '../../ri/medias.js';
 import { fichiersMobiles, dependancesMobiles, stylesDesElements } from './widgets.js';
 import { PHRASE_PHOTOS, REDUIRE_IMAGE_MOBILE, VERSIONS_FICHIERS } from './fichiers.js';
@@ -109,12 +109,15 @@ export function genererProjetMobile(application: Application, options: OptionsMo
     dispositions[genre] = nom;
   }
   const sans = (cle: 'sansEntete' | 'sansPied') => application.ecrans.filter((e) => e[cle]).map((e) => chemins.get(e.nom)!);
+  // « hauteur ecran » : chaque page mesure sa hauteur visible (<ZonePage>), un composant compris.
+  const pagesProduites = application.ecrans.map((ecran) => ({ ecran, produit: genererEcran(ecran, chemins, contexte) }));
+  const mesure = [...fichiers.values(), ...pagesProduites.map((p) => p.produit.code)].some((c) => /<Zone\b[^>]*\becran\b/.test(c));
   // Une page à paramètre est un fichier « [id] » d'expo-router : app/produit/[id].tsx.
   // Une page par fichier, à la même adresse que sur le web : « / » est app/index.tsx.
-  for (const ecran of application.ecrans) {
+  for (const { ecran, produit } of pagesProduites) {
     const chemin = chemins.get(ecran.nom)!;
-    const produit = genererEcran(ecran, chemins, contexte);
     session ||= produit.session;
+    if (mesure) produit.code = avecZonePage(produit.code);
     // Une page à paramètre est un fichier « [id] » d'expo-router : app/produit/[id].tsx.
     const fichier = chemin === '/' ? 'index' : chemin.slice(1).replace(/:(\w+)/g, '[$1]');
     const profondeur = fichier.split('/').length - 1;
@@ -181,6 +184,7 @@ export function genererProjetMobile(application: Application, options: OptionsMo
   if (codes.some((c) => /<SurAppareil\b/.test(c))) fichiers.set('humalis/appareil.tsx', APPAREIL_TSX);
   if (degrade) fichiers.set('humalis/degrade.tsx', DEGRADE_TSX);
   if (codes.some((c) => /<Anime\b/.test(c))) fichiers.set('humalis/mouvement.tsx', MOUVEMENT_TSX);
+  if (codes.some((c) => /<Zone(Page)?\b/.test(c))) fichiers.set('humalis/zone.tsx', ZONE_TSX);
   if (serveur) {
     const modele = reduction ? serveurAvecReduction() : SERVEUR;
     fichiers.set('humalis/serveur.ts', avecEchecs(avecTelechargementRefuse(session ? serveurRenouvele(modele) : modele, codes), codes));
@@ -198,6 +202,28 @@ export function genererProjetMobile(application: Application, options: OptionsMo
   // Plusieurs langues : les messages de Humalis (« Réessayer », la page introuvable…) passent par t().
   if (application.langues) messagesDuProjet(fichiers, application.langues.map((l) => l.code), 'humalis/', 'app/+not-found.tsx');
   return fichiers;
+}
+
+/**
+ * « hauteur ecran » : la page qui défile devient une <ZonePage>, qui mesure sa hauteur
+ * visible pour les blocs « hauteur ecran ». Le reste de la page ne change pas.
+ */
+function avecZonePage(code: string): string {
+  const ouverture = '<ScrollView contentContainerStyle={s.page}>';
+  const debut = code.indexOf(ouverture);
+  const fin = code.lastIndexOf('</ScrollView>');
+  if (debut < 0 || fin < debut) return code;
+  let texte = `${code.slice(0, debut)}<ZonePage style={s.page}>${code.slice(debut + ouverture.length, fin)}</ZonePage>${code.slice(fin + '</ScrollView>'.length)}`;
+  // ScrollView n'est plus importé s'il ne sert plus.
+  if (!/<ScrollView\b/.test(texte)) {
+    texte = texte.replace(/import \{ ([^}]*) \} from 'react-native';\n/, (ligne, noms: string) => {
+      const restants = noms.split(', ').filter((n) => n !== 'ScrollView');
+      return restants.length > 0 ? `import { ${restants.join(', ')} } from 'react-native';\n` : '';
+    });
+  }
+  const zone = /import \{ Zone \} from '(\.\.\/)+humalis\/zone';/.exec(texte);
+  if (zone) return texte.replace(zone[0], zone[0].replace('{ Zone }', '{ Zone, ZonePage }'));
+  return texte.replace(/(import \{ useStyles \} from '\.\.\/humalis\/styles';)/, `import { ZonePage } from '../humalis/zone';\n$1`);
 }
 
 // ─── Ce qui ne passe pas sur un téléphone ───────────────────────────────
@@ -262,13 +288,6 @@ export function verifierPourLeMobile(application: Application): Diagnostic[] {
   // Plan de la mise en page : « colle » n'a pas d'équivalent général sur un téléphone.
   for (const ligne of lignesAvecReglage([...application.ecrans, ...application.composants].flatMap((e) => e.vue), 'colle')) {
     avertir(ligne, "« colle » n'a pas d'effet sur le téléphone, sauf pour l'en-tête et le pied de page.");
-  }
-
-  // « defilement interne », « hauteur ecran » : sur un téléphone, toute la page défile.
-  for (const reglage of ['defilement', 'hauteur']) {
-    for (const ligne of lignesAvecReglage([...application.ecrans, ...application.composants].flatMap((e) => e.vue), reglage)) {
-      avertir(ligne, `« ${reglage === 'defilement' ? 'defilement interne' : 'hauteur ecran'} » n'a pas d'effet sur le téléphone : toute la page défile.`);
-    }
   }
 
   // M7 : pas de souris ; les composants React sont recopiés tels quels.

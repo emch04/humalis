@@ -502,9 +502,9 @@ page "guide" :
             texte "A long chapter that scrolls on its own."
 ```
 
-On the static target, the scrollbar stays the window's. On a phone the whole page
-scrolls: `hauteur ecran` and `defilement interne` have no effect, and a warning
-says so.
+On the static target, the scrollbar stays the window's. On a phone,
+`hauteur ecran` takes the visible height of the page (under the navigation bar or
+the header), and a `defilement interne` block scrolls on its own, under the finger.
 
 ### Depending on the device
 
