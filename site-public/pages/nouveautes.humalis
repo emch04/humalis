@@ -14,8 +14,41 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
             colonne avec style "frise" et animation montee au defilement et en cascade :
                 bloc avec style "version version-recente" :
                     ligne avec style "version-tete" :
-                        texte "1.8.1" sans traduction avec style "version-numero"
+                        texte "1.9.0" sans traduction avec style "version-numero"
                         texte "Dernière version" en anglais "Latest" avec style "pastille pastille-vive"
+                        texte "10 novembre 2026" en anglais "November 10, 2026" avec style "version-date"
+                    soustitre "Des applications natives pour iPhone, iPad et Mac" en anglais "Native apps for iPhone, iPad and Mac"
+                    liste :
+                        texte "Nouvelle cible `--cible apple` : un fichier Humalis devient un projet Xcode en SwiftUI, une seule application pour iPhone, iPad et Mac." en anglais "New `--cible apple` target: a Humalis file becomes a SwiftUI Xcode project, one app for iPhone, iPad and Mac."
+                        texte "`page \"accueil\" dessinee pour 1440 par 900 :` suit le CSS du site au point près sur Mac, avec sa propre `barre laterale`." en anglais "`page \"accueil\" dessinee pour 1440 par 900 :` follows the site’s CSS point for point on Mac, with its own `barre laterale`."
+                        texte "`groupe \"Équipe\" :` range les onglets sous un intertitre, et `page \"x\" en pleine fenetre :` va jusqu’aux bords." en anglais "`groupe \"Équipe\" :` files tabs under a heading, and `page \"x\" en pleine fenetre :` goes edge to edge."
+                    soustitre "Le moteur Humalis, sans React, par défaut" en anglais "The Humalis engine, without React, by default"
+                    liste :
+                        texte "`--cible web` et `--cible desktop` produisent maintenant un site léger, sans React : une page HTML par adresse. `--moteur react` garde React." en anglais "`--cible web` and `--cible desktop` now produce a light site without React: one HTML page per address. `--moteur react` keeps React."
+                        texte "L’application de bureau se livre en installateur `.dmg` (Mac) et `.exe` (Windows)." en anglais "The desktop app ships as a `.dmg` (Mac) and `.exe` (Windows) installer."
+                    soustitre "De nouvelles phrases" en anglais "New phrases"
+                    liste :
+                        texte "`style \"carte\" :` puis une propriété par ligne (`fond blanc`, `arrondi 12`, `ombre douce`) : un style écrit en Humalis, valable sur toutes les cibles." en anglais "`style \"carte\" :` then one property per line (`fond blanc`, `arrondi 12`, `ombre douce`): a style written in Humalis, valid on every target."
+                        texte "`si actif :` teste une valeur vrai ou faux sans « est vrai », et `non` donne son contraire." en anglais "`si actif :` tests a true-or-false value without `est vrai`, and `non` gives its opposite."
+                        texte "`avec desactive` et `avec desactive si …` sur un bouton ou un champ ; `champ \"Nom\" avec valeur nom` remplit un champ dès le départ." en anglais "`avec desactive` and `avec desactive si …` on a button or a field; `champ \"Nom\" avec valeur nom` fills a field from the start."
+                        texte "`lien \"Notre site\" vers site` suit une adresse lue dans une variable ; `video \"presentation.mp4\" avec commandes` ; `{a la ligne}` dans un texte." en anglais "`lien \"Notre site\" vers site` follows an address read from a variable; `video \"presentation.mp4\" avec commandes`; `{a la ligne}` in a text."
+                    soustitre "Les textes et les langues" en anglais "Texts and languages"
+                    liste :
+                        texte "L’espagnol, le portugais, le swahili et le lingala rejoignent le français et l’anglais. Nombres, dates, montants et pluriels suivent la langue de la page." en anglais "Spanish, Portuguese, Swahili and Lingala join French and English. Numbers, dates, amounts and plurals follow the page’s language."
+                        texte "`langues : francais, anglais avec adresse par langue` donne à chaque langue ses adresses (`/en/contact`)." en anglais "`langues : francais, anglais avec adresse par langue` gives each language its own addresses (`/en/contact`)."
+                        texte "`{jour en date longue}`, `{total en lettres}`, `initiales de nom` et `avec majuscule` ; les espaces insécables du français sont posées toutes seules." en anglais "`{jour en date longue}`, `{total en lettres}`, `initiales de nom` and `avec majuscule`; French non-breaking spaces are added automatically."
+                    soustitre "Le serveur" en anglais "The server"
+                    liste :
+                        texte "`seul son auteur peut modifier et supprimer avis` : seul le compte qui a créé une fiche peut la changer." en anglais "`seul son auteur peut modifier et supprimer avis`: only the account that created a record can change it."
+                        texte "`donnees de depart pour produit :` écrit les premières fiches, et `telephone : texte (avant \"tel\")` renomme un champ sans perdre les fiches." en anglais "`donnees de depart pour produit :` writes the first records, and `telephone : texte (avant \"tel\")` renames a field without losing records."
+                        texte "La clé secrète d’une API reste sur le serveur : la page passe par sa passerelle." en anglais "An API’s secret key stays on the server: the page goes through its gateway."
+                    soustitre "Plus juste partout" en anglais "More accurate everywhere"
+                    liste :
+                        texte "Le guide, l’antisèche, les extraits de l’éditeur et un guide pour publier sur l’App Store et le Play Store couvrent toutes ces nouveautés." en anglais "The guide, cheat sheet, editor snippets and a guide to publishing on the App Store and Play Store cover all of this."
+                        texte "Sur mobile, `rediriger vers` une adresse reçue ou externe marche ; l’intertitre d’un groupe d’onglets a enfin son style." en anglais "On mobile, `rediriger vers` a received or external address works; a tab group’s heading finally has its style."
+                bloc avec style "version" :
+                    ligne avec style "version-tete" :
+                        texte "1.8.1" sans traduction avec style "version-numero"
                         texte "8 novembre 2026" en anglais "November 8, 2026" avec style "version-date"
                     soustitre "Une licence qui protège mieux Humalis" en anglais "A license that better protects Humalis"
                     liste :
@@ -188,7 +221,7 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
         colonne avec style "nouveautes-aside" et animation montee au defilement et en cascade :
             bloc avec style "aside-carte aside-vive" :
                 texte "Version actuelle" en anglais "Current version" avec style "aside-etiquette"
-                texte "1.8.1" sans traduction avec style "aside-version"
+                texte "1.9.0" sans traduction avec style "aside-version"
                 texte "Pour mettre à jour Humalis sur ta machine :" en anglais "To update Humalis on your machine:"
                 ligne avec style "install-command" :
                     texte "npm install -g humalis" sans traduction avec style "install-code"
@@ -199,10 +232,10 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
                 texte "En bref" en anglais "At a glance" avec style "aside-etiquette"
                 ligne avec style "aside-chiffres" :
                     colonne avec style "aside-chiffre" :
-                        texte "21" sans traduction avec style "aside-nombre"
+                        texte "22" sans traduction avec style "aside-nombre"
                         texte "versions" sans traduction
                     colonne avec style "aside-chiffre" :
-                        texte "5" sans traduction avec style "aside-nombre"
+                        texte "6" sans traduction avec style "aside-nombre"
                         texte "cibles" en anglais "targets"
                     colonne avec style "aside-chiffre" :
                         texte "2" sans traduction avec style "aside-nombre"
