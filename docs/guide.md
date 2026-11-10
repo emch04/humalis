@@ -2372,6 +2372,13 @@ les notifications passent par Firebase Cloud Messaging : compile l'application a
 `--firebase google-services.json` (téléchargé depuis la console Firebase), et donne au
 serveur `HUMALIS_FCM_COMPTE`, le fichier JSON du compte de service (tel quel ou en base 64).
 
+Avec `et boutons "Accepter" et "Refuser"` (trois au plus), la notification porte ses
+boutons : sur l'iPhone, une catégorie `humalis.boutons.Accepter|Refuser` ; sur Android, un
+message de données que l'application construit elle-même. `mettre a jour activite
+"livraison" pour commande.client` fait relire l'activité en direct de ces comptes,
+application fermée : sur l'iPhone par le jeton de l'activité (que l'application envoie à
+`/auth/activites`), sur Android par un message de données de Firebase.
+
 #### Les fonctions de l'appareil
 
 Sur la cible Apple, une page peut se servir de l'appareil. Ces phrases s'écrivent dans
@@ -3712,6 +3719,17 @@ Tout le langage passe sur Android, comme sur Apple :
   le bas, `action en glissant` fait glisser la ligne vers la gauche, `menu d'options`
   s'ouvre au toucher prolongé (TalkBack propose aussi ces actions) et `etat vide` montre
   son icône au milieu.
+- **Formes de l'application** (voir « Les formes propres aux applications ») : le widget
+  (Glance, actualisé par WorkManager et quand on quitte l'application), le partage reçu,
+  les fichiers ouverts, les raccourcis de l'icône, la tuile des réglages rapides, le
+  clavier, l'activité en direct (une notification « en cours » avec sa progression, mise
+  en avant sur Android 16) et les boutons des notifications. Les pages `sur montre`
+  forment un module Wear OS (`montre/`) et les pages `sur tele` un module Android TV
+  (`tele/`), menés au doigt ou à la télécommande. Les commandes vocales passent par les
+  App Actions de l'assistant Google, qui ne prend pas de réponse à dire : l'application
+  s'ouvre, affiche la phrase et la lit. La recherche du système range les fiches dans
+  AppSearch, que le lanceur montre ou non. Android Auto montre la liste ; Google doit
+  autoriser l'application avant de la publier.
 - **Sources** : une source à clé secrète passe par la passerelle du serveur, avec la
   session ; la clé ne part jamais avec l'application.
 
