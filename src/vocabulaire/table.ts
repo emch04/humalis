@@ -521,7 +521,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     contextes: ['tournure'],
     cibles: partout('Sur Mac, le CSS du projet est suivi au point près, à l’échelle de la fenêtre'),
     couvre: [],
-    description: 'Dans « page "accueil" dessinee pour 1440 par 900 : », la taille pour laquelle la page a été dessinée. Sur Mac, elle suit son CSS au point près et grandit avec la fenêtre.',
+    description: 'Dans « page "accueil" dessinee pour 1440 par 900 : », la taille pour laquelle la page a été dessinée. Dans l’application Apple, elle suit son CSS au point près : sur Mac à l’échelle de la fenêtre, sur iPhone et iPad à la largeur de l’écran, « @media » et mode sombre en direct.',
     exemple: 'page "accueil" dessinee pour 1440 par 900 :\n    titre "Bonjour"',
     statut: 'supporte',
     etape: 9,

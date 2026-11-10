@@ -127,7 +127,7 @@ page "accueil" :
 
 ### dessinee
 
-Dans « page "accueil" dessinee pour 1440 par 900 : », la taille pour laquelle la page a été dessinée. Sur Mac, elle suit son CSS au point près et grandit avec la fenêtre.
+Dans « page "accueil" dessinee pour 1440 par 900 : », la taille pour laquelle la page a été dessinée. Dans l’application Apple, elle suit son CSS au point près : sur Mac à l’échelle de la fenêtre, sur iPhone et iPad à la largeur de l’écran, « @media » et mode sombre en direct.
 
 ```humalis
 page "accueil" dessinee pour 1440 par 900 :

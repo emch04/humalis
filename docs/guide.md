@@ -501,15 +501,45 @@ page "accueil" :
         texte "Touche un rendez-vous pour le déplacer."
 ```
 
-### Une page dessinée pour le Mac
+### Une page dessinée
 
 `dessinee pour 1440 par 900`, après le nom d'une page, donne la taille pour
-laquelle elle a été dessinée. Sur Mac, la page suit alors son CSS au point près,
-et grandit avec la fenêtre. Ailleurs, rien ne change.
+laquelle elle a été dessinée. Dans l'application Apple, la page suit alors son CSS
+au point près. Sur le site et les autres cibles, rien ne change.
+
+- **Sur Mac**, la page garde la largeur du dessin et grandit avec la fenêtre.
+- **Sur iPhone et iPad**, elle se rend comme dans Safari sur le même appareil : un
+  pixel du CSS pour un point de l'écran. Les règles `@media (min-width: …)` et
+  `@media (max-width: …)` suivent la vraie largeur de l'écran, et changent en
+  direct quand on tourne l'appareil ou qu'on partage l'écran de l'iPad. Le contenu
+  reste dans la zone sûre (encoche, barre du bas) et le fond de la page passe
+  dessous. Une page plus haute que l'écran défile, et le clavier ne cache pas le
+  champ où l'on écrit. Un bouton ou un lien plus petit que 44 points se touche
+  quand même : sa zone de toucher grandit, pas son dessin.
+- **Partout**, `@media (prefers-color-scheme: dark)` suit le mode sombre de
+  l'appareil, en direct.
+
+Chaque appareil a son propre CSS : `utiliser style "./ios.css" sur ios` ne vaut
+que sur iPhone et iPad, `sur macos` que sur Mac, et un CSS commun reste
+facultatif. Les blocs `sur ios :` et `sur macos :` d'une page dessinée, et les
+styles `sur ios style "…"`, suivent la même règle. Les pages qui ne sont pas
+dessinées gardent leur rendu natif.
+
+```humalis
+utiliser style "./site.css"
+utiliser style "./ios.css" sur ios
+
+page "accueil" dessinee pour 1440 par 900 :
+    titre "Tableau de bord" avec style "titre"
+    sur ios :
+        texte "Bienvenue sur l'iPhone"
+```
 
 Avec des pages dessinées, `barre laterale :` en haut du fichier écrit la barre
-latérale du Mac comme une page. Sur les autres cibles, elle prend la place de
-l'en-tête quand le projet n'en a pas ; s'il y a un `entete`, elle s'efface.
+latérale comme une page : sur Mac, et sur iPad tant que le CSS la montre à cette
+largeur. Sur iPhone, ou quand le CSS la cache, l'application garde sa navigation
+native. Sur les autres cibles, elle prend la place de l'en-tête quand le projet
+n'en a pas ; s'il y a un `entete`, elle s'efface.
 
 ```humalis
 utiliser style "./bureau.css"
@@ -814,6 +844,7 @@ web avec un équivalent simple.
 | `menu de l'application "Fichier" :` puis `commande "N" avec raccourci "cmd+n" :` | raccourcis (iPad) | barre de menus | refusé |
 | `page "x" en reglages :` | page | fenêtre Réglages | page |
 | `page "x" en pleine fenetre :` | page jusqu'aux bords | page jusqu'aux bords | page (sans effet) |
+| `page "x" dessinee pour 1440 par 900 :` | son CSS au point près, à la largeur de l'écran | son CSS au point près, à l'échelle de la fenêtre | page (son CSS) |
 | `barre d'outils :` | barre du haut | barre d'outils | rangée |
 
 ### Le fil d'Ariane et le menu
@@ -3382,7 +3413,7 @@ chose de faux.
 | | web | statique | mobile | desktop | apple |
 |---|---|---|---|---|---|
 | Pages, éléments, styles, thème | oui | oui | oui | oui | oui |
-| Ton propre CSS | oui | oui | non (styles nommés seulement) | oui | en partie (règles d'une classe ; le reste est listé) |
+| Ton propre CSS | oui | oui | non (styles nommés seulement) | oui | en partie (règles d'une classe ; le reste est listé) ; au point près dans une page `dessinee pour`, `@media` et mode sombre compris |
 | Requêtes vers un serveur | oui | oui | oui | oui | oui |
 | `memorisee` | oui | oui | oui | oui | oui |
 | `memorisee en secret` | non | non | oui | oui | oui (Keychain) |
