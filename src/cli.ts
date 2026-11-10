@@ -44,7 +44,7 @@ const AIDE = `Utilisation :
   humalis compile <fichier.humalis> --cible mobile --sortie <dossier>
   humalis compile <fichier.humalis> --cible desktop --sortie <dossier> [--serveur https://…]
   humalis compile <fichier.humalis> --cible apple --sortie <dossier> [--serveur https://…] [--identifiant com.exemple.app] [--equipe ABCDE12345]
-  humalis compile <fichier.humalis> --cible android --sortie <dossier> [--serveur https://…] [--identifiant com.exemple.app]
+  humalis compile <fichier.humalis> --cible android --sortie <dossier> [--serveur https://…] [--identifiant com.exemple.app] [--empreinte AA:BB:…]
   humalis compile <fichier.humalis> --cible serveur --sortie <dossier>
   humalis compile <fichier.humalis> --cible web [--moteur humalis|react] --sortie <dossier> [--adresse https://…] [--lire-serveur https://…]
   humalis compile <fichier.humalis> --cible statique --sortie <dossier> [--adresse https://…]
@@ -631,7 +631,8 @@ function compileAndroid(application: Application, chemin: string, sortie: string
   const polices = lirePolices(application, chemin);
   if (!polices) return 1;
   const identifiant = option(arguments_, 'identifiant');
-  const { fichiers, diagnostics } = genererProjetAndroid(application, { nom, source: basename(chemin), images, medias, fichiersStyle, polices, ...(serveur ? { serveur } : {}), ...(identifiant ? { identifiant } : {}) });
+  const empreinte = option(arguments_, 'empreinte');
+  const { fichiers, diagnostics } = genererProjetAndroid(application, { nom, source: basename(chemin), images, medias, fichiersStyle, polices, ...(empreinte ? { empreinte } : {}), ...(serveur ? { serveur } : {}), ...(identifiant ? { identifiant } : {}) });
   afficherDiagnostics(diagnostics);
   if (diagnostics.some((d) => d.gravite === 'erreur')) {
     console.error('\nLe programme ne peut pas être produit pour Android : rien n\'a été écrit.');

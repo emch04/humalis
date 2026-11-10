@@ -83,6 +83,8 @@ export class GenerateurPage implements HoteActions {
   private readonly visibilites = new Map<string, boolean>();
   private readonly textesChanges = new Map<string, string>();
   private readonly fenetres = new Set<string>();
+  /** « avec ancre "desserts" » : les endroits de la page où un lien peut mener. */
+  private readonly ancres = new Set<string>();
   /** Vrai à l'intérieur d'une ligne : un bloc y garde la largeur de son contenu. */
   private dansLigne = false;
 
@@ -154,6 +156,7 @@ export class GenerateurPage implements HoteActions {
       this.ligneCourante = noeud.ligne;
       switch (noeud.type) {
         case 'element':
+          if (noeud.ancre !== undefined) this.ancres.add(noeud.ancre);
           if (noeud.genre === 'champ') this.recenserChamp(noeud, formulaire);
           if (formulaire !== undefined && (noeud.genre === 'champ' || noeud.genre === 'bouton')) this.formulaireDe.set(noeud.id, formulaire);
           break;
@@ -162,6 +165,7 @@ export class GenerateurPage implements HoteActions {
           this.recenser(noeud.corps, boucles, noeud.id);
           break;
         case 'bloc':
+          if (noeud.ancre !== undefined) this.ancres.add(noeud.ancre);
           this.recenser(noeud.corps, boucles, formulaire);
           break;
         case 'fenetre':
@@ -284,6 +288,9 @@ export class GenerateurPage implements HoteActions {
       ...(this.parametres ?? []).map((p) => `${nomKotlin(p.nom)}: Any? = null`),
       ...(this.ecran.parametresAdresse ?? []).map((p) => `${nomKotlin(p)}: String`),
       ...(this.ecran.filtres ?? []).map((f) => `${nomKotlin(f.nom)}Lu: String = ""`),
+      ...(JSON.stringify(this.ecran.vue).includes('"type":"sousPage"') ? ['sousPage: (@Composable () -> Unit)? = null'] : []),
+      // Une sous-page se place dans sa page parente, qui défile déjà.
+      ...(this.ecran.parent !== undefined && !this.parametres ? ['imbriquee: Boolean = false'] : []),
     ];
     e.ligne('@OptIn(ExperimentalMaterial3Api::class)');
     e.ligne('@Composable');
@@ -316,6 +323,16 @@ export class GenerateurPage implements HoteActions {
       }
       for (const [id, depart] of this.visibilites) e.ligne(`var ${this.visibilite(id)} by remember { mutableStateOf(${depart}) }`);
       for (const nom of this.textesChanges.values()) e.ligne(`var ${nom} by remember { mutableStateOf<String?>(null) }`);
+      for (const ancre of this.ancres) e.ligne(`val ${this.ancre(ancre)} = remember { BringIntoViewRequester() }`);
+      if (this.ancres.size > 0) {
+        // Un lien d'une autre page (« carte#desserts ») : la page descend jusqu'à l'ancre une fois dessinée.
+        e.bloc('suspend fun allerAncre(ancre: String) {', () => {
+          e.bloc('when (ancre) {', () => {
+            for (const ancre of this.ancres) e.ligne(`${chaineKotlin(ancre)} -> ${this.ancre(ancre)}.bringIntoView()`);
+          });
+        });
+        e.ligne('LaunchedEffect(Unit) { Routes.ancre?.let { Routes.ancre = null; delay(150); allerAncre(it) } }');
+      }
       // Un calcul est relu à chaque fois : il suit les variables qu'il lit.
       for (const c of this.ecran.calculs) e.ligne(`fun ${nomKotlin(c.nom)}(): Any? = ${this.valeurs.x(c.valeur)}`);
       for (const ligne of evenements) e.ligne(ligne);
@@ -349,7 +366,9 @@ export class GenerateurPage implements HoteActions {
         ? 'ColonneHumalis(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {'
         : this.parametres
         ? 'ColonneHumalis {'
-        : `ColonneHumalis(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)${largeur}, espacement = 16.dp) {`;
+        : this.ecran.parent !== undefined
+          ? `ColonneHumalis(if (imbriquee) Modifier.fillMaxWidth() else Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)${largeur}, espacement = 16.dp) {`
+          : `ColonneHumalis(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)${largeur}, espacement = 16.dp) {`;
       e.bloc(racine, () => {
         for (const l of vue.texte().trimEnd().split('\n')) e.ligne(l.slice(12));
       });
@@ -422,6 +441,10 @@ export class GenerateurPage implements HoteActions {
     this.ligneCourante = noeud.ligne;
     switch (noeud.type) {
       case 'element':
+        if (noeud.ancre !== undefined) {
+          e.bloc(`Box(Modifier.bringIntoViewRequester(${this.ancre(noeud.ancre)})) {`, () => this.visible(e, noeud.id, () => this.ecrireElement(e, noeud)));
+          return;
+        }
         return this.visible(e, noeud.id, () => this.ecrireElement(e, noeud));
       case 'widget':
         return this.visible(e, noeud.id, () => this.ecrireWidget(e, noeud));
@@ -429,6 +452,10 @@ export class GenerateurPage implements HoteActions {
         e.bloc('ColonneHumalis {', () => this.ecrireCorps(e, noeud.corps));
         return;
       case 'bloc':
+        if (noeud.ancre !== undefined) {
+          e.bloc(`Box(Modifier.bringIntoViewRequester(${this.ancre(noeud.ancre)})) {`, () => this.visible(e, noeud.id, () => this.ecrireBloc(e, noeud)));
+          return;
+        }
         return this.visible(e, noeud.id, () => this.ecrireBloc(e, noeud));
       case 'condition':
         e.ligne(`if (${this.valeurs.b(noeud.test)}) {`);
@@ -468,7 +495,9 @@ export class GenerateurPage implements HoteActions {
       case 'fenetre':
         return this.ecrireFenetre(e, noeud);
       case 'sousPage':
-        return this.refuser('« sous page »');
+        // La sous-page choisie par l'adresse ; seule, la page parente n'en montre aucune.
+        e.ligne('sousPage?.invoke()');
+        return;
       case 'graphique':
         return this.refuser('« graphique »');
       case 'carte':
@@ -537,6 +566,17 @@ export class GenerateurPage implements HoteActions {
     e.ligne(`ImageHumalis(${source}, ${description}, Modifier.fillMaxWidth()${proportions}${m}${proportions ? ', remplir = true' : ''})`);
   }
 
+  private ancre(nom: string): string {
+    return `ancre${majuscule(nomKotlin(nom))}`;
+  }
+
+  /** Aller à une ancre : sur cette page, la page descend ; sur une autre, on y va puis elle descend. */
+  allerAncre(page: string | undefined, ancre: string, args?: ArgumentsPage): string | undefined {
+    if (page === undefined || page === this.ecran.nom) return this.ancres.has(ancre) ? `portee.launch { allerAncre(${chaineKotlin(ancre)}) }` : undefined;
+    const route = this.route(page, args);
+    return route ? `Routes.ancre = ${chaineKotlin(ancre)}; allerVers(nav, ${route})` : undefined;
+  }
+
   /** Un message de Humalis (« Fermer »), dans chaque langue du site s'il en a plusieurs. */
   private fixe(fr: string): string {
     const versions = this.app.langues ? messageEnLangues(fr, this.app.langues) : undefined;
@@ -601,7 +641,12 @@ export class GenerateurPage implements HoteActions {
     if (noeud.externe) action = `ouvrirExterne(${chaineKotlin(noeud.externe)})`;
     else if (noeud.externeValeur) action = `ouvrirExterne(${this.valeurs.t(noeud.externeValeur)})`;
     else if (noeud.adresseValeur) action = `ouvrirLien(nav, ${this.valeurs.t(noeud.adresseValeur)})`;
-    else if (noeud.cible) {
+    else if (noeud.versAncre !== undefined || (noeud.cible && lireCible(noeud.cible).ancre !== undefined)) {
+      const lue = noeud.cible ? lireCible(noeud.cible) : {};
+      const ancre = noeud.versAncre?.replace(/^.*#/, '') ?? (lue as { ancre?: string }).ancre ?? '';
+      const page = noeud.versAncre?.includes('#') && !noeud.versAncre.startsWith('#') ? noeud.versAncre.split('#')[0] : (lue as { page?: string }).page ?? noeud.cible;
+      action = [action, this.allerAncre(page === '' ? undefined : page, ancre, noeud.arguments)].filter(Boolean).join('; ') || undefined;
+    } else if (noeud.cible) {
       const lue = lireCible(noeud.cible);
       const route = lue.page ? this.route(lue.page, noeud.arguments) : undefined;
       if (lue.page && !route) return this.refuser(`le lien vers « ${lue.page} », une page qui n'existe pas,`);
@@ -905,6 +950,8 @@ function testsDuChamp(v: string, saisie: Saisie | undefined): string[] {
 export const IMPORTS = [
   'android.net.Uri',
   'androidx.compose.foundation.*',
+  'androidx.compose.foundation.relocation.BringIntoViewRequester',
+  'androidx.compose.foundation.relocation.bringIntoViewRequester',
   'androidx.compose.foundation.layout.*',
   'androidx.compose.foundation.selection.*',
   'androidx.compose.foundation.shape.CircleShape',
