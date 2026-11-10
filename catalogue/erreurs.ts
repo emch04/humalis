@@ -316,6 +316,212 @@ page "accueil" :
     titre "Bienvenue" avec couleur bleu
 `),
     'un nom de propriété de style est attendu'),
+  e('donnees-depart-sans-pour', 'grammaire', 'Des données de départ sans « pour »',
+    'Les données de départ disent pour quelle donnée elles sont écrites.',
+    'Écris : donnees de depart pour produit :',
+    p(`
+serveur "boutique" :
+    donnee produit :
+        nom : texte
+        prix : nombre
+    route "produits" :
+        tout le monde peut lire produit
+        seul admin peut modifier produit
+    donnees de depart produit :
+        nom "Café", prix 3
+page "accueil" :
+    titre "Boutique"
+`),
+    p(`
+serveur "boutique" :
+    donnee produit :
+        nom : texte
+        prix : nombre
+    route "produits" :
+        tout le monde peut lire produit
+        seul admin peut modifier produit
+    donnees de depart pour produit :
+        nom "Café", prix 3
+page "accueil" :
+    titre "Boutique"
+`),
+    'donnees de depart pour produit'),
+  e('donnees-depart-sans-valeur', 'grammaire', 'Un champ de départ sans valeur',
+    'Chaque champ d’une fiche de départ est suivi de sa valeur : un texte entre guillemets, un nombre, vrai ou faux.',
+    'Ajoute la valeur : nom "Café", prix 3.',
+    p(`
+serveur "boutique" :
+    donnee produit :
+        nom : texte
+        prix : nombre
+    route "produits" :
+        tout le monde peut lire produit
+        seul admin peut modifier produit
+    donnees de depart pour produit :
+        nom "Café", prix
+page "accueil" :
+    titre "Boutique"
+`),
+    p(`
+serveur "boutique" :
+    donnee produit :
+        nom : texte
+        prix : nombre
+    route "produits" :
+        tout le monde peut lire produit
+        seul admin peut modifier produit
+    donnees de depart pour produit :
+        nom "Café", prix 3
+page "accueil" :
+    titre "Boutique"
+`),
+    'une valeur : un texte entre guillemets'),
+  e('donnees-depart-donnee-inconnue', 'sens', 'Des données de départ pour une donnée absente',
+    'Les données de départ remplissent une donnée déclarée dans le même serveur.',
+    'Corrige le nom de la donnée, ou déclare-la.',
+    p(`
+serveur "boutique" :
+    donnee produit :
+        nom : texte
+        prix : nombre
+    route "produits" :
+        tout le monde peut lire produit
+        seul admin peut modifier produit
+    donnees de depart pour article :
+        nom "Café", prix 3
+page "accueil" :
+    titre "Boutique"
+`),
+    p(`
+serveur "boutique" :
+    donnee produit :
+        nom : texte
+        prix : nombre
+    route "produits" :
+        tout le monde peut lire produit
+        seul admin peut modifier produit
+    donnees de depart pour produit :
+        nom "Café", prix 3
+page "accueil" :
+    titre "Boutique"
+`),
+    "n'existe pas dans ce serveur"),
+  e('donnees-depart-champ-inconnu', 'sens', 'Un champ de départ qui n’existe pas',
+    'Chaque champ d’une fiche de départ doit exister dans la donnée.',
+    'Corrige le nom du champ.',
+    p(`
+serveur "boutique" :
+    donnee produit :
+        nom : texte
+        prix : nombre
+    route "produits" :
+        tout le monde peut lire produit
+        seul admin peut modifier produit
+    donnees de depart pour produit :
+        nom "Café", prix 3, couleur "noir"
+page "accueil" :
+    titre "Boutique"
+`),
+    p(`
+serveur "boutique" :
+    donnee produit :
+        nom : texte
+        prix : nombre
+    route "produits" :
+        tout le monde peut lire produit
+        seul admin peut modifier produit
+    donnees de depart pour produit :
+        nom "Café", prix 3
+page "accueil" :
+    titre "Boutique"
+`),
+    "n'a pas de champ"),
+  e('donnees-depart-mauvais-type', 'sens', 'Une valeur de départ du mauvais type',
+    'La valeur doit convenir au type du champ : un nombre pour un nombre, un texte entre guillemets pour un texte.',
+    'Écris la valeur dans le bon type.',
+    p(`
+serveur "boutique" :
+    donnee produit :
+        nom : texte
+        prix : nombre
+    route "produits" :
+        tout le monde peut lire produit
+        seul admin peut modifier produit
+    donnees de depart pour produit :
+        nom "Café", prix "trois"
+page "accueil" :
+    titre "Boutique"
+`),
+    p(`
+serveur "boutique" :
+    donnee produit :
+        nom : texte
+        prix : nombre
+    route "produits" :
+        tout le monde peut lire produit
+        seul admin peut modifier produit
+    donnees de depart pour produit :
+        nom "Café", prix 3
+page "accueil" :
+    titre "Boutique"
+`),
+    'attend un nombre'),
+  e('donnees-depart-incomplet', 'sens', 'Une fiche de départ incomplète',
+    'Une fiche de départ est créée comme une autre : chaque champ demandé à la création doit avoir une valeur.',
+    'Ajoute les champs qui manquent.',
+    p(`
+serveur "boutique" :
+    donnee produit :
+        nom : texte
+        prix : nombre
+    route "produits" :
+        tout le monde peut lire produit
+        seul admin peut modifier produit
+    donnees de depart pour produit :
+        nom "Café"
+page "accueil" :
+    titre "Boutique"
+`),
+    p(`
+serveur "boutique" :
+    donnee produit :
+        nom : texte
+        prix : nombre
+    route "produits" :
+        tout le monde peut lire produit
+        seul admin peut modifier produit
+    donnees de depart pour produit :
+        nom "Café", prix 3
+page "accueil" :
+    titre "Boutique"
+`),
+    "cette fiche de départ n'a pas"),
+  e('auteur-avec-si', 'grammaire', '« seul son auteur » avec une condition',
+    '« seul son auteur » dit déjà quelles fiches sont concernées : celles que la personne a créées.',
+    'Retire la condition : seul son auteur peut modifier note.',
+    p(`
+serveur "carnet" :
+    donnee note :
+        texte : texte
+    route "notes" :
+        connecte peut lire note
+        seul son auteur peut modifier note si note.texte est utilisateur.id
+
+page "accueil" :
+    titre "Notes"
+`),
+    p(`
+serveur "carnet" :
+    donnee note :
+        texte : texte
+    route "notes" :
+        connecte peut lire note
+        seul son auteur peut modifier note
+
+page "accueil" :
+    titre "Notes"
+`),
+    'dit déjà quelles fiches'),
   e('desactive-hors-bouton', 'sens', '« desactive » ailleurs que sur un bouton',
     '« avec desactive » montre un bouton qu’on ne peut pas encore cliquer. Les autres éléments ne se cliquent pas : l’option n’a pas de sens pour eux.',
     'Retire « desactive », ou mets-le sur le bouton concerné.',

@@ -247,7 +247,10 @@ function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
   };
   return {
     nom: serveur.nom,
-    donnees: serveur.donnees.filter((d) => !d.comptes).map((d) => ({ nom: d.nom, ...(d.par !== undefined ? { par: d.par } : {}), champs: d.champs.map((c) => ({ nom: c.nom, type: c.type, ...(c.regle ? { regle: reglePropre(c.regle, d.nom) } : {}), ...(c.nonVide ? { nonVide: true } : {}) })) })),
+    donnees: serveur.donnees.filter((d) => !d.comptes).map((d) => ({ nom: d.nom, ...(d.par !== undefined ? { par: d.par } : {}), champs: d.champs.map((c) => ({ nom: c.nom, type: c.type, ...(c.regle ? { regle: reglePropre(c.regle, d.nom) } : {}), ...(c.nonVide ? { nonVide: true } : {}), ...(c.avant !== undefined ? { avant: c.avant } : {}) })) })),
+    ...(serveur.departs?.length
+      ? { departs: serveur.departs.map((d) => ({ donnee: d.donnee, fiches: d.fiches.map((f) => Object.fromEntries(f.champs.map((c) => [champDe(d.donnee, c.champ), c.valeur]))) })) }
+      : {}),
     routes: serveur.routes
       .filter((r) => r.regles.length > 0 && !donneesComptes.has(r.regles[0].donnee))
       .map((route) => {

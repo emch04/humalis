@@ -141,6 +141,8 @@ export interface Disposition {
 
 export interface Serveur {
   type: 'Serveur';
+  /** « donnees de depart pour produit : » : les fiches écrites au premier démarrage, si la table est vide. */
+  departs?: { donnee: string; fiches: { champs: { champ: string; valeur: string | number | boolean; ligne: number }[]; ligne: number }[]; ligne: number }[];
   nom: string;
   donnees: Donnee[];
   routes: Route[];
@@ -264,7 +266,9 @@ export type RegleChamp =
   | { genre: 'somme'; prix: string; donnee: string; liste: string; plus?: string }
   | { genre: 'auPlus'; prix: string; donnee: string; par: string }
   /** Ajouté par « donnee commande par boutique : » : le serveur seul le remplit. */
-  | { genre: 'groupe' };
+  | { genre: 'groupe' }
+  /** Ajouté par « seul son auteur peut … » : le compte qui a créé la fiche, rempli par le serveur seul. */
+  | { genre: 'auteur' };
 
 export interface Donnee {
   type: 'Donnee';
@@ -273,7 +277,8 @@ export interface Donnee {
   par?: string;
   /** Le nom sous lequel l'analyse la connaît (« boutique_produit » si une autre donnée porte déjà « produit »). */
   cle?: string;
-  champs: { nom: string; type: TypeChamp; regle?: RegleChamp; nonVide?: boolean; ligne: number }[];
+  /** `avant` : « telephone : texte (avant "tel") » : l'ancien nom du champ ; les fiches déjà écrites gardent leur valeur. */
+  champs: { nom: string; type: TypeChamp; regle?: RegleChamp; nonVide?: boolean; avant?: string; ligne: number }[];
   /** Vrai pour « comptes », les comptes de la connexion : aucune table à créer, le serveur les lit dans ses packs. */
   comptes?: boolean;
   ligne: number;
@@ -334,6 +339,8 @@ export interface Regle {
   soi?: boolean;
   /** « … si facture.compte est dans utilisateur.comptes_lies » : la règle ne vaut que pour ces fiches. */
   si?: ConditionRegle;
+  /** « seul son auteur peut modifier note » : la règle vaut pour les fiches que la personne a créées. */
+  auteur?: boolean;
   ligne: number;
 }
 

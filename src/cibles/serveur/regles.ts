@@ -13,7 +13,7 @@ const cle = (champ: string) => `fiche[${chaine(camel(champ))}]`;
 type Donnee = ServeurRI['donnees'][number];
 type Route = ServeurRI['routes'][number];
 
-const decide = (regle: RegleChampRI | undefined) => regle?.genre === 'depart' || regle?.genre === 'nombreDe' || regle?.genre === 'somme' || regle?.genre === 'groupe';
+const decide = (regle: RegleChampRI | undefined) => regle?.genre === 'depart' || regle?.genre === 'nombreDe' || regle?.genre === 'somme' || regle?.genre === 'groupe' || regle?.genre === 'auteur';
 
 /** Les champs que seul le serveur remplit à la création : ceux de la donnée, et ceux que « dans » remplit sur cette route. */
 export function champsDuServeur(donnee: Donnee, route?: Route): string[] {
@@ -28,12 +28,14 @@ export function reglesEnvoi(donnee: Donnee, route: Route): string {
   const serveur = champsDuServeur(donnee, route);
   const site = champsDuSite(donnee);
   const nonVides = donnee.champs.filter((c) => c.nonVide).map((c) => camel(c.nom));
+  // « auteur » ne change jamais, même dans une modification.
+  const fixes = donnee.champs.filter((c) => c.regle?.genre === 'auteur').map((c) => camel(c.nom));
   if (serveur.length === 0 && site.length === 0 && nonVides.length === 0) return '';
-  return `, { duServeur: ${JSON.stringify(serveur)}, duSite: ${JSON.stringify(site)}${nonVides.length > 0 ? `, nonVides: ${JSON.stringify(nonVides)}` : ''} }`;
+  return `, { duServeur: ${JSON.stringify(serveur)}, duSite: ${JSON.stringify(site)}${nonVides.length > 0 ? `, nonVides: ${JSON.stringify(nonVides)}` : ''}${fixes.length > 0 ? `, fixes: ${JSON.stringify(fixes)}` : ''} }`;
 }
 
 /** Vrai si la création de cette donnée passe par une fonction « completer… ». */
-export const aCompleter = (donnee: Donnee) => donnee.champs.some((c) => (decide(c.regle) && c.regle?.genre !== 'groupe') || c.regle?.genre === 'auPlus');
+export const aCompleter = (donnee: Donnee) => donnee.champs.some((c) => (decide(c.regle) && c.regle?.genre !== 'groupe' && c.regle?.genre !== 'auteur') || c.regle?.genre === 'auPlus');
 
 /** La fonction qui écrit, dans la fiche reçue, ce que le serveur décide : l'ordre importe (les calculs lisent les autres champs). */
 function fonctionCompleter(donnee: Donnee): string {
@@ -126,6 +128,8 @@ export function codeCreation(serveur: ServeurRI, route: Route, donnee: Donnee, s
     );
   } else lignes.push(`          const recue: Record<string, unknown> = envoi.valeur;`);
   if (groupe) lignes.push(`          recue[${champGroupe}] = groupe.valeur;`);
+  // « seul son auteur peut … » : le compte qui crée la fiche, jamais une valeur envoyée.
+  for (const c of donnee.champs) if (c.regle?.genre === 'auteur') lignes.push(`          recue[${chaine(camel(c.nom))}] = moiDe(req)?.id;`);
   if (separee !== undefined) {
     lignes.push(`          if (portee.test && !portee.test(recue)) {`, `            res.status(403).json({ erreur: REFUS_FICHES });`, `            return;`, `          }`);
   }

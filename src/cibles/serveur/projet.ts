@@ -820,7 +820,7 @@ export function verifierEnvoi(
   schema: Schema,
   corps: unknown,
   complet: boolean,
-  regles: { duServeur?: string[]; duSite?: string[]; nonVides?: string[] } = {},
+  regles: { duServeur?: string[]; duSite?: string[]; nonVides?: string[]; fixes?: string[] } = {},
 ): { valeur: Record<string, unknown> } | { erreur: string } {
   if (typeof corps !== 'object' || corps === null || Array.isArray(corps)) {
     return { erreur: 'les données envoyées doivent être un objet JSON' };
@@ -828,7 +828,7 @@ export function verifierEnvoi(
   const champs = Object.keys(schema);
   for (const cle of Object.keys(corps)) {
     if (cle === 'id') return { erreur: "l'identifiant est donné par le serveur : ne l'envoie pas" };
-    if (complet && regles.duServeur?.includes(cle)) return { erreur: \`le champ « \${cle} » est donné par le serveur : ne l'envoie pas\` };
+    if ((complet && regles.duServeur?.includes(cle)) || regles.fixes?.includes(cle)) return { erreur: \`le champ « \${cle} » est donné par le serveur : ne l'envoie pas\` };
     if (!(cle in schema)) return { erreur: \`le champ « \${cle} » n'existe pas. Champs : \${champs.join(', ')}\` };
   }
   const valeur: Record<string, unknown> = {};
@@ -1467,7 +1467,7 @@ ${serveur.routes.some((r) => r.direct) ? "if (pool) await direct.brancher(pool);
 const stockages = {
 ${stockages}
 };
-
+${codeEvolutionEtDeparts(serveur)}
 // Le premier administrateur vient de l'environnement : aucun mot de passe
 // n'est écrit dans le code.
 const email = process.env.HUMALIS_ADMIN_EMAIL;
@@ -2663,4 +2663,39 @@ ${lignes.join('\n')}
 
 ${blocs.join('\n\n')}
 `;
+}
+
+/**
+ * Au démarrage : les fiches déjà écrites suivent la donnée telle qu'elle est déclarée aujourd'hui
+ * (un champ ajouté reçoit sa valeur « au depart », un champ renommé garde sa valeur), puis
+ * « donnees de depart pour … » remplit une table vide. Rien n'est jamais effacé.
+ */
+function codeEvolutionEtDeparts(serveur: ServeurRI): string {
+  const lignes: string[] = [];
+  for (const d of serveur.donnees) {
+    const table = nomTable(d.nom);
+    const renommes = d.champs.filter((c) => c.avant !== undefined).map((c) => [camel(c.nom), camel(c.avant!)] as const);
+    const defauts = d.champs.flatMap((c) => (c.regle?.genre === 'depart' && c.regle.valeur.genre === 'valeur' ? [[camel(c.nom), c.regle.valeur.valeur] as const] : []));
+    if (renommes.length === 0 && defauts.length === 0) continue;
+    const requetes = [
+      `CREATE TABLE IF NOT EXISTS ${table} (id TEXT PRIMARY KEY, data JSONB NOT NULL, cree_le TIMESTAMPTZ NOT NULL DEFAULT now())`,
+      ...renommes.map(([nouveau, ancien]) => `UPDATE ${table} SET data = (data - '${ancien}') || jsonb_build_object('${nouveau}', data->'${ancien}') WHERE data ? '${ancien}' AND NOT data ? '${nouveau}'`),
+      ...defauts.map(([champ, valeur]) => `UPDATE ${table} SET data = data || '${JSON.stringify({ [champ]: valeur }).replace(/'/g, "''")}'::jsonb WHERE NOT data ? '${champ}'`),
+    ];
+    lignes.push(`// « ${d.nom} » : les fiches déjà écrites suivent la donnée d'aujourd'hui (champ renommé, champ ajouté).
+if (pool) {
+${requetes.map((r) => `  await pool.query(${JSON.stringify(r)});`).join('\n')}
+}`);
+  }
+  for (const depart of serveur.departs ?? []) {
+    // Les champs « au depart » non donnés prennent leur valeur de départ, comme à une création.
+    const donnee = serveur.donnees.find((d) => d.nom === depart.donnee);
+    const defauts = Object.fromEntries((donnee?.champs ?? []).flatMap((c) => (c.regle?.genre === 'depart' && c.regle.valeur.genre === 'valeur' ? [[camel(c.nom), c.regle.valeur.valeur]] : [])));
+    const fiches = depart.fiches.map((f) => ({ ...defauts, ...Object.fromEntries(Object.entries(f).map(([k, v]) => [camel(k), v])) }));
+    lignes.push(`// « donnees de depart pour ${depart.donnee} » : seulement si la table est vide.
+if ((await stockages.${camel(depart.donnee)}.lister({ egal: {}, limite: 1 })).length === 0) {
+  for (const fiche of ${JSON.stringify(fiches)}) await stockages.${camel(depart.donnee)}.creer(fiche);
+}`);
+  }
+  return lignes.length ? `\n${lignes.join('\n\n')}\n` : '';
 }

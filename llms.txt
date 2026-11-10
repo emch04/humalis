@@ -61,6 +61,13 @@ page "accueil" :
 - Une instruction que Humalis ne connaît pas : instruction inconnue
 - Un mot prévu, pas encore disponible : n’est pas encore disponible
 - Une option sans nom après « avec » : un nom de propriété de style est attendu
+- Des données de départ sans « pour » : donnees de depart pour produit
+- Un champ de départ sans valeur : une valeur : un texte entre guillemets
+- Des données de départ pour une donnée absente : n'existe pas dans ce serveur
+- Un champ de départ qui n’existe pas : n'a pas de champ
+- Une valeur de départ du mauvais type : attend un nombre
+- Une fiche de départ incomplète : cette fiche de départ n'a pas
+- « seul son auteur » avec une condition : dit déjà quelles fiches
 - « desactive » ailleurs que sur un bouton : s'applique à un bouton
 - Un bouton à icône seule sans nom : a besoin d'un nom
 - Une option sans valeur : une valeur est attendue pour le style
