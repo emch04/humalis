@@ -3810,6 +3810,8 @@ marche aussi sur un Mac ou sous Linux ; seul le lancement demande Windows 10 ou 
   audio et vidéo avec leur transcription, codes QR, images SVG, choix et envoi de
   fichiers, `sous page`, ancres et onglets de l'application.
 - `partager …` copie le texte (et le lien) dans le presse-papiers.
+- `en direct` : la liste se relit quand le serveur annonce un changement, tant que la
+  page est ouverte.
 - Les animations et les effets de survol ne se dessinent pas encore ; la compilation
   le dit.
 - Ce que Humalis ne sait pas encore faire s'écrit en C# : `utiliser composant "Carte" sur
@@ -3892,8 +3894,10 @@ page "commandes" :
 
 Une commande créée ailleurs apparaît seule, sans recharger. Le serveur annonce
 seulement « ça a changé » : la page relit ensuite la route normale, avec ses droits,
-donc rien de privé ne passe par ce canal. Cela marche sur le web, avec ce moteur
-comme avec React.
+donc rien de privé ne passe par ce canal. Cela marche sur le web (avec ce moteur
+comme avec React), sur le bureau, sur Apple, sur Android et sur Windows. Après une
+coupure, la page se reconnecte seule et rattrape ce qui a changé. La cible `mobile`
+(Expo) et les pages statiques lisent la liste une fois, et la compilation le dit.
 
 Avec une base PostgreSQL, tu peux lancer plusieurs exemplaires du serveur : un
 changement reçu par l'un est annoncé par tous. Sans PostgreSQL, garde un seul

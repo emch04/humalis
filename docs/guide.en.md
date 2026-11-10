@@ -3885,6 +3885,8 @@ Mac or on Linux; only running it needs Windows 10 or 11.
   video with their transcript, QR codes, SVG images, choosing and uploading files,
   `sous page`, anchors and the application's tabs.
 - `partager …` copies the text (and the link) to the clipboard.
+- `en direct`: the list is read again when the server announces a change, as long as the
+  page is open.
 - Animations and hover effects are not drawn yet; the compiler says so.
 - What Humalis cannot do yet is written in C#: `utiliser composant "Carte" sur windows
   "./natif/Carte.cs"`, with its NuGet libraries (`paquet windows "…" version "…"`); see
@@ -3966,8 +3968,11 @@ page "commandes" :
 
 An order created elsewhere appears by itself, without a reload. The server only
 announces that something changed: the page then re-reads the normal route, with its
-access rules, so nothing private travels through this channel. It works on the web,
-with this engine as well as with React.
+access rules, so nothing private travels through this channel. It works on the web
+(with this engine as well as with React), on the desktop, on Apple, on Android and on
+Windows. After a connection loss, the page reconnects by itself and catches up with what
+changed. The `mobile` target (Expo) and static pages read the list once, and the compiler
+says so.
 
 With a PostgreSQL database you can run several copies of the server: a change received
 by one is announced by all. Without PostgreSQL, keep a single copy. Changes close

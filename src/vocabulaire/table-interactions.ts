@@ -731,7 +731,7 @@ export const ENTREES_INTERACTIONS: EntreeVocabulaire[] = [
       ...ecran('EventSource sur /api/…/direct (moteur Humalis)', null, null),
     },
     couvre: ['dom:eventsource'],
-    description: '« envoyer requete vers "commandes" dans commandes en direct » : la page se relit quand le serveur annonce un changement (moteur Humalis).',
+    description: '« envoyer requete vers "commandes" dans commandes en direct » : la page se relit quand le serveur annonce un changement (web, bureau, Apple, Android et Windows).',
     exemple: PAGE('    variable commandes = []\n    quand la page se charge :\n        envoyer requete vers "commandes" dans commandes en direct'),
   }),
 
