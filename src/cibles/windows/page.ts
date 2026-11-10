@@ -81,6 +81,8 @@ export class GenerateurBloc implements HoteActions {
   private titreVu = false;
   /** « arrive en bas de "catalogue" » : la méthode, et le bouton « Voir plus » sous le bloc. */
   private readonly bas = new Map<string, { methode: Methode; g: Gestionnaire }>();
+  /** Les variables reçues du système (« fichier », « partage » d'une forme) : lues dans les arguments, sinon leur valeur de départ. */
+  readonly depuisArguments = new Set<string>();
   /** Les événements écrits dans une boucle : enregistrés quand tous les champs sont connus. */
   private readonly enAttente: { g: Gestionnaire; boucles: string[] }[] = [];
 
@@ -165,6 +167,11 @@ export class GenerateurBloc implements HoteActions {
       minuterie: 'QuandLaMinuterieSonne', touche: 'QuandOnAppuie', saisie: `QuandOnEcritDans${cible}`, pauseSaisie: `QuandOnArreteDEcrireDans${cible}`,
       bas: 'QuandOnArriveEnBas', ordre: 'QuandLOrdreChange', commandeMenu: 'QuandLaCommandeEstChoisie', arrierePlan: 'EnArrierePlan',
     }[g.declencheur];
+    // « en arriere plan » d'une page : une tâche planifiée à part (voir formes.ts), pas une méthode de la page.
+    if (g.declencheur === 'arrierePlan') {
+      if (this.genre !== 'page') this.ctx.diagnostics.push({ gravite: 'erreur', ligne: g.ligne, message: '« en arriere plan : » s\'écrit dans une page, pas dans un composant.' });
+      return;
+    }
     if (['ordre', 'commandeMenu', 'arrierePlan'].includes(g.declencheur)) {
       this.ligne = g.ligne;
       const nom = { bas: '« quand on arrive en bas de »', ordre: '« avec deplacement »', commandeMenu: '« menu de l\'application »', arrierePlan: '« en arriere plan »' }[g.declencheur as 'bas'];
@@ -388,6 +395,7 @@ export class GenerateurBloc implements HoteActions {
 
   private signalDeDepart(etat: Etat): string {
     const depart = etat.facultatif ? '(object?)null' : this.x.expr(etat.initiale);
+    if (this.depuisArguments.has(etat.nom)) return `new Signal(arguments.Lire(${chaineCs(etat.nom)}) ?? ${depart})`;
     if (etat.memorisee) return `Memoire.Garder(${chaineCs(`${this.ecran.nom}.${etat.nom}`)}, ${depart}${etat.secret ? ', secret: true' : ''})`;
     return `new Signal(${depart})`;
   }

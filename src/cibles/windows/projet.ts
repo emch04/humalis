@@ -21,6 +21,8 @@ import { GRAPHIQUE_CS } from './bibliotheque/graphique.js';
 import { FICHIERS_CS } from './bibliotheque/fichiers.js';
 import { QR_CS } from './bibliotheque/qr.js';
 import { MEDIAS_CS } from './bibliotheque/medias.js';
+import { FORMES_CS, TOASTS_CS, ZONE_CS } from './bibliotheque/formes.js';
+import { formesWindows, type FormesWindows } from './formes.js';
 import { chaineCs, commentaireCs, nomApplication, nomCs, nomMethode } from './noms.js';
 import { GenerateurBloc, classeDe, quatreEspaces, type ContexteWindows } from './page.js';
 import { reglesDeClasses, styleDesDeclarations } from './styles.js';
@@ -32,6 +34,8 @@ export const MARQUE_WINDOWS = '.humalis-windows';
 
 /** La version de .NET visée : une version suivie longtemps (LTS). */
 export const DOTNET = 'net10.0-windows';
+/** Avec les notifications de Windows 10 (API WinRT) : le SDK de Windows 10 2004, et Windows 10 1809 au moins. */
+export const DOTNET_WINRT = 'net10.0-windows10.0.19041.0';
 
 export interface OptionsWindows {
   /** Le nom du projet, tiré du fichier Humalis (« boutique »). */
@@ -239,13 +243,16 @@ function partagesCs(application: Application, partages: Map<string, Lieu>): stri
   return e.texte();
 }
 
-function csproj(nom: string, application: Application, aDesRessources: boolean): string {
+function csproj(nom: string, application: Application, aDesRessources: boolean, formes?: FormesWindows): string {
   return `<Project Sdk="Microsoft.NET.Sdk">
   <!-- Produit par Humalis depuis ${nom} : une application WPF pour Windows 10 et 11. -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>${DOTNET}</TargetFramework>
-    <UseWPF>true</UseWPF>
+    <TargetFramework>${formes?.toasts ? DOTNET_WINRT : DOTNET}</TargetFramework>${formes?.toasts ? `
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>` : ''}
+    <UseWPF>true</UseWPF>${formes?.zone ? `
+    <!-- La zone de notification (NotifyIcon) vient de Windows Forms. -->
+    <UseWindowsForms>true</UseWindowsForms>` : ''}
     <!-- Se compile aussi depuis macOS ou Linux (dotnet build). -->
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <Nullable>enable</Nullable>
@@ -256,7 +263,7 @@ function csproj(nom: string, application: Application, aDesRessources: boolean):
     <Product>${echapperXml(application.site?.nom ?? nom)}</Product>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <!-- Le thème Fluent de Windows 11 est encore marqué « à l'essai » par .NET. -->
-    <NoWarn>$(NoWarn);WPF0001;CS1998</NoWarn>
+    <NoWarn>$(NoWarn);WPF0001;CS1998;WFO0003</NoWarn>
   </PropertyGroup>
   <!-- Publication (dotnet publish -r win-x64) : un seul fichier .exe, avec .NET dedans (rien à installer). -->
   <PropertyGroup Condition="'$(RuntimeIdentifier)' != ''">
@@ -297,7 +304,7 @@ const MANIFESTE = `<?xml version="1.0" encoding="utf-8"?>
 </assembly>
 `;
 
-function lisezmoi(nom: string, options: OptionsWindows): string {
+function lisezmoi(nom: string, options: OptionsWindows, formes?: FormesWindows): string {
   const app = nomApplication(nom);
   return `# ${nom} — application Windows
 
@@ -321,7 +328,7 @@ dotnet publish -c Release -r win-x64
 dotnet publish -c Release -r win-arm64
 \`\`\`
 
-Le fichier \`${app}.exe\` est dans \`bin/Release/${DOTNET}/win-x64/publish/\`. Il contient .NET :
+Le fichier \`${app}.exe\` est dans \`bin/Release/${formes?.toasts ? DOTNET_WINRT : DOTNET}/win-x64/publish/\`. Il contient .NET :
 rien d'autre à installer sur le PC. Sans signature de code, Windows affiche un avertissement
 (SmartScreen) au premier lancement : « Informations complémentaires », puis « Exécuter quand même ».
 
@@ -335,7 +342,18 @@ serveur sans recompiler : variable d'environnement \`HUMALIS_SERVEUR\`.
 - \`avec memorisee\` : \`%LOCALAPPDATA%\\${options.identifiant ?? `humalis.${nom}`}\\memoire.json\` ;
 - \`avec memorisee en secret\` et la session : chiffrés par Windows (DPAPI), lisibles seulement par
   la personne connectée à cette session Windows.
-`;
+${formes?.actives ? `
+## Ce que l'application inscrit dans Windows
+
+À chaque lancement, l'application s'inscrit pour la personne connectée (registre HKCU, sans droits
+d'administrateur) : « Ouvrir avec », clic droit de l'Explorateur, lancement à l'ouverture de la
+session, « Envoyer vers », notifications, tâche planifiée de l'arrière-plan, selon le programme.
+Pour tout retirer avant de supprimer le .exe :
+
+\`\`\`sh
+${nomApplication(nom)}.exe --desinstaller
+\`\`\`
+` : ''}`;
 }
 
 export function genererProjetWindows(application: Application, options: OptionsWindows): { fichiers: Map<string, string>; diagnostics: Diagnostic[] } {
@@ -395,12 +413,16 @@ export function genererProjetWindows(application: Application, options: OptionsW
     disposition[partie] = classe;
   }
 
+  // Les formes d'application : zone de notification, Jump List, « Ouvrir avec », clic droit, notifications…
+  const formes = formesWindows(application, ctx, app);
+  for (const [chemin, code] of formes.fichiers) fichiers.set(chemin, code);
+
   if (ctx.nonDessinees.size > 0) {
     diagnostics.push({ gravite: 'avertissement', ligne: 1, message: `Sur Windows, ${[...ctx.nonDessinees].map((o) => `« ${o} »`).join(', ')} ne se dessine pas encore : les éléments s'affichent sans ce mouvement ou cet effet.` });
   }
 
   // La page d'entrée : « accueil », sinon la première page sans paramètre.
-  const simple = (e: Ecran) => !e.parametresAdresse?.length && e.parent === undefined;
+  const simple = (e: Ecran) => !e.parametresAdresse?.length && e.parent === undefined && !formes.pagesBarre.has(e.nom);
   const entree = application.ecrans.find((e) => e.nom === 'accueil' && simple(e)) ?? application.ecrans.find((e) => simple(e) && e.nom !== 'introuvable') ?? application.ecrans[0];
 
   const pages = new Ecrivain();
@@ -464,7 +486,7 @@ namespace ${app};
 public static class Programme
 {
     [STAThread]
-    public static void Main()
+    public static void Main(${formes.actives ? 'string[] arguments' : ''})
     {
         Configuration.Nom = ${chaineCs(titre)};
         Configuration.Serveur = ${chaineCs(options.serveur ?? 'http://localhost:3000')};
@@ -472,7 +494,9 @@ public static class Programme
         Configuration.ModeDepart = ${chaineCs(application.theme?.mode ?? 'automatique')};
         Configuration.LargeurContenu = ${application.theme ? LARGEURS[application.theme.largeur] : 960};
 
-${application.langues?.length ? `        Langues.Toutes = new[] { ${application.langues.map((l) => `(${chaineCs(l.code)}, ${chaineCs(l.nom)})`).join(', ')} };
+${formes.actives ? `        // Les formes de l'application : un seul lancement à la fois, inscrit dans Windows.
+        if (FormesApplication.Avant(arguments)) return;
+` : ''}${application.langues?.length ? `        Langues.Toutes = new[] { ${application.langues.map((l) => `(${chaineCs(l.code)}, ${chaineCs(l.nom)})`).join(', ')} };
 ` : ''}        Langues.Initialiser();
         var application = new System.Windows.Application { ShutdownMode = ShutdownMode.OnMainWindowClose };
         Apparence.Appliquer();
@@ -482,7 +506,7 @@ ${dictionnaires.map((d) => `        // « utiliser style "${d.nom}" sur windows 
         Routeur.ParAdresse = Pages.ParAdresse;
         var fenetre = new FenetrePrincipale(${disposition.entete ? `() => new ${disposition.entete}().Monter()` : 'null'}, ${disposition.pied ? `() => new ${disposition.pied}().Monter()` : 'null'});
         application.MainWindow = fenetre;
-        fenetre.Show();
+        ${formes.actives ? 'FormesApplication.Demarrer(application, fenetre, arguments);' : 'fenetre.Show();'}
         Routeur.Aller(Pages.Entree);
         application.Run();
     }
@@ -491,7 +515,7 @@ ${dictionnaires.map((d) => `        // « utiliser style "${d.nom}" sur windows 
 
   const aDesRessources = (options.medias?.size ?? 0) > 0;
   fichiers.set(MARQUE_WINDOWS, 'Ce dossier a été produit par Humalis (cible Windows). Recompiler le fichier .humalis le remplace.\n');
-  fichiers.set(`${app}.csproj`, csproj(options.nom, application, aDesRessources));
+  fichiers.set(`${app}.csproj`, csproj(options.nom, application, aDesRessources, formes));
   // Les dictionnaires de styles XAML : compilés avec le projet (une erreur XAML arrête dotnet build).
   for (const d of dictionnaires) fichiers.set(`Styles/${d.nom}`, d.contenu);
   // Les vues C# écrites à la main, recopiées telles quelles.
@@ -514,11 +538,14 @@ ${dictionnaires.map((d) => `        // « utiliser style "${d.nom}" sur windows 
   fichiers.set('Humalis/Fichiers.cs', FICHIERS_CS);
   fichiers.set('Humalis/Qr.cs', QR_CS);
   fichiers.set('Humalis/Medias.cs', MEDIAS_CS);
+  if (formes.actives) fichiers.set('Humalis/Formes.cs', FORMES_CS);
+  if (formes.zone) fichiers.set('Humalis/Zone.cs', ZONE_CS);
+  if (formes.toasts) fichiers.set('Humalis/Toasts.cs', TOASTS_CS);
   for (const [chemin, info] of options.medias ?? []) {
     if (info.contenu !== undefined) fichiers.set(`Ressources/${nomDeLaCopie(chemin)}`, contenuBinaire(info.contenu));
   }
   const cssPerdu = diagnostics.find((d) => d.message.includes('CSS-SUR-WINDOWS.md'));
   if (cssPerdu) fichiers.set('CSS-SUR-WINDOWS.md', `# Le CSS sur Windows\n\n${cssPerdu.message}\n\n## Les déclarations sans équivalent\n\n${cssIgnore.map((l) => `- \`${l}\``).join('\n')}\n`);
-  fichiers.set('LISEZMOI.md', lisezmoi(options.nom, options));
+  fichiers.set('LISEZMOI.md', lisezmoi(options.nom, options, formes));
   return { fichiers, diagnostics };
 }
