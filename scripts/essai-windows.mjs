@@ -32,8 +32,8 @@ const environnement = { ...process.env, DOTNET_NOLOGO: '1', DOTNET_CLI_TELEMETRY
 const dossierExemples = join(racine, 'exemples');
 const essais = join(racine, 'scripts', 'essais-windows');
 const fichiers = noms.length
-  ? noms.map((n) => (existsSync(join(essais, `${n}.humalis`)) ? join(essais, `${n}.humalis`) : join(dossierExemples, `${n}.humalis`)))
-  : [...readdirSync(essais).filter((f) => f.endsWith('.humalis')).map((f) => join(essais, f)), ...readdirSync(dossierExemples).filter((f) => f.endsWith('.humalis')).map((f) => join(dossierExemples, f))];
+  ? noms.map((n) => [join(essais, `${n}.humalis`), join(racine, 'tests', 'formes', `${n}.humalis`)].find((f) => existsSync(f)) ?? join(dossierExemples, `${n}.humalis`))
+  : [...readdirSync(essais).filter((f) => f.endsWith('.humalis')).map((f) => join(essais, f)), join(racine, 'tests', 'formes', 'toutes.humalis'), ...readdirSync(dossierExemples).filter((f) => f.endsWith('.humalis')).map((f) => join(dossierExemples, f))];
 
 mkdirSync(travail, { recursive: true });
 execFileSync('npm', ['run', 'build'], { cwd: racine, stdio: 'ignore' });

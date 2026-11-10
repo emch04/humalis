@@ -5,7 +5,7 @@
  */
 import type { Action, ArgumentsPage, Valeur } from '../../ri/types.js';
 import { Ecrivain } from '../web/ecrivain.js';
-import { chaineCs, cleJson, nomCs } from './noms.js';
+import { chaineCs, cleJson, nomCs, commentaireCs } from './noms.js';
 import type { ExpressionsCs, Lieu } from './valeurs.js';
 
 /** Ce que les actions demandent au code qui les écrit (une page, un composant, une fonction). */
@@ -266,6 +266,13 @@ export class EcrivainActions {
         return;
       case 'langue':
         e.ligne(`Langues.Changer(${chaineCs(a.code)});`);
+        return;
+      // Formes sans sens sur Windows (activité en direct, assistant vocal) : ignorées comme la forme elle-même.
+      case 'activite':
+        e.ligne(`// « ${a.mode} activite "${commentaireCs(a.nom)}" » : pas d'activité en direct sur Windows.`);
+        return;
+      case 'dire':
+        e.ligne('// « dire » : pas d\'assistant vocal sur Windows.');
         return;
       default:
         return this.hote.refuser(`« ${NOMS_ACTIONS[a.type] ?? a.type} »`);
