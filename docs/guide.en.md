@@ -3421,13 +3421,18 @@ texte "…" est absent` (a text is not shown).
 | `humalis packs` | says whether the Astratra packs have updates |
 
 For web and static, `--adresse https://…` gives the site's final address
-(sitemap, share links). For desktop and Apple, `--serveur https://…` gives the address
+(sitemap, share links). For desktop, Apple and Android, `--serveur https://…` gives the address
 of the server the application calls.
 
 `--cible apple` generates an Xcode project in SwiftUI: a single native application
 for iPhone, iPad and Mac, with no embedded browser (Xcode 16 or later; it runs on
 iOS 17 and macOS 14 and later). To sign it, add
 `--identifiant com.example.application` and `--equipe ABCDE12345`.
+
+`--cible android` generates a native Android project, in Kotlin and Jetpack Compose,
+built by Gradle: no embedded browser and no JavaScript. The application runs on
+Android 8.0 and later. Open the folder in Android Studio, or build it with
+`gradle assembleDebug`. `--identifiant com.example.application` sets its identifier.
 
 With `humalis developper`, every element of the page carries its Humalis
 file and line: in the browser's inspector, a heading shows for example
@@ -3458,23 +3463,45 @@ completion and hover help.
 The same file produces every target. When a construct does not exist on a
 target, the compiler says so clearly instead of producing something wrong.
 
-| | web | static | mobile | desktop | apple |
-|---|---|---|---|---|---|
-| Pages, elements, styles, theme | yes | yes | yes | yes | yes |
-| Your own CSS | yes | yes | no (named styles only) | yes | partly (single-class rules; the rest is listed) |
-| Requests to a server | yes | yes | yes | yes | yes |
-| `memorisee` | yes | yes | yes | yes | yes |
-| `memorisee en secret` | no | no | yes | yes | yes (Keychain) |
-| `essayer` | yes | no | yes | yes | yes |
-| Keyboard shortcuts | yes | yes | no | yes | yes |
-| React components | yes | no | yes (in React Native) | yes | no (`sur apple "View.swift"`) |
-| The engine without React (the default) | yes | no | no | yes (except a React component or `memorisee en secret`) | no |
-| Photo, scanner, Face ID, vibration, signature, offline | yes (vibration: Android) | no | no | no | yes |
-| `en arriere plan` | no | no | no | no | yes |
-| Sitemap, share preview | yes | yes | no | no | no |
+| | web | static | mobile | desktop | apple | android |
+|---|---|---|---|---|---|---|
+| Pages, elements, styles, theme | yes | yes | yes | yes | yes | yes |
+| Your own CSS | yes | yes | no (named styles only) | yes | partly (single-class rules; the rest is listed) | no (named styles only) |
+| Requests to a server | yes | yes | yes | yes | yes | yes |
+| `memorisee` | yes | yes | yes | yes | yes | yes |
+| `memorisee en secret` | no | no | yes | yes | yes (Keychain) | yes (Keystore) |
+| `essayer` | yes | no | yes | yes | yes | yes |
+| Keyboard shortcuts | yes | yes | no | yes | yes | no |
+| React components | yes | no | yes (in React Native) | yes | no (`sur apple "View.swift"`) | no |
+| The engine without React (the default) | yes | no | no | yes (except a React component or `memorisee en secret`) | no | no |
+| Photo, scanner, Face ID, vibration, signature, offline | yes (vibration: Android) | no | no | no | yes | no |
+| `en arriere plan` | no | no | no | no | yes | no |
+| Sitemap, share preview | yes | yes | no | no | no | no |
 
 The server (`--cible serveur`) is generated separately, from the `serveur`
 block.
+
+### The Android application
+
+`--cible android` writes readable Kotlin: each page is a Compose function, its
+variables are state, and its events are functions that wait for the server without
+blocking the screen. Navigation goes through Navigation Compose, and Android's back
+button returns to the previous page. The icons are the same as on the web.
+
+```sh
+humalis compile taches.humalis --cible android --sortie taches-android --serveur https://api.mysite.com
+```
+
+- `memorisee` values stay on the device; `memorisee en secret` and the session go
+  through a vault encrypted by the Android Keystore.
+- From the emulator, the computer is called `10.0.2.2`: a server started on
+  `http://localhost:3000` is reached automatically. Otherwise only `https://` is allowed.
+- The application tabs are a bar at the bottom of the screen.
+
+What does not exist on Android yet, and that compilation refuses with a clear message:
+several languages, sub-pages (`page "…" dans "…"`), charts, maps, audio, video, QR codes,
+file picking, photo, scanner, Google or Apple login, payment, AI and notifications. The
+CSS and the theme fonts are not translated yet: the application follows the named styles.
 
 ---
 
