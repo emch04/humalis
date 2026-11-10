@@ -142,7 +142,9 @@ export type RegleChampRI =
   | { genre: 'nombreDe'; liste: string }
   | { genre: 'somme'; prix: string; donnee: string; liste: string; plus?: string }
   | { genre: 'auPlus'; prix: string; donnee: string; par: string }
-  | { genre: 'groupe' };
+  | { genre: 'groupe' }
+  /** « seul son auteur peut … » : le compte qui a créé la fiche, rempli par le serveur seul. */
+  | { genre: 'auteur' };
 
 export type OperandeRI = { genre: 'fiche'; champ: string } | { genre: 'utilisateur'; champ: string } | { genre: 'valeur'; valeur: string | number | boolean };
 export interface ConditionRegleRI {
@@ -212,7 +214,9 @@ export interface ServeurRI {
   /** Les sources à jeton secret que ce serveur relaie (« /api/passerelle/<source> »). */
   passerelles?: PasserelleRI[];
   nom: string;
-  donnees: { nom: string; par?: string; champs: { nom: string; type: TypeChamp; regle?: RegleChampRI; nonVide?: boolean }[] }[];
+  donnees: { nom: string; par?: string; champs: { nom: string; type: TypeChamp; regle?: RegleChampRI; nonVide?: boolean; avant?: string }[] }[];
+  /** « donnees de depart pour produit : » : écrites au premier démarrage, seulement si la table est vide. */
+  departs?: { donnee: string; fiches: Record<string, string | number | boolean>[] }[];
   routes: {
     adresse: string;
     donnee: string;

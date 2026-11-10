@@ -131,3 +131,40 @@ describe('« jeton secret depuis l’environnement »', () => {
     expect(serveur.find(([k]) => k.endsWith('.env.exemple'))![1]).toContain('METEO_CLE=\n');
   });
 });
+
+describe('le serveur : auteur, données de départ, champ renommé', () => {
+  const serveurDe = async (source: string) => {
+    const { genererProjetServeur } = await import('../src/cibles/serveur/projet.js');
+    const app = sansErreur(source);
+    return new Map(genererProjetServeur(app.serveurs[0], { nom: 's' } as never));
+  };
+  const fichier = (f: Map<string, string>, fin: string) => [...f.entries()].find(([k]) => k.endsWith(fin))![1];
+
+  it('« seul son auteur » : le serveur remplit l’auteur et ne le laisse jamais changer', async () => {
+    const f = await serveurDe(programme('serveur "carnet" :', '>donnee note :', '>>texte : texte', '>route "notes" :', '>>connecte peut lire note', '>>connecte peut creer note', '>>seul son auteur peut modifier et supprimer note', 'page "a" :', '>titre "a"'));
+    const code = fichier(f, 'src/serveur.ts');
+    expect(code).toContain('recue["auteur"] = moiDe(req)?.id;');
+    expect(code).toContain('fiche["auteur"] === moi["id"]');
+    expect(code).toContain('fixes: ["auteur"]');
+  });
+
+  it('les données de départ et l’évolution des fiches au démarrage', async () => {
+    const f = await serveurDe(programme(
+      'serveur "boutique" :', '>donnee produit :', '>>nom : texte', '>>prix : nombre', '>>telephone : texte (avant "tel")', '>>stock : nombre au depart 0',
+      '>route "produits" :', '>>tout le monde peut lire produit',
+      '>donnees de depart pour produit :', '>>nom "Café", prix 3, telephone "0102"',
+      'page "a" :', '>titre "a"',
+    ));
+    const demarrer = fichier(f, 'src/demarrer.ts');
+    expect(demarrer).toContain("jsonb_build_object('telephone', data->'tel') WHERE data ? 'tel' AND NOT data ? 'telephone'");
+    expect(demarrer).toContain(`WHERE NOT data ? 'stock'`);
+    expect(demarrer).toContain('[{"stock":0,"nom":"Café","prix":3,"telephone":"0102"}]');
+  });
+
+  it('refuse une fiche de départ incomplète ou d’un mauvais type', () => {
+    const r = compiler(programme('serveur "b" :', '>donnee produit :', '>>nom : texte', '>>prix : nombre', '>route "produits" :', '>>tout le monde peut lire produit', '>donnees de depart pour produit :', '>>nom 3', 'page "a" :', '>titre "a"'));
+    const messages = r.diagnostics.map((d) => d.message).join(' ');
+    expect(messages).toContain('attend un texte entre guillemets');
+    expect(messages).toContain('n\'a pas « prix »');
+  });
+});

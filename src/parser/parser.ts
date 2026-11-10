@@ -531,9 +531,33 @@ function analyserServeur(flux: FluxTokens): Serveur {
   const champsCompte: NonNullable<Serveur['champsCompte']> = [];
   let paiements: Serveur['paiements'];
   let droitIa: DroitIa | undefined;
+  const departs: NonNullable<Serveur['departs']> = [];
 
   chaqueLigne(flux, () => {
     const token = flux.actuel();
+    // « donnees de depart pour produit : » puis une fiche par ligne : « nom "Café", prix 3 ».
+    if ((estLeMot(token, 'donnees') || estLeMot(token, 'donnee')) && estLeMot(flux.regarder(1), 'depart')) {
+      flux.avancer();
+      flux.avancer();
+      if (!estLeMot(flux.actuel(), 'pour')) throw new ErreurSyntaxique('on écrit : donnees de depart pour produit :', token.ligne);
+      flux.avancer();
+      const donnee = flux.attendreNom('le nom de la donnée : donnees de depart pour produit :').nom;
+      flux.attendre('PONCTUATION', ':', 'deux-points après le nom de la donnée');
+      const fiches: (typeof departs)[number]['fiches'] = [];
+      chaqueLigne(flux, () => {
+        const ligne = flux.actuel().ligne;
+        const champsFiche: (typeof fiches)[number]['champs'] = [];
+        do {
+          const champ = flux.attendreNom('le nom d\'un champ : nom "Café", prix 3');
+          const valeur = valeurFixe(flux);
+          if (valeur?.genre !== 'valeur') throw new ErreurSyntaxique(`après « ${champ.nom} », une valeur : un texte entre guillemets, un nombre, vrai ou faux`, champ.ligne);
+          champsFiche.push({ champ: champ.nom, valeur: valeur.valeur, ligne: champ.ligne });
+        } while (flux.accepter('PONCTUATION', ','));
+        fiches.push({ champs: champsFiche, ligne });
+      });
+      departs.push({ donnee, fiches, ligne: token.ligne });
+      return;
+    }
     if (estLeMot(token, 'compte') && flux.regarder(1).valeur === ':') {
       flux.avancer();
       flux.avancer();
@@ -618,6 +642,13 @@ function analyserServeur(flux: FluxTokens): Serveur {
     if (payee) payee.champs.push({ nom: 'paye', type: { genre: 'booleen' }, regle: { genre: 'depart', valeur: { genre: 'valeur', valeur: false } }, ligne: route.apresPaiement.ligne });
   }
 
+  // « seul son auteur peut … » : la donnée garde le compte qui a créé chaque fiche.
+  for (const regle of routes.flatMap((r) => r.regles)) {
+    if (!regle.auteur) continue;
+    const lue = donnees.find((d) => d.nom === regle.donnee);
+    if (lue && !lue.champs.some((c) => c.nom === 'auteur')) lue.champs.push({ nom: 'auteur', type: { genre: 'texte' }, regle: { genre: 'auteur' }, ligne: regle.ligne });
+  }
+
   // « comptes » dans une règle : les comptes de la connexion, s'il n'existe pas de donnée de ce nom.
   const regleComptes = routes.flatMap((r) => r.regles).find((r) => r.donnee === 'comptes');
   if (regleComptes && !donnees.some((d) => d.nom === 'comptes')) {
@@ -630,6 +661,7 @@ function analyserServeur(flux: FluxTokens): Serveur {
     nom,
     donnees,
     routes,
+    ...(departs.length ? { departs } : {}),
     ...(connexionGoogle !== undefined ? { connexionGoogle } : {}),
     ...(connexionApple !== undefined ? { connexionApple } : {}),
     ...(roles?.length ? { roles } : {}),
@@ -728,7 +760,15 @@ export function analyserDonnee(flux: FluxTokens, ouverte = false): Donnee {
     const nonVideAvant = !ouverte && lireNonVide(flux);
     const regle = ouverte ? undefined : analyserRegleChamp(flux);
     const nonVide = nonVideAvant || (!ouverte && lireNonVide(flux));
-    champs.push({ nom: champ.nom, type, ...(regle ? { regle } : {}), ...(nonVide ? { nonVide } : {}), ligne: champ.ligne });
+    // « (avant "tel") » : le champ s'appelait ainsi ; les fiches déjà écrites gardent leur valeur.
+    let avant: string | undefined;
+    if (!ouverte && flux.verifier('PONCTUATION', '(') && estLeMot(flux.regarder(1), 'avant')) {
+      flux.avancer();
+      flux.avancer();
+      avant = flux.attendre('CHAINE', undefined, 'l\'ancien nom du champ entre guillemets : telephone : texte (avant "tel")').valeur;
+      flux.attendre('PONCTUATION', ')', 'une parenthèse fermante après l\'ancien nom');
+    }
+    champs.push({ nom: champ.nom, type, ...(regle ? { regle } : {}), ...(nonVide ? { nonVide } : {}), ...(avant !== undefined ? { avant } : {}), ligne: champ.ligne });
   });
   if (par !== undefined) champs.push({ nom: par, type: { genre: 'texte' }, regle: { genre: 'groupe' }, ligne: debut.ligne });
   return { type: 'Donnee', nom, ...(par !== undefined ? { par } : {}), champs, ligne: debut.ligne };
@@ -1011,6 +1051,9 @@ function analyserRegle(flux: FluxTokens, avecRoles = false): Regle | ActionServe
     mots.push(motDe(flux.avancer()));
   }
   // « seul directeur peut … », « seuls directeur et enseignant peuvent … » : des rôles déclarés dans le serveur. Un admin passe toujours.
+  // « seul son auteur peut modifier note » : la personne qui a créé la fiche, et elle seule.
+  const auteur = mots.join(' ') === 'seul son auteur';
+  if (auteur) mots.splice(0, mots.length, 'connecte');
   const seul = mots[0] === 'seul' || mots[0] === 'seuls';
   const nommes = mots.slice(seul ? 1 : 0).filter((m) => m !== 'et' && m !== ',' && m !== 'admin');
   const qui: Qui | undefined = (
@@ -1055,6 +1098,10 @@ function analyserRegle(flux: FluxTokens, avecRoles = false): Regle | ActionServe
     return { type: 'Regle', qui, actions, donnee: 'comptes', soi: true, ligne: debut.ligne };
   }
   const { nom: donnee } = flux.attendreNom('le nom de la donnée');
+  if (auteur) {
+    if (estLeMot(flux.actuel(), 'si')) throw new ErreurSyntaxique('« seul son auteur » dit déjà quelles fiches : écrivez seulement seul son auteur peut modifier note', debut.ligne);
+    return { type: 'Regle', qui, actions, donnee, auteur: true, si: { gauche: { genre: 'fiche', donnee, champ: 'auteur' }, dans: false, droite: { genre: 'utilisateur', champ: 'id' }, ligne: debut.ligne } as ConditionRegle, ligne: debut.ligne };
+  }
   if (estLeMot(flux.actuel(), 'si')) {
     flux.avancer();
     return { type: 'Regle', qui, actions, donnee, si: analyserConditionRegle(flux), ligne: debut.ligne };

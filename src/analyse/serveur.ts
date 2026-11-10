@@ -30,6 +30,28 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[], pag
 
   for (const donnee of serveur.donnees) for (const champ of donnee.champs) verifierRegleChamp(champ, donnee, serveur, erreur);
 
+  // « donnees de depart pour produit : » : la donnée existe, chaque champ aussi, avec une valeur de son type.
+  for (const depart of serveur.departs ?? []) {
+    const donnee = serveur.donnees.find((d) => d.nom === depart.donnee);
+    if (!donnee) {
+      erreur(`la donnée « ${depart.donnee} » n'existe pas dans ce serveur. Données : ${serveur.donnees.map((d) => d.nom).join(', ') || 'aucune'}.`, depart.ligne);
+      continue;
+    }
+    for (const fiche of depart.fiches) {
+      for (const { champ, valeur, ligne } of fiche.champs) {
+        const lu = donnee.champs.find((c) => simplifier(c.nom) === simplifier(champ));
+        if (!lu) {
+          erreur(`la donnée « ${donnee.nom} » n'a pas de champ « ${champ} ». Champs : ${donnee.champs.map((c) => c.nom).join(', ')}.`, ligne);
+          continue;
+        }
+        const attendu = lu.type.genre === 'nombre' ? 'number' : lu.type.genre === 'booleen' ? 'boolean' : lu.type.genre === 'texte' ? 'string' : undefined;
+        if (attendu !== undefined && typeof valeur !== attendu) erreur(`« ${champ} » de « ${donnee.nom} » attend ${attendu === 'number' ? 'un nombre' : attendu === 'boolean' ? 'vrai ou faux' : 'un texte entre guillemets'}.`, ligne);
+      }
+      const manquants = donnee.champs.filter((c) => !c.regle && !fiche.champs.some((f) => simplifier(f.champ) === simplifier(c.nom)));
+      if (manquants.length) erreur(`cette fiche de départ n'a pas ${manquants.map((c) => `« ${c.nom} »`).join(', ')} : chaque champ demandé à la création doit avoir une valeur.`, fiche.ligne);
+    }
+  }
+
   for (const tache of serveur.taches ?? []) traduireTache(tache, serveur, erreur);
   if (serveur.ia && !serveur.droitIa) erreur(`chaque question à l'IA coûte : dites qui peut la poser, par exemple « connecte peut demander a ia ».`, serveur.ia.ligne);
   if (serveur.droitIa && !serveur.ia) erreur(`« peut demander a ia » demande la ligne « ia par anthropic » dans le serveur "${serveur.nom}".`, serveur.droitIa.ligne);
@@ -207,7 +229,7 @@ function verifierRegleChamp(champ: Donnee['champs'][number], donnee: Donnee, ser
   } else if (champ.nonVide && (regle?.genre === 'depart' || regle?.genre === 'nombreDe' || regle?.genre === 'somme')) {
     erreur(`« ${nom} » : le serveur donne déjà cette valeur, « non vide » ne sert à rien ici.`, ligne);
   }
-  if (!regle || regle.genre === 'groupe') return;
+  if (!regle || regle.genre === 'groupe' || regle.genre === 'auteur') return;
   const champDe = (d: Donnee | undefined, c: string) => d?.champs.find((x) => simplifier(x.nom) === simplifier(c));
   const prixDe = (donneeLue: string, prix: string) => {
     const lue = serveur.donnees.find((d) => d.nom === donneeLue);
