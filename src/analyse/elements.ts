@@ -28,7 +28,7 @@ export interface FormulaireRecense {
 export type Resolution =
   | { ids: string[] }
   | { erreur: 'inconnu' }
-  | { erreur: 'ambigu'; lignes: [number, number] };
+  | { erreur: 'ambigu'; lignes: [number, number]; candidats: string[] };
 
 /** « Se connecter » devient « se_connecter », « Réussite ! » « reussite ». */
 export function simplifier(texte: string): string {
@@ -50,6 +50,8 @@ export class ElementsPage {
   readonly formulaires: FormulaireRecense[] = [];
   private readonly ids = new Map<Element, string>();
   private readonly idsPris = new Set<string>();
+  /** Les branches « si » / « sinon » qui contiennent chaque élément : deux branches d'un même « si » ne coexistent jamais. */
+  private readonly branchesDe = new Map<string, { condition: Instruction; cote: 'alors' | 'sinon' }[]>();
 
   constructor(page: Page, diagnostics: Diagnostic[]) {
     this.recenser(page.corps, diagnostics);
@@ -78,6 +80,18 @@ export class ElementsPage {
     return this.formulaires.filter((f) => noeuds.has(f.noeud));
   }
 
+  /** Ces éléments ne s'affichent jamais ensemble : deux à deux, l'un est dans « si », l'autre dans le « sinon » du même « si ». */
+  exclusifs(ids: string[]): boolean {
+    for (let i = 0; i < ids.length; i++) {
+      for (let j = i + 1; j < ids.length; j++) {
+        const autres = this.branchesDe.get(ids[j]) ?? [];
+        const separes = (this.branchesDe.get(ids[i]) ?? []).some((a) => autres.some((b) => b.condition === a.condition && b.cote !== a.cote));
+        if (!separes) return false;
+      }
+    }
+    return ids.length > 1;
+  }
+
   /** Cherche d'abord parmi les noms, puis parmi les libellés. */
   resoudre(texte: string, genre?: Element['element'], parmi?: ElementRecense[]): Resolution {
     const candidats = (parmi ?? this.elements).filter(
@@ -90,26 +104,27 @@ export class ElementsPage {
     const parLibelle = candidats.filter((e) => e.libelle === texte || e.modele === texte);
     if (parLibelle.length === 0) return { erreur: 'inconnu' };
     if (parLibelle.length > 1) {
-      return { erreur: 'ambigu', lignes: [parLibelle[0].ligne, parLibelle[1].ligne] };
+      return { erreur: 'ambigu', lignes: [parLibelle[0].ligne, parLibelle[1].ligne], candidats: parLibelle.map((e) => e.id) };
     }
     // Un seul élément, même répété par une boucle : on vise chacun d'eux.
     return { ids: [parLibelle[0].id] };
   }
 
-  private recenser(instructions: Instruction[], diagnostics: Diagnostic[], formulaire?: FormulaireRecense): void {
+  private recenser(instructions: Instruction[], diagnostics: Diagnostic[], formulaire?: FormulaireRecense, branches: { condition: Instruction; cote: 'alors' | 'sinon' }[] = []): void {
     for (const instruction of instructions) {
       if (instruction.type === 'Element') {
         const id = this.ajouter(instruction, diagnostics);
+        if (branches.length > 0) this.branchesDe.set(id, branches);
         if (formulaire && instruction.element === 'champ') formulaire.champs.push(id);
       } else if (instruction.type === 'Condition') {
-        this.recenser(instruction.alors, diagnostics, formulaire);
-        this.recenser(instruction.sinon, diagnostics, formulaire);
+        this.recenser(instruction.alors, diagnostics, formulaire, [...branches, { condition: instruction, cote: 'alors' }]);
+        this.recenser(instruction.sinon, diagnostics, formulaire, [...branches, { condition: instruction, cote: 'sinon' }]);
       } else if (instruction.type === 'Boucle' || instruction.type === 'Bloc' || instruction.type === 'Fenetre') {
-        this.recenser(instruction.corps, diagnostics, formulaire);
+        this.recenser(instruction.corps, diagnostics, formulaire, branches);
       } else if (instruction.type === 'Formulaire') {
         // Un formulaire dans un formulaire est refusé par l'analyse : ses champs vont au premier.
         const recense = formulaire ?? this.ajouterFormulaire(instruction);
-        this.recenser(instruction.corps, diagnostics, recense);
+        this.recenser(instruction.corps, diagnostics, recense, branches);
       }
     }
   }
