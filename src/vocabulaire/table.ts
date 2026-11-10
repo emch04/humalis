@@ -422,7 +422,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     },
     couvre: ['html:class', 'html:style', 'css'],
     description:
-      'Du CSS. Avec « avec style "classe" », donne une classe CSS à un élément. Seul en haut du fichier (« style : »), ouvre un bloc de CSS recopié tel quel.',
+      'Du CSS. Avec « avec style "classe" », donne une classe CSS à un élément. Seul en haut du fichier (« style : »), ouvre un bloc de CSS recopié tel quel. « style "carte" : » ouvre un style écrit en Humalis, une propriété par ligne (fond blanc, bord 1 gris clair, arrondi 12, espace interieur 16, ombre douce) : il vaut sur toutes les cibles, téléphone compris.',
     exemple: 'style :\n    .grand { font-size: 3rem; }\n\npage "accueil" :\n    titre "Bienvenue" avec style "grand"',
     statut: 'supporte',
     etape: 0,

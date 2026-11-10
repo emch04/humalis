@@ -61,6 +61,7 @@ describe('catalogue des erreurs', () => {
       compter(lire('src/parser/interactions.ts'), /new ErreurSyntaxique\(/g) +
       compter(lire('src/analyse/interactions.ts'), /\b(erreur|avertissement)\(\s*[`'"]/g) +
       compter(lire('src/parser/langues.ts'), /new ErreurSyntaxique\(/g) +
+      compter(lire('src/parser/styleHumalis.ts'), /new ErreurSyntaxique\(/g) +
       compter(lire('src/analyse/langues.ts'), /\b(erreur|avertir)\(\s*[`'"]/g) +
       compter(lire('src/parser/fichier.ts'), /new ErreurSyntaxique\(/g) +
       compter(lire('src/analyse/fichiers.ts'), /\bs\.(erreur|avertissement)\(/g) +

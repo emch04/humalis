@@ -77,6 +77,7 @@ export function construireRepresentation(
   const application: Application = {
     ecrans: programme.pages.map((page) => new Construction(page, analyse).ecran()),
     css: programme.styles.map((b) => b.css),
+    ...(programme.stylesHumalis ? { stylesHumalis: programme.stylesHumalis } : {}),
     fichiersStyle: programme.fichiersStyle.map((f) => ({ chemin: f.chemin, ligne: f.ligne, ...(f.plateforme ? { plateforme: f.plateforme } : {}) })),
     partages: programme.partages.map((d) => etatDe(d, analyse)),
     // Une source à jeton secret passe par le premier serveur du programme : lui seul lit le secret.

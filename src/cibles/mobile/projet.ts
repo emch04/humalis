@@ -19,7 +19,7 @@ import { genererEcran, genererFonctions, type ContexteApplication } from '../web
 import { avecEchecs, cheminsDesPages, donneesDesPages, donneesTs, partageTsx, outils } from '../web/projet.js';
 import { COULEURS_CSS } from '../web/styles.js';
 import { pascal } from '../web/noms.js';
-import { RENDU_MOBILE } from './rendu.js';
+import { RENDU_MOBILE, nomStyle } from './rendu.js';
 import { fichiersDesInteractions, gestionnairesDuProgramme } from '../web/interactions.js';
 import { langueMobileTsx } from '../web/langue.js';
 import { messagesDuProjet } from '../../i18n/messages.js';
@@ -69,7 +69,9 @@ export const VERSIONS_MOBILE = {
 export const MARQUE_MOBILE = '.humalis-projet';
 
 /** Les fichiers d'un projet Expo complet (expo-router), prêt à lancer. */
-export function genererProjetMobile(application: Application, options: OptionsMobile): Map<string, string> {
+export function genererProjetMobile(applicationLue: Application, options: OptionsMobile): Map<string, string> {
+  // « style "carte" : » : sur le téléphone, chaque style écrit en Humalis devient un style nommé de plus.
+  const application = avecStylesHumalis(applicationLue);
   const fichiers = new Map<string, string>();
   const chemins = cheminsDesPages(application);
   const slug = simplifier(options.nom).replace(/_/g, '-') || 'application-humalis';
@@ -176,6 +178,7 @@ export function genererProjetMobile(application: Application, options: OptionsMo
       codes.some((c) => /\bs\.(section|bloc|ligne|colonne|grille|menu)\b/.test(c)),
       application.theme,
       codes,
+      application.stylesHumalis,
     ),
   );
   if (application.fonctions.length > 0) fichiers.set('humalis/fonctions.ts', genererFonctions(application.fonctions, contexte));
@@ -269,11 +272,12 @@ export function verifierPourLeMobile(application: Application): Diagnostic[] {
   const apercu = application.ecrans.find((e) => e.apercu);
   if (apercu) avertir(apercu.ligne, "« apercu » est sans effet sur le mobile : une application n'a ni onglet, ni moteur de recherche, ni aperçu de partage.");
 
-  // M4 : le CSS ne s'applique pas sur le mobile.
-  const CSS = "le CSS ne s'applique pas sur le mobile : seuls les styles nommés (couleur, fond, texte, taille, position, bordure) y sont traduits.";
+  // M4 : le CSS ne s'applique pas sur le mobile ; les styles écrits en Humalis, si.
+  const CSS = "le CSS ne s'applique pas sur le mobile : seuls les styles nommés (couleur, fond, texte, taille, position, bordure) et les styles écrits en Humalis (style \"nom\" :) y sont traduits.";
+  const deHumalis = new Set((application.stylesHumalis ?? []).map((s) => s.nom));
   const elements = [...application.ecrans, ...application.composants].flatMap((e) => elementsDe(e.vue));
-  const avecClasse = elements.find((e) => e.classes.length > 0);
-  if (application.css.length > 0 || application.fichiersStyle.length > 0 || avecClasse) {
+  const avecClasse = elements.find((e) => e.classes.some((c) => !deHumalis.has(c)));
+  if (application.css.length > deHumalis.size || application.fichiersStyle.length > 0 || avecClasse) {
     avertir(application.fichiersStyle[0]?.ligne ?? avecClasse?.ligne ?? 1, CSS);
   }
 
@@ -1275,7 +1279,53 @@ export function useMemoriseSecret<T>(cle: string, initiale: T): [T, (valeur: T) 
 }
 
 /** Les styles nommés en StyleSheet, en clair et en sombre (décision M3). */
-function styles(formulaires = false, blocs = false, theme?: ThemeRI, codes: string[] = []): string {
+/** Les déclarations d'un style écrit en Humalis, en style React Native. */
+export function styleNatifDe(declarations: [string, string][]): string {
+  const couleur = (v: string) => JSON.stringify(/var\(--[^,]+,\s*([^)]+)\)/.exec(v)?.[1]?.trim() ?? v);
+  const points = (v: string) => v.split(/\s+/).map((x) => parseFloat(x));
+  const cotes = (prefixe: string, v: string) => {
+    const n = points(v);
+    const [h, d, b, g] = n.length === 1 ? [n[0], n[0], n[0], n[0]] : n.length === 2 ? [n[0], n[1], n[0], n[1]] : n.length === 3 ? [n[0], n[1], n[2], n[1]] : n;
+    return `${prefixe}Top: ${h}, ${prefixe}Right: ${d}, ${prefixe}Bottom: ${b}, ${prefixe}Left: ${g}`;
+  };
+  const morceaux = declarations.flatMap(([p, v]): string[] => {
+    switch (p) {
+      case 'background': return [`backgroundColor: ${couleur(v)}`];
+      case 'color': return [`color: ${couleur(v)}`];
+      case 'border': { const [e, , ...c] = v.split(' '); return [`borderWidth: ${parseFloat(e!)}`, `borderColor: ${couleur(c.join(' ') || '#000000')}`]; }
+      case 'border-radius': return [`borderRadius: ${points(v)[0]}`];
+      case 'padding': return [cotes('padding', v)];
+      case 'margin': return [cotes('margin', v)];
+      case 'font-size': return [`fontSize: ${points(v)[0]}`];
+      case 'max-width': return [`maxWidth: ${points(v)[0]}`, "width: '100%'"];
+      case 'font-weight': return ["fontWeight: '700'"];
+      case 'text-align': return [`textAlign: ${JSON.stringify(v)}`];
+      case 'box-shadow':
+        return v === 'none' ? ['shadowOpacity: 0', 'elevation: 0'] : v.includes('32px') ? ["shadowColor: '#000000'", 'shadowOpacity: 0.14', 'shadowRadius: 16', 'shadowOffset: { width: 0, height: 8 }', 'elevation: 8'] : ["shadowColor: '#000000'", 'shadowOpacity: 0.08', 'shadowRadius: 6', 'shadowOffset: { width: 0, height: 2 }', 'elevation: 2'];
+      default: return [];
+    }
+  });
+  return `{ ${morceaux.join(', ')} }`;
+}
+
+/** Chaque élément qui porte un style écrit en Humalis reçoit une option « humalis » : elle devient un style nommé. */
+function avecStylesHumalis(application: Application): Application {
+  const noms = new Set((application.stylesHumalis ?? []).map((s) => s.nom));
+  if (noms.size === 0) return application;
+  const marquer = (v: unknown): unknown => {
+    if (Array.isArray(v)) return v.map(marquer);
+    if (!v || typeof v !== 'object') return v;
+    const o = Object.fromEntries(Object.entries(v).map(([k, x]) => [k, marquer(x)])) as Record<string, unknown>;
+    if (Array.isArray(o.classes) && Array.isArray(o.options)) {
+      const siens = (o.classes as string[]).filter((c) => noms.has(c));
+      if (siens.length) o.options = [...(o.options as unknown[]), ...siens.map((c) => ({ nom: 'humalis', valeur: c }))];
+    }
+    return o;
+  };
+  return { ...application, ecrans: marquer(application.ecrans) as Application['ecrans'], composants: marquer(application.composants) as Application['composants'], ...(application.disposition ? { disposition: marquer(application.disposition) as Application['disposition'] } : {}) };
+}
+
+function styles(formulaires = false, blocs = false, theme?: ThemeRI, codes: string[] = [], stylesHumalis: { nom: string; declarations: [string, string][] }[] = []): string {
   const TAILLES: Record<string, number> = { petite: 14, normale: 16, grande: 32, tres_grande: 48 };
   const POSITIONS: Record<string, [string, string]> = {
     gauche: ['left', 'flex-start'],
@@ -1342,6 +1392,8 @@ function styles(formulaires = false, blocs = false, theme?: ThemeRI, codes: stri
           ]
         : []),
     ];
+    // Les styles écrits en Humalis (« style "carte" : »), pareils en clair et en sombre.
+    for (const s of stylesHumalis) lignes.push(`${nomStyle({ nom: 'humalis', valeur: s.nom })}: ${styleNatifDe(s.declarations)},`);
     for (const [option, { valeurs }] of Object.entries(OPTIONS)) {
       for (const valeur of valeurs) {
         const nom = (o: string) => pascal(`${o}_${valeur}`).replace(/^./, (c) => c.toLowerCase());
