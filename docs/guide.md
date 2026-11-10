@@ -3341,13 +3341,18 @@ Les autres étapes : `remplir champ "email" avec "…"`, `aller vers "panier"`,
 | `humalis packs` | dit si les packs Astratra ont des mises à jour |
 
 Pour le web et le statique, `--adresse https://…` donne l'adresse finale du
-site (plan du site, liens de partage). Pour le desktop et Apple, `--serveur https://…`
+site (plan du site, liens de partage). Pour le desktop, Apple et Android, `--serveur https://…`
 donne l'adresse du serveur que l'application appelle.
 
 `--cible apple` produit un projet Xcode en SwiftUI : une seule application native
 pour iPhone, iPad et Mac, sans navigateur embarqué (Xcode 16 ou plus récent ; elle
 tourne à partir d'iOS 17 et de macOS 14). Pour la signer, ajoute
 `--identifiant com.exemple.application` et `--equipe ABCDE12345`.
+
+`--cible android` produit un projet Android natif, en Kotlin et Jetpack Compose,
+construit par Gradle : sans navigateur embarqué ni JavaScript. L'application tourne
+à partir d'Android 8.0. Ouvre le dossier dans Android Studio, ou construis-le avec
+`gradle assembleDebug`. `--identifiant com.exemple.application` choisit son identifiant.
 
 Avec `humalis developper`, chaque élément de la page porte son fichier
 Humalis et sa ligne : dans l'inspecteur du navigateur, un titre montre par
@@ -3379,22 +3384,45 @@ Le même fichier donne toutes les cibles. Quand une construction n'existe pas
 sur une cible, le compilateur le dit clairement au lieu de produire quelque
 chose de faux.
 
-| | web | statique | mobile | desktop | apple |
-|---|---|---|---|---|---|
-| Pages, éléments, styles, thème | oui | oui | oui | oui | oui |
-| Ton propre CSS | oui | oui | non (styles nommés seulement) | oui | en partie (règles d'une classe ; le reste est listé) |
-| Requêtes vers un serveur | oui | oui | oui | oui | oui |
-| `memorisee` | oui | oui | oui | oui | oui |
-| `memorisee en secret` | non | non | oui | oui | oui (Keychain) |
-| `essayer` | oui | non | oui | oui | oui |
-| Raccourcis clavier | oui | oui | non | oui | oui |
-| Composants React | oui | non | oui (en React Native) | oui | non (`sur apple "Vue.swift"`) |
-| Le moteur sans React (par défaut) | oui | non | non | oui (sauf composant React ou `memorisee en secret`) | non |
-| Photo, scanner, Face ID, vibration, signature, hors ligne | oui (vibration : Android) | non | non | non | oui |
-| `en arriere plan` | non | non | non | non | oui |
-| Plan du site, aperçu de partage | oui | oui | non | non | non |
+| | web | statique | mobile | desktop | apple | android |
+|---|---|---|---|---|---|---|
+| Pages, éléments, styles, thème | oui | oui | oui | oui | oui | oui |
+| Ton propre CSS | oui | oui | non (styles nommés seulement) | oui | en partie (règles d'une classe ; le reste est listé) | non (styles nommés seulement) |
+| Requêtes vers un serveur | oui | oui | oui | oui | oui | oui |
+| `memorisee` | oui | oui | oui | oui | oui | oui |
+| `memorisee en secret` | non | non | oui | oui | oui (Keychain) | oui (Keystore) |
+| `essayer` | oui | non | oui | oui | oui | oui |
+| Raccourcis clavier | oui | oui | non | oui | oui | non |
+| Composants React | oui | non | oui (en React Native) | oui | non (`sur apple "Vue.swift"`) | non |
+| Le moteur sans React (par défaut) | oui | non | non | oui (sauf composant React ou `memorisee en secret`) | non | non |
+| Photo, scanner, Face ID, vibration, signature, hors ligne | oui (vibration : Android) | non | non | non | oui | non |
+| `en arriere plan` | non | non | non | non | oui | non |
+| Plan du site, aperçu de partage | oui | oui | non | non | non | non |
 
 Le serveur (`--cible serveur`) se produit à part, depuis le bloc `serveur`.
+
+### L'application Android
+
+`--cible android` écrit du Kotlin lisible : chaque page est une fonction Compose,
+ses variables sont des états, ses événements des fonctions qui attendent le serveur
+sans bloquer l'écran. La navigation passe par Navigation Compose, et le bouton
+retour d'Android revient à la page d'avant. Les icônes sont celles du web.
+
+```sh
+humalis compile taches.humalis --cible android --sortie taches-android --serveur https://api.monsite.fr
+```
+
+- Les valeurs `memorisee` restent sur l'appareil ; `memorisee en secret` et la session
+  passent par un coffre chiffré par le Keystore d'Android.
+- Depuis l'émulateur, l'ordinateur s'appelle `10.0.2.2` : un serveur lancé sur
+  `http://localhost:3000` y est appelé tout seul. Sinon, seul `https://` est permis.
+- Les onglets de l'application sont une barre en bas de l'écran.
+
+Ce qui n'existe pas encore sur Android, et que la compilation refuse en le disant :
+plusieurs langues, les sous-pages (`page "…" dans "…"`), les graphiques, les cartes,
+le son, la vidéo, le code QR, le choix d'un fichier, la photo, le scanner, la
+connexion avec Google ou Apple, le paiement, l'IA et les notifications. Le CSS et les
+polices du thème ne sont pas encore traduits : l'application suit les styles nommés.
 
 ### Le moteur de rendu de Humalis
 

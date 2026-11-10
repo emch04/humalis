@@ -1,0 +1,70 @@
+# L'essai de bout en bout de la cible Android (scripts/essai-android.mjs) :
+# lire le serveur, se connecter, revenir à la page réservée, ajouter et
+# supprimer, dans une vraie application sur l'émulateur.
+theme :
+    couleur marque "#0f766e"
+
+serveur "taches" :
+    donnee tache :
+        titre : texte
+        faite : booleen au depart faux
+    route "taches" :
+        tout le monde peut lire tache
+        connecte peut creer tache
+        connecte peut supprimer tache
+    donnees de depart pour tache :
+        titre "Acheter du pain"
+        titre "Appeler le plombier", faite vrai
+
+page "accueil" :
+    variable taches = []
+    variable filtre = ""
+    calcul visibles = taches dont titre contient filtre
+    titre "Mes tâches"
+    texte "{nombre de visibles} tâches sur {nombre de taches}"
+    champ "Chercher"
+    quand l'utilisateur ecrit dans "Chercher" :
+        changer filtre par champ "Chercher"
+    pour chaque t dans visibles :
+        ligne :
+            si t.faite :
+                texte "✓ {t.titre}" avec couleur vert
+            sinon :
+                texte t.titre
+    bouton "Ajouter une tâche" avec fond vert
+    quand l'utilisateur clique sur "Ajouter une tâche" :
+        rediriger vers "ajout"
+    quand la page se charge :
+        envoyer requete vers "taches" dans taches
+
+page "ajout" reservee a connecte sinon vers "connexion" :
+    variable taches = []
+    titre "Nouvelle tâche"
+    formulaire "tache" :
+        champ "Titre" avec obligatoire
+        bouton "Enregistrer"
+    quand le formulaire "tache" est soumis :
+        envoyer requete vers "taches" avec titre = champ "Titre"
+        afficher reussite "Tâche ajoutée"
+        envoyer requete vers "taches" dans taches
+    pour chaque t dans taches :
+        ligne :
+            texte t.titre
+            bouton "Supprimer"
+            quand l'utilisateur clique sur "Supprimer" :
+                confirmer "Supprimer « {t.titre} » ?" :
+                    supprimer t de "taches"
+                    envoyer requete vers "taches" dans taches
+    lien "Retour" vers "accueil"
+    quand la page se charge :
+        envoyer requete vers "taches" dans taches
+
+page "connexion" :
+    titre "Connexion"
+    formulaire "connexion" :
+        champ email "Email" avec obligatoire
+        champ mot de passe "Mot de passe" avec obligatoire
+        bouton "Se connecter"
+    quand le formulaire "connexion" est soumis :
+        se connecter avec champ "Email" et champ "Mot de passe"
+        continuer vers "accueil"

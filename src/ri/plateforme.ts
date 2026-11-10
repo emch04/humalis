@@ -8,6 +8,7 @@ import type { Application } from './types.js';
 const VISEES: Record<string, string[]> = {
   apple: ['application', 'apple', 'ios', 'macos'],
   mobile: ['application'],
+  android: ['application'],
   desktop: ['application'],
   web: ['site'],
   statique: ['site'],
