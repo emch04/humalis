@@ -40,7 +40,7 @@ public static class CaptureErreurs
     private static void Signaler(Exception? exception)
     {
         if (exception is null) return;
-        var rapport = new Rapport(Nettoyer(exception.Message), Nettoyer(exception.StackTrace), "", "1.0.0");
+        var rapport = new Rapport(Nettoyer(exception.Message), Nettoyer(exception.StackTrace), Routeur.Page?.GetType().Name ?? "", System.Reflection.Assembly.GetEntryAssembly()?.GetName().Version?.ToString() ?? "");
         var cle = rapport.message + "|" + rapport.pile.Split('\\n')[0];
         lock (Verrou) {
             if (enCours) return;

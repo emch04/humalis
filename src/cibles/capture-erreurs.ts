@@ -44,7 +44,7 @@ export function requetesCapture(formes: FormesRI | undefined): { requetes: Reque
 /** Petit module autonome, chargé avant les pages web, React ou statiques. */
 export function codeCaptureNavigateur(requetes: RequeteCapture[], version = '1.0.0'): string {
   const corps = requetes.map((r) => `    try {
-      await fetch(${JSON.stringify(r.adresse)}, { method: 'POST', credentials: 'omit', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ${r.champs.map((c) => `${JSON.stringify(c.nom)}: ${typeof c.valeur === 'string' ? `erreur.${c.valeur}` : JSON.stringify(c.valeur.texte)}`).join(', ')} }), signal: AbortSignal.timeout(3000) });
+      await fetch(${JSON.stringify(r.adresse)}, { method: 'POST', credentials: 'omit', signal: AbortSignal.timeout(3000), headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ${r.champs.map((c) => `${JSON.stringify(c.nom)}: ${typeof c.valeur === 'string' ? `erreur.${c.valeur}` : JSON.stringify(c.valeur.texte)}`).join(', ')} }), signal: AbortSignal.timeout(3000) });
     } catch { /* L'échec d'envoi ne devient pas une nouvelle erreur. */ }`).join('\n');
   return `// Produit par Humalis : capture des erreurs du navigateur.
 const passages = new Map();
@@ -124,7 +124,7 @@ if (utilitaire?.setGlobalHandler) {
 /** Le processus principal Electron garde sa propre capture, distincte des fenêtres. */
 export function codeCaptureNode(requetes: RequeteCapture[], version = '1.0.0'): string {
   const corps = requetes.map((r) => `    try {
-      await fetch(${JSON.stringify(r.adresse)}, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ${r.champs.map((c) => `${JSON.stringify(c.nom)}: ${typeof c.valeur === 'string' ? `erreur.${c.valeur}` : JSON.stringify(c.valeur.texte)}`).join(', ')} }), signal: AbortSignal.timeout(3000) });
+      await fetch(${JSON.stringify(r.adresse)}, { method: 'POST', signal: AbortSignal.timeout(3000), headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ${r.champs.map((c) => `${JSON.stringify(c.nom)}: ${typeof c.valeur === 'string' ? `erreur.${c.valeur}` : JSON.stringify(c.valeur.texte)}`).join(', ')} }), signal: AbortSignal.timeout(3000) });
     } catch { /* Un échec d'envoi ne plante pas le processus principal. */ }`).join('\n');
   return `// @ts-nocheck
 // Produit par Humalis : capture du processus principal Electron.

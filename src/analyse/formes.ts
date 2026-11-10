@@ -40,6 +40,7 @@ export function analyserFormes(programme: Programme, analyserCommePage: (page: P
       parametres: [],
       corps: sorte === 'vue' ? [...avant, ...corps] : [...avant, { type: 'Evenement', genre: 'chargement', corps, ligne }],
       ligne,
+      ...(forme === formes?.erreurArrive ? { captureErreurs: true as const } : {}),
     };
     analyserCommePage(page);
     pages.set(forme, page);

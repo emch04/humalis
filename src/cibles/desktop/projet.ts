@@ -183,6 +183,11 @@ export function adressesDuServeur(application: Application): { relais: string[];
       if (chemin !== '' && !relais.some((r) => chemin === r || chemin.startsWith(`${r}/`))) relais.push(chemin);
     }
   }
+  // La capture des erreurs envoie ses rapports depuis les fenêtres : la politique de contenu doit le permettre.
+  for (const r of requetesCapture(application.formes).requetes) {
+    const origine = new URL(r.adresse).origin;
+    if (!origines.includes(origine)) origines.push(origine);
+  }
   return { relais, origines };
 }
 

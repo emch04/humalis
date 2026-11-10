@@ -2501,8 +2501,10 @@ function analyserRequete(flux: FluxTokens, ligne: number): Requete {
         break;
       }
       // « avec customer = client » : le nom donné à la donnée envoyée (l'API attend ce nom).
-      const nomme = flux.verifierNom() && flux.regarder(1).type === 'PONCTUATION' && flux.regarder(1).valeur === '=';
-      cles.push(nomme ? flux.attendreNom('le nom de la donnée envoyée').nom : undefined);
+      // Avant « = », un mot du langage reste un nom : « page = erreur.page ».
+      const nomme = estMot(flux.actuel()) && flux.regarder(1).type === 'PONCTUATION' && flux.regarder(1).valeur === '=';
+      const cle = nomme ? flux.avancer() : undefined;
+      cles.push(cle ? cle.original ?? cle.valeur : undefined);
       if (nomme) flux.avancer();
       donnees.push(nomme ? analyserExpression(flux) : analyserOperande(flux));
     } while (flux.accepter('MOT_CLE', 'et'));
@@ -3290,8 +3292,8 @@ function analyserValeur(flux: FluxTokens): Expression {
   if (flux.verifierNom()) {
     flux.avancer();
     let valeur: Expression = { type: 'Reference', nom: token.original ?? token.valeur, ligne: token.ligne };
-    // « p.prix » : un champ d'une donnée du serveur.
-    while (flux.verifier('PONCTUATION', '.') && estUnNom(flux.regarder(1))) {
+    // « p.prix » : un champ d'une donnée du serveur. Après le point, un mot du langage reste un nom (« erreur.page »).
+    while (flux.verifier('PONCTUATION', '.') && estMot(flux.regarder(1))) {
       flux.avancer();
       const champ = flux.avancer();
       valeur = { type: 'AccesChamp', objet: valeur, champ: champ.original ?? champ.valeur, ligne: token.ligne };

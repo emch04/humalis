@@ -2652,7 +2652,7 @@ class AnalysePage {
       this.resultat.adressesRequetes.set(requete, `/api/${adresseNormalisee(requete.adresse)}`);
       return;
     }
-    if (this.liens.routes.size === 0) {
+    if (this.liens.routes.size === 0 || (this.page.captureErreurs && /^https:\/\//i.test(requete.adresse))) {
       // Une adresse hors du fichier : « avec id » reste une lecture, jamais un envoi.
       if (requete.parId) this.resultat.lecturesUn.add(requete);
       return;

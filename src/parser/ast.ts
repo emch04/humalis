@@ -533,6 +533,8 @@ export interface Page {
   reglages?: boolean;
   /** « page "x" en pleine fenetre : » : sur Apple, le contenu va jusqu'aux bords de la fenêtre. */
   pleineFenetre?: boolean;
+  /** La page qui représente « quand une erreur arrive » : ses requêtes partent vers une adresse complète, hors du serveur du fichier. */
+  captureErreurs?: true;
   /** « page "rapide" dans la barre du systeme avec icone "horloge" : » : barre des menus du Mac, zone de notification. */
   barreSysteme?: { icone?: string };
   /** « page "x" sur montre : », « sur tele : » : la page de l'application de la montre ou de la télévision. */

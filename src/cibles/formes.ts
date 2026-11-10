@@ -111,8 +111,8 @@ function formesDuProgramme(application: Application): { forme: Forme; quoi: stri
 export function verifierFormesPourLaCible(application: Application, cible: string): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
   if (application.formes?.erreurArrive) {
-    if (cible === 'serveur') diagnostics.push({ gravite: 'erreur', ligne: application.formes.erreurArrive.ligne, message: 'la capture de l’application ne s’exécute pas sur le serveur : écrivez « quand une erreur arrive » dans le bloc serveur.' });
-    else for (const message of requetesCapture(application.formes).erreurs) diagnostics.push({ gravite: 'erreur', ligne: application.formes.erreurArrive.ligne, message });
+    // Un même fichier se compile pour le serveur et pour les applications : le serveur ignore la capture des pages.
+    if (cible !== 'serveur') for (const message of requetesCapture(application.formes).erreurs) diagnostics.push({ gravite: 'erreur', ligne: application.formes.erreurArrive.ligne, message });
   }
   const ignorees: string[] = [];
   const ecrites = ECRITES[cible] ?? new Set<Forme>();
