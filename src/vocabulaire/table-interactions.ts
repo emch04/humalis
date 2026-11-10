@@ -36,6 +36,16 @@ function mot(entree: Omit<EntreeVocabulaire, 'variantes' | 'contextes' | 'statut
 }
 
 export const ENTREES_INTERACTIONS: EntreeVocabulaire[] = [
+  mot({
+    mot: 'requete',
+    accentue: 'requête',
+    categorie: 'action',
+    concept: 'action.captureErreur',
+    cibles: ecran('fetch HTTPS borné', 'fetch HTTPS borné', 'fetch HTTPS borné'),
+    couvre: [],
+    description: 'Dans « quand une erreur arrive », envoie des champs sûrs vers une adresse HTTPS.',
+    exemple: 'quand une erreur arrive :\n    envoyer requete vers "https://centrale.exemple.fr/v1/envoi" avec message = erreur.message\n' + PAGE('    titre "Accueil"'),
+  }),
   // ─── Les messages ────────────────────────────────────────────────────
   mot({
     mot: 'reussite',

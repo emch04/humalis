@@ -8,7 +8,7 @@ Humalis est un langage en français. Un fichier .humalis décrit des pages, des 
 - Les éléments d’écran pris en charge : titre, texte, image, bouton, lien, champ, formulaire, section, bloc, ligne, colonne, grille, liste numérotée, sous-titre, liste, tableau, fenêtre, vidéo, menu, icône, badge, avatar, progression, chargement, étoiles, compteur, code QR, onglets, onglet, déroulant, accordéon, carrousel, fil d’Ariane, audio, fichier, carte, marqueur, graphique, série, sélecteur. Leur texte s’écrit entre guillemets.
 - Déclare une valeur avec `variable nom = valeur` ; une condition commence par `si ... :`.
 - Les événements pris en charge : quand, utilisateur, clique, sur, survole, charge, soumis, ecrit, arrête d’écrire, appuie, arrive en bas de, l’ordre de … change. Écris l’événement sous l’élément visé, puis l’action dans son bloc.
-- Les actions prises en charge : afficher, erreur, montrer, cacher, changer, rediriger, ajouter, retirer, envoyer, requête, connecter, déconnecter, connecter avec apple, connecter avec google, inviter … comme admin, demander un lien de mot de passe pour …, choisir le mot de passe avec …, csv, télécharger bon, recharger, vider champ, basculer thème, continuer vers, revenir, réussite, avertissement, pendant, disparaître, action, après, toutes, copier, partager, confirmer, faire, refuser, notification, document, verifier, hors, position, liens, profonds, apple, ios, macos, android, windows, montre, tele, application, site, reglages, recherche, glissant, actualiser, tirant, options, etat, outils, groupe, table, domaine, arriere, plan, scanner, vibrer, identité, signature, paquet, swift, produit, activer, ia, payer, rôle, cle, acces, double, authentification, locale, chiffree, synchronisee, on, widget, activite, raccourcis, commande, vocale, dire, lancer, demarrage, discret, systeme, tuile, mini, voiture, clic, droit, fichiers, clavier, touche, partage, ouvre, boutons, commencer, terminer, barre, minutes, mettre, jour.
+- Les actions prises en charge : afficher, erreur, montrer, cacher, changer, rediriger, ajouter, retirer, envoyer, requête, connecter, déconnecter, connecter avec apple, connecter avec google, inviter … comme admin, demander un lien de mot de passe pour …, choisir le mot de passe avec …, csv, télécharger bon, recharger, vider champ, basculer thème, continuer vers, revenir, requête, réussite, avertissement, pendant, disparaître, action, après, toutes, copier, partager, confirmer, faire, refuser, notification, document, verifier, hors, position, liens, profonds, apple, ios, macos, android, windows, montre, tele, application, site, reglages, recherche, glissant, actualiser, tirant, options, etat, outils, groupe, table, domaine, arriere, plan, scanner, vibrer, identité, signature, paquet, swift, produit, activer, ia, payer, rôle, cle, acces, double, authentification, locale, chiffree, synchronisee, on, widget, activite, raccourcis, commande, vocale, dire, lancer, demarrage, discret, systeme, tuile, mini, voiture, clic, droit, fichiers, clavier, touche, partage, ouvre, boutons, commencer, terminer, barre, minutes, mettre, jour.
 - Les mots de liaison (ignorés dans une phrase mais interdits comme nom de variable) : le, la, les, un, une, des, de, du, à, au, aux, se, l', d', s', n', c', j', m', t'.
 - Les options d’un élément (après « avec », séparées par « et ») : et, minimum, maximum, avec, nom, partagée, mémorisée, secret, sans traduction, repliable, vertical, en cascade, indice, obligatoire, ancre, nouvel onglet, désactivé, accepte, latitude, longitude, zoom, tuiles, attribution, adresse, étiquette, étiquettes, valeur, message, annonce, raccourci, oui, h, jours, heures, regroupe, compte, rôles, seuls, peuvent, direct, déplacement, en.
 - Les droits d’une route du serveur : peut, lire, créer, modifier, supprimer, connecté, admin, seul, tout, monde, remplacement, auteur.
@@ -890,6 +890,17 @@ serveur "boutique" :
 - Une synchronisation vers une route inconnue : n'existe pas dans le serveur : une donnée locale se synchronise
 - Une clé d’accès que le serveur n’ouvre pas : demande la ligne « connexion par cle d'acces »
 - Une clé d’accès hors d’un événement : « se connecter par cle d'acces » ne s'utilise que dans un événement
+- Une capture déjà écrite dans l’application : est déjà écrit ligne
+- Une capture déjà écrite dans le serveur : est déjà écrit ligne
+- La destination de la requête manque : on écrit : envoyer requete vers
+- La requête exige HTTPS : adresse HTTPS complète
+- Les champs de la requête manquent : demande des champs
+- Un champ d’erreur inconnu : la capture ne connaît pas
+- Un champ envoyé deux fois : est envoyé deux fois
+- Un champ sensible envoyé : ne peut pas être envoyé
+- Une valeur non sûre dans le rapport : n’envoie que erreur.message
+- Une requête hors capture : s’écrit seulement dans
+- Une action non disponible dans la capture : seules les requêtes HTTP
 - Écrire le bloc optimiste : en supposant que ça marche
 - Fermer la phrase du bloc optimiste : deux-points après
 - Placer le bloc dans un événement : ne sert que dans un événement

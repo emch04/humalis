@@ -9,6 +9,7 @@ import { ligneLocale } from '../../fichiers.js';
 import type { ServeurRI, TypeChamp, QuiPeut } from '../../ri/types.js';
 import { simplifier } from '../../analyse/elements.js';
 import { pascal, camel } from '../web/noms.js';
+import { codeCaptureErreurs } from './capture-erreurs.js';
 
 export interface OptionsServeur {
   /** Le nom du projet, tiré du fichier Humalis. */
@@ -69,6 +70,7 @@ export function genererProjetServeur(serveur: ServeurRI, options: OptionsServeur
   fichiers.set('src/humalis/renouvellements.ts', RENOUVELLEMENTS);
   fichiers.set('src/humalis/sessions.ts', SESSIONS);
   fichiers.set('src/humalis/centrale.ts', CENTRALE);
+  if (serveur.captureErreurs) fichiers.set('src/humalis/capture-erreurs.ts', codeCaptureErreurs(serveur));
   fichiers.set('src/humalis/coffre.ts', coffreTs(serveur));
   fichiers.set('src/donnees.ts', donneesTs(serveur));
   if (avecEmails(serveur)) fichiers.set('src/humalis/emails.ts', EMAILS);
@@ -1268,6 +1270,7 @@ ${codePaiements(route, variable, garde('lire'), voir('lire'), separee, donnee)}$
 import { createSaasApp, ${comptes ? 'createMemoryPasswordResetStore, type PasswordResetStore, ' : ''}type UsersStore } from '@astratra/saas-kit';
 import { ${[...(serveur.connexionGoogle ? ['createGoogleIdTokenVerifier'] : []), ...(serveur.connexionApple ? ['createAppleIdTokenVerifier'] : []), ...(serveur.connexionGoogle || serveur.connexionApple ? ['IdTokenError'] : []), ...(serveur.invitations ? ['createApiLimiter'] : []), ...(comptes ? ['createMemoryRevocationStore'] : [])].map((n) => n + ', ').join('')}createLoginLimiter, hashPassword, isStrongPassword, verifyPasswordHash, WAF_PATTERNS } from '@astratra/security';
 import express, { type RequestHandler, type Response } from 'express';
+${serveur.captureErreurs ? "import { brancherErreursProcessus, rapporterErreur } from './humalis/capture-erreurs.js';\n" : ''}
 ${serveur.routes.some((r) => r.direct) ? "import { direct } from './humalis/direct.js';\n" : ''}import { ${schemas} } from './donnees.js';
 import type { Surveillance } from './humalis/centrale.js';
 import type { Coffre } from './humalis/coffre.js';
@@ -1357,6 +1360,7 @@ const sansCache = (res: Response) => res.set('Cache-Control', 'no-store');
  * routes des données s'ajoutent par extendRoutes, avec les gardes du pack.
  */
 export function creerServeur({ envois = creerEnvoisMemoire(), jwtSecret, usersStore${comptes ? ': tousLesComptes' : ''}, stockages${avecLogique(serveur) ? ', transaction = transactionMemoire(stockages)' : ''}${serveur.taches?.length ? ', reclamerTache' : ''}${avecNotifications(serveur) ? ', appareils = creerStockageMemoire()' : ''}${avecIa(serveur) ? ', compterIa = compterMemoire()' : ''}${serveur.connexionGoogle ? ', googleClientId, googleClientIdApple = () => undefined' : ''}${serveur.connexionApple ? ', identifiantsApple = () => ({})' : ''}, session = reglagesDeSession(process.env), surveillance, coffre${avecEmails(serveur) ? `, emails = creerEmails({ nom: ${boutique} })` : ''}${comptes ? ', jetons = createMemoryPasswordResetStore()' : ''} }: OptionsDuServeur) {
+${serveur.captureErreurs ? '  brancherErreursProcessus();\n' : ''}
   const renouvellement = creerRenouvellement(session);
 ${comptes ? codeCreationComptes(serveur, chemins).replace('usersStore,', 'usersStore: tousLesComptes,') + '  // Pour les packs, un compte retiré n\'existe plus.\n  const usersStore = sansLesRetires(tousLesComptes);\n' : ''}${envoisDansRoutes || employe(serveur, (i) => i.type === 'email' && i.a.genre === 'admins') ? `  const adressesDesAdmins = async () => (await usersStore.list({ role: 'admin', limit: 100 })).map((compte) => String(compte.email)).filter(Boolean);\n` : ''}${avecNotifications(serveur) ? '  const notifications = creerNotifications({ usersStore, appareils });\n' : ''}${avecPaiements(serveur) ? `  let surPaiement: SurPaiement<ReturnType<typeof nouveauTravail>, OptionsDuServeur['stockages']> = {};
   const paiements = creerPaiements({
@@ -1414,7 +1418,7 @@ ${google}
       app.use('/auth/cles', authMiddleware, authorizeAdmin, csrfMiddleware, coffre ? coffre.routes(authorizeAdmin) : coffreFerme);
 
 ${avecIa(serveur) ? routeIa(serveur) : ''}${avecNotifications(serveur) ? ROUTES_APPAREILS : ''}${codeCompleter(serveur)}${comptes ? codeRoutesComptes(serveur, adresseApi, (a) => `route${pascal(a)}`) : ''}${routes}${codePasserelles(serveur)}
-${fidelite}${avecPaiements(serveur) ? codeSurPaiement(serveur) : ''}${codeTaches(serveur)}      // Le dernier avant la réponse d'erreur du pack, qui répond ensuite comme d'habitude.
+${fidelite}${avecPaiements(serveur) ? codeSurPaiement(serveur) : ''}${codeTaches(serveur)}${serveur.captureErreurs ? "      app.use((erreur: unknown, req: express.Request, _res: express.Response, next: express.NextFunction) => { void rapporterErreur(erreur, req.path); next(erreur); });\n" : ''}      // Le dernier avant la réponse d'erreur du pack, qui répond ensuite comme d'habitude.
       if (surveillance) app.use(surveillance.gestionnaireErreurs());
     },
   });

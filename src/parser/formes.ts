@@ -118,6 +118,7 @@ export function estUneForme(flux: FluxTokens): boolean {
     (estLeMot(a, 'menu') && estLeMot(b, 'clic') && estLeMot(c, 'droit')) ||
     (estLeMot(a, 'clavier') && b.type === 'CHAINE') ||
     (estLeMot(a, 'quand') && estLeMot(b, 'on') && (estLeMot(c, 'partage') || estLeMot(c, 'ouvre'))) ||
+    (estLeMot(a, 'quand') && estLeMot(b, 'erreur') && estLeMot(c, 'arrive')) ||
     (estLeMot(a, 'quand') && estLeMot(b, 'utilisateur') && estLeMot(c, 'touche') && flux.regarder(3).type === 'CHAINE')
   );
 }
@@ -154,6 +155,14 @@ export function analyserForme(flux: FluxTokens, formes: Formes): void {
     });
     if (champs.length === 0) throw new ErreurSyntaxique('une donnée locale a au moins un champ : écrivez dessous, décalé, titre : texte', ligne);
     formes.donneesLocales.push({ nom: nomDonnee, chiffree, champs, ...(synchronisee !== undefined ? { synchronisee } : {}), ligne });
+    return;
+  }
+
+  if (estLeMot(debut, 'quand') && estLeMot(flux.regarder(1), 'erreur') && estLeMot(flux.regarder(2), 'arrive')) {
+    flux.avancer(); flux.avancer(); flux.avancer();
+    deuxPoints(flux, 'quand une erreur arrive');
+    if (formes.erreurArrive) throw new ErreurSyntaxique(`« quand une erreur arrive » est déjà écrit ligne ${formes.erreurArrive.ligne}.`, ligne);
+    formes.erreurArrive = { corps: analyserBloc(flux), ligne };
     return;
   }
 

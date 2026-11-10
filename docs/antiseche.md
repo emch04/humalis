@@ -1152,3 +1152,10 @@ afficher "Prêt" pendant 3 s
 ```humalis action
 afficher "Prêt" pendant 3 secondes
 ```
+
+### Capturer une erreur | Capture an error
+
+```humalis
+quand une erreur arrive :
+    envoyer requete vers "https://centrale.exemple.fr/v1/envoi" avec message = erreur.message et pile = erreur.pile
+```

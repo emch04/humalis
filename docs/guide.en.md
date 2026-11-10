@@ -4098,3 +4098,14 @@ site after an important deletion.
 | `se connecter`, `se deconnecter`, `utilisateur` | log in, log out, user |
 | `langues`, `traductions`, `selecteur de langue` | languages, translations, language switcher |
 | `composant`, `parametre`, `utiliser` | component, parameter, use |
+
+## Capture application errors
+
+Place this form at the top of the file. Its body receives `erreur.message`, `erreur.pile`, `erreur.page`, and `erreur.version`.
+
+```humalis
+quand une erreur arrive :
+    envoyer requete vers "https://centrale.exemple.fr/v1/envoi" avec message = erreur.message et pile = erreur.pile
+```
+
+The capture uses each target's native error hooks. Fatal Apple and Android errors are saved and sent on the next launch. The same form can appear inside `serveur "api" :`. HTTPS requests time out after three seconds; sending failures are swallowed, and the same error is limited to three reports per minute. Passwords, secrets, URL parameters, and form contents are not sent.
