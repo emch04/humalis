@@ -68,7 +68,9 @@ zipStoreBase=GRADLE_USER_HOME
 zipStorePath=wrapper/dists
 `;
 
-export function constructionApp(identifiant: string, nomAffiche: string, avec: { appareil?: boolean; scanner?: boolean; qr?: boolean; lecteurs?: boolean; cartes?: boolean; google?: boolean; apple?: boolean; travail?: boolean; notifications?: boolean; paquets?: { nom: string; version: string }[] } = {}): string {
+export function constructionApp(identifiant: string, nomAffiche: string, avec: { appareil?: boolean; scanner?: boolean; qr?: boolean; lecteurs?: boolean; cartes?: boolean; google?: boolean; apple?: boolean; travail?: boolean; notifications?: boolean; paquets?: { nom: string; version: string }[]; formes?: string[] } = {}): string {
+  const travail = `implementation("androidx.work:work-runtime-ktx:${VERSIONS.travail}")`;
+  const formes = (avec.formes ?? []).filter((d) => !(avec.travail && d.startsWith('implementation("androidx.work:')));
   return `// Produit par Humalis.
 plugins {
     id("com.android.application")
@@ -117,20 +119,21 @@ ${avec.appareil ? `    implementation("androidx.biometric:biometric:${VERSIONS.b
     implementation("androidx.credentials:credentials-play-services-auth:${VERSIONS.identifiants}")
     implementation("com.google.android.libraries.identity.googleid:googleid:${VERSIONS.googleid}")
 ` : ''}${avec.apple ? `    implementation("androidx.browser:browser:${VERSIONS.navigateur}")
-` : ''}${avec.travail ? `    implementation("androidx.work:work-runtime-ktx:${VERSIONS.travail}")
+` : ''}${avec.travail ? `    ${travail}
 ` : ''}${avec.notifications ? `    implementation("com.google.firebase:firebase-messaging:${VERSIONS.firebase}")
-` : ''}${(avec.paquets ?? []).map((p) => `    // « paquet android » : pour les vues et les styles écrits à la main.\n    implementation(${JSON.stringify(`${p.nom}:${p.version}`)})\n`).join('')}    debugImplementation("androidx.compose.ui:ui-tooling")
+` : ''}${formes.length ? `    // Les formes de l'application (widget, recherche, voiture…).\n${formes.map((d) => `    ${d}\n`).join('')}` : ''}${(avec.paquets ?? []).map((p) => `    // « paquet android » : pour les vues et les styles écrits à la main.\n    implementation(${JSON.stringify(`${p.nom}:${p.version}`)})\n`).join('')}    debugImplementation("androidx.compose.ui:ui-tooling")
 }
 `;
 }
 
-export function manifeste(reseau: boolean, liens?: { schema: string; domaine?: string }, besoins: { photo?: boolean; position?: boolean; vibration?: boolean; fichiers?: boolean; notifications?: boolean } = {}): string {
-  const permissions = [
+export function manifeste(reseau: boolean, liens?: { schema: string; domaine?: string }, besoins: { photo?: boolean; position?: boolean; vibration?: boolean; fichiers?: boolean; notifications?: boolean } = {}, formes?: { activite: string; application: string; permissions: string[] }): string {
+  const permissions = [...new Set([
     ...(reseau ? ['android.permission.INTERNET'] : []),
     ...(besoins.vibration ? ['android.permission.VIBRATE'] : []),
     ...(besoins.position ? ['android.permission.ACCESS_COARSE_LOCATION', 'android.permission.ACCESS_FINE_LOCATION'] : []),
     ...(besoins.notifications ? ['android.permission.POST_NOTIFICATIONS'] : []),
-  ];
+    ...(formes?.permissions ?? []),
+  ])];
   const service = besoins.notifications
     ? `
         <service android:name=".ServiceNotificationsHumalis" android:exported="false">
@@ -189,8 +192,8 @@ ${permissions.map((p) => `    <uses-permission android:name="${p}" />\n`).join('
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>${profonds}
-        </activity>${fournisseur}${service}
+            </intent-filter>${profonds}${formes?.activite ?? ''}
+        </activity>${fournisseur}${service}${formes?.application ?? ''}
     </application>
 </manifest>
 `;
