@@ -24,6 +24,10 @@ serveur "magasin" :
         prix : nombre
     route "produits" :
         tout le monde peut lire produit
+    donnees de depart pour produit :
+        nom "Cahier", prix 3
+        nom "Stylo bleu", prix 1.5
+        nom "Cartable", prix 24
 
 variable panier = [] avec partagee et memorisee
 variable jeton_api = "" avec partagee et memorisee en secret
