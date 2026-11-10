@@ -202,7 +202,9 @@ struct OngletsHumalis<Contenu: View>: View {
                 ForEach(Array(titres.enumerated()), id: \.offset) { i, titre in Text(verbatim: titre).tag(i) }
             }
             .labelsHidden()
+            #if !os(watchOS)
             .pickerStyle(.segmented)
+            #endif
             contenu()
         }
     }
@@ -214,6 +216,13 @@ struct DeroulantHumalis<Contenu: View>: View {
     @ViewBuilder let contenu: () -> Contenu
 
     var body: some View {
+        #if os(watchOS) || os(tvOS)
+        // La montre et la télévision n'ont pas de groupe dépliant : un bouton ouvre et ferme.
+        VStack(alignment: .leading, spacing: 8) {
+            Button { ouvert.toggle() } label: { Label(titre, systemImage: ouvert ? "chevron.down" : "chevron.right") }
+            if ouvert { contenu() }
+        }
+        #else
         DisclosureGroup(isExpanded: $ouvert) {
             VStack(alignment: .leading, spacing: 12) { contenu() }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -221,6 +230,7 @@ struct DeroulantHumalis<Contenu: View>: View {
         } label: {
             Text(verbatim: titre).font(.headline)
         }
+        #endif
     }
 }
 
@@ -339,6 +349,8 @@ struct SurAppareilHumalis<Contenu: View>: View {
     private var actuel: AppareilHumalis {
         #if os(macOS)
         return .ordinateur
+        #elseif os(watchOS)
+        return .telephone
         #else
         return UIDevice.current.userInterfaceIdiom == .pad ? .tablette : .telephone
         #endif
@@ -354,7 +366,11 @@ struct CodeHumalis: View {
     let code: String
     var body: some View {
         ScrollView(.horizontal) {
-            Text(verbatim: code).font(.system(.callout, design: .monospaced)).textSelection(.enabled).padding(12)
+            Text(verbatim: code).font(.system(.callout, design: .monospaced))
+                #if !os(watchOS) && !os(tvOS)
+                .textSelection(.enabled)
+                #endif
+                .padding(12)
         }
         .background(.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
     }
@@ -1094,10 +1110,12 @@ private func fichierPhoto(_ donnees: Data) -> FichierChoisi? {
 #if os(iOS)
 /** Présente un écran du système au-dessus de tout ce qui est ouvert. */
 @MainActor private func presenter(_ ecran: UIViewController) {
+    #if !HUMALIS_SANS_FENETRE
     let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
     guard var haut = scene?.keyWindow?.rootViewController else { return }
     while let suivante = haut.presentedViewController { haut = suivante }
     haut.present(ecran, animated: true)
+    #endif
 }
 
 /** Garde le délégué en vie pendant que l'écran du système est ouvert. */
