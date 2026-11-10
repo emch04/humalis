@@ -470,13 +470,14 @@ page "connexion" :
 ### Un design par plateforme
 
 La logique reste la même ; seul le design change. `sur apple` vaut pour iPhone, iPad et Mac,
-`sur ios` pour iPhone et iPad, `sur macos` pour Mac, `sur application` pour toutes les
-applications natives, `sur site` pour le web. Une phrase qui vise une autre plateforme n'a
+`sur ios` pour iPhone et iPad, `sur macos` pour Mac, `sur android` pour les téléphones et
+tablettes Android, `sur application` pour toutes les applications natives, `sur site` pour le web. Une phrase qui vise une autre plateforme n'a
 aucun effet, et la plus précise gagne.
 
 ```humalis
 utiliser style "./iphone.css" sur ios
 utiliser style "./mac.css" sur macos
+utiliser style "./android.css" sur android
 
 page "accueil" :
     bouton "Commander" avec style "principal" et sur apple style "plein-ecran"
@@ -488,7 +489,12 @@ page "accueil" :
 
 Sur la cible Apple, chaque règle `.classe { … }` est traduite en SwiftUI. Ce qui n'a pas
 d'équivalent (`@media`, survols, sélecteurs composés, placement libre…) est compté à la
-compilation et listé, avec sa raison, dans `CSS-SUR-APPLE.md`.
+compilation et listé, avec sa raison, dans `CSS-SUR-APPLE.md`. La cible Android fait de même
+en Compose, et liste le reste dans `CSS-SUR-ANDROID.md`.
+
+Chaque cible peut avoir son propre CSS : un CSS commun à toutes les cibles n'est pas
+obligatoire. Une feuille `sur android` peut être la seule que lit l'application Android ;
+s'il y a aussi un CSS commun, la feuille Android passe après lui.
 
 Un même bloc peut viser plusieurs plateformes : on les relie par `et`.
 
@@ -3387,7 +3393,7 @@ chose de faux.
 | | web | statique | mobile | desktop | apple | android |
 |---|---|---|---|---|---|---|
 | Pages, éléments, styles, thème | oui | oui | oui | oui | oui | oui |
-| Ton propre CSS | oui | oui | non (styles nommés seulement) | oui | en partie (règles d'une classe ; le reste est listé) | non (styles nommés seulement) |
+| Ton propre CSS | oui | oui | non (styles nommés seulement) | oui | en partie (règles d'une classe ; le reste est listé) | en partie (règles d'une classe ; le reste est listé) |
 | Requêtes vers un serveur | oui | oui | oui | oui | oui | oui |
 | `memorisee` | oui | oui | oui | oui | oui | oui |
 | `memorisee en secret` | non | non | oui | oui | oui (Keychain) | oui (Keystore) |
@@ -3421,8 +3427,13 @@ humalis compile taches.humalis --cible android --sortie taches-android --serveur
 Ce qui n'existe pas encore sur Android, et que la compilation refuse en le disant :
 plusieurs langues, les sous-pages (`page "…" dans "…"`), les graphiques, les cartes,
 le son, la vidéo, le code QR, le choix d'un fichier, la photo, le scanner, la
-connexion avec Google ou Apple, le paiement, l'IA et les notifications. Le CSS et les
-polices du thème ne sont pas encore traduits : l'application suit les styles nommés.
+connexion avec Google ou Apple, le paiement, l'IA et les notifications. Les polices du
+thème ne sont pas encore chargées : l'application garde celle du système.
+
+Le CSS se traduit en Compose, règle par règle, quand une règle vise une classe
+(`.carte { … }`) : fond, couleur, taille et graisse du texte, marges et remplissage,
+bordure, arrondi, ombre, largeur, écart entre les enfants. Une feuille
+`utiliser style "./android.css" sur android` ne vaut que pour Android.
 
 ### Le moteur de rendu de Humalis
 

@@ -103,20 +103,19 @@ export function analyserSurAppareil(flux: FluxTokens, lecteur: Lecteur): Bloc {
   return { type: 'Bloc', genre: 'appareil', styles, classes: [], corps: lecteur.corps(flux), ligne: debut.ligne };
 }
 
-const PLATEFORMES = ['apple', 'ios', 'macos', 'site', 'application'];
+const PLATEFORMES = ['apple', 'ios', 'macos', 'android', 'site', 'application'];
 
-/** Le nom de la plateforme après « sur » ; « android » viendra avec sa cible. */
+/** Le nom de la plateforme après « sur ». */
 export function lirePlateforme(flux: FluxTokens): string {
   const jeton = flux.avancer();
   const nom = normaliser(jeton.original ?? jeton.valeur);
-  if (nom === 'android') throw new ErreurSyntaxique('« sur android » n’existe pas encore : la cible Android n’est pas écrite.', jeton.ligne);
   if (!PLATEFORMES.includes(nom)) throw new ErreurSyntaxique(`« ${jeton.valeur} » n’est pas une plateforme. Plateformes possibles : ${PLATEFORMES.join(', ')}.`, jeton.ligne);
   return nom;
 }
 
 /** « sur application : », « sur site : » : un bloc réservé à une plateforme. */
 export function estSurPlateforme(flux: FluxTokens): boolean {
-  return flux.verifier('MOT_CLE', 'sur') && estMot(flux.regarder(1)) && [...PLATEFORMES, 'android'].includes(normaliser(flux.regarder(1).original ?? flux.regarder(1).valeur)) && (flux.regarder(2).valeur === ':' || flux.regarder(2).valeur === 'et');
+  return flux.verifier('MOT_CLE', 'sur') && estMot(flux.regarder(1)) && PLATEFORMES.includes(normaliser(flux.regarder(1).original ?? flux.regarder(1).valeur)) && (flux.regarder(2).valeur === ':' || flux.regarder(2).valeur === 'et');
 }
 
 export function analyserSurPlateforme(flux: FluxTokens, lecteur: Lecteur): Bloc {

@@ -12,6 +12,7 @@ import { contenuBinaire } from '../binaire.js';
 import { cheminsDesPages } from '../web/projet.js';
 import { COULEURS_CSS } from '../web/styles.js';
 import { EcrivainActions } from './actions.js';
+import { CssAndroid, type Portee as PorteeCss } from './css.js';
 import { FORMATS_KT, INTERFACE_KT, MEMOIRE_KT, SERVEUR_KT, VALEURS_KT, kotlin } from './bibliotheque.js';
 import { EcrivainKotlin } from './ecrivain.js';
 import { AVANT_PLAN_ICONE, CONSTRUCTION_RACINE, ENVELOPPE_GRADLE, IGNORES_GIT, PROPRIETES_GRADLE, SECURITE_RESEAU, THEME_XML, VERSIONS, constructionApp, couleurIcone, iconeAdaptative, manifeste, reglagesGradle } from './gradle.js';
@@ -32,6 +33,8 @@ export interface OptionsAndroid {
   identifiant?: string;
   medias?: Map<string, InfoMedia>;
   images?: Map<string, string>;
+  /** Le contenu des fichiers CSS du projet (« utiliser style "…" », avec ou sans « sur android »). */
+  fichiersStyle?: Map<string, string>;
 }
 
 const PAS_ENCORE = "cela n'est pas encore disponible sur la cible Android";
@@ -60,9 +63,6 @@ function verifier(application: Application): Diagnostic[] {
     if (e.dessin) avertir(e.ligne, `« dessinee pour » est sans effet sur Android : la page « ${e.nom} » suit les styles nommés.`);
   }
   for (const s of application.sources) if (s.passerelle) refuser(1, `la source « ${s.nom} » à jeton secret (la passerelle du serveur)`);
-  if (application.css.length > 0 || application.fichiersStyle.length > 0) {
-    avertir(application.fichiersStyle[0]?.ligne ?? 1, "le CSS n'est pas traduit sur Android : l'application suit les styles nommés (fond, couleur, remplissage, bordure, ombre, largeur, position, taille).");
-  }
   for (const p of application.theme?.polices ?? []) {
     if (p.fichier) avertir(1, `la police « ${p.nom} » n'est pas encore chargée sur Android : la police du système est utilisée à la place.`);
   }
@@ -379,7 +379,19 @@ export function genererProjetAndroid(application: Application, options: OptionsA
   const icones = new Set<string>();
   const partages = new Map(application.partages.map((p) => [p.nom, `Partage.${nomKotlin(p.nom)}`]));
   const fonctions = new Set(application.fonctions.map((f) => f.nom));
+  // Le CSS commun (facultatif), puis les feuilles « sur application », puis celles « sur android ».
+  const feuilles = application.fichiersStyle.flatMap((f) => {
+    const css = options.fichiersStyle?.get(f.chemin);
+    const portee: PorteeCss = f.plateforme === 'android' ? 'android' : f.plateforme === 'application' ? 'application' : 'commun';
+    return css === undefined ? [] : [{ css, portee }];
+  });
+  const css = new CssAndroid([...application.css.map((c) => ({ css: c, portee: 'commun' as PorteeCss })), ...feuilles]);
+  if (css.total > 0) {
+    avertir(application.fichiersStyle[0]?.ligne ?? 1, `CSS : ${css.traduites} déclarations sur ${css.total} traduites en Compose (${Math.round((css.traduites * 100) / css.total)} %). Le reste est listé, avec sa raison, dans CSS-SUR-ANDROID.md.`);
+    fichiers.set('CSS-SUR-ANDROID.md', css.rapport());
+  }
   const app: ContexteAndroid = {
+    css,
     paquet,
     pages: new Map(application.ecrans.map((e) => [e.nom, { parametres: e.parametresAdresse ?? [], filtres: e.filtres ?? [] }])),
     route: (page, parametres, filtres) => routeKotlin(routes.get(page)!, parametres, filtres),
