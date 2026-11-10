@@ -13,6 +13,8 @@
 
 # Humalis
 
+Documentation, cheat sheet and playground: **[humalis.dev](https://humalis.dev)** · for AI tools: [llms.txt](https://humalis.dev/llms.txt)
+
 **One language, in French, to build a complete application**: a website, a mobile app, a desktop app and its server, all from the same file.
 
 ```humalis

@@ -3239,7 +3239,8 @@ page "about" :
 
 With an `adresse`, the web target writes the sitemap (`sitemap.xml`) and
 `robots.txt`. A page with `indexation non` is left out of search engines.
-Humalis warns when a title or description is too long or too short for search
+`robots.txt` also tells AI tools the site may appear in their searches and serve as a
+source for their answers (`Content-Signal: search=yes, ai-input=yes`). Humalis warns when a title or description is too long or too short for search
 engines.
 
 On the desktop, the same `adresse` is used for automatic updates: the installed
