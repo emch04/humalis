@@ -325,9 +325,12 @@ export class EcrivainActions {
       case 'dire':
         e.ligne(`Voix.dire(${this.v.t(a.texte)})`);
         return;
-      // Les clés d'accès et la double authentification : refusées avant (verifierFormesPourLaCible) tant que cette cible ne les écrit pas.
-      case 'compteSecurise':
+      // Les clés d'accès et la double authentification (ClesAcces.kt, DoubleAuthentification.kt) : annulées ou refusées, la suite s'arrête.
+      case 'compteSecurise': {
+        const appel = { connexionCle: 'seConnecterParCle()', ajoutCle: 'ajouterCleAcces()', doubleAuthentification: 'activerDoubleAuthentification()' }[a.quoi];
+        e.ligne(c.essai ? `if (!${appel}) ${sortie(c)}` : `if (!Session.gere { ${appel} }) ${sortie(c)}`);
         return;
+      }
       default: {
         // Une action ajoutée au langage doit être traitée ici : sinon le compilateur TypeScript s'arrête.
         const oubliee: never = a;

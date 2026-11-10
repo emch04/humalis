@@ -140,3 +140,6 @@ ECRITES.desktop.add('doubleAuthentification');
 
 // Apple (SQLite, CryptoKit, Keychain, ASAuthorization) : src/cibles/apple/donnees-comptes.ts.
 for (const forme of ['donneeLocale', 'cleAcces', 'doubleAuthentification'] as const) ECRITES.apple.add(forme);
+
+// Android (SQLite, Keystore, WorkManager, Credential Manager) : src/cibles/android/donnees-comptes.ts.
+for (const forme of ['donneeLocale', 'cleAcces', 'doubleAuthentification'] as const) ECRITES.android.add(forme);
