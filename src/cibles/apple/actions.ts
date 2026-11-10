@@ -293,8 +293,15 @@ export class EcrivainActions {
       case 'enregistrerAudio':
       case 'enregistrerVideo':
       case 'scannerDocument':
-      case 'recadrerPhoto':
-        return this.hote.refuser(this.hote.ligne, `« ${a.type} » : cette action n'est pas encore disponible sur cette cible`);
+      case 'recadrerPhoto': {
+        const cible = this.variable(a.variable);
+        const phrase = { enregistrerAudio: `enregistrer audio dans ${a.variable}`, enregistrerVideo: `enregistrer video dans ${a.variable}`, scannerDocument: `scanner document dans ${a.variable}`, recadrerPhoto: `recadrer ${a.variable}` }[a.type];
+        if (!cible) return this.hote.refuser(this.hote.ligne, `« ${phrase} » : cette variable est inconnue ici`);
+        if (cible.type.genre === 'liste') return this.hote.refuser(this.hote.ligne, `« ${phrase} » : cette variable contient plusieurs fichiers`);
+        const appel = { enregistrerAudio: 'enregistrerMedia("audio")', enregistrerVideo: 'enregistrerMedia("video")', scannerDocument: 'scannerDocument()', recadrerPhoto: `recadrerPhoto(${cible.code})` }[a.type];
+        e.bloc(`if let humalisMedia = await ${appel} {`, () => e.ligne(`${cible.code} = humalisMedia`));
+        return;
+      }
       case 'prisePhoto': {
         const cible = this.variable(a.variable);
         if (!cible) return this.hote.refuser(this.hote.ligne, `« photo dans ${a.variable} » : cette variable est inconnue ici`);

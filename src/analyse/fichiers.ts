@@ -107,6 +107,8 @@ export function aUnApercu(choix: ChoixFichier): boolean {
 /** Ce que l'analyse de la page donne à l'envoi pour juger. */
 export interface ContexteEnvoi {
   fichiers: FichiersDeLaPage;
+  /** Les variables remplies par une capture (« photo dans », « enregistrer audio dans »…) : ce sont aussi des fichiers. */
+  captures: Set<string>;
   sources: Map<string, InfoSource>;
   /** Le type d'une variable de la page (undefined : elle n'existe pas). */
   typeDe(nom: string, ligne: number): TypeValeur | undefined;
@@ -120,7 +122,7 @@ export const SANS_PACK_DE_TELEVERSEMENT =
 export function verifierEnvoiFichier(envoi: EnvoiFichier, contexte: ContexteEnvoi, s: Signaler): void {
   const { ligne } = envoi;
   const choisi = contexte.fichiers.get(envoi.variable);
-  if (!choisi) {
+  if (!choisi && !contexte.captures.has(envoi.variable)) {
     const noms = [...contexte.fichiers.keys()];
     s.erreur(
       noms.length === 0
@@ -163,6 +165,17 @@ export function verifierEnvoiFichier(envoi: EnvoiFichier, contexte: ContexteEnvo
     }
   }
   if (envoi.resultat !== undefined) contexte.typeDe(envoi.resultat, ligne);
+}
+
+/** Les variables qu'une capture remplit, où qu'elle soit écrite dans la page. */
+export function recenserCaptures(valeur: unknown, trouves: Set<string> = new Set()): Set<string> {
+  if (Array.isArray(valeur)) for (const v of valeur) recenserCaptures(v, trouves);
+  else if (valeur && typeof valeur === 'object') {
+    const noeud = valeur as Record<string, unknown>;
+    if (typeof noeud.variable === 'string' && (noeud.type === 'PrisePhoto' || noeud.type === 'EnregistrementMedia' || noeud.type === 'ScanDocument')) trouves.add(noeud.variable);
+    for (const v of Object.values(noeud)) recenserCaptures(v, trouves);
+  }
+  return trouves;
 }
 
 /** Les choix de fichier d'un bloc de la vue (conditions, boucles, blocs et formulaires compris). */

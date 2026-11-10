@@ -136,7 +136,7 @@ export class GenerateurPage implements HotePage {
   ) {
     // Une variable qui reçoit un fichier choisi : son type est celui du fichier, pas une fiche ordinaire.
     const choisis = variablesDeFichier(ecran.vue);
-    for (const m of JSON.stringify([ecran.vue, ecran.gestionnaires]).matchAll(/"type":"prisePhoto","variable":"([^"]+)"/g)) choisis.add(m[1]);
+    for (const m of JSON.stringify([ecran.vue, ecran.gestionnaires]).matchAll(/"type":"(?:prisePhoto|enregistrerAudio|enregistrerVideo|scannerDocument|recadrerPhoto)","variable":"([^"]+)"/g)) choisis.add(m[1]);
     this.ecran = {
       ...ecran,
       // « en arriere plan » n'appartient pas à la page ouverte : voir arrierePlanSwift.
