@@ -35,9 +35,25 @@ function verifierPourLeNavigateur(application: Application): Diagnostic[] {
   return diagnostics;
 }
 
+/**
+ * « utiliser composant "Carte" sur apple "….swift" … » sans « depuis » : le composant n'a que des vues natives.
+ * Sur le web, le bureau et le mobile Expo, il n'a rien pour se dessiner : la compilation le dit.
+ */
+export function verifierComposantsSansWeb(application: Application, cible: string): Diagnostic[] {
+  if (!['web', 'statique', 'desktop', 'mobile'].includes(cible)) return [];
+  return application.composantsReact
+    .filter((c) => c.chemin === undefined)
+    .map((c) => ({
+      gravite: 'erreur' as const,
+      ligne: c.ligne,
+      message: `le composant « ${c.nom} » n'a que des vues natives (Swift, Kotlin ou C#) : ici, --cible ${cible}, il n'a rien pour se dessiner. Écrivez-le en Humalis (« composant "${c.nom}" : »), ou donnez-lui un module JavaScript : « utiliser module "${c.nom}" depuis "./modules/${c.nom}.js" » suivi des mêmes « sur … ».`,
+    }));
+}
+
 export function verifierAppareilPourLaCible(application: Application, cible: string): Diagnostic[] {
-  const diagnostics: Diagnostic[] = [];
-  if (cible === 'web') return verifierPourLeNavigateur(application);
+  const sansWeb = verifierComposantsSansWeb(application, cible);
+  if (cible === 'web') return [...sansWeb, ...verifierPourLeNavigateur(application)];
+  const diagnostics: Diagnostic[] = [...sansWeb];
   const lieux = [...application.ecrans, ...application.composants, ...[application.disposition?.entete?.ecran, application.disposition?.pied?.ecran].flatMap((e) => (e ? [e] : []))];
   for (const { motif, nom, android } of CONSTRUCTIONS) {
     if (android && cible === 'android') continue;

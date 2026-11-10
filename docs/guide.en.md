@@ -489,15 +489,22 @@ page "login" :
 
 The logic stays the same; only the design changes. `sur apple` means iPhone, iPad and Mac,
 `sur ios` iPhone and iPad, `sur macos` Mac, `sur android` Android phones and tablets,
-`sur application` every native app, `sur site` the web. A phrase aimed at another platform has no effect, and the most precise one wins.
+`sur windows` the Windows application,
+`sur application` every native app, `sur site` the web. A phrase aimed at another platform
+has no effect, and the most precise one wins.
+
+So each target can have its own style sheet: a shared CSS (without `sur`) is still
+possible, but it is not required.
 
 ```humalis
+utiliser style "./site.css" sur site
 utiliser style "./iphone.css" sur ios
 utiliser style "./mac.css" sur macos
 utiliser style "./android.css" sur android
+utiliser style "./windows.css" sur windows
 
 page "accueil" :
-    bouton "Commander" avec style "principal" et sur apple style "plein-ecran"
+    bouton "Commander" avec style "principal" et sur apple style "plein-ecran" et sur windows style "large"
     sur application :
         texte "Thanks for using the app"
     sur site :
@@ -506,12 +513,69 @@ page "accueil" :
 
 On the Apple target, each `.class { … }` rule becomes SwiftUI. What has no equivalent
 (`@media`, hover, compound selectors, free positioning…) is counted at compile time and listed,
-with its reason, in `CSS-SUR-APPLE.md`. The Android target does the same in Compose, and lists
-the rest in `CSS-SUR-ANDROID.md`.
+with its reason, in `CSS-SUR-APPLE.md`. The Android and Windows targets do the
+same, in `CSS-SUR-ANDROID.md` and `CSS-SUR-WINDOWS.md`. A `sur android` stylesheet can be
+the only one the Android application reads; if there is also a shared CSS, the Android
+stylesheet comes after it.
 
-Each target can have its own CSS: a CSS shared by every target is not required. A
-`sur android` stylesheet can be the only one the Android application reads; if there is
-also a shared CSS, the Android stylesheet comes after it.
+### A style written in the platform's own language
+
+When the translated style is not enough, write it in the platform's language: SwiftUI for
+Apple, XAML for Windows. The file extension gives its language, and `sur` says which
+platform it is for. The file is copied as is: a new SwiftUI or WPF feature can be used the
+same day, without waiting for Humalis.
+
+```humalis
+style "carte" :
+    fond blanc
+    arrondi 8
+
+utiliser style "./styles/apple.swift" sur apple
+utiliser style "./styles/windows.xaml" sur windows
+
+page "vitrine" :
+    bloc avec style "carte" :
+        bouton "Acheter" avec style "bouton-principal"
+```
+
+On Apple, a style is a `ViewModifier` named `Style` followed by the style's name in
+PascalCase (`carte` → `StyleCarte`, `bouton-principal` → `StyleBoutonPrincipal`):
+
+```swift
+import SwiftUI
+
+struct StyleCarte: ViewModifier {
+    func body(content: Content) -> some View {
+        content.padding(16).background(.background.secondary, in: RoundedRectangle(cornerRadius: 12))
+    }
+}
+```
+
+On Windows, a WPF resource dictionary, one `<Style>` per style, keyed by the style's name.
+`TargetType` says what it dresses: `Button` for a button, `TextBlock` for a text or a title,
+`Border` for a frame (Humalis then wraps the element, a block for instance). To keep the
+Windows 11 look, start from the system style with `BasedOn`.
+
+```xml
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Style x:Key="carte" TargetType="Border">
+        <Setter Property="Background" Value="White"/>
+        <Setter Property="CornerRadius" Value="12"/>
+        <Setter Property="Padding" Value="16"/>
+    </Style>
+    <Style x:Key="bouton-principal" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Background" Value="SeaGreen"/>
+    </Style>
+</ResourceDictionary>
+```
+
+On its platform, the native style wins over the Humalis style or the CSS of the same name;
+elsewhere nothing changes. A file for `sur ios` or `sur macos` only is added on top of the
+translated style on that device, without replacing it. In a `dessinee pour` page, the
+native style is added on top of the CSS drawing. An error in the file stops the project
+build (Xcode or `dotnet build`), with its line. On Android it will be a Kotlin file
+(`fun Modifier.carte(): Modifier`); the Android target does not read it yet.
 
 One block can target several platforms: join them with `et`.
 
@@ -524,15 +588,59 @@ page "home" :
         texte "Tap an appointment to move it."
 ```
 
-### A page drawn for the Mac
+### A drawn page
 
 `dessinee pour 1440 par 900`, after a page name, gives the size the page was
-drawn for. On Mac, the page then follows its CSS to the point, and grows with the
-window. Elsewhere, nothing changes.
+drawn for. In the Apple app, the page then follows its CSS to the point. On the
+website and the other targets, nothing changes.
 
-With drawn pages, `barre laterale :` at the top of the file writes the Mac
-sidebar like a page. On the other targets, it takes the header's place when the
-project has none; if there is an `entete`, it steps aside.
+- **On Mac**, the page keeps the width of the drawing and grows with the window.
+- **On iPhone and iPad**, it renders as Safari would on the same device: one CSS
+  pixel per screen point. `@media (min-width: …)` and `@media (max-width: …)`
+  rules follow the real screen width, and change live when the device turns or
+  the iPad screen is split. Content stays inside the safe area (notch, bottom
+  bar) and the page background runs underneath. A page taller than the screen
+  scrolls, and the keyboard never hides the field being typed in. A button or a
+  link smaller than 44 points can still be tapped: its touch area grows, not its
+  drawing.
+- **Everywhere**, `@media (prefers-color-scheme: dark)` follows the device's dark
+  mode, live.
+
+The page starts from the same point as the website: the browser's default
+margins (paragraphs, headings), Humalis's base stylesheet and the theme, then the
+project's CSS. `box-sizing` is honoured, and `env(safe-area-inset-…)` is 0, as in
+Safari. Each element sits in the same structure as on the website:
+`main.humalis-page` around the page, `header.humalis-entete` for the sidebar,
+`label.humalis-champ` around a field. Fields, drop-down lists, checkboxes and
+forms therefore follow their CSS. On the website, a sidebar fixed to the left
+leaves room through a margin on the page; in the app, the sidebar already sits
+beside it, and that margin loses its width.
+
+To check it, `node scripts/essai-apple-dessin.mjs page.humalis` measures the same
+page on the website (in Chrome) and in the app (`--appareil "…"` for a simulator,
+`--mac`, `--sombre`, `--web`), then compares where each element sits, to the
+point.
+
+Each device has its own CSS: `utiliser style "./ios.css" sur ios` only applies on
+iPhone and iPad, `sur macos` only on Mac, and a shared CSS stays optional. The
+`sur ios :` and `sur macos :` blocks of a drawn page, and `sur ios style "…"`
+styles, follow the same rule. Pages that are not drawn keep their native look.
+
+```humalis
+utiliser style "./site.css"
+utiliser style "./ios.css" sur ios
+
+page "home" dessinee pour 1440 par 900 :
+    titre "Dashboard" avec style "title"
+    sur ios :
+        texte "Welcome on iPhone"
+```
+
+With drawn pages, `barre laterale :` at the top of the file writes the sidebar
+like a page: on Mac, and on iPad as long as the CSS shows it at that width. On
+iPhone, or when the CSS hides it, the app keeps its native navigation. On the
+other targets, it takes the header's place when the project has none; if there
+is an `entete`, it steps aside.
 
 ```humalis
 utiliser style "./desktop.css"
@@ -856,6 +964,7 @@ equivalent.
 | `menu de l'application "File" :` then `commande "N" avec raccourci "cmd+n" :` | shortcuts (iPad) | menu bar | “⋮” menu and shortcuts | refused |
 | `page "x" en reglages :` | page | Settings window | page | page |
 | `page "x" en pleine fenetre :` | page up to the edges | page up to the edges | page | page (no effect) |
+| `page "x" dessinee pour 1440 par 900 :` | its CSS to the point, at the screen width | its CSS to the point, scaled to the window | page (no effect) | page (its CSS) |
 | `barre d'outils :` | top bar | toolbar | row | row |
 
 The application menu has no web equivalent: the compiler refuses it.
@@ -3248,7 +3357,8 @@ page "about" :
 
 With an `adresse`, the web target writes the sitemap (`sitemap.xml`) and
 `robots.txt`. A page with `indexation non` is left out of search engines.
-Humalis warns when a title or description is too long or too short for search
+`robots.txt` also tells AI tools the site may appear in their searches and serve as a
+source for their answers (`Content-Signal: search=yes, ai-input=yes`). Humalis warns when a title or description is too long or too short for search
 engines.
 
 On the desktop, the same `adresse` is used for automatic updates: the installed
@@ -3352,31 +3462,62 @@ a property changes, it is restarted. If it can update itself, it returns
 The other way round, `humalis compile … --composants <folder>` generates React
 components to import into an existing React project.
 
-### A hand-written Swift view
+### A hand-written native view
 
-The Apple target has neither React nor JavaScript. To use hand-written Swift
-there, add `sur apple`: the web keeps its component, the Apple app uses your
-SwiftUI view.
+When Humalis cannot draw something yet, write that piece in the platform's own
+language: Swift for iPhone, iPad and Mac, C# for Windows. No React, no browser:
+each app stays native. One line gives the view for each platform:
 
 ```humalis
-utiliser composant "Carte" depuis "./composants/Carte" sur apple "./composants/Carte.swift"
+utiliser composant "Carte" sur apple "./natif/Carte.swift" et sur windows "./natif/Carte.cs"
 
 page "accueil" :
-    Carte avec titre "Bonjour"
+    Carte avec titre "Coffee" et prix 3.5
 ```
+
+On Apple, a SwiftUI view with the component's name:
 
 ```swift
 import SwiftUI
 
 struct Carte: View {
     let titre: String
-    var body: some View { Text(titre).font(.title) }
+    let prix: Double
+    var body: some View { Text("\(titre): \(prix) €").font(.title) }
 }
 ```
 
-The view has the component's name, and its properties are written in the same
-order as in the page. Text is a `String`, a number a `Double`, true or false a
-`Bool`.
+On Windows, a WPF class with the same name (a `UserControl`, or any other element):
+
+```csharp
+using System.Windows.Controls;
+
+namespace MyViews;
+
+public class Carte : UserControl
+{
+    public Carte(string titre, double prix, bool promo = false)
+    {
+        Content = new TextBlock { Text = $"{titre}: {prix:0.00} €", FontSize = 22 };
+    }
+}
+```
+
+The page's properties are passed by name: `titre` goes to the `titre` parameter.
+Text is a `String` (`string` in C#), a number a `Double` (`double`, or `int`), true or
+false a `Bool` (`bool`). A C# parameter with a default value may be left out of the
+page. On Windows, the view is created again when a value it receives changes. An
+unknown property, or a missing parameter, is reported at compile time.
+
+A platform without its view stops with the line to add: here, the Android app and
+the website have no "Carte". For the website, write the component in Humalis
+(`composant "Carte" :`), or a JavaScript module: `utiliser module "Carte" depuis
+"./modules/Carte.js"`, followed by the same `sur …`.
+
+The libraries for these views are added at the top of the file: `paquet swift
+"https://…" version "1.2"` for Apple (see above), `paquet windows "Humanizer.Core"
+version "2.14.1"` for Windows (NuGet), `paquet android "io.coil-kt:coil-compose"
+version "2.7.0"` for Android (Gradle).
 
 ### Several files
 
@@ -3437,7 +3578,7 @@ texte "…" est absent` (a text is not shown).
 | `humalis packs` | says whether the Astratra packs have updates |
 
 For web and static, `--adresse https://…` gives the site's final address
-(sitemap, share links). For desktop, Apple and Android, `--serveur https://…` gives the address
+(sitemap, share links). For desktop, Apple, Android and Windows, `--serveur https://…` gives the address
 of the server the application calls.
 
 `--cible apple` generates an Xcode project in SwiftUI: a single native application
@@ -3449,6 +3590,11 @@ iOS 17 and macOS 14 and later). To sign it, add
 built by Gradle: no embedded browser and no JavaScript. The application runs on
 Android 8.0 and later. Open the folder in Android Studio, or build it with
 `gradle assembleDebug`. `--identifiant com.example.application` sets its identifier.
+
+`--cible windows` generates a .NET project in C# and WPF: a native application for
+Windows 10 and 11, with no embedded browser. It builds with the .NET 10 SDK, on
+Windows but also on macOS or Linux (`dotnet build`), and publishes as a single `.exe`
+file (see "The Windows application" in chapter 33).
 
 With `humalis developper`, every element of the page carries its Humalis
 file and line: in the browser's inspector, a heading shows for example
@@ -3479,20 +3625,23 @@ completion and hover help.
 The same file produces every target. When a construct does not exist on a
 target, the compiler says so clearly instead of producing something wrong.
 
-| | web | static | mobile | desktop | apple | android |
-|---|---|---|---|---|---|---|
-| Pages, elements, styles, theme | yes | yes | yes | yes | yes | yes |
-| Your own CSS | yes | yes | no (named styles only) | yes | partly (single-class rules; the rest is listed) | partly (single-class rules; the rest is listed) |
-| Requests to a server | yes | yes | yes | yes | yes | yes |
-| `memorisee` | yes | yes | yes | yes | yes | yes |
-| `memorisee en secret` | no | no | yes | yes | yes (Keychain) | yes (Keystore) |
-| `essayer` | yes | no | yes | yes | yes | yes |
-| Keyboard shortcuts | yes | yes | no | yes | yes | yes (keyboard attached) |
-| React components | yes | no | yes (in React Native) | yes | no (`sur apple "View.swift"`) | no |
-| The engine without React (the default) | yes | no | no | yes (except a React component or `memorisee en secret`) | no | no |
-| Photo, scanner, Face ID, vibration, signature, offline | yes (vibration: Android) | no | no | no | yes | yes |
-| `en arriere plan` | no | no | no | no | yes | yes |
-| Sitemap, share preview | yes | yes | no | no | no | no |
+| | web | static | mobile | desktop | apple | android | windows |
+|---|---|---|---|---|---|---|---|
+| Pages, elements, styles, theme | yes | yes | yes | yes | yes | yes | yes |
+| Your own CSS | yes | yes | no (named styles only) | yes | partly (single-class rules; the rest is listed); to the point in a `dessinee pour` page, `@media` and dark mode included | partly (single-class rules; the rest is listed) | partly (single-class rules; the rest is listed) |
+| Requests to a server | yes | yes | yes | yes | yes | yes | yes |
+| `memorisee` | yes | yes | yes | yes | yes | yes | yes |
+| `memorisee en secret` | no | no | yes | yes | yes (Keychain) | yes (Keystore) | yes (encrypted by Windows) |
+| `essayer` | yes | no | yes | yes | yes | yes | yes |
+| Keyboard shortcuts | yes | yes | no | yes | yes | yes (keyboard attached) | yes |
+| Hand-written native view | no | no | no | no | yes (Swift, `sur apple`) | not yet | yes (C#, `sur windows`) |
+| React components (older projects) | yes | no | yes (in React Native) | yes | no | no | no |
+| The engine without React (the default) | yes | no | no | yes (except a React component or `memorisee en secret`) | no | no | no |
+| Charts, maps, audio, video, files | yes | yes | partly | yes | yes | yes | yes |
+| Several languages | yes | yes | yes | yes | yes | yes | yes |
+| Photo, scanner, Face ID, vibration, signature, offline | yes (vibration: Android) | no | no | no | yes | yes | no |
+| `en arriere plan` | no | no | no | no | yes | yes | no |
+| Sitemap, share preview | yes | yes | no | no | no | no | no |
 
 The server (`--cible serveur`) is generated separately, from the `serveur`
 block.
@@ -3554,6 +3703,42 @@ CSS becomes Compose, rule by rule, when a rule targets a class (`.card { … }`)
 color, text size and weight, margins and padding, border, corner radius, shadow, width, and
 the gap between children. A `utiliser style "./android.css" sur android` stylesheet applies
 to Android only.
+
+### The Windows application
+
+```sh
+humalis compile boutique.humalis --cible windows --sortie boutique-windows --serveur https://api.mysite.com
+cd boutique-windows
+dotnet build
+dotnet publish -c Release -r win-x64
+```
+
+The generated folder is a readable .NET 10 project in C# and WPF, not meant to be
+edited by hand. `dotnet publish` gives a single `.exe` file that contains .NET:
+nothing to install on the PC (`-r win-arm64` for an ARM PC). Building also works on a
+Mac or on Linux; only running it needs Windows 10 or 11.
+
+- The look follows Windows 11 (Fluent theme), light or dark like the system;
+  `changer theme par sombre` changes that choice, and it is kept.
+- One page at a time, with a Back button, `Alt+←` and the mouse's back button.
+- The Humalis server is called with the same session as the Apple application: the
+  token is kept encrypted by Windows, readable only by the person signed in to the
+  Windows session. `memorisee` goes to `%LOCALAPPDATA%`.
+- Several languages: the selector, `changer langue`, and numbers, prices and dates
+  written the way the chosen language writes them; the choice is kept on the PC.
+- Charts, maps (OpenStreetMap tiles, or another provider with `tuiles`), audio and
+  video with their transcript, QR codes, SVG images, choosing and uploading files,
+  `sous page`, anchors and the application's tabs.
+- `partager …` copies the text (and the link) to the clipboard.
+- Animations and hover effects are not drawn yet; the compiler says so.
+- What Humalis cannot do yet is written in C#: `utiliser composant "Carte" sur windows
+  "./natif/Carte.cs"`, with its NuGet libraries (`paquet windows "…" version "…"`); see
+  "A hand-written native view".
+- Not on Windows yet: payment, AI, signing in with Google or Apple, invitations,
+  notifications. Compilation stops and says which line needs them.
+
+Without code signing, Windows shows a warning (SmartScreen) on first launch: "More
+info", then "Run anyway".
 
 ---
 

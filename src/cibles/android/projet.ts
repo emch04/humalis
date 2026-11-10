@@ -15,6 +15,7 @@ import { COULEURS_CSS } from '../web/styles.js';
 import { EcrivainActions } from './actions.js';
 import { APPLE_KT, GOOGLE_KT, notificationsKotlin, type Firebase } from './comptes.js';
 import { DIRECT_KT, ENVOIS_KT, fondKotlin } from './temps-reel.js';
+import { langueDuStyle } from '../commun/styles-natifs.js';
 import { CARTES_KT, GRAPHIQUES_KT, LECTEURS_KT, MENUS_KT, MOUVEMENT_KT, NATIFS_KT, QR_KT } from './medias.js';
 import { APPAREIL_KT, CHEMINS_FICHIERS, FICHIERS_KT, SCANNER_KT, SYSTEME_KT } from './appareil.js';
 import { CssAndroid, type Portee as PorteeCss } from './css.js';
@@ -67,7 +68,10 @@ function verifier(application: Application): Diagnostic[] {
   };
   parcourir([application.ecrans, application.disposition]);
   for (const c of application.composantsReact) {
-    if (utilises.has(c.nom)) refuser(c.ligne, `le composant React « ${c.nom} » (Android n'exécute pas de JavaScript)`);
+    // Une vue Kotlin écrite à la main (« sur android "….kt" ») n'est pas encore branchée ; sans elle, rien à montrer.
+    if (!utilises.has(c.nom)) continue;
+    if (c.android === undefined) d.push({ gravite: 'erreur', ligne: c.ligne, message: `le composant « ${c.nom} » n'a pas de vue Kotlin pour Android, qui n'exécute pas de JavaScript : écrivez-le en Humalis (« composant "${c.nom}" : »).` });
+    else refuser(c.ligne, `la vue Kotlin du composant « ${c.nom} » (« sur android "${c.android}" »)`);
   }
   for (const e of application.ecrans) {
     const parent = e.parent !== undefined ? application.ecrans.find((x) => x.nom === e.parent) : undefined;
@@ -517,7 +521,8 @@ export function genererProjetAndroid(application: Application, options: OptionsA
   const partages = new Map(application.partages.map((p) => [p.nom, `Partage.${nomKotlin(p.nom)}`]));
   const fonctions = new Set(application.fonctions.map((f) => f.nom));
   // Le CSS commun (facultatif), puis les feuilles « sur application », puis celles « sur android ».
-  const feuilles = application.fichiersStyle.flatMap((f) => {
+  // Un style natif (.kt, .swift, .xaml) n'est pas du CSS : il n'est pas traduit.
+  const feuilles = application.fichiersStyle.filter((f) => langueDuStyle(f.chemin) === 'css').flatMap((f) => {
     const css = options.fichiersStyle?.get(f.chemin);
     const portee: PorteeCss = f.plateforme === 'android' ? 'android' : f.plateforme === 'application' ? 'application' : 'commun';
     return css === undefined ? [] : [{ css, portee }];

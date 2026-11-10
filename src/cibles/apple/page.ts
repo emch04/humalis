@@ -14,6 +14,7 @@ import { nomIcone } from './icones.js';
 import { chaineSwift, cleJson, nomComposant, nomPage, nomSwift } from './noms.js';
 import { clavier, modificateurs, touches, ESPACES, type Option } from './styles.js';
 import type { CssApple } from './css.js';
+import { nomStyleNatif } from '../commun/styles-natifs.js';
 import type { CssExact, EntreeStyle, ResolutionPage } from './css-exact.js';
 import { FICHIER_CHOISI, plusPrecis, Valeurs, type Expr, type Lecture, type Portee, type Types } from './valeurs.js';
 
@@ -26,6 +27,8 @@ export interface ContexteApple {
   css: CssApple;
   /** Le CSS résolu élément par élément, pour les pages « dessinee pour ». */
   cssExact?: CssExact;
+  /** Pour l'essai au point près : chaque élément d'une page dessinée écrit sa place. */
+  cadres?: boolean;
   /** Les noms des icônes apportées par le projet. */
   iconesDessinees?: Set<string>;
   types: Types;
@@ -40,6 +43,11 @@ export interface ContexteApple {
   composants: Map<string, { nom: string; type: TypeValeur }[]>;
   /** Les vues Swift écrites à la main (« sur apple "Carte.swift" »). */
   natifs: Set<string>;
+  /**
+   * Les styles écrits en SwiftUI (« utiliser style "./apple.swift" sur apple »), par nom (Carte pour le style
+   * « carte ») : le ViewModifier, et l'appareil s'il ne vaut que pour iOS ou macOS.
+   */
+  stylesNatifs?: Map<string, { struct: string; os?: 'ios' | 'macos' }[]>;
   /** Les paramètres des vues Swift du projet, lus dans leur fichier : « var valeur: Double = 0 ». */
   typesNatifs?: Map<string, Map<string, TypeValeur>>;
   /** Le nom Swift d'un fichier local copié dans l'application. */
@@ -55,6 +63,9 @@ export interface ContexteApple {
   /** La page d'entrée : elle reste sous les autres, et se relit quand on y revient. */
   pageEntree?: string;
 }
+
+/** Une page dessinée écrite pour chaque appareil : son code et le style de son fond. */
+interface CorpsExact { mac: { corps: string; fond: string; page: string }; ios: { corps: string; fond: string; page: string } }
 
 interface Fonction {
   nom: string;
@@ -109,6 +120,8 @@ export class GenerateurPage implements HotePage {
 
   /** Sur Mac, dans une page « dessinee pour » : le style de chaque nœud. */
   private exact?: ResolutionPage;
+  /** L'appareil de la page dessinée en cours d'écriture : ses blocs « sur ios : » ou « sur macos : ». */
+  private osExact: 'ios' | 'macos' = 'macos';
   /** Dans une boucle : l'index de la ligne, et leur nombre. */
   private readonly rangsExacts: string[] = [];
 
@@ -340,18 +353,28 @@ export class GenerateurPage implements HotePage {
     vue.indenter(() => vue.indenter(() => vue.indenter(() => this.ecrireVue(vue, this.ecran.vue))));
     const corps = vue.texte();
 
-    // « dessinee pour » : sur Mac, la même page au point près ; ailleurs, la page ordinaire écrite ci-dessus.
-    let corpsExact: string | undefined;
+    // « dessinee pour » : la même page au point près, sur Mac à l'échelle de la fenêtre, sur iPhone et iPad
+    // à la largeur de l'écran ; chaque appareil avec ses feuilles et ses blocs « sur ios : » ou « sur macos : ».
+    let corpsExact: CorpsExact | undefined;
     if (this.ecran.dessin && this.app.cssExact) {
-      this.exact = this.app.cssExact.resoudre(this.ecran.vue, this.ecran.dessin);
-      const dessinee = new Ecrivain();
-      this.restaurer(variablesDeLaPage);
-      dessinee.indenter(() => dessinee.indenter(() => dessinee.indenter(() => this.ecrireVue(dessinee, this.ecran.vue))));
-      corpsExact = dessinee.texte();
-      this.exact = undefined;
+      const ecrire = (os: 'ios' | 'macos') => {
+        this.osExact = os;
+        this.exact = this.app.cssExact!.resoudreVariantes(this.ecran.vue, this.ecran.dessin!, os, this.nomForce === 'BarreSite' ? 'barre' : 'page');
+        const dessinee = new Ecrivain();
+        this.restaurer(variablesDeLaPage);
+        dessinee.indenter(() => dessinee.indenter(() => dessinee.indenter(() => this.ecrireVue(dessinee, this.ecran.vue))));
+        let texte = dessinee.texte();
+        // L'essai au point près : la place de chaque élément, sous le nom que le site lui donne.
+        if (this.app.cadres) texte = texte.replace(/\.(accessibilityIdentifier|identifiantHumalis)\(("[^"]*")\)/g, (tout, _f, id: string) => `${tout}.modifier(CadreEssaiHumalis(id: ${id}))`);
+        const lu = { corps: texte, fond: this.exact.fond, page: this.exact.page };
+        this.exact = undefined;
+        this.osExact = 'macos';
+        return lu;
+      };
+      corpsExact = { mac: ecrire('macos'), ios: ecrire('ios') };
     }
 
-    const tout = corps + (corpsExact ?? '') + this.fonctions.map((f) => f.code ?? '').join('') + chargements.join('') + minuteries.map((m) => m.corps).join('');
+    const tout = corps + (corpsExact ? corpsExact.mac.corps + corpsExact.ios.corps : '') + this.fonctions.map((f) => f.code ?? '').join('') + chargements.join('') + minuteries.map((m) => m.corps).join('');
     const e = new Ecrivain();
     e.ligne('// Produit par Humalis.');
     e.ligne('import SwiftUI');
@@ -507,7 +530,7 @@ export class GenerateurPage implements HotePage {
     return f.asynchrone ? `Task { await ${f.nom}(${args}) }` : `${f.nom}(${args})`;
   }
 
-  private ecrireBody(e: Ecrivain, corps: string, chargements: string[], minuteries: ReturnType<GenerateurPage['corpsDesMinuteries']>, corpsExact?: string): void {
+  private ecrireBody(e: Ecrivain, corps: string, chargements: string[], minuteries: ReturnType<GenerateurPage['corpsDesMinuteries']>, corpsExact?: CorpsExact): void {
     const { titre } = titreEtDescription(this.ecran, this.app.langues);
     const titreCode = this.titreCode(titre);
     e.bloc('var body: some View {', () => {
@@ -518,18 +541,30 @@ export class GenerateurPage implements HotePage {
       const racine = this.ecran.vue.some((n) => n.type === 'formulaire' && n.reglages) ? ', racine: .reglages' : directs.some((n) => n.type === 'repetition' && n.corps.some((c) => c.type === 'bloc' && c.natif?.genre === 'glisser')) ? ', racine: .liste' : '';
       if (corpsExact !== undefined) {
         const d = this.ecran.dessin!;
+        const page = (lu: { corps: string; fond: string; page: string }, ios: boolean) => {
+          const fond = ios && lu.fond !== 'StyleHumalis.racine' ? `, fond: ${lu.fond}` : '';
+          e.ligne(this.nomForce ? 'Group {' : `PageDessineeHumalis(largeur: ${d.largeur}, hauteur: ${d.hauteur}${fond}) {`);
+          // La boîte main.humalis-page, comme sur le site ; la barre latérale n'en a pas.
+          const boite = this.nomForce !== 'BarreSite';
+          if (boite) e.ligne(`  BoitePageHumalis(${lu.page}) {`);
+          for (const l of lu.corps.trimEnd().split('\n')) if (l !== '') e.ligne(boite ? l : l.slice(2));
+          if (boite) e.ligne(this.app.cadres ? '  }.modifier(CadreEssaiHumalis(id: "@page"))' : '  }');
+          e.ligne('}');
+        };
         e.ligne('Group {');
-        e.ligne('#if os(macOS)');
-        e.ligne(this.nomForce ? 'Group {' : `PageDessineeHumalis(largeur: ${d.largeur}, hauteur: ${d.hauteur}) {`);
-        for (const l of corpsExact.trimEnd().split('\n')) if (l !== '') e.ligne(l.slice(2));
+        // Le même code sur les deux appareils : écrit une seule fois.
+        if (corpsExact.mac.corps === corpsExact.ios.corps && corpsExact.mac.page === corpsExact.ios.page && (corpsExact.ios.fond === 'StyleHumalis.racine' || this.nomForce)) page(corpsExact.mac, false);
+        else {
+          e.ligne('#if os(macOS)');
+          page(corpsExact.mac, false);
+          e.ligne('#else');
+          page(corpsExact.ios, true);
+          e.ligne('#endif');
+        }
         e.ligne('}');
-        e.ligne('#else');
-      }
-      e.ligne(this.parametres || this.nomForce ? 'Group {' : `PageHumalis(titre: ${titreCode}${paresseuse ? ', paresseuse: true' : ''}${racine}${this.ecran.pleineFenetre ? ', pleineFenetre: true' : ''}) {`);
-      for (const l of corps.trimEnd().split('\n')) if (l !== '') e.ligne(l.slice(2));
-      e.ligne('}');
-      if (corpsExact !== undefined) {
-        e.ligne('#endif');
+      } else {
+        e.ligne(this.parametres || this.nomForce ? 'Group {' : `PageHumalis(titre: ${titreCode}${paresseuse ? ', paresseuse: true' : ''}${racine}${this.ecran.pleineFenetre ? ', pleineFenetre: true' : ''}) {`);
+        for (const l of corps.trimEnd().split('\n')) if (l !== '') e.ligne(l.slice(2));
         e.ligne('}');
       }
       e.indenter(() => {
@@ -799,11 +834,11 @@ export class GenerateurPage implements HotePage {
   // ─── « dessinee pour » : chaque élément dans sa boîte CSS ───
 
   private codeExact(entree: EntreeStyle): string {
-    return entree.code.replace('§', this.rangsExacts.at(-1) ?? '0, 1');
+    return entree.code.replaceAll('§', this.rangsExacts.at(-1) ?? '0, 1');
   }
 
   private pseudoExact(code: string): string {
-    const lu = code.replace('§', this.rangsExacts.at(-1) ?? '0, 1');
+    const lu = code.replaceAll('§', this.rangsExacts.at(-1) ?? '0, 1');
     return `BoiteHumalis(${lu}) { EmptyView() }.itemHumalis(${lu})`;
   }
 
@@ -817,7 +852,7 @@ export class GenerateurPage implements HotePage {
       interieur();
       if (entree?.apres) e.ligne(this.pseudoExact(entree.apres));
     });
-    e.indenter(() => [`.itemHumalis(${style})`, ...extra].forEach((l) => e.ligne(l)));
+    e.indenter(() => [`.itemHumalis(${style})`, ...this.stylesNatifsDe(noeud.type === 'bloc' || noeud.type === 'element' ? noeud.classes : []).natives, ...extra].forEach((l) => e.ligne(l)));
   }
 
   private texteExact(e: Ecrivain, noeud: Extract<NoeudVue, { type: 'element' }>, code: string): void {
@@ -841,9 +876,15 @@ export class GenerateurPage implements HotePage {
       this.exact = avant;
       return true;
     }
+    if (noeud.type === 'formulaire' && !noeud.reglages && this.exact!.de(noeud)) {
+      this.visible(e, noeud.id, () => this.boiteExacte(e, noeud, () => this.ecrireCorps(e, noeud.corps), [`.identifiantHumalis(${chaineSwift(noeud.id)})`]));
+      return true;
+    }
     if (noeud.type === 'bloc') {
-      if (noeud.plateforme === 'ios') return true;
-      if (noeud.plateforme === 'macos') { this.ecrireCorps(e, noeud.corps); return true; }
+      if (noeud.plateforme === 'ios' || noeud.plateforme === 'macos') {
+        if (noeud.plateforme === this.osExact) this.ecrireCorps(e, noeud.corps);
+        return true;
+      }
       if (noeud.natif?.genre === 'recherche' && noeud.natif.variable) {
         const lue = this.portee.variables.get(noeud.natif.variable);
         if (!lue) return false;
@@ -906,10 +947,10 @@ export class GenerateurPage implements HotePage {
               this.texteExact(e, noeud, style);
               if (entree.apres) e.ligne(this.pseudoExact(entree.apres));
             });
-            e.indenter(() => e.ligne('.contentShape(Rectangle())'));
+            e.indenter(() => e.ligne('.modifier(CibleTactileHumalis())'));
           });
           e.ligne('}');
-          e.indenter(() => [`.buttonStyle(.plain)`, `.itemHumalis(${style})`, ...(noeud.genre === 'lien' ? ['.accessibilityAddTraits(.isLink)'] : []), id].forEach((l) => e.ligne(l)));
+          e.indenter(() => [`.buttonStyle(.plain)`, `.itemHumalis(${style})`, ...this.stylesNatifsDe(noeud.classes).natives, ...(noeud.genre === 'lien' ? ['.accessibilityAddTraits(.isLink)'] : []), id].forEach((l) => e.ligne(l)));
         });
         return true;
       }
@@ -1000,8 +1041,27 @@ export class GenerateurPage implements HotePage {
 
   private modifieurs(e: Ecrivain, noeudOptions: Option[], sorte: Parameters<typeof modificateurs>[1], extra: string[] = []): void {
     const classes = noeudOptions.find((o) => o.nom === 'css')?.valeur.split(' ').filter(Boolean) ?? [];
-    const lignes = [...modificateurs(noeudOptions, sorte, { dansLigne: this.dansLigne }), ...this.app.css.modificateurs(classes, sorte), ...extra];
+    const { traduites, natives } = this.stylesNatifsDe(classes);
+    const lignes = [...modificateurs(noeudOptions, sorte, { dansLigne: this.dansLigne }), ...this.app.css.modificateurs(traduites, sorte), ...natives, ...extra];
     e.indenter(() => lignes.forEach((l) => e.ligne(l)));
+  }
+
+  /**
+   * Les styles écrits en SwiftUI pour ces classes : « .modifier(StyleCarte()) », sous « #if os(…) » s'il ne vaut
+   * que pour un appareil. Un style natif pour iPhone, iPad et Mac remplace le CSS traduit de la même classe ;
+   * pour un seul appareil, il s'ajoute après lui.
+   */
+  private stylesNatifsDe(classes: string[]): { traduites: string[]; natives: string[] } {
+    const table = this.app.stylesNatifs;
+    if (!table) return { traduites: classes, natives: [] };
+    const natives: string[] = [];
+    const traduites = classes.filter((classe) => {
+      const lus = table.get(nomStyleNatif(classe.replace(/^(apple|ios|macos):/, '')));
+      if (!lus) return true;
+      for (const l of lus) natives.push(...(l.os ? [`#if os(${l.os === 'ios' ? 'iOS' : 'macOS'})`, `.modifier(${l.struct}())`, '#endif'] : [`.modifier(${l.struct}())`]));
+      return lus.every((l) => l.os !== undefined);
+    });
+    return { traduites, natives };
   }
 
   private ecrireBloc(e: Ecrivain, noeudLu: Extract<NoeudVue, { type: 'bloc' }>): void {
@@ -1188,7 +1248,8 @@ export class GenerateurPage implements HotePage {
       case 'image':
         return this.ecrireImage(e, noeud, id, ancre, clics, survol);
       case 'champ':
-        return this.ecrireChamp(e, noeud, id);
+        // Le nœud d'origine : le CSS d'une page dessinée est rangé par nœud.
+        return this.ecrireChamp(e, noeud, id, noeudLu);
     }
   }
 
@@ -1284,7 +1345,7 @@ export class GenerateurPage implements HotePage {
     this.modifieurs(e, noeud.options, 'image', [...(this.nomForce === 'EnteteSite' ? ['.frame(maxHeight: 44, alignment: .leading)'] : []), ...this.toucher(clics), ...survol, id, ...ancre]);
   }
 
-  private ecrireChamp(e: Ecrivain, noeud: Extract<NoeudVue, { type: 'element' }>, idBrut: string): void {
+  private ecrireChamp(e: Ecrivain, noeud: Extract<NoeudVue, { type: 'element' }>, idBrut: string, origine: NoeudVue = noeud): void {
     const id = idBrut.replace('.accessibilityIdentifier(', '.identifiantHumalis(');
     const champ = this.portee.champs.get(noeud.id)!;
     const saisie = noeud.saisie;
@@ -1302,6 +1363,37 @@ export class GenerateurPage implements HotePage {
     const pause = this.saisiesSuivies.find((s) => s.gestionnaire.cibles[0] === noeud.id && s.gestionnaire.declencheur === 'pauseSaisie');
     if (pause && !soumission) envoi.push(`.onSubmit { ${this.appel(pause.fonction)} }`);
     const estMotDePasse = sorte === 'motDePasse' || this.champsMotDePasse.has(noeud.id);
+    // Dans une page dessinée : le <label> et sa saisie, dessinés par le CSS comme sur le site.
+    const lu = this.exact?.enveloppe(origine);
+    const saisieLue = this.exact?.de(origine);
+    if (this.exact && saisieLue && (lu || sorte === 'choix')) {
+      const apres = [...this.desactive(noeud), ...envoi, id];
+      if (sorte === 'choix') {
+        this.boiteExacte(e, origine, () => e.ligne(`ChoixHumalis(libelle: ${libelle}, valeurs: ${valeurs}, choisi: ${lien}${obligatoire}).itemHumalis(StyleHumalis.plein)`), apres);
+        return;
+      }
+      if (lu!.masque) return;
+      const s = this.codeExact(saisieLue);
+      const etoile = saisie?.obligatoire ? ' + " *"' : '';
+      const libelleLu = `Text(verbatim: ${libelle}${etoile}).modifier(StyleTexteHumalis(${lu!.texte}))`;
+      const indiceLu = saisie?.indice !== undefined || saisie?.indiceValeur || saisie?.indiceLangues ? indice.replace(/^, indice: /, '') : 'nil';
+      const saisieCode = sorte === 'case'
+        ? `CaseDessineeHumalis(s: ${s}, coche: ${lien})`
+        : sorte === 'liste'
+          ? `ListeDessineeHumalis(s: ${s}, valeurs: ${valeurs}, choisi: ${lien}, indice: ${saisie?.indice !== undefined ? chaineSwift(saisie.indice) : '"Choisissez…"'})`
+          : sorte === 'date' || sorte === 'heure'
+            ? `BoiteHumalis(${s}) { ChampDateHumalis(libelle: ${libelle}, texte: ${lien}, genre: .${sorte}).labelsHidden().itemHumalis(StyleHumalis.plein) }.itemHumalis(${s})`
+            : `SaisieDessineeHumalis(s: ${s}, texte: ${lien}, indice: ${indiceLu}${sorte === 'texteLong' ? ', lignes: 4' : `, clavier: .${clavier(sorte, this.champsEmail.has(noeud.id))}`}${estMotDePasse ? `, secret: true, nouveau: ${!this.champsMotDePasse.has(noeud.id)}` : ''})`;
+      e.bloc(`BoiteHumalis(${lu!.code}) {`, () => {
+        // Sur le web, la case vient avant son libellé, la saisie après.
+        if (sorte !== 'case') e.ligne(libelleLu);
+        e.ligne(saisieCode);
+        e.indenter(() => apres.forEach((l) => e.ligne(l)));
+        if (sorte === 'case') e.ligne(libelleLu);
+      });
+      e.indenter(() => e.ligne(`.itemHumalis(${lu!.code})`));
+      return;
+    }
     switch (sorte) {
       case 'case':
         e.ligne(`Toggle(isOn: ${lien}) { Text(verbatim: ${libelle}${saisie?.obligatoire ? ' + " *"' : ''}) }`);

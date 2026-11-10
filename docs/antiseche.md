@@ -372,6 +372,25 @@ page "galerie" en pleine fenetre :
     titre "Galerie"
 ```
 
+### Un style écrit en SwiftUI ou en XAML | A style written in SwiftUI or XAML
+```humalis racine
+utiliser style "./styles/apple.swift" sur apple
+utiliser style "./styles/windows.xaml" sur windows
+
+page "vitrine" :
+    bloc avec style "carte" :
+        texte "Un produit"
+```
+
+### Ce que Humalis ne sait pas encore : une vue en Swift ou en C# | What Humalis can't do yet: a view in Swift or C#
+```humalis racine
+paquet windows "Humanizer.Core" version "2.14.1"
+utiliser composant "Carte" sur apple "./natif/Carte.swift" et sur windows "./natif/Carte.cs"
+
+page "vitrine" :
+    Carte avec titre "Café" et prix 3.5
+```
+
 ## Les variables et les calculs | Variables and calculations | variables
 
 ### Une variable qui change, un calcul qui suit | A variable that changes, a calculation that follows

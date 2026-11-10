@@ -471,16 +471,21 @@ page "connexion" :
 
 La logique reste la même ; seul le design change. `sur apple` vaut pour iPhone, iPad et Mac,
 `sur ios` pour iPhone et iPad, `sur macos` pour Mac, `sur android` pour les téléphones et
-tablettes Android, `sur application` pour toutes les applications natives, `sur site` pour le web. Une phrase qui vise une autre plateforme n'a
-aucun effet, et la plus précise gagne.
+tablettes Android, `sur windows` pour l'application Windows, `sur application` pour toutes les applications natives, `sur site` pour le web.
+Une phrase qui vise une autre plateforme n'a aucun effet, et la plus précise gagne.
+
+Chaque cible peut ainsi avoir sa propre feuille de style : un CSS commun (sans `sur`)
+reste possible, mais il n'est pas obligatoire.
 
 ```humalis
+utiliser style "./site.css" sur site
 utiliser style "./iphone.css" sur ios
 utiliser style "./mac.css" sur macos
 utiliser style "./android.css" sur android
+utiliser style "./windows.css" sur windows
 
 page "accueil" :
-    bouton "Commander" avec style "principal" et sur apple style "plein-ecran"
+    bouton "Commander" avec style "principal" et sur apple style "plein-ecran" et sur windows style "large"
     sur application :
         texte "Merci d'utiliser l'application"
     sur site :
@@ -489,12 +494,69 @@ page "accueil" :
 
 Sur la cible Apple, chaque règle `.classe { … }` est traduite en SwiftUI. Ce qui n'a pas
 d'équivalent (`@media`, survols, sélecteurs composés, placement libre…) est compté à la
-compilation et listé, avec sa raison, dans `CSS-SUR-APPLE.md`. La cible Android fait de même
-en Compose, et liste le reste dans `CSS-SUR-ANDROID.md`.
+compilation et listé, avec sa raison, dans `CSS-SUR-APPLE.md`. Les cibles Android et Windows font
+de même, dans `CSS-SUR-ANDROID.md` et `CSS-SUR-WINDOWS.md`. Une feuille `sur android`
+peut être la seule que lit l'application Android ; s'il y a aussi un CSS commun, la
+feuille Android passe après lui.
 
-Chaque cible peut avoir son propre CSS : un CSS commun à toutes les cibles n'est pas
-obligatoire. Une feuille `sur android` peut être la seule que lit l'application Android ;
-s'il y a aussi un CSS commun, la feuille Android passe après lui.
+### Un style écrit dans la langue de la plateforme
+
+Quand le style traduit ne suffit pas, écris-le dans la langue de la plateforme : SwiftUI
+pour Apple, XAML pour Windows. L'extension du fichier donne sa langue, et `sur` dit pour
+quelle plateforme il vaut. Le fichier est recopié tel quel : une nouveauté de SwiftUI ou de
+WPF s'utilise le jour même, sans attendre Humalis.
+
+```humalis
+style "carte" :
+    fond blanc
+    arrondi 8
+
+utiliser style "./styles/apple.swift" sur apple
+utiliser style "./styles/windows.xaml" sur windows
+
+page "vitrine" :
+    bloc avec style "carte" :
+        bouton "Acheter" avec style "bouton-principal"
+```
+
+Sur Apple, un style est un `ViewModifier` nommé `Style` suivi du nom du style en majuscules
+collées (`carte` → `StyleCarte`, `bouton-principal` → `StyleBoutonPrincipal`) :
+
+```swift
+import SwiftUI
+
+struct StyleCarte: ViewModifier {
+    func body(content: Content) -> some View {
+        content.padding(16).background(.background.secondary, in: RoundedRectangle(cornerRadius: 12))
+    }
+}
+```
+
+Sur Windows, un dictionnaire de styles WPF, un `<Style>` par style, avec le nom du style en
+clé. `TargetType` dit ce qu'il habille : `Button` pour un bouton, `TextBlock` pour un texte ou
+un titre, `Border` pour un cadre (Humalis entoure alors l'élément, un bloc par exemple). Pour
+garder l'apparence de Windows 11, pars du style du système avec `BasedOn`.
+
+```xml
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Style x:Key="carte" TargetType="Border">
+        <Setter Property="Background" Value="White"/>
+        <Setter Property="CornerRadius" Value="12"/>
+        <Setter Property="Padding" Value="16"/>
+    </Style>
+    <Style x:Key="bouton-principal" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Background" Value="SeaGreen"/>
+    </Style>
+</ResourceDictionary>
+```
+
+Sur sa plateforme, le style natif passe avant le style Humalis ou le CSS du même nom ;
+ailleurs, rien ne change. Un fichier pour `sur ios` ou `sur macos` seulement s'ajoute
+au style traduit sur cet appareil, sans le remplacer. Dans une page `dessinee pour`, le
+style natif s'ajoute au dessin du CSS. Une erreur dans le fichier arrête la construction
+du projet (Xcode ou `dotnet build`), avec sa ligne. Sur Android, ce sera un fichier Kotlin
+(`fun Modifier.carte(): Modifier`) ; la cible Android ne le lit pas encore.
 
 Un même bloc peut viser plusieurs plateformes : on les relie par `et`.
 
@@ -507,15 +569,60 @@ page "accueil" :
         texte "Touche un rendez-vous pour le déplacer."
 ```
 
-### Une page dessinée pour le Mac
+### Une page dessinée
 
 `dessinee pour 1440 par 900`, après le nom d'une page, donne la taille pour
-laquelle elle a été dessinée. Sur Mac, la page suit alors son CSS au point près,
-et grandit avec la fenêtre. Ailleurs, rien ne change.
+laquelle elle a été dessinée. Dans l'application Apple, la page suit alors son CSS
+au point près. Sur le site et les autres cibles, rien ne change.
+
+- **Sur Mac**, la page garde la largeur du dessin et grandit avec la fenêtre.
+- **Sur iPhone et iPad**, elle se rend comme dans Safari sur le même appareil : un
+  pixel du CSS pour un point de l'écran. Les règles `@media (min-width: …)` et
+  `@media (max-width: …)` suivent la vraie largeur de l'écran, et changent en
+  direct quand on tourne l'appareil ou qu'on partage l'écran de l'iPad. Le contenu
+  reste dans la zone sûre (encoche, barre du bas) et le fond de la page passe
+  dessous. Une page plus haute que l'écran défile, et le clavier ne cache pas le
+  champ où l'on écrit. Un bouton ou un lien plus petit que 44 points se touche
+  quand même : sa zone de toucher grandit, pas son dessin.
+- **Partout**, `@media (prefers-color-scheme: dark)` suit le mode sombre de
+  l'appareil, en direct.
+
+La page part du même point que le site : les marges par défaut du navigateur
+(paragraphes, titres), la feuille de base de Humalis et le thème, puis le CSS du
+projet. `box-sizing` est respecté, et `env(safe-area-inset-…)` vaut 0, comme dans
+Safari. Chaque élément est à sa place dans la même structure que le site :
+`main.humalis-page` autour de la page, `header.humalis-entete` pour la barre
+latérale, `label.humalis-champ` autour d'un champ. Les champs, les listes
+déroulantes, les cases à cocher et les formulaires suivent donc leur CSS. Sur le
+site, une barre latérale fixée à gauche laisse sa place par une marge de la page ;
+dans l'application, la barre est déjà à côté, et cette marge perd sa largeur.
+
+Pour le vérifier, `node scripts/essai-apple-dessin.mjs page.humalis` mesure la
+même page sur le site (dans Chrome) et dans l'application (`--appareil "…"` pour
+un simulateur, `--mac`, `--sombre`, `--web`), puis compare la place de chaque
+élément, au point près.
+
+Chaque appareil a son propre CSS : `utiliser style "./ios.css" sur ios` ne vaut
+que sur iPhone et iPad, `sur macos` que sur Mac, et un CSS commun reste
+facultatif. Les blocs `sur ios :` et `sur macos :` d'une page dessinée, et les
+styles `sur ios style "…"`, suivent la même règle. Les pages qui ne sont pas
+dessinées gardent leur rendu natif.
+
+```humalis
+utiliser style "./site.css"
+utiliser style "./ios.css" sur ios
+
+page "accueil" dessinee pour 1440 par 900 :
+    titre "Tableau de bord" avec style "titre"
+    sur ios :
+        texte "Bienvenue sur l'iPhone"
+```
 
 Avec des pages dessinées, `barre laterale :` en haut du fichier écrit la barre
-latérale du Mac comme une page. Sur les autres cibles, elle prend la place de
-l'en-tête quand le projet n'en a pas ; s'il y a un `entete`, elle s'efface.
+latérale comme une page : sur Mac, et sur iPad tant que le CSS la montre à cette
+largeur. Sur iPhone, ou quand le CSS la cache, l'application garde sa navigation
+native. Sur les autres cibles, elle prend la place de l'en-tête quand le projet
+n'en a pas ; s'il y a un `entete`, elle s'efface.
 
 ```humalis
 utiliser style "./bureau.css"
@@ -820,6 +927,7 @@ web avec un équivalent simple.
 | `menu de l'application "Fichier" :` puis `commande "N" avec raccourci "cmd+n" :` | raccourcis (iPad) | barre de menus | menu « ⋮ » et raccourcis | refusé |
 | `page "x" en reglages :` | page | fenêtre Réglages | page | page |
 | `page "x" en pleine fenetre :` | page jusqu'aux bords | page jusqu'aux bords | page | page (sans effet) |
+| `page "x" dessinee pour 1440 par 900 :` | son CSS au point près, à la largeur de l'écran | son CSS au point près, à l'échelle de la fenêtre | page (sans effet) | page (son CSS) |
 | `barre d'outils :` | barre du haut | barre d'outils | rangée | rangée |
 
 ### Le fil d'Ariane et le menu
@@ -3172,7 +3280,9 @@ page "a_propos" :
 ```
 
 Avec une `adresse`, la cible web écrit le plan du site (`sitemap.xml`) et
-`robots.txt`. Une page en `indexation non` n'y apparaît pas. Humalis prévient
+`robots.txt`. Une page en `indexation non` n'y apparaît pas. `robots.txt` dit aussi
+aux IA que le site peut apparaître dans leurs recherches et servir de source à leurs
+réponses (`Content-Signal: search=yes, ai-input=yes`). Humalis prévient
 quand un titre ou une description est trop long ou trop court pour les moteurs
 de recherche.
 
@@ -3272,31 +3382,63 @@ Le module est chargé à part, et ses paquets sont ajoutés au projet. Quand une
 propriété change, il est relancé. S'il sait se mettre à jour lui-même, il rend
 `{ mettreAJour(proprietes) { … }, detruire() { … } }`.
 
-### Une vue Swift écrite à la main
+### Une vue native écrite à la main
 
-Sur la cible Apple, il n'y a ni React ni JavaScript. Pour y mettre du Swift écrit
-à la main, ajoute `sur apple` : le web garde son composant, l'application Apple
-utilise ta vue SwiftUI.
+Quand Humalis ne sait pas encore dessiner quelque chose, écris ce morceau dans la
+langue de la plateforme : Swift pour iPhone, iPad et Mac, C# pour Windows. Pas de
+React, pas de navigateur : chaque application reste native. Une seule ligne donne
+la vue de chaque plateforme :
 
 ```humalis
-utiliser composant "Carte" depuis "./composants/Carte" sur apple "./composants/Carte.swift"
+utiliser composant "Carte" sur apple "./natif/Carte.swift" et sur windows "./natif/Carte.cs"
 
 page "accueil" :
-    Carte avec titre "Bonjour"
+    Carte avec titre "Café" et prix 3.5
 ```
+
+Sur Apple, une vue SwiftUI qui porte le nom du composant :
 
 ```swift
 import SwiftUI
 
 struct Carte: View {
     let titre: String
-    var body: some View { Text(titre).font(.title) }
+    let prix: Double
+    var body: some View { Text("\(titre) : \(prix) €").font(.title) }
 }
 ```
 
-La vue porte le nom du composant, et ses propriétés sont écrites dans le même
-ordre que dans la page. Un texte est un `String`, un nombre un `Double`, vrai ou
-faux un `Bool`.
+Sur Windows, une classe WPF du même nom (un `UserControl`, ou tout autre élément) :
+
+```csharp
+using System.Windows.Controls;
+
+namespace MesVues;
+
+public class Carte : UserControl
+{
+    public Carte(string titre, double prix, bool promo = false)
+    {
+        Content = new TextBlock { Text = $"{titre} : {prix:0.00} €", FontSize = 22 };
+    }
+}
+```
+
+Les propriétés de la page passent par leur nom : `titre` va dans le paramètre `titre`.
+Un texte est un `String` (`string` en C#), un nombre un `Double` (`double`, ou `int`),
+vrai ou faux un `Bool` (`bool`). Un paramètre C# avec une valeur par défaut peut être
+omis dans la page. Sur Windows, la vue est recréée quand une valeur qu'elle reçoit
+change. Une propriété inconnue, ou un paramètre oublié, est dit à la compilation.
+
+Une plateforme sans sa vue s'arrête avec la ligne à ajouter : ici, l'application
+Android et le site n'ont pas de « Carte ». Pour le site, écris le composant en Humalis
+(`composant "Carte" :`), ou un module JavaScript : `utiliser module "Carte" depuis
+"./modules/Carte.js"`, suivi des mêmes `sur …`.
+
+Les bibliothèques de ces vues s'ajoutent en haut du fichier : `paquet swift "https://…"
+version "1.2"` pour Apple (voir plus haut), `paquet windows "Humanizer.Core" version
+"2.14.1"` pour Windows (NuGet), `paquet android "io.coil-kt:coil-compose" version "2.7.0"`
+pour Android (Gradle).
 
 Dans l'autre sens, `humalis compile … --composants <dossier>` produit des
 composants React à importer dans un projet React existant.
@@ -3358,7 +3500,7 @@ Les autres étapes : `remplir champ "email" avec "…"`, `aller vers "panier"`,
 | `humalis packs` | dit si les packs Astratra ont des mises à jour |
 
 Pour le web et le statique, `--adresse https://…` donne l'adresse finale du
-site (plan du site, liens de partage). Pour le desktop, Apple et Android, `--serveur https://…`
+site (plan du site, liens de partage). Pour le desktop, Apple, Android et Windows, `--serveur https://…`
 donne l'adresse du serveur que l'application appelle.
 
 `--cible apple` produit un projet Xcode en SwiftUI : une seule application native
@@ -3370,6 +3512,11 @@ tourne à partir d'iOS 17 et de macOS 14). Pour la signer, ajoute
 construit par Gradle : sans navigateur embarqué ni JavaScript. L'application tourne
 à partir d'Android 8.0. Ouvre le dossier dans Android Studio, ou construis-le avec
 `gradle assembleDebug`. `--identifiant com.exemple.application` choisit son identifiant.
+
+`--cible windows` produit un projet .NET en C# et WPF : une application native pour
+Windows 10 et 11, sans navigateur embarqué. Elle se construit avec le SDK .NET 10,
+sur Windows mais aussi sur macOS ou Linux (`dotnet build`), et se publie en un seul
+fichier `.exe` (voir « L'application Windows » au chapitre 33).
 
 Avec `humalis developper`, chaque élément de la page porte son fichier
 Humalis et sa ligne : dans l'inspecteur du navigateur, un titre montre par
@@ -3401,20 +3548,23 @@ Le même fichier donne toutes les cibles. Quand une construction n'existe pas
 sur une cible, le compilateur le dit clairement au lieu de produire quelque
 chose de faux.
 
-| | web | statique | mobile | desktop | apple | android |
-|---|---|---|---|---|---|---|
-| Pages, éléments, styles, thème | oui | oui | oui | oui | oui | oui |
-| Ton propre CSS | oui | oui | non (styles nommés seulement) | oui | en partie (règles d'une classe ; le reste est listé) | en partie (règles d'une classe ; le reste est listé) |
-| Requêtes vers un serveur | oui | oui | oui | oui | oui | oui |
-| `memorisee` | oui | oui | oui | oui | oui | oui |
-| `memorisee en secret` | non | non | oui | oui | oui (Keychain) | oui (Keystore) |
-| `essayer` | oui | non | oui | oui | oui | oui |
-| Raccourcis clavier | oui | oui | non | oui | oui | oui (clavier branché) |
-| Composants React | oui | non | oui (en React Native) | oui | non (`sur apple "Vue.swift"`) | non |
-| Le moteur sans React (par défaut) | oui | non | non | oui (sauf composant React ou `memorisee en secret`) | non | non |
-| Photo, scanner, Face ID, vibration, signature, hors ligne | oui (vibration : Android) | non | non | non | oui | oui |
-| `en arriere plan` | non | non | non | non | oui | oui |
-| Plan du site, aperçu de partage | oui | oui | non | non | non | non |
+| | web | statique | mobile | desktop | apple | android | windows |
+|---|---|---|---|---|---|---|---|
+| Pages, éléments, styles, thème | oui | oui | oui | oui | oui | oui | oui |
+| Ton propre CSS | oui | oui | non (styles nommés seulement) | oui | en partie (règles d'une classe ; le reste est listé) ; au point près dans une page `dessinee pour`, `@media` et mode sombre compris | en partie (règles d'une classe ; le reste est listé) | en partie (règles d'une classe ; le reste est listé) |
+| Requêtes vers un serveur | oui | oui | oui | oui | oui | oui | oui |
+| `memorisee` | oui | oui | oui | oui | oui | oui | oui |
+| `memorisee en secret` | non | non | oui | oui | oui (Keychain) | oui (Keystore) | oui (chiffré par Windows) |
+| `essayer` | oui | non | oui | oui | oui | oui | oui |
+| Raccourcis clavier | oui | oui | non | oui | oui | oui (clavier branché) | oui |
+| Vue native écrite à la main | non | non | non | non | oui (Swift, `sur apple`) | pas encore | oui (C#, `sur windows`) |
+| Composants React (anciens projets) | oui | non | oui (en React Native) | oui | non | non | non |
+| Le moteur sans React (par défaut) | oui | non | non | oui (sauf composant React ou `memorisee en secret`) | non | non | non |
+| Graphiques, cartes, audio, vidéo, fichiers | oui | oui | en partie | oui | oui | oui | oui |
+| Plusieurs langues | oui | oui | oui | oui | oui | oui | oui |
+| Photo, scanner, Face ID, vibration, signature, hors ligne | oui (vibration : Android) | non | non | non | oui | oui | non |
+| `en arriere plan` | non | non | non | non | oui | oui | non |
+| Plan du site, aperçu de partage | oui | oui | non | non | non | non | non |
 
 Le serveur (`--cible serveur`) se produit à part, depuis le bloc `serveur`.
 
@@ -3477,6 +3627,43 @@ Le CSS se traduit en Compose, règle par règle, quand une règle vise une class
 (`.carte { … }`) : fond, couleur, taille et graisse du texte, marges et remplissage,
 bordure, arrondi, ombre, largeur, écart entre les enfants. Une feuille
 `utiliser style "./android.css" sur android` ne vaut que pour Android.
+
+### L'application Windows
+
+```sh
+humalis compile boutique.humalis --cible windows --sortie boutique-windows --serveur https://api.monsite.fr
+cd boutique-windows
+dotnet build
+dotnet publish -c Release -r win-x64
+```
+
+Le dossier produit est un projet .NET 10 en C# et WPF, lisible, à ne pas modifier à
+la main. `dotnet publish` donne un seul fichier `.exe` qui contient .NET : rien à
+installer sur le PC (`-r win-arm64` pour un PC à processeur ARM). La construction
+marche aussi sur un Mac ou sous Linux ; seul le lancement demande Windows 10 ou 11.
+
+- L'apparence suit Windows 11 (thème Fluent), en clair ou en sombre comme le système ;
+  `changer theme par sombre` change ce choix, et il est gardé.
+- Une page à la fois, avec un bouton Retour, `Alt+←` et le bouton arrière de la souris.
+- Le serveur Humalis est appelé avec la même session que l'application Apple : le jeton
+  est gardé chiffré par Windows, lisible seulement par la personne connectée à la
+  session Windows. `memorisee` va dans `%LOCALAPPDATA%`.
+- Plusieurs langues : le sélecteur, `changer langue`, et les nombres, prix et dates
+  écrits à la façon de la langue choisie, qui est gardée sur le PC.
+- Graphiques, cartes (tuiles d'OpenStreetMap, ou d'un autre fournisseur avec `tuiles`),
+  audio et vidéo avec leur transcription, codes QR, images SVG, choix et envoi de
+  fichiers, `sous page`, ancres et onglets de l'application.
+- `partager …` copie le texte (et le lien) dans le presse-papiers.
+- Les animations et les effets de survol ne se dessinent pas encore ; la compilation
+  le dit.
+- Ce que Humalis ne sait pas encore faire s'écrit en C# : `utiliser composant "Carte" sur
+  windows "./natif/Carte.cs"`, avec ses bibliothèques NuGet (`paquet windows "…" version
+  "…"`) ; voir « Une vue native écrite à la main ».
+- Pas encore sur Windows : paiement, IA, connexion avec Google ou Apple, invitations,
+  notifications. La compilation s'arrête et dit quelle ligne en a besoin.
+
+Sans signature de code, Windows affiche un avertissement (SmartScreen) au premier
+lancement : « Informations complémentaires », puis « Exécuter quand même ».
 
 ### Le moteur de rendu de Humalis
 

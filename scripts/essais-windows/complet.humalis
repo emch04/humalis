@@ -1,0 +1,157 @@
+# L'essai de la cible Windows : un peu de tout (formulaires, boucles, composant,
+# fenêtre, minuterie, styles, thème, en-tête, serveur, connexion, page réservée).
+# node scripts/essai-windows.mjs le produit et le construit avec .NET.
+
+site :
+    nom "Essai Windows"
+
+theme :
+    couleur marque "#1f7a5c"
+    mode automatique
+
+style "carte_produit" :
+    fond gris
+    espace interieur 16
+    arrondi 8
+
+style :
+    .encadre { padding: 12px; border: 1px solid #cccccc; border-radius: 8px; color: #333; }
+    .titre-rouge { color: red; font-weight: 700; }
+
+serveur "magasin" :
+    donnee produit :
+        nom : texte
+        prix : nombre
+    route "produits" :
+        tout le monde peut lire produit
+    donnees de depart pour produit :
+        nom "Cahier", prix 3
+        nom "Stylo bleu", prix 1.5
+        nom "Cartable", prix 24
+
+variable panier = [] avec partagee et memorisee
+variable jeton_api = "" avec partagee et memorisee en secret
+
+fonction remise avec prix et taux :
+    rendre prix - prix * taux / 100
+
+composant "Fiche" :
+    parametre nom
+    parametre prix
+    variable ouvert = faux
+    texte nom
+    texte "{prix} €"
+    bouton "Détails"
+    quand l'utilisateur clique sur "Détails" :
+        changer ouvert par non ouvert
+    si ouvert est vrai :
+        texte "Remise : {remise(prix, 10)} €"
+
+entete :
+    menu :
+        lien "Accueil" vers "accueil"
+        lien "Produits" vers "produits"
+        lien "Connexion" vers "connexion"
+
+page "accueil" :
+    variable clics = 0
+    variable taches = ["Lire", "Écrire"]
+    variable secondes = 0
+    variable compteur = vrai
+    calcul nombre_taches = nombre de taches
+    titre "Bienvenue"
+    texte "Il y a {nombre_taches} tâches." avec style "titre-rouge"
+    bloc avec style "encadre" :
+        texte "Un encadré en CSS."
+    ligne :
+        bouton "Plus" avec raccourci "controle+p"
+        bouton "Moins"
+    texte "Compteur : {clics}" avec nom "affichage"
+    quand l'utilisateur clique sur "Plus" :
+        changer clics par clics + 1
+        si clics est superieur a 5 :
+            afficher reussite "Plus de cinq !"
+    quand l'utilisateur clique sur "Moins" :
+        changer clics par clics - 1
+    formulaire "Nouvelle tâche" :
+        champ "Tâche" avec obligatoire
+        bouton "Ajouter"
+    quand le formulaire "Nouvelle tâche" est soumis :
+        ajouter champ "Tâche" a taches
+        vider champ "Tâche"
+    pour chaque t dans taches :
+        ligne :
+            texte t
+            bouton "Retirer" avec nom "retirer"
+            quand l'utilisateur clique sur "retirer" :
+                confirmer "Retirer {t} ?" :
+                    retirer t de taches
+    Fiche avec nom "Livre" et prix 12
+    bouton "Aide"
+    quand l'utilisateur clique sur "Aide" :
+        montrer "Aide"
+    fenetre "Aide" :
+        texte "Appuie sur Ctrl+P pour ajouter."
+    texte "Ouvert depuis {secondes} secondes"
+    toutes les 1 seconde tant que compteur est vrai :
+        changer secondes par secondes + 1
+    bouton "Arrêter"
+    quand l'utilisateur clique sur "Arrêter" :
+        changer compteur par faux
+        changer texte de "affichage" par "Arrêté"
+    bouton "Thème"
+    quand l'utilisateur clique sur "Thème" :
+        changer theme par sombre
+    lien "Voir le produit 3" vers "produit" avec id 3
+
+page "produits" :
+    variable produits = []
+    variable recherche = ""
+    titre "Produits"
+    quand la page se charge :
+        envoyer requete vers "produits" dans produits
+    champ "Chercher" avec indice "Un nom"
+    quand l'utilisateur ecrit dans "Chercher" :
+        changer recherche par champ "Chercher"
+    calcul trouves = produits dont nom contient recherche
+    si produits est vide :
+        texte "Aucun produit."
+    sinon :
+        grille avec colonnes 2 :
+            pour chaque p dans trouves :
+                bloc avec style "carte_produit" :
+                    soustitre p.nom
+                    texte "{p.prix en euros}"
+                    lien "Voir" vers "produit" avec id p.id
+
+page "produit" avec parametre id :
+    variable produit = rien
+    titre "Produit {id}"
+    quand la page se charge :
+        envoyer requete vers "produits" avec id dans produit
+    si produit est rien :
+        texte "Introuvable."
+    sinon :
+        texte produit.nom
+    bouton "Retour"
+    quand l'utilisateur clique sur "Retour" :
+        revenir
+
+page "connexion" :
+    titre "Connexion"
+    formulaire "Se connecter" :
+        champ email "Email" avec obligatoire
+        champ mot de passe "Mot de passe" avec obligatoire
+        bouton "Entrer"
+    quand le formulaire "Se connecter" est soumis :
+        se connecter avec champ "Email" et champ "Mot de passe"
+        continuer vers "espace"
+
+page "espace" reservee a connecte sinon vers "connexion" :
+    titre "Mon espace"
+    si utilisateur est admin :
+        texte "Bonjour l'admin."
+    bouton "Se déconnecter"
+    quand l'utilisateur clique sur "Se déconnecter" :
+        se deconnecter
+        rediriger vers "accueil"

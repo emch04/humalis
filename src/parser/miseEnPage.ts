@@ -103,7 +103,7 @@ export function analyserSurAppareil(flux: FluxTokens, lecteur: Lecteur): Bloc {
   return { type: 'Bloc', genre: 'appareil', styles, classes: [], corps: lecteur.corps(flux), ligne: debut.ligne };
 }
 
-const PLATEFORMES = ['apple', 'ios', 'macos', 'android', 'site', 'application'];
+const PLATEFORMES = ['apple', 'ios', 'macos', 'android', 'windows', 'site', 'application'];
 
 /** Le nom de la plateforme après « sur ». */
 export function lirePlateforme(flux: FluxTokens): string {

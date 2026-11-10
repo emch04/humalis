@@ -117,7 +117,8 @@ describe('cible Apple — ce qui n\'existe pas ici est dit clairement', () => {
     const { diagnostics } = produire(`utiliser module "Scene" depuis "./scene.js"\npage "accueil" :\n    Scene\n`);
     const erreurs = diagnostics.filter((d) => d.gravite === 'erreur');
     expect(erreurs.length).toBeGreaterThan(0);
-    expect(erreurs[0].message).toContain("n'a pas de JavaScript");
+    expect(erreurs[0].message).toContain('charge une bibliothèque JavaScript');
+    expect(erreurs[0].message).toContain('sur apple "./natif/Scene.swift"');
   });
 
   it('un composant React est refusé, avec la marche à suivre', () => {
