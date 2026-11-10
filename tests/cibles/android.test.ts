@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { compiler } from '../../src/compilateur.js';
 import { pourLaCible } from '../../src/ri/plateforme.js';
 import { verifierAppareilPourLaCible } from '../../src/cibles/appareil.js';
@@ -411,17 +412,15 @@ describe('cible Android — filtres et refus lisibles', () => {
         total : nombre
     route "commandes" :
         connecte peut lire commande
-    ia par anthropic
-    connecte peut demander a ia
+
 page "a" :
-    variable reponse = ""
     titre "A"
-    bouton "Demander"
-    quand l'utilisateur clique sur "Demander" :
-        demander a ia "Bonjour" dans reponse
+    bouton "Alertes"
+    quand l'utilisateur clique sur "Alertes" :
+        activer notifications
 `).join('\n');
-    expect(messages).toContain('« demander a ia … » : cela n\'est pas encore disponible sur la cible Android.');
-    expect(messages).not.toMatch(/demandeIa/);
+    expect(messages).toContain('« activer notifications » : cela n\'est pas encore disponible sur la cible Android.');
+    expect(messages).not.toMatch(/activationNotifications/);
   });
 });
 
@@ -765,6 +764,60 @@ describe('cible Android — les médias', () => {
   it('le code QR est dessiné d\'après ZXing, noir sur blanc', () => {
     expect(c).toContain('QrHumalis("https://exemple.fr/lampe", "Lien vers ce produit")');
     expect(f.get('app/build.gradle.kts')).toContain('com.google.zxing:core:');
+  });
+});
+
+describe('cible Android — le compte', () => {
+  const source = readFileSync('scripts/essais-android/comptes.humalis', 'utf8');
+  const f = projet(source);
+  const connexion = page(f, 'PageConnexion');
+  const equipe = page(f, 'PageEquipe');
+
+  it('inviter, changer un rôle ou un champ du compte passent par la session et le serveur', () => {
+    expect(equipe).toContain('Session.inviter(champAdresse, "vendeur", champs = fiche("telephone" to champTel))');
+    expect(equipe).toContain('Serveur.appelReussi("/auth/comptes/:id/role", "POST", fiche("role" to "gerant"), identifiant(m))');
+    expect(equipe).toContain('Serveur.appelReussi("/auth/comptes/:id/champs", "POST", fiche("telephone" to "0600000000"), identifiant(m))');
+  });
+
+  it('un formulaire en erreur garde ses champs remplis', () => {
+    expect(equipe).toMatch(/Messages\.afficher\("Invitation\s:\s\$\{texte\(raisonErreur\d+\)\}", "erreur"\)\n\s+return\n/);
+  });
+
+  it('le paiement s\'ouvre dans le navigateur ; l\'IA s\'écrit au fil de l\'eau', () => {
+    expect(equipe).toMatch(/Serveur\.payer\("\/api\/reservations\/payer\/total", identifiant\(r\)\)/);
+    expect(equipe).toContain('Serveur.demanderIa("Donne une idée de slogan") { reponse = texte(reponse) + it }');
+    expect(f.get(`${CODE}/Serveur.kt`)).toContain('entetes["Accept"] = "text/event-stream"');
+  });
+
+  it('Google passe par le gestionnaire d\'identifiants ; Apple par sa page, puis le lien profond', () => {
+    expect(connexion).toContain('seConnecterAvecGoogle()');
+    expect(f.get(`${CODE}/ConnexionGoogle.kt`)).toContain('GetGoogleIdOption.Builder().setServerClientId(identifiant)');
+    const apple = f.get(`${CODE}/ConnexionApple.kt`)!;
+    expect(apple).toContain('.appendQueryParameter("response_mode", "form_post")');
+    expect(apple).toContain('if (recu.getQueryParameter("etat") != etat) throw');
+    const main = f.get(`${CODE}/MainActivity.kt`)!;
+    expect(main).toContain('if (adresse.host == "connexion-apple") { ConnexionApple.recevoir(adresse); return false }');
+    expect(main).toContain('ConnexionApple.reprise()');
+    expect(f.get('app/build.gradle.kts')).toContain('androidx.credentials:credentials:');
+    expect(f.get('app/build.gradle.kts')).toContain('androidx.browser:browser:');
+  });
+
+  it('sans liens profonds, « se connecter avec apple » est refusé sur Android, et dit pourquoi', () => {
+    const sans = source.replace('liens profonds "comptes"\n', '');
+    expect(erreurs(sans).join('\n')).toContain('demande « liens profonds "…" »');
+  });
+
+  it('le lien d\'un e-mail donne son jeton au choix du mot de passe', () => {
+    expect(f.get(`${CODE}/MainActivity.kt`)).toContain('takeIf { it.startsWith("jeton=") }?.let { Session.jetonDeLien = ');
+    expect(page(f, 'PageBienvenue')).toContain('Session.choisirMotDePasse(champNouveau)');
+  });
+
+  it('le serveur renvoie le retour d\'Apple vers l\'application, seulement si APPLE_RETOUR_ANDROID est réglé', async () => {
+    const { genererProjetServeur } = await import('../../src/cibles/serveur/projet.js');
+    const serveur = [...genererProjetServeur(compile(source).serveurs[0], { nom: 'commerce', source: 'comptes.humalis' } as never).values()].join('\n');
+    expect(serveur).toContain("routeApple.post('/retour'");
+    expect(serveur).toContain("retour !== schema + '://connexion-apple'");
+    expect(serveur).toContain('APPLE_RETOUR_ANDROID=');
   });
 });
 

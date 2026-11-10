@@ -391,7 +391,7 @@ export class GenerateurPage implements HoteActions {
       corps.indenter(() => {
         if (f.gestionnaire.declencheur === 'soumission') this.ecrireVerifications(corps, f.gestionnaire.cibles[0] ?? '');
         if (f.gestionnaire.tantQue) corps.ligne(`if (!(${this.valeurs.b(f.gestionnaire.tantQue)})) return`);
-        this.actions.ecrire(corps, f.gestionnaire.actions);
+        this.actions.ecrire(corps, f.gestionnaire.actions, { formulaire: f.gestionnaire.declencheur === 'soumission' });
         // Après un envoi réussi, les champs du formulaire sont vidés, comme sur le web.
         if (f.gestionnaire.declencheur === 'soumission') {
           for (const id of this.champsDuFormulaire.get(f.gestionnaire.cibles[0] ?? '') ?? []) {

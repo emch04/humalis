@@ -2639,6 +2639,12 @@ and on the site. The first login links the account to that Apple account. If the
 their address, they are not recognized and a message says so. Set `APPLE_APP_ID` for the app
 and `APPLE_SERVICE_ID` for the site, and compile the app with `--equipe`.
 
+On Android, Apple's page opens in a browser tab, then Apple sends the person back to the
+server, which sends them back into the application. You need `liens profonds "…"` in the
+program, `APPLE_RETOUR_ANDROID=magasin://connexion-apple` on the server (with the deep-link
+scheme), and the address `https://your-server/auth/apple/retour` among the return addresses
+of the services identifier, at Apple.
+
 ### Logging in with Google
 
 With the line `connexion google` in the server, an account the server
@@ -2669,7 +2675,9 @@ page "login" :
 
 You need a Google OAuth client ID ("Web application"), in the server's
 `GOOGLE_CLIENT_ID` variable, with the redirect address
-`https://your-site/auth-google.html`. Web and desktop targets only, for now.
+`https://your-site/auth-google.html`. On Android, the Google account is chosen in the
+system window: also create an "Android" client ID (the application's name and the SHA-1
+fingerprint of its certificate); the server keeps the Web client ID.
 
 ### Inviting people and recovering a password
 
@@ -3526,7 +3534,12 @@ Media too: charts are drawn with the web's colors and scales, and keep their
 video go through Android's player and never start on their own; QR codes and tables show
 as on the web.
 
-What does not exist on Android yet, and that compilation refuses with a clear message: Google or Apple login, payment, AI and notifications.
+The account too: invitations, account roles and fields, choosing a password from the link
+received, Google or Apple login, payment (Stripe's page opens in the browser) and
+`demander a ia`, whose answer appears as it comes.
+
+What does not exist on Android yet, and that compilation refuses with a clear message:
+notifications.
 
 CSS becomes Compose, rule by rule, when a rule targets a class (`.card { … }`): background,
 color, text size and weight, margins and padding, border, corner radius, shadow, width, and

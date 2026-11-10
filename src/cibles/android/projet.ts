@@ -13,6 +13,7 @@ import { contenuBinaire } from '../binaire.js';
 import { cheminsDesPages } from '../web/projet.js';
 import { COULEURS_CSS } from '../web/styles.js';
 import { EcrivainActions } from './actions.js';
+import { APPLE_KT, GOOGLE_KT } from './comptes.js';
 import { CARTES_KT, GRAPHIQUES_KT, LECTEURS_KT, QR_KT } from './medias.js';
 import { APPAREIL_KT, CHEMINS_FICHIERS, FICHIERS_KT, SCANNER_KT, SYSTEME_KT } from './appareil.js';
 import { CssAndroid, type Portee as PorteeCss } from './css.js';
@@ -187,6 +188,9 @@ function sourcesKotlin(paquet: string, sources: SourceRI[]): string {
   return e.texte();
 }
 
+/** L'adresse publique du serveur, pour les messages ; « https://ton-serveur » quand elle n'est pas donnée. */
+const serveurPublic = (adresse?: string): string => (adresse && /^https:\/\//.test(adresse) ? adresse.replace(/\/+$/, '') : 'https://ton-serveur');
+
 /** L'adresse du serveur vue depuis l'émulateur : « localhost » y désigne le téléphone, l'ordinateur est 10.0.2.2. */
 export function adresseServeur(adresse: string): string {
   return adresse.replace(/^http:\/\/(localhost|127\.0\.0\.1)(?=[:/]|$)/i, 'http://10.0.2.2').replace(/\/+$/, '');
@@ -284,7 +288,7 @@ function routeKotlin(r: RouteAndroid, parametres: string[], filtres: string[]): 
   return `"${texte}"`;
 }
 
-function applicationKotlin(paquet: string, application: Application, routes: Map<string, RouteAndroid>, entree: Ecran, disposition: { entete?: string; sansEntete: string[]; pied?: string; sansPied: string[] }, onglets: { titre: string; route: string; icone?: string }[]): string {
+function applicationKotlin(paquet: string, application: Application, routes: Map<string, RouteAndroid>, entree: Ecran, disposition: { entete?: string; sansEntete: string[]; pied?: string; sansPied: string[] }, onglets: { titre: string; route: string; icone?: string }[], avecApple = false): string {
   const e = new EcrivainKotlin();
   const parentDe = (x: Ecran) => (x.parent !== undefined ? application.ecrans.find((p) => p.nom === x.parent) : undefined);
   const liensProfonds = liensProfondsDe(application, routes, entree);
@@ -320,6 +324,7 @@ function applicationKotlin(paquet: string, application: Application, routes: Map
       e.ligne('Appli.contexte = applicationContext');
       e.ligne('Activite.courante = this');
       e.ligne('enableEdgeToEdge()');
+      if (application.liensProfonds) e.ligne('lireLien(intent)');
       e.ligne('setContent { ApplicationHumalis() }');
     });
     e.ligne();
@@ -332,8 +337,25 @@ function applicationKotlin(paquet: string, application: Application, routes: Map
       e.ligne('/** Un lien profond reçu quand l\'application est déjà ouverte : la navigation le suit. */');
       e.bloc('override fun onNewIntent(intent: Intent) {', () => {
         e.ligne('super.onNewIntent(intent)');
-        e.ligne('Liens.recu = intent');
+        e.ligne('if (lireLien(intent)) Liens.recu = intent');
       });
+      e.ligne();
+      e.ligne('/** Un lien reçu : le retour d\'Apple, ou le jeton d\'un lien de mot de passe ; vrai s\'il mène à une page. */');
+      e.bloc('private fun lireLien(intent: Intent?): Boolean {', () => {
+        e.ligne('val adresse = intent?.data ?: return false');
+        if (avecApple) {
+          e.ligne('if (adresse.host == "connexion-apple") { ConnexionApple.recevoir(adresse); return false }');
+        }
+        e.ligne('adresse.encodedFragment?.takeIf { it.startsWith("jeton=") }?.let { Session.jetonDeLien = android.net.Uri.decode(it.removePrefix("jeton=")) }');
+        e.ligne('return true');
+      });
+      if (avecApple) {
+        e.ligne();
+        e.bloc('override fun onResume() {', () => {
+          e.ligne('super.onResume()');
+          e.ligne('ConnexionApple.reprise()');
+        });
+      }
     }
   });
   if (application.liensProfonds) {
@@ -606,7 +628,8 @@ export function genererProjetAndroid(application: Application, options: OptionsA
     avertir(1, `l'application Android ne peut pas appeler « ${serveur} » : le système bloque http://. Utilisez https://.`);
   }
 
-  ecrireCode('MainActivity.kt', applicationKotlin(paquet, application, routes, entree, disposition, onglets));
+  const avecApple = application.liensProfonds !== undefined && /\bseConnecterAvecApple\(/.test([...fichiers.values()].join('\n'));
+  ecrireCode('MainActivity.kt', applicationKotlin(paquet, application, routes, entree, disposition, onglets, avecApple));
   // Les polices livrées avec le projet (.ttf, .otf) : des ressources de l'application.
   const policesCopiees = new Set<string>();
   for (const p of application.theme?.polices ?? []) {
@@ -646,6 +669,18 @@ export function genererProjetAndroid(application: Application, options: OptionsA
   if (medias.lecteurs) ecrireCode('Lecteurs.kt', kotlin(paquet, LECTEURS_KT));
   if (medias.cartes) ecrireCode('Cartes.kt', kotlin(paquet, CARTES_KT));
   ecrireCode('Graphiques.kt', kotlin(paquet, GRAPHIQUES_KT));
+  const connexions = { google: /\bseConnecterAvecGoogle\(/.test(codePages), apple: /\bseConnecterAvecApple\(/.test(codePages) };
+  if (connexions.google) {
+    ecrireCode('ConnexionGoogle.kt', kotlin(paquet, GOOGLE_KT));
+    avertir(1, `« se connecter avec google » sur Android : créez aussi, dans la Google Cloud Console, un ID client de type « Android » pour ${identifiant} (avec l'empreinte SHA-1 du certificat). Le serveur garde l'ID client Web dans GOOGLE_CLIENT_ID.`);
+  }
+  if (connexions.apple) {
+    if (!application.liensProfonds) refuser(1, '« se connecter avec apple » sur Android demande « liens profonds "…" » en haut du fichier : Apple renvoie la personne dans l\'application par ce lien');
+    else {
+      ecrireCode('ConnexionApple.kt', kotlin(paquet, APPLE_KT));
+      avertir(application.liensProfonds.ligne, `« se connecter avec apple » sur Android : réglez APPLE_RETOUR_ANDROID=${application.liensProfonds.schema}://connexion-apple sur le serveur, et ajoutez ${serveurPublic(options.serveur)}/auth/apple/retour aux adresses de retour de l'identifiant de services (APPLE_SERVICE_ID) chez Apple.`);
+    }
+  }
   if (app.langues) {
     const codes = app.langues;
     ecrireCode('Langues.kt', kotlin(paquet, LANGUES_KT).replace('LANGUES_DU_SITE', `listOf(${application.langues!.map((l) => `${chaineKotlin(l.code)} to ${chaineKotlin(l.nom)}`).join(', ')})`));
@@ -670,7 +705,7 @@ export function genererProjetAndroid(application: Application, options: OptionsA
   fichiers.set('build.gradle.kts', CONSTRUCTION_RACINE);
   fichiers.set('gradle.properties', PROPRIETES_GRADLE);
   fichiers.set('gradle/wrapper/gradle-wrapper.properties', ENVELOPPE_GRADLE);
-  fichiers.set('app/build.gradle.kts', constructionApp(identifiant, nomAffiche, { appareil: avecAppareil, scanner: besoins.scanner, ...medias }));
+  fichiers.set('app/build.gradle.kts', constructionApp(identifiant, nomAffiche, { appareil: avecAppareil, scanner: besoins.scanner, ...medias, ...connexions }));
   fichiers.set('app/src/main/AndroidManifest.xml', manifeste(true, application.liensProfonds, besoins));
   if (besoins.fichiers) fichiers.set('app/src/main/res/xml/chemins_fichiers.xml', CHEMINS_FICHIERS);
   const domaine = application.liensProfonds?.domaine;

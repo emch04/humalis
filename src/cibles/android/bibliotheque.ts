@@ -735,6 +735,67 @@ object Serveur {
         null
     }
 
+    /** « payer total pour commande » : le serveur prépare le paiement, qui s'ouvre dans le navigateur. */
+    suspend fun payerOuEchouer(adresse: String, id: String) {
+        val reponse = appel(adresse, "POST", fiche("retour" to "/"), id)
+        val url = texte(champ(reponse, "url"))
+        if (!url.startsWith("https://") && !url.startsWith("http://10.0.2.2")) throw ErreurHumalis("Le paiement n'a pas pu s'ouvrir.")
+        ouvrirExterne(url)
+    }
+
+    suspend fun payer(adresse: String, id: String) {
+        try { payerOuEchouer(adresse, id) } catch (e: ErreurHumalis) { Messages.afficher(e.raison, "erreur") }
+    }
+
+    /** « demander a ia » : la réponse arrive morceau par morceau, et s'écrit au fur et à mesure. */
+    suspend fun demanderIaOuEchouer(question: String, recevoir: (String) -> Unit) {
+        val url = adresseComplete("/auth/ia", null, null, emptyList())
+        val entetes = entetesDe(url, "POST", null)
+        entetes["Accept"] = "text/event-stream"
+        val ecran = android.os.Handler(android.os.Looper.getMainLooper())
+        val erreur = withContext(Dispatchers.IO) { lireFlux(url, entetes, versJson(fiche("question" to question))) { morceau -> ecran.post { recevoir(morceau) } } }
+        if (erreur != null) throw erreur
+    }
+
+    /** Lit un flux d'événements (« data: {…} ») ; rend l'erreur à dire, ou rien. */
+    private fun lireFlux(url: String, entetes: Map<String, String>, corps: String, morceau: (String) -> Unit): ErreurHumalis? {
+        try {
+            val connexion = URL(url).openConnection() as HttpURLConnection
+            connexion.requestMethod = "POST"
+            connexion.doOutput = true
+            connexion.connectTimeout = 15000
+            connexion.readTimeout = 300000
+            for ((nom, valeur) in entetes) connexion.setRequestProperty(nom, valeur)
+            connexion.setRequestProperty("Content-Type", "application/json")
+            connexion.outputStream.use { it.write(corps.toByteArray(Charsets.UTF_8)) }
+            val code = connexion.responseCode
+            if (code !in 200..299) {
+                val texteRecu = connexion.errorStream?.bufferedReader()?.readText() ?: ""
+                connexion.disconnect()
+                return refus(Reponse(code, texteRecu, emptyList()), null)
+            }
+            val lecteur = connexion.inputStream.bufferedReader(Charsets.UTF_8)
+            var ligne = lecteur.readLine()
+            while (ligne != null) {
+                if (ligne.startsWith("data: ")) {
+                    val lue = lireJson(ligne.substring(6))
+                    val raison = texte(champ(lue, "erreur"))
+                    if (raison.isNotEmpty()) return ErreurHumalis(raison)
+                    morceau(texte(champ(lue, "t")))
+                }
+                ligne = lecteur.readLine()
+            }
+            connexion.disconnect()
+            return null
+        } catch (e: IOException) {
+            return ErreurHumalis(PAS_DE_REPONSE)
+        }
+    }
+
+    suspend fun demanderIa(question: String, recevoir: (String) -> Unit) {
+        try { demanderIaOuEchouer(question, recevoir) } catch (e: ErreurHumalis) { Messages.afficher(e.raison, "erreur") }
+    }
+
     /** « telecharger bon de commande de c » : le PDF arrive avec la session, puis s'ouvre. */
     suspend fun telechargerBonOuEchouer(adresse: String, id: String) {
         val url = adresseComplete(adresse.trimEnd('/') + "/" + id + "/bon", null, null, emptyList())
@@ -831,6 +892,10 @@ object Serveur {
         if (suivi == null) Messages.afficher(e.raison, "erreur")
         null
     }
+
+    /** Le code de la réponse d'un envoi, sans lire son corps ; une coupure lève l'erreur habituelle. */
+    suspend fun statut(adresse: String, methode: String, envoi: Map<String, Any?>): Int =
+        envoyerRequete(adresseComplete(adresse, null, null, emptyList()), methode, versJson(envoi), null).code
 
     /** Vrai si l'appel a réussi ; sinon, le message est affiché. */
     suspend fun appelReussi(
@@ -976,6 +1041,32 @@ object Session {
 
     suspend fun demanderLienMotDePasse(email: String) {
         Serveur.appel("/auth/forgot-password", "POST", fiche("email" to email))
+    }
+
+    /** Le jeton d'un lien reçu par e-mail (« #jeton=… »), pour choisir son mot de passe. */
+    var jetonDeLien: String? = null
+
+    suspend fun choisirMotDePasse(nouveau: String) {
+        val lien = jetonDeLien ?: throw ErreurHumalis("Ouvrez le lien reçu par e-mail pour choisir votre mot de passe.")
+        val code = Serveur.statut("/auth/reset-password", "POST", fiche("token" to lien, "password" to nouveau))
+        if (code == 429) throw ErreurHumalis("Trop de tentatives. Réessayez dans quelques minutes.")
+        if (code !in 200..299) throw ErreurHumalis("Ce lien n'est plus valable. Demandez-en un nouveau.")
+        jetonDeLien = null
+    }
+
+    /** « inviter … comme … » : un lien part par e-mail ; le compte attend que la personne choisisse son mot de passe. */
+    suspend fun inviter(email: String, role: String, groupes: Map<String, Any?> = emptyMap(), champs: Map<String, Any?> = emptyMap()) {
+        val envoi = linkedMapOf<String, Any?>("email" to email, "role" to role)
+        if (groupes.isNotEmpty()) envoi["groupes"] = groupes
+        if (champs.isNotEmpty()) envoi["champs"] = champs
+        Serveur.appel("/auth/invitations", "POST", envoi)
+    }
+
+    /** Un jeton d'identité (Google, Apple) : le serveur le vérifie et ouvre la session d'un compte déjà connu. */
+    suspend fun ouvrirAvecJeton(chemin: String, jeton: String, nonce: String) {
+        val corps = Serveur.appel(chemin, "POST", fiche("idToken" to jeton, "nonce" to nonce))
+        garder(if (texte(champ(corps, "token")).isEmpty()) champ(corps, "data") else corps)
+        relire()
     }
 
     suspend fun seDeconnecter() {

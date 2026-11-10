@@ -30,19 +30,13 @@ export interface HoteActions {
 interface Cadre {
   essai: boolean;
   fonction: boolean;
+  /** L'envoi d'un formulaire : après une erreur, ses champs restent remplis. */
+  formulaire?: boolean;
 }
 
 /** Les phrases Humalis des actions qui n'existent pas encore ici : le message les cite telles qu'on les écrit. */
 const PHRASES: Partial<Record<Action['type'], string>> = {
-  invitation: '« inviter … »',
-  changementCompte: '« changer compte de … »',
-  changementRole: '« changer role de … »',
-  paiement: '« payer … »',
-  demandeIa: '« demander a ia … »',
   activationNotifications: '« activer notifications »',
-  connexionGoogle: '« se connecter avec google »',
-  connexionApple: '« se connecter avec apple »',
-  choixMotDePasse: '« choisir le mot de passe »',
 };
 
 /** Ce qui arrête la suite des actions : une fonction écrite en haut rend « rien ». */
@@ -152,6 +146,8 @@ export class EcrivainActions {
           e.ligne(`val raisonErreur${this.numero} = ${erreur}.raison`);
           this.v.portee.variables.set('raison', `raisonErreur${this.numero}`);
           this.branche(e, a.siErreur, c);
+          // Dans un formulaire, les champs restent remplis : la suite (qui les vide) ne s'exécute pas.
+          if (c.formulaire) e.ligne(sortie(c));
           if (avant !== undefined) this.v.portee.variables.set('raison', avant);
           else this.v.portee.variables.delete('raison');
         });
@@ -292,6 +288,37 @@ export class EcrivainActions {
       case 'deconnexion':
         e.ligne('Session.seDeconnecter()');
         return;
+      case 'connexionGoogle':
+        return this.compte(e, c, 'seConnecterAvecGoogle()', '');
+      case 'connexionApple':
+        return this.compte(e, c, 'seConnecterAvecApple()', '');
+      case 'choixMotDePasse':
+        return this.compte(e, c, `choisirMotDePasse(${this.v.t(a.nouveau)})`);
+      case 'invitation': {
+        const groupes = a.groupe ? `, groupes = fiche(${chaineKotlin(cleJson(a.groupe.champ))} to ${this.v.t(a.groupe.valeur)})` : '';
+        const champs = a.champs?.length ? `, champs = fiche(${a.champs.map((ch) => `${chaineKotlin(cleJson(ch.champ))} to ${this.v.x(ch.valeur)}`).join(', ')})` : '';
+        return this.compte(e, c, `inviter(${this.v.t(a.email)}, ${chaineKotlin(a.role)}${groupes}${champs})`);
+      }
+      case 'changementRole': {
+        const appel = `"/auth/comptes/:id/role", "POST", fiche("role" to ${this.v.t(a.role)}), identifiant(${this.v.x(a.cible)})`;
+        e.ligne(c.essai ? `Serveur.appel(${appel})` : `if (!Serveur.appelReussi(${appel})) ${sortie(c)}`);
+        return;
+      }
+      case 'changementCompte': {
+        const appel = `"/auth/comptes/:id/champs", "POST", fiche(${a.champs.map((ch) => `${chaineKotlin(cleJson(ch.champ))} to ${this.v.x(ch.valeur)}`).join(', ')}), identifiant(${this.v.x(a.cible)})`;
+        e.ligne(c.essai ? `Serveur.appel(${appel})` : `if (!Serveur.appelReussi(${appel})) ${sortie(c)}`);
+        return;
+      }
+      case 'paiement':
+        e.ligne(`Serveur.${c.essai ? 'payerOuEchouer' : 'payer'}(${chaineKotlin(a.adresse)}, identifiant(${this.v.x(a.objet)}))`);
+        return;
+      case 'demandeIa': {
+        const reponse = this.variable(a.variable);
+        if (!reponse) return this.hote.refuser(`« dans ${a.variable} » : cette variable est inconnue ici`);
+        e.ligne(`${reponse} = ""`);
+        e.ligne(`Serveur.${c.essai ? 'demanderIaOuEchouer' : 'demanderIa'}(${this.v.t(a.question)}) { ${reponse} = texte(${reponse}) + it }`);
+        return;
+      }
       default:
         return this.hote.refuser(PHRASES[a.type] ?? `« ${a.type} »`);
     }
@@ -303,9 +330,10 @@ export class EcrivainActions {
     return [...this.v.portee.variables.values()].includes(base) ? `${base}${++this.numero}` : base;
   }
 
-  private compte(e: EcrivainKotlin, c: Cadre, appel: string): void {
-    if (c.essai) e.ligne(`Session.${appel}`);
-    else e.ligne(`if (!Session.afficherSiRefus { Session.${appel} }) ${sortie(c)}`);
+  /** Une action sur le compte : dans « essayer », l'erreur passe ; sinon elle s'affiche et la suite s'arrête. */
+  private compte(e: EcrivainKotlin, c: Cadre, appel: string, objet = 'Session.'): void {
+    if (c.essai) e.ligne(`${objet}${appel}`);
+    else e.ligne(`if (!Session.afficherSiRefus { ${objet}${appel} }) ${sortie(c)}`);
   }
 
   private message(e: EcrivainKotlin, a: Extract<Action, { type: 'message' }>): void {
