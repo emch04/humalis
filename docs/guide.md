@@ -560,8 +560,23 @@ Sur sa plateforme, le style natif passe avant le style Humalis ou le CSS du mêm
 ailleurs, rien ne change. Un fichier pour `sur ios` ou `sur macos` seulement s'ajoute
 au style traduit sur cet appareil, sans le remplacer. Dans une page `dessinee pour`, le
 style natif s'ajoute au dessin du CSS. Une erreur dans le fichier arrête la construction
-du projet (Xcode ou `dotnet build`), avec sa ligne. Sur Android, ce sera un fichier Kotlin
-(`fun Modifier.carte(): Modifier`) ; la cible Android ne le lit pas encore.
+du projet (Xcode, Gradle ou `dotnet build`), avec sa ligne.
+
+Sur Android, un style est une extension de `Modifier`, nommée comme le style
+(`carte` → `carte`, `bouton-principal` → `boutonPrincipal`), dans un fichier `.kt` donné
+avec `utiliser style "./styles/android.kt" sur android`. Humalis place le fichier dans le
+paquet de l'application : n'y écris pas de ligne `package`.
+
+```kotlin
+fun Modifier.carte(): Modifier = this
+    .shadow(4.dp, RoundedCornerShape(12.dp))
+    .background(Color.White, RoundedCornerShape(12.dp))
+    .padding(16.dp)
+```
+
+Un bloc habillé par un style Kotlin garde la largeur de son contenu : ajoute
+`.fillMaxWidth()` au style pour qu'il prenne toute la largeur. La couleur d'un bouton
+passe par ses paramètres sous Compose, pas par un `Modifier`.
 
 Un même bloc peut viser plusieurs plateformes : on les relie par `et`.
 
@@ -3390,12 +3405,13 @@ propriété change, il est relancé. S'il sait se mettre à jour lui-même, il r
 ### Une vue native écrite à la main
 
 Quand Humalis ne sait pas encore dessiner quelque chose, écris ce morceau dans la
-langue de la plateforme : Swift pour iPhone, iPad et Mac, C# pour Windows. Pas de
+langue de la plateforme : Swift pour iPhone, iPad et Mac, Kotlin pour Android, C# pour
+Windows. Pas de
 React, pas de navigateur : chaque application reste native. Une seule ligne donne
 la vue de chaque plateforme :
 
 ```humalis
-utiliser composant "Carte" sur apple "./natif/Carte.swift" et sur windows "./natif/Carte.cs"
+utiliser composant "Carte" sur apple "./natif/Carte.swift" et sur android "./natif/Carte.kt" et sur windows "./natif/Carte.cs"
 
 page "accueil" :
     Carte avec titre "Café" et prix 3.5
@@ -3435,8 +3451,18 @@ vrai ou faux un `Bool` (`bool`). Un paramètre C# avec une valeur par défaut pe
 omis dans la page. Sur Windows, la vue est recréée quand une valeur qu'elle reçoit
 change. Une propriété inconnue, ou un paramètre oublié, est dit à la compilation.
 
-Une plateforme sans sa vue s'arrête avec la ligne à ajouter : ici, l'application
-Android et le site n'ont pas de « Carte ». Pour le site, écris le composant en Humalis
+Sur Android, une fonction `@Composable` du même nom, dans un fichier `.kt` que Humalis
+place dans le paquet de l'application (sans ligne `package` à écrire) :
+
+```kotlin
+@Composable
+fun Carte(titre: String, prix: Double, promo: Boolean = false) {
+    Column { Text(titre, style = MaterialTheme.typography.titleLarge); Text("%.2f €".format(prix)) }
+}
+```
+
+Une plateforme sans sa vue s'arrête avec la ligne à ajouter : ici, le site n'a pas de
+« Carte ». Pour le site, écris le composant en Humalis
 (`composant "Carte" :`), ou un module JavaScript : `utiliser module "Carte" depuis
 "./modules/Carte.js"`, suivi des mêmes `sur …`.
 
@@ -3562,7 +3588,7 @@ chose de faux.
 | `memorisee en secret` | non | non | oui | oui | oui (Keychain) | oui (Keystore) | oui (chiffré par Windows) |
 | `essayer` | oui | non | oui | oui | oui | oui | oui |
 | Raccourcis clavier | oui | oui | non | oui | oui | oui (clavier branché) | oui |
-| Vue native écrite à la main | non | non | non | non | oui (Swift, `sur apple`) | pas encore | oui (C#, `sur windows`) |
+| Vue native écrite à la main | non | non | non | non | oui (Swift, `sur apple`) | oui (Kotlin, `sur android`) | oui (C#, `sur windows`) |
 | Composants React (anciens projets) | oui | non | oui (en React Native) | oui | non | non | non |
 | Le moteur sans React (par défaut) | oui | non | non | oui (sauf composant React ou `memorisee en secret`) | non | non | non |
 | Graphiques, cartes, audio, vidéo, fichiers | oui | oui | en partie | oui | oui | oui | oui |

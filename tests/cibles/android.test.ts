@@ -992,3 +992,55 @@ describe('cible Android — ce qui vient de main', () => {
     expect(diagnostics.some((d) => /CSS : 1 déclarations sur 1/.test(d.message))).toBe(true);
   });
 });
+
+describe('Android : la vue et les styles écrits à la main en Kotlin', () => {
+  const CARTE_KT = `package ailleurs.vues
+
+import androidx.compose.runtime.Composable
+
+// @Composable fun Carte(faux: Int) : un commentaire ne compte pas.
+@Composable
+fun Carte(titre: String, prix: Double, quantite: Int = 1, promo: Boolean = false, auClic: () -> Unit = {}) {}
+`;
+  const STYLES_KT = 'fun Modifier.carte(): Modifier = this.padding(16.dp)\nfun Modifier.boutonPrincipal(): Modifier = this\n';
+  const natifs = new Map([['Carte', { nom: 'Carte.kt', contenu: CARTE_KT }]]);
+
+  it('lit la fonction @Composable et ses paramètres, flèches comprises', async () => {
+    const { lireVueNatifKt, stylesKotlinNommes } = await import('../../src/cibles/android/natifs.js');
+    expect(lireVueNatifKt('Carte', CARTE_KT)).toEqual({
+      nom: 'Carte',
+      parametres: [
+        { nom: 'titre', genre: 'texte', facultatif: false },
+        { nom: 'prix', genre: 'nombre', facultatif: false },
+        { nom: 'quantite', genre: 'entier', facultatif: true },
+        { nom: 'promo', genre: 'booleen', facultatif: true },
+        { nom: 'auClic', genre: 'autre', facultatif: true },
+      ],
+    });
+    expect([...stylesKotlinNommes(STYLES_KT)]).toEqual([['Carte', 'carte'], ['BoutonPrincipal', 'boutonPrincipal']]);
+  });
+
+  it('appelle la vue par le nom de ses paramètres, la place dans le paquet de l’application, et ajoute le paquet Gradle', () => {
+    const source = 'paquet android "io.coil-kt:coil-compose" version "2.7.0"\nutiliser composant "Carte" sur android "./natif/Carte.kt"\nvariable nombre = 2 avec partagee\npage "accueil" :\n    titre "A"\n    Carte avec titre "Café" et prix 3.5 et quantite nombre\n';
+    const f = projet(source, { natifs });
+    expect(page(f, 'PageAccueil')).toContain('Carte(titre = texte("Café"), prix = nombre(3.5), quantite = nombre(Partage.nombre_).toInt())');
+    expect(f.get(`${CODE}/natif/Carte.kt`)).toMatch(/^\/\/ .*\npackage local\.humalis\.essai\n/);
+    expect(f.get(`${CODE}/natif/Carte.kt`)).not.toContain('package ailleurs.vues');
+    expect(f.get('app/build.gradle.kts')).toContain('implementation("io.coil-kt:coil-compose:2.7.0")');
+  });
+
+  it('dit quelle propriété n’existe pas, et laquelle manque', () => {
+    const source = (props: string) => `utiliser composant "Carte" sur android "./natif/Carte.kt"\npage "accueil" :\n    titre "A"\n    Carte avec ${props}\n`;
+    const m1 = produire(source('titre "x" et prix 1 et couleur "rouge"'), { natifs }).diagnostics.map((d) => d.message).join();
+    expect(m1).toContain('« couleur » n\'est pas un paramètre de la vue Kotlin « Carte » (paramètres : titre, prix, quantite, promo, auClic).');
+    const m2 = produire(source('titre "x"'), { natifs }).diagnostics.map((d) => d.message).join();
+    expect(m2).toContain('attend aussi « prix »');
+  });
+
+  it('un style Kotlin remplace le CSS traduit du même nom', () => {
+    const source = 'style "carte" :\n    fond blanc\nutiliser style "./android.kt" sur android\npage "accueil" :\n    titre "A"\n    bloc avec style "carte" :\n        texte "x"\n';
+    const f = projet(source, { fichiersStyle: new Map([['./android.kt', STYLES_KT]]) });
+    expect(page(f, 'PageAccueil')).toContain('Modifier.carte()');
+    expect(f.get(`${CODE}/natif/styles/android.kt`)).toContain('package local.humalis.essai');
+  });
+});

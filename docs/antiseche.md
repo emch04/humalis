@@ -372,9 +372,10 @@ page "galerie" en pleine fenetre :
     titre "Galerie"
 ```
 
-### Un style écrit en SwiftUI ou en XAML | A style written in SwiftUI or XAML
+### Un style écrit en SwiftUI, Kotlin ou XAML | A style written in SwiftUI, Kotlin or XAML
 ```humalis racine
 utiliser style "./styles/apple.swift" sur apple
+utiliser style "./styles/android.kt" sur android
 utiliser style "./styles/windows.xaml" sur windows
 
 page "vitrine" :
@@ -382,10 +383,10 @@ page "vitrine" :
         texte "Un produit"
 ```
 
-### Ce que Humalis ne sait pas encore : une vue en Swift ou en C# | What Humalis can't do yet: a view in Swift or C#
+### Ce que Humalis ne sait pas encore : une vue en Swift, Kotlin ou C# | What Humalis can't do yet: a view in Swift, Kotlin or C#
 ```humalis racine
 paquet windows "Humanizer.Core" version "2.14.1"
-utiliser composant "Carte" sur apple "./natif/Carte.swift" et sur windows "./natif/Carte.cs"
+utiliser composant "Carte" sur apple "./natif/Carte.swift" et sur android "./natif/Carte.kt" et sur windows "./natif/Carte.cs"
 
 page "vitrine" :
     Carte avec titre "Café" et prix 3.5

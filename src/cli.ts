@@ -699,7 +699,9 @@ function compileAndroid(application: Application, chemin: string, sortie: string
       return 2;
     }
   }
-  const { fichiers, diagnostics } = genererProjetAndroid(application, { nom, source: basename(chemin), images, medias, fichiersStyle, polices, ...(empreinte ? { empreinte } : {}), ...(firebase ? { firebase } : {}), ...(serveur ? { serveur } : {}), ...(identifiant ? { identifiant } : {}) });
+  const natifs = lireNatifs(application, chemin, 'android', 'Kotlin');
+  if (!natifs) return 1;
+  const { fichiers, diagnostics } = genererProjetAndroid(application, { natifs, nom, source: basename(chemin), images, medias, fichiersStyle, polices, ...(empreinte ? { empreinte } : {}), ...(firebase ? { firebase } : {}), ...(serveur ? { serveur } : {}), ...(identifiant ? { identifiant } : {}) });
   afficherDiagnostics(diagnostics);
   if (diagnostics.some((d) => d.gravite === 'erreur')) {
     console.error('\nLe programme ne peut pas être produit pour Android : rien n\'a été écrit.');
