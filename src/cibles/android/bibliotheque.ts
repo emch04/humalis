@@ -638,6 +638,18 @@ object Serveur {
     }
 
     private suspend fun envoyerRequete(adresse: String, methode: String, corps: String?, source: SourceHumalis?): Reponse {
+        val entetes = entetesDe(adresse, methode, source)
+        var r = essayer(adresse, methode, corps, entetes, source)
+        if (r.code == 401 && (source == null || source.session) && Session.renouveler()) {
+            Session.jeton?.let { entetes["Authorization"] = "Bearer " + it }
+            r = essayer(adresse, methode, corps, entetes, source)
+        }
+        retenirCsrf(r)
+        return r
+    }
+
+    /** Les en-têtes d'un appel : la session (ou le jeton CSRF d'un visiteur), et ceux de la source. */
+    private suspend fun entetesDe(adresse: String, methode: String, source: SourceHumalis?): LinkedHashMap<String, String> {
         val entetes = linkedMapOf("Accept" to "application/json")
         val avecSession = source == null || source.session
         if (avecSession) entetes["x-humalis-mobile"] = "1"
@@ -654,13 +666,102 @@ object Serveur {
                 entetes["x-csrf-token"] = it
             }
         }
-        var r = essayer(adresse, methode, corps, entetes, source)
-        if (r.code == 401 && avecSession && Session.renouveler()) {
-            Session.jeton?.let { entetes["Authorization"] = "Bearer " + it }
-            r = essayer(adresse, methode, corps, entetes, source)
+        return entetes
+    }
+
+    /** « envoyer fichier … » : le fichier seul, ou un formulaire ; la progression va de 0 à 100. */
+    suspend fun televerserOuEchouer(fichier: Any?, adresse: String, source: SourceHumalis? = null, corpsBrut: Boolean = false, champ: String = "fichier", progression: ((Double) -> Unit)? = null): Any? {
+        val chemin = texte(champ(fichier, "chemin"))
+        if (chemin.isEmpty()) throw ErreurHumalis("Choisissez d'abord un fichier.")
+        val contenu = java.io.File(chemin)
+        if (!contenu.exists()) throw ErreurHumalis("Le fichier n'a pas pu être lu.")
+        val mime = texte(champ(fichier, "mime")).ifEmpty { "application/octet-stream" }
+        val url = adresseComplete(adresse, null, source, emptyList())
+        val entetes = entetesDe(url, "POST", source)
+        val limite = "humalis-" + java.util.UUID.randomUUID()
+        val debut = ("--#{limite}\r\nContent-Disposition: form-data; name=\"#{champ}\"; filename=\"" + texte(champ(fichier, "nom")) + "\"\r\nContent-Type: #{mime}\r\n\r\n").toByteArray()
+        val fin = "\r\n--#{limite}--\r\n".toByteArray()
+        progression?.invoke(0.0)
+        val r = withContext(Dispatchers.IO) { envoyerOctets(url, entetes, contenu, mime, corpsBrut, limite, debut, fin, progression) }
+        if (r.code !in 200..299) throw refus(r, source)
+        progression?.invoke(100.0)
+        return suivre(lireJson(r.corps), source?.enveloppe)
+    }
+
+    /** L'envoi lui-même, hors du fil de l'écran ; la progression est donnée à l'écran au fil de l'envoi. */
+    private fun envoyerOctets(url: String, entetes: Map<String, String>, contenu: java.io.File, mime: String, corpsBrut: Boolean, limite: String, debut: ByteArray, fin: ByteArray, progression: ((Double) -> Unit)?): Reponse {
+        val ecran = android.os.Handler(android.os.Looper.getMainLooper())
+        val connexion: HttpURLConnection
+        try {
+            connexion = URL(url).openConnection() as HttpURLConnection
+            connexion.requestMethod = "POST"
+            connexion.doOutput = true
+            connexion.connectTimeout = 15000
+            connexion.readTimeout = 60000
+            for ((nom, valeur) in entetes) connexion.setRequestProperty(nom, valeur)
+            connexion.setRequestProperty("Content-Type", if (corpsBrut) mime else "multipart/form-data; boundary=#{limite}")
+            val total = contenu.length() + if (corpsBrut) 0 else debut.size + fin.size
+            connexion.setFixedLengthStreamingMode(total)
+            val sortie = connexion.outputStream
+            var envoye = 0L
+            if (!corpsBrut) { sortie.write(debut); envoye += debut.size }
+            val entree = contenu.inputStream()
+            val tampon = ByteArray(64 * 1024)
+            var lus = entree.read(tampon)
+            while (lus >= 0) {
+                sortie.write(tampon, 0, lus)
+                envoye += lus
+                val part = Math.floor(Math.min(99.0, envoye * 100.0 / total))
+                if (progression != null) ecran.post { progression(part) }
+                lus = entree.read(tampon)
+            }
+            entree.close()
+            if (!corpsBrut) sortie.write(fin)
+            sortie.close()
+            val code = connexion.responseCode
+            val flux = if (code >= 400) connexion.errorStream else connexion.inputStream
+            val texteRecu = flux?.bufferedReader()?.readText() ?: ""
+            connexion.disconnect()
+            return Reponse(code, texteRecu, emptyList())
+        } catch (e: IOException) {
+            throw ErreurHumalis(PAS_DE_REPONSE)
         }
-        retenirCsrf(r)
-        return r
+    }
+
+    suspend fun televerser(fichier: Any?, adresse: String, source: SourceHumalis? = null, corpsBrut: Boolean = false, champ: String = "fichier", progression: ((Double) -> Unit)? = null): Any? = try {
+        televerserOuEchouer(fichier, adresse, source, corpsBrut, champ, progression)
+    } catch (e: ErreurHumalis) {
+        Messages.afficher(e.raison, "erreur")
+        null
+    }
+
+    /** « telecharger bon de commande de c » : le PDF arrive avec la session, puis s'ouvre. */
+    suspend fun telechargerBonOuEchouer(adresse: String, id: String) {
+        val url = adresseComplete(adresse.trimEnd('/') + "/" + id + "/bon", null, null, emptyList())
+        val entetes = entetesDe(url, "GET", null)
+        val fichier = withContext(Dispatchers.IO) {
+            try {
+                val connexion = URL(url).openConnection() as HttpURLConnection
+                entetes.forEach { (nom, valeur) -> connexion.setRequestProperty(nom, valeur) }
+                val code = connexion.responseCode
+                if (code !in 200..299) {
+                    val corps = connexion.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
+                    connexion.disconnect()
+                    throw refus(Reponse(code, corps, emptyList()), null)
+                }
+                val sortie = java.io.File(java.io.File(Appli.contexte.cacheDir, "humalis").apply { mkdirs() }, "bon-#{id}.pdf")
+                connexion.inputStream.use { entree -> sortie.outputStream().use { entree.copyTo(it) } }
+                connexion.disconnect()
+                sortie
+            } catch (e: IOException) {
+                throw ErreurHumalis(PAS_DE_REPONSE)
+            }
+        }
+        montrerFichier(fichier, "application/pdf")
+    }
+
+    suspend fun telechargerBon(adresse: String, id: String) {
+        try { telechargerBonOuEchouer(adresse, id) } catch (e: ErreurHumalis) { Messages.afficher(e.raison, "erreur") }
     }
 
     private fun suivre(depart: Any?, chemin: String?): Any? =

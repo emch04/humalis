@@ -13,7 +13,7 @@ import { contenuBinaire } from '../binaire.js';
 import { cheminsDesPages } from '../web/projet.js';
 import { COULEURS_CSS } from '../web/styles.js';
 import { EcrivainActions } from './actions.js';
-import { APPAREIL_KT, CHEMINS_FICHIERS, SYSTEME_KT } from './appareil.js';
+import { APPAREIL_KT, CHEMINS_FICHIERS, FICHIERS_KT, SCANNER_KT, SYSTEME_KT } from './appareil.js';
 import { CssAndroid, type Portee as PorteeCss } from './css.js';
 import { FORMATS_KT } from './formats.js';
 import { LANGUES_KT, traduireMessagesKotlin, INTERFACE_KT, MEMOIRE_KT, SERVEUR_KT, VALEURS_KT, kotlin } from './bibliotheque.js';
@@ -169,7 +169,7 @@ function sourcesKotlin(paquet: string, sources: SourceRI[]): string {
     for (const s of sources) {
       const champs = [
         `nom = ${chaineKotlin(s.nom)}`,
-        `adresse = ${chaineKotlin(s.adresse)}`,
+        `adresse = ${chaineKotlin(adresseServeur(s.adresse))}`,
         ...(s.entetes.length ? [`entetes = listOf(${s.entetes.map((h) => `${chaineKotlin(h.nom)} to ${chaineKotlin(h.valeur)}`).join(', ')})`] : []),
         ...(s.jetonPublic
           ? [`jeton = ${chaineKotlin(s.jetonPublic.valeur)}`, `placeJeton = ${chaineKotlin(s.jetonPublic.place.genre)}`, ...(s.jetonPublic.place.genre !== 'autorisation' ? [`nomJeton = ${chaineKotlin(s.jetonPublic.place.nom)}`] : [])]
@@ -620,17 +620,22 @@ export function genererProjetAndroid(application: Application, options: OptionsA
   ecrireCode('Memoire.kt', kotlin(paquet, MEMOIRE_KT));
   ecrireCode('Serveur.kt', kotlin(paquet, SERVEUR_KT));
   ecrireCode('Icones.kt', iconesKotlin(paquet, icones));
-  ecrireCode('Systeme.kt', kotlin(paquet, SYSTEME_KT));
+  // Ce que les pages emploient, lu avant d'ajouter la bibliothèque qui le définit.
   const codePages = [...fichiers.values()].join('\n');
+  ecrireCode('Systeme.kt', kotlin(paquet, SYSTEME_KT));
+  ecrireCode('Fichiers.kt', kotlin(paquet, FICHIERS_KT));
   const besoins = {
     photo: /\bprendrePhoto\(/.test(codePages),
     position: /\blirePosition\(/.test(codePages),
     identite: /\bverifierIdentite\(/.test(codePages),
     scanner: /\bscannerCode\(/.test(codePages),
     vibration: /\bvibrer\(/.test(codePages),
+    // Un fichier écrit par l'application (photo, bon, CSV) s'ouvre ailleurs par le fournisseur de fichiers.
+    fichiers: /\b(prendrePhoto|telechargerBon|telechargerBonOuEchouer|telechargerCsv)\(/.test(codePages),
   };
-  const avecAppareil = Object.values(besoins).some(Boolean) || /\bSignatureHumalis\(/.test(codePages);
+  const avecAppareil = besoins.photo || besoins.position || besoins.identite || besoins.vibration || /\bSignatureHumalis\(/.test(codePages);
   if (avecAppareil) ecrireCode('Appareil.kt', kotlin(paquet, APPAREIL_KT));
+  if (besoins.scanner) ecrireCode('Scanner.kt', kotlin(paquet, SCANNER_KT));
   if (app.langues) {
     const codes = app.langues;
     ecrireCode('Langues.kt', kotlin(paquet, LANGUES_KT).replace('LANGUES_DU_SITE', `listOf(${application.langues!.map((l) => `${chaineKotlin(l.code)} to ${chaineKotlin(l.nom)}`).join(', ')})`));
@@ -657,7 +662,7 @@ export function genererProjetAndroid(application: Application, options: OptionsA
   fichiers.set('gradle/wrapper/gradle-wrapper.properties', ENVELOPPE_GRADLE);
   fichiers.set('app/build.gradle.kts', constructionApp(identifiant, nomAffiche, { appareil: avecAppareil, scanner: besoins.scanner }));
   fichiers.set('app/src/main/AndroidManifest.xml', manifeste(true, application.liensProfonds, besoins));
-  if (besoins.photo) fichiers.set('app/src/main/res/xml/chemins_fichiers.xml', CHEMINS_FICHIERS);
+  if (besoins.fichiers) fichiers.set('app/src/main/res/xml/chemins_fichiers.xml', CHEMINS_FICHIERS);
   const domaine = application.liensProfonds?.domaine;
   if (domaine && options.empreinte) {
     fichiers.set('a-publier-sur-le-site/.well-known/assetlinks.json', liensDuSite(identifiant, options.empreinte));

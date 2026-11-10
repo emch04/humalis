@@ -3437,11 +3437,13 @@ compile avec `--empreinte` (l'empreinte SHA-256 du certificat, donnée par
 Les fonctions de l'appareil marchent comme sur Apple : `photo dans …` (l'appareil photo
 du système), `scanner code dans …`, `position dans …`, `verifier identite` (l'empreinte, le
 visage ou le code de l'appareil), `vibrer` et `signature dans …`. Chaque permission est
-demandée la première fois qu'elle sert.
+demandée la première fois qu'elle sert. `fichier "…" dans …` ouvre le sélecteur de fichiers
+du système, `envoyer fichier …` suit sa progression, et `telecharger bon de …` comme
+`telecharger … en csv` ouvrent ou partagent le fichier avec les applications de l'appareil.
 
 Ce qui n'existe pas encore sur Android, et que la compilation refuse en le disant :
 les graphiques, les cartes,
-le son, la vidéo, le code QR, le choix d'un fichier, la
+le son, la vidéo, le code QR, la
 connexion avec Google ou Apple, le paiement, l'IA et les notifications.
 
 Le CSS se traduit en Compose, règle par règle, quand une règle vise une classe
