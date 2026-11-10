@@ -66,6 +66,7 @@ export const RENDU_MOBILE: Rendu = {
   imports(code) {
     const lignes: string[] = [];
     const natifs = NATIFS.filter((n) => new RegExp(`<${n}\\b`).test(code));
+    if (/\bLinking\./.test(code)) natifs.push('Linking');
     if (natifs.length) lignes.push(`import { ${natifs.join(', ')} } from 'react-native';`);
     // Les images passent par expo-image : cache, chargement progressif, ajustement.
     if (/<Image\b/.test(code)) lignes.push(`import { Image } from 'expo-image';`);
@@ -83,6 +84,10 @@ export const RENDU_MOBILE: Rendu = {
   },
   navigateur: 'const routeur = useRouter();',
   naviguer: (chemin) => `routeur.push(${chemin});`,
+  // Une adresse reçue : une page de l'application, ou une adresse permise ouverte par le système ; une autre est refusée.
+  allerVers: (valeur) =>
+    `{ const adresse = adresseDuLien(${valeur}); if (adresse === undefined) afficherMessage("Adresse refusée : seules https, http, mailto et tel sont permises.", 'erreur'); else if (/^(https?|mailto|tel):/i.test(adresse)) void Linking.openURL(adresse); else routeur.push(adresse as never); }`,
+  ouvrirExterne: (adresse) => `void Linking.openURL(${adresse});`,
   enveloppe: { page: ['<ScrollView contentContainerStyle={s.page}>', '</ScrollView>'], composant: ['<>', '</>'] },
   // Pas de souris sur un téléphone : le survol n'y existe pas (décision M7).
   evenements: { clic: 'onPress' },

@@ -48,6 +48,9 @@ export interface Rendu {
   /** La déclaration de ce qui permet d'aller vers une autre page. */
   navigateur: string;
   naviguer(chemin: string): string;
+  /** « rediriger vers » une adresse reçue (page ou adresse permise), et vers une adresse externe écrite : absents, les aides du web. */
+  allerVers?(valeur: string): string;
+  ouvrirExterne?(adresse: string): string;
   /** L'ouverture et la fermeture d'une page, puis d'un composant. */
   enveloppe: { page: [string, string]; composant: [string, string] };
   /** L'attribut de chaque événement ; absent : l'événement n'existe pas sur la plateforme. */
@@ -1348,12 +1351,13 @@ class GenerateurEcran {
             // Une adresse reçue (le whatsappUrl d'une API) : une page, ou une adresse permise ; sinon refusée avec un message.
             // Une adresse externe écrite avec des trous (« https://wa.me/…?text={message} ») : ses valeurs sont encodées.
             const ecrite = action.ecran.type === 'texte' && action.ecran.parties[0] && 'texte' in action.ecran.parties[0] && lireCible(action.ecran.parties[0].texte).externe;
-            e.ligne(`allerVers(naviguer, String(${ecrite ? adresseEncodee(action.ecran, this.contexte) : x(action.ecran)}), afficherMessage);`);
+            const valeur = `String(${ecrite ? adresseEncodee(action.ecran, this.contexte) : x(action.ecran)})`;
+            e.ligne(this.rendu.allerVers ? this.rendu.allerVers(valeur) : `allerVers(naviguer, ${valeur}, afficherMessage);`);
             break;
           }
           const lue = lireCible(page);
           if (lue.externe) {
-            e.ligne(`ouvrirExterne(${chaine(page)});`);
+            e.ligne(this.rendu.ouvrirExterne ? this.rendu.ouvrirExterne(chaine(page)) : `ouvrirExterne(${chaine(page)});`);
             break;
           }
           const vers = action.arguments && lue.page ? this.adresseAvec(lue.page, action.arguments, lue.ancre) : this.chemin(action.ecran);
