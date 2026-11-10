@@ -1,0 +1,22 @@
+# L'essai des composants natifs sur Android : tirer pour actualiser, glisser
+# une ligne, options au toucher prolongé, écran vide.
+page "accueil" :
+    variable courses = ["Pain", "Lait", "Œufs"]
+    variable fois = 0
+    titre "Courses"
+    actualiser en tirant :
+        changer fois par fois + 1
+        afficher "Actualisé {fois}"
+    texte "Actualisations : {fois}"
+    menu d'options :
+        option "Copier" :
+            afficher "Copié"
+        option "Partager" :
+            afficher "Partagé"
+    pour chaque c dans courses :
+        ligne :
+            texte c
+        action en glissant "Supprimer" :
+            retirer c de courses
+    si nombre de courses est egal a 0 :
+        etat vide "Rien à acheter" avec icone "panier" et description "La liste est vide."

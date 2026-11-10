@@ -804,23 +804,23 @@ page "aide" :
 Ces phrases décrivent une intention. Chaque plateforme la rend avec son vrai composant, et le
 web avec un équivalent simple.
 
-| Phrase | iPhone et iPad | Mac | Web |
-|---|---|---|---|
-| `onglets de l'application :` puis `onglet "A" vers "accueil" avec icone "maison"` | barre d'onglets | barre latérale | menu |
-| `groupe "Équipe" :` puis ses `onglet`, décalés, dans `onglets de l'application` | onglets à plat | liste à plat | intertitre dans le menu |
-| `onglets de l'application avec barre laterale "MaBarre" :` | sans effet | barre latérale dessinée par la vue Swift `MaBarre`, qui reçoit la page en contenu | sans effet |
-| `recherche dans q avec indice "…"` | recherche native | recherche native | champ |
-| `action en glissant "Supprimer" :` dans un `pour chaque` | glisser la ligne | clic droit | bouton |
-| `actualiser en tirant :` | tirer pour actualiser | bouton dans la barre d'outils | bouton |
-| `menu d'options :` puis `option "Copier" :` sous un élément | toucher prolongé | clic droit | menu dépliant |
-| `formulaire "x" en reglages :` puis `groupe "Profil" :` | formulaire façon Réglages | formulaire groupé | formulaire |
-| `etat vide "Rien" avec icone "boite" et description "…"` | écran vide | écran vide | bloc |
-| `avec fond translucide` | verre ou matériau | verre ou matériau | flou |
-| `table l :` puis `colonne "Total" avec c.total` | lignes | tableau | lignes |
-| `menu de l'application "Fichier" :` puis `commande "N" avec raccourci "cmd+n" :` | raccourcis (iPad) | barre de menus | refusé |
-| `page "x" en reglages :` | page | fenêtre Réglages | page |
-| `page "x" en pleine fenetre :` | page jusqu'aux bords | page jusqu'aux bords | page (sans effet) |
-| `barre d'outils :` | barre du haut | barre d'outils | rangée |
+| Phrase | iPhone et iPad | Mac | Android | Web |
+|---|---|---|---|---|
+| `onglets de l'application :` puis `onglet "A" vers "accueil" avec icone "maison"` | barre d'onglets | barre latérale | barre d'onglets en bas | menu |
+| `groupe "Équipe" :` puis ses `onglet`, décalés, dans `onglets de l'application` | onglets à plat | liste à plat | onglets à plat | intertitre dans le menu |
+| `onglets de l'application avec barre laterale "MaBarre" :` | sans effet | barre latérale dessinée par la vue Swift `MaBarre`, qui reçoit la page en contenu | sans effet | sans effet |
+| `recherche dans q avec indice "…"` | recherche native | recherche native | champ | champ |
+| `action en glissant "Supprimer" :` dans un `pour chaque` | glisser la ligne | clic droit | glisser la ligne | bouton |
+| `actualiser en tirant :` | tirer pour actualiser | bouton dans la barre d'outils | tirer pour actualiser | bouton |
+| `menu d'options :` puis `option "Copier" :` sous un élément | toucher prolongé | clic droit | toucher prolongé | menu dépliant |
+| `formulaire "x" en reglages :` puis `groupe "Profil" :` | formulaire façon Réglages | formulaire groupé | formulaire | formulaire |
+| `etat vide "Rien" avec icone "boite" et description "…"` | écran vide | écran vide | écran vide | bloc |
+| `avec fond translucide` | verre ou matériau | verre ou matériau | fond voilé | flou |
+| `table l :` puis `colonne "Total" avec c.total` | lignes | tableau | lignes | lignes |
+| `menu de l'application "Fichier" :` puis `commande "N" avec raccourci "cmd+n" :` | raccourcis (iPad) | barre de menus | menu « ⋮ » et raccourcis | refusé |
+| `page "x" en reglages :` | page | fenêtre Réglages | page | page |
+| `page "x" en pleine fenetre :` | page jusqu'aux bords | page jusqu'aux bords | page | page (sans effet) |
+| `barre d'outils :` | barre du haut | barre d'outils | rangée | rangée |
 
 ### Le fil d'Ariane et le menu
 
@@ -3466,6 +3466,10 @@ Tout le langage passe sur Android, comme sur Apple :
   par un appui long puis en glissant ; TalkBack propose « Monter » et « Descendre ».
   Avec un clavier branché, les raccourcis de la page marchent. `menu de l'application`
   devient le menu « ⋮ » en haut de l'application, avec ses raccourcis.
+- **Composants natifs** : `actualiser en tirant` devient le geste de tirer la page vers
+  le bas, `action en glissant` fait glisser la ligne vers la gauche, `menu d'options`
+  s'ouvre au toucher prolongé (TalkBack propose aussi ces actions) et `etat vide` montre
+  son icône au milieu.
 - **Sources** : une source à clé secrète passe par la passerelle du serveur, avec la
   session ; la clé ne part jamais avec l'application.
 
