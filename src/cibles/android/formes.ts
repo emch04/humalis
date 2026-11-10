@@ -71,7 +71,7 @@ const chaineXml = (texte: string): string => xml(texte).replace(/'/g, "\\'").rep
 
 /** Le dessin vectoriel d'une icône (tuile, raccourci, widget) : les mêmes traits que sur le web. */
 export function iconeDrawable(nom: string): string {
-  const formes = FORMES_LUCIDE[lucideDe(nom) ?? ''] ?? FORMES_LUCIDE['circle-help'] ?? '<circle cx="12" cy="12" r="10" />';
+  const formes = FORMES_LUCIDE[lucideDe(nom) ?? nom] ?? FORMES_LUCIDE['circle-help'] ?? '<circle cx="12" cy="12" r="10" />';
   const chemins = (formes.match(/<\w+[^>]*\/>/g) ?? []).flatMap((f) => enChemin(f) ?? []);
   return `<?xml version="1.0" encoding="utf-8"?>
 <!-- Produit par Humalis : l'icône « ${xml(nom)} », d'après Lucide (licence ISC). -->
