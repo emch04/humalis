@@ -73,7 +73,7 @@ describe('essayer … si erreur', () => {
 
   it('site statique : un refus du serveur passe à « si erreur » avec sa raison, sans le message automatique', async () => {
     const { messages, champ } = await soumettreSurLeStatique(async () => new Response(JSON.stringify({ erreur: 'le champ « nom » est trop court' }), { status: 400 }));
-    expect(messages).toEqual(["erreur : La commande n'est pas partie : Le champ « nom » est trop court."]);
+    expect(messages).toEqual(["erreur : La commande n'est pas partie\u00a0: Le champ « nom » est trop court."]);
     // Dans un formulaire, les champs restent remplis.
     expect(champ).toBe('Ada');
   });
@@ -82,7 +82,7 @@ describe('essayer … si erreur', () => {
     const { messages } = await soumettreSurLeStatique(async () => {
       throw new TypeError('Failed to fetch');
     });
-    expect(messages).toEqual(["erreur : La commande n'est pas partie : Le serveur n'a pas répondu."]);
+    expect(messages).toEqual(["erreur : La commande n'est pas partie\u00a0: Le serveur n'a pas répondu."]);
   });
 
   it('site statique : un envoi réussi continue le bloc et vide le champ', async () => {
