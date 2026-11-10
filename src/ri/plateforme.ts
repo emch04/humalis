@@ -6,9 +6,9 @@
 import type { Application } from './types.js';
 
 const VISEES: Record<string, string[]> = {
-  apple: ['application', 'apple', 'ios', 'macos'],
+  apple: ['application', 'apple', 'ios', 'macos', 'montre', 'tele'],
   mobile: ['application'],
-  android: ['application', 'android'],
+  android: ['application', 'android', 'montre', 'tele'],
   desktop: ['application'],
   windows: ['application', 'windows'],
   web: ['site'],
@@ -16,9 +16,12 @@ const VISEES: Record<string, string[]> = {
   serveur: [],
 };
 
-const MARQUE = /^(apple|ios|macos|android|windows|site|application):(.+)$/;
-/** iOS et macOS partagent un projet Xcode : ce qui leur est propre reste écrit, sous « #if os(…) ». */
-const DANS_LE_PROJET = new Set(['ios', 'macos']);
+const MARQUE = /^(apple|ios|macos|android|windows|montre|tele|site|application):(.+)$/;
+/**
+ * iOS et macOS partagent un projet Xcode : ce qui leur est propre reste écrit, sous « #if os(…) ».
+ * La montre et la télévision aussi : leurs applications font partie du projet Apple ou Android.
+ */
+const DANS_LE_PROJET = new Set(['ios', 'macos', 'montre', 'tele']);
 
 /** Le nom d'un style sans sa plateforme, pour vérifier qu'il existe. */
 export const sansPlateforme = (classe: string): string => MARQUE.exec(classe)?.[2] ?? classe;
@@ -87,6 +90,8 @@ export function pourLaCible(application: Application, cible: string): Applicatio
   const fichiersStyle = application.fichiersStyle.filter((f) => f.plateforme === undefined || visees.includes(f.plateforme));
   const adaptee = adapter({ ...application, fichiersStyle: [] }) as Application;
   adaptee.fichiersStyle = fichiersStyle;
+  // « page "x" sur montre », « sur tele » : seulement là où la montre et la télévision ont leur application.
+  if (!visees.includes('montre') && adaptee.ecrans) adaptee.ecrans = adaptee.ecrans.filter((e) => e.appareil === undefined);
   // Une barre latérale est propre au Mac ; ailleurs elle prend la place de l'en-tête si le projet n'en a pas.
   if (cible !== 'apple' && adaptee.disposition?.barre) {
     const { barre, ...reste } = adaptee.disposition;

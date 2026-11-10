@@ -22,6 +22,7 @@ import { genererProjetAndroid, identifiantDe, MARQUE_ANDROID } from './cibles/an
 import { lireFirebase, type Firebase } from './cibles/android/comptes.js';
 import { genererProjetWindows, MARQUE_WINDOWS } from './cibles/windows/projet.js';
 import { verifierAppareilPourLaCible } from './cibles/appareil.js';
+import { verifierFormesPourLaCible } from './cibles/formes.js';
 import { pourLaCible } from './ri/plateforme.js';
 import { gestionnairesDuProgramme, contientAction } from './cibles/web/interactions.js';
 import type { Application } from './ri/types.js';
@@ -172,6 +173,14 @@ function compile(arguments_: string[]): number | Promise<number> {
 
   // Les tuiles d'une carte viennent d'un fournisseur qui reçoit l'adresse IP des visiteurs : dit une fois.
   if (cible === 'web' || cible === 'statique' || cible === 'desktop' || cible === 'android' || cible === 'windows') afficherDiagnostics(prevenirDesTuiles(application));
+
+  // Les formes d'application spéciales (widget, tuile, clavier…) : refusées là où elles ne sont pas encore écrites.
+  const formes = verifierFormesPourLaCible(application, cible);
+  if (formes.length > 0) afficherDiagnostics(formes);
+  if (formes.some((d) => d.gravite === 'erreur')) {
+    console.error('\nLe programme ne peut pas être produit pour cette cible : rien n\'a été écrit.');
+    return 1;
+  }
 
   if (cible !== 'apple' && cible !== 'serveur') {
     const appareil = verifierAppareilPourLaCible(application, cible);

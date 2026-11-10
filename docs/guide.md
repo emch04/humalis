@@ -3474,6 +3474,67 @@ pour Android (Gradle).
 Dans l'autre sens, `humalis compile … --composants <dossier>` produit des
 composants React à importer dans un projet React existant.
 
+### Les formes propres aux applications
+
+Au-delà des pages, une application vit ailleurs sur l'appareil : un widget sur l'écran
+d'accueil, une activité sur l'écran de verrouillage, une tuile dans les réglages rapides,
+un clavier, une commande pour Siri… Chacune s'écrit en haut du fichier, en une phrase.
+Ce qui s'affiche s'écrit comme une page ; ce qui agit, comme un événement.
+
+```humalis
+variable solde = 120 avec partagee
+
+widget "solde" avec taille petite vers "compte" :
+    titre "Solde"
+    texte "{solde} €"
+    actualiser toutes les 30 minutes
+
+activite en direct "livraison" :
+    titre "Commande en route"
+    texte "Arrivée dans 10 minutes"
+
+raccourcis de l'icone :
+    raccourci "Mon compte" vers "compte" avec icone "user"
+
+commande vocale "Mon solde" :
+    dire "Votre solde est de {solde} €"
+
+tuile "Pointer" avec icone "clock" :
+    afficher "Pointé"
+
+clavier "Réponses rapides" :
+    touche "Merci" ecrit "Merci beaucoup !"
+
+page "compte" :
+    titre "Compte"
+    bouton "Suivre ma commande"
+    quand l'utilisateur clique sur "Suivre ma commande" :
+        commencer activite "livraison"
+```
+
+| Phrase | Ce que c'est | Plateformes |
+|---|---|---|
+| `widget "…" :` | un widget (`avec taille petite`, `moyenne`, `grande` ; `vers "page"` ; `actualiser toutes les 30 minutes`, 15 au moins) | iPhone, iPad, Mac, Android |
+| `page "…" dans la barre du systeme avec icone "…" :` | la barre des menus du Mac, la zone de notification | Mac, Windows, Linux |
+| `quand on partage vers l'application :` | le bouton « Partager » des autres applications (`partage.texte`, `partage.lien`, `partage.fichier`) | iPhone, Mac, Android, Windows |
+| `page "…" sur montre :`, `page "…" sur tele :` | l'application de la montre, de la télévision | Apple Watch, Wear OS, Apple TV, Android TV |
+| `clavier "…" :` avec `touche "…" ecrit "…"` | un clavier personnalisé | iPhone, iPad, Android |
+| `activite en direct "…" :` ; `commencer activite`, `terminer activite` | l'écran de verrouillage et l'îlot dynamique ; le serveur la met à jour avec `mettre a jour activite "…" pour commande.client` | iPhone, Android |
+| `raccourcis de l'icone :` avec `raccourci "…" vers "page"` | l'appui long sur l'icône (quatre au plus) | iPhone, Android, Windows |
+| `commande vocale "…" :` (avec `dire "…"`), ou `… vers "page"` | Siri, Raccourcis, l'assistant Google ; `{produit}` dans la phrase devient une variable | iPhone, Mac, Android |
+| `quand on ouvre un fichier ".csv" ou ".pdf" :` | « Ouvrir avec… » (`fichier.nom`, `fichier.type`, `fichier.contenu`) | toutes les applications |
+| `lancer au demarrage de l'ordinateur` (`avec discret`) | l'application démarre avec l'ordinateur | Mac, Windows, Linux |
+| `… et boutons "Accepter" et "Refuser"` (serveur) ; `quand l'utilisateur touche "Accepter" dans une notification :` | répondre sans ouvrir l'application (trois boutons au plus) | iPhone, Android, Windows |
+| `recherche du systeme :` avec `produits avec titre nom et texte description vers "produit"` | Spotlight, la recherche du téléphone | iPhone, Mac, Android |
+| `tuile "…" :` | les réglages rapides d'Android, le Centre de contrôle | Android, iPhone |
+| `mini application "…" :` avec `page "…"` | une App Clip, sans installation | iPhone |
+| `voiture "…" :` avec `liste … avec titre …` | CarPlay, Android Auto, avec l'autorisation d'Apple et de Google | iPhone, Android |
+| `menu clic droit "…" pour les fichiers ".jpg" :` | le clic droit dans l'Explorateur et le Finder | Windows, Mac, Linux |
+
+Sur une cible où une forme n'a pas de sens (un widget sur le site), elle est ignorée, et la
+compilation le dit une fois. Ces formes s'écrivent cible par cible : là où une forme est
+prévue sans être encore produite, la compilation s'arrête et dit où elle est disponible.
+
 ### Plusieurs fichiers
 
 Un grand projet se range en plusieurs fichiers. En haut du fichier principal :

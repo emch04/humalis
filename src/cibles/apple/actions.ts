@@ -334,6 +334,10 @@ export class EcrivainActions {
         else e.ligne(`_ = await Serveur.commun.appelReussi(${appel})`);
         return;
       }
+      // Les formes d'application spéciales : refusées avant (verifierFormesPourLaCible) tant que cette cible ne les écrit pas.
+      case 'activite':
+      case 'dire':
+        return;
       default: {
         // Une action ajoutée au langage doit être traitée ici : sinon le compilateur TypeScript s'arrête.
         const oubliee: never = a;

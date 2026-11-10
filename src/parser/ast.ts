@@ -29,6 +29,8 @@ export interface Programme {
   paquetsAndroid?: { nom: string; version: string; ligne: number }[];
   /** « paquet windows "Nom" version "1.2" » : une bibliothèque NuGet, pour les vues C# écrites à la main. */
   paquetsWindows?: { nom: string; version: string; ligne: number }[];
+  /** Les formes d'application spéciales : widgets, activités en direct, raccourcis, voix, clavier… */
+  formes?: Formes;
   /** « liens profonds "magasin" » : les adresses magasin://… ouvrent les pages de l'application. */
   /** « onglets de l'application : » : les pages principales. */
   ongletsApplication?: { titre: string; page: string; icone?: string; groupe?: string; ligne: number }[];
@@ -444,6 +446,8 @@ export interface EnvoiNotification {
   destinataire: { genre: 'roles'; roles: string[] } | { genre: 'compte'; donnee: string; champ: string };
   titre: MorceauTexte[];
   texte: MorceauTexte[];
+  /** « … et boutons "Accepter" et "Refuser" » : la personne répond sans ouvrir l'application. */
+  boutons?: string[];
   ligne: number;
 }
 type MorceauTexte = EnvoiEmail['sujet'][number];
@@ -457,6 +461,8 @@ export type InstructionServeur =
   | { type: 'Refuser'; message: Expression; ligne: number }
   | { type: 'CreerFiche'; creation: CreationLiee; ligne: number }
   | { type: 'EmailServeur'; envoi: EnvoiEmail; ligne: number }
+  /** « mettre a jour activite "livraison" pour commande.client » : l'activité en direct, application fermée. */
+  | { type: 'MiseAJourActivite'; nom: string; pour: EnvoiNotification['destinataire']; ligne: number }
   | { type: 'NotificationServeur'; envoi: EnvoiNotification; ligne: number };
 
 export interface ComposantReact {
@@ -520,6 +526,10 @@ export interface Page {
   reglages?: boolean;
   /** « page "x" en pleine fenetre : » : sur Apple, le contenu va jusqu'aux bords de la fenêtre. */
   pleineFenetre?: boolean;
+  /** « page "rapide" dans la barre du systeme avec icone "horloge" : » : barre des menus du Mac, zone de notification. */
+  barreSysteme?: { icone?: string };
+  /** « page "x" sur montre : », « sur tele : » : la page de l'application de la montre ou de la télévision. */
+  appareil?: 'montre' | 'tele';
   /** « page "x" dessinee pour 1440 par 900 : » : sur Mac, le rendu suit le CSS au point près, à l'échelle de la fenêtre. */
   dessin?: { largeur: number; hauteur: number };
   /** « page "produit" avec parametre id : » : les valeurs lues dans l'adresse de la page. */
@@ -586,6 +596,9 @@ export type Instruction =
   | ScanCode
   | VerificationIdentite
   | Vibration
+  | CommencerActivite
+  | TerminerActivite
+  | Dire
   | DemandeIa
   | Paiement
   | DemandeLienMotDePasse
@@ -1741,4 +1754,63 @@ export interface Apercu {
   /** « indexation non » : la page est cachée aux moteurs (noindex). */
   indexation: boolean;
   ligne: number;
+}
+
+// ─── Les formes d'application spéciales (validées par Emch le 10 novembre 2026) ───
+
+/** « commencer activite "livraison" ». */
+export interface CommencerActivite {
+  type: 'CommencerActivite';
+  nom: string;
+  ligne: number;
+}
+
+/** « terminer activite "livraison" ». */
+export interface TerminerActivite {
+  type: 'TerminerActivite';
+  nom: string;
+  ligne: number;
+}
+
+/** « dire "Votre solde est de {solde} €" » : la réponse d'une commande vocale. */
+export interface Dire {
+  type: 'Dire';
+  texte: Expression;
+  ligne: number;
+}
+
+/** Ce que contient une forme qui s'affiche (widget, activité en direct) : des éléments de page. */
+export interface CorpsForme {
+  corps: Instruction[];
+}
+
+export interface Formes {
+  /** « widget "solde" avec taille petite vers "compte" : » ; « actualiser toutes les 30 minutes ». */
+  widgets: (CorpsForme & { nom: string; taille?: 'petite' | 'moyenne' | 'grande'; vers?: string; actualiser?: { nombre: number; unite: 'minutes' | 'heures' }; ligne: number })[];
+  /** « activite en direct "livraison" : » (titre, texte, progression). */
+  activites: (CorpsForme & { nom: string; ligne: number })[];
+  /** « raccourcis de l'icone : » avec « raccourci "…" vers "page" avec icone "…" ». */
+  raccourcisIcone: { titre: string; page: string; icone?: string; ligne: number }[];
+  /** « commande vocale "Mon solde" : » (dire …) ou « commande vocale "Commander {produit}" vers "commande" ». */
+  commandesVocales: (CorpsForme & { phrase: string; parametres: string[]; vers?: string; ligne: number })[];
+  /** « lancer au demarrage de l'ordinateur » (avec discret). */
+  demarrage?: { discret: boolean; ligne: number };
+  /** « recherche du systeme : » avec « produits avec titre nom et texte description vers "produit" ». */
+  recherches: { liste: string; titre: string; texte?: string; vers: string; ligne: number }[];
+  /** « tuile "Pointer" avec icone "horloge" : » puis les actions. */
+  tuiles: (CorpsForme & { nom: string; icone?: string; ligne: number })[];
+  /** « mini application "commander" : » avec « page "commande" ». */
+  minis: { nom: string; page: string; ligne: number }[];
+  /** « voiture "Livraisons" : » avec « liste livraisons avec titre adresse et texte client vers "livraison" ». */
+  voitures: { nom: string; liste: string; titre: string; texte?: string; vers?: string; ligne: number }[];
+  /** « menu clic droit "Envoyer à Rey Store" pour les fichiers ".jpg" et ".png" : » puis les actions. */
+  menusClicDroit: (CorpsForme & { titre: string; extensions: string[]; ligne: number })[];
+  /** « clavier "Réponses rapides" : » avec « touche "Bonjour" ecrit "…" ». */
+  claviers: { nom: string; touches: { texte: string; ecrit: string; ligne: number }[]; ligne: number }[];
+  /** « quand on partage vers l'application : » (partage.texte, partage.lien, partage.fichier). */
+  partageRecu?: CorpsForme & { ligne: number };
+  /** « quand on ouvre un fichier ".csv" ou ".pdf" : » (fichier.nom, fichier.type, fichier.contenu). */
+  fichiersOuverts: (CorpsForme & { extensions: string[]; ligne: number })[];
+  /** « quand l'utilisateur touche "Accepter" dans une notification : ». */
+  boutonsNotification: (CorpsForme & { bouton: string; ligne: number })[];
 }

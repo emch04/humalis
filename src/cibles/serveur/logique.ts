@@ -355,6 +355,9 @@ class Ecriture {
         const a = i.a.genre === 'admins' ? 'await adressesDesAdmins()' : `enTexte(${valeur(i.a.valeur)})`;
         return `${r}{\n${r}  const envoi = { sujet: ${valeur(i.sujet)}, texte: ${valeur(i.texte)} };\n${r}  travail.apres.push(async () => { await emails.envoyer({ a: ${a}, ...envoi }); });\n${r}}`;
       }
+      // « mettre a jour activite » : refusé avant (verifierFormesPourLaCible) tant que le serveur ne l'envoie pas.
+      case 'activite':
+        return `${r}// activité en direct « ${i.nom} » : pas encore envoyée par ce serveur.`;
       case 'notification': {
         return `${r}{\n${r}  const envoi = { titre: ${valeur(i.titre)}, texte: ${valeur(i.texte)} };\n${r}  ${destinataires(i)}\n${r}  travail.apres.push(() => notifier(envoi));\n${r}}`;
       }

@@ -354,6 +354,51 @@ page "antiseche" a l'adresse "/antiseche" :
 
                         page "vitrine" :
                             Carte avec titre "Café" et prix 3.5
+                bloc avec style "aide-entree" :
+                    texte "Un widget pour l'écran d'accueil" en anglais "A home screen widget" avec style "aide-besoin"
+                    code humalis :
+                        variable solde = 120 avec partagee
+
+                        widget "solde" avec taille petite :
+                            texte "{solde} €"
+                            actualiser toutes les 30 minutes
+
+                        page "accueil" :
+                            titre "Accueil"
+                bloc avec style "aide-entree" :
+                    texte "Une activité en direct sur l'écran de verrouillage" en anglais "A live activity on the lock screen" avec style "aide-besoin"
+                    code humalis :
+                        activite en direct "livraison" :
+                            titre "Commande en route"
+
+                        page "accueil" :
+                            titre "Accueil"
+                            bouton "Suivre"
+                            quand l'utilisateur clique sur "Suivre" :
+                                commencer activite "livraison"
+                bloc avec style "aide-entree" :
+                    texte "Recevoir un partage, ouvrir un fichier" en anglais "Receive a share, open a file" avec style "aide-besoin"
+                    code humalis :
+                        variable recus = [] avec partagee
+
+                        quand on partage vers l'application :
+                            ajouter partage.texte a recus
+
+                        quand on ouvre un fichier ".csv" :
+                            afficher "Fichier {fichier.nom}"
+
+                        page "accueil" :
+                            titre "Accueil"
+                bloc avec style "aide-entree" :
+                    texte "Une commande pour Siri ou l'assistant Google" en anglais "A Siri or Google Assistant command" avec style "aide-besoin"
+                    code humalis :
+                        variable solde = 120 avec partagee
+
+                        commande vocale "Mon solde" :
+                            dire "Votre solde est de {solde} €"
+
+                        page "accueil" :
+                            titre "Accueil"
         bloc avec ancre "variables" et style "aide-section" :
             soustitre "Les variables et les calculs" en anglais "Variables and calculations"
             bloc avec style "aide-entrees" :

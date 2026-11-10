@@ -392,6 +392,55 @@ page "vitrine" :
     Carte avec titre "Café" et prix 3.5
 ```
 
+### Un widget pour l'écran d'accueil | A home screen widget
+```humalis racine
+variable solde = 120 avec partagee
+
+widget "solde" avec taille petite :
+    texte "{solde} €"
+    actualiser toutes les 30 minutes
+
+page "accueil" :
+    titre "Accueil"
+```
+
+### Une activité en direct sur l'écran de verrouillage | A live activity on the lock screen
+```humalis racine
+activite en direct "livraison" :
+    titre "Commande en route"
+
+page "accueil" :
+    titre "Accueil"
+    bouton "Suivre"
+    quand l'utilisateur clique sur "Suivre" :
+        commencer activite "livraison"
+```
+
+### Recevoir un partage, ouvrir un fichier | Receive a share, open a file
+```humalis racine
+variable recus = [] avec partagee
+
+quand on partage vers l'application :
+    ajouter partage.texte a recus
+
+quand on ouvre un fichier ".csv" :
+    afficher "Fichier {fichier.nom}"
+
+page "accueil" :
+    titre "Accueil"
+```
+
+### Une commande pour Siri ou l'assistant Google | A Siri or Google Assistant command
+```humalis racine
+variable solde = 120 avec partagee
+
+commande vocale "Mon solde" :
+    dire "Votre solde est de {solde} €"
+
+page "accueil" :
+    titre "Accueil"
+```
+
 ## Les variables et les calculs | Variables and calculations | variables
 
 ### Une variable qui change, un calcul qui suit | A variable that changes, a calculation that follows

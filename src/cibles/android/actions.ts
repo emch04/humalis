@@ -317,6 +317,10 @@ export class EcrivainActions {
         e.ligne(`Serveur.${c.essai ? 'demanderIaOuEchouer' : 'demanderIa'}(${this.v.t(a.question)}) { ${reponse} = texte(${reponse}) + it }`);
         return;
       }
+      // Les formes d'application spéciales : refusées avant (verifierFormesPourLaCible) tant que cette cible ne les écrit pas.
+      case 'activite':
+      case 'dire':
+        return;
       default: {
         // Une action ajoutée au langage doit être traitée ici : sinon le compilateur TypeScript s'arrête.
         const oubliee: never = a;
