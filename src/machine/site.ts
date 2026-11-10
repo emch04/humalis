@@ -52,7 +52,7 @@ export class SiteVirtuel {
     let fini: string | Uint8Array;
     if (brut.startsWith(BINAIRE)) fini = octetsAEcrire(brut) as Uint8Array;
     else if (nom.endsWith('.html')) fini = brut.replace('<head>', `<head>\n    ${this.tete}`);
-    else if (nom === 'src/humalis/centrale.ts') fini = '// La surveillance (@astratra/centrale) n\'existe pas dans la machine.\nexport {};\n';
+    else if (nom === 'src/humalis/centrale.ts') fini = '// La surveillance n\'existe pas dans la machine.\nexport {};\n';
     else if (nom.endsWith('.js') || nom.endsWith('.ts')) {
       let texte = brut.replaceAll('import.meta.env', ENV);
       if (nom === 'src/humalis/moteur.js') texte = texte.replace(CONSTRUCTEUR, AVEC_CROCHET);
