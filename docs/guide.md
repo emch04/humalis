@@ -3535,6 +3535,32 @@ Sur une cible où une forme n'a pas de sens (un widget sur le site), elle est ig
 compilation le dit une fois. Ces formes s'écrivent cible par cible : là où une forme est
 prévue sans être encore produite, la compilation s'arrête et dit où elle est disponible.
 
+#### Sur Apple
+
+Le projet Xcode reste unique : les formes y ajoutent leurs cibles (widgets, partage, clavier,
+Apple Watch, Apple TV, App Clip), qui reprennent les pages et les variables partagées de
+l'application. Compilez avec `--equipe` : les valeurs passent de l'application à ses widgets
+et à ses extensions par un groupe d'applications, que seule une équipe peut ouvrir.
+
+| Forme | Sur Apple | Limite |
+|---|---|---|
+| widget | WidgetKit, petite, moyenne et grande taille ; se redessine dès qu'une variable partagée change | 15 minutes au moins entre deux actualisations |
+| barre du système | `MenuBarExtra` sur Mac | Mac seulement |
+| partage reçu | extension de partage, iPhone et Mac | sur iPhone, lu au retour dans l'application |
+| montre, télé | application watchOS rangée dans celle de l'iPhone ; application tvOS (`-scheme …Tele`) | pas de presse-papier, de feuille de partage ni de lien externe |
+| clavier | extension clavier, avec le globe pour changer de clavier | iPhone et iPad |
+| activité en direct | ActivityKit : écran verrouillé et îlot dynamique ; avec le serveur, mise à jour par APNs | iPhone |
+| raccourcis de l'icône | `UIApplicationShortcutItems` | iPhone et iPad |
+| commande vocale | App Intents et `AppShortcuts` ; `dire` est la réponse de Siri, ailleurs la voix de l'appareil | Siri demande un `{…}` juste après la phrase |
+| fichier ouvert | types de documents, lus là où ils sont | |
+| démarrage | `SMAppService` ; `discret` ferme la fenêtre au démarrage | Mac seulement |
+| boutons de notification | catégories `humalis.boutons.Accepter\|Refuser` | |
+| recherche du système | Core Spotlight, sur le titre | |
+| tuile | `ControlWidget` du Centre de contrôle | iOS 18 au moins |
+| mini application | App Clip | une seule par application |
+| voiture | CarPlay, une liste par écran | droit à demander à Apple (voir `LISEZMOI.md`) ; le simulateur l'a déjà |
+| menu clic droit | service du Finder (Actions rapides) | Mac, après un premier lancement depuis Applications |
+
 ### Plusieurs fichiers
 
 Un grand projet se range en plusieurs fichiers. En haut du fichier principal :

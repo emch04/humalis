@@ -1076,9 +1076,12 @@ export function genererProjetApple(application: Application, options: OptionsApp
   const cheminsPages = cheminsDesPages(application);
   ecrire('Humalis/Routes.swift', routesSwift(application, app, entree, cheminsPages));
   const notifications = JSON.stringify([application.ecrans, application.composants]).includes('"type":"activationNotifications"');
+  // « mettre a jour activite » : le serveur envoie la mise à jour par APNs, au jeton que l'application lui donne.
+  const jetonActivite = (application.formes?.activites.length ?? 0) > 0 && JSON.stringify(application.serveurs ?? []).includes('"type":"activite"');
+  if (jetonActivite && !options.equipe) avertir(1, "« mettre a jour activite » : sans --equipe, l'activité en direct ne peut pas recevoir les mises à jour du serveur. Compilez avec --equipe.");
   // Les formes d'application (widget, Siri, Spotlight, montre…) : leurs fichiers, et les cibles de plus du projet.
   const formes = aDesFormes(application)
-    ? genererFormesApple({ application, app, portee, nom, nomAffiche: application.site?.nom ?? options.nom, identifiant: identifiantApp, ...(options.equipe ? { equipe: options.equipe } : {}), liens: application.liensProfonds !== undefined, notifications })
+    ? genererFormesApple({ application, app, portee, nom, nomAffiche: application.site?.nom ?? options.nom, identifiant: identifiantApp, ...(options.equipe ? { equipe: options.equipe } : {}), liens: application.liensProfonds !== undefined, notifications, jetonActivite: jetonActivite && options.equipe !== undefined })
     : undefined;
   for (const [chemin, contenu] of formes?.fichiers ?? []) {
     if (chemin.startsWith(`${dossier}/`)) ecrire(chemin.slice(dossier.length + 1), contenu);
@@ -1143,10 +1146,10 @@ export function genererProjetApple(application: Application, options: OptionsApp
   const avecConnexionApple = /\bseConnecterAvecApple\(/.test(codeAvecNatifs);
   if (avecConnexionApple && !options.equipe) avertir(1, "« se connecter avec apple » : sans --equipe, la fenêtre d'Apple ne peut pas s'ouvrir, et l'application le dit à la personne. Compilez avec --equipe.");
   const droitConnexionApple = avecConnexionApple && options.equipe !== undefined;
-  ecrire(`${nom}.entitlements`, droits(avecFichiers, notifications && options.equipe ? 'ios' : undefined, avecPosition, domaineLiens, droitConnexionApple, formes?.groupe));
-  if (notifications && options.equipe) ecrire(`${nom}-mac.entitlements`, droits(avecFichiers, 'mac', avecPosition, domaineLiens, droitConnexionApple, formes?.groupe));
+  ecrire(`${nom}.entitlements`, droits(avecFichiers, (notifications || jetonActivite) && options.equipe ? 'ios' : undefined, avecPosition, domaineLiens, droitConnexionApple, formes?.groupe));
+  if ((notifications || jetonActivite) && options.equipe) ecrire(`${nom}-mac.entitlements`, droits(avecFichiers, 'mac', avecPosition, domaineLiens, droitConnexionApple, formes?.groupe));
   // CarPlay demande un droit qu'Apple accorde sur demande : sans lui, seul le simulateur montre l'écran de voiture.
-  if (formes?.droitsSimulateur) ecrire(`${nom}-simulateur.entitlements`, droits(avecFichiers, notifications && options.equipe ? 'ios' : undefined, avecPosition, domaineLiens, droitConnexionApple, formes.groupe, formes.droitsSimulateur));
+  if (formes?.droitsSimulateur) ecrire(`${nom}-simulateur.entitlements`, droits(avecFichiers, (notifications || jetonActivite) && options.equipe ? 'ios' : undefined, avecPosition, domaineLiens, droitConnexionApple, formes.groupe, formes.droitsSimulateur));
   if (application.liensProfonds?.domaine && !options.equipe) avertir(application.liensProfonds.ligne, `« domaine "${application.liensProfonds.domaine}" » : sans --equipe, les liens https:// ouvrent le site et pas l'application. Compilez avec --equipe.`);
   if (domaineLiens) {
     fichiers.set('a-publier-sur-le-site/.well-known/apple-app-site-association', associationSite(options.equipe!, identifiantApp, domaineLiens));
@@ -1173,7 +1176,7 @@ export function genererProjetApple(application: Application, options: OptionsApp
       icone: octetsLogo !== undefined,
       serveurLocal,
       paquets: paquetsDe(application, refuser),
-      droitsMac: notifications && options.equipe !== undefined,
+      droitsMac: (notifications || jetonActivite) && options.equipe !== undefined,
       essaisUi: options.essaisUi !== undefined,
       fichiers: avecFichiers,
       ...(formes?.cibles.length ? { cibles: formes.cibles } : {}),

@@ -1,0 +1,97 @@
+variable solde = 120 avec partagee
+variable produits = [fiche avec nom "Livre" et description "Un roman de poche", fiche avec nom "Carnet" et description "Cent pages lignées"] avec partagee
+variable notes = [] avec partagee
+
+widget "solde" avec taille petite vers "compte" :
+    titre "Solde"
+    texte "{solde} €"
+    actualiser toutes les 30 minutes
+
+widget "produits" avec taille moyenne :
+    titre "Produits"
+    texte "{nombre de produits} produits en rayon"
+
+activite en direct "livraison" :
+    titre "Commande en route"
+    texte "Solde : {solde} €"
+
+raccourcis de l'icone :
+    raccourci "Mon compte" vers "compte" avec icone "user"
+    raccourci "Notes" vers "notes" avec icone "list"
+
+commande vocale "Mon solde" :
+    dire "Votre solde est de {solde} €"
+
+commande vocale "Voir {produit}" vers "compte"
+
+quand on partage vers l'application :
+    ajouter partage.texte a notes
+    rediriger vers "notes"
+
+quand on ouvre un fichier ".csv" ou ".txt" :
+    ajouter fichier.nom a notes
+    afficher "Fichier {fichier.nom} ({fichier.type})"
+
+lancer au demarrage de l'ordinateur avec discret
+
+recherche du systeme :
+    produits avec titre nom et texte description vers "compte"
+
+tuile "Pointer" avec icone "clock" :
+    ajouter "Pointé" a notes
+    afficher "Pointé"
+
+mini application "commander" :
+    page "compte"
+
+voiture "Produits" :
+    liste produits avec titre nom et texte description vers "compte"
+
+menu clic droit "Ajouter aux notes" pour les fichiers ".txt" et ".csv" :
+    ajouter fichier.nom a notes
+    afficher "Reçu {fichier.nom}"
+
+clavier "Réponses rapides" :
+    touche "Bonjour" ecrit "Bonjour, comment allez-vous ?"
+    touche "Merci" ecrit "Merci beaucoup !"
+
+quand l'utilisateur touche "Accepter" dans une notification :
+    ajouter "Accepté" a notes
+
+page "compte" :
+    titre "Compte"
+    texte "Solde : {solde} €"
+    bouton "Ajouter 10"
+    bouton "Suivre"
+    bouton "Arrêter"
+    bouton "Dire le solde"
+    quand l'utilisateur clique sur "Ajouter 10" :
+        changer solde par solde + 10
+    quand l'utilisateur clique sur "Suivre" :
+        commencer activite "livraison"
+    quand l'utilisateur clique sur "Arrêter" :
+        terminer activite "livraison"
+    quand l'utilisateur clique sur "Dire le solde" :
+        dire "Votre solde est de {solde} €"
+
+page "notes" :
+    titre "Notes"
+    pour chaque note dans notes :
+        texte "{note}"
+
+page "rapide" dans la barre du systeme avec icone "clock" :
+    titre "Rapide"
+    texte "Solde : {solde} €"
+    bouton "Ajouter 10"
+    quand l'utilisateur clique sur "Ajouter 10" :
+        changer solde par solde + 10
+
+page "minuteur" sur montre :
+    titre "Minuteur"
+    texte "Solde : {solde} €"
+    sur montre :
+        texte "Seulement sur la montre"
+
+page "salon" sur tele :
+    titre "Salon"
+    texte "Solde : {solde} €"
