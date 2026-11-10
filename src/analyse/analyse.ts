@@ -1072,6 +1072,7 @@ class AnalysePage {
 
       case 'GesteReunion':
         if (contexte === 'vue') this.horsEvenement('geste de réunion', instruction.ligne);
+        else if (instruction.puis) this.sousBloc(instruction.puis, contexte, place);
         if (instruction.valeur) this.typeDe(instruction.valeur);
         return;
 

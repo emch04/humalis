@@ -21,7 +21,7 @@ if (!positionnels[0] || !process.env.LIVEKIT_BIN) {
 }
 const travail = resolve(positionnels[0]);
 mkdirSync(travail, { recursive: true });
-const { chromium } = chargerPlaywright();
+const { chromium, _electron } = chargerPlaywright();
 const problemes = [];
 const verifier = (ok, message) => {
   if (!ok) problemes.push(message);
@@ -167,6 +167,27 @@ try {
   await binta.getByRole('button', { name: 'Exclure', exact: true }).nth(nCouper).click();
   verifier(await binta.getByText('Présent : chloe@essai.test').waitFor({ state: 'detached', timeout: 10000 }).then(() => true, () => false), 'réunion : l’animatrice exclut une personne');
   await awa.screenshot({ path: join(travail, 'reunion.png') });
+
+  // Le bureau : Electron entre dans la même réunion, à travers son relais.
+  if (!args.includes('--sans-bureau')) {
+    const bureau = join(travail, 'bureau');
+    compiler('desktop', bureau, '--serveur', base);
+    installer(bureau);
+    const envElectron = { ...process.env, electron_config_cache: join(travail, 'cache-electron') };
+    execFileSync('node', [join(bureau, 'node_modules/electron/install.js')], { stdio: 'inherit', env: envElectron });
+    execFileSync('npm', ['run', 'build'], { cwd: bureau, stdio: 'inherit' });
+    const chemin = readFileSync(join(bureau, 'node_modules/electron/path.txt'), 'utf8').trim();
+    const application = await _electron.launch({ executablePath: join(bureau, 'node_modules/electron/dist', chemin), args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', bureau], env: { ...process.env, HUMALIS_SERVEUR: base } });
+    const fenetre = await application.firstWindow();
+    await fenetre.getByRole('heading', { name: 'Agence' }).waitFor();
+    const statut = await fenetre.evaluate(async ([e, m]) => (await fetch('/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: e, password: m }) })).status, ['dia@essai.test', MOT]);
+    verifier(statut === 200, 'bureau : la connexion passe par le relais');
+    await fenetre.evaluate(() => { location.href = '/conseil'; });
+    await fenetre.getByRole('button', { name: 'Rejoindre' }).click();
+    verifier(await videoVivante(fenetre, 3), 'bureau : Electron voit les images de la réunion');
+    verifier(await videoVivante(awa, 3), 'bureau : le navigateur voit l’image d’Electron');
+    await application.close();
+  }
   verifier(erreurs.length === 0, `aucune erreur de page ${erreurs.join(' | ').slice(0, 400)}`);
 } catch (erreur) {
   verifier(false, String(erreur).slice(0, 500));

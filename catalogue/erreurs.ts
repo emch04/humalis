@@ -12,6 +12,7 @@ import { ENTREES_ERREURS_INTERACTIONS } from './erreurs-interactions';
 import { ENTREES_ERREURS_COMPTES } from './erreurs-comptes';
 import { ENTREES_ERREURS_LANGUES } from './erreurs-langues';
 import { ENTREES_ERREURS_FORMES } from './erreurs-formes';
+import { ENTREES_ERREURS_TEMPS_REEL } from './erreurs-temps-reel';
 
 export type GroupeErreur = 'ecriture' | 'grammaire' | 'sens' | 'avertissement';
 
@@ -5405,6 +5406,7 @@ page "carte" :
   // --- Les langues (erreurs-langues.ts) ---
   ...ENTREES_ERREURS_LANGUES,
   ...ENTREES_ERREURS_FORMES,
+  ...ENTREES_ERREURS_TEMPS_REEL,
   e('supposant-forme', 'grammaire', 'Écrire le bloc optimiste',
     'Le bloc annonce que la requête suivante pourrait échouer.',
     'Écris « en supposant que ça marche : ».',
