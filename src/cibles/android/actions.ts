@@ -317,9 +317,13 @@ export class EcrivainActions {
         e.ligne(`Serveur.${c.essai ? 'demanderIaOuEchouer' : 'demanderIa'}(${this.v.t(a.question)}) { ${reponse} = texte(${reponse}) + it }`);
         return;
       }
-      // Les formes d'application spéciales : refusées avant (verifierFormesPourLaCible) tant que cette cible ne les écrit pas.
+      // « commencer activite "livraison" » : une notification « en cours » qui se met à jour (Activites.kt).
       case 'activite':
+        e.ligne(a.mode === 'commencer' ? `Activites.commencer(${chaineKotlin(a.nom)})` : `Activites.terminer(${chaineKotlin(a.nom)})`);
+        return;
+      // « dire "…" » : la phrase est lue à voix haute par le téléphone, et affichée (Voix.kt).
       case 'dire':
+        e.ligne(`Voix.dire(${this.v.t(a.texte)})`);
         return;
       default: {
         // Une action ajoutée au langage doit être traitée ici : sinon le compilateur TypeScript s'arrête.

@@ -112,3 +112,7 @@ export function verifierFormesPourLaCible(application: Application, cible: strin
 
 // Windows (C# et WPF, sans paquet MSIX) : src/cibles/windows/formes.ts.
 ECRITES.windows = new Set<Forme>(['barreSysteme', 'partageRecu', 'raccourcisIcone', 'fichierOuvert', 'demarrage', 'boutonsNotification', 'menuClicDroit']);
+
+// Android (Kotlin et Compose) et le serveur (APNs, Firebase).
+ECRITES.android = new Set<Forme>(['widget', 'partageRecu', 'montre', 'tele', 'clavier', 'activite', 'raccourcisIcone', 'commandeVocale', 'fichierOuvert', 'boutonsNotification', 'rechercheSysteme', 'tuile', 'voiture']);
+ECRITES.serveur = new Set<Forme>(['activite', 'boutonsNotification']);

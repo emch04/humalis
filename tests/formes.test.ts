@@ -72,6 +72,7 @@ describe('les formes d’application spéciales', () => {
     const texte = JSON.stringify(app.serveurs);
     expect(texte).toContain('"boutons":["Accepter","Refuser"]');
     expect(texte).toContain('"type":"activite","nom":"livraison"');
-    expect(verifierFormesPourLaCible(app, 'serveur').filter((d) => d.gravite === 'erreur').map((d) => d.message.split(' :')[0])).toEqual(['« mettre a jour activite » du serveur', 'les boutons des notifications du serveur']);
+    // Le serveur les écrit (APNs et FCM) : rien n'y est refusé.
+    expect(verifierFormesPourLaCible(app, 'serveur').filter((d) => d.gravite === 'erreur')).toEqual([]);
   });
 });
