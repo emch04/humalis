@@ -1,0 +1,17 @@
+# L'essai des notifications sur Android : l'appareil s'inscrit, et une
+# création envoie une notification aux admins, par Firebase Cloud Messaging.
+serveur "alertes" :
+    roles gerant
+    donnee alerte :
+        texte : texte
+    route "alertes" :
+        connecte peut lire alerte
+        connecte peut creer alerte
+        quand alerte est cree :
+            envoyer notification aux admin avec titre "Nouvelle alerte" et texte "Une alerte vient d’être créée."
+
+page "accueil" :
+    titre "Alertes"
+    bouton "Activer les notifications"
+    quand l'utilisateur clique sur "Activer les notifications" :
+        activer notifications

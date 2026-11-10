@@ -13,7 +13,7 @@ import { contenuBinaire } from '../binaire.js';
 import { cheminsDesPages } from '../web/projet.js';
 import { COULEURS_CSS } from '../web/styles.js';
 import { EcrivainActions } from './actions.js';
-import { APPLE_KT, GOOGLE_KT } from './comptes.js';
+import { APPLE_KT, GOOGLE_KT, notificationsKotlin, type Firebase } from './comptes.js';
 import { DIRECT_KT, ENVOIS_KT, fondKotlin } from './temps-reel.js';
 import { CARTES_KT, GRAPHIQUES_KT, LECTEURS_KT, QR_KT } from './medias.js';
 import { APPAREIL_KT, CHEMINS_FICHIERS, FICHIERS_KT, SCANNER_KT, SYSTEME_KT } from './appareil.js';
@@ -39,6 +39,8 @@ export interface OptionsAndroid {
   identifiant?: string;
   medias?: Map<string, InfoMedia>;
   images?: Map<string, string>;
+  /** Les identifiants publics de Firebase (--firebase google-services.json), pour recevoir les notifications. */
+  firebase?: Firebase;
   /** L'empreinte SHA-256 du certificat qui signe l'application, pour les liens https:// d'un domaine. */
   empreinte?: string;
   /** Les fichiers de police du thème, en base 64. */
@@ -481,6 +483,9 @@ compilez avec \`--serveur https://…\`.
 `;
 }
 
+/** L'identifiant de l'application : celui donné par --identifiant, sinon « local.humalis.<nom> ». */
+export const identifiantDe = (nom: string, donne?: string): string => identifiantAndroid(donne ?? `local.humalis.${simplifier(nom) || 'application'}`);
+
 export function genererProjetAndroid(application: Application, options: OptionsAndroid): { fichiers: Map<string, string>; diagnostics: Diagnostic[] } {
   const diagnostics = verifier(application);
   const refuser = (ligne: number, message: string) => {
@@ -492,7 +497,7 @@ export function genererProjetAndroid(application: Application, options: OptionsA
   };
 
   const nom = nomApplication(options.nom);
-  const identifiant = identifiantAndroid(options.identifiant ?? `local.humalis.${simplifier(options.nom) || 'application'}`);
+  const identifiant = identifiantDe(options.nom, options.identifiant);
   const paquet = identifiant;
   const dossierCode = `app/src/main/java/${paquet.replace(/\./g, '/')}`;
   const fichiers = new Map<string, string>();
@@ -695,6 +700,13 @@ export function genererProjetAndroid(application: Application, options: OptionsA
   // L'activité démarre les envois gardés et planifie la tâche d'arrière-plan.
   const activite = `${dossierCode}/MainActivity.kt`;
   fichiers.set(activite, fichiers.get(activite)!.replace('        setContent { ApplicationHumalis() }', `${avecGardes ? '        EnvoisGardes.demarrer()\n' : ''}${fonds.length ? '        ArrierePlan.planifier(applicationContext)\n' : ''}        setContent { ApplicationHumalis() }`));
+  // « activer notifications » : Firebase Cloud Messaging, avec les identifiants donnés par --firebase.
+  const avecNotifications = /\bactiverNotifications\(/.test(codePages);
+  if (avecNotifications) {
+    ecrireCode('Notifications.kt', notificationsKotlin(paquet, options.firebase));
+    fichiers.set(activite, fichiers.get(activite)!.replace('        setContent { ApplicationHumalis() }', '        NotificationsHumalis.configurer(applicationContext)\n        setContent { ApplicationHumalis() }'));
+    if (!options.firebase) avertir(1, "« activer notifications » : sans --firebase, l'application demande la permission mais ne peut pas recevoir de notification. Compilez avec --firebase google-services.json (téléchargé depuis la console Firebase), et réglez HUMALIS_FCM_COMPTE sur le serveur.");
+  }
   const connexions = { google: /\bseConnecterAvecGoogle\(/.test(codePages), apple: /\bseConnecterAvecApple\(/.test(codePages) };
   if (connexions.google) {
     ecrireCode('ConnexionGoogle.kt', kotlin(paquet, GOOGLE_KT));
@@ -731,8 +743,8 @@ export function genererProjetAndroid(application: Application, options: OptionsA
   fichiers.set('build.gradle.kts', CONSTRUCTION_RACINE);
   fichiers.set('gradle.properties', PROPRIETES_GRADLE);
   fichiers.set('gradle/wrapper/gradle-wrapper.properties', ENVELOPPE_GRADLE);
-  fichiers.set('app/build.gradle.kts', constructionApp(identifiant, nomAffiche, { appareil: avecAppareil, scanner: besoins.scanner, ...medias, ...connexions, travail: fonds.length > 0 }));
-  fichiers.set('app/src/main/AndroidManifest.xml', manifeste(true, application.liensProfonds, besoins));
+  fichiers.set('app/build.gradle.kts', constructionApp(identifiant, nomAffiche, { appareil: avecAppareil, scanner: besoins.scanner, ...medias, ...connexions, travail: fonds.length > 0, notifications: avecNotifications }));
+  fichiers.set('app/src/main/AndroidManifest.xml', manifeste(true, application.liensProfonds, { ...besoins, notifications: avecNotifications }));
   if (besoins.fichiers) fichiers.set('app/src/main/res/xml/chemins_fichiers.xml', CHEMINS_FICHIERS);
   const domaine = application.liensProfonds?.domaine;
   if (domaine && options.empreinte) {

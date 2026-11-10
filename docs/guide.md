@@ -2239,7 +2239,10 @@ séparée par groupe, seuls les comptes de ce groupe la reçoivent.
 Dans une page, après un geste : `activer notifications`. Il faut les variables
 `HUMALIS_VAPID_PUBLIQUE`, `HUMALIS_VAPID_PRIVEE` et `HUMALIS_VAPID_SUJET` pour le web,
 et `HUMALIS_APNS_CLE`, `HUMALIS_APNS_CLE_ID`, `HUMALIS_APNS_EQUIPE` et
-`HUMALIS_APNS_SUJET` pour Apple (`HUMALIS_APNS_HOTE` pour le bac à sable).
+`HUMALIS_APNS_SUJET` pour Apple (`HUMALIS_APNS_HOTE` pour le bac à sable). Pour Android,
+les notifications passent par Firebase Cloud Messaging : compile l'application avec
+`--firebase google-services.json` (téléchargé depuis la console Firebase), et donne au
+serveur `HUMALIS_FCM_COMPTE`, le fichier JSON du compte de service (tel quel ou en base 64).
 
 #### Les fonctions de l'appareil
 
@@ -3432,38 +3435,32 @@ humalis compile taches.humalis --cible android --sortie taches-android --serveur
   `http://localhost:3000` y est appelé tout seul. Sinon, seul `https://` est permis.
 - Les onglets de l'application sont une barre en bas de l'écran.
 
-Les langues du site sont celles de l'application : elle démarre dans celle de l'appareil
-si le site l'a, et `selecteur de langue` ou `changer langue par …` la changent. Les polices
-du thème livrées en `.ttf` ou `.otf` sont chargées.
+Tout le langage passe sur Android, comme sur Apple :
 
-Les sous-pages se montrent dans leur page parente, et un lien vers une ancre
-(`carte#desserts`) descend jusqu'à elle. `liens profonds "magasin"` ouvre l'application
-par `magasin://produit/42` ; avec `et domaine "…"`, les liens `https://` l'ouvrent aussi :
-compile avec `--empreinte` (l'empreinte SHA-256 du certificat, donnée par
-`keytool -list -v`) et publie le fichier écrit dans `a-publier-sur-le-site/`.
-
-Les fonctions de l'appareil marchent comme sur Apple : `photo dans …` (l'appareil photo
-du système), `scanner code dans …`, `position dans …`, `verifier identite` (l'empreinte, le
-visage ou le code de l'appareil), `vibrer` et `signature dans …`. Chaque permission est
-demandée la première fois qu'elle sert. `fichier "…" dans …` ouvre le sélecteur de fichiers
-du système, `envoyer fichier …` suit sa progression, et `telecharger bon de …` comme
-`telecharger … en csv` ouvrent ou partagent le fichier avec les applications de l'appareil.
-
-Les médias aussi : les graphiques sont dessinés avec les couleurs et les graduations du
-web, et gardent leur table « Voir les données » ; les cartes montrent les tuiles
-d'OpenStreetMap et leur attribution ; le son et la vidéo passent par le lecteur d'Android,
-sans démarrer seuls ; le code QR et les tableaux s'affichent comme sur le web.
-
-Le compte aussi : invitations, rôles et champs du compte, choix du mot de passe par le lien
-reçu, connexion avec Google ou Apple, paiement (la page de Stripe s'ouvre dans le
-navigateur) et `demander a ia`, dont la réponse s'écrit au fil de l'eau.
-
-`en direct`, `avec hors ligne`, les envois `… hors ligne` (gardés sur l'appareil, envoyés
-dans l'ordre au retour du réseau) et `en arriere plan :` (lancé par le système, environ tous
-les quarts d'heure, quand le réseau est là) marchent aussi.
-
-Ce qui n'existe pas encore sur Android, et que la compilation refuse en le disant : les
-notifications.
+- **Langues et polices** : l'application démarre dans la langue de l'appareil si le site
+  l'a ; `selecteur de langue` et `changer langue par …` la changent. Les polices du thème
+  livrées en `.ttf` ou `.otf` sont chargées.
+- **Navigation** : les sous-pages se montrent dans leur page parente, et un lien vers une
+  ancre (`carte#desserts`) descend jusqu'à elle. `liens profonds "magasin"` ouvre
+  l'application par `magasin://produit/42` ; avec `et domaine "…"`, les liens `https://`
+  l'ouvrent aussi : compile avec `--empreinte` (l'empreinte SHA-256 du certificat, donnée
+  par `keytool -list -v`) et publie le fichier écrit dans `a-publier-sur-le-site/`.
+- **Appareil** : `photo dans …`, `scanner code dans …`, `position dans …`,
+  `verifier identite` (l'empreinte, le visage ou le code de l'appareil), `vibrer` et
+  `signature dans …`. Chaque permission est demandée la première fois qu'elle sert.
+- **Fichiers** : `fichier "…" dans …` ouvre le sélecteur du système, `envoyer fichier …`
+  suit sa progression, `telecharger bon de …` et `telecharger … en csv` ouvrent ou
+  partagent le fichier.
+- **Médias** : les graphiques gardent les couleurs, les graduations et la table « Voir les
+  données » du web ; les cartes montrent les tuiles d'OpenStreetMap et leur attribution ;
+  le son et la vidéo passent par le lecteur d'Android, sans démarrer seuls.
+- **Compte** : invitations, rôles et champs du compte, choix du mot de passe par le lien
+  reçu, connexion avec Google ou Apple, paiement (la page de Stripe s'ouvre dans le
+  navigateur), `demander a ia`, dont la réponse s'écrit au fil de l'eau, et
+  `activer notifications`, par Firebase Cloud Messaging (voir « Les notifications »).
+- **Temps réel et hors-ligne** : `en direct`, `avec hors ligne`, les envois `… hors ligne`
+  (gardés sur l'appareil, envoyés dans l'ordre au retour du réseau) et `en arriere plan :`
+  (lancé par le système environ tous les quarts d'heure, quand le réseau est là).
 
 Le CSS se traduit en Compose, règle par règle, quand une règle vise une classe
 (`.carte { … }`) : fond, couleur, taille et graisse du texte, marges et remplissage,
