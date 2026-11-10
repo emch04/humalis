@@ -317,6 +317,9 @@ export class EcrivainActions {
         }
         e.ligne('}');
         return;
+      case 'gesteReunion':
+        e.ligne(a.valeur ? `await Reunion.commun.rejoindre(${this.v.texte(a.valeur)})` : `await Reunion.commun.${a.geste}()`);
+        return;
       case 'vibration':
         e.ligne('vibrer()');
         return;

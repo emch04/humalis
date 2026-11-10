@@ -226,6 +226,9 @@ export class EcrivainActions {
         }
         e.ligne('}');
         return;
+      case 'gesteReunion':
+        e.ligne(a.valeur ? `Reunion.rejoindre(${this.v.t(a.valeur)})` : `Reunion.${a.geste}()`);
+        return;
       case 'vibration':
         e.ligne('vibrer()');
         return;

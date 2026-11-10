@@ -1,0 +1,54 @@
+# L'essai des discussions, des appels et des réunions.
+serveur "agence" :
+    roles client, agent et collegue
+    donnee contact :
+        compte : texte
+        nom : texte
+    route "contacts" :
+        connecte peut lire contact
+        seul admin peut modifier contact
+    donnees de depart pour contact :
+        compte "compte-awa", nom "Awa"
+        compte "compte-binta", nom "Binta"
+    discussion "support" entre client et agent
+    discussion "equipe" entre collegue
+    salle "conseil" pour collegue, client et agent animee par agent
+
+page "accueil" :
+    variable contacts = []
+    titre "Agence"
+    si utilisateur est connecte :
+        badge non lus de "support"
+    quand la page se charge :
+        envoyer requete vers "contacts" dans contacts
+    pour chaque contact dans contacts :
+        texte contact.nom
+        si contact.compte est en ligne :
+            badge "En ligne"
+        bouton "Appeler"
+        quand l'utilisateur clique sur "Appeler" :
+            appeler en video contact.compte
+    lien "Support" vers "support"
+    lien "Conseil" vers "conseil"
+    quand un message arrive dans "support" :
+        afficher message.texte
+
+page "support" :
+    titre "Support"
+    discussion "support"
+
+page "conseil" :
+    titre "Conseil"
+    reunion "conseil"
+    si main est levee :
+        texte "Main levée"
+    pour chaque p dans participants de reunion "conseil" :
+        texte "Présent : {p.nom}"
+        si p.main :
+            badge "Main"
+        bouton "Couper"
+        quand l'utilisateur clique sur "Couper" :
+            couper micro de p
+        bouton "Exclure"
+        quand l'utilisateur clique sur "Exclure" :
+            exclure p

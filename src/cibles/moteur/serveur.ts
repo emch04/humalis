@@ -26,7 +26,7 @@ ${sources ? `const SOURCES = {\n${configuration}\n};\n${SOURCES}` : ''}
 ${sessionDuServeur ? RENOUVELLEMENT : ''}
 ${serveurTexte(sources, sessionDuServeur)}
 ${session ? sessionTexte(baseSession, sourceSession !== undefined, sessionDuServeur) : ''}
-${fichiers && sources ? TELEVERSER : ''}`;
+${fichiers ? (sources ? TELEVERSER : `const SOURCES = {};\nconst suivre = (valeur, chemin) => (chemin ? chemin.split('.').reduce((v, cle) => v?.[cle], valeur) : valeur);\n${TELEVERSER}`) : ''}`;
 }
 
 function sessionTexte(base: string, source: boolean, renouveler: boolean): string {
@@ -614,8 +614,9 @@ async function seDeconnecter() {
 `;
 
 const TELEVERSER = String.raw`
+const SERVEUR_PROPRE = { base: import.meta.env.VITE_HUMALIS_SERVEUR ?? '', session: true, entetes: {}, delai: 30, enveloppe: undefined, erreur: 'erreur' };
 function envoyerUnFichier(fichier, adresse, options, avancer) {
-  const source = SOURCES[options.source];
+  const source = options.source === undefined ? SERVEUR_PROPRE : SOURCES[options.source];
   return new Promise((resoudre, rejeter) => {
     const parametres = new URLSearchParams();
     if (source.jeton?.place.genre === 'parametre') parametres.set(source.jeton.place.nom, source.jeton.valeur);
@@ -652,7 +653,7 @@ function messageDuFichier(erreur) {
 }
 export async function televerser(choisi, adresse, options, actuelle) {
   const fichiers = Array.isArray(choisi) ? choisi : choisi ? [choisi] : [];
-  const source = SOURCES[options.source];
+  const source = options.source === undefined ? SERVEUR_PROPRE : SOURCES[options.source];
   if (fichiers.length === 0) {
     const message = "Choisissez d'abord un fichier.";
     if (!options.silencieux) (options.message ?? dire)(message, 'erreur');

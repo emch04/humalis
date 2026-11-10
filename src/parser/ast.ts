@@ -149,6 +149,10 @@ export interface Disposition {
 
 export interface Serveur {
   type: 'Serveur';
+  /** « discussion "support" entre client et agent ». */
+  discussions?: { nom: string; entre: string[]; ligne: number }[];
+  /** « salle "conseil" pour membre animee par direction ». */
+  salles?: { nom: string; pour: string[]; animateurs?: string[]; ligne: number }[];
   /** « donnees de depart pour produit : » : les fiches écrites au premier démarrage, si la table est vide. */
   departs?: { donnee: string; fiches: { champs: { champ: string; valeur: string | number | boolean; ligne: number }[]; ligne: number }[]; ligne: number }[];
   nom: string;
@@ -284,6 +288,8 @@ export type RegleChamp =
 
 export interface Donnee {
   type: 'Donnee';
+  /** Une réponse du temps réel : elle donne son type aux pages, sans table sur le serveur. */
+  reponseSeule?: boolean;
   nom: string;
   /** « par boutique » : chaque groupe ne voit que ses fiches ; « par compte » : chaque compte ne voit que les siennes. */
   par?: string;
@@ -303,6 +309,8 @@ export type ActionDonnee = 'lire' | 'creer' | 'modifier' | 'supprimer';
 /** « route "produits" : », avec une règle d'accès par ligne. */
 export interface Route {
   type: 'Route';
+  /** Une route d'une discussion, d'une salle ou d'un appel : servie par src/cibles/serveur/temps-reel.ts. */
+  interne?: string;
   adresse: string;
   regles: Regle[];
   /** « quand message est cree : … » : les e-mails que la création d'une fiche fait partir. */
@@ -616,6 +624,7 @@ export type Instruction =
   | Suppression
   | Modification
   | EnvoiFichier
+  | GesteReunion
   | Rendre
   | TantQue
   | Repeter
@@ -916,6 +925,15 @@ export interface VerificationIdentite {
   ligne: number;
 }
 
+/** Un geste sur la réunion en cours : micro, caméra, écran, main. */
+export interface GesteReunion {
+  type: 'GesteReunion';
+  geste: 'rejoindre' | 'quitter' | 'couperMicro' | 'activerMicro' | 'couperCamera' | 'activerCamera' | 'partagerEcran' | 'arreterPartage' | 'leverMain' | 'baisserMain';
+  /** Le nom de la salle à rejoindre. */
+  valeur?: Expression;
+  ligne: number;
+}
+
 /** « vibrer ». */
 export interface Vibration {
   type: 'Vibration';
@@ -1080,6 +1098,8 @@ export interface Requete {
   direct?: boolean;
   /** « envoyer requete … hors ligne » : sans réseau, gardée puis envoyée au retour de la connexion. */
   enAttente?: boolean;
+  /** Le temps réel : ce qui se passe après chaque lecture réussie (un message arrivé, un appel). */
+  suite?: Instruction[];
   ligne: number;
 }
 
@@ -1105,6 +1125,8 @@ export type NomElement =
   | 'audio'
   | 'video'
   | 'marqueur'
+  /** L'image d'une réunion : les participants, par LiveKit. */
+  | 'reunion'
   /** « selecteur de langue » : le choix de la langue (partie 1 du plan qualité). */
   | 'selecteurLangue'
   | 'signature';
@@ -1390,6 +1412,8 @@ export interface Combinaison {
 export interface Comparaison {
   type: 'Comparaison';
   gauche: Expression;
+  /** « contact est en ligne » : l'analyse lit l'identifiant d'une fiche. */
+  enLigne?: boolean;
   operateur: Operateur;
   droite?: Expression;
   /** « n'est pas vide » : le contraire, quand l'opérateur n'a pas de contraire direct. */

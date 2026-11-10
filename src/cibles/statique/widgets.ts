@@ -80,6 +80,9 @@ export function arbreWidget(genre: GenreWidget, a: AideWidget): Enfant {
     ? { js: messageEnCode(a.reglages.descriptionLangues, chaine), initial: a.reglages.description! }
     : a.reglages.description;
   switch (genre) {
+    // L'image d'une réunion : un élément propre, rempli par src/humalis/reunion.js.
+    case 'reunion':
+      return n('humalis-reunion', [['class', cls('humalis-reunion', a.classes)]]);
     case 'icone':
       return { icone: lucide(a.litteral), classe: cls('humalis-icone', a.classes), label: a.reglages.decoratif ? undefined : description };
     case 'badge':

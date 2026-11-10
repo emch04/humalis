@@ -225,15 +225,21 @@ export interface PasserelleRI {
 }
 
 export interface ServeurRI {
+  /** « discussion "support" entre client et agent ». */
+  discussions?: { nom: string; entre: string[]; ligne: number }[];
+  /** « salle "conseil" pour membre animee par direction ». */
+  salles?: { nom: string; pour: string[]; animateurs?: string[]; ligne: number }[];
   /** Les sources à jeton secret que ce serveur relaie (« /api/passerelle/<source> »). */
   passerelles?: PasserelleRI[];
   nom: string;
-  donnees: { nom: string; par?: string; champs: { nom: string; type: TypeChamp; regle?: RegleChampRI; nonVide?: boolean; avant?: string }[] }[];
+  donnees: { nom: string; par?: string; reponseSeule?: boolean; champs: { nom: string; type: TypeChamp; regle?: RegleChampRI; nonVide?: boolean; avant?: string }[] }[];
   /** « donnees de depart pour produit : » : écrites au premier démarrage, seulement si la table est vide. */
   departs?: { donnee: string; fiches: Record<string, string | number | boolean>[] }[];
   routes: {
     adresse: string;
     donnee: string;
+    /** Une route du temps réel : servie par src/cibles/serveur/temps-reel.ts, pas par le code ordinaire des routes. */
+    interne?: string;
     /** Qui peut faire chaque action ; null : personne, la porte reste fermée. « lireUn » : la lecture « par identifiant ». */
     droits: Record<'lire' | 'creer' | 'modifier' | 'supprimer', QuiPeut | null> & { lireUn?: QuiPeut };
     /** « client peut lire facture si … » : ces règles s'ajoutent aux droits sans condition. */
@@ -411,7 +417,7 @@ export interface Calcul {
 export type GenreElement = 'titre' | 'soustitre' | 'texte' | 'image' | 'bouton' | 'lien' | 'champ';
 
 /** Les éléments d'écran d'une ligne (plan 2026-10-30, chapitre 5). */
-export type GenreWidget = 'icone' | 'badge' | 'avatar' | 'progression' | 'chargement' | 'etoiles' | 'compteur' | 'qr' | 'fichier' | 'audio' | 'video' | 'selecteurLangue' | 'signature';
+export type GenreWidget = 'reunion' | 'icone' | 'badge' | 'avatar' | 'progression' | 'chargement' | 'etoiles' | 'compteur' | 'qr' | 'fichier' | 'audio' | 'video' | 'selecteurLangue' | 'signature';
 
 /**
  * Un texte écrit en clair dans chaque langue du site, la langue de base en
@@ -786,6 +792,8 @@ export type Action =
       resultat?: string;
       /** « … en direct » : relue quand le serveur annonce un changement sur cette route. */
       direct?: boolean;
+      /** Le temps réel : ce qui se passe après chaque lecture réussie. */
+      suite?: Action[];
       /** « de la source "boutique" » : l'API visée. */
       source?: string;
       /** « filtrant par k = v » : les paramètres d'adresse d'une lecture. */
@@ -858,6 +866,8 @@ export type Action =
   | { type: 'verificationIdentite'; alors: Action[]; sinon: Action[] }
   /** « vibrer ». */
   | { type: 'vibration' }
+  /** Un geste sur la réunion en cours : micro, caméra, écran, main ; « rejoindre » porte le nom de la salle. */
+  | { type: 'gesteReunion'; geste: 'rejoindre' | 'quitter' | 'couperMicro' | 'activerMicro' | 'couperCamera' | 'activerCamera' | 'partagerEcran' | 'arreterPartage' | 'leverMain' | 'baisserMain'; valeur?: Valeur }
   /** « commencer activite "livraison" », « terminer activite … ». */
   | { type: 'activite'; mode: 'commencer' | 'terminer'; nom: string }
   /** « dire "…" » : la réponse d'une commande vocale. */

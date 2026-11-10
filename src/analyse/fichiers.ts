@@ -90,7 +90,8 @@ export function verifierChoixFichier(element: Element, s: Signaler): void {
     }
   }
   if (choix.octets !== undefined && choix.octets <= 0) s.erreur('la taille maximale est positive : maximum 5 Mo.', element.ligne);
-  if (choix.accepte.length === 0) {
+  // Une pièce jointe d'une discussion : tout type, servi par le serveur en simple téléchargement.
+  if (choix.accepte.length === 0 && !/^hd_/.test(choix.variable)) {
     s.avertissement("sans « accepte », tout fichier peut être choisi : le serveur doit vérifier le type. Écrivez par exemple accepte images ou accepte pdf.", element.ligne);
   }
 }
@@ -130,6 +131,7 @@ export function verifierEnvoiFichier(envoi: EnvoiFichier, contexte: ContexteEnvo
     );
   }
 
+  if (envoi.source === undefined && /^api\/discussions_[a-z0-9_]+_pieces$/.test(envoi.adresse)) return;
   if (envoi.source === undefined) {
     s.erreur(SANS_PACK_DE_TELEVERSEMENT, ligne);
   } else {

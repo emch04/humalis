@@ -6,6 +6,7 @@ import { MOTIF_SQL_DU_PACK, MOTIFS_SQL_CODE } from './pare-feu.js';
 import { codeResumes, avecPaiements, codePaiements, codeSurPaiement, PAIEMENTS, avecLogique, avecNotifications, codeActions, codeDocuments, codeNotificationsCreation, codeTaches, DOCUMENT, employe, LOGIQUE, NOTIFICATIONS, ROUTES_APPAREILS } from './logique.js';
 import { champsDuServeur, codeCompleter, codeCreation, noms as nomsVerifier, reglesEnvoi } from './regles.js';
 import { ligneLocale } from '../../fichiers.js';
+import { avecLiveKit, avecTempsReel, codeMontageTempsReel, ENV_TEMPS_REEL, IMPORT_TEMPS_REEL, serveurOrdinaire, tempsReelTs, VERSION_LIVEKIT_SERVEUR } from './temps-reel.js';
 import type { ServeurRI, TypeChamp, QuiPeut } from '../../ri/types.js';
 import { simplifier } from '../../analyse/elements.js';
 import { pascal, camel } from '../web/noms.js';
@@ -54,10 +55,16 @@ const ACTIONS: Action[] = ['lire', 'creer', 'modifier', 'supprimer'];
  * des packs Astratra ; le code produit ne fait que les assembler, décrire
  * les données et vérifier la forme des envois.
  */
-export function genererProjetServeur(serveur: ServeurRI, options: OptionsServeur): Map<string, string> {
+/** Le canal « en direct » sert aussi au temps réel. */
+const avecDirect = (serveur: ServeurRI & { tempsReel?: boolean }): boolean => serveur.tempsReel === true || serveur.routes.some((r) => r.direct);
+
+export function genererProjetServeur(complet: ServeurRI, options: OptionsServeur): Map<string, string> {
+  // Les routes du temps réel sont servies à part : le reste du générateur ne les voit pas.
+  const serveur = serveurOrdinaire(complet);
   const fichiers = new Map<string, string>();
+  if (avecTempsReel(complet)) fichiers.set('src/humalis/temps-reel.ts', tempsReelTs(complet));
   fichiers.set(MARQUE_SERVEUR, `Projet produit par Humalis depuis ${options.source}.\nLe compilateur réécrit ce dossier à chaque compilation.\n`);
-  fichiers.set('package.json', packageJson(options.nom, serveur));
+  fichiers.set('package.json', packageJson(options.nom, serveur, avecLiveKit(complet)));
   fichiers.set('tsconfig.json', TSCONFIG);
   fichiers.set('.gitignore', 'node_modules\ndist\n.env\n');
   fichiers.set('.env.exemple', envExemple(serveur));
@@ -76,11 +83,11 @@ export function genererProjetServeur(serveur: ServeurRI, options: OptionsServeur
   if (serveur.invitations || serveur.motDePasseOublie || serveur.routeComptes) {
     fichiers.set('tests/comptes.test.ts', testsComptes(serveur, serveur.donnees.map((d) => `    ${camel(d.nom)}: creerStockageMemoire(),`).join('\n')));
   }
-  fichiers.set('src/serveur.ts', serveurTs(serveur, options.chemins));
+  fichiers.set('src/serveur.ts', serveurTs(serveur, options.chemins, avecTempsReel(complet) ? codeMontageTempsReel(complet) : ''));
   fichiers.set('src/demarrer.ts', demarrerTs(serveur));
   fichiers.set('tests/regles.test.ts', testsRegles(serveur));
   fichiers.set('tests/sessions.test.ts', testsSessions(serveur));
-  if (serveur.routes.some((r) => r.direct)) fichiers.set('src/humalis/direct.ts', DIRECT);
+  if (avecDirect(serveur)) fichiers.set('src/humalis/direct.ts', DIRECT);
   if (compteRelu(serveur) || serveur.routes.some((r) => r.actions?.length && serveur.donnees.find((d) => d.nom === r.donnee)?.par)) fichiers.set('src/humalis/separation.ts', SEPARATION);
   if (avecLogique(serveur)) fichiers.set('src/humalis/logique.ts', LOGIQUE);
   if (serveur.documents?.length) fichiers.set('src/humalis/document.ts', DOCUMENT);
@@ -143,7 +150,7 @@ function exempleChamp(type: TypeChamp): string {
   }
 }
 
-function packageJson(nom: string, serveur: ServeurRI): string {
+function packageJson(nom: string, serveur: ServeurRI, livekit = false): string {
   const v = VERSIONS_SERVEUR;
   const bon = serveur.routes.some((r) => r.bon) || Boolean(serveur.documents?.length);
   return JSON.stringify(
@@ -174,6 +181,7 @@ function packageJson(nom: string, serveur: ServeurRI): string {
         ...(avecNotifications(serveur) ? { 'web-push': '3.6.7' } : {}),
         ...(avecIa(serveur) ? { '@anthropic-ai/sdk': '1.6.0' } : {}),
         ...(avecPaiements(serveur) ? { stripe: '23.1.0' } : {}),
+        ...(livekit ? { 'livekit-server-sdk': VERSION_LIVEKIT_SERVEUR } : {}),
         pg: v.pg,
       },
       devDependencies: {
@@ -278,6 +286,7 @@ function envExemple(serveur: ServeurRI): string {
     ...(serveur.emails ? [ENV_EMAILS] : []),
     `# Requêtes par adresse et par 15 minutes (300 par défaut), tentatives de connexion (10 par défaut). À monter si beaucoup de personnes partagent une même adresse.\nHUMALIS_LIMITE_API=\nHUMALIS_LIMITE_CONNEXION=\n`,
     ...(avecIa(serveur) ? [ENV_IA] : []),
+    ...((serveur as { tempsReel?: boolean }).tempsReel ? [ENV_TEMPS_REEL] : []),
     ...(avecPaiements(serveur) ? [`# Les paiements (« paiements par stripe ») : une clé de test d'abord (sk_test_…), et le secret du webhook vers /paiements/webhook.\nSTRIPE_CLE_SECRETE=\nSTRIPE_SECRET_WEBHOOK=\nHUMALIS_PAIEMENT_DEVISE=eur\n`] : []),
     ...(serveur.invitations || serveur.motDePasseOublie || serveur.donnees.some((d) => d.champs.some((c) => c.regle?.genre === 'site')) ? [ENV_LIENS] : []),
     // Les secrets des sources : seulement leur nom ; la valeur se met ici, sur le serveur, jamais dans le fichier Humalis.
@@ -1186,7 +1195,7 @@ function decrireDroits(droits: Record<Action, QuiPeut | null>, conditions?: Reco
   return ACTIONS.map((a) => `${a} : ${droits[a] === null && conditions?.[a]?.length ? 'un utilisateur connecté, selon une condition' : qui(droits[a])}`).join(' ; ');
 }
 
-function serveurTs(serveur: ServeurRI, chemins?: Map<string, string>): string {
+function serveurTs(serveur: ServeurRI, chemins?: Map<string, string>, montageTempsReel = ''): string {
   const stockages = serveur.donnees.map((d) => `    ${camel(d.nom)}: Stockage;`).join('\n');
   const routes = serveur.routes
     .map((route) => {
@@ -1268,7 +1277,7 @@ ${codePaiements(route, variable, garde('lire'), voir('lire'), separee, donnee)}$
 import { createSaasApp, ${comptes ? 'createMemoryPasswordResetStore, type PasswordResetStore, ' : ''}type UsersStore } from '@astratra/saas-kit';
 import { ${[...(serveur.connexionGoogle ? ['createGoogleIdTokenVerifier'] : []), ...(serveur.connexionApple ? ['createAppleIdTokenVerifier'] : []), ...(serveur.connexionGoogle || serveur.connexionApple ? ['IdTokenError'] : []), ...(serveur.invitations ? ['createApiLimiter'] : []), ...(comptes ? ['createMemoryRevocationStore'] : [])].map((n) => n + ', ').join('')}createLoginLimiter, hashPassword, isStrongPassword, verifyPasswordHash, WAF_PATTERNS } from '@astratra/security';
 import express, { type RequestHandler, type Response } from 'express';
-${serveur.routes.some((r) => r.direct) ? "import { direct } from './humalis/direct.js';\n" : ''}import { ${schemas} } from './donnees.js';
+${montageTempsReel ? IMPORT_TEMPS_REEL : ''}${serveur.routes.some((r) => r.direct) ? "import { direct } from './humalis/direct.js';\n" : ''}import { ${schemas} } from './donnees.js';
 import type { Surveillance } from './humalis/centrale.js';
 import type { Coffre } from './humalis/coffre.js';
 ${comptes ? "import { creerComptes, refuserMotDePasseFaible, sansLesRetires } from './humalis/comptes.js';\n" : ''}${avecEmails(serveur) ? `import { creerEmails, ${envoisDansRoutes ? 'enTexte, ' : ''}type Emails } from './humalis/emails.js';\n` : ''}import { compresser } from './humalis/compresser.js';
@@ -1414,7 +1423,7 @@ ${google}
       app.use('/auth/cles', authMiddleware, authorizeAdmin, csrfMiddleware, coffre ? coffre.routes(authorizeAdmin) : coffreFerme);
 
 ${avecIa(serveur) ? routeIa(serveur) : ''}${avecNotifications(serveur) ? ROUTES_APPAREILS : ''}${codeCompleter(serveur)}${comptes ? codeRoutesComptes(serveur, adresseApi, (a) => `route${pascal(a)}`) : ''}${routes}${codePasserelles(serveur)}
-${fidelite}${avecPaiements(serveur) ? codeSurPaiement(serveur) : ''}${codeTaches(serveur)}      // Le dernier avant la réponse d'erreur du pack, qui répond ensuite comme d'habitude.
+${fidelite}${avecPaiements(serveur) ? codeSurPaiement(serveur) : ''}${codeTaches(serveur)}${montageTempsReel}      // Le dernier avant la réponse d'erreur du pack, qui répond ensuite comme d'habitude.
       if (surveillance) app.use(surveillance.gestionnaireErreurs());
     },
   });
@@ -1441,7 +1450,7 @@ import { hashPassword, isStrongPassword } from '@astratra/security';
 import { createPostgresUsersStore } from '@astratra/store-postgres';
 import pg from 'pg';
 import { creerServeur } from './serveur.js';
-${serveur.routes.some((r) => r.direct) ? "import { direct } from './humalis/direct.js';\n" : ''}import { demarrerCentrale } from './humalis/centrale.js';
+${avecDirect(serveur) ? "import { direct } from './humalis/direct.js';\n" : ''}import { demarrerCentrale } from './humalis/centrale.js';
 ${avecIa(serveur) ? "import { compterPostgres } from './humalis/ia.js';\n" : ''}${avecLogique(serveur) ? `import { transactionPostgres${serveur.taches?.length ? ', reclamerMemoire, reclamerPostgres' : ''} } from './humalis/logique.js';\n` : ''}import { creerEnvoisPostgres } from './humalis/envois.js';
 import { ouvrirCoffre } from './humalis/coffre.js';${comptes ? "\nimport { creerMagasinJetons } from './humalis/comptes.js';" : ''}
 import { creerMagasinMemoire, creerMagasinPostgres } from './humalis/renouvellements.js';
@@ -1466,7 +1475,7 @@ if (!pool) {
   console.warn('Sans DATABASE_URL, les données restent en mémoire et sont perdues à l\\'arrêt : développement seulement.');
 }
 
-${serveur.routes.some((r) => r.direct) ? "if (pool) await direct.brancher(pool);\n" : ''}const usersStore = (pool ? createPostgresUsersStore({ pool }) : createMemoryUsersStore()) as UsersStore;
+${avecDirect(serveur) ? "if (pool) await direct.brancher(pool);\n" : ''}const usersStore = (pool ? createPostgresUsersStore({ pool }) : createMemoryUsersStore()) as UsersStore;
 const stockages = {
 ${stockages}
 };

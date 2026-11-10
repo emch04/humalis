@@ -44,7 +44,9 @@ export function lireElementEcran(flux: FluxTokens): NomElement | undefined {
   const suivant = flux.regarder(1);
   const ouAvec = suivant.type === 'FIN_LIGNE' || (suivant.type === 'MOT_CLE' && suivant.valeur === 'avec');
   // `chargement` seul (ou suivi de `avec`) est un indicateur sans texte.
-  if (nom === 'chargement' ? ouAvec || commenceUneValeur(suivant) : commenceUneValeur(suivant)) {
+  // « badge non lus de "support" » : « non » commence ici une valeur.
+  const nonLus = estLeMot(suivant, 'non') && estLeMot(flux.regarder(2), 'lus');
+  if (nonLus || (nom === 'chargement' ? ouAvec || commenceUneValeur(suivant) : commenceUneValeur(suivant))) {
     flux.avancer();
     return nom;
   }

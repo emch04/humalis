@@ -274,7 +274,9 @@ function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
   };
   return {
     nom: serveur.nom,
-    donnees: serveur.donnees.filter((d) => !d.comptes).map((d) => ({ nom: d.nom, ...(d.par !== undefined ? { par: d.par } : {}), champs: d.champs.map((c) => ({ nom: c.nom, type: c.type, ...(c.regle ? { regle: reglePropre(c.regle, d.nom) } : {}), ...(c.nonVide ? { nonVide: true } : {}), ...(c.avant !== undefined ? { avant: c.avant } : {}) })) })),
+    ...(serveur.discussions?.length ? { discussions: serveur.discussions } : {}),
+    ...(serveur.salles?.length ? { salles: serveur.salles } : {}),
+    donnees: serveur.donnees.filter((d) => !d.comptes).map((d) => ({ nom: d.nom, ...(d.reponseSeule ? { reponseSeule: true } : {}), ...(d.par !== undefined ? { par: d.par } : {}), champs: d.champs.map((c) => ({ nom: c.nom, type: c.type, ...(c.regle ? { regle: reglePropre(c.regle, d.nom) } : {}), ...(c.nonVide ? { nonVide: true } : {}), ...(c.avant !== undefined ? { avant: c.avant } : {}) })) })),
     ...(serveur.departs?.length
       ? { departs: serveur.departs.map((d) => ({ donnee: d.donnee, fiches: d.fiches.map((f) => Object.fromEntries(f.champs.map((c) => [champDe(d.donnee, c.champ), c.valeur]))) })) }
       : {}),
@@ -288,6 +290,7 @@ function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
           adresse: route.adresse,
           donnee: route.regles[0].donnee,
           droits,
+          ...(route.interne ? { interne: route.interne } : {}),
           ...(Object.keys(conditionsDeRoute(route)).length ? { conditions: conditionsRI(route) } : {}),
           ...(route.apresCreation?.notifications?.length ? { notifications: route.apresCreation.notifications.map((n) => traduireNotification(n, serveur.donnees.find((d) => d.nom === route.regles[0].donnee)!, serveur, () => undefined)) } : {}),
           ...(route.apresPaiement ? { apresPaiement: traduireApresPaiement(route.apresPaiement, serveur.donnees.find((d) => d.nom === route.apresPaiement!.donnee)!, serveur, () => undefined), payables: serveur.donnees.find((d) => d.nom === route.apresPaiement!.donnee)!.champs.filter((c) => c.type.genre === 'nombre').map((c) => c.nom) } : {}),
@@ -363,7 +366,7 @@ function etatDe(declaration: DeclarationVariable, analyse: ResultatAnalyse): Eta
 }
 
 /** Les éléments d'écran d'une ligne. */
-const WIDGETS = new Set(['icone', 'badge', 'avatar', 'progression', 'chargement', 'etoiles', 'compteur', 'qr', 'signature', 'fichier', 'audio', 'video', 'selecteurLangue']);
+const WIDGETS = new Set(['reunion', 'icone', 'badge', 'avatar', 'progression', 'chargement', 'etoiles', 'compteur', 'qr', 'signature', 'fichier', 'audio', 'video', 'selecteurLangue']);
 /** Les options qui ne sont pas des styles (elles ne font pas de classe CSS). */
 const REGLAGES = new Set(['icone', 'seule', 'commandes', 'description', 'decoratif', 'photo', 'modifiable', 'ouvert', 'plusieurs', 'pourcentage', 'automatique', 'visibles', 'transcription', 'boucle']);
 
@@ -717,6 +720,7 @@ class Construction {
             ...(instruction.cles ? { cles: instruction.cles } : {}),
             resultat: instruction.resultat,
             ...(instruction.direct ? { direct: true } : {}),
+            ...(instruction.suite ? { suite: this.actions(instruction.suite) } : {}),
             ...(instruction.enAttente ? { enAttente: true } : {}),
             ...(instruction.source !== undefined
               ? {
@@ -840,6 +844,9 @@ class Construction {
           break;
         case 'Vibration':
           actions.push({ type: 'vibration' });
+          break;
+        case 'GesteReunion':
+          actions.push({ type: 'gesteReunion', geste: instruction.geste, ...(instruction.valeur ? { valeur: this.valeur(instruction.valeur) } : {}) });
           break;
         case 'CommencerActivite':
         case 'TerminerActivite':
