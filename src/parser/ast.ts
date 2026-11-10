@@ -158,6 +158,10 @@ export interface Serveur {
   connexionGoogle?: number;
   /** « connexion apple ». */
   connexionApple?: number;
+  /** « connexion par cle d'acces » : la connexion sans mot de passe (Face ID, Touch ID, Windows Hello). */
+  connexionCleAcces?: number;
+  /** « double authentification » : un code à six chiffres après le mot de passe, pour les comptes qui l'ont activée. */
+  doubleAuthentification?: number;
   /** « roles directeur, enseignant et parent ». */
   roles?: string[];
   /** « compte : » puis ses champs. */
@@ -596,6 +600,9 @@ export type Instruction =
   | ScanCode
   | VerificationIdentite
   | Vibration
+  | ConnexionCleAcces
+  | AjoutCleAcces
+  | ActivationDoubleAuthentification
   | CommencerActivite
   | TerminerActivite
   | Dire
@@ -1825,4 +1832,22 @@ export interface Formes {
   boutonsNotification: (CorpsForme & { bouton: string; ligne: number })[];
   /** « donnee locale notes avec chiffree : » : une vraie base sur l'appareil. */
   donneesLocales: (DonneeLocaleOptions & { nom: string; ligne: number })[];
+}
+
+/** « se connecter par cle d'acces ». */
+export interface ConnexionCleAcces {
+  type: 'ConnexionCleAcces';
+  ligne: number;
+}
+
+/** « ajouter cle d'acces » : au compte de la personne connectée. */
+export interface AjoutCleAcces {
+  type: 'AjoutCleAcces';
+  ligne: number;
+}
+
+/** « activer double authentification » : le code QR à scanner dans une application d'authentification. */
+export interface ActivationDoubleAuthentification {
+  type: 'ActivationDoubleAuthentification';
+  ligne: number;
 }

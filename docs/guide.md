@@ -3595,6 +3595,16 @@ IndexedDB dans le navigateur) : elle reste là sans réseau et après un redéma
 pages, elle se lit et se change comme une liste.
 
 ```humalis
+serveur "boutique" :
+    donnee note :
+        titre : texte
+        lu : booleen
+    route "notes" :
+        connecte peut lire note
+        connecte peut creer note
+        connecte peut modifier note
+        connecte peut supprimer note
+
 donnee locale notes avec chiffree :
     titre : texte
     lu : booleen
@@ -3613,6 +3623,34 @@ page "accueil" :
 `synchronisee avec "notes"` la relie à une route du serveur : les changements faits sans réseau
 partent quand il revient, les suppressions suivent, et en cas de conflit la modification la plus
 récente l'emporte. L'identifiant de chaque fiche est géré par la base.
+
+### La connexion sans mot de passe et le code à six chiffres
+
+Dans le serveur, deux lignes ouvrent ces portes en plus de l'email et du mot de passe :
+
+```humalis
+serveur "boutique" :
+    connexion par cle d'acces
+    double authentification
+    donnee note :
+        titre : texte
+    route "notes" :
+        connecte peut lire note
+        connecte peut creer note
+        connecte peut modifier note
+        connecte peut supprimer note
+
+page "compte" :
+    titre "Compte"
+    bouton "Ajouter une clé"
+    quand l'utilisateur clique sur "Ajouter une clé" :
+        ajouter cle d'acces
+```
+
+Dans les pages, `se connecter par cle d'acces` ouvre la connexion par Face ID, Touch ID ou
+Windows Hello ; `ajouter cle d'acces` ajoute une clé au compte de la personne connectée ;
+`activer double authentification` montre le code QR à scanner dans une application
+d'authentification. Le code à six chiffres est ensuite demandé tout seul après le mot de passe.
 
 ### Plusieurs fichiers
 

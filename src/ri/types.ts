@@ -272,6 +272,10 @@ export interface ServeurRI {
   connexionGoogle?: boolean;
   /** « connexion apple » dans le serveur. */
   connexionApple?: boolean;
+  /** « connexion par cle d'acces ». */
+  connexionCleAcces?: boolean;
+  /** « double authentification ». */
+  doubleAuthentification?: boolean;
   /** « roles directeur, enseignant et parent ». */
   roles?: string[];
   /** « paiements par stripe ». */
@@ -830,6 +834,8 @@ export type Action =
   | { type: 'connexionGoogle' }
   /** « se connecter avec apple ». */
   | { type: 'connexionApple' }
+  /** « se connecter par cle d'acces », « ajouter cle d'acces », « activer double authentification ». */
+  | { type: 'compteSecurise'; quoi: 'connexionCle' | 'ajoutCle' | 'doubleAuthentification' }
   /** « changer le mot de passe avec … et … » : celui du compte connecté, vérifié par le serveur. */
   | { type: 'changementMotDePasse'; actuel: Valeur; nouveau: Valeur }
   /** « inviter champ "Adresse" comme admin » : un lien par e-mail. */
