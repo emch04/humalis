@@ -488,15 +488,21 @@ page "login" :
 ### One design per platform
 
 The logic stays the same; only the design changes. `sur apple` means iPhone, iPad and Mac,
-`sur ios` iPhone and iPad, `sur macos` Mac, `sur application` every native app, `sur site` the
-web. A phrase aimed at another platform has no effect, and the most precise one wins.
+`sur ios` iPhone and iPad, `sur macos` Mac, `sur windows` the Windows application,
+`sur application` every native app, `sur site` the web. A phrase aimed at another platform
+has no effect, and the most precise one wins.
+
+So each target can have its own style sheet: a shared CSS (without `sur`) is still
+possible, but it is not required.
 
 ```humalis
+utiliser style "./site.css" sur site
 utiliser style "./iphone.css" sur ios
 utiliser style "./mac.css" sur macos
+utiliser style "./windows.css" sur windows
 
 page "accueil" :
-    bouton "Commander" avec style "principal" et sur apple style "plein-ecran"
+    bouton "Commander" avec style "principal" et sur apple style "plein-ecran" et sur windows style "large"
     sur application :
         texte "Thanks for using the app"
     sur site :
@@ -505,7 +511,8 @@ page "accueil" :
 
 On the Apple target, each `.class { … }` rule becomes SwiftUI. What has no equivalent
 (`@media`, hover, compound selectors, free positioning…) is counted at compile time and listed,
-with its reason, in `CSS-SUR-APPLE.md`.
+with its reason, in `CSS-SUR-APPLE.md`. On the Windows target, likewise, in
+`CSS-SUR-WINDOWS.md`.
 
 One block can target several platforms: join them with `et`.
 

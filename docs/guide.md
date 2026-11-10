@@ -470,16 +470,21 @@ page "connexion" :
 ### Un design par plateforme
 
 La logique reste la même ; seul le design change. `sur apple` vaut pour iPhone, iPad et Mac,
-`sur ios` pour iPhone et iPad, `sur macos` pour Mac, `sur application` pour toutes les
-applications natives, `sur site` pour le web. Une phrase qui vise une autre plateforme n'a
-aucun effet, et la plus précise gagne.
+`sur ios` pour iPhone et iPad, `sur macos` pour Mac, `sur windows` pour l'application
+Windows, `sur application` pour toutes les applications natives, `sur site` pour le web.
+Une phrase qui vise une autre plateforme n'a aucun effet, et la plus précise gagne.
+
+Chaque cible peut ainsi avoir sa propre feuille de style : un CSS commun (sans `sur`)
+reste possible, mais il n'est pas obligatoire.
 
 ```humalis
+utiliser style "./site.css" sur site
 utiliser style "./iphone.css" sur ios
 utiliser style "./mac.css" sur macos
+utiliser style "./windows.css" sur windows
 
 page "accueil" :
-    bouton "Commander" avec style "principal" et sur apple style "plein-ecran"
+    bouton "Commander" avec style "principal" et sur apple style "plein-ecran" et sur windows style "large"
     sur application :
         texte "Merci d'utiliser l'application"
     sur site :
@@ -488,7 +493,8 @@ page "accueil" :
 
 Sur la cible Apple, chaque règle `.classe { … }` est traduite en SwiftUI. Ce qui n'a pas
 d'équivalent (`@media`, survols, sélecteurs composés, placement libre…) est compté à la
-compilation et listé, avec sa raison, dans `CSS-SUR-APPLE.md`.
+compilation et listé, avec sa raison, dans `CSS-SUR-APPLE.md`. Sur la cible Windows, de
+même, dans `CSS-SUR-WINDOWS.md`.
 
 Un même bloc peut viser plusieurs plateformes : on les relie par `et`.
 

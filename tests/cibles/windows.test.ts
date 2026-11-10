@@ -4,6 +4,7 @@ import { compiler } from '../../src/compilateur.js';
 import { genererProjetWindows, MARQUE_WINDOWS } from '../../src/cibles/windows/projet.js';
 import { chaineCs, nomApplication, nomCs, nombreCs } from '../../src/cibles/windows/noms.js';
 import { couleurCss, reglesDeClasses, styleDesDeclarations } from '../../src/cibles/windows/styles.js';
+import { pourLaCible } from '../../src/ri/plateforme.js';
 
 const compile = (source: string) => {
   const { application, diagnostics } = compiler(source);
@@ -384,6 +385,58 @@ page "accueil" :
       regles: [{ classe: 'a', declarations: [['color', 'red']] }, { classe: 'b', declarations: [['margin', '0']] }, { classe: 'c', declarations: [['margin', '0']] }],
       autres: 2,
     });
+  });
+});
+
+describe('cible Windows — un design propre à Windows (« sur windows »)', () => {
+  const SOURCE = `utiliser style "./site.css" sur site
+utiliser style "./windows.css" sur windows
+
+page "accueil" :
+    titre "Bonjour" avec style "titre"
+    bouton "Commander" avec style "principal" et sur windows style "large"
+    sur windows :
+        texte "Seulement sous Windows"
+    sur site et windows :
+        texte "Web et Windows"
+    sur site :
+        texte "Seulement le web"
+`;
+  const fichiersStyle = new Map([['./site.css', '.titre { color: blue; }'], ['./windows.css', '.titre { color: green; }\n.large { padding: 20px; }']]);
+  const pour = (cible: string) => pourLaCible(compile(SOURCE), cible);
+
+  it('la feuille « sur windows » sert à Windows, la feuille « sur site » non : pas besoin de CSS commun', () => {
+    const { fichiers } = genererProjetWindows(pour('windows'), { nom: 'essai', source: 'essai.humalis', fichiersStyle });
+    const styles = fichiers.get('Humalis/Styles.cs')!;
+    expect(styles).toContain('public static StyleHumalis Titre => new() { Couleur = Apparence.Pinceau("#008000") };');
+    expect(styles).toContain('public static StyleHumalis Large => new() { Remplissage = new Thickness(20) };');
+    expect(styles).not.toContain('#0000FF');
+  });
+
+  it('« et sur windows style » et « sur windows : » ne valent que sous Windows', () => {
+    const page = genererProjetWindows(pour('windows'), { nom: 'essai', source: 'essai.humalis', fichiersStyle }).fichiers.get('Pages/PageAccueil.cs')!;
+    expect(page).toContain('Styles.Large');
+    expect(page).toContain('"Seulement sous Windows"');
+    expect(page).toContain('"Web et Windows"');
+    expect(page).not.toContain('Seulement le web');
+  });
+
+  it('les autres cibles ignorent ce qui vise Windows', () => {
+    for (const cible of ['web', 'apple', 'mobile', 'desktop', 'statique']) {
+      const app = pour(cible);
+      const texte = JSON.stringify(app.ecrans);
+      expect(texte, cible).not.toContain('Seulement sous Windows');
+      expect(texte, cible).not.toContain('"large"');
+      expect(app.fichiersStyle.some((f) => f.plateforme === 'windows'), cible).toBe(false);
+    }
+    expect(JSON.stringify(pour('web').ecrans)).toContain('Web et Windows');
+  });
+
+  it('« windows » est une plateforme connue du langage', () => {
+    const { diagnostics } = compiler(`page "a" :\n    sur windos :\n        texte "x"\n`);
+    expect(diagnostics.some((d) => d.gravite === 'erreur')).toBe(true);
+    const { diagnostics: bien } = compiler(`page "a" :\n    titre "a"\n    sur windows :\n        texte "x"\n`);
+    expect(bien.filter((d) => d.gravite === 'erreur')).toEqual([]);
   });
 });
 

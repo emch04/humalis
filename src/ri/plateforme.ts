@@ -1,6 +1,6 @@
 /**
  * Un même programme, un design par plateforme. Le compilateur vérifie tout, puis ne garde pour
- * chaque cible que ce qui la concerne : « utiliser style "…" sur apple », « et sur apple style "…" »,
+ * chaque cible que ce qui la concerne : « utiliser style "…" sur apple » (ou « sur windows »), « et sur apple style "…" »,
  * « sur application : », « sur site : ».
  */
 import type { Application } from './types.js';
@@ -9,13 +9,13 @@ const VISEES: Record<string, string[]> = {
   apple: ['application', 'apple', 'ios', 'macos'],
   mobile: ['application'],
   desktop: ['application'],
-  windows: ['application'],
+  windows: ['application', 'windows'],
   web: ['site'],
   statique: ['site'],
   serveur: [],
 };
 
-const MARQUE = /^(apple|ios|macos|site|application):(.+)$/;
+const MARQUE = /^(apple|ios|macos|windows|site|application):(.+)$/;
 /** iOS et macOS partagent un projet Xcode : ce qui leur est propre reste écrit, sous « #if os(…) ». */
 const DANS_LE_PROJET = new Set(['ios', 'macos']);
 
