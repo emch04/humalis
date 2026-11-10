@@ -71,6 +71,10 @@ ${ACCUEIL}`;
     expect(bib).toContain('NamedPipeServerStream(Tube, PipeDirection.In, 1, PipeTransmissionMode.Byte, PipeOptions.CurrentUserOnly)');
     expect(fichiers.get('Formes.cs')).toContain('if (arguments.Contains("--desinstaller"))');
     expect(fichiers.get('LISEZMOI.md')).toContain('Essai.exe --desinstaller');
+    // Le lancement suivant laisse la fenêtre déjà ouverte passer devant ; chaque lancement reçu est noté.
+    expect(bib).toContain('AllowSetForegroundWindow(-1);');
+    expect(fichiers.get('Formes.cs')).toContain('Integration.Noter(a, dejaLance);');
+    expect(bib).toContain('"lancements.txt"');
   });
 
   it('« dans la barre du systeme » : une icône dans la zone de notification, sa page dans une petite fenêtre, et Ouvrir / Quitter', () => {
@@ -157,7 +161,7 @@ ${ACCUEIL}`;
     expect(fichiers.get('Formes.cs')).toContain('Integration.MenuClicDroit(1, "Noter", new[] { ".jpg", ".png" }, retirer);');
     expect(fichiers.get('Formes.cs')).toContain('case 1: await Executer(new FormeMenu1(arguments)); break;');
     expect(fichiers.get('Humalis/Formes.cs')).toContain('@"Software\\Classes\\SystemFileAssociations\\" + ext + @"\\shell\\"');
-    expect(diagnostics.some((d) => d.message.includes('« Afficher plus d\'options »'))).toBe(true);
+    expect(diagnostics.some((d) => d.message.includes('« Afficher d\'autres options »'))).toBe(true);
   });
 
   it('« quand on partage vers l’application » : « Envoyer vers » sans MSIX, et l’empaquetage dit clairement', () => {

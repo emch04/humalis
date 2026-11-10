@@ -2417,7 +2417,9 @@ avec `--equipe` et publier sur le site le fichier écrit dans `a-publier-sur-le-
 `en arriere plan :`, directement dans une page, dit ce que l'application fait quand le
 système la réveille. Le système choisit le moment : jamais avant 15 minutes, souvent bien
 plus tard. Ce bloc ne voit que les variables `avec partagee`, puisqu'aucune page n'est
-ouverte. Sur Mac, l'application doit être ouverte.
+ouverte. Sur Mac, l'application doit être ouverte. Sur Windows, c'est une tâche planifiée
+de la personne, toutes les 15 minutes, qui lance l'application sans fenêtre (ou passe le
+travail à l'application déjà ouverte).
 
 `hors ligne`, à la fin d'un `envoyer requete … avec …`, d'un `modifier` ou d'un `supprimer`,
 garde l'envoi sur l'appareil s'il n'y a pas de réseau, et l'envoie dans l'ordre quand la
@@ -3655,7 +3657,7 @@ chose de faux.
 | Graphiques, cartes, audio, vidéo, fichiers | oui | oui | en partie | oui | oui | oui | oui |
 | Plusieurs langues | oui | oui | oui | oui | oui | oui | oui |
 | Photo, scanner, Face ID, vibration, signature, hors ligne | oui (vibration : Android) | non | non | non | oui | oui | non |
-| `en arriere plan` | non | non | non | non | oui | oui | non |
+| `en arriere plan` | non | non | non | non | oui | oui | oui (tâche planifiée) |
 | Plan du site, aperçu de partage | oui | oui | non | non | non | non | non |
 
 Le serveur (`--cible serveur`) se produit à part, depuis le bloc `serveur`.
@@ -3752,7 +3754,32 @@ marche aussi sur un Mac ou sous Linux ; seul le lancement demande Windows 10 ou 
   windows "./natif/Carte.cs"`, avec ses bibliothèques NuGet (`paquet windows "…" version
   "…"`) ; voir « Une vue native écrite à la main ».
 - Pas encore sur Windows : paiement, IA, connexion avec Google ou Apple, invitations,
-  notifications. La compilation s'arrête et dit quelle ligne en a besoin.
+  notifications envoyées par le serveur. La compilation s'arrête et dit quelle ligne en a besoin.
+
+Les formes propres aux applications marchent sans paquet MSIX : l'application s'inscrit
+dans Windows à chaque lancement, pour la personne connectée, sans droits d'administrateur.
+Elle ne se lance qu'une fois : un fichier ouvert, un clic droit ou un bouton de notification
+est passé à la fenêtre déjà ouverte.
+
+- `page "…" dans la barre du systeme` : une icône dans la zone de notification. Un clic
+  ouvre la page dans une petite fenêtre près de l'icône ; le clic droit propose Ouvrir et
+  Quitter. Fermer la fenêtre de l'application la cache, sans l'arrêter.
+- `raccourcis de l'icone` : la liste de raccourcis (Jump List) du bouton de la barre des tâches.
+- `quand on ouvre un fichier` : l'application apparaît dans « Ouvrir avec » pour ces
+  extensions. Windows 10 et 11 laissent la personne choisir l'application par défaut.
+- `lancer au demarrage de l'ordinateur` : visible dans le Gestionnaire des tâches
+  (« Applications de démarrage ») ; `avec discret`, seulement dans la zone de notification.
+- `quand l'utilisateur touche "…" dans une notification` : les notifications de Windows
+  avec leurs boutons ; un bouton répond sans ouvrir la fenêtre.
+- `menu clic droit` : le clic droit de l'Explorateur. Sous Windows 11, la commande est sous
+  « Afficher d'autres options » (ou Maj+F10), comme pour toute application non empaquetée.
+- `quand on partage vers l'application` : le panneau « Partager » de Windows n'accepte que
+  les applications empaquetées (MSIX). Sans paquet, l'application est dans « Envoyer vers »
+  du clic droit : `partage.fichier` est le chemin du fichier, `partage.texte` le texte d'un
+  `.txt`, `partage.lien` l'adresse d'un raccourci Internet. La compilation le rappelle.
+
+`Application.exe --desinstaller` retire tout ce que l'application a inscrit : à faire avant
+de supprimer le fichier `.exe`.
 
 Sans signature de code, Windows affiche un avertissement (SmartScreen) au premier
 lancement : « Informations complémentaires », puis « Exécuter quand même ».
