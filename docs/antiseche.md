@@ -37,6 +37,11 @@ texte "Bonjour {prenom}"
 texte "Elle a dit \"bonjour\""
 ```
 
+### Aller à la ligne dans un texte | Start a new line inside a text
+```humalis page
+texte "Bonjour,{a la ligne}À bientôt."
+```
+
 ### Écrire un commentaire | Write a comment
 ```humalis page
 # Une note pour les humains
@@ -121,6 +126,14 @@ pied :
     texte "Ouvert du lundi au samedi"
 ```
 
+### Ranger les onglets de l'application en groupes | Group the app's tabs
+```humalis racine
+onglets de l'application :
+    onglet "Contact" vers "contact"
+    groupe "Compte" :
+        onglet "Connexion" vers "connexion"
+```
+
 ### Ranger une page dans son propre fichier | Keep a page in its own file
 ```humalis racine
 utiliser fichier "./pages/panier.humalis"
@@ -153,6 +166,22 @@ image "vitrine.jpg" avec description "La vitrine de la boutique"
 ### Bouton | Button
 ```humalis page
 bouton "Ajouter" avec icone "panier"
+```
+
+### Bouton à icône seule : son nom est lu par le lecteur d'écran | Icon-only button: its name is read by the screen reader
+```humalis page
+bouton icone "fermer" avec nom "Fermer la fenêtre"
+```
+
+### Bouton désactivé, toujours ou selon une condition | Disabled button, always or depending on a condition
+```humalis page
+bouton "Payer" avec desactive si panier est vide
+bouton "Bientôt" avec desactive
+```
+
+### Vidéo : avec ses commandes et une description | Video: with its controls and a description
+```humalis page
+video "presentation.mp4" avec commandes et description "Présentation de la boutique"
 ```
 
 ### Liste à puces et liste numérotée | Bulleted and numbered list
@@ -223,6 +252,11 @@ case a cocher "J'accepte les conditions" avec obligatoire
 changer nom par champ "Nom"
 ```
 
+### Vider un champ | Clear a field
+```humalis action
+vider champ "Nom"
+```
+
 ## La mise en page et les styles | Layout and styles | mise-en-page
 
 ### Ranger côte à côte, l'un sous l'autre | Side by side, one below the other
@@ -250,6 +284,12 @@ sur tablette ou ordinateur :
     lien "La carte" vers "contact"
 ```
 
+### Un même bloc pour plusieurs plateformes | One block for several platforms
+```humalis page
+sur site et macos :
+    texte "Glisse un fichier ici."
+```
+
 ### Couleurs et tailles | Colors and sizes
 ```humalis page
 titre "Bienvenue" avec couleur bleu et taille grande et position centree
@@ -259,6 +299,21 @@ bouton "Annuler" avec fond gris et bordure arrondie
 ### Utiliser ta classe CSS | Use your CSS class
 ```humalis page
 titre "Bienvenue" avec style "grand"
+```
+
+### Écrire un style en Humalis, une propriété par ligne | Write a style in Humalis, one property per line
+```humalis racine
+style "carte" :
+    fond blanc
+    bord 1 gris clair
+    arrondi 12
+    espace interieur 16
+    ombre douce
+
+page "vitrine" :
+    titre "Vitrine"
+    bloc avec style "carte" :
+        texte "Un produit"
 ```
 
 ### Le thème du site | The site theme
@@ -279,6 +334,25 @@ basculer theme
 titre "Bienvenue" avec animation apparition
 bloc avec animation montee au defilement :
     texte "Apparaît quand on arrive dessus."
+```
+
+### Un bloc qui remplit l'écran, une colonne qui défile seule | A block that fills the screen, a column that scrolls on its own
+```humalis page
+ligne avec hauteur ecran :
+    colonne avec defilement interne :
+        texte "Un long chapitre."
+```
+
+### Une page dessinée pour une taille d'écran | A page drawn for a screen size
+```humalis racine
+page "affiche" dessinee pour 1440 par 900 :
+    titre "Affiche"
+```
+
+### Une page jusqu'aux bords de la fenêtre | A page that reaches the window edges
+```humalis racine
+page "galerie" en pleine fenetre :
+    titre "Galerie"
 ```
 
 ## Les variables et les calculs | Variables and calculations | variables
@@ -335,6 +409,20 @@ calcul taille = longueur de nom
 calcul poli = remplacer "Camille" par "Madame" dans nom
 ```
 
+### Une date en toutes lettres, un nombre en lettres, des initiales | A date written out, a number in words, initials
+```humalis page
+calcul jour = aujourd'hui
+calcul sigle = initiales de nom
+texte "{jour en date longue avec majuscule}"
+texte "{quantite en lettres avec majuscule} article"
+```
+
+### Le contraire d'un vrai ou faux, une comparaison gardée dans un calcul | The opposite of a true or false, a comparison kept in a calculation
+```humalis page
+calcul en_pause = non actif
+calcul de_saison = categorie est dans ["robes", "jupes"]
+```
+
 ### Afficher un prix, un pluriel | Show a price, a plural
 ```humalis page
 texte "{quantite article} pour {prix en euros}"
@@ -372,6 +460,12 @@ si nom est different de "Camille" :
 ```humalis page
 si actif est vrai :
     texte "Actif"
+```
+
+### Le contraire : `non` | The opposite: `non`
+```humalis page
+si non actif :
+    texte "En pause"
 ```
 
 ### Liste vide, valeur absente | Empty list, missing value
@@ -564,6 +658,12 @@ seul admin peut modifier avis
 seul admin peut supprimer avis
 ```
 
+### Chacun agit seulement sur ce qu'il a créé | Each person acts only on what they created
+```humalis route
+connecte peut creer avis
+seul son auteur peut modifier et supprimer avis
+```
+
 ### Lire une fiche seulement avec son identifiant | Read a record only with its identifier
 ```humalis route
 tout le monde peut lire avis par identifiant
@@ -579,6 +679,24 @@ montant : nombre calcule somme prix de produit par refs
 ```humalis donnee
 statut : texte au depart "en_attente"
 jour : date au depart aujourd'hui
+```
+
+### Renommer un champ sans perdre les fiches écrites | Rename a field without losing written records
+```humalis donnee
+telephone : texte (avant "tel")
+```
+
+### Écrire des fiches au premier démarrage | Write records on first start
+```humalis complet
+serveur "boutique" :
+    donnee produit :
+        nom : texte
+        prix : nombre
+    route "produits" :
+        tout le monde peut lire produit
+    donnees de depart pour produit :
+        nom "Café", prix 3
+        nom "Thé", prix 2
 ```
 
 ### Limiter ce que le client peut envoyer | Limit what the client can send
@@ -604,6 +722,29 @@ serveur "boutique" :
 
 page "bienvenue" :
     titre "Bienvenue"
+```
+
+### Garder la clé d'un service sur le serveur | Keep a service's key on the server
+```humalis complet
+serveur "site" :
+    donnee note :
+        texte : texte
+    route "notes" :
+        tout le monde peut lire note
+
+source "meteo" :
+    adresse "https://api.meteo.example"
+    jeton secret depuis l'environnement "METEO_CLE" dans le parametre "key"
+    route "previsions" :
+        tout le monde peut lire une liste de prevision dans "jours"
+    donnee prevision :
+        jour : texte
+
+page "meteo" :
+    variable previsions = []
+    titre "Météo"
+    quand la page se charge :
+        envoyer requete vers "previsions" de la source "meteo" dans previsions
 ```
 
 ## Relier les pages au serveur | Connecting pages to the server | relier
@@ -693,6 +834,22 @@ page "bonjour" :
     titre "Bienvenue" en anglais "Welcome"
 ```
 
+### Donner à chaque langue sa propre adresse (`/en/…`) | Give each language its own address (`/en/…`)
+```humalis racine
+langues : francais, anglais avec adresse par langue
+
+page "bonjour" :
+    titre "Bienvenue" en anglais "Welcome"
+```
+
+### Traduire en espagnol, portugais, swahili ou lingala | Translate into Spanish, Portuguese, Swahili or Lingala
+```humalis racine
+langues : francais, espagnol, swahili
+
+page "bonjour" :
+    titre "Bienvenue" en espagnol "Bienvenido" en swahili "Karibu"
+```
+
 ### Lire les données d'un fichier | Read data from a file
 ```humalis racine
 utiliser donnees "clients" depuis "./clients.csv"
@@ -769,6 +926,11 @@ humalis tester
 ### Produire le projet : web, statique, mobile, desktop ou serveur | Build the project: web, statique, mobile, desktop or serveur
 ```terminal
 humalis compile mon-projet.humalis --cible web --sortie mon-site
+```
+
+### Le site est produit sans React ; `--moteur react` le garde | The site is built without React; `--moteur react` keeps it
+```terminal
+humalis compile mon-projet.humalis --cible web --moteur react --sortie mon-site
 ```
 
 ## Les pièges | Common traps | pieges

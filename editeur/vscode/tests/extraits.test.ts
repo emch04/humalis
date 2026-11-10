@@ -31,8 +31,8 @@ function texteDe(extrait: Extrait): string {
 function enveloppe(extrait: Extrait): string {
   const code = developper(texteDe(extrait));
   if (code.startsWith('page ')) return code + '\n';
-  // « utiliser … » se place en haut du fichier, avant les pages.
-  if (code.startsWith('utiliser ')) return `${code}\n\npage "essai" :\n    titre "Essai"\n`;
+  // « utiliser … », un « serveur » ou un « style » se placent en haut du fichier, hors des pages.
+  if (/^(utiliser|serveur|style) /.test(code)) return `${code}\n\npage "essai" :\n    titre "Essai"\n`;
   const indente = code
     .split('\n')
     .map((l) => (l === '' ? l : '    ' + l))
