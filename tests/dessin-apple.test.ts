@@ -133,3 +133,28 @@ describe('sur site et macos', () => {
     expect((pourLaCible(app(), 'apple').ecrans[0].vue[0] as { plateforme?: string }).plateforme).toBe('macos');
   });
 });
+
+describe('le dessin suit la largeur et les images de fond', () => {
+  it('compare « @media » à la largeur du dessin', () => {
+    const b = bloc(['b']);
+    const css = '.b{width:1px}@media (min-width:1600px){.b{width:2px}}@media (max-width:1500px){.b{height:3px}}@media (prefers-color-scheme:dark){.b{opacity:.5}}';
+    const s = style(css, [b], b);
+    expect(s.la).toEqual({ p: 1 });
+    expect(s.ha).toEqual({ p: 3 });
+    expect(s.op).toBeUndefined();
+  });
+  it('lit couleurs, dégradé et cadrage d’un SVG', () => {
+    const [i] = lireIconesSvg(`<svg><symbol id="f" viewBox="0 0 10 10" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFB9A2" stop-opacity=".5"/><stop offset="1" stop-color="#FFB9A2" stop-opacity="0"/></linearGradient></defs><path d="M0 0H10V10Z" fill="url(#g)"/><path d="M0 0L10 10" fill="none" stroke="rgba(255,255,255,.2)" stroke-width="4" vector-effect="non-scaling-stroke"/></symbol></svg>`);
+    expect(i.cadrage).toBe('couvre');
+    expect(i.traces[0].remplissage?.degrade?.a).toEqual([0, 1]);
+    expect(i.traces[0].remplissage?.degrade?.arrets[0].c[3]).toBeCloseTo(0.5);
+    expect(i.traces[1].trait?.couleur).toEqual([1, 1, 1, 0.2]);
+    expect(i.traces[1].trait?.fixe).toBe(true);
+  });
+  it('trace un « background » en SVG sous le contenu', () => {
+    const b = bloc(['carte']);
+    const svg = encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M0,0 L100,100' fill='none' stroke='rgba(255,255,255,.2)'/></svg>");
+    const s = style(`.carte{position:absolute;inset:0;background:url("data:image/svg+xml,${svg}")}`, [b], b);
+    expect(s.fi).toBe(0);
+  });
+});

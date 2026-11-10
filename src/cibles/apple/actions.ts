@@ -328,7 +328,7 @@ export class EcrivainActions {
         return;
       }
       case 'changementCompte': {
-        const paires = a.champs.map((ch) => `${chaineSwift(cleJson(ch.champ))}: ValeurHumalis(${this.x(ch.valeur).code})`);
+        const paires = a.champs.map((ch) => `${chaineSwift(cleJson(ch.champ))}: ${enValeurSwift(this.x(ch.valeur).code)}`);
         const appel = `"/auth/comptes/:id/champs", methode: "POST", envoi: [${paires.length ? paires.join(', ') : ':'}], id: ${this.identifiant(a.cible)}`;
         if (c.essai) e.ligne(`try await Serveur.commun.appelSansReponse(${appel})`);
         else e.ligne(`_ = await Serveur.commun.appelReussi(${appel})`);
@@ -504,7 +504,7 @@ export class EcrivainActions {
       const ecrite = cles?.[i];
       const cle = ecrite !== undefined ? (versLeServeur && /^[A-Za-z_]\w*$/.test(ecrite) ? cleJson(ecrite) : ecrite) : v.type === 'champ' ? (this.cles.get(v.id) ?? v.id) : v.type === 'variable' ? cleJson(v.nom) : v.type === 'champDonnee' ? cleJson(v.champ) : 'valeur';
       const code = this.x(v);
-      return `${chaineSwift(cle)}: ValeurHumalis(${code.code})`;
+      return `${chaineSwift(cle)}: ${enValeurSwift(code.code)}`;
     });
     return `[${paires.join(', ')}]`;
   }
@@ -574,7 +574,7 @@ export class EcrivainActions {
       let appel: string;
       if (a.type === 'suppression') appel = `methode: "DELETE", id: ${id}${source}`;
       else {
-        const paires = a.changements.map((ch) => `${chaineSwift(a.source === undefined ? cleJson(ch.champ) : ch.champ)}: ValeurHumalis(${this.x(ch.valeur).code})`);
+        const paires = a.changements.map((ch) => `${chaineSwift(a.source === undefined ? cleJson(ch.champ) : ch.champ)}: ${enValeurSwift(this.x(ch.valeur).code)}`);
         appel = `methode: ${a.remplacement ? '"PUT"' : '"PATCH"'}, envoi: [${paires.length ? paires.join(', ') : ':'}], id: ${id}${source}`;
       }
       if (a.enAttente) this.envoiGarde(e, `${adresse}, ${appel}`, c);
@@ -633,4 +633,9 @@ export class EcrivainActions {
     } else if (resultat) e.bloc(`if let reponse = ${appel} {`, () => e.ligne(`${resultat.code} = reponse`));
     else e.ligne(`_ = ${appel}`);
   }
+}
+
+/** Une valeur envoyée au serveur ; « [] » seul n'a pas de type en Swift. */
+function enValeurSwift(code: string): string {
+  return code.trim() === '[]' ? '.liste([])' : `ValeurHumalis(${code})`;
 }

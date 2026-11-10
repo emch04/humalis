@@ -40,6 +40,8 @@ export interface ContexteApple {
   composants: Map<string, { nom: string; type: TypeValeur }[]>;
   /** Les vues Swift écrites à la main (« sur apple "Carte.swift" »). */
   natifs: Set<string>;
+  /** Les paramètres des vues Swift du projet, lus dans leur fichier : « var valeur: Double = 0 ». */
+  typesNatifs?: Map<string, Map<string, TypeValeur>>;
   /** Le nom Swift d'un fichier local copié dans l'application. */
   ressource(chemin: string): string;
   /** Un refus : rien ne sera écrit. */
@@ -956,7 +958,13 @@ export class GenerateurPage implements HotePage {
 
   private ecrireComposant(e: Ecrivain, noeud: Extract<NoeudVue, { type: 'composant' }>): void {
     if (this.app.natifs.has(noeud.nom)) {
-      const args = noeud.proprietes.map((p) => `${nomSwift(p.nom)}: ${this.valeurs.expr(p.valeur).code}`).join(', ');
+      // Une valeur peut-être absente (« moi.nom » avant le chargement) : la valeur par défaut de son type.
+      const args = noeud.proprietes.map((p) => {
+        const x = this.valeurs.expr(p.valeur);
+        // Le type écrit dans la vue Swift : un texte « 72 » devient le nombre 72 si elle attend un Double.
+        const attendu = this.app.typesNatifs?.get(noeud.nom)?.get(nomSwift(p.nom));
+        return `${nomSwift(p.nom)}: ${attendu ? this.valeurs.vers(x, attendu) : x.opt ? this.valeurs.vers(x, x.type) : x.code}`;
+      }).join(', ');
       e.ligne(`${noeud.nom}(${args})`);
       return;
     }

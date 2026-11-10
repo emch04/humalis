@@ -602,3 +602,24 @@ describe('cible Apple — les fonctions de l\'appareil', () => {
     expect(refus[0].message).toContain('cible Apple');
   });
 });
+
+describe('Apple : modules, vues Swift et listes vides', () => {
+  it('un module JavaScript écrit seulement « sur site » n\'est pas refusé', async () => {
+    const { pourLaCible } = await import('../../src/ri/plateforme.js');
+    const app = pourLaCible(compile(`utiliser module "Scene" depuis "./scene.js"\npage "accueil" :\n    titre "A"\n    sur site :\n        Scene\n`), 'apple');
+    const { diagnostics } = genererProjetApple(app, { nom: 'essai', source: 'essai.humalis' });
+    expect(diagnostics.filter((d) => d.gravite === 'erreur')).toEqual([]);
+  });
+  it('une valeur donnée à une vue Swift prend le type écrit dans la vue', () => {
+    const source = `utiliser composant "Anneau" depuis "./Anneau" sur apple "./Anneau.swift"\npage "a" :\n    variable taux = "72"\n    titre "A"\n    Anneau avec valeur taux\n`;
+    const f = projet(source, { natifs: new Map([['Anneau', { nom: 'Anneau.swift', contenu: 'struct Anneau: View {\n    var valeur: Double = 0\n    var body: some View { EmptyView() }\n}' }]]) });
+    const page = [...f.entries()].find(([k]) => k.endsWith('PageA.swift'))![1];
+    expect(page).toMatch(/Anneau\(valeur: [^)]*nombreDe|Anneau\(valeur: [^)]*Double/);
+  });
+  it('une liste vide envoyée au serveur s\'écrit .liste([])', () => {
+    const f = projet(`page "a" :\n    titre "A"\n    bouton "Créer"\n    quand l'utilisateur clique sur "Créer" :\n        envoyer requete vers "groupes" avec nom = "x" et membres = []\n`);
+    const page = [...f.entries()].find(([k]) => k.endsWith('PageA.swift'))![1];
+    expect(page).toContain('"membres": .liste([])');
+    expect(page).not.toContain('ValeurHumalis([])');
+  });
+});

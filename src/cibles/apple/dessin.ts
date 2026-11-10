@@ -70,11 +70,11 @@ struct StyleHumalis: Codable, Hashable {
     var fg: CGFloat?, fs: CGFloat?, fb: MesureHumalis?
     var tx: MesureHumalis?, ty: MesureHumalis?, ro2: Double?
     var fo: [FondHumalis]?, ar: [CGFloat]?, bd: [BordHumalis?]?, om: [OmbreHumalis]?, po: [[MesureHumalis]]?, op: Double?, oh: Bool?, sc: Bool?, cach: Bool?
-    var ic: Int?
+    var ic: Int?, fi: Int?
     var t: CGFloat?, g: Double?, f: String?, c: [Double]?, li: CGFloat?, lp: CGFloat?, tr: CGFloat?, ta: String?, cas: String?, nw: Bool?, el: Bool?, it: Bool?, nb: Bool?
 
     enum CodingKeys: String, CodingKey {
-        case d, ix, col, wr, jc, ai, ji, ac, js, gl, gc, co, ro, gcs, gce, grs, gre, pa, ma, la, ha, lm, hm, lM, hM, ab, to, ri, bo, le, z, fg, fs, fb, tx, ty, ro2, fo, ar, bd, om, po, op, oh, sc, cach, ic, t, g, f, c, li, lp, tr, ta, cas, nw, el, it, nb
+        case d, ix, col, wr, jc, ai, ji, ac, js, gl, gc, co, ro, gcs, gce, grs, gre, pa, ma, la, ha, lm, hm, lM, hM, ab, to, ri, bo, le, z, fg, fs, fb, tx, ty, ro2, fo, ar, bd, om, po, op, oh, sc, cach, ic, fi, t, g, f, c, li, lp, tr, ta, cas, nw, el, it, nb
         case as_ = "as"
     }
 
@@ -544,7 +544,8 @@ struct LayoutBoiteHumalis: Layout {
             if tw == nil, let g, let d { tw = max(0, bw - g - d - m[1] - m[3]) }
             if th == nil, let hh, let b { th = max(0, bh - hh - b - m[0] - m[2]) }
             let mesure = sub[i].sizeThatFits(ProposedViewSize(width: tw, height: th))
-            let w = tw ?? mesure.width, h = th ?? mesure.height
+            // Rétrécie à son contenu, comme un navigateur : arrondie au point supérieur, le texte ne se coupe pas.
+            let w = tw ?? ceil(mesure.width), h = th ?? mesure.height
             let ox = g.map { $0 + m[3] + bd[3] } ?? d.map { bw - $0 - w - m[1] + bd[3] } ?? origine.x + m[3]
             let oy = hh.map { $0 + m[0] + bd[0] } ?? b.map { bh - $0 - h - m[2] + bd[0] } ?? origine.y + m[0]
             places.append((i, CGRect(x: ox, y: oy, width: w, height: h)))
@@ -566,19 +567,23 @@ struct PolygoneHumalis: Shape {
     }
 }
 
+struct DegradeJSON: Codable {
+    struct Arret: Codable { var p: Double; var c: [Double] }
+    var de: [Double]; var a: [Double]; var arrets: [Arret]
+}
 struct TraceJSON: Codable {
-    struct R: Codable { var opacite: Double }
-    struct E: Codable { var epaisseur: Double; var opacite: Double }
+    struct R: Codable { var opacite: Double; var couleur: [Double]?; var degrade: DegradeJSON? }
+    struct E: Codable { var epaisseur: Double; var opacite: Double; var couleur: [Double]?; var fixe: Bool? }
     var commandes: String
     var valeurs: [Double]
     var remplissage: R?
     var trait: E?
 }
-struct IconeJSON: Codable { var largeur: Double; var hauteur: Double; var traces: [TraceJSON] }
+struct IconeJSON: Codable { var largeur: Double; var hauteur: Double; var traces: [TraceJSON]; var cadrage: String? }
 
-private func chemin(_ t: TraceJSON, _ e: CGFloat) -> Path {
+private func chemin(_ t: TraceJSON, _ e: CGFloat, _ ey: CGFloat? = nil) -> Path {
     var p = Path(), i = 0
-    func pt() -> CGPoint { defer { i += 2 }; return CGPoint(x: t.valeurs[i] * e, y: t.valeurs[i + 1] * e) }
+    func pt() -> CGPoint { defer { i += 2 }; return CGPoint(x: t.valeurs[i] * e, y: t.valeurs[i + 1] * (ey ?? e)) }
     for c in t.commandes {
         switch c {
         case "M": p.move(to: pt())
@@ -596,13 +601,30 @@ struct IconeTraceeHumalis: View {
     var couleur: Color?
     var body: some View {
         Canvas { ctx, taille in
-            let e = min(taille.width / icone.largeur, taille.height / icone.hauteur)
-            ctx.translateBy(x: (taille.width - icone.largeur * e) / 2, y: (taille.height - icone.hauteur * e) / 2)
+            // Comme « preserveAspectRatio » : tout voir (meet), couvrir (slice) ou étirer (none).
+            let ex = taille.width / icone.largeur, ey = taille.height / icone.hauteur
+            let e = icone.cadrage == "couvre" ? max(ex, ey) : min(ex, ey)
+            let etire = icone.cadrage == "etire"
+            if !etire { ctx.translateBy(x: (taille.width - icone.largeur * e) / 2, y: (taille.height - icone.hauteur * e) / 2) }
             let encre: GraphicsContext.Shading = couleur.map { .color($0) } ?? .foreground
             for t in icone.traces {
-                let p = chemin(t, e)
-                if let r = t.remplissage { var c = ctx; c.opacity = r.opacite; c.fill(p, with: encre) }
-                if let s = t.trait { var c = ctx; c.opacity = s.opacite; c.stroke(p, with: encre, style: StrokeStyle(lineWidth: s.epaisseur * e, lineCap: .round, lineJoin: .round)) }
+                let p = etire ? chemin(t, ex, ey) : chemin(t, e)
+                if let r = t.remplissage {
+                    var c = ctx; c.opacity = r.opacite
+                    if let g = r.degrade {
+                        // Les proportions du dégradé se lisent dans la boîte de la forme.
+                        let b = p.boundingRect
+                        let arrets = g.arrets.map { Gradient.Stop(color: $0.c.couleurHumalis, location: $0.p) }
+                        c.fill(p, with: .linearGradient(Gradient(stops: arrets), startPoint: CGPoint(x: b.minX + g.de[0] * b.width, y: b.minY + g.de[1] * b.height), endPoint: CGPoint(x: b.minX + g.a[0] * b.width, y: b.minY + g.a[1] * b.height)))
+                    } else {
+                        c.fill(p, with: r.couleur.map { .color($0.couleurHumalis) } ?? encre)
+                    }
+                }
+                if let s = t.trait {
+                    var c = ctx; c.opacity = s.opacite
+                    let largeur = s.fixe == true ? s.epaisseur : s.epaisseur * (etire ? min(ex, ey) : e)
+                    c.stroke(p, with: s.couleur.map { .color($0.couleurHumalis) } ?? encre, style: StrokeStyle(lineWidth: largeur, lineCap: .round, lineJoin: .round))
+                }
             }
         }
     }
@@ -639,6 +661,10 @@ private struct DecorHumalis: View {
             } else if let fo = s.fo, !fo.isEmpty {
                 if fo.count == 1, let c = fo[0].c { forme().fill(c.couleurHumalis) }
                 else { Canvas { ctx, t in dessiner(&ctx, t, fo) }.clipShape(forme()) }
+            }
+            // Une image de fond SVG : par-dessus la couleur, sous le contenu, avec ses propres couleurs.
+            if let fi = s.fi, fi < IconesDessinees.masques.count {
+                IconeTraceeHumalis(icone: IconesDessinees.masques[fi]).clipShape(forme())
             }
             ForEach(Array((s.om ?? []).enumerated()).filter { $0.element.i == true && $0.element.f == 0 }, id: \.offset) { _, o in
                 forme().strokeBorder(o.c.couleurHumalis, lineWidth: o.e * x.z)
@@ -892,7 +918,7 @@ struct CoquilleDessineeHumalis<Barre: View, Contenu: View>: View {
 
 /** Les tables propres au projet : les icônes, puis les styles rencontrés. */
 export function tablesDessin(icones: IconeDessinee[], masques: IconeDessinee[], styles: string): string {
-  const json = (i: IconeDessinee) => JSON.stringify({ largeur: i.largeur, hauteur: i.hauteur, traces: i.traces });
+  const json = (i: IconeDessinee) => JSON.stringify({ largeur: i.largeur, hauteur: i.hauteur, traces: i.traces, ...(i.cadrage ? { cadrage: i.cadrage } : {}) });
   const lire = (i: IconeDessinee) => `lire(#"${json(i)}"#)`;
   return `
 enum IconesDessinees {
