@@ -2715,6 +2715,13 @@ Avec une `adresse`, la cible web écrit le plan du site (`sitemap.xml`) et
 quand un titre ou une description est trop long ou trop court pour les moteurs
 de recherche.
 
+Sur le desktop, la même `adresse` sert aux mises à jour automatiques :
+l'application installée cherche une nouvelle version dans le dossier
+`mises-a-jour/` de cette adresse. `npm run paquet` y prépare tout (l'installateur
+`.dmg` pour Mac, `.exe` pour Windows, et les fichiers `latest*.yml`) : tu déposes
+ces fichiers dans ce dossier. Sans `adresse`, l'application ne cherche pas de mise
+à jour. Sur Mac, la mise à jour automatique demande une application signée.
+
 La ligne `erreurs pendant 5 secondes` du bloc `site :` règle combien de temps
 restent les erreurs du site, celles que tu écris sans durée et celles que
 Humalis affiche de lui-même. Elle va de 1 à 60 secondes ; sans elle, c'est 8
