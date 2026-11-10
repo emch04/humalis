@@ -92,7 +92,8 @@ function stylesCs(application: Application, options: OptionsWindows, couleurs: S
   let autres = 0;
   const textes = [...application.css];
   for (const f of application.fichiersStyle) {
-    if (f.plateforme !== undefined && !['application'].includes(f.plateforme)) continue;
+    // « utiliser style "windows.css" sur windows » : la feuille propre à Windows (le tri par plateforme est déjà fait).
+    if (f.plateforme !== undefined && !['application', 'windows'].includes(f.plateforme)) continue;
     const contenu = options.fichiersStyle?.get(f.chemin);
     if (contenu !== undefined) textes.push(contenu);
   }
