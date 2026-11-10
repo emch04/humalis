@@ -211,8 +211,14 @@ export class EcrivainActions {
       case 'enregistrerAudio':
       case 'enregistrerVideo':
       case 'scannerDocument':
-      case 'recadrerPhoto':
-        return this.hote.refuser(`« ${a.type} » : cette action n'est pas encore disponible sur cette cible`);
+      case 'recadrerPhoto': {
+        const cible = this.variable(a.variable);
+        const phrase = { enregistrerAudio: `enregistrer audio dans ${a.variable}`, enregistrerVideo: `enregistrer video dans ${a.variable}`, scannerDocument: `scanner document dans ${a.variable}`, recadrerPhoto: `recadrer ${a.variable}` }[a.type];
+        if (!cible) return this.hote.refuser(`« ${phrase} » : cette variable est inconnue ici`);
+        const appel = { enregistrerAudio: 'enregistrerMedia("audio")', enregistrerVideo: 'enregistrerMedia("video")', scannerDocument: 'scannerDocument()', recadrerPhoto: `recadrerPhoto(${cible})` }[a.type];
+        e.ligne(`${appel}?.let { ${cible} = it }`);
+        return;
+      }
       case 'prisePhoto':
       case 'localisation':
       case 'scanCode': {

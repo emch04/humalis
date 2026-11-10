@@ -17,6 +17,7 @@ import { APPLE_KT, GOOGLE_KT, notificationsKotlin, type Firebase } from './compt
 import { DIRECT_KT, ENVOIS_KT, fondKotlin } from './temps-reel.js';
 import { langueDuStyle } from '../commun/styles-natifs.js';
 import { CARTES_KT, GRAPHIQUES_KT, LECTEURS_KT, MENUS_KT, MOUVEMENT_KT, NATIFS_KT, QR_KT } from './medias.js';
+import { besoinsCaptures, capturesKotlin, dependancesCaptures } from './captures.js';
 import { APPAREIL_KT, CHEMINS_FICHIERS, FICHIERS_KT, SCANNER_KT, SYSTEME_KT } from './appareil.js';
 import { CssAndroid, type Portee as PorteeCss } from './css.js';
 import { FORMATS_KT } from './formats.js';
@@ -934,6 +935,12 @@ export function genererProjetAndroid(complete: Application, options: OptionsAndr
     lecteurs: /\b(LecteurHumalis|VideoHumalis)\(/.test(codePages),
     cartes: /\bCarteHumalis\(/.test(codePages),
   };
+  // « enregistrer audio dans … », « scanner document dans … », « recadrer … » : voir captures.ts.
+  const captures = besoinsCaptures(codePages);
+  const avecCaptures = captures.son || captures.video || captures.scan || captures.recadrage;
+  if (avecCaptures) ecrireCode('Captures.kt', kotlin(paquet, capturesKotlin(captures)));
+  // La réécoute avant validation emploie les lecteurs de l'application.
+  if (captures.son || captures.video) medias.lecteurs = true;
   if (medias.qr) ecrireCode('Qr.kt', kotlin(paquet, QR_KT));
   if (medias.lecteurs) ecrireCode('Lecteurs.kt', kotlin(paquet, LECTEURS_KT));
   if (medias.cartes) ecrireCode('Cartes.kt', kotlin(paquet, CARTES_KT));
@@ -1046,8 +1053,8 @@ export function genererProjetAndroid(complete: Application, options: OptionsAndr
   fichiers.set('build.gradle.kts', CONSTRUCTION_RACINE);
   fichiers.set('gradle.properties', PROPRIETES_GRADLE);
   fichiers.set('gradle/wrapper/gradle-wrapper.properties', ENVELOPPE_GRADLE);
-  fichiers.set('app/build.gradle.kts', constructionApp(identifiant, nomAffiche, { appareil: avecAppareil, scanner: besoins.scanner, ...medias, ...connexions, travail: fonds.length > 0, notifications: avecNotifications, ...(application.paquetsAndroid?.length ? { paquets: application.paquetsAndroid } : {}), formes: formes.dependances }));
-  fichiers.set('app/src/main/AndroidManifest.xml', manifeste(true, application.liensProfonds, { ...besoins, notifications: avecNotifications }, formes));
+  fichiers.set('app/build.gradle.kts', constructionApp(identifiant, nomAffiche, { appareil: avecAppareil, scanner: besoins.scanner, ...medias, ...connexions, travail: fonds.length > 0, notifications: avecNotifications, ...(application.paquetsAndroid?.length ? { paquets: application.paquetsAndroid } : {}), formes: [...formes.dependances, ...dependancesCaptures(captures)] }));
+  fichiers.set('app/src/main/AndroidManifest.xml', manifeste(true, application.liensProfonds, { ...besoins, notifications: avecNotifications, micro: captures.son || captures.video, camera: captures.video, ecranCapture: captures.son || captures.video || captures.recadrage }, formes));
   if (besoins.fichiers) fichiers.set('app/src/main/res/xml/chemins_fichiers.xml', CHEMINS_FICHIERS);
   const domaine = application.liensProfonds?.domaine;
   if (domaine && options.empreinte) {

@@ -159,4 +159,7 @@ ECRITES.desktop = new Set<Forme>(['barreSysteme', 'fichierOuvert', 'demarrage', 
 for (const cible of ['web', 'desktop'] as const) for (const forme of ['enregistrerAudio', 'enregistrerVideo', 'recadrerPhoto'] as const) (ECRITES[cible] ??= new Set<Forme>()).add(forme);
 
 // Les médias natifs : src/cibles/apple/captures.ts, src/cibles/android/captures.ts, src/cibles/windows/bibliotheque/captures.ts.
-for (const forme of ['enregistrerAudio', 'enregistrerVideo', 'scannerDocument', 'recadrerPhoto'] as const) ECRITES.apple!.add(forme);
+for (const forme of ['enregistrerAudio', 'enregistrerVideo', 'scannerDocument', 'recadrerPhoto'] as const) {
+  ECRITES.apple!.add(forme);
+  ECRITES.android!.add(forme);
+}
