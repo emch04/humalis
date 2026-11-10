@@ -13,6 +13,7 @@ import { contenuBinaire } from '../binaire.js';
 import { cheminsDesPages } from '../web/projet.js';
 import { COULEURS_CSS } from '../web/styles.js';
 import { EcrivainActions } from './actions.js';
+import { APPAREIL_KT, CHEMINS_FICHIERS, SYSTEME_KT } from './appareil.js';
 import { CssAndroid, type Portee as PorteeCss } from './css.js';
 import { FORMATS_KT } from './formats.js';
 import { LANGUES_KT, traduireMessagesKotlin, INTERFACE_KT, MEMOIRE_KT, SERVEUR_KT, VALEURS_KT, kotlin } from './bibliotheque.js';
@@ -292,7 +293,7 @@ function applicationKotlin(paquet: string, application: Application, routes: Map
   for (const i of [
     'android.net.Uri',
     'android.os.Bundle',
-    'androidx.activity.ComponentActivity',
+    'androidx.fragment.app.FragmentActivity',
     'androidx.activity.compose.setContent',
     'androidx.activity.enableEdgeToEdge',
     'androidx.compose.foundation.layout.*',
@@ -312,12 +313,18 @@ function applicationKotlin(paquet: string, application: Application, routes: Map
     'kotlinx.coroutines.launch',
   ]) e.ligne(`import ${i}`);
   e.ligne();
-  e.bloc('class MainActivity : ComponentActivity() {', () => {
+  e.bloc('class MainActivity : FragmentActivity() {', () => {
     e.bloc('override fun onCreate(savedInstanceState: Bundle?) {', () => {
       e.ligne('super.onCreate(savedInstanceState)');
       e.ligne('Appli.contexte = applicationContext');
+      e.ligne('Activite.courante = this');
       e.ligne('enableEdgeToEdge()');
       e.ligne('setContent { ApplicationHumalis() }');
+    });
+    e.ligne();
+    e.bloc('override fun onDestroy() {', () => {
+      e.ligne('if (Activite.courante === this) Activite.courante = null');
+      e.ligne('super.onDestroy()');
     });
     if (application.liensProfonds) {
       e.ligne();
@@ -613,6 +620,17 @@ export function genererProjetAndroid(application: Application, options: OptionsA
   ecrireCode('Memoire.kt', kotlin(paquet, MEMOIRE_KT));
   ecrireCode('Serveur.kt', kotlin(paquet, SERVEUR_KT));
   ecrireCode('Icones.kt', iconesKotlin(paquet, icones));
+  ecrireCode('Systeme.kt', kotlin(paquet, SYSTEME_KT));
+  const codePages = [...fichiers.values()].join('\n');
+  const besoins = {
+    photo: /\bprendrePhoto\(/.test(codePages),
+    position: /\blirePosition\(/.test(codePages),
+    identite: /\bverifierIdentite\(/.test(codePages),
+    scanner: /\bscannerCode\(/.test(codePages),
+    vibration: /\bvibrer\(/.test(codePages),
+  };
+  const avecAppareil = Object.values(besoins).some(Boolean) || /\bSignatureHumalis\(/.test(codePages);
+  if (avecAppareil) ecrireCode('Appareil.kt', kotlin(paquet, APPAREIL_KT));
   if (app.langues) {
     const codes = app.langues;
     ecrireCode('Langues.kt', kotlin(paquet, LANGUES_KT).replace('LANGUES_DU_SITE', `listOf(${application.langues!.map((l) => `${chaineKotlin(l.code)} to ${chaineKotlin(l.nom)}`).join(', ')})`));
@@ -637,8 +655,9 @@ export function genererProjetAndroid(application: Application, options: OptionsA
   fichiers.set('build.gradle.kts', CONSTRUCTION_RACINE);
   fichiers.set('gradle.properties', PROPRIETES_GRADLE);
   fichiers.set('gradle/wrapper/gradle-wrapper.properties', ENVELOPPE_GRADLE);
-  fichiers.set('app/build.gradle.kts', constructionApp(identifiant, nomAffiche));
-  fichiers.set('app/src/main/AndroidManifest.xml', manifeste(true, application.liensProfonds));
+  fichiers.set('app/build.gradle.kts', constructionApp(identifiant, nomAffiche, { appareil: avecAppareil, scanner: besoins.scanner }));
+  fichiers.set('app/src/main/AndroidManifest.xml', manifeste(true, application.liensProfonds, besoins));
+  if (besoins.photo) fichiers.set('app/src/main/res/xml/chemins_fichiers.xml', CHEMINS_FICHIERS);
   const domaine = application.liensProfonds?.domaine;
   if (domaine && options.empreinte) {
     fichiers.set('a-publier-sur-le-site/.well-known/assetlinks.json', liensDuSite(identifiant, options.empreinte));

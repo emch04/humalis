@@ -6,14 +6,15 @@
 import type { Diagnostic } from '../analyse/erreurs.js';
 import type { Application } from '../ri/types.js';
 
-const CONSTRUCTIONS: { motif: RegExp; nom: string }[] = [
-  { motif: /"type":"prisePhoto"/, nom: '« photo dans … »' },
-  { motif: /"type":"scanCode"/, nom: '« scanner code dans … »' },
-  { motif: /"type":"verificationIdentite"/, nom: '« verifier identite »' },
-  { motif: /"type":"vibration"/, nom: '« vibrer »' },
-  { motif: /"genre":"signature"/, nom: '« signature dans … »' },
+/** `android` : la construction existe aussi sur la cible Android. */
+const CONSTRUCTIONS: { motif: RegExp; nom: string; android?: true }[] = [
+  { motif: /"type":"prisePhoto"/, android: true, nom: '« photo dans … »' },
+  { motif: /"type":"scanCode"/, android: true, nom: '« scanner code dans … »' },
+  { motif: /"type":"verificationIdentite"/, android: true, nom: '« verifier identite »' },
+  { motif: /"type":"vibration"/, android: true, nom: '« vibrer »' },
+  { motif: /"genre":"signature"/, android: true, nom: '« signature dans … »' },
   { motif: /"horsLigne":true/, nom: '« avec hors ligne »' },
-  { motif: /"type":"localisation"/, nom: '« position dans … »' },
+  { motif: /"type":"localisation"/, android: true, nom: '« position dans … »' },
   { motif: /"enAttente":true/, nom: '« … hors ligne » sur un envoi' },
   { motif: /"declencheur":"arrierePlan"/, nom: '« en arriere plan : »' },
   { motif: /"declencheur":"commandeMenu"/, nom: '« menu de l’application »' },
@@ -38,11 +39,12 @@ export function verifierAppareilPourLaCible(application: Application, cible: str
   const diagnostics: Diagnostic[] = [];
   if (cible === 'web') return verifierPourLeNavigateur(application);
   const lieux = [...application.ecrans, ...application.composants, ...[application.disposition?.entete?.ecran, application.disposition?.pied?.ecran].flatMap((e) => (e ? [e] : []))];
-  for (const { motif, nom } of CONSTRUCTIONS) {
+  for (const { motif, nom, android } of CONSTRUCTIONS) {
+    if (android && cible === 'android') continue;
     const lieu = lieux.find((e) => motif.test(JSON.stringify(e)));
     const partage = application.partages.find((p) => motif.test(JSON.stringify(p)));
     const ligne = lieu?.ligne ?? partage?.ligne;
-    if (ligne !== undefined) diagnostics.push({ gravite: 'erreur', ligne, message: `${nom} n'est disponible que sur la cible Apple pour l'instant : compilez avec --cible apple (ici, --cible ${cible}).` });
+    if (ligne !== undefined) diagnostics.push({ gravite: 'erreur', ligne, message: android ? `${nom} n'est disponible que sur les cibles Apple et Android pour l'instant : compilez avec --cible apple ou --cible android (ici, --cible ${cible}).` : `${nom} n'est disponible que sur la cible Apple pour l'instant : compilez avec --cible apple (ici, --cible ${cible}).` });
   }
   if (['mobile', 'desktop', 'statique', 'android'].includes(cible)) {
     const lieu = lieux.find((e) => /"type":"connexionApple"/.test(JSON.stringify(e)));

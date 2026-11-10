@@ -771,6 +771,12 @@ export class GenerateurPage implements HoteActions {
         });
         return;
       }
+      case 'signature': {
+        const lue = contenu.type === 'variable' ? this.portee.variables.get(contenu.nom) : undefined;
+        if (!lue) return this.refuser('« signature » demande une variable pour garder sa valeur');
+        e.ligne(`SignatureHumalis(${lue}, { ${lue} = it }${m ? `, Modifier${m}` : ''})`);
+        return;
+      }
       case 'selecteurLangue':
         if (!this.app.langues) return;
         e.ligne(`SelecteurLangueHumalis(${m ? `Modifier${m}` : ''})`);

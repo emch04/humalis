@@ -3480,7 +3480,7 @@ target, the compiler says so clearly instead of producing something wrong.
 | Keyboard shortcuts | yes | yes | no | yes | yes | no |
 | React components | yes | no | yes (in React Native) | yes | no (`sur apple "View.swift"`) | no |
 | The engine without React (the default) | yes | no | no | yes (except a React component or `memorisee en secret`) | no | no |
-| Photo, scanner, Face ID, vibration, signature, offline | yes (vibration: Android) | no | no | no | yes | no |
+| Photo, scanner, Face ID, vibration, signature, offline | yes (vibration: Android) | no | no | no | yes | yes (except offline) |
 | `en arriere plan` | no | no | no | no | yes | no |
 | Sitemap, share preview | yes | yes | no | no | no | no |
 
@@ -3514,9 +3514,14 @@ scrolls down to it. `liens profonds "magasin"` opens the application from
 `--empreinte` (the certificate's SHA-256 fingerprint, given by `keytool -list -v`) and
 publish the file written in `a-publier-sur-le-site/`.
 
+The device functions work as on Apple: `photo dans …` (the system camera),
+`scanner code dans …`, `position dans …`, `verifier identite` (fingerprint, face or the
+device code), `vibrer` and `signature dans …`. Each permission is requested the first time
+it is needed.
+
 What does not exist on Android yet, and that compilation refuses with a clear message:
 charts, maps, audio, video, QR codes,
-file picking, photo, scanner, Google or Apple login, payment, AI and notifications.
+file picking, Google or Apple login, payment, AI and notifications.
 
 CSS becomes Compose, rule by rule, when a rule targets a class (`.card { … }`): background,
 color, text size and weight, margins and padding, border, corner radius, shadow, width, and

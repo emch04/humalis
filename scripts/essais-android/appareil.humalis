@@ -1,0 +1,40 @@
+# L'essai des fonctions de l'appareil sur Android : vibration, scanner,
+# empreinte ou code, photo, position et signature.
+page "accueil" :
+    variable trace = ""
+    variable valeur = "vide"
+    variable cliche = rien
+    variable lieu = rien
+    variable identite = "inconnue"
+    variable secousse = "non"
+    titre "Appareil"
+    signature dans trace
+    si trace n'est pas vide :
+        texte "Signature recue"
+    bouton "Vibrer"
+    quand l'utilisateur clique sur "Vibrer" :
+        vibrer
+        changer secousse par "oui"
+    texte "Secousse {secousse}"
+    bouton "Scanner"
+    quand l'utilisateur clique sur "Scanner" :
+        scanner code dans valeur
+    texte "Code {valeur}"
+    bouton "Verifier"
+    quand l'utilisateur clique sur "Verifier" :
+        verifier identite :
+            changer identite par "confirmee"
+        sinon :
+            changer identite par "refusee"
+    texte "Identite {identite}"
+    bouton "Position"
+    quand l'utilisateur clique sur "Position" :
+        position dans lieu
+    si lieu n'est pas rien :
+        texte "Position {lieu.latitude} {lieu.longitude}"
+    bouton "Photo"
+    quand l'utilisateur clique sur "Photo" :
+        photo dans cliche
+    si cliche n'est pas rien :
+        texte "Photo {cliche.nom}"
+        image cliche.apercu avec description "La photo prise"
