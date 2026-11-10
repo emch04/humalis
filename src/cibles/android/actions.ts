@@ -34,9 +34,6 @@ interface Cadre {
 
 /** Les phrases Humalis des actions qui n'existent pas encore ici : le message les cite telles qu'on les écrit. */
 const PHRASES: Partial<Record<Action['type'], string>> = {
-  envoiFichier: '« envoyer fichier … »',
-  telechargementBon: '« telecharger bon de … »',
-  telechargementCsv: '« telecharger … en csv »',
   invitation: '« inviter … »',
   changementCompte: '« changer compte de … »',
   changementRole: '« changer role de … »',
@@ -240,6 +237,22 @@ export class EcrivainActions {
         return;
       case 'vibration':
         e.ligne('vibrer()');
+        return;
+      case 'envoiFichier': {
+        const fichier = this.variable(a.variable);
+        if (!fichier) return this.hote.refuser(`« envoyer fichier ${a.variable} » : cette variable est inconnue ici`);
+        const suivi = a.suivi !== undefined ? this.variable(a.suivi) : undefined;
+        const resultat = a.resultat !== undefined ? this.variable(a.resultat) : undefined;
+        const options = [`source = Sources.${nomKotlin(a.source)}`, a.corpsBrut ? 'corpsBrut = true' : `champ = ${chaineKotlin(a.champ)}`, ...(suivi ? [`progression = { ${suivi} = it }`] : [])].join(', ');
+        const appel = `Serveur.${c.essai ? 'televerserOuEchouer' : 'televerser'}(${fichier}, ${chaineKotlin(a.adresse)}, ${options})`;
+        e.ligne(resultat ? `${appel}?.let { ${resultat} = it }` : appel);
+        return;
+      }
+      case 'telechargementBon':
+        e.ligne(`Serveur.${c.essai ? 'telechargerBonOuEchouer' : 'telechargerBon'}(${chaineKotlin(a.adresse)}, identifiant(${this.v.x(a.objet)}))`);
+        return;
+      case 'telechargementCsv':
+        e.ligne(`telechargerCsv(${this.v.x(a.liste)}, ${chaineKotlin(a.fichier)})`);
         return;
       case 'langue':
         e.ligne(`Langues.changer(${chaineKotlin(a.code)})`);

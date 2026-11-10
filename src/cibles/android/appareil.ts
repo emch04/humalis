@@ -160,16 +160,6 @@ suspend fun verifierIdentite(raison: String = "Confirmez que c'est bien vous"): 
     }
 }
 
-/** « scanner code dans valeur » : l'appareil photo lit un code QR ou un code-barres. */
-suspend fun scannerCode(): String? {
-    val options = com.journeyapps.barcodescanner.ScanOptions()
-        .setPrompt("Placez le code dans le cadre")
-        .setBeepEnabled(false)
-        .setOrientationLocked(false)
-    val lu = Activite.demander(com.journeyapps.barcodescanner.ScanContract(), options) ?: return null
-    return lu.contents
-}
-
 /** « signature dans trace » : la personne signe du doigt ; la variable reçoit l'image, en PNG écrit en texte. */
 @Composable
 fun SignatureHumalis(trace: Any?, changer: (Any?) -> Unit, modifier: Modifier = Modifier) {
@@ -227,4 +217,135 @@ export const CHEMINS_FICHIERS = `<?xml version="1.0" encoding="utf-8"?>
 <paths>
     <cache-path name="humalis" path="humalis/" />
 </paths>
+`;
+
+export const SCANNER_KT = String.raw`// Produit par Humalis : le scanner de codes QR et de codes-barres (ZXing).
+package PAQUET
+
+/** « scanner code dans valeur » : l'appareil photo lit un code QR ou un code-barres. */
+suspend fun scannerCode(): String? {
+    val options = com.journeyapps.barcodescanner.ScanOptions()
+        .setPrompt("Placez le code dans le cadre")
+        .setBeepEnabled(false)
+        .setOrientationLocked(false)
+    val lu = Activite.demander(com.journeyapps.barcodescanner.ScanContract(), options) ?: return null
+    return lu.contents
+}
+`;
+
+export const FICHIERS_KT = String.raw`// Produit par Humalis : choisir un fichier, l'envoyer avec sa progression, télécharger un bon ou un CSV.
+package PAQUET
+
+import android.content.Intent
+import android.net.Uri
+import android.provider.OpenableColumns
+import android.webkit.MimeTypeMap
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
+import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
+import java.util.UUID
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+private val MOTS_DES_FAMILLES = mapOf("images" to "image", "audio" to "audio", "videos" to "video", "pdf" to "pdf", "documents" to "document")
+private val REFUS_DES_FAMILLES = mapOf("images" to "une image", "audio" to "un son", "videos" to "une vidéo", "pdf" to "un PDF", "documents" to "un document")
+
+private fun ecrireTaille(octets: Double) = formaterTaille(octets, if (octets >= 1048576) "Mo" else "Ko")
+
+/** Un fichier choisi, copié dans l'application : ce que la page peut lire (nom, taille, type, apercu). */
+private fun recevoir(adresse: Uri, familles: List<Pair<String, List<String>>>, maximum: Double?, apercu: Boolean, seul: Boolean, refus: MutableList<String>): Map<String, Any?>? {
+    val resolveur = Appli.contexte.contentResolver
+    var nom = "fichier"
+    resolveur.query(adresse, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { if (it.moveToFirst()) nom = it.getString(0) ?: nom }
+    val sujet = if (seul) "Ce fichier" else nom
+    val mime = resolveur.getType(adresse) ?: MimeTypeMap.getSingleton().getMimeTypeFromExtension(nom.substringAfterLast('.', "").lowercase()) ?: "application/octet-stream"
+    val famille = familles.firstOrNull { (_, types) -> types.any { it == mime || (it.endsWith("/*") && mime.startsWith(it.dropLast(1))) } }
+    if (familles.isNotEmpty() && famille == null) {
+        refus.add("#{sujet} n'est pas " + familles.mapNotNull { REFUS_DES_FAMILLES[it.first] }.joinToString(" ni ") + ".")
+        return null
+    }
+    val dossier = File(Appli.contexte.cacheDir, "humalis").apply { mkdirs() }
+    val copie = File(dossier, UUID.randomUUID().toString() + "-" + nom.replace(Regex("[^A-Za-z0-9._-]"), "_"))
+    try {
+        resolveur.openInputStream(adresse)!!.use { entree -> copie.outputStream().use { entree.copyTo(it) } }
+    } catch (e: Exception) {
+        refus.add("#{sujet} n'a pas pu être lu.")
+        return null
+    }
+    val taille = copie.length().toDouble()
+    if (maximum != null && taille > maximum) {
+        copie.delete()
+        refus.add("#{sujet} est trop gros : #{ecrireTaille(taille)}, le maximum est #{ecrireTaille(maximum)}.")
+        return null
+    }
+    val visible = apercu && (mime.startsWith("image/") || mime.startsWith("audio/") || mime.startsWith("video/"))
+    val type = famille?.let { MOTS_DES_FAMILLES[it.first] } ?: if (mime.startsWith("image/")) "image" else "fichier"
+    return fiche("nom" to nom, "taille" to taille, "type" to type, "apercu" to (if (visible) "file://" + copie.absolutePath else null), "mime" to mime, "chemin" to copie.absolutePath)
+}
+
+/** « fichier "Choisir" dans photo accepte images avec maximum 5 Mo » : le sélecteur de fichiers du système. */
+@Composable
+fun ChoixFichierHumalis(libelle: String, valeur: Any?, changer: (Any?) -> Unit, familles: List<Pair<String, List<String>>>, maximum: Double? = null, plusieurs: Boolean = false, apercu: Boolean = true, modifier: Modifier = Modifier) {
+    var erreur by remember { mutableStateOf("") }
+    val types = familles.flatMap { it.second }.ifEmpty { listOf("*/*") }.toTypedArray()
+    val lire = { adresses: List<Uri> ->
+        val refus = mutableListOf<String>()
+        val gardes = adresses.mapNotNull { recevoir(it, familles, maximum, apercu, adresses.size == 1, refus) }
+        erreur = refus.joinToString(" ")
+        if (adresses.isNotEmpty()) changer(if (plusieurs) gardes else gardes.firstOrNull())
+    }
+    val un = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { it?.let { a -> lire(listOf(a)) } }
+    val tous = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { lire(it) }
+    val noms = if (plusieurs) liste(valeur).map { texte(champ(it, "nom")) } else listOfNotNull(champ(valeur, "nom")?.let { texte(it) })
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        OutlinedButton(onClick = { if (plusieurs) tous.launch(types) else un.launch(types) }) { Text(libelle) }
+        for (nom in noms) Text(nom, style = MaterialTheme.typography.bodySmall)
+        if (erreur.isNotEmpty()) Text(erreur, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+/** L'adresse d'un fichier de l'application que les autres applications peuvent ouvrir. */
+private fun adressePartagee(fichier: File): Uri = FileProvider.getUriForFile(Appli.contexte, Appli.contexte.packageName + ".fichiers", fichier)
+
+/** Ouvre ou partage un fichier écrit par l'application : le système propose ses applications. */
+fun montrerFichier(fichier: File, mime: String) {
+    val intention = Intent(Intent.ACTION_VIEW).setDataAndType(adressePartagee(fichier), mime).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    try {
+        Appli.contexte.startActivity(Intent.createChooser(intention, fichier.name).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    } catch (e: Exception) {
+        Messages.afficher("Aucune application ne sait ouvrir ce fichier.", "erreur")
+    }
+}
+
+/** « telecharger commandes en csv » : le fichier se fait sur l'appareil, puis se partage. */
+suspend fun telechargerCsv(liste: Any?, fichier: String) {
+    val lignes = liste(liste).filterIsInstance<Map<*, *>>()
+    if (lignes.isEmpty()) {
+        Messages.afficher("Il n'y a rien à télécharger.", "info")
+        return
+    }
+    val colonnes = lignes.first().keys.map { it.toString() }.sorted()
+    fun cellule(v: Any?) = "\"" + texte(v).replace("\"", "\"\"") + "\""
+    val texte = (listOf(colonnes.joinToString(";")) + lignes.map { l -> colonnes.joinToString(";") { cellule(l[it]) } }).joinToString("\r\n")
+    val sortie = withContext(Dispatchers.IO) {
+        File(File(Appli.contexte.cacheDir, "humalis").apply { mkdirs() }, fichier).also { it.writeText(texte, Charsets.UTF_8) }
+    }
+    val envoi = Intent(Intent.ACTION_SEND).setType("text/csv").putExtra(Intent.EXTRA_STREAM, adressePartagee(sortie)).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    Appli.contexte.startActivity(Intent.createChooser(envoi, fichier).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+}
 `;

@@ -3517,11 +3517,12 @@ publish the file written in `a-publier-sur-le-site/`.
 The device functions work as on Apple: `photo dans …` (the system camera),
 `scanner code dans …`, `position dans …`, `verifier identite` (fingerprint, face or the
 device code), `vibrer` and `signature dans …`. Each permission is requested the first time
-it is needed.
+it is needed. `fichier "…" dans …` opens the system file picker, `envoyer fichier …` follows
+its progress, and `telecharger bon de …` and `telecharger … en csv` open or share the file
+with the device's applications.
 
 What does not exist on Android yet, and that compilation refuses with a clear message:
-charts, maps, audio, video, QR codes,
-file picking, Google or Apple login, payment, AI and notifications.
+charts, maps, audio, video, QR codes, Google or Apple login, payment, AI and notifications.
 
 CSS becomes Compose, rule by rule, when a rule targets a class (`.card { … }`): background,
 color, text size and weight, margins and padding, border, corner radius, shadow, width, and

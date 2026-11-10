@@ -777,6 +777,14 @@ export class GenerateurPage implements HoteActions {
         e.ligne(`SignatureHumalis(${lue}, { ${lue} = it }${m ? `, Modifier${m}` : ''})`);
         return;
       }
+      case 'fichier': {
+        const choix = noeud.fichier;
+        const lue = choix ? this.portee.variables.get(choix.variable) : undefined;
+        if (!choix || !lue) return this.refuser(`« fichier dans ${choix?.variable ?? '…'} » : cette variable est inconnue ici`);
+        const familles = `listOf(${choix.familles.map((f) => `${chaineKotlin(f.nom)} to listOf(${f.mime.map(chaineKotlin).join(', ')})`).join(', ')})`;
+        e.ligne(`ChoixFichierHumalis(${this.valeurs.t(contenu)}, ${lue}, { ${lue} = it }, ${familles}${choix.octets !== undefined ? `, maximum = ${choix.octets}.0` : ''}${choix.plusieurs ? ', plusieurs = true' : ''}${choix.apercu ? '' : ', apercu = false'}${m ? `, modifier = Modifier${m}` : ''})`);
+        return;
+      }
       case 'selecteurLangue':
         if (!this.app.langues) return;
         e.ligne(`SelecteurLangueHumalis(${m ? `Modifier${m}` : ''})`);

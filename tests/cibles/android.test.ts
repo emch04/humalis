@@ -675,6 +675,52 @@ describe('cible Android — les fonctions de l\'appareil', () => {
   });
 });
 
+describe('cible Android — les fichiers', () => {
+  const SOURCE = `source "boutique" :
+    adresse "http://localhost:3000"
+    enveloppe "data"
+    route "api/photos" :
+        creer photo
+    donnee photo :
+        fichier : texte
+
+page "profil" :
+    variable photo = rien
+    variable envoi = 0
+    variable adresse = rien
+    variable commandes = [fiche avec client "Ana" et total 12]
+    titre "Profil"
+    fichier "Choisir une photo" dans photo accepte images avec maximum 5 Mo
+    bouton "Envoyer"
+    quand l'utilisateur clique sur "Envoyer" :
+        envoyer fichier photo vers "api/photos" de la source "boutique" en corps brut suivi dans envoi et fichier dans adresse
+    bouton "Exporter"
+    quand l'utilisateur clique sur "Exporter" :
+        telecharger commandes en csv
+`;
+  const f = projet(SOURCE);
+  const c = page(f, 'PageProfil');
+
+  it('« fichier … dans » ouvre le sélecteur du système, avec ses familles et sa taille maximale', () => {
+    expect(c).toContain('ChoixFichierHumalis("Choisir une photo", photo, { photo = it }, listOf("images" to listOf(');
+    expect(c).toContain('maximum = 5242880.0');
+    expect(f.get(`${CODE}/Fichiers.kt`)).toContain('ActivityResultContracts.OpenDocument()');
+  });
+
+  it('l\'envoi suit sa progression et reçoit la réponse', () => {
+    expect(c).toContain('Serveur.televerser(photo, "api/photos", source = Sources.boutique, corpsBrut = true, progression = { envoi = it })?.let { adresse = it }');
+    expect(f.get(`${CODE}/Serveur.kt`)).toContain('connexion.setFixedLengthStreamingMode(total)');
+    // Depuis l'émulateur, « localhost » d'une source est l'ordinateur.
+    expect(f.get(`${CODE}/Sources.kt`)).toContain('adresse = "http://10.0.2.2:3000"');
+  });
+
+  it('le CSV s\'écrit sur l\'appareil puis se partage', () => {
+    expect(c).toContain('telechargerCsv(commandes, "commandes.csv")');
+    expect(f.get('app/src/main/AndroidManifest.xml')).toContain('androidx.core.content.FileProvider');
+    expect(f.get('app/src/main/res/xml/chemins_fichiers.xml')).toContain('<cache-path name="humalis" path="humalis/" />');
+  });
+});
+
 describe('cible Android — noms et icônes', () => {
   it('les noms Humalis deviennent des identifiants Kotlin sûrs', () => {
     expect(nomKotlin('nombre_articles')).toBe('nombreArticles');

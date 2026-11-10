@@ -106,13 +106,13 @@ ${avec.appareil ? `    implementation("androidx.biometric:biometric:${VERSIONS.b
 `;
 }
 
-export function manifeste(reseau: boolean, liens?: { schema: string; domaine?: string }, besoins: { photo?: boolean; position?: boolean; vibration?: boolean } = {}): string {
+export function manifeste(reseau: boolean, liens?: { schema: string; domaine?: string }, besoins: { photo?: boolean; position?: boolean; vibration?: boolean; fichiers?: boolean } = {}): string {
   const permissions = [
     ...(reseau ? ['android.permission.INTERNET'] : []),
     ...(besoins.vibration ? ['android.permission.VIBRATE'] : []),
     ...(besoins.position ? ['android.permission.ACCESS_COARSE_LOCATION', 'android.permission.ACCESS_FINE_LOCATION'] : []),
   ];
-  const fournisseur = besoins.photo
+  const fournisseur = besoins.fichiers
     ? `
         <provider
             android:name="androidx.core.content.FileProvider"
