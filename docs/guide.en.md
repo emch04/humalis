@@ -2741,6 +2741,13 @@ With an `adresse`, the web target writes the sitemap (`sitemap.xml`) and
 Humalis warns when a title or description is too long or too short for search
 engines.
 
+On the desktop, the same `adresse` is used for automatic updates: the installed
+application looks for a new version in the `mises-a-jour/` folder of that
+address. `npm run paquet` prepares everything (the `.dmg` installer for Mac, the
+`.exe` for Windows, and the `latest*.yml` files): you put these files in that
+folder. Without an `adresse`, the application does not look for updates. On a
+Mac, automatic updates need a signed application.
+
 The line `erreurs pendant 5 secondes` in the `site :` block sets how long the
 site's errors stay on screen: the ones you write without a duration and the ones
 Humalis shows by itself, such as a failed read. It ranges from 1 to 60 seconds;
