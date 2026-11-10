@@ -40,6 +40,7 @@
     "essai:moteur-comptes": "node scripts/essai-moteur-comptes.mjs",
     "essai:donnees": "node scripts/essai-donnees-comptes.mjs",
     "essai:donnees-bureau": "node scripts/essai-donnees-bureau.mjs",
+    "essai:donnees-apple": "node scripts/essai-apple-donnees.mjs",
     "essai:moteur-direct": "node scripts/essai-moteur-direct.mjs",
     "essai:endurance": "node scripts/essai-endurance.mjs",
     "essai:moteur-roles": "node scripts/essai-moteur-roles.mjs",

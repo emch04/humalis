@@ -137,3 +137,6 @@ ECRITES.web = new Set<Forme>(['donneeLocale', 'cleAcces', 'doubleAuthentificatio
 // Le bureau sert ses pages depuis humalis://application, une origine que WebAuthn refuse : les clés d'accès y restent refusées.
 ECRITES.desktop.add('donneeLocale');
 ECRITES.desktop.add('doubleAuthentification');
+
+// Apple (SQLite, CryptoKit, Keychain, ASAuthorization) : src/cibles/apple/donnees-comptes.ts.
+for (const forme of ['donneeLocale', 'cleAcces', 'doubleAuthentification'] as const) ECRITES.apple.add(forme);
