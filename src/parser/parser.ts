@@ -13,7 +13,7 @@ import { ErreurSyntaxique } from './erreurs.js';
 import { estUnTest, analyserTest } from './test.js';
 import { normaliser } from '../lexer/motsCles.js';
 import { langueDuStyle, PLATEFORMES_DU_STYLE } from '../cibles/commun/styles-natifs.js';
-import { analyserForme, estUneForme, formesVides } from './formes.js';
+import { analyserForme, estUneForme, formesVides, variableDeDonneeLocale } from './formes.js';
 import { entreePrevue } from '../vocabulaire/recherche.js';
 import { langueDuMot } from '../i18n/langues.js';
 import { estMot } from './miseEnPage.js';
@@ -472,6 +472,7 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
   // Les styles écrits en Humalis deviennent des classes CSS, après le CSS écrit à la main.
   for (const s of stylesHumalis) styles.push({ type: 'BlocStyle', css: cssDuStyle(s, theme), ligne: s.ligne });
   const stylesDeclares = stylesHumalis.map((s) => ({ nom: s.nom, declarations: declarationsDuStyle(s, theme) }));
+  for (const d of formes?.donneesLocales ?? []) partages.push(variableDeDonneeLocale(d));
   const programme: Programme = { type: 'Programme', ...(stylesDeclares.length ? { stylesHumalis: stylesDeclares } : {}), pages, ...(fichiersIcones.length ? { fichiersIcones } : {}), ...(barreDessinee ? { barreDessinee } : {}), ...(ongletsApplication ? { ongletsApplication } : {}), ...(barreLaterale ? { barreLaterale } : {}), ...(paquetsSwift ? { paquetsSwift } : {}), ...(formes ? { formes } : {}), ...(paquetsAndroid ? { paquetsAndroid } : {}), ...(paquetsWindows ? { paquetsWindows } : {}), ...(liensProfonds ? { liensProfonds } : {}), ...(enTete.length > 0 ? { calculsPartages: enTete } : {}), styles, fichiersStyle, donneesFichiers, partages, composantsReact, composants, serveurs, sources, fichiersHumalis, fonctions, tests, ...(theme ? { theme } : {}), ...(site ? { site } : {}), ...(langues ? { langues } : {}), ...(traductions.length ? { traductions } : {}), ...(entete ? { entete } : {}), ...(pied ? { pied } : {}) };
   // Les appels de fonctions d'actions sont remplacés par leur corps (src/parser/fonctionsActions.ts).
   const actions = deplierFonctionsActions(programme);
@@ -583,6 +584,8 @@ function analyserServeur(flux: FluxTokens): Serveur {
   const routes: Route[] = [];
   let connexionGoogle: number | undefined;
   let connexionApple: number | undefined;
+  let connexionCleAcces: number | undefined;
+  let doubleAuthentification: number | undefined;
   let roles: string[] | undefined;
   let emails: Serveur['emails'];
   let invitations: Serveur['invitations'];
@@ -652,12 +655,21 @@ function analyserServeur(flux: FluxTokens): Serveur {
       donnees.push(analyserDonnee(flux));
     } else if (estLeMot(token, 'route')) {
       routes.push(analyserRoute(flux, roles !== undefined));
+    } else if (estLeMot(token, 'double') && estLeMot(flux.regarder(1), 'authentification')) {
+      // « double authentification » : un code à six chiffres après le mot de passe.
+      flux.avancer();
+      flux.avancer();
+      doubleAuthentification = token.ligne;
+    } else if (estLeMot(token, 'connexion') && estLeMot(flux.regarder(1), 'par') && estLeMot(flux.regarder(2), 'cle') && estLeMot(flux.regarder(3), 'acces')) {
+      // « connexion par cle d'acces » : sans mot de passe.
+      flux.avancer(); flux.avancer(); flux.avancer(); flux.avancer();
+      connexionCleAcces = token.ligne;
     } else if (estLeMot(token, 'connexion')) {
       // « connexion google », « connexion apple » : les portes en plus de l'email et du mot de passe.
       flux.avancer();
       const fournisseur = flux.actuel();
       if (motDe(fournisseur) !== 'google' && motDe(fournisseur) !== 'apple') {
-        throw new ErreurSyntaxique(`après « connexion », écrivez le fournisseur : connexion google ou connexion apple`, token.ligne);
+        throw new ErreurSyntaxique(`après « connexion », écrivez le fournisseur : connexion google, connexion apple ou connexion par cle d'acces`, token.ligne);
       }
       flux.avancer();
       if (motDe(fournisseur) === 'apple') connexionApple = token.ligne;
@@ -727,6 +739,8 @@ function analyserServeur(flux: FluxTokens): Serveur {
     ...(departs.length ? { departs } : {}),
     ...(connexionGoogle !== undefined ? { connexionGoogle } : {}),
     ...(connexionApple !== undefined ? { connexionApple } : {}),
+    ...(connexionCleAcces !== undefined ? { connexionCleAcces } : {}),
+    ...(doubleAuthentification !== undefined ? { doubleAuthentification } : {}),
     ...(roles?.length ? { roles } : {}),
     ...(taches.length ? { taches } : {}),
     ...(documents.length ? { documents } : {}),
@@ -1652,6 +1666,23 @@ export function analyserInstruction(flux: FluxTokens): Instruction {
 
   // « se connecter avec … », « se deconnecter » : « se » est un petit mot
   // déjà sauté, comme dans « la page se charge ».
+  // « se connecter par cle d'acces » : sans mot de passe.
+  if (estLeMot(flux.actuel(), 'connecter') && estLeMot(flux.regarder(1), 'par') && estLeMot(flux.regarder(2), 'cle') && estLeMot(flux.regarder(3), 'acces')) {
+    const debut = flux.avancer();
+    flux.avancer(); flux.avancer(); flux.avancer();
+    return { type: 'ConnexionCleAcces', ligne: debut.ligne };
+  }
+  // « ajouter cle d'acces », « activer double authentification » : sur le compte de la personne connectée.
+  if (estLeMot(flux.actuel(), 'ajouter') && estLeMot(flux.regarder(1), 'cle') && estLeMot(flux.regarder(2), 'acces') && flux.regarder(3).type === 'FIN_LIGNE') {
+    const debut = flux.avancer();
+    flux.avancer(); flux.avancer();
+    return { type: 'AjoutCleAcces', ligne: debut.ligne };
+  }
+  if (estLeMot(flux.actuel(), 'activer') && estLeMot(flux.regarder(1), 'double') && estLeMot(flux.regarder(2), 'authentification')) {
+    const debut = flux.avancer();
+    flux.avancer(); flux.avancer();
+    return { type: 'ActivationDoubleAuthentification', ligne: debut.ligne };
+  }
   if (estLeMot(flux.actuel(), 'connecter')) {
     return analyserConnexion(flux);
   }

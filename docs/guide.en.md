@@ -3664,6 +3664,69 @@ running goes to the window already open; its actions run, then the app goes back
 were on (unless they change page). Opening files and the right-click menu need the Humalis engine
 (the default).
 
+### Data on the device
+
+Local data lives in a real database on the device (SQLite in apps, IndexedDB in the browser):
+it stays there without a network and after a restart. In pages, it reads and changes like a list.
+
+```humalis
+serveur "boutique" :
+    donnee note :
+        titre : texte
+        lu : booleen
+    route "notes" :
+        connecte peut lire note
+        connecte peut creer note
+        connecte peut modifier note
+        connecte peut supprimer note
+
+donnee locale notes avec chiffree :
+    titre : texte
+    lu : booleen
+    synchronisee avec "notes"
+
+page "accueil" :
+    titre "Notes"
+    pour chaque n dans notes :
+        texte n.titre
+    bouton "Ajouter"
+    quand l'utilisateur clique sur "Ajouter" :
+        ajouter fiche avec titre "New" et lu faux a notes
+```
+
+`avec chiffree` encrypts the database, with a key kept in the device's vault.
+`synchronisee avec "notes"` links it to a server route: changes made offline leave when the
+network returns, deletions follow, and on a conflict the most recent change wins. Each record's
+identifier is managed by the database.
+
+### Passwordless sign-in and the six-digit code
+
+In the server, two lines open these doors on top of email and password:
+
+```humalis
+serveur "boutique" :
+    connexion par cle d'acces
+    double authentification
+    donnee note :
+        titre : texte
+    route "notes" :
+        connecte peut lire note
+        connecte peut creer note
+        connecte peut modifier note
+        connecte peut supprimer note
+
+page "compte" :
+    titre "Compte"
+    bouton "Ajouter une clé"
+    quand l'utilisateur clique sur "Ajouter une clé" :
+        ajouter cle d'acces
+```
+
+In pages, `se connecter par cle d'acces` opens sign-in with Face ID, Touch ID or Windows
+Hello; `ajouter cle d'acces` adds a key to the signed-in account; `activer double authentification`
+shows the QR code to scan in an authenticator app. The six-digit code is then asked for
+automatically after the password.
+
 ### Several files
 
 A large project is split into several files. At the top of the main file:

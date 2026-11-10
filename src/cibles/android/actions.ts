@@ -325,6 +325,9 @@ export class EcrivainActions {
       case 'dire':
         e.ligne(`Voix.dire(${this.v.t(a.texte)})`);
         return;
+      // Les clés d'accès et la double authentification : refusées avant (verifierFormesPourLaCible) tant que cette cible ne les écrit pas.
+      case 'compteSecurise':
+        return;
       default: {
         // Une action ajoutée au langage doit être traitée ici : sinon le compilateur TypeScript s'arrête.
         const oubliee: never = a;

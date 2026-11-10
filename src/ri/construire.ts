@@ -166,6 +166,7 @@ function formesRI(formes: NonNullable<Programme['formes']>, analyse: ResultatAna
     ...(formes.partageRecu ? { partageRecu: { ecran: ecran(formes.partageRecu), ligne: formes.partageRecu.ligne } } : {}),
     fichiersOuverts: formes.fichiersOuverts.map((f) => ({ extensions: f.extensions, ecran: ecran(f), ligne: f.ligne })),
     boutonsNotification: formes.boutonsNotification.map((b) => ({ bouton: b.bouton, ecran: ecran(b), ligne: b.ligne })),
+    donneesLocales: formes.donneesLocales,
   };
 }
 
@@ -306,6 +307,8 @@ function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
     ...(serveur.motDePasseOublie ? { motDePasseOublie: serveur.motDePasseOublie.page } : {}),
     ...(serveur.connexionGoogle !== undefined ? { connexionGoogle: true } : {}),
     ...(serveur.connexionApple !== undefined ? { connexionApple: true } : {}),
+    ...(serveur.connexionCleAcces !== undefined ? { connexionCleAcces: true } : {}),
+    ...(serveur.doubleAuthentification !== undefined ? { doubleAuthentification: true } : {}),
     ...(serveur.roles?.length ? { roles: serveur.roles } : {}),
     ...(analyse.changeDeRole ? { changeDeRole: true } : {}),
     ...(analyse.changeDeCompte ? { changeDeCompte: true } : {}),
@@ -351,6 +354,11 @@ function etatDe(declaration: DeclarationVariable, analyse: ResultatAnalyse): Eta
   if (declaration.options?.secret) etat.secret = true;
   if (analyse.facultatives.has(declaration)) etat.facultatif = true;
   if (declaration.fichierDonnees) etat.lectureSeule = true;
+  if (declaration.options?.locale) {
+    etat.locale = declaration.options.locale;
+    // L'exemple ne servait qu'à donner son type à l'analyse : la liste est lue dans la base de l'appareil.
+    if (etat.initiale.type === 'liste') etat.initiale = { ...etat.initiale, elements: [] };
+  }
   return etat;
 }
 
@@ -773,6 +781,16 @@ class Construction {
 
         case 'ConnexionApple':
           actions.push({ type: 'connexionApple' });
+          break;
+
+        case 'ConnexionCleAcces':
+          actions.push({ type: 'compteSecurise', quoi: 'connexionCle' });
+          break;
+        case 'AjoutCleAcces':
+          actions.push({ type: 'compteSecurise', quoi: 'ajoutCle' });
+          break;
+        case 'ActivationDoubleAuthentification':
+          actions.push({ type: 'compteSecurise', quoi: 'doubleAuthentification' });
           break;
 
         case 'TelechargementCsv':

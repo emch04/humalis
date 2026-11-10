@@ -7,8 +7,10 @@
  */
 import { ErreurSyntaxique } from './erreurs.js';
 import type { FluxTokens } from './fluxTokens.js';
-import type { Formes, Instruction } from './ast.js';
-import { analyserBloc, analyserInstruction, chaqueLigne, estLeMot } from './parser.js';
+import type { DeclarationVariable, Formes, Instruction, TypeChamp } from './ast.js';
+import { analyserBloc, analyserExpression, analyserInstruction, analyserTypeChamp, chaqueLigne, estLeMot } from './parser.js';
+import { FluxTokens as Flux } from './fluxTokens.js';
+import { analyser } from '../lexer/lexer.js';
 import { estMot } from './miseEnPage.js';
 
 export const formesVides = (): Formes => ({
@@ -24,6 +26,7 @@ export const formesVides = (): Formes => ({
   claviers: [],
   fichiersOuverts: [],
   boutonsNotification: [],
+  donneesLocales: [],
 });
 
 const chaine = (flux: FluxTokens, attendu: string) => flux.attendre('CHAINE', undefined, attendu).valeur;
@@ -102,6 +105,7 @@ function corpsDeWidget(flux: FluxTokens): { corps: Instruction[]; actualiser?: {
 export function estUneForme(flux: FluxTokens): boolean {
   const [a, b, c] = [flux.actuel(), flux.regarder(1), flux.regarder(2)];
   return (
+    (estLeMot(a, 'donnee') && estLeMot(b, 'locale')) ||
     (estLeMot(a, 'widget') && b.type === 'CHAINE') ||
     (estLeMot(a, 'activite') && estLeMot(b, 'en') && estLeMot(c, 'direct')) ||
     (estLeMot(a, 'raccourcis') && estLeMot(b, 'icone')) ||
@@ -122,6 +126,36 @@ export function estUneForme(flux: FluxTokens): boolean {
 export function analyserForme(flux: FluxTokens, formes: Formes): void {
   const debut = flux.actuel();
   const ligne = debut.ligne;
+
+  if (estLeMot(debut, 'donnee')) {
+    flux.avancer();
+    flux.avancer();
+    const nomDonnee = flux.attendreNom('le nom de la liste : donnee locale notes :').nom;
+    let chiffree = false;
+    if (estLeMot(flux.actuel(), 'avec') && estLeMot(flux.regarder(1), 'chiffree')) {
+      flux.avancer();
+      flux.avancer();
+      chiffree = true;
+    }
+    deuxPoints(flux, `donnee locale ${nomDonnee}`);
+    const champs: { nom: string; type: TypeChamp }[] = [];
+    let synchronisee: string | undefined;
+    chaqueLigne(flux, () => {
+      if (estLeMot(flux.actuel(), 'synchronisee')) {
+        flux.avancer();
+        flux.attendre('MOT_CLE', 'avec', '« avec » et la route du serveur : synchronisee avec "notes"');
+        synchronisee = chaine(flux, 'la route du serveur entre guillemets : synchronisee avec "notes"');
+        return;
+      }
+      const champ = flux.attendreNom('le nom du champ');
+      flux.attendre('PONCTUATION', ':', 'deux-points entre le nom du champ et son type');
+      const type = analyserTypeChamp(flux, false);
+      champs.push({ nom: champ.nom, type });
+    });
+    if (champs.length === 0) throw new ErreurSyntaxique('une donnée locale a au moins un champ : écrivez dessous, décalé, titre : texte', ligne);
+    formes.donneesLocales.push({ nom: nomDonnee, chiffree, champs, ...(synchronisee !== undefined ? { synchronisee } : {}), ligne });
+    return;
+  }
 
   if (estLeMot(debut, 'widget')) {
     flux.avancer();
@@ -319,4 +353,21 @@ export function analyserForme(flux: FluxTokens, formes: Formes): void {
   flux.avancer();
   deuxPoints(flux, `quand l’utilisateur touche "${bouton}" dans une notification`);
   formes.boutonsNotification.push({ bouton, corps: analyserBloc(flux), ligne });
+}
+
+/** La valeur vide d'un champ, pour que l'analyse connaisse le type des fiches de la liste. */
+function exempleDe(type: TypeChamp): string {
+  return type.genre === 'nombre' ? '0' : type.genre === 'booleen' ? 'faux' : type.genre === 'liste' ? '[]' : '""';
+}
+
+/**
+ * Une donnée locale se lit dans les pages comme une liste partagée (« pour chaque n dans notes »,
+ * « ajouter … a notes »). L'exemple donne son type à l'analyse ; la liste part vide, lue dans la base de l'appareil.
+ */
+export function variableDeDonneeLocale(d: Formes['donneesLocales'][number]): DeclarationVariable {
+  // L'identifiant d'une fiche est interne : la base le gère, pour la synchronisation.
+  const champs = d.champs.map((c) => `${c.nom} ${exempleDe(c.type)}`).join(' et ');
+  const flux = new Flux(analyser(`[fiche avec ${champs}]\n`));
+  const { nom, ligne, ...locale } = d;
+  return { type: 'Variable', nom, valeur: analyserExpression(flux), options: { partagee: true, locale }, ligne };
 }

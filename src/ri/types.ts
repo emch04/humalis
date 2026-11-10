@@ -1,3 +1,4 @@
+import type { DonneeLocaleOptions } from '../parser/ast.js';
 import type { IconeDessinee } from '../icones-svg.js';
 /**
  * La représentation intermédiaire (RI) : un arbre neutre, sans aucun mot
@@ -271,6 +272,10 @@ export interface ServeurRI {
   connexionGoogle?: boolean;
   /** « connexion apple » dans le serveur. */
   connexionApple?: boolean;
+  /** « connexion par cle d'acces ». */
+  connexionCleAcces?: boolean;
+  /** « double authentification ». */
+  doubleAuthentification?: boolean;
   /** « roles directeur, enseignant et parent ». */
   roles?: string[];
   /** « paiements par stripe ». */
@@ -390,6 +395,8 @@ export interface Etat {
   facultatif?: boolean;
   /** Les données d'un fichier (« utiliser donnees … depuis ») : en lecture seule, jamais gardées dans le navigateur. */
   lectureSeule?: boolean;
+  /** « donnee locale notes : » : la liste vit dans la base de l'appareil, partie vide au démarrage. */
+  locale?: DonneeLocaleOptions;
   ligne: number;
 }
 
@@ -827,6 +834,8 @@ export type Action =
   | { type: 'connexionGoogle' }
   /** « se connecter avec apple ». */
   | { type: 'connexionApple' }
+  /** « se connecter par cle d'acces », « ajouter cle d'acces », « activer double authentification ». */
+  | { type: 'compteSecurise'; quoi: 'connexionCle' | 'ajoutCle' | 'doubleAuthentification' }
   /** « changer le mot de passe avec … et … » : celui du compte connecté, vérifié par le serveur. */
   | { type: 'changementMotDePasse'; actuel: Valeur; nouveau: Valeur }
   /** « inviter champ "Adresse" comme admin » : un lien par e-mail. */
@@ -1003,4 +1012,6 @@ export interface FormesRI {
   partageRecu?: { ecran: Ecran; ligne: number };
   fichiersOuverts: { extensions: string[]; ecran: Ecran; ligne: number }[];
   boutonsNotification: { bouton: string; ecran: Ecran; ligne: number }[];
+  /** « donnee locale notes avec chiffree : » : une vraie base sur l'appareil (SQLite, IndexedDB). */
+  donneesLocales: (DonneeLocaleOptions & { nom: string; ligne: number })[];
 }

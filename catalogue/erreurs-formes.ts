@@ -15,6 +15,8 @@ const avec = (...lignes: string[]) => [...lignes, PAGE].join('\n');
 const LISTE = 'variable produits = [fiche avec nom "Livre"] avec partagee';
 /** Un serveur dont une action envoie une notification ; `fin` termine la ligne « envoyer notification ». */
 const NOTIFIE = (fin: string) => ['serveur "boutique" :', '    roles gerant', '    donnee commande :', '        total : nombre', '    route "commandes" :', '        seul gerant peut lire commande', '        seul gerant peut modifier commande', '        seul gerant peut faire "valider" sur commande :', `            envoyer notification aux gerant avec titre "Nouvelle" et texte "Commande"${fin}`, '', PAGE].join('\n');
+/** Un serveur (avec ses lignes en plus) et une page qui fait `action` au clic. */
+const COMPTES = (lignes: string, action: string) => `serveur "boutique" :\n${lignes}    donnee note :\n        titre : texte\n    route "notes" :\n        connecte peut lire note\n        connecte peut creer note\n        connecte peut modifier note\n        connecte peut supprimer note\n\n${CLIC(action)}`;
 const CLIC = (ligne: string) => `${PAGE}\n    bouton "Go"\n    quand l'utilisateur clique sur "Go" :\n        ${ligne}`;
 
 export const ENTREES_ERREURS_FORMES: EntreeErreur[] = [
@@ -200,4 +202,30 @@ export const ENTREES_ERREURS_FORMES: EntreeErreur[] = [
     NOTIFIE(' et boutons "A" et "B" et "C" et "D"'),
     NOTIFIE(' et boutons "A" et "B"'),
     'une notification a au plus trois boutons'),
+  // --- Les données sur l'appareil ---
+  e('donnee-locale-vide', 'grammaire', 'Une donnée locale sans champ',
+    'Une donnée locale a au moins un champ : c’est ce qu’elle garde.',
+    'Écris dessous, décalé, un champ : titre : texte.',
+    avec('donnee locale notes :'),
+    avec('donnee locale notes :', '    titre : texte'),
+    'une donnée locale a au moins un champ'),
+  e('donnee-locale-route', 'sens', 'Une synchronisation vers une route inconnue',
+    'Une donnée locale se synchronise avec une route du serveur, qui doit exister.',
+    'Vérifie le nom de la route, ou retire « synchronisee ».',
+    avec('donnee locale notes :', '    titre : texte', '    synchronisee avec "notes"'),
+    avec('donnee locale notes :', '    titre : texte'),
+    'n\'existe pas dans le serveur : une donnée locale se synchronise'),
+  // --- Les clés d'accès et la double authentification ---
+  e('cle-acces-sans-serveur', 'sens', 'Une clé d’accès que le serveur n’ouvre pas',
+    'La connexion sans mot de passe passe par le serveur : il doit l’ouvrir.',
+    'Ajoute la ligne « connexion par cle d’acces » dans le serveur.',
+    COMPTES('', 'se connecter par cle d\'acces'),
+    COMPTES('    connexion par cle d\'acces\n', 'se connecter par cle d\'acces'),
+    'demande la ligne « connexion par cle d\'acces »'),
+  e('cle-acces-hors-evenement', 'sens', 'Une clé d’accès hors d’un événement',
+    'La connexion par clé d’accès demande un geste de la personne : un clic.',
+    'Place la ligne dans un « quand … ».',
+    `serveur "boutique" :\n    connexion par cle d'acces\n    donnee note :\n        titre : texte\n    route "notes" :\n        connecte peut lire note\n        connecte peut creer note\n        connecte peut modifier note\n        connecte peut supprimer note\n\n${PAGE}\n    se connecter par cle d'acces`,
+    COMPTES('    connexion par cle d\'acces\n', 'se connecter par cle d\'acces'),
+    '« se connecter par cle d\'acces » ne s\'utilise que dans un événement'),
 ];

@@ -1,4 +1,5 @@
 import { analyser } from './lexer/lexer.js';
+import { formesVides } from './parser/formes.js';
 import { langueDuStyle, nomsDesStylesNatifs } from './cibles/commun/styles-natifs.js';
 import { ErreurLexicale } from './lexer/types.js';
 import { analyserSyntaxe } from './parser/parser.js';
@@ -318,6 +319,13 @@ function reunir(programmes: Programme[], fichiers: string[], diagnostics: Diagno
     tout.paquetsSwift!.push(...(p.paquetsSwift ?? []));
     tout.paquetsAndroid!.push(...(p.paquetsAndroid ?? []));
     tout.paquetsWindows!.push(...(p.paquetsWindows ?? []));
+    // Les formes d'application d'un fichier utilisé rejoignent celles du programme.
+    if (p.formes) {
+      const f = (tout.formes ??= formesVides());
+      for (const cle of ['widgets', 'activites', 'raccourcisIcone', 'commandesVocales', 'recherches', 'tuiles', 'minis', 'voitures', 'menusClicDroit', 'claviers', 'fichiersOuverts', 'boutonsNotification', 'donneesLocales'] as const) (f[cle] as unknown[]).push(...p.formes[cle]);
+      f.demarrage ??= p.formes.demarrage;
+      f.partageRecu ??= p.formes.partageRecu;
+    }
     tout.liensProfonds ??= p.liensProfonds;
     tout.ongletsApplication ??= p.ongletsApplication;
     tout.barreLaterale ??= p.barreLaterale;
