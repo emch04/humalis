@@ -2,6 +2,7 @@ import { avecComptes, avecEmails, CLES_BREVO, codeCreationComptes, codeEnvois, c
 import { codeFicheVisible, codePortee, compteRelu, conditionsDe, constantesSeparation, estSeparee, SEPARATION, testsSeparee } from './separation.js';
 import { avecIa, ENV_IA, IA, routeIa } from './ia.js';
 import { ENVOIS } from './envois.js';
+import { MOTIF_SQL_DU_PACK, MOTIFS_SQL_CODE } from './pare-feu.js';
 import { codeResumes, avecPaiements, codePaiements, codeSurPaiement, PAIEMENTS, avecLogique, avecNotifications, codeActions, codeDocuments, codeNotificationsCreation, codeTaches, DOCUMENT, employe, LOGIQUE, NOTIFICATIONS, ROUTES_APPAREILS } from './logique.js';
 import { champsDuServeur, codeCompleter, codeCreation, noms as nomsVerifier, reglesEnvoi } from './regles.js';
 import { ligneLocale } from '../../fichiers.js';
@@ -1336,6 +1337,12 @@ class MotifDuPareFeu extends RegExp {
   }
 }
 
+/**
+ * Les motifs SQL, plus étroits que celui du pack : « Please select a size from the list » passe,
+ * « ' UNION SELECT … », « '; DROP TABLE … » et « 1 UNION SELECT … » restent refusés (src/cibles/serveur/pare-feu.ts du compilateur).
+ */
+const MOTIFS_SQL: RegExp[] = ${MOTIFS_SQL_CODE};
+
 /** Une erreur ou un « introuvable » ne se garde pas, même sur une route publique. */
 const sansCache = (res: Response) => res.set('Cache-Control', 'no-store');
 
@@ -1357,8 +1364,9 @@ ${comptes ? codeCreationComptes(serveur, chemins).replace('usersStore,', 'usersS
 ` : ''}  const serveur = createSaasApp({
     jwtSecret,
     // Le pare-feu du pack, sans son motif des commentaires SQL : le stockage passe par des requêtes paramétrées,
-    // et « avenue #12 » ou « appeler -- après 18h » sont de vrais textes. Les autres motifs restent.
-    waf: { patterns: WAF_PATTERNS.filter((motif) => !motif.source.includes('--')).map((motif) => new MotifDuPareFeu(motif.source, motif.flags)) },
+    // et « avenue #12 » ou « appeler -- après 18h » sont de vrais textes. Son motif « select … from » est remplacé
+    // par MOTIFS_SQL : une phrase anglaise passe, une injection non. Les autres motifs restent.
+    waf: { patterns: [...WAF_PATTERNS.filter((motif) => !motif.source.includes('--') && !motif.source.includes('${MOTIF_SQL_DU_PACK}')), ...MOTIFS_SQL].map((motif) => new MotifDuPareFeu(motif.source, motif.flags)) },
     // Les limites par adresse : un établissement entier peut sortir par une seule adresse.
     ...(process.env.HUMALIS_LIMITE_API ? { apiRateLimit: { max: Number(process.env.HUMALIS_LIMITE_API) } } : {}),
     ...(process.env.HUMALIS_LIMITE_CONNEXION ? { loginRateLimit: { max: Number(process.env.HUMALIS_LIMITE_CONNEXION) } } : {}),
