@@ -126,12 +126,14 @@ ${avec.appareil ? `    implementation("androidx.biometric:biometric:${VERSIONS.b
 `;
 }
 
-export function manifeste(reseau: boolean, liens?: { schema: string; domaine?: string }, besoins: { photo?: boolean; position?: boolean; vibration?: boolean; fichiers?: boolean; notifications?: boolean } = {}, formes?: { activite: string; application: string; permissions: string[] }): string {
+export function manifeste(reseau: boolean, liens?: { schema: string; domaine?: string }, besoins: { photo?: boolean; position?: boolean; vibration?: boolean; fichiers?: boolean; notifications?: boolean; micro?: boolean; camera?: boolean; ecranCapture?: boolean } = {}, formes?: { activite: string; application: string; permissions: string[] }): string {
   const permissions = [...new Set([
     ...(reseau ? ['android.permission.INTERNET'] : []),
     ...(besoins.vibration ? ['android.permission.VIBRATE'] : []),
     ...(besoins.position ? ['android.permission.ACCESS_COARSE_LOCATION', 'android.permission.ACCESS_FINE_LOCATION'] : []),
     ...(besoins.notifications ? ['android.permission.POST_NOTIFICATIONS'] : []),
+    ...(besoins.micro ? ['android.permission.RECORD_AUDIO'] : []),
+    ...(besoins.camera ? ['android.permission.CAMERA'] : []),
     ...(formes?.permissions ?? []),
   ])];
   const service = besoins.notifications
@@ -176,7 +178,7 @@ export function manifeste(reseau: boolean, liens?: { schema: string; domaine?: s
   return `<?xml version="1.0" encoding="utf-8"?>
 <!-- Produit par Humalis. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-${permissions.map((p) => `    <uses-permission android:name="${p}" />\n`).join('')}${besoins.photo ? '    <uses-feature android:name="android.hardware.camera" android:required="false" />\n' : ''}
+${permissions.map((p) => `    <uses-permission android:name="${p}" />\n`).join('')}${besoins.photo || besoins.camera ? '    <uses-feature android:name="android.hardware.camera" android:required="false" />\n' : ''}${besoins.micro ? '    <uses-feature android:name="android.hardware.microphone" android:required="false" />\n' : ''}
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -193,7 +195,11 @@ ${permissions.map((p) => `    <uses-permission android:name="${p}" />\n`).join('
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>${profonds}${formes?.activite ?? ''}
-        </activity>${fournisseur}${service}${formes?.application ?? ''}
+        </activity>${besoins.ecranCapture ? `
+        <activity
+            android:name=".EcranCaptureHumalis"
+            android:exported="false"
+            android:screenOrientation="locked" />` : ''}${fournisseur}${service}${formes?.application ?? ''}
     </application>
 </manifest>
 `;
