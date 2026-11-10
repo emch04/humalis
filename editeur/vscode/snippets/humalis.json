@@ -73,5 +73,69 @@
       "$0"
     ],
     "description": "Utilise un module JavaScript sans framework, par exemple Three.js"
+  },
+  "Style écrit en Humalis": {
+    "prefix": "style",
+    "body": [
+      "page \"${1:vitrine}\" :",
+      "    titre \"${2:Vitrine}\"",
+      "    bloc avec style \"${3:carte}\" :",
+      "        texte \"${4:Un produit}\"",
+      "",
+      "style \"${3:carte}\" :",
+      "    fond ${5:blanc}",
+      "    bord 1 ${6:gris clair}",
+      "    arrondi ${7:12}",
+      "    espace interieur ${8:16}",
+      "    ombre ${9|douce,forte,aucune|}$0"
+    ],
+    "description": "Une page avec un bloc stylé, et son style écrit en Humalis, une propriété par ligne"
+  },
+  "Bouton désactivé": {
+    "prefix": [
+      "bouton-desactive",
+      "desactive"
+    ],
+    "body": "bouton \"${1:Payer}\" avec desactive si ${2:panier} est vide$0",
+    "description": "Un bouton sur lequel on ne peut pas cliquer tant que la condition est vraie"
+  },
+  "Vidéo": {
+    "prefix": "video",
+    "body": "video \"${1:presentation.mp4}\" avec commandes et description \"${2:Présentation de la boutique}\"$0",
+    "description": "Une vidéo avec ses commandes et sa description (les deux sont obligatoires)"
+  },
+  "Serveur avec données de départ": {
+    "prefix": [
+      "serveur-depart",
+      "donnees de depart"
+    ],
+    "body": [
+      "serveur \"${1:boutique}\" :",
+      "    donnee ${2:produit} :",
+      "        nom : texte",
+      "        prix : nombre",
+      "    route \"${3:produits}\" :",
+      "        tout le monde peut lire ${2:produit}",
+      "    donnees de depart pour ${2:produit} :",
+      "        nom \"${4:Café}\", prix ${5:3}",
+      "        nom \"${6:Thé}\", prix ${7:2}$0"
+    ],
+    "description": "Un serveur qui écrit ses premières fiches au premier démarrage, si la table est vide."
+  },
+  "Seul son auteur peut modifier": {
+    "prefix": [
+      "seul-son-auteur",
+      "auteur"
+    ],
+    "body": [
+      "serveur \"${1:avis}\" :",
+      "    donnee ${2:avis} :",
+      "        texte : texte",
+      "    route \"${3:avis}\" :",
+      "        tout le monde peut lire ${2:avis}",
+      "        connecte peut creer ${2:avis}",
+      "        seul son auteur peut modifier et supprimer ${2:avis}$0"
+    ],
+    "description": "Chacun peut lire, un compte connecté peut écrire, et seul l'auteur d'une fiche peut la modifier ou la supprimer."
   }
 }

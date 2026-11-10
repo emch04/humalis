@@ -212,6 +212,15 @@ page "offer" :
     texte "Price: {accent "free"} forever"
 ```
 
+`{a la ligne}` starts a new line inside a text. `{saut de ligne}` does the
+same.
+
+```humalis
+page "hours" :
+    titre "Opening hours"
+    texte "Monday to Friday: 9 am to 6 pm{a la ligne}Saturday: 10 am to 1 pm"
+```
+
 ### Lists
 
 `liste :` makes bullets; `liste numerotee :` numbers each item. Each instruction in the block becomes one item.
@@ -305,6 +314,32 @@ page "about" :
 A link (`lien`) goes to a page (`vers "about"`) or to a web address
 (`vers "https://example.com"`). A button (`bouton`) triggers an action (see
 [events](#14-events)).
+
+A button can show only an icon: `bouton icone "fermer"`. It then needs a `nom`
+(name). That is what a screen reader reads, and what the event targets.
+
+```humalis
+page "calendar" :
+    variable open = vrai
+    titre "Calendar"
+    bouton icone "fermer" avec nom "Close the calendar"
+    quand l'utilisateur clique sur "Close the calendar" :
+        changer open par faux
+```
+
+`avec desactive` shows a button that cannot be clicked. With `si`, it follows a
+condition: the button becomes clickable again as soon as the condition is false.
+
+```humalis
+page "cart" :
+    variable cart = []
+    titre "Cart"
+    bouton "Pay" avec desactive si cart est vide et fond vert
+    bouton "Pay in three instalments" avec desactive
+```
+
+The condition stops at the next `et`, which starts the next option. A disabled
+button stays visible, paler. `desactive` only applies to a button.
 
 ### Field
 
@@ -413,6 +448,89 @@ page "accueil" :
 On the Apple target, each `.class { … }` rule becomes SwiftUI. What has no equivalent
 (`@media`, hover, compound selectors, free positioning…) is counted at compile time and listed,
 with its reason, in `CSS-SUR-APPLE.md`.
+
+One block can target several platforms: join them with `et`.
+
+```humalis
+page "home" :
+    titre "My calendar"
+    sur site et macos :
+        texte "Drag an appointment to move it."
+    sur ios :
+        texte "Tap an appointment to move it."
+```
+
+### A page drawn for the Mac
+
+`dessinee pour 1440 par 900`, after a page name, gives the size the page was
+drawn for. On Mac, the page then follows its CSS to the point, and grows with the
+window. Elsewhere, nothing changes.
+
+With drawn pages, `barre laterale :` at the top of the file writes the Mac
+sidebar like a page. On the other targets, it takes the header's place when the
+project has none; if there is an `entete`, it steps aside.
+
+```humalis
+utiliser style "./desktop.css"
+
+barre laterale avec style "sidebar" :
+    lien "Dashboard" vers "home"
+    lien "Customers" vers "customers"
+
+page "home" dessinee pour 1440 par 900 :
+    titre "Dashboard"
+
+page "customers" dessinee pour 1440 par 900 :
+    titre "Customers"
+```
+
+`utiliser icones "./icons.svg"`, at the top of the file, adds the project's own
+drawings: each `<symbol id="bell">` in the file becomes an icon, used like the
+others (`icone "bell"`, `bouton "Alerts" avec icone "bell"`).
+
+### A style written in Humalis
+
+`style "card" :` at the top of the file describes a style in French words, one
+property per line. Apply it with `avec style "card"`, on an element or a block.
+
+```humalis
+theme :
+    couleur marque "#4b42d6"
+
+style "card" :
+    fond blanc
+    bord 1 gris clair
+    arrondi 12
+    espace interieur 16
+    ombre douce
+
+style "price" :
+    couleur marque
+    gras
+    taille 20
+
+page "shop" :
+    titre "Shop"
+    bloc avec style "card" :
+        texte "Notebook"
+        texte "€12" avec style "price"
+```
+
+The properties: `fond` (background), `couleur` (text colour), `bord` (border: a
+width, then a colour), `arrondi` (corner radius), `espace interieur` (padding),
+`marge` (margin), `ombre` (shadow: `douce`, `forte` or `aucune` for soft, strong
+or none), `taille` (font size), `gras` (bold), `largeur maximale` (maximum
+width) and `alignement` (`centre`, `gauche` or `droite`).
+
+Sizes are in points. `arrondi`, `espace interieur` and `marge` take one to four
+numbers, as in CSS.
+
+A colour is a name (`bleu`, `gris`…), optionally followed by `clair` (light) or
+`fonce` (dark), a theme colour, or a code in quotes (`"#1f5fbf"`). A theme colour
+also follows dark mode.
+
+The style becomes an ordinary CSS class. So it works on every target, phones
+included.
 
 ### Your own CSS
 
@@ -656,11 +774,27 @@ seconds, `visibles 1` shows one item at a time).
 ### Native components
 
 These phrases describe an intent. Each platform uses its real component, and the web a simple
-equivalent: `onglets de l'application :`, `recherche dans q avec indice "…"`,
-`action en glissant "…" :`, `actualiser en tirant :`, `menu d'options :`,
-`formulaire "x" en reglages :` with `groupe "…" :`, `etat vide "…"`, `avec fond translucide`,
-`table l :` with `colonne "…" avec c.x`, `menu de l'application "…" :`, `page "x" en reglages :`
-and `barre d'outils :`. The application menu has no web equivalent: the compiler refuses it.
+equivalent.
+
+| Phrase | iPhone and iPad | Mac | Web |
+|---|---|---|---|
+| `onglets de l'application :` then `onglet "A" vers "accueil" avec icone "maison"` | tab bar | sidebar | menu |
+| `groupe "Team" :` then its `onglet` lines, indented, inside `onglets de l'application` | flat tabs | flat list | heading in the menu |
+| `onglets de l'application avec barre laterale "MySidebar" :` | no effect | sidebar drawn by the Swift view `MySidebar`, which gets the page as its content | no effect |
+| `recherche dans q avec indice "…"` | native search | native search | field |
+| `action en glissant "Delete" :` inside a `pour chaque` | swipe the row | right-click | button |
+| `actualiser en tirant :` | pull to refresh | button in the toolbar | button |
+| `menu d'options :` then `option "Copy" :` under an element | long press | right-click | drop-down menu |
+| `formulaire "x" en reglages :` then `groupe "Profile" :` | Settings-style form | grouped form | form |
+| `etat vide "Nothing" avec icone "boite" et description "…"` | empty screen | empty screen | block |
+| `avec fond translucide` | glass or material | glass or material | blur |
+| `table l :` then `colonne "Total" avec c.total` | rows | table | rows |
+| `menu de l'application "File" :` then `commande "N" avec raccourci "cmd+n" :` | shortcuts (iPad) | menu bar | refused |
+| `page "x" en reglages :` | page | Settings window | page |
+| `page "x" en pleine fenetre :` | page | page up to the edges | page up to the edges |
+| `barre d'outils :` | top bar | toolbar | row |
+
+The application menu has no web equivalent: the compiler refuses it.
 
 ### Breadcrumb and menu
 
@@ -734,6 +868,22 @@ page "listen" :
 
 A sound never starts on its own. Speech has its `transcription`, for people
 who cannot hear it.
+
+### Video
+
+```humalis
+page "workshop" :
+    titre "The workshop"
+    video "workshop.mp4" avec commandes et description "A tour of the workshop, one minute"
+    video "recipe.mp4" avec commandes et description "The bread recipe" et transcription "Mix the flour and the water." et boucle
+```
+
+A video needs `avec commandes`: it has its play and pause buttons, and never
+starts on its own. Its `description` is required too: it names the player for
+screen readers.
+
+`transcription` adds the text of what is said; `boucle` (loop) restarts the
+video at the end. Accepted formats: `.mp4`, `.webm`, `.mov` and `.m4v`.
 
 ### Motion
 
@@ -916,6 +1066,16 @@ page "text" :
 `majuscules de` (uppercase), `minuscules de` (lowercase), `longueur de`
 (length), `remplacer "a" par "b" dans …` (replace), `contient` (contains).
 
+`initiales de` keeps the first letter of each word: "Head Office" gives "HO".
+
+```humalis
+page "team" :
+    variable department = "Head Office"
+    calcul short = initiales de department
+    titre "The team"
+    texte "{short}: {department}"
+```
+
 ### Money and plurals
 
 Inside a text, `{price en euros}` writes an amount, and `{count item}` agrees
@@ -929,8 +1089,20 @@ page "cart" :
     texte "{count item} for {price en euros}"
 ```
 
-The currencies: `euros`, `dollars` and `FC` (Congolese franc). Amounts are
-written the French way (`1 234,50 €`); the plural adds an "s".
+The currencies: `euros`, `dollars` and `FC` (Congolese franc). Amounts follow
+the page's language (`1 234,50 €` on a French page, `€1,234.50` on an English
+one); the plural follows it too.
+
+`{total en lettres}` writes a number in words: 71 gives "soixante et onze" on a
+French page, "seventy-one" on an English one. `avec majuscule` capitalises the
+first letter.
+
+```humalis
+page "cheque" :
+    variable total = 80
+    titre "Cheque"
+    texte "{total en lettres avec majuscule} euros"
+```
 
 ### Dates
 
@@ -947,10 +1119,25 @@ page "delivery" :
 ```
 
 `maintenant` (now), `aujourd'hui` (today), `plus 3 jours` (plus 3 days),
-`moins 1 semaine` (minus 1 week), `jours entre` (days between). Dates are
-displayed in French ("2 novembre 2026"); `{ordered depuis}` writes "il y a 5
-minutes" (5 minutes ago). You can shift by `jours` (days), `semaines` (weeks)
+`moins 1 semaine` (minus 1 week), `jours entre` (days between). Dates follow
+the page's language ("2 novembre 2026" in French, "2 November 2026" in
+English); `{ordered depuis}` writes "il y a 5 minutes" on a French page,
+"5 minutes ago" on an English one. You can shift by `jours` (days), `semaines` (weeks)
 or `mois` (months).
+
+`{day en date longue}` writes the date with the day of the week: "lundi 9
+novembre" in French, "Monday 9 November" in English. `avec majuscule`
+capitalises the first letter, for the start of a sentence.
+
+```humalis
+page "calendar" :
+    calcul day = aujourd'hui
+    titre "Calendar"
+    texte "{day en date longue avec majuscule}"
+```
+
+`en date longue`, `en lettres`, `avec majuscule` and `initiales de` follow the
+page's language (see [several languages](#28-several-languages)).
 
 ---
 
@@ -1007,6 +1194,27 @@ page "stock" :
 
 `et` (and) comes before `ou` (or), as in mathematics. `n'est pas` means "is
 not".
+
+A calculation can hold the result of a comparison: it is `vrai` (true) or
+`faux` (false), and can then be read in a `si`. `non` (not) gives the opposite
+of a true or false value.
+
+```humalis
+page "shop" :
+    variable open = faux
+    variable role = "manager"
+    calcul is_boss = role est dans ["manager", "director"]
+    calcul closed = non open
+    titre "Shop"
+    si is_boss est vrai :
+        bouton "Open or close"
+    si closed est vrai :
+        texte "Closed for today"
+    quand l'utilisateur clique sur "Open or close" :
+        changer open par non open
+```
+
+Such a calculation is not a number: `is_boss * 2` is refused at compile time.
 
 ---
 
@@ -1228,6 +1436,7 @@ Actions are written inside an event.
 | `montrer "name"`, `cacher "name"` | shows or hides an element |
 | `changer x par …` | changes a variable |
 | `changer x par champ "Label"` | reads a field's current value into a variable |
+| `vider champ "Label"` | empties the field, after sending it for example |
 | `changer texte de "name" par "…"` | changes an element's text |
 | `ajouter … à list`, `retirer … de list` | changes a list |
 | `ajouter champ "Label" à list` | adds a field's current value to a list |
@@ -1734,6 +1943,70 @@ serveur "commerce" :
 Each side is a field of the record, a field of `utilisateur` (`id`, `email`, `role`, a group)
 or a value. Write `est` or `est dans`.
 
+#### Only the author of a record
+
+`seul son auteur peut …` (only its author can) lets each person act on what they
+created, and nothing else:
+
+```humalis
+serveur "notebook" :
+    donnee note :
+        texte : texte
+    route "notes" :
+        connecte peut lire note
+        connecte peut creer note
+        seul son auteur peut modifier et supprimer note
+```
+
+The server fills in each record's `auteur` (author) field itself, with the
+account that creates it. Nobody can choose it when sending, or change it later.
+
+This rule already says which records it covers: it takes no `si`.
+
+#### Records on first start
+
+`donnees de depart pour …` (starting data for) writes records the first time the
+server starts, one per line. Each field is written with its value, separated
+from the next by a comma.
+
+```humalis
+serveur "school" :
+    donnee subject :
+        name : texte
+        weight : nombre
+        optional : booleen au depart faux
+    route "subjects" :
+        tout le monde peut lire subject
+        seul admin peut modifier subject
+    donnees de depart pour subject :
+        name "Mathematics", weight 4
+        name "History", weight 3
+        name "Music", weight 1, optional vrai
+```
+
+The records are only written if the table is empty: a restart adds nothing.
+Every field required on creation needs a value of the right type; a field with
+`au depart` can be left out.
+
+#### A field that changes its name
+
+An application evolves: a field can be renamed, another can be added.
+`(avant "tel")` (formerly), after the type, gives the field's old name.
+
+```humalis
+serveur "notebook" :
+    donnee contact :
+        name : texte
+        phone : texte (avant "tel")
+        favourite : booleen au depart faux
+    route "contacts" :
+        connecte peut lire contact
+        connecte peut creer contact
+```
+
+On start, records already written keep their value under the new name. A field
+added with `au depart` also gives its value to the older records.
+
 #### Fields on accounts, and the team
 
 ```humalis
@@ -1762,6 +2035,37 @@ page "bienvenue" :
 and `changer compte de c avec telephone = champ "Tél"` changes it later. Only declared fields are
 accepted. A manager only sees and touches accounts in their own group, never an admin.
 `utilisateur.telephone` can be read in a rule with `si`.
+
+#### Reading your own account
+
+`connecte peut lire son compte` gives the logged-in person their own fields, never
+anyone else's. The answer is a list with a single record:
+
+```humalis
+serveur "team" :
+    compte :
+        name : texte
+        posts : liste de texte
+    route "me" :
+        connecte peut lire son compte
+
+page "home" reservee a connecte sinon vers "login" :
+    variable profile = []
+    calcul me = premier de profile
+    quand la page se charge :
+        envoyer requete vers "me" dans profile
+    titre "Hello {me.name}"
+    si me.posts contient "management" :
+        lien "Team" vers "team"
+
+page "team" :
+    titre "Team"
+
+page "login" :
+    titre "Log in"
+```
+
+A condition in the page protects nothing: the route's rule is what protects.
 
 #### Changing an account's role
 
@@ -2567,6 +2871,48 @@ page "product_page" avec parametre id :
   remplacement` for a PUT) and `supprimer` (delete). A secret token is never
   written in the file: Humalis refuses it.
 
+### An API that needs a secret key
+
+A secret key must never reach the browser. You only write the name of the
+environment variable that holds it:
+
+```humalis
+serveur "calendar" :
+    donnee reminder :
+        texte : texte
+    route "reminders" :
+        connecte peut lire reminder
+
+source "weather" :
+    adresse "https://api.weather.example"
+    jeton secret depuis l'environnement "WEATHER_KEY" dans le parametre "key"
+    donnee forecast :
+        day : texte
+        temperature : nombre
+    route "forecasts" :
+        tout le monde peut lire une liste de forecast dans "days"
+
+page "home" :
+    variable forecasts = []
+    titre "This week's weather"
+    quand la page se charge :
+        envoyer requete vers "forecasts" de la source "weather" dans forecasts
+    pour chaque f dans forecasts :
+        texte "{f.day}: {f.temperature} °C"
+```
+
+The pages then go through the Humalis server's gateway
+(`/api/passerelle/weather`). The server checks who is calling, adds the key, then
+calls the API.
+
+- The project needs a `serveur` block: it makes the call.
+- Each route of the source says who can call it: `tout le monde peut …`,
+  `connecte peut …` or `seul admin peut …`. An action without a rule is refused.
+- The key travels in the `Authorization` header by default. `dans le parametre
+  "key"` puts it in the address; `dans l'entete "X-Key"` in another header.
+- The value goes in the server's `.env` file. Its name is added to
+  `.env.exemple`.
+
 ---
 
 ## 24. Data from a file
@@ -2705,6 +3051,51 @@ page "catalogue" :
   `copier code avec message "Copied" en francais "Copié"`.
 - Humalis reports at compile time every text that lacks its translation.
   Humalis's own messages (required field, loading…) follow the language.
+
+### Available languages
+
+Six languages are available: `francais` (French), `anglais` (English),
+`espagnol` (Spanish), `portugais` (Portuguese), `swahili` and `lingala`. A
+text's version is written with the language's name: `en espagnol "…"`,
+`en portugais "…"`.
+
+```humalis
+langues : anglais, espagnol, portugais
+
+page "home" :
+    selecteur de langue
+    titre "Welcome" en espagnol "Bienvenido" en portugais "Bem-vindo"
+    bouton "Book" en espagnol "Reservar" en portugais "Reservar"
+```
+
+In each language, Humalis's own messages are translated, and numbers, dates,
+amounts and plurals follow its rules. So do `en date longue`, `en lettres`,
+`avec majuscule` and `initiales de`. In Lingala, `en lettres` keeps the digits.
+
+### One address per language
+
+`avec adresse par langue` (with an address per language), at the end of the
+languages line, gives each language its own address. The first language keeps
+the plain addresses (`/menu`); the others get their prefix (`/fr/menu`).
+
+```humalis
+langues : anglais, francais avec adresse par langue
+
+page "home" :
+    titre "Welcome" en francais "Bienvenue"
+    lien "The menu" en francais "La carte" vers "menu"
+
+page "menu" :
+    titre "The menu" en francais "La carte"
+```
+
+Each page is then written ahead of time in each language, with the links that
+connect its versions for search engines. The page arrives already in its
+language, without waiting for a script. This works on the website, with the
+Humalis engine as with React.
+
+This option is only written on the one-line form: `langues : anglais, francais
+avec adresse par langue`.
 
 ---
 
@@ -2974,7 +3365,7 @@ target, the compiler says so clearly instead of producing something wrong.
 | `essayer` | yes | no | yes | yes | yes |
 | Keyboard shortcuts | yes | yes | no | yes | yes |
 | React components | yes | no | yes (in React Native) | yes | no (`sur apple "View.swift"`) |
-| The engine without React (`--moteur humalis`) | yes | no | no | no | no |
+| The engine without React (the default) | yes | no | no | yes (except a React component or `memorisee en secret`) | no |
 | Photo, scanner, Face ID, vibration, signature, offline | yes (vibration: Android) | no | no | no | yes |
 | `en arriere plan` | no | no | no | no | yes |
 | Sitemap, share preview | yes | yes | no | no | no |
@@ -2999,6 +3390,9 @@ changes. To keep React, write `--moteur react`, or once for a project in
 `humalis tester` use it too. A folder already produced with React stays React, and a
 program that uses what the engine cannot do yet is produced with React: the
 compiler says why.
+
+The desktop app also takes the engine's pages, one per address, without React. It
+keeps React for a React component or a value `memorisee en secret`.
 
 Modules (`utiliser module`), React, Vue and Svelte components and Web Components
 work the same way: the file is loaded only by the pages that use it. Anything shown after
@@ -3066,12 +3460,13 @@ site after an important deletion.
 | `entete`, `pied`, `menu`, `fil d'Ariane` | header, footer, menu, breadcrumb |
 | `onglets`, `deroulant`, `accordeon`, `carrousel`, `fenetre` | tabs, collapsible, accordion, carousel, dialog |
 | `icone`, `etoiles`, `compteur`, `progression`, `chargement` | icon, stars, stepper, progress bar, loading |
-| `graphique`, `carte`, `marqueur`, `audio`, `fichier` | chart, map, marker, audio, file |
+| `graphique`, `carte`, `marqueur`, `audio`, `video`, `fichier` | chart, map, marker, audio, video, file |
 | `avec … et …` | with … and … |
 | `couleur`, `fond`, `taille`, `nom`, `style` | colour, background, size, name, CSS class |
+| `desactive`, `desactive si` | disabled, disabled if |
 | `variable`, `calcul`, `constante`, `fiche` | variable, computed value, constant, record |
 | `vrai`, `faux`, `rien` | true, false, nothing |
-| `si`, `sinon`, `et`, `ou`, `n'est pas` | if, otherwise, and, or, is not |
+| `si`, `sinon`, `et`, `ou`, `n'est pas`, `non` | if, otherwise, and, or, is not, not |
 | `est egal a`, `est superieur a`, `est inferieur a`, `est vide`, `contient` | equals, greater than, less than, is empty, contains |
 | `pour chaque … dans` | for each … in |
 | `ajouter … à`, `retirer … de`, `nombre de` | add … to, remove … from, count of |
@@ -3090,6 +3485,7 @@ site after an important deletion.
 | `serveur`, `donnee`, `route`, `source` | server, data type, route, external API |
 | `tout le monde`, `connecte`, `seul admin` | everyone, logged-in users, admins only |
 | `lire`, `creer`, `modifier`, `supprimer` | read, create, update, delete |
+| `seul son auteur`, `donnees de depart pour`, `avant` | only its author, starting data for, formerly |
 | `se connecter`, `se deconnecter`, `utilisateur` | log in, log out, user |
 | `langues`, `traductions`, `selecteur de langue` | languages, translations, language switcher |
 | `composant`, `parametre`, `utiliser` | component, parameter, use |

@@ -48,6 +48,10 @@ page "antiseche" a l'adresse "/antiseche" :
                     code humalis :
                         texte "Elle a dit \"bonjour\""
                 bloc avec style "aide-entree" :
+                    texte "Aller à la ligne dans un texte" en anglais "Start a new line inside a text" avec style "aide-besoin"
+                    code humalis :
+                        texte "Bonjour,{a la ligne}À bientôt."
+                bloc avec style "aide-entree" :
                     texte "Écrire un commentaire" en anglais "Write a comment" avec style "aide-besoin"
                     code humalis :
                         # Une note pour les humains
@@ -120,6 +124,13 @@ page "antiseche" a l'adresse "/antiseche" :
                         pied :
                             texte "Ouvert du lundi au samedi"
                 bloc avec style "aide-entree" :
+                    texte "Ranger les onglets de l'application en groupes" en anglais "Group the app's tabs" avec style "aide-besoin"
+                    code humalis :
+                        onglets de l'application :
+                            onglet "Contact" vers "contact"
+                            groupe "Compte" :
+                                onglet "Connexion" vers "connexion"
+                bloc avec style "aide-entree" :
                     texte "Ranger une page dans son propre fichier" en anglais "Keep a page in its own file" avec style "aide-besoin"
                     code humalis :
                         utiliser fichier "./pages/panier.humalis"
@@ -148,6 +159,19 @@ page "antiseche" a l'adresse "/antiseche" :
                     texte "Bouton" en anglais "Button" avec style "aide-besoin"
                     code humalis :
                         bouton "Ajouter" avec icone "panier"
+                bloc avec style "aide-entree" :
+                    texte "Bouton à icône seule : son nom est lu par le lecteur d'écran" en anglais "Icon-only button: its name is read by the screen reader" avec style "aide-besoin"
+                    code humalis :
+                        bouton icone "fermer" avec nom "Fermer la fenêtre"
+                bloc avec style "aide-entree" :
+                    texte "Bouton désactivé, toujours ou selon une condition" en anglais "Disabled button, always or depending on a condition" avec style "aide-besoin"
+                    code humalis :
+                        bouton "Payer" avec desactive si panier est vide
+                        bouton "Bientôt" avec desactive
+                bloc avec style "aide-entree" :
+                    texte "Vidéo : avec ses commandes et une description" en anglais "Video: with its controls and a description" avec style "aide-besoin"
+                    code humalis :
+                        video "presentation.mp4" avec commandes et description "Présentation de la boutique"
                 bloc avec style "aide-entree" :
                     texte "Liste à puces et liste numérotée" en anglais "Bulleted and numbered list" avec style "aide-besoin"
                     code humalis :
@@ -208,6 +232,10 @@ page "antiseche" a l'adresse "/antiseche" :
                     texte "Lire ce qui a été écrit dans un champ" en anglais "Read what was typed in a field" avec style "aide-besoin"
                     code humalis :
                         changer nom par champ "Nom"
+                bloc avec style "aide-entree" :
+                    texte "Vider un champ" en anglais "Clear a field" avec style "aide-besoin"
+                    code humalis :
+                        vider champ "Nom"
         bloc avec ancre "mise-en-page" et style "aide-section" :
             soustitre "La mise en page et les styles" en anglais "Layout and styles"
             bloc avec style "aide-entrees" :
@@ -234,6 +262,11 @@ page "antiseche" a l'adresse "/antiseche" :
                         sur tablette ou ordinateur :
                             lien "La carte" vers "contact"
                 bloc avec style "aide-entree" :
+                    texte "Un même bloc pour plusieurs plateformes" en anglais "One block for several platforms" avec style "aide-besoin"
+                    code humalis :
+                        sur site et macos :
+                            texte "Glisse un fichier ici."
+                bloc avec style "aide-entree" :
                     texte "Couleurs et tailles" en anglais "Colors and sizes" avec style "aide-besoin"
                     code humalis :
                         titre "Bienvenue" avec couleur bleu et taille grande et position centree
@@ -242,6 +275,20 @@ page "antiseche" a l'adresse "/antiseche" :
                     texte "Utiliser ta classe CSS" en anglais "Use your CSS class" avec style "aide-besoin"
                     code humalis :
                         titre "Bienvenue" avec style "grand"
+                bloc avec style "aide-entree" :
+                    texte "Écrire un style en Humalis, une propriété par ligne" en anglais "Write a style in Humalis, one property per line" avec style "aide-besoin"
+                    code humalis :
+                        style "carte" :
+                            fond blanc
+                            bord 1 gris clair
+                            arrondi 12
+                            espace interieur 16
+                            ombre douce
+
+                        page "vitrine" :
+                            titre "Vitrine"
+                            bloc avec style "carte" :
+                                texte "Un produit"
                 bloc avec style "aide-entree" :
                     texte "Le thème du site" en anglais "The site theme" avec style "aide-besoin"
                     code humalis :
@@ -259,6 +306,22 @@ page "antiseche" a l'adresse "/antiseche" :
                         titre "Bienvenue" avec animation apparition
                         bloc avec animation montee au defilement :
                             texte "Apparaît quand on arrive dessus."
+                bloc avec style "aide-entree" :
+                    texte "Un bloc qui remplit l'écran, une colonne qui défile seule" en anglais "A block that fills the screen, a column that scrolls on its own" avec style "aide-besoin"
+                    code humalis :
+                        ligne avec hauteur ecran :
+                            colonne avec defilement interne :
+                                texte "Un long chapitre."
+                bloc avec style "aide-entree" :
+                    texte "Une page dessinée pour une taille d'écran" en anglais "A page drawn for a screen size" avec style "aide-besoin"
+                    code humalis :
+                        page "affiche" dessinee pour 1440 par 900 :
+                            titre "Affiche"
+                bloc avec style "aide-entree" :
+                    texte "Une page jusqu'aux bords de la fenêtre" en anglais "A page that reaches the window edges" avec style "aide-besoin"
+                    code humalis :
+                        page "galerie" en pleine fenetre :
+                            titre "Galerie"
         bloc avec ancre "variables" et style "aide-section" :
             soustitre "Les variables et les calculs" en anglais "Variables and calculations"
             bloc avec style "aide-entrees" :
@@ -306,6 +369,18 @@ page "antiseche" a l'adresse "/antiseche" :
                         calcul taille = longueur de nom
                         calcul poli = remplacer "Camille" par "Madame" dans nom
                 bloc avec style "aide-entree" :
+                    texte "Une date en toutes lettres, un nombre en lettres, des initiales" en anglais "A date written out, a number in words, initials" avec style "aide-besoin"
+                    code humalis :
+                        calcul jour = aujourd'hui
+                        calcul sigle = initiales de nom
+                        texte "{jour en date longue avec majuscule}"
+                        texte "{quantite en lettres avec majuscule} article"
+                bloc avec style "aide-entree" :
+                    texte "Le contraire d'un vrai ou faux, une comparaison gardée dans un calcul" en anglais "The opposite of a true or false, a comparison kept in a calculation" avec style "aide-besoin"
+                    code humalis :
+                        calcul en_pause = non actif
+                        calcul de_saison = categorie est dans ["robes", "jupes"]
+                bloc avec style "aide-entree" :
                     texte "Afficher un prix, un pluriel" en anglais "Show a price, a plural" avec style "aide-besoin"
                     code humalis :
                         texte "{quantite article} pour {prix en euros}"
@@ -340,6 +415,11 @@ page "antiseche" a l'adresse "/antiseche" :
                     code humalis :
                         si actif est vrai :
                             texte "Actif"
+                bloc avec style "aide-entree" :
+                    texte "Le contraire : `non`" en anglais "The opposite: `non`" avec style "aide-besoin"
+                    code humalis :
+                        si non actif :
+                            texte "En pause"
                 bloc avec style "aide-entree" :
                     texte "Liste vide, valeur absente" en anglais "Empty list, missing value" avec style "aide-besoin"
                     code humalis :
@@ -510,6 +590,11 @@ page "antiseche" a l'adresse "/antiseche" :
                         seul admin peut modifier avis
                         seul admin peut supprimer avis
                 bloc avec style "aide-entree" :
+                    texte "Chacun agit seulement sur ce qu'il a créé" en anglais "Each person acts only on what they created" avec style "aide-besoin"
+                    code humalis :
+                        connecte peut creer avis
+                        seul son auteur peut modifier et supprimer avis
+                bloc avec style "aide-entree" :
                     texte "Lire une fiche seulement avec son identifiant" en anglais "Read a record only with its identifier" avec style "aide-besoin"
                     code humalis :
                         tout le monde peut lire avis par identifiant
@@ -523,6 +608,22 @@ page "antiseche" a l'adresse "/antiseche" :
                     code humalis :
                         statut : texte au depart "en_attente"
                         jour : date au depart aujourd'hui
+                bloc avec style "aide-entree" :
+                    texte "Renommer un champ sans perdre les fiches écrites" en anglais "Rename a field without losing written records" avec style "aide-besoin"
+                    code humalis :
+                        telephone : texte (avant "tel")
+                bloc avec style "aide-entree" :
+                    texte "Écrire des fiches au premier démarrage" en anglais "Write records on first start" avec style "aide-besoin"
+                    code humalis :
+                        serveur "boutique" :
+                            donnee produit :
+                                nom : texte
+                                prix : nombre
+                            route "produits" :
+                                tout le monde peut lire produit
+                            donnees de depart pour produit :
+                                nom "Café", prix 3
+                                nom "Thé", prix 2
                 bloc avec style "aide-entree" :
                     texte "Limiter ce que le client peut envoyer" en anglais "Limit what the client can send" avec style "aide-besoin"
                     code humalis :
@@ -545,6 +646,28 @@ page "antiseche" a l'adresse "/antiseche" :
 
                         page "bienvenue" :
                             titre "Bienvenue"
+                bloc avec style "aide-entree" :
+                    texte "Garder la clé d'un service sur le serveur" en anglais "Keep a service's key on the server" avec style "aide-besoin"
+                    code humalis :
+                        serveur "site" :
+                            donnee note :
+                                texte : texte
+                            route "notes" :
+                                tout le monde peut lire note
+
+                        source "meteo" :
+                            adresse "https://api.meteo.example"
+                            jeton secret depuis l'environnement "METEO_CLE" dans le parametre "key"
+                            route "previsions" :
+                                tout le monde peut lire une liste de prevision dans "jours"
+                            donnee prevision :
+                                jour : texte
+
+                        page "meteo" :
+                            variable previsions = []
+                            titre "Météo"
+                            quand la page se charge :
+                                envoyer requete vers "previsions" de la source "meteo" dans previsions
         bloc avec ancre "relier" et style "aide-section" :
             soustitre "Relier les pages au serveur" en anglais "Connecting pages to the server"
             bloc avec style "aide-entrees" :
@@ -624,6 +747,20 @@ page "antiseche" a l'adresse "/antiseche" :
                             selecteur de langue
                             titre "Bienvenue" en anglais "Welcome"
                 bloc avec style "aide-entree" :
+                    texte "Donner à chaque langue sa propre adresse (`/en/…`)" en anglais "Give each language its own address (`/en/…`)" avec style "aide-besoin"
+                    code humalis :
+                        langues : francais, anglais avec adresse par langue
+
+                        page "bonjour" :
+                            titre "Bienvenue" en anglais "Welcome"
+                bloc avec style "aide-entree" :
+                    texte "Traduire en espagnol, portugais, swahili ou lingala" en anglais "Translate into Spanish, Portuguese, Swahili or Lingala" avec style "aide-besoin"
+                    code humalis :
+                        langues : francais, espagnol, swahili
+
+                        page "bonjour" :
+                            titre "Bienvenue" en espagnol "Bienvenido" en swahili "Karibu"
+                bloc avec style "aide-entree" :
                     texte "Lire les données d'un fichier" en anglais "Read data from a file" avec style "aide-besoin"
                     code humalis :
                         utiliser donnees "clients" depuis "./clients.csv"
@@ -691,6 +828,10 @@ page "antiseche" a l'adresse "/antiseche" :
                     texte "Produire le projet : web, statique, mobile, desktop ou serveur" en anglais "Build the project: web, statique, mobile, desktop or serveur" avec style "aide-besoin"
                     code terminal :
                         humalis compile mon-projet.humalis --cible web --sortie mon-site
+                bloc avec style "aide-entree" :
+                    texte "Le site est produit sans React ; `--moteur react` le garde" en anglais "The site is built without React; `--moteur react` keeps it" avec style "aide-besoin"
+                    code terminal :
+                        humalis compile mon-projet.humalis --cible web --moteur react --sortie mon-site
         bloc avec ancre "pieges" et style "aide-section" :
             soustitre "Les pièges" en anglais "Common traps"
             bloc avec style "aide-entrees" :

@@ -202,6 +202,15 @@ page "offre" :
     texte "Prix : {accent "gratuit"} pour toujours"
 ```
 
+`{a la ligne}` passe à la ligne dans un texte. `{saut de ligne}` fait la même
+chose.
+
+```humalis
+page "horaires" :
+    titre "Horaires"
+    texte "Du lundi au vendredi : 9 h à 18 h{a la ligne}Le samedi : 10 h à 13 h"
+```
+
 ### Listes
 
 `liste :` crée des puces ; `liste numerotee :` numérote chaque élément. Chaque instruction du bloc devient une entrée.
@@ -295,6 +304,33 @@ page "a_propos" :
 Un lien mène à une page (`vers "a_propos"`) ou à une adresse web
 (`vers "https://exemple.fr"`). Un bouton déclenche une action (voir les
 [événements](#14-les-événements)).
+
+Un bouton peut ne montrer qu'une icône : `bouton icone "fermer"`. Il lui faut
+alors un `nom`. C'est ce que lit un lecteur d'écran, et c'est lui que vise
+l'événement.
+
+```humalis
+page "agenda" :
+    variable ouvert = vrai
+    titre "Agenda"
+    bouton icone "fermer" avec nom "Fermer l'agenda"
+    quand l'utilisateur clique sur "Fermer l'agenda" :
+        changer ouvert par faux
+```
+
+`avec desactive` montre un bouton sur lequel on ne peut pas cliquer. Avec `si`,
+il suit une condition : le bouton redevient cliquable dès qu'elle est fausse.
+
+```humalis
+page "panier" :
+    variable panier = []
+    titre "Panier"
+    bouton "Payer" avec desactive si panier est vide et fond vert
+    bouton "Paiement en trois fois" avec desactive
+```
+
+La condition s'arrête au prochain `et`, qui ouvre l'option suivante. Un bouton
+désactivé reste visible, plus pâle. `desactive` ne vaut que pour un bouton.
 
 ### Champ
 
@@ -395,6 +431,88 @@ page "accueil" :
 Sur la cible Apple, chaque règle `.classe { … }` est traduite en SwiftUI. Ce qui n'a pas
 d'équivalent (`@media`, survols, sélecteurs composés, placement libre…) est compté à la
 compilation et listé, avec sa raison, dans `CSS-SUR-APPLE.md`.
+
+Un même bloc peut viser plusieurs plateformes : on les relie par `et`.
+
+```humalis
+page "accueil" :
+    titre "Mon agenda"
+    sur site et macos :
+        texte "Glisse un rendez-vous pour le déplacer."
+    sur ios :
+        texte "Touche un rendez-vous pour le déplacer."
+```
+
+### Une page dessinée pour le Mac
+
+`dessinee pour 1440 par 900`, après le nom d'une page, donne la taille pour
+laquelle elle a été dessinée. Sur Mac, la page suit alors son CSS au point près,
+et grandit avec la fenêtre. Ailleurs, rien ne change.
+
+Avec des pages dessinées, `barre laterale :` en haut du fichier écrit la barre
+latérale du Mac comme une page. Sur les autres cibles, elle prend la place de
+l'en-tête quand le projet n'en a pas ; s'il y a un `entete`, elle s'efface.
+
+```humalis
+utiliser style "./bureau.css"
+
+barre laterale avec style "barre" :
+    lien "Tableau de bord" vers "accueil"
+    lien "Clients" vers "clients"
+
+page "accueil" dessinee pour 1440 par 900 :
+    titre "Tableau de bord"
+
+page "clients" dessinee pour 1440 par 900 :
+    titre "Clients"
+```
+
+`utiliser icones "./icones.svg"`, en haut du fichier, ajoute les dessins du
+projet : chaque `<symbol id="cloche">` du fichier devient une icône, utilisée
+comme les autres (`icone "cloche"`, `bouton "Alertes" avec icone "cloche"`).
+
+### Un style écrit en Humalis
+
+`style "carte" :` en haut du fichier décrit un style en français, une propriété
+par ligne. On l'applique avec `avec style "carte"`, sur un élément ou un bloc.
+
+```humalis
+theme :
+    couleur marque "#4b42d6"
+
+style "carte" :
+    fond blanc
+    bord 1 gris clair
+    arrondi 12
+    espace interieur 16
+    ombre douce
+
+style "prix" :
+    couleur marque
+    gras
+    taille 20
+
+page "boutique" :
+    titre "Boutique"
+    bloc avec style "carte" :
+        texte "Carnet de notes"
+        texte "12 €" avec style "prix"
+```
+
+Les propriétés : `fond`, `couleur`, `bord` (une épaisseur puis une couleur),
+`arrondi`, `espace interieur`, `marge`, `ombre` (`douce`, `forte` ou `aucune`),
+`taille`, `gras`, `largeur maximale` et `alignement` (`centre`, `gauche` ou
+`droite`).
+
+Les mesures sont en points. `arrondi`, `espace interieur` et `marge` prennent de
+un à quatre nombres, comme en CSS.
+
+Une couleur est un nom (`bleu`, `gris`…), suivi au besoin de `clair` ou `fonce`,
+une couleur du thème, ou un code entre guillemets (`"#1f5fbf"`). Une couleur du
+thème suit aussi le mode sombre.
+
+Le style devient une classe CSS ordinaire. Il vaut donc sur toutes les cibles,
+téléphone compris.
 
 ### Ton propre CSS
 
@@ -626,7 +744,7 @@ web avec un équivalent simple.
 |---|---|---|---|
 | `onglets de l'application :` puis `onglet "A" vers "accueil" avec icone "maison"` | barre d'onglets | barre latérale | menu |
 | `groupe "Équipe" :` puis ses `onglet`, décalés, dans `onglets de l'application` | onglets à plat | liste à plat | intertitre dans le menu |
-| `onglets de l'application avec barre laterale "MaBarre" :` | sans effet | sans effet | la barre du Mac est dessinée par la vue Swift `MaBarre`, qui reçoit la page en contenu |
+| `onglets de l'application avec barre laterale "MaBarre" :` | sans effet | barre latérale dessinée par la vue Swift `MaBarre`, qui reçoit la page en contenu | sans effet |
 | `recherche dans q avec indice "…"` | recherche native | recherche native | champ |
 | `action en glissant "Supprimer" :` dans un `pour chaque` | glisser la ligne | clic droit | bouton |
 | `actualiser en tirant :` | tirer pour actualiser | bouton dans la barre d'outils | bouton |
@@ -712,6 +830,22 @@ page "ecouter" :
 
 Un son ne démarre jamais tout seul. Une parole a sa transcription, pour les
 personnes qui n'entendent pas.
+
+### Les vidéos
+
+```humalis
+page "atelier" :
+    titre "L'atelier"
+    video "atelier.mp4" avec commandes et description "Visite de l'atelier, une minute"
+    video "recette.mp4" avec commandes et description "La recette du pain" et transcription "Mélangez la farine et l'eau." et boucle
+```
+
+Une vidéo demande `avec commandes` : elle a ses boutons lecture et pause, et ne
+démarre jamais toute seule. Sa `description` est obligatoire aussi : elle nomme
+le lecteur pour les lecteurs d'écran.
+
+`transcription` ajoute le texte de ce qui est dit ; `boucle` relance la vidéo à
+la fin. Les formats acceptés : `.mp4`, `.webm`, `.mov` et `.m4v`.
 
 ### Le mouvement
 
@@ -883,9 +1017,21 @@ page "texte" :
         texte "Famille Martin"
 ```
 
+`initiales de` garde la première lettre de chaque mot : « Direction générale »
+donne « DG ».
+
+```humalis
+page "equipe" :
+    variable service = "Direction générale"
+    calcul sigle = initiales de service
+    titre "L'équipe"
+    texte "{sigle} : {service}"
+```
+
 ### L'argent et le pluriel
 
-Dans un texte, `{prix en euros}` écrit un montant à la française, et
+Dans un texte, `{prix en euros}` écrit un montant à la façon de la langue de
+la page (« 1 234,50 € » en français, « €1,234.50 » en anglais), et
 `{nombre article}` accorde le mot : « 1 article », « 3 articles ».
 
 ```humalis
@@ -897,6 +1043,16 @@ page "panier" :
 ```
 
 Les devises : `euros`, `dollars` et `FC` (franc congolais).
+
+`{total en lettres}` écrit un nombre en toutes lettres : 71 donne « soixante et
+onze ». `avec majuscule` met une majuscule au début.
+
+```humalis
+page "cheque" :
+    variable total = 80
+    titre "Chèque"
+    texte "{total en lettres avec majuscule} euros"
+```
 
 ### Les dates
 
@@ -912,8 +1068,23 @@ page "livraison" :
     texte "Commandée {commande depuis}"
 ```
 
-Les dates s'affichent en français (« 2 novembre 2026 »). `{commande depuis}`
-écrit « il y a 5 minutes ». On décale de `jours`, `semaines` ou `mois`.
+Les dates s'affichent dans la langue de la page (« 2 novembre 2026 » en
+français, « 2 November 2026 » en anglais). `{commande depuis}` écrit « il y a
+5 minutes ». On décale de `jours`, `semaines` ou `mois`.
+
+`{jour en date longue}` écrit la date avec le jour de la semaine : « lundi 9
+novembre ». `avec majuscule` met une majuscule au début, pour un début de
+phrase.
+
+```humalis
+page "agenda" :
+    calcul jour = aujourd'hui
+    titre "Agenda"
+    texte "{jour en date longue avec majuscule}"
+```
+
+`en date longue`, `en lettres`, `avec majuscule` et `initiales de` suivent la
+langue de la page (voir [plusieurs langues](#28-plusieurs-langues)).
 
 ---
 
@@ -967,6 +1138,26 @@ page "stock" :
 ```
 
 `et` passe avant `ou`, comme en mathématiques.
+
+Un calcul peut garder le résultat d'une comparaison : il vaut `vrai` ou `faux`,
+et se lit ensuite dans un `si`. `non` donne l'inverse d'un vrai ou faux.
+
+```humalis
+page "boutique" :
+    variable ouvert = faux
+    variable role = "gerant"
+    calcul est_chef = role est dans ["gerant", "direction"]
+    calcul ferme = non ouvert
+    titre "Boutique"
+    si est_chef est vrai :
+        bouton "Ouvrir ou fermer"
+    si ferme est vrai :
+        texte "Fermé pour aujourd'hui"
+    quand l'utilisateur clique sur "Ouvrir ou fermer" :
+        changer ouvert par non ouvert
+```
+
+Un tel calcul n'est pas un nombre : `est_chef * 2` est refusé à la compilation.
 
 ---
 
@@ -1670,6 +1861,70 @@ serveur "commerce" :
 
 Chaque côté est un champ de la fiche, un champ de `utilisateur` (`id`, `email`, `role`,
 un groupe) ou une valeur. On écrit `est` ou `est dans`.
+
+#### Seul l'auteur d'une fiche
+
+`seul son auteur peut …` laisse chacun agir sur ce qu'il a créé, et sur rien
+d'autre :
+
+```humalis
+serveur "carnet" :
+    donnee note :
+        texte : texte
+    route "notes" :
+        connecte peut lire note
+        connecte peut creer note
+        seul son auteur peut modifier et supprimer note
+```
+
+Le serveur remplit lui-même le champ `auteur` de chaque fiche, avec le compte qui
+la crée. Personne ne peut le choisir à l'envoi, ni le changer ensuite.
+
+Cette règle dit déjà quelles fiches sont concernées : elle ne prend pas de `si`.
+
+#### Des fiches au premier démarrage
+
+`donnees de depart pour …` écrit des fiches au premier démarrage du serveur, une
+par ligne. Chaque champ s'écrit avec sa valeur, séparé du suivant par une
+virgule.
+
+```humalis
+serveur "ecole" :
+    donnee matiere :
+        nom : texte
+        coefficient : nombre
+        optionnelle : booleen au depart faux
+    route "matieres" :
+        tout le monde peut lire matiere
+        seul admin peut modifier matiere
+    donnees de depart pour matiere :
+        nom "Mathématiques", coefficient 4
+        nom "Histoire", coefficient 3
+        nom "Musique", coefficient 1, optionnelle vrai
+```
+
+Les fiches ne sont écrites que si la table est vide : un redémarrage n'ajoute
+rien. Chaque champ demandé à la création doit avoir une valeur du bon type ; un
+champ avec `au depart` peut s'omettre.
+
+#### Un champ qui change de nom
+
+Une application vit : un champ peut changer de nom, un autre peut arriver.
+`(avant "tel")`, après le type, donne l'ancien nom du champ.
+
+```humalis
+serveur "carnet" :
+    donnee contact :
+        nom : texte
+        telephone : texte (avant "tel")
+        favori : booleen au depart faux
+    route "contacts" :
+        connecte peut lire contact
+        connecte peut creer contact
+```
+
+Au démarrage, les fiches déjà écrites gardent leur valeur sous le nouveau nom.
+Un champ ajouté avec `au depart` donne aussi sa valeur aux anciennes fiches.
 
 #### Des champs sur les comptes, et l'équipe
 
@@ -2544,6 +2799,48 @@ page "produit" avec parametre id :
   `supprimer`. Un jeton secret ne s'écrit jamais dans le fichier : Humalis le
   refuse.
 
+### Une API qui demande une clé secrète
+
+Une clé secrète ne doit jamais arriver dans le navigateur. On écrit seulement le
+nom de la variable d'environnement qui la porte :
+
+```humalis
+serveur "agenda" :
+    donnee rappel :
+        texte : texte
+    route "rappels" :
+        connecte peut lire rappel
+
+source "meteo" :
+    adresse "https://api.meteo.example"
+    jeton secret depuis l'environnement "METEO_CLE" dans le parametre "key"
+    donnee prevision :
+        jour : texte
+        temperature : nombre
+    route "previsions" :
+        tout le monde peut lire une liste de prevision dans "jours"
+
+page "accueil" :
+    variable previsions = []
+    titre "Météo de la semaine"
+    quand la page se charge :
+        envoyer requete vers "previsions" de la source "meteo" dans previsions
+    pour chaque p dans previsions :
+        texte "{p.jour} : {p.temperature} °C"
+```
+
+Les pages passent alors par la passerelle du serveur Humalis
+(`/api/passerelle/meteo`). Le serveur vérifie qui appelle, ajoute la clé, puis
+appelle l'API.
+
+- Le projet a besoin d'un bloc `serveur` : c'est lui qui fait l'appel.
+- Chaque route de la source dit qui peut l'appeler : `tout le monde peut …`,
+  `connecte peut …` ou `seul admin peut …`. Une action sans règle est refusée.
+- La clé voyage dans l'en-tête `Authorization` par défaut. `dans le parametre
+  "key"` la met dans l'adresse ; `dans l'entete "X-Cle"` dans un autre en-tête.
+- La valeur se met dans le fichier `.env` du serveur. Son nom est ajouté à
+  `.env.exemple`.
+
 ---
 
 ## 24. Les données d'un fichier
@@ -2679,6 +2976,51 @@ page "catalogue" :
   `copier code avec message "Copié" en anglais "Copied"`.
 - Humalis signale à la compilation tout texte qui n'a pas sa traduction. Les
   messages de Humalis (champ obligatoire, chargement…) suivent la langue.
+
+### Les langues disponibles
+
+Six langues sont disponibles : `francais`, `anglais`, `espagnol`, `portugais`,
+`swahili` et `lingala`. La version d'un texte s'écrit avec le nom de la langue :
+`en espagnol "…"`, `en portugais "…"`.
+
+```humalis
+langues : francais, espagnol, portugais
+
+page "accueil" :
+    selecteur de langue
+    titre "Bienvenue" en espagnol "Bienvenido" en portugais "Bem-vindo"
+    bouton "Réserver" en espagnol "Reservar" en portugais "Reservar"
+```
+
+Dans chaque langue, les messages de Humalis sont traduits, et les nombres, les
+dates, les montants et les pluriels suivent ses règles. `en date longue`, `en
+lettres`, `avec majuscule` et `initiales de` aussi. En lingala, `en lettres`
+garde les chiffres.
+
+### Une adresse par langue
+
+`avec adresse par langue`, à la fin de la ligne des langues, donne à chaque
+langue sa propre adresse. La première langue garde les adresses simples
+(`/menu`) ; les autres ont leur préfixe (`/en/menu`).
+
+```humalis
+langues : francais, anglais avec adresse par langue
+
+page "accueil" :
+    titre "Bienvenue" en anglais "Welcome"
+    lien "La carte" en anglais "The menu" vers "carte"
+
+page "carte" :
+    titre "La carte" en anglais "The menu"
+```
+
+Chaque page est alors écrite d'avance dans chaque langue, avec les liens qui
+relient ses versions pour les moteurs de recherche. La page arrive déjà dans sa
+langue, sans attendre un script. Cela marche sur le site web, avec le moteur de
+Humalis comme avec React.
+
+Cette option s'écrit seulement sur la forme en une ligne : `langues : francais,
+anglais avec adresse par langue`.
 
 ---
 
@@ -2945,7 +3287,7 @@ chose de faux.
 | `essayer` | oui | non | oui | oui | oui |
 | Raccourcis clavier | oui | oui | non | oui | oui |
 | Composants React | oui | non | oui (en React Native) | oui | non (`sur apple "Vue.swift"`) |
-| Le moteur sans React (`--moteur humalis`) | oui | non | non | non | non |
+| Le moteur sans React (par défaut) | oui | non | non | oui (sauf composant React ou `memorisee en secret`) | non |
 | Photo, scanner, Face ID, vibration, signature, hors ligne | oui (vibration : Android) | non | non | non | oui |
 | `en arriere plan` | non | non | non | non | oui |
 | Plan du site, aperçu de partage | oui | oui | non | non | non |
@@ -2967,6 +3309,9 @@ dans `humalis.projet.json` : `"moteur": "react"` ; `humalis developper` et
 `humalis tester` s'en servent aussi. Un dossier déjà produit avec React le reste, et
 un programme qui emploie ce que le moteur ne sait pas encore faire est produit avec
 React : la compilation dit pourquoi.
+
+L'application de bureau prend aussi les pages du moteur, une par adresse, sans
+React. Elle garde React pour un composant React ou une valeur `memorisee en secret`.
 
 Les modules (`utiliser module`), les composants React, Vue et Svelte et les Web
 Components marchent de la même façon : le fichier n'est chargé que par les pages qui s'en
