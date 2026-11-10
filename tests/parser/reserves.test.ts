@@ -53,8 +53,8 @@ describe('parser — mots prévus', () => {
     expect(() => corps(page('video "film.mp4"'))).toThrow(/« video » n’est pas encore disponible : ce mot est prévu dans le vocabulaire/);
   });
 
-  it('« non » s’écrit devant une condition, pas comme une valeur', () => {
-    expect(() => corps(page('variable x = non 1'))).toThrow(/« non » est un mot réservé/);
+  it('« non » devant une valeur en fait une condition (validé le 10 novembre)', () => {
+    expect(corps(page('variable x = non ouvert'))[0]).toMatchObject({ type: 'Variable', valeur: { type: 'TestValeur' } });
   });
 
   it('garde « instruction inconnue » pour un mot hors du vocabulaire', () => {

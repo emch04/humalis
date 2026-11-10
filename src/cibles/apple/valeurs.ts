@@ -272,6 +272,8 @@ export class Valeurs {
   /** La valeur en Swift ; `attendu` donne sa forme à une liste vide ou à une fiche. */
   expr(valeur: Valeur, attendu?: TypeValeur): Expr {
     switch (valeur.type) {
+      case 'test':
+        return { code: `(${this.condition(valeur.test)})`, type: BOOLEEN, opt: false };
       case 'texte':
         return { code: this.texteLitteral(valeur), type: TEXTE, opt: false };
       case 'nombre':

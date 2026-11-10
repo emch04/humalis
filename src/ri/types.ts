@@ -385,6 +385,8 @@ export interface Reglages {
   decoratif?: boolean;
   /** Le nom canonique d'une icône (`panier`). */
   icone?: string;
+  /** « bouton icone "fermer" avec nom "…" » : seule l'icône se voit ; le texte reste pour le lecteur d'écran. */
+  seule?: boolean;
   /** L'image d'un avatar. */
   photo?: Valeur;
   modifiable?: boolean;
@@ -862,6 +864,8 @@ export type Valeur =
   | { type: 'champs'; liste: Valeur; champ: string }
   /** « produits dont … » : `champs` sont les noms lus sur chaque élément dans `test`. */
   | { type: 'filtre'; liste: Valeur; champs: string[]; test: Test }
+  /** « non ouvert », « role est dans [...] » : une condition qui vaut vrai ou faux. */
+  | { type: 'test'; test: Test }
   /** « trier … [par champ] [decroissant] » : des nombres ou des textes. */
   | { type: 'tri'; liste: Valeur; champ?: string; decroissant: boolean; genre: 'nombre' | 'texte' }
   /** « grouper produits par categorie » : des fiches { nom, elements }, dans l'ordre d'apparition. */

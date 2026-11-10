@@ -2761,7 +2761,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     contextes: ['tournure'],
     cibles: partout('\\n'),
     couvre: ['js:\\n'],
-    description: 'Un retour à la ligne dans un texte : « "Bonjour{saut de ligne}Merci" ». Dans une adresse, il devient %0A.',
+    description: 'Un retour à la ligne dans un texte : « "Bonjour{saut de ligne}Merci" », ou « "Bonjour,{a la ligne}Merci." ». Dans une adresse, il devient %0A.',
     exemple: PAGE('    texte "Bonjour{saut de ligne}Merci"'),
     statut: 'supporte',
     etape: 9,

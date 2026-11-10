@@ -1391,7 +1391,15 @@ export interface Evenement {
   ligne: number;
 }
 
+/** « non ouvert », « role est dans ["gerant", "direction"] » : une condition qui vaut vrai ou faux. */
+export interface TestValeur {
+  type: 'TestValeur';
+  test: Test;
+  ligne: number;
+}
+
 export type Expression =
+  | TestValeur
   | LitteralChaine
   | LitteralNombre
   | LitteralBooleen

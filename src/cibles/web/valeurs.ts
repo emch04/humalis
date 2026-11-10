@@ -45,6 +45,8 @@ export function typeTS(type: TypeValeur): string {
 
 export function typeDe(valeur: Valeur, contexte: Contexte): TypeValeur {
   switch (valeur.type) {
+    case 'test':
+      return { genre: 'booleen' };
     case 'champ': {
       const sorte = contexte.sortes?.get(valeur.id);
       return sorte === 'nombre' ? { genre: 'nombre' } : sorte === 'case' ? { genre: 'booleen' } : { genre: 'texte' };
@@ -106,6 +108,8 @@ export function ficheAvec(base: string, champs: string[], valeur: string): strin
 /** Une expression TypeScript. */
 export function expression(valeur: Valeur, contexte: Contexte): string {
   switch (valeur.type) {
+    case 'test':
+      return `(${condition(valeur.test, contexte)})`;
     case 'texte': {
       // Un texte en plusieurs langues : t({ fr: '…', en: '…' }) choisit selon la langue de la personne.
       if (valeur.versions) {

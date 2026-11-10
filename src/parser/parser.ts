@@ -1763,11 +1763,29 @@ function estConstante(flux: FluxTokens): boolean {
   return estLeMot(flux.actuel(), 'constante') && estUnNom(flux.regarder(1)) && flux.regarder(2).type === 'PONCTUATION' && flux.regarder(2).valeur === '=';
 }
 
+/**
+ * Une valeur, ou une condition qui vaut vrai ou faux : « non ouvert »,
+ * « role est dans ["gerant", "direction"] ». On lit la valeur ; si une
+ * comparaison suit, on relit le tout comme une condition.
+ */
+export function analyserValeurOuTest(flux: FluxTokens, lire: (f: FluxTokens) => Expression = analyserExpression): Expression {
+  const ligne = flux.actuel().ligne;
+  if (estLeMot(flux.actuel(), 'non')) return { type: 'TestValeur', test: analyserTestCombine(flux), ligne };
+  const m = flux.marque();
+  const valeur = lire(flux);
+  const suite = flux.actuel();
+  if ((suite.type === 'MOT_CLE' && suite.valeur === 'est') || estLeMot(suite, 'contient') || estLeMot(suite, 'commence') || estLeMot(suite, 'finit')) {
+    flux.revenir(m);
+    return { type: 'TestValeur', test: analyserTestCombine(flux), ligne };
+  }
+  return valeur;
+}
+
 function analyserVariable(flux: FluxTokens): DeclarationVariable {
   const debut = flux.avancer();
   const { nom } = flux.attendreNom('le nom de la variable');
   flux.attendre('PONCTUATION', '=', 'le signe = après le nom de la variable');
-  const valeur = analyserExpression(flux);
+  const valeur = analyserValeurOuTest(flux);
 
   if (!flux.accepter('MOT_CLE', 'avec')) {
     return { type: 'Variable', nom, valeur, ligne: debut.ligne };
@@ -1956,8 +1974,14 @@ function lireNombre(flux: FluxTokens, description: string): number {
 function analyserElement(flux: FluxTokens, enTete?: { element: NomElement; ligne: number; sorte?: SorteChamp }): Element {
   const debut = enTete ? { valeur: enTete.element, ligne: enTete.ligne } : flux.avancer();
   const sorte = enTete?.sorte ?? (debut.valeur === 'champ' ? lireTournure(flux, SORTES_CHAMP) : undefined);
+  // « bouton icone "fermer" avec nom "Fermer la fenêtre" » : l'icône seule ; le nom est lu par le lecteur d'écran.
+  let iconeSeule: string | undefined;
+  if (debut.valeur === 'bouton' && estLeMot(flux.actuel(), 'icone') && flux.regarder(1).type === 'CHAINE') {
+    flux.avancer();
+    iconeSeule = flux.avancer().valeur;
+  }
   // « chargement » seul est un indicateur sans texte.
-  const contenu: Expression =
+  let contenu: Expression = iconeSeule !== undefined ? { type: 'Chaine', parties: [], ligne: debut.ligne } :
     (debut.valeur === 'chargement' && !commenceUneValeur(flux.actuel())) || debut.valeur === 'selecteurLangue'
       ? { type: 'Chaine', parties: [], ligne: debut.ligne }
       : analyserExpression(flux);
@@ -2053,6 +2077,13 @@ function analyserElement(flux: FluxTokens, enTete?: { element: NomElement; ligne
         styles.push(analyserStyle(flux));
       }
     } while (flux.accepter('MOT_CLE', 'et'));
+  }
+
+  if (iconeSeule !== undefined) {
+    if (nom === undefined) throw new ErreurSyntaxique(`un bouton qui n'a qu'une icône a besoin d'un nom, lu par le lecteur d'écran : bouton icone "${iconeSeule}" avec nom "Fermer la fenêtre"`, debut.ligne);
+    // Le nom devient le texte du bouton : caché à l'écran, lu à voix haute, et visé par « quand l'utilisateur clique sur ».
+    contenu = { type: 'Chaine', parties: [{ type: 'texte', valeur: nom }], ligne: debut.ligne };
+    styles.push({ propriete: 'icone', valeur: iconeSeule }, { propriete: 'seule', valeur: 'oui' });
   }
 
   // La sorte et les options ne vont dans l'arbre que si le programme les écrit.
@@ -2222,7 +2253,7 @@ function analyserAction(
       type: 'Affectation',
       nom,
       ...(champs.length > 0 ? { champs } : {}),
-      valeur: analyserOperande(flux),
+      valeur: analyserValeurOuTest(flux, analyserOperande),
       ligne: debut.ligne,
     };
   }

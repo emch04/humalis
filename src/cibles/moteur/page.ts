@@ -1051,7 +1051,9 @@ ${this.avecPlanificateur(corps.texte())}}
 
   private elementM(noeud: Element, env: Environnement | null): MElement {
     const lucideIcone = noeud.reglages?.icone ? chercherIcone(noeud.reglages.icone)?.lucide : undefined;
-    const contenu: M[] = [...(lucideIcone ? [{ brut: iconeHtml(lucideIcone, 'humalis-icone') } as M] : []), ...this.contenuM(noeud.contenu, noeud.genre, env, noeud.id)];
+    // « bouton icone "…" avec nom "…" » : l'icône seule ; le nom va dans aria-label.
+    const seule = noeud.reglages?.seule ? texteLitteral(noeud.contenu) : undefined;
+    const contenu: M[] = [...(lucideIcone ? [{ brut: iconeHtml(lucideIcone, 'humalis-icone') } as M] : []), ...(seule !== undefined ? [] : this.contenuM(noeud.contenu, noeud.genre, env, noeud.id))];
     switch (noeud.genre) {
       case 'titre':
       case 'soustitre': {
@@ -1063,7 +1065,7 @@ ${this.avecPlanificateur(corps.texte())}}
         return el('p', this.communM(noeud), contenu);
       case 'bouton': {
         const envoie = this.formulaireDe.has(noeud.id) && !this.evenements.has(noeud.id);
-        return el('button', this.communM(noeud, [['type', envoie ? 'submit' : 'button']]), contenu);
+        return el('button', this.communM(noeud, [['type', envoie ? 'submit' : 'button'], ...(seule !== undefined ? ([['aria-label', seule]] as [string, string][]) : [])]), contenu);
       }
       case 'lien':
         return el('a', this.communM(noeud, this.attrsLien(noeud, env)), contenu);

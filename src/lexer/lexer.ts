@@ -55,7 +55,8 @@ function finDuMorceau(texte: string, debut: number): number {
   return texte.indexOf('"}', debut);
 }
 
-const SAUT_DE_LIGNE = /^saut\s+de\s+ligne$/;
+/** « {saut de ligne} » ou « {a la ligne} » (« à la ligne ») : un retour à la ligne dans le texte. */
+const SAUT_DE_LIGNE = /^(?:saut\s+de\s+ligne|[aà]\s+la\s+ligne)$/;
 
 function decouperChaine(
   valeur: string,

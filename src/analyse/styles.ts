@@ -63,6 +63,8 @@ export type ResultatOption =
 export function optionCanonique(propriete: string, valeur: string, couleursTheme: ReadonlySet<string> = new Set()): ResultatOption {
   const nom = normaliser(propriete);
   if (nom === 'degrade') return degrade(valeur, couleursTheme);
+  // Posée par « bouton icone "…" avec nom "…" » : l'icône seule se voit.
+  if (nom === 'seule') return { propriete: 'seule', valeur };
   if (LIBRES.has(nom)) return { propriete: nom, valeur };
   const option = OPTIONS[nom];
   if (!option) {

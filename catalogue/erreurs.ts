@@ -316,6 +316,20 @@ page "accueil" :
     titre "Bienvenue" avec couleur bleu
 `),
     'un nom de propriété de style est attendu'),
+  e('bouton-icone-sans-nom', 'grammaire', 'Un bouton à icône seule sans nom',
+    'Un bouton qui ne montre qu\'une icône a besoin d\'un nom : c\'est ce que lit le lecteur d\'écran, et ce que vise « quand l\'utilisateur clique sur ».',
+    'Ajoute le nom : bouton icone "fermer" avec nom "Fermer la fenêtre".',
+    p(`
+page "accueil" :
+    titre "Bienvenue"
+    bouton icone "fermer"
+`),
+    p(`
+page "accueil" :
+    titre "Bienvenue"
+    bouton icone "fermer" avec nom "Fermer la fenêtre"
+`),
+    'a besoin d\'un nom'),
   e('valeur-de-style', 'grammaire', 'Une option sans valeur',
     'Chaque option après « avec » va par paire : un nom et une valeur. Ici, la valeur manque.',
     'Ajoute la valeur : avec couleur bleu.',

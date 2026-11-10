@@ -61,6 +61,7 @@ page "accueil" :
 - Une instruction que Humalis ne connaît pas : instruction inconnue
 - Un mot prévu, pas encore disponible : n’est pas encore disponible
 - Une option sans nom après « avec » : un nom de propriété de style est attendu
+- Un bouton à icône seule sans nom : a besoin d'un nom
 - Une option sans valeur : une valeur est attendue pour le style
 - Une comparaison inconnue : comparaison inconnue
 - Une comparaison incomplète : après « est plus »

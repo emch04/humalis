@@ -139,6 +139,8 @@ export interface ElementProduit {
   nouvelOnglet?: boolean;
   /** « avec ancre "…" » : l'identifiant de l'élément dans la page. */
   ancre?: string;
+  /** « bouton icone "…" avec nom "…" » : le nom lu par le lecteur d'écran, l'icône seule à l'écran. */
+  etiquette?: string;
   /** Les filtres de la page visée : un lien n'est « actif » que si ces filtres sont ceux de l'adresse courante. */
   filtresCible?: string[];
   /** La source d'une image : une chaîne JSX (`"logo.png"`) ou une expression (`{url}`), et son texte de remplacement. */
@@ -276,6 +278,7 @@ export const RENDU_WEB: Rendu = {
     const classes = [...el.options.map((o) => `humalis-${o.nom}-${o.valeur}`), ...el.classes];
     if (classes.length > 0) attributs.push(`className="${classes.join(' ')}"`);
     if (el.ancre !== undefined) attributs.push(`id=${JSON.stringify(el.ancre)}`);
+    if (el.etiquette !== undefined) attributs.push(`aria-label=${JSON.stringify(el.etiquette)}`);
     attributs.push(...el.evenements);
     const a = attributs.join(' ');
     switch (el.genre) {
@@ -2256,11 +2259,12 @@ class GenerateurEcran {
 
     // Une icône avant le texte d'un bouton, d'un lien… (avec icone "panier").
     const icone = noeud.reglages?.icone ? this.rendu.widgets.icone(noeud.reglages.icone) : '';
-    const contenu =
-      icone +
-      (this.textesChanges.has(noeud.id)
-        ? `{textes[${chaine(noeud.id)}] ?? ${expression(noeud.contenu, this.contexte)}}`
-        : contenuJSX(noeud.contenu, this.contexte));
+    const texteVu = this.textesChanges.has(noeud.id)
+      ? `{textes[${chaine(noeud.id)}] ?? ${expression(noeud.contenu, this.contexte)}}`
+      : contenuJSX(noeud.contenu, this.contexte);
+    // « bouton icone "fermer" avec nom "…" » : seule l'icône se voit ; le nom est lu par le lecteur d'écran.
+    // Une plateforme qui ne dessine pas l'icône garde le texte visible.
+    const contenu = icone + (noeud.reglages?.seule && icone ? '' : texteVu);
 
     const niveau = noeud.genre === 'soustitre' ? noeud.niveau ?? 2 : noeud.genre === 'titre' && this.titreVu ? 2 : 1;
     if (noeud.genre === 'titre') this.titreVu = true;
@@ -2286,6 +2290,7 @@ class GenerateurEcran {
       ...(noeud.externeValeur !== undefined ? { externeExpression: this.adresseDeLien(noeud.externeValeur) } : {}),
       ...(noeud.nouvelOnglet ? { nouvelOnglet: true } : {}),
       ...(noeud.ancre !== undefined ? { ancre: noeud.ancre } : {}),
+      ...(noeud.reglages?.seule && source !== undefined ? { etiquette: source } : {}),
       ...(noeud.cible !== undefined ? { filtresCible: (this.application.filtres?.get(noeud.cible) ?? []).map((f) => f.nom) } : {}),
       source: {
         jsx: source !== undefined ? JSON.stringify(source) : `{${expression(noeud.contenu, this.contexte)}}`,

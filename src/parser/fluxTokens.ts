@@ -27,6 +27,17 @@ export class FluxTokens {
     }
   }
 
+  /** Une marque pour relire depuis ici (« calcul ok = a est vrai » : on lit « a », puis on relit une condition). */
+  marque(): { position: number; liaisons: Map<number, Token> } {
+    return { position: this.position, liaisons: new Map(this.liaisons) };
+  }
+
+  revenir(m: { position: number; liaisons: Map<number, Token> }): void {
+    this.position = m.position;
+    this.liaisons.clear();
+    for (const [k, v] of m.liaisons) this.liaisons.set(k, v);
+  }
+
   /** Le mot de liaison écrit juste avant le token situé `decalage` plus loin (« de » dans « arrondi de ( »). */
   liaisonA(decalage: number): Token | undefined {
     return this.liaisons.get(Math.min(this.position + decalage, this.tokens.length - 1));
