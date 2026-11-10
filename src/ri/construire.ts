@@ -307,6 +307,8 @@ function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
     ...(serveur.motDePasseOublie ? { motDePasseOublie: serveur.motDePasseOublie.page } : {}),
     ...(serveur.connexionGoogle !== undefined ? { connexionGoogle: true } : {}),
     ...(serveur.connexionApple !== undefined ? { connexionApple: true } : {}),
+    ...(serveur.connexionCleAcces !== undefined ? { connexionCleAcces: true } : {}),
+    ...(serveur.doubleAuthentification !== undefined ? { doubleAuthentification: true } : {}),
     ...(serveur.roles?.length ? { roles: serveur.roles } : {}),
     ...(analyse.changeDeRole ? { changeDeRole: true } : {}),
     ...(analyse.changeDeCompte ? { changeDeCompte: true } : {}),
@@ -779,6 +781,16 @@ class Construction {
 
         case 'ConnexionApple':
           actions.push({ type: 'connexionApple' });
+          break;
+
+        case 'ConnexionCleAcces':
+          actions.push({ type: 'compteSecurise', quoi: 'connexionCle' });
+          break;
+        case 'AjoutCleAcces':
+          actions.push({ type: 'compteSecurise', quoi: 'ajoutCle' });
+          break;
+        case 'ActivationDoubleAuthentification':
+          actions.push({ type: 'compteSecurise', quoi: 'doubleAuthentification' });
           break;
 
         case 'TelechargementCsv':

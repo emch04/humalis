@@ -214,6 +214,8 @@ interface Liens {
   connexionGoogle?: boolean;
   /** « connexion apple » dans le serveur du fichier. */
   connexionApple?: boolean;
+  connexionCleAcces?: boolean;
+  doubleAuthentification?: boolean;
   /** « invitations vers … » et « mot de passe oublie vers … » dans le serveur du fichier. */
   comptes: { invitations: boolean; oublie: boolean };
   /** « fidelite par … de … : » dans le serveur du fichier. */
@@ -373,7 +375,7 @@ export function analyserSens(programme: Programme, classesCss?: Set<string>): Re
   );
   const partages = globale.declarerPartages(programme.partages);
 
-  const liens: Liens = { actionsParametres: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, (a.parametres ?? []).map((p) => p.nom)] as [string, string[]])))), resumes: new Set(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.resumes ?? []).map((x) => `${adresseNormalisee(r.adresse)}/${simplifier(x.nom).replace(/_/g, '-')}`)))), champsCompte: programme.serveurs.flatMap((s) => (s.champsCompte ?? []).map((c) => c.nom)), payees: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.apresPaiement ? [[r.apresPaiement.donnee, r.adresse] as [string, string]] : [])))), ia: programme.serveurs.some((s) => s.ia), actionsDonnees: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, a.donnee] as [string, string])))), documentsDonnees: new Map(programme.serveurs.flatMap((s) => (s.documents ?? []).map((d) => [d.nom, d.donnee] as [string, string]))), documents: new Map(programme.serveurs.flatMap((s) => (s.documents ?? []).flatMap((d) => { const route = s.routes.find((r) => r.regles.some((x) => x.donnee === d.donnee && x.actions.includes('lire'))); return route ? [[d.nom, route.adresse] as [string, string]] : []; }))), actions: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, r.adresse] as [string, string])))), sources: new Map(), serveur: programme.serveurs[0]?.nom, connexionGoogle: programme.serveurs[0]?.connexionGoogle !== undefined, connexionApple: programme.serveurs[0]?.connexionApple !== undefined, comptes: { invitations: programme.serveurs[0]?.invitations !== undefined, oublie: programme.serveurs[0]?.motDePasseOublie !== undefined }, fidelite: programme.serveurs[0]?.fidelite, routes: new Map(), donnees: new Map() };
+  const liens: Liens = { actionsParametres: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, (a.parametres ?? []).map((p) => p.nom)] as [string, string[]])))), resumes: new Set(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.resumes ?? []).map((x) => `${adresseNormalisee(r.adresse)}/${simplifier(x.nom).replace(/_/g, '-')}`)))), champsCompte: programme.serveurs.flatMap((s) => (s.champsCompte ?? []).map((c) => c.nom)), payees: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.apresPaiement ? [[r.apresPaiement.donnee, r.adresse] as [string, string]] : [])))), ia: programme.serveurs.some((s) => s.ia), actionsDonnees: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, a.donnee] as [string, string])))), documentsDonnees: new Map(programme.serveurs.flatMap((s) => (s.documents ?? []).map((d) => [d.nom, d.donnee] as [string, string]))), documents: new Map(programme.serveurs.flatMap((s) => (s.documents ?? []).flatMap((d) => { const route = s.routes.find((r) => r.regles.some((x) => x.donnee === d.donnee && x.actions.includes('lire'))); return route ? [[d.nom, route.adresse] as [string, string]] : []; }))), actions: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, r.adresse] as [string, string])))), sources: new Map(), serveur: programme.serveurs[0]?.nom, connexionGoogle: programme.serveurs[0]?.connexionGoogle !== undefined, connexionApple: programme.serveurs[0]?.connexionApple !== undefined, connexionCleAcces: programme.serveurs[0]?.connexionCleAcces !== undefined, doubleAuthentification: programme.serveurs[0]?.doubleAuthentification !== undefined, comptes: { invitations: programme.serveurs[0]?.invitations !== undefined, oublie: programme.serveurs[0]?.motDePasseOublie !== undefined }, fidelite: programme.serveurs[0]?.fidelite, routes: new Map(), donnees: new Map() };
   for (const serveur of programme.serveurs) {
     for (const donnee of serveur.donnees) liens.donnees.set(donnee.nom, donnee);
     for (const route of serveur.routes) {
@@ -1141,6 +1143,21 @@ class AnalysePage {
         }
         if (instruction.type === 'ConnexionApple' && this.liens.serveur !== undefined && !this.liens.connexionApple) {
           this.erreur(`« se connecter avec apple » demande la ligne « connexion apple » dans le serveur "${this.liens.serveur}".`, instruction.ligne);
+        }
+        return;
+      }
+
+      // Les clés d'accès et la double authentification : le serveur doit les ouvrir.
+      case 'ConnexionCleAcces':
+      case 'AjoutCleAcces':
+      case 'ActivationDoubleAuthentification': {
+        const nom = actionInterditeDansUneFonction(instruction)!;
+        this.litLaSession = true;
+        if (contexte === 'vue') this.horsEvenement(nom, instruction.ligne);
+        this.demandeUnServeur(nom, instruction.ligne);
+        const double = instruction.type === 'ActivationDoubleAuthentification';
+        if (this.liens.serveur !== undefined && !(double ? this.liens.doubleAuthentification : this.liens.connexionCleAcces)) {
+          this.erreur(`« ${nom} » demande la ligne « ${double ? 'double authentification' : "connexion par cle d'acces"} » dans le serveur "${this.liens.serveur}".`, instruction.ligne);
         }
         return;
       }
@@ -3097,6 +3114,12 @@ function actionInterditeDansUneFonction(instruction: Instruction): string | unde
       return 'se connecter avec google';
     case 'ConnexionApple':
       return 'se connecter avec apple';
+    case 'ConnexionCleAcces':
+      return "se connecter par cle d'acces";
+    case 'AjoutCleAcces':
+      return "ajouter cle d'acces";
+    case 'ActivationDoubleAuthentification':
+      return 'activer double authentification';
     case 'ChangementMotDePasse':
       return 'changer le mot de passe';
     case 'Invitation':

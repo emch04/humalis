@@ -584,6 +584,8 @@ function analyserServeur(flux: FluxTokens): Serveur {
   const routes: Route[] = [];
   let connexionGoogle: number | undefined;
   let connexionApple: number | undefined;
+  let connexionCleAcces: number | undefined;
+  let doubleAuthentification: number | undefined;
   let roles: string[] | undefined;
   let emails: Serveur['emails'];
   let invitations: Serveur['invitations'];
@@ -653,12 +655,21 @@ function analyserServeur(flux: FluxTokens): Serveur {
       donnees.push(analyserDonnee(flux));
     } else if (estLeMot(token, 'route')) {
       routes.push(analyserRoute(flux, roles !== undefined));
+    } else if (estLeMot(token, 'double') && estLeMot(flux.regarder(1), 'authentification')) {
+      // « double authentification » : un code à six chiffres après le mot de passe.
+      flux.avancer();
+      flux.avancer();
+      doubleAuthentification = token.ligne;
+    } else if (estLeMot(token, 'connexion') && estLeMot(flux.regarder(1), 'par') && estLeMot(flux.regarder(2), 'cle') && estLeMot(flux.regarder(3), 'acces')) {
+      // « connexion par cle d'acces » : sans mot de passe.
+      flux.avancer(); flux.avancer(); flux.avancer(); flux.avancer();
+      connexionCleAcces = token.ligne;
     } else if (estLeMot(token, 'connexion')) {
       // « connexion google », « connexion apple » : les portes en plus de l'email et du mot de passe.
       flux.avancer();
       const fournisseur = flux.actuel();
       if (motDe(fournisseur) !== 'google' && motDe(fournisseur) !== 'apple') {
-        throw new ErreurSyntaxique(`après « connexion », écrivez le fournisseur : connexion google ou connexion apple`, token.ligne);
+        throw new ErreurSyntaxique(`après « connexion », écrivez le fournisseur : connexion google, connexion apple ou connexion par cle d'acces`, token.ligne);
       }
       flux.avancer();
       if (motDe(fournisseur) === 'apple') connexionApple = token.ligne;
@@ -728,6 +739,8 @@ function analyserServeur(flux: FluxTokens): Serveur {
     ...(departs.length ? { departs } : {}),
     ...(connexionGoogle !== undefined ? { connexionGoogle } : {}),
     ...(connexionApple !== undefined ? { connexionApple } : {}),
+    ...(connexionCleAcces !== undefined ? { connexionCleAcces } : {}),
+    ...(doubleAuthentification !== undefined ? { doubleAuthentification } : {}),
     ...(roles?.length ? { roles } : {}),
     ...(taches.length ? { taches } : {}),
     ...(documents.length ? { documents } : {}),
@@ -1653,6 +1666,23 @@ export function analyserInstruction(flux: FluxTokens): Instruction {
 
   // « se connecter avec … », « se deconnecter » : « se » est un petit mot
   // déjà sauté, comme dans « la page se charge ».
+  // « se connecter par cle d'acces » : sans mot de passe.
+  if (estLeMot(flux.actuel(), 'connecter') && estLeMot(flux.regarder(1), 'par') && estLeMot(flux.regarder(2), 'cle') && estLeMot(flux.regarder(3), 'acces')) {
+    const debut = flux.avancer();
+    flux.avancer(); flux.avancer(); flux.avancer();
+    return { type: 'ConnexionCleAcces', ligne: debut.ligne };
+  }
+  // « ajouter cle d'acces », « activer double authentification » : sur le compte de la personne connectée.
+  if (estLeMot(flux.actuel(), 'ajouter') && estLeMot(flux.regarder(1), 'cle') && estLeMot(flux.regarder(2), 'acces') && flux.regarder(3).type === 'FIN_LIGNE') {
+    const debut = flux.avancer();
+    flux.avancer(); flux.avancer();
+    return { type: 'AjoutCleAcces', ligne: debut.ligne };
+  }
+  if (estLeMot(flux.actuel(), 'activer') && estLeMot(flux.regarder(1), 'double') && estLeMot(flux.regarder(2), 'authentification')) {
+    const debut = flux.avancer();
+    flux.avancer(); flux.avancer();
+    return { type: 'ActivationDoubleAuthentification', ligne: debut.ligne };
+  }
   if (estLeMot(flux.actuel(), 'connecter')) {
     return analyserConnexion(flux);
   }

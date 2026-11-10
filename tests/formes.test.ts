@@ -97,4 +97,16 @@ describe('les formes d’application spéciales', () => {
     const P = 'page "a" :\n    titre "A"\n';
     expect(erreurs(`donnee locale notes :\n    titre : texte\n    synchronisee avec "notes"\n${P}`)[0]).toContain("n'existe pas dans le serveur");
   });
+
+  it('les clés d’accès et la double authentification demandent leur ligne dans le serveur', () => {
+    const serveur = (lignes: string) => `serveur "s" :\n${lignes}    donnee note :\n        titre : texte\n    route "notes" :\n        connecte peut lire note\n`;
+    const page = (action: string) => `page "a" :\n    titre "A"\n    bouton "b"\n    quand l'utilisateur clique sur "b" :\n        ${action}\n`;
+    expect(erreurs(serveur('') + page("se connecter par cle d'acces"))[0]).toContain("demande la ligne « connexion par cle d'acces »");
+    expect(erreurs(serveur('') + page('activer double authentification'))[0]).toContain('demande la ligne « double authentification »');
+    const app = compile(serveur("    connexion par cle d'acces\n    double authentification\n") + page("ajouter cle d'acces"));
+    expect(app.serveurs[0]).toMatchObject({ connexionCleAcces: true, doubleAuthentification: true });
+    expect(JSON.stringify(app.ecrans)).toContain('"type":"compteSecurise","quoi":"ajoutCle"');
+    expect(verifierFormesPourLaCible(app, 'web').some((d) => d.gravite === 'erreur' && d.message.includes('clés d’accès'))).toBe(true);
+    expect(verifierFormesPourLaCible(app, 'serveur').filter((d) => d.gravite === 'erreur')).toHaveLength(2);
+  });
 });
