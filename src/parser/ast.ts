@@ -1199,6 +1199,8 @@ export interface Element {
   cible?: string;
   /** « lien … vers "https://wa.me/…?text={message}" » : les parties d'une adresse externe à trous. */
   cibleParties?: PartieChaine[];
+  /** « lien "Notre site" vers site » : l'adresse lue dans une variable ou un champ de fiche (« reglage.site »). */
+  cibleValeur?: Expression;
   /** « lien … vers "produit" avec id p.id » : les paramètres donnés à la page cible. */
   arguments?: ArgumentPage[];
   /** « avec ancre "desserts" » : un endroit de la page où un lien peut mener. */
@@ -1215,6 +1217,8 @@ export interface Element {
   indice?: string;
   /** « avec indice "Votre nom" en anglais "Your name" » : l'indice avec ses versions, seulement quand il en a. */
   indiceTexte?: LitteralChaine;
+  /** « champ "Nom" avec valeur nom » : ce que le champ contient au départ. */
+  valeur?: Expression;
   /** « avec minimum 1 », « avec maximum 10 » : pour un champ nombre. */
   minimum?: number;
   maximum?: number;

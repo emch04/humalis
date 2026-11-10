@@ -27,6 +27,7 @@ import { colorerCodeHumalis } from '../commun/colorerCode.js';
 import { chercherIcone } from '../../vocabulaire/icones.js';
 import { messageEnCode, messageEnLangues } from '../../i18n/messages.js';
 import { simplifier } from '../../analyse/elements.js';
+import { adresseDuLien, departDuChamp } from '../commun/liens-et-champs.js';
 import type { Action, ComposantHumalis, Ecran, Gestionnaire, NoeudVue, Valeur, ImageRI, ArgumentsPage, Etat } from '../../ri/types.js';
 
 type Liste<T> = T[];
@@ -595,12 +596,29 @@ export class GenerateurMoteur extends GenerateurPage {
     for (const [id, variable] of this.contexte.champs) {
       e.ligne(`const ${variable.replace(/\.v$/, '')} = signal(${this.contexte.sortes?.get(id) === 'case' ? 'false' : "''"});`);
     }
+    // « avec valeur … » : la dernière valeur de départ posée dans le champ (l'effet plus bas la pose).
+    for (const [id, { suivi }] of this.departs) e.ligne(`let ${suivi} = ${this.contexte.sortes?.get(id) === 'case' ? 'false' : "''"};`);
     const visibles = [...new Set([...this.montres, ...this.caches, ...this.fenetres])];
     if (visibles.length > 0) e.ligne(`const visibilite = signal({ ${visibles.map((id) => `${chaine(id)}: ${!this.montres.has(id) && !this.fenetres.has(id)}`).join(', ')} });`);
     if (this.textesChanges.size > 0) e.ligne('const textes = signal({});');
     const suivies = this.ecran.etatsRequetes ?? [];
     for (const nom of suivies) e.ligne(`const ${camel(nom)}Req = signal(REPOS);`);
     if (suivies.length > 0) e.ligne('const relances = {};');
+  }
+
+  /**
+   * « champ "Nom" avec valeur nom » : tant que la personne n'a rien changé au champ (il contient encore la
+   * dernière valeur de départ), il suit cette valeur quand elle change ; ce qu'elle a écrit reste.
+   */
+  private ecrireDepartsMoteur(e: Ecrivain): void {
+    for (const [id, { depart, suivi }] of this.departs) {
+      const boite = this.boiteDuChamp(id);
+      e.bloc('effet(() => {', () => {
+        e.ligne(`const ${depart} = ${this.departEnCode(id)};`);
+        e.ligne(`if (${boite}.x === ${suivi}) ${boite}.v = ${depart};`);
+        e.ligne(`${suivi} = ${depart};`);
+      }, '});');
+    }
   }
 
   protected override ecrireCalcul(e: Ecrivain, nom: string, valeur: Valeur): void {
@@ -642,6 +660,7 @@ export class GenerateurMoteur extends GenerateurPage {
     corps.indenter(() => {
       this.ecrireEtatMoteur(corps);
       for (const calcul of this.ecran.calculs) this.ecrireCalcul(corps, calcul.nom, calcul.valeur);
+      this.ecrireDepartsMoteur(corps);
       for (const fonction of this.fonctions) this.ecrireFonction(corps, fonction);
       if (this.chargements.length > 0) {
         const asynchrone = contientRequete(this.chargements) ? 'async ' : '';
@@ -1086,6 +1105,8 @@ ${this.avecPlanificateur(corps.texte())}}
   private attrsLien(noeud: Element, env: Environnement | null): [string, Attr | undefined][] {
     const onglet: [string, Attr | undefined][] = noeud.nouvelOnglet ? [['target', '_blank'], ['rel', 'noopener noreferrer']] : [];
     if (noeud.externeValeur) return [['href', { js: this.adresseDeLien(noeud.externeValeur), initial: false }], ...onglet];
+    // « lien … vers site » : la page du site ou l'adresse externe, décidée à l'affichage (navigation.js).
+    if (noeud.adresseValeur) return [['href', { js: `adresseDuLien(${expressionJs(noeud.adresseValeur, this.contexte)})`, initial: env ? (adresseDuLien(this.initial(noeud.adresseValeur, env), (chemin) => (this.site.fichiers.has(chemin) ? this.fichier(chemin) : `/${chemin}`)) ?? false) : false }], ...onglet];
     if (noeud.externe !== undefined) return [['href', noeud.externe], ...onglet];
     const filtres = noeud.cible !== undefined ? this.moteur.filtresDesPages.get(noeud.cible) : undefined;
     if (filtres?.length) onglet.push(['data-filtres', filtres.join(' ')]);
@@ -1128,8 +1149,11 @@ ${this.avecPlanificateur(corps.texte())}}
         : saisie.indiceLangues
           ? { js: messageEnCode(saisie.indiceLangues, chaine), initial: env ? saisie.indice : false }
           : saisie.indice;
+    // « avec valeur … » : le HTML de départ montre déjà la valeur ; modele() la reprend sans la perdre.
+    const depart = env && saisie?.valeur && sorte !== 'case' && sorte !== 'choix' && sorte !== 'liste' && sorte !== 'texteLong' ? departDuChamp(this.initial(saisie.valeur, env), sorte) : undefined;
     const options = (liste: [string, Attr | undefined][]): [string, Attr | undefined][] => [
       ...liste,
+      ['value', typeof depart === 'string' && depart !== '' ? depart : undefined],
       ['required', saisie?.obligatoire ? 'true' : undefined],
       ['placeholder', sorte !== 'liste' ? indice : undefined],
       ['min', saisie?.minimum !== undefined ? String(saisie.minimum) : undefined],
@@ -1293,7 +1317,7 @@ export const ADAPTATEURS = { module: 'monterModule', react: 'monterReact', vue: 
 
 const NOMS_MOTEUR = ['animerListe', 'signal', 'calcul', 'lecture', 'effet', 'nettoyer', 'gabarit', 'texte', 'attribut', 'ecouter', 'soumettre', 'ecouterLaPause', 'modele', 'si', 'chaque', 'zone', 'contenu', 'executer'];
 const NOMS_OUTILS = ['formaterDateLongue', 'formaterEnLettres', 'avecMajuscule', 'initialesDe', 'creer', 'icone', 'avatar', 'etoiles', 'codeQr', 'carteLieux', 'fenetre', 'observerLeBas', 'titreDeLaPage', 'descriptionDeLaPage', 'activerCarrousel', 'activerMotDePasse', 'afficherMessage', 'planifier', 'planificateur', 'minuteriesDeCouche', 'ecouterRaccourcis', 'mouvementReduit', 'themeSombre', 'copier', 'partager', 'telechargerCsv', 'confirmer', 'retirerPremier', 'grouper', 'formaterNombre', 'formaterDate', 'formaterArgent', 'accorder', 'formaterTaille', 'dateDuJour', 'maintenant', 'decalerDate', 'joursEntre', 'formaterDepuis', 'lireMemoire', 'garderMemoire', 'cliquer', 'focaliser', 't', 'langue', 'changerLangue', 'definirTheme'];
-const NOMS_NAV = ['naviguer', 'adresseDe', 'filtre', 'revenir', 'changerFiltre', 'apresLaGarde'];
+const NOMS_NAV = ['naviguer', 'adresseDe', 'adresseDuLien', 'filtre', 'revenir', 'changerFiltre', 'apresLaGarde'];
 const NOMS_ADAPT = ['monterModule', 'monterReact', 'monterVue', 'monterSvelte', 'monterWeb'];
 const NOMS_SERVEUR = ['serveur', 'derniereRequete', 'utilisateur', 'televerser', 'REPOS', 'lectureGardee', 'directDeCouche'];
 

@@ -100,6 +100,12 @@ lien "Voir le livre" vers "produit" avec id "livre-1"
 lien "Nous suivre" vers "https://exemple.fr" avec nouvel onglet
 ```
 
+### Faire un lien vers l'adresse rangée dans une variable | Link to the address kept in a variable
+```humalis page
+variable site = "https://exemple.fr"
+lien "Notre site" vers site
+```
+
 ### Faire un lien vers un endroit de la page | Link to a place on the page
 ```humalis page
 section "Desserts" avec ancre "desserts" :
@@ -251,6 +257,11 @@ case a cocher "J'accepte les conditions" avec obligatoire
 ```humalis page
 champ "Référence" avec desactive
 champ "Adresse de livraison" avec desactive si actif
+```
+
+### Remplir un champ dès le départ | Fill a field from the start
+```humalis page
+champ "Nom" avec valeur nom
 ```
 
 ### Lire ce qui a été écrit dans un champ | Read what was typed in a field

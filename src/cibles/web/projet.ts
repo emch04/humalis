@@ -13,6 +13,7 @@ import { fichiersDesElements, dependancesDesElements, dependancesDeDeveloppement
 import { fichiersGraphique, cssGraphique } from './graphique.js';
 import { cssTheme, changeLeTheme, modeParDefaut, themeTs, SCRIPT_THEME } from './theme.js';
 import { FORMAT_TS, FORMAT_TS_LANGUES, TAILLE_TS, DATES_TS, FORMES_TEXTE_TS } from '../format.js';
+import { adresseDuLienJs } from '../commun/liens-et-champs.js';
 import { balisesLangueDeDepart, langueWebTsx } from './langue.js';
 import { messagesDuProjet } from '../../i18n/messages.js';
 import type { Application, Ecran, Etat, Action, NoeudVue, ServeurRI, SiteRI } from '../../ri/types.js';
@@ -783,7 +784,7 @@ ${mouvement ? '\n// Les animations « au defilement » attendent que l\'élémen
  * vers une ancre, les filtres de l'adresse, le retour et les adresses
  * externes (jamais javascript: ni data:).
  */
-const NAVIGATION = `import { useEffect, useRef } from 'react';
+const NAVIGATION = `import { useEffect, useRef, type AnchorHTMLAttributes } from 'react';
 import { Link, useLocation, useResolvedPath, type LinkProps, type NavigateFunction, type SetURLSearchParams } from 'react-router';
 import { observerLien, precharger } from './prechargement';
 
@@ -834,6 +835,17 @@ export function Lien({ filtres = [], className, onPointerEnter, onPointerDown, o
   );
 }
 
+/**
+ * « lien … vers site » : l'adresse est lue dans une variable. https, http, mailto et tel sortent du site ;
+ * un autre schéma (javascript:…) ne donne pas d'adresse ; le reste est une page du site, ouverte sans recharger.
+ */
+export function LienAdresse({ adresse, ...reste }: AnchorHTMLAttributes<HTMLAnchorElement> & { adresse: unknown }) {
+  const lue = adresseDuLien(adresse);
+  if (lue === undefined || schemaDe(lue) !== undefined) return <a {...reste} href={lue} />;
+  return <Lien {...reste} to={lue} />;
+}
+
+${adresseDuLienJs('adresseDuLien', (chemin) => `'/' + ${chemin}`, true)}
 /** En haut de la page à chaque changement de page (pas de filtre) ; vers l'ancre quand l'adresse en a une. */
 export function Defilement() {
   const { pathname, hash } = useLocation();
@@ -2224,7 +2236,9 @@ export function outils(codes: string[], langues = false): string {
   const taille = codes.some((c) => /\bformaterTaille\(/.test(c)) ? `\n${TAILLE_TS}` : '';
   const dates = codes.some((c) => /\b(dateDuJour|maintenant|decalerDate|joursEntre|formaterDepuis)\(/.test(c)) ? `\n${DATES_TS}` : '';
   const formes = codes.some((c) => /\b(formaterDateLongue|formaterEnLettres|avecMajuscule|initialesDe)\(/.test(c)) ? `\n${FORMES_TEXTE_TS}` : '';
-  return `${OUTILS}${format}${groupes}${taille}${dates}${formes}`;
+  // « lien … vers site » sur le téléphone : la page du site ou l'adresse externe, décidée à l'affichage.
+  const adresse = codes.some((c) => /\badresseDuLien\(/.test(c)) ? `\n/** « lien … vers site » : https, http, mailto et tel sortent de l'application ; un autre schéma n'a pas d'adresse ; le reste est une page. */\nexport ${adresseDuLienJs('adresseDuLien', (chemin) => `'/' + ${chemin}`, true)}` : '';
+  return `${OUTILS}${format}${groupes}${taille}${dates}${formes}${adresse}`;
 }
 
 /** « grouper produits par categorie », écrit seulement si une page s'en sert. */

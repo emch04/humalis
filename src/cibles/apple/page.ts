@@ -83,7 +83,7 @@ export class GenerateurPage implements HotePage {
   private readonly libelles = new Map<string, string>();
   private readonly libellesLangues = new Map<string, Map<string, string>>();
   private readonly saisies = new Map<string, Saisie>();
-  private readonly champsEtat: { id: string; variable: string; sorte?: 'nombre' | 'case' }[] = [];
+  private readonly champsEtat: { id: string; variable: string; sorte?: 'nombre' | 'case'; depart?: string }[] = [];
   private readonly formulaires = new Map<string, { nom: string; champs: string[]; fonction?: Fonction; parametres: string[] }>();
   private readonly formulaireDe = new Map<string, string>();
   private readonly montres = new Set<string>();
@@ -241,7 +241,9 @@ export class GenerateurPage implements HotePage {
     const variable = this.nomUnique(nomSwift(`champ_${simplifier(libelle) || noeud.id}`));
     const sorte = noeud.saisie?.sorte === 'nombre' || noeud.saisie?.sorte === 'case' ? noeud.saisie.sorte : undefined;
     this.portee.champs.set(noeud.id, { variable, ...(sorte ? { sorte } : {}) });
-    this.champsEtat.push({ id: noeud.id, variable, ...(sorte ? { sorte } : {}) });
+    // « avec valeur … » : la dernière valeur de départ posée dans le champ.
+    const depart = noeud.saisie?.valeur ? this.nomUnique(`${variable}Depart`) : undefined;
+    this.champsEtat.push({ id: noeud.id, variable, ...(sorte ? { sorte } : {}), ...(depart ? { depart } : {}) });
     this.clesChamps.set(noeud.id, cleJson(libelle));
     this.libelles.set(noeud.id, libelle);
     this.libellesLangues.set(noeud.id, libellesEnLangues(noeud.contenu));
@@ -385,7 +387,9 @@ export class GenerateurPage implements HotePage {
       if (f.formulaire !== undefined) {
         for (const id of this.formulaires.get(f.formulaire)?.champs ?? []) {
           const champ = this.portee.champs.get(id);
-          if (champ) corps.ligne(`${champ.variable} = ${champ.sorte === 'case' ? 'false' : '""'}`);
+          // Un champ « avec valeur … » revient à sa valeur de départ ; les autres sont vidés.
+          const depart = this.champsEtat.find((c) => c.id === id)?.depart;
+          if (champ) corps.ligne(`${champ.variable} = ${depart ? `${depart} ?? ` : ''}${champ.sorte === 'case' ? 'false' : '""'}`);
         }
       }
     });
@@ -452,6 +456,7 @@ export class GenerateurPage implements HotePage {
     for (const f of this.ecran.filtres ?? []) e.ligne(`@State var ${nomSwift(f.nom)}: ${f.nombre ? 'Double?' : 'String?'}`);
     for (const etat of this.ecran.etat) this.ecrireEtat(e, etat);
     for (const champ of this.champsEtat) e.ligne(`@State private var ${champ.variable} = ${champ.sorte === 'case' ? 'false' : '""'}`);
+    for (const champ of this.champsEtat) if (champ.depart) e.ligne(`@State private var ${champ.depart}: ${champ.sorte === 'case' ? 'Bool' : 'String'}? = nil`);
     const visibles = [...new Set([...this.montres, ...this.caches, ...this.fenetres])];
     if (visibles.length > 0) {
       const initiales = visibles.map((id) => `${chaineSwift(id)}: ${!this.montres.has(id) && !this.fenetres.has(id)}`).join(', ');
@@ -547,6 +552,12 @@ export class GenerateurPage implements HotePage {
               for (const l of m.corps.trimEnd().split('\n')) if (l !== '') e.ligne(l);
             });
           });
+        }
+        // « champ "Nom" avec valeur nom » : tant que la personne n'a rien changé au champ, il suit sa valeur de départ.
+        for (const champ of this.champsEtat) {
+          const saisie = this.saisies.get(champ.id);
+          if (!champ.depart || !saisie?.valeur) continue;
+          e.ligne(`.onChange(of: ${this.departSwift(saisie.valeur, saisie.sorte)}, initial: true) { _, nouvelle in if ${champ.depart} == nil || ${champ.variable} == ${champ.depart} { ${champ.variable} = nouvelle }; ${champ.depart} = nouvelle }`);
         }
         for (const { gestionnaire, fonction } of this.saisiesSuivies) {
           const champ = this.portee.champs.get(gestionnaire.cibles[0] ?? '');
@@ -884,7 +895,8 @@ export class GenerateurPage implements HotePage {
           const route = this.actions.route(noeud.cible, noeud.arguments);
           faire.push(this.nomForce === 'BarreSite' ? `Routeur.commun.allerAuMenu(${route})` : `Routeur.commun.aller(${route})`);
           if (entree.actif) style = `(estOuverteHumalis(${route}) ? ${entree.actif} : ${code})`;
-        } else if (noeud.externeValeur !== undefined) faire.push(`ouvrirExterne(${this.valeurs.enTexte(noeud.externeValeur)})`);
+        } else if (noeud.adresseValeur !== undefined) faire.push(`Routeur.commun.allerVers(${this.valeurs.enTexte(noeud.adresseValeur)})`);
+        else if (noeud.externeValeur !== undefined) faire.push(`ouvrirExterne(${this.valeurs.enTexte(noeud.externeValeur)})`);
         else if (noeud.externe !== undefined) faire.push(`ouvrirExterne(${chaineSwift(noeud.externe)})`);
         this.visible(e, noeud.id, () => {
           e.ligne(`Button { ${faire.join('; ')} } label: {`);
@@ -1232,10 +1244,19 @@ export class GenerateurPage implements HotePage {
     return noeud.desactive ? [`.disabled(${noeud.desactive === true ? 'true' : this.valeurs.condition(noeud.desactive)})`] : [];
   }
 
+  /** « avec valeur … » en Swift : vrai ou faux pour une case, un texte sinon (une date coupée à AAAA-MM-JJ). */
+  private departSwift(valeur: Valeur, sorte: string): string {
+    if (sorte === 'case') return this.valeurs.vers(this.valeurs.expr(valeur, { genre: 'booleen' }), { genre: 'booleen' });
+    const texte = this.valeurs.enTexte(valeur);
+    return sorte === 'date' ? `String(${texte}.prefix(10))` : texte;
+  }
+
   private ecrireLien(e: Ecrivain, noeud: Extract<NoeudVue, { type: 'element' }>, id: string, ancre: string[], survol: string[]): void {
     const clics = (this.clics.get(noeud.id) ?? []).map((f) => this.appel(f));
     let aller: string;
-    if (noeud.externeValeur !== undefined) aller = `ouvrirExterne(${this.valeurs.enTexte(noeud.externeValeur)})`;
+    // « lien … vers site » : une page du programme, ou une adresse externe permise (https, http, mailto, tel).
+    if (noeud.adresseValeur !== undefined) aller = `Routeur.commun.allerVers(${this.valeurs.enTexte(noeud.adresseValeur)})`;
+    else if (noeud.externeValeur !== undefined) aller = `ouvrirExterne(${this.valeurs.enTexte(noeud.externeValeur)})`;
     else if (noeud.externe !== undefined) aller = `ouvrirExterne(${chaineSwift(noeud.externe)})`;
     else if (noeud.cible !== undefined) aller = `Routeur.commun.aller(${this.actions.route(noeud.cible, noeud.arguments)}${noeud.versAncre !== undefined ? `, ancre: ${chaineSwift(noeud.versAncre)}` : ''})`;
     else if (noeud.versAncre !== undefined) aller = `Routeur.commun.ancre = ${chaineSwift(noeud.versAncre)}`;

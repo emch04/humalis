@@ -18,6 +18,7 @@ import { lecturesDuChargement, adresseFiltree, type LectureDuChargement } from '
 import { colorerCodeHumalis } from '../commun/colorerCode.js';
 import { attributsFrappe } from '../commun/mouvement.js';
 import { repereSource, attributSourceJsx, marquerBalise } from '../commun/reperes.js';
+import { departDuChampJs } from '../commun/liens-et-champs.js';
 
 /** Une variable de boucle, passée au gestionnaire d'un événement écrit dans la boucle. */
 interface Parametre {
@@ -136,6 +137,8 @@ export interface ElementProduit {
   externe?: string;
   /** L'adresse externe à trous, en code (ses valeurs encodées après le « ? »). */
   externeExpression?: string;
+  /** « lien … vers site » : l'adresse entière lue dans une variable, en code. */
+  adresseExpression?: string;
   nouvelOnglet?: boolean;
   /** « avec ancre "…" » : l'identifiant de l'élément dans la page. */
   ancre?: string;
@@ -297,6 +300,10 @@ export const RENDU_WEB: Rendu = {
         // Le bouton d'un formulaire l'envoie (Entrée aussi) ; un bouton qui a son propre clic garde son clic.
         return `<button type="${el.envoie ? 'submit' : 'button'}" ${a}${el.desactive !== undefined ? ` disabled={${el.desactive}}` : ''}>${el.contenu}</button>`;
       case 'lien': {
+        // « lien … vers site » : une page du site ou une adresse externe, décidé à l'affichage (humalis/navigation).
+        if (el.adresseExpression !== undefined) {
+          return `<LienAdresse adresse={${el.adresseExpression}}${el.nouvelOnglet ? ' target="_blank" rel="noopener noreferrer"' : ''} ${a}>${el.contenu}</LienAdresse>`;
+        }
         if (el.externe !== undefined) {
           return `<a href=${el.externeExpression ? `{${el.externeExpression}}` : JSON.stringify(el.externe)}${el.nouvelOnglet ? ' target="_blank" rel="noopener noreferrer"' : ''} ${a}>${el.contenu}</a>`;
         }
@@ -421,6 +428,8 @@ class GenerateurEcran {
   private readonly contexte: Contexte = { types: new Map(), champs: new Map(), sortes: new Map() };
   /** Les champs qui ont une sorte ou des options, et le libellé de chaque champ (pour les messages). */
   private readonly saisies = new Map<string, Saisie>();
+  /** « champ "Nom" avec valeur nom » : pour chaque champ, le nom de sa valeur de départ et de la dernière suivie. */
+  private readonly departs = new Map<string, { depart: string; suivi: string }>();
   private readonly libelles = new Map<string, string>();
   /** Le libellé de chaque champ dans les autres langues (« Nom » en anglais « Name »), pour ses messages. */
   private readonly libellesLangues = new Map<string, Map<string, string>>();
@@ -659,6 +668,10 @@ class GenerateurEcran {
             this.clesChamps.set(noeud.id, camel(libelle));
             this.libelles.set(noeud.id, libelle);
             this.libellesLangues.set(noeud.id, libellesEnLangues(noeud.contenu));
+            if (noeud.saisie?.valeur) {
+              const base = simplifier(libelle) || noeud.id;
+              this.departs.set(noeud.id, { depart: this.nomUnique(`depart_${base}`), suivi: this.nomUnique(`suivi_${base}`) });
+            }
             if (noeud.saisie) {
               this.saisies.set(noeud.id, noeud.saisie);
               const sorte = noeud.saisie.sorte;
@@ -900,9 +913,9 @@ class GenerateurEcran {
   private imports(code: string): string {
     const react: string[] = [];
     if (this.besoins.fragment) react.push('Fragment');
-    if (this.chargements.length > 0 || this.avecDirect()) react.push('useEffect');
+    if (this.chargements.length > 0 || this.avecDirect() || this.departs.size > 0) react.push('useEffect');
     if (this.aDeLEtat() || (this.ecran.etatsRequetes?.length ?? 0) > 0) react.push('useState');
-    if ((this.ecran.etatsRequetes?.length ?? 0) > 0 || this.avecDirect()) react.push('useRef');
+    if ((this.ecran.etatsRequetes?.length ?? 0) > 0 || this.avecDirect() || this.departs.size > 0) react.push('useRef');
 
     const lignes: string[] = [];
     if (react.length) lignes.push(`import { ${react.join(', ')} } from 'react';`);
@@ -913,7 +926,7 @@ class GenerateurEcran {
     lignes.push(...this.rendu.widgets.imports(code));
     if (this.besoins.messages) lignes.push(`import { useMessages } from '../humalis/messages';`);
     const outils = [
-      ...['accorder', 'avecMajuscule', 'dateDuJour', 'decalerDate', 'formaterArgent', 'formaterDate', 'formaterDateLongue', 'formaterDepuis', 'formaterEnLettres', 'formaterNombre', 'formaterTaille', 'grouper', 'initialesDe', 'joursEntre', 'maintenant'].filter((o) => new RegExp(`\\b${o}\\(`).test(code)),
+      ...['accorder', 'adresseDuLien', 'avecMajuscule', 'dateDuJour', 'decalerDate', 'formaterArgent', 'formaterDate', 'formaterDateLongue', 'formaterDepuis', 'formaterEnLettres', 'formaterNombre', 'formaterTaille', 'grouper', 'initialesDe', 'joursEntre', 'maintenant'].filter((o) => new RegExp(`\\b${o}\\(`).test(code)),
       ...(this.besoins.retirer ? ['retirerPremier'] : []),
     ];
     if (outils.length) lignes.push(`import { ${outils.join(', ')} } from '../humalis/outils';`);
@@ -927,8 +940,8 @@ class GenerateurEcran {
     if (/\blectureGardee\(/.test(code)) lignes.push(`import { lectureGardee } from '../humalis/lectures';`);
     if (this.besoins.apres) lignes.push(`import { apresLaGarde } from '../humalis/reservee';`);
     if (this.application.rendu === undefined) {
-      const aides = ['Lien', 'adresseAvecFiltres', 'allerVers', 'changerFiltre', 'lireFiltre', 'lireFiltreNombre', 'ouvrirExterne', 'revenirEnArriere'].filter((a) =>
-        new RegExp(a === 'Lien' ? '<Lien\\b' : `\\b${a}\\(`).test(code),
+      const aides = ['Lien', 'LienAdresse', 'adresseAvecFiltres', 'allerVers', 'changerFiltre', 'lireFiltre', 'lireFiltreNombre', 'ouvrirExterne', 'revenirEnArriere'].filter((a) =>
+        new RegExp(a.startsWith('Lien') ? `<${a}\\b` : `\\b${a}\\(`).test(code),
       );
       if (aides.length) lignes.push(`import { ${aides.join(', ')} } from '../humalis/navigation';`);
     }
@@ -1006,8 +1019,8 @@ class GenerateurEcran {
       }
     }
     for (const [id, variable] of this.contexte.champs) {
-      // Une case à cocher vaut vrai ou faux ; les autres champs, le texte écrit.
-      e.ligne(`const [${variable}, ${setterDe(variable)}] = useState(${this.vide(id)});`);
+      // Une case à cocher vaut vrai ou faux ; les autres champs, le texte écrit ; « avec valeur … », sa valeur de départ.
+      e.ligne(`const [${variable}, ${setterDe(variable)}] = useState(${this.departInitial(id) ?? this.vide(id)});`);
       const ouvert = this.ouvertes.get(id);
       if (ouvert) e.ligne(`const [${ouvert}, ${setterDe(ouvert)}] = useState(false);`);
     }
@@ -1024,6 +1037,7 @@ class GenerateurEcran {
     for (const calcul of this.ecran.calculs) {
       e.ligne(`const ${camel(calcul.nom)} = ${expression(calcul.valeur, this.contexte)};`);
     }
+    this.ecrireDeparts(e);
     if (this.besoins.navigation) e.ligne(this.rendu.navigateur);
     if (this.besoins.apres || this.besoins.retour) e.ligne('const location = useLocation();');
     if (this.besoins.messages) e.ligne('const { afficherMessage } = useMessages();');
@@ -1148,7 +1162,8 @@ class GenerateurEcran {
       this.echecs = undefined;
       for (const id of formulaire.champs) {
         const variable = this.contexte.champs.get(id);
-        if (variable) e.ligne(`${setterDe(variable)}(${this.vide(id)});`);
+        // Un champ « avec valeur … » revient à sa valeur de départ ; les autres sont vidés.
+        if (variable) e.ligne(`${setterDe(variable)}(${this.departs.get(id)?.depart ?? this.vide(id)});`);
       }
     });
     this.dansEvenement = false;
@@ -1168,6 +1183,37 @@ class GenerateurEcran {
     }
     this.ecrireActions(e, actions, locales, modifiees(actions));
     this.contexte.renommes = undefined;
+  }
+
+  /** « avec valeur … » : la valeur de départ en code, convertie pour le champ (texte, date, vrai ou faux). */
+  private departEnCode(id: string): string | undefined {
+    const saisie = this.saisies.get(id);
+    return saisie?.valeur ? departDuChampJs(saisie.valeur, expression(saisie.valeur, this.contexte), saisie.sorte) : undefined;
+  }
+
+  /** La valeur de départ dès le premier affichage, sauf si elle lit un calcul (écrit plus bas) : l'effet la pose alors. */
+  private departInitial(id: string): string | undefined {
+    const code = this.departEnCode(id);
+    if (code === undefined) return undefined;
+    return this.ecran.calculs.some((c) => new RegExp(`(?<![.\\w$])${camel(c.nom)}\\b`).test(code)) ? undefined : code;
+  }
+
+  /**
+   * « champ "Nom" avec valeur nom » : tant que la personne n'a rien changé au champ (il contient encore
+   * la dernière valeur de départ), il suit cette valeur quand elle change, par exemple après une lecture
+   * du serveur. Dès qu'elle y a écrit, ce qu'elle a écrit reste.
+   */
+  private ecrireDeparts(e: Ecrivain): void {
+    for (const [id, { depart, suivi }] of this.departs) {
+      const variable = this.contexte.champs.get(id);
+      if (!variable) continue;
+      e.ligne(`const ${depart} = ${this.departEnCode(id)};`);
+      e.ligne(`const ${suivi} = useRef(${this.departInitial(id) === undefined ? this.vide(id) : depart});`);
+      e.bloc('useEffect(() => {', () => {
+        e.ligne(`${setterDe(variable)}((actuelle) => (actuelle === ${suivi}.current ? ${depart} : actuelle));`);
+        e.ligne(`${suivi}.current = ${depart};`);
+      }, `}, [${depart}]);`);
+    }
   }
 
   /** La valeur d'un champ vide : faux pour une case à cocher, un texte vide sinon. */
@@ -2295,6 +2341,7 @@ class GenerateurEcran {
       ...(noeud.cible !== undefined && noeud.arguments ? { versExpression: this.adresseAvec(noeud.cible, noeud.arguments, noeud.versAncre) } : {}),
       ...(noeud.externe !== undefined ? { externe: noeud.externe } : {}),
       ...(noeud.externeValeur !== undefined ? { externeExpression: this.adresseDeLien(noeud.externeValeur) } : {}),
+      ...(noeud.adresseValeur !== undefined ? { adresseExpression: expression(noeud.adresseValeur, this.contexte) } : {}),
       ...(noeud.nouvelOnglet ? { nouvelOnglet: true } : {}),
       ...(noeud.ancre !== undefined ? { ancre: noeud.ancre } : {}),
       ...(noeud.reglages?.seule && source !== undefined ? { etiquette: source } : {}),

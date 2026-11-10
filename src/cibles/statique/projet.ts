@@ -3,6 +3,7 @@
  * un site en HTML, CSS et JavaScript écrit en clair, sans framework ni
  * construction, qu'on dépose tel quel chez un hébergeur.
  */
+import { adresseDuLienJs } from '../commun/liens-et-champs.js';
 import { copiesDesMedias } from '../../ri/medias.js';
 import { titreComplet, adresseImage, sansBarreFinale, robotsTxt, manifeste, fichiersDuSite, balisesIcone, estExterne, echapper } from '../publication.js';
 import { avecDisposition } from './disposition.js';
@@ -30,6 +31,12 @@ import { chaine } from '../web/noms.js';
 import { echapperAttribut, echapperTexte } from './html.js';
 import { genererPageStatique, genererComposantStatique, genererFonctionsStatique, type ContexteSite } from './page.js';
 import { connaitreFonctions } from './valeurs.js';
+
+/** « lien … vers site » dans humalis.js : le fichier d'une page connue, sinon l'adresse telle quelle (ou nom.html). */
+const ADRESSE_DU_LIEN_STATIQUE = adresseDuLienJs('adresseDuLien', (chemin) => `((chemin) => PAGES[chemin] ?? (chemin === '' ? 'index.html' : /[.?#/]/.test(chemin) ? chemin : chemin + '.html'))(${chemin})`)
+  .split('\n')
+  .map((ligne) => (ligne ? `  ${ligne}` : ligne))
+  .join('\n');
 
 export interface OptionsStatique {
   /** Le nom du site, tiré du fichier Humalis (« boutique »). */
@@ -522,6 +529,7 @@ function humalisJs(
     'avecMajuscule',
     'initialesDe',
     'adresseDe',
+    'adresseDuLien',
     'lirePartage',
     'garderPartage',
     'lireMemoire',
@@ -795,6 +803,11 @@ ${interactions.fenetres ? '    // Une fenêtre fermée rend le focus à ce qui l
     return PAGES[nom] ?? \`\${nom}.html\`;
   }
 
+  /**
+   * « lien … vers site » : https, http, mailto et tel tels quels ; un autre schéma (javascript:…) n'a pas
+   * d'adresse ; le reste est une page du site (son fichier, ou l'adresse écrite si elle en a déjà la forme).
+   */
+${ADRESSE_DU_LIEN_STATIQUE}
 ${MESSAGES_JS}${LISTES_JS}  // ─── Le format français (décision F1) ───────────────────────────────────
 
 ${langues ? FORMAT_JS_LANGUES : FORMAT_JS}

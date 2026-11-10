@@ -12,6 +12,7 @@ import { sousActions } from '../../ri/actions.js';
 import { colorerCodeHumalis } from '../commun/colorerCode.js';
 import { attributsFrappe } from '../commun/mouvement.js';
 import { repereSource } from '../commun/reperes.js';
+import { adresseDuLien, departDuChamp, departDuChampJs } from '../commun/liens-et-champs.js';
 import { arbreWidget, arbreComposite, initiales, type AideWidget, type AideComposite, type Enfant } from './widgets.js';
 import { iconeHtml, etoilesHtml } from './html-elements.js';
 import { appelGraphique, htmlGraphique } from './graphique.js';
@@ -134,6 +135,8 @@ export class GenerateurPage {
   protected readonly evenements = new Map<string, Map<string, string[]>>();
   /** Les champs qui ont une sorte ou des options (« champ nombre "Âge" avec obligatoire »). */
   protected readonly saisies = new Map<string, Saisie>();
+  /** « champ "Nom" avec valeur nom » : pour chaque champ, le nom de sa valeur de départ et de la dernière suivie. */
+  protected readonly departs = new Map<string, { depart: string; suivi: string }>();
   /** Le libellé de chaque champ, pour les messages de vérification. */
   protected readonly libelles = new Map<string, string>();
   /** Le libellé de chaque champ dans les autres langues (« Nom » en anglais « Name »), pour ses messages. */
@@ -226,6 +229,10 @@ export class GenerateurPage {
               this.saisies.set(noeud.id, noeud.saisie);
               const sorte = noeud.saisie.sorte;
               if (sorte === 'nombre' || sorte === 'case') this.contexte.sortes?.set(noeud.id, sorte);
+            }
+            if (noeud.saisie?.valeur) {
+              const base = simplifier(libelle) || noeud.id;
+              this.departs.set(noeud.id, { depart: this.nomUnique(`depart_${base}`), suivi: this.nomUnique(`suivi_${base}`) });
             }
             if (formulaire !== undefined) this.formulaires.get(formulaire)?.champs.push(noeud.id);
           }
@@ -441,7 +448,10 @@ export class GenerateurPage {
     const dessin = new Ecrivain();
     dessin.ligne();
     dessin.ligne('/** Le contenu de la page, d’après l’état : au démarrage, puis après chaque événement. */');
-    dessin.bloc('function dessiner() {', () => this.ecrireRetour(dessin, this.ecran.vue));
+    dessin.bloc('function dessiner() {', () => {
+      this.ecrireDepartsStatique(dessin);
+      this.ecrireRetour(dessin, this.ecran.vue);
+    });
     const corps = fonctions.texte() + dessin.texte();
     const partages = this.site.partages.filter((p) => new RegExp(`\\b${nomJs(p.nom)}\\b`).test(corps));
 
@@ -531,6 +541,8 @@ ${prise}${code}}
     if (this.contexte.champs.size > 0) {
       e.ligne('// Ce qui est tapé dans les champs.');
       for (const [id, variable] of this.contexte.champs) e.ligne(`let ${variable} = ${this.contexte.sortes?.get(id) === 'case' ? 'false' : "''"};`);
+      // « avec valeur … » : la dernière valeur de départ posée dans le champ (dessiner() la pose).
+      for (const [id, { suivi }] of this.departs) e.ligne(`let ${suivi} = ${this.contexte.sortes?.get(id) === 'case' ? 'false' : "''"};`);
     }
     const visibles = [...new Set([...this.montres, ...this.caches, ...this.fenetres])];
     if (visibles.length > 0) {
@@ -619,10 +631,31 @@ ${prise}${code}}
       this.echecs = undefined;
       for (const id of formulaire.champs) {
         const variable = this.contexte.champs.get(id);
-        if (variable) e.ligne(`${variable} = ${this.contexte.sortes?.get(id) === 'case' ? 'false' : "''"};`);
+        // Un champ « avec valeur … » revient à sa valeur de départ ; les autres sont vidés.
+        if (variable) e.ligne(`${variable} = ${this.departs.get(id)?.suivi ?? (this.contexte.sortes?.get(id) === 'case' ? 'false' : "''")};`);
       }
     });
     this.dansEvenement = false;
+  }
+
+  /** « avec valeur … » : la valeur de départ en JavaScript, convertie pour le champ (texte, date, vrai ou faux). */
+  protected departEnCode(id: string): string | undefined {
+    const saisie = this.saisies.get(id);
+    return saisie?.valeur ? departDuChampJs(saisie.valeur, expressionJs(saisie.valeur, this.contexte), saisie.sorte) : undefined;
+  }
+
+  /**
+   * « champ "Nom" avec valeur nom », au début de dessiner() : tant que la personne n'a rien changé au champ
+   * (il contient encore la dernière valeur de départ), il suit cette valeur ; ce qu'elle a écrit reste.
+   */
+  private ecrireDepartsStatique(e: Ecrivain): void {
+    for (const [id, { depart, suivi }] of this.departs) {
+      const variable = this.contexte.champs.get(id);
+      if (!variable) continue;
+      e.ligne(`const ${depart} = ${this.departEnCode(id)};`);
+      e.ligne(`if (${variable} === ${suivi}) ${variable} = ${depart};`);
+      e.ligne(`${suivi} = ${depart};`);
+    }
   }
 
   /** Ce qui est vérifié avant d'envoyer un formulaire, pour ce champ : (condition d'erreur, message), comme sur le web. */
@@ -943,6 +976,11 @@ ${prise}${code}}
     return `adresseDe(${expressionJs(ecran, this.contexte)})`;
   }
 
+  /** « lien … vers site » à la compilation, comme adresseDuLien() dans humalis.js : le fichier d'une page connue, sinon l'adresse (ou nom.html). */
+  protected fichierDeLAdresse(chemin: string): string {
+    return this.site.fichiers.get(chemin) ?? (chemin === '' ? 'index.html' : /[.?#/]/.test(chemin) ? chemin : `${chemin}.html`);
+  }
+
   /** Une page absente (déjà signalée par un avertissement) : le nom de la page, en .html. */
   protected fichier(nom: string): string {
     return this.site.fichiers.get(nom) ?? `${simplifier(nom) || 'index'}.html`;
@@ -1131,8 +1169,14 @@ ${prise}${code}}
         return `creer('button', ${objet(commun([['type', envoie ? "'submit'" : "'button'"], ...(seule !== undefined ? ([['\'aria-label\'', chaine(seule)]] as [string, string][]) : []), ...this.desactiveJs(noeud)]))}, ${contenu})`;
       }
       case 'lien': {
-        const vers = noeud.arguments && noeud.cible !== undefined ? this.adresseAvec(noeud.cible, noeud.arguments) : chaine(this.fichier(noeud.cible ?? ''));
-        return `creer('a', ${objet(commun([['href', vers]]))}, ${contenu})`;
+        // « lien … vers site » : https, http, mailto et tel tels quels ; un autre schéma, sans adresse ; le reste, une page du site.
+        const vers = noeud.adresseValeur
+          ? `adresseDuLien(${expressionJs(noeud.adresseValeur, this.contexte)})`
+          : noeud.externe !== undefined
+            ? chaine(noeud.externe)
+            : noeud.arguments && noeud.cible !== undefined ? this.adresseAvec(noeud.cible, noeud.arguments) : chaine(this.fichier(noeud.cible ?? ''));
+        const onglet: [string, string][] = noeud.nouvelOnglet ? [['target', "'_blank'"], ['rel', "'noopener noreferrer'"]] : [];
+        return `creer('a', ${objet(commun([['href', vers], ...onglet]))}, ${contenu})`;
       }
       case 'image': {
         if (noeud.image) return `creer('img', ${objet(commun(this.attributsImage(noeud.image, noeud.contenu, (v) => expressionJs(v, this.contexte), chaine, (n) => `'${n}'`)))})`;
@@ -1624,10 +1668,11 @@ ${prise}${code}}
     }
   }
 
-  /** Le même champ que champJs, en HTML de départ : vide, rien de coché, rien de choisi. */
+  /** Le même champ que champJs, en HTML de départ : vide, rien de coché, rien de choisi (sauf « avec valeur … »). */
   protected champHtml(noeud: Element, env: Environnement, classes: string | undefined, contenu: string): string {
     const saisie = noeud.saisie;
     const sorte = saisie?.sorte ?? 'texte';
+    const depart = saisie?.valeur ? departDuChamp(evaluer(saisie.valeur, env), sorte) : undefined;
     const libelle = saisie?.obligatoire ? `<span>${contenu}${ETOILE_HTML}</span>` : contenu;
     const base: [string, string | undefined][] = [this.repereHtml(noeud.ligne), ['data-humalis', noeud.id], ['class', classes]];
     const options = (liste: [string, string | undefined][]) => [
@@ -1644,7 +1689,7 @@ ${prise}${code}}
     };
     switch (sorte) {
       case 'case':
-        return `<label class="humalis-case"><input${attributs(options([['type', 'checkbox'], ...base]))}>${libelle}</label>`;
+        return `<label class="humalis-case"><input${attributs(options([['type', 'checkbox'], ...base, ['checked', depart === true ? 'true' : undefined]]))}>${libelle}</label>`;
       case 'choix': {
         const radios = parmi()
           .map((v) => `<label><input${attributs([['type', 'radio'], ['name', noeud.id], ['value', v]])}>${echapperTexte(v)}</label>`)
@@ -1656,10 +1701,10 @@ ${prise}${code}}
         return `<label class="humalis-champ">${libelle}<select${attributs(options(base))}><option value="" selected="true">${echapperTexte(saisie?.indice ?? 'Choisissez…')}</option>${choix}</select></label>`;
       }
       case 'texteLong':
-        return `<label class="humalis-champ">${libelle}<textarea${attributs(options([['rows', '4'], ...base]))}></textarea></label>`;
+        return `<label class="humalis-champ">${libelle}<textarea${attributs(options([['rows', '4'], ...base]))}>${typeof depart === 'string' ? echapperTexte(depart) : ''}</textarea></label>`;
       default: {
         const genre = this.genreChamp(noeud) ?? TYPES_SAISIE[sorte];
-        const liste = options([...base, ['type', genre?.type], ['autocomplete', genre?.autocomplete]]);
+        const liste = options([...base, ['type', genre?.type], ['autocomplete', genre?.autocomplete], ['value', typeof depart === 'string' && depart !== '' ? depart : undefined]]);
         return `<label class="humalis-champ">${libelle}<input${attributs(liste)}></label>`;
       }
     }
@@ -1703,7 +1748,11 @@ ${prise}${code}}
       case 'lien': {
         // Les mêmes valeurs que le script, calculées à la compilation.
         const requete = (noeud.arguments ?? []).map((a) => `${camel(a.nom)}=${encodeURIComponent(String(evaluer(a.valeur, env)))}`).join('&');
-        return `<a${commun([['href', this.fichier(noeud.cible ?? '') + (requete ? `?${requete}` : '')]])}>${contenu}</a>`;
+        const onglet: [string, string][] = noeud.nouvelOnglet ? [['target', '_blank'], ['rel', 'noopener noreferrer']] : [];
+        const href = noeud.adresseValeur
+          ? adresseDuLien(evaluer(noeud.adresseValeur, env), (chemin) => this.fichierDeLAdresse(chemin))
+          : noeud.externe ?? this.fichier(noeud.cible ?? '') + (requete ? `?${requete}` : '');
+        return `<a${commun([['href', href], ...onglet])}>${contenu}</a>`;
       }
       case 'image': {
         if (noeud.image) return `<img${commun(this.attributsImage(noeud.image, noeud.contenu, (v) => String(evaluer(v, env)), (t) => t))}>`;
@@ -1736,6 +1785,7 @@ export function attributsRaccourci(noeud: Element): [string, string][] {
 
 const OUTILS_PAGE = [
   'creer',
+  'adresseDuLien',
   'icone',
   'avatar',
   'etoiles',

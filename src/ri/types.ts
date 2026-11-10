@@ -508,6 +508,8 @@ export type NoeudVue =
       externe?: string;
       /** « vers "https://wa.me/…?text={message}" » : l'adresse externe à trous, lue au moment d'afficher. */
       externeValeur?: Valeur;
+      /** « lien "Notre site" vers site » : l'adresse entière lue au moment d'afficher ; externe (https, mailto, tel) ou du site. */
+      adresseValeur?: Valeur;
       /** « avec nouvel onglet ». */
       nouvelOnglet?: boolean;
       /** Pour un champ qui a une sorte ou des options : comment on y écrit, et ce qui est vérifié. */
@@ -659,6 +661,8 @@ export interface Saisie {
   indiceLangues?: TexteEnLangues;
   /** Un indice avec des {variables} (« {reglage.boutique} ») : sa valeur, calculée à l'affichage. */
   indiceValeur?: Valeur;
+  /** « avec valeur nom » : ce que le champ contient au départ (et tant que la personne n'y a rien changé). */
+  valeur?: Valeur;
   minimum?: number;
   maximum?: number;
 }
