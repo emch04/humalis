@@ -3521,8 +3521,12 @@ it is needed. `fichier "…" dans …` opens the system file picker, `envoyer fi
 its progress, and `telecharger bon de …` and `telecharger … en csv` open or share the file
 with the device's applications.
 
-What does not exist on Android yet, and that compilation refuses with a clear message:
-charts, maps, audio, video, QR codes, Google or Apple login, payment, AI and notifications.
+Media too: charts are drawn with the web's colors and scales, and keep their
+“Voir les données” table; maps show OpenStreetMap tiles and their attribution; audio and
+video go through Android's player and never start on their own; QR codes and tables show
+as on the web.
+
+What does not exist on Android yet, and that compilation refuses with a clear message: Google or Apple login, payment, AI and notifications.
 
 CSS becomes Compose, rule by rule, when a rule targets a class (`.card { … }`): background,
 color, text size and weight, margins and padding, border, corner radius, shadow, width, and

@@ -3441,9 +3441,12 @@ demandée la première fois qu'elle sert. `fichier "…" dans …` ouvre le sél
 du système, `envoyer fichier …` suit sa progression, et `telecharger bon de …` comme
 `telecharger … en csv` ouvrent ou partagent le fichier avec les applications de l'appareil.
 
-Ce qui n'existe pas encore sur Android, et que la compilation refuse en le disant :
-les graphiques, les cartes,
-le son, la vidéo, le code QR, la
+Les médias aussi : les graphiques sont dessinés avec les couleurs et les graduations du
+web, et gardent leur table « Voir les données » ; les cartes montrent les tuiles
+d'OpenStreetMap et leur attribution ; le son et la vidéo passent par le lecteur d'Android,
+sans démarrer seuls ; le code QR et les tableaux s'affichent comme sur le web.
+
+Ce qui n'existe pas encore sur Android, et que la compilation refuse en le disant : la
 connexion avec Google ou Apple, le paiement, l'IA et les notifications.
 
 Le CSS se traduit en Compose, règle par règle, quand une règle vise une classe

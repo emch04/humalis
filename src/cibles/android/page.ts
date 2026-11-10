@@ -499,16 +499,19 @@ export class GenerateurPage implements HoteActions {
         e.ligne('sousPage?.invoke()');
         return;
       case 'graphique':
-        return this.refuser('« graphique »');
+        return this.ecrireGraphique(e, noeud);
       case 'carte':
-        return this.refuser('« carte »');
+        return this.ecrireCarte(e, noeud);
       case 'marqueur':
         return;
       case 'codeDocumentation':
         e.ligne(`Text(${chaineKotlin(noeud.code)}, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp)).padding(12.dp))`);
         return;
-      case 'tableauDocumentation':
-        return this.refuser('le tableau de documentation');
+      case 'tableauDocumentation': {
+        const ligne = (l: Valeur[]) => `listOf(${l.map((c) => this.valeurs.t(c)).join(', ')})`;
+        e.ligne(`TableauHumalis(${this.valeurs.t(noeud.legende)}, ${ligne(noeud.colonnes)}, listOf(${noeud.rangees.map(ligne).join(', ')}))`);
+        return;
+      }
     }
   }
 
@@ -785,6 +788,20 @@ export class GenerateurPage implements HoteActions {
         e.ligne(`ChoixFichierHumalis(${this.valeurs.t(contenu)}, ${lue}, { ${lue} = it }, ${familles}${choix.octets !== undefined ? `, maximum = ${choix.octets}.0` : ''}${choix.plusieurs ? ', plusieurs = true' : ''}${choix.apercu ? '' : ', apercu = false'}${m ? `, modifier = Modifier${m}` : ''})`);
         return;
       }
+      case 'qr':
+        e.ligne(`QrHumalis(${this.valeurs.t(contenu)}, ${description}${m ? `, Modifier${m}` : ''})`);
+        return;
+      case 'audio':
+      case 'video': {
+        const ecrit = contenu.type === 'texte' && contenu.parties.every((p) => 'texte' in p) ? contenu.parties.map((p) => ('texte' in p ? p.texte : '')).join('') : undefined;
+        const locale = ecrit !== undefined && !/^([a-z][a-z0-9+.-]*:|\/)/i.test(ecrit.trim());
+        const source = locale ? chaineKotlin(this.app.ressource(nomDeLaCopie(ecrit!))) : this.valeurs.t(contenu);
+        const textes = noeud.textes;
+        const legende = textes?.description ? this.valeurs.t(textes.description) : description;
+        const transcription = textes?.transcription ? this.valeurs.t(textes.transcription) : 'null';
+        e.ligne(`${noeud.genre === 'audio' ? 'LecteurHumalis' : 'VideoHumalis'}(${source}, ${locale}, ${legende}, ${transcription}${noeud.reglages.boucle ? ', boucle = true' : ''}${m ? `, modifier = Modifier${m}` : ''})`);
+        return;
+      }
       case 'selecteurLangue':
         if (!this.app.langues) return;
         e.ligne(`SelecteurLangueHumalis(${m ? `Modifier${m}` : ''})`);
@@ -896,6 +913,66 @@ export class GenerateurPage implements HoteActions {
       const tantQue = f.gestionnaire.tantQue ? this.valeurs.b(f.gestionnaire.tantQue) : 'true';
       const args = f.parametres.map((p) => this.portee.variables.get(p) ?? nomKotlin(p)).join(', ');
       e.bloc(`if (${tantQue}) {`, () => e.ligne(`TextButton(onClick = { portee.launch { ${f.nom}(${args}) } }) { Text(${f.gestionnaire.bouton ? chaineKotlin(f.gestionnaire.bouton) : this.fixe('Voir plus')}) }`));
+    }
+  }
+
+  private ecrireGraphique(e: EcrivainKotlin, noeud: Extract<NoeudVue, { type: 'graphique' }>): void {
+    const liste = `liste(${this.valeurs.x(noeud.liste)})`;
+    const etiquettes = noeud.etiquette !== undefined
+      ? `${liste}.map { texte(champ(it, ${chaineKotlin(cleJson(noeud.etiquette))})) }`
+      : noeud.etiquettes
+        ? `liste(${this.valeurs.x(noeud.etiquettes)}).map { texte(it) }`
+        : `${liste}.indices.map { (it + 1).toString() }`;
+    const series = noeud.series.map((s) => {
+      const valeurs = s.valeur !== undefined ? `${liste}.map { nombre(champ(it, ${chaineKotlin(cleJson(s.valeur))})) }` : `${liste}.map { nombre(it) }`;
+      const nom = s.nomLangues && s.nomLangues.length > 1 ? this.enLangues(s.nom, s.nomLangues) : chaineKotlin(s.nom);
+      return `SerieHumalis(${nom}, ${valeurs}${s.couleur ? `, Couleurs.${nomKotlin(s.couleur)}` : ''})`;
+    });
+    const titre = noeud.titreLangues && noeud.titreLangues.length > 1 ? this.enLangues(noeud.titre, noeud.titreLangues) : chaineKotlin(noeud.titre);
+    const proportions = noeud.proportions ? `, proportions = ${noeud.proportions[0]}f / ${noeud.proportions[1]}f` : '';
+    const css = this.css(noeud.classes, 'bloc');
+    const m = css.dehors + css.decor + css.dedans;
+    e.ligne(`GraphiqueHumalis(${chaineKotlin(noeud.genre)}, ${titre}, ${this.valeurs.t(noeud.description)}, ${etiquettes}, listOf(${series.join(', ')})${noeud.devise ? `, devise = ${chaineKotlin(noeud.devise)}` : ''}${proportions}${m ? `, modifier = Modifier${m}` : ''})`);
+  }
+
+  private ecrireCarte(e: EcrivainKotlin, noeud: Extract<NoeudVue, { type: 'carte' }>): void {
+    const lieux = new EcrivainKotlin();
+    lieux.indenter(() => this.ecrireLieux(lieux, noeud.corps));
+    const centre = noeud.latitude && noeud.longitude ? `, latitude = ${this.valeurs.n(noeud.latitude)}, longitude = ${this.valeurs.n(noeud.longitude)}` : '';
+    const zoom = noeud.zoom ? `, zoom = ${this.valeurs.n(noeud.zoom)}` : '';
+    const tuiles = noeud.tuiles ? `, tuiles = ${chaineKotlin(noeud.tuiles.adresse)} to ${chaineKotlin(noeud.tuiles.attribution)}` : '';
+    e.ligne(`CarteHumalis(${this.valeurs.t(noeud.nom)}, buildList {`);
+    for (const l of lieux.texte().trimEnd().split('\n')) if (l) e.ligne(l);
+    e.ligne(`}${centre}${zoom}${tuiles})`);
+  }
+
+  /** Les marqueurs d'une carte, dans ses boucles et ses conditions. */
+  private ecrireLieux(e: EcrivainKotlin, noeuds: NoeudVue[]): void {
+    for (const n of noeuds) {
+      this.ligneCourante = n.ligne;
+      if (n.type === 'marqueur') {
+        const adresse = n.adresse ? ` + " — " + ${this.valeurs.t(n.adresse)}` : '';
+        e.ligne(`add(LieuHumalis(${this.valeurs.t(n.nom)}${adresse}, ${this.valeurs.n(n.latitude)}, ${this.valeurs.n(n.longitude)}))`);
+      } else if (n.type === 'condition') {
+        e.ligne(`if (${this.valeurs.b(n.test)}) {`);
+        e.indenter(() => this.ecrireLieux(e, n.alors));
+        if (n.sinon.length) {
+          e.ligne('} else {');
+          e.indenter(() => this.ecrireLieux(e, n.sinon));
+        }
+        e.ligne('}');
+      } else if (n.type === 'repetition') {
+        const nom = nomKotlin(n.variable);
+        const avant = this.portee.variables.get(n.variable);
+        this.portee.variables.set(n.variable, nom);
+        e.bloc(`for (${nom} in liste(${this.valeurs.x(n.liste)})) {`, () => this.ecrireLieux(e, n.corps));
+        if (avant !== undefined) this.portee.variables.set(n.variable, avant);
+        else this.portee.variables.delete(n.variable);
+      } else if (n.type === 'locale') {
+        const nom = this.nomUnique(nomKotlin(n.nom));
+        e.ligne(`val ${nom}: Any? = ${this.valeurs.x(n.valeur)}`);
+        this.portee.variables.set(n.nom, nom);
+      }
     }
   }
 
