@@ -14,6 +14,7 @@ import { EcrivainActions, type HoteActions } from './actions.js';
 import { chaineCs, cleJson, commentaireCs, nomComposant, nomCs, nomMethode, nomPage } from './noms.js';
 import { OPTIONS_NON_DESSINEES, styleDesOptions } from './styles.js';
 import { ExpressionsCs, type ChampPage, type Lieu, type Portee } from './valeurs.js';
+import { convertir, parametreDe, type VueNatifCs } from './natifs.js';
 
 /** Ce que toutes les pages partagent : le reste du programme. */
 export interface ContexteWindows {
@@ -21,6 +22,8 @@ export interface ContexteWindows {
   partages: Map<string, Lieu>;
   fonctions: Set<string>;
   composants: Map<string, ComposantHumalis>;
+  /** Les vues C# écrites à la main (« sur windows "Carte.cs" »), lues dans leur fichier. */
+  natifs?: Map<string, VueNatifCs>;
   /** Les couleurs nommées (thème et couleurs de Humalis). */
   couleurs: Set<string>;
   /** Les styles nommés traduits (« carte » → Styles.Carte). */
@@ -739,9 +742,11 @@ export class GenerateurBloc implements HoteActions {
   }
 
   private composant(n: Extract<NoeudVue, { type: 'composant' }>): string | undefined {
+    const natif = this.ctx.natifs?.get(n.nom);
+    if (natif) return this.composantNatif(n, natif);
     const c = this.ctx.composants.get(n.nom);
     if (!c) {
-      this.refuser(`« ${n.nom} » (un composant React)`);
+      // Sans vue C# : déjà refusé par la vérification du programme.
       return undefined;
     }
     const args = c.parametres.map((p) => {
@@ -749,6 +754,31 @@ export class GenerateurBloc implements HoteActions {
       return `() => ${donne ? this.x.expr(donne.valeur) : '(object?)null'}`;
     });
     return `UI.Composant(() => new ${nomComposant(n.nom)}(${args.join(', ')}))`;
+  }
+
+  /**
+   * Une vue C# écrite à la main : les propriétés de la page passent par leur nom au constructeur,
+   * converties à son type (string, double, int, bool). Elle est recréée quand une valeur lue change.
+   */
+  private composantNatif(n: Extract<NoeudVue, { type: 'composant' }>, vue: VueNatifCs): string | undefined {
+    const erreur = (message: string) => {
+      this.ctx.diagnostics.push({ gravite: 'erreur', ligne: n.ligne, message });
+      return undefined;
+    };
+    const args: string[] = [];
+    const donnes = new Set<string>();
+    for (const pr of n.proprietes) {
+      const parametre = parametreDe(vue, pr.nom);
+      if (!parametre) {
+        const attendus = vue.parametres.map((p) => p.nom).join(', ') || 'aucun';
+        return erreur(`« ${pr.nom} » n'est pas un paramètre du constructeur de la vue C# « ${n.nom} » (paramètres : ${attendus}).`);
+      }
+      donnes.add(parametre.nom);
+      args.push(`${parametre.nom}: ${convertir(this.x.expr(pr.valeur), parametre.genre)}`);
+    }
+    const manquants = vue.parametres.filter((p) => !p.facultatif && !donnes.has(p.nom)).map((p) => p.nom);
+    if (manquants.length > 0) return erreur(`la vue C# « ${n.nom} » attend aussi ${manquants.map((m) => `« ${m} »`).join(', ')} : donnez-${manquants.length > 1 ? 'les' : 'le'} dans la page (« ${n.nom} avec ${manquants[0]} … »), ou une valeur par défaut dans le constructeur.`);
+    return `UI.Natif(() => new ${vue.classe}(${args.join(', ')}))`;
   }
 
   /** Avant d'écrire la vue : ce qui change de texte ou de visibilité (pour ne suivre que ce qui en a besoin). */

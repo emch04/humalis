@@ -398,6 +398,7 @@ function lirePolices(application: Application, chemin: string): Map<string, stri
 function lireComposantsReact(application: Application, chemin: string, extensions = ['', '.tsx', '.ts', '.jsx', '.js']): Map<string, { nom: string; contenu: string }> | undefined {
   const composantsReact = new Map<string, { nom: string; contenu: string }>();
   for (const composant of application.composantsReact) {
+    if (composant.chemin === undefined) continue; // sans fichier pour le web : refusé avant
     const base = join(dirname(chemin), composant.chemin);
     const trouve = extensions.map((ext) => base + ext).find((c) => existsSync(c) && !statSync(c).isDirectory());
     if (!trouve) {
@@ -611,6 +612,22 @@ function compileApple(application: Application, chemin: string, sortie: string, 
   return 0;
 }
 
+/** Les vues écrites à la main pour une plateforme (« sur windows "Carte.cs" »), cherchées à côté du fichier Humalis. */
+function lireNatifs(application: Application, chemin: string, plateforme: 'apple' | 'android' | 'windows', langue: string): Map<string, { nom: string; contenu: string }> | undefined {
+  const natifs = new Map<string, { nom: string; contenu: string }>();
+  for (const c of application.composantsReact) {
+    const relatif = c[plateforme];
+    if (relatif === undefined) continue;
+    const fichier = join(dirname(chemin), relatif);
+    if (!existsSync(fichier) || statSync(fichier).isDirectory()) {
+      console.error(`Erreur, ${position(c.ligne)} : le fichier ${langue} du composant « ${c.nom} » est introuvable (${relatif}, cherché à côté de ${basename(chemin)}).`);
+      return undefined;
+    }
+    natifs.set(c.nom, { nom: basename(fichier), contenu: readFileSync(fichier, 'utf8') });
+  }
+  return natifs;
+}
+
 function compileWindows(application: Application, chemin: string, sortie: string, arguments_: string[]): number {
   if (application.ecrans.length === 0) {
     console.error(`Le fichier ${basename(chemin)} ne contient aucune page : rien n'a été écrit.`);
@@ -627,8 +644,10 @@ function compileWindows(application: Application, chemin: string, sortie: string
   if (!fichiersStyle) return 1;
   const medias = lireMedias(application, chemin);
   if (!medias) return 1;
+  const natifs = lireNatifs(application, chemin, 'windows', 'C#');
+  if (!natifs) return 1;
   const identifiant = option(arguments_, 'identifiant');
-  const { fichiers, diagnostics } = genererProjetWindows(application, { nom, source: basename(chemin), fichiersStyle, medias, ...(serveur ? { serveur } : {}), ...(identifiant ? { identifiant } : {}) });
+  const { fichiers, diagnostics } = genererProjetWindows(application, { nom, source: basename(chemin), fichiersStyle, medias, natifs, ...(serveur ? { serveur } : {}), ...(identifiant ? { identifiant } : {}) });
   afficherDiagnostics(diagnostics);
   if (diagnostics.some((d) => d.gravite === 'erreur')) {
     console.error('\nLe programme ne peut pas être produit pour Windows : rien n\'a été écrit.');

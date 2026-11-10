@@ -3343,31 +3343,62 @@ a property changes, it is restarted. If it can update itself, it returns
 The other way round, `humalis compile … --composants <folder>` generates React
 components to import into an existing React project.
 
-### A hand-written Swift view
+### A hand-written native view
 
-The Apple target has neither React nor JavaScript. To use hand-written Swift
-there, add `sur apple`: the web keeps its component, the Apple app uses your
-SwiftUI view.
+When Humalis cannot draw something yet, write that piece in the platform's own
+language: Swift for iPhone, iPad and Mac, C# for Windows. No React, no browser:
+each app stays native. One line gives the view for each platform:
 
 ```humalis
-utiliser composant "Carte" depuis "./composants/Carte" sur apple "./composants/Carte.swift"
+utiliser composant "Carte" sur apple "./natif/Carte.swift" et sur windows "./natif/Carte.cs"
 
 page "accueil" :
-    Carte avec titre "Bonjour"
+    Carte avec titre "Coffee" et prix 3.5
 ```
+
+On Apple, a SwiftUI view with the component's name:
 
 ```swift
 import SwiftUI
 
 struct Carte: View {
     let titre: String
-    var body: some View { Text(titre).font(.title) }
+    let prix: Double
+    var body: some View { Text("\(titre): \(prix) €").font(.title) }
 }
 ```
 
-The view has the component's name, and its properties are written in the same
-order as in the page. Text is a `String`, a number a `Double`, true or false a
-`Bool`.
+On Windows, a WPF class with the same name (a `UserControl`, or any other element):
+
+```csharp
+using System.Windows.Controls;
+
+namespace MyViews;
+
+public class Carte : UserControl
+{
+    public Carte(string titre, double prix, bool promo = false)
+    {
+        Content = new TextBlock { Text = $"{titre}: {prix:0.00} €", FontSize = 22 };
+    }
+}
+```
+
+The page's properties are passed by name: `titre` goes to the `titre` parameter.
+Text is a `String` (`string` in C#), a number a `Double` (`double`, or `int`), true or
+false a `Bool` (`bool`). A C# parameter with a default value may be left out of the
+page. On Windows, the view is created again when a value it receives changes. An
+unknown property, or a missing parameter, is reported at compile time.
+
+A platform without its view stops with the line to add: here, the Android app and
+the website have no "Carte". For the website, write the component in Humalis
+(`composant "Carte" :`), or a JavaScript module: `utiliser module "Carte" depuis
+"./modules/Carte.js"`, followed by the same `sur …`.
+
+The libraries for these views are added at the top of the file: `paquet swift
+"https://…" version "1.2"` for Apple (see above), `paquet windows "Humanizer.Core"
+version "2.14.1"` for Windows (NuGet), `paquet android "io.coil-kt:coil-compose"
+version "2.7.0"` for Android (Gradle).
 
 ### Several files
 
@@ -3479,7 +3510,8 @@ target, the compiler says so clearly instead of producing something wrong.
 | `memorisee en secret` | no | no | yes | yes | yes (Keychain) | yes (encrypted by Windows) |
 | `essayer` | yes | no | yes | yes | yes | yes |
 | Keyboard shortcuts | yes | yes | no | yes | yes | yes |
-| React components | yes | no | yes (in React Native) | yes | no (`sur apple "View.swift"`) | no |
+| Hand-written native view | no | no | no | no | yes (Swift, `sur apple`) | yes (C#, `sur windows`) |
+| React components (older projects) | yes | no | yes (in React Native) | yes | no | no |
 | The engine without React (the default) | yes | no | no | yes (except a React component or `memorisee en secret`) | no | no |
 | Charts, maps, audio, video, files | yes | yes | partly | yes | yes | yes |
 | Several languages | yes | yes | yes | yes | yes | yes |
@@ -3517,8 +3549,11 @@ Mac or on Linux; only running it needs Windows 10 or 11.
   `sous page`, anchors and the application's tabs.
 - `partager …` copies the text (and the link) to the clipboard.
 - Animations and hover effects are not drawn yet; the compiler says so.
-- Not on Windows yet: React components, payment, AI, signing in with Google or Apple,
-  invitations, notifications. Compilation stops and says which line needs them.
+- What Humalis cannot do yet is written in C#: `utiliser composant "Carte" sur windows
+  "./natif/Carte.cs"`, with its NuGet libraries (`paquet windows "…" version "…"`); see
+  "A hand-written native view".
+- Not on Windows yet: payment, AI, signing in with Google or Apple, invitations,
+  notifications. Compilation stops and says which line needs them.
 
 Without code signing, Windows shows a warning (SmartScreen) on first launch: "More
 info", then "Run anyway".

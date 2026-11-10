@@ -78,8 +78,7 @@ function verifier(application: Application): Diagnostic[] {
   parcourir([application.ecrans, application.disposition]);
   for (const c of application.composantsReact) {
     if (!utilises.has(c.nom) && c.apple === undefined) continue;
-    if (c.module && c.apple === undefined) refuser(c.ligne, `« utiliser module » (${c.nom}) charge une bibliothèque JavaScript : la cible Apple n'a pas de JavaScript. Écrivez une vue Swift à la place : « utiliser composant "${c.nom}" depuis "…" sur apple "${c.nom}.swift" ».`);
-    else if (c.apple === undefined) refuser(c.ligne, `le composant React « ${c.nom} » n'existe pas sur la cible Apple : donnez-lui une vue Swift avec « utiliser composant "${c.nom}" depuis "${c.chemin}" sur apple "${c.nom}.swift" ».`);
+    if (c.apple === undefined) refuser(c.ligne, `${c.module ? `« utiliser module » (${c.nom}) charge une bibliothèque JavaScript, et` : `le composant « ${c.nom} »`} n'a pas de vue Swift pour la cible Apple : ajoutez « sur apple "./natif/${c.nom}.swift" » à sa ligne « utiliser ${c.module ? 'module' : 'composant'} », ou écrivez-le en Humalis (« composant "${c.nom}" : »).`);
   }
   for (const p of application.theme?.polices ?? []) {
     if (p.fichier && !/\.(ttf|otf|woff2?)$/i.test(p.fichier)) avertir(1, `la police « ${p.fichier} » n'est pas chargée sur la cible Apple, qui lit les fichiers .ttf, .otf, .woff et .woff2 : la police du système est utilisée à la place.`);

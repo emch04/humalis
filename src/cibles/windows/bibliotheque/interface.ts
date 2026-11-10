@@ -293,6 +293,14 @@ public static class UI
     }
 
     /// <summary>Un composant écrit en Humalis, monté une fois : ses valeurs suivent celles de la page.</summary>
+    /// <summary>Une vue C# écrite à la main : recréée quand une valeur qu'elle reçoit change.</summary>
+    public static FrameworkElement Natif(Func<FrameworkElement> creer)
+    {
+        var zone = new ContentControl { Focusable = false, IsTabStop = false, HorizontalContentAlignment = HorizontalAlignment.Stretch };
+        new Effet(() => zone.Content = creer());
+        return zone;
+    }
+
     public static FrameworkElement Composant(Func<ComposantHumalis> creer)
     {
         var zone = new ContentControl { Focusable = false, IsTabStop = false, HorizontalContentAlignment = HorizontalAlignment.Stretch };

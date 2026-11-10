@@ -79,6 +79,8 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
   const partages: DeclarationVariable[] = [];
   const composantsReact: ComposantReact[] = [];
   let paquetsSwift: NonNullable<Programme['paquetsSwift']> | undefined;
+  let paquetsAndroid: NonNullable<Programme['paquetsAndroid']> | undefined;
+  let paquetsWindows: NonNullable<Programme['paquetsWindows']> | undefined;
   let liensProfonds: Programme['liensProfonds'];
   let ongletsApplication: Programme['ongletsApplication'];
   let barreLaterale: string | undefined;
@@ -316,26 +318,58 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
       continue;
     }
 
-    // « utiliser composant » : du React. « utiliser module » : du JavaScript simple, sans framework.
+    // « paquet android "groupe:nom" version "1.2" » (Gradle) et « paquet windows "Nom" version "1.2" » (NuGet) :
+    // les bibliothèques des vues Kotlin et C# écrites à la main.
+    if (estLeMot(flux.actuel(), 'paquet') && (estLeMot(flux.regarder(1), 'android') || estLeMot(flux.regarder(1), 'windows'))) {
+      const debut = flux.avancer();
+      const android = estLeMot(flux.avancer(), 'android');
+      const nom = flux.attendre('CHAINE', undefined, android ? 'le paquet Gradle entre guillemets (« groupe:nom »)' : 'le nom du paquet NuGet entre guillemets').valeur;
+      if (android && !/^[\w.-]+:[\w.-]+$/.test(nom)) throw new ErreurSyntaxique(`« ${nom} » n'est pas un paquet Gradle : écrivez « groupe:nom », par exemple « io.coil-kt:coil-compose ».`, debut.ligne);
+      if (!android && !/^[A-Za-z0-9_][\w.-]*$/.test(nom)) throw new ErreurSyntaxique(`« ${nom} » n'est pas un nom de paquet NuGet : lettres, chiffres, points et tirets, par exemple « LiveChartsCore.SkiaSharpView.WPF ».`, debut.ligne);
+      flux.attendre('IDENTIFIANT', 'version', '« version » puis le numéro entre guillemets');
+      const version = flux.attendre('CHAINE', undefined, 'le numéro de version entre guillemets').valeur;
+      if (!/^[\w.+-]+$/.test(version)) throw new ErreurSyntaxique(`« ${version} » n'est pas un numéro de version : écrivez par exemple « 2.7.0 ».`, debut.ligne);
+      (android ? (paquetsAndroid ??= []) : (paquetsWindows ??= [])).push({ nom, version, ligne: debut.ligne });
+      flux.sauterFinsDeLigne();
+      continue;
+    }
+
+    // « utiliser composant » : une vue écrite à la main dans la langue de chaque plateforme (« sur apple "….swift"
+    // et sur android "….kt" et sur windows "….cs" ») ; « depuis "…" » donne en plus son fichier pour le web.
+    // « utiliser module » : du JavaScript simple, sans framework.
     if (flux.verifier('MOT_CLE', 'utiliser') && (estLeMot(flux.regarder(1), 'composant') || estLeMot(flux.regarder(1), 'module'))) {
       const debut = flux.avancer();
       const estModule = estLeMot(flux.avancer(), 'module');
       const genre = estModule ? 'module' : 'composant';
       const fichier = estModule ? 'fichier JavaScript' : 'fichier React';
       const nom = flux.attendre('CHAINE', undefined, `le nom du ${genre} entre guillemets`).valeur;
-      if (!estLeMot(flux.actuel(), 'depuis')) {
-        flux.attendre('IDENTIFIANT', 'depuis', `« depuis » suivi du chemin du ${fichier}`);
-      }
-      flux.avancer();
-      const chemin = flux.attendre('CHAINE', undefined, `le chemin du ${fichier} entre guillemets`).valeur;
-      // « sur apple "Carte.swift" » : la vue écrite à la main pour les applications Apple.
-      let apple: string | undefined;
-      if (estLeMot(flux.actuel(), 'sur')) {
+      let chemin: string | undefined;
+      if (estModule || !estLeMot(flux.actuel(), 'sur')) {
+        if (!estLeMot(flux.actuel(), 'depuis')) {
+          flux.attendre('IDENTIFIANT', 'depuis', estModule ? `« depuis » suivi du chemin du ${fichier}` : '« sur apple », « sur android » ou « sur windows » suivi du fichier natif (ou « depuis » suivi du fichier du web)');
+        }
         flux.avancer();
-        flux.attendre('IDENTIFIANT', 'apple', '« apple », puis le chemin du fichier Swift');
-        apple = flux.attendre('CHAINE', undefined, 'le chemin du fichier Swift entre guillemets').valeur;
+        chemin = flux.attendre('CHAINE', undefined, `le chemin du ${fichier} entre guillemets`).valeur;
       }
-      composantsReact.push({ type: 'ComposantReact', nom, chemin, ligne: debut.ligne, ...(estModule ? { module: true as const } : {}), ...(apple !== undefined ? { apple } : {}) });
+      // « sur apple "Carte.swift" et sur android "Carte.kt" et sur windows "Carte.cs" » : la vue écrite à la main,
+      // dans la langue de chaque plateforme.
+      const natifs: { apple?: string; android?: string; windows?: string } = {};
+      const LANGUES = { apple: ['Swift', '.swift'], android: ['Kotlin', '.kt'], windows: ['C#', '.cs'] } as const;
+      while (estLeMot(flux.actuel(), 'sur') || (Object.keys(natifs).length > 0 && estLeMot(flux.actuel(), 'et') && estLeMot(flux.regarder(1), 'sur'))) {
+        if (estLeMot(flux.actuel(), 'et')) flux.avancer();
+        flux.avancer();
+        const jeton = flux.avancer();
+        const plateforme = normaliser(jeton.original ?? jeton.valeur);
+        if (plateforme !== 'apple' && plateforme !== 'android' && plateforme !== 'windows') {
+          throw new ErreurSyntaxique(`« ${jeton.valeur} » : une vue écrite à la main se donne pour apple (Swift), android (Kotlin) ou windows (C#).`, jeton.ligne);
+        }
+        const [langue, extension] = LANGUES[plateforme];
+        if (natifs[plateforme] !== undefined) throw new ErreurSyntaxique(`« sur ${plateforme} » est donné deux fois pour « ${nom} ».`, jeton.ligne);
+        const fichierNatif = flux.attendre('CHAINE', undefined, `le chemin du fichier ${langue} entre guillemets`).valeur;
+        if (!fichierNatif.toLowerCase().endsWith(extension)) throw new ErreurSyntaxique(`« ${fichierNatif} » : sur ${plateforme}, la vue s'écrit en ${langue}, dans un fichier ${extension}.`, jeton.ligne);
+        natifs[plateforme] = fichierNatif;
+      }
+      composantsReact.push({ type: 'ComposantReact', nom, ...(chemin !== undefined ? { chemin } : {}), ligne: debut.ligne, ...(estModule ? { module: true as const } : {}), ...natifs });
       flux.sauterFinsDeLigne();
       continue;
     }
@@ -420,7 +454,7 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
   // Les styles écrits en Humalis deviennent des classes CSS, après le CSS écrit à la main.
   for (const s of stylesHumalis) styles.push({ type: 'BlocStyle', css: cssDuStyle(s, theme), ligne: s.ligne });
   const stylesDeclares = stylesHumalis.map((s) => ({ nom: s.nom, declarations: declarationsDuStyle(s, theme) }));
-  const programme: Programme = { type: 'Programme', ...(stylesDeclares.length ? { stylesHumalis: stylesDeclares } : {}), pages, ...(fichiersIcones.length ? { fichiersIcones } : {}), ...(barreDessinee ? { barreDessinee } : {}), ...(ongletsApplication ? { ongletsApplication } : {}), ...(barreLaterale ? { barreLaterale } : {}), ...(paquetsSwift ? { paquetsSwift } : {}), ...(liensProfonds ? { liensProfonds } : {}), ...(enTete.length > 0 ? { calculsPartages: enTete } : {}), styles, fichiersStyle, donneesFichiers, partages, composantsReact, composants, serveurs, sources, fichiersHumalis, fonctions, tests, ...(theme ? { theme } : {}), ...(site ? { site } : {}), ...(langues ? { langues } : {}), ...(traductions.length ? { traductions } : {}), ...(entete ? { entete } : {}), ...(pied ? { pied } : {}) };
+  const programme: Programme = { type: 'Programme', ...(stylesDeclares.length ? { stylesHumalis: stylesDeclares } : {}), pages, ...(fichiersIcones.length ? { fichiersIcones } : {}), ...(barreDessinee ? { barreDessinee } : {}), ...(ongletsApplication ? { ongletsApplication } : {}), ...(barreLaterale ? { barreLaterale } : {}), ...(paquetsSwift ? { paquetsSwift } : {}), ...(paquetsAndroid ? { paquetsAndroid } : {}), ...(paquetsWindows ? { paquetsWindows } : {}), ...(liensProfonds ? { liensProfonds } : {}), ...(enTete.length > 0 ? { calculsPartages: enTete } : {}), styles, fichiersStyle, donneesFichiers, partages, composantsReact, composants, serveurs, sources, fichiersHumalis, fonctions, tests, ...(theme ? { theme } : {}), ...(site ? { site } : {}), ...(langues ? { langues } : {}), ...(traductions.length ? { traductions } : {}), ...(entete ? { entete } : {}), ...(pied ? { pied } : {}) };
   // Les appels de fonctions d'actions sont remplacés par leur corps (src/parser/fonctionsActions.ts).
   const actions = deplierFonctionsActions(programme);
   if (actions.length) programme.fonctionsActions = actions;
