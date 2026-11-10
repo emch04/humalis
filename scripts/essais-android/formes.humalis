@@ -1,0 +1,106 @@
+# L'essai des formes d'application spéciales sur Android : widget, activité en direct,
+# raccourcis, commande vocale, partage reçu, fichier ouvert, recherche du téléphone,
+# tuile, voiture, clavier, boutons des notifications, montre et télévision.
+variable solde = 120 avec partagee et memorisee
+variable progres = 30 avec partagee et memorisee
+variable pointages = 0 avec partagee et memorisee
+variable notes = [] avec partagee et memorisee
+variable produits = [fiche avec nom "Livre" et description "Un livre de poche", fiche avec nom "Carnet" et description "Un carnet ligné"] avec partagee
+
+serveur "boutique" :
+    roles gerant
+    donnee commande :
+        total : nombre
+    route "commandes" :
+        connecte peut lire commande
+        connecte peut creer commande
+        seul gerant peut modifier commande
+        seul gerant peut faire "expedier" sur commande :
+            envoyer notification aux gerant avec titre "Commande expédiée" et texte "Elle arrive bientôt" et boutons "Accepter" et "Refuser"
+            mettre a jour activite "livraison" pour gerant
+
+widget "solde" avec taille petite vers "compte" :
+    titre "Solde"
+    texte "{solde} €"
+    progression progres
+    actualiser toutes les 30 minutes
+
+activite en direct "livraison" :
+    titre "Commande en route"
+    texte "Avancement : {progres} %"
+    progression progres
+
+raccourcis de l'icone :
+    raccourci "Mon compte" vers "compte" avec icone "user"
+    raccourci "Notes" vers "notes" avec icone "list"
+
+commande vocale "Mon solde" :
+    dire "Votre solde est de {solde} €"
+
+commande vocale "Voir {produit}" vers "notes"
+
+quand on partage vers l'application :
+    ajouter partage.texte a notes
+    rediriger vers "notes"
+
+quand on ouvre un fichier ".csv" ou ".txt" :
+    ajouter fichier.nom a notes
+    rediriger vers "notes"
+
+recherche du systeme :
+    produits avec titre nom et texte description vers "compte"
+
+tuile "Pointer" avec icone "clock" :
+    changer pointages par pointages + 1
+    afficher "Pointé ({pointages})"
+
+voiture "Livraisons" :
+    liste produits avec titre nom et texte description
+
+clavier "Réponses rapides" :
+    touche "Merci" ecrit "Merci beaucoup !"
+    touche "J'arrive" ecrit "J'arrive dans 5 minutes."
+    touche "Bonjour" ecrit "Bonjour, comment allez-vous ?"
+
+quand l'utilisateur touche "Accepter" dans une notification :
+    changer solde par solde + 10
+    afficher "Commande acceptée"
+
+page "compte" :
+    titre "Compte"
+    texte "Solde : {solde} €"
+    texte "Pointages : {pointages}"
+    bouton "Ajouter 5 €"
+    bouton "Suivre ma commande"
+    bouton "Avancer la livraison"
+    bouton "Terminer la livraison"
+    bouton "Activer les notifications"
+    quand l'utilisateur clique sur "Ajouter 5 €" :
+        changer solde par solde + 5
+    quand l'utilisateur clique sur "Suivre ma commande" :
+        changer progres par 30
+        commencer activite "livraison"
+    quand l'utilisateur clique sur "Avancer la livraison" :
+        changer progres par progres + 20
+        commencer activite "livraison"
+    quand l'utilisateur clique sur "Terminer la livraison" :
+        terminer activite "livraison"
+    quand l'utilisateur clique sur "Activer les notifications" :
+        activer notifications
+
+page "notes" :
+    titre "Notes reçues"
+    pour chaque n dans notes :
+        texte "{n}"
+
+page "poignet" sur montre :
+    titre "Solde"
+    texte "{solde} €"
+    bouton "Pointer"
+    quand l'utilisateur clique sur "Pointer" :
+        changer pointages par pointages + 1
+
+page "salon" sur tele :
+    titre "Produits"
+    pour chaque p dans produits :
+        bouton "{p.nom}"

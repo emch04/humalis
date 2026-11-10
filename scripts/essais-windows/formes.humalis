@@ -1,0 +1,56 @@
+# Les formes d'application sur Windows : zone de notification, Jump List, « Ouvrir avec »,
+# lancement à l'ouverture de la session, notifications avec boutons, clic droit, « Envoyer vers »,
+# et la tâche planifiée de « en arriere plan ».
+variable notes = [] avec partagee et memorisee
+variable reveils = 0 avec partagee et memorisee
+variable reponse = "aucune" avec partagee et memorisee
+
+raccourcis de l'icone :
+    raccourci "Mes notes" vers "notes" avec icone "fichier"
+    raccourci "Réglages" vers "reglages" avec icone "settings"
+
+quand on partage vers l'application :
+    ajouter "Partagé : {partage.fichier}" a notes
+    rediriger vers "notes"
+
+quand on ouvre un fichier ".csv" ou ".txt" :
+    ajouter "Ouvert : {fichier.nom} ({fichier.contenu})" a notes
+    rediriger vers "notes"
+
+lancer au demarrage de l'ordinateur avec discret
+
+quand l'utilisateur touche "Accepter" dans une notification :
+    changer reponse par "Accepter"
+
+quand l'utilisateur touche "Refuser" dans une notification :
+    changer reponse par "Refuser"
+
+menu clic droit "Noter avec Formes" pour les fichiers ".jpg" et ".png" :
+    ajouter "Clic droit : {fichier.nom}" a notes
+
+page "accueil" :
+    titre "Formes sur Windows"
+    texte "Réveils en arrière-plan : {reveils}"
+    texte "Réponse à la notification : {reponse}"
+    bouton "Voir les notes"
+    quand l'utilisateur clique sur "Voir les notes" :
+        rediriger vers "notes"
+    en arriere plan :
+        changer reveils par reveils + 1
+
+page "notes" :
+    titre "Notes"
+    pour chaque note dans notes :
+        texte note
+
+page "reglages" :
+    titre "Réglages"
+    texte "Rien à régler."
+
+page "rapide" dans la barre du systeme avec icone "clock" :
+    titre "Rapide"
+    texte "Notes : {nombre de notes}"
+    texte "Réveils : {reveils}"
+    bouton "Ouvrir les notes"
+    quand l'utilisateur clique sur "Ouvrir les notes" :
+        rediriger vers "notes"
