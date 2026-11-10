@@ -1,8 +1,8 @@
 /**
  * La table des langues de Humalis (plan 2026-10-30-qualite-publication,
- * partie 1, décision Q6) : le français et l'anglais sont disponibles ; les
- * autres sont prévues, leur nom est connu pour répondre « pas encore
- * disponible » plutôt que « mot inconnu ».
+ * partie 1, décision Q6) : le français, l'anglais, l'espagnol, le portugais,
+ * le swahili et le lingala sont disponibles. Une langue prévue (disponible
+ * faux) répondrait « pas encore disponible » plutôt que « mot inconnu ».
  *
  * Le mot est celui du programme, sans accent (`francais`, `anglais`) ; le
  * code est celui des navigateurs et des téléphones (`fr`, `en`).
@@ -24,10 +24,10 @@ export interface Langue {
 export const LANGUES: Langue[] = [
   { mot: 'francais', code: 'fr', nom: 'français', adjectif: 'française', nomPropre: 'Français', disponible: true },
   { mot: 'anglais', code: 'en', nom: 'anglais', adjectif: 'anglaise', nomPropre: 'English', disponible: true },
-  { mot: 'espagnol', code: 'es', nom: 'espagnol', adjectif: 'espagnole', nomPropre: 'Español', disponible: false },
-  { mot: 'portugais', code: 'pt', nom: 'portugais', adjectif: 'portugaise', nomPropre: 'Português', disponible: false },
-  { mot: 'swahili', code: 'sw', nom: 'swahili', adjectif: 'swahilie', nomPropre: 'Kiswahili', disponible: false },
-  { mot: 'lingala', code: 'ln', nom: 'lingala', adjectif: 'lingala', nomPropre: 'Lingála', disponible: false },
+  { mot: 'espagnol', code: 'es', nom: 'espagnol', adjectif: 'espagnole', nomPropre: 'Español', disponible: true },
+  { mot: 'portugais', code: 'pt', nom: 'portugais', adjectif: 'portugaise', nomPropre: 'Português', disponible: true },
+  { mot: 'swahili', code: 'sw', nom: 'swahili', adjectif: 'swahilie', nomPropre: 'Kiswahili', disponible: true },
+  { mot: 'lingala', code: 'ln', nom: 'lingala', adjectif: 'lingala', nomPropre: 'Lingála', disponible: true },
 ];
 
 /** La langue d'un mot du programme (« anglais », « Français »), ou rien. */

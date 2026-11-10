@@ -77,12 +77,16 @@ export function verifierAccessibilite(page: Page, theme: ReadonlyMap<string, { c
       else if (instruction.type === 'Condition') {
         // Les deux branches s'excluent (« si langue est anglais » / « sinon ») : un titre dans
         // chacune ne fait qu'un titre affiché. On garde le plus grand des deux comptes.
+        // De même, un champ de chaque côté ne fait qu'un champ affiché : chaque branche part des champs déjà vus.
         const avant = titres;
-        parcours(instruction.alors, champs);
+        const champsAlors = new Map(champs);
+        parcours(instruction.alors, champsAlors);
         const apresAlors = titres;
         titres = avant;
-        parcours(instruction.sinon, champs);
+        const champsSinon = new Map(champs);
+        parcours(instruction.sinon, champsSinon);
         titres = Math.max(titres, apresAlors);
+        for (const vus of [champsAlors, champsSinon]) for (const [texte, ligne] of vus) if (!champs.has(texte)) champs.set(texte, ligne);
       }
     }
   };

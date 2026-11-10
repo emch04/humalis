@@ -163,9 +163,8 @@ describe('langues — l’analyse', () => {
     expect(diagnostics(...LANGUES, 'page "a" :', '>titre "A" en espagnol "B" en anglais "A"')).toEqual([
       expect.stringMatching(/l'espagnol n'est pas dans le bloc « langues »\. Langues déclarées : français, anglais/),
     ]);
-    expect(diagnostics('langues :', '>francais', '>espagnol', '', 'page "a" :', '>titre "A"')).toEqual([
-      expect.stringMatching(/^erreur 3 : l'espagnol n'est pas encore disponible/),
-    ]);
+    // L'espagnol, le portugais, le swahili et le lingala sont disponibles (10 novembre 2026).
+    expect(diagnostics('langues :', '>francais', '>espagnol', '>portugais', '>swahili', '>lingala', '', 'page "a" :', '>titre "A" sans traduction')).toEqual([]);
     expect(diagnostics('langues :', '>francais', '>anglai', '', 'page "a" :', '>titre "A"')).toEqual([
       expect.stringMatching(/« anglai » n'est pas une langue connue de Humalis.*Peut-être « anglais »/),
     ]);

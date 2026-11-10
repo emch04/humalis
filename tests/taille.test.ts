@@ -32,6 +32,6 @@ describe('la taille d’un fichier en Ko et en Mo', () => {
 
   it('site statique : le HTML de départ est déjà écrit', () => {
     const html = genererProjetStatique(compiler(PAGE).application!, { nom: 'e', source: 'e.humalis' }).get('index.html')!;
-    expect(html).toMatch(/Poids : 1,5 Mo \(1.536 Ko\)/);
+    expect(html).toMatch(/Poids\u00a0: 1,5 Mo \(1.536 Ko\)/);
   });
 });

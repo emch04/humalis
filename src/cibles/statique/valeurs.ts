@@ -110,7 +110,7 @@ export function expressionJs(valeur: Valeur, contexte: ContexteJs): string {
     case 'texte':
       // Un texte en plusieurs langues : t({ fr: '…', en: '…' }) choisit selon la langue de la personne.
       if (valeur.versions) {
-        return `t({ ${valeur.versions.map((v, i) => `${v.code}: ${texteJs(v.parties, contexte, i === 0 ? undefined : v.code)}`).join(', ')} })`;
+        return `t({ ${valeur.versions.map((v) => `${v.code}: ${texteJs(v.parties, contexte, v.code)}`).join(', ')} })`;
       }
       return texteJs(valeur.parties, contexte);
     case 'nombre':

@@ -226,7 +226,7 @@ describe('formulaire — cible web', () => {
         '    const echecs = serveur.echecs();',
         "    await serveur.envoyer('/api/messages', { email: champEmail, contenu: champContenu });",
         '    if (serveur.echecs() > echecs) return;',
-        "    afficherMessage('Merci !', 'info');",
+        "    afficherMessage('Merci\u202f!', 'info');",
         "    setChampEmail('');",
         "    setChampContenu('');",
         '  }',
@@ -342,6 +342,6 @@ describe('formulaire — cible mobile', () => {
   });
 
   it('vide les champs après un envoi réussi', () => {
-    expect(page).toContain("    if (serveur.echecs() > echecs) return;\n    afficherMessage('Merci !', 'info');\n    setChampEmail('');");
+    expect(page).toContain("    if (serveur.echecs() > echecs) return;\n    afficherMessage('Merci\u202f!', 'info');\n    setChampEmail('');");
   });
 });

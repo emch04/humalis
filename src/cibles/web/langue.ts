@@ -13,6 +13,7 @@
  */
 import type { LangueRI } from '../../ri/types.js';
 import { chaine } from './noms.js';
+import { NOM_DU_CHOIX } from '../../i18n/messages-langues.js';
 
 /** La clé du stockage du navigateur (ou du téléphone) où le choix est gardé. */
 export const CLE_LANGUE = 'humalis-langue';
@@ -140,8 +141,6 @@ export function SelecteurLangue({ className }: { className?: string }) {
 `;
 }
 
-/** « Langue » dans chaque langue : le nom du sélecteur, lu par les lecteurs d'écran. */
-const NOM_DU_CHOIX: Record<string, string> = { fr: 'Langue', en: 'Language' };
 
 /** src/humalis/langue.tsx du mobile (Expo) : langue du téléphone par expo-localization, choix gardé par AsyncStorage. */
 export function langueMobileTsx(langues: LangueRI[]): string {

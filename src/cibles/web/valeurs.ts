@@ -113,7 +113,7 @@ export function expression(valeur: Valeur, contexte: Contexte): string {
     case 'texte': {
       // Un texte en plusieurs langues : t({ fr: '…', en: '…' }) choisit selon la langue de la personne.
       if (valeur.versions) {
-        return `t({ ${valeur.versions.map((v, i) => `${v.code}: ${texteTS(v.parties, contexte, i === 0 ? undefined : v.code)}`).join(', ')} })`;
+        return `t({ ${valeur.versions.map((v) => `${v.code}: ${texteTS(v.parties, contexte, v.code)}`).join(', ')} })`;
       }
       return texteTS(valeur.parties, contexte);
     }
@@ -426,7 +426,8 @@ export function operationDeListe(
  */
 export function habillage(p: PartieVariable, langue?: string): ((x: string) => string) | undefined {
   const base = habillageSeul(p, langue);
-  return base && p.majuscule ? (x) => `avecMajuscule(${base(x)})` : base;
+  const en = langue !== undefined && langue !== 'fr' ? `, '${langue}'` : '';
+  return base && p.majuscule ? (x) => `avecMajuscule(${base(x)}${en})` : base;
 }
 
 function habillageSeul(p: PartieVariable, langue?: string): ((x: string) => string) | undefined {
@@ -436,8 +437,8 @@ function habillageSeul(p: PartieVariable, langue?: string): ((x: string) => stri
   if (p.format === 'date') return (x) => `formaterDate(${x}${en})`;
   if (p.format === 'nombre') return (x) => `formaterNombre(${x}${en})`;
   if (p.format === 'depuis') return (x) => `formaterDepuis(${x})`;
-  if (p.format === 'dateLongue') return (x) => `formaterDateLongue(${x})`;
-  if (p.format === 'lettres') return (x) => `formaterEnLettres(${x})`;
+  if (p.format === 'dateLongue') return (x) => `formaterDateLongue(${x}${en})`;
+  if (p.format === 'lettres') return (x) => `formaterEnLettres(${x}${en})`;
   if (p.format === 'Ko' || p.format === 'Mo') return (x) => `formaterTaille(${x}, '${p.format}'${en})`;
   if (p.format) return (x) => `formaterArgent(${x}, '${p.format}'${en})`;
   return undefined;

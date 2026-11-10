@@ -534,6 +534,8 @@ class AnalysePage {
   private readonly raccourcis = new Map<string, number>();
   /** Les « quand l'ordre de … change », vérifiés à la fin : la boucle peut venir après. */
   private readonly evenementsOrdre: Evenement[] = [];
+  /** « {choisie.jour} » d'une fiche dont le champ ne reçoit une date que plus loin (« changer choisie par fiche avec jour c.jour ») : revu à la fin. */
+  private readonly datesEnAttente: { partie: PartieChaine; fiche: Extract<TypeValeur, { genre: 'fiche' }>; champ: string }[] = [];
 
   constructor(
     private readonly page: Page,
@@ -612,6 +614,9 @@ class AnalysePage {
     this.recenserGardes(this.page.corps, undefined);
     this.fichiers = recenserFichiers(this.page.corps);
     this.bloc(this.page.corps, 'vue', { genre: 'page' });
+    for (const { partie, fiche, champ } of this.datesEnAttente) {
+      if (fiche.champs.some((c) => c.nom === champ && c.date)) this.resultat.formats.set(partie, 'date');
+    }
     // L'aperçu lit les variables de la page, comme un texte (« {produit.nom} | Rey Store »).
     for (const valeur of [this.page.apercu?.titre, this.page.apercu?.description, this.page.apercu?.image]) {
       if (valeur) this.typeDe(valeur);
@@ -851,6 +856,12 @@ class AnalysePage {
         const nom = [instruction.nom, ...(instruction.champs ?? [])].join('.');
         if (cible && !compatibles(cible, type)) {
           this.erreur(`« ${nom} » est ${decrireType(cible)} ; on ne peut pas lui donner ${decrireType(type)}.`, instruction.ligne);
+        } else if (cible?.genre === 'fiche' && type.genre === 'fiche' && !instruction.champs) {
+          // « changer choisie par fiche avec jour c.jour » : le champ reçoit une date, il s'affiche comme une date.
+          for (const champ of type.champs) {
+            const vise = cible.champs.find((c) => c.nom === champ.nom);
+            if (champ.date && vise && !vise.date) vise.date = true;
+          }
         }
         return;
       }
@@ -1973,6 +1984,8 @@ class AnalysePage {
     if (expression.type === 'DateDuJour' || expression.type === 'DateDecalee') return true;
     if (expression.type === 'Reference') return this.estUneDate(expression.nom);
     if (expression.type === 'AccesChamp' && expression.objet.type === 'Reference') return this.estChampDate(expression.objet.nom, expression.champ);
+    // « champ "Naissance" » d'un « champ date "Naissance" » : la saisie est une date (texte ISO).
+    if (expression.type === 'Champ') return this.sorteDuChamp(expression) === 'date';
     return false;
   }
 
@@ -2381,6 +2394,9 @@ class AnalysePage {
       // Le format français (décision F1) : les nombres, les champs « date » du serveur, et les dates du programme.
       if (type.genre === 'nombre') this.resultat.formats.set(partie, 'nombre');
       else if (champs.length === 1 && this.estChampDate(racine, champs[0])) this.resultat.formats.set(partie, 'date');
+      else if (champs.length === 1 && this.portees.chercher(racine)?.type.genre === 'fiche' && type.genre === 'texte') {
+        this.datesEnAttente.push({ partie, fiche: this.portees.chercher(racine)!.type as Extract<TypeValeur, { genre: 'fiche' }>, champ: champs[0] });
+      }
       else if (champs.length === 0 && this.estUneDate(racine)) this.resultat.formats.set(partie, 'date');
     }
   }
@@ -2912,6 +2928,8 @@ class AnalysePage {
         }
       }
     }
+    // Hors des deux branches, l'événement ou l'action vise les deux : un seul des deux est affiché à la fois.
+    if ('erreur' in resolution && resolution.erreur === 'ambigu' && this.elements.exclusifs(resolution.candidats)) resolution = { ids: resolution.candidats };
     // « montrer "message" », « cacher "message" » : un formulaire se vise aussi par son nom.
     const formulaire =
       instruction.type === 'Action' && (instruction.action === 'montrer' || instruction.action === 'cacher')

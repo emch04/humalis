@@ -83,7 +83,7 @@ describe('cible statique — le site de la boutique', () => {
     expect(index).toContain(
       '<h1 data-humalis="titre_nos_produits" class="humalis-couleur-bleu humalis-taille-grande">Nos produits</h1>',
     );
-    expect(index).toContain('<p data-humalis="texte_ligne_8">Articles dans le panier : 0</p>');
+    expect(index).toContain('<p data-humalis="texte_ligne_8">Articles dans le panier\u00a0: 0</p>');
     expect(compter(index, />Ajouter<\/button>/g)).toBe(3);
     expect(index).toContain('<p data-humalis="texte_ligne_10">Stylo</p>');
     expect(index).toContain('<button type="button" data-humalis="bouton_ajouter" class="humalis-fond-vert">Ajouter</button>');
@@ -102,7 +102,7 @@ describe('cible statique — le site de la boutique', () => {
     expect(script).toContain("location.assign('panier.html');");
     expect(script).toContain('...produits.flatMap((nom) => [');
     expect(script).toContain("onclick: () => quandCliqueAjouter(nom)");
-    expect(script).toContain("`Articles dans le panier : ${formaterNombre(nombreArticles())}`");
+    expect(script).toContain("`Articles dans le panier\u00a0: ${formaterNombre(nombreArticles())}`");
     expect(script).toContain('...(stock === 0');
     expect(script).toContain('humalis.demarrer({ relire, garder, dessiner });');
   });
@@ -428,7 +428,7 @@ describe('cible statique — HTML et script racontent la même page', () => {
     const { main, session } = lancer(scripts);
     main.chercher('bouton_ajouter')[1].ecouteurs.click();
     return new Promise((fin) => setTimeout(fin, 0)).then(() => {
-      expect(main.enfantsHtml()).toContain('Articles dans le panier : 1');
+      expect(main.enfantsHtml()).toContain('Articles dans le panier\u00a0: 1');
       expect(session.get('humalis:essai:partage:panier')).toBe('["Stylo"]');
     });
   });
