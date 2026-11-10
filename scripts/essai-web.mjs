@@ -86,11 +86,11 @@ await essayer('boutique', {
   },
   async avecJavaScript(page) {
     const compteur = page.getByText(/Articles dans le panier/);
-    verifier((await compteur.textContent()) === 'Articles dans le panier : 0', 'boutique : le panier commence vide');
+    verifier((await compteur.textContent()) === 'Articles dans le panier\u00a0: 0', 'boutique : le panier commence vide');
     verifier(await page.getByText('Rupture de stock').isVisible(), 'boutique : « Rupture de stock » s\'affiche (stock à 0)');
     await page.getByRole('button', { name: 'Ajouter' }).nth(0).click();
     await page.getByRole('button', { name: 'Ajouter' }).nth(2).click();
-    verifier((await compteur.textContent()) === 'Articles dans le panier : 2', 'boutique : deux clics sur « Ajouter » donnent 2 articles');
+    verifier((await compteur.textContent()) === 'Articles dans le panier\u00a0: 2', 'boutique : deux clics sur « Ajouter » donnent 2 articles');
     await page.screenshot({ path: join(travail, 'captures', 'boutique-1280.png'), fullPage: true });
     // React Router change l'adresse, puis affiche la page un instant après :
     // on attend l'affichage (5 secondes au plus) avant de vérifier.
@@ -106,7 +106,7 @@ await essayer('boutique', {
     verifier((await page.locator('main p').allTextContents()).join(',') === 'Cahier', 'panier : « Retirer » enlève l\'article');
     await page.getByRole('link', { name: 'Retour à la boutique' }).click();
     verifier(await apparait(page.getByRole('heading', { name: 'Nos produits' })), 'boutique : le lien ramène à la boutique');
-    verifier((await page.getByText(/Articles dans le panier/).textContent()) === 'Articles dans le panier : 1', 'panier : de retour sur la boutique, le compteur dit 1');
+    verifier((await page.getByText(/Articles dans le panier/).textContent()) === 'Articles dans le panier\u00a0: 1', 'panier : de retour sur la boutique, le compteur dit 1');
   },
 });
 

@@ -93,7 +93,7 @@ const bouton = (page, nom) => page.getByRole('button', { name: nom, exact: true 
   const dist = compiler('essais/moteur/labo.humalis', 'labo');
   const serveur = await servir(dist);
   const brut = await (await fetch(serveur.url)).text();
-  verifier(brut.includes('Compteur : 0') && brut.includes('Ligne b'), 'labo : le contenu est dans le HTML, sans JavaScript');
+  verifier(brut.includes('Compteur\u00a0: 0') && brut.includes('Ligne b'), 'labo : le contenu est dans le HTML, sans JavaScript');
   const { page, erreurs } = await ouvrir(serveur);
   let m = await mutations(page);
   verifier(m.ajouts === 0 && m.retraits === 0 && m.textes === 0, `labo : la reprise ne touche rien (${JSON.stringify(m)})`);
@@ -101,7 +101,7 @@ const bouton = (page, nom) => page.getByRole('button', { name: nom, exact: true 
   await page.evaluate(() => { window.__h1 = document.querySelector('h1'); window.__p = [...document.querySelectorAll('p')].find((p) => p.textContent === 'Ligne a'); });
   await remettre(page);
   await bouton(page, 'Plus').click();
-  await page.getByText('Compteur : 1', { exact: true }).waitFor();
+  await page.getByText('Compteur\u00a0: 1', { exact: true }).waitFor();
   m = await mutations(page);
   verifier(m.textes === 1 && m.ajouts === 0 && m.retraits === 0, `labo : un clic change un seul texte (${JSON.stringify(m)})`);
   verifier(await page.evaluate(() => window.__h1.isConnected && window.__p.isConnected), 'labo : les éléments ne sont pas recréés');
@@ -134,7 +134,7 @@ const bouton = (page, nom) => page.getByRole('button', { name: nom, exact: true 
   verifier(await page.getByText('Visible', { exact: true }).count() === 0, 'labo : la condition change de branche');
   verifier(await page.evaluate(() => window.__p2.isConnected), 'labo : la condition ne touche pas la liste');
   await bouton(page, 'Choisir').nth(0).click();
-  await page.getByText('Compteur : 11', { exact: true }).waitFor();
+  await page.getByText('Compteur\u00a0: 11', { exact: true }).waitFor();
   verifier(true, 'labo : un événement de ligne lit bien sa ligne');
   verifier(erreurs.length === 0, `labo : aucune erreur dans la console ${erreurs.join(' | ')}`);
   await page.context().close();
@@ -173,7 +173,7 @@ const bouton = (page, nom) => page.getByRole('button', { name: nom, exact: true 
   verifier(m.ajouts === 0 && m.retraits === 0, `boutique : la reprise ne touche rien (${JSON.stringify(m)})`);
   await page.evaluate(() => { window.__memePage = true; });
   await bouton(page, 'Ajouter').nth(1).click();
-  await page.getByText('Articles dans le panier : 1', { exact: true }).waitFor();
+  await page.getByText('Articles dans le panier\u00a0: 1', { exact: true }).waitFor();
   await bouton(page, 'Voir le panier').click();
   await page.waitForURL('**/panier');
   await page.getByText('Votre panier', { exact: true }).waitFor();
@@ -181,7 +181,7 @@ const bouton = (page, nom) => page.getByRole('button', { name: nom, exact: true 
   verifier(await page.getByText('Stylo', { exact: true }).count() === 1, 'boutique : le panier est partagé entre les pages');
   verifier((await page.title()).length > 0, 'boutique : la page a un titre');
   await page.goBack();
-  await page.getByText('Articles dans le panier : 1', { exact: true }).waitFor();
+  await page.getByText('Articles dans le panier\u00a0: 1', { exact: true }).waitFor();
   verifier(await page.evaluate(() => window.__memePage === true), 'boutique : le retour arrière ne recharge pas');
   await page.goto(`${serveur.url}/panier`);
   await page.getByText('Stylo', { exact: true }).waitFor();
@@ -204,11 +204,11 @@ const bouton = (page, nom) => page.getByRole('button', { name: nom, exact: true 
   const { page, erreurs } = await ouvrir(serveur);
   const reacts = [];
   page.on('response', (r) => { if (/react|client-/i.test(r.url())) reacts.push(r.url()); });
-  await page.getByText('Module : 1', { exact: true }).waitFor();
-  await page.getByText('Web component : 1', { exact: true }).waitFor();
+  await page.getByText('Module\u00a0: 1', { exact: true }).waitFor();
+  await page.getByText('Web component\u00a0: 1', { exact: true }).waitFor();
   await bouton(page, 'Plus').click();
-  await page.getByText('Module : 2', { exact: true }).waitFor();
-  await page.getByText('Web component : 2', { exact: true }).waitFor();
+  await page.getByText('Module\u00a0: 2', { exact: true }).waitFor();
+  await page.getByText('Web component\u00a0: 2', { exact: true }).waitFor();
   verifier(await page.evaluate(() => window.__montages === 1 && window.__misesAJour === 1), 'modules : le module est mis à jour, jamais recréé');
   const chargesAvant = await page.evaluate(() => performance.getEntriesByType('resource').map((r) => r.name).filter((n) => /react/i.test(n)));
   verifier(chargesAvant.length === 0, `modules : React n'est pas chargé sur une page qui ne s'en sert pas (${chargesAvant.join()})`);
