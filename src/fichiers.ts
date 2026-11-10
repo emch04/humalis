@@ -1,4 +1,5 @@
 import { analyser } from './lexer/lexer.js';
+import { langueDuStyle, nomsDesStylesNatifs } from './cibles/commun/styles-natifs.js';
 import { ErreurLexicale } from './lexer/types.js';
 import { analyserSyntaxe } from './parser/parser.js';
 import { lireIconesSvg } from './icones-svg.js';
@@ -188,6 +189,12 @@ export function compilerProjet(principal: string | undefined, lire: Lecteur, sou
   for (const fichier of programme.fichiersStyle) {
     const contenu = lire(joindre(base, fichier.chemin));
     if (contenu === undefined) { cssIllisible = true; continue; }
+    // Un style écrit en Swift, Kotlin ou XAML : ses noms, sans le lire comme du CSS.
+    const langue = langueDuStyle(fichier.chemin);
+    if (langue !== 'css') {
+      for (const nom of nomsDesStylesNatifs(langue, contenu)) classesCss.add(nom);
+      continue;
+    }
     const resultat = verifierCss(contenu, 1, fichier.chemin.replace(/^\.\//, ''));
     for (const nom of resultat.classes) classesCss.add(nom);
     diagnostics.push(...resultat.diagnostics);

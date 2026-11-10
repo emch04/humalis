@@ -14,6 +14,7 @@ import { nomIcone } from './icones.js';
 import { chaineSwift, cleJson, nomComposant, nomPage, nomSwift } from './noms.js';
 import { clavier, modificateurs, touches, ESPACES, type Option } from './styles.js';
 import type { CssApple } from './css.js';
+import { nomStyleNatif } from '../commun/styles-natifs.js';
 import type { CssExact, EntreeStyle, ResolutionPage } from './css-exact.js';
 import { FICHIER_CHOISI, plusPrecis, Valeurs, type Expr, type Lecture, type Portee, type Types } from './valeurs.js';
 
@@ -42,6 +43,11 @@ export interface ContexteApple {
   composants: Map<string, { nom: string; type: TypeValeur }[]>;
   /** Les vues Swift écrites à la main (« sur apple "Carte.swift" »). */
   natifs: Set<string>;
+  /**
+   * Les styles écrits en SwiftUI (« utiliser style "./apple.swift" sur apple »), par nom (Carte pour le style
+   * « carte ») : le ViewModifier, et l'appareil s'il ne vaut que pour iOS ou macOS.
+   */
+  stylesNatifs?: Map<string, { struct: string; os?: 'ios' | 'macos' }[]>;
   /** Les paramètres des vues Swift du projet, lus dans leur fichier : « var valeur: Double = 0 ». */
   typesNatifs?: Map<string, Map<string, TypeValeur>>;
   /** Le nom Swift d'un fichier local copié dans l'application. */
@@ -846,7 +852,7 @@ export class GenerateurPage implements HotePage {
       interieur();
       if (entree?.apres) e.ligne(this.pseudoExact(entree.apres));
     });
-    e.indenter(() => [`.itemHumalis(${style})`, ...extra].forEach((l) => e.ligne(l)));
+    e.indenter(() => [`.itemHumalis(${style})`, ...this.stylesNatifsDe(noeud.type === 'bloc' || noeud.type === 'element' ? noeud.classes : []).natives, ...extra].forEach((l) => e.ligne(l)));
   }
 
   private texteExact(e: Ecrivain, noeud: Extract<NoeudVue, { type: 'element' }>, code: string): void {
@@ -944,7 +950,7 @@ export class GenerateurPage implements HotePage {
             e.indenter(() => e.ligne('.modifier(CibleTactileHumalis())'));
           });
           e.ligne('}');
-          e.indenter(() => [`.buttonStyle(.plain)`, `.itemHumalis(${style})`, ...(noeud.genre === 'lien' ? ['.accessibilityAddTraits(.isLink)'] : []), id].forEach((l) => e.ligne(l)));
+          e.indenter(() => [`.buttonStyle(.plain)`, `.itemHumalis(${style})`, ...this.stylesNatifsDe(noeud.classes).natives, ...(noeud.genre === 'lien' ? ['.accessibilityAddTraits(.isLink)'] : []), id].forEach((l) => e.ligne(l)));
         });
         return true;
       }
@@ -1035,8 +1041,27 @@ export class GenerateurPage implements HotePage {
 
   private modifieurs(e: Ecrivain, noeudOptions: Option[], sorte: Parameters<typeof modificateurs>[1], extra: string[] = []): void {
     const classes = noeudOptions.find((o) => o.nom === 'css')?.valeur.split(' ').filter(Boolean) ?? [];
-    const lignes = [...modificateurs(noeudOptions, sorte, { dansLigne: this.dansLigne }), ...this.app.css.modificateurs(classes, sorte), ...extra];
+    const { traduites, natives } = this.stylesNatifsDe(classes);
+    const lignes = [...modificateurs(noeudOptions, sorte, { dansLigne: this.dansLigne }), ...this.app.css.modificateurs(traduites, sorte), ...natives, ...extra];
     e.indenter(() => lignes.forEach((l) => e.ligne(l)));
+  }
+
+  /**
+   * Les styles écrits en SwiftUI pour ces classes : « .modifier(StyleCarte()) », sous « #if os(…) » s'il ne vaut
+   * que pour un appareil. Un style natif pour iPhone, iPad et Mac remplace le CSS traduit de la même classe ;
+   * pour un seul appareil, il s'ajoute après lui.
+   */
+  private stylesNatifsDe(classes: string[]): { traduites: string[]; natives: string[] } {
+    const table = this.app.stylesNatifs;
+    if (!table) return { traduites: classes, natives: [] };
+    const natives: string[] = [];
+    const traduites = classes.filter((classe) => {
+      const lus = table.get(nomStyleNatif(classe.replace(/^(apple|ios|macos):/, '')));
+      if (!lus) return true;
+      for (const l of lus) natives.push(...(l.os ? [`#if os(${l.os === 'ios' ? 'iOS' : 'macOS'})`, `.modifier(${l.struct}())`, '#endif'] : [`.modifier(${l.struct}())`]));
+      return lus.every((l) => l.os !== undefined);
+    });
+    return { traduites, natives };
   }
 
   private ecrireBloc(e: Ecrivain, noeudLu: Extract<NoeudVue, { type: 'bloc' }>): void {

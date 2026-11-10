@@ -555,4 +555,10 @@ export const ENTREES_ERREURS_INTERACTIONS: readonly EntreeErreur[] = [
     ['paquet windows "Humanizer.Core" version "la dernière"', page()].join('\n'),
     ['paquet windows "Humanizer.Core" version "2.14.1"', page()].join('\n'),
     'n\'est pas un numéro de version'),
+  e('style-natif-sans-plateforme', 'grammaire', 'Un style natif sans sa plateforme',
+    'Un fichier de style écrit en Swift, en Kotlin ou en XAML ne vaut que pour sa plateforme : Swift pour apple, ios ou macos, Kotlin pour android, XAML pour windows. Ailleurs, il ne voudrait rien dire.',
+    'Ajoute « sur » et la plateforme après le fichier.',
+    ['utiliser style "./styles/windows.xaml"', page()].join('\n'),
+    ['utiliser style "./styles/windows.xaml" sur windows', page()].join('\n'),
+    'est un style écrit en'),
 ];

@@ -24,6 +24,8 @@ export interface ContexteWindows {
   composants: Map<string, ComposantHumalis>;
   /** Les vues C# écrites à la main (« sur windows "Carte.cs" »), lues dans leur fichier. */
   natifs?: Map<string, VueNatifCs>;
+  /** Les styles des dictionnaires XAML (« utiliser style "windows.xaml" sur windows ») : leurs clés. */
+  stylesNatifs?: Set<string>;
   /** Les couleurs nommées (thème et couleurs de Humalis). */
   couleurs: Set<string>;
   /** Les styles nommés traduits (« carte » → Styles.Carte). */
@@ -519,10 +521,13 @@ export class GenerateurBloc implements HoteActions {
 
   private styler(code: string, classes: string[], options: Option[], sorte: 'texte' | 'bloc' | 'bouton' | 'champ' | 'image'): string {
     for (const o of options) if (OPTIONS_NON_DESSINEES.has(o.nom)) this.ctx.nonDessinees.add(o.nom);
-    const styles = classes.filter((c) => this.ctx.styles.has(c)).map((c) => `Styles.${nomMethode(c)}`);
+    // Un style XAML du même nom passe avant le style traduit : il est posé en dernier, par WPF.
+    const natives = classes.map((c) => c.replace(/^windows:/, '')).filter((c) => this.ctx.stylesNatifs?.has(c));
+    const styles = classes.filter((c) => this.ctx.styles.has(c) && !natives.includes(c)).map((c) => `Styles.${nomMethode(c)}`);
     const options_ = styleDesOptions(options, this.ctx.couleurs, sorte);
     if (options_) styles.push(options_);
-    return styles.length ? `UI.Styler(${code}, ${styles.join(', ')})` : code;
+    const traduit = styles.length ? `UI.Styler(${code}, ${styles.join(', ')})` : code;
+    return natives.length ? `UI.StyleNatif(${traduit}, ${natives.map(chaineCs).join(', ')})` : traduit;
   }
 
   private visible(id: string, code: string): string {
