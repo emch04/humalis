@@ -11,7 +11,8 @@ import { nomDeLaCopie, type InfoMedia } from '../../ri/medias.js';
 import type { Action, Application, Ecran, Etat, NoeudVue, SourceRI, ThemeRI } from '../../ri/types.js';
 import { contenuBinaire } from '../binaire.js';
 import { Ecrivain } from '../web/ecrivain.js';
-import { cheminsDesPages, donneesDesPages } from '../web/projet.js';
+import { cheminsDesPages, donneesDesPages, styles as stylesDuSite } from '../web/projet.js';
+import { cssTheme } from '../web/theme.js';
 import { COULEURS_CSS } from '../web/styles.js';
 import { EcrivainActions, type HotePage } from './actions.js';
 import { FORMATS_SWIFT, INTERFACE_SWIFT, VALEURS_SWIFT } from './bibliotheque.js';
@@ -49,6 +50,11 @@ export interface OptionsApple {
   polices?: Map<string, string>;
   /** Un test XCUITest, ajouté au projet pour l'essai de bout en bout. */
   essaisUi?: string;
+  /**
+   * Pour l'essai au point près (scripts/essai-apple-dessin.mjs) : chaque élément d'une page dessinée
+   * écrit sa place quand l'application est lancée avec HUMALIS_ESSAI_CADRES=1.
+   */
+  cadres?: boolean;
 }
 
 /** Les données des pages : celles des serveurs et des sources. */
@@ -565,6 +571,18 @@ export function avecPoliceDuTheme(code: string, police: string): string {
       `.font(.custom(${nom}, size: ${STYLES_POLICE[style]}, relativeTo: .${style})${style === 'headline' ? '.weight(.semibold)' : ''})`);
 }
 
+/**
+ * La feuille que le site pose avant celles du projet : styles.css de Humalis (avec les règles des
+ * formulaires et des blocs quand le site les a), puis le thème. Les fichiers de police n'y servent pas.
+ */
+function baseDuSite(application: Application): string {
+  const vues = JSON.stringify([...application.ecrans, ...application.composants].map((e) => e.vue));
+  const formulaires = /"type":"formulaire"|"saisie":/.test(vues);
+  const blocs = vues.includes('"type":"bloc"');
+  const theme = application.theme ? { ...application.theme, polices: application.theme.polices.map(({ fichier: _f, ...p }) => p) } : undefined;
+  return stylesDuSite(formulaires, blocs) + cssTheme(theme as ThemeRI | undefined, false);
+}
+
 function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, disposition: Disposition, polices: { fichier: string; nom: string }[], policeTexte?: string, notifications = false, fonds: { dessin?: { largeur: number; hauteur: number; barre: boolean; barreVisible?: boolean[] }; barreLaterale?: string; liens?: boolean; domaine?: boolean; envois?: boolean; arrierePlan?: boolean; onglets?: { titre: string; route: string; icone: string }[]; menus?: ReturnType<typeof commandesSwift>['menus']; reglages?: string } = {}): string {
   // Par la route, et non la page directement : une page d'entrée réservée garde sa protection.
   const racine = entree.reservee ? 'Route.accueilHumalis.vue' : `${nomPage(entree.nom)}()`;
@@ -884,10 +902,11 @@ export function genererProjetApple(application: Application, options: OptionsApp
   }
   const dessinPrincipal = application.ecrans.find((e) => e.dessin)?.dessin;
   const cssExact = dessinPrincipal
-    ? new CssExact([...application.css.map((c) => ({ css: c })), ...feuilles], new Set((application.theme?.polices ?? []).map((p) => p.nom)))
+    ? new CssExact([...application.css.map((c) => ({ css: c })), ...feuilles], new Set((application.theme?.polices ?? []).map((p) => p.nom)), baseDuSite(application))
     : undefined;
   const app: ContexteApple = {
     css,
+    ...(options.cadres ?? process.env.HUMALIS_ESSAI_CADRES === '1' ? { cadres: true } : {}),
     ...(cssExact ? { cssExact } : {}),
     ...(application.iconesDessinees?.length ? { iconesDessinees: new Set(application.iconesDessinees.map((i) => i.nom)) } : {}),
     types,
@@ -967,7 +986,7 @@ export function genererProjetApple(application: Application, options: OptionsApp
     const racine: NoeudVue = { type: 'bloc', genre: 'bloc', options: barre.options, classes: ['humalis-barre-laterale', ...barre.classes], corps: barre.ecran.vue, ligne: barre.ecran.ligne };
     ecrire('Composants/BarreSite.swift', new GenerateurPage({ ...barre.ecran, nom: 'BarreSite', vue: [racine], dessin: dessinPrincipal }, app, [], 'BarreSite').generer());
     // Sur iPad, la barre se dessine dans les variantes où le CSS la montre.
-    barreVisible = cssExact!.variantes('ios', dessinPrincipal).map((v) => !cssExact!.resoudre([racine], { largeur: v.largeur, hauteur: dessinPrincipal.hauteur }, [], 'ios', v.sombre).de(racine)?.masque);
+    barreVisible = cssExact!.variantes('ios', dessinPrincipal).map((v) => !cssExact!.resoudre([racine], { largeur: v.largeur, hauteur: dessinPrincipal.hauteur }, 'barre', 'ios', v.sombre).de(racine)?.masque);
   }
   for (const ecran of application.ecrans) ecrire(`Pages/${nomPage(ecran.nom)}.swift`, new GenerateurPage(ecran, app).generer());
   // Les styles ne sont connus qu'une fois toutes les pages écrites.

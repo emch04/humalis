@@ -1,0 +1,39 @@
+:root { --fond: #f4f1ea; --encre: #1d1b16; --marque: #c2410c; --carte: #ffffff; }
+body { background: var(--fond); color: var(--encre); font-family: -apple-system, sans-serif; margin: 0; }
+.humalis-page { max-width: none; padding: 0; }
+.barre { width: 240px; background: #1d1b16; padding: 24px 16px; display: flex; flex-direction: column; gap: 8px; }
+.barre a { color: #f4f1ea; font-size: 15px; padding: 8px 12px; }
+.ecran { padding: 32px; display: flex; flex-direction: column; gap: 24px; }
+.entete { display: flex; flex-direction: column; gap: 4px; }
+.titre { font-size: 40px; font-weight: 800; color: var(--marque); margin: 0; }
+.sous { font-size: 17px; color: #6b6458; margin: 0; }
+.cartes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.carte { background: var(--carte); border-radius: 16px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+.etiquette { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: #8a8273; margin: 0; }
+.chiffre { font-size: 32px; font-weight: 700; margin: 0; }
+.appareil { font-size: 15px; color: #6b6458; margin: 0; }
+.liste { background: var(--carte); border-radius: 16px; padding: 8px 20px; display: flex; flex-direction: column; }
+.ligne { padding: 14px 0; border-bottom: 1px solid #ece7dc; margin: 0; font-size: 16px; }
+.petit { font-size: 12px; padding: 4px 10px; background: var(--marque); color: #fff; border: none; border-radius: 6px; align-self: flex-start; margin: 0; }
+.champ { padding: 12px; border: 1px solid #d6cfc0; border-radius: 10px; background: #fff; font-size: 16px; }
+@media (min-width: 1024px) {
+  .barre { position: fixed; top: 0; bottom: 0; left: 0; }
+  .humalis-page { margin-left: 272px; }
+}
+@media (max-width: 1023px) {
+  .barre { display: none; }
+  .cartes { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 599px) {
+  .ecran { padding: 16px; gap: 16px; }
+  .titre { font-size: 28px; }
+  .cartes { gap: 10px; }
+  .carte { padding: 14px; border-radius: 12px; }
+  .chiffre { font-size: 24px; }
+}
+@media (prefers-color-scheme: dark) {
+  body { background: #15130f; color: #f4f1ea; }
+  .carte, .liste { background: #24211b; }
+  .ligne { border-bottom-color: #34302a; }
+  .chiffre { color: #f4f1ea; }
+}

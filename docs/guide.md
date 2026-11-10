@@ -519,6 +519,21 @@ au point près. Sur le site et les autres cibles, rien ne change.
 - **Partout**, `@media (prefers-color-scheme: dark)` suit le mode sombre de
   l'appareil, en direct.
 
+La page part du même point que le site : les marges par défaut du navigateur
+(paragraphes, titres), la feuille de base de Humalis et le thème, puis le CSS du
+projet. `box-sizing` est respecté, et `env(safe-area-inset-…)` vaut 0, comme dans
+Safari. Chaque élément est à sa place dans la même structure que le site :
+`main.humalis-page` autour de la page, `header.humalis-entete` pour la barre
+latérale, `label.humalis-champ` autour d'un champ. Les champs, les listes
+déroulantes, les cases à cocher et les formulaires suivent donc leur CSS. Sur le
+site, une barre latérale fixée à gauche laisse sa place par une marge de la page ;
+dans l'application, la barre est déjà à côté, et cette marge perd sa largeur.
+
+Pour le vérifier, `node scripts/essai-apple-dessin.mjs page.humalis` mesure la
+même page sur le site (dans Chrome) et dans l'application (`--appareil "…"` pour
+un simulateur, `--mac`, `--sombre`, `--web`), puis compare la place de chaque
+élément, au point près.
+
 Chaque appareil a son propre CSS : `utiliser style "./ios.css" sur ios` ne vaut
 que sur iPhone et iPad, `sur macos` que sur Mac, et un CSS commun reste
 facultatif. Les blocs `sur ios :` et `sur macos :` d'une page dessinée, et les

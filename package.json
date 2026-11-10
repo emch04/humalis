@@ -53,6 +53,7 @@
     "essai:apple:capacites": "node scripts/essai-apple-capacites.mjs",
     "essai:apple:appareil": "node scripts/essai-apple-appareil.mjs",
     "essai:apple:fond": "node scripts/essai-apple-fond.mjs",
+    "essai:apple:dessin": "node scripts/essai-apple-dessin.mjs",
     "essai:apple:connexion": "node scripts/essai-serveur-apple.mjs",
     "essai:apple:natifs": "node scripts/essai-apple-natifs.mjs",
     "essai:formulaire": "node scripts/essai-formulaire.mjs",
