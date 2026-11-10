@@ -117,10 +117,12 @@ export function construireRepresentation(
         }
       : {}),
     ...(programme.paquetsSwift?.length ? { paquetsSwift: programme.paquetsSwift } : {}),
+    ...(programme.paquetsAndroid?.length ? { paquetsAndroid: programme.paquetsAndroid } : {}),
+    ...(programme.paquetsWindows?.length ? { paquetsWindows: programme.paquetsWindows } : {}),
     ...(programme.liensProfonds ? { liensProfonds: programme.liensProfonds } : {}),
     ...(programme.ongletsApplication?.length ? { ongletsApplication: programme.ongletsApplication } : {}),
     ...(programme.barreLaterale ? { barreLaterale: programme.barreLaterale } : {}),
-    composantsReact: programme.composantsReact.map((c) => ({ nom: c.nom, chemin: c.chemin, ligne: c.ligne, ...(c.module ? { module: true as const } : {}), ...(c.apple !== undefined ? { apple: c.apple } : {}) })),
+    composantsReact: programme.composantsReact.map((c) => ({ nom: c.nom, ...(c.chemin !== undefined ? { chemin: c.chemin } : {}), ligne: c.ligne, ...(c.module ? { module: true as const } : {}), ...(c.apple !== undefined ? { apple: c.apple } : {}), ...(c.android !== undefined ? { android: c.android } : {}), ...(c.windows !== undefined ? { windows: c.windows } : {}) })),
     fonctions: [...analyse.fonctions.values()].map(({ definition, retour, appels }) => ({
       nom: definition.nom,
       parametres: definition.parametres.map((p, i) => ({ nom: p.nom, type: typeParametre(appels.map((a) => a[i])) })),

@@ -3261,31 +3261,63 @@ Le module est chargé à part, et ses paquets sont ajoutés au projet. Quand une
 propriété change, il est relancé. S'il sait se mettre à jour lui-même, il rend
 `{ mettreAJour(proprietes) { … }, detruire() { … } }`.
 
-### Une vue Swift écrite à la main
+### Une vue native écrite à la main
 
-Sur la cible Apple, il n'y a ni React ni JavaScript. Pour y mettre du Swift écrit
-à la main, ajoute `sur apple` : le web garde son composant, l'application Apple
-utilise ta vue SwiftUI.
+Quand Humalis ne sait pas encore dessiner quelque chose, écris ce morceau dans la
+langue de la plateforme : Swift pour iPhone, iPad et Mac, C# pour Windows. Pas de
+React, pas de navigateur : chaque application reste native. Une seule ligne donne
+la vue de chaque plateforme :
 
 ```humalis
-utiliser composant "Carte" depuis "./composants/Carte" sur apple "./composants/Carte.swift"
+utiliser composant "Carte" sur apple "./natif/Carte.swift" et sur windows "./natif/Carte.cs"
 
 page "accueil" :
-    Carte avec titre "Bonjour"
+    Carte avec titre "Café" et prix 3.5
 ```
+
+Sur Apple, une vue SwiftUI qui porte le nom du composant :
 
 ```swift
 import SwiftUI
 
 struct Carte: View {
     let titre: String
-    var body: some View { Text(titre).font(.title) }
+    let prix: Double
+    var body: some View { Text("\(titre) : \(prix) €").font(.title) }
 }
 ```
 
-La vue porte le nom du composant, et ses propriétés sont écrites dans le même
-ordre que dans la page. Un texte est un `String`, un nombre un `Double`, vrai ou
-faux un `Bool`.
+Sur Windows, une classe WPF du même nom (un `UserControl`, ou tout autre élément) :
+
+```csharp
+using System.Windows.Controls;
+
+namespace MesVues;
+
+public class Carte : UserControl
+{
+    public Carte(string titre, double prix, bool promo = false)
+    {
+        Content = new TextBlock { Text = $"{titre} : {prix:0.00} €", FontSize = 22 };
+    }
+}
+```
+
+Les propriétés de la page passent par leur nom : `titre` va dans le paramètre `titre`.
+Un texte est un `String` (`string` en C#), un nombre un `Double` (`double`, ou `int`),
+vrai ou faux un `Bool` (`bool`). Un paramètre C# avec une valeur par défaut peut être
+omis dans la page. Sur Windows, la vue est recréée quand une valeur qu'elle reçoit
+change. Une propriété inconnue, ou un paramètre oublié, est dit à la compilation.
+
+Une plateforme sans sa vue s'arrête avec la ligne à ajouter : ici, l'application
+Android et le site n'ont pas de « Carte ». Pour le site, écris le composant en Humalis
+(`composant "Carte" :`), ou un module JavaScript : `utiliser module "Carte" depuis
+"./modules/Carte.js"`, suivi des mêmes `sur …`.
+
+Les bibliothèques de ces vues s'ajoutent en haut du fichier : `paquet swift "https://…"
+version "1.2"` pour Apple (voir plus haut), `paquet windows "Humanizer.Core" version
+"2.14.1"` pour Windows (NuGet), `paquet android "io.coil-kt:coil-compose" version "2.7.0"`
+pour Android (Gradle).
 
 Dans l'autre sens, `humalis compile … --composants <dossier>` produit des
 composants React à importer dans un projet React existant.
@@ -3399,7 +3431,8 @@ chose de faux.
 | `memorisee en secret` | non | non | oui | oui | oui (Keychain) | oui (chiffré par Windows) |
 | `essayer` | oui | non | oui | oui | oui | oui |
 | Raccourcis clavier | oui | oui | non | oui | oui | oui |
-| Composants React | oui | non | oui (en React Native) | oui | non (`sur apple "Vue.swift"`) | non |
+| Vue native écrite à la main | non | non | non | non | oui (Swift, `sur apple`) | oui (C#, `sur windows`) |
+| Composants React (anciens projets) | oui | non | oui (en React Native) | oui | non | non |
 | Le moteur sans React (par défaut) | oui | non | non | oui (sauf composant React ou `memorisee en secret`) | non | non |
 | Graphiques, cartes, audio, vidéo, fichiers | oui | oui | en partie | oui | oui | oui |
 | Plusieurs langues | oui | oui | oui | oui | oui | oui |
@@ -3437,9 +3470,11 @@ marche aussi sur un Mac ou sous Linux ; seul le lancement demande Windows 10 ou 
 - `partager …` copie le texte (et le lien) dans le presse-papiers.
 - Les animations et les effets de survol ne se dessinent pas encore ; la compilation
   le dit.
-- Pas encore sur Windows : composants React, paiement, IA, connexion avec Google ou
-  Apple, invitations, notifications. La compilation s'arrête et dit quelle ligne en a
-  besoin.
+- Ce que Humalis ne sait pas encore faire s'écrit en C# : `utiliser composant "Carte" sur
+  windows "./natif/Carte.cs"`, avec ses bibliothèques NuGet (`paquet windows "…" version
+  "…"`) ; voir « Une vue native écrite à la main ».
+- Pas encore sur Windows : paiement, IA, connexion avec Google ou Apple, invitations,
+  notifications. La compilation s'arrête et dit quelle ligne en a besoin.
 
 Sans signature de code, Windows affiche un avertissement (SmartScreen) au premier
 lancement : « Informations complémentaires », puis « Exécuter quand même ».

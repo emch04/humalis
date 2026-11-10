@@ -822,6 +822,12 @@ serveur "boutique" :
 - Deux boucles déplaçables pour une liste : a déjà une boucle avec deplacement
 - Un champ dans une liste déplaçable : un champ dans une liste qu’on déplace
 - Un ordre que personne ne change : personne ne déplace rien dans
+- Une vue écrite à la main pour une plateforme inconnue : une vue écrite à la main se donne pour
+- Le fichier natif n’est pas dans la bonne langue : la vue s'écrit en
+- La même plateforme donnée deux fois : est donné deux fois
+- Un paquet Android mal nommé : n'est pas un paquet Gradle
+- Un paquet Windows mal nommé : n'est pas un nom de paquet NuGet
+- Un numéro de version illisible : n'est pas un numéro de version
 - Deux blocs « langues » : un seul bloc « langues »
 - Le bloc « langues » après les pages : le bloc « langues » s'écrit en haut du fichier
 - Une langue entre guillemets : une ligne du bloc « langues » est le nom d'une langue

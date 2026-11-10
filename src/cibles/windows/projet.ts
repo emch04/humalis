@@ -25,6 +25,7 @@ import { chaineCs, commentaireCs, nomApplication, nomCs, nomMethode } from './no
 import { GenerateurBloc, classeDe, quatreEspaces, type ContexteWindows } from './page.js';
 import { reglesDeClasses, styleDesDeclarations } from './styles.js';
 import { ExpressionsCs, type Lieu } from './valeurs.js';
+import { lireVueNatifCs, type VueNatifCs } from './natifs.js';
 
 export const MARQUE_WINDOWS = '.humalis-windows';
 
@@ -42,21 +43,32 @@ export interface OptionsWindows {
   /** Le contenu des fichiers CSS du projet. */
   fichiersStyle?: Map<string, string>;
   medias?: Map<string, InfoMedia>;
+  /** Les vues C# écrites à la main (« sur windows "Carte.cs" »), par nom de composant : leur fichier. */
+  natifs?: Map<string, { nom: string; contenu: string }>;
 }
 
 const LARGEURS: Record<ThemeRI['largeur'], number> = { etroite: 576, normale: 768, large: 1152, pleine: 1600 };
 
 /** Ce qui n'a pas d'équivalent ici : la compilation le dit, plutôt que de produire quelque chose de faux. */
-function verifier(application: Application): Diagnostic[] {
+function verifier(application: Application, options: OptionsWindows): { diagnostics: Diagnostic[]; natifs: Map<string, VueNatifCs> } {
   const d: Diagnostic[] = [];
+  const natifs = new Map<string, VueNatifCs>();
   const refuser = (ligne: number, message: string) => d.push({ gravite: 'erreur', ligne, message });
   for (const c of application.composantsReact) {
-    refuser(c.ligne, `Le composant « ${c.nom} » est écrit en JavaScript : la cible Windows n'a pas de navigateur pour le faire tourner. Écrivez-le en Humalis (« composant "${c.nom}" : »), ou compilez avec --cible desktop.`);
+    if (c.windows === undefined) {
+      refuser(c.ligne, `le composant « ${c.nom} » n'a pas de vue C# pour Windows, qui n'a pas de navigateur : ajoutez « sur windows "./natif/${c.nom}.cs" » à sa ligne « utiliser ${c.module ? 'module' : 'composant'} », ou écrivez-le en Humalis (« composant "${c.nom}" : »).`);
+      continue;
+    }
+    const fichier = options.natifs?.get(c.nom);
+    if (!fichier) continue; // lu par la commande ; absent dans un essai sans fichier
+    const vue = lireVueNatifCs(c.nom, fichier.contenu);
+    if (typeof vue === 'string') refuser(c.ligne, `${c.windows} : ${vue}`);
+    else natifs.set(c.nom, vue);
   }
   for (const s of application.sources) {
     if (s.passerelle) refuser(application.ecrans[0]?.ligne ?? 1, `La source « ${s.nom} » passe par la passerelle du serveur (jeton secret) : ce n'est pas encore possible sur Windows.`);
   }
-  return d;
+  return { diagnostics: d, natifs };
 }
 
 function couleursCs(theme: ThemeRI | undefined): { code: string; noms: Set<string> } {
@@ -254,6 +266,10 @@ function csproj(nom: string, application: Application, aDesRessources: boolean):
 ${aDesRessources ? `  <ItemGroup>
     <Resource Include="Ressources\\**\\*" />
   </ItemGroup>
+` : ''}${application.paquetsWindows?.length ? `  <!-- « paquet windows » : les bibliothèques NuGet des vues C# écrites à la main. -->
+  <ItemGroup>
+${application.paquetsWindows.map((p) => `    <PackageReference Include="${echapperXml(p.nom)}" Version="${echapperXml(p.version)}" />`).join('\n')}
+  </ItemGroup>
 ` : ''}</Project>
 `;
 }
@@ -321,7 +337,7 @@ serveur sans recompiler : variable d'environnement \`HUMALIS_SERVEUR\`.
 }
 
 export function genererProjetWindows(application: Application, options: OptionsWindows): { fichiers: Map<string, string>; diagnostics: Diagnostic[] } {
-  const diagnostics = verifier(application);
+  const { diagnostics, natifs } = verifier(application, options);
   const fichiers = new Map<string, string>();
   const app = nomApplication(options.nom);
   const { code: couleurs, noms: nomsCouleurs } = couleursCs(application.theme);
@@ -334,6 +350,7 @@ export function genererProjetWindows(application: Application, options: OptionsW
     partages,
     fonctions: new Set(application.fonctions.map((f) => f.nom)),
     composants: new Map(application.composants.map((c) => [c.nom, c])),
+    natifs,
     couleurs: nomsCouleurs,
     styles: nomsStyles,
     diagnostics,
@@ -455,6 +472,8 @@ ${application.ongletsApplication?.length ? `        FenetrePrincipale.Onglets = 
   const aDesRessources = (options.medias?.size ?? 0) > 0;
   fichiers.set(MARQUE_WINDOWS, 'Ce dossier a été produit par Humalis (cible Windows). Recompiler le fichier .humalis le remplace.\n');
   fichiers.set(`${app}.csproj`, csproj(options.nom, application, aDesRessources));
+  // Les vues C# écrites à la main, recopiées telles quelles.
+  for (const [nom, fichier] of options.natifs ?? []) if (natifs.has(nom)) fichiers.set(`Natif/${fichier.nom}`, fichier.contenu);
   fichiers.set('app.manifest', MANIFESTE);
   fichiers.set('App.cs', appCs);
   fichiers.set('Pages.cs', quatreEspaces(pages.texte()));

@@ -659,9 +659,9 @@ describe('cible Windows — les noms', () => {
 });
 
 describe('cible Windows — ce qui n\'existe pas ici est dit clairement', () => {
-  it('un composant React est refusé, avec la marche à suivre', () => {
+  it('un composant sans vue C# est refusé, avec la marche à suivre', () => {
     const { diagnostics } = produire(`utiliser composant "Carte" depuis "./Carte.tsx"\npage "accueil" :\n    Carte\n`);
-    expect(diagnostics.some((d) => d.gravite === 'erreur' && d.message.includes('--cible desktop'))).toBe(true);
+    expect(diagnostics.some((d) => d.gravite === 'erreur' && d.message.includes('sur windows "./natif/Carte.cs"'))).toBe(true);
   });
 
 

@@ -78,6 +78,7 @@ export function genererProjetMobile(applicationLue: Application, options: Option
 
   const modulesComposants = new Map<string, string>();
   for (const c of application.composantsReact) {
+    if (c.chemin === undefined) continue; // sans fichier pour le web : refusé avant (verifierAppareilPourLaCible)
     const fichier = options.composantsReact?.get(c.chemin);
     if (!fichier) throw new Error(`le composant « ${c.nom} » (${c.chemin}) n'a pas été lu`);
     fichiers.set(`composants/${fichier.nom}`, fichier.contenu);

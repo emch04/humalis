@@ -73,6 +73,7 @@ function produire(application: Application, options: OptionsMoteur): Map<string,
   const chemins = cheminsDesPages(application);
   const externes: ContexteMoteur['externes'] = new Map();
   for (const c of application.composantsReact) {
+    if (c.chemin === undefined) continue; // sans fichier pour le web : refusé avant (verifierAppareilPourLaCible)
     const lu = options.externes?.get(c.chemin);
     if (!lu) throw new Error(`le composant « ${c.nom} » (${c.chemin}) n'a pas été lu`);
     fichiers.set(`src/externes/${lu.nom}`, lu.contenu);
