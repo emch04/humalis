@@ -3535,6 +3535,22 @@ Sur une cible où une forme n'a pas de sens (un widget sur le site), elle est ig
 compilation le dit une fois. Ces formes s'écrivent cible par cible : là où une forme est
 prévue sans être encore produite, la compilation s'arrête et dit où elle est disponible.
 
+**Sur l'application de bureau (`--cible desktop`, qui sert aussi pour Linux)** :
+
+| Forme | Mac | Windows | Linux |
+|---|---|---|---|
+| `page "…" dans la barre du systeme` | une icône dans la barre des menus ; un clic ouvre la page dans une petite fenêtre, un clic droit le menu Ouvrir / Quitter | la zone de notification, de même | une icône d'état (sous GNOME, avec l'extension AppIndicator) ; le clic ouvre le menu |
+| `quand on ouvre un fichier` | « Ouvrir avec », ou le fichier glissé sur l'icône | « Ouvrir avec » (inscrit par l'installateur) | « Ouvrir avec » avec le paquet .deb, construit quand le bloc `site` a une `adresse` |
+| `lancer au demarrage de l'ordinateur` | les éléments d'ouverture | la clé Run de l'utilisateur | `~/.config/autostart` |
+| `menu clic droit` | absent : le Finder demande une extension, que seule la cible Apple produit (la compilation le dit) | l'Explorateur (clés de l'utilisateur, retirées à la désinstallation) | Dolphin, Nemo, et Nautilus dans « Scripts » |
+
+Le lancement au démarrage est posé à la première ouverture de l'application installée ; la case
+« Lancer au démarrage de l'ordinateur », dans le menu de l'application et celui de l'icône, le retire
+ou le remet. Avec `avec discret`, l'application démarre sans fenêtre, dans la barre du système. Un
+fichier ouvert pendant que l'application tourne va à la fenêtre déjà ouverte ; ses actions
+s'exécutent, puis l'application revient à la page où l'on était (sauf si elles changent de page).
+Le fichier et le menu clic droit demandent le moteur Humalis (le défaut).
+
 ### Plusieurs fichiers
 
 Un grand projet se range en plusieurs fichiers. En haut du fichier principal :
