@@ -24,7 +24,7 @@ describe('Windows : les données sur l’appareil et les comptes', () => {
     const t = texte();
     expect(t).toContain('Microsoft.Data.Sqlite');
     expect(t).toContain('AesGcm');
-    expect(t).toContain('ProtectedData');
+    expect(t).toContain('CryptProtectData');
   });
   it('la synchronisation suit le contrat, y compris un lot trop lourd', () => {
     const t = texte();
