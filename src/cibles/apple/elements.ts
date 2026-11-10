@@ -23,7 +23,7 @@ private struct LibelleHumalis: View {
 }
 
 extension View {
-    @ViewBuilder fileprivate func clavierHumalis(_ clavier: ClavierHumalis) -> some View {
+    @ViewBuilder func clavierHumalis(_ clavier: ClavierHumalis) -> some View {
         #if os(iOS)
         switch clavier {
         case .texte: self
@@ -1259,7 +1259,7 @@ export function fichiersElements(code: string): Map<string, string> {
   const emploie = (motif: RegExp) => motif.test(code);
   const fichiers = new Map<string, string>();
   fichiers.set('Humalis/Blocs.swift', BLOCS);
-  if (emploie(/\b(ChampHumalis|MotDePasseHumalis|TexteLongHumalis|ChoixHumalis|ListeHumalis|ChampDateHumalis|estVideHumalis)\b/)) fichiers.set('Humalis/Champs.swift', CHAMPS);
+  if (emploie(/\b(ChampHumalis|MotDePasseHumalis|TexteLongHumalis|ChoixHumalis|ListeHumalis|ChampDateHumalis|estVideHumalis|SaisieDessineeHumalis|CaseDessineeHumalis|ListeDessineeHumalis)\b/)) fichiers.set('Humalis/Champs.swift', CHAMPS);
   if (emploie(/\b(BadgeHumalis|AvatarHumalis|ProgressionHumalis|ChargementHumalis|EtoilesHumalis|CompteurHumalis)\b/)) fichiers.set('Humalis/Widgets.swift', WIDGETS);
   if (emploie(/\b(AnimeHumalis|EffetSurvolHumalis)\b/)) fichiers.set('Humalis/Mouvement.swift', MOUVEMENT);
   if (emploie(/\b(ImageHumalis|BadgeHumalis|AvatarHumalis|ProgressionHumalis|ChargementHumalis|EtoilesHumalis|CompteurHumalis|LecteurHumalis|VideoHumalis)\b/)) fichiers.set('Humalis/Images.swift', IMAGES);

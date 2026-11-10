@@ -1,0 +1,41 @@
+# L'essai au point près des pages dessinées : node scripts/essai-apple-dessin.mjs
+utiliser style "./styles/site.css"
+utiliser style "./styles/ios.css" sur ios
+utiliser style "./styles/macos.css" sur macos
+
+barre laterale avec style "barre" :
+    lien "Tableau de bord" vers "accueil"
+    lien "Clients" vers "clients"
+
+page "accueil" dessinee pour 1440 par 900 :
+    bloc avec style "ecran" :
+        bloc avec style "entete" :
+            titre "Tableau de bord" avec style "titre"
+            texte "Bonjour, voici votre journée." avec style "sous"
+        bloc avec style "cartes" :
+            bloc avec style "carte" :
+                texte "Ventes" avec style "etiquette"
+                texte "12 480 €" avec style "chiffre"
+            bloc avec style "carte" :
+                texte "Clients" avec style "etiquette"
+                texte "342" avec style "chiffre"
+            bloc avec style "carte" :
+                texte "Commandes" avec style "etiquette"
+                texte "57" avec style "chiffre"
+            bloc avec style "carte" :
+                texte "Retours" avec style "etiquette"
+                texte "3" avec style "chiffre"
+        texte "Une feuille par appareil" avec style "appareil"
+        bloc avec style "liste" :
+            texte "Commande 1042 — Lyon" avec style "ligne"
+            texte "Commande 1041 — Nantes" avec style "ligne"
+            texte "Commande 1040 — Lille" avec style "ligne"
+            texte "Commande 1039 — Bordeaux" avec style "ligne"
+        texte "Un texte sans style : les marges du navigateur."
+        bouton "Ok" avec style "petit"
+        champ "Note" avec style "champ" et indice "Une remarque"
+        liste deroulante "Ville" parmi ["Lyon", "Nantes", "Lille"] avec indice "Choisis une ville"
+        case a cocher "Rappel"
+
+page "clients" dessinee pour 1440 par 900 :
+    titre "Clients" avec style "titre"

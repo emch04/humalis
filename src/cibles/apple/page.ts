@@ -26,6 +26,8 @@ export interface ContexteApple {
   css: CssApple;
   /** Le CSS résolu élément par élément, pour les pages « dessinee pour ». */
   cssExact?: CssExact;
+  /** Pour l'essai au point près : chaque élément d'une page dessinée écrit sa place. */
+  cadres?: boolean;
   /** Les noms des icônes apportées par le projet. */
   iconesDessinees?: Set<string>;
   types: Types;
@@ -57,7 +59,7 @@ export interface ContexteApple {
 }
 
 /** Une page dessinée écrite pour chaque appareil : son code et le style de son fond. */
-interface CorpsExact { mac: { corps: string; fond: string }; ios: { corps: string; fond: string } }
+interface CorpsExact { mac: { corps: string; fond: string; page: string }; ios: { corps: string; fond: string; page: string } }
 
 interface Fonction {
   nom: string;
@@ -351,11 +353,14 @@ export class GenerateurPage implements HotePage {
     if (this.ecran.dessin && this.app.cssExact) {
       const ecrire = (os: 'ios' | 'macos') => {
         this.osExact = os;
-        this.exact = this.app.cssExact!.resoudreVariantes(this.ecran.vue, this.ecran.dessin!, os);
+        this.exact = this.app.cssExact!.resoudreVariantes(this.ecran.vue, this.ecran.dessin!, os, this.nomForce === 'BarreSite' ? 'barre' : 'page');
         const dessinee = new Ecrivain();
         this.restaurer(variablesDeLaPage);
         dessinee.indenter(() => dessinee.indenter(() => dessinee.indenter(() => this.ecrireVue(dessinee, this.ecran.vue))));
-        const lu = { corps: dessinee.texte(), fond: this.exact.fond };
+        let texte = dessinee.texte();
+        // L'essai au point près : la place de chaque élément, sous le nom que le site lui donne.
+        if (this.app.cadres) texte = texte.replace(/\.(accessibilityIdentifier|identifiantHumalis)\(("[^"]*")\)/g, (tout, _f, id: string) => `${tout}.modifier(CadreEssaiHumalis(id: ${id}))`);
+        const lu = { corps: texte, fond: this.exact.fond, page: this.exact.page };
         this.exact = undefined;
         this.osExact = 'macos';
         return lu;
@@ -530,15 +535,19 @@ export class GenerateurPage implements HotePage {
       const racine = this.ecran.vue.some((n) => n.type === 'formulaire' && n.reglages) ? ', racine: .reglages' : directs.some((n) => n.type === 'repetition' && n.corps.some((c) => c.type === 'bloc' && c.natif?.genre === 'glisser')) ? ', racine: .liste' : '';
       if (corpsExact !== undefined) {
         const d = this.ecran.dessin!;
-        const page = (lu: { corps: string; fond: string }, ios: boolean) => {
+        const page = (lu: { corps: string; fond: string; page: string }, ios: boolean) => {
           const fond = ios && lu.fond !== 'StyleHumalis.racine' ? `, fond: ${lu.fond}` : '';
           e.ligne(this.nomForce ? 'Group {' : `PageDessineeHumalis(largeur: ${d.largeur}, hauteur: ${d.hauteur}${fond}) {`);
-          for (const l of lu.corps.trimEnd().split('\n')) if (l !== '') e.ligne(l.slice(2));
+          // La boîte main.humalis-page, comme sur le site ; la barre latérale n'en a pas.
+          const boite = this.nomForce !== 'BarreSite';
+          if (boite) e.ligne(`  BoitePageHumalis(${lu.page}) {`);
+          for (const l of lu.corps.trimEnd().split('\n')) if (l !== '') e.ligne(boite ? l : l.slice(2));
+          if (boite) e.ligne(this.app.cadres ? '  }.modifier(CadreEssaiHumalis(id: "@page"))' : '  }');
           e.ligne('}');
         };
         e.ligne('Group {');
         // Le même code sur les deux appareils : écrit une seule fois.
-        if (corpsExact.mac.corps === corpsExact.ios.corps && (corpsExact.ios.fond === 'StyleHumalis.racine' || this.nomForce)) page(corpsExact.mac, false);
+        if (corpsExact.mac.corps === corpsExact.ios.corps && corpsExact.mac.page === corpsExact.ios.page && (corpsExact.ios.fond === 'StyleHumalis.racine' || this.nomForce)) page(corpsExact.mac, false);
         else {
           e.ligne('#if os(macOS)');
           page(corpsExact.mac, false);
@@ -859,6 +868,10 @@ export class GenerateurPage implements HotePage {
       this.exact = undefined;
       this.ecrireFenetre(e, noeud);
       this.exact = avant;
+      return true;
+    }
+    if (noeud.type === 'formulaire' && !noeud.reglages && this.exact!.de(noeud)) {
+      this.visible(e, noeud.id, () => this.boiteExacte(e, noeud, () => this.ecrireCorps(e, noeud.corps), [`.identifiantHumalis(${chaineSwift(noeud.id)})`]));
       return true;
     }
     if (noeud.type === 'bloc') {
@@ -1210,7 +1223,8 @@ export class GenerateurPage implements HotePage {
       case 'image':
         return this.ecrireImage(e, noeud, id, ancre, clics, survol);
       case 'champ':
-        return this.ecrireChamp(e, noeud, id);
+        // Le nœud d'origine : le CSS d'une page dessinée est rangé par nœud.
+        return this.ecrireChamp(e, noeud, id, noeudLu);
     }
   }
 
@@ -1306,7 +1320,7 @@ export class GenerateurPage implements HotePage {
     this.modifieurs(e, noeud.options, 'image', [...(this.nomForce === 'EnteteSite' ? ['.frame(maxHeight: 44, alignment: .leading)'] : []), ...this.toucher(clics), ...survol, id, ...ancre]);
   }
 
-  private ecrireChamp(e: Ecrivain, noeud: Extract<NoeudVue, { type: 'element' }>, idBrut: string): void {
+  private ecrireChamp(e: Ecrivain, noeud: Extract<NoeudVue, { type: 'element' }>, idBrut: string, origine: NoeudVue = noeud): void {
     const id = idBrut.replace('.accessibilityIdentifier(', '.identifiantHumalis(');
     const champ = this.portee.champs.get(noeud.id)!;
     const saisie = noeud.saisie;
@@ -1324,6 +1338,37 @@ export class GenerateurPage implements HotePage {
     const pause = this.saisiesSuivies.find((s) => s.gestionnaire.cibles[0] === noeud.id && s.gestionnaire.declencheur === 'pauseSaisie');
     if (pause && !soumission) envoi.push(`.onSubmit { ${this.appel(pause.fonction)} }`);
     const estMotDePasse = sorte === 'motDePasse' || this.champsMotDePasse.has(noeud.id);
+    // Dans une page dessinée : le <label> et sa saisie, dessinés par le CSS comme sur le site.
+    const lu = this.exact?.enveloppe(origine);
+    const saisieLue = this.exact?.de(origine);
+    if (this.exact && saisieLue && (lu || sorte === 'choix')) {
+      const apres = [...this.desactive(noeud), ...envoi, id];
+      if (sorte === 'choix') {
+        this.boiteExacte(e, origine, () => e.ligne(`ChoixHumalis(libelle: ${libelle}, valeurs: ${valeurs}, choisi: ${lien}${obligatoire}).itemHumalis(StyleHumalis.plein)`), apres);
+        return;
+      }
+      if (lu!.masque) return;
+      const s = this.codeExact(saisieLue);
+      const etoile = saisie?.obligatoire ? ' + " *"' : '';
+      const libelleLu = `Text(verbatim: ${libelle}${etoile}).modifier(StyleTexteHumalis(${lu!.texte}))`;
+      const indiceLu = saisie?.indice !== undefined || saisie?.indiceValeur || saisie?.indiceLangues ? indice.replace(/^, indice: /, '') : 'nil';
+      const saisieCode = sorte === 'case'
+        ? `CaseDessineeHumalis(s: ${s}, coche: ${lien})`
+        : sorte === 'liste'
+          ? `ListeDessineeHumalis(s: ${s}, valeurs: ${valeurs}, choisi: ${lien}, indice: ${saisie?.indice !== undefined ? chaineSwift(saisie.indice) : '"Choisissez…"'})`
+          : sorte === 'date' || sorte === 'heure'
+            ? `BoiteHumalis(${s}) { ChampDateHumalis(libelle: ${libelle}, texte: ${lien}, genre: .${sorte}).labelsHidden().itemHumalis(StyleHumalis.plein) }.itemHumalis(${s})`
+            : `SaisieDessineeHumalis(s: ${s}, texte: ${lien}, indice: ${indiceLu}${sorte === 'texteLong' ? ', lignes: 4' : `, clavier: .${clavier(sorte, this.champsEmail.has(noeud.id))}`}${estMotDePasse ? `, secret: true, nouveau: ${!this.champsMotDePasse.has(noeud.id)}` : ''})`;
+      e.bloc(`BoiteHumalis(${lu!.code}) {`, () => {
+        // Sur le web, la case vient avant son libellé, la saisie après.
+        if (sorte !== 'case') e.ligne(libelleLu);
+        e.ligne(saisieCode);
+        e.indenter(() => apres.forEach((l) => e.ligne(l)));
+        if (sorte === 'case') e.ligne(libelleLu);
+      });
+      e.indenter(() => e.ligne(`.itemHumalis(${lu!.code})`));
+      return;
+    }
     switch (sorte) {
       case 'case':
         e.ligne(`Toggle(isOn: ${lien}) { Text(verbatim: ${libelle}${saisie?.obligatoire ? ' + " *"' : ''}) }`);

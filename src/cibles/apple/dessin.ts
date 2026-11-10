@@ -32,6 +32,7 @@ struct MesureHumalis: Codable, Hashable {
 
 struct MargeHumalis: Codable, Hashable {
     var m: MesureHumalis?
+    init(_ m: MesureHumalis?) { self.m = m }
     init(from d: Decoder) throws {
         let c = try d.singleValueContainer()
         m = (try? c.decode(String.self)) == "auto" ? nil : try c.decode(MesureHumalis.self)
@@ -159,6 +160,7 @@ private struct CleEchelle: EnvironmentKey { static let defaultValue: CGFloat = 1
 private struct CleVue: EnvironmentKey { static let defaultValue = CGSize(width: 1440, height: 900) }
 private struct CleEchelleFenetre: EnvironmentKey { static let defaultValue: CGFloat? = nil }
 private struct CleFondEtendu: EnvironmentKey { static let defaultValue = false }
+private struct CleLargeurBarre: EnvironmentKey { static let defaultValue: CGFloat = 0 }
 extension EnvironmentValues {
     var echelleHumalis: CGFloat { get { self[CleEchelle.self] } set { self[CleEchelle.self] = newValue } }
     var vueHumalis: CGSize { get { self[CleVue.self] } set { self[CleVue.self] = newValue } }
@@ -166,6 +168,8 @@ extension EnvironmentValues {
     var echelleFenetreHumalis: CGFloat? { get { self[CleEchelleFenetre.self] } set { self[CleEchelleFenetre.self] = newValue } }
     /** La boîte qui le reçoit dessine son fond jusque sous la zone sûre ; ses enfants, non. */
     var fondEtenduHumalis: Bool { get { self[CleFondEtendu.self] } set { self[CleFondEtendu.self] = newValue } }
+    /** La largeur de la barre dessinée à côté de la page, en points. */
+    var largeurBarreHumalis: CGFloat { get { self[CleLargeurBarre.self] } set { self[CleLargeurBarre.self] = newValue } }
 }
 
 struct CleItemHumalis: LayoutValueKey { static let defaultValue: StyleHumalis? = nil }
@@ -848,21 +852,41 @@ private func graisseHumalis(_ g: Double) -> Font.Weight {
     }
 }
 
+/** La hauteur naturelle d'une ligne (« line-height: normal ») dans la police du style. */
+func hauteurNaturelleHumalis(_ s: StyleHumalis, _ z: CGFloat) -> CGFloat {
+    let t = (s.t ?? 16) * z
+    #if os(macOS)
+    let p = s.f.flatMap { NSFont(name: PolicesHumalis.vrai($0), size: t) } ?? NSFont.systemFont(ofSize: t)
+    // Sur Mac, SwiftUI arrondit une ligne au point entier supérieur (mesuré : 11,54 donne 12, 18,84 donne 19).
+    return (p.ascender - p.descender + p.leading).rounded(.up)
+    #else
+    let p = s.f.flatMap { UIFont(name: PolicesHumalis.vrai($0), size: t) } ?? UIFont.systemFont(ofSize: t)
+    return p.lineHeight
+    #endif
+}
+
+/** La hauteur d'une ligne voulue par le CSS (« line-height »), ou la naturelle. */
+func hauteurLigneHumalis(_ s: StyleHumalis, _ z: CGFloat) -> CGFloat {
+    s.lp.map { $0 * z } ?? s.li.map { $0 * (s.t ?? 16) * z } ?? hauteurNaturelleHumalis(s, z)
+}
+
 /** Le texte : police, graisse, couleur, interligne, à l'échelle. */
 struct StyleTexteHumalis: ViewModifier {
     let s: StyleHumalis
     @Environment(\.echelleHumalis) private var z
+    @Environment(\.displayScale) private var pixels
+    /** Une ligne de ce texte, mesurée telle que SwiftUI la dessine : la référence de l'interligne. */
+    @State private var mesuree: CGFloat?
     init(_ s: StyleHumalis) { self.s = s }
 
+    /**
+     * La hauteur d'une ligne telle que SwiftUI la dessine. Mesurée sur une ligne témoin, invisible ;
+     * avant la mesure, estimée par la police (arrondie au pixel de l'écran, au point sur Mac).
+     */
     private var naturelle: CGFloat {
-        let t = (s.t ?? 16) * z
-        #if os(macOS)
-        let p = s.f.flatMap { NSFont(name: PolicesHumalis.vrai($0), size: t) } ?? NSFont.systemFont(ofSize: t)
-        return p.ascender - p.descender + p.leading
-        #else
-        let p = s.f.flatMap { UIFont(name: PolicesHumalis.vrai($0), size: t) } ?? UIFont.systemFont(ofSize: t)
-        return p.lineHeight
-        #endif
+        if let mesuree { return mesuree }
+        let n = hauteurNaturelleHumalis(s, z)
+        return pixels > 0 ? (n * pixels - 0.001).rounded(.up) / pixels : n
     }
 
     @ViewBuilder func body(content: Content) -> some View {
@@ -888,6 +912,12 @@ struct StyleTexteHumalis: ViewModifier {
             .lineLimit(s.nw == true || s.el == true ? 1 : nil)
             .truncationMode(.tail)
             .padding(.vertical, ecart / 2)
+            .background {
+                if voulue != nil {
+                    Text(verbatim: "Hg").font(police).fixedSize().hidden()
+                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { if mesuree != $0 { mesuree = $0 } }
+                }
+            }
     }
 }
 
@@ -946,6 +976,7 @@ struct PageDessineeHumalis<Contenu: View>: View {
             BoiteHumalis(StyleHumalis.racine) { contenu() }
                 .environment(\.echelleHumalis, fenetre ?? echelleDessinHumalis(g.size, largeur, hauteur))
                 .environment(\.vueHumalis, g.size)
+                .modifier(RepereEssaiHumalis(taille: fenetre == nil ? g.size : .zero, z: fenetre ?? echelleDessinHumalis(g.size, largeur, hauteur)))
                 .frame(width: g.size.width, height: g.size.height, alignment: .topLeading)
         }
         .ignoresSafeArea()
@@ -962,17 +993,174 @@ struct PageDessineeHumalis<Contenu: View>: View {
                 BoiteHumalis(StyleHumalis.racine) { contenu() }
                     .environment(\.echelleHumalis, 1)
                     .environment(\.vueHumalis, g.size)
+                    .modifier(RepereEssaiHumalis(taille: fenetre == nil ? g.size : .zero, z: 1))
                     .frame(width: g.size.width, alignment: .topLeading)
                     .frame(minHeight: g.size.height, alignment: .topLeading)
             }
             .scrollBounceBehavior(.basedOnSize)
             .scrollDismissesKeyboard(.interactively)
+            // Dans la coquille, la zone sûre est déjà laissée par elle : la page n'en ajoute pas une seconde.
+            .ignoresSafeArea(.container, edges: fenetre == nil ? [] : .vertical)
         }
         .background { BoiteHumalis(fond) { EmptyView() }.ignoresSafeArea() }
         .background { GeometryReader { g in Color.clear.modifier(SuiviVarianteHumalis(index: VarianteDessinHumalis.indexPour(g.size.width, theme == .dark))) } }
         .toolbar(.hidden, for: .navigationBar)
     }
     #endif
+}
+
+/**
+ * L'essai au point près : lancée avec HUMALIS_ESSAI_CADRES=1, l'application écrit la place de chaque
+ * élément (« CADRE id x y largeur hauteur »), mesurée depuis le coin de la page comme dans le navigateur.
+ */
+struct CadreEssaiHumalis: ViewModifier {
+    let id: String
+    static let actif = ProcessInfo.processInfo.environment["HUMALIS_ESSAI_CADRES"] == "1"
+    // Dans l'arrière-plan : la mise en page de l'élément, et ce qu'il dit à sa boîte, ne changent pas.
+    func body(content: Content) -> some View {
+        content.background {
+            if Self.actif {
+                GeometryReader { g in
+                    let r = g.frame(in: .named("dessinHumalis"))
+                    Color.clear.onChange(of: r, initial: true) {
+                        print("CADRE \(id) \(r.minX) \(r.minY) \(r.width) \(r.height)")
+                        fflush(stdout)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Le repère de l'essai : la taille de la vue et l'échelle du dessin. */
+private struct RepereEssaiHumalis: ViewModifier {
+    let taille: CGSize
+    let z: CGFloat
+    func body(content: Content) -> some View {
+        if CadreEssaiHumalis.actif && taille != .zero {
+            content
+                .coordinateSpace(.named("dessinHumalis"))
+                .onChange(of: taille, initial: true) {
+                    print("VUE \(taille.width) \(taille.height) \(z)")
+                    fflush(stdout)
+                }
+        } else {
+            content
+        }
+    }
+}
+
+/**
+ * Une saisie d'une page dessinée : sans le cadre du système, dans la boîte que son CSS décrit.
+ * « lignes » au-delà de 1 : une zone de texte qui garde la place de ses lignes, comme <textarea rows>.
+ */
+struct SaisieDessineeHumalis: View {
+    let s: StyleHumalis
+    @Binding var texte: String
+    var indice: String? = nil
+    var lignes = 1
+    var clavier: ClavierHumalis = .texte
+    var secret = false
+    var nouveau = false
+
+    /** Le gris du texte indicatif d'un navigateur. */
+    private var invite: Text? { indice.map { Text(verbatim: $0).foregroundStyle(Color(white: 0.46)) } }
+
+    @ViewBuilder private var saisie: some View {
+        if secret {
+            SecureField("", text: $texte, prompt: invite)
+                #if os(iOS)
+                .textContentType(nouveau ? .newPassword : .password)
+                #endif
+        } else if lignes > 1 {
+            TextField("", text: $texte, prompt: invite, axis: .vertical).lineLimit(lignes, reservesSpace: true)
+        } else {
+            TextField("", text: $texte, prompt: invite).clavierHumalis(clavier)
+        }
+    }
+
+    @Environment(\.echelleHumalis) private var z
+
+    var body: some View {
+        BoiteHumalis(s) {
+            // Comme une saisie du navigateur : exactement ses lignes de « line-height », pas la hauteur du système.
+            saisie
+                .textFieldStyle(.plain)
+                .modifier(StyleTexteHumalis(s))
+                .frame(height: hauteurLigneHumalis(s, z) * CGFloat(lignes))
+        }
+        .itemHumalis(s)
+    }
+}
+
+/** Une case à cocher dessinée par son CSS : la boîte de l'<input>, cochée ou non. */
+struct CaseDessineeHumalis: View {
+    let s: StyleHumalis
+    @Binding var coche: Bool
+    var body: some View {
+        Button { coche.toggle() } label: {
+            BoiteHumalis(s) {
+                Image(systemName: coche ? "checkmark.square.fill" : "square").resizable().scaledToFit().itemHumalis(StyleHumalis.plein)
+            }
+            .modifier(CibleTactileHumalis())
+        }
+        .buttonStyle(.plain)
+        .itemHumalis(s)
+        .accessibilityAddTraits(coche ? .isSelected : [])
+    }
+}
+
+/** Une liste déroulante dessinée par son CSS : la valeur choisie, la flèche, puis le menu du système. */
+struct ListeDessineeHumalis: View {
+    let s: StyleHumalis
+    let valeurs: [String]
+    @Binding var choisi: String
+    var indice = "Choisissez…"
+    var body: some View {
+        Menu {
+            ForEach(valeurs, id: \.self) { v in Button(v) { choisi = v } }
+        } label: {
+            BoiteHumalis(s) {
+                HStack(spacing: 4) {
+                    Text(verbatim: choisi.isEmpty ? indice : choisi).modifier(StyleTexteHumalis(s))
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold)).foregroundStyle(couleurHumalis(s))
+                }
+                .itemHumalis(StyleHumalis.plein)
+            }
+            .modifier(CibleTactileHumalis())
+        }
+        .buttonStyle(.plain)
+        .itemHumalis(s)
+    }
+}
+
+/**
+ * La boîte main.humalis-page. Sur le site, le CSS laisse à gauche la place d'une barre latérale fixe ;
+ * dans la coquille, la barre est déjà à côté : la marge gauche perd sa largeur (sans passer sous zéro).
+ */
+struct BoitePageHumalis<Contenu: View>: View {
+    let s: StyleHumalis
+    @ViewBuilder let contenu: () -> Contenu
+    @Environment(\.largeurBarreHumalis) private var barre
+    @Environment(\.echelleHumalis) private var z
+
+    init(_ s: StyleHumalis, @ViewBuilder contenu: @escaping () -> Contenu) {
+        self.s = s
+        self.contenu = contenu
+    }
+
+    private var lu: StyleHumalis {
+        guard barre > 0, var m = s.ma, let g = m[3].m, g.c == nil, g.v == nil, g.w == nil else { return s }
+        var t = s
+        m[3] = MargeHumalis(MesureHumalis(p: max(0, (g.p ?? 0) - barre / max(z, 0.01))))
+        t.ma = m
+        return t
+    }
+
+    var body: some View {
+        BoiteHumalis(lu) { contenu() }.itemHumalis(lu)
+    }
 }
 
 /** La barre latérale écrite comme une page, à côté de la pile des pages (Mac, et iPad en grand). */
@@ -983,6 +1171,7 @@ struct CoquilleDessineeHumalis<Barre: View, Contenu: View>: View {
     @ViewBuilder let barre: () -> Barre
     @ViewBuilder let contenu: () -> Contenu
     @Environment(\.colorScheme) private var theme
+    @State private var largeurBarre: CGFloat = 0
     var body: some View {
         GeometryReader { g in
             #if os(macOS)
@@ -993,13 +1182,20 @@ struct CoquilleDessineeHumalis<Barre: View, Contenu: View>: View {
             let _ = VarianteDessinHumalis.commune.regler(g.size.width, theme == .dark)
             BoiteHumalis(StyleHumalis.lire(#"{"d":"flex","ai":"x"}"#)) {
                 // Sur iPad, le fond de la barre passe sous l'heure et sous la barre du bas ; son contenu, non.
-                if !sansBarre { barre().environment(\.fondEtenduHumalis, true) }
+                if !sansBarre {
+                    barre()
+                        .modifier(CadreEssaiHumalis(id: "@barre"))
+                        .environment(\.fondEtenduHumalis, true)
+                        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { largeurBarre = $0 }
+                }
                 contenu()
                     .environment(\.echelleFenetreHumalis, z)
+                    .environment(\.largeurBarreHumalis, sansBarre ? 0 : largeurBarre)
                     .itemHumalis(StyleHumalis.lire(#"{"fg":1,"fs":1,"fb":{"c":0}}"#))
             }
             .environment(\.echelleHumalis, z)
             .environment(\.vueHumalis, g.size)
+            .modifier(RepereEssaiHumalis(taille: g.size, z: z))
             .frame(width: g.size.width, height: g.size.height, alignment: .topLeading)
             .modifier(SuiviVarianteHumalis(index: VarianteDessinHumalis.indexPour(g.size.width, theme == .dark)))
         }

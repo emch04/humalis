@@ -536,6 +536,21 @@ website and the other targets, nothing changes.
 - **Everywhere**, `@media (prefers-color-scheme: dark)` follows the device's dark
   mode, live.
 
+The page starts from the same point as the website: the browser's default
+margins (paragraphs, headings), Humalis's base stylesheet and the theme, then the
+project's CSS. `box-sizing` is honoured, and `env(safe-area-inset-…)` is 0, as in
+Safari. Each element sits in the same structure as on the website:
+`main.humalis-page` around the page, `header.humalis-entete` for the sidebar,
+`label.humalis-champ` around a field. Fields, drop-down lists, checkboxes and
+forms therefore follow their CSS. On the website, a sidebar fixed to the left
+leaves room through a margin on the page; in the app, the sidebar already sits
+beside it, and that margin loses its width.
+
+To check it, `node scripts/essai-apple-dessin.mjs page.humalis` measures the same
+page on the website (in Chrome) and in the app (`--appareil "…"` for a simulator,
+`--mac`, `--sombre`, `--web`), then compares where each element sits, to the
+point.
+
 Each device has its own CSS: `utiliser style "./ios.css" sur ios` only applies on
 iPhone and iPad, `sur macos` only on Mac, and a shared CSS stays optional. The
 `sur ios :` and `sur macos :` blocks of a drawn page, and `sur ios style "…"`
