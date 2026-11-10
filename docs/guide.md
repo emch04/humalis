@@ -470,16 +470,21 @@ page "connexion" :
 ### Un design par plateforme
 
 La logique reste la même ; seul le design change. `sur apple` vaut pour iPhone, iPad et Mac,
-`sur ios` pour iPhone et iPad, `sur macos` pour Mac, `sur application` pour toutes les
-applications natives, `sur site` pour le web. Une phrase qui vise une autre plateforme n'a
-aucun effet, et la plus précise gagne.
+`sur ios` pour iPhone et iPad, `sur macos` pour Mac, `sur windows` pour l'application
+Windows, `sur application` pour toutes les applications natives, `sur site` pour le web.
+Une phrase qui vise une autre plateforme n'a aucun effet, et la plus précise gagne.
+
+Chaque cible peut ainsi avoir sa propre feuille de style : un CSS commun (sans `sur`)
+reste possible, mais il n'est pas obligatoire.
 
 ```humalis
+utiliser style "./site.css" sur site
 utiliser style "./iphone.css" sur ios
 utiliser style "./mac.css" sur macos
+utiliser style "./windows.css" sur windows
 
 page "accueil" :
-    bouton "Commander" avec style "principal" et sur apple style "plein-ecran"
+    bouton "Commander" avec style "principal" et sur apple style "plein-ecran" et sur windows style "large"
     sur application :
         texte "Merci d'utiliser l'application"
     sur site :
@@ -488,7 +493,8 @@ page "accueil" :
 
 Sur la cible Apple, chaque règle `.classe { … }` est traduite en SwiftUI. Ce qui n'a pas
 d'équivalent (`@media`, survols, sélecteurs composés, placement libre…) est compté à la
-compilation et listé, avec sa raison, dans `CSS-SUR-APPLE.md`.
+compilation et listé, avec sa raison, dans `CSS-SUR-APPLE.md`. Sur la cible Windows, de
+même, dans `CSS-SUR-WINDOWS.md`.
 
 Un même bloc peut viser plusieurs plateformes : on les relie par `et`.
 
@@ -3201,7 +3207,9 @@ page "a_propos" :
 ```
 
 Avec une `adresse`, la cible web écrit le plan du site (`sitemap.xml`) et
-`robots.txt`. Une page en `indexation non` n'y apparaît pas. Humalis prévient
+`robots.txt`. Une page en `indexation non` n'y apparaît pas. `robots.txt` dit aussi
+aux IA que le site peut apparaître dans leurs recherches et servir de source à leurs
+réponses (`Content-Signal: search=yes, ai-input=yes`). Humalis prévient
 quand un titre ou une description est trop long ou trop court pour les moteurs
 de recherche.
 
@@ -3301,31 +3309,63 @@ Le module est chargé à part, et ses paquets sont ajoutés au projet. Quand une
 propriété change, il est relancé. S'il sait se mettre à jour lui-même, il rend
 `{ mettreAJour(proprietes) { … }, detruire() { … } }`.
 
-### Une vue Swift écrite à la main
+### Une vue native écrite à la main
 
-Sur la cible Apple, il n'y a ni React ni JavaScript. Pour y mettre du Swift écrit
-à la main, ajoute `sur apple` : le web garde son composant, l'application Apple
-utilise ta vue SwiftUI.
+Quand Humalis ne sait pas encore dessiner quelque chose, écris ce morceau dans la
+langue de la plateforme : Swift pour iPhone, iPad et Mac, C# pour Windows. Pas de
+React, pas de navigateur : chaque application reste native. Une seule ligne donne
+la vue de chaque plateforme :
 
 ```humalis
-utiliser composant "Carte" depuis "./composants/Carte" sur apple "./composants/Carte.swift"
+utiliser composant "Carte" sur apple "./natif/Carte.swift" et sur windows "./natif/Carte.cs"
 
 page "accueil" :
-    Carte avec titre "Bonjour"
+    Carte avec titre "Café" et prix 3.5
 ```
+
+Sur Apple, une vue SwiftUI qui porte le nom du composant :
 
 ```swift
 import SwiftUI
 
 struct Carte: View {
     let titre: String
-    var body: some View { Text(titre).font(.title) }
+    let prix: Double
+    var body: some View { Text("\(titre) : \(prix) €").font(.title) }
 }
 ```
 
-La vue porte le nom du composant, et ses propriétés sont écrites dans le même
-ordre que dans la page. Un texte est un `String`, un nombre un `Double`, vrai ou
-faux un `Bool`.
+Sur Windows, une classe WPF du même nom (un `UserControl`, ou tout autre élément) :
+
+```csharp
+using System.Windows.Controls;
+
+namespace MesVues;
+
+public class Carte : UserControl
+{
+    public Carte(string titre, double prix, bool promo = false)
+    {
+        Content = new TextBlock { Text = $"{titre} : {prix:0.00} €", FontSize = 22 };
+    }
+}
+```
+
+Les propriétés de la page passent par leur nom : `titre` va dans le paramètre `titre`.
+Un texte est un `String` (`string` en C#), un nombre un `Double` (`double`, ou `int`),
+vrai ou faux un `Bool` (`bool`). Un paramètre C# avec une valeur par défaut peut être
+omis dans la page. Sur Windows, la vue est recréée quand une valeur qu'elle reçoit
+change. Une propriété inconnue, ou un paramètre oublié, est dit à la compilation.
+
+Une plateforme sans sa vue s'arrête avec la ligne à ajouter : ici, l'application
+Android et le site n'ont pas de « Carte ». Pour le site, écris le composant en Humalis
+(`composant "Carte" :`), ou un module JavaScript : `utiliser module "Carte" depuis
+"./modules/Carte.js"`, suivi des mêmes `sur …`.
+
+Les bibliothèques de ces vues s'ajoutent en haut du fichier : `paquet swift "https://…"
+version "1.2"` pour Apple (voir plus haut), `paquet windows "Humanizer.Core" version
+"2.14.1"` pour Windows (NuGet), `paquet android "io.coil-kt:coil-compose" version "2.7.0"`
+pour Android (Gradle).
 
 Dans l'autre sens, `humalis compile … --composants <dossier>` produit des
 composants React à importer dans un projet React existant.
@@ -3387,13 +3427,18 @@ Les autres étapes : `remplir champ "email" avec "…"`, `aller vers "panier"`,
 | `humalis packs` | dit si les packs Astratra ont des mises à jour |
 
 Pour le web et le statique, `--adresse https://…` donne l'adresse finale du
-site (plan du site, liens de partage). Pour le desktop et Apple, `--serveur https://…`
+site (plan du site, liens de partage). Pour le desktop, Apple et Windows, `--serveur https://…`
 donne l'adresse du serveur que l'application appelle.
 
 `--cible apple` produit un projet Xcode en SwiftUI : une seule application native
 pour iPhone, iPad et Mac, sans navigateur embarqué (Xcode 16 ou plus récent ; elle
 tourne à partir d'iOS 17 et de macOS 14). Pour la signer, ajoute
 `--identifiant com.exemple.application` et `--equipe ABCDE12345`.
+
+`--cible windows` produit un projet .NET en C# et WPF : une application native pour
+Windows 10 et 11, sans navigateur embarqué. Elle se construit avec le SDK .NET 10,
+sur Windows mais aussi sur macOS ou Linux (`dotnet build`), et se publie en un seul
+fichier `.exe` (voir « L'application Windows » au chapitre 33).
 
 Avec `humalis developper`, chaque élément de la page porte son fichier
 Humalis et sa ligne : dans l'inspecteur du navigateur, un titre montre par
@@ -3425,22 +3470,62 @@ Le même fichier donne toutes les cibles. Quand une construction n'existe pas
 sur une cible, le compilateur le dit clairement au lieu de produire quelque
 chose de faux.
 
-| | web | statique | mobile | desktop | apple |
-|---|---|---|---|---|---|
-| Pages, éléments, styles, thème | oui | oui | oui | oui | oui |
-| Ton propre CSS | oui | oui | non (styles nommés seulement) | oui | en partie (règles d'une classe ; le reste est listé) ; au point près dans une page `dessinee pour`, `@media` et mode sombre compris |
-| Requêtes vers un serveur | oui | oui | oui | oui | oui |
-| `memorisee` | oui | oui | oui | oui | oui |
-| `memorisee en secret` | non | non | oui | oui | oui (Keychain) |
-| `essayer` | oui | non | oui | oui | oui |
-| Raccourcis clavier | oui | oui | non | oui | oui |
-| Composants React | oui | non | oui (en React Native) | oui | non (`sur apple "Vue.swift"`) |
-| Le moteur sans React (par défaut) | oui | non | non | oui (sauf composant React ou `memorisee en secret`) | non |
-| Photo, scanner, Face ID, vibration, signature, hors ligne | oui (vibration : Android) | non | non | non | oui |
-| `en arriere plan` | non | non | non | non | oui |
-| Plan du site, aperçu de partage | oui | oui | non | non | non |
+| | web | statique | mobile | desktop | apple | windows |
+|---|---|---|---|---|---|---|
+| Pages, éléments, styles, thème | oui | oui | oui | oui | oui | oui |
+| Ton propre CSS | oui | oui | non (styles nommés seulement) | oui | en partie (règles d'une classe ; le reste est listé) ; au point près dans une page `dessinee pour`, `@media` et mode sombre compris | en partie (règles d'une classe ; le reste est listé) |
+| Requêtes vers un serveur | oui | oui | oui | oui | oui | oui |
+| `memorisee` | oui | oui | oui | oui | oui | oui |
+| `memorisee en secret` | non | non | oui | oui | oui (Keychain) | oui (chiffré par Windows) |
+| `essayer` | oui | non | oui | oui | oui | oui |
+| Raccourcis clavier | oui | oui | non | oui | oui | oui |
+| Vue native écrite à la main | non | non | non | non | oui (Swift, `sur apple`) | oui (C#, `sur windows`) |
+| Composants React (anciens projets) | oui | non | oui (en React Native) | oui | non | non |
+| Le moteur sans React (par défaut) | oui | non | non | oui (sauf composant React ou `memorisee en secret`) | non | non |
+| Graphiques, cartes, audio, vidéo, fichiers | oui | oui | en partie | oui | oui | oui |
+| Plusieurs langues | oui | oui | oui | oui | oui | oui |
+| Photo, scanner, Face ID, vibration, signature, hors ligne | oui (vibration : Android) | non | non | non | oui | non |
+| `en arriere plan` | non | non | non | non | oui | non |
+| Plan du site, aperçu de partage | oui | oui | non | non | non | non |
 
 Le serveur (`--cible serveur`) se produit à part, depuis le bloc `serveur`.
+
+### L'application Windows
+
+```sh
+humalis compile boutique.humalis --cible windows --sortie boutique-windows --serveur https://api.monsite.fr
+cd boutique-windows
+dotnet build
+dotnet publish -c Release -r win-x64
+```
+
+Le dossier produit est un projet .NET 10 en C# et WPF, lisible, à ne pas modifier à
+la main. `dotnet publish` donne un seul fichier `.exe` qui contient .NET : rien à
+installer sur le PC (`-r win-arm64` pour un PC à processeur ARM). La construction
+marche aussi sur un Mac ou sous Linux ; seul le lancement demande Windows 10 ou 11.
+
+- L'apparence suit Windows 11 (thème Fluent), en clair ou en sombre comme le système ;
+  `changer theme par sombre` change ce choix, et il est gardé.
+- Une page à la fois, avec un bouton Retour, `Alt+←` et le bouton arrière de la souris.
+- Le serveur Humalis est appelé avec la même session que l'application Apple : le jeton
+  est gardé chiffré par Windows, lisible seulement par la personne connectée à la
+  session Windows. `memorisee` va dans `%LOCALAPPDATA%`.
+- Plusieurs langues : le sélecteur, `changer langue`, et les nombres, prix et dates
+  écrits à la façon de la langue choisie, qui est gardée sur le PC.
+- Graphiques, cartes (tuiles d'OpenStreetMap, ou d'un autre fournisseur avec `tuiles`),
+  audio et vidéo avec leur transcription, codes QR, images SVG, choix et envoi de
+  fichiers, `sous page`, ancres et onglets de l'application.
+- `partager …` copie le texte (et le lien) dans le presse-papiers.
+- Les animations et les effets de survol ne se dessinent pas encore ; la compilation
+  le dit.
+- Ce que Humalis ne sait pas encore faire s'écrit en C# : `utiliser composant "Carte" sur
+  windows "./natif/Carte.cs"`, avec ses bibliothèques NuGet (`paquet windows "…" version
+  "…"`) ; voir « Une vue native écrite à la main ».
+- Pas encore sur Windows : paiement, IA, connexion avec Google ou Apple, invitations,
+  notifications. La compilation s'arrête et dit quelle ligne en a besoin.
+
+Sans signature de code, Windows affiche un avertissement (SmartScreen) au premier
+lancement : « Informations complémentaires », puis « Exécuter quand même ».
 
 ### Le moteur de rendu de Humalis
 

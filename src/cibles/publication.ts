@@ -36,10 +36,14 @@ export function typeImage(chemin: string): string {
   return { svg: 'image/svg+xml', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', ico: 'image/x-icon' }[extension ?? ''] ?? 'image/png';
 }
 
-/** robots.txt : ouvert avec le plan du site, ou fermé (« indexation non »). Les pages réservées n'y sont jamais nommées. */
+/**
+ * robots.txt : ouvert avec le plan du site, ou fermé (« indexation non »). Les pages réservées n'y sont jamais nommées.
+ * Ouvert, il le dit aussi aux IA (Content Signals, contentsignals.org) : le site peut apparaître dans les recherches
+ * et servir de source à une réponse. L'entraînement des modèles n'est ni permis ni refusé ici.
+ */
 export function robotsTxt(site: SiteRI, adresse: string | undefined): string {
   if (!site.indexation) return 'User-agent: *\nDisallow: /\n';
-  return `User-agent: *\nAllow: /\n${adresse ? `Sitemap: ${sansBarreFinale(adresse)}/sitemap.xml\n` : ''}`;
+  return `User-agent: *\nContent-Signal: search=yes, ai-input=yes\nAllow: /\n${adresse ? `Sitemap: ${sansBarreFinale(adresse)}/sitemap.xml\n` : ''}`;
 }
 
 /** Le manifeste minimal : le nom et l'icône, sans installation promise. */

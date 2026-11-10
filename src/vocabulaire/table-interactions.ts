@@ -420,7 +420,7 @@ export const ENTREES_INTERACTIONS: EntreeVocabulaire[] = [
     description: 'Dans « liens profonds "…" ».',
     exemple: 'liens profonds "magasin"\npage "p" :\n    titre "P"',
   }),
-  ...[['apple', 'iPhone, iPad et Mac'], ['ios', 'iPhone et iPad'], ['macos', 'Mac'], ['application', 'toutes les applications natives'], ['site', 'le web'], ['android', 'réservé : la cible n’existe pas encore']].map(([nom, sens]) => mot({
+  ...[['apple', 'iPhone, iPad et Mac'], ['ios', 'iPhone et iPad'], ['macos', 'Mac'], ['windows', 'Windows 10 et 11'], ['application', 'toutes les applications natives'], ['site', 'le web'], ['android', 'réservé : la cible n’existe pas encore']].map(([nom, sens]) => mot({
     mot: nom,
     categorie: 'action',
     concept: `style.plateforme.${nom}`,
@@ -607,7 +607,7 @@ export const ENTREES_INTERACTIONS: EntreeVocabulaire[] = [
     contextes: ['option'],
     cibles: { ...ecran('(cible Apple)', null, null) },
     couvre: [],
-    description: '« paquet swift "https://…" version "1.2" » : une bibliothèque Swift pour les vues écrites à la main (cible Apple).',
+    description: '« paquet swift "https://…" version "1.2" », « paquet windows "Nom" version "1.2" » (NuGet) ou « paquet android "groupe:nom" version "1.2" » (Gradle) : une bibliothèque pour les vues écrites à la main.',
     exemple: 'paquet swift "https://exemple.fr/a" version "1.2"\npage "p" :\n    titre "P"',
   }),
   mot({

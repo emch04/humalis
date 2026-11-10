@@ -96,8 +96,10 @@ export function compilerProjet(principal: string | undefined, lire: Lecteur, sou
       for (const f of programme.fichiersStyle) f.chemin = relatif(base, joindre(ici, f.chemin));
       for (const f of programme.fichiersIcones ?? []) f.chemin = relatif(base, joindre(ici, f.chemin));
       for (const c of programme.composantsReact) {
-        c.chemin = relatif(base, joindre(ici, c.chemin));
+        if (c.chemin !== undefined) c.chemin = relatif(base, joindre(ici, c.chemin));
         if (c.apple !== undefined) c.apple = relatif(base, joindre(ici, c.apple));
+        if (c.android !== undefined) c.android = relatif(base, joindre(ici, c.android));
+        if (c.windows !== undefined) c.windows = relatif(base, joindre(ici, c.windows));
       }
       for (const d of programme.donneesFichiers) d.chemin = './' + relatif(base, joindre(ici, d.chemin));
       for (const police of programme.theme?.polices ?? []) if (police.fichier) police.fichier = relatif(base, joindre(ici, police.fichier));
@@ -235,6 +237,8 @@ function reunir(programmes: Programme[], fichiers: string[], diagnostics: Diagno
     partages: [...premier.partages],
     composantsReact: [...premier.composantsReact],
     paquetsSwift: [...(premier.paquetsSwift ?? [])],
+    paquetsAndroid: [...(premier.paquetsAndroid ?? [])],
+    paquetsWindows: [...(premier.paquetsWindows ?? [])],
     ...(premier.liensProfonds ? { liensProfonds: premier.liensProfonds } : {}),
     ...(premier.ongletsApplication ? { ongletsApplication: premier.ongletsApplication } : {}),
     ...(premier.barreLaterale ? { barreLaterale: premier.barreLaterale } : {}),
@@ -305,6 +309,8 @@ function reunir(programmes: Programme[], fichiers: string[], diagnostics: Diagno
     tout.donneesFichiers.push(...p.donneesFichiers);
     tout.partages.push(...p.partages);
     tout.paquetsSwift!.push(...(p.paquetsSwift ?? []));
+    tout.paquetsAndroid!.push(...(p.paquetsAndroid ?? []));
+    tout.paquetsWindows!.push(...(p.paquetsWindows ?? []));
     tout.liensProfonds ??= p.liensProfonds;
     tout.ongletsApplication ??= p.ongletsApplication;
     tout.barreLaterale ??= p.barreLaterale;

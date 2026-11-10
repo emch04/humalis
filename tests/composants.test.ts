@@ -51,7 +51,7 @@ describe('composants React — parser', () => {
 
   it('explique un « depuis » oublié', () => {
     expect(() => analyserSyntaxe(analyser('utiliser composant "Carte" "./Carte"\npage "a" :\n    titre "A"'))).toThrow(
-      /il manque « depuis » suivi du chemin du fichier React/,
+      /il manque « sur apple », « sur android » ou « sur windows » suivi du fichier natif/,
     );
   });
 });
