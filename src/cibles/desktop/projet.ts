@@ -30,7 +30,21 @@ export interface OptionsDesktop {
 export const VERSIONS_DESKTOP = {
   electron: '44.7.2',
   electronBuilder: '26.17.0',
+  /** Les mises à jour automatiques : la version publiée avec electron-builder 26.17.0 (même builder-util-runtime). */
+  electronUpdater: '6.8.10',
 };
+
+/**
+ * L'adresse des mises à jour automatiques : le dossier « mises-a-jour/ » de
+ * l'adresse du bloc « site ». electron-builder y range les installateurs et
+ * leurs fichiers latest*.yml ; l'application installée les y cherche. Sans
+ * adresse, pas de mise à jour automatique.
+ */
+export function adresseDesMisesAJour(application: Application): string | undefined {
+  const adresse = application.site?.adresse;
+  if (!adresse || !/^https:\/\/[^/\s]+/.test(adresse)) return undefined;
+  return `${adresse.replace(/\/+$/, '')}/mises-a-jour/`;
+}
 
 /** Le fichier qui marque un dossier produit par Humalis (le même que le web). */
 export const MARQUE_DESKTOP = MARQUE;
@@ -62,7 +76,8 @@ export function genererProjetDesktop(application: Application, options: OptionsD
 
   const slug = simplifier(options.nom).replace(/_/g, '-') || 'application-humalis';
   const { relais, origines } = adressesDuServeur(application);
-  fichiers.set('package.json', packageJson(slug, options));
+  const misesAJour = adresseDesMisesAJour(application);
+  fichiers.set('package.json', packageJson(slug, options, misesAJour));
   // Les bibliothèques des éléments d'écran (icônes, code QR) : Vite les emballe, comme React.
   const extras = Object.fromEntries(
     Object.entries(JSON.parse(web.get('package.json')!).dependencies as Record<string, string>).filter(([nom]) => !['react', 'react-dom', 'react-router'].includes(nom)),
@@ -78,7 +93,7 @@ export function genererProjetDesktop(application: Application, options: OptionsD
   }
   fichiers.set('tsconfig.electron.json', TSCONFIG_ELECTRON);
   fichiers.set('.gitignore', 'node_modules\ndist\nelectron/dist\npaquets\n');
-  fichiers.set('LISEZMOI.md', lisezmoi(options, slug));
+  fichiers.set('LISEZMOI.md', lisezmoi(options, slug, misesAJour));
   fichiers.set(
     'electron/principal.ts',
     principal({
@@ -88,6 +103,7 @@ export function genererProjetDesktop(application: Application, options: OptionsD
       relais,
       origines,
       secret,
+      misesAJour: misesAJour !== undefined,
       ...mediasDuProgramme(application),
     }),
   );
@@ -129,7 +145,7 @@ export function adressesDuServeur(application: Application): { relais: string[];
   return { relais, origines };
 }
 
-function packageJson(slug: string, options: OptionsDesktop): string {
+function packageJson(slug: string, options: OptionsDesktop, misesAJour?: string): string {
   return (
     JSON.stringify(
       {
@@ -143,8 +159,14 @@ function packageJson(slug: string, options: OptionsDesktop): string {
           dev: 'vite',
           build: 'tsc --noEmit && tsc -p tsconfig.electron.json && vite build',
           start: 'npm run build && electron .',
-          paquet: 'npm run build && electron-builder',
+          // Rien n'est envoyé nulle part : les installateurs restent dans paquets/.
+          paquet: 'npm run build && electron-builder --publish never',
+          // Les installateurs : un .dmg pour Mac, un .exe (NSIS) pour Windows.
+          'paquet:mac': 'npm run build && electron-builder --mac --publish never',
+          'paquet:windows': 'npm run build && electron-builder --win --publish never',
         },
+        // Les mises à jour automatiques : electron-updater part avec l'application installée.
+        ...(misesAJour ? { dependencies: { 'electron-updater': VERSIONS_DESKTOP.electronUpdater } } : {}),
         // Tout sert à construire : Vite emballe les pages, et le processus
         // principal n'utilise qu'Electron et Node (décision D8).
         devDependencies: {
@@ -165,8 +187,10 @@ function packageJson(slug: string, options: OptionsDesktop): string {
           files: ['dist/**/*', 'electron/dist/**/*'],
           directories: { output: 'paquets' },
           mac: { target: ['dmg', 'zip'], category: 'public.app-category.productivity' },
-          win: { target: ['nsis'] },
+          win: { target: [{ target: 'nsis', arch: ['x64'] }] },
           linux: { target: ['AppImage'], category: 'Utility' },
+          // Les installateurs et leurs latest*.yml vont à cette adresse ; l'application les y cherche.
+          ...(misesAJour ? { publish: [{ provider: 'generic', url: misesAJour }] } : {}),
           // Les fusibles d'Electron (décision D4) : l'application installée ne
           // se laisse ni détourner en Node, ni charger un autre code.
           electronFuses: {
@@ -214,6 +238,8 @@ interface OptionsPrincipal {
   relais: string[];
   origines: string[];
   secret: boolean;
+  /** L'adresse des mises à jour est connue : electron-updater les cherche au lancement. */
+  misesAJour: boolean;
   /** Un aperçu de fichier choisi (blob:) s'affiche dans la page. */
   apercu: boolean;
   /** Un son ou une vidéo (media-src) est joué. */
@@ -235,7 +261,7 @@ function principal(o: OptionsPrincipal): string {
 // Il ouvre la fenêtre, pose le menu, sert les pages construites par Vite
 // et relaie leurs requêtes vers le serveur (voir LISEZMOI.md).
 import { ${electron.join(', ')}, ${types.join(', ')} } from 'electron';
-${o.secret ? "import { createHash } from 'node:crypto';\n" : ''}import { existsSync, statSync } from 'node:fs';
+${o.misesAJour ? "import electronUpdater from 'electron-updater';\n" : ''}${o.secret ? "import { createHash } from 'node:crypto';\n" : ''}import { existsSync, statSync } from 'node:fs';
 ${o.secret ? "import { mkdir, readFile, writeFile } from 'node:fs/promises';\n" : ''}import { dirname, extname, join, normalize, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -335,7 +361,7 @@ async function servir(requete: Request): Promise<Response> {
   if (fichier.endsWith('.html')) entetes.set('Content-Security-Policy', CSP);
   return new Response(reponse.body, { status: reponse.status, headers: entetes });
 }
-${o.secret ? COFFRE : ''}
+${o.secret ? COFFRE : ''}${o.misesAJour ? MISES_A_JOUR : ''}
 function creerFenetre(): BrowserWindow {
   const fenetre = new BrowserWindow({
     width: 1024,
@@ -471,7 +497,7 @@ if (!app.requestSingleInstanceLock()) {
     protocol.handle(SCHEMA, servir);
 ${o.secret ? '    ouvrirCoffre();\n' : ''}    Menu.setApplicationMenu(menu());
     creerFenetre();
-    // Sur Mac, un clic sur l'icône du Dock rouvre la fenêtre.
+${o.misesAJour ? '    verifierLesMisesAJour();\n' : ''}    // Sur Mac, un clic sur l'icône du Dock rouvre la fenêtre.
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) creerFenetre();
     });
@@ -484,6 +510,26 @@ ${o.secret ? '    ouvrirCoffre();\n' : ''}    Menu.setApplicationMenu(menu());
 }
 `;
 }
+
+/**
+ * Les mises à jour automatiques (electron-updater) : seulement pour l'application
+ * installée, et seulement si electron-builder a écrit app-update.yml (l'adresse
+ * « publish » de package.json). Un échec (pas de réseau, rien de publié) est
+ * écrit dans la console, sans gêner l'application.
+ */
+const MISES_A_JOUR = `
+function verifierLesMisesAJour(): void {
+  if (!app.isPackaged || !existsSync(join(process.resourcesPath, 'app-update.yml'))) return;
+  const { autoUpdater } = electronUpdater;
+  // Pas de journal détaillé : un échec tient en une ligne.
+  autoUpdater.logger = null;
+  autoUpdater.on('error', (erreur) => console.warn(\`Mise à jour impossible : \${erreur.message}\`));
+  // La nouvelle version est téléchargée en arrière-plan, puis installée à la fermeture ; une notification le dit.
+  autoUpdater.checkForUpdatesAndNotify({ title: \`Mise à jour de \${NOM}\`, body: 'La nouvelle version sera installée à la fermeture.' }).catch(() => {
+    // Déjà écrit par l'événement « error ».
+  });
+}
+`;
 
 /** Le coffre (décision D6), dans le processus principal. */
 const COFFRE = `
@@ -624,7 +670,7 @@ export function useMemoriseSecret<T>(cle: string, initiale: T): [T, (valeur: T) 
 `;
 }
 
-function lisezmoi(options: OptionsDesktop, slug: string): string {
+function lisezmoi(options: OptionsDesktop, slug: string, misesAJour?: string): string {
   return `# ${options.nom}
 
 Application de bureau (Electron) produite par Humalis depuis
@@ -643,6 +689,28 @@ Sur Mac, \`npm run paquet\` donne \`paquets/mac-arm64/${options.nom}.app\` (ou
 la signature Apple demande un compte développeur. Avec \`npm start\`, le
 premier menu de la barre du Mac s'appelle « Electron » ; l'application
 construite porte son vrai nom.
+
+\`npm run paquet:mac\` ne construit que le \`.dmg\` (et le \`.zip\` des mises à
+jour) ; \`npm run paquet:windows\` construit l'installateur Windows (\`.exe\`, pour
+les PC x64), aussi depuis un Mac. Sans certificat, Windows prévient au premier
+lancement que l'éditeur est inconnu.
+
+## Les mises à jour automatiques
+
+${misesAJour ? `L'application installée cherche une nouvelle version au lancement, à
+l'adresse \`${misesAJour}\` (le dossier \`mises-a-jour/\` de l'adresse du bloc
+« site »). Pour publier une version :
+
+1. augmente \`version\` dans \`package.json\` (par exemple 1.0.1) ;
+2. lance \`npm run paquet\` ;
+3. dépose le contenu de \`paquets/\` (le \`.dmg\`, le \`.zip\`, le \`.exe\` et les
+   fichiers \`latest*.yml\`) dans ce dossier de ton site.
+
+La nouvelle version est téléchargée en arrière-plan et installée à la fermeture.
+Sur Mac, la mise à jour automatique demande une application signée par Apple ;
+sur Windows, elle marche sans signature.` : `Sans adresse dans le bloc « site », l'application ne cherche pas de mise à
+jour. Avec \`adresse "https://…"\` dans le bloc « site », elle les cherche dans le
+dossier \`mises-a-jour/\` de cette adresse.`}
 
 ## Le serveur
 

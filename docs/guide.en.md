@@ -502,9 +502,9 @@ page "guide" :
             texte "A long chapter that scrolls on its own."
 ```
 
-On the static target, the scrollbar stays the window's. On a phone the whole page
-scrolls: `hauteur ecran` and `defilement interne` have no effect, and a warning
-says so.
+On the static target, the scrollbar stays the window's. On a phone,
+`hauteur ecran` takes the visible height of the page (under the navigation bar or
+the header), and a `defilement interne` block scrolls on its own, under the finger.
 
 ### Depending on the device
 
@@ -2740,6 +2740,13 @@ With an `adresse`, the web target writes the sitemap (`sitemap.xml`) and
 `robots.txt`. A page with `indexation non` is left out of search engines.
 Humalis warns when a title or description is too long or too short for search
 engines.
+
+On the desktop, the same `adresse` is used for automatic updates: the installed
+application looks for a new version in the `mises-a-jour/` folder of that
+address. `npm run paquet` prepares everything (the `.dmg` installer for Mac, the
+`.exe` for Windows, and the `latest*.yml` files): you put these files in that
+folder. Without an `adresse`, the application does not look for updates. On a
+Mac, automatic updates need a signed application.
 
 The line `erreurs pendant 5 secondes` in the `site :` block sets how long the
 site's errors stay on screen: the ones you write without a duration and the ones

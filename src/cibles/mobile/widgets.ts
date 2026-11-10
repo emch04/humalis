@@ -4,7 +4,7 @@
  * produit seulement quand l'essai mobile le passe ; jamais regardé dans le
  * simulateur.
  */
-import { composantLucide, estIconeDuProjet, ICONES } from '../../vocabulaire/icones.js';
+import { composantLucide, iconesDessineesConnues, ICONES } from '../../vocabulaire/icones.js';
 import { camel, chaine } from '../web/noms.js';
 import { messageEnCode } from '../../i18n/messages.js';
 import { composantIcone as composantIconeWeb, type RenduWidgets, type WidgetProduit } from '../web/widgets.js';
@@ -12,12 +12,45 @@ import { estFichierLocal } from '../../ri/medias.js';
 import { CARTE_MOBILE_TSX, REACT_NATIVE_MAPS, carteMobile } from './carte.js';
 import { VERSIONS_FICHIERS, choixFichierMobileTsx } from './fichiers.js';
 
-/** Une icône propre au projet n'existe que sur le web et Apple : ici, l'icône d'aide la remplace. */
-const composantIcone = (nom: string): string => (estIconeDuProjet(nom) ? 'CircleHelpIcon' : composantIconeWeb(nom));
+/** Une icône du catalogue (Lucide) ou une icône propre au projet (« utiliser icones "…" »), dessinée par react-native-svg. */
+const composantIcone = (nom: string): string => composantIconeWeb(nom);
 
 /** Les icônes (`icone={ShoppingCart}`) que le code utilise. */
 const iconesMobile = (code: string): string[] =>
   ICONES.map((i) => composantLucide(i.lucide) + 'Icon').filter((c, i, tout) => tout.indexOf(c) === i && new RegExp(`icone=\\{${c}\\}`).test(code));
+
+/** Les icônes propres au projet que le code utilise : elles viennent de humalis/icones-projet.tsx. */
+const iconesProjetMobile = (code: string): string[] =>
+  iconesDessineesConnues().map(({ icone }) => composantLucide(icone.lucide) + 'Icon').filter((c) => new RegExp(`icone=\\{${c}\\}`).test(code));
+
+/**
+ * humalis/icones-projet.tsx : chaque dessin du fichier SVG du projet, avec les mêmes
+ * réglages que le web (trait de 2, couleur du texte), dessiné par react-native-svg.
+ */
+function iconesProjetTsx(codes: string[]): string {
+  const employees = iconesDessineesConnues().filter(({ icone }) => codes.some((c) => new RegExp(`icone=\\{${composantLucide(icone.lucide)}Icon\\}`).test(c)));
+  const svg = (largeur: number, hauteur: number, interieur: string) =>
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${largeur} ${hauteur}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${interieur}</svg>`;
+  return `// Produit par Humalis : les icônes propres au projet (« utiliser icones »).
+import { SvgXml } from 'react-native-svg';
+
+interface Proprietes {
+  size?: number;
+  color?: string;
+  accessible?: boolean;
+  accessibilityLabel?: string;
+  accessibilityRole?: 'image';
+}
+${employees
+  .map(
+    ({ icone, dessin }) => `
+export function ${composantLucide(icone.lucide)}Icon({ size = 24, color, ...accessibilite }: Proprietes) {
+  return <SvgXml xml={${JSON.stringify(svg(dessin.largeur, dessin.hauteur, dessin.svg))}} width={size} height={size} color={color} {...accessibilite} />;
+}
+`,
+  )
+  .join('')}`;
+}
 
 const styleDe = (noms: string[]) => (noms.length === 0 ? '' : noms.length === 1 ? ` style={s.${noms[0]}}` : ` style={[${noms.map((n) => `s.${n}`).join(', ')}]}`);
 const nomsStyle = (w: { styles: string[] }) => w.styles.map((n) => camel(n));
@@ -28,6 +61,8 @@ export const WIDGETS_MOBILE: RenduWidgets = {
     const lignes: string[] = [];
     const icones = iconesMobile(code);
     if (icones.length > 0) lignes.push(`import { ${icones.join(', ')} } from 'lucide-react-native';`);
+    const duProjet = iconesProjetMobile(code);
+    if (duProjet.length > 0) lignes.push(`import { ${duProjet.join(', ')} } from '../humalis/icones-projet';`);
     if (/<QRCode\b/.test(code)) lignes.push(`import QRCode from 'react-native-qrcode-svg';`);
     for (const [composant, fichier] of [['Avatar', 'avatar'], ['Etoiles', 'etoiles'], ['Compteur', 'compteur'], ['Carrousel', 'carrousel'], ['MotDePasse', 'mot-de-passe'], ['Progression', 'progression'], ['Icone', 'icone'], ['Lecteur', 'lecteur'], ['CarteLieux', 'carte-lieux'], ['Graphique', 'graphique']]) {
       if (new RegExp(`<${composant}\\b`).test(code)) lignes.push(`import ${composant} from '../humalis/${fichier}';`);
@@ -163,6 +198,7 @@ export function fichiersMobiles(codes: string[]): Map<string, string> {
   const fichiers = new Map<string, string>();
   const emploie = (motif: RegExp) => codes.some((c) => motif.test(c));
   if (emploie(/<Icone\b/)) fichiers.set('humalis/icone.tsx', ICONE_TSX);
+  if (codes.some((c) => iconesProjetMobile(c).length > 0)) fichiers.set('humalis/icones-projet.tsx', iconesProjetTsx(codes));
   if (emploie(/<Avatar\b/)) fichiers.set('humalis/avatar.tsx', AVATAR_TSX);
   if (emploie(/<Progression\b/)) fichiers.set('humalis/progression.tsx', PROGRESSION_TSX);
   if (emploie(/<Etoiles\b/)) fichiers.set('humalis/etoiles.tsx', ETOILES_TSX);
