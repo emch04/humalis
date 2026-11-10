@@ -208,6 +208,11 @@ export class EcrivainActions {
           e.ligne(`if (!nav.popBackStack()) allerVers(nav, ${route})`);
         } else e.ligne('nav.popBackStack()');
         return;
+      case 'enregistrerAudio':
+      case 'enregistrerVideo':
+      case 'scannerDocument':
+      case 'recadrerPhoto':
+        return this.hote.refuser(`« ${a.type} » : cette action n'est pas encore disponible sur cette cible`);
       case 'prisePhoto':
       case 'localisation':
       case 'scanCode': {

@@ -4041,3 +4041,30 @@ quand une erreur arrive :
 ```
 
 La capture écoute les erreurs natives de chaque cible. Les erreurs fatales Apple et Android sont enregistrées puis envoyées au lancement suivant. Le serveur accepte la même forme dans `serveur "api" :`. Les envois HTTPS expirent après trois secondes, leurs échecs sont absorbés et une même erreur est limitée à trois rapports par minute. Les mots de passe, les secrets, les paramètres d’URL et le contenu des formulaires ne sont pas envoyés.
+
+## Enregistrer et recadrer des médias
+
+Dans un événement, déclarez une variable de fichier avec `rien`, puis utilisez :
+
+```humalis
+page "memo" :
+    titre "Mémo"
+    variable note = rien
+    variable clip = rien
+    variable facture = rien
+    variable photo = rien
+    bouton "Audio"
+    quand l'utilisateur clique sur "Audio" :
+        enregistrer audio dans note
+    bouton "Vidéo"
+    quand l'utilisateur clique sur "Vidéo" :
+        enregistrer video dans clip
+    bouton "Document"
+    quand l'utilisateur clique sur "Document" :
+        scanner document dans facture
+    bouton "Recadrer"
+    quand l'utilisateur clique sur "Recadrer" :
+        recadrer photo
+```
+
+Le résultat est un fichier comme celui de `photo dans photo` : il peut être affiché et envoyé au serveur. L’annulation conserve la valeur précédente. L’enregistrement et le recadrage fonctionnent sur le web et le bureau. Le scan de document est prévu uniquement sur Apple et Android. Les cibles natives qui ne l’écrivent pas encore refusent la compilation.

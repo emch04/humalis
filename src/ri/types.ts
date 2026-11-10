@@ -853,6 +853,7 @@ export type Action =
   | { type: 'activationNotifications' }
   /** « photo dans image ». */
   | { type: 'prisePhoto'; variable: string }
+  | { type: 'enregistrerAudio' | 'enregistrerVideo' | 'scannerDocument' | 'recadrerPhoto'; variable: string }
   /** « position dans lieu ». */
   | { type: 'localisation'; variable: string }
   /** « scanner code dans valeur ». */

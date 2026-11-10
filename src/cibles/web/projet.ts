@@ -278,13 +278,13 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
     const source = application.sources.find((x) => x.session);
     fichiers.set('src/humalis/session.tsx', source ? sessionDeLaSource(SESSION, source) : sessionDuServeur ? sessionRenouvelee(SESSION) : SESSION);
     // « se connecter avec google » : la page où Google renvoie, qui rend le jeton au site.
-    if (utiliseAppareil(application)) {
-      fichiers.set('src/humalis/appareil.js', APPAREIL_JS);
-      fichiers.set('src/humalis/appareil.d.ts', APPAREIL_TYPES);
-    }
     if (JSON.stringify(application.ecrans).includes('"animation":true')) fichiers.set('src/humalis/liste-animee.tsx', LISTE_ANIMEE);
     if (application.serveurs.some((s) => s.connexionGoogle)) fichiers.set('public/auth-google.html', PAGE_RETOUR_GOOGLE);
     if (application.serveurs.some((s) => s.activeNotifications)) fichiers.set('public/humalis/notifications.js', TRAVAILLEUR_NOTIFICATIONS);
+  }
+  if (utiliseAppareil(application)) {
+    fichiers.set('src/humalis/appareil.js', APPAREIL_JS);
+    fichiers.set('src/humalis/appareil.d.ts', APPAREIL_TYPES);
   }
   fichiers.set(
     'src/humalis/styles.css',

@@ -601,6 +601,9 @@ export type Instruction =
   | TelechargementDocument
   | ActivationNotifications
   | PrisePhoto
+  | EnregistrementMedia
+  | ScanDocument
+  | RecadragePhoto
   | Localisation
   | ScanCode
   | VerificationIdentite
@@ -896,6 +899,28 @@ export interface Invitation {
 /** « position dans lieu » : la latitude, la longitude et la précision de l'appareil. */
 export interface Localisation {
   type: 'Localisation';
+  variable: string;
+  ligne: number;
+}
+
+/** « enregistrer audio/video dans fichier » : le résultat est un fichier. */
+export interface EnregistrementMedia {
+  type: 'EnregistrementMedia';
+  media: 'audio' | 'video';
+  variable: string;
+  ligne: number;
+}
+
+/** « scanner document dans fichier ». */
+export interface ScanDocument {
+  type: 'ScanDocument';
+  variable: string;
+  ligne: number;
+}
+
+/** « recadrer photo » : modifie la variable seulement après validation. */
+export interface RecadragePhoto {
+  type: 'RecadragePhoto';
   variable: string;
   ligne: number;
 }
