@@ -113,7 +113,7 @@ describe('mise en page — sur telephone, sur tablette ou ordinateur (plan, 4.2)
   });
 
   it('refuse un appareil inconnu et un appareil écrit deux fois', () => {
-    const inconnu = compiler(programme('page "p" :', '>sur montre :', '>>texte "a"'));
+    const inconnu = compiler(programme('page "p" :', '>sur frigo :', '>>texte "a"'));
     expect(inconnu.diagnostics.length).toBeGreaterThan(0);
     const deux = compiler(programme('page "p" :', '>sur telephone ou telephone :', '>>texte "a"'));
     expect(deux.diagnostics[0].message).toContain('écrit deux fois');

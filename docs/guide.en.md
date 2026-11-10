@@ -3550,6 +3550,67 @@ The libraries for these views are added at the top of the file: `paquet swift
 version "2.14.1"` for Windows (NuGet), `paquet android "io.coil-kt:coil-compose"
 version "2.7.0"` for Android (Gradle).
 
+### App-only forms
+
+Beyond its pages, an app lives elsewhere on the device: a widget on the home screen, an
+activity on the lock screen, a tile in quick settings, a keyboard, a Siri command… Each is
+written at the top of the file, in one sentence. What shows is written like a page; what
+acts, like an event.
+
+```humalis
+variable solde = 120 avec partagee
+
+widget "solde" avec taille petite vers "compte" :
+    titre "Balance"
+    texte "{solde} €"
+    actualiser toutes les 30 minutes
+
+activite en direct "livraison" :
+    titre "Order on its way"
+    texte "Arriving in 10 minutes"
+
+raccourcis de l'icone :
+    raccourci "My account" vers "compte" avec icone "user"
+
+commande vocale "My balance" :
+    dire "Your balance is {solde} €"
+
+tuile "Clock in" avec icone "clock" :
+    afficher "Clocked in"
+
+clavier "Quick replies" :
+    touche "Thanks" ecrit "Thank you very much!"
+
+page "compte" :
+    titre "Account"
+    bouton "Track my order"
+    quand l'utilisateur clique sur "Track my order" :
+        commencer activite "livraison"
+```
+
+| Sentence | What it is | Platforms |
+|---|---|---|
+| `widget "…" :` | a widget (`avec taille petite`, `moyenne`, `grande`; `vers "page"`; `actualiser toutes les 30 minutes`, 15 at least) | iPhone, iPad, Mac, Android |
+| `page "…" dans la barre du systeme avec icone "…" :` | the Mac menu bar, the notification area | Mac, Windows, Linux |
+| `quand on partage vers l'application :` | other apps' Share button (`partage.texte`, `partage.lien`, `partage.fichier`) | iPhone, Mac, Android, Windows |
+| `page "…" sur montre :`, `page "…" sur tele :` | the watch app, the TV app | Apple Watch, Wear OS, Apple TV, Android TV |
+| `clavier "…" :` with `touche "…" ecrit "…"` | a custom keyboard | iPhone, iPad, Android |
+| `activite en direct "…" :`; `commencer activite`, `terminer activite` | the lock screen and Dynamic Island; the server updates it with `mettre a jour activite "…" pour commande.client` | iPhone, Android |
+| `raccourcis de l'icone :` with `raccourci "…" vers "page"` | long press on the icon (four at most) | iPhone, Android, Windows |
+| `commande vocale "…" :` (with `dire "…"`), or `… vers "page"` | Siri, Shortcuts, Google Assistant; `{produit}` in the sentence becomes a variable | iPhone, Mac, Android |
+| `quand on ouvre un fichier ".csv" ou ".pdf" :` | "Open with…" (`fichier.nom`, `fichier.type`, `fichier.contenu`) | all apps |
+| `lancer au demarrage de l'ordinateur` (`avec discret`) | the app starts with the computer | Mac, Windows, Linux |
+| `… et boutons "Accepter" et "Refuser"` (server); `quand l'utilisateur touche "Accepter" dans une notification :` | answer without opening the app (three buttons at most) | iPhone, Android, Windows |
+| `recherche du systeme :` with `produits avec titre nom et texte description vers "produit"` | Spotlight, the phone's search | iPhone, Mac, Android |
+| `tuile "…" :` | Android quick settings, Control Center | Android, iPhone |
+| `mini application "…" :` with `page "…"` | an App Clip, no install | iPhone |
+| `voiture "…" :` with `liste … avec titre …` | CarPlay, Android Auto, with Apple's and Google's approval | iPhone, Android |
+| `menu clic droit "…" pour les fichiers ".jpg" :` | right click in Explorer and Finder | Windows, Mac, Linux |
+
+On a target where a form makes no sense (a widget on the website), it is ignored, and the
+compiler says so once. These forms are written target by target: where a form is planned
+but not produced yet, compilation stops and says where it is available.
+
 ### Several files
 
 A large project is split into several files. At the top of the main file:

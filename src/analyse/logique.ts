@@ -107,6 +107,7 @@ class Traduction {
       a: d.genre === 'roles' ? { genre: 'roles', roles: d.roles, ...(groupe ? { groupe: { champ: groupe[1].par!, fiche: groupe[0] } } : {}) } : { genre: 'compte', valeur: this.acces(d.donnee, d.champ, portee, ligne) },
       titre: texte(envoi.titre),
       texte: texte(envoi.texte),
+      ...(envoi.boutons?.length ? { boutons: envoi.boutons } : {}),
     };
   }
 
@@ -221,6 +222,10 @@ class Traduction {
       }
       case 'NotificationServeur': {
         return this.notification(i.envoi, portee);
+      }
+      case 'MiseAJourActivite': {
+        const { a } = this.notification({ destinataire: i.pour, titre: [], texte: [], ligne: i.ligne }, portee);
+        return { type: 'activite', nom: i.nom, a };
       }
     }
   }

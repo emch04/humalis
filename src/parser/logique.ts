@@ -241,6 +241,20 @@ function analyserInstructionServeur(flux: FluxTokens): InstructionServeur {
   }
   if (estLeMot(debut, 'creer')) return { type: 'CreerFiche', creation: analyserCreationLiee(flux), ligne };
   if (estLeMot(debut, 'envoyer') && estLeMot(flux.regarder(1), 'notification')) return { type: 'NotificationServeur', envoi: analyserEnvoiNotification(flux), ligne };
+  // « mettre a jour activite "livraison" pour commande.client » : l'activité en direct, application fermée.
+  if (estLeMot(debut, 'mettre') && estLeMot(flux.regarder(1), 'jour') && estLeMot(flux.regarder(2), 'activite')) {
+    const exemple = 'mettre a jour activite "livraison" pour commande.client';
+    flux.avancer();
+    flux.avancer();
+    flux.avancer();
+    const nom = flux.attendre('CHAINE', undefined, `le nom de l’activité entre guillemets : ${exemple}`).valeur;
+    flux.attendre('MOT_CLE', 'pour', `« pour » et la personne : ${exemple}`);
+    const donnee = flux.attendreNom(`la fiche et son champ compte : ${exemple}`).nom;
+    let pour: { genre: 'roles'; roles: string[] } | { genre: 'compte'; donnee: string; champ: string };
+    if (flux.accepter('PONCTUATION', '.')) pour = { genre: 'compte', donnee, champ: flux.attendreNom(`le champ qui désigne le compte : ${exemple}`).nom };
+    else pour = { genre: 'roles', roles: [donnee] };
+    return { type: 'MiseAJourActivite', nom, pour, ligne };
+  }
   if (estLeMot(debut, 'envoyer')) return { type: 'EmailServeur', envoi: analyserEnvoiEmail(flux), ligne };
   throw new ErreurSyntaxique(`sur le serveur, on écrit « si », « pour chaque », « calcul », « changer … par », « creer », « supprimer », « refuser » ou « envoyer … », mais « ${debut.original ?? debut.valeur} » a été trouvé`, ligne);
 }

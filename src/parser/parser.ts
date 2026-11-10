@@ -13,6 +13,7 @@ import { ErreurSyntaxique } from './erreurs.js';
 import { estUnTest, analyserTest } from './test.js';
 import { normaliser } from '../lexer/motsCles.js';
 import { langueDuStyle, PLATEFORMES_DU_STYLE } from '../cibles/commun/styles-natifs.js';
+import { analyserForme, estUneForme, formesVides } from './formes.js';
 import { entreePrevue } from '../vocabulaire/recherche.js';
 import { langueDuMot } from '../i18n/langues.js';
 import { estMot } from './miseEnPage.js';
@@ -80,6 +81,7 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
   const partages: DeclarationVariable[] = [];
   const composantsReact: ComposantReact[] = [];
   let paquetsSwift: NonNullable<Programme['paquetsSwift']> | undefined;
+  let formes: Programme['formes'];
   let paquetsAndroid: NonNullable<Programme['paquetsAndroid']> | undefined;
   let paquetsWindows: NonNullable<Programme['paquetsWindows']> | undefined;
   let liensProfonds: Programme['liensProfonds'];
@@ -302,6 +304,13 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
       continue;
     }
 
+    // Les formes d'application spéciales : widget, activité en direct, raccourcis, voix, clavier…
+    if (estUneForme(flux)) {
+      analyserForme(flux, (formes ??= formesVides()));
+      flux.sauterFinsDeLigne();
+      continue;
+    }
+
     // « paquet swift "https://…" version "1.2" » : une bibliothèque Swift pour les vues écrites à la main.
     if (estLeMot(flux.actuel(), 'paquet') && estLeMot(flux.regarder(1), 'swift')) {
       const debut = flux.avancer();
@@ -463,7 +472,7 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
   // Les styles écrits en Humalis deviennent des classes CSS, après le CSS écrit à la main.
   for (const s of stylesHumalis) styles.push({ type: 'BlocStyle', css: cssDuStyle(s, theme), ligne: s.ligne });
   const stylesDeclares = stylesHumalis.map((s) => ({ nom: s.nom, declarations: declarationsDuStyle(s, theme) }));
-  const programme: Programme = { type: 'Programme', ...(stylesDeclares.length ? { stylesHumalis: stylesDeclares } : {}), pages, ...(fichiersIcones.length ? { fichiersIcones } : {}), ...(barreDessinee ? { barreDessinee } : {}), ...(ongletsApplication ? { ongletsApplication } : {}), ...(barreLaterale ? { barreLaterale } : {}), ...(paquetsSwift ? { paquetsSwift } : {}), ...(paquetsAndroid ? { paquetsAndroid } : {}), ...(paquetsWindows ? { paquetsWindows } : {}), ...(liensProfonds ? { liensProfonds } : {}), ...(enTete.length > 0 ? { calculsPartages: enTete } : {}), styles, fichiersStyle, donneesFichiers, partages, composantsReact, composants, serveurs, sources, fichiersHumalis, fonctions, tests, ...(theme ? { theme } : {}), ...(site ? { site } : {}), ...(langues ? { langues } : {}), ...(traductions.length ? { traductions } : {}), ...(entete ? { entete } : {}), ...(pied ? { pied } : {}) };
+  const programme: Programme = { type: 'Programme', ...(stylesDeclares.length ? { stylesHumalis: stylesDeclares } : {}), pages, ...(fichiersIcones.length ? { fichiersIcones } : {}), ...(barreDessinee ? { barreDessinee } : {}), ...(ongletsApplication ? { ongletsApplication } : {}), ...(barreLaterale ? { barreLaterale } : {}), ...(paquetsSwift ? { paquetsSwift } : {}), ...(formes ? { formes } : {}), ...(paquetsAndroid ? { paquetsAndroid } : {}), ...(paquetsWindows ? { paquetsWindows } : {}), ...(liensProfonds ? { liensProfonds } : {}), ...(enTete.length > 0 ? { calculsPartages: enTete } : {}), styles, fichiersStyle, donneesFichiers, partages, composantsReact, composants, serveurs, sources, fichiersHumalis, fonctions, tests, ...(theme ? { theme } : {}), ...(site ? { site } : {}), ...(langues ? { langues } : {}), ...(traductions.length ? { traductions } : {}), ...(entete ? { entete } : {}), ...(pied ? { pied } : {}) };
   // Les appels de fonctions d'actions sont remplacés par leur corps (src/parser/fonctionsActions.ts).
   const actions = deplierFonctionsActions(programme);
   if (actions.length) programme.fonctionsActions = actions;
@@ -1038,7 +1047,18 @@ export function analyserEnvoiNotification(flux: FluxTokens): EnvoiNotification {
   flux.attendre('MOT_CLE', 'avec', `« avec titre "…" et texte "…" » après le destinataire : ${exemple}`);
   const titre = lireTexte('titre');
   flux.attendre('MOT_CLE', 'et', `« et texte "…" » après le titre : ${exemple}`);
-  return { destinataire, titre, texte: lireTexte('texte'), ligne: debut.ligne };
+  const texte = lireTexte('texte');
+  // « et boutons "Accepter" et "Refuser" » : la personne répond depuis la notification.
+  let boutons: string[] | undefined;
+  if (estLeMot(flux.actuel(), 'et') && estLeMot(flux.regarder(1), 'boutons')) {
+    flux.avancer();
+    flux.avancer();
+    boutons = [];
+    do boutons.push(flux.attendre('CHAINE', undefined, `le texte du bouton : ${exemple} et boutons "Accepter" et "Refuser"`).valeur);
+    while (estLeMot(flux.actuel(), 'et') && flux.regarder(1).type === 'CHAINE' && flux.avancer());
+    if (boutons.length > 3) throw new ErreurSyntaxique('une notification a au plus trois boutons : les systèmes n’en montrent pas davantage.', debut.ligne);
+  }
+  return { destinataire, titre, texte, ...(boutons ? { boutons } : {}), ligne: debut.ligne };
 }
 
 export function analyserEnvoiEmail(flux: FluxTokens): EnvoiEmail {
@@ -1219,7 +1239,23 @@ function analyserPage(flux: FluxTokens): Page {
   const reglages = lireEnReglages(flux);
   let pleineFenetre = false;
   let dessin: Page['dessin'];
-  for (let i = 0; i < 2; i++) {
+  let barreSysteme: Page['barreSysteme'];
+  let appareil: Page['appareil'];
+  for (let i = 0; i < 3; i++) {
+    // « dans la barre du systeme avec icone "horloge" » : barre des menus du Mac, zone de notification.
+    if (estLeMot(flux.actuel(), 'dans') && estLeMot(flux.regarder(1), 'barre') && estLeMot(flux.regarder(2), 'systeme')) {
+      flux.avancer(); flux.avancer(); flux.avancer();
+      barreSysteme = {};
+      if (estLeMot(flux.actuel(), 'avec') && estLeMot(flux.regarder(1), 'icone')) {
+        flux.avancer(); flux.avancer();
+        barreSysteme.icone = flux.attendre('CHAINE', undefined, 'le nom de l’icône entre guillemets').valeur;
+      }
+    }
+    // « sur montre », « sur tele » : la page de l'application de la montre ou de la télévision.
+    if (flux.verifier('MOT_CLE', 'sur') && (estLeMot(flux.regarder(1), 'montre') || estLeMot(flux.regarder(1), 'tele')) && flux.regarder(2).valeur === ':') {
+      flux.avancer();
+      appareil = estLeMot(flux.avancer(), 'montre') ? 'montre' : 'tele';
+    }
     if (estLeMot(flux.actuel(), 'en') && estLeMot(flux.regarder(1), 'pleine') && estLeMot(flux.regarder(2), 'fenetre')) {
       flux.avancer(); flux.avancer(); flux.avancer();
       pleineFenetre = true;
@@ -1250,6 +1286,8 @@ function analyserPage(flux: FluxTokens): Page {
     ...(reglages ? { reglages } : {}),
     ...(pleineFenetre ? { pleineFenetre } : {}),
     ...(dessin ? { dessin } : {}),
+    ...(barreSysteme ? { barreSysteme } : {}),
+    ...(appareil ? { appareil } : {}),
     parametres,
     ...(filtres.length > 0 ? { filtres } : {}),
     ...entete,
@@ -1401,7 +1439,7 @@ function analyserComposantNatif(flux: FluxTokens): Instruction | undefined {
   return undefined;
 }
 
-function analyserBloc(flux: FluxTokens): Instruction[] {
+export function analyserBloc(flux: FluxTokens): Instruction[] {
   const instructions: Instruction[] = [];
   flux.sauterFinsDeLigne();
 
@@ -1420,7 +1458,7 @@ function analyserBloc(flux: FluxTokens): Instruction[] {
   return instructions;
 }
 
-function analyserInstruction(flux: FluxTokens): Instruction {
+export function analyserInstruction(flux: FluxTokens): Instruction {
   const natif = analyserComposantNatif(flux);
   if (natif) return natif;
 
@@ -1716,6 +1754,18 @@ function analyserInstruction(flux: FluxTokens): Instruction {
     return { type: 'VerificationIdentite', alors, sinon, ligne: debut.ligne };
   }
   if (estLeMot(flux.actuel(), 'vibrer') && flux.regarder(1).type === 'FIN_LIGNE') return { type: 'Vibration', ligne: flux.avancer().ligne };
+  // « commencer activite "livraison" », « terminer activite "livraison" » : l'activité en direct.
+  if ((estLeMot(flux.actuel(), 'commencer') || estLeMot(flux.actuel(), 'terminer')) && estLeMot(flux.regarder(1), 'activite') && flux.regarder(2).type === 'CHAINE') {
+    const debut = flux.avancer();
+    flux.avancer();
+    const nom = flux.avancer().valeur;
+    return estLeMot(debut, 'commencer') ? { type: 'CommencerActivite', nom, ligne: debut.ligne } : { type: 'TerminerActivite', nom, ligne: debut.ligne };
+  }
+  // « dire "Votre solde est de {solde} €" » : la réponse d'une commande vocale.
+  if (estLeMot(flux.actuel(), 'dire') && flux.regarder(1).type === 'CHAINE') {
+    const debut = flux.avancer();
+    return { type: 'Dire', texte: analyserOperande(flux), ligne: debut.ligne };
+  }
 
   // « activer notifications » ; « activer » seul reste un nom possible.
   if (estLeMot(flux.actuel(), 'activer') && estLeMot(flux.regarder(1), 'notifications')) {

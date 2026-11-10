@@ -31,7 +31,7 @@ import type { LitteralChaine, OperandeRegle, RegleChamp, Route } from '../parser
 import { texteSource } from '../parser/langues.js';
 import { langueDuMot } from '../i18n/langues.js';
 import { espacerLesTextes } from './typographie.js';
-import type { TexteEnLangues, PartiesTexte, Reglages, GenreWidget, DispositionRI, ThemeRI, ServeurRI, OperandeRI, SourceRI, PasserelleRI, QuiPeut, Option, Etat, Application, Ecran, NoeudVue, Gestionnaire, Action, Valeur, Test, Saisie, MorceauEmail, EnvoiEmailRI, RegleChampRI } from './types.js';
+import type { TexteEnLangues, PartiesTexte, Reglages, GenreWidget, DispositionRI, ThemeRI, ServeurRI, OperandeRI, SourceRI, PasserelleRI, QuiPeut, Option, Etat, Application, Ecran, NoeudVue, Gestionnaire, Action, Valeur, Test, Saisie, MorceauEmail, EnvoiEmailRI, RegleChampRI, FormesRI } from './types.js';
 import { lireTouches, millisecondesDe } from '../analyse/interactions.js';
 import { MILLISECONDES } from '../parser/interactions.js';
 
@@ -119,6 +119,7 @@ export function construireRepresentation(
     ...(programme.paquetsSwift?.length ? { paquetsSwift: programme.paquetsSwift } : {}),
     ...(programme.paquetsAndroid?.length ? { paquetsAndroid: programme.paquetsAndroid } : {}),
     ...(programme.paquetsWindows?.length ? { paquetsWindows: programme.paquetsWindows } : {}),
+    ...(programme.formes ? { formes: formesRI(programme.formes, analyse) } : {}),
     ...(programme.liensProfonds ? { liensProfonds: programme.liensProfonds } : {}),
     ...(programme.ongletsApplication?.length ? { ongletsApplication: programme.ongletsApplication } : {}),
     ...(programme.barreLaterale ? { barreLaterale: programme.barreLaterale } : {}),
@@ -145,6 +146,27 @@ export function construireRepresentation(
   const codes = analyse.langues.langues.map((l) => l.code);
   espacerLesTextes(application, codes[0] ?? 'fr', codes);
   return application;
+}
+
+/** Les formes : chaque corps passe par la page qui l'a représenté pendant l'analyse. */
+function formesRI(formes: NonNullable<Programme['formes']>, analyse: ResultatAnalyse): FormesRI {
+  const ecran = (forme: object): Ecran => new Construction(analyse.pagesFormes.get(forme)!, analyse).ecran();
+  return {
+    widgets: formes.widgets.map(({ corps: _c, ...w }) => ({ ...w, ecran: ecran(formes.widgets.find((x) => x.nom === w.nom)!) })),
+    activites: formes.activites.map((a) => ({ nom: a.nom, ecran: ecran(a), ligne: a.ligne })),
+    raccourcisIcone: formes.raccourcisIcone,
+    commandesVocales: formes.commandesVocales.map(({ corps: _c, ...c }, i) => ({ ...c, ecran: ecran(formes.commandesVocales[i]!) })),
+    ...(formes.demarrage ? { demarrage: formes.demarrage } : {}),
+    recherches: formes.recherches,
+    tuiles: formes.tuiles.map(({ corps: _c, ...t }, i) => ({ ...t, ecran: ecran(formes.tuiles[i]!) })),
+    minis: formes.minis,
+    voitures: formes.voitures,
+    menusClicDroit: formes.menusClicDroit.map(({ corps: _c, ...m }, i) => ({ ...m, ecran: ecran(formes.menusClicDroit[i]!) })),
+    claviers: formes.claviers,
+    ...(formes.partageRecu ? { partageRecu: { ecran: ecran(formes.partageRecu), ligne: formes.partageRecu.ligne } } : {}),
+    fichiersOuverts: formes.fichiersOuverts.map((f) => ({ extensions: f.extensions, ecran: ecran(f), ligne: f.ligne })),
+    boutonsNotification: formes.boutonsNotification.map((b) => ({ bouton: b.bouton, ecran: ecran(b), ligne: b.ligne })),
+  };
 }
 
 function sourceRI(source: Source): SourceRI {
@@ -386,6 +408,8 @@ class Construction {
       ...(this.analyse.etatsLus.get(this.page)?.size ? { etatsRequetes: [...this.analyse.etatsLus.get(this.page)!] } : {}),
       ...(this.page.reglages ? { reglages: true } : {}),
       ...(this.page.pleineFenetre ? { pleineFenetre: true } : {}),
+      ...(this.page.barreSysteme ? { barreSysteme: this.page.barreSysteme } : {}),
+      ...(this.page.appareil ? { appareil: this.page.appareil } : {}),
       ...(this.page.dessin ? { dessin: this.page.dessin } : {}),
       ...(this.page.sansEntete ? { sansEntete: true } : {}),
       ...(this.page.sansPied ? { sansPied: true } : {}),
@@ -798,6 +822,13 @@ class Construction {
           break;
         case 'Vibration':
           actions.push({ type: 'vibration' });
+          break;
+        case 'CommencerActivite':
+        case 'TerminerActivite':
+          actions.push({ type: 'activite', mode: instruction.type === 'CommencerActivite' ? 'commencer' : 'terminer', nom: instruction.nom });
+          break;
+        case 'Dire':
+          actions.push({ type: 'dire', texte: this.valeur(instruction.texte) });
           break;
         case 'FaireAction':
           // Une action passe par le même chemin qu'une modification : droits, jeton, erreurs et relecture sont déjà là.

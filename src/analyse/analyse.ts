@@ -1,4 +1,5 @@
 import { analyserPublication } from './site.js';
+import { analyserFormes } from './formes.js';
 import { estStyleDefini } from '../cibles/commun/styles-natifs.js';
 import { analyserLangues, type LanguesDuProgramme } from './langues.js';
 import { langueDuMot } from '../i18n/langues.js';
@@ -178,6 +179,8 @@ export interface ResultatAnalyse {
   couleursTheme: Set<string>;
   /** L'en-tête et le pied communs, analysés comme des pages. */
   pagesDispositions: Map<Disposition, Page>;
+  /** Les formes d'application spéciales (widget, tuile, commande vocale…), analysées comme des pages. */
+  pagesFormes: Map<object, Page>;
   /** Leurs couleurs claire et sombre, pour avertir d'un texte qui se verrait mal. */
   valeursTheme: Map<string, { clair: string; sombre: string }>;
   /** Les modes que l'application peut montrer : un seul avec « mode clair » ou « mode sombre » sans bouton qui change le thème. */
@@ -312,6 +315,7 @@ export function analyserSens(programme: Programme, classesCss?: Set<string>): Re
     types: new Map(),
     pagesComposants: new Map(),
     pagesDispositions: new Map(),
+    pagesFormes: new Map(),
     typesParametres: new Map(),
     facultatives: new Set(),
     lecturesUn: new Set(),
@@ -431,6 +435,9 @@ export function analyserSens(programme: Programme, classesCss?: Set<string>): Re
     }
     new AnalysePage(page, nomsPages, resultat, classes, partages, composants, [], liens, fonctions).analyser();
   }
+
+  // Les formes d'application spéciales : leurs corps s'analysent comme des pages.
+  resultat.pagesFormes = analyserFormes(programme, (page) => new AnalysePage(page, nomsPages, resultat, classes, partages, composants, [], liens, fonctions).analyser(), resultat.diagnostics);
 
   for (const page of programme.pages) {
     new AnalysePage(page, nomsPages, resultat, classes, partages, composants, [], liens, fonctions).analyser();
@@ -1056,6 +1063,18 @@ class AnalysePage {
       case 'VerificationIdentite':
       case 'Vibration':
         this.fonctionAppareil(instruction, contexte, place);
+        return;
+
+      // « commencer activite "livraison" », « terminer activite … » : le nom est vérifié avec les formes.
+      case 'CommencerActivite':
+      case 'TerminerActivite':
+        if (contexte === 'vue') this.horsEvenement(actionInterditeDansUneFonction(instruction)!, instruction.ligne);
+        return;
+
+      // « dire "…" » : la réponse d'une commande vocale, avec les variables qu'elle lit.
+      case 'Dire':
+        if (contexte === 'vue') this.horsEvenement('dire', instruction.ligne);
+        this.typeDe(instruction.texte);
         return;
 
       case 'FaireAction': {
@@ -3100,6 +3119,12 @@ function actionInterditeDansUneFonction(instruction: Instruction): string | unde
       return 'verifier identite';
     case 'Vibration':
       return 'vibrer';
+    case 'CommencerActivite':
+      return 'commencer activite';
+    case 'TerminerActivite':
+      return 'terminer activite';
+    case 'Dire':
+      return 'dire';
     case 'DemandeIa':
       return 'demander a ia';
     case 'Paiement':

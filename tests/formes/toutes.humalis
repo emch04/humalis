@@ -1,0 +1,59 @@
+variable solde = 120 avec partagee
+variable produits = [fiche avec nom "Livre" et description "Un livre"] avec partagee
+variable notes = [] avec partagee
+
+widget "solde" avec taille petite vers "compte" :
+    titre "Solde"
+    texte "{solde} €"
+    actualiser toutes les 30 minutes
+
+activite en direct "livraison" :
+    titre "Commande en route"
+    texte "Arrivée dans 10 minutes"
+
+raccourcis de l'icone :
+    raccourci "Mon compte" vers "compte" avec icone "user"
+
+commande vocale "Mon solde" :
+    dire "Votre solde est de {solde} €"
+
+commande vocale "Voir {produit}" vers "compte"
+
+quand on partage vers l'application :
+    ajouter partage.texte a notes
+    rediriger vers "compte"
+
+quand on ouvre un fichier ".csv" ou ".pdf" :
+    afficher "Fichier {fichier.nom}"
+
+lancer au demarrage de l'ordinateur avec discret
+
+recherche du systeme :
+    produits avec titre nom et texte description vers "compte"
+
+tuile "Pointer" avec icone "clock" :
+    afficher "Pointé"
+
+mini application "commander" :
+    page "compte"
+
+voiture "Livraisons" :
+    liste produits avec titre nom et texte description vers "compte"
+
+menu clic droit "Envoyer" pour les fichiers ".jpg" et ".png" :
+    afficher "Reçu {fichier.nom}"
+
+clavier "Réponses rapides" :
+    touche "Bonjour" ecrit "Bonjour, comment allez-vous ?"
+
+page "compte" :
+    titre "Compte"
+    bouton "Suivre"
+    quand l'utilisateur clique sur "Suivre" :
+        commencer activite "livraison"
+
+page "rapide" dans la barre du systeme avec icone "clock" :
+    titre "Rapide"
+
+page "minuteur" sur montre :
+    titre "Minuteur"

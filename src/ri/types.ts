@@ -32,6 +32,8 @@ export interface Application {
   paquetsAndroid?: { nom: string; version: string; ligne: number }[];
   /** « paquet windows "Nom" version "1.2" ». */
   paquetsWindows?: { nom: string; version: string; ligne: number }[];
+  /** Les formes d'application spéciales (widget, activité en direct, tuile, clavier…). */
+  formes?: FormesRI;
   /** « liens profonds "magasin" ». */
   /** « onglets de l'application : ». */
   ongletsApplication?: { titre: string; page: string; icone?: string; groupe?: string; ligne: number }[];
@@ -201,7 +203,9 @@ export type InstructionServeurRI =
   | { type: 'refuser'; message: ValeurServeurRI }
   | { type: 'creer'; donnee: string; valeurs: { champ: string; valeur: ValeurServeurRI }[]; groupeDe?: string }
   | { type: 'email'; a: { genre: 'admins' } | { genre: 'valeur'; valeur: ValeurServeurRI }; sujet: ValeurServeurRI; texte: ValeurServeurRI }
-  | { type: 'notification'; a: { genre: 'roles'; roles: string[]; groupe?: { champ: string; fiche: string } } | { genre: 'compte'; valeur: ValeurServeurRI }; titre: ValeurServeurRI; texte: ValeurServeurRI };
+  | { type: 'notification'; a: { genre: 'roles'; roles: string[]; groupe?: { champ: string; fiche: string } } | { genre: 'compte'; valeur: ValeurServeurRI }; titre: ValeurServeurRI; texte: ValeurServeurRI; /** « et boutons "Accepter" et "Refuser" ». */ boutons?: string[] }
+  /** « mettre a jour activite "livraison" pour commande.client » : l'activité en direct de ces comptes. */
+  | { type: 'activite'; nom: string; a: Extract<InstructionServeurRI, { type: 'notification' }>['a'] };
 
 export type FrequenceRI = { genre: 'heure' } | { genre: 'jour'; heure: number; minute: number } | { genre: 'semaine'; jour: number; heure: number; minute: number };
 
@@ -299,6 +303,10 @@ export interface Ecran {
   reglages?: boolean;
   /** « page "x" en pleine fenetre : » : sur Apple, sans marges ni largeur limitée. */
   pleineFenetre?: boolean;
+  /** « dans la barre du systeme avec icone "horloge" » : barre des menus du Mac, zone de notification. */
+  barreSysteme?: { icone?: string };
+  /** « sur montre », « sur tele » : la page de l'application de la montre ou de la télévision. */
+  appareil?: 'montre' | 'tele';
   /** « dessinee pour 1440 par 900 » : sur Mac, le rendu suit le CSS au point près. */
   dessin?: { largeur: number; hauteur: number };
   /** Les variables déclarées au premier niveau de la page. */
@@ -841,6 +849,10 @@ export type Action =
   | { type: 'verificationIdentite'; alors: Action[]; sinon: Action[] }
   /** « vibrer ». */
   | { type: 'vibration' }
+  /** « commencer activite "livraison" », « terminer activite … ». */
+  | { type: 'activite'; mode: 'commencer' | 'terminer'; nom: string }
+  /** « dire "…" » : la réponse d'une commande vocale. */
+  | { type: 'dire'; texte: Valeur }
   /** « changer role de c en "vendeur" ». */
   | { type: 'changementRole'; cible: Valeur; role: Valeur }
   /** « demander un lien de mot de passe pour champ "Email" ». */
@@ -969,4 +981,26 @@ export interface TestSimple {
 export interface Option {
   nom: string;
   valeur: string;
+}
+
+/**
+ * Les formes d'application spéciales. Ce qui s'affiche (widget, activité) est un écran ; ce qui agit (tuile,
+ * commande vocale, partage reçu, fichier ouvert, menu clic droit, bouton de notification) est un écran dont
+ * le gestionnaire « chargement » porte les actions, avec ses variables locales (partage, fichier, {produit}).
+ */
+export interface FormesRI {
+  widgets: { nom: string; taille?: 'petite' | 'moyenne' | 'grande'; vers?: string; actualiser?: { nombre: number; unite: 'minutes' | 'heures' }; ecran: Ecran; ligne: number }[];
+  activites: { nom: string; ecran: Ecran; ligne: number }[];
+  raccourcisIcone: { titre: string; page: string; icone?: string; ligne: number }[];
+  commandesVocales: { phrase: string; parametres: string[]; vers?: string; ecran: Ecran; ligne: number }[];
+  demarrage?: { discret: boolean; ligne: number };
+  recherches: { liste: string; titre: string; texte?: string; vers: string; ligne: number }[];
+  tuiles: { nom: string; icone?: string; ecran: Ecran; ligne: number }[];
+  minis: { nom: string; page: string; ligne: number }[];
+  voitures: { nom: string; liste: string; titre: string; texte?: string; vers?: string; ligne: number }[];
+  menusClicDroit: { titre: string; extensions: string[]; ecran: Ecran; ligne: number }[];
+  claviers: { nom: string; touches: { texte: string; ecrit: string; ligne: number }[]; ligne: number }[];
+  partageRecu?: { ecran: Ecran; ligne: number };
+  fichiersOuverts: { extensions: string[]; ecran: Ecran; ligne: number }[];
+  boutonsNotification: { bouton: string; ecran: Ecran; ligne: number }[];
 }

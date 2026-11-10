@@ -8,7 +8,7 @@ Humalis est un langage en français. Un fichier .humalis décrit des pages, des 
 - Les éléments d’écran pris en charge : titre, texte, image, bouton, lien, champ, formulaire, section, bloc, ligne, colonne, grille, liste numérotée, sous-titre, liste, tableau, fenêtre, vidéo, menu, icône, badge, avatar, progression, chargement, étoiles, compteur, code QR, onglets, onglet, déroulant, accordéon, carrousel, fil d’Ariane, audio, fichier, carte, marqueur, graphique, série, sélecteur. Leur texte s’écrit entre guillemets.
 - Déclare une valeur avec `variable nom = valeur` ; une condition commence par `si ... :`.
 - Les événements pris en charge : quand, utilisateur, clique, sur, survole, charge, soumis, ecrit, arrête d’écrire, appuie, arrive en bas de, l’ordre de … change. Écris l’événement sous l’élément visé, puis l’action dans son bloc.
-- Les actions prises en charge : afficher, erreur, montrer, cacher, changer, rediriger, ajouter, retirer, envoyer, requête, connecter, déconnecter, connecter avec apple, connecter avec google, inviter … comme admin, demander un lien de mot de passe pour …, choisir le mot de passe avec …, csv, télécharger bon, recharger, vider champ, basculer thème, continuer vers, revenir, réussite, avertissement, pendant, disparaître, action, après, toutes, copier, partager, confirmer, faire, refuser, notification, document, verifier, hors, position, liens, profonds, apple, ios, macos, android, windows, application, site, reglages, recherche, glissant, actualiser, tirant, options, etat, outils, groupe, table, domaine, arriere, plan, scanner, vibrer, identité, signature, paquet, swift, produit, activer, ia, payer, rôle.
+- Les actions prises en charge : afficher, erreur, montrer, cacher, changer, rediriger, ajouter, retirer, envoyer, requête, connecter, déconnecter, connecter avec apple, connecter avec google, inviter … comme admin, demander un lien de mot de passe pour …, choisir le mot de passe avec …, csv, télécharger bon, recharger, vider champ, basculer thème, continuer vers, revenir, réussite, avertissement, pendant, disparaître, action, après, toutes, copier, partager, confirmer, faire, refuser, notification, document, verifier, hors, position, liens, profonds, apple, ios, macos, android, windows, montre, tele, application, site, reglages, recherche, glissant, actualiser, tirant, options, etat, outils, groupe, table, domaine, arriere, plan, scanner, vibrer, identité, signature, paquet, swift, produit, activer, ia, payer, rôle, on, widget, activite, raccourcis, commande, vocale, dire, lancer, demarrage, discret, systeme, tuile, mini, voiture, clic, droit, fichiers, clavier, touche, partage, ouvre, boutons, commencer, terminer, barre, minutes, mettre, jour.
 - Les mots de liaison (ignorés dans une phrase mais interdits comme nom de variable) : le, la, les, un, une, des, de, du, à, au, aux, se, l', d', s', n', c', j', m', t'.
 - Les options d’un élément (après « avec », séparées par « et ») : et, minimum, maximum, avec, nom, partagée, mémorisée, secret, sans traduction, repliable, vertical, en cascade, indice, obligatoire, ancre, nouvel onglet, désactivé, accepte, latitude, longitude, zoom, tuiles, attribution, adresse, étiquette, étiquettes, valeur, message, annonce, raccourci, oui, h, jours, heures, regroupe, compte, rôles, seuls, peuvent, direct, déplacement, en.
 - Les droits d’une route du serveur : peut, lire, créer, modifier, supprimer, connecté, admin, seul, tout, monde, remplacement, auteur.
@@ -856,6 +856,36 @@ serveur "boutique" :
 - Une variable qui s’appelle « langue » : « langue » est la langue choisie par la personne (« si langue est anglais »
 - « langue » sans bloc « langues » : déclarez d'abord les langues en haut du fichier
 - Une variable dans un texte qui n’en accepte pas : n'accepte pas de « {variable} »
+- Une extension sans son point : n’est pas une extension de fichier
+- Une liste sans son titre : il manque « titre » et le champ à montrer
+- Un widget actualisé en secondes : un widget s’actualise en minutes ou en heures
+- Un widget actualisé trop souvent : au plus toutes les 15 minutes
+- Une taille de widget inconnue : n’est pas une taille de widget
+- Une ligne qui n’est pas un raccourci : chaque ligne est un raccourci
+- Un raccourci qui n’ouvre rien : un raccourci ouvre une page
+- Le lancement au démarrage mal écrit : lancer au demarrage de l’ordinateur
+- Un résultat de recherche qui n’ouvre rien : un résultat de recherche ouvre une page
+- Une mini-application à deux pages : une mini-application montre une seule page
+- Une mini-application vide : une mini-application montre une page
+- Une voiture sans sa liste : l’écran de voiture montre une liste :
+- Une voiture vide : liste livraisons avec titre adresse et texte client
+- Un menu clic droit sans ses fichiers : il manque « les fichiers »
+- Une ligne qui n’est pas une touche : chaque ligne est une touche
+- Une touche qui n’écrit rien : il manque « ecrit "…" »
+- Un clavier sans touche : un clavier a au moins une touche
+- Le partage reçu mal écrit : on écrit : quand on partage vers l’application
+- Le partage reçu écrit deux fois : est déjà écrit ligne
+- Le fichier ouvert mal écrit : on écrit : quand on ouvre un fichier
+- Le bouton de notification mal écrit : dans une notification :
+- Une forme qui ouvre une page inconnue : la page « compte » n'existe pas
+- Deux formes du même nom : est déjà écrit ligne 1 : donnez-lui un autre nom
+- Une liste qui n’existe pas hors d’une page : n'est ni une variable partagée ni une source
+- Trop de raccourcis sur l’icône : au plus quatre raccourcis
+- Une activité en direct non déclarée : n'est pas déclarée : écrivez en haut du fichier « activite en direct
+- Un bouton de notification que personne n’envoie : aucune notification du serveur n'a de bouton
+- Une activité commencée hors d’un événement : « commencer activite » ne s'utilise que dans un événement
+- « dire » hors d’un événement : « dire » ne s'utilise que dans un événement
+- Trop de boutons sur une notification : une notification a au plus trois boutons
 - Écrire le bloc optimiste : en supposant que ça marche
 - Fermer la phrase du bloc optimiste : deux-points après
 - Placer le bloc dans un événement : ne sert que dans un événement

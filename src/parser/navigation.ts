@@ -14,7 +14,7 @@ const ORDRE = "dans l'en-tête d'une page, l'ordre est : dans \"parent\", puis a
 export function analyserEntetePage(flux: FluxTokens): Pick<Page, 'adresse' | 'reservee' | 'parent'> {
   const entete: Pick<Page, 'adresse' | 'reservee' | 'parent'> = {};
   // « dans "admin" » : la page vit dans la page parente.
-  if (flux.verifier('MOT_CLE', 'dans')) {
+  if (flux.verifier('MOT_CLE', 'dans') && flux.regarder(1).type === 'CHAINE') {
     flux.avancer();
     entete.parent = flux.attendre('CHAINE', undefined, 'le nom de la page parente entre guillemets (page "commandes" dans "admin" :)').valeur;
   }
@@ -49,7 +49,8 @@ export function analyserEntetePage(flux: FluxTokens): Pick<Page, 'adresse' | 're
   }
   // Un morceau dans le désordre : on montre l'ordre attendu.
   const suivant = flux.actuel();
-  if (flux.verifier('MOT_CLE', 'dans') || estLeMot(suivant, 'adresse') || estLeMot(suivant, 'reservee')) {
+  // « dans la barre du systeme » n'est pas une page parente : il est lu ensuite, avec les autres manières d'être.
+  if ((flux.verifier('MOT_CLE', 'dans') && flux.regarder(1).type === 'CHAINE') || estLeMot(suivant, 'adresse') || estLeMot(suivant, 'reservee')) {
     throw new ErreurSyntaxique(`« ${suivant.original ?? suivant.valeur} » n'est pas à sa place : ${ORDRE}`, suivant.ligne);
   }
   return entete;
