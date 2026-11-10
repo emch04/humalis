@@ -15,7 +15,7 @@ import { COULEURS_CSS } from '../web/styles.js';
 import { EcrivainActions } from './actions.js';
 import { APPLE_KT, GOOGLE_KT, notificationsKotlin, type Firebase } from './comptes.js';
 import { DIRECT_KT, ENVOIS_KT, fondKotlin } from './temps-reel.js';
-import { CARTES_KT, GRAPHIQUES_KT, LECTEURS_KT, MENUS_KT, MOUVEMENT_KT, QR_KT } from './medias.js';
+import { CARTES_KT, GRAPHIQUES_KT, LECTEURS_KT, MENUS_KT, MOUVEMENT_KT, NATIFS_KT, QR_KT } from './medias.js';
 import { APPAREIL_KT, CHEMINS_FICHIERS, FICHIERS_KT, SCANNER_KT, SYSTEME_KT } from './appareil.js';
 import { CssAndroid, type Portee as PorteeCss } from './css.js';
 import { FORMATS_KT } from './formats.js';
@@ -732,6 +732,7 @@ export function genererProjetAndroid(application: Application, options: OptionsA
   if (medias.cartes) ecrireCode('Cartes.kt', kotlin(paquet, CARTES_KT));
   ecrireCode('Graphiques.kt', kotlin(paquet, GRAPHIQUES_KT));
   ecrireCode('Mouvement.kt', kotlin(paquet, MOUVEMENT_KT));
+  if (/\b(ActualiserHumalis|GlisserHumalis|OptionsHumalis|EtatVideHumalis)\(/.test(codePages)) ecrireCode('Natifs.kt', kotlin(paquet, NATIFS_KT));
   // « en arriere plan : » : une tâche que WorkManager lance, avec les seules variables partagées.
   const fonds = application.ecrans.flatMap((x) => x.gestionnaires.filter((g) => g.declencheur === 'arrierePlan'));
   const avecEnvois = /\bappel(Reussi)?OuGarder\(/.test(codePages);

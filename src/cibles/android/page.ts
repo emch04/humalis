@@ -87,6 +87,8 @@ export class GenerateurPage implements HoteActions {
   private readonly fenetres = new Set<string>();
   /** « appuie sur "controle+k" » et « avec raccourci » : les touches écoutées par la page, et ce qu'elles lancent. */
   private readonly raccourcis: { touches: string; action: () => string }[] = [];
+  /** Vrai pendant l'écriture d'une ligne qui glisse : ses « action en glissant » n'y sont pas des boutons. */
+  private dansGlisser = false;
   /** « quand l'ordre de taches change : », par variable de liste. */
   private readonly ordres = new Map<string, Fonction>();
   /** « avec ancre "desserts" » : les endroits de la page où un lien peut mener. */
@@ -407,9 +409,13 @@ export class GenerateurPage implements HoteActions {
         : this.ecran.parent !== undefined
           ? `ColonneHumalis(if (imbriquee) Modifier.fillMaxWidth() else Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)${largeur}, espacement = 16.dp) {`
           : `ColonneHumalis(Modifier.fillMaxSize()${touches}.verticalScroll(rememberScrollState()).padding(16.dp)${largeur}, espacement = 16.dp) {`;
-      e.bloc(racine, () => {
-        for (const l of vue.texte().trimEnd().split('\n')) e.ligne(l.slice(12));
-      });
+      const actualiser = this.actualisation();
+      const corpsRacine = () =>
+        e.bloc(racine, () => {
+          for (const l of vue.texte().trimEnd().split('\n')) e.ligne(l.slice(12));
+        });
+      if (actualiser !== undefined) e.bloc(`ActualiserHumalis({ ${actualiser} }) {`, corpsRacine);
+      else corpsRacine();
     });
     return e.texte();
   }
@@ -466,7 +472,35 @@ export class GenerateurPage implements HoteActions {
   // ─── La vue ──────────────────────────────────────────────────────────────
 
   private ecrireCorps(e: EcrivainKotlin, noeuds: NoeudVue[]): void {
-    for (const n of noeuds) this.ecrireNoeud(e, n);
+    noeuds.forEach((n, i) => {
+      const suivant = noeuds[i + 1];
+      // « menu d'options » : un appui long sur l'élément juste au-dessus ouvre ses options.
+      if (suivant?.type === 'bloc' && suivant.natif?.genre === 'options' && !(n.type === 'bloc' && n.natif)) {
+        e.bloc(`OptionsHumalis(${this.actionsSysteme(suivant.corps)}) {`, () => this.ecrireNoeud(e, n));
+        return;
+      }
+      const precedent = noeuds[i - 1];
+      if (n.type === 'bloc' && n.natif?.genre === 'options' && precedent !== undefined && !(precedent.type === 'bloc' && precedent.natif)) return;
+      this.ecrireNoeud(e, n);
+    });
+  }
+
+  /** Les boutons d'un composant natif (glisser, options) : leur titre et ce que leur clic fait. */
+  private actionsSysteme(noeuds: NoeudVue[]): string {
+    const actions = noeuds.flatMap((n) => {
+      if (n.type !== 'element' || n.genre !== 'bouton') return [];
+      const faire = (this.clics.get(n.id) ?? []).map((f) => this.appelFonction(f)).join('; ');
+      return [`ActionHumalis(${this.valeurs.t(n.contenu)}) { ${faire ? `portee.launch { ${faire} }` : ''} }`];
+    });
+    return `listOf(${actions.join(', ')})`;
+  }
+
+  /** « actualiser en tirant : » écrit directement dans la page : ce que fait le geste, ou rien. */
+  private actualisation(): string | undefined {
+    const bloc = this.ecran.vue.find((n): n is Extract<NoeudVue, { type: 'bloc' }> => n.type === 'bloc' && n.natif?.genre === 'actualiser');
+    const bouton = bloc?.corps.find((n): n is Extract<NoeudVue, { type: 'element' }> => n.type === 'element' && n.genre === 'bouton');
+    if (!bouton || this.parametres || this.nomFonction === 'EnteteSite' || this.nomFonction === 'PiedSite') return undefined;
+    return (this.clics.get(bouton.id) ?? []).map((f) => this.appelFonction(f)).join('; ');
   }
 
   /** Un élément montré ou caché par la page. */
@@ -520,13 +554,25 @@ export class GenerateurPage implements HoteActions {
           return;
         }
         if (noeud.deplacement) this.app.avertir(noeud.ligne, "« avec deplacement » ne s'applique qu'à une variable de liste : ici, les éléments ne se déplacent pas.");
+        const glisser = noeud.corps.filter((c): c is Extract<NoeudVue, { type: 'bloc' }> => c.type === 'bloc' && c.natif?.genre === 'glisser');
+        const ligne = () => {
+          // « action en glissant » : la ligne glisse vers la gauche et montre ses actions.
+          if (glisser.length) {
+            const avant = this.dansGlisser;
+            e.bloc(`GlisserHumalis(${this.actionsSysteme(glisser.flatMap((g) => g.corps))}) {`, () => {
+              this.dansGlisser = true;
+              this.ecrireCorps(e, noeud.corps);
+              this.dansGlisser = avant;
+            });
+          } else this.ecrireCorps(e, noeud.corps);
+        };
         const boucle = () =>
           e.bloc(`for (${nom} in liste(${this.valeurs.x(noeud.liste)})) {`, () => {
             this.portee.variables.set(noeud.variable, nom);
             e.bloc(`key(identifiant(${nom}).ifEmpty { ${nom}.hashCode().toString() }) {`, () => {
               // « avec animation » : une ligne qui arrive apparaît en fondu.
-              if (noeud.animation) e.bloc('Column(Modifier.animeHumalis("apparition", 300, 0)) {', () => this.ecrireCorps(e, noeud.corps));
-              else this.ecrireCorps(e, noeud.corps);
+              if (noeud.animation) e.bloc('Column(Modifier.animeHumalis("apparition", 300, 0)) {', ligne);
+              else ligne();
             });
           });
         // La liste garde sa place en douceur quand des lignes arrivent ou partent.
@@ -570,6 +616,28 @@ export class GenerateurPage implements HoteActions {
         e.ligne(`TableauHumalis(${this.valeurs.t(noeud.legende)}, ${ligne(noeud.colonnes)}, listOf(${noeud.rangees.map(ligne).join(', ')}))`);
         return;
       }
+    }
+  }
+
+  /** Vrai si le composant natif d'Android s'est écrit ; sinon, le bloc s'écrit comme son équivalent simple. */
+  private ecrireNatif(e: EcrivainKotlin, n: Extract<NoeudVue, { type: 'bloc' }>): boolean {
+    const natif = n.natif!;
+    switch (natif.genre) {
+      case 'vide': {
+        const texte = (v: NoeudVue | undefined) => (v && v.type === 'element' ? this.valeurs.t(v.contenu) : '""');
+        const icone = natif.icone ?? 'boite';
+        this.app.icones.add(icone);
+        e.ligne(`EtatVideHumalis(${texte(n.corps[0])}, ${n.corps[1] ? texte(n.corps[1]) : 'null'}, Icones.${nomKotlin(icone)})`);
+        return true;
+      }
+      case 'actualiser':
+        // Écrit dans la page, il devient le geste de tirer vers le bas ; ailleurs, un bouton.
+        return this.ecran.vue.includes(n) && this.actualisation() !== undefined;
+      case 'glisser':
+        // Hors d'une boucle, l'action reste un bouton ; dans une boucle, la ligne glisse (voir la répétition).
+        return this.dansGlisser;
+      default:
+        return false;
     }
   }
 
@@ -877,6 +945,7 @@ export class GenerateurPage implements HoteActions {
   }
 
   private ecrireBloc(e: EcrivainKotlin, noeud: Extract<NoeudVue, { type: 'bloc' }>): void {
+    if (noeud.natif && this.ecrireNatif(e, noeud)) return;
     const options = noeud.options;
     const valeur = (nom: string) => options.find((o) => o.nom === nom)?.valeur;
     const css = this.css(noeud.classes, 'bloc');

@@ -605,3 +605,152 @@ fun BarreMenusHumalis(menus: List<MenuHumalis>, lancer: (suspend () -> Unit) -> 
     }
 }
 `;
+
+export const NATIFS_KT = String.raw`// Produit par Humalis : les composants natifs d'Android — tirer pour actualiser, glisser une ligne, options au toucher prolongé, écran vide.
+package PAQUET
+
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
+
+/** Une action proposée par le système : son titre et ce qu'elle fait. */
+class ActionHumalis(val titre: String, val faire: () -> Unit)
+
+/** « actualiser en tirant : » : tirer la page vers le bas relance l'action ; le rond tourne tant qu'elle dure. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ActualiserHumalis(faire: suspend () -> Unit, contenu: @Composable () -> Unit) {
+    var enCours by remember { mutableStateOf(false) }
+    val portee = rememberCoroutineScope()
+    PullToRefreshBox(
+        isRefreshing = enCours,
+        onRefresh = {
+            portee.launch {
+                enCours = true
+                try { faire() } finally { enCours = false }
+            }
+        },
+        modifier = Modifier.fillMaxSize(),
+    ) { contenu() }
+}
+
+/** « action en glissant » : la ligne glisse vers la gauche et montre ses actions ; TalkBack les propose aussi. */
+@Composable
+fun GlisserHumalis(actions: List<ActionHumalis>, contenu: @Composable ColumnScope.() -> Unit) {
+    var largeurActions by remember { mutableFloatStateOf(0f) }
+    var decalage by remember { mutableFloatStateOf(0f) }
+    val montre by animateFloatAsState(decalage, label = "glisser")
+    var glisse by remember { mutableStateOf(false) }
+    Box(
+        Modifier.fillMaxWidth().semantics {
+            customActions = actions.map { a -> CustomAccessibilityAction(a.titre) { a.faire(); true } }
+        },
+    ) {
+        Row(Modifier.matchParentSize(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+            // Fermées, les actions ne sont pas lues deux fois par TalkBack : la ligne les propose déjà.
+            Row(
+                Modifier.fillMaxHeight().onSizeChanged { largeurActions = it.width.toFloat() }.background(MaterialTheme.colorScheme.errorContainer)
+                    .then(if (decalage == 0f) Modifier.clearAndSetSemantics { } else Modifier),
+            ) {
+                for (a in actions) {
+                    Box(Modifier.fillMaxHeight().clickable { decalage = 0f; a.faire() }.padding(horizontal = 20.dp), contentAlignment = Alignment.Center) {
+                        Text(a.titre, color = MaterialTheme.colorScheme.onErrorContainer, style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+            }
+        }
+        Column(
+            Modifier.fillMaxWidth()
+                .graphicsLayer { translationX = if (glisse) decalage else montre }
+                .background(MaterialTheme.colorScheme.surface)
+                .pointerInput(Unit) {
+                    detectHorizontalDragGestures(
+                        onDragStart = { glisse = true },
+                        onDragEnd = {
+                            glisse = false
+                            // Passé la moitié, les actions restent ouvertes ; sinon la ligne revient.
+                            decalage = if (-decalage > largeurActions / 2) -largeurActions else 0f
+                        },
+                        onDragCancel = { glisse = false; decalage = 0f },
+                    ) { changement, quantite ->
+                        changement.consume()
+                        decalage = (decalage + quantite).coerceIn(-largeurActions, 0f)
+                    }
+                },
+        ) { contenu() }
+    }
+}
+
+/** « menu d'options » : un toucher prolongé sur l'élément ouvre ses options ; TalkBack les propose aussi. */
+@Composable
+fun OptionsHumalis(actions: List<ActionHumalis>, contenu: @Composable () -> Unit) {
+    var ouvert by remember { mutableStateOf(false) }
+    val vibreur = LocalHapticFeedback.current
+    Box(
+        Modifier
+            .pointerInput(Unit) {
+                detectTapGestures(onLongPress = {
+                    vibreur.performHapticFeedback(HapticFeedbackType.LongPress)
+                    ouvert = true
+                })
+            }
+            .semantics { customActions = actions.map { a -> CustomAccessibilityAction(a.titre) { a.faire(); true } } },
+    ) {
+        contenu()
+        DropdownMenu(expanded = ouvert, onDismissRequest = { ouvert = false }) {
+            for (a in actions) DropdownMenuItem(text = { Text(a.titre) }, onClick = { ouvert = false; a.faire() })
+        }
+    }
+}
+
+/** « etat vide » : une icône, un titre et une explication, au milieu. */
+@Composable
+fun EtatVideHumalis(titre: String, description: String?, icone: ImageVector) {
+    Column(Modifier.fillMaxWidth().padding(vertical = 32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Icon(icone, null, Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(titre, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
+        if (description != null) Text(description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+    }
+}
+`;

@@ -947,3 +947,35 @@ describe('cible Android — le mouvement, les raccourcis et les menus', () => {
     expect(s).not.toContain('METEO_CLE');
   });
 });
+
+describe('cible Android — les composants natifs', () => {
+  const f = projet(`page "accueil" :\n    variable courses = ["Pain"]\n    variable fois = 0\n    actualiser en tirant :\n        changer fois par fois + 1\n    texte "x"\n    menu d'options :\n        option "Copier" :\n            afficher "Copié"\n    pour chaque c dans courses :\n        ligne :\n            texte c\n        action en glissant "Supprimer" :\n            retirer c de courses\n    etat vide "Rien" avec icone "panier" et description "Vide."\n`);
+  const p = page(f, 'PageAccueil');
+
+  it('tirer la page vers le bas relance « actualiser en tirant »', () => {
+    expect(p).toMatch(/ActualiserHumalis\(\{ quandClique\w+\(\) \}\) \{/);
+    expect(page(f, 'Natifs')).toContain('PullToRefreshBox(');
+  });
+
+  it('« menu d\'options » se pose sur l\'élément au-dessus, au toucher prolongé', () => {
+    expect(p).toMatch(/OptionsHumalis\(listOf\(ActionHumalis\("Copier"\) \{ portee\.launch \{ quandClique\w+\(\) \} \}\)\) \{\n\s+Text\("x"/);
+    expect(page(f, 'Natifs')).toContain('detectTapGestures(onLongPress');
+  });
+
+  it('« action en glissant » fait glisser la ligne, et TalkBack propose l\'action', () => {
+    expect(p).toMatch(/GlisserHumalis\(listOf\(ActionHumalis\("Supprimer"\) \{ portee\.launch \{ quandClique\w+\(c\) \} \}\)\) \{/);
+    // L'action n'est plus un bouton dans la ligne.
+    expect(p).not.toMatch(/Button\([^)]*\) \{ Text\("Supprimer"/);
+    expect(page(f, 'Natifs')).toContain('CustomAccessibilityAction(a.titre)');
+  });
+
+  it('« etat vide » montre son icône, son titre et son explication', () => {
+    expect(p).toContain('EtatVideHumalis("Rien", "Vide.", Icones.panier)');
+    expect(page(f, 'Icones')).toContain('val panier by lazy');
+  });
+
+  it('sans composant natif, Natifs.kt n\'est pas écrit', () => {
+    expect(projet(COMPTEUR).has(`${CODE}/Natifs.kt`)).toBe(false);
+  });
+});
+

@@ -840,23 +840,23 @@ seconds, `visibles 1` shows one item at a time).
 These phrases describe an intent. Each platform uses its real component, and the web a simple
 equivalent.
 
-| Phrase | iPhone and iPad | Mac | Web |
-|---|---|---|---|
-| `onglets de l'application :` then `onglet "A" vers "accueil" avec icone "maison"` | tab bar | sidebar | menu |
-| `groupe "Team" :` then its `onglet` lines, indented, inside `onglets de l'application` | flat tabs | flat list | heading in the menu |
-| `onglets de l'application avec barre laterale "MySidebar" :` | no effect | sidebar drawn by the Swift view `MySidebar`, which gets the page as its content | no effect |
-| `recherche dans q avec indice "…"` | native search | native search | field |
-| `action en glissant "Delete" :` inside a `pour chaque` | swipe the row | right-click | button |
-| `actualiser en tirant :` | pull to refresh | button in the toolbar | button |
-| `menu d'options :` then `option "Copy" :` under an element | long press | right-click | drop-down menu |
-| `formulaire "x" en reglages :` then `groupe "Profile" :` | Settings-style form | grouped form | form |
-| `etat vide "Nothing" avec icone "boite" et description "…"` | empty screen | empty screen | block |
-| `avec fond translucide` | glass or material | glass or material | blur |
-| `table l :` then `colonne "Total" avec c.total` | rows | table | rows |
-| `menu de l'application "File" :` then `commande "N" avec raccourci "cmd+n" :` | shortcuts (iPad) | menu bar | refused |
-| `page "x" en reglages :` | page | Settings window | page |
-| `page "x" en pleine fenetre :` | page up to the edges | page up to the edges | page (no effect) |
-| `barre d'outils :` | top bar | toolbar | row |
+| Phrase | iPhone and iPad | Mac | Android | Web |
+|---|---|---|---|---|
+| `onglets de l'application :` then `onglet "A" vers "accueil" avec icone "maison"` | tab bar | sidebar | bottom tab bar | menu |
+| `groupe "Team" :` then its `onglet` lines, indented, inside `onglets de l'application` | flat tabs | flat list | flat tabs | heading in the menu |
+| `onglets de l'application avec barre laterale "MySidebar" :` | no effect | sidebar drawn by the Swift view `MySidebar`, which gets the page as its content | no effect | no effect |
+| `recherche dans q avec indice "…"` | native search | native search | field | field |
+| `action en glissant "Delete" :` inside a `pour chaque` | swipe the row | right-click | swipe the row | button |
+| `actualiser en tirant :` | pull to refresh | button in the toolbar | pull to refresh | button |
+| `menu d'options :` then `option "Copy" :` under an element | long press | right-click | long press | drop-down menu |
+| `formulaire "x" en reglages :` then `groupe "Profile" :` | Settings-style form | grouped form | form | form |
+| `etat vide "Nothing" avec icone "boite" et description "…"` | empty screen | empty screen | empty screen | block |
+| `avec fond translucide` | glass or material | glass or material | veiled background | blur |
+| `table l :` then `colonne "Total" avec c.total` | rows | table | rows | rows |
+| `menu de l'application "File" :` then `commande "N" avec raccourci "cmd+n" :` | shortcuts (iPad) | menu bar | “⋮” menu and shortcuts | refused |
+| `page "x" en reglages :` | page | Settings window | page | page |
+| `page "x" en pleine fenetre :` | page up to the edges | page up to the edges | page | page (no effect) |
+| `barre d'outils :` | top bar | toolbar | row | row |
 
 The application menu has no web equivalent: the compiler refuses it.
 
@@ -3544,6 +3544,9 @@ The whole language works on Android, as on Apple:
   then a drag; TalkBack offers “Move up” and “Move down” (named « Monter » and
   « Descendre »). With a keyboard attached, the page's shortcuts work.
   `menu de l'application` becomes the “⋮” menu at the top of the app, with its shortcuts.
+- **Native components**: `actualiser en tirant` becomes pulling the page down,
+  `action en glissant` slides the row to the left, `menu d'options` opens on a long press
+  (TalkBack offers these actions too) and `etat vide` shows its icon in the middle.
 - **Sources**: a source with a secret key goes through the server's gateway, with the
   session; the key never ships with the app.
 
