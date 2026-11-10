@@ -106,7 +106,7 @@ export function genererProjetDesktop(application: Application, options: OptionsD
   const slug = simplifier(options.nom).replace(/_/g, '-') || 'application-humalis';
   const { relais, origines } = adressesDuServeur(application);
   const misesAJour = adresseDesMisesAJour(application);
-  fichiers.set('package.json', packageJson(slug, options, misesAJour, moteur, formes));
+  fichiers.set('package.json', packageJson(slug, options, misesAJour, moteur, formes, application.site?.adresse));
   const menusWindows = scriptNsis(formes, slug);
   if (menusWindows) fichiers.set('build/menus.nsh', menusWindows);
   // Les bibliothèques des éléments d'écran (icônes, code QR) : Vite les emballe, comme React.
@@ -180,11 +180,13 @@ export function adressesDuServeur(application: Application): { relais: string[];
   return { relais, origines };
 }
 
-function packageJson(slug: string, options: OptionsDesktop, misesAJour?: string, moteur = false, formes?: FormesBureau): string {
+function packageJson(slug: string, options: OptionsDesktop, misesAJour?: string, moteur = false, formes?: FormesBureau, adresseSite?: string): string {
   const associations = formes ? associationsDeFichiers(formes) : [];
   const menus = formes?.actions.some((a) => a.sorte === 'menu') ?? false;
   // Un fichier ouvert ou un menu clic droit sur Linux : le paquet .deb inscrit l'application auprès du bureau.
-  const deb = (formes?.actions.length ?? 0) > 0;
+  // Il demande la page d'accueil du projet : l'adresse du bloc « site », jamais une adresse inventée.
+  const accueil = adresseSite && /^https?:\/\/[^/\s]+/.test(adresseSite) ? adresseSite : undefined;
+  const deb = (formes?.actions.length ?? 0) > 0 && accueil !== undefined;
   return (
     JSON.stringify(
       {
@@ -193,6 +195,7 @@ function packageJson(slug: string, options: OptionsDesktop, misesAJour?: string,
         private: true,
         description: `Application de bureau produite par Humalis depuis ${options.source}`,
         type: 'module',
+        ...(deb ? { homepage: accueil } : {}),
         main: 'electron/dist/principal.js',
         scripts: {
           dev: 'vite',
@@ -513,7 +516,7 @@ function menu(): Menu {
         {
           label: NOM,
           submenu: [
-            { role: 'about', label: \`À propos de \${NOM}\` },
+            { role: 'about', label: \`À propos de \${NOM}\` },${o.formes.demarrage ? '\n            ...elementsDuDemarrage(),' : ''}
             { type: 'separator' },
             { role: 'services', label: 'Services' },
             { type: 'separator' },
@@ -525,7 +528,7 @@ function menu(): Menu {
           ],
         },
       ]
-    : [{ label: 'Fichier', submenu: [{ role: 'quit', label: 'Quitter' }] }];
+    : [{ label: 'Fichier', submenu: [${o.formes.demarrage ? "...elementsDuDemarrage().slice(1), { type: 'separator' }, " : ''}{ role: 'quit', label: 'Quitter' }] }];
   const historique = () => (BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0])?.webContents.navigationHistory;
   const fenetre: MenuItemConstructorOptions[] = mac
     ? [{ role: 'minimize', label: 'Réduire' }, { role: 'zoom', label: 'Agrandir' }, { role: 'close', label: 'Fermer la fenêtre' }, { type: 'separator' }, { role: 'front', label: 'Tout ramener au premier plan' }]

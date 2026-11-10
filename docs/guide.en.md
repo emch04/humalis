@@ -3611,6 +3611,22 @@ On a target where a form makes no sense (a widget on the website), it is ignored
 compiler says so once. These forms are written target by target: where a form is planned
 but not produced yet, compilation stops and says where it is available.
 
+**On the desktop app (`--cible desktop`, which is also the Linux target)**:
+
+| Form | Mac | Windows | Linux |
+|---|---|---|---|
+| `page "…" dans la barre du systeme` | an icon in the menu bar; a click opens the page in a small window, a right-click shows the Open / Quit menu | the notification area, the same way | a status icon (on GNOME, with the AppIndicator extension); a click opens the menu |
+| `quand on ouvre un fichier` | "Open With", or the file dropped on the icon | "Open With" (registered by the installer) | "Open With" with the .deb package, built when the `site` block has an `adresse` |
+| `lancer au demarrage de l'ordinateur` | login items | the user's Run key | `~/.config/autostart` |
+| `menu clic droit` | missing: the Finder needs a Finder extension, which only the Apple target produces (the compiler says so) | File Explorer (user keys, removed on uninstall) | Dolphin, Nemo, and Nautilus under "Scripts" |
+
+Launch at startup is set the first time the installed app opens; the "Lancer au démarrage de
+l'ordinateur" checkbox, in the app menu and the icon menu, removes it or sets it back. With
+`avec discret`, the app starts with no window, in the system tray. A file opened while the app is
+running goes to the window already open; its actions run, then the app goes back to the page you
+were on (unless they change page). Opening files and the right-click menu need the Humalis engine
+(the default).
+
 ### Several files
 
 A large project is split into several files. At the top of the main file:

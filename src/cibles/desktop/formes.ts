@@ -556,8 +556,10 @@ l'application dans la barre.`);
     lignes.push(`### Ouvrir un fichier
 
 L'application installée s'inscrit pour ${formes.actions.filter((a) => a.sorte === 'fichier').flatMap((a) => a.extensions.map((e) => `.${e}`)).join(', ')} (clé \`build.fileAssociations\` de
-\`package.json\`) : « Ouvrir avec » sur Mac, Windows et Linux (le paquet .deb ; une AppImage s'inscrit avec
-AppImageLauncher). Un fichier ouvert pendant que l'application tourne va à la fenêtre déjà ouverte.`);
+\`package.json\`) : « Ouvrir avec » sur Mac, Windows et Linux. Sur Linux, le paquet .deb l'inscrit auprès du
+bureau ; il est construit quand le bloc « site » donne une adresse (sa page d'accueil). Une AppImage
+s'inscrit avec AppImageLauncher. Un fichier ouvert pendant que l'application tourne va à la fenêtre déjà
+ouverte.`);
   }
   if (formes.actions.some((a) => a.sorte === 'menu')) {
     lignes.push(`### Le menu clic droit
