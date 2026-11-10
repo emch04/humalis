@@ -3341,13 +3341,18 @@ Les autres étapes : `remplir champ "email" avec "…"`, `aller vers "panier"`,
 | `humalis packs` | dit si les packs Astratra ont des mises à jour |
 
 Pour le web et le statique, `--adresse https://…` donne l'adresse finale du
-site (plan du site, liens de partage). Pour le desktop et Apple, `--serveur https://…`
+site (plan du site, liens de partage). Pour le desktop, Apple et Windows, `--serveur https://…`
 donne l'adresse du serveur que l'application appelle.
 
 `--cible apple` produit un projet Xcode en SwiftUI : une seule application native
 pour iPhone, iPad et Mac, sans navigateur embarqué (Xcode 16 ou plus récent ; elle
 tourne à partir d'iOS 17 et de macOS 14). Pour la signer, ajoute
 `--identifiant com.exemple.application` et `--equipe ABCDE12345`.
+
+`--cible windows` produit un projet .NET en C# et WPF : une application native pour
+Windows 10 et 11, sans navigateur embarqué. Elle se construit avec le SDK .NET 10,
+sur Windows mais aussi sur macOS ou Linux (`dotnet build`), et se publie en un seul
+fichier `.exe` (voir « L'application Windows » au chapitre 33).
 
 Avec `humalis developper`, chaque élément de la page porte son fichier
 Humalis et sa ligne : dans l'inspecteur du navigateur, un titre montre par
@@ -3379,22 +3384,56 @@ Le même fichier donne toutes les cibles. Quand une construction n'existe pas
 sur une cible, le compilateur le dit clairement au lieu de produire quelque
 chose de faux.
 
-| | web | statique | mobile | desktop | apple |
-|---|---|---|---|---|---|
-| Pages, éléments, styles, thème | oui | oui | oui | oui | oui |
-| Ton propre CSS | oui | oui | non (styles nommés seulement) | oui | en partie (règles d'une classe ; le reste est listé) |
-| Requêtes vers un serveur | oui | oui | oui | oui | oui |
-| `memorisee` | oui | oui | oui | oui | oui |
-| `memorisee en secret` | non | non | oui | oui | oui (Keychain) |
-| `essayer` | oui | non | oui | oui | oui |
-| Raccourcis clavier | oui | oui | non | oui | oui |
-| Composants React | oui | non | oui (en React Native) | oui | non (`sur apple "Vue.swift"`) |
-| Le moteur sans React (par défaut) | oui | non | non | oui (sauf composant React ou `memorisee en secret`) | non |
-| Photo, scanner, Face ID, vibration, signature, hors ligne | oui (vibration : Android) | non | non | non | oui |
-| `en arriere plan` | non | non | non | non | oui |
-| Plan du site, aperçu de partage | oui | oui | non | non | non |
+| | web | statique | mobile | desktop | apple | windows |
+|---|---|---|---|---|---|---|
+| Pages, éléments, styles, thème | oui | oui | oui | oui | oui | oui |
+| Ton propre CSS | oui | oui | non (styles nommés seulement) | oui | en partie (règles d'une classe ; le reste est listé) | en partie (règles d'une classe ; le reste est listé) |
+| Requêtes vers un serveur | oui | oui | oui | oui | oui | oui |
+| `memorisee` | oui | oui | oui | oui | oui | oui |
+| `memorisee en secret` | non | non | oui | oui | oui (Keychain) | oui (chiffré par Windows) |
+| `essayer` | oui | non | oui | oui | oui | oui |
+| Raccourcis clavier | oui | oui | non | oui | oui | oui |
+| Composants React | oui | non | oui (en React Native) | oui | non (`sur apple "Vue.swift"`) | non |
+| Le moteur sans React (par défaut) | oui | non | non | oui (sauf composant React ou `memorisee en secret`) | non | non |
+| Graphiques, cartes, audio, vidéo, fichiers | oui | oui | en partie | oui | oui | pas encore |
+| Plusieurs langues | oui | oui | oui | oui | oui | pas encore (la première seulement) |
+| Photo, scanner, Face ID, vibration, signature, hors ligne | oui (vibration : Android) | non | non | non | oui | non |
+| `en arriere plan` | non | non | non | non | oui | non |
+| Plan du site, aperçu de partage | oui | oui | non | non | non | non |
 
 Le serveur (`--cible serveur`) se produit à part, depuis le bloc `serveur`.
+
+### L'application Windows
+
+```sh
+humalis compile boutique.humalis --cible windows --sortie boutique-windows --serveur https://api.monsite.fr
+cd boutique-windows
+dotnet build
+dotnet publish -c Release -r win-x64
+```
+
+Le dossier produit est un projet .NET 10 en C# et WPF, lisible, à ne pas modifier à
+la main. `dotnet publish` donne un seul fichier `.exe` qui contient .NET : rien à
+installer sur le PC (`-r win-arm64` pour un PC à processeur ARM). La construction
+marche aussi sur un Mac ou sous Linux ; seul le lancement demande Windows 10 ou 11.
+
+- L'apparence suit Windows 11 (thème Fluent), en clair ou en sombre comme le système ;
+  `changer theme par sombre` change ce choix, et il est gardé.
+- Une page à la fois, avec un bouton Retour, `Alt+←` et le bouton arrière de la souris.
+- Le serveur Humalis est appelé avec la même session que l'application Apple : le jeton
+  est gardé chiffré par Windows, lisible seulement par la personne connectée à la
+  session Windows. `memorisee` va dans `%LOCALAPPDATA%`.
+- `partager …` copie le texte (et le lien) dans le presse-papiers.
+- Les images d'un projet en SVG ne s'affichent pas encore : donne une version PNG ou
+  JPEG. Les animations et les effets de survol ne se dessinent pas encore ; la
+  compilation le dit.
+- Pas encore sur Windows : graphiques, cartes, audio, vidéo, choix et envoi de fichiers,
+  code QR, sélecteur de langue et plusieurs langues, `sous page`, composants React,
+  paiement, IA, connexion avec Google ou Apple, invitations. La compilation s'arrête
+  et dit quelle ligne en a besoin.
+
+Sans signature de code, Windows affiche un avertissement (SmartScreen) au premier
+lancement : « Informations complémentaires », puis « Exécuter quand même ».
 
 ### Le moteur de rendu de Humalis
 

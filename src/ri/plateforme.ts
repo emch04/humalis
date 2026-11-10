@@ -9,6 +9,7 @@ const VISEES: Record<string, string[]> = {
   apple: ['application', 'apple', 'ios', 'macos'],
   mobile: ['application'],
   desktop: ['application'],
+  windows: ['application'],
   web: ['site'],
   statique: ['site'],
   serveur: [],

@@ -3421,13 +3421,18 @@ texte "…" est absent` (a text is not shown).
 | `humalis packs` | says whether the Astratra packs have updates |
 
 For web and static, `--adresse https://…` gives the site's final address
-(sitemap, share links). For desktop and Apple, `--serveur https://…` gives the address
+(sitemap, share links). For desktop, Apple and Windows, `--serveur https://…` gives the address
 of the server the application calls.
 
 `--cible apple` generates an Xcode project in SwiftUI: a single native application
 for iPhone, iPad and Mac, with no embedded browser (Xcode 16 or later; it runs on
 iOS 17 and macOS 14 and later). To sign it, add
 `--identifiant com.example.application` and `--equipe ABCDE12345`.
+
+`--cible windows` generates a .NET project in C# and WPF: a native application for
+Windows 10 and 11, with no embedded browser. It builds with the .NET 10 SDK, on
+Windows but also on macOS or Linux (`dotnet build`), and publishes as a single `.exe`
+file (see "The Windows application" in chapter 33).
 
 With `humalis developper`, every element of the page carries its Humalis
 file and line: in the browser's inspector, a heading shows for example
@@ -3458,23 +3463,56 @@ completion and hover help.
 The same file produces every target. When a construct does not exist on a
 target, the compiler says so clearly instead of producing something wrong.
 
-| | web | static | mobile | desktop | apple |
-|---|---|---|---|---|---|
-| Pages, elements, styles, theme | yes | yes | yes | yes | yes |
-| Your own CSS | yes | yes | no (named styles only) | yes | partly (single-class rules; the rest is listed) |
-| Requests to a server | yes | yes | yes | yes | yes |
-| `memorisee` | yes | yes | yes | yes | yes |
-| `memorisee en secret` | no | no | yes | yes | yes (Keychain) |
-| `essayer` | yes | no | yes | yes | yes |
-| Keyboard shortcuts | yes | yes | no | yes | yes |
-| React components | yes | no | yes (in React Native) | yes | no (`sur apple "View.swift"`) |
-| The engine without React (the default) | yes | no | no | yes (except a React component or `memorisee en secret`) | no |
-| Photo, scanner, Face ID, vibration, signature, offline | yes (vibration: Android) | no | no | no | yes |
-| `en arriere plan` | no | no | no | no | yes |
-| Sitemap, share preview | yes | yes | no | no | no |
+| | web | static | mobile | desktop | apple | windows |
+|---|---|---|---|---|---|---|
+| Pages, elements, styles, theme | yes | yes | yes | yes | yes | yes |
+| Your own CSS | yes | yes | no (named styles only) | yes | partly (single-class rules; the rest is listed) | partly (single-class rules; the rest is listed) |
+| Requests to a server | yes | yes | yes | yes | yes | yes |
+| `memorisee` | yes | yes | yes | yes | yes | yes |
+| `memorisee en secret` | no | no | yes | yes | yes (Keychain) | yes (encrypted by Windows) |
+| `essayer` | yes | no | yes | yes | yes | yes |
+| Keyboard shortcuts | yes | yes | no | yes | yes | yes |
+| React components | yes | no | yes (in React Native) | yes | no (`sur apple "View.swift"`) | no |
+| The engine without React (the default) | yes | no | no | yes (except a React component or `memorisee en secret`) | no | no |
+| Charts, maps, audio, video, files | yes | yes | partly | yes | yes | not yet |
+| Several languages | yes | yes | yes | yes | yes | not yet (the first one only) |
+| Photo, scanner, Face ID, vibration, signature, offline | yes (vibration: Android) | no | no | no | yes | no |
+| `en arriere plan` | no | no | no | no | yes | no |
+| Sitemap, share preview | yes | yes | no | no | no | no |
 
 The server (`--cible serveur`) is generated separately, from the `serveur`
 block.
+
+### The Windows application
+
+```sh
+humalis compile boutique.humalis --cible windows --sortie boutique-windows --serveur https://api.mysite.com
+cd boutique-windows
+dotnet build
+dotnet publish -c Release -r win-x64
+```
+
+The generated folder is a readable .NET 10 project in C# and WPF, not meant to be
+edited by hand. `dotnet publish` gives a single `.exe` file that contains .NET:
+nothing to install on the PC (`-r win-arm64` for an ARM PC). Building also works on a
+Mac or on Linux; only running it needs Windows 10 or 11.
+
+- The look follows Windows 11 (Fluent theme), light or dark like the system;
+  `changer theme par sombre` changes that choice, and it is kept.
+- One page at a time, with a Back button, `Alt+←` and the mouse's back button.
+- The Humalis server is called with the same session as the Apple application: the
+  token is kept encrypted by Windows, readable only by the person signed in to the
+  Windows session. `memorisee` goes to `%LOCALAPPDATA%`.
+- `partager …` copies the text (and the link) to the clipboard.
+- A project's SVG images are not shown yet: provide a PNG or JPEG version. Animations
+  and hover effects are not drawn yet; the compiler says so.
+- Not on Windows yet: charts, maps, audio, video, choosing and uploading files, QR
+  codes, the language selector and several languages, `sous page`, React components,
+  payment, AI, signing in with Google or Apple, invitations. Compilation stops and
+  says which line needs them.
+
+Without code signing, Windows shows a warning (SmartScreen) on first launch: "More
+info", then "Run anyway".
 
 ---
 

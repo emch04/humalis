@@ -18,6 +18,7 @@ import { lecturesPermises, lireLesDonnees, type ReglageLecture } from './cibles/
 import { genererProjetStatique, verifierPourLeStatique, MARQUE_STATIQUE } from './cibles/statique/projet.js';
 import { genererProjetDesktop, bureauSurLeMoteur, MARQUE_DESKTOP, SERVEUR_PAR_DEFAUT } from './cibles/desktop/projet.js';
 import { genererProjetApple, MARQUE_APPLE } from './cibles/apple/projet.js';
+import { genererProjetWindows, MARQUE_WINDOWS } from './cibles/windows/projet.js';
 import { verifierAppareilPourLaCible } from './cibles/appareil.js';
 import { pourLaCible } from './ri/plateforme.js';
 import { gestionnairesDuProgramme, contientAction } from './cibles/web/interactions.js';
@@ -43,6 +44,7 @@ const AIDE = `Utilisation :
   humalis compile <fichier.humalis> --cible mobile --sortie <dossier>
   humalis compile <fichier.humalis> --cible desktop --sortie <dossier> [--serveur https://…]
   humalis compile <fichier.humalis> --cible apple --sortie <dossier> [--serveur https://…] [--identifiant com.exemple.app] [--equipe ABCDE12345]
+  humalis compile <fichier.humalis> --cible windows --sortie <dossier> [--serveur https://…] [--identifiant dev.exemple.app]
   humalis compile <fichier.humalis> --cible serveur --sortie <dossier>
   humalis compile <fichier.humalis> --cible web [--moteur humalis|react] --sortie <dossier> [--adresse https://…] [--lire-serveur https://…]
   humalis compile <fichier.humalis> --cible statique --sortie <dossier> [--adresse https://…]
@@ -53,7 +55,8 @@ verifier  affiche les erreurs et les avertissements avec leur ligne. Avec
           travaille sur le compilateur).
 compile   produit un projet complet pour la cible choisie : web (Vite + React
           prérendu), mobile (Expo, iPhone et Android), desktop (Electron, Mac,
-          Windows et Linux), apple (SwiftUI natif, iPhone, iPad et Mac), serveur (Node + packs Astratra) ou statique (HTML,
+          Windows et Linux), apple (SwiftUI natif, iPhone, iPad et Mac), windows (C# et WPF natif,
+          Windows 10 et 11), serveur (Node + packs Astratra) ou statique (HTML,
           CSS, JavaScript, sans construction).
           Avec --composants, seulement les pages web et leurs outils, à
           déposer dans un projet React existant.
@@ -132,11 +135,11 @@ function compile(arguments_: string[]): number | Promise<number> {
     console.error(AIDE);
     return 2;
   }
-  if (cible !== 'web' && cible !== 'mobile' && cible !== 'desktop' && cible !== 'apple' && cible !== 'serveur' && cible !== 'statique') {
+  if (cible !== 'web' && cible !== 'mobile' && cible !== 'desktop' && cible !== 'apple' && cible !== 'windows' && cible !== 'serveur' && cible !== 'statique') {
     console.error(
       cible === undefined
-        ? 'Précisez la cible avec --cible web, --cible mobile, --cible desktop, --cible apple, --cible serveur ou --cible statique.'
-        : `La cible « ${cible} » n'existe pas encore. Cibles disponibles : web, mobile, desktop, apple, serveur, statique.`,
+        ? 'Précisez la cible avec --cible web, --cible mobile, --cible desktop, --cible apple, --cible windows, --cible serveur ou --cible statique.'
+        : `La cible « ${cible} » n'existe pas encore. Cibles disponibles : web, mobile, desktop, apple, windows, serveur, statique.`,
     );
     return 2;
   }
@@ -181,6 +184,7 @@ function compile(arguments_: string[]): number | Promise<number> {
   if (cible === 'statique') return compileStatique(application, chemin, sortie, option(arguments_, 'adresse'));
   if (cible === 'desktop') return compileDesktop(application, chemin, sortie, option(arguments_, 'serveur'), option(arguments_, 'moteur') ?? moteurDuProjet(chemin));
   if (cible === 'apple') return compileApple(application, chemin, sortie, arguments_);
+  if (cible === 'windows') return compileWindows(application, chemin, sortie, arguments_);
 
   // Ce que la cible web ne sait pas faire (« memorisee en secret »).
   const pourLeWeb = verifierPourLeWeb(application);
@@ -604,6 +608,35 @@ function compileApple(application: Application, chemin: string, sortie: string, 
   ecrire(sortie, fichiers);
   console.error(`Projet Apple (SwiftUI) écrit dans « ${sortie} » (${fichiers.size} fichiers).`);
   console.error(`Pour le lancer : ouvrez le fichier .xcodeproj dans Xcode (voir LISEZMOI.md).`);
+  return 0;
+}
+
+function compileWindows(application: Application, chemin: string, sortie: string, arguments_: string[]): number {
+  if (application.ecrans.length === 0) {
+    console.error(`Le fichier ${basename(chemin)} ne contient aucune page : rien n'a été écrit.`);
+    return 1;
+  }
+  const serveur = option(arguments_, 'serveur');
+  if (serveur !== undefined && !/^https?:\/\/[^/\s]+/.test(serveur)) {
+    console.error(`L'adresse du serveur « ${serveur} » doit commencer par http:// ou https:// (par exemple --serveur https://mon-serveur.fr).`);
+    return 2;
+  }
+  if (!dossierLibre(sortie, MARQUE_WINDOWS)) return 1;
+  const nom = basename(chemin).replace(/\.humalis$/, '');
+  const fichiersStyle = lireFichiersStyle(application, chemin);
+  if (!fichiersStyle) return 1;
+  const medias = lireMedias(application, chemin);
+  if (!medias) return 1;
+  const identifiant = option(arguments_, 'identifiant');
+  const { fichiers, diagnostics } = genererProjetWindows(application, { nom, source: basename(chemin), fichiersStyle, medias, ...(serveur ? { serveur } : {}), ...(identifiant ? { identifiant } : {}) });
+  afficherDiagnostics(diagnostics);
+  if (diagnostics.some((d) => d.gravite === 'erreur')) {
+    console.error('\nLe programme ne peut pas être produit pour Windows : rien n\'a été écrit.');
+    return 1;
+  }
+  ecrire(sortie, fichiers);
+  console.error(`Projet Windows (C# et WPF) écrit dans « ${sortie} » (${fichiers.size} fichiers).`);
+  console.error('Pour le construire : dotnet build, puis dotnet publish -c Release -r win-x64 pour un seul fichier .exe (voir LISEZMOI.md).');
   return 0;
 }
 
