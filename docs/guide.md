@@ -3401,8 +3401,8 @@ chose de faux.
 | Raccourcis clavier | oui | oui | non | oui | oui | oui |
 | Composants React | oui | non | oui (en React Native) | oui | non (`sur apple "Vue.swift"`) | non |
 | Le moteur sans React (par défaut) | oui | non | non | oui (sauf composant React ou `memorisee en secret`) | non | non |
-| Graphiques, cartes, audio, vidéo, fichiers | oui | oui | en partie | oui | oui | pas encore |
-| Plusieurs langues | oui | oui | oui | oui | oui | pas encore (la première seulement) |
+| Graphiques, cartes, audio, vidéo, fichiers | oui | oui | en partie | oui | oui | oui |
+| Plusieurs langues | oui | oui | oui | oui | oui | oui |
 | Photo, scanner, Face ID, vibration, signature, hors ligne | oui (vibration : Android) | non | non | non | oui | non |
 | `en arriere plan` | non | non | non | non | oui | non |
 | Plan du site, aperçu de partage | oui | oui | non | non | non | non |
@@ -3429,14 +3429,17 @@ marche aussi sur un Mac ou sous Linux ; seul le lancement demande Windows 10 ou 
 - Le serveur Humalis est appelé avec la même session que l'application Apple : le jeton
   est gardé chiffré par Windows, lisible seulement par la personne connectée à la
   session Windows. `memorisee` va dans `%LOCALAPPDATA%`.
+- Plusieurs langues : le sélecteur, `changer langue`, et les nombres, prix et dates
+  écrits à la façon de la langue choisie, qui est gardée sur le PC.
+- Graphiques, cartes (tuiles d'OpenStreetMap, ou d'un autre fournisseur avec `tuiles`),
+  audio et vidéo avec leur transcription, codes QR, images SVG, choix et envoi de
+  fichiers, `sous page`, ancres et onglets de l'application.
 - `partager …` copie le texte (et le lien) dans le presse-papiers.
-- Les images d'un projet en SVG ne s'affichent pas encore : donne une version PNG ou
-  JPEG. Les animations et les effets de survol ne se dessinent pas encore ; la
-  compilation le dit.
-- Pas encore sur Windows : graphiques, cartes, audio, vidéo, choix et envoi de fichiers,
-  code QR, sélecteur de langue et plusieurs langues, `sous page`, composants React,
-  paiement, IA, connexion avec Google ou Apple, invitations. La compilation s'arrête
-  et dit quelle ligne en a besoin.
+- Les animations et les effets de survol ne se dessinent pas encore ; la compilation
+  le dit.
+- Pas encore sur Windows : composants React, paiement, IA, connexion avec Google ou
+  Apple, invitations, notifications. La compilation s'arrête et dit quelle ligne en a
+  besoin.
 
 Sans signature de code, Windows affiche un avertissement (SmartScreen) au premier
 lancement : « Informations complémentaires », puis « Exécuter quand même ».

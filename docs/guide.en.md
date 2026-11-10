@@ -3481,8 +3481,8 @@ target, the compiler says so clearly instead of producing something wrong.
 | Keyboard shortcuts | yes | yes | no | yes | yes | yes |
 | React components | yes | no | yes (in React Native) | yes | no (`sur apple "View.swift"`) | no |
 | The engine without React (the default) | yes | no | no | yes (except a React component or `memorisee en secret`) | no | no |
-| Charts, maps, audio, video, files | yes | yes | partly | yes | yes | not yet |
-| Several languages | yes | yes | yes | yes | yes | not yet (the first one only) |
+| Charts, maps, audio, video, files | yes | yes | partly | yes | yes | yes |
+| Several languages | yes | yes | yes | yes | yes | yes |
 | Photo, scanner, Face ID, vibration, signature, offline | yes (vibration: Android) | no | no | no | yes | no |
 | `en arriere plan` | no | no | no | no | yes | no |
 | Sitemap, share preview | yes | yes | no | no | no | no |
@@ -3510,13 +3510,15 @@ Mac or on Linux; only running it needs Windows 10 or 11.
 - The Humalis server is called with the same session as the Apple application: the
   token is kept encrypted by Windows, readable only by the person signed in to the
   Windows session. `memorisee` goes to `%LOCALAPPDATA%`.
+- Several languages: the selector, `changer langue`, and numbers, prices and dates
+  written the way the chosen language writes them; the choice is kept on the PC.
+- Charts, maps (OpenStreetMap tiles, or another provider with `tuiles`), audio and
+  video with their transcript, QR codes, SVG images, choosing and uploading files,
+  `sous page`, anchors and the application's tabs.
 - `partager …` copies the text (and the link) to the clipboard.
-- A project's SVG images are not shown yet: provide a PNG or JPEG version. Animations
-  and hover effects are not drawn yet; the compiler says so.
-- Not on Windows yet: charts, maps, audio, video, choosing and uploading files, QR
-  codes, the language selector and several languages, `sous page`, React components,
-  payment, AI, signing in with Google or Apple, invitations. Compilation stops and
-  says which line needs them.
+- Animations and hover effects are not drawn yet; the compiler says so.
+- Not on Windows yet: React components, payment, AI, signing in with Google or Apple,
+  invitations, notifications. Compilation stops and says which line needs them.
 
 Without code signing, Windows shows a warning (SmartScreen) on first launch: "More
 info", then "Run anyway".
