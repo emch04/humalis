@@ -313,11 +313,15 @@ function lireMedias(application: Application, chemin: string): Map<string, InfoM
     try {
       octets = readFileSync(join(dirname(chemin), media.chemin));
     } catch {
-      console.error(`Erreur, ${position(media.ligne)} : ${media.genre === 'audio' ? 'le son' : "l'image"} « ${media.chemin} » est introuvable (${media.genre === 'audio' ? 'il est cherché' : 'elle est cherchée'} à côté de ${basename(chemin)}).`);
+      const quoi = media.genre === 'audio' ? 'le son' : media.genre === 'video' ? 'la vidéo' : "l'image";
+      console.error(`Erreur, ${position(media.ligne)} : ${quoi} « ${media.chemin} » est introuvable (${media.genre === 'audio' ? 'il est cherché' : 'elle est cherchée'} à côté de ${basename(chemin)}).`);
       return undefined;
     }
     if (media.genre === 'audio' && octets.length > 10 * 1024 * 1024) {
       console.error(`Avertissement, ${position(media.ligne)} : le son « ${media.chemin} » pèse ${Math.round(octets.length / (1024 * 1024))} Mo : c'est lourd à télécharger, surtout sur un téléphone.`);
+    }
+    if (media.genre === 'video' && octets.length > 50 * 1024 * 1024) {
+      console.error(`Avertissement, ${position(media.ligne)} : la vidéo « ${media.chemin} » pèse ${Math.round(octets.length / (1024 * 1024))} Mo : c'est lourd à télécharger, surtout sur un téléphone. Une adresse vers un service vidéo peut convenir mieux.`);
     }
     const dimensions = media.genre === 'image' ? dimensionsImage(octets) : undefined;
     medias.set(media.chemin, { octets: octets.length, genre: media.genre, ...(dimensions ? { largeur: dimensions.largeur, hauteur: dimensions.hauteur } : {}), contenu: octets.toString('base64') });

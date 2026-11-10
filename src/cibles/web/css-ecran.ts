@@ -35,6 +35,8 @@ export function reglagesUtilises(codes: string[]): Set<string> {
 export function cssEcran(codes: string[]): string {
   const utilises = reglagesUtilises(codes);
   const regles: string[] = [];
+  // « avec desactive » : on voit que le bouton ne répond pas.
+  if (codes.some((c) => /disabled=\{|'disabled'|"disabled"|\sdisabled[\s>=]|disabled: /.test(c))) regles.push('button:disabled { opacity: 0.5; cursor: not-allowed; }');
   if (codes.some((c) => c.includes('humalis-accent'))) regles.push('.humalis-accent { color: var(--humalis-marque, currentColor); }');
   if (codes.some((c) => c.includes('humalis-code-ligne'))) regles.push('.humalis-code-ligne { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; padding: 0.1em 0.25em; border-radius: 0.2em; background: rgb(127 127 127 / 0.12); }');
   if (codes.some((c) => c.includes('humalis-bloc-code'))) regles.push('.humalis-bloc-code-conteneur { position: relative; max-width: 100%; overflow-x: auto; } .humalis-bloc-code { overflow-x: auto; padding: 1rem; border-radius: 0.5rem; background: rgb(127 127 127 / 0.12); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre; } .humalis-bloc-code-conteneur button { position: absolute; top: 0.5rem; right: 0.5rem; }');

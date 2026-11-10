@@ -44,7 +44,7 @@ export function imageDe(element: Element, valeur: (e: Expression) => Valeur): Im
 /** Un fichier local employé par le programme : une image ou un son. */
 export interface MediaLocal {
   chemin: string;
-  genre: 'image' | 'audio';
+  genre: 'image' | 'audio' | 'video';
   ligne: number;
 }
 
@@ -55,9 +55,9 @@ export function mediasLocaux(application: Application): MediaLocal[] {
     for (const n of noeuds) {
       if (n.type === 'element' && n.image?.locale !== undefined && !vus.has(n.image.locale)) vus.set(n.image.locale, { chemin: n.image.locale, genre: 'image', ligne: n.ligne });
       // Un son écrit entre guillemets, à côté du fichier Humalis : recopié lui aussi.
-      if (n.type === 'widget' && n.genre === 'audio' && n.contenu.type === 'texte' && n.contenu.parties.every((p) => 'texte' in p)) {
+      if (n.type === 'widget' && (n.genre === 'audio' || n.genre === 'video') && n.contenu.type === 'texte' && n.contenu.parties.every((p) => 'texte' in p)) {
         const chemin = n.contenu.parties.map((p) => ('texte' in p ? p.texte : '')).join('');
-        if (estFichierLocal(chemin) && !vus.has(chemin)) vus.set(chemin, { chemin, genre: 'audio', ligne: n.ligne });
+        if (estFichierLocal(chemin) && !vus.has(chemin)) vus.set(chemin, { chemin, genre: n.genre, ligne: n.ligne });
       }
       if (n.type === 'condition') {
         parcourir(n.alors);
@@ -91,11 +91,11 @@ export interface InfoMedia {
   /** Le fichier lui-même, en base 64, quand la commande l'a lu : il est recopié dans le projet produit. */
   contenu?: string;
   /** Une image (par défaut) ou un son : chacun a son dossier dans le projet produit. */
-  genre?: 'image' | 'audio';
+  genre?: 'image' | 'audio' | 'video';
 }
 
 /** Les copies des images locales dans le projet produit, dans `dossier` (« public/images/ », « images/ », « assets/images/ »). */
-export function copiesDesMedias(medias: Map<string, InfoMedia> | undefined, dossier: string, genre: 'image' | 'audio' = 'image'): Map<string, string> {
+export function copiesDesMedias(medias: Map<string, InfoMedia> | undefined, dossier: string, genre: 'image' | 'audio' | 'video' = 'image'): Map<string, string> {
   const copies = new Map<string, string>();
   for (const [chemin, info] of medias ?? []) if (info.contenu !== undefined && (info.genre ?? 'image') === genre) copies.set(`${dossier}${nomDeLaCopie(chemin)}`, contenuBinaire(info.contenu));
   return copies;

@@ -341,6 +341,7 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
   // Les images locales, recopiées là où le site les cherche (/images/…) : décision M5.
   for (const [chemin, contenu] of copiesDesMedias(options.medias, 'public/images/')) fichiers.set(chemin, contenu);
   for (const [chemin, contenu] of copiesDesMedias(options.medias, 'public/audio/', 'audio')) fichiers.set(chemin, contenu);
+  for (const [chemin, contenu] of copiesDesMedias(options.medias, 'public/video/', 'video')) fichiers.set(chemin, contenu);
   // Plusieurs langues : les messages de Humalis (« Réessayer », la page introuvable…) passent par t().
   if (application.langues) messagesDuProjet(fichiers, application.langues.map((l) => l.code), 'src/humalis/', 'src/Introuvable.tsx');
 

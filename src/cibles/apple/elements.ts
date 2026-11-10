@@ -754,6 +754,53 @@ struct QrHumalis: View {
 }
 `;
 
+const VIDEO = String.raw`// Produit par Humalis : une vidéo, avec les commandes du système ; elle ne démarre jamais toute seule.
+import SwiftUI
+import AVKit
+
+struct VideoHumalis: View {
+    let source: SourceMedia
+    var description: String? = nil
+    var transcription: String? = nil
+    var boucle = false
+    @State private var joueur: AVPlayer?
+    @State private var fin: NSObjectProtocol?
+
+    private var url: URL? {
+        switch source {
+        case .locale(let nom): return Bundle.main.url(forResource: nom, withExtension: nil)
+        case .adresse(let texte): return URL(string: texte)
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            VideoPlayer(player: joueur)
+                .aspectRatio(16 / 9, contentMode: .fit)
+                .accessibilityLabel(description ?? "")
+            if let transcription {
+                DisclosureGroup("Lire la transcription") { Text(transcription) }
+            }
+        }
+        .onAppear {
+            guard joueur == nil, let url else { return }
+            let j = AVPlayer(url: url)
+            joueur = j
+            if boucle {
+                fin = NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: j.currentItem, queue: .main) { _ in
+                    j.seek(to: .zero)
+                    j.play()
+                }
+            }
+        }
+        .onDisappear {
+            joueur?.pause()
+            if let fin { NotificationCenter.default.removeObserver(fin) }
+        }
+    }
+}
+`;
+
 const AUDIO = String.raw`// Produit par Humalis : le lecteur de son.
 import SwiftUI
 import AVFoundation
@@ -1215,7 +1262,7 @@ export function fichiersElements(code: string): Map<string, string> {
   if (emploie(/\b(ChampHumalis|MotDePasseHumalis|TexteLongHumalis|ChoixHumalis|ListeHumalis|ChampDateHumalis|estVideHumalis)\b/)) fichiers.set('Humalis/Champs.swift', CHAMPS);
   if (emploie(/\b(BadgeHumalis|AvatarHumalis|ProgressionHumalis|ChargementHumalis|EtoilesHumalis|CompteurHumalis)\b/)) fichiers.set('Humalis/Widgets.swift', WIDGETS);
   if (emploie(/\b(AnimeHumalis|EffetSurvolHumalis)\b/)) fichiers.set('Humalis/Mouvement.swift', MOUVEMENT);
-  if (emploie(/\b(ImageHumalis|BadgeHumalis|AvatarHumalis|ProgressionHumalis|ChargementHumalis|EtoilesHumalis|CompteurHumalis|LecteurHumalis)\b/)) fichiers.set('Humalis/Images.swift', IMAGES);
+  if (emploie(/\b(ImageHumalis|BadgeHumalis|AvatarHumalis|ProgressionHumalis|ChargementHumalis|EtoilesHumalis|CompteurHumalis|LecteurHumalis|VideoHumalis)\b/)) fichiers.set('Humalis/Images.swift', IMAGES);
   if (emploie(/\b(ChoixFichierHumalis|FichierChoisi|televerser)\b/)) fichiers.set('Humalis/Fichiers.swift', FICHIERS);
   if (emploie(/\b(prendrePhoto|scannerCode|verifierIdentite|vibrer|SignatureHumalis)\(/)) {
     fichiers.set('Humalis/Appareil.swift', APPAREIL);
@@ -1224,6 +1271,7 @@ export function fichiersElements(code: string): Map<string, string> {
   if (emploie(/\blirePosition\(/)) fichiers.set('Humalis/Position.swift', POSITION);
   if (emploie(/\bQrHumalis\b/)) fichiers.set('Humalis/Qr.swift', QR);
   if (emploie(/\bLecteurHumalis\b/)) fichiers.set('Humalis/Audio.swift', AUDIO);
+  if (emploie(/\bVideoHumalis\b/)) fichiers.set('Humalis/Video.swift', VIDEO);
   if (emploie(/\bGraphiqueHumalis\b/)) fichiers.set('Humalis/Graphiques.swift', GRAPHIQUES);
   if (emploie(/\bCarteHumalis\b/)) fichiers.set('Humalis/Cartes.swift', CARTES);
   return fichiers;

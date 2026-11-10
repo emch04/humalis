@@ -1128,7 +1128,8 @@ ${prise}${code}}
       case 'bouton': {
         // Le bouton d'un formulaire l'envoie (Entrée aussi) ; un bouton qui a son propre clic garde son clic.
         const envoie = this.formulaireDe.has(noeud.id) && !this.evenements.has(noeud.id);
-        return `creer('button', ${objet(commun([['type', envoie ? "'submit'" : "'button'"], ...(seule !== undefined ? ([['\'aria-label\'', chaine(seule)]] as [string, string][]) : [])]))}, ${contenu})`;
+        const desactive: [string, string][] = noeud.desactive ? [['disabled', noeud.desactive === true ? 'true' : conditionJs(noeud.desactive, this.contexte)]] : [];
+        return `creer('button', ${objet(commun([['type', envoie ? "'submit'" : "'button'"], ...(seule !== undefined ? ([['\'aria-label\'', chaine(seule)]] as [string, string][]) : []), ...desactive]))}, ${contenu})`;
       }
       case 'lien': {
         const vers = noeud.arguments && noeud.cible !== undefined ? this.adresseAvec(noeud.cible, noeud.arguments) : chaine(this.fichier(noeud.cible ?? ''));
@@ -1419,7 +1420,7 @@ ${prise}${code}}
       ...(noeud.reglages.photo ? { photo: { js: expressionJs(noeud.reglages.photo, this.contexte), initial: this.texteInitial(noeud.reglages.photo, env) } } : {}),
       ...(noeud.contenu.type === 'variable' ? { variable: this.lu(noeud.contenu.nom) } : {}),
       ...(this.site.langues ? { langues: this.site.langues } : {}),
-      ...(noeud.genre === 'audio' ? { audio: this.audioDe(noeud, env) } : {}),
+      ...(noeud.genre === 'audio' || noeud.genre === 'video' ? { audio: this.audioDe(noeud, env) } : {}),
       id: noeud.id,
     };
   }
@@ -1431,7 +1432,7 @@ ${prise}${code}}
     const fichier = texteLitteral(noeud.contenu);
     const { description, transcription } = noeud.textes ?? {};
     return {
-      source: fichier !== undefined && estFichierLocal(fichier) ? `audio/${nomDeLaCopie(fichier)}` : attribut(noeud.contenu),
+      source: fichier !== undefined && estFichierLocal(fichier) ? `${noeud.genre === 'video' ? 'video' : 'audio'}/${nomDeLaCopie(fichier)}` : attribut(noeud.contenu),
       ...(description ? { description: attribut(description) } : {}),
       ...(transcription ? { transcription: { js: contenuJs(transcription, this.contexte), initial: this.texteInitial(transcription, env) } } : {}),
     };
@@ -1686,7 +1687,8 @@ ${prise}${code}}
         return `<p${commun()}>${contenu}</p>`;
       case 'bouton': {
         const envoie = this.formulaireDe.has(noeud.id) && !this.evenements.has(noeud.id);
-        return `<button${commun([['type', envoie ? 'submit' : 'button'], ...(seuleHtml !== undefined ? ([['aria-label', seuleHtml]] as [string, string][]) : [])])}>${contenu}</button>`;
+        const desactiveHtml = noeud.desactive === true || (noeud.desactive && env && verifier(noeud.desactive, env, new Map()));
+        return `<button${commun([['type', envoie ? 'submit' : 'button'], ...(seuleHtml !== undefined ? ([['aria-label', seuleHtml]] as [string, string][]) : []), ...(desactiveHtml ? ([['disabled', '']] as [string, string][]) : [])])}>${contenu}</button>`;
       }
       case 'lien': {
         // Les mêmes valeurs que le script, calculées à la compilation.

@@ -154,6 +154,26 @@ export function arbreWidget(genre: GenreWidget, a: AideWidget): Enfant {
         ...langues.map((l, i) => n('option', [['value', l.code], ['lang', l.code], ['selected', { js: `langue() === '${l.code}'`, initial: i === 0 }]], { texte: l.nom })),
       );
     }
+    case 'video': {
+      // Jamais de lecture automatique ; seules les premières images sont chargées d'avance.
+      const film = a.audio!;
+      const lecteur = n('video', [
+        ['controls', true],
+        ['preload', 'metadata'],
+        ['playsinline', true],
+        ['src', film.source],
+        ...(film.description !== undefined ? ([['aria-label', film.description]] as [string, Attr][]) : []),
+        ...(a.reglages.boucle ? ([['loop', true]] as [string, Attr][]) : []),
+        ...(film.transcription ? [] : ([['class', cls('humalis-video', a.classes)]] as [string, Attr][])),
+      ]);
+      if (!film.transcription) return lecteur;
+      return n(
+        'figure',
+        [['class', cls('humalis-video', a.classes)]],
+        lecteur,
+        n('details', [['class', 'humalis-audio-transcription']], n('summary', [], { texte: 'Lire la transcription' }), n('p', [], film.transcription)),
+      );
+    }
     case 'audio': {
       // Jamais de lecture automatique ; rien n'est téléchargé avant que la personne lance le son.
       const son = a.audio!;

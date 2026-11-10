@@ -68,3 +68,66 @@ describe('le bouton à icône seule', () => {
     expect(r.diagnostics.map((d) => d.message).join(' ')).toContain('a besoin d\'un nom');
   });
 });
+
+describe('« avec desactive »', () => {
+  const source = programme('page "accueil" :', '>variable panier = []', '>titre "Essai"', '>bouton "Payer" avec desactive si panier est vide et couleur bleu', '>bouton "Bientôt" avec desactive');
+  it('suit sa condition sur le web, et se voit', () => {
+    const fichiers = web(source);
+    const page = fichiers.get('src/pages/Accueil.tsx')!;
+    expect(page).toContain('className="humalis-couleur-bleu" disabled={(panier?.length ?? 0) === 0}>Payer</button>');
+    expect(page).toContain('disabled={true}>Bientôt</button>');
+    expect([...fichiers.values()].join('\n')).toContain('button:disabled { opacity: 0.5; cursor: not-allowed; }');
+  });
+  it('devient .disabled sur Apple', () => {
+    const page = pageApple(source);
+    expect(page).toContain('.disabled(panier.isEmpty)');
+    expect(page).toContain('.disabled(true)');
+  });
+  it('ne vaut que pour un bouton', () => {
+    const r = compiler(programme('page "accueil" :', '>titre "a" avec desactive'));
+    expect(r.diagnostics.map((d) => d.message).join(' ')).toContain('s\'applique à un bouton');
+  });
+});
+
+describe('« video »', () => {
+  const source = programme('page "accueil" :', '>titre "Essai"', '>video "https://exemple.test/clip.mp4" avec commandes et description "Présentation" et boucle');
+  it('devient un lecteur avec ses commandes, jamais lancé seul', () => {
+    const page = pageWeb(source);
+    expect(page).toContain('<video controls preload="metadata" playsInline src="https://exemple.test/clip.mp4" aria-label="Présentation" loop className="humalis-video" />');
+    expect(page).not.toContain('autoPlay');
+  });
+  it('devient VideoHumalis sur Apple', () => {
+    expect(pageApple(source)).toContain('VideoHumalis(source: .adresse("https://exemple.test/clip.mp4"), description: "Présentation", transcription: nil, boucle: true)');
+  });
+  it('demande « avec commandes » et une description', () => {
+    const r = compiler(programme('page "accueil" :', '>titre "a"', '>video "https://exemple.test/clip.mp4"'));
+    const messages = r.diagnostics.map((d) => d.message).join(' ');
+    expect(messages).toContain('ajoutez « avec commandes »');
+    expect(messages).toContain('décrivez la vidéo');
+  });
+  it('refuse un format que les navigateurs ne jouent pas', () => {
+    const r = compiler(programme('page "accueil" :', '>titre "a"', '>video "film.avi" avec commandes et description "x"'));
+    expect(r.diagnostics.map((d) => d.message).join(' ')).toContain('n’est pas une vidéo');
+  });
+});
+
+describe('« jeton secret depuis l’environnement »', () => {
+  const source = programme(
+    'serveur "s" :', '>donnee note :', '>>texte : texte', '>route "notes" :', '>>tout le monde peut lire note',
+    'source "meteo" :', '>adresse "https://api.meteo.example"', '>jeton secret depuis l\'environnement "METEO_CLE" dans le parametre "key"',
+    '>route "previsions" :', '>>tout le monde peut lire une liste de prevision dans "jours"', '>>seul admin peut supprimer prevision',
+    '>donnee prevision :', '>>jour : texte',
+    'page "accueil" :', '>variable previsions = []', '>titre "Météo"', '>quand la page se charge :', '>>envoyer requete vers "previsions" de la source "meteo" dans previsions',
+  );
+  it('fait passer les pages par la passerelle du serveur, avec les droits de chaque route', async () => {
+    const { genererProjetServeur } = await import('../src/cibles/serveur/projet.js');
+    const app = sansErreur(source);
+    const serveur = [...genererProjetServeur(app.serveurs[0], { nom: 's' } as never).entries()];
+    const code = serveur.find(([k]) => k.endsWith('serveur.ts'))![1];
+    expect(code).toContain('passerelleMeteo.get("/previsions", lecturePrivee, ...acces.toutLeMonde, relaisMeteo);');
+    expect(code).toContain('passerelleMeteo.delete("/previsions/:id", ...acces.seulAdmin, csrfMiddleware, relaisMeteo);');
+    expect(code).toContain('passerelleMeteo.post("/previsions", refuse, csrfMiddleware, relaisMeteo);');
+    expect(code).toContain('app.use("/api/passerelle/meteo", passerelleMeteo);');
+    expect(serveur.find(([k]) => k.endsWith('.env.exemple'))![1]).toContain('METEO_CLE=\n');
+  });
+});

@@ -31,7 +31,7 @@ import type { LitteralChaine, OperandeRegle, RegleChamp, Route } from '../parser
 import { texteSource } from '../parser/langues.js';
 import { langueDuMot } from '../i18n/langues.js';
 import { espacerLesTextes } from './typographie.js';
-import type { TexteEnLangues, PartiesTexte, Reglages, GenreWidget, DispositionRI, ThemeRI, ServeurRI, OperandeRI, SourceRI, Option, Etat, Application, Ecran, NoeudVue, Gestionnaire, Action, Valeur, Test, Saisie, MorceauEmail, EnvoiEmailRI, RegleChampRI } from './types.js';
+import type { TexteEnLangues, PartiesTexte, Reglages, GenreWidget, DispositionRI, ThemeRI, ServeurRI, OperandeRI, SourceRI, PasserelleRI, QuiPeut, Option, Etat, Application, Ecran, NoeudVue, Gestionnaire, Action, Valeur, Test, Saisie, MorceauEmail, EnvoiEmailRI, RegleChampRI } from './types.js';
 import { lireTouches, millisecondesDe } from '../analyse/interactions.js';
 import { MILLISECONDES } from '../parser/interactions.js';
 
@@ -79,7 +79,12 @@ export function construireRepresentation(
     css: programme.styles.map((b) => b.css),
     fichiersStyle: programme.fichiersStyle.map((f) => ({ chemin: f.chemin, ligne: f.ligne, ...(f.plateforme ? { plateforme: f.plateforme } : {}) })),
     partages: programme.partages.map((d) => etatDe(d, analyse)),
-    serveurs: programme.serveurs.map((serveur) => serveurRI(serveur, analyse)),
+    // Une source à jeton secret passe par le premier serveur du programme : lui seul lit le secret.
+    serveurs: programme.serveurs.map((serveur, i) => {
+      const ri = serveurRI(serveur, analyse);
+      const passerelles = i === 0 ? programme.sources.flatMap(passerelleDe) : [];
+      return passerelles.length ? { ...ri, passerelles } : ri;
+    }),
     sources: programme.sources.map(sourceRI),
     ...(programme.theme ? { theme: themeRI(programme.theme) } : {}),
     ...(analyse.langues.langues.length > 1 ? { langues: analyse.langues.langues.map((l) => ({ code: l.code, nom: l.nomPropre })) } : {}),
@@ -147,13 +152,31 @@ function sourceRI(source: Source): SourceRI {
     enveloppe: source.enveloppe ?? (source.session ? 'data' : undefined),
     erreurDans: source.erreurDans ?? (source.session ? 'message' : undefined),
     entetes: source.entetes.map((e) => ({ nom: e.nom, valeur: e.valeur })),
-    // Un jeton secret n'entre jamais ici : l'analyse le refuse tant que la passerelle n'existe pas.
+    // Un jeton secret n'entre jamais ici : les pages appellent la passerelle du serveur.
+    ...(source.jeton?.genre === 'secret' ? { passerelle: true } : {}),
     jetonPublic: source.jeton?.genre === 'public' ? { valeur: source.jeton.valeur, place: source.jeton.place } : undefined,
     cache: source.cache,
     essais: source.essais,
     delai: source.delai,
     donnees: source.donnees.map((d) => ({ nom: d.cle ?? d.nom, champs: d.champs.map((c) => ({ nom: c.nom, type: c.type })) })),
   };
+}
+
+/** La passerelle d'une source à jeton secret : ses routes, et qui peut faire quoi par le serveur. */
+function passerelleDe(source: Source): PasserelleRI[] {
+  if (source.jeton?.genre !== 'secret') return [];
+  return [{
+    source: source.nom,
+    adresse: source.adresse ?? '',
+    variable: source.jeton.valeur,
+    place: source.jeton.place,
+    entetes: source.entetes.map((e) => ({ nom: e.nom, valeur: e.valeur })),
+    routes: source.routes.map((route) => {
+      const droits: Record<'lire' | 'creer' | 'modifier' | 'supprimer', QuiPeut | null> = { lire: null, creer: null, modifier: null, supprimer: null };
+      for (const r of route.regles) if (r.qui !== undefined) droits[r.action] = r.qui as QuiPeut;
+      return { adresse: route.adresse, droits, remplacement: route.regles.some((r) => r.action === 'modifier' && r.remplacement) };
+    }),
+  }];
 }
 
 function dispositionRI(disposition: NonNullable<Programme['entete']>, analyse: ResultatAnalyse): DispositionRI {
@@ -303,9 +326,9 @@ function etatDe(declaration: DeclarationVariable, analyse: ResultatAnalyse): Eta
 }
 
 /** Les éléments d'écran d'une ligne. */
-const WIDGETS = new Set(['icone', 'badge', 'avatar', 'progression', 'chargement', 'etoiles', 'compteur', 'qr', 'signature', 'fichier', 'audio', 'selecteurLangue']);
+const WIDGETS = new Set(['icone', 'badge', 'avatar', 'progression', 'chargement', 'etoiles', 'compteur', 'qr', 'signature', 'fichier', 'audio', 'video', 'selecteurLangue']);
 /** Les options qui ne sont pas des styles (elles ne font pas de classe CSS). */
-const REGLAGES = new Set(['icone', 'seule', 'description', 'decoratif', 'photo', 'modifiable', 'ouvert', 'plusieurs', 'pourcentage', 'automatique', 'visibles', 'transcription', 'boucle']);
+const REGLAGES = new Set(['icone', 'seule', 'commandes', 'description', 'decoratif', 'photo', 'modifiable', 'ouvert', 'plusieurs', 'pourcentage', 'automatique', 'visibles', 'transcription', 'boucle']);
 
 class Construction {
   /** Les états cachés des onglets et des blocs dépliables, ajoutés à l'état de l'écran. */
@@ -560,7 +583,7 @@ class Construction {
         ...(element.minimum !== undefined ? { minimum: element.minimum } : {}),
         ...(element.maximum !== undefined ? { maximum: element.maximum } : {}),
         ...(element.fichier ? { fichier: choixFichierDe(element.fichier) } : {}),
-        ...(element.element === 'audio' ? { textes: this.textesAudio(element) } : {}),
+        ...(element.element === 'audio' || element.element === 'video' ? { textes: this.textesAudio(element) } : {}),
         ligne: element.ligne,
       };
     }
@@ -582,6 +605,7 @@ class Construction {
       ...(image ? { image } : {}),
       ...(element.raccourci !== undefined ? { raccourci: touchesDe(element.raccourci) } : {}),
       ...(element.annonce ? { annonce: true } : {}),
+      ...(element.desactive ? { desactive: element.desactive === true ? true : testDe(element.desactive, this.analyse) } : {}),
       ligne: element.ligne,
     };
   }

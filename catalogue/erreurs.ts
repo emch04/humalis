@@ -291,7 +291,7 @@ page "accueil" :
 `),
     'instruction inconnue'),
   e('mot-prevu', 'grammaire', 'Un mot prévu, pas encore disponible',
-    'Le mot fait partie du vocabulaire prévu de Humalis (sa fiche est dans la page du vocabulaire), mais le compilateur ne le comprend pas encore. C’est le cas de « non », réservé pour la négation.',
+    'Le mot fait partie du vocabulaire prévu de Humalis (sa fiche est dans la page du vocabulaire), mais le compilateur ne le comprend pas encore. Aujourd’hui, tous les mots prévus sont disponibles.',
     'En attendant, utilise un mot déjà disponible : ici, un texte.',
     p(`
 page "accueil" :
@@ -303,7 +303,7 @@ page "accueil" :
     titre "Accueil"
 `),
     'n’est pas encore disponible',
-    { sites: 2 }),
+    { sites: 2, atteignable: false }),
   e('propriete-attendue', 'grammaire', 'Une option sans nom après « avec »',
     'Après « avec », Humalis attend le nom d’une option (couleur, taille, nom…), puis sa valeur. Ici, il trouve un texte entre guillemets à la place du nom.',
     'Écris le nom de l’option sans guillemets, puis sa valeur : avec couleur bleu.',
@@ -316,6 +316,19 @@ page "accueil" :
     titre "Bienvenue" avec couleur bleu
 `),
     'un nom de propriété de style est attendu'),
+  e('desactive-hors-bouton', 'sens', '« desactive » ailleurs que sur un bouton',
+    '« avec desactive » montre un bouton qu’on ne peut pas encore cliquer. Les autres éléments ne se cliquent pas : l’option n’a pas de sens pour eux.',
+    'Retire « desactive », ou mets-le sur le bouton concerné.',
+    p(`
+page "accueil" :
+    titre "Bienvenue" avec desactive
+`),
+    p(`
+page "accueil" :
+    titre "Bienvenue"
+    bouton "Payer" avec desactive
+`),
+    's\'applique à un bouton'),
   e('bouton-icone-sans-nom', 'grammaire', 'Un bouton à icône seule sans nom',
     'Un bouton qui ne montre qu\'une icône a besoin d\'un nom : c\'est ce que lit le lecteur d\'écran, et ce que vise « quand l\'utilisateur clique sur ».',
     'Ajoute le nom : bouton icone "fermer" avec nom "Fermer la fenêtre".',
@@ -3396,8 +3409,8 @@ page "accueil" :
 `),
     'ressemble à un secret', { sites: 2 }),
   e('source-secret-sans-serveur', 'sens', 'Un jeton secret sans serveur pour le garder',
-    'Un secret ne peut pas partir dans le navigateur : l’appel doit passer par un serveur qui connaît le secret. Sans bloc serveur, Humalis refuse. Et la passerelle du serveur n’est pas encore écrite : tant qu’elle manque, un jeton secret est refusé même avec un serveur, plutôt que d’être mal traité.',
-    'Pour l’instant, utilise un jeton public, ou appelle l’API depuis ton propre serveur.',
+    'Un secret ne peut pas partir dans le navigateur : l’appel doit passer par un serveur qui connaît le secret. Sans bloc serveur, Humalis refuse. Avec un serveur, les pages passent par sa passerelle : il ajoute le secret et appelle l’API à leur place.',
+    'Ajoute un bloc serveur "…" au projet, ou utilise un jeton public si l’API le permet.',
     p(`
 source "boutique" :
     adresse "https://api.exemple.cd"
@@ -3414,7 +3427,7 @@ source "boutique" :
 page "accueil" :
     texte "Bonjour"
 `),
-    'ne peut pas partir dans le navigateur', { sites: 3 }),
+    'ne peut pas partir dans le navigateur', { sites: 2 }),
   e('source-donnee-inconnue', 'sens', 'Une route qui parle d’une donnée absente',
     'Chaque route dit quelle donnée elle rend ; cette donnée doit être déclarée dans la même source, avec ses champs.',
     'Déclare la donnée (donnee produit : …) ou corrige son nom.',

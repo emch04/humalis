@@ -141,6 +141,8 @@ export interface ElementProduit {
   ancre?: string;
   /** « bouton icone "…" avec nom "…" » : le nom lu par le lecteur d'écran, l'icône seule à l'écran. */
   etiquette?: string;
+  /** « avec desactive [si …] » : la condition, en code (`true` : toujours). */
+  desactive?: string;
   /** Les filtres de la page visée : un lien n'est « actif » que si ces filtres sont ceux de l'adresse courante. */
   filtresCible?: string[];
   /** La source d'une image : une chaîne JSX (`"logo.png"`) ou une expression (`{url}`), et son texte de remplacement. */
@@ -290,7 +292,7 @@ export const RENDU_WEB: Rendu = {
         return `<p ${a}${el.decoratif ? ' aria-hidden="true"' : ''}>${el.contenu}</p>`;
       case 'bouton':
         // Le bouton d'un formulaire l'envoie (Entrée aussi) ; un bouton qui a son propre clic garde son clic.
-        return `<button type="${el.envoie ? 'submit' : 'button'}" ${a}>${el.contenu}</button>`;
+        return `<button type="${el.envoie ? 'submit' : 'button'}" ${a}${el.desactive !== undefined ? ` disabled={${el.desactive}}` : ''}>${el.contenu}</button>`;
       case 'lien': {
         if (el.externe !== undefined) {
           return `<a href=${el.externeExpression ? `{${el.externeExpression}}` : JSON.stringify(el.externe)}${el.nouvelOnglet ? ' target="_blank" rel="noopener noreferrer"' : ''} ${a}>${el.contenu}</a>`;
@@ -2063,7 +2065,7 @@ class GenerateurEcran {
       ...(noeud.maximum !== undefined ? { maximum: noeud.maximum } : {}),
       ...(variable ? { variable } : {}),
       ...(noeud.fichier ? { fichier: noeud.fichier } : {}),
-      ...(noeud.genre === 'audio' ? { audio: this.audio(noeud) } : {}),
+      ...(noeud.genre === 'audio' || noeud.genre === 'video' ? { audio: this.audio(noeud) } : {}),
     };
   }
 
@@ -2112,7 +2114,8 @@ class GenerateurEcran {
       return /["\\{}\n<>]/.test(texte) ? `{${chaine(texte)}}` : `"${texte}"`;
     };
     const fichier = texteLitteral(noeud.contenu);
-    const source = fichier !== undefined && estFichierLocal(fichier) ? `"/audio/${fichier}"` : attribut(noeud.contenu);
+    // Un son va dans /audio/, une vidéo dans /video/.
+    const source = fichier !== undefined && estFichierLocal(fichier) ? `"/${noeud.genre === 'video' ? 'video' : 'audio'}/${fichier}"` : attribut(noeud.contenu);
     const { description, transcription } = noeud.textes ?? {};
     return {
       source,
@@ -2292,6 +2295,7 @@ class GenerateurEcran {
       ...(noeud.nouvelOnglet ? { nouvelOnglet: true } : {}),
       ...(noeud.ancre !== undefined ? { ancre: noeud.ancre } : {}),
       ...(noeud.reglages?.seule && source !== undefined ? { etiquette: source } : {}),
+      ...(noeud.desactive ? { desactive: noeud.desactive === true ? 'true' : condition(noeud.desactive, this.contexte) } : {}),
       ...(noeud.cible !== undefined ? { filtresCible: (this.application.filtres?.get(noeud.cible) ?? []).map((f) => f.nom) } : {}),
       source: {
         jsx: source !== undefined ? JSON.stringify(source) : `{${expression(noeud.contenu, this.contexte)}}`,

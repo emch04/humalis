@@ -97,6 +97,25 @@ const NOMS_DE_PAROLE = /entretien|interview|discours|podcast/i;
  * jamais de lecture automatique, un fichier d'un format connu. Une transcription
  * est conseillée pour la parole.
  */
+export const EXTENSIONS_VIDEO = ['mp4', 'webm', 'mov', 'm4v'];
+
+/** Une vidéo : une description, « avec commandes » (jamais de lecture seule), un format lisible. */
+export function verifierVideo(element: Element, s: Signaler): void {
+  const { styles, ligne } = element;
+  const description = reglage(styles, 'description');
+  if (!description) s.erreur('décrivez la vidéo pour les personnes qui ne la voient pas : « video "film.mp4" avec commandes et description "Présentation de la boutique" ».', ligne);
+  if (!reglage(styles, 'commandes')) s.erreur('une vidéo a besoin de ses boutons, lecture et pause : ajoutez « avec commandes ». Humalis ne lance jamais une vidéo toute seule.', ligne);
+  for (const nom of ['description', 'transcription']) {
+    const texte = reglage(styles, nom);
+    if (texte?.parties?.some((p) => p.type === 'variable')) s.typeDe(texte.texte ?? { type: 'Chaine', parties: texte.parties, ligne });
+  }
+  const fichier = texteSimple(element.contenu);
+  if (fichier !== undefined && !/^([a-z][a-z0-9+.-]*:|\/)/i.test(fichier.trim())) {
+    const extension = /\.([a-z0-9]+)$/i.exec(fichier)?.[1]?.toLowerCase();
+    if (!extension || !EXTENSIONS_VIDEO.includes(extension)) s.erreur(`« ${fichier} » n’est pas une vidéo que les navigateurs savent jouer. Formats possibles : ${EXTENSIONS_VIDEO.map((e) => `.${e}`).join(', ')}.`, ligne);
+  }
+}
+
 export function verifierAudio(element: Element, s: Signaler): void {
   const { styles, ligne } = element;
   const description = reglage(styles, 'description');

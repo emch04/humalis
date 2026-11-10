@@ -1055,6 +1055,7 @@ export type NomElement =
   // Les médias (plan 2026-10-30-graphiques-medias)
   | 'fichier'
   | 'audio'
+  | 'video'
   | 'marqueur'
   /** « selecteur de langue » : le choix de la langue (partie 1 du plan qualité). */
   | 'selecteurLangue'
@@ -1212,6 +1213,8 @@ export interface Element {
   raccourci?: string;
   /** « avec annonce » : un lecteur d'écran lit ce texte quand il change. */
   annonce?: boolean;
+  /** « avec desactive » (toujours) ou « avec desactive si panier est vide » : on voit le bouton, on ne peut pas cliquer. */
+  desactive?: Test | true;
   /** « fichier "Choisir" dans photo accepte images avec maximum 5 Mo » : le choix d'un fichier. */
   fichier?: ChoixFichier;
   /** « marqueur "Gombe" avec latitude … et longitude … » : où il est. */

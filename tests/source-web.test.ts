@@ -44,11 +44,12 @@ describe('sources — cible web', () => {
     expect(sources).toContain('"genre":"entete","nom":"X-Cle"');
   });
 
-  it('un jeton secret ne produit rien : le programme est refusé et la valeur n\'est écrite nulle part', () => {
+  it('un jeton secret passe par la passerelle du serveur, et n\'est écrit nulle part côté pages', () => {
     const source = 'serveur "s" :\n    donnee d :\n        n : texte\n    route "d" :\n        tout le monde peut lire d\nsource "meteo" :\n    adresse "https://api.meteo.example"\n    jeton secret depuis l\'environnement "METEO_CLE"\n    route "previsions" :\n        tout le monde peut lire une liste de prevision dans "jours"\n    donnee prevision :\n        jour : texte\npage "a" :\n    texte "x"';
-    const resultat = compiler(source);
-    expect(resultat.application).toBeUndefined();
-    expect(resultat.diagnostics.map((d) => d.message).join('\n')).toMatch(/passerelle n'est pas encore disponible/);
+    const fichiers = web(source);
+    const tout = [...fichiers.values()].join('\n');
+    expect(fichiers.get('src/humalis/sources.ts')).toContain("'/api/passerelle/meteo'");
+    expect(tout).not.toContain('METEO_CLE');
   });
 });
 

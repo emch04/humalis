@@ -100,12 +100,6 @@ export function analyserSources(sources: Source[], serveurs: Serveur[], diagnost
           `la source « ${source.nom} » a un jeton secret, qui ne peut pas partir dans le navigateur. Ajoutez un bloc serveur "…" : il fera l'appel à la place du navigateur.`,
           jeton.ligne,
         );
-      } else {
-        // La passerelle du serveur produit n'est pas encore écrite : on ne laisse pas croire qu'elle l'est.
-        erreur(
-          `le jeton secret de la source « ${source.nom} » passera par le serveur, mais cette passerelle n'est pas encore disponible. Le secret n'est écrit nulle part : rien n'est produit.`,
-          jeton.ligne,
-        );
       }
     }
 

@@ -338,6 +338,7 @@ document.title = ${traduit('Page introuvable')};
   }
   for (const [c, contenu] of copiesDesMedias(options.medias, 'public/images/')) fichiers.set(c, contenu);
   for (const [c, contenu] of copiesDesMedias(options.medias, 'public/audio/', 'audio')) fichiers.set(c, contenu);
+  for (const [c, contenu] of copiesDesMedias(options.medias, 'public/video/', 'video')) fichiers.set(c, contenu);
 
   if (application.serveurs.some((x) => x.connexionGoogle)) fichiers.set('public/auth-google.html', PAGE_RETOUR_GOOGLE);
   const dynamiques = routes.filter((r) => r.chemin.includes(':'));

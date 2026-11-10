@@ -202,8 +202,9 @@ describe('la table remplace la liste du lexer, sans rien casser', () => {
   });
 
   it('retrouve un mot prévu, mais pas un mot pris en charge', () => {
-    expect(entreePrevue('video')?.statut).toBe('prevu');
-    expect(entreePrevue('Vidéo')?.mot).toBe('video');
+    // Depuis le 10 novembre, plus aucun mot n'est seulement prévu.
+    expect(entreePrevue('video')).toBeUndefined();
+    expect(entreePrevue('environnement')).toBeUndefined();
     expect(entreePrevue('titre')).toBeUndefined();
   });
 });
