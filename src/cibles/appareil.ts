@@ -13,10 +13,10 @@ const CONSTRUCTIONS: { motif: RegExp; nom: string; android?: true }[] = [
   { motif: /"type":"verificationIdentite"/, android: true, nom: '« verifier identite »' },
   { motif: /"type":"vibration"/, android: true, nom: '« vibrer »' },
   { motif: /"genre":"signature"/, android: true, nom: '« signature dans … »' },
-  { motif: /"horsLigne":true/, nom: '« avec hors ligne »' },
+  { motif: /"horsLigne":true/, android: true, nom: '« avec hors ligne »' },
   { motif: /"type":"localisation"/, android: true, nom: '« position dans … »' },
-  { motif: /"enAttente":true/, nom: '« … hors ligne » sur un envoi' },
-  { motif: /"declencheur":"arrierePlan"/, nom: '« en arriere plan : »' },
+  { motif: /"enAttente":true/, android: true, nom: '« … hors ligne » sur un envoi' },
+  { motif: /"declencheur":"arrierePlan"/, android: true, nom: '« en arriere plan : »' },
   { motif: /"declencheur":"commandeMenu"/, nom: '« menu de l’application »' },
 ];
 

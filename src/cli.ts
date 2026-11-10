@@ -162,7 +162,7 @@ function compile(arguments_: string[]): number | Promise<number> {
   if (programme.includes('"animation":true') && cible !== 'web' && cible !== 'serveur' && cible !== 'apple') {
     console.error('Avertissement : « avec animation » n\'a d\'effet que sur le web : ici, les lignes changent sans glisser.');
   }
-  if (programme.includes('"direct":true') && cible !== 'web' && cible !== 'serveur' && cible !== 'apple') {
+  if (programme.includes('"direct":true') && cible !== 'web' && cible !== 'serveur' && cible !== 'apple' && cible !== 'android') {
     console.error('Avertissement : « en direct » n\'a d\'effet que sur le web : ici, la liste est lue une fois.');
   }
 

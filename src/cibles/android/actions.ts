@@ -398,18 +398,24 @@ export class EcrivainActions {
   private requete(e: EcrivainKotlin, a: Extract<Action, { type: 'requete' }>, c: Cadre): void {
     const resultat = a.resultat !== undefined ? this.variable(a.resultat) : undefined;
     if (a.resultat !== undefined && !resultat) return this.hote.refuser(`« dans ${a.resultat} » : cette variable est inconnue ici`);
-    if (a.enAttente) return this.hote.refuser('« … hors ligne » sur un envoi');
     const suivie = a.resultat !== undefined && this.v.portee.etatsRequetes.has(a.resultat);
     const options: string[] = [];
     if (a.mode === 'envoyer') options.push(`envoi = ${this.donnees(a.donnees, a.cles, a.source === undefined)}`);
     if (a.mode === 'lireUn') options.push(`id = identifiant(${this.v.x(a.donnees[0])})`);
     if (a.source !== undefined) options.push(`source = Sources.${nomKotlin(a.source)}`);
+    if (a.resultat !== undefined && this.v.portee.horsLigne?.has(a.resultat)) options.push('horsLigne = true');
     if (a.filtrant?.length) options.push(`filtres = listOf(${a.filtrant.map((f) => `${chaineKotlin(f.cle)} to ${this.v.t(f.valeur)}`).join(', ')})`);
     if (a.dans !== undefined) options.push(`dans = ${chaineKotlin(a.dans)}`);
     if (suivie) options.push(`suivi = { ${nomEtatRequete(a.resultat!)} = it }`);
     const fin = options.length ? `, ${options.join(', ')}` : '';
     const adresse = chaineKotlin(a.adresse);
 
+    // « … hors ligne » : sans réseau, l'envoi attend sur l'appareil et part quand la connexion revient.
+    if (!resultat && a.enAttente) {
+      const garde = `${adresse}, envoi = ${this.donnees(a.donnees, a.cles, a.source === undefined)}`;
+      e.ligne(c.essai ? `Serveur.appelOuGarder(${garde})` : `if (!Serveur.appelReussiOuGarder(${garde})) ${sortie(c)}`);
+      return;
+    }
     if (!resultat) {
       if (c.essai) e.ligne(`Serveur.appel(${adresse}${fin})`);
       else if (a.mode === 'envoyer') e.ligne(`if (!Serveur.appelReussi(${adresse}${fin})) ${sortie(c)}`);
@@ -423,6 +429,8 @@ export class EcrivainActions {
       e.bloc(`val charger${n}: suspend () -> Unit = {`, () => e.ligne(`${appel}?.let { ${resultat} = it }`));
       e.ligne(`relances[${chaineKotlin(a.resultat!)}] = charger${n}`);
       e.ligne(`charger${n}()`);
+      // « en direct » : tant que la page est ouverte, une annonce du serveur la fait relire.
+      if (a.direct && a.source === undefined) e.ligne(`portee.launch { ecouterDirect(${adresse}) { charger${n}() } }`);
       return;
     }
     if (c.essai) e.ligne(`${resultat} = ${appel}`);
@@ -430,7 +438,6 @@ export class EcrivainActions {
   }
 
   private ecriture(e: EcrivainKotlin, a: Extract<Action, { type: 'suppression' | 'modification' }>, c: Cadre): void {
-    if (a.enAttente) return this.hote.refuser('« … hors ligne » sur un envoi');
     const source = a.source !== undefined ? `, source = Sources.${nomKotlin(a.source)}` : '';
     const id = `identifiant(${this.v.x(a.objet)})`;
     const adresse = chaineKotlin(a.adresse);
@@ -439,6 +446,12 @@ export class EcrivainActions {
     else {
       const paires = a.changements.map((ch) => `${chaineKotlin(a.source === undefined ? cleJson(ch.champ) : ch.champ)} to ${this.v.x(ch.valeur)}`);
       options = `methode = ${a.remplacement ? '"PUT"' : '"PATCH"'}, envoi = fiche(${paires.join(', ')}), id = ${id}${source}`;
+    }
+    if (a.enAttente) {
+      // Gardé sur l'appareil sans réseau ; une API externe n'est pas concernée.
+      const appel = a.type === 'suppression' ? `${adresse}, "DELETE", null, ${id}` : `${adresse}, ${a.remplacement ? '"PUT"' : '"PATCH"'}, fiche(${a.changements.map((ch) => `${chaineKotlin(cleJson(ch.champ))} to ${this.v.x(ch.valeur)}`).join(', ')}), ${id}`;
+      e.ligne(c.essai ? `Serveur.appelOuGarder(${appel})` : `if (!Serveur.appelReussiOuGarder(${appel})) ${sortie(c)}`);
+      return;
     }
     if (c.essai) e.ligne(`Serveur.appel(${adresse}, ${options})`);
     else e.ligne(`if (!Serveur.appelReussi(${adresse}, ${options})) ${sortie(c)}`);

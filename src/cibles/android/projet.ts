@@ -14,6 +14,7 @@ import { cheminsDesPages } from '../web/projet.js';
 import { COULEURS_CSS } from '../web/styles.js';
 import { EcrivainActions } from './actions.js';
 import { APPLE_KT, GOOGLE_KT } from './comptes.js';
+import { DIRECT_KT, ENVOIS_KT, fondKotlin } from './temps-reel.js';
 import { CARTES_KT, GRAPHIQUES_KT, LECTEURS_KT, QR_KT } from './medias.js';
 import { APPAREIL_KT, CHEMINS_FICHIERS, FICHIERS_KT, SCANNER_KT, SYSTEME_KT } from './appareil.js';
 import { CssAndroid, type Portee as PorteeCss } from './css.js';
@@ -519,6 +520,7 @@ export function genererProjetAndroid(application: Application, options: OptionsA
     pages: new Map(application.ecrans.map((e) => [e.nom, { parametres: e.parametresAdresse ?? [], filtres: e.filtres ?? [] }])),
     route: (page, parametres, filtres) => routeKotlin(routes.get(page)!, parametres, filtres),
     partages,
+    partagesHorsLigne: new Set(application.partages.filter((p) => p.horsLigne).map((p) => p.nom)),
     fonctions,
     composants: new Map(application.composants.map((c) => [c.nom, c.parametres])),
     composantsReact: new Set(application.composantsReact.map((c) => c.nom)),
@@ -609,7 +611,7 @@ export function genererProjetAndroid(application: Application, options: OptionsA
     e.bloc('object Partage {', () => {
       for (const p of application.partages) {
         const depart = valeurs.x(p.initiale);
-        if (p.memorisee || p.secret) e.ligne(`var ${nomKotlin(p.nom)} by EtatMemorise(${chaineKotlin(`${app.cle}.${p.nom}`)}, ${depart}${p.secret ? ', secret = true' : ''})`);
+        if (p.memorisee || p.secret || p.horsLigne) e.ligne(`var ${nomKotlin(p.nom)} by EtatMemorise(${chaineKotlin(`${app.cle}.${p.nom}`)}, ${depart}${p.secret ? ', secret = true' : ''})`);
         else e.ligne(`var ${nomKotlin(p.nom)} by mutableStateOf<Any?>(${depart})`);
       }
     });
@@ -669,6 +671,30 @@ export function genererProjetAndroid(application: Application, options: OptionsA
   if (medias.lecteurs) ecrireCode('Lecteurs.kt', kotlin(paquet, LECTEURS_KT));
   if (medias.cartes) ecrireCode('Cartes.kt', kotlin(paquet, CARTES_KT));
   ecrireCode('Graphiques.kt', kotlin(paquet, GRAPHIQUES_KT));
+  // « en arriere plan : » : une tâche que WorkManager lance, avec les seules variables partagées.
+  const fonds = application.ecrans.flatMap((x) => x.gestionnaires.filter((g) => g.declencheur === 'arrierePlan'));
+  const avecEnvois = /\bappel(Reussi)?OuGarder\(/.test(codePages);
+  if (fonds.length > 0) {
+    const portee: Portee = { variables: new Map(partages), champs: new Map(), fonctions, etatsRequetes: new Set(), horsLigne: new Set(application.partages.filter((p) => p.horsLigne).map((p) => p.nom)) };
+    let ligne = fonds[0].ligne;
+    const precision = ' : « en arriere plan » ne voit que les variables partagées';
+    const valeurs = new Valeurs(portee, (quoi) => refuser(ligne, `${quoi}${precision}`));
+    const actions = new EcrivainActions({ valeurs, visibilite: () => '', texteChange: () => '', route: () => undefined, allerAncre: () => undefined, clesChamps: new Map(), refuser: (m) => refuser(ligne, `${m}${precision}`) });
+    const corps = new EcrivainKotlin();
+    for (const g of fonds) {
+      ligne = g.ligne;
+      corps.indenter(() => actions.ecrire(corps, g.actions));
+    }
+    const texte = corps.texte();
+    if (/\b(portee|relances|nav|confirmer)\b/.test(texte)) refuser(ligne, '« en arriere plan » : une minuterie, une lecture « en direct », une question ou un changement de page demandent une page ouverte');
+    ecrireCode('ArrierePlan.kt', fondKotlin(paquet, texte, avecEnvois || /\bappel(Reussi)?OuGarder\(/.test(texte)));
+  }
+  const avecGardes = avecEnvois || [...fichiers.values()].some((f) => /\bappel(Reussi)?OuGarder\(/.test(f));
+  if (avecGardes) ecrireCode('Envois.kt', kotlin(paquet, ENVOIS_KT));
+  if (/\becouterDirect\(/.test(codePages)) ecrireCode('Direct.kt', kotlin(paquet, DIRECT_KT));
+  // L'activité démarre les envois gardés et planifie la tâche d'arrière-plan.
+  const activite = `${dossierCode}/MainActivity.kt`;
+  fichiers.set(activite, fichiers.get(activite)!.replace('        setContent { ApplicationHumalis() }', `${avecGardes ? '        EnvoisGardes.demarrer()\n' : ''}${fonds.length ? '        ArrierePlan.planifier(applicationContext)\n' : ''}        setContent { ApplicationHumalis() }`));
   const connexions = { google: /\bseConnecterAvecGoogle\(/.test(codePages), apple: /\bseConnecterAvecApple\(/.test(codePages) };
   if (connexions.google) {
     ecrireCode('ConnexionGoogle.kt', kotlin(paquet, GOOGLE_KT));
@@ -705,7 +731,7 @@ export function genererProjetAndroid(application: Application, options: OptionsA
   fichiers.set('build.gradle.kts', CONSTRUCTION_RACINE);
   fichiers.set('gradle.properties', PROPRIETES_GRADLE);
   fichiers.set('gradle/wrapper/gradle-wrapper.properties', ENVELOPPE_GRADLE);
-  fichiers.set('app/build.gradle.kts', constructionApp(identifiant, nomAffiche, { appareil: avecAppareil, scanner: besoins.scanner, ...medias, ...connexions }));
+  fichiers.set('app/build.gradle.kts', constructionApp(identifiant, nomAffiche, { appareil: avecAppareil, scanner: besoins.scanner, ...medias, ...connexions, travail: fonds.length > 0 }));
   fichiers.set('app/src/main/AndroidManifest.xml', manifeste(true, application.liensProfonds, besoins));
   if (besoins.fichiers) fichiers.set('app/src/main/res/xml/chemins_fichiers.xml', CHEMINS_FICHIERS);
   const domaine = application.liensProfonds?.domaine;

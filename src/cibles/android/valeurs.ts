@@ -17,6 +17,8 @@ export interface Portee {
   fonctions: Set<string>;
   /** Les variables dont la page suit l'état de requête. */
   etatsRequetes: Set<string>;
+  /** Les variables « avec hors ligne » : sans réseau, elles gardent leur dernière réponse, sans message. */
+  horsLigne?: Set<string>;
 }
 
 export const nomEtatRequete = (variable: string): string => `etat${nomKotlin(variable).replace(/^./, (c) => c.toUpperCase())}`;
