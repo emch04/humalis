@@ -199,8 +199,9 @@ export function creerCoeur(o) {
   }
 
   async function envoyer() {
+    let taille = LOT;
     while (file.size > 0) {
-      const lot = [...file.values()].slice(0, LOT);
+      const lot = [...file.values()].slice(0, taille);
       for (const entree of lot) enVol.add(entree.id);
       let reponse;
       try {
@@ -212,6 +213,21 @@ export function creerCoeur(o) {
         for (const entree of lot) enVol.delete(entree.id);
       }
       if (reponse.statut === 401 || reponse.statut === 403) return false;
+      if (reponse.statut === 413) {
+        // Trop lourd : on coupe le lot en deux. Une fiche seule trop lourde ne bloque pas les suivantes.
+        if (lot.length > 1) {
+          taille = Math.ceil(lot.length / 2);
+          continue;
+        }
+        const ecritures = vide();
+        file.delete(lot[0].id);
+        ecritures.envoyees.push(lot[0].id);
+        const retiree = lot[0].creation && oublier(lot[0].id, ecritures);
+        await enOrdre(() => base.appliquer(ecritures));
+        if (retiree) publier();
+        o.signaler?.('Cette fiche est trop lourde pour être envoyée au serveur.');
+        continue;
+      }
       if (!reponse.ok) throw new Error('envoi refusé (' + reponse.statut + ')');
       const ecritures = vide();
       let change = false;

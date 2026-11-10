@@ -303,6 +303,12 @@ export function creerMagasinSecuritePostgres(pool: PoolPostgres): MagasinSecurit
   };
 }
 
+/** Un compte retiré : s'il est invité de nouveau, il repart sans ses anciennes clés ni son ancien secret. */
+export async function oublierCompte(magasin: MagasinSecurite, compte: string): Promise<void> {
+  await magasin.double.retirer(compte);
+  for (const cle of await magasin.cles.getCredentialsForUser(compte)) await magasin.cles.retirer(compte, String(cle.credentialID ?? cle.id));
+}
+
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 export function enBase32(octets: Buffer): string {
   let bits = 0, valeur = 0, texte = '';

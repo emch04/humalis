@@ -55,7 +55,7 @@ function leServeur() {
       else res.status(404).json({ erreur: 'introuvable' });
     },
   };
-  return { horloge, journal, stockage, synchro, routeur, panne: { apresEnvoi: false } };
+  return { horloge, journal, stockage, synchro, routeur, panne: { apresEnvoi: false }, limite: Infinity };
 }
 
 /** Un appareil : sa base (en mémoire ici), son horloge, son réseau. */
@@ -80,6 +80,7 @@ async function unAppareil(s: ReturnType<typeof leServeur>, decalage = 0) {
     },
     envoyer: async (_chemin: string, corps: unknown) => {
       if (!appareil.enLigne) throw new TypeError('hors ligne');
+      if (JSON.stringify(corps).length > s.limite) return { ok: false, statut: 413, corps: null };
       const req = { body: structuredClone(corps), headers: {}, baseUrl: '/api/notes', user: { id: 'awa' } };
       const reponse = await s.synchro.envoyer('note', s.stockage, s.routeur, req);
       if (s.panne.apresEnvoi) {
@@ -257,6 +258,18 @@ describe('la synchronisation de bout en bout', () => {
     await a.synchroniser();
     await b.synchroniser();
     expect(b.liste).toHaveLength(1200);
+  });
+
+  it('un lot trop lourd est coupé en deux ; une fiche seule trop lourde ne bloque pas les autres', async () => {
+    const s = leServeur();
+    const a = await unAppareil(s);
+    await a.changer([{ titre: 'Légère', lu: false }, { titre: 'x'.repeat(5000), lu: false }, { titre: 'Autre', lu: false }]);
+    s.limite = 3000;
+    await a.synchroniser();
+    expect((await s.stockage.lister()).map((f: Fiche) => f.titre).sort()).toEqual(['Autre', 'Légère']);
+    expect(a.titres().sort()).toEqual(['Autre', 'Légère']);
+    expect(a.memoire.file.size).toBe(0);
+    expect(a.messages.join()).toContain('trop lourde');
   });
 
   it('un lot mal formé est refusé', async () => {

@@ -98,6 +98,16 @@ describe('les formes d’application spéciales', () => {
     expect(erreurs(`donnee locale notes :\n    titre : texte\n    synchronisee avec "notes"\n${P}`)[0]).toContain("n'existe pas dans le serveur");
   });
 
+  it('une donnée synchronisée doit convenir à sa route', () => {
+    const P = 'page "a" :\n    titre "A"\n';
+    const S = 'serveur "s" :\n    donnee note :\n        titre : texte\n        lu : booleen\n    route "notes" :\n        connecte peut lire note\n';
+    const locale = (champs: string) => `donnee locale notes :\n${champs}    synchronisee avec "notes"\n`;
+    expect(erreurs(S + locale('    titre : texte\n    lu : booleen\n    autre : texte\n') + P)[0]).toContain('« autre »');
+    expect(erreurs(S + locale('    titre : nombre\n    lu : booleen\n') + P)[0]).toContain("n'a pas le même type");
+    expect(erreurs(S + locale('    titre : texte\n') + P)[0]).toContain('refuserait chaque nouvelle fiche');
+    expect(erreurs(S + locale('    titre : texte\n    lu : booleen\n') + P)).toEqual([]);
+  });
+
   it('les clés d’accès et la double authentification demandent leur ligne dans le serveur', () => {
     const serveur = (lignes: string) => `serveur "s" :\n${lignes}    donnee note :\n        titre : texte\n    route "notes" :\n        connecte peut lire note\n`;
     const page = (action: string) => `page "a" :\n    titre "A"\n    bouton "b"\n    quand l'utilisateur clique sur "b" :\n        ${action}\n`;

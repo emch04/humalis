@@ -70,6 +70,11 @@ export function codeCreationSynchro(serveur: ServeurRI): string {
   return `  const synchro = creerSynchro(journalSynchro);\n${lignes.join('\n')}\n`;
 }
 
+/** Devant le pack, qui limite les corps à 100 ko : un lot d'envois peut peser plus. */
+export function codeAvantSynchro(serveur: ServeurRI, adresseApi: (adresse: string) => string): string {
+  return serveur.routes.filter((r) => r.synchronisee).map((r) => `\n  avant.post('${adresseApi(r.adresse)}/synchro', express.json({ limit: '4mb' }));`).join('');
+}
+
 /** Ce que demarrer.ts donne au journal : chaque table suivie, et ce que ses pierres tombales gardent. */
 export function tablesSynchro(serveur: ServeurRI, nomTable: (donnee: string) => string): string {
   return `{ ${serveur.routes
@@ -582,6 +587,14 @@ describe('la synchronisation de « ${route.adresse} »', () => {
     expect(apres.body.changements).toEqual([expect.objectContaining({ id, supprime: true })]);
     const vide = await request(app).get(\`${adresse}?depuis=\${apres.body.curseur}\`).set(entree).expect(200);
     expect(vide.body.changements).toEqual([]);
+  });
+
+  it('un lot plus lourd que la limite ordinaire des requêtes passe', async () => {
+    const { app, entree } = await preparer();
+    const remplissage = Array.from({ length: 400 }, () => ({ operation: op(), id: randomUUID(), modifieLe: Date.now(), supprime: true }));
+    expect(JSON.stringify(remplissage).length).toBeGreaterThan(50_000);
+    const lourd = { heure: Date.now(), envois: remplissage.slice(0, 200), bourrage: 'x'.repeat(150_000) };
+    await request(app).post('${adresse}').set(entree).send(lourd).expect(200);
   });
 
   it('un envoi mal formé est refusé, un visiteur n\\'entre pas', async () => {
