@@ -946,6 +946,9 @@ export function genererProjetApple(application: Application, options: OptionsApp
   }
   // « barre laterale » : une racine qui porte ses styles, écrite comme une page, à l'échelle de la fenêtre.
   const barre = application.disposition?.barre;
+  if (barre && !dessinPrincipal) {
+    avertir(barre.ecran.ligne, "« barre laterale : » n'est dessinée sur Mac qu'avec des pages « dessinee pour … » : sans elles, l'application garde sa barre latérale native, tirée des onglets ou du menu.");
+  }
   if (barre && dessinPrincipal) {
     const racine: NoeudVue = { type: 'bloc', genre: 'bloc', options: barre.options, classes: ['humalis-barre-laterale', ...barre.classes], corps: barre.ecran.vue, ligne: barre.ecran.ligne };
     ecrire('Composants/BarreSite.swift', new GenerateurPage({ ...barre.ecran, nom: 'BarreSite', vue: [racine], dessin: dessinPrincipal }, app, [], 'BarreSite').generer());

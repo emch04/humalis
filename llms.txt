@@ -10,6 +10,8 @@ Humalis est un langage en français. Un fichier .humalis décrit des pages, des 
 - Les événements pris en charge : quand, utilisateur, clique, sur, survole, charge, soumis, ecrit, arrête d’écrire, appuie, arrive en bas de, l’ordre de … change. Écris l’événement sous l’élément visé, puis l’action dans son bloc.
 - Les actions prises en charge : afficher, erreur, montrer, cacher, changer, rediriger, ajouter, retirer, envoyer, requête, connecter, déconnecter, connecter avec apple, connecter avec google, inviter … comme admin, demander un lien de mot de passe pour …, choisir le mot de passe avec …, csv, télécharger bon, recharger, vider champ, basculer thème, continuer vers, revenir, réussite, avertissement, pendant, disparaître, action, après, toutes, copier, partager, confirmer, faire, refuser, notification, document, verifier, hors, position, liens, profonds, apple, ios, macos, application, site, android, reglages, recherche, glissant, actualiser, tirant, options, etat, outils, groupe, table, domaine, arriere, plan, scanner, vibrer, identité, signature, paquet, swift, produit, activer, ia, payer, rôle.
 - Les mots de liaison (ignorés dans une phrase mais interdits comme nom de variable) : le, la, les, un, une, des, de, du, à, au, aux, se, l', d', s', n', c', j', m', t'.
+- Les options d’un élément (après « avec », séparées par « et ») : et, minimum, maximum, avec, nom, partagée, mémorisée, secret, sans traduction, repliable, vertical, en cascade, indice, obligatoire, ancre, nouvel onglet, désactivé, accepte, latitude, longitude, zoom, tuiles, attribution, adresse, étiquette, étiquettes, valeur, message, annonce, raccourci, oui, h, jours, heures, regroupe, compte, rôles, seuls, peuvent, direct, déplacement, en.
+- Les droits d’une route du serveur : peut, lire, créer, modifier, supprimer, connecté, admin, seul, tout, monde, remplacement.
 
 ## Pièges fréquents
 
@@ -24,6 +26,200 @@ Humalis est un langage en français. Un fichier .humalis décrit des pages, des 
 ```humalis
 page "accueil" :
     titre "Bienvenue"
+```
+
+## Phrases utiles, vérifiées
+
+### style "carte" :
+
+En haut du fichier, un style écrit en Humalis, une propriété par ligne ; on l’emploie avec « avec style "carte" ».
+
+```humalis
+style "carte" :
+    fond blanc
+    bord 1 gris clair
+    arrondi 12
+    espace interieur 16
+
+page "accueil" :
+    titre "Accueil"
+    bloc avec style "carte" :
+        texte "Un produit"
+```
+
+### seul son auteur peut …
+
+Dans une route du serveur : seul le compte qui a créé la fiche peut la modifier ou la supprimer. Le champ « auteur » est rempli par le serveur.
+
+```humalis
+serveur "avis" :
+    donnee avis :
+        texte : texte
+    route "avis" :
+        tout le monde peut lire avis
+        connecte peut creer avis
+        seul son auteur peut modifier et supprimer avis
+
+page "accueil" :
+    titre "Avis"
+```
+
+### donnees de depart pour …
+
+Les premières fiches, écrites au premier démarrage si la table est vide.
+
+```humalis
+serveur "boutique" :
+    donnee produit :
+        nom : texte
+        prix : nombre
+    route "produits" :
+        tout le monde peut lire produit
+    donnees de depart pour produit :
+        nom "Café", prix 3
+        nom "Thé", prix 2
+
+page "accueil" :
+    titre "Boutique"
+```
+
+### avec adresse par langue
+
+Chaque langue a ses propres adresses : /contact en français, /en/contact en anglais.
+
+```humalis
+langues : francais, anglais avec adresse par langue
+
+page "accueil" :
+    titre "Bienvenue" en anglais "Welcome"
+```
+
+### {a la ligne}
+
+Un saut de ligne dans un texte.
+
+```humalis
+page "accueil" :
+    titre "Adresse"
+    texte "12 rue des Lilas{a la ligne}Lyon"
+```
+
+### désactivé
+
+Un élément sur lequel on ne peut pas agir pour l’instant.
+
+```humalis
+page "accueil" :
+    variable panier = []
+    bouton "Payer" avec desactive si panier est vide
+```
+
+### vidéo
+
+Une vidéo avec ses commandes : « video "film.mp4" avec commandes et description "Présentation de la boutique" ». La description est obligatoire : elle nomme le lecteur. « avec commandes » est obligatoire aussi : la vidéo ne démarre jamais toute seule. « et transcription "…" » ajoute le texte de ce qui est dit ; « et boucle » la relance à la fin.
+
+```humalis
+page "accueil" :
+    video "film.mp4" avec commandes et description "Présentation de la boutique"
+```
+
+### dessinee
+
+Dans « page "accueil" dessinee pour 1440 par 900 : », la taille pour laquelle la page a été dessinée. Sur Mac, elle suit son CSS au point près et grandit avec la fenêtre.
+
+```humalis
+page "accueil" dessinee pour 1440 par 900 :
+    titre "Bonjour"
+```
+
+### initiales de
+
+Les initiales d’un nom : « initiales de nom » donne « DG » pour « Direction générale ».
+
+```humalis
+page "accueil" :
+    titre "Accueil"
+
+    variable nom = "Direction générale"
+    calcul sigle = initiales de nom
+    texte "{sigle}"
+```
+
+### en lettres
+
+Dans un texte, « {total en lettres} » écrit le nombre en toutes lettres ; « avec majuscule » met une majuscule au début.
+
+```humalis
+page "accueil" :
+    titre "Accueil"
+
+    variable total = 4
+    texte "{total en lettres avec majuscule} rendez-vous"
+```
+
+### en date longue
+
+Dans un texte, « {jour en date longue} » écrit « lundi 9 novembre » ; « avec majuscule » met une majuscule au début.
+
+```humalis
+page "accueil" :
+    titre "Accueil"
+
+    calcul jour = aujourd'hui
+    texte "{jour en date longue avec majuscule}"
+```
+
+### non
+
+Le contraire d’une valeur ou d’une comparaison, dans un « si », un « tant que » ou après « dont » : « si non connecte : », « si non prix est egal a 0 : ».
+
+```humalis
+page "accueil" :
+    variable connecte = faux
+    si non connecte :
+        texte "Connecte-toi"
+```
+
+### au départ
+
+Après le type d’un champ, « au depart "en_attente" » : le serveur met cette valeur à la création, et la requête ne peut pas la choisir. « aujourd’hui » donne la date du jour. Un droit de modifier permet de la changer ensuite.
+
+```humalis
+serveur "boutique" :
+    donnee produit :
+        prix : nombre
+    donnee commande :
+        refs : liste de texte
+        total : nombre calcule somme prix de produit par refs
+        statut : texte au depart "en_attente"
+        photos : liste de texte du site
+    donnee suivi :
+        etape : texte
+    route "produits" :
+        tout le monde peut lire produit
+        seul admin peut modifier produit
+    route "suivis" :
+        tout le monde peut lire suivi par identifiant
+        seul admin peut modifier suivi
+    route "commandes" :
+        tout le monde peut creer commande
+        seul admin peut lire commande
+        seul admin peut modifier commande
+        quand commande est cree :
+            creer suivi avec etape "a"
+```
+
+### avant
+
+Après le type d’un champ renommé : « telephone : texte (avant "tel") ». Les fiches déjà écrites gardent leur valeur sous le nouveau nom. Un champ ajouté avec « au depart » donne aussi sa valeur aux anciennes fiches.
+
+```humalis
+serveur "boutique" :
+    donnee produit :
+        nom : texte
+        telephone : texte (avant "tel")
+    route "produits" :
+        tout le monde peut lire produit
 ```
 
 ## Messages d’erreur

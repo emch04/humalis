@@ -338,8 +338,20 @@ page "cart" :
     bouton "Pay in three instalments" avec desactive
 ```
 
-The condition stops at the next `et`, which starts the next option. A disabled
-button stays visible, paler. `desactive` only applies to a button.
+The condition stops at the next `et`, which starts the next option. To combine
+two conditions, put them in a `calcul` first, then test it with
+`desactive si … est vrai`:
+
+```humalis
+page "order" :
+    variable cart = []
+    variable sending = faux
+    calcul blocked = cart est vide ou sending est vrai
+    titre "Order"
+    bouton "Order" avec desactive si blocked est vrai
+```
+
+A disabled button stays visible, paler. `desactive` only applies to a button.
 
 ### Field
 
@@ -791,7 +803,7 @@ equivalent.
 | `table l :` then `colonne "Total" avec c.total` | rows | table | rows |
 | `menu de l'application "File" :` then `commande "N" avec raccourci "cmd+n" :` | shortcuts (iPad) | menu bar | refused |
 | `page "x" en reglages :` | page | Settings window | page |
-| `page "x" en pleine fenetre :` | page | page up to the edges | page up to the edges |
+| `page "x" en pleine fenetre :` | page up to the edges | page up to the edges | page (no effect) |
 | `barre d'outils :` | top bar | toolbar | row |
 
 The application menu has no web equivalent: the compiler refuses it.

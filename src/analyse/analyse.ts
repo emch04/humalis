@@ -100,6 +100,11 @@ import {
   compatibles,
 } from './types.js';
 
+/** Les classes « humalis-… » sont celles que Humalis pose lui-même (intertitre d'un groupe d'onglets…) : leur CSS est fourni par le projet produit. */
+function estClasseInterne(classe: string): boolean {
+  return classe.startsWith('humalis-');
+}
+
 /** Les options d'un élément, que « lien … vers "…" avec … » lit avant un paramètre de page. */
 const NOMS_OPTIONS_ELEMENT = new Set([...Object.keys(OPTIONS), 'nom', 'style', 'ancre', 'nouvel', 'obligatoire', 'indice', 'minimum', 'maximum']);
 
@@ -1376,7 +1381,7 @@ class AnalysePage {
       }
     }
     for (const classe of element.classes) {
-      if (this.classesDefinies && !this.classesDefinies.has(sansPlateforme(classe))) {
+      if (this.classesDefinies && !estClasseInterne(classe) && !this.classesDefinies.has(sansPlateforme(classe))) {
         this.avertissement(`le style « ${sansPlateforme(classe)} » n'est défini dans aucun CSS du projet.${proposerNom(sansPlateforme(classe), this.classesDefinies)}`, element.ligne);
       }
     }
@@ -1529,7 +1534,7 @@ class AnalysePage {
   /** « formulaire "message" : » : un bloc de la vue, qui regroupe des champs et un bouton (décision F1). */
   private formulaire(formulaire: Formulaire, contexte: Contexte, place: Place): void {
     for (const classe of formulaire.classes ?? []) {
-      if (this.classesDefinies && !this.classesDefinies.has(sansPlateforme(classe))) {
+      if (this.classesDefinies && !estClasseInterne(classe) && !this.classesDefinies.has(sansPlateforme(classe))) {
         this.avertissement(`le style « ${sansPlateforme(classe)} » n'est défini dans aucun CSS du projet.${proposerNom(sansPlateforme(classe), this.classesDefinies)}`, formulaire.ligne);
       }
     }
@@ -1628,7 +1633,7 @@ class AnalysePage {
       }
     }
     for (const classe of bloc.classes) {
-      if (this.classesDefinies && !this.classesDefinies.has(sansPlateforme(classe))) {
+      if (this.classesDefinies && !estClasseInterne(classe) && !this.classesDefinies.has(sansPlateforme(classe))) {
         this.avertissement(`le style « ${sansPlateforme(classe)} » n'est défini dans aucun CSS du projet.${proposerNom(sansPlateforme(classe), this.classesDefinies)}`, bloc.ligne);
       }
     }

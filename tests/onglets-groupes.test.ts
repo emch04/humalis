@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { analyser } from '../src/lexer/lexer.js';
 import { analyserSyntaxe } from '../src/parser/parser.js';
 import { programme } from './analyse/aide.js';
+import { compiler } from '../src/compilateur.js';
+import { cssEcran } from '../src/cibles/web/css-ecran.js';
 
 const source = programme(
   'onglets de l\'application :',
@@ -29,6 +31,12 @@ describe('groupes dans les onglets de l’application', () => {
   it('écrit l’intertitre une seule fois dans le menu', () => {
     const menu = JSON.stringify(analyserSyntaxe(analyser(source)).entete);
     expect(menu.match(/humalis-menu-groupe/g)).toHaveLength(1);
+  });
+
+  it('n’avertit pas sur la classe interne de l’intertitre, et lui donne son style sur le web', () => {
+    const r = compiler(source);
+    expect(r.diagnostics.filter((d) => d.message.includes('humalis-menu-groupe'))).toEqual([]);
+    expect(cssEcran(['<p className="humalis-menu-groupe">Équipe</p>'])).toContain('.humalis-menu-groupe {');
   });
 
   it('lit la barre latérale dessinée par un module', () => {
