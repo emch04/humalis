@@ -211,3 +211,17 @@ describe('les styles écrits en Humalis', () => {
     expect(r.diagnostics.map((d) => d.message).join(' ')).toContain('Propriétés possibles : fond, couleur, bord');
   });
 });
+
+describe('« avec adresse par langue » sur le moteur Humalis', () => {
+  it('écrit chaque page dans chaque langue, avec ses liens et ses hreflang', async () => {
+    const { genererProjetMoteur } = await import('../src/cibles/moteur/projet.js');
+    const f = genererProjetMoteur(sansErreur(programme('langues : francais, anglais avec adresse par langue', '', 'page "accueil" :', '>titre "Bienvenue" en anglais "Welcome"', '>lien "Le menu" en anglais "The menu" vers "menu"', 'page "menu" :', '>titre "Le menu" en anglais "The menu"')), { nom: 'a', source: 'a.humalis', adresse: 'https://exemple.test' } as never);
+    const en = f.get('en/menu/index.html')!;
+    expect(en).toContain('<html lang="en"');
+    expect(en).toContain('<title>The menu</title>');
+    expect(en).toContain('>The menu</h1>');
+    expect(en).toContain('hreflang="fr" href="https://exemple.test/menu"');
+    expect(f.get('en/index.html')).toContain('href="/en/menu"');
+    expect(f.get('src/humalis/navigation.js')).toContain('const LANGUES_ADRESSE = ["en"];');
+  });
+});

@@ -297,12 +297,26 @@ function lireChemin(variable: string, env: Environnement): unknown {
 }
 
 /** La valeur, telle que JavaScript la calculerait au premier dessin. */
+/** La langue dans laquelle le HTML de départ est écrit (« avec adresse par langue » : une page par langue). */
+let langueDeRendu: string | undefined;
+
+/** Écrit le HTML de départ dans cette langue : les textes qui ont une version la prennent. */
+export function avecLangueDeRendu<T>(code: string | undefined, faire: () => T): T {
+  const avant = langueDeRendu;
+  langueDeRendu = code;
+  try {
+    return faire();
+  } finally {
+    langueDeRendu = avant;
+  }
+}
+
 export function evaluer(valeur: Valeur, env: Environnement): unknown {
   switch (valeur.type) {
     case 'test':
       return verifier(valeur.test, env, new Map());
     case 'texte':
-      return valeur.parties
+      return ((langueDeRendu !== undefined && valeur.versions?.find((v) => v.code === langueDeRendu)?.parties) || valeur.parties)
         .map((p) => {
           if ('texte' in p) return p.texte;
           const v = p.expression ? evaluer(p.expression, env) : lireChemin(p.variable, env);

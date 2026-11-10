@@ -14,6 +14,8 @@ import type { LangueRI } from '../../ri/types.js';
 export interface BesoinsOutils {
   usage: UsageElements;
   langues?: LangueRI[];
+  /** « avec adresse par langue » : la langue se lit dans l'adresse (/en/…), et en changer change d'adresse. */
+  parAdresse?: boolean;
   theme?: string;
 }
 
@@ -31,7 +33,7 @@ function elementsMoteur(usage: UsageElements): string {
 }
 
 export function outilsJs(b: BesoinsOutils): string {
-  const { usage, langues, theme } = b;
+  const { usage, langues, theme, parAdresse } = b;
   const exportes = [
     'creer', 'afficherMessage', 'planifier', 'planificateur', 'arreterMinuteries', 'minuteriesDeCouche', 'ecouterRaccourcis', 'mouvementReduit', 'themeSombre', 'cliquer', 'focaliser', 'fenetre', 'observerLeBas', 'titreDeLaPage', 'descriptionDeLaPage',
     'retirerPremier', 'grouper', 'formaterNombre', 'formaterDate', 'formaterArgent', 'accorder', 'formaterTaille', 'dateDuJour', 'maintenant', 'decalerDate', 'joursEntre', 'formaterDepuis', ...NOMS_FORMES_TEXTE,
@@ -265,17 +267,37 @@ ${langues ? FORMAT_JS_LANGUES : FORMAT_JS}
 ${TAILLE_JS}
 ${DATES_JS}
 ${FORMES_TEXTE_JS}
-${STOCKAGE_JS}${elementsMoteur(usage)}${PRESSE_PAPIER_JS}${QUESTIONS_JS}${langues ? langueMoteur(langues) : ''}${theme !== undefined ? themeMoteur(theme) : ''}
+${STOCKAGE_JS}${elementsMoteur(usage)}${PRESSE_PAPIER_JS}${QUESTIONS_JS}${langues ? langueMoteur(langues, parAdresse) : ''}${theme !== undefined ? themeMoteur(theme) : ''}
 export { ${[...new Set(exportes)].join(', ')} };
 `;
 }
 
-function langueMoteur(langues: LangueRI[]): string {
+function langueMoteur(langues: LangueRI[], parAdresse = false): string {
   return `
 const LANGUES = [${langues.map((l) => chaine(l.code)).join(', ')}];
 const langueCourante = signal(LANGUES[0]);
-
+${parAdresse ? `
+/** « avec adresse par langue » : la langue écrite au début de l'adresse (/en/…), sinon la première. */
 function langueDeDepart() {
+  const premier = location.pathname.split('/')[1];
+  return LANGUES.includes(premier) && premier !== LANGUES[0] ? premier : LANGUES[0];
+}
+
+/** Le même chemin dans une autre langue : « /en/menu » devient « /menu » ou « /es/menu ». */
+function cheminEnLangue(chemin, code) {
+  const actuelle = langueDeDepart();
+  const sans = actuelle === LANGUES[0] ? chemin : chemin.slice(1 + actuelle.length) || '/';
+  return code === LANGUES[0] ? sans : '/' + code + (sans === '/' ? '/' : sans);
+}
+
+/** Change de langue : la même page, à l'adresse de cette langue. */
+function changerLangue(code) {
+  if (code === langueCourante.v) return;
+  location.assign(cheminEnLangue(location.pathname, code) + location.search + location.hash);
+}
+
+function langueDeDepartGardee() {` : `
+function langueDeDepart() {`}
   try {
     const gardee = localStorage.getItem(${chaine(CLE_LANGUE)});
     if (LANGUES.includes(gardee)) return gardee;
@@ -304,7 +326,7 @@ function langue() {
   return langueCourante.v;
 }
 
-function changerLangue(code) {
+function ${parAdresse ? 'changerLangueGardee' : 'changerLangue'}(code) {
   langueCourante.v = code;
   document.documentElement.lang = code;
   try {
@@ -345,7 +367,7 @@ export interface RouteMoteur {
 }
 
 /** navigation.js : démarrer les couches, changer de page sans recharger. */
-export function navigationJs(routes: RouteMoteur[], options: { partages: boolean; session: boolean; langues: boolean; pages: Map<string, string>; minuteries: boolean; raccourcis: boolean; planifie: boolean; adressesRecues: boolean }): string {
+export function navigationJs(routes: RouteMoteur[], options: { partages: boolean; session: boolean; langues: boolean; pages: Map<string, string>; minuteries: boolean; raccourcis: boolean; planifie: boolean; adressesRecues: boolean; languesAdresse?: string[] }): string {
   const table = routes.map((r) => {
     const noms = [...r.chemin.matchAll(/:([A-Za-z0-9_]+)/g)].map((m) => m[1]);
     const motif = r.chemin.replace(/\/+$/, '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/:([A-Za-z0-9_]+)/g, '([^/]+)');
@@ -366,6 +388,17 @@ ${options.partages ? "import { relirePartages } from './partages.js';\n" : ''}${
 const ROUTES = [
 ${table.join('\n')}
 ];
+${options.languesAdresse?.length ? `
+// « avec adresse par langue » : « /en » devant chaque page anglaise ; le reste du routeur ne le voit pas.
+const LANGUES_ADRESSE = ${JSON.stringify(options.languesAdresse)};
+const BASE = (() => { const p = location.pathname.split('/')[1]; return LANGUES_ADRESSE.includes(p) ? '/' + p : ''; })();
+const sansBase = (chemin) => (BASE && (chemin === BASE || chemin.startsWith(BASE + '/')) ? chemin.slice(BASE.length) || '/' : chemin);
+const avecBase = (chemin) => (BASE && chemin.startsWith('/') && !chemin.startsWith('//') && sansBase(chemin) === chemin ? BASE + chemin : chemin);
+` : `
+const BASE = '';
+const sansBase = (chemin) => chemin;
+const avecBase = (chemin) => chemin;
+`}
 const PAGES = ${JSON.stringify(Object.fromEntries(options.pages))};
 
 const registre = new Map();
@@ -388,7 +421,8 @@ let cleEntree = 0;
 let profondeur = 0;
 let cheminOuvert = location.pathname.replace(/\\/+$/, '') || '/';
 
-function trouverRoute(chemin) {
+function trouverRoute(cheminLu) {
+  const chemin = sansBase(cheminLu);
   for (const route of ROUTES) {
     const m = route.m.exec(chemin === '' ? '/' : chemin);
     if (m) return { route, parametres: Object.fromEntries(route.n.map((nom, i) => [nom, decodeURIComponent(m[i + 1])])) };
@@ -528,6 +562,7 @@ function remplacerEntete(doc) {
 /** Change de page : seule la couche qui diffère est remplacée. */
 async function aller(url, { historique = true, remplacer = false, garde } = {}) {
   const cible = new URL(url, location.href);
+  if (cible.origin === location.origin) cible.pathname = avecBase(cible.pathname);
   const trouve = trouverRoute(cible.pathname.replace(/\\/+$/, '') || '/');
   if (!trouve || cible.origin !== location.origin) {
     location.assign(cible.href);
@@ -535,7 +570,7 @@ async function aller(url, { historique = true, remplacer = false, garde } = {}) 
   }
   const jeton = ++numero;
   try {
-    const texte = await chargerDocument(trouve.route.f);
+    const texte = await chargerDocument(BASE + trouve.route.f);
     const doc = new DOMParser().parseFromString(texte, 'text/html');
     const scripts = doc.querySelectorAll('script[type="module"][src]');
     const adresse = new URL(scripts[scripts.length - 1].getAttribute('src'), location.origin).href;
@@ -604,7 +639,7 @@ export function apresLaGarde() {
 }
 
 export function adresseDe(nom) {
-  return PAGES[nom] ?? ('/' + String(nom).replace(/^\\/+/, ''));
+  return avecBase(PAGES[nom] ?? ('/' + String(nom).replace(/^\\/+/, '')));
 }
 
 /** « revenir » : le retour du navigateur ; sinon la page de secours. */
@@ -693,7 +728,7 @@ function installer() {
     if (!trouve || prepares.has(trouve.route.f)) return;
     prepares.add(trouve.route.f);
     // Le HTML et le code de la page visée : quand on clique, tout est déjà là.
-    chargerDocument(trouve.route.f).then((texte) => {
+    chargerDocument(BASE + trouve.route.f).then((texte) => {
       const source = /<script type="module"[^>]*src="([^"]+)"/.exec(texte)?.[1];
       if (!source) return;
       const lien = document.createElement('link');

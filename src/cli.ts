@@ -531,7 +531,6 @@ async function compileMoteur(application: Application, chemin: string, sortie: s
     donnees = lu.donnees;
     console.error(`Lu à la construction : ${donnees.size} sur ${lectures.length}.`);
   }
-  for (const d of verifierAdresseParLangue(application, 'web --moteur humalis')) console.error(`Avertissement : ${d.message}`);
   const fichiers = genererProjetMoteur(application, { nom, source: basename(chemin), fichiersStyle, polices, images, medias, externes, ...(adresse ?? application.site?.adresse ? { adresse: adresse ?? application.site?.adresse } : {}), ...(portDiagnostics !== undefined ? { sources: fichiersDuProjet } : {}), ...(donnees ? { donnees } : {}) });
   // « humalis developper » : l'aide au survol et le panneau des erreurs, dans chaque page.
   if (portDiagnostics !== undefined) {

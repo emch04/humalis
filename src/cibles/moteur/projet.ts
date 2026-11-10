@@ -2,6 +2,7 @@
  * Le projet produit par le moteur : une page HTML par adresse, écrite par le
  * compilateur, un petit script par couche, et Vite pour assembler le tout.
  */
+import { avecLangueDeRendu } from '../statique/valeurs.js';
 import { TRAVAILLEUR_NOTIFICATIONS } from '../serveur/logique.js';
 import type { Application, ComposantHumalis, DispositionRI, Ecran, NoeudVue } from '../../ri/types.js';
 import { copiesDesMedias, type InfoMedia } from '../../ri/medias.js';
@@ -239,6 +240,53 @@ enregistrer(import.meta.url, [${couches.map((c, i) => `[${chaine(c.id)}, c${i}${
     entrees.push([cleEntree, fichierHtml]);
     if (ecran.nom !== 'introuvable') routes.push({ chemin, fichier: chemin.includes(':') ? `/${dossierDe(chemin)}/` : chemin === '/' ? '/' : `${chemin.replace(/\/+$/, '')}/` });
   }
+  // « avec adresse par langue » : chaque page écrite une fois de plus par langue, sous /en/…, dans sa langue.
+  const languesAdresse = application.adresseParLangue && application.langues ? application.langues.slice(1).map((l) => l.code) : [];
+  const routesDeBase = [...routes];
+  for (const code of languesAdresse) {
+    avecLangueDeRendu(code, () => {
+      for (const [chemin, ecran] of parAdresse) {
+        if (ecran.nom === 'introuvable') continue;
+        const pages = chaineDe(ecran);
+        const garde = [...pages].reverse().find((p) => p.reservee)?.reservee;
+        const dispo = clefDisposition(ecran);
+        const gens: GenerateurMoteur[] = [];
+        if (dispo) gens.push(generateurDisposition(ecran, dispo));
+        pages.forEach((p) => gens.push(generateurPage(p, gens.length)));
+        let contenu: string | undefined;
+        for (let i = gens.length - 1; i >= 0; i--) {
+          gens[i].niveau = i;
+          gens[i].pageCachee = garde !== undefined;
+          contenu = gens[i].htmlDepart(contenu);
+        }
+        const { titre, description } = generateurPage(ecran, gens.length - 1).titres(code);
+        const apercu = enTetePublication(application, ecran, { titre, description, html: [] }, `${code}${chemin}`.replace(/^\//, ''), adresse);
+        const cleEntree = simplifier(ecran.nom) || 'page';
+        const html = pageHtml(apercu.titre, apercu.description, feuilles, `/src/routes/${cleEntree}.js`, contenu ?? '', { mode: modeTheme, bascule, site: avecEntete, langue: code, cache: garde !== undefined, donnees: donneesDeLaRoute(pages, options.donnees) }, apercu.balises)
+          // Les liens vers les pages du site gardent la langue : « /menu » devient « /en/menu ».
+          .replace(/(<a\b[^>]*\bhref=")\/(?!\/|src\/|assets\/|humalis\/)([^"]*)"/g, (_t, debut: string, reste: string) => `${debut}/${code}/${reste}"`);
+        const fichierHtml = `${code}/${htmlDe(chemin)}`;
+        fichiers.set(fichierHtml, html);
+        entrees.push([`${cleEntree}_${code}`, fichierHtml]);
+      }
+    });
+    for (const r of routesDeBase) routes.push({ chemin: `/${code}${r.chemin === '/' ? '' : r.chemin}`, fichier: `/${code}${r.fichier}` });
+  }
+  // Chaque page annonce ses autres langues aux moteurs de recherche (hreflang).
+  if (languesAdresse.length && application.langues) {
+    const racine = (adresse ?? '').replace(/\/+$/, '');
+    for (const [chemin, ecran] of parAdresse) {
+      if (ecran.nom === 'introuvable' || chemin.includes(':')) continue;
+      const versions = application.langues.map((l, i) => ({ code: l.code, chemin: i === 0 ? chemin : `/${l.code}${chemin === '/' ? '/' : chemin}` }));
+      const liens = [...versions, { code: 'x-default', chemin }].map((v) => `<link rel="alternate" hreflang="${v.code}" href="${racine}${v.chemin}" />`).join('\n    ');
+      for (const v of versions) {
+        const fichier = v.code === application.langues[0]!.code ? htmlDe(chemin) : `${v.code}/${htmlDe(chemin)}`;
+        const html = fichiers.get(fichier);
+        if (html) fichiers.set(fichier, html.replace('</head>', `    ${liens}\n  </head>`));
+      }
+    }
+  }
+
   if (!fichiers.has('404.html')) {
     // Plusieurs langues : la page introuvable passe dans la langue de la personne.
     const codes = application.langues?.map((l) => l.code);
@@ -298,10 +346,10 @@ document.title = ${traduit('Page introuvable')};
     fichiers.set('src/humalis/appareil.js', APPAREIL_JS);
     site.push("import './appareil.js';\nimport { afficherMessage } from './outils.js';\nwindow.addEventListener('humalis:message', (e) => afficherMessage(e.detail.texte, e.detail.genre));");
   }
-  fichiers.set('src/humalis/outils.js', avecDureeDesErreurs(outilsJs({ usage, langues: application.langues, ...(bascule ? { theme: modeTheme ?? '' } : {}) }), application));
+  fichiers.set('src/humalis/outils.js', avecDureeDesErreurs(outilsJs({ usage, langues: application.langues, ...(languesAdresse.length ? { parAdresse: true } : {}), ...(bascule ? { theme: modeTheme ?? '' } : {}) }), application));
   fichiers.set(
     'src/humalis/navigation.js',
-    `${surveillee ? "import './centrale.ts';\n" : ''}${site.length ? "import './site.js';\n" : ''}${navigationJs(routes, { partages: application.partages.length > 0, session, langues: application.langues !== undefined, pages: pagesTable, ...besoinsNavigation })}`,
+    `${surveillee ? "import './centrale.ts';\n" : ''}${site.length ? "import './site.js';\n" : ''}${navigationJs(routesDeBase, { partages: application.partages.length > 0, session, langues: application.langues !== undefined, pages: pagesTable, ...besoinsNavigation, ...(languesAdresse.length ? { languesAdresse } : {}) })}`,
   );
   if (site.length) fichiers.set('src/humalis/site.js', `// Produit par Humalis : ce qui vaut pour tout le site.\n${site.join('\n')}\n`);
   if (application.composantsReact.length > 0) fichiers.set('src/humalis/adaptateurs.js', adaptateursJs(externes));

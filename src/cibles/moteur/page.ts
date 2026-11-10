@@ -690,8 +690,8 @@ ${code}}
     return html(depart);
   }
 
-  titres(): { titre: string; description: string } {
-    return titreEtDescription(this.ecran, this.site.langues);
+  titres(langue?: string): { titre: string; description: string } {
+    return titreEtDescription(this.ecran, this.site.langues, langue);
   }
 
   /** Le début du fichier : ce qu'il importe, et ses gabarits. */
