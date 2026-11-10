@@ -613,6 +613,14 @@ describe('cible Windows — les noms', () => {
     expect(chaineCs('a"b\\c\nd')).toBe('"a\\"b\\\\c\\nd"');
   });
 
+  it('les fins de ligne que C# reconnaît dans un texte copié (U+0085, U+2028, U+2029) sont échappées', () => {
+    expect(chaineCs('Avant\u2028après\u2029fin\u0085suite\u0007')).toBe('"Avant\\u2028après\\u2029fin\\u0085suite\\u0007"');
+    const page = projet('page "a" :\n    titre "Avant\u2028apres"\n    texte "Ligne\u0085suite"\n').get('Pages/PageA.cs')!;
+    expect(page).toContain('"Avant\\u2028apres"');
+    expect(page).toContain('"Ligne\\u0085suite"');
+    expect(/[\u0085\u2028\u2029]/.test(page)).toBe(false);
+  });
+
   it('un nombre est un double', () => {
     expect(nombreCs(12)).toBe('12d');
     expect(nombreCs(0.5)).toBe('0.5d');
