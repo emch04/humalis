@@ -271,16 +271,6 @@ ${contenu.map((l) => `      ${l}\n`).join('')}    </main>
  */
 export function verifierPourLeStatique(application: Application): Diagnostic[] {
   const diagnostics: Diagnostic[] = [...verifierPourLeWeb(application)];
-  // « essayer » demande un moteur de requêtes qui se tait pendant le bloc : il n'existe pas encore dans humalis.js.
-  for (const ecran of application.ecrans) {
-    if (JSON.stringify(ecran.gestionnaires).includes('"type":"essayer"')) {
-      diagnostics.push({
-        gravite: 'erreur',
-        message: `la page « ${ecran.nom} » utilise « essayer », qui n'est pas encore produit pour le site statique. Compile-la pour le web, ou retire « essayer ».`,
-        ligne: ecran.ligne,
-      });
-    }
-  }
   // « se connecter avec google » : pas encore écrit en JavaScript clair.
   for (const ecran of application.ecrans) {
     if (JSON.stringify(ecran.gestionnaires).includes('"type":"connexionGoogle"')) {
@@ -329,7 +319,9 @@ export function verifierPourLeStatique(application: Application): Diagnostic[] {
     diagnostics.push({
       gravite: 'erreur',
       ligne: c.ligne,
-      message: c.module ? `le module « ${c.nom} » n'est pas encore pris en charge sur la cible statique. Utilise la cible web.` : `le composant React « ${c.nom} » ne peut pas être utilisé sur la cible statique : un site statique n'a pas React. Écris-le en Humalis (composant "${c.nom}" :), ou compile pour le web.`,
+      message: c.module
+        ? `le module « ${c.nom} » ne peut pas être utilisé sur la cible statique : un site statique n'est pas construit (ni Vite ni npm), donc le module et ses paquets ne seraient pas emballés, et la page redessine ses éléments sans le garder. Compile pour le web (« --cible web », ou « --moteur humalis » sans React), ou écris ce bloc en Humalis.`
+        : `le composant React « ${c.nom} » ne peut pas être utilisé sur la cible statique : un site statique n'a pas React. Écris-le en Humalis (composant "${c.nom}" :), ou compile pour le web.`,
     });
   }
   // « avec deplacement » : pas encore écrit en JavaScript clair pour le site statique.
@@ -1060,19 +1052,31 @@ export const SERVEUR_JS = `
   /** Une requête ; en cas d'échec, un message en français, et la valeur actuelle est gardée. */
   /** Le nombre de requêtes qui ont échoué depuis l'ouverture de la page : un formulaire s'arrête après un envoi refusé. */
   let echecs = 0;
+  /** Pendant « essayer », le message automatique se tait : c'est « si erreur » qui parle. */
+  let silence = 0;
+  /** Le serveur n'a pas répondu (réseau coupé, serveur arrêté) : pas de raison plus précise. */
+  const PAS_DE_REPONSE = "Le serveur n'a pas répondu.";
+  /** La raison du dernier échec, que reçoit « si erreur » (« raison ») : la phrase du serveur quand il refuse. */
+  let derniereRaison = PAS_DE_REPONSE;
 
   async function appeler(adresse, options, actuelle) {
     try {
       const reponse = await fetch(ADRESSE_SERVEUR + adresse, { ...options, credentials: 'same-origin' });
-      if (!reponse.ok) throw new Error(String(reponse.status));
+      if (!reponse.ok) {
+        // Un refus du serveur (« le champ « prix » doit être un nombre ») : sa raison, pour « si erreur ».
+        const corps = await reponse.json().catch(() => null);
+        throw new Error(typeof corps?.erreur === 'string' && corps.erreur !== '' ? corps.erreur.charAt(0).toUpperCase() + corps.erreur.slice(1) + '.' : PAS_DE_REPONSE);
+      }
       const texte = await reponse.text();
       if (texte === '') return actuelle;
       const valeur = JSON.parse(texte);
       // On attendait une liste et on reçoit autre chose : la valeur actuelle est gardée.
       return Array.isArray(actuelle) && !Array.isArray(valeur) ? actuelle : valeur;
-    } catch {
+    } catch (erreur) {
       echecs += 1;
-      afficherMessage("Le serveur n'a pas répondu. Réessayez dans un instant.", 'erreur');
+      // Jamais le texte anglais du navigateur (« Failed to fetch ») ni celui d'une réponse illisible.
+      derniereRaison = erreur instanceof Error && !(erreur instanceof TypeError) && !(erreur instanceof SyntaxError) ? erreur.message : PAS_DE_REPONSE;
+      if (silence === 0) afficherMessage("Le serveur n'a pas répondu. Réessayez dans un instant.", 'erreur');
       return actuelle;
     }
   }
@@ -1089,6 +1093,11 @@ export const SERVEUR_JS = `
 
   const serveur = {
     echecs: () => echecs,
+    // « essayer » : le message automatique se tait, et « si erreur » reçoit la raison.
+    taire: (oui) => {
+      silence += oui ? 1 : -1;
+    },
+    raison: () => derniereRaison,
     lire: (adresse, actuelle) => appeler(adresse, { method: 'GET' }, actuelle),
     // « avec id dans produit » : un seul élément, par son identifiant.
     lireUn: (adresse, id, actuelle) => appeler(\`\${adresse}/\${encodeURIComponent(id)}\`, { method: 'GET' }, actuelle),
@@ -1131,8 +1140,13 @@ export const SESSION_JS = `
     }
   }
 
-  /** Vrai si la connexion a réussi ; sinon un message d'erreur s'affiche. */
-  async function seConnecter(email, motDePasse) {
+  /** Vrai si la connexion a réussi ; sinon un message d'erreur s'affiche (dans « essayer », l'erreur est levée : « si erreur » la reçoit). */
+  async function seConnecter(email, motDePasse, lever = false) {
+    const refuser = (message) => {
+      if (lever) throw new Error(message);
+      afficherMessage(message, 'erreur');
+      return false;
+    };
     let reponse;
     try {
       reponse = await fetch(ADRESSE_SERVEUR + '/auth/login', {
@@ -1142,18 +1156,11 @@ export const SESSION_JS = `
         body: JSON.stringify({ email, password: motDePasse }),
       });
     } catch {
-      afficherMessage("Le serveur n'a pas répondu. Réessayez dans un instant.", 'erreur');
-      return false;
+      return refuser("Le serveur n'a pas répondu. Réessayez dans un instant.");
     }
-    if (reponse.status === 429) {
-      afficherMessage('Trop de tentatives de connexion. Réessayez dans quelques minutes.', 'erreur');
-      return false;
-    }
-    if (!reponse.ok) {
-      // Jamais lequel des deux est faux : on ne dit pas si un compte existe.
-      afficherMessage('Email ou mot de passe incorrect.', 'erreur');
-      return false;
-    }
+    if (reponse.status === 429) return refuser('Trop de tentatives de connexion. Réessayez dans quelques minutes.');
+    // Jamais lequel des deux est faux : on ne dit pas si un compte existe.
+    if (!reponse.ok) return refuser('Email ou mot de passe incorrect.');
     // La réponse contient aussi un jeton : il n'est pas gardé, le cookie du pack suffit.
     await relireSession();
     return true;

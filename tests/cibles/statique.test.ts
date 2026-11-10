@@ -336,6 +336,13 @@ describe('cible statique — ce qui est refusé', () => {
     expect(resultat[0]).toMatch(/^erreur 1 : le composant React « Carte » ne peut pas être utilisé sur la cible statique/);
   });
 
+  it('refuse un module avec une raison claire et ce qu’il faut faire', () => {
+    const resultat = messages('utiliser module "Scene3D" depuis "./modules/Scene3D"\n\npage "accueil" :\n    Scene3D avec couleur "#c1e928"\n');
+    expect(resultat).toHaveLength(1);
+    expect(resultat[0]).toMatch(/^erreur 1 : le module « Scene3D » ne peut pas être utilisé sur la cible statique : un site statique n'est pas construit/);
+    expect(resultat[0]).toContain('« --cible web »');
+  });
+
   it('refuse « memorisee en secret »', () => {
     expect(messages('variable jeton = "x" avec partagee et memorisee en secret\npage "p" :\n    texte jeton')[0]).toMatch(
       /^erreur 1 : « memorisee en secret » n'existe pas sur le web/,
