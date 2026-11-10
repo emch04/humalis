@@ -535,7 +535,12 @@ struct StyleCarte: ViewModifier {
 Sur Windows, un dictionnaire de styles WPF, un `<Style>` par style, avec le nom du style en
 clé. `TargetType` dit ce qu'il habille : `Button` pour un bouton, `TextBlock` pour un texte ou
 un titre, `Border` pour un cadre (Humalis entoure alors l'élément, un bloc par exemple). Pour
-garder l'apparence de Windows 11, pars du style du système avec `BasedOn`.
+garder l'apparence de Windows 11, pars du style du système avec `BasedOn`. Un style qui donne
+un fond sans couleur de texte reçoit un texte lisible (sombre sur un fond clair, clair sur un
+fond sombre), en thème clair comme en sombre. Pour un bouton, Humalis tire aussi de son fond
+les couleurs du survol et de l'appui ; pour les choisir toi-même, donne dans `<Style.Resources>`
+les pinceaux `ButtonBackgroundPointerOver`, `ButtonBackgroundPressed`,
+`ButtonForegroundPointerOver` et `ButtonForegroundPressed` du thème Fluent.
 
 ```xml
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
