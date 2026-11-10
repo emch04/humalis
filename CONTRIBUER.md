@@ -79,7 +79,7 @@ node dist/cli.js verifier exemples/boutique.humalis --ri   # avec la représenta
 | `src/ri/` | la représentation intermédiaire, neutre, que liront les cibles |
 | `src/cibles/web/` | la cible web : chaque écran devient un composant React |
 | `src/cibles/statique/` | la cible statique : chaque écran devient une page HTML et son script |
-| `src/cibles/moteur/` | le moteur de rendu sans React (`--cible web --moteur humalis`) : HTML écrit, reprise, mises à jour fines |
+| `src/cibles/moteur/` | le moteur de rendu sans React, le défaut de `--cible web` (`--moteur react` garde React) : HTML écrit, reprise, mises à jour fines |
 | `src/cibles/apple/` | la cible Apple : chaque écran devient une vue SwiftUI, le tout dans un projet Xcode |
 | `scripts/essai-web.mjs` | l'essai en vrai de la cible web, dans Chromium |
 | `src/compilateur.ts` | `compiler(source)` : tout enchaîner, renvoyer la RI ou les diagnostics |

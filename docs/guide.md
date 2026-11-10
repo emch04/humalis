@@ -2954,17 +2954,19 @@ Le serveur (`--cible serveur`) se produit à part, depuis le bloc `serveur`.
 
 ### Le moteur de rendu de Humalis
 
-`--moteur humalis` produit le site web sans React :
+Le site web est produit sans React, par le moteur de Humalis : c'est le défaut.
 
 ```sh
-humalis compile site.humalis --cible web --moteur humalis --sortie site
+humalis compile site.humalis --cible web --sortie site
 ```
 
 Chaque page est un fichier HTML déjà écrit par le compilateur, qu'un petit
 script reprend sans le reconstruire. Quand une variable change, seul ce qui la
-lit change. Sans cette option, le site reste produit avec React. Pour un projet, écris-le
-une fois dans `humalis.projet.json` : `"moteur": "humalis"` ; `humalis developper`
-et `humalis tester` s'en servent aussi.
+lit change. Pour garder React, écris `--moteur react`, ou une fois pour un projet
+dans `humalis.projet.json` : `"moteur": "react"` ; `humalis developper` et
+`humalis tester` s'en servent aussi. Un dossier déjà produit avec React le reste, et
+un programme qui emploie ce que le moteur ne sait pas encore faire est produit avec
+React : la compilation dit pourquoi.
 
 Les modules (`utiliser module`), les composants React, Vue et Svelte et les Web
 Components marchent de la même façon : le fichier n'est chargé que par les pages qui s'en

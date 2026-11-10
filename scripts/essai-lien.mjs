@@ -23,7 +23,7 @@ const verifier = (condition, message) => {
 const source = 'exemples/boutique-complete.humalis';
 
 execFileSync('node', ['dist/cli.js', 'compile', source, '--cible', 'serveur', '--sortie', serveur], { stdio: 'inherit' });
-execFileSync('node', ['dist/cli.js', 'compile', source, '--cible', 'web', ...(process.env.HUMALIS_MOTEUR ? ['--moteur', process.env.HUMALIS_MOTEUR] : []), '--sortie', web, '--adresse', 'https://boutique.exemple.cd'], { stdio: 'inherit' });
+execFileSync('node', ['dist/cli.js', 'compile', source, '--cible', 'web', '--moteur', process.env.HUMALIS_MOTEUR ?? 'react', '--sortie', web, '--adresse', 'https://boutique.exemple.cd'], { stdio: 'inherit' });
 execFileSync('npx', ['-y', 'npm@11', 'install', '--no-audit', '--no-fund'], { cwd: serveur, stdio: 'inherit' });
 execFileSync('npm', ['run', 'build'], { cwd: serveur, stdio: 'inherit' });
 execFileSync('npm', ['install', '--no-audit', '--no-fund'], { cwd: web, stdio: 'inherit' });

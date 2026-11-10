@@ -2986,17 +2986,19 @@ block.
 
 ### The Humalis rendering engine
 
-`--moteur humalis` produces the website without React:
+The website is produced without React, by the Humalis engine: it is the default.
 
 ```sh
-humalis compile site.humalis --cible web --moteur humalis --sortie site
+humalis compile site.humalis --cible web --sortie site
 ```
 
 Each page is an HTML file already written by the compiler, which a small script
 picks up without rebuilding it. When a variable changes, only what reads it
-changes. Without this option, the site is still produced with React. For a project, write
-it once in `humalis.projet.json`: `"moteur": "humalis"`; `humalis developper` and
-`humalis tester` use it too.
+changes. To keep React, write `--moteur react`, or once for a project in
+`humalis.projet.json`: `"moteur": "react"`; `humalis developper` and
+`humalis tester` use it too. A folder already produced with React stays React, and a
+program that uses what the engine cannot do yet is produced with React: the
+compiler says why.
 
 Modules (`utiliser module`), React, Vue and Svelte components and Web Components
 work the same way: the file is loaded only by the pages that use it. Anything shown after

@@ -16,7 +16,7 @@ import { verifierFichiersPourLeMobile } from './cibles/mobile/fichiers.js';
 import { genererProjetMoteur, verifierPourLeMoteur, MARQUE_MOTEUR } from './cibles/moteur/projet.js';
 import { lecturesPermises, lireLesDonnees, type ReglageLecture } from './cibles/moteur/lecture-construction.js';
 import { genererProjetStatique, verifierPourLeStatique, MARQUE_STATIQUE } from './cibles/statique/projet.js';
-import { genererProjetDesktop, MARQUE_DESKTOP, SERVEUR_PAR_DEFAUT } from './cibles/desktop/projet.js';
+import { genererProjetDesktop, bureauSurLeMoteur, MARQUE_DESKTOP, SERVEUR_PAR_DEFAUT } from './cibles/desktop/projet.js';
 import { genererProjetApple, MARQUE_APPLE } from './cibles/apple/projet.js';
 import { verifierAppareilPourLaCible } from './cibles/appareil.js';
 import { pourLaCible } from './ri/plateforme.js';
@@ -44,7 +44,7 @@ const AIDE = `Utilisation :
   humalis compile <fichier.humalis> --cible desktop --sortie <dossier> [--serveur https://…]
   humalis compile <fichier.humalis> --cible apple --sortie <dossier> [--serveur https://…] [--identifiant com.exemple.app] [--equipe ABCDE12345]
   humalis compile <fichier.humalis> --cible serveur --sortie <dossier>
-  humalis compile <fichier.humalis> --cible web --moteur humalis --sortie <dossier> [--adresse https://…] [--lire-serveur https://…]
+  humalis compile <fichier.humalis> --cible web [--moteur humalis|react] --sortie <dossier> [--adresse https://…] [--lire-serveur https://…]
   humalis compile <fichier.humalis> --cible statique --sortie <dossier> [--adresse https://…]
   humalis packs [--verifier <dossier>]
 
@@ -179,7 +179,7 @@ function compile(arguments_: string[]): number | Promise<number> {
   if (cible === 'serveur') return compileServeur(application, chemin, sortie);
   if (cible === 'mobile') return compileMobile(application, chemin, sortie);
   if (cible === 'statique') return compileStatique(application, chemin, sortie, option(arguments_, 'adresse'));
-  if (cible === 'desktop') return compileDesktop(application, chemin, sortie, option(arguments_, 'serveur'));
+  if (cible === 'desktop') return compileDesktop(application, chemin, sortie, option(arguments_, 'serveur'), option(arguments_, 'moteur') ?? moteurDuProjet(chemin));
   if (cible === 'apple') return compileApple(application, chemin, sortie, arguments_);
 
   // Ce que la cible web ne sait pas faire (« memorisee en secret »).
@@ -190,11 +190,24 @@ function compile(arguments_: string[]): number | Promise<number> {
     return 1;
   }
 
-  // « --moteur humalis » : le site sans React (le moteur de rendu de Humalis).
-  const moteur = option(arguments_, 'moteur') ?? moteurDuProjet(chemin);
-  if (moteur !== undefined && moteur !== 'humalis' && moteur !== 'react') {
-    console.error(`Le moteur « ${moteur} » n'existe pas. Moteurs disponibles : react (par défaut), humalis.`);
+  // Le moteur de Humalis est le défaut : le site sans React. « --moteur react » garde React.
+  const demande = option(arguments_, 'moteur') ?? moteurDuProjet(chemin);
+  if (demande !== undefined && demande !== 'humalis' && demande !== 'react') {
+    console.error(`Le moteur « ${demande} » n'existe pas. Moteurs disponibles : humalis (par défaut), react.`);
     return 2;
+  }
+  let moteur = demande;
+  if (moteur === undefined) {
+    const refusMoteur = verifierPourLeMoteur(application).filter((d) => d.gravite === 'erreur');
+    if (composants !== undefined) moteur = 'react';
+    else if (existsSync(join(sortie, MARQUE))) {
+      // Un dossier déjà produit avec React le reste : rien n'est mélangé.
+      moteur = 'react';
+      console.error(`Note : « ${sortie} » a été produit avec React ; il le reste. Pour passer au moteur Humalis, videz le dossier ou écrivez --moteur humalis dans un dossier neuf.`);
+    } else if (refusMoteur.length > 0) {
+      moteur = 'react';
+      console.error(`Note : ce programme utilise ce que le moteur Humalis ne sait pas encore faire ; il est produit avec React.\n${refusMoteur.map((d) => `  - ${d.message}`).join('\n')}`);
+    } else moteur = 'humalis';
   }
   // « --composants » écrit des composants React pour un projet React : le moteur n'a pas de sens ici.
   if (moteur === 'humalis' && composants === undefined) return compileMoteur(application, chemin, sortie, option(arguments_, 'adresse'), option(arguments_, 'diagnostics-port'), option(arguments_, 'lire-serveur'));
@@ -422,7 +435,7 @@ function compileMobile(application: Application, chemin: string, sortie: string)
   return 0;
 }
 
-function compileDesktop(application: Application, chemin: string, sortie: string, serveur: string | undefined): number {
+function compileDesktop(application: Application, chemin: string, sortie: string, serveur: string | undefined, moteurDemande?: string): number {
   if (application.ecrans.length === 0) {
     console.error(`Le fichier ${basename(chemin)} ne contient aucune page : rien n'a été écrit.`);
     return 1;
@@ -462,9 +475,13 @@ function compileDesktop(application: Application, chemin: string, sortie: string
   if (!images) return 1;
   const medias = lireMedias(application, chemin);
   if (!medias) return 1;
-  const fichiers = genererProjetDesktop(application, { nom, source: basename(chemin), fichiersStyle, composantsReact, serveur, polices, images, medias });
+  // Le moteur Humalis est le défaut : l'application de bureau sans React. « --moteur react » garde React.
+  const options = { nom, source: basename(chemin), fichiersStyle, composantsReact, serveur, polices, images, medias, moteur: moteurDemande === 'react' ? ('react' as const) : ('humalis' as const) };
+  const surLeMoteur = bureauSurLeMoteur(application, options);
+  if (!surLeMoteur && moteurDemande !== 'react') console.error('Note : ce programme emploie ce que le moteur Humalis ne sait pas encore faire (un composant React, « memorisee en secret »…) : l\'application de bureau est produite avec React.');
+  const fichiers = genererProjetDesktop(application, options);
   ecrire(sortie, fichiers);
-  console.error(`Projet desktop (Electron) écrit dans « ${sortie} » (${fichiers.size} fichiers).`);
+  console.error(`Projet desktop (Electron) écrit dans « ${sortie} » avec ${surLeMoteur ? 'le moteur Humalis' : 'React'} (${fichiers.size} fichiers).`);
   // Les requêtes passent par le relais du processus principal (décision D5).
   const pages = [...fichiers].filter(([f]) => f.startsWith('src/pages/') || f.startsWith('src/composants/'));
   if (pages.some(([, code]) => /\buse(Serveur|Utilisateur)\(\)/.test(code))) {

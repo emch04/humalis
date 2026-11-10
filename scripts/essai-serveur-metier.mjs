@@ -36,7 +36,7 @@ try {
 }
 
 // Les pages aussi : le site React passe par tsc, le moteur par Vite.
-for (const [nom, options] of [['site-react', []], ['site-moteur', ['--moteur', 'humalis']]]) {
+for (const [nom, options] of [['site-react', ['--moteur', 'react']], ['site-moteur', ['--moteur', 'humalis']]]) {
   const dossier = join(travail, nom);
   execFileSync('node', ['dist/cli.js', 'compile', 'essais/serveur/metier.humalis', '--cible', 'web', ...options, '--sortie', dossier], { stdio: ['ignore', 'ignore', 'inherit'] });
   execFileSync('npm', ['install', '--no-audit', '--no-fund', '--silent'], { cwd: dossier, stdio: 'inherit' });
@@ -453,7 +453,7 @@ try {
       const reponseFaire = page.waitForResponse((r) => r.url().includes('/faire/rembourser/'));
       await page.getByRole('button', { name: 'Rembourser' }).last().click();
       verifier((await reponseFaire).status() === 200, `${nom} : « faire » lance l'action`);
-      await page.getByText(/Combien : \d+/).waitFor({ timeout: 5000 }).then(() => verifier(true, `${nom} : la page affiche un résumé du serveur`), () => verifier(false, `${nom} : la page affiche un résumé du serveur`));
+      await page.getByText(/Combien\s: \d+/).waitFor({ timeout: 5000 }).then(() => verifier(true, `${nom} : la page affiche un résumé du serveur`), () => verifier(false, `${nom} : la page affiche un résumé du serveur`));
       const reponseReduire = page.waitForResponse((r) => r.url().includes('/faire/reduire/'));
       await page.getByRole('button', { name: 'Reduire' }).last().click();
       verifier((await reponseReduire).status() === 200, `${nom} : « faire … avec » envoie ses valeurs`);

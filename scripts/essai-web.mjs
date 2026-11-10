@@ -25,7 +25,7 @@ const verifier = (condition, message) => {
 
 function construire(nom) {
   const dossier = join(travail, nom);
-  execFileSync('node', ['dist/cli.js', 'compile', `exemples/${nom}.humalis`, '--cible', 'web', ...(process.env.HUMALIS_MOTEUR ? ['--moteur', process.env.HUMALIS_MOTEUR] : []), '--sortie', dossier, '--adresse', `https://${nom}.exemple.cd`], { stdio: 'inherit' });
+  execFileSync('node', ['dist/cli.js', 'compile', `exemples/${nom}.humalis`, '--cible', 'web', '--moteur', process.env.HUMALIS_MOTEUR ?? 'react', '--sortie', dossier, '--adresse', `https://${nom}.exemple.cd`], { stdio: 'inherit' });
   execFileSync('npm', ['install', '--no-audit', '--no-fund'], { cwd: dossier, stdio: 'inherit' });
   execFileSync('npm', ['run', 'build'], { cwd: dossier, stdio: 'inherit' });
   return dossier;

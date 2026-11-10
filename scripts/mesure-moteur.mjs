@@ -24,7 +24,7 @@ if (!existsSync(join(travail, 'node_modules/react-router'))) {
 
 function produire(fichier, nom, sorte) {
   const dossier = join(travail, `${nom}-${sorte}`);
-  const cible = sorte === 'statique' ? ['--cible', 'statique'] : sorte === 'react' ? ['--cible', 'web', '--adresse', 'https://exemple.test'] : ['--cible', 'web', '--moteur', 'humalis'];
+  const cible = sorte === 'statique' ? ['--cible', 'statique'] : sorte === 'react' ? ['--cible', 'web', '--moteur', 'react', '--adresse', 'https://exemple.test'] : ['--cible', 'web', '--moteur', 'humalis'];
   execFileSync('node', [join(racine, 'dist/cli.js'), 'compile', join(racine, fichier), ...cible, '--sortie', dossier], { stdio: 'ignore' });
   if (sorte === 'statique') return dossier;
   execFileSync('npx', ['vite', 'build', '--logLevel', 'silent'], { cwd: dossier, stdio: 'inherit' });

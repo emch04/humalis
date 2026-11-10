@@ -18,7 +18,7 @@ const verifier = (condition, message) => {
 const apparait = (element) => element.waitFor({ timeout: 5000 }).then(() => true, () => false);
 
 rmSync(pages, { recursive: true, force: true });
-execFileSync('node', ['dist/cli.js', 'compile', 'exemples/boutique.humalis', '--cible', 'web', ...(process.env.HUMALIS_MOTEUR ? ['--moteur', process.env.HUMALIS_MOTEUR] : []), '--composants', pages], { stdio: 'inherit' });
+execFileSync('node', ['dist/cli.js', 'compile', 'exemples/boutique.humalis', '--cible', 'web', '--moteur', process.env.HUMALIS_MOTEUR ?? 'react', '--composants', pages], { stdio: 'inherit' });
 execFileSync('npm', ['install', '--no-audit', '--no-fund'], { cwd: hote, stdio: 'inherit' });
 execFileSync('npm', ['run', 'build'], { cwd: hote, stdio: 'inherit' });
 

@@ -38,7 +38,7 @@ const COMMENTAIRE = 'Livraison rapide, très bon livre.';
 
 // 1. Les deux projets : compilés, installés, vérifiés par tsc, construits (prérendu compris pour React).
 execFileSync('node', ['dist/cli.js', 'compile', source, '--cible', 'serveur', '--sortie', serveur], { stdio: 'inherit' });
-execFileSync('node', ['dist/cli.js', 'compile', source, '--cible', 'web', ...(moteur ? ['--moteur', moteur] : []), '--sortie', web, '--adresse', 'https://avis.exemple.test'], { stdio: 'inherit' });
+execFileSync('node', ['dist/cli.js', 'compile', source, '--cible', 'web', '--moteur', moteur ?? 'react', '--sortie', web, '--adresse', 'https://avis.exemple.test'], { stdio: 'inherit' });
 for (const dossier of [serveur, web]) {
   execFileSync('npm', ['install', '--no-audit', '--no-fund'], { cwd: dossier, stdio: 'inherit' });
   execFileSync('npm', ['run', 'build'], { cwd: dossier, stdio: 'inherit' });

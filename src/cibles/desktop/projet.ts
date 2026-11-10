@@ -3,6 +3,7 @@ import type { InfoMedia } from '../../ri/medias.js';
 import { simplifier } from '../../analyse/elements.js';
 import { chaine } from '../web/noms.js';
 import { genererProjetWeb, adressesDeRequetes, MEMOIRE, MARQUE, VERSIONS } from '../web/projet.js';
+import { genererProjetMoteur, verifierPourLeMoteur, MARQUE_MOTEUR } from '../moteur/projet.js';
 
 export interface OptionsDesktop {
   /** Le nom du projet, tiré du fichier Humalis (« boutique »). */
@@ -21,6 +22,20 @@ export interface OptionsDesktop {
   images?: Map<string, string>;
   /** L'adresse du serveur écrite dans l'application (« --serveur »), sinon http://localhost:3000. */
   serveur?: string;
+  /** « humalis » : les pages du moteur Humalis, quand il sait tout faire (le défaut de la commande) ; sinon celles de React. */
+  moteur?: 'humalis' | 'react';
+}
+
+/**
+ * Les pages viennent du moteur Humalis (sans React) quand il sait tout faire : pas de
+ * composant React, pas de « memorisee en secret » (gardé dans le coffre de React pour l'instant).
+ */
+export function bureauSurLeMoteur(application: Application, options: OptionsDesktop): boolean {
+  // La commande demande le moteur par défaut ; appelée directement, la fonction garde React.
+  if (options.moteur !== 'humalis') return false;
+  const etats: Etat[] = [...application.partages, ...application.ecrans.flatMap((e) => e.etat), ...application.composants.flatMap((c) => c.etat)];
+  if (etats.some((e) => e.memorisee && e.secret) || application.composantsReact.length > 0) return false;
+  return !verifierPourLeMoteur(application).some((d) => d.gravite === 'erreur');
 }
 
 /**
@@ -57,12 +72,21 @@ export const SERVEUR_PAR_DEFAUT = 'http://localhost:3000';
  * (décision D1), et le processus principal qui les ouvre dans une fenêtre.
  */
 export function genererProjetDesktop(application: Application, options: OptionsDesktop): Map<string, string> {
-  const web = genererProjetWeb(application, { ...options, adresse: 'http://localhost' });
+  const moteur = bureauSurLeMoteur(application, options);
+  const web = moteur
+    ? genererProjetMoteur(application, { nom: options.nom, source: options.source, ...(options.fichiersStyle ? { fichiersStyle: options.fichiersStyle } : {}), ...(options.polices ? { polices: options.polices } : {}), ...(options.medias ? { medias: options.medias } : {}), ...(options.images ? { images: options.images } : {}), adresse: 'http://localhost' })
+    : genererProjetWeb(application, { ...options, adresse: 'http://localhost' });
   const fichiers = new Map<string, string>();
-  // Les pages et leurs outils, à l'octet près ; pas de prérendu (décision D3).
-  for (const [chemin, contenu] of web) {
-    if (chemin.startsWith('src/') || [MARQUE, 'index.html', 'vite.config.ts', 'tsconfig.json'].includes(chemin)) {
-      fichiers.set(chemin, contenu);
+  if (moteur) {
+    // Les pages du moteur : une page HTML par adresse, son script, ses outils ; rien de React.
+    for (const [chemin, contenu] of web) if (!['package.json', '.gitignore', 'LISEZMOI.md', MARQUE_MOTEUR].includes(chemin)) fichiers.set(chemin, contenu);
+    fichiers.set(MARQUE, web.get(MARQUE_MOTEUR) ?? '');
+  } else {
+    // Les pages et leurs outils, à l'octet près ; pas de prérendu (décision D3).
+    for (const [chemin, contenu] of web) {
+      if (chemin.startsWith('src/') || [MARQUE, 'index.html', 'vite.config.ts', 'tsconfig.json'].includes(chemin)) {
+        fichiers.set(chemin, contenu);
+      }
     }
   }
 
@@ -77,14 +101,14 @@ export function genererProjetDesktop(application: Application, options: OptionsD
   const slug = simplifier(options.nom).replace(/_/g, '-') || 'application-humalis';
   const { relais, origines } = adressesDuServeur(application);
   const misesAJour = adresseDesMisesAJour(application);
-  fichiers.set('package.json', packageJson(slug, options, misesAJour));
+  fichiers.set('package.json', packageJson(slug, options, misesAJour, moteur));
   // Les bibliothèques des éléments d'écran (icônes, code QR) : Vite les emballe, comme React.
   const extras = Object.fromEntries(
-    Object.entries(JSON.parse(web.get('package.json')!).dependencies as Record<string, string>).filter(([nom]) => !['react', 'react-dom', 'react-router'].includes(nom)),
+    Object.entries((JSON.parse(web.get('package.json')!).dependencies ?? {}) as Record<string, string>).filter(([nom]) => !['react', 'react-dom', 'react-router'].includes(nom)),
   );
   // Les types de ces bibliothèques (ceux de Leaflet), pour `tsc`.
   const types = Object.fromEntries(
-    Object.entries(JSON.parse(web.get('package.json')!).devDependencies as Record<string, string>).filter(([nom]) => nom.startsWith('@types/') && !['@types/react', '@types/react-dom'].includes(nom)),
+    Object.entries((JSON.parse(web.get('package.json')!).devDependencies ?? {}) as Record<string, string>).filter(([nom]) => nom.startsWith('@types/') && !['@types/react', '@types/react-dom'].includes(nom)),
   );
   if (Object.keys(extras).length > 0) {
     const paquet = JSON.parse(fichiers.get('package.json')!);
@@ -104,6 +128,7 @@ export function genererProjetDesktop(application: Application, options: OptionsD
       origines,
       secret,
       misesAJour: misesAJour !== undefined,
+      pagesParAdresse: moteur,
       ...mediasDuProgramme(application),
     }),
   );
@@ -145,7 +170,7 @@ export function adressesDuServeur(application: Application): { relais: string[];
   return { relais, origines };
 }
 
-function packageJson(slug: string, options: OptionsDesktop, misesAJour?: string): string {
+function packageJson(slug: string, options: OptionsDesktop, misesAJour?: string, moteur = false): string {
   return (
     JSON.stringify(
       {
@@ -157,7 +182,8 @@ function packageJson(slug: string, options: OptionsDesktop, misesAJour?: string)
         main: 'electron/dist/principal.js',
         scripts: {
           dev: 'vite',
-          build: 'tsc --noEmit && tsc -p tsconfig.electron.json && vite build',
+          // Le moteur Humalis : du JavaScript, rien à vérifier pour tsc côté pages.
+          build: moteur ? 'tsc -p tsconfig.electron.json && vite build' : 'tsc --noEmit && tsc -p tsconfig.electron.json && vite build',
           start: 'npm run build && electron .',
           // Rien n'est envoyé nulle part : les installateurs restent dans paquets/.
           paquet: 'npm run build && electron-builder --publish never',
@@ -169,18 +195,20 @@ function packageJson(slug: string, options: OptionsDesktop, misesAJour?: string)
         ...(misesAJour ? { dependencies: { 'electron-updater': VERSIONS_DESKTOP.electronUpdater } } : {}),
         // Tout sert à construire : Vite emballe les pages, et le processus
         // principal n'utilise qu'Electron et Node (décision D8).
-        devDependencies: {
-          '@types/react': VERSIONS.typesReact,
-          '@types/react-dom': VERSIONS.typesReactDom,
-          '@vitejs/plugin-react': VERSIONS.pluginReact,
-          electron: VERSIONS_DESKTOP.electron,
-          'electron-builder': VERSIONS_DESKTOP.electronBuilder,
-          react: VERSIONS.react,
-          'react-dom': VERSIONS.reactDom,
-          'react-router': VERSIONS.reactRouter,
-          typescript: VERSIONS.typescript,
-          vite: VERSIONS.vite,
-        },
+        devDependencies: moteur
+          ? { electron: VERSIONS_DESKTOP.electron, 'electron-builder': VERSIONS_DESKTOP.electronBuilder, typescript: VERSIONS.typescript, vite: VERSIONS.vite }
+          : {
+              '@types/react': VERSIONS.typesReact,
+              '@types/react-dom': VERSIONS.typesReactDom,
+              '@vitejs/plugin-react': VERSIONS.pluginReact,
+              electron: VERSIONS_DESKTOP.electron,
+              'electron-builder': VERSIONS_DESKTOP.electronBuilder,
+              react: VERSIONS.react,
+              'react-dom': VERSIONS.reactDom,
+              'react-router': VERSIONS.reactRouter,
+              typescript: VERSIONS.typescript,
+              vite: VERSIONS.vite,
+            },
         build: {
           appId: `com.humalis.${slug}`,
           productName: options.nom,
@@ -244,6 +272,8 @@ interface OptionsPrincipal {
   apercu: boolean;
   /** Un son ou une vidéo (media-src) est joué. */
   media: boolean;
+  /** Les pages du moteur : /panier est servi par panier/index.html, une adresse inconnue par 404.html. */
+  pagesParAdresse?: boolean;
 }
 
 /** Ce que la politique de contenu doit laisser passer en plus, d'après ce que les pages emploient (plan des médias). */
@@ -354,7 +384,11 @@ async function servir(requete: Request): Promise<Response> {
   const dedans = demande.startsWith(SITE + sep);
   let fichier: string | undefined;
   if (dedans && existsSync(demande) && statSync(demande).isFile()) fichier = demande;
-  else if (extname(url.pathname) === '') fichier = join(SITE, 'index.html');
+${o.pagesParAdresse ? `  else if (extname(url.pathname) === '') {
+    // Une page par adresse : /panier est servi par panier/index.html ; une adresse inconnue, par 404.html.
+    const page = demande === SITE ? join(SITE, 'index.html') : join(demande, 'index.html');
+    fichier = (demande === SITE || dedans) && existsSync(page) ? page : join(SITE, '404.html');
+  }` : "  else if (extname(url.pathname) === '') fichier = join(SITE, 'index.html');"}
   if (!fichier) return new Response('', { status: 404 });
   const reponse = await net.fetch(pathToFileURL(fichier).toString());
   const entetes = new Headers(reponse.headers);
