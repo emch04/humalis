@@ -143,3 +143,6 @@ for (const forme of ['donneeLocale', 'cleAcces', 'doubleAuthentification'] as co
 
 // Android (SQLite, Keystore, WorkManager, Credential Manager) : src/cibles/android/donnees-comptes.ts.
 for (const forme of ['donneeLocale', 'cleAcces', 'doubleAuthentification'] as const) ECRITES.android.add(forme);
+
+// Windows (SQLite, DPAPI, webauthn.dll) : src/cibles/windows/donnees-comptes.ts.
+for (const forme of ['donneeLocale', 'cleAcces', 'doubleAuthentification'] as const) ECRITES.windows.add(forme);

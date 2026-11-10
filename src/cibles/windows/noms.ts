@@ -40,6 +40,7 @@ const CLASSES_PRISES = new Set([
   'Couleurs', 'V', 'UI', 'Session', 'Serveur', 'Routeur', 'Messages', 'Memoire', 'Coffre', 'Apparence', 'Configuration', 'Icones',
   'Minuterie', 'Pause', 'Signal', 'Effet', 'Liste', 'Fiche', 'Arguments', 'Fermeture', 'Entete', 'Pied', 'Source',
   'Langues', 'Svg', 'Palette', 'GraphiqueHumalis', 'GraphiqueFabrique', 'SerieGraphique', 'Fichiers', 'Qr', 'Medias', 'Marqueur', 'CarteHumalis',
+  'DonneeLocale', 'DonneesComptes', 'CoeurLocal', 'BaseSqlite', 'BaseEnMemoire', 'CompteSecurise', 'CleAcces',
 ]);
 
 /** Le nom de l'application en identifiant C# (« ma-boutique » → MaBoutique ; « sources » → SourcesApp). */

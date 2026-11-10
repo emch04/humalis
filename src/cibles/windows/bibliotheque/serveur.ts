@@ -145,6 +145,14 @@ public static class Serveur
         }
     }
 
+    /// <summary>Un appel brut, avec le même renouvellement de session que le reste : le statut et le corps lu.</summary>
+    public static async Task<(int statut, object? corps)> Brut(string chemin, string methode = "GET", Fiche? envoi = null)
+    {
+        var uri = Adresse(chemin, null, null, null);
+        var (reponse, corps) = await Lancer(() => Requete(uri, methode, envoi, null), null);
+        return ((int)reponse.StatusCode, V.LireJson(corps));
+    }
+
     private static object? Suivre(object? depart, string? chemin)
     {
         if (string.IsNullOrEmpty(chemin)) return depart;
@@ -237,6 +245,7 @@ public static class Session
 {
     private const string CleJeton = "humalis.jeton";
     private const string CleRenouvellement = "humalis.renouvellement";
+    private const string ClePersonne = "humalis.personne";
 
     private static readonly Signal personne = new();
     private static readonly Signal recue = new(false);
@@ -256,6 +265,8 @@ public static class Session
 
     public static bool Pret { get { Demander(); return V.B(recue.Lire()); } }
     public static bool Connecte { get { Demander(); return personne.Lire() is Fiche; } }
+    /// <summary>L'identifiant du compte connecté ; null s'il n'y a personne.</summary>
+    public static string? IdCompte { get { Demander(); return personne.Lire() is Fiche f ? V.T(V.Champ(f, "id")) : null; } }
     public static bool Admin { get { Demander(); return V.T(V.Champ(personne.Lire(), "role")) == "admin"; } }
 
     /// <summary>« si utilisateur est gerant » : un admin passe toujours.</summary>
@@ -295,7 +306,11 @@ public static class Session
     {
         Coffre.Effacer(CleJeton);
         Coffre.Effacer(CleRenouvellement);
+        Coffre.Effacer(ClePersonne);
     }
+
+    /// <summary>Sans réseau, la session n'est pas finie : on reste le compte qu'on était, et ses données restent là.</summary>
+    private static object? PersonneConnue() => Coffre.Lire(CleRenouvellement) is not null && Coffre.Lire(ClePersonne) is { } texte ? V.LireJson(texte) : null;
 
     private static async Task Relire()
     {
@@ -308,10 +323,18 @@ public static class Session
                 await Relire();
                 return;
             }
+            // Le renouvellement n'a pas pu se faire sans être refusé : une coupure.
+            if (reponse.StatusCode == HttpStatusCode.Unauthorized && Coffre.Lire(CleRenouvellement) is not null)
+            {
+                personne.Ecrire(PersonneConnue());
+                return;
+            }
             var lue = V.Champ(V.LireJson(await reponse.Content.ReadAsStringAsync()), "data");
-            personne.Ecrire(reponse.IsSuccessStatusCode && V.Champ(lue, "id") is not null ? lue : null);
+            var connue = reponse.IsSuccessStatusCode && V.Champ(lue, "id") is not null;
+            if (connue) Coffre.Ecrire(ClePersonne, V.EnJson(lue));
+            personne.Ecrire(connue ? lue : null);
         }
-        catch (Exception) { personne.Ecrire(null); }
+        catch (Exception) { personne.Ecrire(PersonneConnue()); }
         finally { recue.Ecrire(true); }
     }
 
@@ -358,15 +381,51 @@ public static class Session
         catch (Exception) { throw new ErreurHumalis(Serveur.PasDeReponse); }
     }
 
-    public static async Task SeConnecter(string email, string motDePasse)
+    /// <summary>Le compte a le code : l'écran qui le demande (branché seulement si le serveur a la double authentification).</summary>
+    public static Func<string, Task<bool>>? DemanderCode;
+
+    /// <summary>Un appel du compte sans rejeu : un code faux répond 401, et ne doit compter qu'une fois.</summary>
+    public static async Task<(int statut, object? corps)> Direct(string chemin, string methode, Fiche? corps, bool renouveler = false)
+    {
+        try
+        {
+            var verbe = new HttpMethod(methode);
+            using var r = Requete(chemin, verbe, methode == "GET" ? null : corps ?? new Fiche());
+            var reponse = await http.SendAsync(r);
+            if (reponse.StatusCode == HttpStatusCode.Unauthorized && renouveler && await Renouveler())
+            {
+                using var deuxieme = Requete(chemin, verbe, methode == "GET" ? null : corps ?? new Fiche());
+                reponse = await http.SendAsync(deuxieme);
+            }
+            return ((int)reponse.StatusCode, V.LireJson(await reponse.Content.ReadAsStringAsync()));
+        }
+        catch (Exception e) when (e is not ErreurHumalis) { throw new ErreurHumalis(Serveur.PasDeReponse, sansReseau: true); }
+    }
+
+    /// <summary>Une session vient d'être donnée : on oublie d'abord le compte d'avant, pour que ses données ne partent pas avec ce jeton.</summary>
+    public static async Task Ouvrir(object? donnees)
+    {
+        personne.Ecrire(null);
+        Garder(donnees);
+        demande = Relire();
+        await demande;
+    }
+
+    /// <summary>Vrai si la session est ouverte ; faux si la personne a fermé l'écran du code.</summary>
+    public static async Task<bool> SeConnecter(string email, string motDePasse)
     {
         var (reponse, corps) = await Envoyer("/auth/login", V.FicheDe(("email", email), ("password", motDePasse)));
         if ((int)reponse.StatusCode == 429) throw new ErreurHumalis("Trop de tentatives de connexion. Réessayez dans quelques minutes.");
         // Jamais lequel des deux est faux : on ne dit pas si un compte existe.
         if (!reponse.IsSuccessStatusCode) throw new ErreurHumalis("Email ou mot de passe incorrect.");
-        Garder(V.Champ(corps, "data"));
-        demande = Relire();
-        await demande;
+        var donnees = V.Champ(corps, "data");
+        if (V.T(V.Champ(donnees, "etape")) == "code")
+        {
+            if (DemanderCode is null) throw new ErreurHumalis(Serveur.PasDeReponse);
+            return await DemanderCode(V.T(V.Champ(donnees, "jeton")));
+        }
+        await Ouvrir(donnees);
+        return true;
     }
 
     public static async Task ChangerMotDePasse(string actuel, string nouveau)
@@ -387,6 +446,17 @@ public static class Session
         Oublier();
         demande = Relire();
         await demande;
+    }
+
+    /// <summary>Une connexion : refusée, le message s'affiche ; faux aussi si la personne l'a abandonnée.</summary>
+    public static async Task<bool> AfficherSiRefus(Func<Task<bool>> action)
+    {
+        try { return await action(); }
+        catch (ErreurHumalis e)
+        {
+            Messages.Afficher(e.Message, "erreur");
+            return false;
+        }
     }
 
     /// <summary>Une action sur le compte : refusée, le message s'affiche ; vrai si elle a réussi.</summary>
