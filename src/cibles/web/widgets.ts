@@ -158,6 +158,13 @@ export const WIDGETS_WEB: RenduWidgets = {
         if (!a.transcription) return `${lecteur} className="${cls('humalis-audio', w.classes)}" />`;
         return `<figure className="${cls('humalis-audio', w.classes)}">${lecteur} /><details className="humalis-audio-transcription"><summary>Lire la transcription</summary><p>${a.transcription}</p></details></figure>`;
       }
+      case 'video': {
+        // Jamais de lecture automatique ; seules les premières images sont chargées avant que la personne lance la vidéo.
+        const a = w.audio!;
+        const lecteur = `<video controls preload="metadata" playsInline src=${a.source}${a.description ? ` aria-label=${a.description}` : ''}${w.reglages.boucle ? ' loop' : ''}`;
+        if (!a.transcription) return `${lecteur} className="${cls('humalis-video', w.classes)}" />`;
+        return `<figure className="${cls('humalis-video', w.classes)}">${lecteur} /><details className="humalis-audio-transcription"><summary>Lire la transcription</summary><p>${a.transcription}</p></details></figure>`;
+      }
       case 'fichier': {
         const f = w.fichier!;
         const familles = `[${f.familles.map((x) => `{ nom: ${chaine(x.nom)}, mime: [${x.mime.map(chaine).join(', ')}] }`).join(', ')}]`;

@@ -269,6 +269,26 @@ page "accueil" :
 `),
     'au-delà de 2', { gravite: 'avertissement' }),
 
+  // --- La vidéo ---
+  e('video-sans-description', 'sens', 'Une vidéo sans description',
+    'Le lecteur d’une vidéo a besoin d’un nom que les lecteurs d’écran peuvent lire.',
+    'Écris et description "…" : ce que montre la vidéo.',
+    audioSeul('video "film.mp4" avec commandes'),
+    audioSeul('video "film.mp4" avec commandes et description "Présentation de la boutique"'),
+    'décrivez la vidéo pour les personnes qui ne la voient pas'),
+  e('video-sans-commandes', 'sens', 'Une vidéo sans commandes',
+    'Humalis ne lance jamais une vidéo toute seule : sans les boutons lecture et pause, personne ne pourrait la démarrer.',
+    'Ajoute avec commandes.',
+    audioSeul('video "film.mp4" avec description "Présentation de la boutique"'),
+    audioSeul('video "film.mp4" avec commandes et description "Présentation de la boutique"'),
+    'ajoutez « avec commandes »'),
+  e('video-format-inconnu', 'sens', 'Un fichier vidéo d’un format inconnu',
+    'Les navigateurs et les téléphones ne savent jouer que quelques formats de vidéo : mp4, webm, mov, m4v.',
+    'Convertis le fichier en mp4.',
+    audioSeul('video "film.avi" avec commandes et description "Présentation"'),
+    audioSeul('video "film.mp4" avec commandes et description "Présentation"'),
+    'n’est pas une vidéo que les navigateurs savent jouer'),
+
   // --- L'audio ---
   e('audio-sans-description', 'sens', 'Un son sans description',
     'Le lecteur d’un son a besoin d’un nom que les lecteurs d’écran peuvent lire. Sans description, une personne aveugle ne sait pas ce que ce lecteur joue.',

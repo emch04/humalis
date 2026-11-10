@@ -76,7 +76,7 @@ import { verifierElementEcran, verifierBlocEcran, type Signaler } from './ecran.
 import { connaitreIconesDessinees } from '../vocabulaire/icones.js';
 import { verifierChoixFichier, verifierEnvoiFichier, typeFichierChoisi, aUnApercu, recenserFichiers, type FichiersDeLaPage } from './fichiers.js';
 import { verifierCarte, verifierMarqueur } from './carte.js';
-import { verifierMouvement, verifierDefilementsDeLaPage, verifierImage, verifierAudio, verifierPrioritairesDeLaPage, verifierGraphique } from './medias.js';
+import { verifierMouvement, verifierDefilementsDeLaPage, verifierImage, verifierAudio, verifierVideo, verifierPrioritairesDeLaPage, verifierGraphique } from './medias.js';
 import { DEVISES } from '../cibles/format.js';
 import { COULEURS_CSS } from '../cibles/web/styles.js';
 import { analyserServeur, droitsDeRoute, adresseNormalisee, type Droits } from './serveur.js';
@@ -1354,6 +1354,10 @@ class AnalysePage {
         this.erreur(lue.externe ? `une adresse externe (${element.cible}) n'a pas de paramètres de page : retirez « avec ${element.arguments[0].nom} … ».` : `« avec ${element.arguments[0].nom} … » demande une page : écrivez vers "page" avec …`, element.ligne);
       }
     }
+    if (element.desactive !== undefined) {
+      if (element.element !== 'bouton') this.erreur(`« avec desactive » s'applique à un bouton, pas à un ${element.element}.`, element.ligne);
+      if (element.desactive !== true) this.comparaison(element.desactive);
+    }
     if (element.nouvelOnglet && element.element !== 'lien') {
       this.erreur(`« avec nouvel onglet » s'applique à un lien, pas à un ${element.element}.`, element.ligne);
     }
@@ -1382,6 +1386,7 @@ class AnalysePage {
     if (element.element === 'fichier') this.choixFichier(element);
     if (element.element === 'signature' && element.contenu.type === 'Reference') this.variableDeTexte(element.contenu.nom, element.ligne, 'une signature');
     if (element.element === 'audio') verifierAudio(element, this.signaler());
+    if (element.element === 'video') verifierVideo(element, this.signaler());
     if (element.element === 'marqueur') verifierMarqueur(element, this.pileBlocs.some((b) => b.genre === 'carte'), this.signaler());
     this.optionsDeChamp(element);
     // « avec raccourci "controle+k" » : la touche clique le bouton ou le lien, ou met le focus dans le champ.

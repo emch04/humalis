@@ -277,6 +277,8 @@ function envExemple(serveur: ServeurRI): string {
     ...(avecIa(serveur) ? [ENV_IA] : []),
     ...(avecPaiements(serveur) ? [`# Les paiements (« paiements par stripe ») : une clé de test d'abord (sk_test_…), et le secret du webhook vers /paiements/webhook.\nSTRIPE_CLE_SECRETE=\nSTRIPE_SECRET_WEBHOOK=\nHUMALIS_PAIEMENT_DEVISE=eur\n`] : []),
     ...(serveur.invitations || serveur.motDePasseOublie || serveur.donnees.some((d) => d.champs.some((c) => c.regle?.genre === 'site')) ? [ENV_LIENS] : []),
+    // Les secrets des sources : seulement leur nom ; la valeur se met ici, sur le serveur, jamais dans le fichier Humalis.
+    ...(serveur.passerelles ?? []).map((p) => `# Le secret de la source « ${p.source} » (jeton secret depuis l'environnement).\n${p.variable}=\n`),
   ];
   return ENV_EXEMPLE.replace('\nPORT=3000', enPlus.join('\n') + '\nPORT=3000');
 }
@@ -1408,7 +1410,7 @@ ${google}
       };
       app.use('/auth/cles', authMiddleware, authorizeAdmin, csrfMiddleware, coffre ? coffre.routes(authorizeAdmin) : coffreFerme);
 
-${avecIa(serveur) ? routeIa(serveur) : ''}${avecNotifications(serveur) ? ROUTES_APPAREILS : ''}${codeCompleter(serveur)}${comptes ? codeRoutesComptes(serveur, adresseApi, (a) => `route${pascal(a)}`) : ''}${routes}
+${avecIa(serveur) ? routeIa(serveur) : ''}${avecNotifications(serveur) ? ROUTES_APPAREILS : ''}${codeCompleter(serveur)}${comptes ? codeRoutesComptes(serveur, adresseApi, (a) => `route${pascal(a)}`) : ''}${routes}${codePasserelles(serveur)}
 ${fidelite}${avecPaiements(serveur) ? codeSurPaiement(serveur) : ''}${codeTaches(serveur)}      // Le dernier avant la réponse d'erreur du pack, qui répond ensuite comme d'habitude.
       if (surveillance) app.use(surveillance.gestionnaireErreurs());
     },
@@ -2600,3 +2602,65 @@ const ROUTE_GOOGLE = `
       });
       app.use('/auth/google', routeGoogle);
 `;
+
+/**
+ * Les passerelles des sources à jeton secret : le navigateur appelle « /api/passerelle/<source>/… »,
+ * le serveur vérifie qui peut, ajoute le secret lu dans l'environnement, puis appelle l'API.
+ * Le secret n'est écrit nulle part dans le code produit.
+ */
+function codePasserelles(serveur: ServeurRI): string {
+  const passerelles = serveur.passerelles ?? [];
+  if (passerelles.length === 0) return '';
+  const blocs = passerelles.map((p) => {
+    const variable = `passerelle${pascal(p.source)}`;
+    const relais = `relais${pascal(p.source)}`;
+    const base = `process.env.HUMALIS_SOURCE_${simplifier(p.source).toUpperCase()} ?? ${JSON.stringify(p.adresse.replace(/\/+$/, ''))}`;
+    const garde = (qui: QuiPeut | null) => (qui === null ? 'refuse' : `...acces.${gardeDe(qui)}`);
+    const lignes = p.routes.flatMap((r) => {
+      const chemin = `/${r.adresse.replace(/^\/+/, '')}`;
+      const avecId = chemin.includes(':id') ? chemin : `${chemin.replace(/\/+$/, '')}/:id`;
+      const sansId = chemin.replace(/\/:id$/, '');
+      return [
+        `      ${variable}.get(${JSON.stringify(sansId)}, lecturePrivee, ${garde(r.droits.lire)}, ${relais});`,
+        `      ${variable}.get(${JSON.stringify(avecId)}, lecturePrivee, ${garde(r.droits.lire)}, ${relais});`,
+        `      ${variable}.post(${JSON.stringify(sansId)}, ${garde(r.droits.creer)}, csrfMiddleware, ${relais});`,
+        `      ${variable}.${r.remplacement ? 'put' : 'patch'}(${JSON.stringify(avecId)}, ${garde(r.droits.modifier)}, csrfMiddleware, ${relais});`,
+        `      ${variable}.delete(${JSON.stringify(avecId)}, ${garde(r.droits.supprimer)}, csrfMiddleware, ${relais});`,
+      ];
+    });
+    return `      // La passerelle de la source « ${p.source} » : le secret ${p.variable} reste sur le serveur.
+      const ${variable} = express.Router();
+      const ${relais} = relayerVersSource({ base: ${base}, variable: ${JSON.stringify(p.variable)}, place: ${JSON.stringify(p.place)}, entetes: ${JSON.stringify(Object.fromEntries(p.entetes.map((e) => [e.nom, e.valeur])))} });
+${lignes.join('\n')}
+      app.use(${JSON.stringify(`/api/passerelle/${encodeURIComponent(p.source)}`)}, ${variable});`;
+  });
+  return `
+      // Relaie un appel vers une API, avec le secret lu dans l'environnement du serveur.
+      function relayerVersSource(config: { base: string; variable: string; place: { genre: 'autorisation' } | { genre: 'entete' | 'parametre'; nom: string }; entetes: Record<string, string> }): RequestHandler {
+        return async (req, res, next) => {
+          try {
+            const secret = process.env[config.variable];
+            if (!secret) {
+              res.status(503).json({ erreur: "Ce service n'est pas encore réglé sur le serveur." });
+              return;
+            }
+            const url = new URL(config.base + req.path);
+            for (const [cle, valeur] of Object.entries(req.query)) if (typeof valeur === 'string') url.searchParams.set(cle, valeur);
+            const entetes = new Headers({ accept: 'application/json', ...config.entetes });
+            if (config.place.genre === 'autorisation') entetes.set('authorization', \`Bearer \${secret}\`);
+            else if (config.place.genre === 'entete') entetes.set(config.place.nom, secret);
+            else url.searchParams.set(config.place.nom, secret);
+            const avecCorps = !['GET', 'HEAD', 'DELETE'].includes(req.method);
+            if (avecCorps) entetes.set('content-type', 'application/json');
+            const reponse = await fetch(url, { method: req.method, headers: entetes, body: avecCorps ? JSON.stringify(req.body ?? {}) : undefined, redirect: 'follow', signal: AbortSignal.timeout(15000) });
+            const texte = await reponse.text();
+            res.status(reponse.status).type(reponse.headers.get('content-type') ?? 'application/json').send(texte);
+          } catch (erreur) {
+            next(erreur);
+          }
+        };
+      }
+
+${blocs.join('\n\n')}
+`;
+}

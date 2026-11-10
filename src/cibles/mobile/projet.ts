@@ -199,6 +199,7 @@ export function genererProjetMobile(application: Application, options: OptionsMo
   // Les images locales, chargées par require depuis assets/images : décision M5.
   for (const [chemin, contenu] of copiesDesMedias(options.medias, 'assets/images/')) fichiers.set(chemin, contenu);
   for (const [chemin, contenu] of copiesDesMedias(options.medias, 'assets/audio/', 'audio')) fichiers.set(chemin, contenu);
+  for (const [chemin, contenu] of copiesDesMedias(options.medias, 'assets/video/', 'video')) fichiers.set(chemin, contenu);
   // Plusieurs langues : les messages de Humalis (« Réessayer », la page introuvable…) passent par t().
   if (application.langues) messagesDuProjet(fichiers, application.langues.map((l) => l.code), 'humalis/', 'app/+not-found.tsx');
   return fichiers;

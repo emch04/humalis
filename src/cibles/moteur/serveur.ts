@@ -9,7 +9,9 @@ export function serveurJs(o: { application: Application; session: boolean; sessi
   const sourceSession = application.sources.find((source) => source.session);
   const configuration = application.sources.map((source) => {
     const nom = variableDAdresse(source, 'VITE');
-    return `  ${JSON.stringify(source.nom)}: { base: import.meta.env.${nom} ?? ${JSON.stringify(source.adresse.replace(/\/+$/, ''))}, session: ${source.session}, enveloppe: ${JSON.stringify(source.enveloppe)}, erreur: ${JSON.stringify(source.erreurDans)}, entetes: ${JSON.stringify(Object.fromEntries(source.entetes.map((e) => [e.nom, e.valeur])))}, jeton: ${JSON.stringify(source.jetonPublic)}, essais: ${source.essais ?? 2}, delai: ${source.delai ?? 10}, cache: ${source.cache ?? 0} }`;
+    // Une source à jeton secret : la passerelle du serveur Humalis, avec sa session.
+    const base = source.passerelle ? `(import.meta.env.VITE_HUMALIS_SERVEUR ?? '') + ${JSON.stringify(`/api/passerelle/${encodeURIComponent(source.nom)}`)}` : `import.meta.env.${nom} ?? ${JSON.stringify(source.adresse.replace(/\/+$/, ''))}`;
+    return `  ${JSON.stringify(source.nom)}: { base: ${base}, session: ${source.session || source.passerelle === true}, enveloppe: ${JSON.stringify(source.enveloppe)}, erreur: ${JSON.stringify(source.erreurDans)}, entetes: ${JSON.stringify(Object.fromEntries(source.entetes.map((e) => [e.nom, e.valeur])))}, jeton: ${JSON.stringify(source.jetonPublic)}, essais: ${source.essais ?? 2}, delai: ${source.delai ?? 10}, cache: ${source.cache ?? 0} }`;
   }).join(',\n');
   const baseSession = sourceSession
     ? `import.meta.env.${variableDAdresse(sourceSession, 'VITE')} ?? ${JSON.stringify(sourceSession.adresse.replace(/\/+$/, ''))}`

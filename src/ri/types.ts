@@ -63,6 +63,8 @@ export interface SourceRI {
   enveloppe?: string;
   erreurDans?: string;
   entetes: { nom: string; valeur: string }[];
+  /** « jeton secret depuis l'environnement "NOM" » : les pages passent par la passerelle du serveur, qui seul lit le secret. */
+  passerelle?: boolean;
   /** Un jeton public : sa valeur part dans le code envoyé au client. */
   jetonPublic?: { valeur: string; place: { genre: 'autorisation' } | { genre: 'entete' | 'parametre'; nom: string } };
   /** Secondes. */
@@ -194,7 +196,21 @@ export type FrequenceRI = { genre: 'heure' } | { genre: 'jour'; heure: number; m
 
 export type MorceauEmail = { texte: string } | { champ: string };
 
+/** La passerelle d'une source à jeton secret : le serveur appelle l'API à la place du navigateur. */
+export interface PasserelleRI {
+  source: string;
+  adresse: string;
+  /** Le nom de la variable d'environnement qui porte le secret ; sa valeur n'est jamais dans le code. */
+  variable: string;
+  place: { genre: 'autorisation' } | { genre: 'entete' | 'parametre'; nom: string };
+  entetes: { nom: string; valeur: string }[];
+  /** Chaque route de la source et qui peut faire chaque action par la passerelle ; null : personne. */
+  routes: { adresse: string; droits: Record<'lire' | 'creer' | 'modifier' | 'supprimer', QuiPeut | null>; remplacement: boolean }[];
+}
+
 export interface ServeurRI {
+  /** Les sources à jeton secret que ce serveur relaie (« /api/passerelle/<source> »). */
+  passerelles?: PasserelleRI[];
   nom: string;
   donnees: { nom: string; par?: string; champs: { nom: string; type: TypeChamp; regle?: RegleChampRI; nonVide?: boolean }[] }[];
   routes: {
@@ -367,7 +383,7 @@ export interface Calcul {
 export type GenreElement = 'titre' | 'soustitre' | 'texte' | 'image' | 'bouton' | 'lien' | 'champ';
 
 /** Les éléments d'écran d'une ligne (plan 2026-10-30, chapitre 5). */
-export type GenreWidget = 'icone' | 'badge' | 'avatar' | 'progression' | 'chargement' | 'etoiles' | 'compteur' | 'qr' | 'fichier' | 'audio' | 'selecteurLangue' | 'signature';
+export type GenreWidget = 'icone' | 'badge' | 'avatar' | 'progression' | 'chargement' | 'etoiles' | 'compteur' | 'qr' | 'fichier' | 'audio' | 'video' | 'selecteurLangue' | 'signature';
 
 /**
  * Un texte écrit en clair dans chaque langue du site, la langue de base en
@@ -385,6 +401,8 @@ export interface Reglages {
   decoratif?: boolean;
   /** Le nom canonique d'une icône (`panier`). */
   icone?: string;
+  /** « video … avec commandes » : lecture, pause et son. */
+  commandes?: boolean;
   /** « bouton icone "fermer" avec nom "…" » : seule l'icône se voit ; le texte reste pour le lecteur d'écran. */
   seule?: boolean;
   /** L'image d'un avatar. */
@@ -494,6 +512,8 @@ export type NoeudVue =
       raccourci?: string;
       /** « avec annonce » : une région vivante (aria-live). */
       annonce?: boolean;
+      /** « avec desactive [si …] » : visible, mais on ne peut pas cliquer ; `true` : toujours. */
+      desactive?: Test | true;
       ligne: number;
     }
   /**

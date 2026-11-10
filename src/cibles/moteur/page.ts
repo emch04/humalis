@@ -1065,7 +1065,9 @@ ${this.avecPlanificateur(corps.texte())}}
         return el('p', this.communM(noeud), contenu);
       case 'bouton': {
         const envoie = this.formulaireDe.has(noeud.id) && !this.evenements.has(noeud.id);
-        return el('button', this.communM(noeud, [['type', envoie ? 'submit' : 'button'], ...(seule !== undefined ? ([['aria-label', seule]] as [string, string][]) : [])]), contenu);
+        // « avec desactive si … » : l'attribut suit la condition pendant que la page vit.
+        const desactive: [string, Attr][] = noeud.desactive === true ? [['disabled', true]] : noeud.desactive ? [['disabled', { js: conditionJs(noeud.desactive, this.contexte), initial: env ? verifier(noeud.desactive, env, new Map()) : false }]] : [];
+        return el('button', this.communM(noeud, [['type', envoie ? 'submit' : 'button'], ...(seule !== undefined ? ([['aria-label', seule]] as [string, string][]) : []), ...desactive]), contenu);
       }
       case 'lien':
         return el('a', this.communM(noeud, this.attrsLien(noeud, env)), contenu);

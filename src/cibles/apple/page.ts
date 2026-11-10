@@ -1217,7 +1217,9 @@ export class GenerateurPage implements HotePage {
     e.ligne('}');
     const fond = noeud.options.find((o) => o.nom === 'fond')?.valeur;
     const raccourci = noeud.raccourci !== undefined ? [touches(noeud.raccourci)] : [];
+    const desactive = noeud.desactive ? [`.disabled(${noeud.desactive === true ? 'true' : this.valeurs.condition(noeud.desactive)})`] : [];
     this.modifieurs(e, noeud.options, 'bouton', [
+      ...desactive,
       ...(fond ? ['.buttonStyle(.borderedProminent)', `.tint(Couleurs.${nomSwift(fond)})`, `.foregroundStyle(Couleurs.encre${nomSwift(fond).charAt(0).toUpperCase()}${nomSwift(fond).slice(1)})`] : ['.buttonStyle(.bordered)', '.tint(Couleurs.accent)']),
       ...raccourci,
       ...survol,
@@ -1360,6 +1362,15 @@ export class GenerateurPage implements HotePage {
         const source = local ? `.locale(${chaineSwift(this.app.ressource(fichier!))})` : `.adresse(${this.valeurs.enTexte(noeud.contenu)})`;
         const textes = noeud.textes;
         e.ligne(`LecteurHumalis(source: ${source}, description: ${textes?.description ? this.valeurs.enTexte(textes.description) : description}, transcription: ${textes?.transcription ? this.valeurs.enTexte(textes.transcription) : 'nil'}, boucle: ${r.boucle ?? false})`);
+        this.modifieurs(e, noeud.options, 'bloc', [id]);
+        return;
+      }
+      case 'video': {
+        const fichier = noeud.contenu.type === 'texte' && noeud.contenu.parties.every((p) => 'texte' in p) ? noeud.contenu.parties.map((p) => ('texte' in p ? p.texte : '')).join('') : undefined;
+        const local = fichier !== undefined && !/^([a-z][a-z0-9+.-]*:|\/)/i.test(fichier.trim());
+        const source = local ? `.locale(${chaineSwift(this.app.ressource(fichier!))})` : `.adresse(${this.valeurs.enTexte(noeud.contenu)})`;
+        const textes = noeud.textes;
+        e.ligne(`VideoHumalis(source: ${source}, description: ${textes?.description ? this.valeurs.enTexte(textes.description) : description}, transcription: ${textes?.transcription ? this.valeurs.enTexte(textes.transcription) : 'nil'}, boucle: ${r.boucle ?? false})`);
         this.modifieurs(e, noeud.options, 'bloc', [id]);
         return;
       }

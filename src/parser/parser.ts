@@ -2012,7 +2012,7 @@ function analyserElement(flux: FluxTokens, enTete?: { element: NomElement; ligne
   let nom: string | undefined;
   let ancre: string | undefined;
   let nouvelOnglet = false;
-  const saisie: Pick<Element, 'obligatoire' | 'indice' | 'indiceTexte' | 'minimum' | 'maximum' | 'raccourci' | 'annonce'> = {};
+  const saisie: Pick<Element, 'obligatoire' | 'indice' | 'indiceTexte' | 'minimum' | 'maximum' | 'raccourci' | 'annonce' | 'desactive'> = {};
   let niveau: number | undefined;
   if (flux.accepter('MOT_CLE', 'avec')) {
     do {
@@ -2069,6 +2069,10 @@ function analyserElement(flux: FluxTokens, enTete?: { element: NomElement; ligne
         // « avec raccourci "controle+k" » : la touche qui clique le bouton.
         flux.avancer();
         saisie.raccourci = flux.avancer().valeur;
+      } else if (option === 'desactive' || option === 'desactivee' || option === 'desactives' || option === 'desactivees') {
+        // « avec desactive si panier est vide » : la condition s'arrête au prochain « et », qui ouvre une autre option.
+        flux.avancer();
+        saisie.desactive = flux.accepter('MOT_CLE', 'si') ? analyserTestCombine(flux, () => false) : true;
       } else if (option === 'annonce' || option === 'annonces') {
         // « avec annonce » : un lecteur d'écran lit ce texte quand il change.
         flux.avancer();
@@ -2108,7 +2112,7 @@ function analyserElement(flux: FluxTokens, enTete?: { element: NomElement; ligne
 }
 
 /** Les options d'un élément (« couleur bleu », « nom "…" ») : tout autre nom est un paramètre de page. */
-const NOMS_OPTIONS = new Set([...Object.keys(OPTIONS), 'nom', 'style', 'ancre', 'nouvel', 'obligatoire', 'obligatoires', 'indice', 'indices', 'minimum', 'maximum', 'raccourci', 'annonce']);
+const NOMS_OPTIONS = new Set([...Object.keys(OPTIONS), 'nom', 'desactive', 'style', 'ancre', 'nouvel', 'obligatoire', 'obligatoires', 'indice', 'indices', 'minimum', 'maximum', 'raccourci', 'annonce']);
 
 function estArgumentPage(flux: FluxTokens): boolean {
   const token = flux.actuel();

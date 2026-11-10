@@ -49,8 +49,8 @@ describe('parser — mots prévus', () => {
     expect(() => corps(page('tableau "Détails"'))).toThrow(/deux-points après la légende du tableau/);
   });
 
-  it('dit qu’un mot prévu n’est pas encore disponible', () => {
-    expect(() => corps(page('video "film.mp4"'))).toThrow(/« video » n’est pas encore disponible : ce mot est prévu dans le vocabulaire/);
+  it('n’a plus de mot prévu : video et environnement sont disponibles depuis le 10 novembre', () => {
+    expect(() => corps(page('video "film.mp4" avec commandes et description "x"'))).not.toThrow();
   });
 
   it('« non » devant une valeur en fait une condition (validé le 10 novembre)', () => {

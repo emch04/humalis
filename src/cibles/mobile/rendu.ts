@@ -162,7 +162,7 @@ function elementMobile(el: ElementProduit): string {
       const duBouton = el.options.filter((o) => ['fond', 'bordure', 'position'].includes(o.nom)).map(nomStyle);
       // « transition » et « effet » sont sans effet sur le téléphone : aucune référence de style n'est écrite pour eux.
       const duTexte = el.options.filter((o) => !SANS_STYLE.has(o.nom) && !['fond', 'bordure', 'position'].includes(o.nom)).map(nomStyle);
-      return `<Pressable ${id} accessibilityRole="button"${el.etiquette !== undefined ? ` accessibilityLabel=${JSON.stringify(el.etiquette)}` : ''} ${style(['bouton', ...duBouton])}${evenements}><Text ${style(['texteBouton', ...duTexte, ...encres])}>${el.contenu}</Text></Pressable>`;
+      return `<Pressable ${id} accessibilityRole="button"${el.etiquette !== undefined ? ` accessibilityLabel=${JSON.stringify(el.etiquette)}` : ''}${el.desactive !== undefined ? ` disabled={${el.desactive}} accessibilityState={{ disabled: ${el.desactive} }}` : ''} ${style(['bouton', ...duBouton])}${evenements}><Text ${style(['texteBouton', ...duTexte, ...encres])}>${el.contenu}</Text></Pressable>`;
     }
     case 'lien':
       return `<Link href=${el.versExpression ? `{${el.versExpression}}` : JSON.stringify(el.vers)} ${id} ${style(['lien', ...options])}${evenements}>${el.contenu}</Link>`;

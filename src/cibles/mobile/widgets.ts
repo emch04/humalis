@@ -64,7 +64,7 @@ export const WIDGETS_MOBILE: RenduWidgets = {
     const duProjet = iconesProjetMobile(code);
     if (duProjet.length > 0) lignes.push(`import { ${duProjet.join(', ')} } from '../humalis/icones-projet';`);
     if (/<QRCode\b/.test(code)) lignes.push(`import QRCode from 'react-native-qrcode-svg';`);
-    for (const [composant, fichier] of [['Avatar', 'avatar'], ['Etoiles', 'etoiles'], ['Compteur', 'compteur'], ['Carrousel', 'carrousel'], ['MotDePasse', 'mot-de-passe'], ['Progression', 'progression'], ['Icone', 'icone'], ['Lecteur', 'lecteur'], ['CarteLieux', 'carte-lieux'], ['Graphique', 'graphique']]) {
+    for (const [composant, fichier] of [['Avatar', 'avatar'], ['Etoiles', 'etoiles'], ['Compteur', 'compteur'], ['Carrousel', 'carrousel'], ['MotDePasse', 'mot-de-passe'], ['Progression', 'progression'], ['Icone', 'icone'], ['Lecteur', 'lecteur'], ['Video', 'video'], ['CarteLieux', 'carte-lieux'], ['Graphique', 'graphique']]) {
       if (new RegExp(`<${composant}\\b`).test(code)) lignes.push(`import ${composant} from '../humalis/${fichier}';`);
     }
     if (/<SelecteurLangue\b/.test(code)) lignes.push(`import { SelecteurLangue } from '../humalis/langue';`);
@@ -113,6 +113,14 @@ export const WIDGETS_MOBILE: RenduWidgets = {
         const description = w.audio?.description ? ` description=${w.audio.description}` : '';
         const transcription = w.audio?.transcription ? ` transcription={<>${w.audio.transcription}</>}` : '';
         return `<Lecteur source={${source}}${description}${transcription}${w.reglages.boucle ? ' boucle' : ''} />`;
+      }
+      case 'video': {
+        // Une vidéo locale est recopiée dans assets/video/ ; une adresse reste telle quelle. Jamais de lecture automatique.
+        const local = w.texte !== undefined && estFichierLocal(w.texte);
+        const source = local ? `require(${JSON.stringify(`../assets/video/${w.texte}`)})` : `${w.valeur}`;
+        const description = w.audio?.description ? ` description=${w.audio.description}` : '';
+        const transcription = w.audio?.transcription ? ` transcription={<>${w.audio.transcription}</>}` : '';
+        return `<Video source={${source}}${description}${transcription}${w.reglages.boucle ? ' boucle' : ''} />`;
       }
       case 'fichier': {
         // La galerie ou le sélecteur de fichiers du téléphone (humalis/choix-fichier.tsx), avec la même fiche que le web.
@@ -206,6 +214,7 @@ export function fichiersMobiles(codes: string[]): Map<string, string> {
   if (emploie(/<Carrousel\b/)) fichiers.set('humalis/carrousel.tsx', CARROUSEL_TSX);
   if (emploie(/<MotDePasse\b/)) fichiers.set('humalis/mot-de-passe.tsx', MOT_DE_PASSE_TSX);
   if (emploie(/<Lecteur\b/)) fichiers.set('humalis/lecteur.tsx', LECTEUR_TSX);
+  if (emploie(/<Video\b/)) fichiers.set('humalis/video.tsx', VIDEO_TSX);
   if (emploie(/<CarteLieux\b/)) fichiers.set('humalis/carte-lieux.tsx', CARTE_MOBILE_TSX);
   if (emploie(/<ChoixFichier\b/)) {
     // La galerie pour les photos et les vidéos, le sélecteur de fichiers pour le reste : seulement ce qui sert.
@@ -230,6 +239,8 @@ export function dependancesMobiles(codes: string[]): Record<string, string> {
     ...(emploie(/from 'expo-clipboard'/) ? { 'expo-clipboard': '57.0.2' } : {}),
     // Le lecteur de son : expo-audio, accordé à Expo 57 (il remplace expo-av).
     ...(emploie(/<Lecteur\b/) ? { 'expo-audio': '57.0.5' } : {}),
+    // La vidéo : expo-video, accordée à Expo 57 (bundledNativeModules.json).
+    ...(emploie(/<Video\b/) ? { 'expo-video': '57.0.5' } : {}),
     // La carte native, accordée à Expo 57 (bundledNativeModules.json).
     ...(emploie(/from 'react-native-maps'/) ? { 'react-native-maps': REACT_NATIVE_MAPS } : {}),
     ...(svg ? { 'react-native-svg': '15.15.4' } : {}),
@@ -537,6 +548,32 @@ export default function Carrousel({ children, automatique, description }: Propri
           ))}
         </View>
       )}
+    </View>
+  );
+}
+`;
+
+/** La vidéo du téléphone : expo-video, avec ses commandes ; elle ne démarre jamais toute seule. */
+const VIDEO_TSX = `// Produit par Humalis : une vidéo, avec les commandes du système.
+import type { ReactNode } from 'react';
+import { Text, View } from 'react-native';
+import { useVideoPlayer, VideoView, type VideoSource } from 'expo-video';
+
+interface Proprietes {
+  source: VideoSource;
+  description?: string;
+  transcription?: ReactNode;
+  boucle?: boolean;
+}
+
+export default function Video({ source, description, transcription, boucle }: Proprietes) {
+  const lecteur = useVideoPlayer(source, (p) => {
+    p.loop = boucle === true;
+  });
+  return (
+    <View>
+      <VideoView player={lecteur} nativeControls style={{ width: '100%', aspectRatio: 16 / 9 }} accessibilityLabel={description} />
+      {transcription ? <Text>{transcription}</Text> : null}
     </View>
   );
 }

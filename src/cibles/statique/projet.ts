@@ -180,6 +180,7 @@ ${fonctions.join('\n')}`,
   // Les images locales, à côté des pages (images/…) : décision M5.
   for (const [chemin, contenu] of copiesDesMedias(options.medias, 'images/')) fichiers.set(chemin, contenu);
   for (const [chemin, contenu] of copiesDesMedias(options.medias, 'audio/', 'audio')) fichiers.set(chemin, contenu);
+  for (const [chemin, contenu] of copiesDesMedias(options.medias, 'video/', 'video')) fichiers.set(chemin, contenu);
   // Leaflet, recopié en dernier : le CSS et les outils ci-dessus ne le lisent pas.
   if (usage.carte) {
     fichiers.set('humalis/leaflet.js', LEAFLET_JS);

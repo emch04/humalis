@@ -14,7 +14,7 @@ import type { GenreBloc, NomElement } from './ast.js';
 import { estLeMot } from './miseEnPage.js';
 
 /** Les éléments d'une ligne, qui prennent une valeur (ou rien, pour `chargement`). */
-const ELEMENTS_ECRAN: NomElement[] = ['icone', 'badge', 'avatar', 'progression', 'chargement', 'etoiles', 'compteur', 'audio'];
+const ELEMENTS_ECRAN: NomElement[] = ['icone', 'badge', 'avatar', 'progression', 'chargement', 'etoiles', 'compteur', 'audio', 'video'];
 
 /** Une valeur commence ici : un texte, un nombre, un nom, `[`, `-`. */
 export function commenceUneValeur(token: Token): boolean {

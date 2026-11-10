@@ -19,9 +19,13 @@ export function sourcesTs(application: Application): string {
     const jeton = s.jetonPublic
       ? `{ valeur: ${chaine(s.jetonPublic.valeur)}, place: ${JSON.stringify(s.jetonPublic.place)} }`
       : 'undefined';
+    // Une source à jeton secret : les pages appellent la passerelle du serveur Humalis, avec sa session.
+    const base = s.passerelle
+      ? `(import.meta.env.VITE_HUMALIS_SERVEUR ?? '') + ${chaine(`/api/passerelle/${encodeURIComponent(s.nom)}`)}`
+      : `import.meta.env.${variableDAdresse(s, 'VITE')} ?? ${chaine(s.adresse.replace(/\/+$/, ''))}`;
     return `  ${chaine(s.nom)}: {
-    base: import.meta.env.${variableDAdresse(s, 'VITE')} ?? ${chaine(s.adresse.replace(/\/+$/, ''))},
-    session: ${s.session},
+    base: ${base},
+    session: ${s.session || s.passerelle === true},
     enveloppe: ${s.enveloppe !== undefined ? chaine(s.enveloppe) : 'undefined'},
     erreur: ${s.erreurDans !== undefined ? chaine(s.erreurDans) : 'undefined'},
     entetes: ${entetes},
