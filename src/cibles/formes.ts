@@ -109,3 +109,6 @@ export function verifierFormesPourLaCible(application: Application, cible: strin
   if (ignorees.length) diagnostics.push({ gravite: 'avertissement', ligne: 1, message: `sur la cible ${NOMS_CIBLES[cible] ?? cible}, ${ignorees.length > 1 ? 'ces formes n\'existent pas et sont ignorées' : 'cette forme n\'existe pas et est ignorée'} : ${ignorees.join(', ')}.` });
   return diagnostics;
 }
+
+// Windows (C# et WPF, sans paquet MSIX) : src/cibles/windows/formes.ts.
+ECRITES.windows = new Set<Forme>(['barreSysteme', 'partageRecu', 'raccourcisIcone', 'fichierOuvert', 'demarrage', 'boutonsNotification', 'menuClicDroit']);
