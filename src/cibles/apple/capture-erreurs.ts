@@ -17,12 +17,12 @@ import Foundation
 import Darwin
 
 private let fichierCapture = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("humalis-erreur.json")
-private var cheminSignal: UnsafeMutablePointer<CChar>?
+nonisolated(unsafe) private var cheminSignal: UnsafeMutablePointer<CChar>?
 private func signalFatal(_ numero: Int32) {
     if let cheminSignal {
         let fd = open(cheminSignal, O_WRONLY | O_CREAT | O_TRUNC, 0o600)
         if fd >= 0 {
-            let message = "{\\\"message\\\":\\\"Signal fatal\\\",\\\"pile\\\":\\\"\\\",\\\"page\\\":\\\"\\\",\\\"version\\\":\\\"1.0.0\\\"}"
+            let message = "{\\\"message\\\":\\\"Signal fatal\\\",\\\"pile\\\":\\\"\\\",\\\"page\\\":\\\"\\\",\\\"version\\\":\\\"\\\"}"
             message.withCString { ptr in _ = write(fd, ptr, strlen(ptr)) }
             _ = close(fd)
         }
@@ -40,18 +40,25 @@ private func nettoyer(_ texte: String) -> String {
 }
 
 private func exceptionFatale(_ exception: NSException) {
-    let rapport = ["message": nettoyer(exception.reason ?? exception.name.rawValue), "pile": nettoyer(exception.callStackSymbols.joined(separator: "\\n")), "page": "", "version": "1.0.0"]
+    let rapport = ["message": nettoyer(exception.reason ?? exception.name.rawValue), "pile": nettoyer(exception.callStackSymbols.joined(separator: "\\n")), "page": CaptureErreurs.page, "version": versionApplication]
     if let donnees = try? JSONSerialization.data(withJSONObject: rapport) { try? donnees.write(to: fichierCapture, options: .atomic) }
 }
 
+private let versionApplication = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+
 enum CaptureErreurs {
+    /** La page affichée, tenue à jour par le routeur. */
+    nonisolated(unsafe) static var page = ""
+
     static func installer() {
         try? FileManager.default.createDirectory(at: fichierCapture.deletingLastPathComponent(), withIntermediateDirectories: true)
         cheminSignal = strdup(fichierCapture.path)
         NSSetUncaughtExceptionHandler(exceptionFatale)
         for numero in [SIGABRT, SIGILL, SIGSEGV, SIGBUS, SIGFPE] { Darwin.signal(numero, signalFatal) }
         Task.detached {
-            guard let donnees = try? Data(contentsOf: fichierCapture), let rapport = (try? JSONSerialization.jsonObject(with: donnees)) as? [String: String] else { return }
+            guard let donnees = try? Data(contentsOf: fichierCapture), var rapport = (try? JSONSerialization.jsonObject(with: donnees)) as? [String: String] else { return }
+            // Un signal fatal ne peut pas lire la version : elle est remise ici.
+            if rapport["version", default: ""].isEmpty { rapport["version"] = versionApplication }
             let cle = (rapport["message"] ?? "") + "|" + (rapport["pile"] ?? "")
             let defauts = UserDefaults.standard
             let date = defauts.double(forKey: "humalis.erreur.minute")

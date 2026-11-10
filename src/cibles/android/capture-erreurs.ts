@@ -15,8 +15,8 @@ export function captureErreursKotlin(requetes: RequeteCapture[]): string {
             connexion.outputStream.use { it.write(corps.toByteArray(Charsets.UTF_8)) }
             val reponse = connexion.responseCode
             connexion.disconnect()
-            if (reponse !in 200..299) return
-        } catch (_: Exception) { return }`).join('\n');
+            if (reponse !in 200..299) return@thread
+        } catch (_: Exception) { return@thread }`).join('\n');
   return `// Produit par Humalis : les erreurs fatales sont envoyées au lancement suivant.
 import android.content.Context
 import org.json.JSONObject
@@ -26,6 +26,8 @@ import kotlin.concurrent.thread
 
 object CaptureErreurs {
     private const val fichier = "humalis_capture_erreurs"
+    /** La page affichée, tenue à jour par la navigation. */
+    @Volatile var page: String = ""
     private fun nettoyer(texte: String?): String = (texte ?: "").take(4000)
         .replace(Regex("([?&][^=\\\\s]+)=([^&\\\\s]+)"), "$1=[masqué]")
         .replace(Regex("(password|mot.?de.?passe|secret|token|jeton|authorization)(\\\\s*[:=]\\\\s*)[^\\\\s,;]+", RegexOption.IGNORE_CASE), "$1$2[masqué]")
@@ -38,8 +40,8 @@ object CaptureErreurs {
                 val rapport = JSONObject().apply {
                     put("message", nettoyer(exception.message))
                     put("pile", nettoyer(exception.stackTraceToString()))
-                    put("page", "")
-                    put("version", "1.0.0")
+                    put("page", page)
+                    put("version", try { contexte.packageManager.getPackageInfo(contexte.packageName, 0).versionName ?: "" } catch (_: Exception) { "" })
                 }
                 preferences.edit().putString("en_attente", rapport.toString()).commit()
             } catch (_: Exception) { }

@@ -1094,6 +1094,10 @@ export function genererProjetApple(application: Application, options: OptionsApp
   let codeApplication = applicationSwift(nom, application.site?.nom ?? options.nom, entree, disposition, policesCopiees.map((p) => ({ fichier: nomFichierPlat(p.fichier), nom: p.nom })), application.theme?.polices.find((p) => p.role === 'texte')?.nom, notifications, { ...(dessinPrincipal ? { dessin: { ...dessinPrincipal, barre: application.disposition?.barre !== undefined, ...(barreVisible ? { barreVisible } : {}) } } : {}), barreLaterale: application.barreLaterale, liens: application.liensProfonds !== undefined, domaine: application.liensProfonds?.domaine !== undefined, envois: avecEnvois, arrierePlan: avecArrierePlan, ...(ongletsSwift ? { onglets: ongletsSwift } : {}), ...(commandesEcrites.menus.length ? { menus: commandesEcrites.menus } : {}), ...(pageReglages ? { reglages: `Route${routeSimple(pageReglages.nom, app)}` } : {}), ...(formes ? { formes: formes.app } : {}) });
   if (application.formes?.erreurArrive) {
     ecrire('Humalis/CaptureErreurs.swift', captureErreursSwift(requetesCapture(application.formes).requetes));
+    // La page en cours, pour « erreur.page ».
+    for (const [chemin, code] of fichiers) {
+      if (code.includes('var chemin: [Route] = []')) fichiers.set(chemin, code.replace('var chemin: [Route] = []', 'var chemin: [Route] = [] { didSet { CaptureErreurs.page = chemin.last.map { String(describing: $0) } ?? "" } }'));
+    }
     codeApplication = codeApplication.replace(`struct ${nom}App: App {`, `struct ${nom}App: App {\n    init() { CaptureErreurs.installer() }`);
   }
   ecrire(`${nom}App.swift`, codeApplication);

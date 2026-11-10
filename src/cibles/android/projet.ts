@@ -892,6 +892,10 @@ export function genererProjetAndroid(complete: Application, options: OptionsAndr
   ecrireCode('MainActivity.kt', applicationKotlin(paquet, application, routes, entree, disposition, onglets, avecApple, menus.length > 0));
   if (application.formes?.erreurArrive) {
     ecrireCode('CaptureErreurs.kt', kotlin(paquet, captureErreursKotlin(requetesCapture(application.formes).requetes)));
+    // La page en cours, pour « erreur.page ».
+    for (const [chemin, code] of fichiers) {
+      if (code.includes('val nav = rememberNavController()')) fichiers.set(chemin, code.replace(/^(\s*)val nav = rememberNavController\(\)$/m, (ligne, marge: string) => `${ligne}\n${marge}androidx.compose.runtime.DisposableEffect(nav) {\n${marge}    val suivi = androidx.navigation.NavController.OnDestinationChangedListener { _, destination, _ -> CaptureErreurs.page = destination.route ?: "" }\n${marge}    nav.addOnDestinationChangedListener(suivi)\n${marge}    onDispose { nav.removeOnDestinationChangedListener(suivi) }\n${marge}}`));
+    }
     const cheminActivite = `${dossierCode}/MainActivity.kt`;
     fichiers.set(cheminActivite, fichiers.get(cheminActivite)!.replace('        setContent { ApplicationHumalis() }', '        CaptureErreurs.installer(applicationContext)\n        setContent { ApplicationHumalis() }'));
   }

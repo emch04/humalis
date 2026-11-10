@@ -101,3 +101,12 @@ describe('serveur produit', () => {
     expect(fichiers.get('src/serveur.ts') ?? [...fichiers.values()].find((x) => x.includes('brancherErreursProcessus()'))).toContain('brancherErreursProcessus()');
   });
 });
+
+describe('les champs de la variable erreur', () => {
+  it('« erreur.page » se lit, et « page » peut nommer un champ envoyé, dans une page comme sur le serveur', () => {
+    const envoi = 'envoyer requete vers "https://centrale.exemple.fr/v1/envoi" avec page = erreur.page et version = erreur.version';
+    const source = `serveur "s" :\n    quand une erreur arrive :\n        ${envoi}\n    donnee note :\n        titre : texte\n    route "notes" :\n        connecte peut lire note\n        connecte peut creer note\n        connecte peut modifier note\n        connecte peut supprimer note\n\nquand une erreur arrive :\n    ${envoi}\n\npage "accueil" :\n    titre "Essai"\n`;
+    const { diagnostics } = compiler(source);
+    expect(diagnostics.filter((d) => d.gravite === 'erreur')).toEqual([]);
+  });
+});

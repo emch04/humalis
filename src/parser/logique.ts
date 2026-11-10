@@ -2,6 +2,7 @@
  * Ce qui s'exécute sur le serveur : « seul gerant peut faire "rembourser" sur commande : »,
  * « tous les jours a 7 h : », et les instructions écrites dedans.
  */
+import { estMot } from './miseEnPage.js';
 import { FluxTokens } from './fluxTokens.js';
 import { ErreurSyntaxique } from './erreurs.js';
 import { chaqueLigne, estLeMot, analyserOperande, analyserExpression, analyserTestCombine, analyserCreationLiee, analyserEnvoiEmail, analyserEnvoiNotification, analyserTypeChamp } from './parser.js';
@@ -193,7 +194,9 @@ function analyserInstructionServeur(flux: FluxTokens): InstructionServeur {
     flux.avancer();
     const champs: { nom: string; valeur: Expression }[] = [];
     do {
-      const nom = flux.attendreNom('le nom du champ envoyé').nom;
+      // Avant « = », un mot du langage reste un nom : « page = erreur.page ».
+      const jeton = flux.actuel();
+      const nom = estMot(jeton) ? (flux.avancer(), jeton.original ?? jeton.valeur) : flux.attendreNom('le nom du champ envoyé').nom;
       flux.attendre('PONCTUATION', '=', '« = » après le nom du champ envoyé');
       champs.push({ nom, valeur: analyserExpression(flux) });
     } while (estLeMot(flux.actuel(), 'et') && flux.avancer());
