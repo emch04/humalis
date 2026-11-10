@@ -408,19 +408,21 @@ function barreDeReunion(): string {
   return `ligne :
 ${bascule('micro est coupe', ['Activer le micro', 'micro_coupe', 'activer micro'], ['Couper le micro', 'micro', 'couper micro'])}
 ${bascule('camera est coupee', ['Activer la caméra', 'video_coupee', 'activer camera'], ['Couper la caméra', 'video', 'couper camera'])}
-${bascule('hd_ecran_partage', ['Arrêter le partage', 'ecran_partage', 'arreter partage'], ['Partager l’écran', 'ecran', 'partager ecran'])}
+${bascule('hd_ecran_partage', ['Arrêter le partage', 'partage_ecran_arrete', 'arreter partage'], ['Partager l’écran', 'partage_ecran', 'partager ecran'])}
 ${bascule('main est levee', ['Baisser la main', 'main_levee', 'baisser la main'], ['Lever la main', 'main', 'lever la main'])}`;
 }
+
+/** L'image des participants : un élément propre à chaque cible, jamais écrit à la main. */
+const imageReunion = (ligne: number): Instruction => ({ type: 'Element', element: 'reunion', contenu: { type: 'Chaine', parties: [], ligne }, styles: [], classes: [], ligne }) as unknown as Instruction;
 
 function reunionDansLaPage(flux: FluxTokens): Instruction[] {
   const debut = flux.avancer();
   const nom = flux.avancer().valeur;
   etat.sallesNommees.push({ nom, ligne: debut.ligne });
   etat.reunion ??= debut.ligne;
-  return [
-    ...phrases(`si hd_reunion_salle n'est pas egal a "${nom}" :\n    bouton "Rejoindre" avec icone "video"\n    quand l'utilisateur clique sur "Rejoindre" :\n        rejoindre reunion "${nom}"\nsinon :\n    reunion_image\n    bouton icone "raccrocher" avec nom "Quitter la réunion"\n    quand l'utilisateur clique sur "Quitter la réunion" :\n        quitter reunion`, debut.ligne),
-    ...phrases(barreConditionnelle(nom), debut.ligne),
-  ];
+  const entree = phrases(`si hd_reunion_salle n'est pas egal a "${nom}" :\n    bouton "Rejoindre" avec icone "video"\n    quand l'utilisateur clique sur "Rejoindre" :\n        rejoindre reunion "${nom}"\nsinon :\n    bouton icone "raccrocher" avec nom "Quitter la réunion"\n    quand l'utilisateur clique sur "Quitter la réunion" :\n        quitter reunion`, debut.ligne);
+  (entree[0] as Instruction & { sinon: Instruction[] }).sinon.unshift(imageReunion(debut.ligne));
+  return [...entree, ...phrases(barreConditionnelle(nom), debut.ligne)];
 }
 
 const barreConditionnelle = (nom: string) => `si hd_reunion_salle est egal a "${nom}" :\n${barreDeReunion().split('\n').map((l) => `    ${l}`).join('\n')}`;
@@ -451,7 +453,7 @@ function geste(flux: FluxTokens, g: GesteReunion['geste'], n: number): Instructi
   for (let i = 0; i < n; i++) flux.avancer();
   etat.reunion ??= ligne;
   const change = ETAT_DU_GESTE[g];
-  return [{ type: 'GesteReunion', geste: g, ligne }, ...(change ? phrases(`changer ${change[0]} par ${change[1] ? 'vrai' : 'faux'}`, ligne) : [])];
+  return [{ type: 'GesteReunion', geste: g, ...(change ? { puis: phrases(`changer ${change[0]} par ${change[1] ? 'vrai' : 'faux'}`, ligne) } : {}), ligne }];
 }
 
 /** Une action de moderation : le serveur vérifie que la personne anime la salle. */
@@ -490,9 +492,6 @@ export function analyserPhraseTempsReel(flux: FluxTokens): Instruction[] | undef
   if (!estMot(a)) return undefined;
   if (estLeMot(a, 'discussion') && flux.regarder(1).type === 'CHAINE') return discussionDansLaPage(flux);
   if (estLeMot(a, 'reunion') && flux.regarder(1).type === 'CHAINE') return reunionDansLaPage(flux);
-  if (estLeMot(a, 'reunion_image') && flux.regarder(1).type === 'FIN_LIGNE') {
-    return [{ type: 'Element', element: 'reunion', contenu: { type: 'Chaine', parties: [], ligne: a.ligne }, styles: [], classes: [], ligne: flux.avancer().ligne } as unknown as Instruction];
-  }
   if (estLeMot(a, 'ouvrir') && estLeMot(flux.regarder(1), 'discussion') && flux.regarder(2).type === 'CHAINE') {
     flux.avancer(); flux.avancer();
     const nom = flux.avancer().valeur;
@@ -535,7 +534,7 @@ export function analyserPhraseTempsReel(flux: FluxTokens): Instruction[] | undef
   if (estLeMot(a, 'quitter') && estLeMot(flux.regarder(1), 'reunion')) {
     flux.avancer(); flux.avancer();
     etat.reunion ??= a.ligne;
-    return [{ type: 'GesteReunion', geste: 'quitter', ligne: a.ligne }, ...phrases('changer hd_reunion_salle par ""', a.ligne)];
+    return [{ type: 'GesteReunion', geste: 'quitter', puis: phrases('changer hd_reunion_salle par ""', a.ligne), ligne: a.ligne }];
   }
   if (suiteDeMots(flux, ['couper', 'micro']) && commenceValeur(flux.regarder(2))) return moderation(flux, 'couper_micro', 2);
   if (estLeMot(a, 'exclure') && commenceValeur(flux.regarder(1))) return moderation(flux, 'exclure', 1);
@@ -718,12 +717,11 @@ function sonnerie(page: Page, ligne: number): void {
 /** La page d'un appel : l'image, la barre, et le retour quand l'autre raccroche. */
 function pageAppel(ligne: number): Page {
   const corps = phrases(`titre "Appel"
-reunion_image
 ${barreDeReunion()}
 bouton icone "raccrocher" avec nom "Raccrocher"
 quand l'utilisateur clique sur "Raccrocher" :
     raccrocher`, ligne);
   const fin = phrases('si hd_appel.etat est egal a "fini" :\n    quitter reunion\n    revenir', ligne);
   const entree: Instruction[] = [...rejoindre(champ('hd_appel', 'salle', ligne), ligne), lecture('appels', champ('hd_appel', 'id', ligne), 'hd_appel', ligne, fin)];
-  return { type: 'Page', nom: PAGE_APPEL, parametres: [], corps: [...corps, { type: 'Evenement', genre: 'chargement', corps: entree, ligne }], ligne };
+  return { type: 'Page', nom: PAGE_APPEL, parametres: [], corps: [corps[0]!, imageReunion(ligne), ...corps.slice(1), { type: 'Evenement', genre: 'chargement', corps: entree, ligne }], ligne };
 }

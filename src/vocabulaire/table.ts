@@ -16,6 +16,7 @@ import type { Cible, EntreeVocabulaire, Traduction } from './types.js';
 import { ENTREES_ECRAN } from './table-ecran.js';
 import { ENTREES_MEDIAS } from './table-medias.js';
 import { ENTREES_INTERACTIONS } from './table-interactions.js';
+import { ENTREES_TEMPS_REEL } from './table-temps-reel.js';
 import { ENTREES_LANGUES } from './table-langues.js';
 
 const t = (produit: string, note?: string): Traduction => (note ? { produit, note } : { produit });
@@ -3383,6 +3384,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
   ...ENTREES_MEDIAS,
   // ─── Les interactions (plan 2026-10-30-interactions) ─────────────────
   ...ENTREES_INTERACTIONS,
+  ...ENTREES_TEMPS_REEL,
 
   // ─── Les langues (plan 2026-10-30-qualite-publication, partie 1) ───
   ...ENTREES_LANGUES,

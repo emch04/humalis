@@ -24,6 +24,7 @@ import { genererProjetWindows, MARQUE_WINDOWS } from './cibles/windows/projet.js
 import { verifierAppareilPourLaCible } from './cibles/appareil.js';
 import { verifierFormesPourLaCible } from './cibles/formes.js';
 import { verifierFormesBureau } from './cibles/desktop/formes.js';
+import { verifierTempsReelPourLaCible } from './cibles/temps-reel.js';
 import { pourLaCible } from './ri/plateforme.js';
 import { gestionnairesDuProgramme, contientAction } from './cibles/web/interactions.js';
 import type { Application } from './ri/types.js';
@@ -176,7 +177,7 @@ function compile(arguments_: string[]): number | Promise<number> {
   if (cible === 'web' || cible === 'statique' || cible === 'desktop' || cible === 'android' || cible === 'windows') afficherDiagnostics(prevenirDesTuiles(application));
 
   // Les formes d'application spéciales (widget, tuile, clavier…) : refusées là où elles ne sont pas encore écrites.
-  const formes = verifierFormesPourLaCible(application, cible);
+  const formes = [...verifierFormesPourLaCible(application, cible), ...verifierTempsReelPourLaCible(application, cible, option(arguments_, 'moteur') ?? moteurDuProjet(chemin))];
   if (formes.length > 0) afficherDiagnostics(formes);
   if (formes.some((d) => d.gravite === 'erreur')) {
     console.error('\nLe programme ne peut pas être produit pour cette cible : rien n\'a été écrit.');

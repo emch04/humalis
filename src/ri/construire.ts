@@ -847,6 +847,7 @@ class Construction {
           break;
         case 'GesteReunion':
           actions.push({ type: 'gesteReunion', geste: instruction.geste, ...(instruction.valeur ? { valeur: this.valeur(instruction.valeur) } : {}) });
+          if (instruction.puis) actions.push(...this.actions(instruction.puis));
           break;
         case 'CommencerActivite':
         case 'TerminerActivite':

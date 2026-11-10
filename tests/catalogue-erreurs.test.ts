@@ -71,6 +71,8 @@ describe('catalogue des erreurs', () => {
       compter(lire('src/parser/logique.ts'), /new ErreurSyntaxique\(/g) +
       compter(lire('src/analyse/logique.ts'), /\b(?:this\.)?erreur\(/g) +
       compter(lire('src/parser/formes.ts'), /new ErreurSyntaxique\(/g) +
+      compter(lire('src/parser/temps-reel.ts'), /new ErreurSyntaxique\(/g) +
+      compter(lire('src/analyse/temps-reel.ts'), /gravite: 'erreur'/g) +
       compter(lire('src/analyse/formes.ts'), /\berreur\(\s*[`'"]|gravite: 'avertissement'/g);
     const sitesQualite = compter(lire('src/analyse/accessibilite.ts'), /\bsignaler\('(?:erreur|avertissement)'/g);
     const expliques = ENTREES_ERREURS.reduce((n, x) => n + x.sites, 0);

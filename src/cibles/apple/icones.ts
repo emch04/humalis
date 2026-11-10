@@ -16,7 +16,7 @@ export const SYMBOLES: Record<string, string> = {
   discussion: 'bubble.left.and.bubble.right', couverts: 'fork.knife', cafe: 'cup.and.saucer', vin: 'wineglass', poisson: 'fish', feuille: 'leaf',
   flamme: 'flame', goutte: 'drop', vagues: 'water.waves', voiture: 'car', velo: 'bicycle', avion: 'airplane', bateau: 'ferry', train: 'tram',
   carte_bancaire: 'creditcard', argent: 'banknote', cadeau: 'gift', etiquette: 'tag', recompense: 'rosette', trophee: 'trophy', eclair: 'bolt',
-  globe: 'globe', wifi: 'wifi', batterie: 'battery.100', mobile: 'iphone', ordinateur: 'desktopcomputer', imprimante: 'printer', micro: 'mic', micro_coupe: 'mic.slash', video_coupee: 'video.slash', ecran: 'rectangle.on.rectangle', ecran_partage: 'rectangle.on.rectangle.slash', main: 'hand.raised', main_levee: 'hand.raised.fill', decrocher: 'phone.fill', raccrocher: 'phone.down',
+  globe: 'globe', wifi: 'wifi', batterie: 'battery.100', mobile: 'iphone', ordinateur: 'desktopcomputer', imprimante: 'printer', micro: 'mic', micro_coupe: 'mic.slash', video_coupee: 'video.slash', partage_ecran: 'rectangle.on.rectangle', partage_ecran_arrete: 'rectangle.on.rectangle.slash', main: 'hand.raised', main_levee: 'hand.raised.fill', decrocher: 'phone.fill', raccrocher: 'phone.down',
   son: 'speaker.wave.2', muet: 'speaker.slash', lecture_media: 'play', pause: 'pause', stop: 'stop', rafraichir: 'arrow.clockwise',
   plus_cercle: 'plus.circle', moins_cercle: 'minus.circle', points: 'ellipsis', points_verticaux: 'ellipsis', epingle: 'pin', drapeau: 'flag',
   signet: 'bookmark', ampoule: 'lightbulb', bouclier: 'shield', graphique: 'chart.bar', courbe: 'chart.xyaxis.line', boutique: 'storefront',

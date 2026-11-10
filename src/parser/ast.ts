@@ -931,6 +931,8 @@ export interface GesteReunion {
   geste: 'rejoindre' | 'quitter' | 'couperMicro' | 'activerMicro' | 'couperCamera' | 'activerCamera' | 'partagerEcran' | 'arreterPartage' | 'leverMain' | 'baisserMain';
   /** Le nom de la salle à rejoindre. */
   valeur?: Expression;
+  /** Ce que la page change tout de suite après ce geste. */
+  puis?: Instruction[];
   ligne: number;
 }
 
