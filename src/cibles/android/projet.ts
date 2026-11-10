@@ -15,7 +15,7 @@ import { COULEURS_CSS } from '../web/styles.js';
 import { EcrivainActions } from './actions.js';
 import { APPLE_KT, GOOGLE_KT, notificationsKotlin, type Firebase } from './comptes.js';
 import { DIRECT_KT, ENVOIS_KT, fondKotlin } from './temps-reel.js';
-import { CARTES_KT, GRAPHIQUES_KT, LECTEURS_KT, QR_KT } from './medias.js';
+import { CARTES_KT, GRAPHIQUES_KT, LECTEURS_KT, MENUS_KT, MOUVEMENT_KT, QR_KT } from './medias.js';
 import { APPAREIL_KT, CHEMINS_FICHIERS, FICHIERS_KT, SCANNER_KT, SYSTEME_KT } from './appareil.js';
 import { CssAndroid, type Portee as PorteeCss } from './css.js';
 import { FORMATS_KT } from './formats.js';
@@ -74,7 +74,6 @@ function verifier(application: Application): Diagnostic[] {
     if (parent?.parametresAdresse?.length) refuser(e.ligne, `« page "${e.nom}" dans "${e.parent}" » : une page parente qui attend un paramètre`);
     if (e.dessin) avertir(e.ligne, `« dessinee pour » est sans effet sur Android : la page « ${e.nom} » suit les styles nommés.`);
   }
-  for (const s of application.sources) if (s.passerelle) refuser(1, `la source « ${s.nom} » à jeton secret (la passerelle du serveur)`);
   for (const p of application.theme?.polices ?? []) {
     if (p.fichier && !/\.(ttf|otf)$/i.test(p.fichier)) avertir(1, `la police « ${p.fichier} » n'est pas chargée sur Android, qui lit les fichiers .ttf et .otf : la police du système est utilisée à la place. Ajoutez une version .ttf de « ${p.nom} ».`);
   }
@@ -165,7 +164,7 @@ function themeKotlin(paquet: string, theme: ThemeRI | undefined, polices: Set<st
   return e.texte();
 }
 
-function sourcesKotlin(paquet: string, sources: SourceRI[]): string {
+function sourcesKotlin(paquet: string, sources: SourceRI[], serveur: string): string {
   const e = new EcrivainKotlin();
   e.ligne("// Produit par Humalis : les API que les pages appellent. Un jeton public part avec l'application ; un secret n'est jamais écrit ici.");
   e.ligne(`package ${paquet}`);
@@ -174,14 +173,15 @@ function sourcesKotlin(paquet: string, sources: SourceRI[]): string {
     for (const s of sources) {
       const champs = [
         `nom = ${chaineKotlin(s.nom)}`,
-        `adresse = ${chaineKotlin(adresseServeur(s.adresse))}`,
+        // Une source à jeton secret : l'application appelle la passerelle du serveur Humalis, avec sa session ; le secret n'est jamais ici.
+        `adresse = ${chaineKotlin(s.passerelle ? `${serveur}/api/passerelle/${encodeURIComponent(s.nom)}` : adresseServeur(s.adresse))}`,
         ...(s.entetes.length ? [`entetes = listOf(${s.entetes.map((h) => `${chaineKotlin(h.nom)} to ${chaineKotlin(h.valeur)}`).join(', ')})`] : []),
-        ...(s.jetonPublic
+        ...(s.jetonPublic && !s.passerelle
           ? [`jeton = ${chaineKotlin(s.jetonPublic.valeur)}`, `placeJeton = ${chaineKotlin(s.jetonPublic.place.genre)}`, ...(s.jetonPublic.place.genre !== 'autorisation' ? [`nomJeton = ${chaineKotlin(s.jetonPublic.place.nom)}`] : [])]
           : []),
         ...(s.enveloppe !== undefined ? [`enveloppe = ${chaineKotlin(s.enveloppe)}`] : []),
         ...(s.erreurDans !== undefined ? [`erreurDans = ${chaineKotlin(s.erreurDans)}`] : []),
-        ...(s.session ? ['session = true'] : []),
+        ...(s.session || s.passerelle ? ['session = true'] : []),
         `essais = ${s.essais ?? 2}`,
         `delai = ${(s.delai ?? 10) * 1000}`,
       ];
@@ -291,7 +291,7 @@ function routeKotlin(r: RouteAndroid, parametres: string[], filtres: string[]): 
   return `"${texte}"`;
 }
 
-function applicationKotlin(paquet: string, application: Application, routes: Map<string, RouteAndroid>, entree: Ecran, disposition: { entete?: string; sansEntete: string[]; pied?: string; sansPied: string[] }, onglets: { titre: string; route: string; icone?: string }[], avecApple = false): string {
+function applicationKotlin(paquet: string, application: Application, routes: Map<string, RouteAndroid>, entree: Ecran, disposition: { entete?: string; sansEntete: string[]; pied?: string; sansPied: string[] }, onglets: { titre: string; route: string; icone?: string }[], avecApple = false, avecMenus = false): string {
   const e = new EcrivainKotlin();
   const parentDe = (x: Ecran) => (x.parent !== undefined ? application.ecrans.find((p) => p.nom === x.parent) : undefined);
   const liensProfonds = liensProfondsDe(application, routes, entree);
@@ -319,6 +319,7 @@ function applicationKotlin(paquet: string, application: Application, routes: Map
     'androidx.navigation.navDeepLink',
     'android.content.Intent',
     'kotlinx.coroutines.launch',
+    ...(avecMenus ? ['androidx.compose.foundation.focusable', 'androidx.compose.ui.focus.focusRequester', 'androidx.compose.ui.input.key.onPreviewKeyEvent'] : []),
   ]) e.ligne(`import ${i}`);
   e.ligne();
   e.bloc('class MainActivity : FragmentActivity() {', () => {
@@ -387,8 +388,15 @@ function applicationKotlin(paquet: string, application: Application, routes: Map
         }, '}) { marges ->');
       } else e.ligne('Scaffold { marges ->');
       e.indenter(() => {
-        e.bloc('Box(Modifier.fillMaxSize().padding(marges).consumeWindowInsets(marges).imePadding()) {', () => {
+        const clavier = avecMenus ? '.focusRequester(clavierMenus).focusable().onPreviewKeyEvent { raccourciDesMenus(menus, it) { c -> portee.launch { c() } } }' : '';
+        if (avecMenus) {
+          e.ligne('val menus = remember(nav) { menusDe(nav) }');
+          e.ligne('val clavierMenus = remember { androidx.compose.ui.focus.FocusRequester() }');
+          e.ligne('LaunchedEffect(Unit) { try { clavierMenus.requestFocus() } catch (e: IllegalStateException) { } }');
+        }
+        e.bloc(`Box(Modifier.fillMaxSize().padding(marges).consumeWindowInsets(marges).imePadding()${clavier}) {`, () => {
           e.bloc('Column(Modifier.fillMaxSize()) {', () => {
+            if (avecMenus) e.ligne('BarreMenusHumalis(menus) { c -> portee.launch { c() } }');
             if (disposition.entete) e.ligne(`if (actuelle !in listOf<String?>(${disposition.sansEntete.map((r) => chaineKotlin(r)).join(', ')})) ${disposition.entete}(nav)`);
             e.bloc(`NavHost(nav, startDestination = ${chaineKotlin(routes.get(entree.nom)!.motif)}, modifier = Modifier.weight(1f)) {`, () => {
               for (const [, r] of routes) {
@@ -630,13 +638,60 @@ export function genererProjetAndroid(application: Application, options: OptionsA
   e.ligne();
   e.bloc('object Configuration {', () => e.ligne(`const val SERVEUR = ${chaineKotlin(serveur)}`));
   ecrireCode('Configuration.kt', e.texte());
-  if (application.sources.length > 0) ecrireCode('Sources.kt', sourcesKotlin(paquet, application.sources));
+  if (application.sources.length > 0) ecrireCode('Sources.kt', sourcesKotlin(paquet, application.sources, serveur));
   if (/^http:\/\//.test(serveur) && !/^http:\/\/(10\.0\.2\.2|localhost|127\.0\.0\.1)([:/]|$)/.test(serveur)) {
     avertir(1, `l'application Android ne peut pas appeler « ${serveur} » : le système bloque http://. Utilisez https://.`);
   }
 
+  // « menu de l'application » : le menu « ⋮ » en haut de l'application, et les raccourcis d'un clavier branché.
+  const commandes = application.ecrans.flatMap((x) => x.gestionnaires.filter((g) => g.declencheur === 'commandeMenu'));
+  const menus: { menu: string; commandes: { titre: string; fonction: string; raccourci?: string }[] }[] = [];
+  if (commandes.length > 0) {
+    const portee: Portee = { variables: new Map(partages), champs: new Map(), fonctions, etatsRequetes: new Set(), horsLigne: new Set(application.partages.filter((p) => p.horsLigne).map((p) => p.nom)) };
+    let ligne = commandes[0].ligne;
+    const precision = ' : une commande de menu ne voit que les variables partagées';
+    const valeurs = new Valeurs(portee, (quoi) => refuser(ligne, `${quoi}${precision}`));
+    // Une commande peut ouvrir une page (sans paramètre : aucune page n'est ouverte pour les donner).
+    const route = (page: string) => {
+      const r = routes.get(page);
+      return r ? routeKotlin(r, r.parametres.map(() => '""'), []) : undefined;
+    };
+    const actions = new EcrivainActions({ valeurs, visibilite: () => '', texteChange: () => '', route, allerAncre: () => undefined, clesChamps: new Map(), refuser: (m) => refuser(ligne, `${m}${precision}`) });
+    const e = new EcrivainKotlin();
+    e.ligne("// Produit par Humalis : les commandes des menus de l'application.");
+    e.ligne(`package ${paquet}`);
+    e.ligne();
+    e.ligne('import android.net.Uri');
+    e.ligne('import androidx.navigation.NavHostController');
+    e.ligne();
+    let n = 0;
+    for (const g of commandes) {
+      ligne = g.ligne;
+      const corps = new EcrivainKotlin();
+      corps.indenter(() => actions.ecrire(corps, g.actions));
+      const texte = corps.texte();
+      if (/\b(portee|relances|confirmer)\b/.test(texte)) refuser(g.ligne, 'une commande de menu ne peut pas lancer de minuterie ni de lecture « en direct », ni poser une question');
+      const fonction = `commandeMenu${++n}`;
+      e.ligne('@Suppress("UNUSED_PARAMETER")');
+      e.ligne(`suspend fun ${fonction}(nav: NavHostController) {`);
+      for (const l of texte.trimEnd().split('\n')) if (l.trim()) e.ligne(l.replace(/^ {4}/, '    '));
+      e.ligne('}');
+      e.ligne();
+      let menu = menus.find((m) => m.menu === g.menu);
+      if (!menu) menus.push((menu = { menu: g.menu ?? '', commandes: [] }));
+      menu.commandes.push({ titre: g.titreCommande ?? '', fonction, ...(g.touches ? { raccourci: g.touches } : {}) });
+    }
+    e.bloc('fun menusDe(nav: NavHostController): List<MenuHumalis> = listOf(', () => {
+      for (const m of menus) {
+        e.ligne(`MenuHumalis(${chaineKotlin(m.menu)}, listOf(${m.commandes.map((c) => `CommandeHumalis(${chaineKotlin(c.titre)}, ${c.raccourci ? chaineKotlin(c.raccourci) : 'null'}) { ${c.fonction}(nav) }`).join(', ')})),`);
+      }
+    }, ')');
+    ecrireCode('Commandes.kt', e.texte().replace(/\n+$/, '\n'));
+    ecrireCode('Menus.kt', kotlin(paquet, MENUS_KT));
+  }
+
   const avecApple = application.liensProfonds !== undefined && /\bseConnecterAvecApple\(/.test([...fichiers.values()].join('\n'));
-  ecrireCode('MainActivity.kt', applicationKotlin(paquet, application, routes, entree, disposition, onglets, avecApple));
+  ecrireCode('MainActivity.kt', applicationKotlin(paquet, application, routes, entree, disposition, onglets, avecApple, menus.length > 0));
   // Les polices livrées avec le projet (.ttf, .otf) : des ressources de l'application.
   const policesCopiees = new Set<string>();
   for (const p of application.theme?.polices ?? []) {
@@ -676,6 +731,7 @@ export function genererProjetAndroid(application: Application, options: OptionsA
   if (medias.lecteurs) ecrireCode('Lecteurs.kt', kotlin(paquet, LECTEURS_KT));
   if (medias.cartes) ecrireCode('Cartes.kt', kotlin(paquet, CARTES_KT));
   ecrireCode('Graphiques.kt', kotlin(paquet, GRAPHIQUES_KT));
+  ecrireCode('Mouvement.kt', kotlin(paquet, MOUVEMENT_KT));
   // « en arriere plan : » : une tâche que WorkManager lance, avec les seules variables partagées.
   const fonds = application.ecrans.flatMap((x) => x.gestionnaires.filter((g) => g.declencheur === 'arrierePlan'));
   const avecEnvois = /\bappel(Reussi)?OuGarder\(/.test(codePages);

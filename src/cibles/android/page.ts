@@ -85,6 +85,10 @@ export class GenerateurPage implements HoteActions {
   private readonly visibilites = new Map<string, boolean>();
   private readonly textesChanges = new Map<string, string>();
   private readonly fenetres = new Set<string>();
+  /** « appuie sur "controle+k" » et « avec raccourci » : les touches écoutées par la page, et ce qu'elles lancent. */
+  private readonly raccourcis: { touches: string; action: () => string }[] = [];
+  /** « quand l'ordre de taches change : », par variable de liste. */
+  private readonly ordres = new Map<string, Fonction>();
   /** « avec ancre "desserts" » : les endroits de la page où un lien peut mener. */
   private readonly ancres = new Set<string>();
   /** Vrai à l'intérieur d'une ligne : un bloc y garde la largeur de son contenu. */
@@ -165,6 +169,11 @@ export class GenerateurPage implements HoteActions {
       switch (noeud.type) {
         case 'element':
           if (noeud.ancre !== undefined) this.ancres.add(noeud.ancre);
+          // « bouton … avec raccourci "controle+s" » : la touche fait comme un clic, hors des boucles.
+          if (noeud.raccourci !== undefined && boucles.length === 0) {
+            const id = noeud.id;
+            this.raccourcis.push({ touches: noeud.raccourci, action: () => (this.clics.get(id) ?? []).map((f) => this.appelFonction(f)).join('; ') });
+          }
           if (noeud.genre === 'champ') this.recenserChamp(noeud, formulaire);
           if (formulaire !== undefined && (noeud.genre === 'champ' || noeud.genre === 'bouton')) this.formulaireDe.set(noeud.id, formulaire);
           break;
@@ -247,11 +256,21 @@ export class GenerateurPage implements HoteActions {
       case 'survol':
         // Un écran tactile n'a pas de survol : l'événement n'a pas lieu d'être, rien n'est faux.
         return;
+      case 'commandeMenu':
+        // « menu de l'application » : écrit dans Commandes.kt, hors de toute page.
+        return;
       case 'arrierePlan':
         // « en arriere plan : » s'écrit dans tacheArrierePlan(), hors de toute page (ArrierePlan.kt).
         return;
+      case 'ordre':
+        this.ordres.set(g.variable ?? '', this.fonction(`quandOrdreChange${majuscule(nomKotlin(g.variable ?? 'liste'))}`, boucles, g));
+        return;
       case 'touche':
-        this.app.avertir(g.ligne, `« appuie sur "${g.touches}" » est sans effet sur Android : un téléphone n'a en général pas de clavier physique.`);
+        // Un clavier branché (tablette, Chromebook) : la page écoute ses touches.
+        if (g.touches !== undefined) {
+          const f = this.fonction(`quandAppuie${majuscule(nomKotlin(g.touches.replace(/\+/g, '_')))}`, boucles, g);
+          this.raccourcis.push({ touches: g.touches, action: () => this.appelFonction(f) });
+        }
         return;
       default:
         this.refuser(`« ${g.declencheur} »`);
@@ -372,6 +391,14 @@ export class GenerateurPage implements HoteActions {
       e.ligne();
       // Une page défile, avec ses marges ; un composant se place là où on l'écrit.
       const largeur = this.app.largeur ? `.widthIn(max = ${this.app.largeur}.dp)` : '';
+      const ecoute = this.raccourcis.map((r) => ({ touches: r.touches, code: r.action() })).filter((r) => r.code);
+      if (ecoute.length && !this.parametres) {
+        e.ligne('val clavier = remember { FocusRequester() }');
+        e.ligne('LaunchedEffect(Unit) { try { clavier.requestFocus() } catch (e: IllegalStateException) { } }');
+      }
+      const touches = ecoute.length && !this.parametres
+        ? `.focusRequester(clavier).focusable().onPreviewKeyEvent { evenement -> when { ${ecoute.map((r) => `correspond(evenement, ${chaineKotlin(r.touches)}) -> { portee.launch { ${r.code} }; true }`).join('; ')}; else -> false } }`
+        : '';
       const disposition = this.nomFonction === 'EnteteSite' || this.nomFonction === 'PiedSite';
       const racine = disposition
         ? 'ColonneHumalis(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {'
@@ -379,7 +406,7 @@ export class GenerateurPage implements HoteActions {
         ? 'ColonneHumalis {'
         : this.ecran.parent !== undefined
           ? `ColonneHumalis(if (imbriquee) Modifier.fillMaxWidth() else Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)${largeur}, espacement = 16.dp) {`
-          : `ColonneHumalis(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)${largeur}, espacement = 16.dp) {`;
+          : `ColonneHumalis(Modifier.fillMaxSize()${touches}.verticalScroll(rememberScrollState()).padding(16.dp)${largeur}, espacement = 16.dp) {`;
       e.bloc(racine, () => {
         for (const l of vue.texte().trimEnd().split('\n')) e.ligne(l.slice(12));
       });
@@ -480,11 +507,31 @@ export class GenerateurPage implements HoteActions {
       case 'repetition': {
         const nom = nomKotlin(noeud.variable);
         const avant = this.portee.variables.get(noeud.variable);
-        if (noeud.deplacement) this.app.avertir(noeud.ligne, "« avec deplacement » : sur Android, les éléments de la liste ne se déplacent pas encore du doigt.");
-        e.bloc(`for (${nom} in liste(${this.valeurs.x(noeud.liste)})) {`, () => {
-          this.portee.variables.set(noeud.variable, nom);
-          e.bloc(`key(identifiant(${nom}).ifEmpty { ${nom}.hashCode().toString() }) {`, () => this.ecrireCorps(e, noeud.corps));
-        });
+        const lue = noeud.liste.type === 'variable' ? this.portee.variables.get(noeud.liste.nom) : undefined;
+        if (noeud.deplacement && noeud.liste.type === 'variable' && lue !== undefined) {
+          // « avec deplacement » : la variable de liste prend le nouvel ordre ; « quand l'ordre … change » suit.
+          const ordre = this.ordres.get(noeud.liste.nom);
+          e.bloc(`ListeDeplacableHumalis(liste(${lue}), { ${lue} = it }, { ${ordre ? `portee.launch { ${this.appelFonction(ordre)} }` : ''} }) { ${nom} ->`, () => {
+            this.portee.variables.set(noeud.variable, nom);
+            this.ecrireCorps(e, noeud.corps);
+          });
+          if (avant !== undefined) this.portee.variables.set(noeud.variable, avant);
+          else this.portee.variables.delete(noeud.variable);
+          return;
+        }
+        if (noeud.deplacement) this.app.avertir(noeud.ligne, "« avec deplacement » ne s'applique qu'à une variable de liste : ici, les éléments ne se déplacent pas.");
+        const boucle = () =>
+          e.bloc(`for (${nom} in liste(${this.valeurs.x(noeud.liste)})) {`, () => {
+            this.portee.variables.set(noeud.variable, nom);
+            e.bloc(`key(identifiant(${nom}).ifEmpty { ${nom}.hashCode().toString() }) {`, () => {
+              // « avec animation » : une ligne qui arrive apparaît en fondu.
+              if (noeud.animation) e.bloc('Column(Modifier.animeHumalis("apparition", 300, 0)) {', () => this.ecrireCorps(e, noeud.corps));
+              else this.ecrireCorps(e, noeud.corps);
+            });
+          });
+        // La liste garde sa place en douceur quand des lignes arrivent ou partent.
+        if (noeud.animation) e.bloc('ColonneHumalis(Modifier.animateContentSize()) {', boucle);
+        else boucle();
         if (avant !== undefined) this.portee.variables.set(noeud.variable, avant);
         else this.portee.variables.delete(noeud.variable);
         return;
@@ -524,6 +571,10 @@ export class GenerateurPage implements HoteActions {
         return;
       }
     }
+  }
+
+  private appelFonction(f: Fonction): string {
+    return `${f.nom}(${f.parametres.map((p) => this.portee.variables.get(p) ?? nomKotlin(p)).join(', ')})`;
   }
 
   /** Ce qu'un clic déclenche : les fonctions des événements, avec les variables des boucles. */
@@ -1051,6 +1102,7 @@ function testsDuChamp(v: string, saisie: Saisie | undefined): string[] {
 
 export const IMPORTS = [
   'android.net.Uri',
+  'androidx.compose.animation.animateContentSize',
   'androidx.compose.foundation.*',
   'androidx.compose.foundation.relocation.BringIntoViewRequester',
   'androidx.compose.foundation.relocation.bringIntoViewRequester',
@@ -1063,6 +1115,9 @@ export const IMPORTS = [
   'androidx.compose.runtime.*',
   'androidx.compose.ui.Alignment',
   'androidx.compose.ui.Modifier',
+  'androidx.compose.ui.focus.FocusRequester',
+  'androidx.compose.ui.focus.focusRequester',
+  'androidx.compose.ui.input.key.onPreviewKeyEvent',
   'androidx.compose.ui.draw.clip',
   'androidx.compose.ui.draw.shadow',
   'androidx.compose.ui.graphics.Brush',

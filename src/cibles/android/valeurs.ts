@@ -110,7 +110,7 @@ export class Valeurs {
       case 'erreurRequete':
         return `${nomEtatRequete(v.variable)}.message`;
       case 'mouvementReduit':
-        return 'false';
+        return 'mouvementReduit()';
       case 'themeSombre':
         return 'Apparence.sombre()';
     }

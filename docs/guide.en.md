@@ -3487,7 +3487,7 @@ target, the compiler says so clearly instead of producing something wrong.
 | `memorisee` | yes | yes | yes | yes | yes | yes |
 | `memorisee en secret` | no | no | yes | yes | yes (Keychain) | yes (Keystore) |
 | `essayer` | yes | no | yes | yes | yes | yes |
-| Keyboard shortcuts | yes | yes | no | yes | yes | no |
+| Keyboard shortcuts | yes | yes | no | yes | yes | yes (keyboard attached) |
 | React components | yes | no | yes (in React Native) | yes | no (`sur apple "View.swift"`) | no |
 | The engine without React (the default) | yes | no | no | yes (except a React component or `memorisee en secret`) | no | no |
 | Photo, scanner, Face ID, vibration, signature, offline | yes (vibration: Android) | no | no | no | yes | yes |
@@ -3539,6 +3539,13 @@ The whole language works on Android, as on Apple:
 - **Real time and offline**: `en direct`, `avec hors ligne`, `… hors ligne` sends (kept on
   the device, sent in order when the network returns) and `en arriere plan :` (run by the
   system about every quarter of an hour, when the network is there).
+- **Motion and keyboard**: entrance animations and `effet leve` follow the device's
+  “remove animations” setting. A list `avec deplacement` is reordered with a long press,
+  then a drag; TalkBack offers “Move up” and “Move down” (named « Monter » and
+  « Descendre »). With a keyboard attached, the page's shortcuts work.
+  `menu de l'application` becomes the “⋮” menu at the top of the app, with its shortcuts.
+- **Sources**: a source with a secret key goes through the server's gateway, with the
+  session; the key never ships with the app.
 
 CSS becomes Compose, rule by rule, when a rule targets a class (`.card { … }`): background,
 color, text size and weight, margins and padding, border, corner radius, shadow, width, and

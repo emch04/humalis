@@ -901,3 +901,49 @@ describe('cible Android — noms et icônes', () => {
     expect(k).toMatch(/"M16 20a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/);
   });
 });
+
+describe('cible Android — le mouvement, les raccourcis et les menus', () => {
+  it('une liste « avec deplacement » se réordonne du doigt, et « quand l\'ordre change » suit', () => {
+    const f = projet(`page "accueil" :\n    variable taches = ["a", "b"]\n    pour chaque t dans taches avec deplacement :\n        texte t\n    quand l'ordre de taches change :\n        afficher "ok"\n`);
+    const p = page(f, 'PageAccueil');
+    expect(p).toContain('ListeDeplacableHumalis(liste(taches), { taches = it }, { portee.launch { quandOrdreChangeTaches() } }) { t ->');
+    expect(p).toContain('suspend fun quandOrdreChangeTaches()');
+    const m = page(f, 'Mouvement');
+    expect(m).toContain('detectDragGesturesAfterLongPress');
+    expect(m).toContain('CustomAccessibilityAction("Monter")');
+    expect(m).toContain('CustomAccessibilityAction("Descendre")');
+  });
+
+  it('un menu de l\'application devient le menu « ⋮ », avec ses raccourcis et ses changements de page', () => {
+    const f = projet(`variable n = 0 avec partagee\n\nmenu de l'application "Fichier" :\n    commande "Nouveau" avec raccourci "ctrl+n" :\n        changer n par n + 1\n    commande "Réglages" :\n        rediriger vers "reglages"\n\npage "accueil" :\n    titre "t"\n\npage "reglages" :\n    titre "r"\n`);
+    const c = page(f, 'Commandes');
+    expect(c).toContain('suspend fun commandeMenu1(nav: NavHostController)');
+    expect(c).toContain('Partage.n = plus(Partage.n, 1.0)');
+    expect(c).toContain('CommandeHumalis("Nouveau", "ctrl+n") { commandeMenu1(nav) }');
+    expect(c).toMatch(/commandeMenu2[\s\S]*nav\.|allerVers\(nav/);
+    const app = page(f, 'MainActivity');
+    expect(app).toContain('BarreMenusHumalis(menus)');
+    expect(app).toContain('raccourciDesMenus(menus, it)');
+    expect(page(f, 'Menus')).toContain('contentDescription = "Menu de l\'application"');
+    expect(verifierAppareilPourLaCible(compile(`menu de l'application "F" :\n    commande "N" :\n        afficher "x"\n\npage "accueil" :\n    titre "t"\n`), 'android')).toEqual([]);
+  });
+
+  it('les raccourcis d\'une page écoutent un clavier branché', () => {
+    const p = page(projet(`page "accueil" :\n    texte "x"\n    quand l'utilisateur appuie sur "controle+k" :\n        afficher "ok"\n`), 'PageAccueil');
+    expect(p).toContain('onPreviewKeyEvent');
+    expect(p).toContain('correspond(evenement, "controle+k")');
+  });
+
+  it('une animation d\'entrée respecte « réduire les animations »', () => {
+    const f = projet(`page "accueil" :\n    titre "x" avec animation montee\n`);
+    expect(page(f, 'PageAccueil')).toContain('.animeHumalis("montee"');
+    expect(page(f, 'Mouvement')).toContain('ANIMATOR_DURATION_SCALE');
+  });
+
+  it('une source à clé secrète passe par la passerelle du serveur, jamais avec la clé', () => {
+    const f = projet(`serveur "agenda" :\n    donnee rappel :\n        texte : texte\n    route "rappels" :\n        connecte peut lire rappel\n\nsource "meteo" :\n    adresse "https://api.meteo.example"\n    jeton secret depuis l'environnement "METEO_CLE" dans le parametre "key"\n    donnee prevision :\n        jour : texte\n    route "previsions" :\n        tout le monde peut lire une liste de prevision dans "jours"\n\npage "accueil" :\n    variable p = []\n    quand la page se charge :\n        envoyer requete vers "previsions" de la source "meteo" dans p\n`);
+    const s = page(f, 'Sources');
+    expect(s).toContain('/api/passerelle/meteo');
+    expect(s).not.toContain('METEO_CLE');
+  });
+});
