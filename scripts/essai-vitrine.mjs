@@ -237,6 +237,9 @@ async function scenarioElements(nom, adresse, navigateur) {
   }
   // Code QR et thème sombre : le code reste noir sur blanc.
   await page.emulateMedia({ colorScheme: 'dark' });
+  // Sous forte charge, juste après le changement de mode, Chromium a rendu un style calculé vide (« ») :
+  // on attend qu'il soit recalculé, au plus 3 s, puis on compare.
+  await page.waitForFunction(() => getComputedStyle(document.querySelector('.humalis-qr')).backgroundColor !== '', null, { timeout: 3000 }).catch(() => {});
   const fondQr = await page.locator('.humalis-qr').evaluate((el) => getComputedStyle(el).backgroundColor);
   verifier(fondQr === 'rgb(255, 255, 255)', `${nom} : le code QR reste sur fond blanc en mode sombre (${fondQr})`);
   await page.screenshot({ path: join(travail, 'captures', `${nom}-plat-sombre.png`), fullPage: true });
