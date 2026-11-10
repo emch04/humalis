@@ -116,3 +116,4 @@ ECRITES.windows = new Set<Forme>(['barreSysteme', 'partageRecu', 'raccourcisIcon
 // Android (Kotlin et Compose) et le serveur (APNs, Firebase).
 ECRITES.android = new Set<Forme>(['widget', 'partageRecu', 'montre', 'tele', 'clavier', 'activite', 'raccourcisIcone', 'commandeVocale', 'fichierOuvert', 'boutonsNotification', 'rechercheSysteme', 'tuile', 'voiture']);
 ECRITES.serveur = new Set<Forme>(['activite', 'boutonsNotification']);
+ECRITES.apple = new Set<Forme>(['widget', 'barreSysteme', 'partageRecu', 'montre', 'tele', 'clavier', 'activite', 'raccourcisIcone', 'commandeVocale', 'fichierOuvert', 'demarrage', 'boutonsNotification', 'rechercheSysteme', 'tuile', 'miniApplication', 'voiture', 'menuClicDroit']);

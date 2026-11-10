@@ -298,6 +298,8 @@ import UIKit
     #if os(macOS)
     NSPasteboard.general.clearContents()
     NSPasteboard.general.setString(texte, forType: .string)
+    #elseif os(watchOS) || os(tvOS)
+    // La montre et la télévision n'ont pas de presse-papier.
     #else
     UIPasteboard.general.string = texte
     #endif
@@ -309,7 +311,9 @@ import UIKit
         Messages.commun.afficher("Ce lien ne peut pas s'ouvrir.", .erreur)
         return
     }
-    #if os(macOS)
+    #if HUMALIS_SANS_FENETRE
+    _ = url
+    #elseif os(macOS)
     NSWorkspace.shared.open(url)
     #else
     UIApplication.shared.open(url)
@@ -320,7 +324,9 @@ import UIKit
 @MainActor func partager(texte: String, titre: String?, adresse: String?) {
     var elements: [Any] = [texte]
     if let adresse, let url = URL(string: adresse) { elements.append(url) }
-    #if os(macOS)
+    #if HUMALIS_SANS_FENETRE
+    _ = elements
+    #elseif os(macOS)
     guard let vue = NSApp.keyWindow?.contentView else { return }
     NSSharingServicePicker(items: elements).show(relativeTo: .zero, of: vue, preferredEdge: .minY)
     #else
@@ -358,7 +364,9 @@ import UIKit
 
 /** Montre un fichier : la feuille de partage sur iPhone et iPad, le Finder sur Mac. */
 @MainActor func partagerFichier(_ url: URL) {
-    #if os(macOS)
+    #if HUMALIS_SANS_FENETRE
+    _ = url
+    #elseif os(macOS)
     NSWorkspace.shared.activateFileViewerSelecting([url])
     #else
     let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
@@ -1232,7 +1240,9 @@ import CryptoKit
 import SwiftUI
 
 @MainActor private func fenetreDeConnexion() -> ASPresentationAnchor {
-    #if os(macOS)
+    #if HUMALIS_SANS_FENETRE
+    return ASPresentationAnchor()
+    #elseif os(macOS)
     return NSApplication.shared.keyWindow ?? NSApplication.shared.windows.first ?? NSWindow()
     #else
     let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
@@ -1350,7 +1360,8 @@ import UserNotifications
         Messages.commun.afficher("Les notifications sont désactivées. Vous pouvez les activer dans les réglages de l'appareil.", .avertissement)
         return
     }
-    #if os(macOS)
+    #if HUMALIS_SANS_FENETRE
+    #elseif os(macOS)
     NSApplication.shared.registerForRemoteNotifications()
     #else
     UIApplication.shared.registerForRemoteNotifications()
