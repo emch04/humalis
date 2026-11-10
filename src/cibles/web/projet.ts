@@ -160,9 +160,10 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
   fichiers.set(MARQUE, `Projet produit par Humalis depuis ${options.source}.\nLe compilateur réécrit ce dossier à chaque compilation.\n`);
   fichiers.set('package.json', packageJson(options.nom));
   const bascule = changeLeTheme(application);
-  fichiers.set('index.html', indexHtml(pages[0]?.page.titre ?? options.nom, modeParDefaut(application.theme), bascule, application.site, application.langues?.[0].code, application.langues?.map((l) => l.code)));
+  // Avec une adresse par langue, la page arrive déjà dans sa langue : pas de choix à faire au chargement.
+  fichiers.set('index.html', indexHtml(pages[0]?.page.titre ?? options.nom, modeParDefaut(application.theme), bascule, application.site, application.langues?.[0].code, application.adresseParLangue ? [] : application.langues?.map((l) => l.code)));
   // Plusieurs langues : t(), la langue courante, le sélecteur (src/humalis/langue.tsx).
-  if (application.langues) fichiers.set('src/humalis/langue.tsx', langueWebTsx(application.langues));
+  if (application.langues) fichiers.set('src/humalis/langue.tsx', langueWebTsx(application.langues, application.adresseParLangue));
   if (application.site) {
     fichiers.set('public/robots.txt', robotsTxt(application.site, options.adresse));
     if (application.site.logo && !estExterne(application.site.logo)) fichiers.set('public/manifest.webmanifest', manifeste(application.site, options.images, '/'));
@@ -179,6 +180,11 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
     .filter(({ ecran }) => !chemins.get(ecran.nom)!.includes(':') && ecran.nom !== 'introuvable' && !ecran.reservee && ecran.apercu?.indexation !== false)
     .map(({ ecran, page }) => ({ chemin: chemins.get(ecran.nom)!, libelle: page.titre }))
     .filter((r, i, toutes) => toutes.findIndex((x) => x.chemin === r.chemin) === i);
+  // « avec adresse par langue » : chaque page aussi sous /en/…, prérendue dans sa langue.
+  if (application.adresseParLangue && application.langues) {
+    const premieres = [...routesPrerendues];
+    for (const { code } of application.langues.slice(1)) for (const r of premieres) routesPrerendues.push({ chemin: `/${code}${r.chemin === '/' ? '/' : r.chemin}`, libelle: r.libelle });
+  }
   if (routesPrerendues.length > 0) {
     fichiers.set(
       'astratra.prerender.config.cjs',
@@ -336,6 +342,11 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
         : undefined,
     ),
   );
+  // « avec adresse par langue » : le routeur prend « /en » comme base, et tous les liens le gardent.
+  if (application.adresseParLangue && application.langues) {
+    const principal = fichiers.get('src/main.tsx')!;
+    fichiers.set('src/main.tsx', principal.replace("import { createRoot } from 'react-dom/client';\n", "import { createRoot } from 'react-dom/client';\nimport { baseDuRouteur } from './humalis/langue';\n").replace('<BrowserRouter>', '<BrowserRouter basename={baseDuRouteur()}>'));
+  }
 
   for (const { page } of pages) fichiers.set(`src/pages/${page.composant}.tsx`, page.code);
   // Les images locales, recopiées là où le site les cherche (/images/…) : décision M5.

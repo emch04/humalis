@@ -72,7 +72,8 @@ export function useLangue() {
 `;
 
 /** src/humalis/langue.tsx du web (et du bureau, à l'octet près). */
-export function langueWebTsx(langues: LangueRI[]): string {
+export function langueWebTsx(langues: LangueRI[], parAdresse = false): string {
+  if (parAdresse) return langueParAdresseTsx(langues);
   return `import { useSyncExternalStore } from 'react';
 
 ${entete(langues)}const CLE = ${chaine(CLE_LANGUE)};
@@ -141,6 +142,87 @@ export function SelecteurLangue({ className }: { className?: string }) {
 `;
 }
 
+
+/**
+ * « avec adresse par langue » : la langue se lit dans l'adresse (/en/accueil ; /accueil pour la première).
+ * Le routeur reçoit ce préfixe comme base : tous les liens le gardent. Changer de langue change d'adresse.
+ * Chaque page déclare ses autres langues (hreflang) pour les moteurs de recherche.
+ */
+function langueParAdresseTsx(langues: LangueRI[]): string {
+  return `import { useSyncExternalStore } from 'react';
+
+${entete(langues)}
+/** La langue écrite au début de l'adresse (« /en/… ») ; sans préfixe, la première langue du site. */
+function langueDeLAdresse(chemin: string): Langue {
+  const premier = chemin.split('/')[1];
+  return estLangue(premier) && premier !== LANGUES[0] ? premier : LANGUES[0];
+}
+
+let actuelle: Langue = typeof window === 'undefined' ? LANGUES[0] : langueDeLAdresse(location.pathname);
+
+/** La base du routeur : « /en » pour l'anglais, rien pour la première langue. */
+export function baseDuRouteur(): string | undefined {
+  return actuelle === LANGUES[0] ? undefined : '/' + actuelle;
+}
+
+/** Le même chemin dans une autre langue : « /en/menu » devient « /menu » ou « /es/menu ». */
+export function cheminEnLangue(chemin: string, langue: Langue): string {
+  const sans = langueDeLAdresse(chemin) === LANGUES[0] ? chemin : chemin.slice(1 + actuelle.length) || '/';
+  return langue === LANGUES[0] ? sans : '/' + langue + (sans === '/' ? '/' : sans);
+}
+
+/** Les autres versions de cette page, pour les moteurs de recherche (hreflang). */
+function declarerLesLangues(): void {
+  document.querySelectorAll('link[data-humalis-langue]').forEach((lien) => lien.remove());
+  for (const code of [...LANGUES, 'x-default' as const]) {
+    const lien = document.createElement('link');
+    lien.rel = 'alternate';
+    lien.hreflang = code;
+    lien.href = location.origin + cheminEnLangue(location.pathname, code === 'x-default' ? LANGUES[0] : code);
+    lien.dataset.humalisLangue = '';
+    document.head.append(lien);
+  }
+}
+
+if (typeof document !== 'undefined') {
+  document.documentElement.lang = actuelle;
+  declarerLesLangues();
+  // Une page suivante garde ses liens hreflang à jour.
+  addEventListener('popstate', declarerLesLangues);
+  const pousser = history.pushState.bind(history);
+  history.pushState = (...args: Parameters<History['pushState']>) => {
+    pousser(...args);
+    declarerLesLangues();
+  };
+}
+
+/** Change de langue : la même page, à l'adresse de cette langue. */
+export function changerLangue(langue: Langue): void {
+  if (langue === actuelle) return;
+  location.assign(cheminEnLangue(location.pathname, langue) + location.search + location.hash);
+}
+
+${CORPS}
+/** « selecteur de langue » : chaque langue écrite dans sa langue, l'actuelle choisie. */
+export function SelecteurLangue({ className }: { className?: string }) {
+  const { langue } = useLangue();
+  return (
+    <select
+      className={className}
+      value={langue}
+      aria-label={t({ ${langues.map((l) => `${l.code}: ${chaine(NOM_DU_CHOIX[l.code] ?? 'Langue')}`).join(', ')} })}
+      onChange={(evenement) => changerLangue(evenement.target.value as Langue)}
+    >
+      {LANGUES.map((code) => (
+        <option key={code} value={code} lang={code}>
+          {NOMS_LANGUES[code]}
+        </option>
+      ))}
+    </select>
+  );
+}
+`;
+}
 
 /** src/humalis/langue.tsx du mobile (Expo) : langue du téléphone par expo-localization, choix gardé par AsyncStorage. */
 export function langueMobileTsx(langues: LangueRI[]): string {

@@ -621,6 +621,7 @@ page "accueil" :
 - Des langues sur la ligne et en dessous : soit sur la ligne, soit en dessous
 - Une langue que Humalis ne connaît pas : n'est pas une langue connue de Humalis
 - Une langue pas encore disponible : n'est pas encore disponible
+- Une adresse par langue mal écrite : avec adresse par langue
 - Une langue écrite deux fois : est déjà dans le bloc « langues »
 - Un bloc « langues » vide : le bloc « langues » est vide
 - Une version sans bloc « langues » : mais le fichier ne déclare pas ses langues

@@ -60,6 +60,16 @@ export function analyserLangues(flux: FluxTokens): Langues {
       flux.avancer();
       ajouter(jeton);
       if (flux.verifier('FIN_LIGNE') || flux.estFini()) break;
+      // « … avec adresse par langue » : /en/accueil pour l'anglais, /accueil pour la première langue.
+      if (estLeMot(flux.actuel(), 'avec')) {
+        flux.avancer();
+        for (const mot of ['adresse', 'par', 'langue']) {
+          if (!estLeMot(flux.actuel(), mot)) throw new ErreurSyntaxique('après les langues, on écrit : avec adresse par langue', flux.actuel().ligne);
+          flux.avancer();
+        }
+        langues.adresseParLangue = true;
+        break;
+      }
       if (flux.actuel().type === 'PONCTUATION' && flux.actuel().valeur === ',') {
         flux.avancer();
         if (flux.verifier('FIN_LIGNE') || flux.estFini()) {

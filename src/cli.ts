@@ -10,7 +10,7 @@ import { appliquerExigence, resumerQualite } from './analyse/diagnosticsQualite.
 import { prevenirDesTuiles } from './analyse/carte.js';
 import { cheminsDesPages, genererProjetWeb, genererComposantsWeb, verifierPourLeWeb, adressesDeRequetes, MARQUE } from './cibles/web/projet.js';
 import { genererProjetServeur, MARQUE_SERVEUR } from './cibles/serveur/projet.js';
-import { verifierSourcesPourLaCible, verifierNavigationPourLaCible, verifierFichiersPourLaCible, verifierNomsPourLeWeb } from './cibles/sources.js';
+import { verifierSourcesPourLaCible, verifierNavigationPourLaCible, verifierFichiersPourLaCible, verifierNomsPourLeWeb, verifierAdresseParLangue } from './cibles/sources.js';
 import { genererProjetMobile, verifierPourLeMobile, verifierModulesPourLeMobile, MARQUE_MOBILE } from './cibles/mobile/projet.js';
 import { verifierFichiersPourLeMobile } from './cibles/mobile/fichiers.js';
 import { genererProjetMoteur, verifierPourLeMoteur, MARQUE_MOTEUR } from './cibles/moteur/projet.js';
@@ -531,6 +531,7 @@ async function compileMoteur(application: Application, chemin: string, sortie: s
     donnees = lu.donnees;
     console.error(`Lu à la construction : ${donnees.size} sur ${lectures.length}.`);
   }
+  for (const d of verifierAdresseParLangue(application, 'web --moteur humalis')) console.error(`Avertissement : ${d.message}`);
   const fichiers = genererProjetMoteur(application, { nom, source: basename(chemin), fichiersStyle, polices, images, medias, externes, ...(adresse ?? application.site?.adresse ? { adresse: adresse ?? application.site?.adresse } : {}), ...(portDiagnostics !== undefined ? { sources: fichiersDuProjet } : {}), ...(donnees ? { donnees } : {}) });
   // « humalis developper » : l'aide au survol et le panneau des erreurs, dans chaque page.
   if (portDiagnostics !== undefined) {
@@ -596,7 +597,7 @@ function compileStatique(application: Application, chemin: string, sortie: strin
     return 1;
   }
   // Ce qu'un site statique ne sait pas faire (React, secret…) : décision T9.
-  const pourLeStatique = [...verifierPourLeStatique(application), ...verifierSourcesPourLaCible(application, 'statique'), ...verifierNavigationPourLaCible(application, 'statique'), ...verifierFichiersPourLaCible(application, 'statique')];
+  const pourLeStatique = [...verifierAdresseParLangue(application, 'statique'), ...verifierPourLeStatique(application), ...verifierSourcesPourLaCible(application, 'statique'), ...verifierNavigationPourLaCible(application, 'statique'), ...verifierFichiersPourLaCible(application, 'statique')];
   afficherDiagnostics(pourLeStatique);
   if (pourLeStatique.some((d) => d.gravite === 'erreur')) {
     console.error('\nLe programme ne peut pas être produit en site statique : rien n\'a été écrit.');

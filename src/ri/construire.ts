@@ -88,6 +88,7 @@ export function construireRepresentation(
     sources: programme.sources.map(sourceRI),
     ...(programme.theme ? { theme: themeRI(programme.theme) } : {}),
     ...(analyse.langues.langues.length > 1 ? { langues: analyse.langues.langues.map((l) => ({ code: l.code, nom: l.nomPropre })) } : {}),
+    ...(analyse.langues.langues.length > 1 && programme.langues?.adresseParLangue ? { adresseParLangue: true } : {}),
     ...(programme.site
       ? {
           site: {

@@ -6,6 +6,13 @@
 import type { Application } from '../ri/types.js';
 import type { Diagnostic } from '../analyse/erreurs.js';
 
+/** « avec adresse par langue » : écrite pour le site React ; ailleurs, la langue reste un choix gardé dans le navigateur. */
+export function verifierAdresseParLangue(application: Application, cible: string): Diagnostic[] {
+  return application.adresseParLangue
+    ? [{ gravite: 'avertissement', ligne: 1, message: `« avec adresse par langue » n'est pas encore pris en compte sur la cible ${cible} : la langue y reste un choix gardé dans le navigateur, sans adresse /en/. Compilez pour le web (React) pour avoir une adresse par langue.` }]
+    : [];
+}
+
 export function verifierSourcesPourLaCible(application: Application, cible: 'mobile' | 'statique'): Diagnostic[] {
   const diagnostics: Diagnostic[] = application.sources.map((s) => ({
     gravite: 'erreur' as const,
