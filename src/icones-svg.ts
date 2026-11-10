@@ -6,10 +6,52 @@ export interface TraceIcone {
   /** Les commandes absolues : M, L, C (Q, S, H, V et les arcs sont convertis), Z. */
   commandes: string;
   valeurs: number[];
-  /** Absent : pas de remplissage. */
-  remplissage?: { opacite: number };
-  /** Absent : pas de trait. */
-  trait?: { epaisseur: number; opacite: number };
+  /** Absent : pas de remplissage. Sans couleur : celle du texte. */
+  remplissage?: { opacite: number; couleur?: CouleurSvg; degrade?: DegradeSvg };
+  /** Absent : pas de trait. « fixe » : l'épaisseur ne suit pas l'échelle (vector-effect). */
+  trait?: { epaisseur: number; opacite: number; couleur?: CouleurSvg; fixe?: boolean };
+}
+
+/** Rouge, vert, bleu, opacité, de 0 à 1. */
+export type CouleurSvg = [number, number, number, number];
+/** Un dégradé linéaire, en proportions de la forme (x1, y1, x2, y2). */
+export interface DegradeSvg { de: [number, number]; a: [number, number]; arrets: { p: number; c: CouleurSvg }[] }
+
+const NOMMEES: Record<string, CouleurSvg> = { white: [1, 1, 1, 1], black: [0, 0, 0, 1], transparent: [0, 0, 0, 0], red: [1, 0, 0, 1], blue: [0, 0, 1, 1], green: [0, 0.5, 0, 1] };
+
+/** Une couleur écrite dans un SVG ; undefined pour « currentColor » ou ce qui n'est pas lu. */
+export function couleurSvg(v: string | undefined, opacite = 1): CouleurSvg | undefined {
+  if (!v) return undefined;
+  const t = v.trim().toLowerCase();
+  let c: CouleurSvg | undefined = NOMMEES[t];
+  const h = /^#([0-9a-f]{3,8})$/.exec(t);
+  if (h) {
+    const x = h[1]!.length <= 4 ? [...h[1]!].map((k) => k + k).join('') : h[1]!;
+    c = [0, 2, 4].map((i) => parseInt(x.slice(i, i + 2), 16) / 255).concat(x.length === 8 ? parseInt(x.slice(6, 8), 16) / 255 : 1) as CouleurSvg;
+  }
+  const r = /^rgba?\(([^)]*)\)$/.exec(t);
+  if (r) {
+    const p = r[1]!.split(/[\s,/]+/).filter(Boolean).map((s) => (s.endsWith('%') ? (parseFloat(s) * 2.55) : parseFloat(s)));
+    c = [p[0]! / 255, p[1]! / 255, p[2]! / 255, p[3] ?? 1];
+  }
+  return c ? [c[0], c[1], c[2], Number((c[3] * opacite).toFixed(4))] : undefined;
+}
+
+/** Les dégradés linéaires déclarés dans <defs>, par identifiant. */
+function degradesDe(svg: string): Map<string, DegradeSvg> {
+  const sortie = new Map<string, DegradeSvg>();
+  for (const m of svg.matchAll(/<linearGradient\b([^>]*)>([\s\S]*?)<\/linearGradient>/gi)) {
+    const id = attribut(m[1]!, 'id');
+    if (!id) continue;
+    const prop = (nom: string, d: number) => { const v = attribut(m[1]!, nom); return v === undefined ? d : v.endsWith('%') ? parseFloat(v) / 100 : Number(v); };
+    const arrets = [...m[2]!.matchAll(/<stop\b([^>]*?)\/?>/gi)].flatMap((s) => {
+      const off = attribut(s[1]!, 'offset') ?? '0';
+      const c = couleurSvg(attribut(s[1]!, 'stop-color') ?? 'black', Number(attribut(s[1]!, 'stop-opacity') ?? 1));
+      return c ? [{ p: off.endsWith('%') ? parseFloat(off) / 100 : Number(off), c }] : [];
+    });
+    sortie.set(id, { de: [prop('x1', 0), prop('y1', 0)], a: [prop('x2', 1), prop('y2', 0)], arrets });
+  }
+  return sortie;
 }
 
 export interface IconeDessinee {
@@ -19,6 +61,8 @@ export interface IconeDessinee {
   /** L'intérieur du <symbol>, pour le web. */
   svg: string;
   traces: TraceIcone[];
+  /** « preserveAspectRatio » : « couvre » (slice) ou « etire » (none) ; absent : tout voir, centré. */
+  cadrage?: 'couvre' | 'etire';
 }
 
 /** Lit un attribut, sur l'élément ou sur ce dont il hérite. */
@@ -177,6 +221,7 @@ export function lireIconesSvg(contenu: string): IconeDessinee[] {
     if (!nom) return [];
     const boite = (attribut(entete, 'viewBox') ?? '0 0 24 24').trim().split(/[\s,]+/).map(Number);
     const traces: TraceIcone[] = [];
+    const degrades = degradesDe(m[2]);
     for (const f of m[2].matchAll(/<(path|circle|ellipse|line|polyline|polygon|rect)\b([^>]*?)\/?>/gi)) {
       const b = f[2];
       const d = cheminDe(f[1].toLowerCase(), b);
@@ -184,13 +229,19 @@ export function lireIconesSvg(contenu: string): IconeDessinee[] {
       const fill = herite('fill', b, entete, racine);
       const stroke = herite('stroke', b, entete, racine);
       const opacite = Number(herite('opacity', b) ?? 1);
+      // Une couleur écrite (« #FFD0BE », « rgba(…) ») est gardée ; « currentColor » suit le texte.
+      const degrade = /^url\(#([^)]+)\)$/.exec(fill ?? '')?.[1];
+      const couleurFond = couleurSvg(fill);
+      const couleurTrait = couleurSvg(stroke);
       traces.push({
         ...lireChemin(d),
         // Comme en SVG, une forme sans « fill » est remplie.
-        ...(fill !== 'none' && !(fill === undefined && f[1].toLowerCase() === 'line') ? { remplissage: { opacite: opacite * Number(herite('fill-opacity', b, entete) ?? 1) } } : {}),
-        ...(stroke !== undefined && stroke !== 'none' ? { trait: { epaisseur: Number(herite('stroke-width', b, entete, racine) ?? 1), opacite: opacite * Number(herite('stroke-opacity', b, entete) ?? 1) } } : {}),
+        ...(fill !== 'none' && !(fill === undefined && f[1].toLowerCase() === 'line') ? { remplissage: { opacite: opacite * Number(herite('fill-opacity', b, entete) ?? 1), ...(couleurFond ? { couleur: couleurFond } : {}), ...(degrade && degrades.has(degrade) ? { degrade: degrades.get(degrade)! } : {}) } } : {}),
+        ...(stroke !== undefined && stroke !== 'none' ? { trait: { epaisseur: Number(herite('stroke-width', b, entete, racine) ?? 1), opacite: opacite * Number(herite('stroke-opacity', b, entete) ?? 1), ...(couleurTrait ? { couleur: couleurTrait } : {}), ...(attribut(b, 'vector-effect') === 'non-scaling-stroke' ? { fixe: true } : {}) } } : {}),
       });
     }
-    return [{ nom, largeur: boite[2] ?? 24, hauteur: boite[3] ?? 24, svg: m[2].trim(), traces }];
+    const cadre = attribut(entete, 'preserveAspectRatio') ?? '';
+    const cadrage = /slice/.test(cadre) ? 'couvre' : cadre.trim() === 'none' ? 'etire' : undefined;
+    return [{ nom, largeur: boite[2] ?? 24, hauteur: boite[3] ?? 24, svg: m[2].trim(), traces, ...(cadrage ? { cadrage } : {}) }];
   });
 }

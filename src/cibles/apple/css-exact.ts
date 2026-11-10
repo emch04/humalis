@@ -27,13 +27,34 @@ export interface StyleJ {
   fo?: Fond[]; ar?: [number, number, number, number];
   bd?: ([number, CouleurJ] | null)[]; om?: Ombre[]; po?: [Mesure, Mesure][]; op?: number; oh?: boolean; sc?: boolean; cach?: boolean;
   ic?: number;
+  /** Une image de fond SVG (data:), tracée sous le contenu : son rang dans la table des masques. */
+  fi?: number;
   // Texte
   t?: number; g?: number; f?: string; c?: CouleurJ; li?: number; lp?: number; tr?: number; ta?: string; cas?: string; nw?: boolean; el?: boolean; it?: boolean; nb?: boolean;
 }
 
 interface Selecteur { parties: Compose[]; liens: string[]; pseudo?: 'before' | 'after' }
 interface Compose { tag?: string; id?: string; classes: string[]; premier?: boolean; dernier?: boolean; non: Compose[]; a: Compose[]; ou?: Compose[]; sansPoids?: boolean; impossible?: boolean }
-interface Regle { selecteur: Selecteur; specificite: number; rang: number; declarations: [string, string, boolean][] }
+/** Les conditions d'une règle : la largeur du dessin (« @media ») et l'appareil de sa feuille. */
+interface Condition { min?: number; max?: number; os?: 'ios' | 'macos' }
+interface Regle { selecteur: Selecteur; specificite: number; rang: number; declarations: [string, string, boolean][]; condition: Condition }
+
+/** « @media (min-width: 900px) and (max-width: 1200px) » ; undefined : la règle ne vaut jamais pour un dessin. */
+export function conditionMedia(requete: string): Condition | undefined {
+  const c: Condition = {};
+  const texte = requete.replace(/^@media\s*/i, '').trim().toLowerCase();
+  // Plusieurs requêtes séparées par des virgules : trop rare pour un dessin, on ne garde que la première.
+  for (const morceau of texte.split(',')[0]!.split(/\s+and\s+/)) {
+    const m = morceau.trim();
+    if (m === '' || m === 'screen' || m === 'all' || m === 'only screen') continue;
+    const l = /^\(\s*(min|max)-width\s*:\s*([\d.]+)\s*(px|em|rem)?\s*\)$/.exec(m);
+    if (!l) return undefined;
+    const v = Number(l[2]) * (l[3] === 'em' || l[3] === 'rem' ? 16 : 1);
+    if (l[1] === 'min') c.min = Math.max(c.min ?? 0, v);
+    else c.max = Math.min(c.max ?? Infinity, v);
+  }
+  return c;
+}
 
 /** Un élément de la page, avec ce qui l'entoure. */
 interface Boite {
@@ -363,10 +384,14 @@ export class CssExact {
   readonly iconesDeMasque: IconeDessinee[] = [];
   private readonly indexIcones = new Map<string, number>();
 
+  /** Le dessin en cours : sa largeur et son appareil choisissent les règles. */
+  private courant: { largeur: number; os: 'ios' | 'macos' } = { largeur: 1440, os: 'macos' };
+
   constructor(feuilles: { css: string; os?: 'ios' | 'macos' }[], private readonly polices: Set<string>) {
     let rang = 0;
-    for (const css of [BASE, ...feuilles.filter((f) => f.os !== 'ios').map((f) => f.css)]) {
-      for (const { selecteur, corps } of this.blocs(css.replace(/\/\*[\s\S]*?\*\//g, ''))) {
+    for (const { css, os } of [{ css: BASE }, ...feuilles] as { css: string; os?: 'ios' | 'macos' }[]) {
+      for (const { selecteur, corps, condition: media } of this.blocs(css.replace(/\/\*[\s\S]*?\*\//g, ''))) {
+        const condition: Condition = { ...media, ...(os ? { os } : {}) };
         const declarations = separer(corps, (c) => c === ';').flatMap((d): [string, string, boolean][] => {
           const deux = d.indexOf(':');
           if (deux <= 0) return [];
@@ -376,14 +401,14 @@ export class CssExact {
         });
         for (const s of parVirgules(selecteur)) {
           const lu = lireSelecteur(s);
-          if (lu) this.regles.push({ selecteur: lu, specificite: specificiteDe(lu), rang: rang++, declarations });
+          if (lu) this.regles.push({ selecteur: lu, specificite: specificiteDe(lu), rang: rang++, declarations, condition });
         }
       }
     }
   }
 
-  private blocs(css: string): { selecteur: string; corps: string }[] {
-    const sortie: { selecteur: string; corps: string }[] = [];
+  private blocs(css: string, condition: Condition = {}): { selecteur: string; corps: string; condition: Condition }[] {
+    const sortie: { selecteur: string; corps: string; condition: Condition }[] = [];
     let i = 0;
     while (i < css.length) {
       const ouvre = css.indexOf('{', i);
@@ -392,16 +417,19 @@ export class CssExact {
       let p = 1, j = ouvre + 1;
       while (j < css.length && p > 0) { if (css[j] === '{') p++; if (css[j] === '}') p--; j++; }
       const corps = css.slice(ouvre + 1, j - 1);
-      // Les règles « @media » visent un navigateur ; seule la grande largeur vaut pour un dessin.
-      if (selecteur.startsWith('@media')) { if (/min-width/.test(selecteur) && !/max-width/.test(selecteur) && !/prefers/.test(selecteur)) sortie.push(...this.blocs(corps)); }
-      else if (!selecteur.startsWith('@') && selecteur) sortie.push({ selecteur, corps });
+      // « @media » : seule la largeur compte ; elle est comparée à celle du dessin au moment de résoudre.
+      if (selecteur.startsWith('@media')) {
+        const c = conditionMedia(selecteur);
+        if (c) sortie.push(...this.blocs(corps, { min: Math.max(condition.min ?? 0, c.min ?? 0), max: Math.min(condition.max ?? Infinity, c.max ?? Infinity) }));
+      } else if (!selecteur.startsWith('@') && selecteur) sortie.push({ selecteur, corps, condition });
       i = j;
     }
     return sortie;
   }
 
   /** Résout une page : à chaque nœud, ses styles. */
-  resoudre(vue: NoeudVue[], dessin: { largeur: number; hauteur: number }, enveloppe: string[] = []): ResolutionPage {
+  resoudre(vue: NoeudVue[], dessin: { largeur: number; hauteur: number }, enveloppe: string[] = [], os: 'ios' | 'macos' = 'macos'): ResolutionPage {
+    this.courant = { largeur: dessin.largeur, os };
     const html: Boite = { tag: 'html', classes: new Set(), enfants: [], branches: [] };
     const body: Boite = { tag: 'body', classes: new Set(), parent: html, enfants: [], branches: [] };
     html.enfants.push(body);
@@ -580,8 +608,22 @@ export class CssExact {
     return verifier(s.parties.length - 1, b, rang);
   }
 
+  /** Le rang d'un SVG donné en data: dans la table des masques, ajouté s'il est nouveau. */
+  private imageDeFond(valeur: string): number | undefined {
+    const icone = iconeDUnMasque(valeur);
+    if (!icone) return undefined;
+    const cle = JSON.stringify([icone.traces, icone.cadrage]);
+    if (!this.indexIcones.has(cle)) { this.indexIcones.set(cle, this.iconesDeMasque.length); this.iconesDeMasque.push(icone); }
+    return this.indexIcones.get(cle)!;
+  }
+
+  private vaut(c: Condition): boolean {
+    const { largeur, os } = this.courant;
+    return (c.os === undefined || c.os === os) && largeur >= (c.min ?? 0) && largeur <= (c.max ?? Infinity);
+  }
+
   private declarationsDe(b: Boite, rang: Rang, pseudo?: 'before' | 'after'): [string, string][] {
-    const choisies = this.regles.filter((r) => r.selecteur.pseudo === pseudo && this.correspond(r.selecteur, b, rang));
+    const choisies = this.regles.filter((r) => this.vaut(r.condition) && r.selecteur.pseudo === pseudo && this.correspond(r.selecteur, b, rang));
     const normales = choisies.flatMap((r) => r.declarations.filter((d) => !d[2]).map((d) => ({ d, r })));
     const fortes = choisies.flatMap((r) => r.declarations.filter((d) => d[2]).map((d) => ({ d, r })));
     const ordre = (a: { r: Regle }, c: { r: Regle }) => a.r.specificite - c.r.specificite || a.r.rang - c.r.rang;
@@ -747,9 +789,9 @@ export class CssExact {
         case 'flex-grow': s.fg = Number(v); break;
         case 'flex-shrink': s.fs = Number(v); break;
         case 'flex-basis': if (v === 'auto') delete s.fb; else { const b = lg(v); if (b) s.fb = b; } break;
-        case 'background': { const f = lireFond(v, ctx); if (f) s.fo = f; break; }
+        case 'background': { const f = lireFond(v, ctx); if (f) s.fo = f; const i = this.imageDeFond(v); if (i !== undefined) s.fi = i; else delete s.fi; break; }
         case 'background-color': { const c = couleur(v, h.c); if (c) s.fo = c[3] === 0 ? [] : [...(s.fo ?? []).filter((x) => !x.c), { c }].sort((a, b) => (a.c ? 0 : 1) - (b.c ? 0 : 1)); break; }
-        case 'background-image': { const f = lireFond(v, ctx); if (f) s.fo = [...(s.fo ?? []).filter((x) => x.c), ...f]; break; }
+        case 'background-image': { const f = lireFond(v, ctx); if (f) s.fo = [...(s.fo ?? []).filter((x) => x.c), ...f]; const i = this.imageDeFond(v); if (i !== undefined) s.fi = i; else delete s.fi; break; }
         case 'border-radius': {
           const q = quatre(parEspaces(v.split('/')[0]).map(lg));
           if (q) s.ar = q.map((m) => (m?.c !== undefined ? (m.c >= 50 ? 99999 : m.c) : (m?.p ?? 0))) as [number, number, number, number];
@@ -807,12 +849,8 @@ export class CssExact {
           break;
         }
         case 'mask': case '-webkit-mask': case 'mask-image': case '-webkit-mask-image': {
-          const icone = iconeDUnMasque(v);
-          if (icone) {
-            const cle = JSON.stringify(icone.traces);
-            if (!this.indexIcones.has(cle)) { this.indexIcones.set(cle, this.iconesDeMasque.length); this.iconesDeMasque.push(icone); }
-            s.ic = this.indexIcones.get(cle)!;
-          }
+          const ic = this.imageDeFond(v);
+          if (ic !== undefined) s.ic = ic;
           break;
         }
       }

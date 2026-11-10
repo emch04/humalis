@@ -220,7 +220,8 @@ export class Valeurs {
   vers(e: Expr, cible: TypeValeur): string {
     const present = e.opt ? `(${e.code} ?? ${this.defautPour(e.type, cible)})` : e.code;
     if (this.types.egaux(e.type, cible)) return present;
-    if (cible.genre === 'inconnu') return `ValeurHumalis(${e.code})`;
+    // « [] » seul n'a pas de type en Swift : une liste vide de valeurs.
+    if (cible.genre === 'inconnu') return e.code.trim() === '[]' ? '.liste([])' : `ValeurHumalis(${e.code})`;
     if (e.type.genre === 'inconnu') {
       const base = e.opt ? `(${e.code} ?? .rien)` : e.code;
       switch (cible.genre) {

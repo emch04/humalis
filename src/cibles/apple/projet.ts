@@ -3,6 +3,7 @@
  * une seule application native pour iPhone, iPad et Mac, sans navigateur
  * embarqué. Comme la cible web écrit du React, celle-ci écrit du Swift lisible.
  */
+import type { TypeValeur } from '../../ri/types.js';
 import type { Diagnostic } from '../../analyse/erreurs.js';
 import { simplifier } from '../../analyse/elements.js';
 import { sousActions } from '../../ri/actions.js';
@@ -64,7 +65,19 @@ function verifier(application: Application): Diagnostic[] {
   const avertir = (ligne: number, message: string) => d.push({ gravite: 'avertissement', ligne, message });
   const refuser = (ligne: number, message: string) => d.push({ gravite: 'erreur', ligne, message });
 
+  // Seul ce que l'appli affiche compte : un module écrit dans « sur site : » n'est pas refusé ici.
+  const utilises = new Set<string>();
+  const parcourir = (v: unknown): void => {
+    if (Array.isArray(v)) v.forEach(parcourir);
+    else if (v && typeof v === 'object') {
+      const o = v as Record<string, unknown>;
+      if (o.type === 'composant' && typeof o.nom === 'string') utilises.add(o.nom);
+      Object.values(o).forEach(parcourir);
+    }
+  };
+  parcourir([application.ecrans, application.disposition]);
   for (const c of application.composantsReact) {
+    if (!utilises.has(c.nom) && c.apple === undefined) continue;
     if (c.module && c.apple === undefined) refuser(c.ligne, `« utiliser module » (${c.nom}) charge une bibliothèque JavaScript : la cible Apple n'a pas de JavaScript. Écrivez une vue Swift à la place : « utiliser composant "${c.nom}" depuis "…" sur apple "${c.nom}.swift" ».`);
     else if (c.apple === undefined) refuser(c.ligne, `le composant React « ${c.nom} » n'existe pas sur la cible Apple : donnez-lui une vue Swift avec « utiliser composant "${c.nom}" depuis "${c.chemin}" sur apple "${c.nom}.swift" ».`);
   }
@@ -872,6 +885,7 @@ export function genererProjetApple(application: Application, options: OptionsApp
     cle,
     composants: new Map(application.composants.map((c) => [c.nom, c.parametres])),
     natifs: new Set(application.composantsReact.filter((c) => c.apple !== undefined).map((c) => c.nom)),
+    typesNatifs: typesDesNatifs(options.natifs),
     ressource(chemin) {
       const fichier = chemin.replace(/[^A-Za-z0-9._-]/g, '_');
       ressources.set(chemin, fichier);
@@ -1085,4 +1099,21 @@ function paquetsDe(application: Application, refuser: (ligne: number, message: s
 function marqueDe(theme: ThemeRI | undefined): { clair: string; sombre: string } | undefined {
   const marque = theme?.couleurs.find((c) => c.nom === 'marque');
   return marque ? { clair: marque.clair, sombre: marque.sombre } : undefined;
+}
+
+/** Les paramètres d'une vue Swift écrite à la main : « var valeur: Double = 0 » donne valeur → nombre. */
+export function typesDesNatifs(natifs?: Map<string, { nom: string; contenu: string }>): Map<string, Map<string, TypeValeur>> {
+  const sortie = new Map<string, Map<string, TypeValeur>>();
+  const genres: Record<string, TypeValeur['genre']> = { Double: 'nombre', Int: 'nombre', CGFloat: 'nombre', Float: 'nombre', String: 'texte', Bool: 'booleen' };
+  for (const [nom, { contenu }] of natifs ?? []) {
+    const vue = new RegExp(`struct\\s+${nom}\\s*:[^{]*\\{([\\s\\S]*?)(?:var\\s+body\\b|$)`).exec(contenu);
+    if (!vue) continue;
+    const params = new Map<string, TypeValeur>();
+    for (const m of vue[1]!.matchAll(/^\s*(?:var|let)\s+(\w+)\s*:\s*(\w+)\s*(?:=|$)/gm)) {
+      const genre = genres[m[2]!];
+      if (genre) params.set(m[1]!, { genre } as TypeValeur);
+    }
+    sortie.set(nom, params);
+  }
+  return sortie;
 }
