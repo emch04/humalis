@@ -25,6 +25,10 @@ export interface Programme {
   composantsReact: ComposantReact[];
   /** « paquet swift "https://…" version "1.2" » : une bibliothèque Swift, pour les vues écrites à la main. */
   paquetsSwift?: { adresse: string; version: string; produit?: string; ligne: number }[];
+  /** « paquet android "groupe:nom" version "1.2" » : une bibliothèque Gradle, pour les vues Kotlin écrites à la main. */
+  paquetsAndroid?: { nom: string; version: string; ligne: number }[];
+  /** « paquet windows "Nom" version "1.2" » : une bibliothèque NuGet, pour les vues C# écrites à la main. */
+  paquetsWindows?: { nom: string; version: string; ligne: number }[];
   /** « liens profonds "magasin" » : les adresses magasin://… ouvrent les pages de l'application. */
   /** « onglets de l'application : » : les pages principales. */
   ongletsApplication?: { titre: string; page: string; icone?: string; groupe?: string; ligne: number }[];
@@ -458,12 +462,17 @@ export type InstructionServeur =
 export interface ComposantReact {
   type: 'ComposantReact';
   nom: string;
-  chemin: string;
+  /** « depuis "./Carte" » : le fichier JavaScript (ou React, pour les anciens projets) du web. Absent : le composant n'est que natif. */
+  chemin?: string;
   ligne: number;
   /** « utiliser module » : du JavaScript simple, `(element, proprietes) => nettoyage`, sans React. */
   module?: true;
   /** « sur apple "Carte.swift" » : la vue SwiftUI écrite à la main, pour la cible Apple. */
   apple?: string;
+  /** « sur android "Carte.kt" » : la vue Jetpack Compose écrite à la main, pour la cible Android. */
+  android?: string;
+  /** « sur windows "Carte.cs" » : la vue WPF écrite à la main, pour la cible Windows. */
+  windows?: string;
 }
 
 /** « composant "Fiche" : » : un morceau de page réutilisable, avec ses paramètres. */

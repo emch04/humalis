@@ -24,9 +24,14 @@ export interface Application {
   /** Les variables partagées entre les pages (« avec partagee »). */
   partages: Etat[];
   /** Les composants React utilisés (« utiliser composant … depuis … »). */
-  composantsReact: { nom: string; chemin: string; ligne: number; module?: true; /** « sur apple "Carte.swift" » : la vue écrite à la main. */ apple?: string }[];
+  /** « utiliser composant » et « utiliser module » : le fichier du web (« depuis ») et les vues natives écrites à la main. */
+  composantsReact: { nom: string; /** Absent : le composant n'a que des vues natives. */ chemin?: string; ligne: number; module?: true; /** « sur apple "Carte.swift" ». */ apple?: string; /** « sur android "Carte.kt" ». */ android?: string; /** « sur windows "Carte.cs" ». */ windows?: string }[];
   /** « paquet swift "https://…" version "1.2" ». */
   paquetsSwift?: { adresse: string; version: string; produit?: string; ligne: number }[];
+  /** « paquet android "groupe:nom" version "1.2" ». */
+  paquetsAndroid?: { nom: string; version: string; ligne: number }[];
+  /** « paquet windows "Nom" version "1.2" ». */
+  paquetsWindows?: { nom: string; version: string; ligne: number }[];
   /** « liens profonds "magasin" ». */
   /** « onglets de l'application : ». */
   ongletsApplication?: { titre: string; page: string; icone?: string; groupe?: string; ligne: number }[];

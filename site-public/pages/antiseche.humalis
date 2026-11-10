@@ -336,6 +336,14 @@ page "antiseche" a l'adresse "/antiseche" :
                     code humalis :
                         page "galerie" en pleine fenetre :
                             titre "Galerie"
+                bloc avec style "aide-entree" :
+                    texte "Ce que Humalis ne sait pas encore : une vue en Swift ou en C#" en anglais "What Humalis can't do yet: a view in Swift or C#" avec style "aide-besoin"
+                    code humalis :
+                        paquet windows "Humanizer.Core" version "2.14.1"
+                        utiliser composant "Carte" sur apple "./natif/Carte.swift" et sur windows "./natif/Carte.cs"
+
+                        page "vitrine" :
+                            Carte avec titre "Café" et prix 3.5
         bloc avec ancre "variables" et style "aide-section" :
             soustitre "Les variables et les calculs" en anglais "Variables and calculations"
             bloc avec style "aide-entrees" :

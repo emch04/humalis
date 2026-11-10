@@ -8,7 +8,7 @@ Humalis est un langage en français. Un fichier .humalis décrit des pages, des 
 - Les éléments d’écran pris en charge : titre, texte, image, bouton, lien, champ, formulaire, section, bloc, ligne, colonne, grille, liste numérotée, sous-titre, liste, tableau, fenêtre, vidéo, menu, icône, badge, avatar, progression, chargement, étoiles, compteur, code QR, onglets, onglet, déroulant, accordéon, carrousel, fil d’Ariane, audio, fichier, carte, marqueur, graphique, série, sélecteur. Leur texte s’écrit entre guillemets.
 - Déclare une valeur avec `variable nom = valeur` ; une condition commence par `si ... :`.
 - Les événements pris en charge : quand, utilisateur, clique, sur, survole, charge, soumis, ecrit, arrête d’écrire, appuie, arrive en bas de, l’ordre de … change. Écris l’événement sous l’élément visé, puis l’action dans son bloc.
-- Les actions prises en charge : afficher, erreur, montrer, cacher, changer, rediriger, ajouter, retirer, envoyer, requête, connecter, déconnecter, connecter avec apple, connecter avec google, inviter … comme admin, demander un lien de mot de passe pour …, choisir le mot de passe avec …, csv, télécharger bon, recharger, vider champ, basculer thème, continuer vers, revenir, réussite, avertissement, pendant, disparaître, action, après, toutes, copier, partager, confirmer, faire, refuser, notification, document, verifier, hors, position, liens, profonds, apple, ios, macos, application, site, android, reglages, recherche, glissant, actualiser, tirant, options, etat, outils, groupe, table, domaine, arriere, plan, scanner, vibrer, identité, signature, paquet, swift, produit, activer, ia, payer, rôle.
+- Les actions prises en charge : afficher, erreur, montrer, cacher, changer, rediriger, ajouter, retirer, envoyer, requête, connecter, déconnecter, connecter avec apple, connecter avec google, inviter … comme admin, demander un lien de mot de passe pour …, choisir le mot de passe avec …, csv, télécharger bon, recharger, vider champ, basculer thème, continuer vers, revenir, réussite, avertissement, pendant, disparaître, action, après, toutes, copier, partager, confirmer, faire, refuser, notification, document, verifier, hors, position, liens, profonds, apple, ios, macos, windows, application, site, android, reglages, recherche, glissant, actualiser, tirant, options, etat, outils, groupe, table, domaine, arriere, plan, scanner, vibrer, identité, signature, paquet, swift, produit, activer, ia, payer, rôle.
 - Les mots de liaison (ignorés dans une phrase mais interdits comme nom de variable) : le, la, les, un, une, des, de, du, à, au, aux, se, l', d', s', n', c', j', m', t'.
 - Les options d’un élément (après « avec », séparées par « et ») : et, minimum, maximum, avec, nom, partagée, mémorisée, secret, sans traduction, repliable, vertical, en cascade, indice, obligatoire, ancre, nouvel onglet, désactivé, accepte, latitude, longitude, zoom, tuiles, attribution, adresse, étiquette, étiquettes, valeur, message, annonce, raccourci, oui, h, jours, heures, regroupe, compte, rôles, seuls, peuvent, direct, déplacement, en.
 - Les droits d’une route du serveur : peut, lire, créer, modifier, supprimer, connecté, admin, seul, tout, monde, remplacement, auteur.
@@ -822,6 +822,12 @@ serveur "boutique" :
 - Deux boucles déplaçables pour une liste : a déjà une boucle avec deplacement
 - Un champ dans une liste déplaçable : un champ dans une liste qu’on déplace
 - Un ordre que personne ne change : personne ne déplace rien dans
+- Une vue écrite à la main pour une plateforme inconnue : une vue écrite à la main se donne pour
+- Le fichier natif n’est pas dans la bonne langue : la vue s'écrit en
+- La même plateforme donnée deux fois : est donné deux fois
+- Un paquet Android mal nommé : n'est pas un paquet Gradle
+- Un paquet Windows mal nommé : n'est pas un nom de paquet NuGet
+- Un numéro de version illisible : n'est pas un numéro de version
 - Deux blocs « langues » : un seul bloc « langues »
 - Le bloc « langues » après les pages : le bloc « langues » s'écrit en haut du fichier
 - Une langue entre guillemets : une ligne du bloc « langues » est le nom d'une langue
