@@ -1360,7 +1360,7 @@ class AnalysePage {
       }
     }
     if (element.desactive !== undefined) {
-      if (element.element !== 'bouton') this.erreur(`« avec desactive » s'applique à un bouton, pas à un ${element.element}.`, element.ligne);
+      if (element.element !== 'bouton' && element.element !== 'champ') this.erreur(`« avec desactive » s'applique à un bouton ou à un champ, pas à un ${element.element}.`, element.ligne);
       if (element.desactive !== true) this.comparaison(element.desactive);
     }
     if (element.nouvelOnglet && element.element !== 'lien') {
@@ -1962,7 +1962,13 @@ class AnalysePage {
 
       case 'vrai':
       case 'faux':
-        if (estConnu(gauche) && gauche.genre !== 'booleen') {
+        if (estConnu(gauche) && gauche.genre !== 'booleen' && test.seule) {
+          // « si prix : » : seule, une valeur doit être vrai ou faux.
+          this.erreur(
+            `${decrire(test.gauche)} est ${decrireType(gauche)} : une valeur seule comme condition doit être vrai ou faux. Écrivez une comparaison, par exemple « ${nomExpression(test.gauche)} est egal a … ».`,
+            test.ligne,
+          );
+        } else if (estConnu(gauche) && gauche.genre !== 'booleen') {
           this.erreur(
             `${decrire(test.gauche)} est ${decrireType(gauche)} ; « est ${test.operateur} » attend vrai ou faux.`,
             test.ligne,

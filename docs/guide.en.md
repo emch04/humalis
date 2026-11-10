@@ -339,19 +339,20 @@ page "cart" :
 ```
 
 The condition stops at the next `et`, which starts the next option. To combine
-two conditions, put them in a `calcul` first, then test it with
-`desactive si … est vrai`:
+two conditions, put them in a `calcul` first, then simply write `desactive si`
+followed by its name:
 
 ```humalis
 page "order" :
     variable cart = []
     variable sending = faux
-    calcul blocked = cart est vide ou sending est vrai
+    calcul blocked = cart est vide ou sending
     titre "Order"
-    bouton "Order" avec desactive si blocked est vrai
+    bouton "Order" avec desactive si blocked
 ```
 
-A disabled button stays visible, paler. `desactive` only applies to a button.
+A disabled button stays visible, paler. `desactive` applies to a button and to
+a field (see [Field](#field)).
 
 ### Field
 
@@ -381,6 +382,29 @@ field type in the browser. The kinds: `email`, `telephone`, `nombre` (number),
 `date`, `heure` (time), `mot de passe` (password), `texte long` (long text),
 `adresse web` (URL). The options: `obligatoire` (required), `indice "…"` (the
 grey hint of an empty field), and for a number `minimum` and `maximum`.
+
+`avec desactive` shows a field that cannot be filled in. With `si`, it follows
+a condition, like a button. Every kind of field accepts it, as do choices,
+drop-downs and checkboxes:
+
+```humalis
+page "profile" :
+    variable locked = vrai
+    titre "Profile"
+    formulaire "profile" :
+        champ "Username" avec desactive
+        champ email "Email" avec desactive si locked
+        case a cocher "Newsletter" avec desactive si locked
+        bouton "Save"
+    bouton "Edit"
+    quand l'utilisateur clique sur "Edit" :
+        changer locked par faux
+    quand le formulaire "profile" est soumis :
+        afficher "Profile saved"
+```
+
+A disabled field stays visible, paler. In the browser, it keeps the usual
+behaviour of a disabled field.
 
 ### Choices
 
@@ -1178,6 +1202,7 @@ page "result" :
 | `est vide` | an empty list or text |
 | `est rien` | no value |
 | `est vrai`, `est faux` | for `vrai` and `faux` |
+| the name alone (`si actif :`) | same as `est vrai` |
 | `est dans [ … ]` | is one of the list |
 | `contient` | the text or list contains |
 
@@ -1207,26 +1232,37 @@ page "stock" :
 `et` (and) comes before `ou` (or), as in mathematics. `n'est pas` means "is
 not".
 
-A calculation can hold the result of a comparison: it is `vrai` (true) or
-`faux` (false), and can then be read in a `si`. `non` (not) gives the opposite
-of a true or false value.
+A value that is `vrai` (true) or `faux` (false) can be tested on its own:
+`si actif :` means `si actif est vrai :`, and `si non actif :` its opposite. It
+combines like a comparison, with `et` and `ou`, and also works for a record's
+field (`si p.actif :`).
+
+A calculation can hold the result of a comparison: it is `vrai` or `faux`, and
+can then be read in a `si`. `non` (not) gives the opposite of a true or false
+value.
 
 ```humalis
 page "shop" :
     variable open = faux
     variable role = "manager"
+    variable holidays = faux
     calcul is_boss = role est dans ["manager", "director"]
     calcul closed = non open
+    calcul paused = closed ou holidays
     titre "Shop"
-    si is_boss est vrai :
+    si is_boss :
         bouton "Open or close"
-    si closed est vrai :
+    si closed et non holidays :
         texte "Closed for today"
+    si paused :
+        texte "Back soon"
     quand l'utilisateur clique sur "Open or close" :
         changer open par non open
 ```
 
 Such a calculation is not a number: `is_boss * 2` is refused at compile time.
+On its own, a number or a text is not a condition: `si price :` is refused;
+write a comparison instead (`si price est superieur a 0 :`).
 
 ---
 

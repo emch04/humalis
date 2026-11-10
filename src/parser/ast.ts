@@ -1351,6 +1351,8 @@ export interface Comparaison {
   droite?: Expression;
   /** « n'est pas vide » : le contraire, quand l'opérateur n'a pas de contraire direct. */
   negation?: boolean;
+  /** « si actif : », « si non actif : » : la valeur seule, sans « est vrai » écrit. */
+  seule?: true;
   ligne: number;
 }
 

@@ -656,9 +656,9 @@ page "accueil" :
         texte "Un produit"
 `),
     'attend douce, forte ou aucune', { sites: 3 }),
-  e('desactive-hors-bouton', 'sens', '« desactive » ailleurs que sur un bouton',
-    '« avec desactive » montre un bouton qu’on ne peut pas encore cliquer. Les autres éléments ne se cliquent pas : l’option n’a pas de sens pour eux.',
-    'Retire « desactive », ou mets-le sur le bouton concerné.',
+  e('desactive-hors-bouton', 'sens', '« desactive » ailleurs que sur un bouton ou un champ',
+    '« avec desactive » montre un bouton qu’on ne peut pas encore cliquer, ou un champ qu’on ne peut pas encore remplir. Les autres éléments ne se cliquent pas et ne se remplissent pas : l’option n’a pas de sens pour eux.',
+    'Retire « desactive », ou mets-le sur le bouton ou le champ concerné.',
     p(`
 page "accueil" :
     titre "Bienvenue" avec desactive
@@ -668,7 +668,7 @@ page "accueil" :
     titre "Bienvenue"
     bouton "Payer" avec desactive
 `),
-    's\'applique à un bouton'),
+    's\'applique à un bouton ou à un champ'),
   e('bouton-icone-sans-nom', 'grammaire', 'Un bouton à icône seule sans nom',
     'Un bouton qui ne montre qu\'une icône a besoin d\'un nom : c\'est ce que lit le lecteur d\'écran, et ce que vise « quand l\'utilisateur clique sur ».',
     'Ajoute le nom : bouton icone "fermer" avec nom "Fermer la fenêtre".',
@@ -1008,6 +1008,22 @@ page "accueil" :
         afficher "Oui"
 `),
     'attend vrai ou faux'),
+  e('condition-seule-pas-booleen', 'sens', 'Une valeur seule comme condition, qui n’est pas vrai ou faux',
+    '« si actif : » teste une variable qui vaut vrai ou faux. Ici, la variable est un nombre : seule, elle ne dit ni oui ni non.',
+    'Écris une comparaison complète, ou teste une variable qui vaut vrai ou faux.',
+    p(`
+page "accueil" :
+    variable prix = 3
+    si prix :
+        afficher "Oui"
+`),
+    p(`
+page "accueil" :
+    variable prix = 3
+    si prix est superieur a 0 :
+        afficher "Oui"
+`),
+    'une valeur seule comme condition'),
   e('boucle-pas-liste', 'sens', 'Une boucle sur autre chose qu’une liste',
     '« pour chaque … dans … » parcourt une liste. Ici, la variable désignée est un nombre.',
     'Parcours une liste, écrite entre crochets : ["Pomme", "Banane"].',
