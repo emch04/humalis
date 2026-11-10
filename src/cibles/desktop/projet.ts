@@ -5,6 +5,7 @@ import { chaine } from '../web/noms.js';
 import { genererProjetWeb, adressesDeRequetes, MEMOIRE, MARQUE, VERSIONS } from '../web/projet.js';
 import { genererProjetMoteur, verifierPourLeMoteur, MARQUE_MOTEUR } from '../moteur/projet.js';
 import { formesDuBureau, applicationAvecFormes, brancherLesCouches, associationsDeFichiers, scriptNsis, codeFormesPrincipal, lisezmoiFormes, PONT_FORMES, type FormesBureau } from './formes.js';
+import { codeCaptureNode, requetesCapture } from '../capture-erreurs.js';
 
 export interface OptionsDesktop {
   /** Le nom du projet, tiré du fichier Humalis (« boutique »). */
@@ -142,6 +143,11 @@ export function genererProjetDesktop(application: Application, options: OptionsD
       ...mediasDuProgramme(application),
     }),
   );
+  if (application.formes?.erreurArrive) {
+    fichiers.set('electron/capture-erreurs.ts', codeCaptureNode(requetesCapture(application.formes).requetes));
+    const principal = fichiers.get('electron/principal.ts')!;
+    fichiers.set('electron/principal.ts', `import { rapporterErreur } from './capture-erreurs.js';\n${principal.replace("fenetre.once('ready-to-show', () => fenetre.show());", "fenetre.once('ready-to-show', () => fenetre.show());\n  fenetre.webContents.on('render-process-gone', (_evenement, details) => { void rapporterErreur(new Error('Fenêtre interrompue : ' + details.reason), fenetre.webContents.getURL().split('?')[0]); });")}`);
+  }
   return fichiers;
 }
 
