@@ -111,3 +111,57 @@ export function Anime({ animation, duree, delai, children }: Proprietes) {
   return <Animated.View style={{ opacity: progres, transform }}>{children}</Animated.View>;
 }
 `;
+
+/**
+ * humalis/zone.tsx : « defilement interne » et « hauteur ecran » sur le téléphone.
+ * Un bloc qui défile seul est une ScrollView (sa mise en page passe à son contenu) ;
+ * un bloc « hauteur ecran » prend la hauteur visible de la page, mesurée par <ZonePage>.
+ */
+export const ZONE_TSX = `// Produit par Humalis : « defilement interne » et « hauteur ecran » sur le téléphone.
+import { createContext, useContext, useState, type ReactNode } from 'react';
+import { ScrollView, StyleSheet, View, useWindowDimensions, type StyleProp, type ViewStyle } from 'react-native';
+
+/** La hauteur visible de la page (sous la barre de navigation ou l'en-tête), en points. */
+const HauteurVisible = createContext<number | null>(null);
+
+/** La page qui défile : elle mesure sa hauteur visible pour les blocs « hauteur ecran ». */
+export function ZonePage({ style, children }: { style?: StyleProp<ViewStyle>; children?: ReactNode }) {
+  const [hauteur, setHauteur] = useState<number | null>(null);
+  return (
+    <ScrollView contentContainerStyle={style} onLayout={(e) => setHauteur(e.nativeEvent.layout.height)}>
+      <HauteurVisible.Provider value={hauteur}>{children}</HauteurVisible.Provider>
+    </ScrollView>
+  );
+}
+
+/** Ce qui règle la disposition du contenu : sur une ScrollView, cela va à contentContainerStyle. */
+const DU_CONTENU = new Set(['flexDirection', 'flexWrap', 'alignItems', 'justifyContent', 'alignContent', 'gap', 'rowGap', 'columnGap', 'padding', 'paddingVertical', 'paddingHorizontal', 'paddingTop', 'paddingBottom', 'paddingLeft', 'paddingRight', 'paddingStart', 'paddingEnd']);
+
+interface Proprietes {
+  /** « defilement interne » : le bloc a son propre défilement. */
+  defile?: boolean;
+  /** « hauteur ecran » : le bloc prend la hauteur visible de la page. */
+  ecran?: boolean;
+  style?: StyleProp<ViewStyle>;
+  children?: ReactNode;
+}
+
+export function Zone({ defile = false, ecran = false, style, children }: Proprietes) {
+  const visible = useContext(HauteurVisible);
+  const { height } = useWindowDimensions();
+  // Avant la première mesure (ou hors d'une page), la hauteur de la fenêtre.
+  const hauteur: ViewStyle | undefined = ecran ? { height: visible ?? height } : undefined;
+  if (!defile) return <View style={[style, hauteur]}>{children}</View>;
+  const tout = StyleSheet.flatten(style) ?? {};
+  const exterieur: Record<string, unknown> = {};
+  const contenu: Record<string, unknown> = {};
+  for (const [cle, valeur] of Object.entries(tout)) (DU_CONTENU.has(cle) ? contenu : exterieur)[cle] = valeur;
+  // Sans hauteur donnée, un bloc qui défile ne dépasse pas la hauteur visible de la page.
+  const borne: ViewStyle = hauteur ?? (exterieur.height === undefined ? { maxHeight: visible ?? height } : {});
+  return (
+    <ScrollView nestedScrollEnabled style={[exterieur as ViewStyle, borne]} contentContainerStyle={contenu as ViewStyle}>
+      {children}
+    </ScrollView>
+  );
+}
+`;

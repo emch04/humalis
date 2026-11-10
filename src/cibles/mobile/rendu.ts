@@ -10,7 +10,13 @@ import { MILLISECONDES } from '../commun/mouvement.js';
 const NATIFS = ['ActivityIndicator', 'Pressable', 'ScrollView', 'Switch', 'Text', 'TextInput', 'View'];
 
 /** Les réglages qui ne sont pas des styles du StyleSheet : l'appareil, le dégradé (un composant) et l'élément collé (sans effet). */
-const SANS_STYLE = new Set(['sur', 'degrade', 'colle', 'animation', 'duree', 'delai', 'transition', 'effet']);
+const SANS_STYLE = new Set(['sur', 'degrade', 'colle', 'animation', 'duree', 'delai', 'transition', 'effet', 'defilement', 'hauteur']);
+
+/** « defilement interne » et « hauteur ecran » : le bloc devient une <Zone> (humalis/zone.tsx). */
+const zoneDe = (options: Option[]) => ({
+  defile: options.some((o) => o.nom === 'defilement' && o.valeur === 'interne'),
+  ecran: options.some((o) => o.nom === 'hauteur' && o.valeur === 'ecran'),
+});
 
 /**
  * « avec animation montee » : l'élément est entouré d'un <Anime>, qui ne
@@ -71,6 +77,7 @@ export const RENDU_MOBILE: Rendu = {
     if (/<SurAppareil\b/.test(code)) lignes.push(`import { SurAppareil } from '../humalis/appareil';`);
     if (/<Degrade\b/.test(code)) lignes.push(`import { Degrade } from '../humalis/degrade';`);
     if (/<Anime\b/.test(code)) lignes.push(`import { Anime } from '../humalis/mouvement';`);
+    if (/<Zone\b/.test(code)) lignes.push(`import { Zone } from '../humalis/zone';`);
     lignes.push(`import { useStyles } from '../humalis/styles';`);
     return lignes;
   },
@@ -94,7 +101,7 @@ export const RENDU_MOBILE: Rendu = {
   // Un bloc est une View : sa mise en page (rangée, colonne, grille) vient du StyleSheet.
   bloc: {
     ouvrir: (genre, options) => ouvrirAnime(options) + ouvrirBloc(genre, options),
-    fermer: (genre, options) => (genre === 'appareil' ? '</SurAppareil>' : options.some((o) => o.nom === 'degrade') ? '</Degrade>' : '</View>') + (ouvrirAnime(options) ? '</Anime>' : ''),
+    fermer: (genre, options) => (genre === 'appareil' ? '</SurAppareil>' : options.some((o) => o.nom === 'degrade') ? '</Degrade>' : zoneDe(options).defile || zoneDe(options).ecran ? '</Zone>' : '</View>') + (ouvrirAnime(options) ? '</Anime>' : ''),
   },
   soumission: { bouton: 'onPress', saisie: 'onSubmitEditing' },
   widgets: WIDGETS_MOBILE,
@@ -127,6 +134,9 @@ function ouvrirBloc(genre: string, options: Option[]): string {
     const [de, vers, direction] = degrade.valeur.split('-');
     return `<Degrade de="${de}" vers="${vers}" direction="${direction}" ${noms}>`;
   }
+  // « defilement interne » : le bloc défile seul (ScrollView) ; « hauteur ecran » : il prend la hauteur visible de la page.
+  const { defile, ecran } = zoneDe(options);
+  if (defile || ecran) return `<Zone${defile ? ' defile' : ''}${ecran ? ' ecran' : ''} ${noms}>`;
   return `<View ${noms}>`;
 }
 

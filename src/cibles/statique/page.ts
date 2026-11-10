@@ -144,6 +144,12 @@ export class GenerateurPage {
   protected readonly formulaireDe = new Map<string, string>();
   /** Pendant l'écriture d'une soumission qui envoie : la variable du compte des échecs du serveur. */
   protected echecs?: string;
+  /** Dans le bloc d'un « essayer » : le compte des échecs pris avant le bloc ; un échec y rend sa raison. */
+  protected essaiEnCours?: string;
+  /** Vrai dans le bloc d'un « essayer » : une connexion refusée lève son erreur au lieu de l'afficher. */
+  protected dansUnEssai = false;
+  /** Le nombre de « essayer » déjà écrits dans la page : chacun a ses noms. */
+  protected essaisEcrits = 0;
   protected readonly fonctions: Fonction[] = [];
   protected readonly chargements: Action[] = [];
   /** Les minuteries écrites dans la page : démarrées par humalis.demarrer. */
@@ -369,6 +375,11 @@ export class GenerateurPage {
         case 'confirmation':
         case 'verificationIdentite':
         case 'message':
+          for (const liste of sousActions(action)) this.parcourirActions(liste);
+          break;
+        case 'essayer':
+          // « si erreur » lit « raison » : un texte.
+          this.contexte.types.set('raison', { genre: 'texte' });
           for (const liste of sousActions(action)) this.parcourirActions(liste);
           break;
       }
@@ -749,7 +760,9 @@ ${prise}${code}}
           } else if (action.resultat !== undefined) e.ligne(`${nomJs(action.resultat)} = ${appel}, ${nomJs(action.resultat)});`);
           else e.ligne(`${appel});`);
           // Un envoi refusé arrête la soumission d'un formulaire : ses champs restent remplis.
-          if (this.echecs && action.mode === 'envoyer') e.ligne(`if (serveur.echecs() > ${this.echecs}) return;`);
+          // Dans « essayer », un échec arrête le bloc et passe à « si erreur ».
+          if (this.essaiEnCours) e.ligne(`if (serveur.echecs() > ${this.essaiEnCours}) return serveur.raison();`);
+          else if (this.echecs && action.mode === 'envoyer') e.ligne(`if (serveur.echecs() > ${this.echecs}) return;`);
           break;
         }
         case 'suppression':
@@ -764,7 +777,8 @@ ${prise}${code}}
           const facultatif = action.objet.type === 'variable' && this.contexte.facultatives?.has(action.objet.nom);
           if (facultatif) e.bloc(`if (${x(action.objet)} !== null) {`, () => e.ligne(appel));
           else e.ligne(appel);
-          if (this.echecs) e.ligne(`if (serveur.echecs() > ${this.echecs}) return;`);
+          if (this.essaiEnCours) e.ligne(`if (serveur.echecs() > ${this.essaiEnCours}) return serveur.raison();`);
+          else if (this.echecs) e.ligne(`if (serveur.echecs() > ${this.echecs}) return;`);
           break;
         }
         case 'connexion': {
@@ -778,7 +792,50 @@ ${prise}${code}}
             e.ligne(`${champ} = '';`);
             motDePasse = 'motDePasseSaisi';
           }
-          e.ligne(`if (!(await utilisateur.seConnecter(${x(action.email)}, ${motDePasse}))) return;`);
+          // Dans « essayer », un refus lève son erreur : « si erreur » la reçoit.
+          e.ligne(`if (!(await utilisateur.seConnecter(${x(action.email)}, ${motDePasse}${this.dansUnEssai ? ', true' : ''}))) return;`);
+          break;
+        }
+        case 'essayer': {
+          // « essayer : … si erreur : … », comme sur le web : le bloc est une fonction qui rend la raison d'un échec.
+          const n = ++this.essaisEcrits;
+          const echecs = `echecsEssai${n > 1 ? n : ''}`;
+          const raison = `raisonEssai${n > 1 ? n : ''}`;
+          const requetes = contientAppelServeur(action.corps);
+          if (requetes) {
+            e.ligne(`const ${echecs} = serveur.echecs();`);
+            // Le message automatique se tait : c'est « si erreur » qui parle.
+            e.ligne('serveur.taire(true);');
+          }
+          e.ligne(`let ${raison};`);
+          e.ligne('try {');
+          e.indenter(() =>
+            e.bloc(`${raison} = await (async () => {`, () => {
+              const avant = this.essaiEnCours;
+              const dansEssaiAvant = this.dansUnEssai;
+              if (requetes) this.essaiEnCours = echecs;
+              this.dansUnEssai = true;
+              this.ecrireActions(e, action.corps, locales, modifiees);
+              this.essaiEnCours = avant;
+              this.dansUnEssai = dansEssaiAvant;
+              e.ligne('return undefined;');
+            }, '})();'),
+          );
+          e.ligne('} catch (erreur) {');
+          e.indenter(() => e.ligne(`${raison} = erreur instanceof Error ? erreur.message : String(erreur);`));
+          if (requetes) {
+            e.ligne('} finally {');
+            e.indenter(() => e.ligne('serveur.taire(false);'));
+          }
+          e.ligne('}');
+          if (action.siErreur.length) {
+            e.bloc(`if (${raison} !== undefined) {`, () => {
+              e.ligne(`const raison = ${raison};`);
+              this.ecrireActions(e, action.siErreur, new Set([...locales, 'raison']), modifiees);
+            });
+          }
+          // Dans un formulaire, un échec arrête la soumission : ses champs restent remplis.
+          if (this.echecs) e.ligne(`if (${raison} !== undefined) return;`);
           break;
         }
         case 'deconnexion':
@@ -1736,6 +1793,15 @@ export function sansGenre(id: string): string {
 }
 
 /** Un envoi vers le serveur (création, modification, suppression), boucles et conditions comprises. */
+/** Un appel au serveur des données (pas la connexion, qui passe par la session). */
+function contientAppelServeur(actions: Action[]): boolean {
+  return actions.some(
+    (a) =>
+      ['requete', 'suppression', 'modification'].includes(a.type) ||
+      (a.type !== 'minuterie' && a.type !== 'message' && sousActions(a).some((liste) => contientAppelServeur(liste))),
+  );
+}
+
 function contientEnvoi(actions: Action[]): boolean {
   return actions.some(
     (a) =>

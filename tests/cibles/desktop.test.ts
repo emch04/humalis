@@ -71,7 +71,9 @@ describe('cible desktop — le projet Electron', () => {
     expect(paquet.main).toBe('electron/dist/principal.js');
     expect(paquet.scripts.build).toBe('tsc --noEmit && tsc -p tsconfig.electron.json && vite build');
     expect(paquet.scripts.start).toBe('npm run build && electron .');
-    expect(paquet.scripts.paquet).toBe('npm run build && electron-builder');
+    expect(paquet.scripts.paquet).toBe('npm run build && electron-builder --publish never');
+    expect(paquet.scripts['paquet:mac']).toBe('npm run build && electron-builder --mac --publish never');
+    expect(paquet.scripts['paquet:windows']).toBe('npm run build && electron-builder --win --publish never');
     const tsconfig = JSON.parse(fichiers.get('tsconfig.electron.json')!);
     expect(tsconfig.compilerOptions.outDir).toBe('electron/dist');
     expect(fichiers.get('.gitignore')).toContain('paquets');
