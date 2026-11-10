@@ -626,8 +626,10 @@ function compileAndroid(application: Application, chemin: string, sortie: string
   if (!images) return 1;
   const medias = lireMedias(application, chemin);
   if (!medias) return 1;
+  const fichiersStyle = lireFichiersStyle(application, chemin);
+  if (!fichiersStyle) return 1;
   const identifiant = option(arguments_, 'identifiant');
-  const { fichiers, diagnostics } = genererProjetAndroid(application, { nom, source: basename(chemin), images, medias, ...(serveur ? { serveur } : {}), ...(identifiant ? { identifiant } : {}) });
+  const { fichiers, diagnostics } = genererProjetAndroid(application, { nom, source: basename(chemin), images, medias, fichiersStyle, ...(serveur ? { serveur } : {}), ...(identifiant ? { identifiant } : {}) });
   afficherDiagnostics(diagnostics);
   if (diagnostics.some((d) => d.gravite === 'erreur')) {
     console.error('\nLe programme ne peut pas être produit pour Android : rien n\'a été écrit.');

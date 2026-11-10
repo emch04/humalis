@@ -2,6 +2,7 @@
  * Les styles nommés de Humalis en Compose. L'ordre des modificateurs compte :
  * l'ombre, puis la forme et le fond, puis le remplissage, puis la largeur.
  */
+import type { StyleCompose } from './css.js';
 import { nomKotlin } from './noms.js';
 
 export interface Option {
@@ -30,7 +31,9 @@ const forme = (bordure: string | undefined): string | undefined => {
 };
 
 /** Les modificateurs d'un élément ou d'un bloc : `.shadow(…).background(…).padding(…)`, ou rien. */
-export function modificateurs(options: Option[], sorte: SorteVue): string {
+export function modificateurs(options: Option[], sorte: SorteVue, css?: StyleCompose): string {
+  // Le CSS des classes : ses marges et sa taille dehors, son décor et son remplissage autour des options.
+  if (css) return css.dehors + modificateurs(options, sorte) + css.decor + css.dedans;
   const valeur = (nom: string) => options.find((o) => o.nom === nom)?.valeur;
   const m: string[] = [];
   const estTexte = sorte === 'texte' || sorte === 'lien';
@@ -64,7 +67,7 @@ export function modificateurs(options: Option[], sorte: SorteVue): string {
 }
 
 /** Le style d'un texte : `style = …, color = …, textAlign = …, ` (avec la virgule finale), ou rien. */
-export function styleTexte(options: Option[], genre: string): string {
+export function styleTexte(options: Option[], genre: string, css?: Map<string, string>): string {
   const valeur = (nom: string) => options.find((o) => o.nom === nom)?.valeur;
   const parties: string[] = [];
   const parGenre: Record<string, string> = {
@@ -87,5 +90,7 @@ export function styleTexte(options: Option[], genre: string): string {
   const position = valeur('position');
   if (position && ALIGNEMENTS[position]) parties.push(`textAlign = ${ALIGNEMENTS[position][1]}`);
   if (valeur('gras') !== undefined || valeur('poids') === 'gras') parties.push('fontWeight = FontWeight.Bold');
+  // Le CSS des classes ajoute ce que les options n'ont pas dit : une option écrite sur l'élément passe avant.
+  for (const [nom, v] of css ?? []) if (!parties.some((p) => p.startsWith(`${nom} =`))) parties.push(`${nom} = ${v}`);
   return parties.length ? `${parties.join(', ')}, ` : '';
 }

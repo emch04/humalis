@@ -429,6 +429,76 @@ page "a" :
   });
 });
 
+describe('cible Android — un CSS propre à Android', () => {
+  const SOURCE = `utiliser style "./commun.css"
+utiliser style "./android.css" sur android
+
+page "accueil" :
+    titre "Boutique" avec style "titre"
+    bloc avec style "carte" :
+        texte "12 €" avec style "prix"
+        bouton "Commander" avec style "principal" et sur android style "commander"
+    sur android :
+        texte "Dans l'application Android"
+    sur site :
+        texte "Sur le site"
+`;
+  const COMMUN = '.titre { color: #111111; font-size: 24px; } .carte { padding: 8px; }';
+  const ANDROID = '.titre { color: #0f766e; } .carte { background: #ffffff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.1); gap: 4px; } .prix { font-weight: 700; } .commander { background: #f59e0b; border-radius: 8px; } .carte:hover { background: #eeeeee; } @media (min-width: 900px) { .carte { padding: 40px; } }';
+  const lire = (fichiersStyle: Map<string, string>) => {
+    const { application, diagnostics } = compiler(SOURCE);
+    expect(diagnostics.filter((d) => d.gravite === 'erreur')).toEqual([]);
+    return { application: application!, ...genererProjetAndroid(pourLaCible(application!, 'android'), { nom: 'essai', source: 'essai.humalis', fichiersStyle }) };
+  };
+
+  it('« sur android » est une plateforme : la feuille et le bloc ne vont qu\'à Android', () => {
+    const { application } = lire(new Map());
+    const android = pourLaCible(application, 'android');
+    expect(android.fichiersStyle.map((f) => f.chemin)).toEqual(['./commun.css', './android.css']);
+    expect(pourLaCible(application, 'web').fichiersStyle.map((f) => f.chemin)).toEqual(['./commun.css']);
+    expect(pourLaCible(application, 'apple').fichiersStyle.map((f) => f.chemin)).toEqual(['./commun.css']);
+    // « et sur android style "commander" » : la classe ne reste que sur Android.
+    expect(JSON.stringify(pourLaCible(application, 'web').ecrans)).toContain('"classes":["principal"]');
+    expect(JSON.stringify(android.ecrans)).toContain('"classes":["principal","commander"]');
+  });
+
+  it('la feuille Android passe après le CSS commun', () => {
+    const c = lire(new Map([['./commun.css', COMMUN], ['./android.css', ANDROID]])).fichiers.get(`${CODE}/PageAccueil.kt`)!;
+    expect(c).toContain('fontSize = 24.sp');
+    expect(c).toContain('color = Color(0xFF0F766E)');
+    expect(c).not.toContain('Color(0xFF111111)');
+    expect(c).toContain('Modifier.fillMaxWidth().shadow(4.dp, RoundedCornerShape(12.dp)).background(Color(0xFFFFFFFF), RoundedCornerShape(12.dp)).padding(start = 8.dp, top = 8.dp, end = 8.dp, bottom = 8.dp), espacement = 4.dp');
+    expect(c).toContain('Text("12 €", fontWeight = FontWeight.Bold)');
+  });
+
+  it('le CSS commun est facultatif : une feuille Android seule suffit', () => {
+    const { fichiers, diagnostics } = lire(new Map([['./android.css', ANDROID]]));
+    expect(diagnostics.filter((d) => d.gravite === 'erreur')).toEqual([]);
+    const c = fichiers.get(`${CODE}/PageAccueil.kt`)!;
+    expect(c).toContain('color = Color(0xFF0F766E)');
+    expect(c).toContain("Text(\"Dans l'application Android\")");
+    expect(c).not.toContain('Sur le site');
+  });
+
+  it('« et sur android style » donne au bouton sa couleur et sa forme', () => {
+    const c = lire(new Map([['./android.css', ANDROID]])).fichiers.get(`${CODE}/PageAccueil.kt`)!;
+    expect(c).toContain('colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B)), shape = RoundedCornerShape(8.dp)');
+  });
+
+  it('ce qui ne passe pas est compté et listé dans CSS-SUR-ANDROID.md', () => {
+    const { fichiers, diagnostics } = lire(new Map([['./android.css', ANDROID]]));
+    expect(diagnostics.map((d) => d.message).join('\n')).toMatch(/CSS : \d+ déclarations sur \d+ traduites en Compose/);
+    const rapport = fichiers.get('CSS-SUR-ANDROID.md')!;
+    expect(rapport).toContain('.carte:hover { background: #eeeeee }');
+    expect(rapport).toContain('@media : règle réservée à un navigateur');
+  });
+
+  it('un style écrit en Humalis passe aussi sur Android', () => {
+    const c = page(projet('style "prix" :\n    couleur rouge\n    gras\n\npage "a" :\n    titre "A"\n    texte "12 €" avec style "prix"\n'), 'PageA');
+    expect(c).toMatch(/Text\("12 €", .*fontWeight = FontWeight\.Bold/);
+  });
+});
+
 describe('cible Android — noms et icônes', () => {
   it('les noms Humalis deviennent des identifiants Kotlin sûrs', () => {
     expect(nomKotlin('nombre_articles')).toBe('nombreArticles');

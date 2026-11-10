@@ -11,6 +11,7 @@ import type { Action, ArgumentsPage, Ecran, Gestionnaire, NoeudVue, Option, Sais
 import { EcrivainActions, type HoteActions } from './actions.js';
 import { EcrivainKotlin } from './ecrivain.js';
 import { chaineKotlin, cleJson, nomComposant, nomKotlin } from './noms.js';
+import type { CssAndroid, StyleCompose } from './css.js';
 import { modificateurs, styleTexte, type SorteVue } from './styles.js';
 import { nomEtatRequete, Valeurs, type Portee } from './valeurs.js';
 
@@ -26,6 +27,8 @@ export interface ContexteAndroid {
   composants: Map<string, { nom: string; type: unknown }[]>;
   /** Les composants React : refusés une fois par la vérification du projet. */
   composantsReact: Set<string>;
+  /** Le CSS du projet : le commun, puis « sur application », puis « sur android ». */
+  css: CssAndroid;
   /** La clé sous laquelle une variable « avec memorisee » est gardée. */
   cle: string;
   /** Un fichier image recopié dans l'application : son nom dans assets/. */
@@ -76,6 +79,8 @@ export class GenerateurPage implements HoteActions {
   private readonly visibilites = new Map<string, boolean>();
   private readonly textesChanges = new Map<string, string>();
   private readonly fenetres = new Set<string>();
+  /** Vrai à l'intérieur d'une ligne : un bloc y garde la largeur de son contenu. */
+  private dansLigne = false;
 
   constructor(
     private readonly ecran: Ecran,
@@ -492,8 +497,9 @@ export class GenerateurPage implements HoteActions {
       case 'soustitre':
       case 'texte': {
         const sorte: SorteVue = 'texte';
-        const style = styleTexte(options, noeud.genre === 'titre' ? `titre${noeud.niveau ?? 1}` : noeud.genre);
-        const m = modificateurs(options, sorte);
+        const css = this.css(noeud.classes, 'texte');
+        const style = styleTexte(options, noeud.genre === 'titre' ? `titre${noeud.niveau ?? 1}` : noeud.genre, css.texte);
+        const m = modificateurs(options, sorte, css);
         const semantique = noeud.genre === 'texte' ? (noeud.annonce ? '.semantics { liveRegion = LiveRegionMode.Polite }' : '') : '.semantics { heading() }';
         const modificateur = m || semantique ? `modifier = Modifier${m}${semantique}` : '';
         e.ligne(`Text(${this.texteDe(noeud)}, ${style}${modificateur}`.replace(/, $/, '') + ')');
@@ -521,8 +527,13 @@ export class GenerateurPage implements HoteActions {
     } else source = this.valeurs.t(noeud.contenu);
     const description = noeud.image?.description ? this.valeurs.t(noeud.image.description) : 'null';
     const proportions = noeud.image?.proportions ? `.aspectRatio(${noeud.image.proportions[0]}f / ${noeud.image.proportions[1]}f)` : '';
-    const m = modificateurs(noeud.options, 'image');
+    const m = modificateurs(noeud.options, 'image', this.css(noeud.classes, 'autre'));
     e.ligne(`ImageHumalis(${source}, ${description}, Modifier.fillMaxWidth()${proportions}${m}${proportions ? ', remplir = true' : ''})`);
+  }
+
+  /** Ce que le CSS des classes donne à cet élément. */
+  private css(classes: string[] | undefined, sorte: 'texte' | 'bouton' | 'bloc' | 'autre'): StyleCompose {
+    return this.app.css.style(classes ?? [], sorte);
   }
 
   private icone(nom: string, description = 'null', taille = 20, teinte?: string): string {
@@ -540,22 +551,30 @@ export class GenerateurPage implements HoteActions {
     const desactive = noeud.desactive === true ? 'enabled = false, ' : noeud.desactive ? `enabled = !(${this.valeurs.b(noeud.desactive)}), ` : '';
     const options = noeud.options;
     const valeur = (n: string) => options.find((o) => o.nom === n)?.valeur;
+    const css = this.css(noeud.classes, 'bouton');
     const icone = noeud.reglages?.icone;
     const texte = this.texteDe(noeud);
     if (icone && noeud.reglages?.seule) {
-      e.bloc(`IconButton(onClick = {${action ? ` ${action} ` : ''}}${parametre(desactive)}${parametre(modificateur(modificateurs(options, 'bouton')))}) {`, () => e.ligne(this.icone(icone, texte, 24)));
+      e.bloc(`IconButton(onClick = {${action ? ` ${action} ` : ''}}${parametre(desactive)}${parametre(modificateur(modificateurs(options, 'bouton', css)))}) {`, () => e.ligne(this.icone(icone, texte, 24)));
       return;
     }
     const fond = valeur('fond');
-    const couleurs = fond && fond !== 'translucide' ? `colors = ButtonDefaults.buttonColors(containerColor = Couleurs.${nomKotlin(fond)}.lue(), contentColor = Couleurs.encre${majuscule(nomKotlin(fond))}.lue()), ` : '';
-    const forme = formeBouton(valeur('bordure'));
+    const couleurs =
+      fond && fond !== 'translucide'
+        ? `colors = ButtonDefaults.buttonColors(containerColor = Couleurs.${nomKotlin(fond)}.lue(), contentColor = Couleurs.encre${majuscule(nomKotlin(fond))}.lue()), `
+        : css.fond
+          ? `colors = ButtonDefaults.buttonColors(containerColor = ${css.fond}${css.texte.has('color') ? `, contentColor = ${css.texte.get('color')}` : ''}), `
+          : '';
+    const forme = formeBouton(valeur('bordure')) || (css.forme ? `shape = ${css.forme}, ` : '');
+    const bordure = css.bordure ? `border = ${css.bordure}, ` : '';
     const genre = valeur('style') === 'secondaire' || valeur('variante') === 'secondaire' ? 'OutlinedButton' : 'Button';
-    e.bloc(`${genre}(onClick = {${action ? ` ${action} ` : ''}}${parametre(desactive)}${parametre(couleurs)}${parametre(forme)}${parametre(modificateur(modificateurs(options, 'bouton')))}) {`, () => {
+    e.bloc(`${genre}(onClick = {${action ? ` ${action} ` : ''}}${parametre(desactive)}${parametre(couleurs)}${parametre(forme)}${parametre(bordure)}${parametre(modificateur(modificateurs(options, 'bouton', css)))}) {`, () => {
       if (icone) {
         e.ligne(this.icone(icone));
         e.ligne('Spacer(Modifier.width(8.dp))');
       }
-      e.ligne(`Text(${texte}${styleTexte(options, 'bouton').replace(/, $/, '') ? `, ${styleTexte(options, 'bouton').replace(/, $/, '')}` : ''})`);
+      const style = styleTexte(options, 'bouton', css.texte).replace(/, $/, '');
+      e.ligne(`Text(${texte}${style ? `, ${style}` : ''})`);
     });
   }
 
@@ -571,8 +590,9 @@ export class GenerateurPage implements HoteActions {
       if (route) action = [action, `allerVers(nav, ${route})`].filter(Boolean).join('; ');
     }
     const icone = noeud.reglages?.icone;
-    const m = modificateurs(noeud.options, 'lien');
-    const style = styleTexte(noeud.options, 'lien');
+    const css = this.css(noeud.classes, 'texte');
+    const m = modificateurs(noeud.options, 'lien', css);
+    const style = styleTexte(noeud.options, 'lien', new Map([...css.texte].filter(([nom]) => nom !== 'color')));
     const contenu = `Text(${this.texteDe(noeud)}, ${style}color = MaterialTheme.colorScheme.primary, textDecoration = TextDecoration.Underline)`;
     if (!icone) {
       e.ligne(`${contenu.replace(/\)$/, `, modifier = Modifier.clickable(role = Role.Button) { ${action ?? ''} }${m})`)}`);
@@ -599,7 +619,7 @@ export class GenerateurPage implements HoteActions {
     const changer = `{ ${v} = it${apres.map((a) => `; ${a}`).join('')} }`;
     const desactive = noeud.desactive === true ? 'enabled = false, ' : noeud.desactive ? `enabled = !(${this.valeurs.b(noeud.desactive)}), ` : '';
     const libelle = this.valeurs.t(noeud.contenu);
-    const m = modificateurs(noeud.options, 'champ');
+    const m = modificateurs(noeud.options, 'champ', this.css(noeud.classes, 'autre'));
     const indice = saisie?.indiceValeur ? this.valeurs.t(saisie.indiceValeur) : saisie?.indice ? chaineKotlin(saisie.indice) : undefined;
     switch (sorte) {
       case 'case':
@@ -651,7 +671,7 @@ export class GenerateurPage implements HoteActions {
   private ecrireWidget(e: EcrivainKotlin, noeud: Extract<NoeudVue, { type: 'widget' }>): void {
     const contenu = noeud.contenu;
     const description = noeud.reglages.description ? chaineKotlin(noeud.reglages.description) : 'null';
-    const m = modificateurs(noeud.options, 'bloc');
+    const m = modificateurs(noeud.options, 'bloc', this.css(noeud.classes, 'autre'));
     switch (noeud.genre) {
       case 'icone': {
         const nom = noeud.reglages.icone ?? (contenu.type === 'texte' ? contenu.parties.map((p) => ('texte' in p ? p.texte : '')).join('') : '');
@@ -699,8 +719,9 @@ export class GenerateurPage implements HoteActions {
   private ecrireBloc(e: EcrivainKotlin, noeud: Extract<NoeudVue, { type: 'bloc' }>): void {
     const options = noeud.options;
     const valeur = (nom: string) => options.find((o) => o.nom === nom)?.valeur;
-    const espace = { aucune: 0, petite: 8, moyenne: 16, grande: 32 }[valeur('espacement') ?? ''] ?? (noeud.genre === 'grille' ? 16 : 12);
-    const m = modificateurs(options, 'bloc');
+    const css = this.css(noeud.classes, 'bloc');
+    const espace = { aucune: 0, petite: 8, moyenne: 16, grande: 32 }[valeur('espacement') ?? ''] ?? (css.ecart !== undefined ? Number(css.ecart.toFixed(2)) : noeud.genre === 'grille' ? 16 : 12);
+    const m = modificateurs(options, 'bloc', css);
     switch (noeud.genre) {
       case 'ligne':
       case 'menu':
@@ -711,12 +732,15 @@ export class GenerateurPage implements HoteActions {
         }
         {
           const alignement = { debut: 'Alignment.Top', centree: 'Alignment.CenterVertically', fin: 'Alignment.Bottom' }[valeur('alignement') ?? 'centree'] ?? 'Alignment.CenterVertically';
+          const avant = this.dansLigne;
+          this.dansLigne = true;
           e.bloc(`LigneHumalis(Modifier${m}, espacement = ${noeud.genre === 'filAriane' ? 8 : espace}.dp, repartition = ${chaineKotlin(valeur('repartition') ?? 'debut')}, alignement = ${alignement}) {`, () => {
             noeud.corps.forEach((enfant, i) => {
               if (noeud.genre === 'filAriane' && i > 0) e.ligne('Text("›", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.clearAndSetSemantics { })');
               this.ecrireNoeud(e, enfant);
             });
           });
+          this.dansLigne = avant;
         }
         break;
       case 'grille':
@@ -774,8 +798,15 @@ export class GenerateurPage implements HoteActions {
       default: {
         // section, bloc, contenu, entete, pied, colonne, accordeon, appareil : une colonne.
         const alignement = { debut: 'Alignment.Start', centree: 'Alignment.CenterHorizontally', fin: 'Alignment.End', etire: 'Alignment.Start' }[valeur('alignement') ?? 'debut'] ?? 'Alignment.Start';
-        const plein = noeud.genre === 'section' || valeur('fond') !== undefined || valeur('ombre') !== undefined ? '.fillMaxWidth()' : '';
-        e.bloc(`ColonneHumalis(Modifier${plein}${m}, espacement = ${noeud.genre === 'accordeon' ? 0 : espace}.dp, alignement = ${alignement}) {`, () => this.ecrireCorps(e, noeud.corps));
+        // Comme sur le web, un bloc décoré prend toute la largeur ; dans une ligne, il garde celle de son contenu.
+        const plein = !this.dansLigne && (noeud.genre === 'section' || valeur('fond') !== undefined || valeur('ombre') !== undefined || css.decor !== '') ? '.fillMaxWidth()' : '';
+        const avantColonne = this.dansLigne;
+        e.bloc(`ColonneHumalis(Modifier${plein}${m}, espacement = ${noeud.genre === 'accordeon' ? 0 : espace}.dp, alignement = ${alignement}) {`, () => {
+          // Les enfants d'une colonne retrouvent toute sa largeur.
+          this.dansLigne = false;
+          this.ecrireCorps(e, noeud.corps);
+          this.dansLigne = avantColonne;
+        });
       }
     }
     // « arrive en bas de » ce bloc : le bouton « Voir plus ».

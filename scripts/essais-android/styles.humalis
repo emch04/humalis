@@ -1,0 +1,19 @@
+# Une feuille de style propre à Android, sans CSS commun : chaque cible a la sienne.
+utiliser style "./styles/android.css" sur android
+
+style "note" :
+    couleur gris
+
+page "accueil" :
+    bloc avec style "entete" :
+        titre "Boutique" avec style "entete-titre"
+        texte "Le design de l'application Android" avec style "entete-texte"
+    pour chaque nom dans ["Livre", "Stylo"] :
+        bloc avec style "carte-produit" :
+            soustitre nom
+            texte "12 €" avec style "prix"
+            bouton "Commander" avec style "principal" et sur android style "commander"
+    sur android :
+        texte "Merci d'utiliser l'application Android" avec style "note"
+    sur site :
+        texte "Installez l'application"

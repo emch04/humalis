@@ -404,9 +404,11 @@ describe('le CSS et les styles par plateforme', () => {
     expect(page).toContain('iphone');
   });
 
-  it('sur android est dit clairement', () => {
-    expect(() => compiler(`page "accueil" :\n    titre "t"\n    sur android :\n        texte "x"\n`)).not.toThrow();
-    expect(compiler(`page "accueil" :\n    titre "t"\n    sur android :\n        texte "x"\n`).diagnostics.map((d) => d.message).join()).toContain('Android');
+  it('sur android est une plateforme, retirée du projet Apple', async () => {
+    const { pourLaCible } = await import('../../src/ri/plateforme.js');
+    const { application, diagnostics } = compiler(`page "accueil" :\n    titre "t"\n    sur android :\n        texte "x"\n`);
+    expect(diagnostics.filter((d) => d.gravite === 'erreur')).toEqual([]);
+    expect(JSON.stringify(pourLaCible(application!, 'apple').ecrans)).not.toContain('"x"');
   });
 });
 

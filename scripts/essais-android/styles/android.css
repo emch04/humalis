@@ -1,0 +1,48 @@
+/* La feuille propre à Android : lue seulement par --cible android. */
+:root {
+  --vert: #0f766e;
+}
+
+.entete {
+  padding: 20px;
+  background: var(--vert);
+  border-radius: 16px;
+  gap: 4px;
+}
+
+.entete-titre {
+  color: #ffffff;
+  font-size: 30px;
+  font-weight: 800;
+}
+
+.entete-texte {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.carte-produit {
+  padding: 16px;
+  border: 1px solid #d0d7de;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.prix {
+  color: #0f766e;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.commander {
+  background: #f59e0b;
+  color: #1d1d1f;
+  border-radius: 8px;
+}
+
+.carte-produit:hover {
+  background: #f6f8fa;
+}
+
+@media (min-width: 900px) {
+  .entete { padding: 40px; }
+}

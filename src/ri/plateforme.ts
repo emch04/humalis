@@ -8,14 +8,14 @@ import type { Application } from './types.js';
 const VISEES: Record<string, string[]> = {
   apple: ['application', 'apple', 'ios', 'macos'],
   mobile: ['application'],
-  android: ['application'],
+  android: ['application', 'android'],
   desktop: ['application'],
   web: ['site'],
   statique: ['site'],
   serveur: [],
 };
 
-const MARQUE = /^(apple|ios|macos|site|application):(.+)$/;
+const MARQUE = /^(apple|ios|macos|android|site|application):(.+)$/;
 /** iOS et macOS partagent un projet Xcode : ce qui leur est propre reste écrit, sous « #if os(…) ». */
 const DANS_LE_PROJET = new Set(['ios', 'macos']);
 

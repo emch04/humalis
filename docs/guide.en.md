@@ -488,12 +488,13 @@ page "login" :
 ### One design per platform
 
 The logic stays the same; only the design changes. `sur apple` means iPhone, iPad and Mac,
-`sur ios` iPhone and iPad, `sur macos` Mac, `sur application` every native app, `sur site` the
-web. A phrase aimed at another platform has no effect, and the most precise one wins.
+`sur ios` iPhone and iPad, `sur macos` Mac, `sur android` Android phones and tablets,
+`sur application` every native app, `sur site` the web. A phrase aimed at another platform has no effect, and the most precise one wins.
 
 ```humalis
 utiliser style "./iphone.css" sur ios
 utiliser style "./mac.css" sur macos
+utiliser style "./android.css" sur android
 
 page "accueil" :
     bouton "Commander" avec style "principal" et sur apple style "plein-ecran"
@@ -505,7 +506,12 @@ page "accueil" :
 
 On the Apple target, each `.class { … }` rule becomes SwiftUI. What has no equivalent
 (`@media`, hover, compound selectors, free positioning…) is counted at compile time and listed,
-with its reason, in `CSS-SUR-APPLE.md`.
+with its reason, in `CSS-SUR-APPLE.md`. The Android target does the same in Compose, and lists
+the rest in `CSS-SUR-ANDROID.md`.
+
+Each target can have its own CSS: a CSS shared by every target is not required. A
+`sur android` stylesheet can be the only one the Android application reads; if there is
+also a shared CSS, the Android stylesheet comes after it.
 
 One block can target several platforms: join them with `et`.
 
@@ -3466,7 +3472,7 @@ target, the compiler says so clearly instead of producing something wrong.
 | | web | static | mobile | desktop | apple | android |
 |---|---|---|---|---|---|---|
 | Pages, elements, styles, theme | yes | yes | yes | yes | yes | yes |
-| Your own CSS | yes | yes | no (named styles only) | yes | partly (single-class rules; the rest is listed) | no (named styles only) |
+| Your own CSS | yes | yes | no (named styles only) | yes | partly (single-class rules; the rest is listed) | partly (single-class rules; the rest is listed) |
 | Requests to a server | yes | yes | yes | yes | yes | yes |
 | `memorisee` | yes | yes | yes | yes | yes | yes |
 | `memorisee en secret` | no | no | yes | yes | yes (Keychain) | yes (Keystore) |
@@ -3501,7 +3507,12 @@ humalis compile taches.humalis --cible android --sortie taches-android --serveur
 What does not exist on Android yet, and that compilation refuses with a clear message:
 several languages, sub-pages (`page "…" dans "…"`), charts, maps, audio, video, QR codes,
 file picking, photo, scanner, Google or Apple login, payment, AI and notifications. The
-CSS and the theme fonts are not translated yet: the application follows the named styles.
+theme fonts are not loaded yet: the application keeps the system font.
+
+CSS becomes Compose, rule by rule, when a rule targets a class (`.card { … }`): background,
+color, text size and weight, margins and padding, border, corner radius, shadow, width, and
+the gap between children. A `utiliser style "./android.css" sur android` stylesheet applies
+to Android only.
 
 ---
 
