@@ -16,6 +16,7 @@ function declaration(ligne: string): Instruction {
 
 const PARTAGE = 'variable partage = fiche avec texte "" et lien "" et fichier ""';
 const FICHIER = 'variable fichier = fiche avec nom "" et type "" et contenu ""';
+const ERREUR = 'variable erreur = fiche avec message "" et pile "" et version ""';
 
 /**
  * Analyse chaque forme : son corps (par `analyserCommePage`), les pages qu'elle ouvre, les listes qu'elle montre,
@@ -29,6 +30,10 @@ export function analyserFormes(programme: Programme, analyserCommePage: (page: P
 
   const commePage = (forme: object, nom: string, corps: Instruction[], ligne: number, sorte: 'vue' | 'actions', locales: string[] = []) => {
     const avant = locales.map(declaration);
+    if (forme === formes?.erreurArrive) {
+      const locale = avant[0] as Extract<Instruction, { type: 'Variable' }>;
+      if (locale.valeur.type === 'Fiche') locale.valeur.champs.push({ nom: 'page', valeur: { type: 'Chaine', parties: [{ type: 'texte', valeur: '' }], ligne }, ligne });
+    }
     const page: Page = {
       type: 'Page',
       nom,
@@ -84,6 +89,7 @@ export function analyserFormes(programme: Programme, analyserCommePage: (page: P
     }
     for (const m of formes.menusClicDroit) commePage(m, `menu clic droit « ${m.titre} »`, m.corps, m.ligne, 'actions', [FICHIER]);
     if (formes.partageRecu) commePage(formes.partageRecu, 'partage reçu', formes.partageRecu.corps, formes.partageRecu.ligne, 'actions', [PARTAGE]);
+    if (formes.erreurArrive) commePage(formes.erreurArrive, 'erreur arrivée', formes.erreurArrive.corps, formes.erreurArrive.ligne, 'actions', [ERREUR]);
     for (const f of formes.fichiersOuverts) commePage(f, `fichier ouvert (${f.extensions.join(', ')})`, f.corps, f.ligne, 'actions', [FICHIER]);
     for (const b of formes.boutonsNotification) commePage(b, `bouton « ${b.bouton} » d'une notification`, b.corps, b.ligne, 'actions');
   }

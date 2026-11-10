@@ -166,6 +166,7 @@ export interface ConditionRegleRI {
 }
 
 export type ValeurServeurRI =
+  | { genre: 'erreur'; champ: 'message' | 'pile' | 'page' | 'version' }
   | { genre: 'valeur'; valeur: string | number | boolean }
   | { genre: 'aujourdhui' }
   | { genre: 'champ'; fiche: string; champ: string }
@@ -195,6 +196,7 @@ export type TestServeurRI =
   | { genre: 'combinaison'; operateur: 'et' | 'ou'; gauche: TestServeurRI; droite: TestServeurRI };
 
 export type InstructionServeurRI =
+  | { type: 'requete'; adresse: string; champs: { nom: string; valeur: ValeurServeurRI }[] }
   | { type: 'si'; test: TestServeurRI; alors: InstructionServeurRI[]; sinon: InstructionServeurRI[] }
   | { type: 'pourChaque'; variable: string; donnee: string; filtres: FiltreServeurRI[]; corps: InstructionServeurRI[] }
   | { type: 'calcul'; nom: string; operation: string; donnee: string; champ?: string; filtres: FiltreServeurRI[] }
@@ -224,6 +226,7 @@ export interface PasserelleRI {
 }
 
 export interface ServeurRI {
+  captureErreurs?: InstructionServeurRI[];
   /** Les sources à jeton secret que ce serveur relaie (« /api/passerelle/<source> »). */
   passerelles?: PasserelleRI[];
   nom: string;
@@ -989,6 +992,7 @@ export interface Option {
  * le gestionnaire « chargement » porte les actions, avec ses variables locales (partage, fichier, {produit}).
  */
 export interface FormesRI {
+  erreurArrive?: { ecran: Ecran; ligne: number };
   widgets: { nom: string; taille?: 'petite' | 'moyenne' | 'grande'; vers?: string; actualiser?: { nombre: number; unite: 'minutes' | 'heures' }; ecran: Ecran; ligne: number }[];
   activites: { nom: string; ecran: Ecran; ligne: number }[];
   raccourcisIcone: { titre: string; page: string; icone?: string; ligne: number }[];

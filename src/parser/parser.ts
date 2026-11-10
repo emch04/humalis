@@ -595,9 +595,17 @@ function analyserServeur(flux: FluxTokens): Serveur {
   let paiements: Serveur['paiements'];
   let droitIa: DroitIa | undefined;
   const departs: NonNullable<Serveur['departs']> = [];
+  let captureErreurs: Serveur['captureErreurs'];
 
   chaqueLigne(flux, () => {
     const token = flux.actuel();
+    if (estLeMot(token, 'quand') && estLeMot(flux.regarder(1), 'erreur') && estLeMot(flux.regarder(2), 'arrive')) {
+      flux.avancer(); flux.avancer(); flux.avancer();
+      flux.attendre('PONCTUATION', ':', 'deux-points après « quand une erreur arrive »');
+      if (captureErreurs) throw new ErreurSyntaxique(`« quand une erreur arrive » est déjà écrit ligne ${captureErreurs.ligne}.`, token.ligne);
+      captureErreurs = { corps: analyserCorpsServeur(flux), ligne: token.ligne };
+      return;
+    }
     // « donnees de depart pour produit : » puis une fiche par ligne : « nom "Café", prix 3 ».
     if ((estLeMot(token, 'donnees') || estLeMot(token, 'donnee')) && estLeMot(flux.regarder(1), 'depart')) {
       flux.avancer();
@@ -724,6 +732,7 @@ function analyserServeur(flux: FluxTokens): Serveur {
     nom,
     donnees,
     routes,
+    ...(captureErreurs ? { captureErreurs } : {}),
     ...(departs.length ? { departs } : {}),
     ...(connexionGoogle !== undefined ? { connexionGoogle } : {}),
     ...(connexionApple !== undefined ? { connexionApple } : {}),
