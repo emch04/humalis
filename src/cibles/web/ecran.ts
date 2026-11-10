@@ -217,24 +217,27 @@ function champWeb(el: ElementProduit, a: string): string {
   const sorte = saisie?.sorte ?? 'texte';
   // Le libellé et son étoile restent sur la même ligne (le libellé est en colonne, au-dessus de la saisie).
   const libelle = saisie?.obligatoire ? `<span>${el.contenu}${ETOILE_WEB}</span>` : el.contenu;
+  // « avec desactive [si …] » : l'attribut disabled suit la condition ; le navigateur n'envoie pas un champ désactivé.
   const requis = saisie?.obligatoire ? ' required' : '';
+  const desactive = el.desactive !== undefined ? ` disabled={${el.desactive}}` : '';
   const indice = el.champ.indice !== undefined ? ` placeholder={${el.champ.indice}}` : saisie?.indice !== undefined ? ` placeholder=${saisie.indiceLangues ? `{${messageEnCode(saisie.indiceLangues, chaine)}}` : attributTexte(saisie.indice)}` : '';
   const changer = `onChange={(evenement) => ${setter}(evenement.target.value)}`;
   switch (sorte) {
     case 'case':
-      return `<label className="humalis-case"><input ${a} type="checkbox"${requis} checked={${v}} onChange={(evenement) => ${setter}(evenement.target.checked)} />${libelle}</label>`;
+      return `<label className="humalis-case"><input ${a} type="checkbox"${requis}${desactive} checked={${v}} onChange={(evenement) => ${setter}(evenement.target.checked)} />${libelle}</label>`;
     case 'choix': {
       // Un groupe de boutons radio : le <fieldset> et sa <legend> le nomment pour les lecteurs d'écran.
       const classes = ['humalis-choix', ...el.options.map((o) => `humalis-${o.nom}-${o.valeur}`), ...el.classes];
       const attributs = [`data-humalis="${el.id}"`, `className="${classes.join(' ')}"`, ...el.evenements].join(' ');
-      return `<fieldset ${attributs}><legend>${libelle}</legend>{${el.champ.valeurs}.map((option) => (<label key={option}><input type="radio" name="${el.id}" value={option} checked={${v} === option} onChange={() => ${setter}(option)}${requis} />{option}</label>))}</fieldset>`;
+      // Un <fieldset disabled> désactive tous ses boutons radio.
+      return `<fieldset ${attributs}${desactive}><legend>${libelle}</legend>{${el.champ.valeurs}.map((option) => (<label key={option}><input type="radio" name="${el.id}" value={option} checked={${v} === option} onChange={() => ${setter}(option)}${requis} />{option}</label>))}</fieldset>`;
     }
     case 'liste': {
       const premiere = saisie?.indice ?? 'Choisissez…';
-      return `<label className="humalis-champ">${libelle}<select ${a}${requis} value={${v}} ${changer}><option value="">${saisie?.indiceLangues ? `{${messageEnCode(saisie.indiceLangues, chaine)}}` : /[{}<>]/.test(premiere) ? `{${chaine(premiere)}}` : premiere}</option>{${el.champ.valeurs}.map((option) => (<option key={option} value={option}>{option}</option>))}</select></label>`;
+      return `<label className="humalis-champ">${libelle}<select ${a}${requis}${desactive} value={${v}} ${changer}><option value="">${saisie?.indiceLangues ? `{${messageEnCode(saisie.indiceLangues, chaine)}}` : /[{}<>]/.test(premiere) ? `{${chaine(premiere)}}` : premiere}</option>{${el.champ.valeurs}.map((option) => (<option key={option} value={option}>{option}</option>))}</select></label>`;
     }
     case 'texteLong':
-      return `<label className="humalis-champ">${libelle}<textarea ${a} rows={4}${indice}${requis} value={${v}} ${changer} /></label>`;
+      return `<label className="humalis-champ">${libelle}<textarea ${a} rows={4}${indice}${requis}${desactive} value={${v}} ${changer} /></label>`;
     default: {
       // Les champs de « se connecter » gardent le rôle que le navigateur connaît (username, current-password).
       const genre =
@@ -248,9 +251,9 @@ function champWeb(el: ElementProduit, a: string): string {
       // Un mot de passe a son œil : « Afficher le mot de passe », pour vérifier ce qu'on a tapé.
       if (el.champ.genre === 'motDePasse' || sorte === 'motDePasse') {
         const role = el.champ.genre === 'motDePasse' ? 'current-password' : 'new-password';
-        return `<label className="humalis-champ">${libelle}<MotDePasse ${a} autoComplete="${role}"${indice}${requis} value={${v}} ${changer} /></label>`;
+        return `<label className="humalis-champ">${libelle}<MotDePasse ${a} autoComplete="${role}"${indice}${requis}${desactive} value={${v}} ${changer} /></label>`;
       }
-      return `<label className="humalis-champ">${libelle}<input ${a}${genre}${bornes}${indice}${requis} value={${v}} ${changer} /></label>`;
+      return `<label className="humalis-champ">${libelle}<input ${a}${genre}${bornes}${indice}${requis}${desactive} value={${v}} ${changer} /></label>`;
     }
   }
 }

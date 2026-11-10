@@ -229,6 +229,11 @@ page "antiseche" a l'adresse "/antiseche" :
                     code humalis :
                         case a cocher "J'accepte les conditions" avec obligatoire
                 bloc avec style "aide-entree" :
+                    texte "Champ désactivé, toujours ou selon une condition" en anglais "Disabled field, always or depending on a condition" avec style "aide-besoin"
+                    code humalis :
+                        champ "Référence" avec desactive
+                        champ "Adresse de livraison" avec desactive si actif
+                bloc avec style "aide-entree" :
                     texte "Lire ce qui a été écrit dans un champ" en anglais "Read what was typed in a field" avec style "aide-besoin"
                     code humalis :
                         changer nom par champ "Nom"
@@ -413,8 +418,10 @@ page "antiseche" a l'adresse "/antiseche" :
                 bloc avec style "aide-entree" :
                     texte "Tester un vrai ou faux" en anglais "Test a true or false" avec style "aide-besoin"
                     code humalis :
-                        si actif est vrai :
+                        si actif :
                             texte "Actif"
+                        si actif est vrai :
+                            texte "Actif, écrit en entier"
                 bloc avec style "aide-entree" :
                     texte "Le contraire : `non`" en anglais "The opposite: `non`" avec style "aide-besoin"
                     code humalis :
@@ -855,16 +862,6 @@ page "antiseche" a l'adresse "/antiseche" :
                     code humalis :
                         si note est egale a 10 :
                             texte "Dix"
-                bloc avec style "aide-entree" :
-                    texte "Un vrai ou faux se teste en entier" en anglais "Test a true or false in full" avec style "aide-besoin"
-                    texte "À éviter" en anglais "Avoid" avec style "aide-eviter"
-                    code humalis :
-                        si actif :
-                            texte "Actif"
-                    texte "À écrire" en anglais "Write" avec style "aide-ecrire"
-                    code humalis :
-                        si actif est vrai :
-                            texte "Actif"
                 bloc avec style "aide-entree" :
                     texte "Pas d'égal pour changer une valeur" en anglais "No equals sign to change a value" avec style "aide-besoin"
                     texte "À éviter" en anglais "Avoid" avec style "aide-eviter"

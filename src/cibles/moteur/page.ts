@@ -1065,9 +1065,7 @@ ${this.avecPlanificateur(corps.texte())}}
         return el('p', this.communM(noeud), contenu);
       case 'bouton': {
         const envoie = this.formulaireDe.has(noeud.id) && !this.evenements.has(noeud.id);
-        // « avec desactive si … » : l'attribut suit la condition pendant que la page vit.
-        const desactive: [string, Attr][] = noeud.desactive === true ? [['disabled', true]] : noeud.desactive ? [['disabled', { js: conditionJs(noeud.desactive, this.contexte), initial: env ? verifier(noeud.desactive, env, new Map()) : false }]] : [];
-        return el('button', this.communM(noeud, [['type', envoie ? 'submit' : 'button'], ...(seule !== undefined ? ([['aria-label', seule]] as [string, string][]) : []), ...desactive]), contenu);
+        return el('button', this.communM(noeud, [['type', envoie ? 'submit' : 'button'], ...(seule !== undefined ? ([['aria-label', seule]] as [string, string][]) : []), ...this.desactiveM(noeud, env)]), contenu);
       }
       case 'lien':
         return el('a', this.communM(noeud, this.attrsLien(noeud, env)), contenu);
@@ -1076,6 +1074,13 @@ ${this.avecPlanificateur(corps.texte())}}
       case 'champ':
         return this.champM(noeud, env, contenu);
     }
+  }
+
+  /** « avec desactive si … » : l'attribut disabled suit la condition pendant que la page vit. */
+  private desactiveM(noeud: Element, env: Environnement | null): [string, Attr][] {
+    if (noeud.desactive === true) return [['disabled', true]];
+    if (!noeud.desactive) return [];
+    return [['disabled', { js: conditionJs(noeud.desactive, this.contexte), initial: env ? verifier(noeud.desactive, env, new Map()) : false }]];
   }
 
   private attrsLien(noeud: Element, env: Environnement | null): [string, Attr | undefined][] {
@@ -1129,6 +1134,7 @@ ${this.avecPlanificateur(corps.texte())}}
       ['placeholder', sorte !== 'liste' ? indice : undefined],
       ['min', saisie?.minimum !== undefined ? String(saisie.minimum) : undefined],
       ['max', saisie?.maximum !== undefined ? String(saisie.maximum) : undefined],
+      ...this.desactiveM(noeud, env),
     ];
     const parmi = (ligne: (valeur: string, initial: string) => MElement): MChaque => {
       if (!saisie?.parmi) return { chaque: '[]', variable: 'valeur', ...(env ? { lignes: [] } : { corps: [] }) };
@@ -1146,7 +1152,7 @@ ${this.avecPlanificateur(corps.texte())}}
           el('input', [['type', 'radio'], ['name', noeud.id], ['value', { js: v, initial }], ['checked', { js: `${boite}.v === ${v}`, initial: false }], ['oninput', `() => { ${boite}.v = ${v}; }`]]),
           { js: v, initial },
         ]));
-        return el('fieldset', [this.repereHtml(noeud.ligne) as [string, Attr | undefined], ['data-humalis', noeud.id], ['class', classes ? `${classes} humalis-choix` : 'humalis-choix']], [el('legend', [], libelle), radios]);
+        return el('fieldset', [this.repereHtml(noeud.ligne) as [string, Attr | undefined], ['data-humalis', noeud.id], ['class', classes ? `${classes} humalis-choix` : 'humalis-choix'], ...this.desactiveM(noeud, env)], [el('legend', [], libelle), radios]);
       }
       case 'liste': {
         const premiere = el('option', [['value', ''], ['selected', 'true']], saisie?.indiceLangues ? [{ js: messageEnCode(saisie.indiceLangues, chaine), initial: env ? (saisie.indice ?? '') : '' }] : [this.messageM(saisie?.indice ?? 'Choisissez…', env)]);

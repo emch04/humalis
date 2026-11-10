@@ -203,20 +203,25 @@ function champMobile(el: ElementProduit, id: string, evenements: string, options
   const libelleTexte = /^[^{}]+$/.test(el.contenu) ? JSON.stringify(el.contenu) : undefined;
   const accessible = libelleTexte ? ` accessibilityLabel=${libelleTexte}` : '';
   const libelle = `<Text ${style(['texte', ...options])}>${el.contenu}${saisie?.obligatoire ? ' *' : ''}</Text>`;
+  // « avec desactive [si …] » : on ne touche plus le champ, et le lecteur d'écran le dit.
+  const d = el.desactive;
+  const desactive = d !== undefined ? ` disabled={${d}}` : '';
+  const etat = d !== undefined ? ` accessibilityState={{ disabled: ${d} }}` : '';
+  const nonModifiable = d === undefined ? '' : d === 'true' ? ' editable={false}' : ` editable={!(${d})}`;
   // Une valeur possible d'un choix ou d'une liste : un Pressable « radio », coché ou non.
   const option = (choisir: string, contenu: string) =>
-    `<Pressable key={option} accessibilityRole="radio" aria-checked={${v} === option} ${style(['option'])} onPress={${choisir}}><Text ${style(['texte'])}>${contenu}</Text></Pressable>`;
+    `<Pressable key={option} accessibilityRole="radio" aria-checked={${v} === option}${desactive} ${style(['option'])} onPress={${choisir}}><Text ${style(['texte'])}>${contenu}</Text></Pressable>`;
 
   switch (sorte) {
     case 'case':
-      return `<View ${style(['case'])}><Switch ${id}${accessible} value={${v}} onValueChange={${setter}}${evenements} />${libelle}</View>`;
+      return `<View ${style(['case'])}><Switch ${id}${accessible}${desactive}${etat} value={${v}} onValueChange={${setter}}${evenements} />${libelle}</View>`;
     case 'choix':
-      return `<View ${id} accessibilityRole="radiogroup"${accessible} ${style(['champ'])}>${libelle}{${el.champ.valeurs}.map((option) => (${option(`() => ${setter}(option)`, `{${v} === option ? '◉' : '○'} {option}`)}))}</View>`;
+      return `<View ${id} accessibilityRole="radiogroup"${accessible}${etat} ${style(['champ'])}>${libelle}{${el.champ.valeurs}.map((option) => (${option(`() => ${setter}(option)`, `{${v} === option ? '◉' : '○'} {option}`)}))}</View>`;
     case 'liste': {
       // Pas de dépendance : un Pressable ouvre la liste des valeurs, chacune choisie d'un appui.
       const ouvert = el.champ.ouvert!;
       const premiere = saisie?.indiceLangues ? messageEnCode(saisie.indiceLangues, chaine) : chaine(saisie?.indice ?? 'Choisissez…');
-      return `<View ${id} ${style(['champ'])}>${libelle}<Pressable accessibilityRole="button"${accessible} aria-expanded={${ouvert.variable}} ${style(['saisie'])} onPress={() => ${ouvert.setter}(!${ouvert.variable})}><Text ${style(['texte'])}>{${v} || ${premiere}} ▾</Text></Pressable>{${ouvert.variable} && ${el.champ.valeurs}.map((option) => (${option(`() => { ${setter}(option); ${ouvert.setter}(false); }`, '{option}')}))}</View>`;
+      return `<View ${id} ${style(['champ'])}>${libelle}<Pressable accessibilityRole="button"${accessible} aria-expanded={${ouvert.variable}}${desactive}${etat} ${style(['saisie'])} onPress={() => ${ouvert.setter}(!${ouvert.variable})}><Text ${style(['texte'])}>{${v} || ${premiere}} ▾</Text></Pressable>{${ouvert.variable} && ${el.champ.valeurs}.map((option) => (${option(`() => { ${setter}(option); ${ouvert.setter}(false); }`, '{option}')}))}</View>`;
     }
     default: {
       // Le mot de passe est masqué ; l'email ouvre le clavier des adresses. Les champs de
@@ -234,9 +239,9 @@ function champMobile(el: ElementProduit, id: string, evenements: string, options
       const envoi = el.champ.envoie ? ' returnKeyType="send"' : '';
       if (el.champ.genre === 'motDePasse' || sorte === 'motDePasse') {
         const sansMasque = genre.replace(' secureTextEntry', '');
-        return `<View ${style(['champ'])}>${libelle}<MotDePasse ${id}${accessible}${sansMasque}${indice} ${saisieStyle} value={${v}} onChangeText={${setter}}${envoi}${evenements} /></View>`;
+        return `<View ${style(['champ'])}>${libelle}<MotDePasse ${id}${accessible}${sansMasque}${indice}${nonModifiable}${etat} ${saisieStyle} value={${v}} onChangeText={${setter}}${envoi}${evenements} /></View>`;
       }
-      return `<View ${style(['champ'])}>${libelle}<TextInput ${id}${accessible}${genre}${indice} ${saisieStyle} value={${v}} onChangeText={${setter}}${envoi}${evenements} /></View>`;
+      return `<View ${style(['champ'])}>${libelle}<TextInput ${id}${accessible}${genre}${indice}${nonModifiable}${etat} ${saisieStyle} value={${v}} onChangeText={${setter}}${envoi}${evenements} /></View>`;
     }
   }
 }

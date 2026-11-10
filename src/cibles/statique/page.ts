@@ -1128,8 +1128,7 @@ ${prise}${code}}
       case 'bouton': {
         // Le bouton d'un formulaire l'envoie (Entrée aussi) ; un bouton qui a son propre clic garde son clic.
         const envoie = this.formulaireDe.has(noeud.id) && !this.evenements.has(noeud.id);
-        const desactive: [string, string][] = noeud.desactive ? [['disabled', noeud.desactive === true ? 'true' : conditionJs(noeud.desactive, this.contexte)]] : [];
-        return `creer('button', ${objet(commun([['type', envoie ? "'submit'" : "'button'"], ...(seule !== undefined ? ([['\'aria-label\'', chaine(seule)]] as [string, string][]) : []), ...desactive]))}, ${contenu})`;
+        return `creer('button', ${objet(commun([['type', envoie ? "'submit'" : "'button'"], ...(seule !== undefined ? ([['\'aria-label\'', chaine(seule)]] as [string, string][]) : []), ...this.desactiveJs(noeud)]))}, ${contenu})`;
       }
       case 'lien': {
         const vers = noeud.arguments && noeud.cible !== undefined ? this.adresseAvec(noeud.cible, noeud.arguments) : chaine(this.fichier(noeud.cible ?? ''));
@@ -1144,6 +1143,16 @@ ${prise}${code}}
       case 'champ':
         return this.champJs(noeud, commun, objet, contenu);
     }
+  }
+
+  /** « avec desactive [si …] » : l'attribut disabled, recalculé à chaque rendu. */
+  protected desactiveJs(noeud: Element): [string, string][] {
+    return noeud.desactive ? [['disabled', noeud.desactive === true ? 'true' : conditionJs(noeud.desactive, this.contexte)]] : [];
+  }
+
+  /** Le même attribut dans le HTML de départ, avec les valeurs de départ. */
+  protected desactiveHtml(noeud: Element, env: Environnement | null): [string, string][] {
+    return noeud.desactive === true || (noeud.desactive && env && verifier(noeud.desactive, env, new Map())) ? [['disabled', '']] : [];
   }
 
   /** Un champ, selon sa sorte : saisie d'une ligne, texte long, case, choix ou liste (comme sur le web). */
@@ -1164,6 +1173,7 @@ ${prise}${code}}
       else if (saisie?.indice !== undefined && sorte !== 'liste') liste.push(['placeholder', saisie.indiceLangues ? messageEnCode(saisie.indiceLangues, chaine) : chaine(saisie.indice)]);
       if (saisie?.minimum !== undefined) liste.push(['min', String(saisie.minimum)]);
       if (saisie?.maximum !== undefined) liste.push(['max', String(saisie.maximum)]);
+      liste.push(...this.desactiveJs(noeud));
       return liste;
     };
     switch (sorte) {
@@ -1176,7 +1186,7 @@ ${prise}${code}}
         const parmi = saisie?.parmi ? expressionJs(saisie.parmi, this.contexte) : '[]';
         const radio = `creer('input', { type: 'radio', name: ${chaine(noeud.id)}, value: valeur, checked: ${variable} === valeur, oninput: () => { ${variable} = valeur; } })`;
         const classes = this.classes(noeud);
-        const groupe: [string, string][] = [...this.repereJs(noeud.ligne), ["'data-humalis'", chaine(noeud.id)], ['class', chaine(classes ? `${classes} humalis-choix` : 'humalis-choix')]];
+        const groupe: [string, string][] = [...this.repereJs(noeud.ligne), ["'data-humalis'", chaine(noeud.id)], ['class', chaine(classes ? `${classes} humalis-choix` : 'humalis-choix')], ...this.desactiveJs(noeud)];
         return `creer('fieldset', ${objet(groupe)}, creer('legend', {}, ${libelle}), ...${parmi}.map((valeur) => creer('label', {}, ${radio}, valeur)))`;
       }
       case 'liste': {
@@ -1626,6 +1636,7 @@ ${prise}${code}}
       ['placeholder', sorte !== 'liste' && !saisie?.indiceValeur ? saisie?.indice : undefined] as [string, string | undefined],
       ['min', saisie?.minimum !== undefined ? String(saisie.minimum) : undefined] as [string, string | undefined],
       ['max', saisie?.maximum !== undefined ? String(saisie.maximum) : undefined] as [string, string | undefined],
+      ...this.desactiveHtml(noeud, env),
     ];
     const parmi = () => {
       const valeurs = saisie?.parmi ? evaluer(saisie.parmi, env) : [];
@@ -1638,7 +1649,7 @@ ${prise}${code}}
         const radios = parmi()
           .map((v) => `<label><input${attributs([['type', 'radio'], ['name', noeud.id], ['value', v]])}>${echapperTexte(v)}</label>`)
           .join('');
-        return `<fieldset${attributs([this.repereHtml(noeud.ligne), ['data-humalis', noeud.id], ['class', classes ? `${classes} humalis-choix` : 'humalis-choix']])}><legend>${libelle}</legend>${radios}</fieldset>`;
+        return `<fieldset${attributs([this.repereHtml(noeud.ligne), ['data-humalis', noeud.id], ['class', classes ? `${classes} humalis-choix` : 'humalis-choix'], ...this.desactiveHtml(noeud, env)])}><legend>${libelle}</legend>${radios}</fieldset>`;
       }
       case 'liste': {
         const choix = parmi().map((v) => `<option${attributs([['value', v]])}>${echapperTexte(v)}</option>`).join('');
@@ -1687,8 +1698,7 @@ ${prise}${code}}
         return `<p${commun()}>${contenu}</p>`;
       case 'bouton': {
         const envoie = this.formulaireDe.has(noeud.id) && !this.evenements.has(noeud.id);
-        const desactiveHtml = noeud.desactive === true || (noeud.desactive && env && verifier(noeud.desactive, env, new Map()));
-        return `<button${commun([['type', envoie ? 'submit' : 'button'], ...(seuleHtml !== undefined ? ([['aria-label', seuleHtml]] as [string, string][]) : []), ...(desactiveHtml ? ([['disabled', '']] as [string, string][]) : [])])}>${contenu}</button>`;
+        return `<button${commun([['type', envoie ? 'submit' : 'button'], ...(seuleHtml !== undefined ? ([['aria-label', seuleHtml]] as [string, string][]) : []), ...this.desactiveHtml(noeud, env)])}>${contenu}</button>`;
       }
       case 'lien': {
         // Les mêmes valeurs que le script, calculées à la compilation.

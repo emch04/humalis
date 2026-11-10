@@ -1217,15 +1217,19 @@ export class GenerateurPage implements HotePage {
     e.ligne('}');
     const fond = noeud.options.find((o) => o.nom === 'fond')?.valeur;
     const raccourci = noeud.raccourci !== undefined ? [touches(noeud.raccourci)] : [];
-    const desactive = noeud.desactive ? [`.disabled(${noeud.desactive === true ? 'true' : this.valeurs.condition(noeud.desactive)})`] : [];
     this.modifieurs(e, noeud.options, 'bouton', [
-      ...desactive,
+      ...this.desactive(noeud),
       ...(fond ? ['.buttonStyle(.borderedProminent)', `.tint(Couleurs.${nomSwift(fond)})`, `.foregroundStyle(Couleurs.encre${nomSwift(fond).charAt(0).toUpperCase()}${nomSwift(fond).slice(1)})`] : ['.buttonStyle(.bordered)', '.tint(Couleurs.accent)']),
       ...raccourci,
       ...survol,
       id,
       ...ancre,
     ]);
+  }
+
+  /** « avec desactive [si …] » : .disabled suit la condition. */
+  private desactive(noeud: Extract<NoeudVue, { type: 'element' }>): string[] {
+    return noeud.desactive ? [`.disabled(${noeud.desactive === true ? 'true' : this.valeurs.condition(noeud.desactive)})`] : [];
   }
 
   private ecrireLien(e: Ecrivain, noeud: Extract<NoeudVue, { type: 'element' }>, id: string, ancre: string[], survol: string[]): void {
@@ -1299,7 +1303,7 @@ export class GenerateurPage implements HotePage {
         else e.ligne(`ChampHumalis(libelle: ${libelle}, texte: ${lien}, clavier: .${clavier(sorte, this.champsEmail.has(noeud.id))}${obligatoire}${indice})`);
     }
     if (noeud.raccourci !== undefined) this.app.avertir(noeud.ligne, "un raccourci clavier sur un champ n'est pas encore produit sur la cible Apple : il est ignoré.");
-    this.modifieurs(e, noeud.options, 'champ', [...envoi, id]);
+    this.modifieurs(e, noeud.options, 'champ', [...this.desactive(noeud), ...envoi, id]);
   }
 
   // ─── Les éléments d'écran ────────────────────────────────────────────────

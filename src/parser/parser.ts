@@ -1832,7 +1832,9 @@ export function analyserValeurOuTest(flux: FluxTokens, lire: (f: FluxTokens) => 
   const m = flux.marque();
   const valeur = lire(flux);
   const suite = flux.actuel();
-  if ((suite.type === 'MOT_CLE' && suite.valeur === 'est') || estLeMot(suite, 'contient') || estLeMot(suite, 'commence') || estLeMot(suite, 'finit')) {
+  // « calcul pret = actif et paye » : deux valeurs vrai ou faux jointes par « et » ou « ou ».
+  const jointe = (valeur.type === 'Reference' || valeur.type === 'AccesChamp') && suite.type === 'MOT_CLE' && (suite.valeur === 'et' || suite.valeur === 'ou');
+  if (jointe || (suite.type === 'MOT_CLE' && suite.valeur === 'est') || estLeMot(suite, 'contient') || estLeMot(suite, 'commence') || estLeMot(suite, 'finit')) {
     flux.revenir(m);
     return { type: 'TestValeur', test: analyserTestCombine(flux), ligne };
   }
@@ -2560,6 +2562,16 @@ function lectureComparee(flux: FluxTokens, decalage: number): boolean {
   return (mot.type === 'MOT_CLE' && mot.valeur === 'est') || estLeMot(mot, 'contient') || estLeMot(mot, 'commence') || estLeMot(mot, 'finit');
 }
 
+/**
+ * Ce qui termine une condition : la fin de la ligne, « : », « ) », « , », « et », « ou »,
+ * et « avec » ou « sans » (« arrive en bas de "liste" tant que il_reste avec bouton "Voir plus" »).
+ */
+function finDeCondition(token: Token): boolean {
+  if (token.type === 'FIN_LIGNE' || token.type === 'FIN_FICHIER' || token.type === 'DEDENT') return true;
+  if (token.type === 'PONCTUATION') return token.valeur === ':' || token.valeur === ')' || token.valeur === ',';
+  return (token.type === 'MOT_CLE' && (token.valeur === 'et' || token.valeur === 'ou' || token.valeur === 'avec')) || estLeMot(token, 'sans');
+}
+
 /** « a ou b et c » se lit « a ou (b et c) » : « et » lie plus fort, comme en logique. */
 export function analyserTestCombine(flux: FluxTokens, continuer: () => boolean = () => true): Test {
   let test = analyserEt(flux, continuer);
@@ -2585,7 +2597,7 @@ function analyserComparaison(flux: FluxTokens): Comparaison {
     flux.avancer();
     if (lectureComparee(flux, 0)) return nier(analyserComparaison(flux));
     const gauche = analyserOperande(flux);
-    return { type: 'Comparaison', gauche, operateur: 'faux', ligne: gauche.ligne };
+    return { type: 'Comparaison', gauche, operateur: 'faux', seule: true, ligne: gauche.ligne };
   }
   // « utilisateur est connecte », « utilisateur est admin » : l'état de la
   // session, vrai ou faux. Une variable « utilisateur » se compare toujours.
@@ -2636,6 +2648,10 @@ function analyserComparaison(flux: FluxTokens): Comparaison {
   }
 
   const gauche = analyserOperande(flux);
+  // « si actif : », « si p.actif et pret : » : une valeur seule vaut « est vrai ».
+  if ((gauche.type === 'Reference' || gauche.type === 'AccesChamp') && finDeCondition(flux.actuel())) {
+    return { type: 'Comparaison', gauche, operateur: 'vrai', seule: true, ligne: gauche.ligne };
+  }
   // « panier contient "Livre" », « nom contient "Liv" ».
   if (estLeMot(flux.actuel(), 'contient')) {
     flux.avancer();

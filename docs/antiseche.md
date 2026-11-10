@@ -247,6 +247,12 @@ liste deroulante "Pays" parmi ["France", "Belgique"] avec indice "Choisis un pay
 case a cocher "J'accepte les conditions" avec obligatoire
 ```
 
+### Champ désactivé, toujours ou selon une condition | Disabled field, always or depending on a condition
+```humalis page
+champ "Référence" avec desactive
+champ "Adresse de livraison" avec desactive si actif
+```
+
 ### Lire ce qui a été écrit dans un champ | Read what was typed in a field
 ```humalis action
 changer nom par champ "Nom"
@@ -458,8 +464,10 @@ si nom est different de "Camille" :
 
 ### Tester un vrai ou faux | Test a true or false
 ```humalis page
-si actif est vrai :
+si actif :
     texte "Actif"
+si actif est vrai :
+    texte "Actif, écrit en entier"
 ```
 
 ### Le contraire : `non` | The opposite: `non`
@@ -953,16 +961,6 @@ si note est 10 :
 ```humalis page
 si note est egale a 10 :
     texte "Dix"
-```
-
-### Un vrai ou faux se teste en entier | Test a true or false in full
-```faux page
-si actif :
-    texte "Actif"
-```
-```humalis page
-si actif est vrai :
-    texte "Actif"
 ```
 
 ### Pas d'égal pour changer une valeur | No equals sign to change a value

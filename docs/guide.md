@@ -330,20 +330,20 @@ page "panier" :
 ```
 
 La condition s'arrête au prochain `et`, qui ouvre l'option suivante. Pour
-combiner deux conditions, on les range d'abord dans un `calcul`, puis on le teste
-avec `desactive si … est vrai` :
+combiner deux conditions, on les range d'abord dans un `calcul`, puis on écrit
+simplement `desactive si` suivi de son nom :
 
 ```humalis
 page "commande" :
     variable panier = []
     variable envoi_en_cours = faux
-    calcul bloque = panier est vide ou envoi_en_cours est vrai
+    calcul bloque = panier est vide ou envoi_en_cours
     titre "Commande"
-    bouton "Commander" avec desactive si bloque est vrai
+    bouton "Commander" avec desactive si bloque
 ```
 
-Un bouton désactivé reste visible, plus pâle. `desactive` ne vaut que pour un
-bouton.
+Un bouton désactivé reste visible, plus pâle. `desactive` vaut pour un bouton et
+pour un champ (voir [Champ](#champ)).
 
 ### Champ
 
@@ -371,6 +371,29 @@ page "inscription" :
 Chaque cible choisit la bonne saisie : le bon clavier sur un téléphone, le bon
 type de champ dans le navigateur. Les options : `obligatoire`, `indice "…"` (le
 texte gris d'un champ vide), et pour un nombre `minimum` et `maximum`.
+
+`avec desactive` montre un champ qu'on ne peut pas remplir. Avec `si`, il suit
+une condition, comme un bouton. Toutes les sortes de champ l'acceptent, ainsi
+que les choix, les listes déroulantes et les cases à cocher :
+
+```humalis
+page "profil" :
+    variable verrou = vrai
+    titre "Profil"
+    formulaire "profil" :
+        champ "Identifiant" avec desactive
+        champ email "Email" avec desactive si verrou
+        case a cocher "Lettre d'information" avec desactive si verrou
+        bouton "Enregistrer"
+    bouton "Modifier"
+    quand l'utilisateur clique sur "Modifier" :
+        changer verrou par faux
+    quand le formulaire "profil" est soumis :
+        afficher "Profil enregistré"
+```
+
+Un champ désactivé reste visible, plus pâle. Dans le navigateur, il garde le
+comportement habituel d'un champ désactivé.
 
 ### Les choix
 
@@ -1124,6 +1147,7 @@ page "resultat" :
 | `est vide` | une liste ou un texte vide |
 | `est rien` | aucune valeur |
 | `est vrai`, `est faux` | pour `vrai` et `faux` |
+| le nom seul (`si actif :`) | comme `est vrai` |
 | `est dans [ … ]` | fait partie de la liste |
 | `contient` | le texte ou la liste contient |
 
@@ -1152,6 +1176,11 @@ page "stock" :
 
 `et` passe avant `ou`, comme en mathématiques.
 
+Une valeur qui vaut `vrai` ou `faux` se teste seule : `si actif :` veut dire
+`si actif est vrai :`, et `si non actif :` son contraire. Elle se combine comme
+une comparaison, avec `et` et `ou`, et marche aussi pour le champ d'une fiche
+(`si p.actif :`).
+
 Un calcul peut garder le résultat d'une comparaison : il vaut `vrai` ou `faux`,
 et se lit ensuite dans un `si`. `non` donne l'inverse d'un vrai ou faux.
 
@@ -1159,18 +1188,24 @@ et se lit ensuite dans un `si`. `non` donne l'inverse d'un vrai ou faux.
 page "boutique" :
     variable ouvert = faux
     variable role = "gerant"
+    variable vacances = faux
     calcul est_chef = role est dans ["gerant", "direction"]
     calcul ferme = non ouvert
+    calcul en_pause = ferme ou vacances
     titre "Boutique"
-    si est_chef est vrai :
+    si est_chef :
         bouton "Ouvrir ou fermer"
-    si ferme est vrai :
+    si ferme et non vacances :
         texte "Fermé pour aujourd'hui"
+    si en_pause :
+        texte "Revenez bientôt"
     quand l'utilisateur clique sur "Ouvrir ou fermer" :
         changer ouvert par non ouvert
 ```
 
 Un tel calcul n'est pas un nombre : `est_chef * 2` est refusé à la compilation.
+Seul, un nombre ou un texte ne fait pas une condition : `si prix :` est refusé,
+on écrit une comparaison (`si prix est superieur a 0 :`).
 
 ---
 
