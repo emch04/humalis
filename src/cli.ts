@@ -23,6 +23,7 @@ import { lireFirebase, type Firebase } from './cibles/android/comptes.js';
 import { genererProjetWindows, MARQUE_WINDOWS } from './cibles/windows/projet.js';
 import { verifierAppareilPourLaCible } from './cibles/appareil.js';
 import { verifierFormesPourLaCible } from './cibles/formes.js';
+import { verifierFormesBureau } from './cibles/desktop/formes.js';
 import { pourLaCible } from './ri/plateforme.js';
 import { gestionnairesDuProgramme, contientAction } from './cibles/web/interactions.js';
 import type { Application } from './ri/types.js';
@@ -496,6 +497,13 @@ function compileDesktop(application: Application, chemin: string, sortie: string
   // Le moteur Humalis est le défaut : l'application de bureau sans React. « --moteur react » garde React.
   const options = { nom, source: basename(chemin), fichiersStyle, composantsReact, serveur, polices, images, medias, moteur: moteurDemande === 'react' ? ('react' as const) : ('humalis' as const) };
   const surLeMoteur = bureauSurLeMoteur(application, options);
+  // Les formes spéciales : la limite du Finder, et ce qui demande le moteur Humalis.
+  const formesBureau = verifierFormesBureau(application, surLeMoteur);
+  if (formesBureau.length > 0) afficherDiagnostics(formesBureau);
+  if (formesBureau.some((d) => d.gravite === 'erreur')) {
+    console.error('\nLe programme ne peut pas être produit pour cette cible : rien n\'a été écrit.');
+    return 1;
+  }
   if (!surLeMoteur && moteurDemande !== 'react') console.error('Note : ce programme emploie ce que le moteur Humalis ne sait pas encore faire (un composant React, « memorisee en secret »…) : l\'application de bureau est produite avec React.');
   const fichiers = genererProjetDesktop(application, options);
   ecrire(sortie, fichiers);
