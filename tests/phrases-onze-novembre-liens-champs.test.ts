@@ -219,3 +219,20 @@ describe('« champ "…" avec valeur … » : le rendu', () => {
     expect(page).toContain('champNom = champNomDepart ?? ""');
   });
 });
+
+describe('« rediriger vers » sur mobile', () => {
+  it('une adresse reçue passe par le filtre, et une adresse externe par le système', async () => {
+    const { compiler } = await import('../src/compilateur.js');
+    const { genererProjetMobile } = await import('../src/cibles/mobile/projet.js');
+    const r = compiler(`page "accueil" :\n    titre "A"\n    variable cible = "contact"\n    bouton "Aller"\n    bouton "Dehors"\n    quand l'utilisateur clique sur "Aller" :\n        rediriger vers "{cible}"\n    quand l'utilisateur clique sur "Dehors" :\n        rediriger vers "https://exemple.com"\n\npage "contact" :\n    titre "Contact"\n`);
+    const projet = genererProjetMobile(r.application!, { nom: 'a', source: 'a.humalis' });
+    const page = projet.get('app/index.tsx')!;
+    expect(page).not.toContain('allerVers(');
+    expect(page).not.toContain('ouvrirExterne(');
+    expect(page).toContain('adresseDuLien(String(');
+    expect(page).toContain("void Linking.openURL('https://exemple.com')");
+    expect(page).toMatch(/import \{[^}]*\bLinking\b[^}]*\} from 'react-native'/);
+    expect(page).toMatch(/import \{[^}]*\badresseDuLien\b[^}]*\} from '\.\.\/humalis\/outils'/);
+    expect(projet.get('humalis/outils.ts')).toContain('export function adresseDuLien');
+  });
+});
