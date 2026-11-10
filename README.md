@@ -13,6 +13,8 @@
 
 # Humalis
 
+Documentation, antisèche et bac à sable : **[humalis.dev](https://humalis.dev)** · pour les IA : [llms.txt](https://humalis.dev/llms.txt)
+
 **Un seul langage, en français, pour créer une application complète** : un site web, une application mobile, une application de bureau et son serveur, à partir du même fichier.
 
 ```humalis

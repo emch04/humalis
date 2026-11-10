@@ -30,6 +30,7 @@
     "essai:serveur": "node scripts/essai-serveur.mjs",
     "essai:lien": "node scripts/essai-lien.mjs",
     "essai:mobile": "node scripts/essai-mobile.mjs",
+    "essai:windows": "node scripts/essai-windows.mjs",
     "essai:packs": "npm run essai:serveur && npm run essai:lien && npm run essai:connexion && npm run essai:gestion && npm run essai:catalogue && npm run essai:web",
     "essai:connexion": "node scripts/essai-connexion.mjs",
     "essai:gestion": "node scripts/essai-gestion.mjs",
@@ -53,6 +54,7 @@
     "essai:apple:capacites": "node scripts/essai-apple-capacites.mjs",
     "essai:apple:appareil": "node scripts/essai-apple-appareil.mjs",
     "essai:apple:fond": "node scripts/essai-apple-fond.mjs",
+    "essai:apple:dessin": "node scripts/essai-apple-dessin.mjs",
     "essai:apple:connexion": "node scripts/essai-serveur-apple.mjs",
     "essai:apple:natifs": "node scripts/essai-apple-natifs.mjs",
     "essai:android": "node scripts/essai-android.mjs",
@@ -89,7 +91,7 @@
     "type": "git",
     "url": "git+https://github.com/emch04/humalis.git"
   },
-  "homepage": "https://github.com/emch04/humalis#readme",
+  "homepage": "https://humalis.dev",
   "bugs": {
     "url": "https://github.com/emch04/humalis/issues"
   },

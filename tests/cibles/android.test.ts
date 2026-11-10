@@ -979,3 +979,16 @@ describe('cible Android — les composants natifs', () => {
   });
 });
 
+
+describe('cible Android — ce qui vient de main', () => {
+  it('un composant sans vue Kotlin est refusé clairement', () => {
+    const m = erreurs(`utiliser composant "Carte" sur windows "./Carte.cs"\n\npage "accueil" :\n    titre "t"\n    Carte\n`);
+    expect(m.some((x) => x.includes("n'a pas de vue Kotlin pour Android"))).toBe(true);
+  });
+
+  it('un style natif d\'une autre langue n\'est pas traduit comme du CSS', () => {
+    const { diagnostics } = produire(`utiliser style "./android.css" sur android\nutiliser style "./apple.swift" sur apple\n\npage "accueil" :\n    titre "t"\n`, { fichiersStyle: new Map([['./android.css', '.carte { color: red; }'], ['./apple.swift', 'struct StyleCarte: ViewModifier { }']]) });
+    expect(diagnostics.filter((d) => d.gravite === 'erreur')).toEqual([]);
+    expect(diagnostics.some((d) => /CSS : 1 déclarations sur 1/.test(d.message))).toBe(true);
+  });
+});

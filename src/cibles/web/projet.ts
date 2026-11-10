@@ -100,6 +100,7 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
   // quel, ou un composant écrit en Humalis.
   const modulesComposants = new Map<string, string>();
   for (const c of application.composantsReact) {
+    if (c.chemin === undefined) continue; // sans fichier pour le web : refusé avant (verifierAppareilPourLaCible)
     const fichier = options.composantsReact?.get(c.chemin);
     if (!fichier) throw new Error(`le composant « ${c.nom} » (${c.chemin}) n'a pas été lu`);
     fichiers.set(`src/composants/${fichier.nom}`, fichier.contenu);
@@ -232,7 +233,7 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
   }
   // Les paquets que les composants React importent (three, gsap…), réécrits à chaque compilation.
   const lusReact = application.composantsReact.flatMap((c) => {
-    const fichier = options.composantsReact?.get(c.chemin);
+    const fichier = c.chemin === undefined ? undefined : options.composantsReact?.get(c.chemin);
     return fichier ? [fichier.contenu] : [];
   });
   const paquetsReact = dependancesDesComposantsReact(lusReact);
