@@ -38,7 +38,7 @@ interface Methode {
   boucles: string[];
 }
 
-const GLYPHES_WIDGETS = new Set(['icone', 'badge', 'avatar', 'progression', 'chargement', 'etoiles', 'compteur', 'selecteurLangue']);
+const GLYPHES_WIDGETS = new Set(['icone', 'badge', 'avatar', 'progression', 'chargement', 'etoiles', 'compteur', 'selecteurLangue', 'fichier', 'qr']);
 
 /** Indente un morceau de code de plusieurs lignes (sauf sa première ligne). */
 const decaler = (code: string, espaces = '  ') => code.replace(/\n/g, `\n${espaces}`);
@@ -447,11 +447,9 @@ export class GenerateurBloc implements HoteActions {
       case 'tableauDocumentation':
         return `UI.Tableau(new Func<string>[] { ${n.colonnes.map((c) => `() => ${this.x.enTexte(c)}`).join(', ')} }, new Func<string>[][] { ${n.rangees.map((r) => `new Func<string>[] { ${r.map((c) => `() => ${this.x.enTexte(c)}`).join(', ')} }`).join(', ')} })`;
       case 'sousPage':
-        this.refuser('« sous page »');
-        return undefined;
+        return 'SousPage()';
       case 'graphique':
-        this.refuser('un graphique');
-        return undefined;
+        return this.graphique(n);
       case 'carte':
         this.refuser('une carte');
         return undefined;
@@ -459,6 +457,27 @@ export class GenerateurBloc implements HoteActions {
       case 'locale':
         return undefined;
     }
+  }
+
+  /** Un graphique : la liste, ses libellés, ses séries ; le dessin est fait par la bibliothèque. */
+  private graphique(n: Extract<NoeudVue, { type: 'graphique' }>): string {
+    const enLangues = (texte: string, langues?: { code: string; texte: string }[]) => (langues?.length ? `Langues.T(${langues.map((l) => `(${chaineCs(l.code)}, ${chaineCs(l.texte)})`).join(', ')})` : chaineCs(texte));
+    const series = n.series.map((s, i) => {
+      const couleur = s.couleur && this.ctx.couleurs.has(s.couleur) ? `Couleurs.${nomMethode(s.couleur)}` : `Palette.Couleur(${i})`;
+      return `new SerieGraphique(${enLangues(s.nom, s.nomLangues)}, ${couleur}, ${s.valeur !== undefined ? chaineCs(cleJson(s.valeur)) : 'null'})`;
+    });
+    const args = [
+      chaineCs(n.genre),
+      `() => ${this.x.expr(n.liste)}`,
+      n.etiquette !== undefined ? chaineCs(cleJson(n.etiquette)) : 'null',
+      n.etiquettes !== undefined ? `() => ${this.x.expr(n.etiquettes)}` : 'null',
+      `new[] { ${series.join(', ')} }`,
+      n.devise !== undefined ? chaineCs(n.devise) : 'null',
+      `() => ${enLangues(n.titre, n.titreLangues)}`,
+      `() => ${this.x.enTexte(n.description)}`,
+    ];
+    if (n.proportions) args.push(String(Number((n.proportions[0] / n.proportions[1]).toFixed(4))));
+    return this.styler(`GraphiqueFabrique.Creer(${args.join(', ')})`, n.classes, [], 'bloc');
   }
 
   /** L'appel d'une méthode d'événement, avec les variables de boucle qu'elle reçoit. */
@@ -533,6 +552,7 @@ export class GenerateurBloc implements HoteActions {
         code = this.styler(this.champ(n, formulaire), n.classes, n.options, 'champ');
         break;
     }
+    if (n.ancre !== undefined) code = `Routeur.Ancre(${chaineCs(n.ancre)}, ${code})`;
     return this.visible(n.id, code);
   }
 
@@ -541,8 +561,10 @@ export class GenerateurBloc implements HoteActions {
     if (n.externe !== undefined) return `UI.OuvrirExterne(${chaineCs(n.externe)})`;
     if (n.externeValeur !== undefined) return `UI.OuvrirExterne(${this.x.enTexte(n.externeValeur)})`;
     if (n.adresseValeur !== undefined) return `Routeur.AllerAdresse(${this.x.enTexte(n.adresseValeur)})`;
+    // « vers "carte#desserts" » ou « vers "#desserts" » : la page (ou celle-ci), puis l'endroit.
+    if (n.versAncre !== undefined) return `Routeur.VersAncre(${n.cible !== undefined ? chaineCs(n.cible) : 'null'}, ${chaineCs(n.versAncre)}${this.actions.arguments(n.arguments)})`;
     if (n.cible !== undefined) return `Routeur.AllerVers(${chaineCs(n.cible)}${this.actions.arguments(n.arguments)})`;
-    if (n.versAncre !== undefined) return undefined;
+
     return undefined;
   }
 
@@ -592,6 +614,22 @@ export class GenerateurBloc implements HoteActions {
         break;
       case 'selecteurLangue':
         return 'UI.SelecteurLangue()';
+      case 'qr': {
+        const taille = { petite: 128, normale: 192, grande: 256, tres_grande: 320 }[n.options.find((o) => o.nom === 'taille')?.valeur ?? 'normale'] ?? 192;
+        const description = n.reglages.descriptionLangues?.length ? `Langues.T(${n.reglages.descriptionLangues.map((l) => `(${chaineCs(l.code)}, ${chaineCs(l.texte)})`).join(', ')})` : chaineCs(n.reglages.description ?? 'Code QR');
+        return `Qr.Element(() => ${this.x.enTexte(n.contenu)}, ${description}${taille !== 192 ? `, ${taille}` : ''})`;
+      }
+      case 'fichier': {
+        const f = n.fichier;
+        const lieu = f ? this.portee.variables.get(f.variable) : undefined;
+        if (!f || !lieu?.signal) {
+          this.refuser(`« fichier … dans ${f?.variable ?? '?'} » : la variable doit être une variable de la page,`);
+          return undefined;
+        }
+        const familles = `new (string, string[])[] { ${f.familles.map((fa) => `(${chaineCs(fa.nom)}, new[] { ${fa.mime.map(chaineCs).join(', ')} })`).join(', ')} }`;
+        code = `Fichiers.Choix(() => ${this.x.enTexte(n.contenu)}, ${lieu.signal}, ${familles}${f.octets !== undefined ? `, octets: ${f.octets}` : ''}${f.plusieurs ? ', plusieurs: true' : ''}${f.apercu ? '' : ', apercu: false'}, id: ${chaineCs(n.id)})`;
+        break;
+      }
       case 'etoiles':
         code = `UI.Etoiles(() => ${this.x.enNombre(n.contenu)}${n.maximum !== undefined ? `, ${n.maximum}` : ''})`;
         break;
@@ -652,6 +690,7 @@ export class GenerateurBloc implements HoteActions {
     }
     if (!code.startsWith('UI.')) code = `UI.Pile(${code})`;
     code = this.styler(code, n.classes, n.options, 'bloc');
+    if (n.ancre !== undefined) code = `Routeur.Ancre(${chaineCs(n.ancre)}, ${code})`;
     const bas = n.id !== undefined ? this.bas.get(n.id) : undefined;
     if (bas && bas.g.bouton !== null) {
       // Le bouton « Voir plus » : pour le clavier, et quand la page ne défile pas.

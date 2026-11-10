@@ -291,7 +291,7 @@ public abstract class BlocHumalis
     private readonly Dictionary<string, EtatRequete> etats = new();
     protected readonly Dictionary<string, Func<Task>> relances = new();
 
-    public void Quitter()
+    public virtual void Quitter()
     {
         foreach (var d in aArreter) d.Dispose();
         aArreter.Clear();
@@ -401,6 +401,62 @@ public abstract class PageHumalis : BlocHumalis
     public virtual string? Sinon => null;
     public virtual bool SansEntete => false;
     public virtual bool SansPied => false;
+
+    /// <summary>« page "profil" dans "espace" » : la page montrée à l'endroit de « sous page ».</summary>
+    public virtual PageHumalis? Enfant { get; set; }
+
+    protected FrameworkElement SousPage() => Enfant?.Construire() ?? new Border();
+
+    /// <summary>Une page dans sa page parente : la parente se dessine, l'enfant à l'endroit de « sous page ».</summary>
+    public static PageHumalis Imbriquer(PageHumalis parente, PageHumalis enfant) => new PageImbriquee(parente, enfant);
+}
+
+/// <summary>Une page et sa page parente : chargées, arrêtées et réservées ensemble.</summary>
+public sealed class PageImbriquee : PageHumalis
+{
+    private readonly PageHumalis parente;
+    private PageHumalis enfant;
+
+    public PageImbriquee(PageHumalis parente, PageHumalis enfant)
+    {
+        this.parente = parente;
+        this.enfant = enfant;
+        parente.Enfant = enfant;
+    }
+
+    public override PageHumalis? Enfant
+    {
+        get => enfant.Enfant;
+        set => enfant.Enfant = value;
+    }
+
+    public override string Nom => enfant.Nom;
+    public override string Titre => enfant.Titre;
+    public override string? Reservee => enfant.Reservee ?? parente.Reservee;
+    public override string? Sinon => enfant.Reservee is not null ? enfant.Sinon : parente.Sinon;
+    public override bool SansEntete => enfant.SansEntete || parente.SansEntete;
+    public override bool SansPied => enfant.SansPied || parente.SansPied;
+    public override FrameworkElement Construire() => parente.Construire();
+
+    public override async Task Charger()
+    {
+        await parente.Charger();
+        await enfant.Charger();
+    }
+
+    public override bool Touche(string touches) => enfant.Touche(touches) || parente.Touche(touches);
+
+    public override async Task EnBas()
+    {
+        await enfant.EnBas();
+        await parente.EnBas();
+    }
+
+    public override void Quitter()
+    {
+        enfant.Quitter();
+        parente.Quitter();
+    }
 }
 
 /// <summary>Un composant écrit en Humalis : il se monte dans la page, et s'arrête avec la partie qui le contient.</summary>
@@ -451,6 +507,42 @@ public static class Routeur
     {
         if (actuelle is not null) historique.Add(actuelle.Value);
         Ouvrir(nom, arguments ?? new Arguments());
+    }
+
+    /// <summary>« avec ancre "desserts" » : les endroits de la page où un lien peut mener.</summary>
+    private static readonly Dictionary<string, FrameworkElement> ancres = new();
+    private static string? ancreAttendue;
+
+    public static FrameworkElement Ancre(string nom, FrameworkElement element)
+    {
+        ancres[nom] = element;
+        element.Loaded += (_, _) =>
+        {
+            if (ancreAttendue != nom) return;
+            ancreAttendue = null;
+            element.BringIntoView();
+        };
+        return element;
+    }
+
+    /// <summary>« lien … vers "carte#desserts" » ou « vers "#desserts" » : la page, puis l'endroit.</summary>
+    public static Task VersAncre(string? page, string ancre, Arguments? arguments = null)
+    {
+        if (page is not null && page != Page?.Nom)
+        {
+            ancreAttendue = ancre;
+            Aller(page, arguments);
+        }
+        else if (ancres.TryGetValue(ancre, out var element)) element.BringIntoView();
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Les onglets de l'application : chacun ouvre sa page en partant de zéro (sans historique).</summary>
+    public static void Racine(string nom)
+    {
+        historique.Clear();
+        actuelle = null;
+        Ouvrir(nom, new Arguments());
     }
 
     /// <summary>La page réservée qu'on voulait ouvrir avant de se connecter.</summary>
@@ -522,6 +614,7 @@ public static class Routeur
             }
         }
         Page?.Quitter();
+        ancres.Clear();
         actuelle = (nom, arguments);
         PeutRevenir.Ecrire(historique.Count > 0);
         Page = page;
@@ -542,6 +635,10 @@ public sealed class FenetrePrincipale : Window
     private readonly ScrollViewer defilement = new() { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
     private readonly Func<FrameworkElement?>? construireEntete;
     private readonly Func<FrameworkElement?>? construireP;
+
+    /// <summary>« onglets de l'application : » : titre, page, icône.</summary>
+    public static (string titre, string page, string? icone)[] Onglets = Array.Empty<(string, string, string?)>();
+    private readonly List<(System.Windows.Controls.Primitives.ToggleButton bouton, string page)> boutonsOnglets = new();
 
     public FenetrePrincipale(Func<FrameworkElement?>? construireEntete = null, Func<FrameworkElement?>? construirePied = null)
     {
@@ -564,6 +661,24 @@ public sealed class FenetrePrincipale : Window
         new Effet(() => retour.Visibility = V.B(Routeur.PeutRevenir.Lire()) ? Visibility.Visible : Visibility.Collapsed);
         DockPanel.SetDock(retour, Dock.Left);
         barre.Children.Add(retour);
+        if (Onglets.Length > 0)
+        {
+            var onglets = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(8, 0, 0, 0) };
+            foreach (var (titre, pageOnglet, icone) in Onglets)
+            {
+                var contenuBouton = new StackPanel { Orientation = Orientation.Horizontal };
+                if (icone is not null) { var g = Icones.Element(icone, 14); g.Margin = new Thickness(0, 0, 6, 0); contenuBouton.Children.Add(g); }
+                contenuBouton.Children.Add(new TextBlock { Text = titre });
+                var b = new System.Windows.Controls.Primitives.ToggleButton { Content = contenuBouton, Padding = new Thickness(12, 6, 12, 6), Margin = new Thickness(0, 0, 4, 0) };
+                AutomationProperties.SetName(b, titre);
+                var cible = pageOnglet;
+                b.Click += (_, _) => Routeur.Racine(cible);
+                boutonsOnglets.Add((b, pageOnglet));
+                onglets.Children.Add(b);
+            }
+            DockPanel.SetDock(onglets, Dock.Left);
+            barre.Children.Add(onglets);
+        }
         barre.Children.Add(entete);
 
         var page = new DockPanel();
@@ -600,6 +715,7 @@ public sealed class FenetrePrincipale : Window
     private void Afficher(PageHumalis page)
     {
         Title = page.Titre;
+        foreach (var (bouton, nom) in boutonsOnglets) bouton.IsChecked = nom == page.Nom;
         entete.Content = page.SansEntete ? null : construireEntete?.Invoke();
         pied.Content = page.SansPied ? null : construireP?.Invoke();
         contenu.Content = page.Construire();
