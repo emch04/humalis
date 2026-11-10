@@ -282,11 +282,14 @@ ${SUIVI_ENTETE.replace('function suivreLaHauteurDeLEntete() {', 'export function
 /**
  * Le nettoyage du HTML prérendu. Les préchargements que Vite ajoute en chargeant une page
  * (« modulepreload » avec as="script", adresse complète) ne servent à rien dans la photo : le
- * script principal les redemande. Avec le mouvement, le script marque aussi la page
+ * script principal les redemande. La feuille de style d'une page chargée en cours de route, elle,
+ * reste (sans elle, la page s'affiche nue jusqu'au script) mais à l'adresse du site lui-même :
+ * le prérendu réécrirait sinon l'adresse du serveur local en adresse publique (--adresse), qu'un
+ * aperçu ou le desktop (style-src 'self') ne peut pas charger. Avec le mouvement, le script marque aussi la page
  * (humalis-js, data-humalis-vu) : le HTML prérendu ne garde aucune de ces marques.
  */
 export const nettoyagePrerendu = (mouvement: boolean) => `  // La photo de chaque page ne garde que ce que le navigateur doit lire au départ.
-  transformHtml: (html) => html.replace(/<link rel="modulepreload" as="script"[^>]*>/g, '')${mouvement ? NETTOYAGE_MOUVEMENT : ''},
+  transformHtml: (html, { origin = '' } = {}) => html.replace(/<link rel="modulepreload" as="script"[^>]*>/g, '').split(\`href="\${origin}/assets/\`).join('href="/assets/')${mouvement ? NETTOYAGE_MOUVEMENT : ''},
 `;
 
 const NETTOYAGE_MOUVEMENT = `.replace(/(<html[^>]*class="[^"]*)\\bhumalis-js\\b/, '$1').replace(/ data-humalis-vu=""/g, '').replace(/ data-humalis-tape="[a-z-]*"/g, '').replace(/<code class="humalis-frappe-copie"[\\s\\S]*?<\\/code>/g, '')`;
