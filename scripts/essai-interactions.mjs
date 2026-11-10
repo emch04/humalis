@@ -9,14 +9,15 @@
 //
 // Lancer : npm run build && npm run essai:interactions
 // Playwright est cherché dans NODE_PATH, puis dans quelques dossiers connus.
-// Le projet web reprend les node_modules de NODE_PATH (react, vite…) s'ils y
-// sont, sinon il lance npm install.
+// Le projet web reprend les node_modules de NODE_PATH s'ils ont chaque
+// bibliothèque du projet à la bonne version, sinon il lance npm install.
 import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { createServer } from 'node:http';
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { extname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
+import { modulesQuiConviennent } from './outils-essai.mjs';
 
 const travail = resolve(process.env.HUMALIS_TRAVAIL ?? join(tmpdir(), 'humalis-essai-interactions'));
 rmSync(travail, { recursive: true, force: true });
@@ -93,7 +94,7 @@ function compiler(source, cible, nom) {
 
 /** Le projet web : vérifié par tsc et construit par Vite (build:sans-prerendu). */
 function construireWeb(dossier) {
-  const modules = dossiersModules.find((d) => ['react', 'react-dom', 'react-router', 'vite', 'typescript'].every((m) => existsSync(join(d, m))));
+  const modules = modulesQuiConviennent(dossier, dossiersModules);
   if (modules) symlinkSync(modules, join(dossier, 'node_modules'), 'dir');
   else execFileSync('npm', ['install', '--no-audit', '--no-fund'], { cwd: dossier, stdio: 'ignore' });
   execFileSync('npm', ['run', 'build:sans-prerendu'], { cwd: dossier, stdio: 'pipe' });

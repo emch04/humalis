@@ -15,14 +15,15 @@
 //
 // Lancer : npm run build && npm run essai:langues [-- --sans-web]
 // Playwright est cherché dans NODE_PATH, puis dans quelques dossiers connus.
-// Le projet web reprend le node_modules de NODE_PATH s'il a vite et react
-// (aucun téléchargement), sinon lance npm install.
+// Le projet web reprend le node_modules de NODE_PATH s'il a chaque bibliothèque
+// du projet à la bonne version (aucun téléchargement), sinon lance npm install.
 import { execFileSync, spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { createServer } from 'node:http';
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, symlinkSync } from 'node:fs';
 import { extname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
+import { modulesQuiConviennent } from './outils-essai.mjs';
 
 const travail = resolve(process.env.HUMALIS_TRAVAIL ?? join(tmpdir(), 'humalis-essai-langues'));
 const sansWeb = process.argv.includes('--sans-web');
@@ -158,6 +159,20 @@ async function scenario(nom, adresse, navigateur) {
     verifier((await titre(page)) === 'Bienvenue chez Rey Store', `${nom} : sans JavaScript, la page se lit dans la langue de base`);
     verifier((await langueHtml(page)) === 'fr', `${nom} : sans JavaScript, <html lang="fr">`);
     await page.context().close();
+  } else if (!process.env.HUMALIS_MOTEUR) {
+    // Le prérendu de React est un navigateur automatisé (navigator.webdriver) : il écrit les pages
+    // dans la langue de base, quelle que soit sa langue et même avec un choix gardé. (Le moteur de
+    // rendu n'a pas ce prérendu par navigateur : la règle ne le concerne pas.)
+    const contexte = await navigateur.newContext({ locale: 'en-GB' });
+    await contexte.addInitScript(() => {
+      Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => true });
+      localStorage.setItem('humalis-langue', 'en');
+    });
+    page = await contexte.newPage();
+    await page.goto(adresse);
+    await page.waitForLoadState('networkidle');
+    verifier((await titre(page)) === 'Bienvenue chez Rey Store' && (await langueHtml(page)) === 'fr', `${nom} : un navigateur automatisé (le prérendu) voit la langue de base, même réglé et gardé en anglais`);
+    await contexte.close();
   }
   verifier(erreurs.length === 0, `${nom} : aucune erreur dans la console${erreurs.length ? ` (${erreurs.join(' | ')})` : ''}`);
 }
@@ -334,19 +349,16 @@ async function scenarioFichier(adresse, navigateur) {
   verifier(erreurs.length === 0, `${nom} : aucune autre erreur dans la console${erreurs.length ? ` (${erreurs.join(' | ')})` : ''}`);
 }
 
-/** Le projet web, construit sans prérendu : node_modules repris de NODE_PATH s'il suffit, sinon npm install. */
+/** Les node_modules installés par cet essai : un projet suivant peut les reprendre. */
+const installes = [];
+/** Le projet web, construit sans prérendu : node_modules repris de NODE_PATH s'il a chaque bibliothèque à la bonne version, sinon npm install. */
 function construireWeb(dossier) {
-  const modules = dossiersModules().find((d) => ['vite', 'react', 'react-dom', 'react-router', '@vitejs/plugin-react'].every((m) => existsSync(join(d, m))));
-  // Une icône demande lucide-react : s'il manque à `modules`, un dossier à part reprend chaque paquet de `modules` et une copie de celui de NODE_PATH.
-  const lucide = dossiersModules().find((d) => existsSync(join(d, 'lucide-react')));
-  const besoinLucide = /lucide-react/.test(readFileSync(join(dossier, 'package.json'), 'utf8'));
-  if (modules && besoinLucide && lucide && !existsSync(join(modules, 'lucide-react'))) {
-    mkdirSync(join(dossier, 'node_modules'));
-    for (const entree of readdirSync(modules)) symlinkSync(join(modules, entree), join(dossier, 'node_modules', entree));
-    // Copié, pas lié : lucide-react doit trouver le react du projet, pas celui de son dossier d'origine (deux React, erreur 525).
-    cpSync(join(lucide, 'lucide-react'), join(dossier, 'node_modules', 'lucide-react'), { recursive: true });
-  } else if (modules) symlinkSync(modules, join(dossier, 'node_modules'), 'dir');
-  else execFileSync('npm', ['install', '--no-audit', '--no-fund'], { cwd: dossier, stdio: 'ignore' });
+  const modules = modulesQuiConviennent(dossier, [...dossiersModules(), ...installes]);
+  if (modules) symlinkSync(modules, join(dossier, 'node_modules'), 'dir');
+  else {
+    execFileSync('npm', ['install', '--no-audit', '--no-fund'], { cwd: dossier, stdio: ['ignore', 'ignore', 'inherit'] });
+    installes.push(join(dossier, 'node_modules'));
+  }
   execFileSync('npm', ['run', 'build:sans-prerendu'], { cwd: dossier, stdio: 'inherit' });
 }
 
@@ -367,7 +379,9 @@ async function surLeWeb(exemple, scenarioWeb) {
 }
 
 const { chromium } = chargerPlaywright();
-const navigateur = await chromium.launch();
+// Les visiteurs ne sont pas des navigateurs automatisés : sans ce réglage, navigator.webdriver est vrai
+// dans Chromium piloté, et le web le prend pour le prérendu (langue de base, voir plus haut).
+const navigateur = await chromium.launch({ args: ['--disable-blink-features=AutomationControlled'] });
 try {
   const statique = compiler('statique');
   const a = await servir(statique);
