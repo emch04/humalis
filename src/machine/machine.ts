@@ -138,7 +138,8 @@ export class Machine {
     const { chemin, methode } = requete;
     if (methode === 'GET') {
       if (chemin === '/__machine') return html(200, PANNEAU_HTML);
-      if (chemin === '/__machine/client.js') return script(`${CLIENT_MACHINE_JS}\n${AIDE_REPERES}`);
+      // L'aide « Alt + survol » (le fichier et la ligne d'un élément) a besoin du <body> : elle attend le document.
+      if (chemin === '/__machine/client.js') return script(`${CLIENT_MACHINE_JS}\n(function () {\n  var aide = function () {\n${AIDE_REPERES}\n  };\n  if (document.body) aide(); else addEventListener('DOMContentLoaded', aide);\n})();\n`);
       if (chemin === '/__machine/astratra-client.js') return script(CLIENT_SESSION_JS);
       if (chemin === '/__machine/etat.json') {
         const etat = this.serveur?.etat() ?? { donnees: [], comptes: [], boite: [], limites: [], taches: [], paiements: [] };

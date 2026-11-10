@@ -104,6 +104,7 @@ export const CLIENT_MACHINE_JS = String.raw`// La machine Humalis : rechargement
 
   // Le lien vers le panneau : comptes d'essai, boîte d'envoi, données, ce que la machine ne fait pas.
   addEventListener('DOMContentLoaded', function () {
+    if (window.self !== window.top) return;
     var a = document.createElement('a');
     a.href = '/__machine';
     a.textContent = 'machine Humalis';
