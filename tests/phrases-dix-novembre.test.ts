@@ -187,3 +187,27 @@ describe('« avec adresse par langue »', () => {
     expect(f.get('src/main.tsx')).not.toContain('basename');
   });
 });
+
+describe('les styles écrits en Humalis', () => {
+  const source = programme(
+    'theme :', '>couleur marque "#4b42d6"', '',
+    'style "carte" :', '>fond blanc', '>bord 1 gris clair', '>arrondi 12', '>espace interieur 16', '>ombre douce', '',
+    'style "titre-marque" :', '>couleur marque', '>gras', '',
+    'page "accueil" :', '>titre "Boutique" avec style "titre-marque"', '>bloc avec style "carte" :', '>>texte "Un produit"',
+  );
+  it('deviennent des classes CSS, avec les couleurs du thème', () => {
+    const css = [...web(source).values()].join('\n');
+    expect(css).toContain('.carte { background: #ffffff; border: 1px solid #cfd0d2; border-radius: 12px; padding: 16px; box-shadow:');
+    expect(css).toContain('.titre-marque { color: var(--humalis-marque, #4b42d6); font-weight: 700; }');
+  });
+  it('deviennent des styles natifs sur le téléphone', async () => {
+    const { genererProjetMobile } = await import('../src/cibles/mobile/projet.js');
+    const f = genererProjetMobile(sansErreur(source), { nom: 'a', source: 'a.humalis' } as never);
+    expect(f.get('humalis/styles.ts')).toContain('humalisCarte: { backgroundColor: "#ffffff", borderWidth: 1, borderColor: "#cfd0d2", borderRadius: 12');
+    expect([...f.values()].join('\n')).toContain('style={[s.bloc, s.humalisCarte]}');
+  });
+  it('refusent une propriété inconnue en disant lesquelles existent', () => {
+    const r = compiler(programme('style "carte" :', '>brillance 3', '', 'page "accueil" :', '>titre "a"'));
+    expect(r.diagnostics.map((d) => d.message).join(' ')).toContain('Propriétés possibles : fond, couleur, bord');
+  });
+});

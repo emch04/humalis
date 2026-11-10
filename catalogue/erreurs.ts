@@ -522,6 +522,140 @@ page "accueil" :
     titre "Notes"
 `),
     'dit déjà quelles fiches'),
+  e('style-nom-invalide', 'grammaire', 'Un nom de style mal écrit',
+    'Le nom d’un style sert aussi de classe CSS : des lettres sans accent, des chiffres, - et _.',
+    'Écris par exemple style "carte-produit" :',
+    p(`
+style "carte produit" :
+    fond blanc
+
+page "accueil" :
+    titre "Boutique"
+`),
+    p(`
+style "carte" :
+    fond blanc
+    arrondi 12
+
+page "accueil" :
+    titre "Boutique"
+    bloc avec style "carte" :
+        texte "Un produit"
+`),
+    'ne peut pas nommer un style'),
+  e('style-vide', 'grammaire', 'Un style vide',
+    'Un style écrit en Humalis a ses propriétés en dessous, une par ligne.',
+    'Ajoute au moins une propriété : fond blanc.',
+    p(`
+style "carte" :
+
+page "accueil" :
+    titre "Boutique"
+`),
+    p(`
+style "carte" :
+    fond blanc
+    arrondi 12
+
+page "accueil" :
+    titre "Boutique"
+    bloc avec style "carte" :
+        texte "Un produit"
+`),
+    'est vide'),
+  e('style-propriete-inconnue', 'grammaire', 'Une propriété de style inconnue',
+    'Un style écrit en Humalis connaît : fond, couleur, bord, arrondi, espace interieur, marge, ombre, taille, gras, largeur maximale, alignement.',
+    'Choisis l’une de ces propriétés, ou écris ce réglage dans un fichier CSS.',
+    p(`
+style "carte" :
+    fond blanc
+    brillance 3
+
+page "accueil" :
+    titre "Boutique"
+    bloc avec style "carte" :
+        texte "Un produit"
+`),
+    p(`
+style "carte" :
+    fond blanc
+    arrondi 12
+
+page "accueil" :
+    titre "Boutique"
+    bloc avec style "carte" :
+        texte "Un produit"
+`),
+    "n'est pas une propriété de style", { sites: 2 }),
+  e('style-couleur', 'grammaire', 'Une couleur de style inconnue',
+    'Une couleur s’écrit par son nom (blanc, gris clair, bleu fonce), par une couleur du thème, ou en "#1f5fbf".',
+    'Corrige le nom de la couleur.',
+    p(`
+style "carte" :
+    fond bleuu
+
+page "accueil" :
+    titre "Boutique"
+    bloc avec style "carte" :
+        texte "Un produit"
+`),
+    p(`
+style "carte" :
+    fond blanc
+    arrondi 12
+
+page "accueil" :
+    titre "Boutique"
+    bloc avec style "carte" :
+        texte "Un produit"
+`),
+    "n'est pas une couleur connue", { sites: 4 }),
+  e('style-nombre', 'grammaire', 'Une mesure de style sans nombre',
+    'Les mesures (arrondi, espace interieur, marge, taille, bord…) s’écrivent en nombres de points.',
+    'Écris un nombre : taille 18.',
+    p(`
+style "carte" :
+    taille grande
+
+page "accueil" :
+    titre "Boutique"
+    bloc avec style "carte" :
+        texte "Un produit"
+`),
+    p(`
+style "carte" :
+    fond blanc
+    arrondi 12
+
+page "accueil" :
+    titre "Boutique"
+    bloc avec style "carte" :
+        texte "Un produit"
+`),
+    'attend un nombre', { sites: 2 }),
+  e('style-valeur', 'grammaire', 'Une valeur de style inconnue',
+    '« ombre » attend douce, forte ou aucune ; « alignement », centre, gauche ou droite ; « gras » s’écrit seul.',
+    'Choisis l’une des valeurs proposées.',
+    p(`
+style "carte" :
+    ombre legere
+
+page "accueil" :
+    titre "Boutique"
+    bloc avec style "carte" :
+        texte "Un produit"
+`),
+    p(`
+style "carte" :
+    fond blanc
+    arrondi 12
+
+page "accueil" :
+    titre "Boutique"
+    bloc avec style "carte" :
+        texte "Un produit"
+`),
+    'attend douce, forte ou aucune', { sites: 3 }),
   e('desactive-hors-bouton', 'sens', '« desactive » ailleurs que sur un bouton',
     '« avec desactive » montre un bouton qu’on ne peut pas encore cliquer. Les autres éléments ne se cliquent pas : l’option n’a pas de sens pour eux.',
     'Retire « desactive », ou mets-le sur le bouton concerné.',

@@ -50,6 +50,8 @@ export interface Application {
    * sans bloc (ou avec une seule langue) : le code produit ne change pas.
    */
   langues?: LangueRI[];
+  /** « style "carte" : » : les styles écrits en Humalis, en déclarations CSS ; leur CSS est aussi dans `css`, en dernier. */
+  stylesHumalis?: { nom: string; declarations: [string, string][] }[];
   /** « avec adresse par langue » : la langue se lit dans l'adresse (/en/accueil), une page par langue pour les moteurs de recherche. */
   adresseParLangue?: boolean;
   /** « entete : » et « pied : » : communs à toutes les pages qui ne s'en passent pas. */

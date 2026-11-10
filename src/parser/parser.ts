@@ -1,3 +1,4 @@
+import { analyserStyleHumalis, cssDuStyle, declarationsDuStyle, estStyleHumalis, type StyleHumalis } from './styleHumalis.js';
 import { deplierFonctionsActions } from './fonctionsActions.js';
 import { estSite, analyserSite, estApercu, analyserApercu } from './site.js';
 import { estLangues, analyserLangues, estTraductions, analyserTraductions, lireVersions, estSelecteurLangue } from './langues.js';
@@ -100,7 +101,14 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
 
   flux.sauterFinsDeLigne();
 
+  // « style "carte" : » : lus ici, traduits en CSS à la fin, quand le thème est connu.
+  const stylesHumalis: StyleHumalis[] = [];
   while (!flux.estFini()) {
+    if (estStyleHumalis(flux)) {
+      stylesHumalis.push(analyserStyleHumalis(flux));
+      flux.sauterFinsDeLigne();
+      continue;
+    }
     if (flux.verifier('MOT_CLE', 'style') && flux.regarder(1).valeur === ':') {
       const debut = flux.avancer();
       flux.avancer();
@@ -409,7 +417,10 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
     if (pages.length === 0) throw new ErreurSyntaxique('« menu de l’application » demande au moins une page dans le fichier.', commandesMenu[0].ligne);
     pages[0].corps.push(...commandesMenu);
   }
-  const programme: Programme = { type: 'Programme', pages, ...(fichiersIcones.length ? { fichiersIcones } : {}), ...(barreDessinee ? { barreDessinee } : {}), ...(ongletsApplication ? { ongletsApplication } : {}), ...(barreLaterale ? { barreLaterale } : {}), ...(paquetsSwift ? { paquetsSwift } : {}), ...(liensProfonds ? { liensProfonds } : {}), ...(enTete.length > 0 ? { calculsPartages: enTete } : {}), styles, fichiersStyle, donneesFichiers, partages, composantsReact, composants, serveurs, sources, fichiersHumalis, fonctions, tests, ...(theme ? { theme } : {}), ...(site ? { site } : {}), ...(langues ? { langues } : {}), ...(traductions.length ? { traductions } : {}), ...(entete ? { entete } : {}), ...(pied ? { pied } : {}) };
+  // Les styles écrits en Humalis deviennent des classes CSS, après le CSS écrit à la main.
+  for (const s of stylesHumalis) styles.push({ type: 'BlocStyle', css: cssDuStyle(s, theme), ligne: s.ligne });
+  const stylesDeclares = stylesHumalis.map((s) => ({ nom: s.nom, declarations: declarationsDuStyle(s, theme) }));
+  const programme: Programme = { type: 'Programme', ...(stylesDeclares.length ? { stylesHumalis: stylesDeclares } : {}), pages, ...(fichiersIcones.length ? { fichiersIcones } : {}), ...(barreDessinee ? { barreDessinee } : {}), ...(ongletsApplication ? { ongletsApplication } : {}), ...(barreLaterale ? { barreLaterale } : {}), ...(paquetsSwift ? { paquetsSwift } : {}), ...(liensProfonds ? { liensProfonds } : {}), ...(enTete.length > 0 ? { calculsPartages: enTete } : {}), styles, fichiersStyle, donneesFichiers, partages, composantsReact, composants, serveurs, sources, fichiersHumalis, fonctions, tests, ...(theme ? { theme } : {}), ...(site ? { site } : {}), ...(langues ? { langues } : {}), ...(traductions.length ? { traductions } : {}), ...(entete ? { entete } : {}), ...(pied ? { pied } : {}) };
   // Les appels de fonctions d'actions sont remplacés par leur corps (src/parser/fonctionsActions.ts).
   const actions = deplierFonctionsActions(programme);
   if (actions.length) programme.fonctionsActions = actions;

@@ -8,6 +8,8 @@ export interface Programme {
   calculsPartages?: DeclarationVariable[];
   /** Les blocs « style : », en CSS recopié tel quel. */
   styles: BlocStyle[];
+  /** « style "carte" : » : les styles écrits en Humalis, déjà en déclarations CSS (aussi ajoutés à `styles`). */
+  stylesHumalis?: { nom: string; declarations: [string, string][] }[];
   /** Les « utiliser style "…" » : des fichiers CSS séparés. */
   fichiersStyle: FichierStyle[];
   /** « utiliser icones "./icones.svg" » : les dessins propres au projet. */

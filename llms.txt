@@ -68,6 +68,12 @@ page "accueil" :
 - Une valeur de départ du mauvais type : attend un nombre
 - Une fiche de départ incomplète : cette fiche de départ n'a pas
 - « seul son auteur » avec une condition : dit déjà quelles fiches
+- Un nom de style mal écrit : ne peut pas nommer un style
+- Un style vide : est vide
+- Une propriété de style inconnue : n'est pas une propriété de style
+- Une couleur de style inconnue : n'est pas une couleur connue
+- Une mesure de style sans nombre : attend un nombre
+- Une valeur de style inconnue : attend douce, forte ou aucune
 - « desactive » ailleurs que sur un bouton : s'applique à un bouton
 - Un bouton à icône seule sans nom : a besoin d'un nom
 - Une option sans valeur : une valeur est attendue pour le style
