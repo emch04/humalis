@@ -409,7 +409,10 @@ export class GenerateurMoteur extends GenerateurPage {
           const appel = `await serveur.${action.mode}(${args.join(', ')})`;
           if (lecture) {
             const n = ++this.compteurs.chargeurs;
-            e.bloc(`const $charger${n} = async (contourner = false) => {`, () => this.reponse(e, action.resultat!, appel), '};');
+            e.bloc(`const $charger${n} = async (contourner = false) => {`, () => {
+              this.reponse(e, action.resultat!, appel);
+              if (action.suite) this.ecrireActions(e, action.suite, locales, modif);
+            }, '};');
             if (suivie) e.ligne(`relances.${camel(action.resultat)} = $charger${n};`);
             e.ligne(`await $charger${n}();`);
             if (action.direct) e.ligne(`enDirect(${chaine(action.adresse)}, () => $charger${n}(true));`);
@@ -445,7 +448,7 @@ export class GenerateurMoteur extends GenerateurPage {
       case 'envoiFichier': {
         const suivie = action.resultat !== undefined && (this.ecran.etatsRequetes?.includes(action.resultat) ?? false);
         const options = [
-          `source: ${chaine(action.source)}`,
+          ...(action.source ? [`source: ${chaine(action.source)}`] : []),
           action.corpsBrut ? 'corpsBrut: true' : `champ: ${chaine(action.champ)}`,
           ...(action.suivi !== undefined ? [`progression: (valeur) => { ${this.lu(action.suivi)} = valeur; }`] : []),
           ...(suivie ? [`suivi: (etat) => { ${camel(action.resultat!)}Req.v = etat; }`, 'silencieux: true'] : ['message: afficherMessage']),
@@ -498,6 +501,9 @@ export class GenerateurMoteur extends GenerateurPage {
           e.ligne('const $resultat = await appareil.position();');
           e.ligne(`if ($resultat) ${this.lu(action.variable)} = $resultat;`);
         }, '}');
+        return true;
+      case 'gesteReunion':
+        e.ligne(action.valeur ? `await reunion.rejoindre(${x(action.valeur)});` : `await reunion.${action.geste}();`);
         return true;
       case 'vibration':
         e.ligne('appareil.vibrer();');
@@ -685,7 +691,7 @@ export class GenerateurMoteur extends GenerateurPage {
     const code = this.avecPlanificateur(corps.texte());
     const session = /\butilisateur\.\w+/.test(code);
     return {
-      script: `${/\bappareil\.\w+\(/.test(code) ? "import { appareil } from '../humalis/appareil.js';\n" : ''}${this.entete(code)}
+      script: `${/\breunion\.\w+\(/.test(code) ? "import { reunion } from '../humalis/reunion.js';\n" : ''}${/\bappareil\.\w+\(/.test(code) ? "import { appareil } from '../humalis/appareil.js';\n" : ''}${this.entete(code)}
 
 export default function couche(r, adresse) {
 ${code}}
@@ -1311,7 +1317,7 @@ const TYPES_SAISIE: Partial<Record<string, { type: string; autocomplete?: string
 };
 
 /** Les noms que les pages produites emploient : une variable du programme ne peut pas les cacher. */
-export const NOMS_RESERVES = (): Set<string> => new Set(['appareil', 'r', 'adresse', 'couche', 'relances', 'minuteries', 'raccourcis', 'session', 'valeur', 'evenement', 'etat', ...NOMS_MOTEUR, ...NOMS_OUTILS, ...NOMS_NAV, ...NOMS_ADAPT, ...NOMS_SERVEUR, 'listeDeplacable', 'choixFichier', 'humalisGraphique']);
+export const NOMS_RESERVES = (): Set<string> => new Set(['appareil', 'reunion', 'r', 'adresse', 'couche', 'relances', 'minuteries', 'raccourcis', 'session', 'valeur', 'evenement', 'etat', ...NOMS_MOTEUR, ...NOMS_OUTILS, ...NOMS_NAV, ...NOMS_ADAPT, ...NOMS_SERVEUR, 'listeDeplacable', 'choixFichier', 'humalisGraphique']);
 
 export const ADAPTATEURS = { module: 'monterModule', react: 'monterReact', vue: 'monterVue', svelte: 'monterSvelte', web: 'monterWeb' } as const;
 

@@ -32,6 +32,7 @@ import { outilsJs, navigationJs } from './outils.js';
 import { adaptateursJs, baliseDe, paquetsDesExternes, sorteDe } from './adaptateurs.js';
 import { serveurJs } from './serveur.js';
 import { APPAREIL_JS, utiliseAppareil } from '../commun/appareil-web.js';
+import { REUNION_JS, VERSION_LIVEKIT_WEB, utiliseReunion } from './temps-reel.js';
 import { donneesDansLaPage } from './lecture-construction.js';
 import { DEPLACEMENT_JS, CHOIX_FICHIER_JS } from './interactions.js';
 
@@ -343,6 +344,7 @@ document.title = ${traduit('Page introuvable')};
   fichiers.set('public/humalis/reprise.js', `${REPRISE_DES_CLICS}\n`);
   if (application.serveurs.some((s) => s.activeNotifications)) fichiers.set('public/humalis/notifications.js', TRAVAILLEUR_NOTIFICATIONS);
   fichiers.set('src/humalis/moteur.js', MOTEUR_JS);
+  if (utiliseReunion(application)) fichiers.set('src/humalis/reunion.js', REUNION_JS);
   if (utiliseAppareil(application)) {
     fichiers.set('src/humalis/appareil.js', APPAREIL_JS);
     site.push("import './appareil.js';\nimport { afficherMessage } from './outils.js';\nwindow.addEventListener('humalis:message', (e) => afficherMessage(e.detail.texte, e.detail.genre));");
@@ -419,6 +421,7 @@ document.title = ${traduit('Page introuvable')};
   const dependances = {
     ...paquets.dependances,
     ...(surveillee ? { '@astratra/centrale': VERSIONS.centrale } : {}),
+    ...(utiliseReunion(application) ? { 'livekit-client': VERSION_LIVEKIT_WEB } : {}),
     ...(sessionDuServeur ? { '@astratra/client': VERSIONS.client } : {}),
   };
   fichiers.set('package.json', JSON.stringify({

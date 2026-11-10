@@ -2442,7 +2442,7 @@ function arrete(actions: Action[]): boolean {
   return actions.some((a) => a.type === 'arreter' || (!['repetition', 'tantQue', 'repeter', 'minuterie', 'message'].includes(a.type) && sousActions(a).some(arrete)));
 }
 
-const ATTENTES = new Set<Action['type']>(['requete', 'recharger', 'suppression', 'modification', 'connexion', 'connexionGoogle', 'connexionApple', 'invitation', 'changementRole', 'changementCompte', 'activationNotifications', 'demandeIa', 'paiement', 'prisePhoto', 'scanCode', 'localisation', 'verificationIdentite', 'demandeLienMotDePasse', 'choixMotDePasse', 'changementMotDePasse', 'telechargementBon', 'deconnexion', 'envoiFichier', 'confirmation', 'copie', 'partage', 'telechargementCsv']);
+const ATTENTES = new Set<Action['type']>(['gesteReunion', 'requete', 'recharger', 'suppression', 'modification', 'connexion', 'connexionGoogle', 'connexionApple', 'invitation', 'changementRole', 'changementCompte', 'activationNotifications', 'demandeIa', 'paiement', 'prisePhoto', 'scanCode', 'localisation', 'verificationIdentite', 'demandeLienMotDePasse', 'choixMotDePasse', 'changementMotDePasse', 'telechargementBon', 'deconnexion', 'envoiFichier', 'confirmation', 'copie', 'partage', 'telechargementCsv']);
 
 /** Les noms changés par des actions : affectations, ajouts, retraits, réponses. */
 function modifiees(actions: Action[], noms = new Set<string>()): Set<string> {

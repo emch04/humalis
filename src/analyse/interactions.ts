@@ -8,6 +8,7 @@
  * la ligne. Il vit à part pour que les chantiers de l'analyse ne se marchent
  * pas dessus.
  */
+import { estRouteTempsReel } from './temps-reel.js';
 import type {
   Action,
   Boucle,
@@ -337,7 +338,7 @@ function verifierPauseSaisie(hote: Hote, evenement: Evenement): void {
 /** « ecrit dans "x" » qui envoie une requête : une requête par touche. */
 function avertirSaisie(hote: Hote, evenement: Evenement, motDePasse: boolean): void {
   const toutes = parcourir(evenement.corps);
-  const envoie = toutes.some((i) => i.type === 'Requete' || i.type === 'Rechargement');
+  const envoie = toutes.some((i) => (i.type === 'Requete' && !estRouteTempsReel(i.adresse)) || i.type === 'Rechargement');
   if (motDePasse && envoie) {
     hote.avertissement('ce que la personne tape dans un mot de passe ne doit pas partir sur le réseau à chaque touche : vérifiez-le à l’envoi du formulaire.', evenement.ligne);
   } else if (evenement.genre === 'saisie' && envoie) {

@@ -7,6 +7,8 @@ import type { Action } from './types.js';
  */
 export function sousActions(action: Action): Action[][] {
   switch (action.type) {
+    case 'requete':
+      return action.suite ? [action.suite] : [];
     case 'optimiste':
       return [action.corps];
     case 'essayer':

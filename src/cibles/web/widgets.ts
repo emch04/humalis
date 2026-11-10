@@ -121,6 +121,8 @@ export const WIDGETS_WEB: RenduWidgets = {
   widget(w) {
     const description = attribut('aria-label', w.reglages.description, w.reglages.descriptionLangues);
     switch (w.genre) {
+      case 'reunion':
+        return '';
       case 'icone': {
         const composant = composantIcone(w.texte ?? '');
         const role = w.reglages.description && !w.reglages.decoratif ? ` role="img"${description}` : ' aria-hidden="true"';

@@ -14,6 +14,7 @@ import { estUnTest, analyserTest } from './test.js';
 import { normaliser } from '../lexer/motsCles.js';
 import { langueDuStyle, PLATEFORMES_DU_STYLE } from '../cibles/commun/styles-natifs.js';
 import { analyserForme, estUneForme, formesVides, variableDeDonneeLocale } from './formes.js';
+import { analyserEnLigne, analyserEtatReunion, analyserEvenementTempsReel, analyserPhraseServeurTempsReel, analyserPhraseTempsReel, analyserValeurTempsReel, commencerPage, estPhraseServeurTempsReel, finirPage, lireProgramme } from './temps-reel.js';
 import { entreePrevue } from '../vocabulaire/recherche.js';
 import { langueDuMot } from '../i18n/langues.js';
 import { estMot } from './miseEnPage.js';
@@ -71,6 +72,10 @@ import type {
   Connexion, ConnexionGoogle, ConnexionApple, ChangementMotDePasse, Invitation, ChangementRole, ChangementCompte, ResumeServeur, DroitIa, DemandeIa, Paiement, ApresPaiement, FaireAction, TelechargementDocument, DocumentServeur, ActionServeur, TachePlanifiee, EnvoiNotification, ConditionRegle, OperandeRegle, DemandeLienMotDePasse, ChoixMotDePasse, ApresCreation, EnvoiEmail, CreationLiee, RegleChamp, ValeurFixe, TelechargementBon, TelechargementCsv, Fidelite, Suppression, Modification, EnvoiFichier, ArgumentPage } from './ast.js';
 
 export function analyserSyntaxe(tokens: Token[]): Programme {
+  return lireProgramme(() => lireLeProgramme(tokens));
+}
+
+function lireLeProgramme(tokens: Token[]): Programme {
   const flux = new FluxTokens(tokens);
   const pages: Page[] = [];
   const styles: BlocStyle[] = [];
@@ -599,8 +604,15 @@ function analyserServeur(flux: FluxTokens): Serveur {
   let droitIa: DroitIa | undefined;
   const departs: NonNullable<Serveur['departs']> = [];
 
+  const discussions: NonNullable<Serveur['discussions']> = [];
+  const salles: NonNullable<Serveur['salles']> = [];
+
   chaqueLigne(flux, () => {
     const token = flux.actuel();
+    if (estPhraseServeurTempsReel(flux)) {
+      analyserPhraseServeurTempsReel(flux, { donnees, routes, discussions, salles });
+      return;
+    }
     // « donnees de depart pour produit : » puis une fiche par ligne : « nom "Café", prix 3 ».
     if ((estLeMot(token, 'donnees') || estLeMot(token, 'donnee')) && estLeMot(flux.regarder(1), 'depart')) {
       flux.avancer();
@@ -737,6 +749,8 @@ function analyserServeur(flux: FluxTokens): Serveur {
     donnees,
     routes,
     ...(departs.length ? { departs } : {}),
+    ...(discussions.length ? { discussions } : {}),
+    ...(salles.length ? { salles } : {}),
     ...(connexionGoogle !== undefined ? { connexionGoogle } : {}),
     ...(connexionApple !== undefined ? { connexionApple } : {}),
     ...(connexionCleAcces !== undefined ? { connexionCleAcces } : {}),
@@ -1285,7 +1299,8 @@ function analyserPage(flux: FluxTokens): Page {
   }
   flux.attendre('PONCTUATION', ':', 'deux-points après le nom de la page');
 
-  const corps = analyserBloc(flux);
+  const pageAvant = commencerPage();
+  const corps = finirPage(analyserBloc(flux), nom.valeur, pageAvant, debut.ligne);
 
   // Un morceau « :slug » de l'adresse choisie déclare le paramètre de la page.
   for (const morceau of entete.adresse?.matchAll(/:([A-Za-z_]\w*)/g) ?? []) {
@@ -1464,7 +1479,9 @@ export function analyserBloc(flux: FluxTokens): Instruction[] {
   flux.sauterFinsDeLigne();
 
   while (!flux.verifier('DEDENT') && !flux.estFini()) {
-    instructions.push(analyserInstruction(flux));
+    const plusieurs = flux.verifier('MOT_CLE', 'quand') ? analyserEvenementTempsReel(flux) : analyserPhraseTempsReel(flux);
+    if (plusieurs) instructions.push(...plusieurs);
+    else instructions.push(analyserInstruction(flux));
     flux.sauterFinsDeLigne();
   }
 
@@ -2727,6 +2744,8 @@ function analyserEt(flux: FluxTokens, continuer: () => boolean = () => true): Te
 }
 
 function analyserComparaison(flux: FluxTokens): Comparaison {
+  const etatReunion = analyserEtatReunion(flux);
+  if (etatReunion) return etatReunion;
   // « si non actif : » : le contraire d'une valeur ; « si non prix est egal a 1 » : d'une comparaison.
   if (estLeMot(flux.actuel(), 'non')) {
     flux.avancer();
@@ -2829,6 +2848,8 @@ function nier(comparaison: Comparaison): Comparaison {
 
 /** Ce qui suit « est » dans une comparaison. */
 function analyserApresEst(flux: FluxTokens, gauche: Expression): Comparaison {
+  const enLigne = analyserEnLigne(flux, gauche);
+  if (enLigne) return enLigne;
 
   // « produits est en chargement », « est en erreur », « est introuvable » : l'état d'une requête.
   if (gauche.type === 'Reference') {
@@ -3068,6 +3089,9 @@ function analyserFacteur(flux: FluxTokens): Expression {
 
 function analyserFacteurSeul(flux: FluxTokens): Expression {
   const token = flux.actuel();
+
+  const tempsReel = analyserValeurTempsReel(flux);
+  if (tempsReel) return tempsReel;
 
   // « champ "Confirme" » partout où une valeur est attendue : à droite d'une comparaison,
   // dans « avec telephone = champ "Téléphone" », dans un calcul.

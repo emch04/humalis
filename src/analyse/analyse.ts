@@ -1,5 +1,6 @@
 import { analyserPublication } from './site.js';
 import { analyserFormes } from './formes.js';
+import { analyserTempsReel, estRouteTempsReel } from './temps-reel.js';
 import { estStyleDefini } from '../cibles/commun/styles-natifs.js';
 import { analyserLangues, type LanguesDuProgramme } from './langues.js';
 import { langueDuMot } from '../i18n/langues.js';
@@ -439,6 +440,7 @@ export function analyserSens(programme: Programme, classesCss?: Set<string>): Re
   }
 
   // Les formes d'application spéciales : leurs corps s'analysent comme des pages.
+  analyserTempsReel(programme, resultat.diagnostics);
   resultat.pagesFormes = analyserFormes(programme, (page) => new AnalysePage(page, nomsPages, resultat, classes, partages, composants, [], liens, fonctions).analyser(), resultat.diagnostics);
 
   for (const page of programme.pages) {
@@ -917,6 +919,7 @@ class AnalysePage {
           );
         }
         this.requete(instruction);
+        if (instruction.suite) this.sousBloc(instruction.suite, contexte, place);
         return;
 
       case 'Element':
@@ -1065,6 +1068,11 @@ class AnalysePage {
       case 'VerificationIdentite':
       case 'Vibration':
         this.fonctionAppareil(instruction, contexte, place);
+        return;
+
+      case 'GesteReunion':
+        if (contexte === 'vue') this.horsEvenement('geste de réunion', instruction.ligne);
+        if (instruction.valeur) this.typeDe(instruction.valeur);
         return;
 
       // « commencer activite "livraison" », « terminer activite … » : le nom est vérifié avec les formes.
@@ -1987,6 +1995,8 @@ class AnalysePage {
       this.comparaison(test.droite);
       return;
     }
+    // « contact est en ligne » : une fiche se reconnaît à son identifiant.
+    if (test.enLigne && this.typeDe(test.gauche).genre === 'donnee') test.gauche = { type: 'AccesChamp', objet: test.gauche, champ: 'id', ligne: test.ligne };
     const gauche = this.typeDe(test.gauche);
     const droite = test.droite ? this.typeDe(test.droite) : INCONNU;
 
@@ -2627,7 +2637,7 @@ class AnalysePage {
     if (requete.enAttente && (requete.source !== undefined || requete.donnees.length === 0 || requete.resultat !== undefined)) {
       this.erreur('« hors ligne » se met sur un envoi vers une route du serveur de ce fichier, sans « dans » : la réponse n’arrivera que plus tard.', requete.ligne);
     }
-    if (requete.direct && (requete.source !== undefined || requete.donnees.length > 0 || requete.resultat === undefined)) {
+    if (requete.direct && !estRouteTempsReel(requete.adresse) && (requete.source !== undefined || requete.donnees.length > 0 || requete.resultat === undefined)) {
       this.erreur('« en direct » se met sur une lecture d’une route du serveur de ce fichier : envoyer requete vers "commandes" dans commandes en direct.', requete.ligne);
     }
     if (requete.direct) this.resultat.directs.add(adresseNormalisee(requete.adresse));
@@ -2660,6 +2670,16 @@ class AnalysePage {
 
     const route = this.routeDe(requete);
     if (!route) return;
+    // Les routes du temps réel se gardent elles-mêmes et acceptent une fiche à la place d'un identifiant.
+    if (estRouteTempsReel(requete.adresse)) {
+      if (requete.parId) this.resultat.lecturesUn.add(requete);
+      const type: TypeValeur = requete.parId || requete.donnees.length > 0 ? { genre: 'donnee', nom: route.donnee.nom } : listeDe({ genre: 'donnee', nom: route.donnee.nom });
+      if (symbole && (!estConnu(symbole.type) || (symbole.type.genre === 'liste' && !estConnu(symbole.type.de)))) {
+        symbole.type = type;
+        if (symbole.origine) this.resultat.types.set(symbole.origine, type);
+      }
+      return;
+    }
     if (requete.parId && !this.idEstUnTexte(types[0], requete)) return;
 
     // « avec id dans produit », dans une page à paramètre (ou « avec id c.produit ») : un seul élément, lu par son identifiant.
@@ -3142,6 +3162,8 @@ function actionInterditeDansUneFonction(instruction: Instruction): string | unde
       return 'verifier identite';
     case 'Vibration':
       return 'vibrer';
+    case 'GesteReunion':
+      return 'geste de réunion';
     case 'CommencerActivite':
       return 'commencer activite';
     case 'TerminerActivite':

@@ -155,7 +155,7 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[], pag
         couvertes.add('supprimer');
       }
       const refusees = ACTIONS.filter((a) => !couvertes.has(a));
-      if (refusees.length > 0) {
+      if (refusees.length > 0 && !route.interne) {
         avertissement(`personne ne peut ${refusees.join(', ')} « ${servie} » : ces actions seront refusées.`, route.ligne);
       }
     }
@@ -209,7 +209,7 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[], pag
   }
 
   for (const donnee of serveur.donnees) {
-    if (!servies.has(donnee.nom) && !donnee.comptes) avertissement(`aucune route ne donne accès à la donnée « ${donnee.nom} ».`, donnee.ligne);
+    if (!servies.has(donnee.nom) && !donnee.comptes && !donnee.reponseSeule) avertissement(`aucune route ne donne accès à la donnée « ${donnee.nom} ».`, donnee.ligne);
   }
 }
 

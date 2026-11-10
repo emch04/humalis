@@ -81,6 +81,8 @@ export const WIDGETS_MOBILE: RenduWidgets = {
     const etiquette = w.reglages.descriptionLangues ? `{${messageEnCode(w.reglages.descriptionLangues, chaine)}}` : JSON.stringify(w.reglages.description);
     const description = w.reglages.description && !w.reglages.decoratif ? ` accessibilityLabel=${etiquette}` : '';
     switch (w.genre) {
+      case 'reunion':
+        return '';
       case 'icone':
         return `<Icone icone={${composantIcone(w.texte ?? '')}}${taille(w) ? ` taille="${taille(w)}"` : ''}${description} />`;
       case 'badge':
