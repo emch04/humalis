@@ -2454,6 +2454,13 @@ for the sandbox). Android goes through Firebase Cloud Messaging: compile the app
 `--firebase google-services.json` (downloaded from the Firebase console), and give the server
 `HUMALIS_FCM_COMPTE`, the service account's JSON file (as is or in base 64).
 
+With `et boutons "Accepter" et "Refuser"` (three at most), the notification carries its
+buttons: on iPhone, a `humalis.boutons.Accepter|Refuser` category; on Android, a data
+message that the app builds itself. `mettre a jour activite "livraison" pour
+commande.client` makes these accounts' live activity refresh while the app is closed: on
+iPhone through the activity's token (which the app sends to `/auth/activites`), on Android
+through a Firebase data message.
+
 #### Device features
 
 On the Apple target, a page can use the device. These phrases are written in an event,
@@ -3788,6 +3795,16 @@ The whole language works on Android, as on Apple:
 - **Native components**: `actualiser en tirant` becomes pulling the page down,
   `action en glissant` slides the row to the left, `menu d'options` opens on a long press
   (TalkBack offers these actions too) and `etat vide` shows its icon in the middle.
+- **App forms** (see “App-only forms”): the widget (Glance, refreshed by
+  WorkManager and when leaving the app), received shares, opened files, the icon's
+  shortcuts, the Quick Settings tile, the keyboard, the live activity (an ongoing
+  notification with its progress, promoted on Android 16) and notification buttons.
+  `sur montre` pages form a Wear OS module (`montre/`) and `sur tele` pages an Android TV
+  module (`tele/`), driven by touch or by the remote. Voice commands go through Google
+  Assistant's App Actions, which take no reply to speak: the app opens, shows the
+  sentence and reads it aloud. System search stores the records in AppSearch, which the
+  launcher may or may not show. Android Auto shows the list; Google must approve the app
+  before it is published.
 - **Sources**: a source with a secret key goes through the server's gateway, with the
   session; the key never ships with the app.
 
