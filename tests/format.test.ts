@@ -52,7 +52,7 @@ describe('format français — les outils', () => {
 describe('format français — la représentation intermédiaire', () => {
   it('chaque {…} d’un texte sait s’il est un nombre ou une date', () => {
     const vue = application().ecrans[0].vue;
-    expect(vue[0]).toMatchObject({ contenu: { parties: [{ texte: 'Total : ' }, { variable: 'total', format: 'nombre' }, { texte: ' FC' }] } });
+    expect(vue[0]).toMatchObject({ contenu: { parties: [{ texte: 'Total\u00a0: ' }, { variable: 'total', format: 'nombre' }, { texte: ' FC' }] } });
     const ligne = (vue[1] as Extract<typeof vue[number], { type: 'repetition' }>).corps[0];
     expect(ligne).toMatchObject({
       contenu: {
@@ -74,7 +74,7 @@ describe('format français — ce que produit chaque cible', () => {
   it('web : formaterNombre et formaterDate, pris dans humalis/outils', () => {
     const fichiers = genererProjetWeb(application(), { nom: 'resto', adresse: 'https://resto.exemple.cd', source: 'resto.humalis' });
     const page = fichiers.get('src/pages/Accueil.tsx')!;
-    expect(page).toContain('`Total : ${formaterNombre(total)} FC`');
+    expect(page).toContain('`Total\u00a0: ${formaterNombre(total)} FC`');
     expect(page).toContain('`${r.nom}, le ${formaterDate(r.jour)}, ${formaterNombre(r.personnes)} personnes`');
     expect(page).toContain("import { formaterDate, formaterNombre } from '../humalis/outils';");
     expect(fichiers.get('src/humalis/outils.ts')).toContain('export function formaterNombre(');
@@ -88,7 +88,7 @@ describe('format français — ce que produit chaque cible', () => {
 
   it('site statique : le HTML de départ est déjà au format français, comme le premier dessin', () => {
     const fichiers = genererProjetStatique(application(), { nom: 'resto', source: 'resto.humalis' });
-    expect(fichiers.get('index.html')).toContain('Total : 28 000 FC');
+    expect(fichiers.get('index.html')).toContain('Total\u00a0: 28 000 FC');
     expect(fichiers.get('humalis/humalis.js')).toContain('function formaterNombre(');
     expect([...fichiers.values()].join('\n')).toContain('${formaterNombre(total)}');
   });

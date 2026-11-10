@@ -92,7 +92,7 @@ describe('fonctions — ce que produit chaque cible', () => {
     const html = fichiers.get('index.html')!;
     expect(html).toContain('<script src="fonctions.js" defer></script>');
     // 20000 × 1,16 = 23 200 ; moins 10 % : 20 880.
-    expect(html).toContain('À payer : 20 880 FC');
+    expect(html).toContain('À payer\u00a0: 20 880 FC');
   });
 
   it('sans fonction, aucun fichier de plus', () => {
