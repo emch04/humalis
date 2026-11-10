@@ -579,8 +579,23 @@ On its platform, the native style wins over the Humalis style or the CSS of the 
 elsewhere nothing changes. A file for `sur ios` or `sur macos` only is added on top of the
 translated style on that device, without replacing it. In a `dessinee pour` page, the
 native style is added on top of the CSS drawing. An error in the file stops the project
-build (Xcode or `dotnet build`), with its line. On Android it will be a Kotlin file
-(`fun Modifier.carte(): Modifier`); the Android target does not read it yet.
+build (Xcode, Gradle or `dotnet build`), with its line.
+
+On Android, a style is a `Modifier` extension named like the style (`carte` → `carte`,
+`bouton-principal` → `boutonPrincipal`), in a `.kt` file given with
+`utiliser style "./styles/android.kt" sur android`. Humalis places the file in the app's
+package: do not write a `package` line in it.
+
+```kotlin
+fun Modifier.carte(): Modifier = this
+    .shadow(4.dp, RoundedCornerShape(12.dp))
+    .background(Color.White, RoundedCornerShape(12.dp))
+    .padding(16.dp)
+```
+
+A block dressed by a Kotlin style keeps the width of its content: add `.fillMaxWidth()`
+to the style to make it full width. Under Compose, a button's color goes through its
+parameters, not through a `Modifier`.
 
 One block can target several platforms: join them with `et`.
 
@@ -3470,11 +3485,12 @@ components to import into an existing React project.
 ### A hand-written native view
 
 When Humalis cannot draw something yet, write that piece in the platform's own
-language: Swift for iPhone, iPad and Mac, C# for Windows. No React, no browser:
+language: Swift for iPhone, iPad and Mac, Kotlin for Android, C# for Windows. No React,
+no browser:
 each app stays native. One line gives the view for each platform:
 
 ```humalis
-utiliser composant "Carte" sur apple "./natif/Carte.swift" et sur windows "./natif/Carte.cs"
+utiliser composant "Carte" sur apple "./natif/Carte.swift" et sur android "./natif/Carte.kt" et sur windows "./natif/Carte.cs"
 
 page "accueil" :
     Carte avec titre "Coffee" et prix 3.5
@@ -3514,8 +3530,18 @@ false a `Bool` (`bool`). A C# parameter with a default value may be left out of 
 page. On Windows, the view is created again when a value it receives changes. An
 unknown property, or a missing parameter, is reported at compile time.
 
-A platform without its view stops with the line to add: here, the Android app and
-the website have no "Carte". For the website, write the component in Humalis
+On Android, a `@Composable` function with the same name, in a `.kt` file that Humalis
+places in the app's package (no `package` line to write):
+
+```kotlin
+@Composable
+fun Carte(titre: String, prix: Double, promo: Boolean = false) {
+    Column { Text(titre, style = MaterialTheme.typography.titleLarge); Text("%.2f €".format(prix)) }
+}
+```
+
+A platform without its view stops with the line to add: here, the website has no
+"Carte". For the website, write the component in Humalis
 (`composant "Carte" :`), or a JavaScript module: `utiliser module "Carte" depuis
 "./modules/Carte.js"`, followed by the same `sur …`.
 
@@ -3639,7 +3665,7 @@ target, the compiler says so clearly instead of producing something wrong.
 | `memorisee en secret` | no | no | yes | yes | yes (Keychain) | yes (Keystore) | yes (encrypted by Windows) |
 | `essayer` | yes | no | yes | yes | yes | yes | yes |
 | Keyboard shortcuts | yes | yes | no | yes | yes | yes (keyboard attached) | yes |
-| Hand-written native view | no | no | no | no | yes (Swift, `sur apple`) | not yet | yes (C#, `sur windows`) |
+| Hand-written native view | no | no | no | no | yes (Swift, `sur apple`) | yes (Kotlin, `sur android`) | yes (C#, `sur windows`) |
 | React components (older projects) | yes | no | yes (in React Native) | yes | no | no | no |
 | The engine without React (the default) | yes | no | no | yes (except a React component or `memorisee en secret`) | no | no | no |
 | Charts, maps, audio, video, files | yes | yes | partly | yes | yes | yes | yes |

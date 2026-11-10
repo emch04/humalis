@@ -14,6 +14,8 @@ import { chaineKotlin, cleJson, nomComposant, nomKotlin } from './noms.js';
 import type { CssAndroid, StyleCompose } from './css.js';
 import { modificateurs, styleTexte, type SorteVue } from './styles.js';
 import { nomEtatRequete, Valeurs, type Portee } from './valeurs.js';
+import { convertirKt, parametreKt, type VueNatifKt } from './natifs.js';
+import { nomStyleNatif } from '../commun/styles-natifs.js';
 
 /** Ce que toutes les pages partagent. */
 export interface ContexteAndroid {
@@ -29,6 +31,10 @@ export interface ContexteAndroid {
   composants: Map<string, { nom: string; type: unknown }[]>;
   /** Les composants React : refusés une fois par la vérification du projet. */
   composantsReact: Set<string>;
+  /** Les vues Kotlin écrites à la main (« sur android "Carte.kt" »), lues dans leur fichier. */
+  natifs?: Map<string, VueNatifKt>;
+  /** Les styles écrits en Kotlin (« utiliser style "android.kt" sur android ») : Carte → « carte » (fun Modifier.carte()). */
+  stylesNatifs?: Map<string, string>;
   /** Le CSS du projet : le commun, puis « sur application », puis « sur android ». */
   css: CssAndroid;
   /** La clé sous laquelle une variable « avec memorisee » est gardée. */
@@ -42,6 +48,8 @@ export interface ContexteAndroid {
   /** Les icônes employées, dessinées dans Icones.kt. */
   icones: Set<string>;
   refuser(ligne: number, message: string): void;
+  /** Une erreur dite telle quelle (le message est complet). */
+  erreur(ligne: number, message: string): void;
   avertir(ligne: number, message: string): void;
 }
 
@@ -589,6 +597,8 @@ export class GenerateurPage implements HoteActions {
         return;
       }
       case 'composant': {
+        const natif = this.app.natifs?.get(noeud.nom);
+        if (natif) return this.ecrireVueKotlin(e, noeud, natif);
         const parametres = this.app.composants.get(noeud.nom);
         // Un composant React est déjà refusé, une fois, par la vérification du projet.
         if (!parametres) return this.app.composantsReact.has(noeud.nom) ? undefined : this.refuser(`le composant « ${noeud.nom} », inconnu ici,`);
@@ -722,9 +732,39 @@ export class GenerateurPage implements HoteActions {
     return `t(mapOf(${versions.map((v) => `${chaineKotlin(v.code)} to ${chaineKotlin(v.texte)}`).join(', ')}))`;
   }
 
-  /** Ce que le CSS des classes donne à cet élément. */
+  /**
+   * Ce que le CSS des classes donne à cet élément. Un style écrit en Kotlin (« fun Modifier.carte() ») passe
+   * avant le CSS traduit de la même classe : il est posé en premier, autour de l'élément.
+   */
   private css(classes: string[] | undefined, sorte: 'texte' | 'bouton' | 'bloc' | 'autre'): StyleCompose {
-    return this.app.css.style(classes ?? [], sorte);
+    const table = this.app.stylesNatifs;
+    const natives = (classes ?? []).flatMap((c) => {
+      const fonction = table?.get(nomStyleNatif(c.replace(/^android:/, '')));
+      return fonction ? [{ classe: c, fonction }] : [];
+    });
+    const style = this.app.css.style((classes ?? []).filter((c) => !natives.some((n) => n.classe === c)), sorte);
+    return natives.length ? { ...style, dehors: natives.map((n) => `.${n.fonction}()`).join('') + style.dehors } : style;
+  }
+
+  /** Une vue Kotlin écrite à la main : les propriétés de la page passent par leur nom, au type de ses paramètres. */
+  private ecrireVueKotlin(e: EcrivainKotlin, noeud: Extract<NoeudVue, { type: 'composant' }>, vue: VueNatifKt): void {
+    const donnes = new Set<string>();
+    const args: string[] = [];
+    for (const p of noeud.proprietes) {
+      const parametre = parametreKt(vue, p.nom);
+      if (!parametre) {
+        this.app.erreur(noeud.ligne, `« ${p.nom} » n'est pas un paramètre de la vue Kotlin « ${noeud.nom} » (paramètres : ${vue.parametres.map((x) => x.nom).join(', ') || 'aucun'}).`);
+        return;
+      }
+      donnes.add(parametre.nom);
+      args.push(`${parametre.nom} = ${convertirKt(this.valeurs.x(p.valeur), parametre.genre)}`);
+    }
+    const manquants = vue.parametres.filter((p) => !p.facultatif && !donnes.has(p.nom)).map((p) => `« ${p.nom} »`);
+    if (manquants.length) {
+      this.app.erreur(noeud.ligne, `la vue Kotlin « ${noeud.nom} » attend aussi ${manquants.join(', ')} : donnez-${manquants.length > 1 ? 'les' : 'le'} dans la page, ou une valeur par défaut dans la fonction.`);
+      return;
+    }
+    e.ligne(`${vue.nom}(${args.join(', ')})`);
   }
 
   private icone(nom: string, description = 'null', taille = 20, teinte?: string): string {

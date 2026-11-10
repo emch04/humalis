@@ -68,7 +68,7 @@ zipStoreBase=GRADLE_USER_HOME
 zipStorePath=wrapper/dists
 `;
 
-export function constructionApp(identifiant: string, nomAffiche: string, avec: { appareil?: boolean; scanner?: boolean; qr?: boolean; lecteurs?: boolean; cartes?: boolean; google?: boolean; apple?: boolean; travail?: boolean; notifications?: boolean } = {}): string {
+export function constructionApp(identifiant: string, nomAffiche: string, avec: { appareil?: boolean; scanner?: boolean; qr?: boolean; lecteurs?: boolean; cartes?: boolean; google?: boolean; apple?: boolean; travail?: boolean; notifications?: boolean; paquets?: { nom: string; version: string }[] } = {}): string {
   return `// Produit par Humalis.
 plugins {
     id("com.android.application")
@@ -119,7 +119,7 @@ ${avec.appareil ? `    implementation("androidx.biometric:biometric:${VERSIONS.b
 ` : ''}${avec.apple ? `    implementation("androidx.browser:browser:${VERSIONS.navigateur}")
 ` : ''}${avec.travail ? `    implementation("androidx.work:work-runtime-ktx:${VERSIONS.travail}")
 ` : ''}${avec.notifications ? `    implementation("com.google.firebase:firebase-messaging:${VERSIONS.firebase}")
-` : ''}    debugImplementation("androidx.compose.ui:ui-tooling")
+` : ''}${(avec.paquets ?? []).map((p) => `    // « paquet android » : pour les vues et les styles écrits à la main.\n    implementation(${JSON.stringify(`${p.nom}:${p.version}`)})\n`).join('')}    debugImplementation("androidx.compose.ui:ui-tooling")
 }
 `;
 }

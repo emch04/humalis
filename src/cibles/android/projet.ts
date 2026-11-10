@@ -27,6 +27,7 @@ import { iconesKotlin } from './icones.js';
 import { chaineKotlin, identifiantAndroid, nomApplication, nomComposant, nomKotlin, nomRoute } from './noms.js';
 import { GenerateurPage, type ContexteAndroid } from './page.js';
 import { Valeurs, type Portee } from './valeurs.js';
+import { dansLePaquet, lireVueNatifKt, stylesKotlinNommes, type VueNatifKt } from './natifs.js';
 
 export const MARQUE_ANDROID = '.humalis-projet';
 
@@ -48,6 +49,8 @@ export interface OptionsAndroid {
   polices?: Map<string, string>;
   /** Le contenu des fichiers CSS du projet (« utiliser style "…" », avec ou sans « sur android »). */
   fichiersStyle?: Map<string, string>;
+  /** Les vues Kotlin écrites à la main (« sur android "Carte.kt" »), par nom de composant : leur fichier. */
+  natifs?: Map<string, { nom: string; contenu: string }>;
 }
 
 const PAS_ENCORE = "cela n'est pas encore disponible sur la cible Android";
@@ -70,8 +73,7 @@ function verifier(application: Application): Diagnostic[] {
   for (const c of application.composantsReact) {
     // Une vue Kotlin écrite à la main (« sur android "….kt" ») n'est pas encore branchée ; sans elle, rien à montrer.
     if (!utilises.has(c.nom)) continue;
-    if (c.android === undefined) d.push({ gravite: 'erreur', ligne: c.ligne, message: `le composant « ${c.nom} » n'a pas de vue Kotlin pour Android, qui n'exécute pas de JavaScript : écrivez-le en Humalis (« composant "${c.nom}" : »).` });
-    else refuser(c.ligne, `la vue Kotlin du composant « ${c.nom} » (« sur android "${c.android}" »)`);
+    if (c.android === undefined) d.push({ gravite: 'erreur', ligne: c.ligne, message: `le composant « ${c.nom} » n'a pas de vue Kotlin pour Android, qui n'exécute pas de JavaScript : ajoutez « sur android "./natif/${c.nom}.kt" » à sa ligne « utiliser ${c.module ? 'module' : 'composant'} », ou écrivez-le en Humalis (« composant "${c.nom}" : »).` });
   }
   for (const e of application.ecrans) {
     const parent = e.parent !== undefined ? application.ecrans.find((x) => x.nom === e.parent) : undefined;
@@ -515,6 +517,28 @@ export function genererProjetAndroid(application: Application, options: OptionsA
   const fichiers = new Map<string, string>();
   const ecrireCode = (fichier: string, contenu: string) => fichiers.set(`${dossierCode}/${fichier}`, contenu);
 
+  // Les vues et les styles écrits à la main en Kotlin : lus ici, recopiés dans le paquet de l'application.
+  const natifs = new Map<string, VueNatifKt>();
+  for (const c of application.composantsReact) {
+    const fichier = c.android !== undefined ? options.natifs?.get(c.nom) : undefined;
+    if (!fichier) continue;
+    const vue = lireVueNatifKt(c.nom, fichier.contenu);
+    if (typeof vue === 'string') diagnostics.push({ gravite: 'erreur', ligne: c.ligne, message: `${c.android} : ${vue}` });
+    else {
+      natifs.set(c.nom, vue);
+      ecrireCode(`natif/${fichier.nom}`, dansLePaquet(fichier.contenu, paquet));
+    }
+  }
+  const stylesNatifs = new Map<string, string>();
+  for (const f of application.fichiersStyle) {
+    const contenu = options.fichiersStyle?.get(f.chemin);
+    if (langueDuStyle(f.chemin) !== 'kotlin' || contenu === undefined) continue;
+    const lus = stylesKotlinNommes(contenu);
+    if (lus.size === 0) avertir(f.ligne, `« ${f.chemin} » ne déclare aucun style : écrivez « fun Modifier.carte(): Modifier = … » pour le style « carte ».`);
+    for (const [cle, fonction] of lus) stylesNatifs.set(cle, fonction);
+    ecrireCode(`natif/styles/${f.chemin.split('/').pop()!}`, dansLePaquet(contenu, paquet));
+  }
+
   const routes = routesDe(application);
   const ressources = new Map<string, string>();
   const icones = new Set<string>();
@@ -542,6 +566,11 @@ export function genererProjetAndroid(application: Application, options: OptionsA
     fonctions,
     composants: new Map(application.composants.map((c) => [c.nom, c.parametres])),
     composantsReact: new Set(application.composantsReact.map((c) => c.nom)),
+    ...(natifs.size ? { natifs } : {}),
+    ...(stylesNatifs.size ? { stylesNatifs } : {}),
+    erreur: (ligne, message) => {
+      if (!diagnostics.some((d) => d.message === message)) diagnostics.push({ gravite: 'erreur', ligne, message });
+    },
     cle: `humalis.${simplifier(options.nom) || 'application'}`,
     ressource(chemin) {
       const fichier = chemin.replace(/[^A-Za-z0-9._-]/g, '_');
@@ -805,7 +834,7 @@ export function genererProjetAndroid(application: Application, options: OptionsA
   fichiers.set('build.gradle.kts', CONSTRUCTION_RACINE);
   fichiers.set('gradle.properties', PROPRIETES_GRADLE);
   fichiers.set('gradle/wrapper/gradle-wrapper.properties', ENVELOPPE_GRADLE);
-  fichiers.set('app/build.gradle.kts', constructionApp(identifiant, nomAffiche, { appareil: avecAppareil, scanner: besoins.scanner, ...medias, ...connexions, travail: fonds.length > 0, notifications: avecNotifications }));
+  fichiers.set('app/build.gradle.kts', constructionApp(identifiant, nomAffiche, { appareil: avecAppareil, scanner: besoins.scanner, ...medias, ...connexions, travail: fonds.length > 0, notifications: avecNotifications, ...(application.paquetsAndroid?.length ? { paquets: application.paquetsAndroid } : {}) }));
   fichiers.set('app/src/main/AndroidManifest.xml', manifeste(true, application.liensProfonds, { ...besoins, notifications: avecNotifications }));
   if (besoins.fichiers) fichiers.set('app/src/main/res/xml/chemins_fichiers.xml', CHEMINS_FICHIERS);
   const domaine = application.liensProfonds?.domaine;
