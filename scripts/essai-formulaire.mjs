@@ -86,6 +86,11 @@ try {
   const champ = (id) => page.locator(`[data-humalis="${id}"]`);
   let envois = 0;
   page.on('request', (r) => r.method() === 'POST' && r.url().includes('/api/inscriptions') && envois++);
+  // Les envois acceptés. Un visiteur qui n'a encore rien lu n'a pas le jeton CSRF : son premier envoi est
+  // refusé (403) par la réponse même qui le lui pose, et repart une fois avec lui. Une seule inscription compte.
+  let acceptes = 0;
+  const refus = [];
+  page.on('response', (r) => r.request().method() === 'POST' && r.url().includes('/api/inscriptions') && (r.ok() ? acceptes++ : refus.push(r.status())));
 
   // 1. Les balises de chaque sorte.
   verifier(await visible(page.locator('form[data-humalis="formulaire_inscription"]')), 'web : le formulaire est une vraie balise <form>');
@@ -147,7 +152,7 @@ try {
   // 4. Entrée envoie ; les champs sont vidés.
   await champ('champ_telephone').press('Enter');
   verifier(await message(page, 'Merci, votre inscription est enregistrée.'), 'web : Entrée envoie le formulaire, « Merci » s’affiche');
-  verifier(envois === 1, `web : un seul envoi au serveur (${envois})`);
+  verifier(acceptes === 1 && refus.every((statut) => statut === 403) && envois - acceptes <= 1, `web : un seul envoi accepté par le serveur (${acceptes} accepté, refus : ${refus.join(', ') || 'aucun'})`);
   const valeurs = await page.evaluate(() => ({
     textes: [...document.querySelectorAll('input:not([type=checkbox]):not([type=radio]), textarea, select')].map((e) => e.value),
     coches: document.querySelectorAll('input:checked').length,

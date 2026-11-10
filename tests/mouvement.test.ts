@@ -119,6 +119,17 @@ describe('mouvement — web et desktop', () => {
       expect(module.exports.transformHtml!(html)).toBe('<head><link rel="modulepreload" crossorigin="" href="/assets/page.js"></head>');
     }
   });
+  it('le prérendu garde la feuille de style d’une page chargée en cours de route, mais à une adresse du site lui-même', () => {
+    // Vite l'ajoute avec l'adresse complète du serveur de prérendu ; sans ce nettoyage, le prérendu
+    // la réécrit vers l'adresse publique (--adresse) : un aperçu ou le desktop (style-src 'self') la perdrait.
+    for (const projet of [web(ANIME), web(p('>titre "a"'))]) {
+      const config = fichier(projet, 'prerender.config.cjs');
+      const module = { exports: {} as { transformHtml?: (html: string, contexte?: { origin: string }) => string } };
+      new Function('module', config)(module);
+      const html = '<head><link rel="stylesheet" crossorigin="" href="/assets/index.css"><link rel="stylesheet" crossorigin="" href="http://localhost:4173/assets/Accueil.css"><link rel="canonical" href="http://localhost:4173/"></head>';
+      expect(module.exports.transformHtml!(html, { origin: 'http://localhost:4173' })).toBe('<head><link rel="stylesheet" crossorigin="" href="/assets/index.css"><link rel="stylesheet" crossorigin="" href="/assets/Accueil.css"><link rel="canonical" href="http://localhost:4173/"></head>');
+    }
+  });
   it('un programme sans mouvement n’a aucune règle de mouvement', () => {
     const css = fichier(web(p('>titre "a"', '>bloc avec ombre legere :', '>>texte "b"')), 'styles.css');
     expect(css).not.toContain('prefers-reduced-motion');

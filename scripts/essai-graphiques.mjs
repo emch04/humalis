@@ -51,7 +51,7 @@ async function servir(dossier) {
 
 function compiler(cible) {
   const dossier = join(travail, cible);
-  execFileSync('node', ['dist/cli.js', 'compile', 'exemples/graphiques.humalis', '--cible', cible, ...(cible === 'web' && process.env.HUMALIS_MOTEUR ? ['--moteur', process.env.HUMALIS_MOTEUR] : []), '--sortie', dossier, ...(cible === 'web' ? ['--adresse', 'https://lefleuve.cd'] : [])], { stdio: 'ignore' });
+  execFileSync('node', ['dist/cli.js', 'compile', 'exemples/graphiques.humalis', '--cible', cible, ...(cible === 'web' && process.env.HUMALIS_MOTEUR ? ['--moteur', process.env.HUMALIS_MOTEUR] : []), '--sortie', dossier, ...(cible === 'web' ? ['--adresse', 'https://lefleuve.cd'] : [])], { stdio: ['ignore', 'ignore', 'inherit'] });
   return dossier;
 }
 
@@ -153,11 +153,11 @@ try {
 
   if (avecWeb) {
     const dossier = compiler('web');
-    execFileSync('npm', ['install', '--no-audit', '--no-fund'], { cwd: dossier, stdio: 'ignore' });
+    execFileSync('npm', ['install', '--no-audit', '--no-fund'], { cwd: dossier, stdio: ['ignore', 'ignore', 'inherit'] });
     if (!process.env.HUMALIS_MOTEUR) execFileSync('npx', ['tsc', '--noEmit'], { cwd: dossier, stdio: 'inherit' });
     verifier(true, 'web : le projet produit passe tsc');
     // La construction complète, prérendu compris : le HTML de départ de chaque page est écrit dans dist/.
-    execFileSync('npm', ['run', 'build'], { cwd: dossier, stdio: 'ignore' });
+    execFileSync('npm', ['run', 'build'], { cwd: dossier, stdio: ['ignore', 'inherit', 'inherit'] });
     const prerendu = readFileSync(join(dossier, 'dist', 'index.html'), 'utf8');
     verifier((prerendu.match(/<svg class="humalis-graphique-large"|class="humalis-graphique-large humalis-graphique-zone"/g) ?? []).length === 4, 'web : le HTML prérendu contient les 4 dessins');
     const b = await servir(join(dossier, 'dist'));

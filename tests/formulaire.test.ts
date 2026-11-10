@@ -291,6 +291,35 @@ describe('formulaire — cible web', () => {
     expect(code).toContain('function quandSoumisAvis(sujet: string) {');
   });
 
+  it('le premier envoi d’un visiteur qui n’a encore rien lu repart une fois avec le jeton CSRF que la réponse vient de poser', async () => {
+    // Trouvé par essai:formulaire : une page publique qui ne lit rien avant d'envoyer n'a pas encore
+    // le cookie astratra_csrf ; le serveur refuse (403) et pose le cookie dans cette même réponse.
+    const serveur = projetWeb(contact()).get('src/humalis/serveur.ts')!;
+    expect(serveur).toContain('await envoyer(BASE + adresse, envoi)');
+    const source = serveur.match(/async function envoyer\([\s\S]*?\n}\n/)![0];
+    // Les types ne sont que dans la signature : on la remplace pour exécuter la fonction telle quelle.
+    const js = source.replace(/^async function envoyer\(.*\{$/m, 'async function envoyer(adresse, envoi) {');
+    expect(js).not.toMatch(/: (string|Promise|RequestInit)/);
+    const essayer = async (cookieApres: string, statut: number, avecJeton: boolean) => {
+      const document = { cookie: '' };
+      const recus: (string | null)[] = [];
+      const fetch = async (_adresse: string, envoi: { headers: Headers }) => {
+        recus.push(envoi.headers.get('x-csrf-token'));
+        document.cookie = cookieApres;
+        return { status: recus.length === 1 ? statut : 201 };
+      };
+      const envoyer = new Function('fetch', 'document', `${js}; return envoyer;`)(fetch, document);
+      const headers = new Headers(avecJeton ? { 'x-csrf-token': 'ancien' } : {});
+      const reponse = await envoyer('/api/messages', { method: 'POST', headers, body: '{}' });
+      return { recus, statut: reponse.status };
+    };
+    expect(await essayer('astratra_csrf=abc%3D', 403, false)).toEqual({ recus: [null, 'abc='], statut: 201 });
+    // Un vrai refus (jeton déjà envoyé, autre statut, aucun cookie posé) n'est jamais renvoyé.
+    expect(await essayer('astratra_csrf=abc', 403, true)).toEqual({ recus: ['ancien'], statut: 403 });
+    expect(await essayer('astratra_csrf=abc', 400, false)).toEqual({ recus: [null], statut: 400 });
+    expect(await essayer('', 403, false)).toEqual({ recus: [null], statut: 403 });
+  });
+
   it('ajoute les styles des formulaires seulement quand il y en a', () => {
     expect(projetWeb(contact()).get('src/humalis/styles.css')).toContain('.humalis-formulaire');
     const sans = projetWeb(programme('page "a" :', '>champ "email"')).get('src/humalis/styles.css')!;
