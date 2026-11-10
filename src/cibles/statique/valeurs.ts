@@ -105,6 +105,8 @@ function chemin(variable: string, contexte: ContexteJs): string {
 /** Une expression JavaScript. */
 export function expressionJs(valeur: Valeur, contexte: ContexteJs): string {
   switch (valeur.type) {
+    case 'test':
+      return `(${conditionJs(valeur.test, contexte)})`;
     case 'texte':
       // Un texte en plusieurs langues : t({ fr: '…', en: '…' }) choisit selon la langue de la personne.
       if (valeur.versions) {
@@ -297,6 +299,8 @@ function lireChemin(variable: string, env: Environnement): unknown {
 /** La valeur, telle que JavaScript la calculerait au premier dessin. */
 export function evaluer(valeur: Valeur, env: Environnement): unknown {
   switch (valeur.type) {
+    case 'test':
+      return verifier(valeur.test, env, new Map());
     case 'texte':
       return valeur.parties
         .map((p) => {

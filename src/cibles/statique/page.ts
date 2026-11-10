@@ -1055,7 +1055,8 @@ ${prise}${code}}
     const objet = (liste: [string, string][]) => `{ ${liste.map(([n, v]) => `${n}: ${v}`).join(', ')} }`;
     // Une icône avant le texte (avec icone "panier") : un enfant de plus, avant le contenu.
     const lucideIcone = noeud.reglages?.icone ? chercherIcone(noeud.reglages.icone)?.lucide : undefined;
-    const contenu =
+    const seule = noeud.reglages?.seule ? texteLitteral(noeud.contenu) : undefined;
+    const contenu = seule !== undefined && lucideIcone ? `icone(${chaine(lucideIcone)}, 'humalis-icone')` :
       (lucideIcone ? `icone(${chaine(lucideIcone)}, 'humalis-icone'), ` : '') +
       (this.textesChanges.has(noeud.id)
         ? `textes[${chaine(noeud.id)}] ?? ${contenuJs(noeud.contenu, this.contexte)}`
@@ -1070,7 +1071,7 @@ ${prise}${code}}
       case 'bouton': {
         // Le bouton d'un formulaire l'envoie (Entrée aussi) ; un bouton qui a son propre clic garde son clic.
         const envoie = this.formulaireDe.has(noeud.id) && !this.evenements.has(noeud.id);
-        return `creer('button', ${objet(commun([['type', envoie ? "'submit'" : "'button'"]]))}, ${contenu})`;
+        return `creer('button', ${objet(commun([['type', envoie ? "'submit'" : "'button'"], ...(seule !== undefined ? ([['\'aria-label\'', chaine(seule)]] as [string, string][]) : [])]))}, ${contenu})`;
       }
       case 'lien': {
         const vers = noeud.arguments && noeud.cible !== undefined ? this.adresseAvec(noeud.cible, noeud.arguments) : chaine(this.fichier(noeud.cible ?? ''));
@@ -1616,7 +1617,8 @@ ${prise}${code}}
     const commun = (avant: [string, string | undefined][] = []) =>
       attributs([this.repereHtml(noeud.ligne), ...avant, ['data-humalis', noeud.id], ['class', classes], ...(noeud.annonce ? ([['aria-live', 'polite'], ['aria-atomic', 'true']] as [string, string][]) : []), ...attributsRaccourci(noeud)]);
     const lucideHtml = noeud.reglages?.icone ? chercherIcone(noeud.reglages.icone)?.lucide : undefined;
-    const contenu = (lucideHtml ? iconeHtml(lucideHtml, 'humalis-icone') : '') + this.contenuAccentHtml(noeud.contenu, noeud.genre, env);
+    const seuleHtml = noeud.reglages?.seule ? texteLitteral(noeud.contenu) : undefined;
+    const contenu = (lucideHtml ? iconeHtml(lucideHtml, 'humalis-icone') : '') + (seuleHtml !== undefined && lucideHtml ? '' : this.contenuAccentHtml(noeud.contenu, noeud.genre, env));
     switch (noeud.genre) {
       case 'titre':
       case 'soustitre': {
@@ -1627,7 +1629,7 @@ ${prise}${code}}
         return `<p${commun()}>${contenu}</p>`;
       case 'bouton': {
         const envoie = this.formulaireDe.has(noeud.id) && !this.evenements.has(noeud.id);
-        return `<button${commun([['type', envoie ? 'submit' : 'button']])}>${contenu}</button>`;
+        return `<button${commun([['type', envoie ? 'submit' : 'button'], ...(seuleHtml !== undefined ? ([['aria-label', seuleHtml]] as [string, string][]) : [])])}>${contenu}</button>`;
       }
       case 'lien': {
         // Les mêmes valeurs que le script, calculées à la compilation.

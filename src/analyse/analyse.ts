@@ -2061,6 +2061,9 @@ class AnalysePage {
         }
         return NOMBRE;
       }
+      case 'TestValeur':
+        this.comparaison(expression.test);
+        return BOOLEEN;
       case 'Arrondi':
       case 'Hasard': {
         const valeurs = expression.type === 'Arrondi' ? [expression.valeur] : [expression.minimum, expression.maximum];

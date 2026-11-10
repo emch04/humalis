@@ -300,7 +300,7 @@ function etatDe(declaration: DeclarationVariable, analyse: ResultatAnalyse): Eta
 /** Les éléments d'écran d'une ligne. */
 const WIDGETS = new Set(['icone', 'badge', 'avatar', 'progression', 'chargement', 'etoiles', 'compteur', 'qr', 'signature', 'fichier', 'audio', 'selecteurLangue']);
 /** Les options qui ne sont pas des styles (elles ne font pas de classe CSS). */
-const REGLAGES = new Set(['icone', 'description', 'decoratif', 'photo', 'modifiable', 'ouvert', 'plusieurs', 'pourcentage', 'automatique', 'visibles', 'transcription', 'boucle']);
+const REGLAGES = new Set(['icone', 'seule', 'description', 'decoratif', 'photo', 'modifiable', 'ouvert', 'plusieurs', 'pourcentage', 'automatique', 'visibles', 'transcription', 'boucle']);
 
 class Construction {
   /** Les états cachés des onglets et des blocs dépliables, ajoutés à l'état de l'écran. */
@@ -1152,6 +1152,8 @@ function traduireValeur(expression: Expression, analyse: ResultatAnalyse): Valeu
       return { type: 'dateDecalee', date: valeur(expression.date), nombre: valeur(expression.nombre), unite: expression.unite, signe: expression.signe };
     case 'JoursEntre':
       return { type: 'joursEntre', debut: valeur(expression.debut), fin: valeur(expression.fin) };
+    case 'TestValeur':
+      return { type: 'test', test: testDe(expression.test, analyse) };
     case 'Hasard':
       return { type: 'hasard', minimum: valeur(expression.minimum), maximum: valeur(expression.maximum) };
     case 'Filtre':

@@ -1194,6 +1194,11 @@ export class GenerateurPage implements HotePage {
   private ecrireLibelle(e: Ecrivain, noeud: Extract<NoeudVue, { type: 'element' }>): void {
     const icone = this.icone(noeud.reglages?.icone);
     const texte = this.contenuTexte(noeud.contenu, noeud.id);
+    // « bouton icone "…" avec nom "…" » : l'icône seule, et son nom pour VoiceOver.
+    if (noeud.reglages?.seule && noeud.reglages.icone) {
+      e.ligne(`Image(systemName: ${chaineSwift(nomIcone(noeud.reglages.icone))}).accessibilityLabel(${texte})`);
+      return;
+    }
     if (icone) {
       e.bloc('HStack(spacing: 6) {', () => {
         e.ligne(icone);
