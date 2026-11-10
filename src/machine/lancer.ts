@@ -95,14 +95,21 @@ async function ecouter(serveur: Server, port: number): Promise<number> {
   throw new Error(`Aucun port libre entre ${port} et ${port + 19}.`);
 }
 
-/** Lance la machine sur ce fichier ; rend le code de sortie quand on l'arrête (Ctrl+C). */
-export async function lancer(fichier: string, options: OptionsLancer): Promise<number> {
+export interface MachineLancee {
+  machine: Machine;
+  port: number;
+  adresse: string;
+  arreter(): Promise<void>;
+}
+
+/** Démarre la machine sur ce fichier et la rend ; undefined (avec le message dit) si elle ne peut pas démarrer. */
+export async function demarrer(fichier: string, options: OptionsLancer): Promise<MachineLancee | undefined> {
   const chemin = resolve(fichier);
   const dossier = dirname(chemin);
   const dire = options.dire;
   if (lireFichier(chemin) === undefined) {
     dire(`Impossible de lire le fichier « ${fichier} ».`);
-    return 2;
+    return undefined;
   }
   let adresse = `http://localhost:${options.port}`;
   const ressources: Ressources = {
@@ -142,7 +149,7 @@ export async function lancer(fichier: string, options: OptionsLancer): Promise<n
   });
   let port: number;
   try { port = await ecouter(serveur, options.port); }
-  catch (e) { dire((e as Error).message); return 1; }
+  catch (e) { dire((e as Error).message); return undefined; }
   adresse = `http://localhost:${port}`;
   if (port !== options.port) dire(`Le port ${options.port} est pris : la machine écoute sur ${port}.`);
 
@@ -182,13 +189,25 @@ export async function lancer(fichier: string, options: OptionsLancer): Promise<n
     void charger().finally(() => { signatures = photographier(); occupe = false; });
   }, 200);
 
-  return await new Promise<number>((fin) => {
-    const arreter = () => {
+  return {
+    machine,
+    port,
+    adresse,
+    arreter: () => new Promise<void>((fin) => {
       clearInterval(minuteur);
       machine.serveur?.arreter();
       serveur.closeAllConnections();
-      serveur.close(() => fin(0));
-    };
+      serveur.close(() => fin());
+    }),
+  };
+}
+
+/** Lance la machine sur ce fichier ; rend le code de sortie quand on l'arrête (Ctrl+C). */
+export async function lancer(fichier: string, options: OptionsLancer): Promise<number> {
+  const lancee = await demarrer(fichier, options);
+  if (!lancee) return 1;
+  return await new Promise<number>((fin) => {
+    const arreter = () => void lancee.arreter().then(() => fin(0));
     process.once('SIGINT', arreter);
     process.once('SIGTERM', arreter);
   });

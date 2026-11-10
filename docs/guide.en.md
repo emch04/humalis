@@ -71,6 +71,49 @@ humalis developper
 `my-project.humalis`. `humalis developper` ("develop") opens the site in your
 browser and recompiles it every time you save: write, save, look.
 
+### Running a file right away: the machine
+
+To try a file without creating a project, without `npm install` and without a build:
+
+```sh
+humalis lancer my-file.humalis
+```
+
+The Humalis machine ("lancer" means "launch") compiles the file in memory, serves it at
+`http://localhost:5173` (`--port` picks another port, `--ouvrir` opens the browser) and **writes
+nothing to disk**. Every time you save, the page changes in under a second and keeps the value of its
+variables as long as their declaration has not changed. A mistake shows over the page, with its file,
+its line and the code at fault; the last version that worked stays alive until you fix it.
+
+The `serveur` block runs too, in memory: data, routes, rights, roles, field rules, actions, summaries,
+starting data, real time, scheduled tasks, accounts and session. At start the machine creates a test
+account `admin@machine.humalis` and one per role (`gerant@machine.humalis`…); their password, drawn at
+random on every launch, is printed in the terminal. When you change the program, the data and the
+accounts stay. Everything is lost when you stop it.
+
+The panel at `http://localhost:5173/__machine` shows the test accounts (and creates more), the outbox,
+the data in memory, and what you start by hand.
+
+**What the machine does not do for real.** It never fakes it silently: the command says so at start,
+for what *your* file uses.
+
+| In your file | What the machine does |
+|---|---|
+| e-mails (`envoyer email`, `inviter`, forgotten password) | no e-mail leaves: it is kept in the panel's outbox, with its link |
+| notifications and live activities | none is pushed: kept in the outbox |
+| payment (`payer`, `quand … est payee`) | the route answers 501; the panel marks a record "paid" by hand and runs what the program does next |
+| PDF vouchers and documents, loyalty card, AI | the route answers 501 |
+| Google or Apple sign-in | "not set up", like a server without credentials |
+| secret-token sources (gateways) | 501: the secrets stay on the real server |
+| external components (`utiliser composant …`) | refused with their line: the machine only runs Humalis, without npm. Use `humalis developper` |
+
+The machine only listens on `localhost`. For a real project (npm, database, publishing), the next
+steps are still `humalis developper` and `humalis compile`.
+
+The same machine runs in a browser: `dist/navigateur.js` exports `Machine` and `brancherApercu`, which
+show the app in an iframe through a Service Worker (`SERVICE_WORKER_JS`, to serve at the site root).
+This is what the site's playground uses.
+
 When you like the site, compile it to the target you want:
 
 ```sh
@@ -3714,6 +3757,7 @@ texte "…" est absent` (a text is not shown).
 | `humalis nouveau <name>` | creates a project |
 | `humalis --version` | shows the installed version (`humalis --help`: the usage) |
 | `humalis developper` | runs the site and recompiles it on every save |
+| `humalis lancer <file>` | runs a file right away, in memory, with its server, installing nothing |
 | `humalis compile <file> --cible <target> --sortie <folder>` | generates a target's project |
 | `humalis compile <file> --cible web --composants <folder>` | generates React components to import elsewhere |
 | `humalis verifier <file>` | shows errors and warnings |
