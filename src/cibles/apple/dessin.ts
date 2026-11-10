@@ -96,16 +96,76 @@ func rangHumalis(_ i: Int, _ n: Int, _ pp: StyleHumalis, _ pd: StyleHumalis, _ d
     return premier ? (dernier ? pp : pd) : (dernier ? dp : dd)
 }
 
+/**
+ * La variante en cours : la plage de largeur de l'écran (iPhone, iPad, rotation), puis clair ou sombre.
+ * Posée par la page dessinée, lue par chaque style qui change d'une variante à l'autre.
+ */
+@MainActor @Observable final class VarianteDessinHumalis {
+    static let commune = VarianteDessinHumalis()
+    private(set) var index = 0
+    /** Change après chaque nouvelle variante : réveille les vues déjà écrites pendant le changement. */
+    private(set) var tour = 0
+    @ObservationIgnored private var posee = 0
+    /** Posée pendant l'écriture de la page : la première image a déjà la bonne variante. */
+    func regler(_ largeur: CGFloat, _ sombre: Bool) {
+        let i = Self.indexPour(largeur, sombre)
+        if i != posee { posee = i; index = i }
+    }
+    /** Après la mise à jour : un changement fait pendant l'écriture peut ne réveiller personne. */
+    func confirmer() { tour &+= 1 }
+    nonisolated static func indexPour(_ largeur: CGFloat, _ sombre: Bool) -> Int {
+        let plage = PlagesDessinees.debuts.lastIndex { $0 <= largeur } ?? 0
+        return PlagesDessinees.sombre ? plage * 2 + (sombre ? 1 : 0) : plage
+    }
+}
+
+@MainActor func varianteHumalis(_ s: StyleHumalis...) -> StyleHumalis {
+    let v = VarianteDessinHumalis.commune
+    _ = v.tour
+    return s[min(s.count - 1, v.index)]
+}
+
+/** Confirme la variante quand la largeur ou le mode sombre change. */
+private struct SuiviVarianteHumalis: ViewModifier {
+    let index: Int
+    func body(content: Content) -> some View {
+        content.onChange(of: index) { VarianteDessinHumalis.commune.confirmer() }
+    }
+}
+
+/** Un bouton plus petit que 44 points se touche quand même sur iPhone : la zone grandit, pas le dessin. */
+struct CibleTactileHumalis: ViewModifier {
+    #if os(iOS)
+    @State private var taille = CGSize(width: 44, height: 44)
+    func body(content: Content) -> some View {
+        content
+            .onGeometryChange(for: CGSize.self) { $0.size } action: { taille = $0 }
+            .contentShape(ZoneTactileHumalis(dx: min(0, (taille.width - 44) / 2), dy: min(0, (taille.height - 44) / 2)))
+    }
+    #else
+    func body(content: Content) -> some View { content.contentShape(Rectangle()) }
+    #endif
+}
+
+private struct ZoneTactileHumalis: Shape {
+    let dx: CGFloat
+    let dy: CGFloat
+    func path(in r: CGRect) -> Path { Path(r.insetBy(dx: dx, dy: dy)) }
+}
+
 @MainActor func estOuverteHumalis(_ route: Route) -> Bool { (Routeur.commun.chemin.last ?? .accueilHumalis) == route }
 
 private struct CleEchelle: EnvironmentKey { static let defaultValue: CGFloat = 1 }
 private struct CleVue: EnvironmentKey { static let defaultValue = CGSize(width: 1440, height: 900) }
 private struct CleEchelleFenetre: EnvironmentKey { static let defaultValue: CGFloat? = nil }
+private struct CleFondEtendu: EnvironmentKey { static let defaultValue = false }
 extension EnvironmentValues {
     var echelleHumalis: CGFloat { get { self[CleEchelle.self] } set { self[CleEchelle.self] = newValue } }
     var vueHumalis: CGSize { get { self[CleVue.self] } set { self[CleVue.self] = newValue } }
     /** Posée par la coquille : toutes les pages suivent la taille de la fenêtre entière. */
     var echelleFenetreHumalis: CGFloat? { get { self[CleEchelleFenetre.self] } set { self[CleEchelleFenetre.self] = newValue } }
+    /** La boîte qui le reçoit dessine son fond jusque sous la zone sûre ; ses enfants, non. */
+    var fondEtenduHumalis: Bool { get { self[CleFondEtendu.self] } set { self[CleFondEtendu.self] = newValue } }
 }
 
 struct CleItemHumalis: LayoutValueKey { static let defaultValue: StyleHumalis? = nil }
@@ -719,6 +779,7 @@ struct BoiteHumalis<Contenu: View>: View {
     @ViewBuilder let contenu: () -> Contenu
     @Environment(\.echelleHumalis) private var z
     @Environment(\.vueHumalis) private var vue
+    @Environment(\.fondEtenduHumalis) private var fondEtendu
 
     init(_ s: StyleHumalis, @ViewBuilder contenu: @escaping () -> Contenu) {
         self.s = s
@@ -730,13 +791,13 @@ struct BoiteHumalis<Contenu: View>: View {
     @ViewBuilder private var corps: some View {
         if s.sc == true {
             ScrollView(.vertical) {
-                LayoutBoiteHumalis(s: { var t = s; t.ha = nil; t.hm = nil; t.hM = nil; return t }(), x: x) { contenu() }
+                LayoutBoiteHumalis(s: { var t = s; t.ha = nil; t.hm = nil; t.hM = nil; return t }(), x: x) { contenu().environment(\.fondEtenduHumalis, false) }
                     .frame(maxWidth: .infinity, alignment: .topLeading)
             }
             .scrollIndicators(.never)
             .scrollClipDisabled()
         } else {
-            LayoutBoiteHumalis(s: s, x: x) { contenu() }
+            LayoutBoiteHumalis(s: s, x: x) { contenu().environment(\.fondEtenduHumalis, false) }
         }
     }
 
@@ -752,7 +813,7 @@ struct BoiteHumalis<Contenu: View>: View {
     private var boite: some View {
         corps
             .modifier(CoupeHumalis(actif: s.oh == true, forme: forme))
-            .background { DecorHumalis(s: s, x: x) }
+            .background { DecorHumalis(s: s, x: x).ignoresSafeArea(.container, edges: fondEtendu ? .vertical : []) }
             .modifier(PolygoneCoupe(points: s.po, x: x))
             .opacity(s.cach == true ? 0 : (s.op ?? 1))
             .rotationEffect(.degrees(s.ro2 ?? 0))
@@ -865,41 +926,74 @@ func couleurHumalis(_ s: StyleHumalis) -> Color { (s.c ?? [0, 0, 0, 1]).couleurH
 
 func echelleDessinHumalis(_ t: CGSize, _ l: CGFloat, _ h: CGFloat) -> CGFloat { max(0.5, min(t.width / l, t.height / h)) }
 
-/** Une page dessinée : toute la place, à l'échelle de la fenêtre. */
+/**
+ * Une page dessinée. Sur Mac : toute la place, à l'échelle de la fenêtre.
+ * Sur iPhone et iPad : comme Safari, un pixel CSS pour un point, les « @media » suivant la largeur
+ * de l'écran ; le contenu reste dans la zone sûre, le fond passe dessous, la page défile.
+ */
 struct PageDessineeHumalis<Contenu: View>: View {
     let largeur: CGFloat
     let hauteur: CGFloat
+    var fond: StyleHumalis = .racine
     @ViewBuilder let contenu: () -> Contenu
     @Environment(\.echelleFenetreHumalis) private var fenetre
+    @Environment(\.colorScheme) private var theme
+    #if os(macOS)
     var body: some View {
         GeometryReader { g in
+            // Dans la coquille, c'est la fenêtre entière qui choisit la variante.
+            let _ = fenetre == nil ? VarianteDessinHumalis.commune.regler(g.size.width, theme == .dark) : ()
             BoiteHumalis(StyleHumalis.racine) { contenu() }
                 .environment(\.echelleHumalis, fenetre ?? echelleDessinHumalis(g.size, largeur, hauteur))
                 .environment(\.vueHumalis, g.size)
                 .frame(width: g.size.width, height: g.size.height, alignment: .topLeading)
         }
         .ignoresSafeArea()
-        #if os(macOS)
         .background(FenetreDessineeHumalis())
         .toolbarBackground(.hidden, for: .windowToolbar)
         .modifier(SansTitreHumalis())
-        #endif
+        .background { GeometryReader { g in Color.clear.modifier(SuiviVarianteHumalis(index: VarianteDessinHumalis.indexPour(g.size.width, theme == .dark))) } }
     }
+    #else
+    var body: some View {
+        GeometryReader { g in
+            let _ = fenetre == nil ? VarianteDessinHumalis.commune.regler(g.size.width, theme == .dark) : ()
+            ScrollView(.vertical) {
+                BoiteHumalis(StyleHumalis.racine) { contenu() }
+                    .environment(\.echelleHumalis, 1)
+                    .environment(\.vueHumalis, g.size)
+                    .frame(width: g.size.width, alignment: .topLeading)
+                    .frame(minHeight: g.size.height, alignment: .topLeading)
+            }
+            .scrollBounceBehavior(.basedOnSize)
+            .scrollDismissesKeyboard(.interactively)
+        }
+        .background { BoiteHumalis(fond) { EmptyView() }.ignoresSafeArea() }
+        .background { GeometryReader { g in Color.clear.modifier(SuiviVarianteHumalis(index: VarianteDessinHumalis.indexPour(g.size.width, theme == .dark))) } }
+        .toolbar(.hidden, for: .navigationBar)
+    }
+    #endif
 }
 
-#if os(macOS)
-/** La barre latérale écrite comme une page, à côté de la pile des pages. */
+/** La barre latérale écrite comme une page, à côté de la pile des pages (Mac, et iPad en grand). */
 struct CoquilleDessineeHumalis<Barre: View, Contenu: View>: View {
     let largeur: CGFloat
     let hauteur: CGFloat
     let sansBarre: Bool
     @ViewBuilder let barre: () -> Barre
     @ViewBuilder let contenu: () -> Contenu
+    @Environment(\.colorScheme) private var theme
     var body: some View {
         GeometryReader { g in
+            #if os(macOS)
             let z = echelleDessinHumalis(g.size, largeur, hauteur)
+            #else
+            let z: CGFloat = 1
+            #endif
+            let _ = VarianteDessinHumalis.commune.regler(g.size.width, theme == .dark)
             BoiteHumalis(StyleHumalis.lire(#"{"d":"flex","ai":"x"}"#)) {
-                if !sansBarre { barre() }
+                // Sur iPad, le fond de la barre passe sous l'heure et sous la barre du bas ; son contenu, non.
+                if !sansBarre { barre().environment(\.fondEtenduHumalis, true) }
                 contenu()
                     .environment(\.echelleFenetreHumalis, z)
                     .itemHumalis(StyleHumalis.lire(#"{"fg":1,"fs":1,"fb":{"c":0}}"#))
@@ -907,13 +1001,15 @@ struct CoquilleDessineeHumalis<Barre: View, Contenu: View>: View {
             .environment(\.echelleHumalis, z)
             .environment(\.vueHumalis, g.size)
             .frame(width: g.size.width, height: g.size.height, alignment: .topLeading)
+            .modifier(SuiviVarianteHumalis(index: VarianteDessinHumalis.indexPour(g.size.width, theme == .dark)))
         }
+        #if os(macOS)
         .ignoresSafeArea()
         .background(FenetreDessineeHumalis())
         .focusEffectDisabled()
+        #endif
     }
 }
-#endif
 `;
 
 /** Les tables propres au projet : les icônes, puis les styles rencontrés. */

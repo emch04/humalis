@@ -35,8 +35,11 @@ export interface StyleJ {
 
 interface Selecteur { parties: Compose[]; liens: string[]; pseudo?: 'before' | 'after' }
 interface Compose { tag?: string; id?: string; classes: string[]; premier?: boolean; dernier?: boolean; non: Compose[]; a: Compose[]; ou?: Compose[]; sansPoids?: boolean; impossible?: boolean }
-/** Les conditions d'une règle : la largeur du dessin (« @media ») et l'appareil de sa feuille. */
-interface Condition { min?: number; max?: number; os?: 'ios' | 'macos' }
+/** Les conditions d'une règle : la largeur (« @media »), le mode sombre et l'appareil de sa feuille. */
+interface Condition { min?: number; max?: number; sombre?: boolean; os?: 'ios' | 'macos' }
+
+/** Une façon de voir la page : une largeur d'écran, en clair ou en sombre. */
+export interface Variante { largeur: number; sombre: boolean }
 interface Regle { selecteur: Selecteur; specificite: number; rang: number; declarations: [string, string, boolean][]; condition: Condition }
 
 /** « @media (min-width: 900px) and (max-width: 1200px) » ; undefined : la règle ne vaut jamais pour un dessin. */
@@ -47,6 +50,8 @@ export function conditionMedia(requete: string): Condition | undefined {
   for (const morceau of texte.split(',')[0]!.split(/\s+and\s+/)) {
     const m = morceau.trim();
     if (m === '' || m === 'screen' || m === 'all' || m === 'only screen') continue;
+    const theme = /^\(\s*prefers-color-scheme\s*:\s*(dark|light)\s*\)$/.exec(m);
+    if (theme) { c.sombre = theme[1] === 'dark'; continue; }
     const l = /^\(\s*(min|max)-width\s*:\s*([\d.]+)\s*(px|em|rem)?\s*\)$/.exec(m);
     if (!l) return undefined;
     const v = Number(l[2]) * (l[3] === 'em' || l[3] === 'rem' ? 16 : 1);
@@ -385,7 +390,7 @@ export class CssExact {
   private readonly indexIcones = new Map<string, number>();
 
   /** Le dessin en cours : sa largeur et son appareil choisissent les règles. */
-  private courant: { largeur: number; os: 'ios' | 'macos' } = { largeur: 1440, os: 'macos' };
+  private courant: { largeur: number; sombre: boolean; os: 'ios' | 'macos' } = { largeur: 1440, sombre: false, os: 'macos' };
 
   constructor(feuilles: { css: string; os?: 'ios' | 'macos' }[], private readonly polices: Set<string>) {
     let rang = 0;
@@ -420,16 +425,74 @@ export class CssExact {
       // « @media » : seule la largeur compte ; elle est comparée à celle du dessin au moment de résoudre.
       if (selecteur.startsWith('@media')) {
         const c = conditionMedia(selecteur);
-        if (c) sortie.push(...this.blocs(corps, { min: Math.max(condition.min ?? 0, c.min ?? 0), max: Math.min(condition.max ?? Infinity, c.max ?? Infinity) }));
+        if (c) {
+          const sombre = c.sombre ?? condition.sombre;
+          // « (prefers-color-scheme: dark) » dans « (prefers-color-scheme: light) » : jamais.
+          if (c.sombre === undefined || condition.sombre === undefined || c.sombre === condition.sombre) {
+            sortie.push(...this.blocs(corps, { min: Math.max(condition.min ?? 0, c.min ?? 0), max: Math.min(condition.max ?? Infinity, c.max ?? Infinity), ...(sombre !== undefined ? { sombre } : {}) }));
+          }
+        }
       } else if (!selecteur.startsWith('@') && selecteur) sortie.push({ selecteur, corps, condition });
       i = j;
     }
     return sortie;
   }
 
+  /** Vrai si une règle change en mode sombre : la page se résout alors deux fois. */
+  get aDuSombre(): boolean { return this.regles.some((r) => r.condition.sombre !== undefined); }
+
+  /**
+   * Les largeurs où les règles changent, pour un appareil : le début de chaque plage.
+   * Sur iPhone et iPad, l'écran choisit la plage en direct ; sur Mac, seule compte la largeur du dessin.
+   */
+  debutsDesPlages(os: 'ios' | 'macos'): number[] {
+    const debuts = new Set<number>([0]);
+    for (const { condition: c } of this.regles) {
+      if (c.os !== undefined && c.os !== os) continue;
+      if (c.min !== undefined && c.min > 0) debuts.add(c.min);
+      if (c.max !== undefined && c.max !== Infinity) debuts.add(arrondir(c.max + 0.01));
+    }
+    return [...debuts].sort((a, b) => a - b);
+  }
+
+  /** Les façons de voir la page sur cet appareil, dans l'ordre que lit varianteHumalis. */
+  variantes(os: 'ios' | 'macos', dessin: { largeur: number }): Variante[] {
+    const largeurs = os === 'ios' ? this.debutsDesPlages('ios') : [dessin.largeur];
+    const sombres = this.aDuSombre ? [false, true] : [false];
+    return largeurs.flatMap((largeur) => sombres.map((sombre) => ({ largeur, sombre })));
+  }
+
+  /**
+   * Résout une page pour chacune de ses variantes : un style qui change d'une variante à l'autre
+   * est choisi à l'écran par « varianteHumalis(…) ».
+   */
+  resoudreVariantes(vue: NoeudVue[], dessin: { largeur: number; hauteur: number }, os: 'ios' | 'macos', enveloppe: string[] = []): ResolutionPage {
+    const variantes = this.variantes(os, dessin);
+    const lues = variantes.map((v) => this.resoudre(vue, { largeur: v.largeur, hauteur: dessin.hauteur }, enveloppe, os, v.sombre));
+    if (lues.length === 1) return lues[0];
+    const choisir = (codes: string[]) => (new Set(codes).size === 1 ? codes[0] : `varianteHumalis(${codes.join(', ')})`);
+    const aucun = this.ref({ d: 'none' });
+    const resolution = new ResolutionPage();
+    resolution.fond = choisir(lues.map((l) => l.fond));
+    for (const [noeud] of lues[0].toutes()) {
+      const entrees = lues.map((l) => l.de(noeud)!);
+      const code = choisir(entrees.map((x) => x.code));
+      const entree: EntreeStyle = { code, masque: entrees.every((x) => x.masque) };
+      const actif = choisir(entrees.map((x) => x.actif ?? x.code));
+      if (actif !== code) entree.actif = actif;
+      const avant = choisir(entrees.map((x) => x.avant ?? aucun));
+      if (avant !== aucun) entree.avant = avant;
+      const apres = choisir(entrees.map((x) => x.apres ?? aucun));
+      if (apres !== aucun) entree.apres = apres;
+      resolution.ajouter(noeud, entree);
+    }
+    for (const [noeud] of lues[0].toutesLesIcones()) resolution.ajouterIcone(noeud, choisir(lues.map((l) => l.icone(noeud)!)));
+    return resolution;
+  }
+
   /** Résout une page : à chaque nœud, ses styles. */
-  resoudre(vue: NoeudVue[], dessin: { largeur: number; hauteur: number }, enveloppe: string[] = [], os: 'ios' | 'macos' = 'macos'): ResolutionPage {
-    this.courant = { largeur: dessin.largeur, os };
+  resoudre(vue: NoeudVue[], dessin: { largeur: number; hauteur: number }, enveloppe: string[] = [], os: 'ios' | 'macos' = 'macos', sombre = false): ResolutionPage {
+    this.courant = { largeur: dessin.largeur, sombre, os };
     const html: Boite = { tag: 'html', classes: new Set(), enfants: [], branches: [] };
     const body: Boite = { tag: 'body', classes: new Set(), parent: html, enfants: [], branches: [] };
     html.enfants.push(body);
@@ -440,7 +503,11 @@ export class CssExact {
     const heriteDeBase: Herite = { t: 16, g: 400, c: [0, 0, 0, 1], vars: new Map() };
     const hHtml = this.calculer(html, DEDANS, heriteDeBase, dessin).herite;
     const hBody = this.calculer(body, DEDANS, hHtml, dessin).herite;
-    const hPage = this.calculer(page, DEDANS, hBody, dessin).herite;
+    const milieuPage = this.calculer(page, DEDANS, hBody, dessin);
+    const hPage = milieuPage.herite;
+    // Le fond de la page, de html à main : sur iPhone, il passe sous l'encoche et la barre du bas.
+    const fond = [milieuPage.style, this.calculer(body, DEDANS, hHtml, dessin).style, this.calculer(html, DEDANS, heriteDeBase, dessin).style].find((s) => s.fo?.length)?.fo;
+    resolution.fond = this.ref({ d: 'block', la: { c: 100 }, ha: { c: 100 }, ...(fond ? { fo: fond } : {}) });
     const parcourir = (b: Boite, h: Herite) => {
       for (const enfant of b.enfants) {
         const milieu = this.calculer(enfant, DEDANS, h, dessin);
@@ -489,8 +556,11 @@ export class CssExact {
     for (const n of noeuds) {
       switch (n.type) {
         case 'bloc': {
-          if (n.plateforme === 'ios') break;
-          if (n.plateforme === 'macos') { this.construire(n.corps, parent, boucle, branches); break; }
+          // « sur ios : », « sur macos : » : seul celui de l'appareil en cours compte.
+          if (n.plateforme === 'ios' || n.plateforme === 'macos') {
+            if (n.plateforme === this.courant.os) this.construire(n.corps, parent, boucle, branches);
+            break;
+          }
           if (n.natif && n.natif.genre === 'recherche') { this.ajouter(n, parent, boucle, branches); break; }
           const b = this.ajouter(n, parent, boucle, branches);
           this.construire(n.corps, b, undefined, []);
@@ -513,7 +583,11 @@ export class CssExact {
   }
 
   private ajouter(n: NoeudVue, parent: Boite, boucle: object | undefined, branches: [object, number][]): Boite {
-    const classes = new Set<string>((n as { classes?: string[] }).classes ?? []);
+    // « ios:carte », « macos:carte » : la classe ne vaut que sur son appareil.
+    const classes = new Set<string>(((n as { classes?: string[] }).classes ?? []).flatMap((c) => {
+      const lue = /^(ios|macos):(.+)$/.exec(c);
+      return !lue ? [c] : lue[1] === this.courant.os ? [lue[2]] : [];
+    }));
     let tag = 'div';
     if (n.type === 'bloc') {
       classes.add(`humalis-${n.genre}`);
@@ -618,8 +692,8 @@ export class CssExact {
   }
 
   private vaut(c: Condition): boolean {
-    const { largeur, os } = this.courant;
-    return (c.os === undefined || c.os === os) && largeur >= (c.min ?? 0) && largeur <= (c.max ?? Infinity);
+    const { largeur, sombre, os } = this.courant;
+    return (c.os === undefined || c.os === os) && (c.sombre === undefined || c.sombre === sombre) && largeur >= (c.min ?? 0) && largeur <= (c.max ?? Infinity);
   }
 
   private declarationsDe(b: Boite, rang: Rang, pseudo?: 'before' | 'after'): [string, string][] {
@@ -807,6 +881,14 @@ export class CssExact {
         case 'border': { const b = lireBord(v); bords[0] = bords[1] = bords[2] = bords[3] = b; break; }
         case 'border-top': case 'border-right': case 'border-bottom': case 'border-left': bords[COTES.indexOf(p.slice(7) as 'top')] = lireBord(v); break;
         case 'border-color': { const q = quatre(parEspaces(v).map((m) => couleur(m, h.c))); if (q) bords.forEach((b, i) => { if (b && q[i]) b[1] = q[i]!; }); break; }
+        case 'border-top-color': case 'border-right-color': case 'border-bottom-color': case 'border-left-color': {
+          // « border: » donne le même bord aux quatre côtés : on en change une copie.
+          const i = COTES.indexOf(p.slice(7, -6) as 'top');
+          const b = bords[i];
+          const c = couleur(v, h.c);
+          if (b && c) bords[i] = [b[0], c];
+          break;
+        }
         case 'border-width': { const q = quatre(parEspaces(v).map(lg)); if (q) bords.forEach((b, i) => { if (b && q[i]?.p !== undefined) b[0] = q[i]!.p!; }); break; }
         case 'box-shadow': {
           if (v === 'none') { delete s.om; break; }
@@ -873,15 +955,30 @@ export class CssExact {
   /** Le code qui déclare tous les styles rencontrés ; une chaîne par style garde la compilation rapide. */
   swift(): string {
     const lignes = [...this.styles].map(([json, i]) => `    static let s${i} = StyleHumalis.lire(#"${json}"#)`);
-    return `enum StylesDessines {\n${lignes.join('\n')}\n}\n`;
+    const liste = (l: number[]) => l.map((n) => String(n)).join(', ');
+    // Les plages de largeur et le mode sombre que lit varianteHumalis : le même ordre que resoudreVariantes.
+    const plages = `enum PlagesDessinees {
+    #if os(iOS)
+    static let debuts: [CGFloat] = [${liste(this.debutsDesPlages('ios'))}]
+    #else
+    static let debuts: [CGFloat] = [0]
+    #endif
+    static let sombre = ${this.aDuSombre}
+}
+`;
+    return `enum StylesDessines {\n${lignes.join('\n')}\n}\n\n${plages}`;
   }
 }
 
 export class ResolutionPage {
+  /** Le style du fond de la page entière (html, body, main), dessiné sous la zone sûre sur iPhone. */
+  fond = 'StyleHumalis.racine';
   private readonly entrees = new Map<NoeudVue, EntreeStyle>();
   ajouter(noeud: NoeudVue, entree: EntreeStyle): void { this.entrees.set(noeud, entree); }
   de(noeud: NoeudVue): EntreeStyle | undefined { return this.entrees.get(noeud); }
+  toutes(): IterableIterator<[NoeudVue, EntreeStyle]> { return this.entrees.entries(); }
   private readonly icones = new Map<NoeudVue, string>();
   ajouterIcone(noeud: NoeudVue, code: string): void { this.icones.set(noeud, code); }
   icone(noeud: NoeudVue): string | undefined { return this.icones.get(noeud); }
+  toutesLesIcones(): IterableIterator<[NoeudVue, string]> { return this.icones.entries(); }
 }

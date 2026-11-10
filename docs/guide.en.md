@@ -518,15 +518,44 @@ page "home" :
         texte "Tap an appointment to move it."
 ```
 
-### A page drawn for the Mac
+### A drawn page
 
 `dessinee pour 1440 par 900`, after a page name, gives the size the page was
-drawn for. On Mac, the page then follows its CSS to the point, and grows with the
-window. Elsewhere, nothing changes.
+drawn for. In the Apple app, the page then follows its CSS to the point. On the
+website and the other targets, nothing changes.
 
-With drawn pages, `barre laterale :` at the top of the file writes the Mac
-sidebar like a page. On the other targets, it takes the header's place when the
-project has none; if there is an `entete`, it steps aside.
+- **On Mac**, the page keeps the width of the drawing and grows with the window.
+- **On iPhone and iPad**, it renders as Safari would on the same device: one CSS
+  pixel per screen point. `@media (min-width: …)` and `@media (max-width: …)`
+  rules follow the real screen width, and change live when the device turns or
+  the iPad screen is split. Content stays inside the safe area (notch, bottom
+  bar) and the page background runs underneath. A page taller than the screen
+  scrolls, and the keyboard never hides the field being typed in. A button or a
+  link smaller than 44 points can still be tapped: its touch area grows, not its
+  drawing.
+- **Everywhere**, `@media (prefers-color-scheme: dark)` follows the device's dark
+  mode, live.
+
+Each device has its own CSS: `utiliser style "./ios.css" sur ios` only applies on
+iPhone and iPad, `sur macos` only on Mac, and a shared CSS stays optional. The
+`sur ios :` and `sur macos :` blocks of a drawn page, and `sur ios style "…"`
+styles, follow the same rule. Pages that are not drawn keep their native look.
+
+```humalis
+utiliser style "./site.css"
+utiliser style "./ios.css" sur ios
+
+page "home" dessinee pour 1440 par 900 :
+    titre "Dashboard" avec style "title"
+    sur ios :
+        texte "Welcome on iPhone"
+```
+
+With drawn pages, `barre laterale :` at the top of the file writes the sidebar
+like a page: on Mac, and on iPad as long as the CSS shows it at that width. On
+iPhone, or when the CSS hides it, the app keeps its native navigation. On the
+other targets, it takes the header's place when the project has none; if there
+is an `entete`, it steps aside.
 
 ```humalis
 utiliser style "./desktop.css"
@@ -850,6 +879,7 @@ equivalent.
 | `menu de l'application "File" :` then `commande "N" avec raccourci "cmd+n" :` | shortcuts (iPad) | menu bar | refused |
 | `page "x" en reglages :` | page | Settings window | page |
 | `page "x" en pleine fenetre :` | page up to the edges | page up to the edges | page (no effect) |
+| `page "x" dessinee pour 1440 par 900 :` | its CSS to the point, at the screen width | its CSS to the point, scaled to the window | page (its CSS) |
 | `barre d'outils :` | top bar | toolbar | row |
 
 The application menu has no web equivalent: the compiler refuses it.
@@ -3461,7 +3491,7 @@ target, the compiler says so clearly instead of producing something wrong.
 | | web | static | mobile | desktop | apple |
 |---|---|---|---|---|---|
 | Pages, elements, styles, theme | yes | yes | yes | yes | yes |
-| Your own CSS | yes | yes | no (named styles only) | yes | partly (single-class rules; the rest is listed) |
+| Your own CSS | yes | yes | no (named styles only) | yes | partly (single-class rules; the rest is listed); to the point in a `dessinee pour` page, `@media` and dark mode included |
 | Requests to a server | yes | yes | yes | yes | yes |
 | `memorisee` | yes | yes | yes | yes | yes |
 | `memorisee en secret` | no | no | yes | yes | yes (Keychain) |
