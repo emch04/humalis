@@ -66,7 +66,7 @@ async function servir(dossier, entetes = {}) {
 
 function compiler(cible) {
   const dossier = join(travail, cible);
-  execFileSync('node', ['dist/cli.js', 'compile', 'exemples/medias.humalis', '--cible', cible, ...(cible === 'web' && process.env.HUMALIS_MOTEUR ? ['--moteur', process.env.HUMALIS_MOTEUR] : []), '--sortie', dossier, ...(cible === 'web' ? ['--adresse', 'https://lefleuve.cd'] : [])], { stdio: 'ignore' });
+  execFileSync('node', ['dist/cli.js', 'compile', 'exemples/medias.humalis', '--cible', cible, ...(cible === 'web' && process.env.HUMALIS_MOTEUR ? ['--moteur', process.env.HUMALIS_MOTEUR] : []), '--sortie', dossier, ...(cible === 'web' ? ['--adresse', 'https://lefleuve.cd'] : [])], { stdio: ['ignore', 'ignore', 'inherit'] });
   return dossier;
 }
 
@@ -189,9 +189,9 @@ async function scenarioFichier(navigateur) {
   const api = await lancerApiDeFichiers();
   const dossier = join(travail, 'fichier-web');
   rmSync(dossier, { recursive: true, force: true });
-  execFileSync('node', ['dist/cli.js', 'compile', 'exemples/fichier.humalis', '--cible', 'web', ...(process.env.HUMALIS_MOTEUR ? ['--moteur', process.env.HUMALIS_MOTEUR] : []), '--sortie', dossier, '--adresse', 'https://boutique.exemple.cd'], { stdio: 'ignore' });
-  execFileSync('npm', ['install', '--no-audit', '--no-fund', '--prefer-offline'], { cwd: dossier, stdio: 'ignore' });
-  execFileSync('npm', ['run', 'build'], { cwd: dossier, stdio: 'ignore', env: { ...process.env, VITE_HUMALIS_SOURCE_BOUTIQUE: api.adresse } });
+  execFileSync('node', ['dist/cli.js', 'compile', 'exemples/fichier.humalis', '--cible', 'web', ...(process.env.HUMALIS_MOTEUR ? ['--moteur', process.env.HUMALIS_MOTEUR] : []), '--sortie', dossier, '--adresse', 'https://boutique.exemple.cd'], { stdio: ['ignore', 'ignore', 'inherit'] });
+  execFileSync('npm', ['install', '--no-audit', '--no-fund', '--prefer-offline'], { cwd: dossier, stdio: ['ignore', 'ignore', 'inherit'] });
+  execFileSync('npm', ['run', 'build'], { cwd: dossier, stdio: ['ignore', 'inherit', 'inherit'], env: { ...process.env, VITE_HUMALIS_SOURCE_BOUTIQUE: api.adresse } });
   verifier(true, 'fichier : le projet produit passe tsc et se construit (prérendu compris)');
   const fichiersProduits = readdirSync(join(dossier, 'src', 'humalis'));
   verifier(process.env.HUMALIS_MOTEUR ? fichiersProduits.includes('serveur.js') && fichiersProduits.includes('fichier.js') : fichiersProduits.includes('televerser.ts') && fichiersProduits.includes('choix-fichier.tsx'), 'fichier : les deux petits fichiers sont écrits');
@@ -330,7 +330,8 @@ async function scenarioAudio(nom, adresse, navigateur) {
   await page.keyboard.press('Space');
   await page.waitForFunction(() => !document.querySelector('audio').paused, null, { timeout: 5000 }).catch(() => {});
   verifier(!(await lecteurs.first().evaluate((a) => a.paused)), `${nom} : Espace lance le son`);
-  await page.waitForTimeout(500);
+  // Le son ne part qu'une fois téléchargé (preload="none") : on attend qu'il avance, au plus 3 s, au lieu d'un délai fixe.
+  await page.waitForFunction(() => document.querySelector('audio').currentTime > 0.2, null, { timeout: 3000 }).catch(() => {});
   verifier((await lecteurs.first().evaluate((a) => a.currentTime)) > 0.2, `${nom} : la position avance`);
   verifier(sons.length >= 1, `${nom} : le fichier n'est téléchargé qu'à la lecture`);
   await page.keyboard.press('Space');
@@ -492,7 +493,7 @@ async function scenarioTuiles(navigateur) {
   rmSync(dossier, { recursive: true, force: true });
   const source = join(travail, 'tuiles.humalis');
   writeFileSync(source, 'page "plan" :\n    carte "Le plan" avec latitude -4,325 et longitude 15,3222 et tuiles "https://tuiles.exemple.cd/{z}/{x}/{y}.png" et attribution "© Tuiles <b>Exemple</b>"\n');
-  execFileSync('node', ['dist/cli.js', 'compile', source, '--cible', 'statique', '--sortie', dossier], { stdio: 'ignore' });
+  execFileSync('node', ['dist/cli.js', 'compile', source, '--cible', 'statique', '--sortie', dossier], { stdio: ['ignore', 'ignore', 'inherit'] });
   const site = await servir(dossier);
   const tuile = tuilePng();
   const appelees = [];
@@ -528,9 +529,9 @@ try {
 
   if (avecWeb) {
     const dossier = compiler('web');
-    execFileSync('npm', ['install', '--no-audit', '--no-fund'], { cwd: dossier, stdio: 'ignore' });
+    execFileSync('npm', ['install', '--no-audit', '--no-fund'], { cwd: dossier, stdio: ['ignore', 'ignore', 'inherit'] });
     // La construction complète, prérendu compris : le HTML de départ de chaque page est écrit dans dist/.
-    execFileSync('npm', ['run', 'build'], { cwd: dossier, stdio: 'ignore' });
+    execFileSync('npm', ['run', 'build'], { cwd: dossier, stdio: ['ignore', 'inherit', 'inherit'] });
     const prerendu = readFileSync(join(dossier, 'dist', 'index.html'), 'utf8');
     verifier(prerendu.includes('Poisson braisé'), 'web : le HTML prérendu contient le contenu de la page');
     verifier(!/humalis-js|data-humalis-vu/.test(prerendu), 'web : le HTML prérendu ne garde aucune marque du mouvement');

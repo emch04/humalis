@@ -1210,6 +1210,20 @@ async function preparer(donnees: Record<string, unknown>): Promise<Record<string
 }
 
 /**
+ * Un envoi. Le jeton CSRF (cookie astratra_csrf) est posé par le serveur à sa première réponse :
+ * un visiteur qui n'a encore rien lu n'en a pas, et son premier envoi est refusé (403) par la
+ * réponse même qui lui pose le cookie. L'envoi repart alors une fois, avec le jeton.
+ */
+async function envoyer(adresse: string, envoi: RequestInit & { headers: Headers }): Promise<Response> {
+  const avecJeton = envoi.headers.has('x-csrf-token');
+  const reponse = await fetch(adresse, envoi);
+  const jeton = document.cookie.match(/(?:^|; )astratra_csrf=([^;]*)/)?.[1];
+  if (reponse.status !== 403 || avecJeton || !jeton) return reponse;
+  envoi.headers.set('x-csrf-token', decodeURIComponent(jeton));
+  return fetch(adresse, envoi);
+}
+
+/**
  * Les requêtes (« envoyer requete »). En cas d'échec, un message en
  * français s'affiche et la valeur actuelle est gardée.
  */
@@ -1228,7 +1242,7 @@ export function useServeur() {
       const lecture = options.method === 'GET';
       const envoi = { ...options, headers: entetes, credentials: 'same-origin' } as const;
       // Une lecture déjà en cours (lien survolé) est partagée : un seul appel.
-      const reponse = lecture ? await lireEnCommun(adresse, BASE + adresse, envoi) : await fetch(BASE + adresse, envoi);
+      const reponse = lecture ? await lireEnCommun(adresse, BASE + adresse, envoi) : await envoyer(BASE + adresse, envoi);
       // Une lecture d'un élément qui n'existe plus (404) : la valeur actuelle est gardée, sans faux « pas répondu ».
       if (reponse.status === 404 && options.method === 'GET') return actuelle;
       // Personne n'est connecté : ce n'est pas une panne du serveur.
@@ -1653,8 +1667,8 @@ function serveurRenouvele(modele: string): string {
   let texte = remplacer(modele, "import { useMessages } from './messages';\n", "import { useMessages } from './messages';\nimport { avecSession, SessionFinie } from './renouveler';\n");
   texte = remplacer(
     texte,
-    'const reponse = lecture ? await lireEnCommun(adresse, BASE + adresse, envoi) : await fetch(BASE + adresse, envoi);',
-    'const reponse = await avecSession(() => (lecture ? lireEnCommun(adresse, BASE + adresse, envoi) : fetch(BASE + adresse, envoi)));',
+    'const reponse = lecture ? await lireEnCommun(adresse, BASE + adresse, envoi) : await envoyer(BASE + adresse, envoi);',
+    'const reponse = await avecSession(() => (lecture ? lireEnCommun(adresse, BASE + adresse, envoi) : envoyer(BASE + adresse, envoi)));',
   );
   texte = remplacer(texte, "      // Personne n'est connecté : ce n'est pas une panne du serveur.\n      if (reponse.status === 401) throw new Error('Connectez-vous pour continuer.');\n", '');
   return remplacer(

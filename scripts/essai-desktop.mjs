@@ -395,8 +395,10 @@ const dossierBoutique = construire('boutique', 'exemples/boutique.humalis');
     verifier(await visible(page.getByRole('button', { name: 'Publier' })), 'avis : avec le bon mot de passe, le formulaire d’avis apparaît');
     const cookies = await appli.evaluate(async ({ session }) => (await session.defaultSession.cookies.get({})).map((c) => ({ nom: c.name, httpOnly: c.httpOnly, domaine: c.domain })));
     verifier(cookies.some((c) => c.nom === 'astratra_session' && c.httpOnly), `avis : la session du pack est gardée par le processus principal (${cookies.map((c) => c.nom).join(', ')})`);
-    const vuParLaPage = await page.evaluate(() => ({ cookies: document.cookie, stockage: localStorage.length + sessionStorage.length }));
-    verifier(vuParLaPage.cookies === '' && vuParLaPage.stockage === 0, 'avis : la page ne voit aucun cookie ni jeton');
+    // La page garde des choses à elle (l'état de la session, ses lectures : humalis.session, humalis:lectures),
+    // jamais un jeton ni le mot de passe : c'est ce que l'on vérifie, plutôt qu'un stockage vide.
+    const vuParLaPage = await page.evaluate(() => ({ cookies: document.cookie, stockage: JSON.stringify([{ ...localStorage }, { ...sessionStorage }]) }));
+    verifier(vuParLaPage.cookies === '' && !/eyJ|token|jeton|Bearer/i.test(vuParLaPage.stockage) && !vuParLaPage.stockage.includes(MOT_DE_PASSE), `avis : la page ne voit aucun cookie, et ne garde ni jeton ni mot de passe (stockage : ${vuParLaPage.stockage})`);
 
     await champ('champ_commentaire').fill('Livraison rapide, très bon livre.');
     await page.getByRole('button', { name: 'Publier' }).click();
