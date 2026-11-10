@@ -246,17 +246,19 @@ public static class V
     public static string Nombre(object? v)
     {
         var d = N(v);
-        return double.IsFinite(d) ? d.ToString("#,##0.###", Fr) : "";
+        return double.IsFinite(d) ? d.ToString("#,##0.###", Langues.Culture) : "";
     }
 
     /// <summary>15000, FC → « 15 000 FC » ; 12.5, EUR → « 12,50 € » ; 12.5, USD → « 12,50 $ ».</summary>
     public static string Argent(object? v, string devise)
     {
         var d = N(v);
+        var c = Langues.Culture;
+        var francais = Langues.Actuelle == "fr";
         return devise switch
         {
-            "EUR" => d.ToString("#,##0.00", Fr) + " €",
-            "USD" => d.ToString(d == Math.Round(d) ? "#,##0" : "#,##0.00", Fr) + " $",
+            "EUR" => francais ? d.ToString("#,##0.00", c) + " €" : "€" + d.ToString("#,##0.00", c),
+            "USD" => francais ? d.ToString(d == Math.Round(d) ? "#,##0" : "#,##0.00", c) + " $" : "$" + d.ToString("#,##0.00", c),
             _ => Nombre(d) + " FC",
         };
     }
@@ -265,7 +267,8 @@ public static class V
     {
         var octets = N(v);
         var valeur = unite == "Mo" ? octets / 1_048_576 : octets / 1024;
-        return valeur.ToString("#,##0.#", Fr) + " " + unite;
+        var francais = Langues.Actuelle == "fr";
+        return valeur.ToString("#,##0.#", Langues.Culture) + " " + (francais ? unite : unite == "Mo" ? "MB" : "KB");
     }
 
     /// <summary>3, « article » → « 3 articles » ; 1 → « 1 article ».</summary>
@@ -273,6 +276,14 @@ public static class V
     {
         var n = N(nombre);
         var ecrit = Nombre(n);
+        if (Langues.Actuelle == "en")
+        {
+            if (n == 1) return ecrit + " " + mot;
+            if (mot.EndsWith("s") || mot.EndsWith("x") || mot.EndsWith("z") || mot.EndsWith("ch") || mot.EndsWith("sh")) return ecrit + " " + mot + "es";
+            if (mot.Length > 1 && mot.EndsWith("y") && !"aeiou".Contains(mot[^2])) return ecrit + " " + mot[..^1] + "ies";
+            return ecrit + " " + mot + "s";
+        }
+        if (Langues.Actuelle != "fr") return ecrit + " " + mot;
         if (Math.Abs(n) < 2) return ecrit + " " + mot;
         if (mot.EndsWith("s") || mot.EndsWith("x") || mot.EndsWith("z")) return ecrit + " " + mot;
         if (mot.EndsWith("al") && mot != "bal" && mot != "festival" && mot != "carnaval") return ecrit + " " + mot[..^2] + "aux";
@@ -294,7 +305,8 @@ public static class V
         var texte = T(v);
         if (texte.Length == 0) return "";
         var d = JourDe(texte);
-        return d is null ? texte : $"{d.Value.Day} {Mois[d.Value.Month - 1]} {d.Value.Year}";
+        if (d is null) return texte;
+        return Langues.Actuelle == "fr" ? $"{d.Value.Day} {Mois[d.Value.Month - 1]} {d.Value.Year}" : d.Value.ToString("d MMMM yyyy", Langues.Culture);
     }
 
     public static string DateLongue(object? v)
@@ -302,7 +314,8 @@ public static class V
         var texte = T(v);
         if (texte.Length == 0) return "";
         var d = JourDe(texte);
-        return d is null ? texte : $"{Jours[(int)d.Value.DayOfWeek]} {d.Value.Day} {Mois[d.Value.Month - 1]}";
+        if (d is null) return texte;
+        return Langues.Actuelle == "fr" ? $"{Jours[(int)d.Value.DayOfWeek]} {d.Value.Day} {Mois[d.Value.Month - 1]}" : d.Value.ToString(Langues.Actuelle == "en" ? "dddd d MMMM" : "dddd, d MMMM", Langues.Culture);
     }
 
     public static string Depuis(object? v)
@@ -314,6 +327,16 @@ public static class V
         else if (!DateTime.TryParse(texte, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out lue)) return "";
         else lue = lue.ToLocalTime();
         var minutes = (int)(DateTime.Now - lue).TotalMinutes;
+        if (Langues.Actuelle == "en")
+        {
+            string Ago(int n, string mot) => $"{n} {mot}{(n > 1 ? "s" : "")} ago";
+            if (minutes < 1) return "just now";
+            if (minutes < 60) return Ago(minutes, "minute");
+            if (minutes < 1440) return Ago(minutes / 60, "hour");
+            if (minutes < 43200) return Ago(minutes / 1440, "day");
+            if (minutes < 525600) return Ago(minutes / 43200, "month");
+            return Ago(minutes / 525600, "year");
+        }
         string Dire(int n, string mot) => $"il y a {n} {mot}{(n > 1 && !mot.EndsWith("s") ? "s" : "")}";
         if (minutes < 1) return "à l’instant";
         if (minutes < 60) return Dire(minutes, "minute");
@@ -327,7 +350,7 @@ public static class V
     public static string EnLettres(object? v)
     {
         var d = N(v);
-        if (d != Math.Round(d) || Math.Abs(d) >= 1e12) return Nombre(d);
+        if (d != Math.Round(d) || Math.Abs(d) >= 1e12 || Langues.Actuelle != "fr") return Nombre(d);
         var n = (long)Math.Abs(d);
         if (n == 0) return "zéro";
         string[] u = { "", "un", "deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf", "dix", "onze", "douze", "treize", "quatorze", "quinze", "seize", "dix-sept", "dix-huit", "dix-neuf" };

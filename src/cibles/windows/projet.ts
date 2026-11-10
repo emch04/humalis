@@ -16,6 +16,7 @@ import { REACTIF_CS } from './bibliotheque/reactif.js';
 import { SERVEUR_CS } from './bibliotheque/serveur.js';
 import { SYSTEME_CS } from './bibliotheque/systeme.js';
 import { VALEURS_CS } from './bibliotheque/valeurs.js';
+import { SVG_CS } from './bibliotheque/svg.js';
 import { chaineCs, nomApplication, nomCs, nomMethode } from './noms.js';
 import { GenerateurBloc, classeDe, quatreEspaces, type ContexteWindows } from './page.js';
 import { reglesDeClasses, styleDesDeclarations } from './styles.js';
@@ -50,9 +51,6 @@ function verifier(application: Application): Diagnostic[] {
   }
   for (const s of application.sources) {
     if (s.passerelle) refuser(application.ecrans[0]?.ligne ?? 1, `La source « ${s.nom} » passe par la passerelle du serveur (jeton secret) : ce n'est pas encore possible sur Windows.`);
-  }
-  if (application.langues && application.langues.length > 1) {
-    d.push({ gravite: 'avertissement', ligne: 1, message: `Le bloc « langues » : l'application Windows s'affiche pour l'instant dans la première langue seulement (${application.langues[0].code}).` });
   }
   if (application.ongletsApplication?.length) {
     d.push({ gravite: 'avertissement', ligne: application.ongletsApplication[0].ligne, message: '« onglets de l\'application » : sur Windows, la navigation passe par les liens et le bouton Retour pour l\'instant.' });
@@ -332,6 +330,8 @@ export function genererProjetWindows(application: Application, options: OptionsW
   const { code: styles, noms: nomsStyles, ignorees: cssIgnore } = stylesCs(application, options, nomsCouleurs, diagnostics);
 
   const partages = new Map<string, Lieu>(application.partages.map((p) => [p.nom, { lire: `Partage.${nomCs(p.nom)}.Lire()`, signal: `Partage.${nomCs(p.nom)}` }]));
+  // « si langue est anglais » : la langue choisie par la personne.
+  if (application.langues?.length && !partages.has('langue')) partages.set('langue', { lire: 'Langues.Actuelle' });
   const ctx: ContexteWindows = {
     partages,
     fonctions: new Set(application.fonctions.map((f) => f.nom)),
@@ -340,6 +340,7 @@ export function genererProjetWindows(application: Application, options: OptionsW
     styles: nomsStyles,
     diagnostics,
     nonDessinees: new Set(),
+    ...(application.langues?.length ? { langues: application.langues.map((l) => l.code) } : {}),
   };
 
   for (const ecran of application.ecrans) {
@@ -426,6 +427,8 @@ public static class Programme
         Configuration.ModeDepart = ${chaineCs(application.theme?.mode ?? 'automatique')};
         Configuration.LargeurContenu = ${application.theme ? LARGEURS[application.theme.largeur] : 960};
 
+${application.langues?.length ? `        Langues.Toutes = new[] { ${application.langues.map((l) => `(${chaineCs(l.code)}, ${chaineCs(l.nom)})`).join(', ')} };
+` : ''}        Langues.Initialiser();
         var application = new System.Windows.Application { ShutdownMode = ShutdownMode.OnMainWindowClose };
         Apparence.Appliquer();
         Routeur.Fabrique = Pages.Creer;
@@ -455,6 +458,7 @@ public static class Programme
   fichiers.set('Humalis/Interface.cs', INTERFACE_CS);
   fichiers.set('Humalis/Systeme.cs', SYSTEME_CS);
   fichiers.set('Humalis/Serveur.cs', SERVEUR_CS);
+  fichiers.set('Humalis/Svg.cs', SVG_CS);
   for (const [chemin, info] of options.medias ?? []) {
     if (info.contenu !== undefined) fichiers.set(`Ressources/${nomDeLaCopie(chemin)}`, contenuBinaire(info.contenu));
   }

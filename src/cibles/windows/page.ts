@@ -8,7 +8,7 @@ import type { Diagnostic } from '../../analyse/erreurs.js';
 import { simplifier } from '../../analyse/elements.js';
 import { sousActions } from '../../ri/actions.js';
 import { nomDeLaCopie } from '../../ri/medias.js';
-import { verificationsDuChamp } from '../../i18n/messages.js';
+import { libellesEnLangues, verificationsDuChamp } from '../../i18n/messages.js';
 import { Ecrivain } from '../web/ecrivain.js';
 import { EcrivainActions, type HoteActions } from './actions.js';
 import { chaineCs, cleJson, nomComposant, nomCs, nomMethode, nomPage } from './noms.js';
@@ -28,6 +28,8 @@ export interface ContexteWindows {
   diagnostics: Diagnostic[];
   /** Les options qui ne se dessinent pas encore, rencontrées (dites une fois). */
   nonDessinees: Set<string>;
+  /** Les codes des langues du bloc « langues », la langue de base en premier. */
+  langues?: string[];
 }
 
 interface Methode {
@@ -36,7 +38,7 @@ interface Methode {
   boucles: string[];
 }
 
-const GLYPHES_WIDGETS = new Set(['icone', 'badge', 'avatar', 'progression', 'chargement', 'etoiles', 'compteur']);
+const GLYPHES_WIDGETS = new Set(['icone', 'badge', 'avatar', 'progression', 'chargement', 'etoiles', 'compteur', 'selecteurLangue']);
 
 /** Indente un morceau de code de plusieurs lignes (sauf sa première ligne). */
 const decaler = (code: string, espaces = '  ') => code.replace(/\n/g, `\n${espaces}`);
@@ -62,6 +64,7 @@ export class GenerateurBloc implements HoteActions {
   private readonly soumissions = new Map<string, Methode>();
   private readonly formulaires = new Map<string, string[]>();
   private readonly saisies = new Map<string, Saisie | undefined>();
+  private readonly libellesLangues = new Map<string, Map<string, string>>();
   private readonly textesChanges = new Set<string>();
   private readonly visibles = new Set<string>();
   private readonly raccourcis = new Map<string, string>();
@@ -145,6 +148,7 @@ export class GenerateurBloc implements HoteActions {
     const signal = this.nomUnique(nomCs(`champ_${simplifier(libelle) || n.id}`));
     this.portee.champs.set(n.id, { signal, sorte: n.saisie?.sorte ?? 'texte', libelle, cle: cleJson(libelle) });
     this.saisies.set(n.id, n.saisie);
+    this.libellesLangues.set(n.id, libellesEnLangues(n.contenu));
     if (formulaire !== undefined) this.formulaires.get(formulaire)?.push(n.id);
   }
 
@@ -224,11 +228,13 @@ export class GenerateurBloc implements HoteActions {
       const champ = this.portee.champs.get(id);
       if (!champ) continue;
       const saisie = this.saisies.get(id);
-      const messages = verificationsDuChamp('v', saisie, [{ code: 'fr', libelle: champ.libelle }]).map(([, m]) => m[0].texte);
+      const versions = this.libellesLangues.get(id) ?? new Map<string, string>();
+      const langues = this.ctx.langues ?? ['fr'];
+      const messages = verificationsDuChamp('v', saisie, langues.map((code) => ({ code, libelle: versions.get(code) ?? champ.libelle }))).map(([, m]) => (m.length > 1 ? `Langues.T(${m.map((x) => `(${chaineCs(x.code)}, ${chaineCs(x.texte)})`).join(', ')})` : chaineCs(m[0].texte)));
       const tests = testsDuChamp(`${champ.signal}.Valeur`, saisie);
       messages.forEach((message, i) => {
         if (tests[i] === undefined) return;
-        e.ligne(`if (${tests[i]}) { Messages.Afficher(${chaineCs(message)}, "erreur"); return; }`);
+        e.ligne(`if (${tests[i]}) { Messages.Afficher(${message}, "erreur"); return; }`);
       });
     }
   }
@@ -543,9 +549,6 @@ export class GenerateurBloc implements HoteActions {
   private image(n: Extract<NoeudVue, { type: 'element' }>): string {
     const description = n.image?.description ? this.x.enTexte(n.image.description) : '""';
     const source = n.image?.locale !== undefined ? chaineCs(nomDeLaCopie(n.image.locale)) : this.x.enTexte(n.contenu);
-    if (n.image?.locale !== undefined && /\.svg$/i.test(n.image.locale)) {
-      this.ctx.diagnostics.push({ gravite: 'avertissement', ligne: n.ligne, message: `L'image « ${n.image.locale} » est un SVG : WPF ne l'affiche pas encore. Donnez une version PNG ou JPEG pour Windows.` });
-    }
     return `UI.Image(() => ${source}, ${description}, ${chaineCs(n.id)})`;
   }
 
@@ -555,6 +558,7 @@ export class GenerateurBloc implements HoteActions {
     const args = [chaineCs(n.id), this.x.enTexte(n.contenu), champ.signal, chaineCs(champ.sorte)];
     const nommes: string[] = [];
     if (saisie?.indiceValeur) nommes.push(`indice: ${this.x.enTexte(saisie.indiceValeur)}`);
+    else if (saisie?.indiceLangues?.length) nommes.push(`indice: Langues.T(${saisie.indiceLangues.map((l) => `(${chaineCs(l.code)}, ${chaineCs(l.texte)})`).join(', ')})`);
     else if (saisie?.indice) nommes.push(`indice: ${chaineCs(saisie.indice)}`);
     if (saisie?.parmi) nommes.push(`parmi: () => ${this.x.expr(saisie.parmi)}`);
     if (n.desactive !== undefined) nommes.push(`desactive: ${n.desactive === true ? '() => true' : `() => ${this.x.condition(n.desactive)}`}`);
@@ -586,6 +590,8 @@ export class GenerateurBloc implements HoteActions {
       case 'chargement':
         code = 'UI.Chargement()';
         break;
+      case 'selecteurLangue':
+        return 'UI.SelecteurLangue()';
       case 'etoiles':
         code = `UI.Etoiles(() => ${this.x.enNombre(n.contenu)}${n.maximum !== undefined ? `, ${n.maximum}` : ''})`;
         break;

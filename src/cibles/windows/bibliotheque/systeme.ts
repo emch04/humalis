@@ -102,6 +102,53 @@ public static class Apparence
     public static Brush BordureCarte => Ressource("CardStrokeColorDefaultBrush", Sombre ? "#3A3A3A" : "#E5E5E5");
 }
 
+/// <summary>Les langues du programme (bloc « langues ») : celle choisie par la personne est gardée.</summary>
+public static class Langues
+{
+    /// <summary>Les langues, la langue de base en premier.</summary>
+    public static (string code, string nom)[] Toutes = { ("fr", "Français") };
+    public static readonly Signal Code = new();
+
+    /// <summary>Au démarrage : la langue gardée, sinon celle de Windows si le programme l'a, sinon la première.</summary>
+    public static void Initialiser()
+    {
+        var gardee = Memoire.Lire("humalis:langue") as string;
+        var systeme = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
+        var choisie = new[] { gardee, systeme }.FirstOrDefault(c => c is not null && Toutes.Any(l => l.code == c)) ?? Toutes[0].code;
+        Code.Ecrire(choisie);
+    }
+
+    public static string Actuelle => Code.Lire() as string ?? Toutes[0].code;
+
+    public static System.Globalization.CultureInfo Culture
+    {
+        get
+        {
+            var code = Actuelle;
+            var nom = code switch { "fr" => "fr-FR", "en" => "en-GB", "es" => "es-ES", "pt" => "pt-PT", "de" => "de-DE", "it" => "it-IT", "nl" => "nl-NL", "sw" => "sw-KE", "ln" => "fr-CD", _ => code };
+            try { return System.Globalization.CultureInfo.GetCultureInfo(nom); }
+            catch (System.Globalization.CultureNotFoundException) { return V.Fr; }
+        }
+    }
+
+    /// <summary>« changer langue par anglais » : toute la page se redessine dans la nouvelle langue.</summary>
+    public static void Changer(string code)
+    {
+        Code.Ecrire(code);
+        Memoire.Ecrire("humalis:langue", code);
+        Routeur.Redessiner();
+    }
+
+    /// <summary>Le texte dans la langue choisie, sinon dans la langue de base.</summary>
+    public static string T(params (string code, string texte)[] versions)
+    {
+        var code = Actuelle;
+        foreach (var (c, t) in versions) if (c == code) return t;
+        foreach (var (c, t) in versions) if (c == Toutes[0].code) return t;
+        return versions.Length > 0 ? versions[0].texte : "";
+    }
+}
+
 /// <summary>Les messages qui apparaissent en bas de la fenêtre, et les questions Oui / Non.</summary>
 public static class Messages
 {

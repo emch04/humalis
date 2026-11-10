@@ -449,13 +449,35 @@ public static class UI
             var chemin = source();
             try
             {
-                if (chemin.StartsWith("https://") || chemin.StartsWith("http://")) image.Source = new BitmapImage(new Uri(chemin));
-                else if (chemin.Length > 0) image.Source = new BitmapImage(new Uri("pack://application:,,,/Ressources/" + chemin.TrimStart('.', '/').Replace('\\', '/')));
-                else image.Source = null;
+                var distante = chemin.StartsWith("https://") || chemin.StartsWith("http://");
+                var uri = distante ? new Uri(chemin) : new Uri("pack://application:,,,/Ressources/" + chemin.TrimStart('.', '/').Replace('\\', '/'));
+                if (chemin.Length == 0) image.Source = null;
+                else if (chemin.Split('?')[0].EndsWith(".svg", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Un SVG : WPF ne le lit pas, la bibliothèque en fait un dessin vectoriel.
+                    if (distante) _ = ChargerSvg(image, uri);
+                    else image.Source = System.Windows.Application.GetResourceStream(uri) is { } ressource ? Svg.Lire(ressource.Stream) : null;
+                }
+                else image.Source = new BitmapImage(uri);
             }
             catch (Exception) { image.Source = null; }
         });
         return image;
+    }
+
+    private static readonly System.Net.Http.HttpClient telechargeur = new() { Timeout = TimeSpan.FromSeconds(20) };
+
+    private static async Task ChargerSvg(System.Windows.Controls.Image image, Uri uri)
+    {
+        try
+        {
+            using var flux = await telechargeur.GetStreamAsync(uri);
+            var copie = new System.IO.MemoryStream();
+            await flux.CopyToAsync(copie);
+            copie.Position = 0;
+            image.Source = Svg.Lire(copie);
+        }
+        catch (Exception) { image.Source = null; }
     }
 
     // ─── Champs ──────────────────────────────────────────────────────────
@@ -623,6 +645,18 @@ public static class UI
     }
 
     public static FrameworkElement Separateur() => new Separator();
+
+    /// <summary>« selecteur de langue » : la liste des langues du programme.</summary>
+    public static FrameworkElement SelecteurLangue()
+    {
+        var c = new ComboBox { HorizontalAlignment = HorizontalAlignment.Left, MinWidth = 140 };
+        AutomationProperties.SetName(c, "Langue");
+        AutomationProperties.SetAutomationId(c, "humalis_langue");
+        foreach (var (code, nom) in Langues.Toutes) c.Items.Add(new ComboBoxItem { Content = nom, Tag = code });
+        c.SelectedItem = c.Items.Cast<ComboBoxItem>().FirstOrDefault(i => (string)i.Tag == Langues.Actuelle);
+        c.SelectionChanged += (_, _) => { if (c.SelectedItem is ComboBoxItem { Tag: string code } && code != Langues.Actuelle) Langues.Changer(code); };
+        return c;
+    }
 
     // ─── Blocs qui s'ouvrent ─────────────────────────────────────────────
 
