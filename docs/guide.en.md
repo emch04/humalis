@@ -3611,6 +3611,32 @@ On a target where a form makes no sense (a widget on the website), it is ignored
 compiler says so once. These forms are written target by target: where a form is planned
 but not produced yet, compilation stops and says where it is available.
 
+#### On Apple
+
+The Xcode project stays single: the forms add their targets to it (widgets, share, keyboard,
+Apple Watch, Apple TV, App Clip), which reuse the app's pages and shared variables. Compile
+with `--equipe`: values go from the app to its widgets and extensions through an app group,
+which only a team can open.
+
+| Form | On Apple | Limit |
+|---|---|---|
+| widget | WidgetKit, small, medium and large; redrawn as soon as a shared variable changes | at least 15 minutes between refreshes |
+| system bar | `MenuBarExtra` on Mac | Mac only |
+| share received | share extension, iPhone and Mac | on iPhone, read when returning to the app |
+| watch, TV | watchOS app bundled in the iPhone app; tvOS app (`-scheme …Tele`) | no clipboard, share sheet or external link |
+| keyboard | keyboard extension, with the globe to switch keyboards | iPhone and iPad |
+| live activity | ActivityKit: lock screen and Dynamic Island; with the server, updated through APNs | iPhone |
+| icon shortcuts | `UIApplicationShortcutItems` | iPhone and iPad |
+| voice command | App Intents and `AppShortcuts`; `dire` is Siri's answer, elsewhere the device's voice | Siri asks for a `{…}` right after the phrase |
+| file opened | document types, read in place | |
+| startup | `SMAppService`; `discret` closes the window at startup | Mac only |
+| notification buttons | categories `humalis.boutons.Accepter\|Refuser` | |
+| system search | Core Spotlight, on the title | |
+| tile | Control Center `ControlWidget` | iOS 18 or later |
+| mini application | App Clip | one per app |
+| car | CarPlay, one list per screen | entitlement to request from Apple (see `LISEZMOI.md`); the simulator already has it |
+| right-click menu | Finder service (Quick Actions) | Mac, after a first launch from Applications |
+
 ### Several files
 
 A large project is split into several files. At the top of the main file:

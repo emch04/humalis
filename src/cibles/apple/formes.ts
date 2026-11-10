@@ -12,7 +12,7 @@
 import type { Application, Ecran, Etat } from '../../ri/types.js';
 import { Ecrivain } from '../web/ecrivain.js';
 import { EcrivainActions, type HotePage } from './actions.js';
-import { nomIcone } from './icones.js';
+import { SYMBOLES } from './icones.js';
 import { chaineSwift, nomPage, nomRoute, nomSwift } from './noms.js';
 import { GenerateurPage, type ContexteApple } from './page.js';
 import { Valeurs, type Portee } from './valeurs.js';
@@ -30,6 +30,8 @@ export interface ContexteFormes {
   /** L'application a ses liens profonds (« liens "magasin" ») : une adresse qui n'est pas aux formes leur revient. */
   liens: boolean;
   notifications: boolean;
+  /** Le serveur met à jour les activités (« mettre a jour activite ») : chacune envoie son jeton au serveur. */
+  jetonActivite?: boolean;
 }
 
 /** Ce que les formes ajoutent au projet. */
@@ -64,6 +66,19 @@ const TYPES_FICHIER: Record<string, string> = {
   '.xlsx': 'org.openxmlformats.spreadsheetml.sheet', '.pptx': 'org.openxmlformats.presentationml.presentation',
   '.ics': 'com.apple.ical.ics', '.vcf': 'public.vcard',
 };
+
+/** Les noms d'icônes Lucide les plus courants (ceux des exemples des formes), en SF Symbols. */
+const LUCIDE: Record<string, string> = {
+  user: 'person', users: 'person.2', clock: 'clock', list: 'list.bullet', home: 'house', search: 'magnifyingglass', settings: 'gearshape',
+  bell: 'bell', heart: 'heart', star: 'star', calendar: 'calendar', mail: 'envelope', phone: 'phone', map: 'map', 'map-pin': 'mappin',
+  camera: 'camera', image: 'photo', 'shopping-cart': 'cart', 'shopping-bag': 'bag', package: 'shippingbox', truck: 'truck.box', plus: 'plus',
+  check: 'checkmark', x: 'xmark', file: 'doc', 'file-text': 'doc.text', folder: 'folder', send: 'paperplane', share: 'square.and.arrow.up',
+  play: 'play', pause: 'pause', mic: 'mic', timer: 'timer', 'credit-card': 'creditcard', wallet: 'wallet.bifold', zap: 'bolt', car: 'car',
+  'message-circle': 'message', 'log-in': 'arrow.right.square', 'log-out': 'rectangle.portrait.and.arrow.right', lock: 'lock', tag: 'tag', gift: 'gift',
+};
+
+/** Une icône d'une forme : un nom Humalis, un nom Lucide, sinon un cercle (le système refuse un nom inconnu). */
+export const iconeForme = (nom: string): string => SYMBOLES[nom] ?? LUCIDE[nom] ?? 'circle';
 
 const echapperXml = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const chaineXml = (t: string) => `<string>${echapperXml(t)}</string>`;
@@ -197,7 +212,8 @@ export function genererFormesApple(c: ContexteFormes): FormesProduites {
     fichiers.set(`${nomCible}/ControleurPartage.swift`, partageSwift(groupe!, schema));
   }
 
-  // Le fichier ouvert et le menu clic droit : une fiche « fichier » remplie depuis l'adresse du fichier.
+  // Le fichier ouvert et le menu clic droit : une fiche « fichier » remplie depuis l'adresse du fichier, lu là où il est
+  // (le Mac n'accepte pas qu'il soit recopié : l'accès au fichier est ouvert le temps de le lire).
   const fichiersOuverts = f?.fichiersOuverts ?? [];
   fichiersOuverts.forEach((o, i) => fonctionActions(`fichierOuvert${i + 1}Humalis`, o.ecran, `l'ouverture des fichiers ${o.extensions.join(', ')}`, 'nom: String, type: String, contenu: String', ficheRecue('fichier', ['nom', 'type', 'contenu'])));
   const menus = f?.menusClicDroit ?? [];
@@ -227,7 +243,7 @@ export function genererFormesApple(c: ContexteFormes): FormesProduites {
 		</dict>`).join('')}
 	</array>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
-	<false/>`);
+	<true/>`);
   }
   if (menus.length) {
     infos.push(`
@@ -295,7 +311,7 @@ export function genererFormesApple(c: ContexteFormes): FormesProduites {
 			<key>UIApplicationShortcutItemTitle</key>
 			${chaineXml(r.titre)}${r.icone ? `
 			<key>UIApplicationShortcutItemIconSymbolName</key>
-			${chaineXml(nomIcone(r.icone))}` : ''}
+			${chaineXml(iconeForme(r.icone))}` : ''}
 		</dict>`).join('')}
 	</array>`);
   }
@@ -382,7 +398,10 @@ enum GroupeHumalis {
 `);
   // Les activités en direct.
   ligne(`/** « commencer activite », « terminer activite » : ActivityKit, sur l'écran verrouillé et dans l'îlot dynamique. */
-@MainActor enum ActivitesHumalis {
+@MainActor enum ActivitesHumalis {${c.jetonActivite ? `
+    /** Le dernier jeton de chaque activité, pour que le serveur l'oublie à la fin. */
+    private static var jetons: [String: String] = [:]
+` : ''}
     static func commencer(_ nom: String) async {
         #if os(iOS) && canImport(ActivityKit) && !HUMALIS_AUTRE_CIBLE
         guard ActivityAuthorizationInfo().areActivitiesEnabled else {
@@ -391,7 +410,15 @@ enum GroupeHumalis {
         }
         if Activity<ActiviteHumalis>.activities.contains(where: { $0.attributes.nom == nom && $0.activityState == .active }) { return }
         do {
-            _ = try Activity.request(attributes: ActiviteHumalis(nom: nom, titre: titre(nom)), content: .init(state: .init(), staleDate: nil))
+            ${c.jetonActivite ? `let activite = try Activity.request(attributes: ActiviteHumalis(nom: nom, titre: titre(nom)), content: .init(state: .init(), staleDate: nil), pushType: .token)
+            // Le serveur met l'activité à jour par APNs : il reçoit chaque jeton qu'Apple lui donne.
+            Task {
+                for await jeton in activite.pushTokenUpdates {
+                    let texte = jeton.map { String(format: "%02x", $0) }.joined()
+                    jetons[nom] = texte
+                    _ = await Serveur.commun.appelReussi("/auth/activites", methode: "POST", envoi: ["nom": .texte(nom), "apple": .texte(texte)])
+                }
+            }` : `_ = try Activity.request(attributes: ActiviteHumalis(nom: nom, titre: titre(nom)), content: .init(state: .init(), staleDate: nil))`}
         } catch {
             Messages.commun.afficher("L'activité en direct n'a pas pu commencer.", .erreur)
         }
@@ -402,7 +429,10 @@ enum GroupeHumalis {
         #if os(iOS) && canImport(ActivityKit) && !HUMALIS_AUTRE_CIBLE
         for activite in Activity<ActiviteHumalis>.activities where activite.attributes.nom == nom {
             await activite.end(nil, dismissalPolicy: .immediate)
-        }
+        }${c.jetonActivite ? `
+        if let jeton = jetons.removeValue(forKey: nom) {
+            _ = await Serveur.commun.appelReussi("/auth/activites", methode: "POST", envoi: ["nom": .texte(nom), "apple": .texte(jeton), "fin": .booleen(true)])
+        }` : ''}
         #endif
     }
 
@@ -588,13 +618,20 @@ struct CommandesVocalesHumalis: AppShortcutsProvider {
             elements.append(CSSearchableItem(uniqueIdentifier: "recherche${i + 1}:\\(rang)", domainIdentifier: "recherche${i + 1}", attributeSet: attributs))
         }`;
         }).join('')}
-        let index = CSSearchableIndex.default()
-        let domaines = [${recherches.map((_, i) => `"recherche${i + 1}"`).join(', ')}]
-        Task {
-            try? await index.deleteSearchableItems(withDomainIdentifiers: domaines)
+        // Les indexations se suivent : un élément gardé est remplacé, seuls ceux retirés de la liste sont effacés.
+        let identifiants = elements.map { $0.uniqueIdentifier }
+        let precedente = indexation
+        indexation = Task {
+            await precedente?.value
+            let index = CSSearchableIndex.default()
             try? await index.indexSearchableItems(elements)
+            let enTrop = (UserDefaults.standard.stringArray(forKey: "humalis.recherche") ?? []).filter { !identifiants.contains($0) }
+            if !enTrop.isEmpty { try? await index.deleteSearchableItems(withIdentifiers: enTrop) }
+            UserDefaults.standard.set(identifiants, forKey: "humalis.recherche")
         }
     }
+
+    private static var indexation: Task<Void, Never>?
 
     static let actionRecherche = CSSearchableItemActionType
 
@@ -660,12 +697,12 @@ struct CommandesVocalesHumalis: AppShortcutsProvider {
       ? `
 
     /** Une notification reçue pendant qu'on utilise l'application s'affiche quand même. */
-    func userNotificationCenter(_ centre: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
+    nonisolated func userNotificationCenter(_ centre: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
         [.banner, .sound, .badge]
     }
 
     /** Un bouton touché dans une notification : son « quand l'utilisateur touche … », sans ouvrir l'application. */
-    func userNotificationCenter(_ centre: UNUserNotificationCenter, didReceive reponse: UNNotificationResponse) async {
+    nonisolated func userNotificationCenter(_ centre: UNUserNotificationCenter, didReceive reponse: UNNotificationResponse) async {
         let bouton = reponse.actionIdentifier
         await FormesHumalis.boutonNotification(bouton)
     }`
@@ -719,7 +756,7 @@ final class SceneHumalis: NSObject, UIWindowSceneDelegate {
   if (menus.length) {
     ligne(`#if os(macOS)
 /** Le clic droit dans le Finder : un service par « menu clic droit », pour ses extensions de fichier. */
-final class ServicesHumalis: NSObject {
+final class ServicesHumalis: NSObject, @unchecked Sendable {
     static let commun = ServicesHumalis()
 ${menus.map((m, i) => `
     /** « ${m.titre} » (${m.extensions.join(', ')}). */
@@ -860,7 +897,7 @@ struct PhaseFormesHumalis: ViewModifier {
   const scenes = barres.length
     ? `
         #if os(macOS)${barres.map((e) => `
-        MenuBarExtra(${chaineSwift(titreDePage(e))}, systemImage: ${chaineSwift(e.barreSysteme?.icone ? nomIcone(e.barreSysteme.icone) : 'circle')}) {
+        MenuBarExtra(${chaineSwift(titreDePage(e))}, systemImage: ${chaineSwift(e.barreSysteme?.icone ? iconeForme(e.barreSysteme.icone) : 'circle')}) {
             NavigationStack { ${nomPage(e.nom)}() }
                 .frame(width: 340, height: 440)
                 .overlay(alignment: .top) { PileMessagesHumalis() }
@@ -892,7 +929,7 @@ struct PhaseFormesHumalis: ViewModifier {
 function titreDePage(e: Ecran): string {
   const titre = e.vue.find((n) => n.type === 'element' && n.genre === 'titre');
   const parties = titre && titre.type === 'element' && titre.contenu.type === 'texte' ? titre.contenu.parties : undefined;
-  if (parties && parties.every((p) => typeof p === 'string')) return parties.join('');
+  if (parties && parties.every((p) => 'texte' in p)) return parties.map((p) => ('texte' in p ? p.texte : '')).join('');
   return e.nom;
 }
 
@@ -926,7 +963,7 @@ export function categoriesNotification(application: Application, attendus: strin
 }
 
 /** L'identifiant de catégorie qu'un serveur Humalis donne à une notification qui a ces boutons. */
-export const idCategorie = (boutons: string[]): string => `humalis.boutons:${boutons.join('|')}`;
+export const idCategorie = (boutons: string[]): string => `humalis.boutons.${boutons.join('|')}`;
 
 /** Les fonctions des tuiles sortent de la garde de l'application : l'extension les lit aussi. */
 function deplacerTuiles(texte: string, nombre: number): string {
@@ -1103,7 +1140,7 @@ struct Tuile${i + 1}: ControlWidget {
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(kind: ${chaineSwift(`${c.identifiant}.tuile${i + 1}`)}) {
             ControlWidgetButton(action: IntentionTuile${i + 1}()) {
-                Label(${chaineSwift(t.nom)}, systemImage: ${chaineSwift(t.icone ? nomIcone(t.icone) : 'circle')})
+                Label(${chaineSwift(t.nom)}, systemImage: ${chaineSwift(t.icone ? iconeForme(t.icone) : 'circle')})
             }
         }
         .displayName(${chaineSwift(t.nom)})
