@@ -12,6 +12,7 @@ import { analyserEntetePage, analyserAvecPage } from './navigation.js';
 import { ErreurSyntaxique } from './erreurs.js';
 import { estUnTest, analyserTest } from './test.js';
 import { normaliser } from '../lexer/motsCles.js';
+import { langueDuStyle, PLATEFORMES_DU_STYLE } from '../cibles/commun/styles-natifs.js';
 import { entreePrevue } from '../vocabulaire/recherche.js';
 import { langueDuMot } from '../i18n/langues.js';
 import { estMot } from './miseEnPage.js';
@@ -410,6 +411,14 @@ export function analyserSyntaxe(tokens: Token[]): Programme {
       flux.attendre('MOT_CLE', 'style', '« style » après « utiliser »');
       const chemin = flux.attendre('CHAINE', undefined, 'le chemin du fichier CSS entre guillemets').valeur;
       const plateforme = flux.accepter('MOT_CLE', 'sur') ? lirePlateforme(flux) : undefined;
+      // « utiliser style "./apple.swift" sur apple » : un style écrit dans la langue de la plateforme.
+      const langue = langueDuStyle(chemin);
+      if (langue !== 'css') {
+        const { plateformes, nom: nomLangue } = PLATEFORMES_DU_STYLE[langue];
+        if (plateforme === undefined || !plateformes.includes(plateforme)) {
+          throw new ErreurSyntaxique(`« ${chemin} » est un style écrit en ${nomLangue} : il ne vaut que pour ${plateformes.map((x) => `« sur ${x} »`).join(', ').replace(/, ([^,]*)$/, ' ou $1')}. Écrivez par exemple « utiliser style "${chemin}" sur ${plateformes[0]} ».`, debut.ligne);
+        }
+      }
       fichiersStyle.push({ type: 'FichierStyle', chemin, ...(plateforme ? { plateforme } : {}), ligne: debut.ligne });
       flux.sauterFinsDeLigne();
       continue;

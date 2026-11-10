@@ -24,6 +24,7 @@ import { CssApple } from './css.js';
 import { CssExact } from './css-exact.js';
 import { DESSIN_SWIFT, tablesDessin } from './dessin.js';
 import { touches } from './styles.js';
+import { langueDuStyle, stylesSwiftDu } from '../commun/styles-natifs.js';
 import { CONNEXIONS_SWIFT, ENVOIS_SWIFT, LANGUES_SWIFT, MEMOIRE_SWIFT, MESSAGES_SWIFT, MINUTERIES_SWIFT, NOTIFICATIONS_SWIFT, SERVEUR_SWIFT, SYSTEME_SWIFT } from './systeme.js';
 import { Types, Valeurs, plusPrecis, type Portee } from './valeurs.js';
 import { CONFIDENTIALITE, assets, associationSite, infoSupplementaire, type PaquetSwift, droits, projetXcode, schemaXcode } from './xcode.js';
@@ -894,7 +895,20 @@ export function genererProjetApple(application: Application, options: OptionsApp
   const fonctions: Portee['fonctions'] = new Map();
   const pages: HotePage['pages'] = new Map(application.ecrans.map((e) => [e.nom, { parametres: e.parametresAdresse ?? [], filtres: e.filtres ?? [] }]));
   const ressources = new Map<string, string>();
-  const feuilles = application.fichiersStyle.flatMap((f) => (options.fichiersStyle?.has(f.chemin) ? [{ css: options.fichiersStyle.get(f.chemin)!, ...(f.plateforme === 'ios' || f.plateforme === 'macos' ? { os: f.plateforme } : {}) }] : []));
+  // « utiliser style "./apple.swift" sur apple » : des styles écrits en SwiftUI, recopiés tels quels.
+  const stylesNatifs: NonNullable<ContexteApple['stylesNatifs']> = new Map();
+  const fichiersSwift: { nom: string; contenu: string }[] = [];
+  for (const f of application.fichiersStyle) {
+    const contenu = options.fichiersStyle?.get(f.chemin);
+    if (langueDuStyle(f.chemin) !== 'swift' || contenu === undefined) continue;
+    const os = f.plateforme === 'ios' || f.plateforme === 'macos' ? f.plateforme : undefined;
+    const noms = stylesSwiftDu(contenu);
+    if (noms.length === 0) avertir(f.ligne, `« ${f.chemin} » ne déclare aucun style : écrivez « struct StyleCarte: ViewModifier { … } » pour le style « carte ».`);
+    for (const n of noms) stylesNatifs.set(n, [...(stylesNatifs.get(n) ?? []), { struct: `Style${n}`, ...(os ? { os } : {}) }]);
+    const nomFichier = f.chemin.split('/').pop()!;
+    fichiersSwift.push({ nom: nomFichier, contenu: os ? `#if os(${os === 'ios' ? 'iOS' : 'macOS'})\n${contenu}\n#endif\n` : contenu });
+  }
+  const feuilles = application.fichiersStyle.filter((f) => langueDuStyle(f.chemin) === 'css').flatMap((f) => (options.fichiersStyle?.has(f.chemin) ? [{ css: options.fichiersStyle.get(f.chemin)!, ...(f.plateforme === 'ios' || f.plateforme === 'macos' ? { os: f.plateforme } : {}) }] : []));
   const css = new CssApple([...application.css.map((c) => ({ css: c })), ...feuilles]);
   if (css.total > 0) {
     avertir(application.fichiersStyle[0]?.ligne ?? 1, `CSS : ${css.traduites} déclarations sur ${css.total} traduites en SwiftUI (${Math.round((css.traduites * 100) / css.total)} %). Le reste est listé, avec sa raison, dans CSS-SUR-APPLE.md.`);
@@ -905,6 +919,7 @@ export function genererProjetApple(application: Application, options: OptionsApp
     : undefined;
   const app: ContexteApple = {
     css,
+    ...(stylesNatifs.size ? { stylesNatifs } : {}),
     ...(options.cadres ?? process.env.HUMALIS_ESSAI_CADRES === '1' ? { cadres: true } : {}),
     ...(cssExact ? { cssExact } : {}),
     ...(application.iconesDessinees?.length ? { iconesDessinees: new Set(application.iconesDessinees.map((i) => i.nom)) } : {}),
@@ -960,6 +975,7 @@ export function genererProjetApple(application: Application, options: OptionsApp
   const ecrire = (chemin: string, contenu: string) =>
     fichiers.set(`${dossier}/${chemin}`, policeDuTheme && chemin.endsWith('.swift') && !chemin.startsWith('Natif/') ? avecPoliceDuTheme(contenu, policeDuTheme) : contenu);
 
+  for (const f of fichiersSwift) ecrire(`Natif/Styles/${f.nom}`, f.contenu);
   for (const c of application.composants) ecrire(`Composants/${nomComposant(c.nom)}.swift`, new GenerateurPage(c, app, c.parametres).generer());
   const disposition: Disposition = {};
   for (const [genre, composant, d] of [['entete', 'EnteteSite', application.disposition?.entete], ['pied', 'PiedSite', application.disposition?.pied]] as const) {

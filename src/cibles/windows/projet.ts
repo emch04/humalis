@@ -26,6 +26,7 @@ import { GenerateurBloc, classeDe, quatreEspaces, type ContexteWindows } from '.
 import { reglesDeClasses, styleDesDeclarations } from './styles.js';
 import { ExpressionsCs, type Lieu } from './valeurs.js';
 import { lireVueNatifCs, type VueNatifCs } from './natifs.js';
+import { langueDuStyle, stylesXamlDu } from '../commun/styles-natifs.js';
 
 export const MARQUE_WINDOWS = '.humalis-windows';
 
@@ -102,6 +103,7 @@ function stylesCs(application: Application, options: OptionsWindows, couleurs: S
   for (const f of application.fichiersStyle) {
     // « utiliser style "windows.css" sur windows » : la feuille propre à Windows (le tri par plateforme est déjà fait).
     if (f.plateforme !== undefined && !['application', 'windows'].includes(f.plateforme)) continue;
+    if (langueDuStyle(f.chemin) !== 'css') continue; // un dictionnaire XAML : recopié tel quel, pas traduit
     const contenu = options.fichiersStyle?.get(f.chemin);
     if (contenu !== undefined) textes.push(contenu);
   }
@@ -340,6 +342,21 @@ export function genererProjetWindows(application: Application, options: OptionsW
   const { diagnostics, natifs } = verifier(application, options);
   const fichiers = new Map<string, string>();
   const app = nomApplication(options.nom);
+  // « utiliser style "./windows.xaml" sur windows » : des styles WPF écrits à la main, dans un ResourceDictionary.
+  const stylesNatifs = new Set<string>();
+  const dictionnaires: { nom: string; contenu: string }[] = [];
+  for (const f of application.fichiersStyle) {
+    const contenu = options.fichiersStyle?.get(f.chemin);
+    if (langueDuStyle(f.chemin) !== 'xaml' || contenu === undefined) continue;
+    if (!/<ResourceDictionary\b/.test(contenu)) {
+      diagnostics.push({ gravite: 'erreur', ligne: f.ligne, message: `« ${f.chemin} » doit être un dictionnaire de styles WPF : <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" …>, avec un <Style x:Key="carte" …> par style.` });
+      continue;
+    }
+    const cles = stylesXamlDu(contenu);
+    if (cles.length === 0) diagnostics.push({ gravite: 'avertissement', ligne: f.ligne, message: `« ${f.chemin} » ne déclare aucun style : écrivez <Style x:Key="carte" TargetType="Border"> pour le style « carte ».` });
+    cles.forEach((c) => stylesNatifs.add(c));
+    dictionnaires.push({ nom: f.chemin.split('/').pop()!, contenu });
+  }
   const { code: couleurs, noms: nomsCouleurs } = couleursCs(application.theme);
   const { code: styles, noms: nomsStyles, ignorees: cssIgnore } = stylesCs(application, options, nomsCouleurs, diagnostics);
 
@@ -351,6 +368,7 @@ export function genererProjetWindows(application: Application, options: OptionsW
     fonctions: new Set(application.fonctions.map((f) => f.nom)),
     composants: new Map(application.composants.map((c) => [c.nom, c])),
     natifs,
+    stylesNatifs,
     couleurs: nomsCouleurs,
     styles: nomsStyles,
     diagnostics,
@@ -458,7 +476,9 @@ ${application.langues?.length ? `        Langues.Toutes = new[] { ${application.
 ` : ''}        Langues.Initialiser();
         var application = new System.Windows.Application { ShutdownMode = ShutdownMode.OnMainWindowClose };
         Apparence.Appliquer();
-${application.ongletsApplication?.length ? `        FenetrePrincipale.Onglets = new (string, string, string?)[] { ${application.ongletsApplication.map((o) => `(${chaineCs(o.titre)}, ${chaineCs(o.page)}, ${o.icone ? chaineCs(o.icone) : 'null'})`).join(', ')} };\n` : ''}        Routeur.Fabrique = Pages.Creer;
+${dictionnaires.map((d) => `        // « utiliser style "${d.nom}" sur windows » : chargé après le thème, il passe devant.
+        application.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri(${chaineCs(`/${app};component/Styles/${d.nom}`)}, UriKind.Relative) });
+`).join('')}${application.ongletsApplication?.length ? `        FenetrePrincipale.Onglets = new (string, string, string?)[] { ${application.ongletsApplication.map((o) => `(${chaineCs(o.titre)}, ${chaineCs(o.page)}, ${o.icone ? chaineCs(o.icone) : 'null'})`).join(', ')} };\n` : ''}        Routeur.Fabrique = Pages.Creer;
         Routeur.ParAdresse = Pages.ParAdresse;
         var fenetre = new FenetrePrincipale(${disposition.entete ? `() => new ${disposition.entete}().Monter()` : 'null'}, ${disposition.pied ? `() => new ${disposition.pied}().Monter()` : 'null'});
         application.MainWindow = fenetre;
@@ -472,6 +492,8 @@ ${application.ongletsApplication?.length ? `        FenetrePrincipale.Onglets = 
   const aDesRessources = (options.medias?.size ?? 0) > 0;
   fichiers.set(MARQUE_WINDOWS, 'Ce dossier a été produit par Humalis (cible Windows). Recompiler le fichier .humalis le remplace.\n');
   fichiers.set(`${app}.csproj`, csproj(options.nom, application, aDesRessources));
+  // Les dictionnaires de styles XAML : compilés avec le projet (une erreur XAML arrête dotnet build).
+  for (const d of dictionnaires) fichiers.set(`Styles/${d.nom}`, d.contenu);
   // Les vues C# écrites à la main, recopiées telles quelles.
   for (const [nom, fichier] of options.natifs ?? []) if (natifs.has(nom)) fichiers.set(`Natif/${fichier.nom}`, fichier.contenu);
   fichiers.set('app.manifest', MANIFESTE);

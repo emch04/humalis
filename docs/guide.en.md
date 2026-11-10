@@ -514,6 +514,65 @@ On the Apple target, each `.class { … }` rule becomes SwiftUI. What has no equ
 with its reason, in `CSS-SUR-APPLE.md`. On the Windows target, likewise, in
 `CSS-SUR-WINDOWS.md`.
 
+### A style written in the platform's own language
+
+When the translated style is not enough, write it in the platform's language: SwiftUI for
+Apple, XAML for Windows. The file extension gives its language, and `sur` says which
+platform it is for. The file is copied as is: a new SwiftUI or WPF feature can be used the
+same day, without waiting for Humalis.
+
+```humalis
+style "carte" :
+    fond blanc
+    arrondi 8
+
+utiliser style "./styles/apple.swift" sur apple
+utiliser style "./styles/windows.xaml" sur windows
+
+page "vitrine" :
+    bloc avec style "carte" :
+        bouton "Acheter" avec style "bouton-principal"
+```
+
+On Apple, a style is a `ViewModifier` named `Style` followed by the style's name in
+PascalCase (`carte` → `StyleCarte`, `bouton-principal` → `StyleBoutonPrincipal`):
+
+```swift
+import SwiftUI
+
+struct StyleCarte: ViewModifier {
+    func body(content: Content) -> some View {
+        content.padding(16).background(.background.secondary, in: RoundedRectangle(cornerRadius: 12))
+    }
+}
+```
+
+On Windows, a WPF resource dictionary, one `<Style>` per style, keyed by the style's name.
+`TargetType` says what it dresses: `Button` for a button, `TextBlock` for a text or a title,
+`Border` for a frame (Humalis then wraps the element, a block for instance). To keep the
+Windows 11 look, start from the system style with `BasedOn`.
+
+```xml
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Style x:Key="carte" TargetType="Border">
+        <Setter Property="Background" Value="White"/>
+        <Setter Property="CornerRadius" Value="12"/>
+        <Setter Property="Padding" Value="16"/>
+    </Style>
+    <Style x:Key="bouton-principal" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Background" Value="SeaGreen"/>
+    </Style>
+</ResourceDictionary>
+```
+
+On its platform, the native style wins over the Humalis style or the CSS of the same name;
+elsewhere nothing changes. A file for `sur ios` or `sur macos` only is added on top of the
+translated style on that device, without replacing it. In a `dessinee pour` page, the
+native style is added on top of the CSS drawing. An error in the file stops the project
+build (Xcode or `dotnet build`), with its line. On Android it will be a Kotlin file
+(`fun Modifier.carte(): Modifier`), once the Android target is in Humalis.
+
 One block can target several platforms: join them with `et`.
 
 ```humalis

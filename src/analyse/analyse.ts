@@ -1,4 +1,5 @@
 import { analyserPublication } from './site.js';
+import { estStyleDefini } from '../cibles/commun/styles-natifs.js';
 import { analyserLangues, type LanguesDuProgramme } from './langues.js';
 import { langueDuMot } from '../i18n/langues.js';
 import { texteSource } from '../parser/langues.js';
@@ -1384,8 +1385,8 @@ class AnalysePage {
       }
     }
     for (const classe of element.classes) {
-      if (this.classesDefinies && !estClasseInterne(classe) && !this.classesDefinies.has(sansPlateforme(classe))) {
-        this.avertissement(`le style « ${sansPlateforme(classe)} » n'est défini dans aucun CSS du projet.${proposerNom(sansPlateforme(classe), this.classesDefinies)}`, element.ligne);
+      if (this.classesDefinies && !estClasseInterne(classe) && !estStyleDefini(this.classesDefinies, sansPlateforme(classe))) {
+        this.avertissement(`le style « ${sansPlateforme(classe)} » n'est défini dans aucun CSS du projet.${proposerNom(sansPlateforme(classe), [...this.classesDefinies].filter((c) => !c.startsWith('natif:')))}`, element.ligne);
       }
     }
     verifierElementEcran(element, this.signaler());
@@ -1571,8 +1572,8 @@ class AnalysePage {
   /** « formulaire "message" : » : un bloc de la vue, qui regroupe des champs et un bouton (décision F1). */
   private formulaire(formulaire: Formulaire, contexte: Contexte, place: Place): void {
     for (const classe of formulaire.classes ?? []) {
-      if (this.classesDefinies && !estClasseInterne(classe) && !this.classesDefinies.has(sansPlateforme(classe))) {
-        this.avertissement(`le style « ${sansPlateforme(classe)} » n'est défini dans aucun CSS du projet.${proposerNom(sansPlateforme(classe), this.classesDefinies)}`, formulaire.ligne);
+      if (this.classesDefinies && !estClasseInterne(classe) && !estStyleDefini(this.classesDefinies, sansPlateforme(classe))) {
+        this.avertissement(`le style « ${sansPlateforme(classe)} » n'est défini dans aucun CSS du projet.${proposerNom(sansPlateforme(classe), [...this.classesDefinies].filter((c) => !c.startsWith('natif:')))}`, formulaire.ligne);
       }
     }
     if (contexte === 'evenement') {
@@ -1670,8 +1671,8 @@ class AnalysePage {
       }
     }
     for (const classe of bloc.classes) {
-      if (this.classesDefinies && !estClasseInterne(classe) && !this.classesDefinies.has(sansPlateforme(classe))) {
-        this.avertissement(`le style « ${sansPlateforme(classe)} » n'est défini dans aucun CSS du projet.${proposerNom(sansPlateforme(classe), this.classesDefinies)}`, bloc.ligne);
+      if (this.classesDefinies && !estClasseInterne(classe) && !estStyleDefini(this.classesDefinies, sansPlateforme(classe))) {
+        this.avertissement(`le style « ${sansPlateforme(classe)} » n'est défini dans aucun CSS du projet.${proposerNom(sansPlateforme(classe), [...this.classesDefinies].filter((c) => !c.startsWith('natif:')))}`, bloc.ligne);
       }
     }
     verifierBlocEcran(bloc, this.pileBlocs[this.pileBlocs.length - 1], this.signaler());

@@ -293,6 +293,29 @@ public static class UI
     }
 
     /// <summary>Un composant écrit en Humalis, monté une fois : ses valeurs suivent celles de la page.</summary>
+    /// <summary>
+    /// Les styles d'un dictionnaire XAML (« utiliser style "windows.xaml" sur windows »), par leur clé.
+    /// Un style qui vise le type de l'élément s'y pose ; un style qui vise Border entoure l'élément d'un cadre.
+    /// </summary>
+    public static FrameworkElement StyleNatif(FrameworkElement element, params string[] cles)
+    {
+        var resultat = element;
+        foreach (var cle in cles)
+        {
+            if (System.Windows.Application.Current?.TryFindResource(cle) is not Style style)
+            {
+                System.Diagnostics.Debug.WriteLine($"Humalis : le style « {cle} » est introuvable dans les dictionnaires XAML.");
+                continue;
+            }
+            var cible = style.TargetType ?? typeof(FrameworkElement);
+            if (cible.IsInstanceOfType(resultat)) resultat.Style = style;
+            else if (typeof(Border).IsAssignableFrom(cible)) resultat = new Border { Child = resultat, Style = style };
+            else if (resultat is Decorator { Child: FrameworkElement enfant } && cible.IsInstanceOfType(enfant)) enfant.Style = style;
+            else System.Diagnostics.Debug.WriteLine($"Humalis : le style « {cle} » vise {cible.Name}, pas {resultat.GetType().Name}.");
+        }
+        return resultat;
+    }
+
     /// <summary>Une vue C# écrite à la main : recréée quand une valeur qu'elle reçoit change.</summary>
     public static FrameworkElement Natif(Func<FrameworkElement> creer)
     {
