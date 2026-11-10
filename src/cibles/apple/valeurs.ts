@@ -394,7 +394,7 @@ export class Valeurs {
 
   private texteLitteral(valeur: Extract<Valeur, { type: 'texte' }>): string {
     if (valeur.versions) {
-      return `t([${valeur.versions.map((v, i) => `${chaineSwift(v.code)}: ${this.parties(v.parties, i === 0 ? undefined : v.code)}`).join(', ')}])`;
+      return `t([${valeur.versions.map((v) => `${chaineSwift(v.code)}: ${this.parties(v.parties, v.code)}`).join(', ')}])`;
     }
     return this.parties(valeur.parties);
   }
@@ -409,8 +409,8 @@ export class Valeurs {
     const e = this.expr(valeur);
     const en = langue !== undefined && langue !== 'fr' ? `, langue: ${chaineSwift(langue)}` : '';
     if (p.format === 'dateLongue' || p.format === 'lettres') {
-      const lu = p.format === 'lettres' ? `formaterEnLettres(${this.versOpt(e, NOMBRE)})` : `formaterDateLongue(${this.versOpt(e, TEXTE)})`;
-      return p.majuscule ? `avecMajuscule(${lu})` : lu;
+      const lu = p.format === 'lettres' ? `formaterEnLettres(${this.versOpt(e, NOMBRE)}${en})` : `formaterDateLongue(${this.versOpt(e, TEXTE)}${en})`;
+      return p.majuscule ? `avecMajuscule(${lu}${en})` : lu;
     }
     if (p.pluriel) return `accorder(${this.versOpt(e, NOMBRE)}, ${chaineSwift(p.pluriel)}${en})`;
     if (p.format === 'date') return `formaterDate(${this.versOpt(e, TEXTE)}${en})`;

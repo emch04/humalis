@@ -223,7 +223,7 @@ describe('langues des options — le code produit', () => {
     expect(graphique).toContain("{t({ fr: 'Aucune donnée à afficher.', en: 'No data to display.' })}");
     expect(graphique).toContain('formaterArgent(valeur, devise, langueActuelle())');
     const geometrie = fichiers.get('src/humalis/graphique-geometrie.js')!;
-    expect(geometrie).toContain("REGION_GRAPHIQUE = config.langue === 'en' ? 'en-US' : 'fr-FR';");
+    expect(geometrie).toContain(`REGION_GRAPHIQUE = ({"fr":"fr-FR","en":"en-US","es":"es-ES","pt":"pt-PT","sw":"sw","ln":"fr-FR"})[config.langue] || 'fr-FR';`);
     expect(geometrie).not.toContain("toLocaleString('fr-FR'");
     expect(fichiers.get('src/humalis/graphique-geometrie.d.ts')).toContain('langue?: string;');
     const choix = fichiers.get('src/humalis/choix-fichier.tsx')!;

@@ -1,5 +1,6 @@
 /**
- * Les messages intégrés de Humalis, en français et en anglais (plan
+ * Les messages intégrés de Humalis, en français et en anglais, puis en
+ * espagnol, portugais, swahili et lingala (src/i18n/messages-langues.ts) (plan
  * 2026-10-30-qualite-publication, T10) : ceux que le projet produit montre
  * de lui-même (« Réessayer », la page introuvable, les erreurs de champ, les
  * boutons du carrousel, les noms lus par les lecteurs d'écran).
@@ -10,6 +11,7 @@
  * toucher à la logique qui l'emploie.
  */
 import type { Saisie, Valeur } from '../ri/types.js';
+import { AUTRES_LANGUES, CHAMPS_AUTRES_LANGUES, REGIONS_LANGUES, type AutresLangues } from './messages-langues.js';
 
 /** Un texte dans chaque langue disponible. */
 export type Versions = Record<'fr' | 'en', string> & {
@@ -115,6 +117,12 @@ export const MESSAGES: Versions[] = [
   { fr: '${nommer(liste[index])}, position ${index + 1} sur ${liste.length}', en: '${nommer(liste[index])}, position ${index + 1} of ${liste.length}' },
 ];
 
+/** Le texte d'un message dans une langue : sa version, sinon le français. */
+export function versionDe(message: Versions, code: string): string {
+  if (code === 'en') return message.en;
+  return AUTRES_LANGUES[message.fr]?.[code as keyof AutresLangues] ?? message.fr;
+}
+
 /**
  * Un message intégré dans chaque langue du site, la langue de base en premier ;
  * rien si le message n'est pas dans la table. Sert aux textes que la
@@ -123,7 +131,7 @@ export const MESSAGES: Versions[] = [
 export function messageEnLangues(fr: string, codes: string[]): MessageEnLangues | undefined {
   const message = MESSAGES.find((m) => m.fr === fr);
   // Une seule langue (ou aucune) : le message reste celui du code produit d'avant.
-  return message && codes.length > 1 ? codes.map((code) => ({ code, texte: message[code === 'en' ? 'en' : 'fr'] })) : undefined;
+  return message && codes.length > 1 ? codes.map((code) => ({ code, texte: versionDe(message, code) })) : undefined;
 }
 
 /** Les erreurs de champ, avant l'envoi d'un formulaire : le libellé du champ dans la langue du message. */
@@ -152,6 +160,12 @@ const CHAMPS = {
   auPlus: { fr: (l: string, n = 0) => `« ${l} » doit être au plus ${n}.`, en: (l: string, n = 0) => `“${l}” must be at most ${n}.` },
 };
 
+/** L'erreur d'un champ dans une langue (le français pour une langue inconnue). */
+function champDansLaLangue(genre: keyof typeof CHAMPS, code: string): (l: string, n?: number) => string {
+  if (code === 'en') return CHAMPS[genre].en;
+  return CHAMPS_AUTRES_LANGUES[genre]?.[code as keyof AutresLangues] ?? CHAMPS[genre].fr;
+}
+
 /** Un message dans chaque langue du site : la langue et son texte (le français seul sans bloc « langues »). */
 export type MessageEnLangues = { code: string; texte: string }[];
 
@@ -165,7 +179,7 @@ export function verificationsDuChamp(variable: string, saisie: Saisie | undefine
   const sorte = saisie?.sorte ?? 'texte';
   const rempli = `${variable}.trim() !== ''`;
   const message = (genre: keyof typeof CHAMPS, nombre?: number): MessageEnLangues =>
-    libelles.map(({ code, libelle }) => ({ code, texte: (CHAMPS[genre][code === 'en' ? 'en' : 'fr'] as (l: string, n?: number) => string)(libelle, nombre) }));
+    libelles.map(({ code, libelle }) => ({ code, texte: champDansLaLangue(genre, code)(libelle, nombre) }));
   const resultat: [string, MessageEnLangues][] = [];
   if (saisie?.obligatoire) {
     if (sorte === 'case') resultat.push([`!${variable}`, message('cocher')]);
@@ -219,7 +233,7 @@ export function messageEnCode(message: MessageEnLangues, chaine: (texte: string)
 /** Les versions d'un message fixe, dans l'ordre des langues du site (la langue de base en premier). */
 function enCode(message: Versions, codes: string[], gabarit: boolean): string {
   const ecrire = (texte: string) => (gabarit ? `\`${texte}\`` : apostrophes(texte));
-  return `t({ ${codes.map((code) => `${code}: ${ecrire(message[code === 'en' ? 'en' : 'fr'])}`).join(', ')} })`;
+  return `t({ ${codes.map((code) => `${code}: ${ecrire(versionDe(message, code))}`).join(', ')} })`;
 }
 
 const echapperRegex = (texte: string) => texte.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -313,7 +327,7 @@ export function messagesDuProjet(fichiers: Map<string, string>, codes: string[],
     fichiers.set(chemin, traduireMessages(contenu, codes, { importer: relatif(chemin, langue), partout }));
   }
   // La taille d'un fichier choisi, le lecteur de son : après les messages, t est alors importé.
-  adapter('choix-fichier.tsx', choixFichierEnLangues);
+  adapter('choix-fichier.tsx', (code) => choixFichierEnLangues(code, codes));
   adapter('lecteur.tsx', lecteurEnLangues);
 }
 
@@ -332,6 +346,16 @@ export function messagesDuSiteStatique(fichiers: Map<string, string>, codes: str
 }
 
 // ─── Les fichiers produits qui ont besoin de plus qu'un message ─────────────
+
+/** Un message fixe en code, `t({ fr: '…', en: '…', … })`, pour les langues du site (le message doit être dans la table). */
+export function messageFixeEnCode(fr: string, codes: string[]): string {
+  return enCode(messageDe(fr), codes, false);
+}
+
+/** La région des nombres de chaque langue (« en » → « en-US »). */
+function regionsDesNombres(): Record<string, string> {
+  return Object.fromEntries(Object.entries(REGIONS_LANGUES).map(([code, r]) => [code, r.nombre]));
+}
 
 /** Un message de la table, par son texte français (il y est, c'est une erreur de programmation sinon). */
 function messageDe(fr: string): Versions {
@@ -352,7 +376,7 @@ export function geometrieEnLangues(code: string): string {
     .join('toLocaleString(REGION_GRAPHIQUE')
     // Le programme donne toujours l'en-tête des libellés (dans chaque langue) : plus de repli en français.
     .replace("config.nomEtiquettes || 'Libellé'", "config.nomEtiquettes || ''")
-    .replace(/^(\s*)function calculerGraphique\(config, lignes, formater, largeur\) \{\n/m, "$&$1  REGION_GRAPHIQUE = config.langue === 'en' ? 'en-US' : 'fr-FR';\n");
+    .replace(/^(\s*)function calculerGraphique\(config, lignes, formater, largeur\) \{\n/m, `$&$1  REGION_GRAPHIQUE = (${JSON.stringify(regionsDesNombres())})[config.langue] || 'fr-FR';\n`);
 }
 
 /** Les types de la géométrie avec des langues : la figure sait dans quelle langue écrire ses nombres. */
@@ -379,10 +403,10 @@ export function graphiqueEnLangues(code: string): string {
  * français, « 8.2 MB » en anglais ; les noms de types se lisent à l'usage (une
  * propriété qui lit la langue courante) ; le composant suit la langue.
  */
-export function choixFichierEnLangues(code: string): string {
+export function choixFichierEnLangues(code: string, codes: string[] = ['fr', 'en']): string {
   return code
     .split("toLocaleString('fr-FR'")
-    .join("toLocaleString(t({ fr: 'fr-FR', en: 'en-US' })")
+    .join(`toLocaleString(t({ ${codes.map((c) => `${c}: '${REGIONS_LANGUES[c]?.nombre ?? 'fr-FR'}'`).join(', ')} })`)
     .replace(/^  (\w+): (t\(\{[^\n]*\}\)),$/gm, (ligne, nom: string, valeur: string) => (['images', 'audio', 'videos', 'pdf', 'documents'].includes(nom) ? `  get ${nom}() {\n    return ${valeur};\n  },` : ligne))
     .replace("import { t } from './langue';", "import { t, useLangue } from './langue';")
     .replace(/^(export default function ChoixFichier\([^\n]*\{\n)/m, '$1  useLangue();\n');

@@ -1,4 +1,4 @@
-import { verificationsDuChamp, messageEnCode, libellesEnLangues, messageEnLangues, type MessageEnLangues } from '../../i18n/messages.js';
+import { verificationsDuChamp, messageEnCode, messageFixeEnCode, libellesEnLangues, messageEnLangues, type MessageEnLangues } from '../../i18n/messages.js';
 /**
  * Un écran de la représentation intermédiaire → une page du site statique :
  * son contenu de départ, écrit dans le HTML (décision T2), et son script,
@@ -848,7 +848,7 @@ ${prise}${code}}
       `creer('div', { class: 'humalis-sentinelle', 'data-humalis': ${chaine(`${id}-bas`)}, 'aria-hidden': 'true', onbas: ${fonction} })`,
       ...(bouton === null
         ? []
-        : [`creer('button', { type: 'button', class: 'humalis-voir-plus', 'data-humalis': ${chaine(`${id}-voir-plus`)}, onclick: ${fonction} }, ${bouton === 'Voir plus' && this.site.langues ? "t({ fr: 'Voir plus', en: 'See more' })" : chaine(bouton)})`]),
+        : [`creer('button', { type: 'button', class: 'humalis-voir-plus', 'data-humalis': ${chaine(`${id}-voir-plus`)}, onclick: ${fonction} }, ${bouton === 'Voir plus' && this.site.langues ? messageFixeEnCode('Voir plus', this.site.langues.map((l) => l.code)) : chaine(bouton)})`]),
     ];
   }
 
