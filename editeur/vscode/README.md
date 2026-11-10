@@ -27,8 +27,13 @@ page "accueil" :
 
 ## Tout le langage
 
-L'extension connaît le langage de Humalis 1.8.1, y compris les constructions les plus récentes :
+L'extension connaît le langage de Humalis 1.9.0, y compris les constructions les plus récentes :
 
+- **Les styles écrits en Humalis :** `style "carte" :` puis une propriété par ligne (`fond blanc`, `arrondi 12`, `ombre douce`).
+- **Les conditions et les champs :** `si actif :`, `bouton "Payer" avec desactive si panier est vide`, `champ "Référence" avec desactive`, `champ "Nom" avec valeur nom`, `lien "Notre site" vers site`, `video "presentation.mp4" avec commandes`.
+- **Les textes :** `{a la ligne}`, `{prix en lettres}`, `{jour en date longue avec majuscule}`, `initiales de nom`.
+- **Le serveur :** `seul son auteur peut modifier et supprimer avis`, `donnees de depart pour produit :`, `telephone : texte (avant "tel")`.
+- **Les langues :** `langues : francais, anglais avec adresse par langue`, et l'espagnol, le portugais, le swahili et le lingala.
 - **Les messages d'un site :** `erreurs pendant 5 secondes`.
 - **Les comptes :** `emails par brevo`, `invitations vers "bienvenue"`, `mot de passe oublie vers "bienvenue"`, `seul admin peut lire comptes`, et dans les pages `inviter champ "Adresse" comme admin`, `demander un lien de mot de passe pour champ "Email"`, `choisir le mot de passe avec champ "Nouveau"`.
 - **Ce que le serveur décide :** `au depart "en_attente"`, `calcule somme prix de produit par refs`, `au plus prix de zone par commune`, `liste de texte du site`, `non vide`.
