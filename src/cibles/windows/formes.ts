@@ -74,7 +74,7 @@ export function formesWindows(application: Application, ctx: ContexteWindows, es
   }
 
   if (partage) avertir(partage.ligne, "sur Windows, le panneau « Partager » n'accepte que les applications empaquetées (MSIX), que Humalis ne produit pas encore : sans paquet, l'application reçoit les fichiers par « Envoyer vers » (clic droit dans l'Explorateur), et partage.texte et partage.lien restent vides sauf pour un fichier .txt ou un raccourci Internet (.url).");
-  if (menus.length > 0) avertir(menus[0].ligne, "sur Windows 11, le menu du clic droit de l'Explorateur montre les commandes des applications non empaquetées (MSIX) sous « Afficher plus d'options » (ou Maj+F10) ; sur Windows 10, elles sont dans le menu directement.");
+  if (menus.length > 0) avertir(menus[0].ligne, "sur Windows 11, le menu du clic droit de l'Explorateur montre les commandes des applications non empaquetées (MSIX) sous « Afficher d'autres options » (ou Maj+F10) ; sur Windows 10, elles sont dans le menu directement.");
   if (toasts) avertir(boutons[0].ligne, "sur Windows, les notifications envoyées par le serveur n'arrivent pas encore (« activer notifications » n'y existe pas) : les boutons répondent aux notifications que l'application montre elle-même (essai : Application.exe --notification \"Titre\" \"Texte\" \"Accepter\").");
 
   // ─── La classe qui aiguille ──────────────────────────────────────────────
@@ -207,6 +207,7 @@ export function formesWindows(application: Application, ctx: ContexteWindows, es
       e.ligne('try');
       e.ligne('{');
       e.indenter(() => {
+        e.ligne('Integration.Noter(a, dejaLance);');
         e.ligne('if (a.Length == 0 || (a.Length == 1 && a[0] == "--demarrage"))');
         e.ligne('{');
         e.indenter(() => e.ligne('if (dejaLance && a.Length == 0) MontrerFenetre();'));

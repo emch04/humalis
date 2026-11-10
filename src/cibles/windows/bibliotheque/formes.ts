@@ -33,6 +33,9 @@ public static class InstanceUnique
 
     private static string Tube => "Humalis-" + Configuration.Identifiant + "-" + Environment.UserName;
 
+    [DllImport("user32.dll")]
+    private static extern bool AllowSetForegroundWindow(int processus);
+
     /// <summary>Vrai pour la première instance ; les suivantes transmettent leurs arguments et rendent faux.</summary>
     public static bool Premiere(string[] arguments)
     {
@@ -44,6 +47,8 @@ public static class InstanceUnique
         }
         try
         {
+            // Ce lancement vient de la personne (Explorateur, Jump List) : la première instance peut passer devant.
+            AllowSetForegroundWindow(-1);
             using var tube = new NamedPipeClientStream(".", Tube, PipeDirection.Out);
             tube.Connect(5000);
             tube.Write(JsonSerializer.SerializeToUtf8Bytes(arguments));
@@ -91,6 +96,19 @@ public static class Integration
 
     [DllImport("shell32.dll")]
     private static extern void SHChangeNotify(int evenement, uint options, IntPtr a, IntPtr b);
+
+    /// <summary>Les derniers lancements reçus (lancements.txt, à côté de la mémoire) : pour comprendre un clic droit ou un bouton sans effet.</summary>
+    public static void Noter(string[] arguments, bool dejaLance)
+    {
+        try
+        {
+            var fichier = Path.Combine(Memoire.Dossier, "lancements.txt");
+            var lignes = File.Exists(fichier) ? File.ReadAllLines(fichier).TakeLast(49).ToList() : new List<string>();
+            lignes.Add(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + (dejaLance ? " (transmis) " : " ") + string.Join(" ", arguments.Select(x => "[" + x + "]")));
+            File.WriteAllLines(fichier, lignes);
+        }
+        catch (Exception) { }
+    }
 
     public static void Identifier()
     {

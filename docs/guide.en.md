@@ -2498,7 +2498,9 @@ the site the file written to `a-publier-sur-le-site/`.
 
 `en arriere plan :`, directly in a page, says what the app does when the system wakes it.
 The system picks the moment: never before 15 minutes, often much later. This block only
-sees `avec partagee` variables, since no page is open. On Mac, the app must be open.
+sees `avec partagee` variables, since no page is open. On Mac, the app must be open. On
+Windows, it is a scheduled task of the signed-in person, every 15 minutes, that starts the app
+without a window (or hands the work to the app already open).
 
 `hors ligne`, at the end of an `envoyer requete … avec …`, a `modifier` or a `supprimer`,
 keeps the request on the device when there is no network and sends it, in order, when the
@@ -3732,7 +3734,7 @@ target, the compiler says so clearly instead of producing something wrong.
 | Charts, maps, audio, video, files | yes | yes | partly | yes | yes | yes | yes |
 | Several languages | yes | yes | yes | yes | yes | yes | yes |
 | Photo, scanner, Face ID, vibration, signature, offline | yes (vibration: Android) | no | no | no | yes | yes | no |
-| `en arriere plan` | no | no | no | no | yes | yes | no |
+| `en arriere plan` | no | no | no | no | yes | yes | yes (scheduled task) |
 | Sitemap, share preview | yes | yes | no | no | no | no | no |
 
 The server (`--cible serveur`) is generated separately, from the `serveur`
@@ -3827,7 +3829,31 @@ Mac or on Linux; only running it needs Windows 10 or 11.
   "./natif/Carte.cs"`, with its NuGet libraries (`paquet windows "…" version "…"`); see
   "A hand-written native view".
 - Not on Windows yet: payment, AI, signing in with Google or Apple, invitations,
-  notifications. Compilation stops and says which line needs them.
+  notifications sent by the server. Compilation stops and says which line needs them.
+
+The app-specific forms work without an MSIX package: the app registers itself with Windows
+at each launch, for the signed-in person, without administrator rights. It only runs once:
+an opened file, a right-click or a notification button is passed to the window already open.
+
+- `page "…" dans la barre du systeme`: an icon in the notification area. A click opens the
+  page in a small window next to the icon; right-click offers Open and Quit. Closing the
+  app's window hides it without stopping it.
+- `raccourcis de l'icone`: the jump list of the taskbar button.
+- `quand on ouvre un fichier`: the app appears in "Open with" for these extensions.
+  Windows 10 and 11 let the person choose the default app.
+- `lancer au demarrage de l'ordinateur`: shown in Task Manager ("Startup apps");
+  `avec discret`, only in the notification area.
+- `quand l'utilisateur touche "…" dans une notification`: Windows notifications with their
+  buttons; a button answers without opening the window.
+- `menu clic droit`: the File Explorer right-click. On Windows 11 the command is under
+  "Show more options" (or Shift+F10), as for any unpackaged app.
+- `quand on partage vers l'application`: the Windows "Share" panel only accepts packaged
+  (MSIX) apps. Without a package, the app is in the right-click "Send to" menu:
+  `partage.fichier` is the file path, `partage.texte` the text of a `.txt`, `partage.lien`
+  the address of an Internet shortcut. The compiler reminds you.
+
+`Application.exe --desinstaller` removes everything the app registered: run it before
+deleting the `.exe` file.
 
 Without code signing, Windows shows a warning (SmartScreen) on first launch: "More
 info", then "Run anyway".
