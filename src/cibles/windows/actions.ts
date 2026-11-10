@@ -255,6 +255,8 @@ export class EcrivainActions {
         return this.ecriture(e, a, c);
       case 'optimiste':
         return this.optimiste(e, a, c);
+      case 'envoiFichier':
+        return this.envoiFichier(e, a, c);
       case 'connexion':
         return this.compte(e, c, `Session.SeConnecter(${this.x.enTexte(a.email)}, ${this.x.enTexte(a.motDePasse)})`);
       case 'changementMotDePasse':
@@ -366,6 +368,44 @@ export class EcrivainActions {
     else e.ligne(`await Serveur.Reussi(${appel});`);
   }
 
+  /** « envoyer fichier photo vers "…" » : le fichier choisi, avec sa progression ; la réponse dans « fichier dans … ». */
+  private envoiFichier(e: Ecrivain, a: Extract<Action, { type: 'envoiFichier' }>, c: Cadre): void {
+    if (!this.hote.dansUnePage) return this.hote.refuser('un envoi de fichier dans une fonction');
+    const fichier = this.lieu(a.variable);
+    if (!fichier) return;
+    const options = [`source: ${sourceCs(a.source)}`];
+    if (a.corpsBrut) options.push('corpsBrut: true');
+    if (a.champ !== 'fichier') options.push(`champ: ${chaineCs(a.champ)}`);
+    const suivi = a.suivi !== undefined ? this.lieu(a.suivi) : undefined;
+    if (suivi?.signal) options.push(`suivi: ${suivi.signal}`);
+    const resultat = a.resultat !== undefined ? this.lieu(a.resultat) : undefined;
+    const suivie = a.resultat !== undefined && this.hote.etatsRequetes.has(a.resultat);
+    if (suivie) options.push(`etat: Etat(${chaineCs(a.resultat!)})`);
+    const n = ++this.numero;
+    const appel = `await Fichiers.Envoyer(${fichier.lire}, ${chaineCs(a.adresse)}, ${options.join(', ')})`;
+    const ecrire = resultat ? this.affecter(resultat, a.resultat!, `hFichier${n}`) : undefined;
+    if (c.essai) {
+      e.ligne(`var hFichier${n} = ${appel};`);
+      if (ecrire) e.ligne(`if (hFichier${n} is not null) ${ecrire}`);
+      return;
+    }
+    e.ligne('try');
+    e.ligne('{');
+    e.indenter(() => {
+      e.ligne(`var hFichier${n} = ${appel};`);
+      if (ecrire) e.ligne(`if (hFichier${n} is not null) ${ecrire}`);
+    });
+    e.ligne('}');
+    e.ligne(suivie ? 'catch (ErreurHumalis)' : `catch (ErreurHumalis hErreur${n})`);
+    e.ligne('{');
+    e.indenter(() => {
+      // L'état « en erreur » de la page montre déjà le message.
+      if (!suivie) e.ligne(`Messages.Afficher(hErreur${n}.Message, "erreur");`);
+      if (c.formulaire) e.ligne('return;');
+    });
+    e.ligne('}');
+  }
+
   /** « … de facon optimiste » : la page change tout de suite ; un refus du serveur remet les valeurs d'avant. */
   private optimiste(e: Ecrivain, a: Extract<Action, { type: 'optimiste' }>, c: Cadre): void {
     const avant = this.x.nouveauNom('Avant');
@@ -392,7 +432,6 @@ export class EcrivainActions {
 
 /** Le nom d'une action qui n'existe pas encore sur Windows, tel qu'on l'écrit en Humalis. */
 const NOMS_ACTIONS: Partial<Record<Action['type'], string>> = {
-  envoiFichier: 'envoyer fichier',
   telechargementBon: 'telecharger bon de commande',
   connexionGoogle: 'se connecter avec google',
   connexionApple: 'se connecter avec apple',

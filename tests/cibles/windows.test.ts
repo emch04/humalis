@@ -493,6 +493,85 @@ describe('cible Windows — les images SVG', () => {
   });
 });
 
+describe('cible Windows — graphiques, fichiers, code QR', () => {
+  it('un graphique lit sa liste, ses séries et sa description', () => {
+    const page = projet(`page "a" :
+    variable ventes = [fiche avec mois "Janvier" et montant 120, fiche avec mois "Février" et montant 150]
+    titre "Ventes"
+    graphique en barres ventes avec etiquette mois et valeur montant et description "Les ventes montent."
+`).get('Pages/PageA.cs')!;
+    expect(page).toContain('GraphiqueFabrique.Creer("barres", () => ventes.Lire(), "mois", null, new[] { new SerieGraphique(');
+    expect(page).toContain('() => "Les ventes montent."');
+  });
+
+  it('les graduations suivent les pas du web (1, 2 ou 5 fois une puissance de 10)', () => {
+    const graphique = projet(COMPTEUR).get('Humalis/Graphique.cs')!;
+    expect(graphique).toContain('var pas = (rapport <= 1 ? 1 : rapport <= 2 ? 2 : rapport <= 5 ? 5 : 10) * puissance;');
+    expect(graphique).toContain('private static readonly string[] Reperes = { "rond", "carre", "triangle", "losange" };');
+  });
+
+  it('« fichier … dans photo » ouvre la fenêtre de Windows ; « envoyer fichier » suit sa progression', () => {
+    const { application, diagnostics } = compiler(readFileSync('exemples/fichier.humalis', 'utf8'));
+    expect(diagnostics.filter((d) => d.gravite === 'erreur')).toEqual([]);
+    const { fichiers, diagnostics: d2 } = genererProjetWindows(application!, { nom: 'fichier', source: 'fichier.humalis' });
+    expect(d2.filter((d) => d.gravite === 'erreur')).toEqual([]);
+    const page = fichiers.get('Pages/PageProfil.cs')!;
+    expect(page).toContain('Fichiers.Choix(() => "Choisir une photo", photo, new (string, string[])[] { ("images", new[] { "image/png", "image/jpeg"');
+    expect(page).toContain('octets: 5242880');
+    expect(page).toContain('await Fichiers.Envoyer(photo.Lire(), "api/shop/photos", source: Sources.Boutique, corpsBrut: true, suivi: envoi');
+    expect(fichiers.get('Humalis/Fichiers.cs')).toContain('new Microsoft.Win32.OpenFileDialog');
+  });
+
+  it('un code QR est dessiné par la bibliothèque, sans dépendance', () => {
+    const { fichiers, diagnostics } = produire(`page "a" :\n    variable code = "REY-1"\n    titre "a"\n    code qr code avec description "Votre code"\n`);
+    expect(diagnostics.filter((d) => d.gravite === 'erreur')).toEqual([]);
+    expect(fichiers.get('Pages/PageA.cs')).toContain('Qr.Element(() => V.T(code.Lire()), "Votre code")');
+    expect(fichiers.get('Humalis/Qr.cs')).toContain('public static bool[,]? Matrice(string texte)');
+    expect(fichiers.get('Essai.csproj')).not.toContain('PackageReference');
+  });
+});
+
+describe('cible Windows — sous-pages, ancres et onglets de l\'application', () => {
+  const fichiers = projet(`onglets de l'application :
+    onglet "Accueil" vers "accueil" avec icone "maison"
+    onglet "Espace" vers "espace"
+
+page "accueil" :
+    titre "Accueil"
+    lien "Aller aux desserts" vers "#desserts"
+    section "Desserts" avec ancre "desserts" :
+        texte "Beignets"
+
+page "espace" :
+    titre "Espace"
+    sous page
+
+page "profil" dans "espace" :
+    texte "Votre profil"
+
+page "reglages" dans "espace" adresse "/espace" :
+    texte "Vos réglages"
+`);
+
+  it('une page « dans » une autre se dessine dans sa parente, à l\'endroit de « sous page »', () => {
+    const pages = fichiers.get('Pages.cs')!;
+    expect(pages).toContain('"profil" => PageHumalis.Imbriquer(new PageEspace(arguments), new PageProfil(arguments)),');
+    expect(pages).toContain('"espace" => PageHumalis.Imbriquer(new PageEspace(arguments), new PageReglages(arguments)),');
+    expect(fichiers.get('Pages/PageEspace.cs')).toContain('SousPage()');
+  });
+
+  it('un lien vers une ancre fait défiler jusqu\'à elle', () => {
+    const accueil = fichiers.get('Pages/PageAccueil.cs')!;
+    expect(accueil).toContain('Routeur.VersAncre(null, "desserts")');
+    expect(accueil).toContain('Routeur.Ancre("desserts", ');
+  });
+
+  it('les onglets de l\'application sont une barre en haut de la fenêtre', () => {
+    expect(fichiers.get('App.cs')).toContain('FenetrePrincipale.Onglets = new (string, string, string?)[] { ("Accueil", "accueil", "maison"), ("Espace", "espace", null) };');
+    expect(fichiers.get('Humalis/Systeme.cs')).toContain('Routeur.Racine(cible)');
+  });
+});
+
 describe('cible Windows — les fonctions et les composants', () => {
   const fichiers = projet(`fonction remise avec prix et taux :
     rendre prix - prix * taux / 100
@@ -553,9 +632,9 @@ describe('cible Windows — ce qui n\'existe pas ici est dit clairement', () => 
     expect(diagnostics.some((d) => d.gravite === 'erreur' && d.message.includes('--cible desktop'))).toBe(true);
   });
 
-  it('un graphique est refusé', () => {
-    const { diagnostics } = genererProjetWindows(compile(`page "a" :\n    variable visites = [1, 2]\n    graphique en barres visites avec etiquettes ["Lun", "Mar"] et description "Les visites."\n`), { nom: 'essai', source: 'essai.humalis' });
-    expect(diagnostics.some((d) => d.gravite === 'erreur' && d.message.includes('graphique') && d.message.includes('Windows'))).toBe(true);
+  it('une carte est refusée', () => {
+    const { diagnostics } = produire(`page "a" :\n    titre "a"\n    carte "Notre boutique" avec latitude 48,8566 et longitude 2,3522 et zoom 15\n`);
+    expect(diagnostics.some((d) => d.gravite === 'erreur' && d.message.includes('carte') && d.message.includes('Windows'))).toBe(true);
   });
 
   it('une animation est dite, sans bloquer', () => {

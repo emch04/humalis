@@ -450,12 +450,14 @@ public static class UI
             try
             {
                 var distante = chemin.StartsWith("https://") || chemin.StartsWith("http://");
-                var uri = distante ? new Uri(chemin) : new Uri("pack://application:,,,/Ressources/" + chemin.TrimStart('.', '/').Replace('\\', '/'));
+                var locale = chemin.StartsWith("file:");
+                var uri = distante || locale ? new Uri(chemin) : new Uri("pack://application:,,,/Ressources/" + chemin.TrimStart('.', '/').Replace('\\', '/'));
                 if (chemin.Length == 0) image.Source = null;
                 else if (chemin.Split('?')[0].EndsWith(".svg", StringComparison.OrdinalIgnoreCase))
                 {
                     // Un SVG : WPF ne le lit pas, la bibliothèque en fait un dessin vectoriel.
                     if (distante) _ = ChargerSvg(image, uri);
+                    else if (locale) { using var flux = System.IO.File.OpenRead(uri.LocalPath); image.Source = Svg.Lire(flux); }
                     else image.Source = System.Windows.Application.GetResourceStream(uri) is { } ressource ? Svg.Lire(ressource.Stream) : null;
                 }
                 else image.Source = new BitmapImage(uri);

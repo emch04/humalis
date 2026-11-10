@@ -17,6 +17,9 @@ import { SERVEUR_CS } from './bibliotheque/serveur.js';
 import { SYSTEME_CS } from './bibliotheque/systeme.js';
 import { VALEURS_CS } from './bibliotheque/valeurs.js';
 import { SVG_CS } from './bibliotheque/svg.js';
+import { GRAPHIQUE_CS } from './bibliotheque/graphique.js';
+import { FICHIERS_CS } from './bibliotheque/fichiers.js';
+import { QR_CS } from './bibliotheque/qr.js';
 import { chaineCs, nomApplication, nomCs, nomMethode } from './noms.js';
 import { GenerateurBloc, classeDe, quatreEspaces, type ContexteWindows } from './page.js';
 import { reglesDeClasses, styleDesDeclarations } from './styles.js';
@@ -51,12 +54,6 @@ function verifier(application: Application): Diagnostic[] {
   }
   for (const s of application.sources) {
     if (s.passerelle) refuser(application.ecrans[0]?.ligne ?? 1, `La source « ${s.nom} » passe par la passerelle du serveur (jeton secret) : ce n'est pas encore possible sur Windows.`);
-  }
-  if (application.ongletsApplication?.length) {
-    d.push({ gravite: 'avertissement', ligne: application.ongletsApplication[0].ligne, message: '« onglets de l\'application » : sur Windows, la navigation passe par les liens et le bouton Retour pour l\'instant.' });
-  }
-  for (const e of application.ecrans) {
-    if (e.parent !== undefined) d.push({ gravite: 'avertissement', ligne: e.ligne, message: `La page « ${e.nom} » s'affiche seule sur Windows, sans sa page parente « ${e.parent} ».` });
   }
   return d;
 }
@@ -384,7 +381,19 @@ export function genererProjetWindows(application: Application, options: OptionsW
     pages.ligne('public static PageHumalis? Creer(string nom, Arguments arguments) => nom switch');
     pages.ligne('{');
     pages.indenter(() => {
-      for (const e of application.ecrans) pages.ligne(`${chaineCs(e.nom)} => new ${classeDe(e, 'page')}(arguments),`);
+      // Une page « dans » une autre se dessine dans sa parente ; une parente ouverte seule prend l'enfant de même adresse.
+      const parNom = new Map(application.ecrans.map((e) => [e.nom, e]));
+      const adresseDe = (e: Ecran) => (e.adresse ?? `/${e.nom}`).replace(/\/+$/, '');
+      const creation = (e: Ecran, enfant?: string): string => {
+        const propre = `new ${classeDe(e, 'page')}(arguments)`;
+        const ici = enfant ? `PageHumalis.Imbriquer(${propre}, ${enfant})` : propre;
+        const parente = e.parent !== undefined ? parNom.get(e.parent) : undefined;
+        return parente ? creation(parente, ici) : ici;
+      };
+      for (const e of application.ecrans) {
+        const parDefaut = application.ecrans.find((x) => x.parent === e.nom && adresseDe(x) === adresseDe(e));
+        pages.ligne(`${chaineCs(e.nom)} => ${parDefaut ? creation(parDefaut) : creation(e)},`);
+      }
       pages.ligne('_ => null,');
     });
     pages.ligne('};');
@@ -431,7 +440,7 @@ ${application.langues?.length ? `        Langues.Toutes = new[] { ${application.
 ` : ''}        Langues.Initialiser();
         var application = new System.Windows.Application { ShutdownMode = ShutdownMode.OnMainWindowClose };
         Apparence.Appliquer();
-        Routeur.Fabrique = Pages.Creer;
+${application.ongletsApplication?.length ? `        FenetrePrincipale.Onglets = new (string, string, string?)[] { ${application.ongletsApplication.map((o) => `(${chaineCs(o.titre)}, ${chaineCs(o.page)}, ${o.icone ? chaineCs(o.icone) : 'null'})`).join(', ')} };\n` : ''}        Routeur.Fabrique = Pages.Creer;
         Routeur.ParAdresse = Pages.ParAdresse;
         var fenetre = new FenetrePrincipale(${disposition.entete ? `() => new ${disposition.entete}().Monter()` : 'null'}, ${disposition.pied ? `() => new ${disposition.pied}().Monter()` : 'null'});
         application.MainWindow = fenetre;
@@ -459,6 +468,9 @@ ${application.langues?.length ? `        Langues.Toutes = new[] { ${application.
   fichiers.set('Humalis/Systeme.cs', SYSTEME_CS);
   fichiers.set('Humalis/Serveur.cs', SERVEUR_CS);
   fichiers.set('Humalis/Svg.cs', SVG_CS);
+  fichiers.set('Humalis/Graphique.cs', GRAPHIQUE_CS);
+  fichiers.set('Humalis/Fichiers.cs', FICHIERS_CS);
+  fichiers.set('Humalis/Qr.cs', QR_CS);
   for (const [chemin, info] of options.medias ?? []) {
     if (info.contenu !== undefined) fichiers.set(`Ressources/${nomDeLaCopie(chemin)}`, contenuBinaire(info.contenu));
   }
