@@ -168,3 +168,22 @@ describe('le serveur : auteur, données de départ, champ renommé', () => {
     expect(messages).toContain('n\'a pas « prix »');
   });
 });
+
+describe('« avec adresse par langue »', () => {
+  const source = programme('langues : francais, anglais avec adresse par langue', '', 'page "accueil" :', '>titre "Bienvenue" en anglais "Welcome"', '>lien "Le menu" en anglais "The menu" vers "menu"', 'page "menu" :', '>titre "Le menu" en anglais "The menu"');
+  it('donne au routeur la langue de l’adresse, et prérend chaque page dans chaque langue', () => {
+    const f = web(source);
+    expect(f.get('src/main.tsx')).toContain('<BrowserRouter basename={baseDuRouteur()}>');
+    expect(f.get('src/humalis/langue.tsx')).toContain('export function baseDuRouteur()');
+    expect(f.get('src/humalis/langue.tsx')).toContain("lien.hreflang = code;");
+    const prerendu = f.get('astratra.prerender.config.cjs')!;
+    expect(prerendu).toContain('{ path: "/en/menu"');
+    expect(prerendu).toContain('{ path: "/en/"');
+    // La page arrive déjà dans sa langue : pas de script de choix au chargement.
+    expect(f.get('index.html')).not.toContain('humalis-langue-attente');
+  });
+  it('sans la phrase, rien ne change', () => {
+    const f = web(programme('langues : francais, anglais', '', 'page "accueil" :', '>titre "Bienvenue" en anglais "Welcome"'));
+    expect(f.get('src/main.tsx')).not.toContain('basename');
+  });
+});

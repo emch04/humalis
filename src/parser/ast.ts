@@ -1651,6 +1651,8 @@ export interface VersionChaine {
 export interface Langues {
   type: 'Langues';
   langues: { mot: string; ligne: number }[];
+  /** « langues : francais, anglais avec adresse par langue » : chaque langue a sa propre adresse (/en/accueil). */
+  adresseParLangue?: boolean;
   ligne: number;
 }
 

@@ -50,6 +50,8 @@ export interface Application {
    * sans bloc (ou avec une seule langue) : le code produit ne change pas.
    */
   langues?: LangueRI[];
+  /** « avec adresse par langue » : la langue se lit dans l'adresse (/en/accueil), une page par langue pour les moteurs de recherche. */
+  adresseParLangue?: boolean;
   /** « entete : » et « pied : » : communs à toutes les pages qui ne s'en passent pas. */
   disposition?: { entete?: DispositionRI; pied?: DispositionRI; barre?: DispositionRI };
 }

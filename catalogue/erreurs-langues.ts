@@ -178,6 +178,22 @@ page "accueil" :
 `),
     'n\'est pas encore disponible',
     { atteignable: false }),
+  e('langues-adresse-mal-ecrite', 'grammaire', 'Une adresse par langue mal écrite',
+    'Après les langues, « avec adresse par langue » donne à chaque langue sa propre adresse : /en/accueil pour l’anglais.',
+    'Écris la phrase en entier : langues : francais, anglais avec adresse par langue',
+    p(`
+langues : francais, anglais avec adresse
+
+page "accueil" :
+    titre "Bienvenue" en anglais "Welcome"
+`),
+    p(`
+langues : francais, anglais avec adresse par langue
+
+page "accueil" :
+    titre "Bienvenue" en anglais "Welcome"
+`),
+    'avec adresse par langue'),
   e('langue-en-double', 'sens', 'Une langue écrite deux fois',
     'Chaque langue n’apparaît qu’une fois dans le bloc « langues ».',
     'Retire la ligne en double.',
