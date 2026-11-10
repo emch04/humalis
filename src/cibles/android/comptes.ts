@@ -132,7 +132,7 @@ export function lireFirebase(texte: string, identifiant: string): Firebase | und
   }
 }
 
-export function notificationsKotlin(paquet: string, firebase?: Firebase): string {
+export function notificationsKotlin(paquet: string, firebase?: Firebase, donnees: { boutons?: boolean; activites?: boolean } = {}): string {
   const chaine = (t: string) => JSON.stringify(t).replace(/\$/g, '\\$');
   return `// Produit par Humalis : les notifications, reçues par Firebase Cloud Messaging.
 package ${paquet}
@@ -176,10 +176,21 @@ ${firebase
     }
 
     /** Montre une notification reçue pendant que l'application est ouverte. */
-    fun montrer(contexte: Context, titre: String, texte: String) {
+    fun montrer(contexte: Context, titre: String, texte: String${donnees.boutons ? ', boutons: List<String> = emptyList()' : ''}) {
         if (Build.VERSION.SDK_INT >= 33 && androidx.core.content.ContextCompat.checkSelfPermission(contexte, Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) return
-        val notification = NotificationCompat.Builder(contexte, CANAL).setSmallIcon(android.R.drawable.ic_dialog_info).setContentTitle(titre).setContentText(texte).setAutoCancel(true).build()
-        NotificationManagerCompat.from(contexte).notify(System.currentTimeMillis().toInt(), notification)
+        configurer(contexte)
+        val numero = (System.currentTimeMillis() % Int.MAX_VALUE).toInt()
+        val ouvrir = android.app.PendingIntent.getActivity(contexte, numero, android.content.Intent(contexte, MainActivity::class.java).addFlags(android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP), android.app.PendingIntent.FLAG_IMMUTABLE)
+        val notification = NotificationCompat.Builder(contexte, CANAL).setSmallIcon(android.R.drawable.ic_dialog_info).setContentTitle(titre).setContentText(texte).setContentIntent(ouvrir).setAutoCancel(true)
+${donnees.boutons ? `        // Trois boutons au plus : chacun répond sans ouvrir l'application, sauf s'il n'a pas de réponse écrite.
+        boutons.take(3).forEachIndexed { rang, bouton ->
+            val action = if (bouton in BOUTONS_ECRITS) {
+                val intention = android.content.Intent(contexte, RecepteurBoutonsHumalis::class.java).putExtra("bouton", bouton).putExtra("notification", numero)
+                android.app.PendingIntent.getBroadcast(contexte, numero * 4 + rang, intention, android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT)
+            } else ouvrir
+            notification.addAction(0, bouton, action)
+        }
+` : ''}        NotificationManagerCompat.from(contexte).notify(numero, notification.build())
     }
 
     suspend fun inscrire(jeton: String) {
@@ -217,7 +228,20 @@ class ServiceNotificationsHumalis : FirebaseMessagingService() {
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
-        val n = message.notification ?: return
+        Appli.contexte = applicationContext
+${donnees.activites ? `        // « mettre a jour activite » du serveur : l'activité en direct se relit, si elle est encore à l'écran.
+        if (message.data["humalis"] == "activite") {
+            val nom = message.data["nom"] ?: return
+            portee.launch { Activites.actualiser(applicationContext, nom) }
+            return
+        }
+` : ''}${donnees.boutons ? `        // Une notification avec des boutons arrive en message de données : l'application la construit.
+        if (message.data["humalis"] == "notification") {
+            val boutons = (lireJson(message.data["boutons"] ?: "[]") as? List<*>)?.map { texte(it) } ?: emptyList()
+            NotificationsHumalis.montrer(applicationContext, message.data["titre"] ?: "", message.data["texte"] ?: "", boutons)
+            return
+        }
+` : ''}        val n = message.notification ?: return
         NotificationsHumalis.montrer(applicationContext, n.title ?: "", n.body ?: "")
     }
 }

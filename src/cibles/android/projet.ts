@@ -28,6 +28,7 @@ import { chaineKotlin, identifiantAndroid, nomApplication, nomComposant, nomKotl
 import { GenerateurPage, type ContexteAndroid } from './page.js';
 import { Valeurs, type Portee } from './valeurs.js';
 import { dansLePaquet, lireVueNatifKt, stylesKotlinNommes, type VueNatifKt } from './natifs.js';
+import { ecrireFormes, lisezmoiFormes, VERSIONS_FORMES } from './formes.js';
 
 export const MARQUE_ANDROID = '.humalis-projet';
 
@@ -51,6 +52,8 @@ export interface OptionsAndroid {
   fichiersStyle?: Map<string, string>;
   /** Les vues Kotlin écrites à la main (« sur android "Carte.kt" »), par nom de composant : leur fichier. */
   natifs?: Map<string, { nom: string; contenu: string }>;
+  /** Le module de la montre (Wear OS) ou de la télévision (Android TV) : seulement les pages « sur montre » ou « sur tele ». */
+  appareil?: 'montre' | 'tele';
 }
 
 const PAS_ENCORE = "cela n'est pas encore disponible sur la cible Android";
@@ -497,10 +500,169 @@ compilez avec \`--serveur https://…\`.
 `;
 }
 
+/**
+ * Les pages d'un appareil : le téléphone (sans « sur montre » ni « sur tele »), la montre ou la télévision.
+ * Un bloc « sur montre : » n'est gardé que dans l'application de la montre, « sur tele : » dans celle de la télévision.
+ */
+function pourAppareil(application: Application, appareil?: 'montre' | 'tele'): Application {
+  const filtrer = (v: unknown): unknown => {
+    if (Array.isArray(v)) {
+      return v.flatMap((n) => {
+        const p = n && typeof n === 'object' ? (n as { plateforme?: string }).plateforme : undefined;
+        if (p === 'montre' || p === 'tele') return p === appareil ? (filtrer((n as { corps: unknown[] }).corps) as unknown[]) : [];
+        return [filtrer(n)];
+      });
+    }
+    if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, filtrer(x)]));
+    return v;
+  };
+  const ecrans = application.ecrans.filter((e) => e.appareil === appareil).map((e) => filtrer({ ...e, appareil: undefined }) as Ecran);
+  const resultat: Application = { ...application, ecrans, composants: filtrer(application.composants) as Application['composants'] };
+  if (application.disposition) resultat.disposition = filtrer(application.disposition) as Application['disposition'];
+  if (appareil) {
+    // L'application de la montre ou de la télévision n'a que ses pages : pas de formes, de liens profonds ni d'onglets.
+    delete resultat.formes;
+    delete resultat.liensProfonds;
+    delete resultat.ongletsApplication;
+    if (appareil === 'montre') delete resultat.disposition;
+  }
+  return resultat;
+}
+
+/** Les fichiers propres à la montre (Wear OS) et à la télévision (Android TV). */
+const CADRE_MONTRE_KT = String.raw`// Produit par Humalis : le cadre de l'application de la montre (Compose for Wear OS).
+package PAQUET
+
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.unit.dp
+import androidx.wear.compose.material3.AppScaffold
+import androidx.wear.compose.material3.MaterialTheme
+import androidx.wear.compose.material3.ScreenScaffold
+import androidx.wear.compose.material3.TimeText
+
+/** L'heure en haut de l'écran rond, et des marges qui suivent sa courbe ; on revient en arrière en glissant vers la droite. */
+@Composable
+fun CadreMontre(contenu: @Composable () -> Unit) {
+    val rond = LocalConfiguration.current.isScreenRound
+    val largeur = LocalConfiguration.current.screenWidthDp
+    MaterialTheme {
+        AppScaffold(timeText = { TimeText() }) {
+            ScreenScaffold { marges ->
+                Box(Modifier.fillMaxSize().padding(marges).padding(horizontal = if (rond) (largeur * 0.08f).dp else 4.dp, vertical = if (rond) 18.dp else 4.dp)) {
+                    contenu()
+                }
+            }
+        }
+    }
+}
+`;
+
+const CADRE_TELE_KT = String.raw`// Produit par Humalis : le cadre de l'application de la télévision (Compose for TV).
+package PAQUET
+
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.tv.material3.MaterialTheme
+import androidx.tv.material3.Surface
+
+/**
+ * Les marges de sécurité d'un téléviseur (48 sur 27 points) ; la télécommande passe d'un élément à l'autre
+ * avec les flèches, et « OK » le touche, comme un doigt.
+ */
+@Composable
+fun CadreTele(contenu: @Composable () -> Unit) {
+    MaterialTheme {
+        Surface(Modifier.fillMaxSize()) {
+            Box(Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 27.dp)) {
+                contenu()
+            }
+        }
+    }
+}
+`;
+
+const BANNIERE_TELE = `<?xml version="1.0" encoding="utf-8"?>
+<!-- Produit par Humalis : la bannière de l'application dans l'accueil d'Android TV (320 × 180). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp"
+    android:height="180dp"
+    android:viewportWidth="320"
+    android:viewportHeight="180">
+    <path android:fillColor="@color/ic_launcher_background" android:pathData="M0,0h320v180h-320z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M136,60h12v24h24v-24h12v60h-12v-24h-24v24h-12z" />
+</vector>
+`;
+
+/**
+ * Le module de la montre ou de la télévision : un projet produit pour ses seules pages, rangé dans « montre/ »
+ * ou « tele/ », avec le même identifiant d'application que le téléphone (Google Play les relie ainsi).
+ */
+function moduleAppareil(application: Application, options: OptionsAndroid, appareil: 'montre' | 'tele', identifiant: string): { fichiers: Map<string, string>; diagnostics: Diagnostic[] } {
+  const paquet = `${identifiant}.${appareil}`;
+  const produit = genererProjetAndroid(application, { ...options, identifiant: paquet, appareil });
+  const fichiers = new Map<string, string>();
+  const code = `${appareil}/src/main/java/${paquet.replace(/\./g, '/')}`;
+  for (const [chemin, contenu] of produit.fichiers) {
+    if (!chemin.startsWith('app/')) continue;
+    fichiers.set(`${appareil}/${chemin.slice(4)}`, contenu);
+  }
+  const ecrire = (chemin: string, f: (t: string) => string) => fichiers.set(chemin, f(fichiers.get(chemin)!));
+  ecrire(`${appareil}/build.gradle.kts`, (t) => {
+    let r = t.replace(`applicationId = "${paquet}"`, `applicationId = "${identifiant}"`);
+    if (appareil === 'montre') {
+      r = r.replace(/minSdk = \d+/, 'minSdk = 30');
+      r = r.replace('    debugImplementation(', `    // Compose for Wear OS : le cadre rond, l'heure, et le retour en glissant.\n    implementation("androidx.wear.compose:compose-material3:${VERSIONS_FORMES.montre}")\n    implementation("androidx.wear.compose:compose-navigation:${VERSIONS_FORMES.montre}")\n    debugImplementation(`);
+    } else {
+      r = r.replace('    debugImplementation(', `    // Compose for TV : la télécommande et les marges du téléviseur.\n    implementation("androidx.tv:tv-material:${VERSIONS_FORMES.tele}")\n    debugImplementation(`);
+    }
+    return r;
+  });
+  ecrire(`${appareil}/src/main/AndroidManifest.xml`, (t) => {
+    if (appareil === 'montre') {
+      return t
+        .replace('<application', '<uses-feature android:name="android.hardware.type.watch" />\n\n    <application')
+        .replace('        <activity', '        <meta-data android:name="com.google.android.wearable.standalone" android:value="true" />\n        <activity');
+    }
+    return t
+      .replace('<application', '<uses-feature android:name="android.software.leanback" android:required="true" />\n    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />\n\n    <application\n        android:banner="@drawable/banniere_tele"')
+      .replace('<category android:name="android.intent.category.LAUNCHER" />', '<category android:name="android.intent.category.LAUNCHER" />\n                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />');
+  });
+  if (appareil === 'montre') {
+    ecrire(`${appareil}/src/main/res/values/themes.xml`, (t) => t.replace('android:Theme.Material.Light.NoActionBar', 'android:Theme.DeviceDefault.NoActionBar'));
+    ecrire(`${code}/MainActivity.kt`, (t) =>
+      t
+        .replace('import androidx.navigation.compose.NavHost\n', 'import androidx.wear.compose.navigation.SwipeDismissableNavHost\n')
+        .replace('import androidx.navigation.compose.composable\n', 'import androidx.wear.compose.navigation.composable\n')
+        .replace('import androidx.navigation.compose.rememberNavController\n', 'import androidx.wear.compose.navigation.rememberSwipeDismissableNavController\n')
+        .replace('rememberNavController()', 'rememberSwipeDismissableNavController()')
+        .replace(/\bNavHost\(nav, /, 'SwipeDismissableNavHost(nav, ')
+        .replace('setContent { ApplicationHumalis() }', 'setContent { CadreMontre { ApplicationHumalis() } }'),
+    );
+    fichiers.set(`${code}/CadreMontre.kt`, kotlin(paquet, CADRE_MONTRE_KT));
+  } else {
+    ecrire(`${code}/MainActivity.kt`, (t) => t.replace('setContent { ApplicationHumalis() }', 'setContent { CadreTele { ApplicationHumalis() } }'));
+    fichiers.set(`${code}/CadreTele.kt`, kotlin(paquet, CADRE_TELE_KT));
+    fichiers.set(`${appareil}/src/main/res/drawable/banniere_tele.xml`, BANNIERE_TELE);
+    if (!fichiers.has(`${appareil}/src/main/res/values/ic_launcher_background.xml`)) fichiers.set(`${appareil}/src/main/res/values/ic_launcher_background.xml`, couleurIcone(application.theme?.couleurs.find((c) => c.nom === 'marque')?.clair ?? '#1f5fbf'));
+  }
+  return { fichiers, diagnostics: produit.diagnostics };
+}
+
 /** L'identifiant de l'application : celui donné par --identifiant, sinon « local.humalis.<nom> ». */
 export const identifiantDe = (nom: string, donne?: string): string => identifiantAndroid(donne ?? `local.humalis.${simplifier(nom) || 'application'}`);
 
-export function genererProjetAndroid(application: Application, options: OptionsAndroid): { fichiers: Map<string, string>; diagnostics: Diagnostic[] } {
+export function genererProjetAndroid(complete: Application, options: OptionsAndroid): { fichiers: Map<string, string>; diagnostics: Diagnostic[] } {
+  // Le téléphone n'a que ses pages ; celles de la montre et de la télévision vont dans leur module.
+  const application = pourAppareil(complete, options.appareil);
   const diagnostics = verifier(application);
   const refuser = (ligne: number, message: string) => {
     const texte = `${message.replace(/\.$/, '')} : ${PAS_ENCORE}.`;
@@ -791,10 +953,38 @@ export function genererProjetAndroid(application: Application, options: OptionsA
   // L'activité démarre les envois gardés et planifie la tâche d'arrière-plan.
   const activite = `${dossierCode}/MainActivity.kt`;
   fichiers.set(activite, fichiers.get(activite)!.replace('        setContent { ApplicationHumalis() }', `${avecGardes ? '        EnvoisGardes.demarrer()\n' : ''}${fonds.length ? '        ArrierePlan.planifier(applicationContext)\n' : ''}        setContent { ApplicationHumalis() }`));
+  // Les formes d'application spéciales : widgets, tuiles, partage, clavier, activités, voiture…
+  const formes = ecrireFormes({
+    application,
+    paquet,
+    partages,
+    fonctions,
+    route: (page, parametres = []) => {
+      const r = routes.get(page);
+      return r ? routeKotlin(r, r.parametres.map((_, i) => parametres[i] ?? '""'), []) : undefined;
+    },
+    parametresDe: (page) => routes.get(page)?.parametres ?? [],
+    refuser,
+    avertir,
+    ecrireCode,
+    ecrireFichier: (chemin, contenu) => fichiers.set(chemin, contenu),
+    code: [...fichiers.values()].join('\n'),
+  });
+  if (formes.actif) {
+    // L'activité transmet ce qu'elle reçoit (raccourci, partage, fichier, commande vocale) ; la première page prête le fait.
+    let code = fichiers.get(activite)!;
+    code = code.replace('        setContent { ApplicationHumalis() }', '        if (savedInstanceState == null) FormesHumalis.recevoir(applicationContext, intent)\n        setContent { ApplicationHumalis() }');
+    if (code.includes('        super.onNewIntent(intent)\n')) code = code.replace('        super.onNewIntent(intent)\n', '        super.onNewIntent(intent)\n        FormesHumalis.recevoir(applicationContext, intent)\n');
+    else code = code.replace('    override fun onDestroy() {', '    override fun onNewIntent(intent: Intent) {\n        super.onNewIntent(intent)\n        FormesHumalis.recevoir(applicationContext, intent)\n    }\n\n    override fun onDestroy() {');
+    code = code.replace('    override fun onDestroy() {', '    /** En passant à l\'arrière-plan : les widgets et la recherche du téléphone reprennent les dernières valeurs. */\n    override fun onStop() {\n        super.onStop()\n        FormesHumalis.quitter(applicationContext)\n    }\n\n    override fun onDestroy() {');
+    code = code.replace('        val actuelle = nav.currentBackStackEntryAsState().value?.destination?.route\n', '        val actuelle = nav.currentBackStackEntryAsState().value?.destination?.route\n        LaunchedEffect(FormesHumalis.enAttente) { FormesHumalis.enAttente?.let { FormesHumalis.enAttente = null; it(nav) } }\n');
+    fichiers.set(activite, code);
+  }
   // « activer notifications » : Firebase Cloud Messaging, avec les identifiants donnés par --firebase.
-  const avecNotifications = /\bactiverNotifications\(/.test(codePages);
+  const avecNotifications = /\bactiverNotifications\(/.test(codePages) || formes.notifications;
+  if (formes.notifications && !/\bactiverNotifications\(/.test(codePages)) avertir(1, "les boutons des notifications et l'activité mise à jour par le serveur arrivent par Firebase : écrivez « activer notifications » dans une page, sinon cet appareil ne les reçoit pas.");
   if (avecNotifications) {
-    ecrireCode('Notifications.kt', notificationsKotlin(paquet, options.firebase));
+    ecrireCode('Notifications.kt', notificationsKotlin(paquet, options.firebase, formes.donnees));
     fichiers.set(activite, fichiers.get(activite)!.replace('        setContent { ApplicationHumalis() }', '        NotificationsHumalis.configurer(applicationContext)\n        setContent { ApplicationHumalis() }'));
     if (!options.firebase) avertir(1, "« activer notifications » : sans --firebase, l'application demande la permission mais ne peut pas recevoir de notification. Compilez avec --firebase google-services.json (téléchargé depuis la console Firebase), et réglez HUMALIS_FCM_COMPTE sur le serveur.");
   }
@@ -830,12 +1020,23 @@ export function genererProjetAndroid(application: Application, options: OptionsA
 
   // Gradle, le manifeste et les ressources.
   const nomAffiche = application.site?.nom ?? options.nom;
-  fichiers.set('settings.gradle.kts', reglagesGradle(nom));
+  // La montre et la télévision : un module chacune, à côté de l'application du téléphone.
+  const modules: string[] = [];
+  if (!options.appareil) {
+    for (const appareil of ['montre', 'tele'] as const) {
+      if (!complete.ecrans.some((x) => x.appareil === appareil)) continue;
+      const m = moduleAppareil(complete, options, appareil, identifiant);
+      for (const [chemin, contenu] of m.fichiers) fichiers.set(chemin, contenu);
+      for (const d of m.diagnostics) if (!diagnostics.some((x) => x.message === d.message)) diagnostics.push(d);
+      modules.push(appareil);
+    }
+  }
+  fichiers.set('settings.gradle.kts', reglagesGradle(nom).replace('include(":app")', ['app', ...modules].map((m) => `include(":${m}")`).join('\n')));
   fichiers.set('build.gradle.kts', CONSTRUCTION_RACINE);
   fichiers.set('gradle.properties', PROPRIETES_GRADLE);
   fichiers.set('gradle/wrapper/gradle-wrapper.properties', ENVELOPPE_GRADLE);
-  fichiers.set('app/build.gradle.kts', constructionApp(identifiant, nomAffiche, { appareil: avecAppareil, scanner: besoins.scanner, ...medias, ...connexions, travail: fonds.length > 0, notifications: avecNotifications, ...(application.paquetsAndroid?.length ? { paquets: application.paquetsAndroid } : {}) }));
-  fichiers.set('app/src/main/AndroidManifest.xml', manifeste(true, application.liensProfonds, { ...besoins, notifications: avecNotifications }));
+  fichiers.set('app/build.gradle.kts', constructionApp(identifiant, nomAffiche, { appareil: avecAppareil, scanner: besoins.scanner, ...medias, ...connexions, travail: fonds.length > 0, notifications: avecNotifications, ...(application.paquetsAndroid?.length ? { paquets: application.paquetsAndroid } : {}), formes: formes.dependances }));
+  fichiers.set('app/src/main/AndroidManifest.xml', manifeste(true, application.liensProfonds, { ...besoins, notifications: avecNotifications }, formes));
   if (besoins.fichiers) fichiers.set('app/src/main/res/xml/chemins_fichiers.xml', CHEMINS_FICHIERS);
   const domaine = application.liensProfonds?.domaine;
   if (domaine && options.empreinte) {
@@ -857,6 +1058,6 @@ export function genererProjetAndroid(application: Application, options: OptionsA
   }
   fichiers.set('.gitignore', IGNORES_GIT);
   fichiers.set(MARQUE_ANDROID, `Projet produit par Humalis depuis ${options.source}.\nLe compilateur réécrit ce dossier à chaque compilation.\n`);
-  fichiers.set('LISEZMOI.md', lisezmoi(nom, identifiant, serveur));
+  fichiers.set('LISEZMOI.md', lisezmoi(nom, identifiant, serveur) + lisezmoiFormes(application) + (modules.length ? `\n## La montre et la télévision\n\n${modules.map((m) => (m === 'montre' ? '- `montre/` : l\'application Wear OS (Compose for Wear OS), pour Wear OS 3 et plus.' : '- `tele/` : l\'application Android TV (Compose for TV), menée à la télécommande.')).join('\n')}\n\n\`gradle assembleDebug\` construit les ${modules.length + 1} applications ; chacune s'installe sur son appareil.\n` : ''));
   return { fichiers, diagnostics };
 }

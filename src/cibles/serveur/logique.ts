@@ -84,11 +84,15 @@ function test(t: TestServeurRI): string {
 }
 
 /** La ligne qui prépare l'envoi : les textes sont lus tout de suite, l'envoi part après la transaction. */
-function destinataires(i: Extract<InstructionServeurRI, { type: 'notification' }>): string {
+function destinataires(i: Pick<Extract<InstructionServeurRI, { type: 'notification' }>, 'a'>): string {
   if (i.a.genre === 'compte') return `const compte = enTexte(${valeur(i.a.valeur)}); const notifier = (n: typeof envoi) => notifications.aUnCompte(compte, n);`;
   const groupe = i.a.groupe ? `{ champ: ${chaine(camel(i.a.groupe.champ))}, valeur: ${fiche(i.a.groupe.fiche)}[${chaine(camel(i.a.groupe.champ))}] }` : 'undefined';
   return `const groupe = ${groupe}; const notifier = (n: typeof envoi) => notifications.aDesRoles(${JSON.stringify(i.a.roles)}, n, groupe);`;
 }
+
+/** Les textes d'une notification, et ses boutons (« et boutons "Accepter" et "Refuser" »). */
+const contenuNotification = (n: Extract<InstructionServeurRI, { type: 'notification' }>): string =>
+  `{ titre: ${valeur(n.titre)}, texte: ${valeur(n.texte)}${n.boutons?.length ? `, boutons: ${JSON.stringify(n.boutons)}` : ''} }`;
 
 /** Après une création : la fiche créée, puis les notifications ; un échec n'annule pas la création. */
 export function codeNotificationsCreation(route: Route): string {
@@ -96,14 +100,14 @@ export function codeNotificationsCreation(route: Route): string {
   return (route.notifications ?? [])
     .map((n) => `          {
             const ${nom} = cree as Record<string, unknown>;
-            const envoi = { titre: ${valeur(n.titre)}, texte: ${valeur(n.texte)} };
+            const envoi = ${contenuNotification(n)};
             ${destinataires(n)}
             void notifier(envoi).catch((erreur: unknown) => console.error('Une notification n\\'est pas partie :', erreur instanceof Error ? erreur.message : erreur));
           }`)
     .join('\n');
 }
 
-export const avecNotifications = (serveur: ServeurRI) => Boolean(serveur.activeNotifications) || serveur.routes.some((r) => r.notifications?.length) || employe(serveur, (i) => i.type === 'notification');
+export const avecNotifications = (serveur: ServeurRI) => Boolean(serveur.activeNotifications) || serveur.routes.some((r) => r.notifications?.length) || employe(serveur, (i) => i.type === 'notification' || i.type === 'activite');
 
 /** Les routes des appareils, dans extendRoutes. */
 export const ROUTES_APPAREILS = `      const routeAppareils = express.Router();
@@ -112,6 +116,10 @@ export const ROUTES_APPAREILS = `      const routeAppareils = express.Router();
       });
       routeAppareils.post('/', ...acces.connecte, csrfMiddleware, notifications.inscrire);
       app.use('/auth/appareils', routeAppareils);
+      // Le jeton d'une activité en direct de l'iPhone : « mettre a jour activite » la fait changer, application fermée.
+      const routeActivites = express.Router();
+      routeActivites.post('/', ...acces.connecte, csrfMiddleware, notifications.inscrireActivite);
+      app.use('/auth/activites', routeActivites);
 `;
 
 /** src/humalis/notifications.ts */
@@ -129,7 +137,12 @@ import type { Enregistrement, Stockage } from './stockage.js';
 export interface Notification {
   titre: string;
   texte: string;
+  /** « et boutons "Accepter" et "Refuser" » : la personne répond sans ouvrir l'application (trois au plus). */
+  boutons?: string[];
 }
+
+/** La catégorie Apple d'une notification à boutons : l'application déclare la même, avec un bouton par texte. */
+const categorie = (boutons: string[]) => 'humalis.boutons.' + boutons.join('|');
 
 /** Une adresse d'abonnement ne peut viser que les services de notification connus : sinon, n'importe qui ferait appeler n'importe quelle adresse au serveur. */
 const HOTES_CONNUS = ['fcm.googleapis.com', 'web.push.apple.com', 'push.services.mozilla.com', 'notify.windows.com'];
@@ -160,6 +173,21 @@ function jetonAPNs(): string | null {
 }
 
 function envoyerApple(jeton: string, n: Notification): Promise<number> {
+  const boutons = n.boutons?.slice(0, 3);
+  const aps = { alert: { title: n.titre, body: n.texte }, ...(boutons?.length ? { category: categorie(boutons) } : {}) };
+  return envoyerAPNs(jeton, 'alert', { aps, ...(boutons?.length ? { boutons } : {}) });
+}
+
+/**
+ * La mise à jour d'une activité en direct (Live Activity) : son jeton à elle, le type « liveactivity » et le sujet
+ * « <identifiant>.push-type.liveactivity ». L'application relit l'activité à la réception (content-state.maj).
+ */
+function envoyerActiviteApple(jeton: string, nom: string): Promise<number> {
+  const maintenant = Math.floor(Date.now() / 1000);
+  return envoyerAPNs(jeton, 'liveactivity', { aps: { timestamp: maintenant, event: 'update', 'content-state': { maj: maintenant } }, activite: nom });
+}
+
+function envoyerAPNs(jeton: string, genre: 'alert' | 'liveactivity', corps: object): Promise<number> {
   return new Promise((ok, echec) => {
     const autorisation = jetonAPNs();
     const sujet = process.env.HUMALIS_APNS_SUJET;
@@ -170,13 +198,13 @@ function envoyerApple(jeton: string, n: Notification): Promise<number> {
     }
     const client = connect('https://' + (process.env.HUMALIS_APNS_HOTE ?? 'api.push.apple.com'));
     client.on('error', echec);
-    const requete = client.request({ ':method': 'POST', ':path': '/3/device/' + jeton, authorization: 'bearer ' + autorisation, 'apns-topic': sujet, 'apns-push-type': 'alert', 'content-type': 'application/json' });
+    const requete = client.request({ ':method': 'POST', ':path': '/3/device/' + jeton, authorization: 'bearer ' + autorisation, 'apns-topic': genre === 'liveactivity' ? sujet + '.push-type.liveactivity' : sujet, 'apns-push-type': genre, 'apns-priority': '10', 'content-type': 'application/json' });
     let statut = 0;
     requete.on('response', (entetes) => { statut = Number(entetes[':status']); });
     requete.on('error', echec);
     requete.on('end', () => { client.close(); ok(statut); });
     requete.resume();
-    requete.end(JSON.stringify({ aps: { alert: { title: n.titre, body: n.texte } } }));
+    requete.end(JSON.stringify(corps));
   });
 }
 
@@ -213,7 +241,21 @@ async function accesFirebase(compte: NonNullable<ReturnType<typeof compteFirebas
   return lu.access_token;
 }
 
+/**
+ * Un message à un téléphone Android. Une notification simple est montrée par le système ; une notification à
+ * boutons, ou la mise à jour d'une activité, part en message de données : l'application la construit elle-même.
+ */
 async function envoyerAndroid(jeton: string, n: Notification): Promise<number> {
+  const boutons = n.boutons?.slice(0, 3);
+  const message = boutons?.length
+    ? { data: { humalis: 'notification', titre: n.titre, texte: n.texte, boutons: JSON.stringify(boutons) } }
+    : { notification: { title: n.titre, body: n.texte } };
+  return envoyerFCM(jeton, message);
+}
+
+const envoyerActiviteAndroid = (jeton: string, nom: string) => envoyerFCM(jeton, { data: { humalis: 'activite', nom } });
+
+async function envoyerFCM(jeton: string, contenu: object): Promise<number> {
   const compte = compteFirebase();
   if (!compte) {
     console.warn('Notification Android non envoyée : HUMALIS_FCM_COMPTE (le compte de service de Firebase) n\'est pas réglée.');
@@ -223,7 +265,7 @@ async function envoyerAndroid(jeton: string, n: Notification): Promise<number> {
   const reponse = await fetch(hote + '/v1/projects/' + encodeURIComponent(compte.project_id) + '/messages:send', {
     method: 'POST',
     headers: { authorization: 'Bearer ' + (await accesFirebase(compte)), 'content-type': 'application/json' },
-    body: JSON.stringify({ message: { token: jeton, notification: { title: n.titre, body: n.texte }, android: { priority: 'high' } } }),
+    body: JSON.stringify({ message: { token: jeton, ...contenu, android: { priority: 'high' } } }),
   });
   return reponse.status;
 }
@@ -260,15 +302,60 @@ export function creerNotifications({ usersStore, appareils }: { usersStore: User
     await Promise.all((await appareils.lister({ egal: { compte } })).map((a) => envoyerA(a, n)));
   };
 
+  /** Les comptes de ces rôles ; avec un groupe, seulement ceux de ce groupe. */
+  const comptesDesRoles = async (roles: string[], groupe?: { champ: string; valeur: unknown }): Promise<string[]> => {
+    const ids: string[] = [];
+    for (const role of roles) {
+      const comptes = await usersStore.list({ role, limit: 1000 });
+      for (const c of groupe ? comptes.filter((c) => (c as Record<string, unknown>)[groupe.champ] === groupe.valeur) : comptes) ids.push(String(c.id));
+    }
+    return ids;
+  };
+
+  /** « mettre a jour activite » : le jeton de l'activité sur l'iPhone, un message de données sur Android. */
+  const activiteAUnCompte = async (compte: string, nom: string): Promise<void> => {
+    await Promise.all((await appareils.lister({ egal: { compte } })).map(async (a) => {
+      try {
+        if (a.genre === 'activite' && a.nom === nom) {
+          const statut = await envoyerActiviteApple(String(a.cle), nom);
+          // L'activité est terminée sur l'iPhone : son jeton ne sert plus.
+          if (statut === 410 || statut === 400) await appareils.supprimer(a.id);
+        } else if (a.genre === 'android') {
+          const statut = await envoyerActiviteAndroid(String(a.cle), nom);
+          if (statut === 404 || statut === 400) await appareils.supprimer(a.id);
+        }
+      } catch (erreur) {
+        console.error('Une activité en direct n\'a pas été mise à jour :', erreur instanceof Error ? erreur.message : erreur);
+      }
+    }));
+  };
+
   return {
     aUnCompte,
+    activiteAUnCompte,
+    async activiteADesRoles(roles: string[], nom: string, groupe?: { champ: string; valeur: unknown }): Promise<void> {
+      await Promise.all((await comptesDesRoles(roles, groupe)).map((c) => activiteAUnCompte(c, nom)));
+    },
+
+    /** POST /auth/activites : { nom, apple: jeton } ; avec « fin: true », le jeton est oublié. */
+    inscrireActivite: (async (req, res, next) => {
+      try {
+        const compte = String((req as unknown as { user: { id: unknown } }).user.id);
+        const corps = (req.body ?? {}) as { nom?: unknown; apple?: unknown; fin?: unknown };
+        if (typeof corps.nom !== 'string' || corps.nom.length > 200 || typeof corps.apple !== 'string' || !JETON.test(corps.apple)) {
+          res.status(400).json({ erreur: "cette activité n'est pas valable" });
+          return;
+        }
+        for (const ancien of await appareils.lister({ egal: { cle: corps.apple } })) await appareils.supprimer(ancien.id);
+        if (corps.fin !== true) await appareils.creer({ genre: 'activite', cle: corps.apple, nom: corps.nom, compte });
+        res.status(corps.fin === true ? 200 : 201).json({ inscrit: corps.fin !== true });
+      } catch (erreur) {
+        next(erreur);
+      }
+    }) as RequestHandler,
     /** Tous les comptes de ces rôles ; avec un groupe, seulement ceux de ce groupe. */
     async aDesRoles(roles: string[], n: Notification, groupe?: { champ: string; valeur: unknown }): Promise<void> {
-      for (const role of roles) {
-        const comptes = await usersStore.list({ role, limit: 1000 });
-        const vises = groupe ? comptes.filter((c) => (c as Record<string, unknown>)[groupe.champ] === groupe.valeur) : comptes;
-        await Promise.all(vises.map((c) => aUnCompte(String(c.id), n)));
-      }
+      await Promise.all((await comptesDesRoles(roles, groupe)).map((c) => aUnCompte(c, n)));
     },
 
     /** POST /auth/appareils : { web: abonnement }, { apple: jeton } ou { android: jeton }. Un appareil n'appartient qu'à un compte. */
@@ -355,11 +442,16 @@ class Ecriture {
         const a = i.a.genre === 'admins' ? 'await adressesDesAdmins()' : `enTexte(${valeur(i.a.valeur)})`;
         return `${r}{\n${r}  const envoi = { sujet: ${valeur(i.sujet)}, texte: ${valeur(i.texte)} };\n${r}  travail.apres.push(async () => { await emails.envoyer({ a: ${a}, ...envoi }); });\n${r}}`;
       }
-      // « mettre a jour activite » : refusé avant (verifierFormesPourLaCible) tant que le serveur ne l'envoie pas.
-      case 'activite':
-        return `${r}// activité en direct « ${i.nom} » : pas encore envoyée par ce serveur.`;
+      // « mettre a jour activite "livraison" pour commande.client » : après la transaction, comme une notification.
+      case 'activite': {
+        const groupe = i.a.genre === 'roles' && i.a.groupe ? `{ champ: ${chaine(camel(i.a.groupe.champ))}, valeur: ${fiche(i.a.groupe.fiche)}[${chaine(camel(i.a.groupe.champ))}] }` : 'undefined';
+        const envoi = i.a.genre === 'compte'
+          ? `const compte = enTexte(${valeur(i.a.valeur)});\n${r}  travail.apres.push(() => notifications.activiteAUnCompte(compte, ${chaine(i.nom)}));`
+          : `const groupe = ${groupe};\n${r}  travail.apres.push(() => notifications.activiteADesRoles(${JSON.stringify(i.a.roles)}, ${chaine(i.nom)}, groupe));`;
+        return `${r}{\n${r}  ${envoi}\n${r}}`;
+      }
       case 'notification': {
-        return `${r}{\n${r}  const envoi = { titre: ${valeur(i.titre)}, texte: ${valeur(i.texte)} };\n${r}  ${destinataires(i)}\n${r}  travail.apres.push(() => notifier(envoi));\n${r}}`;
+        return `${r}{\n${r}  const envoi = ${contenuNotification(i)};\n${r}  ${destinataires(i)}\n${r}  travail.apres.push(() => notifier(envoi));\n${r}}`;
       }
     }
   }
