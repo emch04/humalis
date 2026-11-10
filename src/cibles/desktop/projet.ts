@@ -4,6 +4,7 @@ import { simplifier } from '../../analyse/elements.js';
 import { chaine } from '../web/noms.js';
 import { genererProjetWeb, adressesDeRequetes, MEMOIRE, MARQUE, VERSIONS } from '../web/projet.js';
 import { genererProjetMoteur, verifierPourLeMoteur, MARQUE_MOTEUR } from '../moteur/projet.js';
+import { formesDuBureau, applicationAvecFormes, brancherLesCouches, associationsDeFichiers, scriptNsis, codeFormesPrincipal, lisezmoiFormes, PONT_FORMES, type FormesBureau } from './formes.js';
 
 export interface OptionsDesktop {
   /** Le nom du projet, tiré du fichier Humalis (« boutique »). */
@@ -73,14 +74,18 @@ export const SERVEUR_PAR_DEFAUT = 'http://localhost:3000';
  */
 export function genererProjetDesktop(application: Application, options: OptionsDesktop): Map<string, string> {
   const moteur = bureauSurLeMoteur(application, options);
+  // Les formes spéciales (barre du système, fichiers ouverts, démarrage, menu clic droit) : des pages de plus pour le moteur.
+  const formes = formesDuBureau(application);
+  const avecFormes = applicationAvecFormes(application, formes);
   const web = moteur
-    ? genererProjetMoteur(application, { nom: options.nom, source: options.source, ...(options.fichiersStyle ? { fichiersStyle: options.fichiersStyle } : {}), ...(options.polices ? { polices: options.polices } : {}), ...(options.medias ? { medias: options.medias } : {}), ...(options.images ? { images: options.images } : {}), adresse: 'http://localhost' })
+    ? genererProjetMoteur(avecFormes.application, { nom: options.nom, source: options.source, ...(options.fichiersStyle ? { fichiersStyle: options.fichiersStyle } : {}), ...(options.polices ? { polices: options.polices } : {}), ...(options.medias ? { medias: options.medias } : {}), ...(options.images ? { images: options.images } : {}), ...(avecFormes.donnees.size > 0 ? { donnees: avecFormes.donnees } : {}), adresse: 'http://localhost' })
     : genererProjetWeb(application, { ...options, adresse: 'http://localhost' });
   const fichiers = new Map<string, string>();
   if (moteur) {
     // Les pages du moteur : une page HTML par adresse, son script, ses outils ; rien de React.
     for (const [chemin, contenu] of web) if (!['package.json', '.gitignore', 'LISEZMOI.md', MARQUE_MOTEUR].includes(chemin)) fichiers.set(chemin, contenu);
     fichiers.set(MARQUE, web.get(MARQUE_MOTEUR) ?? '');
+    brancherLesCouches(fichiers, formes);
   } else {
     // Les pages et leurs outils, à l'octet près ; pas de prérendu (décision D3).
     for (const [chemin, contenu] of web) {
@@ -93,15 +98,17 @@ export function genererProjetDesktop(application: Application, options: OptionsD
   const etats: Etat[] = [...application.partages, ...application.ecrans.flatMap((e) => e.etat), ...application.composants.flatMap((c) => c.etat)];
   const secret = etats.some((e) => e.memorisee && e.secret);
   // « memorisee en secret », refusé sur le web, est gardé dans le coffre de l'ordinateur (décision D6).
-  if (secret) {
-    fichiers.set('src/humalis/memoire.ts', memoireAvecCoffre());
-    fichiers.set('electron/pont.cts', PONT);
-  }
+  if (secret) fichiers.set('src/humalis/memoire.ts', memoireAvecCoffre());
+  // Le pont (preload) : le coffre, et le fichier reçu par une forme.
+  const pont = secret || formes.actions.length > 0;
+  if (pont) fichiers.set('electron/pont.cts', PONT_DEBUT + (secret ? PONT_COFFRE : '') + (formes.actions.length > 0 ? PONT_FORMES : ''));
 
   const slug = simplifier(options.nom).replace(/_/g, '-') || 'application-humalis';
   const { relais, origines } = adressesDuServeur(application);
   const misesAJour = adresseDesMisesAJour(application);
-  fichiers.set('package.json', packageJson(slug, options, misesAJour, moteur));
+  fichiers.set('package.json', packageJson(slug, options, misesAJour, moteur, formes));
+  const menusWindows = scriptNsis(formes, slug);
+  if (menusWindows) fichiers.set('build/menus.nsh', menusWindows);
   // Les bibliothèques des éléments d'écran (icônes, code QR) : Vite les emballe, comme React.
   const extras = Object.fromEntries(
     Object.entries((JSON.parse(web.get('package.json')!).dependencies ?? {}) as Record<string, string>).filter(([nom]) => !['react', 'react-dom', 'react-router'].includes(nom)),
@@ -117,7 +124,7 @@ export function genererProjetDesktop(application: Application, options: OptionsD
   }
   fichiers.set('tsconfig.electron.json', TSCONFIG_ELECTRON);
   fichiers.set('.gitignore', 'node_modules\ndist\nelectron/dist\npaquets\n');
-  fichiers.set('LISEZMOI.md', lisezmoi(options, slug, misesAJour));
+  fichiers.set('LISEZMOI.md', lisezmoi(options, slug, misesAJour) + lisezmoiFormes(formes));
   fichiers.set(
     'electron/principal.ts',
     principal({
@@ -127,6 +134,9 @@ export function genererProjetDesktop(application: Application, options: OptionsD
       relais,
       origines,
       secret,
+      pont,
+      formes,
+      slug,
       misesAJour: misesAJour !== undefined,
       pagesParAdresse: moteur,
       ...mediasDuProgramme(application),
@@ -170,7 +180,11 @@ export function adressesDuServeur(application: Application): { relais: string[];
   return { relais, origines };
 }
 
-function packageJson(slug: string, options: OptionsDesktop, misesAJour?: string, moteur = false): string {
+function packageJson(slug: string, options: OptionsDesktop, misesAJour?: string, moteur = false, formes?: FormesBureau): string {
+  const associations = formes ? associationsDeFichiers(formes) : [];
+  const menus = formes?.actions.some((a) => a.sorte === 'menu') ?? false;
+  // Un fichier ouvert ou un menu clic droit sur Linux : le paquet .deb inscrit l'application auprès du bureau.
+  const deb = (formes?.actions.length ?? 0) > 0;
   return (
     JSON.stringify(
       {
@@ -190,6 +204,7 @@ function packageJson(slug: string, options: OptionsDesktop, misesAJour?: string,
           // Les installateurs : un .dmg pour Mac, un .exe (NSIS) pour Windows.
           'paquet:mac': 'npm run build && electron-builder --mac --publish never',
           'paquet:windows': 'npm run build && electron-builder --win --publish never',
+          'paquet:linux': 'npm run build && electron-builder --linux --publish never',
         },
         // Les mises à jour automatiques : electron-updater part avec l'application installée.
         ...(misesAJour ? { dependencies: { 'electron-updater': VERSIONS_DESKTOP.electronUpdater } } : {}),
@@ -216,7 +231,11 @@ function packageJson(slug: string, options: OptionsDesktop, misesAJour?: string,
           directories: { output: 'paquets' },
           mac: { target: ['dmg', 'zip'], category: 'public.app-category.productivity' },
           win: { target: [{ target: 'nsis', arch: ['x64'] }] },
-          linux: { target: ['AppImage'], category: 'Utility' },
+          linux: { target: deb ? ['AppImage', 'deb'] : ['AppImage'], category: 'Utility', ...(deb ? { maintainer: options.nom } : {}) },
+          // « quand on ouvre un fichier » : « Ouvrir avec » sur Mac, Windows et Linux.
+          ...(associations.length > 0 ? { fileAssociations: associations } : {}),
+          // « menu clic droit » : les clés de l'Explorateur, posées par l'installateur (build/menus.nsh).
+          ...(menus ? { nsis: { include: 'build/menus.nsh' } } : {}),
           // Les installateurs et leurs latest*.yml vont à cette adresse ; l'application les y cherche.
           ...(misesAJour ? { publish: [{ provider: 'generic', url: misesAJour }] } : {}),
           // Les fusibles d'Electron (décision D4) : l'application installée ne
@@ -266,6 +285,11 @@ interface OptionsPrincipal {
   relais: string[];
   origines: string[];
   secret: boolean;
+  /** Le preload electron/pont.cts : le coffre, le fichier reçu par une forme. */
+  pont: boolean;
+  /** Les formes spéciales du bureau. */
+  formes: FormesBureau;
+  slug: string;
   /** L'adresse des mises à jour est connue : electron-updater les cherche au lancement. */
   misesAJour: boolean;
   /** Un aperçu de fichier choisi (blob:) s'affiche dans la page. */
@@ -284,15 +308,24 @@ function mediasDuProgramme(application: Application): { apercu: boolean; media: 
 
 /** Le processus principal : la fenêtre, le menu, le protocole, le relais et, s'il le faut, le coffre. */
 function principal(o: OptionsPrincipal): string {
-  const electron = ['app', 'BrowserWindow', ...(o.secret ? ['ipcMain'] : []), 'Menu', 'nativeTheme', 'net', 'protocol', ...(o.secret ? ['safeStorage'] : []), 'session', 'shell'];
-  const types = ['type MenuItemConstructorOptions', ...(o.secret ? ['type IpcMainInvokeEvent'] : [])];
+  const f = o.formes;
+  const tray = f.trays.length > 0 || f.demarrage !== undefined;
+  const fichiers = f.actions.length > 0;
+  const menusLinux = f.actions.some((a) => a.sorte === 'menu');
+  const ecrit = f.demarrage !== undefined || menusLinux;
+  const electron = ['app', 'BrowserWindow', ...(o.secret || fichiers ? ['ipcMain'] : []), 'Menu', ...(tray ? ['nativeImage'] : []), 'nativeTheme', 'net', 'protocol', ...(o.secret ? ['safeStorage'] : []), ...(tray ? ['screen'] : []), 'session', 'shell', ...(tray ? ['Tray'] : [])];
+  const types = ['type MenuItemConstructorOptions', ...(o.secret ? ['type IpcMainInvokeEvent'] : []), ...(tray ? ['type NativeImage'] : [])];
+  const fs = ['existsSync', ...(menusLinux ? ['chmodSync'] : []), ...(ecrit ? ['mkdirSync', 'rmSync'] : []), 'statSync', ...(ecrit ? ['writeFileSync'] : [])];
+  const fsPromesses = [...(o.secret ? ['mkdir'] : []), ...(o.secret || fichiers ? ['readFile'] : []), ...(o.secret ? ['writeFile'] : [])];
+  const chemins = [...(fichiers ? ['basename'] : []), 'dirname', 'extname', ...(fichiers ? ['isAbsolute'] : []), 'join', 'normalize', 'sep'];
+  const discret = f.demarrage?.discret === true;
   const connexions = ["'self'", ...o.origines].join(' ');
   return `// Produit par Humalis depuis ${o.source} : le processus principal de l'application de bureau.
 // Il ouvre la fenêtre, pose le menu, sert les pages construites par Vite
 // et relaie leurs requêtes vers le serveur (voir LISEZMOI.md).
 import { ${electron.join(', ')}, ${types.join(', ')} } from 'electron';
-${o.misesAJour ? "import electronUpdater from 'electron-updater';\n" : ''}${o.secret ? "import { createHash } from 'node:crypto';\n" : ''}import { existsSync, statSync } from 'node:fs';
-${o.secret ? "import { mkdir, readFile, writeFile } from 'node:fs/promises';\n" : ''}import { dirname, extname, join, normalize, sep } from 'node:path';
+${o.misesAJour ? "import electronUpdater from 'electron-updater';\n" : ''}${o.secret ? "import { createHash } from 'node:crypto';\n" : ''}import { ${fs.join(', ')} } from 'node:fs';
+${fsPromesses.length ? `import { ${fsPromesses.join(', ')} } from 'node:fs/promises';\n` : ''}${ecrit ? "import { homedir } from 'node:os';\n" : ''}import { ${chemins.join(', ')} } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const NOM = ${chaine(o.nom)};
@@ -395,7 +428,10 @@ ${o.pagesParAdresse ? `  else if (extname(url.pathname) === '') {
   if (fichier.endsWith('.html')) entetes.set('Content-Security-Policy', CSP);
   return new Response(reponse.body, { status: reponse.status, headers: entetes });
 }
-${o.secret ? COFFRE : ''}${o.misesAJour ? MISES_A_JOUR : ''}
+${o.secret ? COFFRE : ''}${o.misesAJour ? MISES_A_JOUR : ''}${codeFormesPrincipal(f, o.slug)}
+/** La fenêtre de l'application (les fenêtres de la barre du système sont à part). */
+let fenetrePrincipale: BrowserWindow | undefined;
+
 function creerFenetre(): BrowserWindow {
   const fenetre = new BrowserWindow({
     width: 1024,
@@ -411,11 +447,25 @@ function creerFenetre(): BrowserWindow {
       nodeIntegration: false,
       sandbox: true,
       webSecurity: true,
-${o.secret ? "      // Le pont vers le coffre : deux fonctions, lire et ecrire (electron/pont.cts).\n      preload: join(ICI, 'pont.cjs'),\n" : ''}    },
+${o.pont ? `      // Le pont : ${[o.secret ? 'le coffre (lire et ecrire)' : '', fichiers ? 'le fichier reçu par une forme (recu)' : ''].filter(Boolean).join(', ')}, dans electron/pont.cts.\n      preload: join(ICI, 'pont.cjs'),\n` : ''}    },
   });
   fenetre.once('ready-to-show', () => fenetre.show());
+  fenetre.on('closed', () => {
+    if (fenetrePrincipale === fenetre) fenetrePrincipale = undefined;
+  });
   void fenetre.loadURL(\`\${ORIGINE}/\`);
+  fenetrePrincipale = fenetre;
   return fenetre;
+}
+
+/** Montre la fenêtre de l'application : la crée si elle est fermée, la ramène devant sinon. */
+function montrerFenetrePrincipale(): BrowserWindow {
+  if (process.platform === 'darwin') void app.dock?.show();
+  if (!fenetrePrincipale || fenetrePrincipale.isDestroyed()) return creerFenetre();
+  if (fenetrePrincipale.isMinimized()) fenetrePrincipale.restore();
+  fenetrePrincipale.show();
+  fenetrePrincipale.focus();
+  return fenetrePrincipale;
 }
 
 /**
@@ -517,11 +567,11 @@ function menu(): Menu {
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on('second-instance', () => {
-    const fenetre = BrowserWindow.getAllWindows()[0];
-    if (!fenetre) return;
-    if (fenetre.isMinimized()) fenetre.restore();
-    fenetre.focus();
+  app.on('second-instance', (_evenement, argv, dossier) => {
+${fichiers ? `    // « Ouvrir avec » ou le menu clic droit pendant que l'application tourne (Windows, Linux) : le fichier vient ici.
+    const avecFichier = argv.some((a) => a.startsWith('--humalis-forme=') || (!a.startsWith('-') && formeDuFichier(isAbsolute(a) ? a : join(dossier, a)) !== undefined));
+    if (avecFichier) return fichiersDesArguments(argv, dossier);
+` : '    void argv;\n    void dossier;\n'}    montrerFenetrePrincipale();
   });
 
   void app.whenReady().then(() => {
@@ -529,17 +579,22 @@ if (!app.requestSingleInstanceLock()) {
     session.defaultSession.setPermissionRequestHandler((_contenu, _permission, repondre) => repondre(false));
     session.defaultSession.setPermissionCheckHandler(() => false);
     protocol.handle(SCHEMA, servir);
-${o.secret ? '    ouvrirCoffre();\n' : ''}    Menu.setApplicationMenu(menu());
-    creerFenetre();
-${o.misesAJour ? '    verifierLesMisesAJour();\n' : ''}    // Sur Mac, un clic sur l'icône du Dock rouvre la fenêtre.
+${o.secret ? '    ouvrirCoffre();\n' : ''}${fichiers ? '    ecouterLesFormes();\n' : ''}    Menu.setApplicationMenu(menu());
+${f.demarrage ? '    preparerDemarrage();\n' : ''}${tray ? '    void poserLesIcones();\n' : ''}${menusLinux ? '    poserLesMenusLinux();\n' : ''}${discret ? `    // « avec discret » : lancée par le démarrage de l'ordinateur, elle attend dans la barre du système, sans fenêtre.
+    if (lanceeAuDemarrage() && !${fichiers ? 'process.argv.some((a) => a.startsWith(\'--humalis-forme=\') || formeDuFichier(a) !== undefined)' : 'false'}) {
+      if (process.platform === 'darwin') app.dock?.hide();
+    } else creerFenetre();
+` : '    creerFenetre();\n'}${fichiers ? `    fichiersPrets();
+    fichiersDesArguments(process.argv.slice(app.isPackaged ? 0 : 1), process.cwd());
+` : ''}${o.misesAJour ? '    verifierLesMisesAJour();\n' : ''}    // Sur Mac, un clic sur l'icône du Dock rouvre la fenêtre.
     app.on('activate', () => {
-      if (BrowserWindow.getAllWindows().length === 0) creerFenetre();
+      if (!fenetrePrincipale || fenetrePrincipale.isDestroyed()) creerFenetre();
     });
   });
 
-  // Sur Mac, l'application reste dans le Dock quand on ferme sa fenêtre.
+  // Sur Mac, l'application reste dans le Dock quand on ferme sa fenêtre${tray ? ' ; ailleurs, dans la barre du système' : ''}.
   app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') app.quit();
+    if (process.platform !== 'darwin'${tray ? ' && icones.length === 0' : ''}) app.quit();
   });
 }
 `;
@@ -622,11 +677,14 @@ function ouvrirCoffre(): void {
 }
 `;
 
-/** Le pont (preload) : la page ne reçoit que ces deux fonctions, jamais ipcRenderer. */
-const PONT = `// Produit par Humalis : le pont entre la page et le coffre (« memorisee en secret »).
+/** Le pont (preload) : la page ne reçoit que ces fonctions, jamais ipcRenderer. */
+const PONT_DEBUT = `// Produit par Humalis : le pont entre la page et le processus principal.
 // Il tourne dans le bac à sable : seul require('electron') y est permis.
 const { contextBridge, ipcRenderer } = require('electron');
+`;
 
+/** Le coffre (« memorisee en secret ») : lire et ecrire. */
+const PONT_COFFRE = `
 contextBridge.exposeInMainWorld('humalisCoffre', {
   lire: (cle: string): Promise<string | null> => ipcRenderer.invoke('humalis:coffre:lire', cle),
   ecrire: (cle: string, valeur: string): Promise<boolean> => ipcRenderer.invoke('humalis:coffre:ecrire', cle, valeur),
