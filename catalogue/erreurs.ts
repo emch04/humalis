@@ -8,6 +8,7 @@
  * même test échoue tant qu'il n'est pas expliqué ici.
  */
 import { ENTREES_ERREURS_MEDIAS } from './erreurs-medias';
+import { ENTREES_ERREURS_ENREGISTREMENT } from './erreurs-enregistrement';
 import { ENTREES_ERREURS_INTERACTIONS } from './erreurs-interactions';
 import { ENTREES_ERREURS_COMPTES } from './erreurs-comptes';
 import { ENTREES_ERREURS_LANGUES } from './erreurs-langues';
@@ -5400,6 +5401,7 @@ page "carte" :
 
   // --- Graphiques, médias et mouvement (erreurs-medias.ts) ---
   ...ENTREES_ERREURS_MEDIAS,
+  ...ENTREES_ERREURS_ENREGISTREMENT,
   ...ENTREES_ERREURS_COMPTES,
   ...ENTREES_ERREURS_INTERACTIONS,
   // --- Les langues (erreurs-langues.ts) ---

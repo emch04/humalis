@@ -290,6 +290,11 @@ export class EcrivainActions {
       case 'activationNotifications':
         e.ligne('await activerNotifications()');
         return;
+      case 'enregistrerAudio':
+      case 'enregistrerVideo':
+      case 'scannerDocument':
+      case 'recadrerPhoto':
+        return this.hote.refuser(this.hote.ligne, `« ${a.type} » : cette action n'est pas encore disponible sur cette cible`);
       case 'prisePhoto': {
         const cible = this.variable(a.variable);
         if (!cible) return this.hote.refuser(this.hote.ligne, `« photo dans ${a.variable} » : cette variable est inconnue ici`);

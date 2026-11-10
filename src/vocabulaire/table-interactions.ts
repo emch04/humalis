@@ -36,6 +36,18 @@ function mot(entree: Omit<EntreeVocabulaire, 'variantes' | 'contextes' | 'statut
 }
 
 export const ENTREES_INTERACTIONS: EntreeVocabulaire[] = [
+  mot({
+    mot: 'enregistrer', categorie: 'action', concept: 'action.enregistrerMedia',
+    cibles: ecran('MediaRecorder et getUserMedia', null, null), couvre: [],
+    description: '« enregistrer audio dans note » ou « enregistrer video dans clip » : capture un fichier après validation.',
+    exemple: AU_CLIC('        enregistrer audio dans note', '    variable note = rien\n'),
+  }),
+  mot({
+    mot: 'recadrer', categorie: 'action', concept: 'action.recadrerPhoto',
+    cibles: ecran('canvas', null, null), couvre: [],
+    description: '« recadrer photo » : ouvre le recadrage et conserve l’image initiale si la personne annule.',
+    exemple: AU_CLIC('        recadrer photo photo', '    variable photo = rien\n'),
+  }),
   // ─── Les messages ────────────────────────────────────────────────────
   mot({
     mot: 'reussite',
