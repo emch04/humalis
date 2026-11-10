@@ -2497,12 +2497,17 @@ export function premiereValeur(genre: string, noeuds: NoeudVue[], langues?: Lang
  * Le titre et la description de la page (décision W7) : le premier titre
  * et le premier texte écrits en clair, à défaut le nom de la page.
  */
-export function titreEtDescription(ecran: Ecran, langues?: LangueRI[]): { titre: string; description: string } {
-  const base = langues?.[0]?.code;
+export function titreEtDescription(ecran: Ecran, langues?: LangueRI[], langue?: string): { titre: string; description: string } {
+  // « langue » : le titre et la description dans cette langue (une page par langue) ; sinon, la langue de base.
+  const base = langue ?? langues?.[0]?.code;
+  const enLangue = (v: Valeur): string | undefined => {
+    const version = langue !== undefined && v.type === 'texte' ? v.versions?.find((x) => x.code === langue) : undefined;
+    return version && version.parties.every((p) => 'texte' in p) ? version.parties.map((p) => ('texte' in p ? p.texte : '')).join('') : texteDeBase(v);
+  };
   const premier = (genre: string, noeuds: NoeudVue[]): string | undefined => {
     for (const n of noeuds) {
       if (n.type === 'element' && n.genre === genre) {
-        const texte = texteDeBase(n.contenu);
+        const texte = enLangue(n.contenu);
         if (texte) return texte;
       }
       // Toujours affiché : le contenu d'un bloc de mise en page compte aussi, et
