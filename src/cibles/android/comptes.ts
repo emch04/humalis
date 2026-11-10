@@ -108,3 +108,118 @@ suspend fun seConnecterAvecApple() {
     }
 }
 `;
+
+/** Les identifiants publics de Firebase, lus dans google-services.json (--firebase) ; ce ne sont pas des secrets. */
+export interface Firebase {
+  cleApi: string;
+  application: string;
+  projet: string;
+  expediteur: string;
+}
+
+/** google-services.json : le client de cette application, ou rien s'il n'y est pas. */
+export function lireFirebase(texte: string, identifiant: string): Firebase | undefined {
+  try {
+    const lu = JSON.parse(texte) as { project_info?: { project_id?: string; project_number?: string }; client?: { client_info?: { mobilesdk_app_id?: string; android_client_info?: { package_name?: string } }; api_key?: { current_key?: string }[] }[] };
+    const client = lu.client?.find((c) => c.client_info?.android_client_info?.package_name === identifiant);
+    const cleApi = client?.api_key?.[0]?.current_key;
+    const application = client?.client_info?.mobilesdk_app_id;
+    const projet = lu.project_info?.project_id;
+    const expediteur = lu.project_info?.project_number;
+    return cleApi && application && projet && expediteur ? { cleApi, application, projet, expediteur } : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function notificationsKotlin(paquet: string, firebase?: Firebase): string {
+  const chaine = (t: string) => JSON.stringify(t).replace(/\$/g, '\\$');
+  return `// Produit par Humalis : les notifications, reçues par Firebase Cloud Messaging.
+package ${paquet}
+
+import android.Manifest
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Context
+import android.os.Build
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import com.google.firebase.FirebaseApp
+import com.google.firebase.FirebaseOptions
+import com.google.firebase.messaging.FirebaseMessaging
+import com.google.firebase.messaging.FirebaseMessagingService
+import com.google.firebase.messaging.RemoteMessage
+import kotlin.coroutines.resume
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+
+object NotificationsHumalis {
+    const val CANAL = "humalis"
+    /** Vrai si l'application a été compilée avec --firebase : sans lui, elle ne peut pas recevoir de notification. */
+    const val REGLEE = ${firebase ? 'true' : 'false'}
+
+    /** Au lancement : le canal des notifications, et Firebase avec les identifiants du projet. */
+    fun configurer(contexte: Context) {
+        if (Build.VERSION.SDK_INT >= 26) {
+            val canal = NotificationChannel(CANAL, "Notifications", NotificationManager.IMPORTANCE_DEFAULT)
+            (contexte.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(canal)
+        }
+${firebase
+    ? `        if (FirebaseApp.getApps(contexte).isEmpty()) FirebaseApp.initializeApp(
+            contexte,
+            FirebaseOptions.Builder().setApiKey(${chaine(firebase.cleApi)}).setApplicationId(${chaine(firebase.application)}).setProjectId(${chaine(firebase.projet)}).setGcmSenderId(${chaine(firebase.expediteur)}).build(),
+        )`
+    : ''}
+    }
+
+    /** Montre une notification reçue pendant que l'application est ouverte. */
+    fun montrer(contexte: Context, titre: String, texte: String) {
+        if (Build.VERSION.SDK_INT >= 33 && androidx.core.content.ContextCompat.checkSelfPermission(contexte, Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) return
+        val notification = NotificationCompat.Builder(contexte, CANAL).setSmallIcon(android.R.drawable.ic_dialog_info).setContentTitle(titre).setContentText(texte).setAutoCancel(true).build()
+        NotificationManagerCompat.from(contexte).notify(System.currentTimeMillis().toInt(), notification)
+    }
+
+    suspend fun inscrire(jeton: String) {
+        Serveur.appelReussi("/auth/appareils", "POST", fiche("android" to jeton))
+    }
+}
+
+/** « activer notifications » : la permission, puis cet appareil reçoit les notifications du compte. */
+suspend fun activerNotifications() {
+    if (Build.VERSION.SDK_INT >= 33 && !permission(Manifest.permission.POST_NOTIFICATIONS)) {
+        Messages.afficher("Les notifications ne sont pas permises : autorisez-les dans les réglages de l'appareil.", "erreur")
+        return
+    }
+    if (!NotificationsHumalis.REGLEE) {
+        Messages.afficher("Les notifications ne sont pas encore réglées pour cette application.", "avertissement")
+        return
+    }
+    val jeton: String? = suspendCancellableCoroutine { suite ->
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { tache -> suite.resume(if (tache.isSuccessful) tache.result else null) }
+    }
+    if (jeton == null) {
+        Messages.afficher("Les notifications n'ont pas pu être activées. Réessayez dans un instant.", "erreur")
+        return
+    }
+    NotificationsHumalis.inscrire(jeton)
+}
+
+/** Firebase donne un nouveau jeton, ou une notification arrive pendant que l'application est ouverte. */
+class ServiceNotificationsHumalis : FirebaseMessagingService() {
+    private val portee = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    override fun onNewToken(jeton: String) {
+        Appli.contexte = applicationContext
+        if (Session.jeton != null) portee.launch { NotificationsHumalis.inscrire(jeton) }
+    }
+
+    override fun onMessageReceived(message: RemoteMessage) {
+        val n = message.notification ?: return
+        NotificationsHumalis.montrer(applicationContext, n.title ?: "", n.body ?: "")
+    }
+}
+`;
+}

@@ -34,11 +34,6 @@ interface Cadre {
   formulaire?: boolean;
 }
 
-/** Les phrases Humalis des actions qui n'existent pas encore ici : le message les cite telles qu'on les écrit. */
-const PHRASES: Partial<Record<Action['type'], string>> = {
-  activationNotifications: '« activer notifications »',
-};
-
 /** Ce qui arrête la suite des actions : une fonction écrite en haut rend « rien ». */
 const sortie = (c: Cadre): string => (c.fonction ? 'return null' : 'return');
 
@@ -234,6 +229,9 @@ export class EcrivainActions {
       case 'vibration':
         e.ligne('vibrer()');
         return;
+      case 'activationNotifications':
+        e.ligne('activerNotifications()');
+        return;
       case 'envoiFichier': {
         const fichier = this.variable(a.variable);
         if (!fichier) return this.hote.refuser(`« envoyer fichier ${a.variable} » : cette variable est inconnue ici`);
@@ -319,8 +317,11 @@ export class EcrivainActions {
         e.ligne(`Serveur.${c.essai ? 'demanderIaOuEchouer' : 'demanderIa'}(${this.v.t(a.question)}) { ${reponse} = texte(${reponse}) + it }`);
         return;
       }
-      default:
-        return this.hote.refuser(PHRASES[a.type] ?? `« ${a.type} »`);
+      default: {
+        // Une action ajoutée au langage doit être traitée ici : sinon le compilateur TypeScript s'arrête.
+        const oubliee: never = a;
+        void oubliee;
+      }
     }
   }
 

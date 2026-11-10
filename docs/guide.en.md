@@ -2321,7 +2321,9 @@ only accounts in that group receive it.
 In a page, after a gesture: `activer notifications`. The web needs `HUMALIS_VAPID_PUBLIQUE`,
 `HUMALIS_VAPID_PRIVEE` and `HUMALIS_VAPID_SUJET`; Apple needs `HUMALIS_APNS_CLE`,
 `HUMALIS_APNS_CLE_ID`, `HUMALIS_APNS_EQUIPE` and `HUMALIS_APNS_SUJET` (`HUMALIS_APNS_HOTE`
-for the sandbox).
+for the sandbox). Android goes through Firebase Cloud Messaging: compile the app with
+`--firebase google-services.json` (downloaded from the Firebase console), and give the server
+`HUMALIS_FCM_COMPTE`, the service account's JSON file (as is or in base 64).
 
 #### Device features
 
@@ -3512,38 +3514,31 @@ humalis compile taches.humalis --cible android --sortie taches-android --serveur
   `http://localhost:3000` is reached automatically. Otherwise only `https://` is allowed.
 - The application tabs are a bar at the bottom of the screen.
 
-The site's languages are the application's: it starts in the device's language when the
-site has it, and `selecteur de langue` or `changer langue par …` change it. Theme fonts
-shipped as `.ttf` or `.otf` are loaded.
+The whole language works on Android, as on Apple:
 
-Sub-pages show inside their parent page, and a link to an anchor (`carte#desserts`)
-scrolls down to it. `liens profonds "magasin"` opens the application from
-`magasin://produit/42`; with `et domaine "…"`, `https://` links open it too: compile with
-`--empreinte` (the certificate's SHA-256 fingerprint, given by `keytool -list -v`) and
-publish the file written in `a-publier-sur-le-site/`.
-
-The device functions work as on Apple: `photo dans …` (the system camera),
-`scanner code dans …`, `position dans …`, `verifier identite` (fingerprint, face or the
-device code), `vibrer` and `signature dans …`. Each permission is requested the first time
-it is needed. `fichier "…" dans …` opens the system file picker, `envoyer fichier …` follows
-its progress, and `telecharger bon de …` and `telecharger … en csv` open or share the file
-with the device's applications.
-
-Media too: charts are drawn with the web's colors and scales, and keep their
-“Voir les données” table; maps show OpenStreetMap tiles and their attribution; audio and
-video go through Android's player and never start on their own; QR codes and tables show
-as on the web.
-
-The account too: invitations, account roles and fields, choosing a password from the link
-received, Google or Apple login, payment (Stripe's page opens in the browser) and
-`demander a ia`, whose answer appears as it comes.
-
-`en direct`, `avec hors ligne`, `… hors ligne` sends (kept on the device, sent in order
-when the network returns) and `en arriere plan :` (run by the system, about every quarter
-of an hour, when the network is there) work too.
-
-What does not exist on Android yet, and that compilation refuses with a clear message:
-notifications.
+- **Languages and fonts**: the application starts in the device's language when the site
+  has it; `selecteur de langue` and `changer langue par …` change it. Theme fonts shipped
+  as `.ttf` or `.otf` are loaded.
+- **Navigation**: sub-pages show inside their parent page, and a link to an anchor
+  (`carte#desserts`) scrolls down to it. `liens profonds "magasin"` opens the application
+  from `magasin://produit/42`; with `et domaine "…"`, `https://` links open it too: compile
+  with `--empreinte` (the certificate's SHA-256 fingerprint, given by `keytool -list -v`)
+  and publish the file written in `a-publier-sur-le-site/`.
+- **Device**: `photo dans …`, `scanner code dans …`, `position dans …`, `verifier identite`
+  (fingerprint, face or the device code), `vibrer` and `signature dans …`. Each permission
+  is requested the first time it is needed.
+- **Files**: `fichier "…" dans …` opens the system picker, `envoyer fichier …` follows its
+  progress, `telecharger bon de …` and `telecharger … en csv` open or share the file.
+- **Media**: charts keep the web's colors, scales and “Voir les données” table; maps show
+  OpenStreetMap tiles and their attribution; audio and video go through Android's player and
+  never start on their own.
+- **Account**: invitations, account roles and fields, choosing a password from the link
+  received, Google or Apple login, payment (Stripe's page opens in the browser),
+  `demander a ia`, whose answer appears as it comes, and `activer notifications`, through
+  Firebase Cloud Messaging (see “Notifications”).
+- **Real time and offline**: `en direct`, `avec hors ligne`, `… hors ligne` sends (kept on
+  the device, sent in order when the network returns) and `en arriere plan :` (run by the
+  system about every quarter of an hour, when the network is there).
 
 CSS becomes Compose, rule by rule, when a rule targets a class (`.card { … }`): background,
 color, text size and weight, margins and padding, border, corner radius, shadow, width, and

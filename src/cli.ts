@@ -18,7 +18,8 @@ import { lecturesPermises, lireLesDonnees, type ReglageLecture } from './cibles/
 import { genererProjetStatique, verifierPourLeStatique, MARQUE_STATIQUE } from './cibles/statique/projet.js';
 import { genererProjetDesktop, bureauSurLeMoteur, MARQUE_DESKTOP, SERVEUR_PAR_DEFAUT } from './cibles/desktop/projet.js';
 import { genererProjetApple, MARQUE_APPLE } from './cibles/apple/projet.js';
-import { genererProjetAndroid, MARQUE_ANDROID } from './cibles/android/projet.js';
+import { genererProjetAndroid, identifiantDe, MARQUE_ANDROID } from './cibles/android/projet.js';
+import { lireFirebase, type Firebase } from './cibles/android/comptes.js';
 import { verifierAppareilPourLaCible } from './cibles/appareil.js';
 import { pourLaCible } from './ri/plateforme.js';
 import { gestionnairesDuProgramme, contientAction } from './cibles/web/interactions.js';
@@ -44,7 +45,7 @@ const AIDE = `Utilisation :
   humalis compile <fichier.humalis> --cible mobile --sortie <dossier>
   humalis compile <fichier.humalis> --cible desktop --sortie <dossier> [--serveur https://…]
   humalis compile <fichier.humalis> --cible apple --sortie <dossier> [--serveur https://…] [--identifiant com.exemple.app] [--equipe ABCDE12345]
-  humalis compile <fichier.humalis> --cible android --sortie <dossier> [--serveur https://…] [--identifiant com.exemple.app] [--empreinte AA:BB:…]
+  humalis compile <fichier.humalis> --cible android --sortie <dossier> [--serveur https://…] [--identifiant com.exemple.app] [--empreinte AA:BB:…] [--firebase google-services.json]
   humalis compile <fichier.humalis> --cible serveur --sortie <dossier>
   humalis compile <fichier.humalis> --cible web [--moteur humalis|react] --sortie <dossier> [--adresse https://…] [--lire-serveur https://…]
   humalis compile <fichier.humalis> --cible statique --sortie <dossier> [--adresse https://…]
@@ -632,7 +633,21 @@ function compileAndroid(application: Application, chemin: string, sortie: string
   if (!polices) return 1;
   const identifiant = option(arguments_, 'identifiant');
   const empreinte = option(arguments_, 'empreinte');
-  const { fichiers, diagnostics } = genererProjetAndroid(application, { nom, source: basename(chemin), images, medias, fichiersStyle, polices, ...(empreinte ? { empreinte } : {}), ...(serveur ? { serveur } : {}), ...(identifiant ? { identifiant } : {}) });
+  // --firebase google-services.json : les identifiants publics du projet Firebase, pour les notifications.
+  const cheminFirebase = option(arguments_, 'firebase');
+  let firebase: Firebase | undefined;
+  if (cheminFirebase !== undefined) {
+    if (!existsSync(cheminFirebase)) {
+      console.error(`Le fichier « ${cheminFirebase} » est introuvable : donnez le google-services.json téléchargé depuis la console Firebase.`);
+      return 2;
+    }
+    firebase = lireFirebase(readFileSync(cheminFirebase, 'utf8'), identifiantDe(nom, identifiant));
+    if (!firebase) {
+      console.error(`« ${cheminFirebase} » ne contient pas d'application Android « ${identifiantDe(nom, identifiant)} » : ajoutez-la dans la console Firebase, ou compilez avec le bon --identifiant.`);
+      return 2;
+    }
+  }
+  const { fichiers, diagnostics } = genererProjetAndroid(application, { nom, source: basename(chemin), images, medias, fichiersStyle, polices, ...(empreinte ? { empreinte } : {}), ...(firebase ? { firebase } : {}), ...(serveur ? { serveur } : {}), ...(identifiant ? { identifiant } : {}) });
   afficherDiagnostics(diagnostics);
   if (diagnostics.some((d) => d.gravite === 'erreur')) {
     console.error('\nLe programme ne peut pas être produit pour Android : rien n\'a été écrit.');

@@ -123,7 +123,7 @@ import webpush from 'web-push';
 import type { Enregistrement, Stockage } from './stockage.js';
 
 /**
- * Produit par Humalis : les notifications web (VAPID) et Apple (APNs). Les clés viennent de
+ * Produit par Humalis : les notifications web (VAPID), Apple (APNs) et Android (Firebase). Les clés viennent de
  * l'environnement ; sans elles, rien ne part et le serveur le dit dans son journal.
  */
 export interface Notification {
@@ -180,12 +180,66 @@ function envoyerApple(jeton: string, n: Notification): Promise<number> {
   });
 }
 
+/** Le jeton d'un téléphone Android donné par Firebase Cloud Messaging. */
+const JETON_ANDROID = /^[A-Za-z0-9_:-]{20,4096}$/;
+
+let jetonFirebase: { valeur: string; jusqua: number } | undefined;
+/** Le compte de service de Firebase (HUMALIS_FCM_COMPTE : son fichier JSON, tel quel ou en base 64). */
+function compteFirebase(): { client_email: string; private_key: string; project_id: string; token_uri?: string } | null {
+  const brut = process.env.HUMALIS_FCM_COMPTE;
+  if (!brut) return null;
+  try {
+    const texte = brut.trim().startsWith('{') ? brut : Buffer.from(brut, 'base64').toString('utf8');
+    const lu = JSON.parse(texte) as { client_email?: unknown; private_key?: unknown; project_id?: unknown; token_uri?: unknown };
+    if (typeof lu.client_email !== 'string' || typeof lu.private_key !== 'string' || typeof lu.project_id !== 'string') return null;
+    return { client_email: lu.client_email, private_key: lu.private_key, project_id: lu.project_id, ...(typeof lu.token_uri === 'string' ? { token_uri: lu.token_uri } : {}) };
+  } catch {
+    return null;
+  }
+}
+
+/** Un jeton d'accès de Google, signé avec la clé du compte de service ; il sert cinquante minutes. */
+async function accesFirebase(compte: NonNullable<ReturnType<typeof compteFirebase>>): Promise<string> {
+  const maintenant = Math.floor(Date.now() / 1000);
+  if (jetonFirebase && jetonFirebase.jusqua > maintenant + 60) return jetonFirebase.valeur;
+  const adresse = compte.token_uri ?? 'https://oauth2.googleapis.com/token';
+  const base = (o: object) => Buffer.from(JSON.stringify(o)).toString('base64url');
+  const corps = base({ alg: 'RS256', typ: 'JWT' }) + '.' + base({ iss: compte.client_email, scope: 'https://www.googleapis.com/auth/firebase.messaging', aud: adresse, iat: maintenant, exp: maintenant + 3600 });
+  const signature = sign('sha256', Buffer.from(corps), createPrivateKey(compte.private_key.replace(/\\n/g, '\n'))).toString('base64url');
+  const reponse = await fetch(adresse, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: corps + '.' + signature }) });
+  const lu = (await reponse.json()) as { access_token?: string; expires_in?: number };
+  if (!reponse.ok || !lu.access_token) throw new Error('Firebase a refusé le compte de service (' + reponse.status + ')');
+  jetonFirebase = { valeur: lu.access_token, jusqua: maintenant + (lu.expires_in ?? 3600) };
+  return lu.access_token;
+}
+
+async function envoyerAndroid(jeton: string, n: Notification): Promise<number> {
+  const compte = compteFirebase();
+  if (!compte) {
+    console.warn('Notification Android non envoyée : HUMALIS_FCM_COMPTE (le compte de service de Firebase) n\'est pas réglée.');
+    return 0;
+  }
+  const hote = process.env.HUMALIS_FCM_ADRESSE ?? 'https://fcm.googleapis.com';
+  const reponse = await fetch(hote + '/v1/projects/' + encodeURIComponent(compte.project_id) + '/messages:send', {
+    method: 'POST',
+    headers: { authorization: 'Bearer ' + (await accesFirebase(compte)), 'content-type': 'application/json' },
+    body: JSON.stringify({ message: { token: jeton, notification: { title: n.titre, body: n.texte }, android: { priority: 'high' } } }),
+  });
+  return reponse.status;
+}
+
 export function creerNotifications({ usersStore, appareils }: { usersStore: UsersStore; appareils: Stockage }) {
   const envoyerA = async (appareil: Enregistrement, n: Notification): Promise<void> => {
     try {
       if (appareil.genre === 'apple') {
         const statut = await envoyerApple(String(appareil.cle), n);
         if (statut === 410 || statut === 400) await appareils.supprimer(appareil.id);
+        return;
+      }
+      if (appareil.genre === 'android') {
+        // Un jeton que Firebase ne connaît plus (application retirée) : on l'oublie.
+        const statut = await envoyerAndroid(String(appareil.cle), n);
+        if (statut === 404 || statut === 400) await appareils.supprimer(appareil.id);
         return;
       }
       const { HUMALIS_VAPID_PUBLIQUE: publique, HUMALIS_VAPID_PRIVEE: privee, HUMALIS_VAPID_SUJET: sujet } = process.env;
@@ -217,14 +271,16 @@ export function creerNotifications({ usersStore, appareils }: { usersStore: User
       }
     },
 
-    /** POST /auth/appareils : { web: abonnement } ou { apple: jeton }. Un appareil n'appartient qu'à un compte. */
+    /** POST /auth/appareils : { web: abonnement }, { apple: jeton } ou { android: jeton }. Un appareil n'appartient qu'à un compte. */
     inscrire: (async (req, res, next) => {
       try {
         const compte = String((req as unknown as { user: { id: unknown } }).user.id);
-        const corps = (req.body ?? {}) as { web?: { endpoint?: unknown; keys?: { p256dh?: unknown; auth?: unknown } }; apple?: unknown };
+        const corps = (req.body ?? {}) as { web?: { endpoint?: unknown; keys?: { p256dh?: unknown; auth?: unknown } }; apple?: unknown; android?: unknown };
         let fiche: Record<string, unknown>;
         if (typeof corps.apple === 'string' && JETON.test(corps.apple)) {
           fiche = { genre: 'apple', cle: corps.apple };
+        } else if (typeof corps.android === 'string' && JETON_ANDROID.test(corps.android)) {
+          fiche = { genre: 'android', cle: corps.android };
         } else if (corps.web && typeof corps.web.endpoint === 'string' && permis(corps.web.endpoint) && typeof corps.web.keys?.p256dh === 'string' && typeof corps.web.keys?.auth === 'string') {
           fiche = { genre: 'web', cle: corps.web.endpoint, abonnement: { endpoint: corps.web.endpoint, keys: { p256dh: corps.web.keys.p256dh, auth: corps.web.keys.auth } } };
         } else {

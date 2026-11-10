@@ -13,9 +13,19 @@ import android.annotation.SuppressLint
 import androidx.activity.result.contract.ActivityResultContract
 import androidx.fragment.app.FragmentActivity
 import java.util.concurrent.atomic.AtomicInteger
+import android.content.pm.PackageManager
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+
+/** Une permission du système : déjà donnée, ou demandée à la personne. */
+suspend fun permission(vararg noms: String): Boolean {
+    if (noms.any { ContextCompat.checkSelfPermission(Appli.contexte, it) == PackageManager.PERMISSION_GRANTED }) return true
+    val reponses = Activite.demander(ActivityResultContracts.RequestMultiplePermissions(), arrayOf(*noms)) ?: return false
+    return reponses.values.any { it }
+}
 
 /** L'activité de l'application : le système lui répond (photo prise, fichier choisi, permission donnée). */
 @SuppressLint("StaticFieldLeak")
@@ -100,13 +110,6 @@ fun vibrer() {
     val vibreur = if (Build.VERSION.SDK_INT >= 31) (Appli.contexte.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator
     else @Suppress("DEPRECATION") (Appli.contexte.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator)
     vibreur.vibrate(VibrationEffect.createOneShot(80, VibrationEffect.DEFAULT_AMPLITUDE))
-}
-
-/** Une permission du système : déjà donnée, ou demandée à la personne. */
-suspend fun permission(vararg noms: String): Boolean {
-    if (noms.any { ContextCompat.checkSelfPermission(Appli.contexte, it) == PackageManager.PERMISSION_GRANTED }) return true
-    val reponses = Activite.demander(ActivityResultContracts.RequestMultiplePermissions(), arrayOf(*noms)) ?: return false
-    return reponses.values.any { it }
 }
 
 /** « photo dans cliche » : l'appareil photo du système ; un fichier, comme « fichier … dans ». */

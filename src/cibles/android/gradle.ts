@@ -22,6 +22,7 @@ export const VERSIONS = {
   googleid: '1.1.1',
   navigateur: '1.9.0',
   travail: '2.10.5',
+  firebase: '24.1.2',
   sdkMinimum: 26,
   sdkCible: 36,
 } as const;
@@ -67,7 +68,7 @@ zipStoreBase=GRADLE_USER_HOME
 zipStorePath=wrapper/dists
 `;
 
-export function constructionApp(identifiant: string, nomAffiche: string, avec: { appareil?: boolean; scanner?: boolean; qr?: boolean; lecteurs?: boolean; cartes?: boolean; google?: boolean; apple?: boolean; travail?: boolean } = {}): string {
+export function constructionApp(identifiant: string, nomAffiche: string, avec: { appareil?: boolean; scanner?: boolean; qr?: boolean; lecteurs?: boolean; cartes?: boolean; google?: boolean; apple?: boolean; travail?: boolean; notifications?: boolean } = {}): string {
   return `// Produit par Humalis.
 plugins {
     id("com.android.application")
@@ -117,17 +118,27 @@ ${avec.appareil ? `    implementation("androidx.biometric:biometric:${VERSIONS.b
     implementation("com.google.android.libraries.identity.googleid:googleid:${VERSIONS.googleid}")
 ` : ''}${avec.apple ? `    implementation("androidx.browser:browser:${VERSIONS.navigateur}")
 ` : ''}${avec.travail ? `    implementation("androidx.work:work-runtime-ktx:${VERSIONS.travail}")
+` : ''}${avec.notifications ? `    implementation("com.google.firebase:firebase-messaging:${VERSIONS.firebase}")
 ` : ''}    debugImplementation("androidx.compose.ui:ui-tooling")
 }
 `;
 }
 
-export function manifeste(reseau: boolean, liens?: { schema: string; domaine?: string }, besoins: { photo?: boolean; position?: boolean; vibration?: boolean; fichiers?: boolean } = {}): string {
+export function manifeste(reseau: boolean, liens?: { schema: string; domaine?: string }, besoins: { photo?: boolean; position?: boolean; vibration?: boolean; fichiers?: boolean; notifications?: boolean } = {}): string {
   const permissions = [
     ...(reseau ? ['android.permission.INTERNET'] : []),
     ...(besoins.vibration ? ['android.permission.VIBRATE'] : []),
     ...(besoins.position ? ['android.permission.ACCESS_COARSE_LOCATION', 'android.permission.ACCESS_FINE_LOCATION'] : []),
+    ...(besoins.notifications ? ['android.permission.POST_NOTIFICATIONS'] : []),
   ];
+  const service = besoins.notifications
+    ? `
+        <service android:name=".ServiceNotificationsHumalis" android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>`
+    : '';
   const fournisseur = besoins.fichiers
     ? `
         <provider
@@ -179,7 +190,7 @@ ${permissions.map((p) => `    <uses-permission android:name="${p}" />\n`).join('
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>${profonds}
-        </activity>${fournisseur}
+        </activity>${fournisseur}${service}
     </application>
 </manifest>
 `;

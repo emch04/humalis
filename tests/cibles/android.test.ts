@@ -402,22 +402,6 @@ describe('cible Android — filtres et refus lisibles', () => {
     expect(c).toContain('categorie = "robes"');
   });
 
-  it('un refus cite la phrase Humalis, pas un nom interne', () => {
-    const messages = erreurs(`serveur "s" :
-    donnee commande :
-        total : nombre
-    route "commandes" :
-        connecte peut lire commande
-
-page "a" :
-    titre "A"
-    bouton "Alertes"
-    quand l'utilisateur clique sur "Alertes" :
-        activer notifications
-`).join('\n');
-    expect(messages).toContain('« activer notifications » : cela n\'est pas encore disponible sur la cible Android.');
-    expect(messages).not.toMatch(/activationNotifications/);
-  });
 });
 
 describe('cible Android — un CSS propre à Android', () => {
@@ -850,6 +834,49 @@ describe('cible Android — temps réel, hors-ligne et arrière-plan', () => {
     expect(f.get(`${CODE}/MainActivity.kt`)).toContain('ArrierePlan.planifier(applicationContext)');
     expect(f.get('app/build.gradle.kts')).toContain('androidx.work:work-runtime-ktx:');
     expect(erreurs('page "a" :\n    variable x = 0\n    titre "A"\n    en arriere plan :\n        changer x par 1\n').join('\n')).toContain('ne voit que les variables partagées');
+  });
+});
+
+describe('cible Android — les notifications', () => {
+  const source = readFileSync('scripts/essais-android/notifications.humalis', 'utf8');
+  const firebase = { cleApi: 'AIza-essai', application: '1:123:android:abc', projet: 'projet-essai', expediteur: '123' };
+
+  it('« activer notifications » demande la permission, puis inscrit l\'appareil auprès du serveur', () => {
+    const f = projet(source, { firebase });
+    expect(page(f, 'PageAccueil')).toContain('activerNotifications()');
+    const n = f.get(`${CODE}/Notifications.kt`)!;
+    expect(n).toContain('permission(Manifest.permission.POST_NOTIFICATIONS)');
+    expect(n).toContain('Serveur.appelReussi("/auth/appareils", "POST", fiche("android" to jeton))');
+    expect(n).toContain('setProjectId("projet-essai")');
+    expect(f.get(`${CODE}/MainActivity.kt`)).toContain('NotificationsHumalis.configurer(applicationContext)');
+    const m = f.get('app/src/main/AndroidManifest.xml')!;
+    expect(m).toContain('android.permission.POST_NOTIFICATIONS');
+    expect(m).toContain('<action android:name="com.google.firebase.MESSAGING_EVENT" />');
+    expect(f.get('app/build.gradle.kts')).toContain('com.google.firebase:firebase-messaging:');
+  });
+
+  it('sans --firebase, la compilation dit ce qu\'il manque', () => {
+    const { diagnostics, fichiers } = produire(source);
+    expect(diagnostics.map((d) => d.message).join('\n')).toContain('Compilez avec --firebase google-services.json');
+    expect(fichiers.get(`${CODE}/Notifications.kt`)).toContain('const val REGLEE = false');
+  });
+
+  it('google-services.json donne les identifiants de cette application seulement', async () => {
+    const { lireFirebase } = await import('../../src/cibles/android/comptes.js');
+    const json = JSON.stringify({ project_info: { project_number: '123', project_id: 'p' }, client: [{ client_info: { mobilesdk_app_id: '1:123:android:x', android_client_info: { package_name: 'local.humalis.essai' } }, api_key: [{ current_key: 'AIza' }] }] });
+    expect(lireFirebase(json, 'local.humalis.essai')).toEqual({ cleApi: 'AIza', application: '1:123:android:x', projet: 'p', expediteur: '123' });
+    expect(lireFirebase(json, 'autre.application')).toBeUndefined();
+  });
+
+  it('le serveur envoie aussi vers Firebase, avec un compte de service', async () => {
+    const { NOTIFICATIONS } = await import('../../src/cibles/serveur/logique.js');
+    expect(NOTIFICATIONS).toContain("fiche = { genre: 'android', cle: corps.android }");
+    expect(NOTIFICATIONS).toContain("scope: 'https://www.googleapis.com/auth/firebase.messaging'");
+    expect(NOTIFICATIONS).toContain("'/v1/projects/' + encodeURIComponent(compte.project_id) + '/messages:send'");
+  });
+
+  it('plus aucune action du langage n\'est refusée sur Android', () => {
+    expect(readFileSync('src/cibles/android/actions.ts', 'utf8')).toContain('const oubliee: never = a;');
   });
 });
 
