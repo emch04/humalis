@@ -7,7 +7,8 @@ import type { Diagnostic } from '../analyse/erreurs.js';
 import type { Application } from '../ri/types.js';
 
 /** `android` : la construction existe aussi sur la cible Android. */
-const CONSTRUCTIONS: { motif: RegExp; nom: string; android?: true }[] = [
+/** `windows` : la construction existe aussi sur la cible Windows. */
+const CONSTRUCTIONS: { motif: RegExp; nom: string; android?: true; windows?: true }[] = [
   { motif: /"type":"prisePhoto"/, android: true, nom: '« photo dans … »' },
   { motif: /"type":"scanCode"/, android: true, nom: '« scanner code dans … »' },
   { motif: /"type":"verificationIdentite"/, android: true, nom: '« verifier identite »' },
@@ -16,7 +17,7 @@ const CONSTRUCTIONS: { motif: RegExp; nom: string; android?: true }[] = [
   { motif: /"horsLigne":true/, android: true, nom: '« avec hors ligne »' },
   { motif: /"type":"localisation"/, android: true, nom: '« position dans … »' },
   { motif: /"enAttente":true/, android: true, nom: '« … hors ligne » sur un envoi' },
-  { motif: /"declencheur":"arrierePlan"/, android: true, nom: '« en arriere plan : »' },
+  { motif: /"declencheur":"arrierePlan"/, android: true, windows: true, nom: '« en arriere plan : »' },
   { motif: /"declencheur":"commandeMenu"/, android: true, nom: '« menu de l’application »' },
 ];
 
@@ -55,12 +56,13 @@ export function verifierAppareilPourLaCible(application: Application, cible: str
   if (cible === 'web') return [...sansWeb, ...verifierPourLeNavigateur(application)];
   const diagnostics: Diagnostic[] = [...sansWeb];
   const lieux = [...application.ecrans, ...application.composants, ...[application.disposition?.entete?.ecran, application.disposition?.pied?.ecran].flatMap((e) => (e ? [e] : []))];
-  for (const { motif, nom, android } of CONSTRUCTIONS) {
+  for (const { motif, nom, android, windows } of CONSTRUCTIONS) {
     if (android && cible === 'android') continue;
+    if (windows && cible === 'windows') continue;
     const lieu = lieux.find((e) => motif.test(JSON.stringify(e)));
     const partage = application.partages.find((p) => motif.test(JSON.stringify(p)));
     const ligne = lieu?.ligne ?? partage?.ligne;
-    if (ligne !== undefined) diagnostics.push({ gravite: 'erreur', ligne, message: android ? `${nom} n'est disponible que sur les cibles Apple et Android pour l'instant : compilez avec --cible apple ou --cible android (ici, --cible ${cible}).` : `${nom} n'est disponible que sur la cible Apple pour l'instant : compilez avec --cible apple (ici, --cible ${cible}).` });
+    if (ligne !== undefined) diagnostics.push({ gravite: 'erreur', ligne, message: windows ? `${nom} n'est disponible que sur les cibles Apple, Android et Windows pour l'instant : compilez avec --cible apple, --cible android ou --cible windows (ici, --cible ${cible}).` : android ? `${nom} n'est disponible que sur les cibles Apple et Android pour l'instant : compilez avec --cible apple ou --cible android (ici, --cible ${cible}).` : `${nom} n'est disponible que sur la cible Apple pour l'instant : compilez avec --cible apple (ici, --cible ${cible}).` });
   }
   if (['mobile', 'desktop', 'statique'].includes(cible)) {
     const lieu = lieux.find((e) => /"type":"connexionApple"/.test(JSON.stringify(e)));

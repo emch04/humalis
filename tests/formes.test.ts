@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { compiler } from '../src/compilateur.js';
 import { pourLaCible } from '../src/ri/plateforme.js';
-import { verifierFormesPourLaCible, PREVUES } from '../src/cibles/formes.js';
+import { verifierFormesPourLaCible, PREVUES, ECRITES } from '../src/cibles/formes.js';
 
 /** Un programme qui écrit les 18 formes d'un coup. */
 const TOUT = readFileSync(new URL('./formes/toutes.humalis', import.meta.url), 'utf8');
@@ -60,8 +60,15 @@ describe('les formes d’application spéciales', () => {
     expect(web).toHaveLength(1);
     expect(web[0]).toMatchObject({ gravite: 'avertissement' });
     expect(web[0]!.message).toContain('le widget « solde »');
-    const apple = verifierFormesPourLaCible(pourLaCible(app, 'apple'), 'apple');
-    expect(apple.find((d) => d.message.startsWith('le widget « solde »'))).toMatchObject({ gravite: 'erreur', ligne: 5 });
+    // Une cible qui n'a pas encore écrit la forme la refuse, avec sa ligne (ici Apple, le temps du test).
+    const ecrites = ECRITES.apple;
+    delete ECRITES.apple;
+    try {
+      const apple = verifierFormesPourLaCible(pourLaCible(app, 'apple'), 'apple');
+      expect(apple.find((d) => d.message.startsWith('le widget « solde »'))).toMatchObject({ gravite: 'erreur', ligne: 5 });
+    } finally {
+      if (ecrites) ECRITES.apple = ecrites;
+    }
     // Chaque forme a au moins une cible prévue.
     for (const cibles of Object.values(PREVUES)) expect(cibles.length).toBeGreaterThan(0);
   });
@@ -72,6 +79,7 @@ describe('les formes d’application spéciales', () => {
     const texte = JSON.stringify(app.serveurs);
     expect(texte).toContain('"boutons":["Accepter","Refuser"]');
     expect(texte).toContain('"type":"activite","nom":"livraison"');
-    expect(verifierFormesPourLaCible(app, 'serveur').filter((d) => d.gravite === 'erreur').map((d) => d.message.split(' :')[0])).toEqual(['« mettre a jour activite » du serveur', 'les boutons des notifications du serveur']);
+    // Le serveur les écrit (APNs et FCM) : rien n'y est refusé.
+    expect(verifierFormesPourLaCible(app, 'serveur').filter((d) => d.gravite === 'erreur')).toEqual([]);
   });
 });

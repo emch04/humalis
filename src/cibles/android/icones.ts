@@ -12,7 +12,7 @@ const attribut = (balise: string, nom: string): string | undefined => new RegExp
 const n = (balise: string, nom: string): number => Number(attribut(balise, nom) ?? 0);
 
 /** Une forme SVG de Lucide (path, circle, rect, line, polyline, polygon, ellipse) en données de chemin. */
-function enChemin(forme: string): string | undefined {
+export function enChemin(forme: string): string | undefined {
   const genre = /^<(\w+)/.exec(forme)?.[1];
   switch (genre) {
     case 'path':

@@ -2372,6 +2372,13 @@ les notifications passent par Firebase Cloud Messaging : compile l'application a
 `--firebase google-services.json` (téléchargé depuis la console Firebase), et donne au
 serveur `HUMALIS_FCM_COMPTE`, le fichier JSON du compte de service (tel quel ou en base 64).
 
+Avec `et boutons "Accepter" et "Refuser"` (trois au plus), la notification porte ses
+boutons : sur l'iPhone, une catégorie `humalis.boutons.Accepter|Refuser` ; sur Android, un
+message de données que l'application construit elle-même. `mettre a jour activite
+"livraison" pour commande.client` fait relire l'activité en direct de ces comptes,
+application fermée : sur l'iPhone par le jeton de l'activité (que l'application envoie à
+`/auth/activites`), sur Android par un message de données de Firebase.
+
 #### Les fonctions de l'appareil
 
 Sur la cible Apple, une page peut se servir de l'appareil. Ces phrases s'écrivent dans
@@ -2417,7 +2424,9 @@ avec `--equipe` et publier sur le site le fichier écrit dans `a-publier-sur-le-
 `en arriere plan :`, directement dans une page, dit ce que l'application fait quand le
 système la réveille. Le système choisit le moment : jamais avant 15 minutes, souvent bien
 plus tard. Ce bloc ne voit que les variables `avec partagee`, puisqu'aucune page n'est
-ouverte. Sur Mac, l'application doit être ouverte.
+ouverte. Sur Mac, l'application doit être ouverte. Sur Windows, c'est une tâche planifiée
+de la personne, toutes les 15 minutes, qui lance l'application sans fenêtre (ou passe le
+travail à l'application déjà ouverte).
 
 `hors ligne`, à la fin d'un `envoyer requete … avec …`, d'un `modifier` ou d'un `supprimer`,
 garde l'envoi sur l'appareil s'il n'y a pas de réseau, et l'envoie dans l'ordre quand la
@@ -3535,7 +3544,35 @@ Sur une cible où une forme n'a pas de sens (un widget sur le site), elle est ig
 compilation le dit une fois. Ces formes s'écrivent cible par cible : là où une forme est
 prévue sans être encore produite, la compilation s'arrête et dit où elle est disponible.
 
-**Sur l'application de bureau (`--cible desktop`, qui sert aussi pour Linux)** :
+#### Sur Apple
+
+Le projet Xcode reste unique : les formes y ajoutent leurs cibles (widgets, partage, clavier,
+Apple Watch, Apple TV, App Clip), qui reprennent les pages et les variables partagées de
+l'application. Compilez avec `--equipe` : les valeurs passent de l'application à ses widgets
+et à ses extensions par un groupe d'applications, que seule une équipe peut ouvrir.
+
+| Forme | Sur Apple | Limite |
+|---|---|---|
+| widget | WidgetKit, petite, moyenne et grande taille ; se redessine dès qu'une variable partagée change | 15 minutes au moins entre deux actualisations |
+| barre du système | `MenuBarExtra` sur Mac | Mac seulement |
+| partage reçu | extension de partage, iPhone et Mac | sur iPhone, lu au retour dans l'application |
+| montre, télé | application watchOS rangée dans celle de l'iPhone ; application tvOS (`-scheme …Tele`) | pas de presse-papier, de feuille de partage ni de lien externe |
+| clavier | extension clavier, avec le globe pour changer de clavier | iPhone et iPad |
+| activité en direct | ActivityKit : écran verrouillé et îlot dynamique ; avec le serveur, mise à jour par APNs | iPhone |
+| raccourcis de l'icône | `UIApplicationShortcutItems` | iPhone et iPad |
+| commande vocale | App Intents et `AppShortcuts` ; `dire` est la réponse de Siri, ailleurs la voix de l'appareil | Siri demande un `{…}` juste après la phrase |
+| fichier ouvert | types de documents, lus là où ils sont | |
+| démarrage | `SMAppService` ; `discret` ferme la fenêtre au démarrage | Mac seulement |
+| boutons de notification | catégories `humalis.boutons.Accepter\|Refuser` | |
+| recherche du système | Core Spotlight, sur le titre | |
+| tuile | `ControlWidget` du Centre de contrôle | iOS 18 au moins |
+| mini application | App Clip | une seule par application |
+| voiture | CarPlay, une liste par écran | droit à demander à Apple (voir `LISEZMOI.md`) ; le simulateur l'a déjà |
+| menu clic droit | service du Finder (Actions rapides) | Mac, après un premier lancement depuis Applications |
+
+#### Sur le bureau (Electron, Linux compris)
+
+Avec `--cible desktop`, qui sert aussi pour Linux :
 
 | Forme | Mac | Windows | Linux |
 |---|---|---|---|
@@ -3671,7 +3708,7 @@ chose de faux.
 | Graphiques, cartes, audio, vidéo, fichiers | oui | oui | en partie | oui | oui | oui | oui |
 | Plusieurs langues | oui | oui | oui | oui | oui | oui | oui |
 | Photo, scanner, Face ID, vibration, signature, hors ligne | oui (vibration : Android) | non | non | non | oui | oui | non |
-| `en arriere plan` | non | non | non | non | oui | oui | non |
+| `en arriere plan` | non | non | non | non | oui | oui | oui (tâche planifiée) |
 | Plan du site, aperçu de partage | oui | oui | non | non | non | non | non |
 
 Le serveur (`--cible serveur`) se produit à part, depuis le bloc `serveur`.
@@ -3728,6 +3765,17 @@ Tout le langage passe sur Android, comme sur Apple :
   le bas, `action en glissant` fait glisser la ligne vers la gauche, `menu d'options`
   s'ouvre au toucher prolongé (TalkBack propose aussi ces actions) et `etat vide` montre
   son icône au milieu.
+- **Formes de l'application** (voir « Les formes propres aux applications ») : le widget
+  (Glance, actualisé par WorkManager et quand on quitte l'application), le partage reçu,
+  les fichiers ouverts, les raccourcis de l'icône, la tuile des réglages rapides, le
+  clavier, l'activité en direct (une notification « en cours » avec sa progression, mise
+  en avant sur Android 16) et les boutons des notifications. Les pages `sur montre`
+  forment un module Wear OS (`montre/`) et les pages `sur tele` un module Android TV
+  (`tele/`), menés au doigt ou à la télécommande. Les commandes vocales passent par les
+  App Actions de l'assistant Google, qui ne prend pas de réponse à dire : l'application
+  s'ouvre, affiche la phrase et la lit. La recherche du système range les fiches dans
+  AppSearch, que le lanceur montre ou non. Android Auto montre la liste ; Google doit
+  autoriser l'application avant de la publier.
 - **Sources** : une source à clé secrète passe par la passerelle du serveur, avec la
   session ; la clé ne part jamais avec l'application.
 
@@ -3768,7 +3816,32 @@ marche aussi sur un Mac ou sous Linux ; seul le lancement demande Windows 10 ou 
   windows "./natif/Carte.cs"`, avec ses bibliothèques NuGet (`paquet windows "…" version
   "…"`) ; voir « Une vue native écrite à la main ».
 - Pas encore sur Windows : paiement, IA, connexion avec Google ou Apple, invitations,
-  notifications. La compilation s'arrête et dit quelle ligne en a besoin.
+  notifications envoyées par le serveur. La compilation s'arrête et dit quelle ligne en a besoin.
+
+Les formes propres aux applications marchent sans paquet MSIX : l'application s'inscrit
+dans Windows à chaque lancement, pour la personne connectée, sans droits d'administrateur.
+Elle ne se lance qu'une fois : un fichier ouvert, un clic droit ou un bouton de notification
+est passé à la fenêtre déjà ouverte.
+
+- `page "…" dans la barre du systeme` : une icône dans la zone de notification. Un clic
+  ouvre la page dans une petite fenêtre près de l'icône ; le clic droit propose Ouvrir et
+  Quitter. Fermer la fenêtre de l'application la cache, sans l'arrêter.
+- `raccourcis de l'icone` : la liste de raccourcis (Jump List) du bouton de la barre des tâches.
+- `quand on ouvre un fichier` : l'application apparaît dans « Ouvrir avec » pour ces
+  extensions. Windows 10 et 11 laissent la personne choisir l'application par défaut.
+- `lancer au demarrage de l'ordinateur` : visible dans le Gestionnaire des tâches
+  (« Applications de démarrage ») ; `avec discret`, seulement dans la zone de notification.
+- `quand l'utilisateur touche "…" dans une notification` : les notifications de Windows
+  avec leurs boutons ; un bouton répond sans ouvrir la fenêtre.
+- `menu clic droit` : le clic droit de l'Explorateur. Sous Windows 11, la commande est sous
+  « Afficher d'autres options » (ou Maj+F10), comme pour toute application non empaquetée.
+- `quand on partage vers l'application` : le panneau « Partager » de Windows n'accepte que
+  les applications empaquetées (MSIX). Sans paquet, l'application est dans « Envoyer vers »
+  du clic droit : `partage.fichier` est le chemin du fichier, `partage.texte` le texte d'un
+  `.txt`, `partage.lien` l'adresse d'un raccourci Internet. La compilation le rappelle.
+
+`Application.exe --desinstaller` retire tout ce que l'application a inscrit : à faire avant
+de supprimer le fichier `.exe`.
 
 Sans signature de code, Windows affiche un avertissement (SmartScreen) au premier
 lancement : « Informations complémentaires », puis « Exécuter quand même ».

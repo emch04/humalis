@@ -27,6 +27,7 @@ import { touches } from './styles.js';
 import { langueDuStyle, stylesSwiftDu } from '../commun/styles-natifs.js';
 import { CONNEXIONS_SWIFT, ENVOIS_SWIFT, LANGUES_SWIFT, MEMOIRE_SWIFT, MESSAGES_SWIFT, MINUTERIES_SWIFT, NOTIFICATIONS_SWIFT, SERVEUR_SWIFT, SYSTEME_SWIFT } from './systeme.js';
 import { Types, Valeurs, plusPrecis, type Portee } from './valeurs.js';
+import { genererFormesApple, aDesFormes, type FormesProduites } from './formes.js';
 import { CONFIDENTIALITE, assets, associationSite, infoSupplementaire, type PaquetSwift, droits, projetXcode, schemaXcode } from './xcode.js';
 
 export const MARQUE_APPLE = '.humalis-projet';
@@ -157,7 +158,7 @@ function donneesSwift(types: Types): string {
   return e.texte();
 }
 
-function partageSwift(partages: Etat[], types: Types, cle: string, v: Valeurs): string {
+function partageSwift(partages: Etat[], types: Types, cle: string, v: Valeurs, groupe = false, suivies: Set<string> = new Set()): string {
   const e = new Ecrivain();
   e.ligne('// Produit par Humalis : les variables partagées entre les pages.');
   e.ligne('import SwiftUI');
@@ -169,13 +170,34 @@ function partageSwift(partages: Etat[], types: Types, cle: string, v: Valeurs): 
       const initiale = v.expr(p.initiale, p.type);
       const valeur = p.facultatif ? v.versOpt(initiale, p.type) : v.vers(initiale, p.type);
       const nom = nomSwift(p.nom);
-      if (p.memorisee || p.horsLigne) e.ligne(`var ${nom}: ${types.swift(p.type, p.facultatif)} = ${valeur} { didSet { Memoire.ecrire(${chaineSwift(`${cle}:partage:${simplifier(p.nom)}`)}, ${nom}${p.secret ? ', secret: true' : ''}${p.horsLigne ? ', fichier: true' : ''}) } }`);
+      // Avec des widgets ou des extensions : chaque valeur va aussi dans le groupe d'applications.
+      const suites = [
+        ...(p.memorisee || p.horsLigne ? [`Memoire.ecrire(${chaineSwift(`${cle}:partage:${simplifier(p.nom)}`)}, ${nom}${p.secret ? ', secret: true' : ''}${p.horsLigne ? ', fichier: true' : ''})`] : []),
+        ...(groupe && !p.secret ? [`if !relecture { GroupeHumalis.ecrire(${chaineSwift(`partage:${simplifier(p.nom)}`)}, ${nom}) }`] : []),
+        ...(suivies.has(p.nom) ? [`FormesHumalis.partageChange(${chaineSwift(p.nom)})`] : []),
+      ];
+      if (suites.length) e.ligne(`var ${nom}: ${types.swift(p.type, p.facultatif)} = ${valeur} { didSet { ${suites.join('; ')} } }`);
       else e.ligne(`var ${nom}: ${types.swift(p.type, p.facultatif)} = ${valeur}`);
     }
+    if (groupe) e.ligne('@ObservationIgnored private var relecture = false');
     e.ligne();
     e.bloc('private init() {', () => {
       for (const p of partages.filter((x) => x.memorisee || x.horsLigne)) e.ligne(`if let lue: ${types.swift(p.type, p.facultatif)} = Memoire.lire(${chaineSwift(`${cle}:partage:${simplifier(p.nom)}`)}${p.secret ? ', secret: true' : ''}${p.horsLigne ? ', fichier: true' : ''}) { ${nomSwift(p.nom)} = lue }`);
+      if (groupe) e.ligne('relireDuGroupe()');
     });
+    if (groupe) {
+      e.ligne();
+      e.ligne("/** Les valeurs écrites par l'application, relues par un widget ou une extension ; seule une valeur changée est remplacée. */");
+      e.bloc('func relireDuGroupe() {', () => {
+        e.ligne('relecture = true');
+        e.ligne('defer { relecture = false }');
+        for (const p of partages.filter((x) => !x.secret)) {
+          const t = types.swift(p.type, p.facultatif);
+          const cleGroupe = chaineSwift(`partage:${simplifier(p.nom)}`);
+          e.ligne(`if let donnees = GroupeHumalis.lire(${cleGroupe}), donnees != (try? JSONEncoder().encode(${nomSwift(p.nom)})), let lue = try? JSONDecoder().decode(${t}.self, from: donnees) { ${nomSwift(p.nom)} = lue }`);
+        }
+      });
+    }
   });
   e.ligne('}');
   return e.texte();
@@ -583,7 +605,7 @@ function baseDuSite(application: Application): string {
   return stylesDuSite(formulaires, blocs) + cssTheme(theme as ThemeRI | undefined, false);
 }
 
-function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, disposition: Disposition, polices: { fichier: string; nom: string }[], policeTexte?: string, notifications = false, fonds: { dessin?: { largeur: number; hauteur: number; barre: boolean; barreVisible?: boolean[] }; barreLaterale?: string; liens?: boolean; domaine?: boolean; envois?: boolean; arrierePlan?: boolean; onglets?: { titre: string; route: string; icone: string }[]; menus?: ReturnType<typeof commandesSwift>['menus']; reglages?: string } = {}): string {
+function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, disposition: Disposition, polices: { fichier: string; nom: string }[], policeTexte?: string, notifications = false, fonds: { dessin?: { largeur: number; hauteur: number; barre: boolean; barreVisible?: boolean[] }; barreLaterale?: string; liens?: boolean; domaine?: boolean; envois?: boolean; arrierePlan?: boolean; onglets?: { titre: string; route: string; icone: string }[]; menus?: ReturnType<typeof commandesSwift>['menus']; reglages?: string; formes?: FormesProduites['app'] } = {}): string {
   // Par la route, et non la page directement : une page d'entrée réservée garde sa protection.
   const racine = entree.reservee ? 'Route.accueilHumalis.vue' : `${nomPage(entree.nom)}()`;
   const sans = (liste: string[]) => (liste.length ? `![${liste.map((r) => `Route.${r}`).join(', ')}].contains(Routeur.commun.chemin.last ?? .accueilHumalis)` : 'true');
@@ -733,10 +755,12 @@ function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, dispos
     : '';
   const phase = fonds.envois || fonds.arrierePlan;
   const auLancement = [...(fonds.domaine ? ['if let lien = ProcessInfo.processInfo.environment["HUMALIS_ESSAI_LIEN"], let url = URL(string: lien) { Routeur.commun.ouvrirLien(url) }'] : []), ...(fonds.envois ? ['EnvoisGardes.commun.demarrer()'] : []), ...(fonds.arrierePlan ? ['ArrierePlanHumalis.lancerSiEssai()'] : [])];
-  const racineScene = `RacineHumalis()${fonds.liens ? `
-                .onOpenURL { Routeur.commun.ouvrirLien($0) }
+  // Les formes reçoivent les adresses (widget, fichier, partage) et rendent les autres aux liens profonds.
+  const ouvrir = fonds.formes?.url ? 'FormesHumalis.ouvrir($0)' : 'Routeur.commun.ouvrirLien($0)';
+  const racineScene = `RacineHumalis()${fonds.liens || fonds.formes?.url ? `
+                .onOpenURL { ${ouvrir} }
                 .handlesExternalEvents(preferring: ["*"], allowing: ["*"])` : ''}${auLancement.length ? `
-                .task { ${auLancement.join('; ')} }` : ''}`;
+                .task { ${auLancement.join('; ')} }` : ''}${fonds.formes?.racine ?? ''}`;
   const aLaPhase = phase
     ? `
         .onChange(of: phase) { _, nouvelle in${fonds.envois ? `
@@ -756,12 +780,14 @@ function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, dispos
   return `// Produit par Humalis : l'application.
 import SwiftUI${polices.length ? '\nimport CoreText' : ''}
 
-@main
-struct ${nom}App: App {${notifications ? `
+${fonds.formes?.autresCibles ? `// Les widgets, la montre, la télévision et l'App Clip lisent aussi ce dossier : chacun a son point d'entrée.
+#if !HUMALIS_AUTRE_CIBLE
+` : ''}@main
+struct ${nom}App: App {${notifications || fonds.formes?.delegue ? `
     #if os(macOS)
-    @NSApplicationDelegateAdaptor(DelegueNotifications.self) private var delegue
+    @NSApplicationDelegateAdaptor(${fonds.formes?.delegue ? 'DelegueFormesHumalis' : 'DelegueNotifications'}.self) private var delegue
     #else
-    @UIApplicationDelegateAdaptor(DelegueNotifications.self) private var delegue
+    @UIApplicationDelegateAdaptor(${fonds.formes?.delegue ? 'DelegueFormesHumalis' : 'DelegueNotifications'}.self) private var delegue
     #endif
 ` : ''}${phase ? `    @Environment(\\.scenePhase) private var phase\n` : ''}${inscrire}
     var body: some Scene {
@@ -777,10 +803,10 @@ struct ${nom}App: App {${notifications ? `
         Settings {
             ${fonds.reglages}.vue.frame(minWidth: 480, minHeight: 360)
         }
-        #endif` : ''}
+        #endif` : ''}${fonds.formes?.scenes ?? ''}
     }
 }
-
+${fonds.formes?.autresCibles ? '#endif\n' : ''}
 /** La pile des pages, l'en-tête et le pied communs, les messages et les questions. */
 struct RacineHumalis: View {
 ${entete || pied || menu ? largeur : ''}${fonds.dessin?.barre ? `    #if os(iOS)
@@ -881,6 +907,23 @@ Le fichier \`Info.plist\` déclare que l'application ne chiffre qu'avec ce que f
 `;
 }
 
+/** Ce que les formes d'application demandent de savoir pour les essayer et les publier. */
+function lisezmoiFormes(nom: string, application: Application, formes: FormesProduites): string {
+  const f = application.formes;
+  const lignes: string[] = [];
+  for (const c of formes.cibles) {
+    const quoi = c.genre === 'montre' ? "l'application de l'Apple Watch, rangée dans celle de l'iPhone" : c.genre === 'tele' ? "l'application de l'Apple TV (son propre schéma : `-scheme " + c.nom + "`)" : c.genre === 'clip' ? "l'App Clip (une page, sans installation)" : c.nom.endsWith('Widgets') ? 'les widgets, les activités en direct et les tuiles' : c.nom.endsWith('Partage') ? "l'extension de partage" : 'un clavier (Réglages > Général > Clavier > Claviers)';
+    lignes.push(`- \`${c.nom}\` : ${quoi}.`);
+  }
+  if (formes.groupe) lignes.push(`- Le groupe d'applications \`${formes.groupe}\` relie l'application à ses extensions : Xcode le crée avec votre équipe (\`--equipe\`).`);
+  if (f?.voitures.length) lignes.push(`- **CarPlay** : Apple doit d'abord accorder à votre compte le droit \`com.apple.developer.carplay-driving-task\` (demande sur developer.apple.com/carplay). En attendant, seul le simulateur montre l'écran de voiture (I/O > External Displays > CarPlay) ; une fois le droit accordé, ajoutez la clé à \`${nom}/${nom}.entitlements\`.`);
+  if (f?.partageRecu) lignes.push("- Le partage reçu : sur Mac, l'application s'ouvre et le lit tout de suite ; sur iPhone, une extension ne peut pas ouvrir l'application : le partage est lu dès qu'on revient dans l'application.");
+  if (f?.menusClicDroit.length) lignes.push("- Le clic droit du Finder (Services, Actions rapides) apparaît une fois l'application lancée depuis le dossier Applications.");
+  if (f?.commandesVocales.some((v) => v.parametres.length)) lignes.push('- Siri ne reconnaît dans une phrase que des valeurs connues d\'avance : un `{…}` libre est demandé juste après la phrase.');
+  if (f?.boutonsNotification.length) lignes.push("- Les boutons des notifications : le serveur donne à la notification la catégorie `humalis.boutons:Accepter|Refuser` (ses boutons, dans l'ordre).");
+  return `\n## Formes de l'application\n\n${lignes.join('\n')}\n`;
+}
+
 /** Les fichiers du projet, ou les refus : rien n'est écrit tant qu'une construction manque. */
 export function genererProjetApple(application: Application, options: OptionsApple): { fichiers: Map<string, string>; diagnostics: Diagnostic[] } {
   const diagnostics = verifier(application);
@@ -964,7 +1007,9 @@ export function genererProjetApple(application: Application, options: OptionsApp
   }
   portee.variables.clear();
 
-  const simple = (e: Ecran) => !e.parametresAdresse?.length && e.parent === undefined;
+  // Une page de la montre, de la télévision ou de la barre des menus n'est pas celle où l'application s'ouvre.
+  const horsEntree = (e: Ecran) => e.appareil !== undefined || e.barreSysteme !== undefined;
+  const simple = (e: Ecran) => !e.parametresAdresse?.length && e.parent === undefined && !horsEntree(e);
   const entree = application.ecrans.find((e) => e.nom === 'accueil' && simple(e)) ?? application.ecrans.find((e) => simple(e) && e.nom !== 'introuvable') ?? application.ecrans.find(simple) ?? application.ecrans[0];
   app.pageEntree = entree.nom;
 
@@ -1031,9 +1076,20 @@ export function genererProjetApple(application: Application, options: OptionsApp
   const cheminsPages = cheminsDesPages(application);
   ecrire('Humalis/Routes.swift', routesSwift(application, app, entree, cheminsPages));
   const notifications = JSON.stringify([application.ecrans, application.composants]).includes('"type":"activationNotifications"');
+  // « mettre a jour activite » : le serveur envoie la mise à jour par APNs, au jeton que l'application lui donne.
+  const jetonActivite = (application.formes?.activites.length ?? 0) > 0 && JSON.stringify(application.serveurs ?? []).includes('"type":"activite"');
+  if (jetonActivite && !options.equipe) avertir(1, "« mettre a jour activite » : sans --equipe, l'activité en direct ne peut pas recevoir les mises à jour du serveur. Compilez avec --equipe.");
+  // Les formes d'application (widget, Siri, Spotlight, montre…) : leurs fichiers, et les cibles de plus du projet.
+  const formes = aDesFormes(application)
+    ? genererFormesApple({ application, app, portee, nom, nomAffiche: application.site?.nom ?? options.nom, identifiant: identifiantApp, ...(options.equipe ? { equipe: options.equipe } : {}), liens: application.liensProfonds !== undefined, notifications, jetonActivite: jetonActivite && options.equipe !== undefined })
+    : undefined;
+  for (const [chemin, contenu] of formes?.fichiers ?? []) {
+    if (chemin.startsWith(`${dossier}/`)) ecrire(chemin.slice(dossier.length + 1), contenu);
+    else fichiers.set(chemin, contenu);
+  }
   if (notifications && !options.equipe) avertir(1, "« activer notifications » : sans --equipe, l'application demande la permission mais ne peut pas recevoir de notification d'Apple. Compilez avec --equipe pour qu'elle les reçoive.");
   const policesCopiees = (application.theme?.polices ?? []).flatMap((p) => (p.fichier && /\.(ttf|otf|woff2?)$/i.test(p.fichier) && options.polices?.has(p.fichier) ? [{ fichier: p.fichier, nom: p.nom }] : []));
-  ecrire(`${nom}App.swift`, applicationSwift(nom, application.site?.nom ?? options.nom, entree, disposition, policesCopiees.map((p) => ({ fichier: nomFichierPlat(p.fichier), nom: p.nom })), application.theme?.polices.find((p) => p.role === 'texte')?.nom, notifications, { ...(dessinPrincipal ? { dessin: { ...dessinPrincipal, barre: application.disposition?.barre !== undefined, ...(barreVisible ? { barreVisible } : {}) } } : {}), barreLaterale: application.barreLaterale, liens: application.liensProfonds !== undefined, domaine: application.liensProfonds?.domaine !== undefined, envois: avecEnvois, arrierePlan: avecArrierePlan, ...(ongletsSwift ? { onglets: ongletsSwift } : {}), ...(commandesEcrites.menus.length ? { menus: commandesEcrites.menus } : {}), ...(pageReglages ? { reglages: `Route${routeSimple(pageReglages.nom, app)}` } : {}) }));
+  ecrire(`${nom}App.swift`, applicationSwift(nom, application.site?.nom ?? options.nom, entree, disposition, policesCopiees.map((p) => ({ fichier: nomFichierPlat(p.fichier), nom: p.nom })), application.theme?.polices.find((p) => p.role === 'texte')?.nom, notifications, { ...(dessinPrincipal ? { dessin: { ...dessinPrincipal, barre: application.disposition?.barre !== undefined, ...(barreVisible ? { barreVisible } : {}) } } : {}), barreLaterale: application.barreLaterale, liens: application.liensProfonds !== undefined, domaine: application.liensProfonds?.domaine !== undefined, envois: avecEnvois, arrierePlan: avecArrierePlan, ...(ongletsSwift ? { onglets: ongletsSwift } : {}), ...(commandesEcrites.menus.length ? { menus: commandesEcrites.menus } : {}), ...(pageReglages ? { reglages: `Route${routeSimple(pageReglages.nom, app)}` } : {}), ...(formes ? { formes: formes.app } : {}) }));
   if (disposition.menu?.length) ecrire('Humalis/Menu.swift', menuSwift(disposition.menu));
   for (const p of policesCopiees) ecrire(`Ressources/${nomFichierPlat(p.fichier)}`, contenuBinaire(options.polices!.get(p.fichier)!));
   ecrire('Humalis/Configuration.swift', configurationSwift(application, options));
@@ -1041,7 +1097,7 @@ export function genererProjetApple(application: Application, options: OptionsApp
 
   // Les variables partagées peuvent citer des types de fiches : avant Donnees.swift.
   portee.variables.clear();
-  ecrire('Humalis/Partage.swift', partageSwift(application.partages, types, cle, valeurs));
+  ecrire('Humalis/Partage.swift', partageSwift(application.partages, types, cle, valeurs, formes?.groupe !== undefined, formes?.suivies));
 
   const pagesCode = [...fichiers.values()].join('\n');
   ecrire('Humalis/Valeurs.swift', VALEURS_SWIFT);
@@ -1090,8 +1146,10 @@ export function genererProjetApple(application: Application, options: OptionsApp
   const avecConnexionApple = /\bseConnecterAvecApple\(/.test(codeAvecNatifs);
   if (avecConnexionApple && !options.equipe) avertir(1, "« se connecter avec apple » : sans --equipe, la fenêtre d'Apple ne peut pas s'ouvrir, et l'application le dit à la personne. Compilez avec --equipe.");
   const droitConnexionApple = avecConnexionApple && options.equipe !== undefined;
-  ecrire(`${nom}.entitlements`, droits(avecFichiers, notifications && options.equipe ? 'ios' : undefined, avecPosition, domaineLiens, droitConnexionApple));
-  if (notifications && options.equipe) ecrire(`${nom}-mac.entitlements`, droits(avecFichiers, 'mac', avecPosition, domaineLiens, droitConnexionApple));
+  ecrire(`${nom}.entitlements`, droits(avecFichiers, (notifications || jetonActivite) && options.equipe ? 'ios' : undefined, avecPosition, domaineLiens, droitConnexionApple, formes?.groupe));
+  if ((notifications || jetonActivite) && options.equipe) ecrire(`${nom}-mac.entitlements`, droits(avecFichiers, 'mac', avecPosition, domaineLiens, droitConnexionApple, formes?.groupe));
+  // CarPlay demande un droit qu'Apple accorde sur demande : sans lui, seul le simulateur montre l'écran de voiture.
+  if (formes?.droitsSimulateur) ecrire(`${nom}-simulateur.entitlements`, droits(avecFichiers, (notifications || jetonActivite) && options.equipe ? 'ios' : undefined, avecPosition, domaineLiens, droitConnexionApple, formes.groupe, formes.droitsSimulateur));
   if (application.liensProfonds?.domaine && !options.equipe) avertir(application.liensProfonds.ligne, `« domaine "${application.liensProfonds.domaine}" » : sans --equipe, les liens https:// ouvrent le site et pas l'application. Compilez avec --equipe.`);
   if (domaineLiens) {
     fichiers.set('a-publier-sur-le-site/.well-known/apple-app-site-association', associationSite(options.equipe!, identifiantApp, domaineLiens));
@@ -1107,7 +1165,7 @@ export function genererProjetApple(application: Application, options: OptionsApp
   for (const adresse of new Set(adresses)) {
     if (/^http:\/\//i.test(adresse) && !/^http:\/\/(localhost|127\.0\.0\.1)([:/]|$)/i.test(adresse)) avertir(1, `l'application Apple ne peut pas appeler « ${adresse} » : le système bloque http://. Utilisez https://.`);
   }
-  fichiers.set('Info.plist', infoSupplementaire(serveurLocal, { camera: /\b(prendrePhoto|scannerCode)\(/.test(tout), identite: /\bverifierIdentite\(/.test(tout), position: avecPosition, ...(application.liensProfonds ? { liens: { schema: application.liensProfonds.schema, identifiant: identifiantApp } } : {}), ...(avecArrierePlan ? { arrierePlan: identifiantFond } : {}) }));
+  fichiers.set('Info.plist', infoSupplementaire(serveurLocal, { camera: /\b(prendrePhoto|scannerCode)\(/.test(tout), identite: /\bverifierIdentite\(/.test(tout), position: avecPosition, ...(application.liensProfonds ? { liens: { schema: application.liensProfonds.schema, identifiant: identifiantApp } } : {}), ...(avecArrierePlan ? { arrierePlan: identifiantFond } : {}), ...(formes?.schemaInterne ? { schemaInterne: formes.schemaInterne } : {}), ...(formes?.infos ? { formes: formes.infos } : {}) }));
   fichiers.set(
     `${nom}.xcodeproj/project.pbxproj`,
     projetXcode({
@@ -1118,15 +1176,21 @@ export function genererProjetApple(application: Application, options: OptionsApp
       icone: octetsLogo !== undefined,
       serveurLocal,
       paquets: paquetsDe(application, refuser),
-      droitsMac: notifications && options.equipe !== undefined,
+      droitsMac: (notifications || jetonActivite) && options.equipe !== undefined,
       essaisUi: options.essaisUi !== undefined,
       fichiers: avecFichiers,
+      ...(formes?.cibles.length ? { cibles: formes.cibles } : {}),
+      ...(formes?.droitsSimulateur ? { droitsSimulateur: true } : {}),
     }),
   );
   fichiers.set(`${nom}.xcodeproj/xcshareddata/xcschemes/${nom}.xcscheme`, schemaXcode(nom, options.essaisUi !== undefined));
+  // La télévision a sa propre application, donc son propre schéma.
+  formes?.cibles.forEach((c, rang) => {
+    if (c.genre === 'tele') fichiers.set(`${nom}.xcodeproj/xcshareddata/xcschemes/${c.nom}.xcscheme`, schemaXcode(nom, false, { nom: c.nom, rang, projet: nom }));
+  });
   if (options.essaisUi !== undefined) fichiers.set(`${nom}Essais/Parcours.swift`, options.essaisUi);
   fichiers.set(MARQUE_APPLE, `Projet produit par Humalis depuis ${options.source}.\nLe compilateur réécrit ce dossier à chaque compilation.\n`);
-  fichiers.set('LISEZMOI.md', lisezmoi(nom, options));
+  fichiers.set('LISEZMOI.md', lisezmoi(nom, options) + (formes ? lisezmoiFormes(nom, application, formes) : ''));
   return { fichiers, diagnostics };
 }
 
