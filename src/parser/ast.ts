@@ -158,6 +158,10 @@ export interface Serveur {
   connexionGoogle?: number;
   /** « connexion apple ». */
   connexionApple?: number;
+  /** « connexion par cle d'acces » : la connexion sans mot de passe (Face ID, Touch ID, Windows Hello). */
+  connexionCleAcces?: number;
+  /** « double authentification » : un code à six chiffres après le mot de passe, pour les comptes qui l'ont activée. */
+  doubleAuthentification?: number;
   /** « roles directeur, enseignant et parent ». */
   roles?: string[];
   /** « compte : » puis ses champs. */
@@ -596,6 +600,9 @@ export type Instruction =
   | ScanCode
   | VerificationIdentite
   | Vibration
+  | ConnexionCleAcces
+  | AjoutCleAcces
+  | ActivationDoubleAuthentification
   | CommencerActivite
   | TerminerActivite
   | Dire
@@ -1006,6 +1013,16 @@ export interface OptionsVariable {
   horsLigne?: boolean;
   /** Avec « memorisee » : un secret, à garder dans le coffre de l'appareil. */
   secret?: boolean;
+  /** « donnee locale notes : » : la liste vit dans la base de l'appareil. */
+  locale?: DonneeLocaleOptions;
+}
+
+/** Ce qu'une donnée locale garde de sa déclaration. */
+export interface DonneeLocaleOptions {
+  chiffree: boolean;
+  champs: { nom: string; type: TypeChamp }[];
+  /** « synchronisee avec "notes" » : la route du serveur avec laquelle elle se synchronise. */
+  synchronisee?: string;
 }
 
 export interface DeclarationVariable {
@@ -1813,4 +1830,24 @@ export interface Formes {
   fichiersOuverts: (CorpsForme & { extensions: string[]; ligne: number })[];
   /** « quand l'utilisateur touche "Accepter" dans une notification : ». */
   boutonsNotification: (CorpsForme & { bouton: string; ligne: number })[];
+  /** « donnee locale notes avec chiffree : » : une vraie base sur l'appareil. */
+  donneesLocales: (DonneeLocaleOptions & { nom: string; ligne: number })[];
+}
+
+/** « se connecter par cle d'acces ». */
+export interface ConnexionCleAcces {
+  type: 'ConnexionCleAcces';
+  ligne: number;
+}
+
+/** « ajouter cle d'acces » : au compte de la personne connectée. */
+export interface AjoutCleAcces {
+  type: 'AjoutCleAcces';
+  ligne: number;
+}
+
+/** « activer double authentification » : le code QR à scanner dans une application d'authentification. */
+export interface ActivationDoubleAuthentification {
+  type: 'ActivationDoubleAuthentification';
+  ligne: number;
 }

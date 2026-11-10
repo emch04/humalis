@@ -3588,6 +3588,70 @@ fichier ouvert pendant que l'application tourne va à la fenêtre déjà ouverte
 s'exécutent, puis l'application revient à la page où l'on était (sauf si elles changent de page).
 Le fichier et le menu clic droit demandent le moteur Humalis (le défaut).
 
+### Les données sur l'appareil
+
+Une donnée locale vit dans une vraie base sur l'appareil (SQLite dans les applications,
+IndexedDB dans le navigateur) : elle reste là sans réseau et après un redémarrage. Dans les
+pages, elle se lit et se change comme une liste.
+
+```humalis
+serveur "boutique" :
+    donnee note :
+        titre : texte
+        lu : booleen
+    route "notes" :
+        connecte peut lire note
+        connecte peut creer note
+        connecte peut modifier note
+        connecte peut supprimer note
+
+donnee locale notes avec chiffree :
+    titre : texte
+    lu : booleen
+    synchronisee avec "notes"
+
+page "accueil" :
+    titre "Notes"
+    pour chaque n dans notes :
+        texte n.titre
+    bouton "Ajouter"
+    quand l'utilisateur clique sur "Ajouter" :
+        ajouter fiche avec titre "Nouvelle" et lu faux a notes
+```
+
+`avec chiffree` chiffre la base, avec une clé gardée dans le coffre de l'appareil.
+`synchronisee avec "notes"` la relie à une route du serveur : les changements faits sans réseau
+partent quand il revient, les suppressions suivent, et en cas de conflit la modification la plus
+récente l'emporte. L'identifiant de chaque fiche est géré par la base.
+
+### La connexion sans mot de passe et le code à six chiffres
+
+Dans le serveur, deux lignes ouvrent ces portes en plus de l'email et du mot de passe :
+
+```humalis
+serveur "boutique" :
+    connexion par cle d'acces
+    double authentification
+    donnee note :
+        titre : texte
+    route "notes" :
+        connecte peut lire note
+        connecte peut creer note
+        connecte peut modifier note
+        connecte peut supprimer note
+
+page "compte" :
+    titre "Compte"
+    bouton "Ajouter une clé"
+    quand l'utilisateur clique sur "Ajouter une clé" :
+        ajouter cle d'acces
+```
+
+Dans les pages, `se connecter par cle d'acces` ouvre la connexion par Face ID, Touch ID ou
+Windows Hello ; `ajouter cle d'acces` ajoute une clé au compte de la personne connectée ;
+`activer double authentification` montre le code QR à scanner dans une application
+d'authentification. Le code à six chiffres est ensuite demandé tout seul après le mot de passe.
+
 ### Plusieurs fichiers
 
 Un grand projet se range en plusieurs fichiers. En haut du fichier principal :

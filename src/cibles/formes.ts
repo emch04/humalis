@@ -24,7 +24,10 @@ export type Forme =
   | 'tuile'
   | 'miniApplication'
   | 'voiture'
-  | 'menuClicDroit';
+  | 'menuClicDroit'
+  | 'donneeLocale'
+  | 'cleAcces'
+  | 'doubleAuthentification';
 
 /** Les cibles où chaque forme a un sens : ailleurs, elle est ignorée. */
 export const PREVUES: Record<Forme, string[]> = {
@@ -45,6 +48,9 @@ export const PREVUES: Record<Forme, string[]> = {
   miniApplication: ['apple'],
   voiture: ['apple', 'android'],
   menuClicDroit: ['apple', 'windows', 'desktop'],
+  donneeLocale: ['web', 'desktop', 'apple', 'android', 'windows'],
+  cleAcces: ['web', 'desktop', 'apple', 'android', 'windows', 'serveur'],
+  doubleAuthentification: ['web', 'desktop', 'apple', 'android', 'windows', 'serveur'],
 };
 
 /** Les formes déjà écrites par chaque cible. */
@@ -71,6 +77,7 @@ function formesDuProgramme(application: Application): { forme: Forme; quoi: stri
   if (f?.partageRecu) ajouter('partageRecu', 'le partage reçu', f.partageRecu.ligne);
   for (const o of f?.fichiersOuverts ?? []) ajouter('fichierOuvert', `l'ouverture des fichiers ${o.extensions.join(', ')}`, o.ligne);
   for (const b of f?.boutonsNotification ?? []) ajouter('boutonsNotification', `le bouton « ${b.bouton} » d'une notification`, b.ligne);
+  for (const d of f?.donneesLocales ?? []) ajouter('donneeLocale', `la donnée locale « ${d.nom} »`, d.ligne);
   for (const e of application.ecrans) {
     if (e.barreSysteme) ajouter('barreSysteme', `la page « ${e.nom} » dans la barre du système`, e.ligne);
     if (e.appareil) ajouter(e.appareil, `la page « ${e.nom} » sur ${e.appareil === 'montre' ? 'la montre' : 'la télévision'}`, e.ligne);
@@ -79,11 +86,15 @@ function formesDuProgramme(application: Application): { forme: Forme; quoi: stri
   const lignes = JSON.stringify([application.ecrans, application.composants]);
   if (/"type":"activite","mode"/.test(lignes) && !trouvees.some((t) => t.forme === 'activite')) ajouter('activite', '« commencer activite »', 1);
   if (/"type":"dire"/.test(lignes) && !trouvees.some((t) => t.forme === 'commandeVocale')) ajouter('commandeVocale', '« dire »', 1);
+  if (/"quoi":"(connexionCle|ajoutCle)"/.test(lignes)) ajouter('cleAcces', 'les clés d’accès', 1);
+  if (/"quoi":"doubleAuthentification"/.test(lignes)) ajouter('doubleAuthentification', 'la double authentification', 1);
   // Le serveur : « mettre a jour activite », « … et boutons ».
   for (const s of application.serveurs ?? []) {
     const texte = JSON.stringify(s);
     if (texte.includes('"type":"activite"')) ajouter('activite', '« mettre a jour activite » du serveur', 1);
     if (texte.includes('"boutons":[')) ajouter('boutonsNotification', 'les boutons des notifications du serveur', 1);
+    if (s.connexionCleAcces) ajouter('cleAcces', 'les clés d’accès du serveur', 1);
+    if (s.doubleAuthentification) ajouter('doubleAuthentification', 'la double authentification du serveur', 1);
   }
   return trouvees;
 }

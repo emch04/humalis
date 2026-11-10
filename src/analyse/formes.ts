@@ -85,6 +85,11 @@ export function analyserFormes(programme: Programme, analyserCommePage: (page: P
     for (const m of formes.menusClicDroit) commePage(m, `menu clic droit « ${m.titre} »`, m.corps, m.ligne, 'actions', [FICHIER]);
     if (formes.partageRecu) commePage(formes.partageRecu, 'partage reçu', formes.partageRecu.corps, formes.partageRecu.ligne, 'actions', [PARTAGE]);
     for (const f of formes.fichiersOuverts) commePage(f, `fichier ouvert (${f.extensions.join(', ')})`, f.corps, f.ligne, 'actions', [FICHIER]);
+    // « synchronisee avec "notes" » : une route du serveur qui lit et modifie cette donnée.
+    const routes = new Set(programme.serveurs.flatMap((s) => s.routes.map((r) => r.adresse.replace(/^\//, ''))));
+    for (const d of formes.donneesLocales) {
+      if (d.synchronisee !== undefined && !routes.has(d.synchronisee.replace(/^\//, ''))) erreur(`la route « ${d.synchronisee} » n'existe pas dans le serveur : une donnée locale se synchronise avec une route qui la lit et la modifie.${proposerNom(d.synchronisee, routes)}`, d.ligne);
+    }
     for (const b of formes.boutonsNotification) commePage(b, `bouton « ${b.bouton} » d'une notification`, b.corps, b.ligne, 'actions');
   }
 
