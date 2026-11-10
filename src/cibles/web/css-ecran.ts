@@ -53,6 +53,8 @@ export function cssEcran(codes: string[]): string {
   // « menu vertical » : les liens en colonne, qui ne passent jamais sur une deuxième colonne
   // (un sommaire de hauteur limitée défile au lieu de s'étaler).
   if (codes.some((c) => c.includes('humalis-menu-vertical'))) regles.push('.humalis-menu-vertical { flex-direction: column; flex-wrap: nowrap; align-items: stretch; }');
+  // L'intertitre d'un « groupe » d'onglets : plus petit et plus discret que les liens qu'il range.
+  if (codes.some((c) => c.includes('humalis-menu-groupe'))) regles.push('.humalis-menu-groupe { font-size: 0.8em; font-weight: 600; opacity: 0.7; align-self: center; margin: 0; } .humalis-menu-vertical > .humalis-menu-groupe { align-self: stretch; margin-block-start: 0.75rem; }');
   // « menu repliable » : sur un petit écran, les liens attendent le bouton « Menu ».
   if (codes.some((c) => c.includes('humalis-menu-repliable'))) {
     regles.push('.humalis-menu-bouton { display: none; }');

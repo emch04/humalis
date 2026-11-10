@@ -329,8 +329,21 @@ page "panier" :
     bouton "Paiement en trois fois" avec desactive
 ```
 
-La condition s'arrête au prochain `et`, qui ouvre l'option suivante. Un bouton
-désactivé reste visible, plus pâle. `desactive` ne vaut que pour un bouton.
+La condition s'arrête au prochain `et`, qui ouvre l'option suivante. Pour
+combiner deux conditions, on les range d'abord dans un `calcul`, puis on le teste
+avec `desactive si … est vrai` :
+
+```humalis
+page "commande" :
+    variable panier = []
+    variable envoi_en_cours = faux
+    calcul bloque = panier est vide ou envoi_en_cours est vrai
+    titre "Commande"
+    bouton "Commander" avec desactive si bloque est vrai
+```
+
+Un bouton désactivé reste visible, plus pâle. `desactive` ne vaut que pour un
+bouton.
 
 ### Champ
 
@@ -755,7 +768,7 @@ web avec un équivalent simple.
 | `table l :` puis `colonne "Total" avec c.total` | lignes | tableau | lignes |
 | `menu de l'application "Fichier" :` puis `commande "N" avec raccourci "cmd+n" :` | raccourcis (iPad) | barre de menus | refusé |
 | `page "x" en reglages :` | page | fenêtre Réglages | page |
-| `page "x" en pleine fenetre :` | page | page jusqu'aux bords | page jusqu'aux bords |
+| `page "x" en pleine fenetre :` | page jusqu'aux bords | page jusqu'aux bords | page (sans effet) |
 | `barre d'outils :` | barre du haut | barre d'outils | rangée |
 
 ### Le fil d'Ariane et le menu
