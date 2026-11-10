@@ -1,0 +1,12 @@
+- generic [active] [ref=f2e1]:
+  - textbox [ref=f2e3]: "site : nom \"Bac\" serveur \"boutique\" : donnee produit : nom : texte non vide prix : nombre route \"produits\" : tout le monde peut lire produit tout le monde peut creer produit donnees de depart pour produit : nom \"Café\", prix 3 page \"accueil\" : variable compteur = 0 variable produits = [] titre \"Bac à sable\" texte \"Compteur : {compteur}\" bouton \"Ajouter 1\" quand l'utilisateur clique sur \"Ajouter 1\" : changer compteur par compteur + 1 quand la page se charge : envoyer requete vers \"produits\" dans produits pour chaque p dans produits : texte \"{p.nom} : {p.prix}\" lien \"Autre page\" vers \"autre\" page \"autre\" : titre \"Autre page\" lien \"Retour\" vers \"accueil\""
+  - iframe [ref=f2e5]:
+    - generic [ref=f3e1]:
+      - list
+      - main [ref=f3e3]:
+        - heading "Bac à sable" [level=1] [ref=f3e4]
+        - paragraph [ref=f3e5]: "Compteur : 2"
+        - button "Ajouter 1" [ref=f3e6] [cursor=pointer]
+        - paragraph [ref=f3e7]: "Café : 3"
+        - link "Autre page" [ref=f3e8] [cursor=pointer]:
+          - /url: /autre

@@ -62,6 +62,50 @@ humalis developper
 `humalis developper` ouvre le site dans le navigateur et le recompile à chaque
 enregistrement : écris, enregistre, regarde.
 
+### Lancer un fichier tout de suite : la machine
+
+Pour essayer un fichier sans créer de projet, sans `npm install` et sans construction :
+
+```sh
+humalis lancer mon-fichier.humalis
+```
+
+La machine Humalis compile le fichier en mémoire, l'ouvre à l'adresse `http://localhost:5173`
+(`--port` en choisit une autre, `--ouvrir` ouvre le navigateur) et **n'écrit rien sur le
+disque**. À chaque enregistrement, la page change en moins d'une seconde, et garde la valeur de ses
+variables tant que leur déclaration n'a pas changé. Une faute s'affiche par-dessus la page, avec son
+fichier, sa ligne et le code en cause ; la dernière version qui marchait reste vivante jusqu'à ce que
+tu corriges.
+
+Le bloc `serveur` tourne lui aussi, en mémoire : données, routes, droits, rôles, règles de champ,
+actions, résumés, données de départ, temps réel, tâches planifiées, comptes et session. La machine
+crée au démarrage un compte d'essai `admin@machine.humalis` et un compte par rôle
+(`gerant@machine.humalis`…) ; leur mot de passe, tiré au hasard à chaque lancement, est dit dans le
+terminal. Quand tu modifies le programme, les données et les comptes restent. Tout est perdu à l'arrêt.
+
+Le panneau `http://localhost:5173/__machine` montre les comptes d'essai (et en crée), la boîte
+d'envoi, les données en mémoire, et ce qui se lance à la main.
+
+**Ce que la machine ne fait pas pour de vrai.** Elle ne l'imite jamais en silence : la commande le
+dit au démarrage, pour ce que *ton* fichier emploie.
+
+| Dans ton fichier | Ce que fait la machine |
+|---|---|
+| e-mails (`envoyer email`, `inviter`, mot de passe oublié) | aucun e-mail ne part : il est gardé dans la boîte du panneau, avec son lien |
+| notifications et activités en direct | aucune n'est poussée : gardées dans la boîte |
+| paiement (`payer`, `quand … est payee`) | la route répond 501 ; le panneau marque une fiche « payée » à la main et lance ce que le programme fait ensuite |
+| bons et documents PDF, carte de fidélité, IA | la route répond 501 |
+| connexion Google ou Apple | « pas réglée », comme un serveur sans identifiants |
+| sources à jeton secret (passerelles) | 501 : les secrets restent dans le vrai serveur |
+| composants externes (`utiliser composant …`) | refusés avec leur ligne : la machine ne lance que du Humalis, sans npm. Utilise `humalis developper` |
+
+La machine n'écoute que `localhost`. Pour un vrai projet (npm, base de données, publication), la
+suite reste `humalis developper` puis `humalis compile`.
+
+La même machine tourne dans un navigateur : `dist/navigateur.js` exporte `Machine` et
+`brancherApercu`, qui montrent l'application dans une iframe grâce à un Service Worker
+(`SERVICE_WORKER_JS`, à servir à la racine du site). C'est ce que le bac à sable du site utilisera.
+
 Quand le site te plaît, compile-le vers la cible voulue :
 
 ```sh
@@ -3700,6 +3744,7 @@ Les autres étapes : `remplir champ "email" avec "…"`, `aller vers "panier"`,
 | `humalis nouveau <nom>` | crée un projet |
 | `humalis --version` | affiche la version installée (`humalis --aide` : le mode d'emploi) |
 | `humalis developper` | lance le site et le recompile à chaque enregistrement |
+| `humalis lancer <fichier>` | fait tourner un fichier tout de suite, en mémoire, avec son serveur, sans rien installer |
 | `humalis compile <fichier> --cible <cible> --sortie <dossier>` | produit le projet d'une cible |
 | `humalis compile <fichier> --cible web --composants <dossier>` | produit des composants React à importer ailleurs |
 | `humalis verifier <fichier>` | affiche les erreurs et les avertissements |

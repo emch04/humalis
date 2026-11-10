@@ -31,6 +31,7 @@ import { etatDesPacks, verifierProjet, ErreurPackageJson } from './packs.js';
 import { creerProjet } from './outils/nouveau.js';
 import { formaterSource } from './outils/formatage.js';
 import { developper, trouverPrincipal } from './outils/developpement.js';
+import { lancer } from './machine/lancer.js';
 import { extraitDeCode } from './outils/extrait.js';
 import { ecrireSiChange, retirerAnciensProduits } from './outils/ecriture.js';
 import { testerProjet } from './outils/tests.js';
@@ -41,6 +42,7 @@ const AIDE = `Utilisation :
   humalis nouveau <nom>
   humalis formater <fichier.humalis> [--verifier]
   humalis developper [<fichier.humalis>] [--port <nombre>]
+  humalis lancer [<fichier.humalis>] [--port <nombre>] [--ouvrir]
   humalis tester [<dossier-ou-fichier.test.humalis>] [--detail]
   humalis verifier <fichier.humalis> [--exigeant] [--ri]
   humalis compile <fichier.humalis> --cible web --sortie <dossier> [--adresse https://…] [--exigeant]
@@ -55,6 +57,15 @@ const AIDE = `Utilisation :
   humalis compile <fichier.humalis> --cible statique --sortie <dossier> [--adresse https://…]
   humalis packs [--verifier <dossier>]
 
+lancer    fait tourner un fichier tout de suite, sans projet produit, sans
+          npm install et sans construction : le programme est compilé en
+          mémoire, son bloc « serveur » tourne aussi en mémoire (données,
+          droits, comptes d'essai), et la page change à chaque
+          enregistrement en gardant l'état des variables quand c'est
+          possible. Les e-mails et notifications sont gardés dans le panneau
+          /__machine au lieu de partir ; paiement, PDF et IA ne sont pas
+          simulés (la commande le dit au démarrage). Rien n'est écrit sur
+          le disque. Pour un vrai projet avec npm, voir developper.
 verifier  affiche les erreurs et les avertissements avec leur ligne. Avec
           --ri, affiche aussi la représentation intermédiaire (pour qui
           travaille sur le compilateur).
@@ -896,6 +907,18 @@ if (reponse !== undefined) {
     process.exitCode = 2;
   } else {
     try { process.exitCode = await developper(fichiers[0] ?? trouverPrincipal(process.cwd()), port); }
+    catch (erreur) { console.error((erreur as Error).message); process.exitCode = 1; }
+  }
+} else if (argumentsCli[0] === 'lancer') {
+  const autres = argumentsCli.slice(1);
+  const valeurPort = option(autres, 'port');
+  const fichiers = autres.filter((argument) => !argument.startsWith('--') && argument !== valeurPort);
+  const port = valeurPort === undefined ? 5173 : Number(valeurPort);
+  if (fichiers.length > 1 || !Number.isInteger(port) || port < 0 || port > 65515 || autres.some((argument) => argument.startsWith('--') && argument !== '--port' && argument !== '--ouvrir')) {
+    console.error(AIDE);
+    process.exitCode = 2;
+  } else {
+    try { process.exitCode = await lancer(fichiers[0] ?? trouverPrincipal(process.cwd()), { port, ouvrir: autres.includes('--ouvrir'), dire: (m) => console.error(m) }); }
     catch (erreur) { console.error((erreur as Error).message); process.exitCode = 1; }
   }
 } else process.exitCode = await principal(argumentsCli);
