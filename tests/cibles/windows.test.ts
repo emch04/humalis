@@ -572,6 +572,30 @@ page "reglages" dans "espace" adresse "/espace" :
   });
 });
 
+describe('cible Windows — audio, vidéo et cartes', () => {
+  const { application, diagnostics } = compiler(readFileSync('exemples/medias.humalis', 'utf8'));
+  const resultat = genererProjetWindows(application!, { nom: 'medias', source: 'medias.humalis', medias: new Map([['extrait.wav', { octets: 4, contenu: 'AAAA', genre: 'audio' as const }]]) });
+  const page = resultat.fichiers.get('Pages/PageAccueil.cs')!;
+
+  it('le programme des médias se produit sans erreur', () => {
+    expect(diagnostics.filter((d) => d.gravite === 'erreur')).toEqual([]);
+    expect(resultat.diagnostics.filter((d) => d.gravite === 'erreur')).toEqual([]);
+  });
+
+  it('un son a son lecteur, sa transcription et sa boucle ; le fichier est rangé dans l\'application', () => {
+    expect(page).toContain('Medias.Lecteur(() => "extrait.wav", "Extrait de la chanson Le Fleuve, deux secondes", false)');
+    expect(page).toContain('boucle: true, transcription: "Bonjour et bienvenue au Fleuve."');
+    expect(resultat.fichiers.has('Ressources/extrait.wav')).toBe(true);
+  });
+
+  it('une carte a son centre écrit, ou s\'ajuste à ses marqueurs (dans une boucle)', () => {
+    expect(page).toContain('CarteHumalis.Creer("Le restaurant Le Fleuve, avenue de la Gombe", () => ((double?)-4.325d, (double?)15.3222d, (double?)15d), () => Array.Empty<Marqueur>().ToArray())');
+    expect(page).toContain('V.L(agences.Lire()).SelectMany((object? agence) => new[] { new Marqueur(V.N(V.Champ(agence, "latitude"))');
+    expect(resultat.fichiers.get('Humalis/Medias.cs')).toContain('https://tile.openstreetmap.org/{z}/{x}/{y}.png');
+    expect(resultat.fichiers.get('Humalis/Medias.cs')).toContain('© les contributeurs d’OpenStreetMap');
+  });
+});
+
 describe('cible Windows — les fonctions et les composants', () => {
   const fichiers = projet(`fonction remise avec prix et taux :
     rendre prix - prix * taux / 100
@@ -640,10 +664,6 @@ describe('cible Windows — ce qui n\'existe pas ici est dit clairement', () => 
     expect(diagnostics.some((d) => d.gravite === 'erreur' && d.message.includes('--cible desktop'))).toBe(true);
   });
 
-  it('une carte est refusée', () => {
-    const { diagnostics } = produire(`page "a" :\n    titre "a"\n    carte "Notre boutique" avec latitude 48,8566 et longitude 2,3522 et zoom 15\n`);
-    expect(diagnostics.some((d) => d.gravite === 'erreur' && d.message.includes('carte') && d.message.includes('Windows'))).toBe(true);
-  });
 
   it('une animation est dite, sans bloquer', () => {
     const { diagnostics } = produire(`page "a" :\n    titre "Bonjour" avec animation apparition\n`);
