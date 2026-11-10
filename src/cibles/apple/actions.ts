@@ -334,9 +334,13 @@ export class EcrivainActions {
         else e.ligne(`_ = await Serveur.commun.appelReussi(${appel})`);
         return;
       }
-      // Les formes d'application spéciales : refusées avant (verifierFormesPourLaCible) tant que cette cible ne les écrit pas.
+      // « commencer activite "livraison" » : ActivityKit (voir formes.ts).
       case 'activite':
+        e.ligne(`await ActivitesHumalis.${a.mode}(${chaineSwift(a.nom)})`);
+        return;
+      // « dire » : la réponse de Siri dans une commande vocale, la voix de l'appareil ailleurs.
       case 'dire':
+        e.ligne(`Voix.dire(${this.v.texte(a.texte)})`);
         return;
       default: {
         // Une action ajoutée au langage doit être traitée ici : sinon le compilateur TypeScript s'arrête.

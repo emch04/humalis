@@ -885,6 +885,8 @@ export class GenerateurPage implements HotePage {
         if (noeud.plateforme === this.osExact) this.ecrireCorps(e, noeud.corps);
         return true;
       }
+      // Une page dessinée vit sur l'iPhone, l'iPad et le Mac : la montre et la télévision ont leurs propres pages.
+      if (noeud.plateforme === 'montre' || noeud.plateforme === 'tele') return true;
       if (noeud.natif?.genre === 'recherche' && noeud.natif.variable) {
         const lue = this.portee.variables.get(noeud.natif.variable);
         if (!lue) return false;
@@ -1066,9 +1068,10 @@ export class GenerateurPage implements HotePage {
 
   private ecrireBloc(e: Ecrivain, noeudLu: Extract<NoeudVue, { type: 'bloc' }>): void {
     if (noeudLu.natif && this.ecrireNatif(e, noeudLu)) return;
-    // « sur ios : », « sur macos : » : le projet Xcode est commun aux deux.
-    if (noeudLu.plateforme === 'ios' || noeudLu.plateforme === 'macos') {
-      e.ligne(`#if os(${noeudLu.plateforme === 'ios' ? 'iOS' : 'macOS'})`);
+    // « sur ios : », « sur macos : », « sur montre : », « sur tele : » : le projet Xcode est commun à tous.
+    const systemes: Record<string, string> = { ios: 'iOS', macos: 'macOS', montre: 'watchOS', tele: 'tvOS' };
+    if (noeudLu.plateforme !== undefined && systemes[noeudLu.plateforme]) {
+      e.ligne(`#if os(${systemes[noeudLu.plateforme]})`);
       this.ecrireCorps(e, noeudLu.corps);
       e.ligne('#endif');
       return;
