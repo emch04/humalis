@@ -165,7 +165,12 @@ function elementMobile(el: ElementProduit): string {
       return `<Pressable ${id} accessibilityRole="button"${el.etiquette !== undefined ? ` accessibilityLabel=${JSON.stringify(el.etiquette)}` : ''}${el.desactive !== undefined ? ` disabled={${el.desactive}} accessibilityState={{ disabled: ${el.desactive} }}` : ''} ${style(['bouton', ...duBouton])}${evenements}><Text ${style(['texteBouton', ...duTexte, ...encres])}>${el.contenu}</Text></Pressable>`;
     }
     case 'lien':
-      return `<Link href=${el.versExpression ? `{${el.versExpression}}` : JSON.stringify(el.vers)} ${id} ${style(['lien', ...options])}${evenements}>${el.contenu}</Link>`;
+      // « lien … vers site » : une page de l'application ou une adresse externe (ouverte par le système) ;
+      // une adresse refusée (javascript:…) laisse le texte, sans lien.
+      if (el.adresseExpression !== undefined) {
+        return `<>{((adresse) => adresse === undefined ? <Text ${id} ${style(['lien', ...options])}${evenements}>${el.contenu}</Text> : <Link href={adresse} ${id} ${style(['lien', ...options])}${evenements}>${el.contenu}</Link>)(adresseDuLien(${el.adresseExpression}))}</>`;
+      }
+      return `<Link href=${el.versExpression ? `{${el.versExpression}}` : el.externeExpression ? `{${el.externeExpression}}` : JSON.stringify(el.externe ?? el.vers)} ${id} ${style(['lien', ...options])}${evenements}>${el.contenu}</Link>`;
     case 'image': {
       if (el.image) {
         const image = imageMobile(el.image, id, el.options);

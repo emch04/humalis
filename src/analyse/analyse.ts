@@ -566,6 +566,8 @@ class AnalysePage {
 
   /** Le nombre de boucles ouvertes dans un événement ou une fonction (pour « arreter »). */
   private boucles = 0;
+  /** Les « pour chaque » de la page autour de l'élément lu (un champ y reste un seul champ de la page). */
+  private bouclesDeVue = 0;
   /** Les éléments de chaque branche « si / sinon » ouverte : un événement y vise d'abord ceux de sa branche. */
   private branches: ElementRecense[][] = [];
 
@@ -1347,6 +1349,7 @@ class AnalysePage {
     this.elementEnCours = element.element;
     this.typeDe(element.contenu);
     this.elementEnCours = undefined;
+    if (element.cibleValeur) this.adresseDuLien(element, element.cibleValeur);
     // « vers "https://wa.me/…?text={message}" » : les {…} d'une adresse externe lisent les variables de la page.
     if (element.cible !== undefined && element.cibleParties && !lireCible(element.cible).externe) {
       this.erreur(`les {…} ne s'écrivent que dans une adresse externe (https://…, mailto:, tel:) ; pour une page, écrivez vers "page" avec un paramètre.`, element.ligne);
@@ -1481,11 +1484,44 @@ class AnalysePage {
     if (envoi.resultat !== undefined) this.ciblesSources.add(envoi.resultat);
   }
 
+  /**
+   * « lien "Notre site" vers site » : l'adresse est un texte, lu au moment d'afficher. Une adresse
+   * http(s)://, mailto: ou tel: sort du site ; une autre est une adresse du site ; les autres schémas
+   * (javascript:…) sont écartés par chaque cible.
+   */
+  private adresseDuLien(element: Element, valeur: Expression): void {
+    const type = this.typeDe(valeur);
+    const nom = valeur.type === 'Reference' || valeur.type === 'AccesChamp' ? nomExpression(valeur) : 'adresse';
+    if (element.element !== 'lien') {
+      this.erreur(`« vers ${nom} » (une adresse lue dans une variable) s'applique à un lien : écrivez lien "…" vers ${nom}.`, element.ligne);
+    } else if (estConnu(type) && type.genre !== 'texte') {
+      this.erreur(`un lien vers une variable attend une adresse en texte (https://…, mailto:, tel: ou une adresse du site) : ${decrire(valeur)} est ${decrireType(type)}.`, element.ligne);
+    }
+  }
+
+  /**
+   * « champ "Nom" avec valeur nom » : ce que le champ contient au départ. Une case à cocher
+   * attend vrai ou faux ; les autres champs, un texte, un nombre ou une date (écrite en texte).
+   */
+  private valeurDeChamp(element: Element, valeur: Expression): void {
+    const type = this.typeDe(valeur);
+    if (this.bouclesDeVue > 0) {
+      this.erreur('« avec valeur » ne s’écrit pas pour un champ placé dans « pour chaque » : le champ est un seul champ de la page. Placez-le hors de la boucle.', element.ligne);
+      return;
+    }
+    if (!estConnu(type)) return;
+    if (element.sorte === 'case') {
+      if (type.genre !== 'booleen') this.erreur(`la valeur de départ d’une case à cocher est vrai ou faux : ${decrire(valeur)} est ${decrireType(type)}.`, element.ligne);
+    } else if (type.genre !== 'texte' && type.genre !== 'nombre') {
+      this.erreur(`la valeur de départ d’un champ est un texte ou un nombre : ${decrire(valeur)} est ${decrireType(type)}.`, element.ligne);
+    }
+  }
+
   /** Les valeurs d'un champ (« parmi ») et ses options (décisions F4 à F6 du plan des formulaires). */
   private optionsDeChamp(element: Element): void {
     // Les bornes servent aussi à la progression, aux étoiles et au compteur (vérifiés avec eux).
     const avecBornes = ['progression', 'etoiles', 'compteur'].includes(element.element);
-    const options = (['obligatoire', 'indice', 'minimum', 'maximum'] as const).filter(
+    const options = (['obligatoire', 'indice', 'valeur', 'minimum', 'maximum'] as const).filter(
       (o) => element[o] !== undefined && !(avecBornes && (o === 'minimum' || o === 'maximum')),
     );
     if (element.element !== 'champ') {
@@ -1517,6 +1553,7 @@ class AnalysePage {
     if (element.minimum !== undefined && element.maximum !== undefined && element.minimum > element.maximum) {
       this.erreur(`le minimum (${element.minimum}) est plus grand que le maximum (${element.maximum}).`, element.ligne);
     }
+    if (element.valeur) this.valeurDeChamp(element, element.valeur);
     // Les {variables} d'un indice existent et se lisent comme dans un texte.
     if (element.indiceTexte?.parties.some((p) => p.type === 'variable')) this.typeDe(element.indiceTexte);
     if (element.indice !== undefined && (element.sorte === 'case' || element.sorte === 'choix')) {
@@ -1782,8 +1819,10 @@ class AnalysePage {
         ? { genre: 'boucle', elements: this.elements.elementsDe(boucle.corps), formulaires: this.elements.formulairesDe(boucle.corps) }
         : parent;
     if (contexte === 'evenement') this.boucles++;
+    else this.bouclesDeVue++;
     this.bloc(boucle.corps, contexte, place);
     if (contexte === 'evenement') this.boucles--;
+    else this.bouclesDeVue--;
     this.portees.fermer();
 
     this.boucleFermee.set(boucle.variable, boucle.ligne);

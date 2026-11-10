@@ -9,6 +9,7 @@ import { FORMAT_JS, FORMAT_JS_LANGUES, TAILLE_JS, DATES_JS, FORMES_TEXTE_JS, NOM
 import { CLE_LANGUE } from '../web/langue.js';
 import { CLE_THEME } from '../web/theme.js';
 import { chaine } from '../web/noms.js';
+import { adresseDuLienJs } from '../commun/liens-et-champs.js';
 import type { LangueRI } from '../../ri/types.js';
 
 export interface BesoinsOutils {
@@ -642,6 +643,8 @@ export function adresseDe(nom) {
   return avecBase(PAGES[nom] ?? ('/' + String(nom).replace(/^\\/+/, '')));
 }
 
+/** « lien … vers site » : https, http, mailto et tel tels quels ; un autre schéma (javascript:…) n'a pas d'adresse ; le reste est une page du site. */
+export ${adresseDuLienJs('adresseDuLien', (chemin) => `avecBase(PAGES[${chemin}] ?? '/' + ${chemin})`)}
 /** « revenir » : le retour du navigateur ; sinon la page de secours. */
 export function revenir(secours) {
   if (profondeur > 0 || secours === undefined) history.back();

@@ -53,7 +53,7 @@ export function erreurSurElement(propriete: string, genre: string): string | und
 }
 
 /** « nom » et les options d'un champ (obligatoire, indice, minimum, maximum) sont rangées à part par le parser. */
-const NOMS_OPTIONS = [...Object.keys(OPTIONS).filter((o) => o !== 'sur'), 'nom', 'obligatoire', 'indice', 'minimum', 'maximum'];
+const NOMS_OPTIONS = [...Object.keys(OPTIONS).filter((o) => o !== 'sur'), 'nom', 'obligatoire', 'indice', 'valeur', 'minimum', 'maximum'];
 
 export type ResultatOption =
   | { propriete: string; valeur: string }

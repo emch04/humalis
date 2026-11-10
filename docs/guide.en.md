@@ -315,6 +315,28 @@ A link (`lien`) goes to a page (`vers "about"`) or to a web address
 (`vers "https://example.com"`). A button (`bouton`) triggers an action (see
 [events](#14-events)).
 
+Without quotes, `vers` reads the address from a variable or from a field of a
+record (`fiche`):
+
+```humalis
+page "home" :
+    variable site = "https://example.com"
+    variable settings = fiche avec help "contact" et shop "https://example.com/shop"
+    titre "Home"
+    lien "Our website" vers site
+    lien "Need help?" vers settings.help
+    lien "The shop" vers settings.shop avec nouvel onglet
+
+page "contact" :
+    titre "Contact"
+```
+
+The address is read when the page is shown: if the variable changes, the link
+follows. An address starting with `https://`, `http://`, `mailto:` or `tel:`
+leaves the site; any other one (`"contact"`) is an address of the site. Any
+other kind of address, such as `javascript:`, is dropped: the text stays,
+without a link. The variable must hold a text.
+
 A button can show only an icon: `bouton icone "fermer"`. It then needs a `nom`
 (name). That is what a screen reader reads, and what the event targets.
 
@@ -1702,6 +1724,39 @@ page "contact" :
 ```
 
 Read a field's value with `champ "Name"` (or `le champ "Name"`).
+
+### A field's starting value
+
+`avec valeur` fills a field as soon as the page opens: with a variable, a text,
+or a field of a record.
+
+```humalis
+page "profile" :
+    variable name = "Camille"
+    variable product = fiche avec price 12
+    variable subscribed = vrai
+    titre "My profile"
+    formulaire "profile" :
+        champ "Name" avec valeur name
+        champ "City" avec valeur "Lyon"
+        champ "Price" avec valeur product.price
+        case a cocher "Newsletter" avec valeur subscribed
+        bouton "Save"
+    quand le formulaire "profile" est soumis :
+        changer name par champ "Name"
+        afficher reussite "Profile saved"
+```
+
+What the person types next is the field's value, read as usual with
+`champ "Name"`. As long as they have not changed the field, it follows its
+starting value: if `name` arrives later, after reading the server for example,
+the field fills in. Once they have typed in it, what they typed stays. After the
+form is sent, the field goes back to its starting value instead of being
+emptied.
+
+The value follows the kind of field: a number is written as is, a date as
+`YYYY-MM-DD`, and a checkbox expects `vrai` or `faux`. A field inside
+`pour chaque` takes no starting value.
 
 ---
 

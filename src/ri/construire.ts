@@ -566,6 +566,7 @@ class Construction {
       ...(element.indice !== undefined ? { indice: element.indice } : {}),
       ...(indiceLangues && !element.indiceTexte?.parties.some((p) => p.type === 'variable') ? { indiceLangues } : {}),
       ...(element.indiceTexte?.parties.some((p) => p.type === 'variable') ? { indiceValeur: this.valeur(element.indiceTexte) } : {}),
+      ...(element.valeur ? { valeur: this.valeur(element.valeur) } : {}),
       ...(element.minimum !== undefined ? { minimum: element.minimum } : {}),
       ...(element.maximum !== undefined ? { maximum: element.maximum } : {}),
     };
@@ -604,6 +605,7 @@ class Construction {
       classes: element.classes,
       ...cibleDe(element.cible),
       ...(element.cibleParties && cibleDe(element.cible).externe ? { externeValeur: this.valeur({ type: 'Chaine', parties: element.cibleParties, ligne: element.ligne }) } : {}),
+      ...(element.cibleValeur ? { adresseValeur: this.valeur(element.cibleValeur) } : {}),
       ...(element.ancre !== undefined ? { ancre: element.ancre } : {}),
       ...(element.nouvelOnglet ? { nouvelOnglet: true } : {}),
       ...(element.arguments ? { arguments: element.arguments.map((x) => ({ nom: x.nom, valeur: this.valeur(x.valeur) })) } : {}),

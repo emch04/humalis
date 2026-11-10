@@ -389,7 +389,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     contextes: ['partout'],
     cibles: ecran('to="…" (Link), navigate("…"), fetch("…")', 'router.push("…")', 'href="…"'),
     couvre: ['html:href'],
-    description: 'Désigne une destination : la page d’un lien, la page d’une redirection, l’adresse d’une requête.',
+    description: 'Désigne une destination : la page d’un lien, la page d’une redirection, l’adresse d’une requête. Sans guillemets (lien "Notre site" vers site), le lien ouvre l’adresse rangée dans la variable.',
     exemple: PAGE('    lien "En savoir plus" vers "apropos"') + '\n\npage "apropos" :\n    titre "À propos"',
     statut: 'supporte',
     etape: 0,

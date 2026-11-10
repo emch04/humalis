@@ -380,7 +380,7 @@ export const ENTREES_MEDIAS: readonly EntreeVocabulaire[] = [
   optionGraphique(
     'valeur',
     undefined,
-    'Le champ des valeurs dessinées, un nombre ; « en FC », « en euros » ou « en dollars » les écrit comme de l’argent.',
+    'Le champ des valeurs dessinées, un nombre ; « en FC », « en euros » ou « en dollars » les écrit comme de l’argent. Sur un champ (champ "Nom" avec valeur nom), ce qu’il contient au départ.',
     'graphique en courbe ventes avec etiquette mois et valeur montant en FC et description "Les ventes montent."',
   ),
 ];

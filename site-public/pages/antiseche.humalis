@@ -101,6 +101,11 @@ page "antiseche" a l'adresse "/antiseche" :
                     code humalis :
                         lien "Nous suivre" vers "https://exemple.fr" avec nouvel onglet
                 bloc avec style "aide-entree" :
+                    texte "Faire un lien vers l'adresse rangée dans une variable" en anglais "Link to the address kept in a variable" avec style "aide-besoin"
+                    code humalis :
+                        variable site = "https://exemple.fr"
+                        lien "Notre site" vers site
+                bloc avec style "aide-entree" :
                     texte "Faire un lien vers un endroit de la page" en anglais "Link to a place on the page" avec style "aide-besoin"
                     code humalis :
                         section "Desserts" avec ancre "desserts" :
@@ -233,6 +238,10 @@ page "antiseche" a l'adresse "/antiseche" :
                     code humalis :
                         champ "Référence" avec desactive
                         champ "Adresse de livraison" avec desactive si actif
+                bloc avec style "aide-entree" :
+                    texte "Remplir un champ dès le départ" en anglais "Fill a field from the start" avec style "aide-besoin"
+                    code humalis :
+                        champ "Nom" avec valeur nom
                 bloc avec style "aide-entree" :
                     texte "Lire ce qui a été écrit dans un champ" en anglais "Read what was typed in a field" avec style "aide-besoin"
                     code humalis :

@@ -2059,11 +2059,17 @@ function analyserElement(flux: FluxTokens, enTete?: { element: NomElement; ligne
 
   let cible: string | undefined;
   let cibleParties: PartieChaine[] | undefined;
+  let cibleValeur: Expression | undefined;
   if (flux.accepter('MOT_CLE', 'vers')) {
-    const jeton = flux.attendre('CHAINE', undefined, 'le nom de la page cible');
-    // Une adresse ne garde pas de vrai retour à la ligne : il s'y écrit %0A.
-    cible = jeton.valeur.replace(/\n/g, '%0A');
-    if (jeton.parties?.some((p) => p.type !== 'texte')) cibleParties = jeton.parties.map((p) => (p.type === 'texte' ? { ...p, valeur: p.valeur.replace(/\n/g, '%0A') } : p));
+    if (flux.actuel().type !== 'CHAINE' && estUnNom(flux.actuel())) {
+      // « lien "Notre site" vers site », « vers reglage.site » : l'adresse est lue dans une variable.
+      cibleValeur = analyserExpression(flux);
+    } else {
+      const jeton = flux.attendre('CHAINE', undefined, "le nom de la page cible entre guillemets, ou la variable qui contient l'adresse");
+      // Une adresse ne garde pas de vrai retour à la ligne : il s'y écrit %0A.
+      cible = jeton.valeur.replace(/\n/g, '%0A');
+      if (jeton.parties?.some((p) => p.type !== 'texte')) cibleParties = jeton.parties.map((p) => (p.type === 'texte' ? { ...p, valeur: p.valeur.replace(/\n/g, '%0A') } : p));
+    }
   }
 
   const styles: Style[] = [];
@@ -2072,7 +2078,7 @@ function analyserElement(flux: FluxTokens, enTete?: { element: NomElement; ligne
   let nom: string | undefined;
   let ancre: string | undefined;
   let nouvelOnglet = false;
-  const saisie: Pick<Element, 'obligatoire' | 'indice' | 'indiceTexte' | 'minimum' | 'maximum' | 'raccourci' | 'annonce' | 'desactive'> = {};
+  const saisie: Pick<Element, 'obligatoire' | 'indice' | 'indiceTexte' | 'valeur' | 'minimum' | 'maximum' | 'raccourci' | 'annonce' | 'desactive'> = {};
   let niveau: number | undefined;
   if (flux.accepter('MOT_CLE', 'avec')) {
     do {
@@ -2122,6 +2128,10 @@ function analyserElement(flux: FluxTokens, enTete?: { element: NomElement; ligne
         if (versionsIndice) saisie.indiceTexte = { type: 'Chaine', parties: [{ type: 'texte', valeur: texteIndice.valeur }], versions: versionsIndice, ligne: texteIndice.ligne };
         // « avec indice "{reglage.boutique}" » : la valeur actuelle écrite en gris dans le champ.
         else if (texteIndice.parties?.some((p) => p.type === 'variable')) saisie.indiceTexte = { type: 'Chaine', parties: texteIndice.parties, ligne: texteIndice.ligne };
+      } else if (option === 'valeur' && cible === undefined) {
+        // « champ "Nom" avec valeur nom » : ce que le champ contient au départ.
+        flux.avancer();
+        saisie.valeur = analyserExpression(flux);
       } else if (option === 'minimum' || option === 'maximum') {
         flux.avancer();
         saisie[option] = lireNombre(flux, `un nombre après « ${option} » (par exemple « ${option} 1 »)`);
@@ -2161,6 +2171,7 @@ function analyserElement(flux: FluxTokens, enTete?: { element: NomElement; ligne
     nom,
     cible,
     ...(cibleParties ? { cibleParties } : {}),
+    ...(cibleValeur ? { cibleValeur } : {}),
     ...(arguments_.length > 0 ? { arguments: arguments_ } : {}),
     ...(ancre !== undefined ? { ancre } : {}),
     ...(nouvelOnglet ? { nouvelOnglet } : {}),

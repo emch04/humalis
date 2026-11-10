@@ -23,7 +23,7 @@ const PRIS = new Set([
   'document', 'window', 'location', 'history', 'navigator', 'console', 'self', 'top', 'parent', 'frames',
   'localStorage', 'sessionStorage', 'fetch', 'setTimeout', 'clearTimeout', 'addEventListener',
   'JSON', 'Math', 'Object', 'Array', 'String', 'Number', 'Boolean', 'Promise', 'Error', 'CSS',
-  'humalis', 'creer', 'demarrer', 'afficherMessage', 'retirerPremier', 'formaterNombre', 'formaterDate', 'formaterArgent', 'formaterTaille', 'accorder', 'adresseDe', 'dateDuJour', 'maintenant', 'decalerDate', 'joursEntre', 'formaterDepuis', 'formaterDateLongue', 'formaterEnLettres', 'avecMajuscule', 'initialesDe',
+  'humalis', 'creer', 'demarrer', 'afficherMessage', 'retirerPremier', 'formaterNombre', 'formaterDate', 'formaterArgent', 'formaterTaille', 'accorder', 'adresseDe', 'adresseDuLien', 'dateDuJour', 'maintenant', 'decalerDate', 'joursEntre', 'formaterDepuis', 'formaterDateLongue', 'formaterEnLettres', 'avecMajuscule', 'initialesDe',
   'lirePartage', 'garderPartage', 'lireMemoire', 'garderMemoire', 'serveur', 'utilisateur',
   'dessiner', 'relire', 'garder', 'auChargement', 'visibilite', 'textes', 'evenement', 'motDePasseSaisi',
 ]);

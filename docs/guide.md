@@ -305,6 +305,28 @@ Un lien mène à une page (`vers "a_propos"`) ou à une adresse web
 (`vers "https://exemple.fr"`). Un bouton déclenche une action (voir les
 [événements](#14-les-événements)).
 
+Sans guillemets, `vers` lit l'adresse dans une variable ou dans le champ d'une
+fiche :
+
+```humalis
+page "accueil" :
+    variable site = "https://exemple.fr"
+    variable reglage = fiche avec aide "contact" et boutique "https://exemple.fr/boutique"
+    titre "Accueil"
+    lien "Notre site" vers site
+    lien "Besoin d'aide ?" vers reglage.aide
+    lien "La boutique" vers reglage.boutique avec nouvel onglet
+
+page "contact" :
+    titre "Contact"
+```
+
+L'adresse est lue au moment d'afficher : si la variable change, le lien suit.
+Une adresse qui commence par `https://`, `http://`, `mailto:` ou `tel:` sort du
+site ; une autre (`"contact"`) est une adresse du site. Une adresse d'un autre
+genre, comme `javascript:`, est écartée : le texte reste, sans lien. La variable
+doit contenir un texte.
+
 Un bouton peut ne montrer qu'une icône : `bouton icone "fermer"`. Il lui faut
 alors un `nom`. C'est ce que lit un lecteur d'écran, et c'est lui que vise
 l'événement.
@@ -1627,6 +1649,38 @@ page "contact" :
 ```
 
 On lit la valeur d'un champ avec `champ "Nom"` (ou `le champ "Nom"`).
+
+### La valeur de départ d'un champ
+
+`avec valeur` remplit un champ dès l'ouverture de la page : avec une variable, un
+texte, ou le champ d'une fiche.
+
+```humalis
+page "profil" :
+    variable nom = "Camille"
+    variable produit = fiche avec prix 12
+    variable abonne = vrai
+    titre "Mon profil"
+    formulaire "profil" :
+        champ "Nom" avec valeur nom
+        champ "Ville" avec valeur "Lyon"
+        champ "Prix" avec valeur produit.prix
+        case a cocher "Lettre d'information" avec valeur abonne
+        bouton "Enregistrer"
+    quand le formulaire "profil" est soumis :
+        changer nom par champ "Nom"
+        afficher reussite "Profil enregistré"
+```
+
+Ce que la personne tape ensuite est la valeur du champ, lue comme d'habitude
+avec `champ "Nom"`. Tant qu'elle n'a rien changé au champ, il suit sa valeur de
+départ : si `nom` arrive plus tard, après une lecture du serveur par exemple, le
+champ se remplit. Dès qu'elle y a écrit, ce qu'elle a écrit reste. Après l'envoi
+du formulaire, le champ reprend sa valeur de départ au lieu d'être vidé.
+
+La valeur suit la sorte du champ : un nombre s'écrit tel quel, une date au format
+`AAAA-MM-JJ`, et une case à cocher attend `vrai` ou `faux`. Un champ placé dans
+`pour chaque` ne prend pas de valeur de départ.
 
 ---
 

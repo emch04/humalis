@@ -4666,6 +4666,77 @@ page "accueil" :
     lien "x" vers "https://exemple.cd" avec nouvel onglet
 `),
     "s'applique à un lien"),
+  e("vers-variable-pas-un-lien", "sens", "Une adresse lue dans une variable, ailleurs que sur un lien",
+    "« vers site » (sans guillemets) ouvre l’adresse rangée dans la variable site. Seul un lien sait le faire.",
+    "Écris un lien : lien \"Notre site\" vers site.",
+    p(`
+page "accueil" :
+    variable site = "https://exemple.fr"
+    texte "Notre site" vers site
+`),
+    p(`
+page "accueil" :
+    variable site = "https://exemple.fr"
+    lien "Notre site" vers site
+`),
+    "(une adresse lue dans une variable) s'applique à un lien"),
+  e("lien-vers-pas-un-texte", "sens", "Un lien vers une variable qui n’est pas une adresse",
+    "Après « vers », une variable doit contenir une adresse en texte : https://…, mailto:, tel:, ou une adresse du site comme \"contact\". Un nombre, une liste ou une fiche entière ne sont pas des adresses.",
+    "Donne au lien la variable (ou le champ de fiche) qui contient l’adresse, par exemple vers reglage.site.",
+    p(`
+page "accueil" :
+    variable reglage = fiche avec site "https://exemple.fr"
+    lien "Notre site" vers reglage
+`),
+    p(`
+page "accueil" :
+    variable reglage = fiche avec site "https://exemple.fr"
+    lien "Notre site" vers reglage.site
+`),
+    "un lien vers une variable attend une adresse en texte"),
+  e("valeur-champ-dans-une-boucle", "sens", "« avec valeur » sur un champ répété par « pour chaque »",
+    "Un champ placé dans « pour chaque » reste un seul champ de la page : il ne peut pas prendre la valeur de chaque élément.",
+    "Place le champ hors de la boucle, avec la valeur de départ voulue.",
+    p(`
+page "accueil" :
+    variable villes = ["Lyon", "Nantes"]
+    pour chaque v dans villes :
+        champ "Ville" avec valeur v
+`),
+    p(`
+page "accueil" :
+    variable ville = "Lyon"
+    champ "Ville" avec valeur ville
+`),
+    "ne s’écrit pas pour un champ placé dans « pour chaque »"),
+  e("valeur-case-pas-vrai-faux", "sens", "Une case à cocher qui part d’un texte",
+    "Une case à cocher est cochée ou non : sa valeur de départ est vrai ou faux.",
+    "Donne une valeur vrai ou faux, par exemple case a cocher \"Actif\" avec valeur actif, où actif vaut vrai.",
+    p(`
+page "accueil" :
+    variable actif = "oui"
+    case a cocher "Actif" avec valeur actif
+`),
+    p(`
+page "accueil" :
+    variable actif = vrai
+    case a cocher "Actif" avec valeur actif
+`),
+    "la valeur de départ d’une case à cocher est vrai ou faux"),
+  e("valeur-champ-pas-un-texte", "sens", "Un champ qui part d’une liste ou d’une fiche",
+    "Ce qu’on écrit dans un champ est un texte. Sa valeur de départ est donc un texte ou un nombre (écrit tel quel), pas une liste, une fiche ou vrai/faux.",
+    "Donne un texte ou un nombre, par exemple le champ d’une fiche : champ \"Nom\" avec valeur client.nom.",
+    p(`
+page "accueil" :
+    variable client = fiche avec nom "Camille"
+    champ "Nom" avec valeur client
+`),
+    p(`
+page "accueil" :
+    variable client = fiche avec nom "Camille"
+    champ "Nom" avec valeur client.nom
+`),
+    "la valeur de départ d’un champ est un texte ou un nombre"),
   e("rediriger-avec-sans-page", "sens", "Des paramètres donnés à une adresse externe",
     "« rediriger vers … avec … » donne des paramètres à une page de l’application.",
     "Retire « avec … », ou vise une page.",
