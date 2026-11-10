@@ -4067,4 +4067,12 @@ page "memo" :
         recadrer photo
 ```
 
-Le résultat est un fichier comme celui de `photo dans photo` : il peut être affiché et envoyé au serveur. L’annulation conserve la valeur précédente. L’enregistrement et le recadrage fonctionnent sur le web et le bureau. Le scan de document est prévu uniquement sur Apple et Android. Les cibles natives qui ne l’écrivent pas encore refusent la compilation.
+Le résultat est un fichier comme celui de `photo dans photo` : il peut être affiché et envoyé au serveur. L’annulation conserve la valeur précédente. L’enregistrement et le recadrage fonctionnent sur le web, le bureau, Apple, Android et Windows. Le scan de document existe sur Apple et Android ; les autres cibles refusent la compilation.
+
+Chaque enregistrement ouvre un écran avec la durée, Démarrer, Arrêter, la réécoute, Recommencer, Valider et Annuler. Selon la cible :
+
+- **Apple** : le son est un fichier `.m4a`, la vidéo un `.mov` en H.264. Le micro et la caméra sont déclarés dans le projet seulement s’ils servent. `scanner document` emploie le scanner de l’iPhone et de l’iPad ; sur Mac, qui n’en a pas, la personne choisit des images ou un PDF.
+- **Android** : le son est un `.m4a`, la vidéo un `.mp4` (CameraX). `scanner document` emploie le scanner de Google, qui demande les services Google Play à jour ; sans eux, la personne lit un message clair.
+- **Windows** : le son est un `.m4a`, la vidéo un `.mp4`, sans paquet MSIX. Si la personne refuse le micro ou la caméra aux applications de bureau, dans Paramètres, Confidentialité, elle lit un message clair.
+
+Un document scanné est toujours un PDF ; `facture.apercu` montre l’image de sa première page.

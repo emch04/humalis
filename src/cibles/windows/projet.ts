@@ -19,6 +19,7 @@ import { VALEURS_CS } from './bibliotheque/valeurs.js';
 import { SVG_CS } from './bibliotheque/svg.js';
 import { GRAPHIQUE_CS } from './bibliotheque/graphique.js';
 import { FICHIERS_CS } from './bibliotheque/fichiers.js';
+import { ENREGISTREMENT_CS, RECADRAGE_CS } from './bibliotheque/captures.js';
 import { QR_CS } from './bibliotheque/qr.js';
 import { MEDIAS_CS } from './bibliotheque/medias.js';
 import { FORMES_CS, TOASTS_CS, ZONE_CS } from './bibliotheque/formes.js';
@@ -245,12 +246,12 @@ function partagesCs(application: Application, partages: Map<string, Lieu>): stri
   return e.texte();
 }
 
-function csproj(nom: string, application: Application, aDesRessources: boolean, formes?: FormesWindows): string {
+function csproj(nom: string, application: Application, aDesRessources: boolean, formes?: FormesWindows, winrt = false): string {
   return `<Project Sdk="Microsoft.NET.Sdk">
   <!-- Produit par Humalis depuis ${nom} : une application WPF pour Windows 10 et 11. -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>${formes?.toasts ? DOTNET_WINRT : DOTNET}</TargetFramework>${formes?.toasts ? `
+    <TargetFramework>${formes?.toasts || winrt ? DOTNET_WINRT : DOTNET}</TargetFramework>${formes?.toasts || winrt ? `
     <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>` : ''}
     <UseWPF>true</UseWPF>${formes?.zone ? `
     <!-- La zone de notification (NotifyIcon) vient de Windows Forms. -->
@@ -306,7 +307,7 @@ const MANIFESTE = `<?xml version="1.0" encoding="utf-8"?>
 </assembly>
 `;
 
-function lisezmoi(nom: string, options: OptionsWindows, formes?: FormesWindows): string {
+function lisezmoi(nom: string, options: OptionsWindows, formes?: FormesWindows, winrt = false): string {
   const app = nomApplication(nom);
   return `# ${nom} — application Windows
 
@@ -330,7 +331,7 @@ dotnet publish -c Release -r win-x64
 dotnet publish -c Release -r win-arm64
 \`\`\`
 
-Le fichier \`${app}.exe\` est dans \`bin/Release/${formes?.toasts ? DOTNET_WINRT : DOTNET}/win-x64/publish/\`. Il contient .NET :
+Le fichier \`${app}.exe\` est dans \`bin/Release/${formes?.toasts || winrt ? DOTNET_WINRT : DOTNET}/win-x64/publish/\`. Il contient .NET :
 rien d'autre à installer sur le PC. Sans signature de code, Windows affiche un avertissement
 (SmartScreen) au premier lancement : « Informations complémentaires », puis « Exécuter quand même ».
 
@@ -518,7 +519,12 @@ ${dictionnaires.map((d) => `        // « utiliser style "${d.nom}" sur windows 
 
   const aDesRessources = (options.medias?.size ?? 0) > 0;
   fichiers.set(MARQUE_WINDOWS, 'Ce dossier a été produit par Humalis (cible Windows). Recompiler le fichier .humalis le remplace.\n');
-  fichiers.set(`${app}.csproj`, csproj(options.nom, application, aDesRessources, formes));
+  // « enregistrer audio dans … » : Windows.Media.Capture demande un .NET qui connaît les API de Windows.
+  const codePages = [...fichiers.values()].join('\n');
+  const avecEnregistrement = /\bEnregistrement\.Media\(/.test(codePages);
+  if (avecEnregistrement) fichiers.set('Humalis/Enregistrement.cs', ENREGISTREMENT_CS);
+  if (/\bRecadrage\.Photo\(/.test(codePages)) fichiers.set('Humalis/Recadrage.cs', RECADRAGE_CS);
+  fichiers.set(`${app}.csproj`, csproj(options.nom, application, aDesRessources, formes, avecEnregistrement));
   if (application.formes?.erreurArrive) fichiers.set('Humalis/CaptureErreurs.cs', captureErreursCs(requetesCapture(application.formes).requetes));
   // Les dictionnaires de styles XAML : compilés avec le projet (une erreur XAML arrête dotnet build).
   for (const d of dictionnaires) fichiers.set(`Styles/${d.nom}`, d.contenu);
@@ -550,6 +556,6 @@ ${dictionnaires.map((d) => `        // « utiliser style "${d.nom}" sur windows 
   }
   const cssPerdu = diagnostics.find((d) => d.message.includes('CSS-SUR-WINDOWS.md'));
   if (cssPerdu) fichiers.set('CSS-SUR-WINDOWS.md', `# Le CSS sur Windows\n\n${cssPerdu.message}\n\n## Les déclarations sans équivalent\n\n${cssIgnore.map((l) => `- \`${l}\``).join('\n')}\n`);
-  fichiers.set('LISEZMOI.md', lisezmoi(options.nom, options, formes));
+  fichiers.set('LISEZMOI.md', lisezmoi(options.nom, options, formes, avecEnregistrement));
   return { fichiers, diagnostics };
 }

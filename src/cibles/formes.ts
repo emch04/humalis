@@ -163,3 +163,4 @@ for (const forme of ['enregistrerAudio', 'enregistrerVideo', 'scannerDocument', 
   ECRITES.apple!.add(forme);
   ECRITES.android!.add(forme);
 }
+for (const forme of ['enregistrerAudio', 'enregistrerVideo', 'recadrerPhoto'] as const) ECRITES.windows!.add(forme);

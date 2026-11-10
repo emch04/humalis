@@ -4156,4 +4156,12 @@ The capture uses each target's native error hooks. Fatal Apple and Android error
 
 ## Recording and cropping media
 
-Inside an event, declare a file variable with `rien`, then use `enregistrer audio dans note`, `enregistrer video dans clip`, `scanner document dans facture`, or `recadrer photo`. These are French language keywords. The result is a file, like `photo dans photo`, which can be displayed or sent to a server. Canceling keeps the previous value. Recording and cropping are available on the web and desktop targets. Document scanning is planned only for Apple and Android; native targets reject these actions until implemented.
+Inside an event, declare a file variable with `rien`, then use `enregistrer audio dans note`, `enregistrer video dans clip`, `scanner document dans facture`, or `recadrer photo`. These are French language keywords. The result is a file, like `photo dans photo`, which can be displayed or sent to a server. Canceling keeps the previous value. Recording and cropping are available on the web, desktop, Apple, Android, and Windows targets. Document scanning exists on Apple and Android; other targets reject it at compile time.
+
+Each recording opens a screen with the duration, Start, Stop, playback, Start over, Confirm, and Cancel. By target:
+
+- **Apple**: sound is an `.m4a` file and video a `.mov` in H.264. The microphone and camera are declared in the project only when used. `scanner document` uses the iPhone and iPad scanner; a Mac has none, so the person picks images or a PDF.
+- **Android**: sound is an `.m4a` and video an `.mp4` (CameraX). `scanner document` uses Google's scanner, which needs up-to-date Google Play services; without them, the person reads a clear message.
+- **Windows**: sound is an `.m4a` and video an `.mp4`, with no MSIX package. If the microphone or camera is denied to desktop apps in Settings, Privacy, the person reads a clear message.
+
+A scanned document is always a PDF; `facture.apercu` shows an image of its first page.
