@@ -161,8 +161,8 @@ page "accueil" :
 `),
     'n\'est pas une langue connue de Humalis', { sites: 2 }),
   e('langue-pas-disponible', 'sens', 'Une langue pas encore disponible',
-    'Pour l’instant, Humalis traduit ses propres messages en français et en anglais. L’espagnol, le portugais, le swahili et le lingala sont prévus.',
-    'Garde le français et l’anglais pour le moment.',
+    'Une langue connue de Humalis mais dont ses propres messages ne sont pas encore traduits. Aujourd’hui, toutes les langues connues sont disponibles : français, anglais, espagnol, portugais, swahili et lingala.',
+    'Choisis une langue disponible.',
     p(`
 langues :
     francais
@@ -176,7 +176,8 @@ ${LANGUES}
 page "accueil" :
     titre "Bienvenue" en anglais "Welcome"
 `),
-    'n\'est pas encore disponible'),
+    'n\'est pas encore disponible',
+    { atteignable: false }),
   e('langue-en-double', 'sens', 'Une langue écrite deux fois',
     'Chaque langue n’apparaît qu’une fois dans le bloc « langues ».',
     'Retire la ligne en double.',

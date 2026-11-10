@@ -132,8 +132,8 @@ export const ENTREES_LANGUES: readonly EntreeVocabulaire[] = [
   },
   langue('francais', 'français', 'fr', 'français', true),
   langue('anglais', undefined, 'en', 'anglais', true),
-  langue('espagnol', undefined, 'es', 'espagnol', false),
-  langue('portugais', undefined, 'pt', 'portugais', false),
-  langue('swahili', undefined, 'sw', 'swahili', false),
-  langue('lingala', undefined, 'ln', 'lingala', false),
+  langue('espagnol', undefined, 'es', 'espagnol', true),
+  langue('portugais', undefined, 'pt', 'portugais', true),
+  langue('swahili', undefined, 'sw', 'swahili', true),
+  langue('lingala', undefined, 'ln', 'lingala', true),
 ];

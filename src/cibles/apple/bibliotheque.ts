@@ -231,7 +231,15 @@ func retirerPremier<T: Equatable>(_ liste: inout [T], _ valeur: T) {
 export const FORMATS_SWIFT = String.raw`// Produit par Humalis : les nombres, les dates et les montants, comme sur les autres cibles.
 import Foundation
 
-private func region(_ langue: String) -> Locale { Locale(identifier: langue == "en" ? "en_US" : "fr_FR") }
+/** Les nombres de chaque langue, comme sur le web (le lingala suit l'usage français de Kinshasa). */
+private func region(_ langue: String) -> Locale {
+    Locale(identifier: ["en": "en_US", "es": "es_ES", "pt": "pt_PT", "sw": "sw"][langue] ?? "fr_FR")
+}
+
+/** Les dates de chaque langue. */
+private func regionDesDates(_ langue: String) -> Locale {
+    Locale(identifier: ["en": "en_GB", "es": "es_ES", "pt": "pt_PT", "sw": "sw", "ln": "ln_CD"][langue] ?? "fr_FR")
+}
 
 /** 28000 → « 28 000 », 3.5 → « 3,5 » ; rien pour une valeur absente. */
 func formaterNombre(_ valeur: Double?, langue: String = "fr") -> String {
@@ -250,7 +258,7 @@ func formaterArgent(_ valeur: Double?, _ devise: DeviseHumalis, langue: String =
     case .EUR:
         return valeur.formatted(.currency(code: "EUR").locale(region(langue)))
     case .USD:
-        if langue == "en" { return valeur.formatted(.currency(code: "USD").locale(region(langue))) }
+        if langue != "fr" { return valeur.formatted(.currency(code: "USD").locale(region(langue))) }
         return "\(valeur.formatted(.number.locale(region(langue)).precision(.fractionLength(valeur.rounded() == valeur ? 0 : 2)))) $"
     }
 }
@@ -265,6 +273,24 @@ func accorder(_ nombre: Double?, _ mot: String, langue: String = "fr") -> String
         if mot.range(of: "[^aeiou]y$", options: .regularExpression) != nil { return "\(ecrit) \(mot.dropLast())ies" }
         return "\(ecrit) \(mot)s"
     }
+    if langue == "es" {
+        if nombre == 1 { return "\(ecrit) \(mot)" }
+        if mot.hasSuffix("ión") { return "\(ecrit) \(mot.dropLast(3))iones" }
+        if mot.hasSuffix("z") { return "\(ecrit) \(mot.dropLast())ces" }
+        if mot.range(of: "[aeiouáéó]$", options: .regularExpression) != nil { return "\(ecrit) \(mot)s" }
+        return "\(ecrit) \(mot)es"
+    }
+    if langue == "pt" {
+        if nombre == 1 { return "\(ecrit) \(mot)" }
+        if mot.hasSuffix("ão") { return "\(ecrit) \(mot.dropLast(2))ões" }
+        if mot.hasSuffix("m") { return "\(ecrit) \(mot.dropLast())ns" }
+        if mot.range(of: "[rz]$", options: .regularExpression) != nil { return "\(ecrit) \(mot)es" }
+        if mot.hasSuffix("al") { return "\(ecrit) \(mot.dropLast())is" }
+        if mot.hasSuffix("s") { return "\(ecrit) \(mot)" }
+        return "\(ecrit) \(mot)s"
+    }
+    // En swahili et en lingala, le pluriel change le début du mot : il reste tel qu'écrit.
+    if langue == "sw" || langue == "ln" { return "\(ecrit) \(mot)" }
     if abs(nombre) < 2 { return "\(ecrit) \(mot)" }
     if mot.range(of: "[sxz]$", options: .regularExpression) != nil { return "\(ecrit) \(mot)" }
     if mot.hasSuffix("al") { return "\(ecrit) \(mot.dropLast(2))aux" }
@@ -277,7 +303,7 @@ func formaterTaille(_ octets: Double?, _ unite: String, langue: String = "fr") -
     guard let octets else { return "" }
     let valeur = unite == "Mo" ? octets / 1_048_576 : octets / 1024
     let ecrit = valeur.formatted(.number.locale(region(langue)).precision(.fractionLength(0...1)))
-    return "\(ecrit) \(langue == "en" ? (unite == "Mo" ? "MB" : "KB") : unite)"
+    return "\(ecrit) \(langue == "fr" || langue == "ln" ? unite : (unite == "Mo" ? "MB" : "KB"))"
 }
 
 /** « 2026-11-07 », lu comme un jour de l'appareil. */
@@ -292,11 +318,25 @@ private func ecrireJour(_ date: Date) -> String {
     return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
 }
 
+/** Les noms écrits ici, comme sur le web : tous les systèmes n'ont pas ces langues. */
+private let MOIS: [String: [String]] = [
+    "sw": ["Januari", "Februari", "Machi", "Aprili", "Mei", "Juni", "Julai", "Agosti", "Septemba", "Oktoba", "Novemba", "Desemba"],
+    "ln": ["sánzá ya yambo", "sánzá ya míbalé", "sánzá ya mísáto", "sánzá ya mínei", "sánzá ya mítáno", "sánzá ya motóbá", "sánzá ya nsambo", "sánzá ya mwambe", "sánzá ya libwa", "sánzá ya zómi", "sánzá ya zómi na mɔ̌kɔ́", "sánzá ya zómi na míbalé"],
+]
+private let JOURS: [String: [String]] = [
+    "sw": ["Jumapili", "Jumatatu", "Jumanne", "Jumatano", "Alhamisi", "Ijumaa", "Jumamosi"],
+    "ln": ["eyenga", "mokɔlɔ mwa yambo", "mokɔlɔ mwa míbalé", "mokɔlɔ mwa mísáto", "mokɔlɔ ya mínéi", "mokɔlɔ ya mítáno", "mpɔ́sɔ"],
+]
+
 /** « 2026-11-07 » → « 7 novembre 2026 » ; un texte qui n'est pas une date reste tel quel. */
 func formaterDate(_ valeur: String?, langue: String = "fr") -> String {
     guard let valeur, !valeur.isEmpty else { return "" }
     guard let date = jourDe(valeur) else { return valeur }
-    return date.formatted(.dateTime.day().month(.wide).year().locale(Locale(identifier: langue == "en" ? "en_GB" : "fr_FR")))
+    if let mois = MOIS[langue] {
+        let c = Calendar(identifier: .gregorian).dateComponents([.year, .month, .day], from: date)
+        return "\(c.day ?? 1) \(mois[(c.month ?? 1) - 1]) \(c.year ?? 0)"
+    }
+    return date.formatted(.dateTime.day().month(.wide).year().locale(regionDesDates(langue)))
 }
 
 func dateDuJour() -> String { ecrireJour(Date()) }
@@ -327,20 +367,89 @@ func joursEntre(_ debut: String?, _ fin: String?) -> Double {
     return Double(Calendar(identifier: .gregorian).dateComponents([.day], from: a, to: b).day ?? 0)
 }
 
-/** « 2026-11-09 » → « lundi 9 novembre » ; un texte qui n'est pas une date reste tel quel. */
-func formaterDateLongue(_ valeur: String?) -> String {
+/** « 2026-11-09 » → « lundi 9 novembre » (« Monday 9 November », « lunes, 9 de noviembre ») ; un texte qui n'est pas une date reste tel quel. */
+func formaterDateLongue(_ valeur: String?, langue: String = "fr") -> String {
     guard let valeur, !valeur.isEmpty else { return "" }
     guard let date = jourDe(valeur) else { return valeur }
+    if let jours = JOURS[langue], let mois = MOIS[langue] {
+        let c = Calendar(identifier: .gregorian).dateComponents([.weekday, .month, .day], from: date)
+        return "\(jours[(c.weekday ?? 1) - 1])\(langue == "sw" ? "," : "") \(c.day ?? 1) \(mois[(c.month ?? 1) - 1])"
+    }
     let f = DateFormatter()
-    f.locale = Locale(identifier: "fr_FR")
-    f.dateFormat = "EEEE d MMMM"
+    f.locale = regionDesDates(langue)
+    f.dateFormat = ["en": "EEEE d MMMM", "es": "EEEE, d 'de' MMMM", "pt": "EEEE, d 'de' MMMM"][langue] ?? "EEEE d MMMM"
     return f.string(from: date)
 }
 
-/** 4 → « quatre », 71 → « soixante et onze » ; un nombre à virgule reste en chiffres. */
-func formaterEnLettres(_ valeur: Double?) -> String {
+/** Un nombre entier en lettres, dans la langue (comme src/cibles/format.ts) ; un nombre à virgule, trop grand ou en lingala reste en chiffres. */
+func formaterEnLettres(_ valeur: Double?, langue: String = "fr") -> String {
     guard let valeur, valeur.isFinite else { return "" }
-    guard valeur == valeur.rounded(), abs(valeur) < 1e12 else { return formaterNombre(valeur) }
+    let limite: Double = langue == "pt" ? 1e9 : 1e12
+    guard valeur == valeur.rounded(), abs(valeur) < limite, ["fr", "en", "es", "pt", "sw"].contains(langue) else { return formaterNombre(valeur, langue: langue) }
+    let n = Int(abs(valeur))
+    let signe = valeur < 0 ? (["en": "minus ", "es": "menos ", "pt": "menos ", "sw": "hasi "][langue] ?? "moins ") : ""
+    let groupes = [n / 1_000_000_000, (n / 1_000_000) % 1000, (n / 1000) % 1000, n % 1000]
+    func joindre(_ mots: [String], _ separateur: String) -> String { mots.filter { !$0.isEmpty }.joined(separator: separateur) }
+    switch langue {
+    case "en":
+        let U = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"]
+        let T = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"]
+        func deux(_ x: Int) -> String { x < 20 ? U[x] : T[x / 10] + (x % 10 > 0 ? "-" + U[x % 10] : "") }
+        func trois(_ x: Int) -> String { joindre([x / 100 > 0 ? U[x / 100] + " hundred" : "", x % 100 > 0 ? deux(x % 100) : ""], " ") }
+        if n == 0 { return U[0] }
+        let echelles = [" billion", " million", " thousand", ""]
+        return signe + joindre(groupes.enumerated().map { $0.element > 0 ? trois($0.element) + echelles[$0.offset] : "" }, " ")
+    case "es":
+        let U = ["cero", "uno", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve", "diez", "once", "doce", "trece", "catorce", "quince", "dieciséis", "diecisiete", "dieciocho", "diecinueve", "veinte", "veintiuno", "veintidós", "veintitrés", "veinticuatro", "veinticinco", "veintiséis", "veintisiete", "veintiocho", "veintinueve"]
+        let T = ["", "", "", "treinta", "cuarenta", "cincuenta", "sesenta", "setenta", "ochenta", "noventa"]
+        let C = ["", "ciento", "doscientos", "trescientos", "cuatrocientos", "quinientos", "seiscientos", "setecientos", "ochocientos", "novecientos"]
+        func deux(_ x: Int) -> String { x < 30 ? U[x] : T[x / 10] + (x % 10 > 0 ? " y " + U[x % 10] : "") }
+        func trois(_ x: Int) -> String { x == 100 ? "cien" : joindre([C[x / 100], x % 100 > 0 ? deux(x % 100) : ""], " ") }
+        // Devant « mil » et « millones », « uno » s'écrit « un » (« veintiún mil »).
+        func court(_ mots: String) -> String {
+            if mots.hasSuffix("veintiuno") { return String(mots.dropLast(9)) + "veintiún" }
+            if mots.hasSuffix("uno") { return String(mots.dropLast(3)) + "un" }
+            return mots
+        }
+        func sousLeMillion(_ x: Int, _ devant: Bool) -> String {
+            let m = x / 1000, r = x % 1000
+            return joindre([m > 0 ? (m == 1 ? "mil" : court(trois(m)) + " mil") : "", r > 0 ? (devant ? court(trois(r)) : trois(r)) : ""], " ")
+        }
+        if n == 0 { return U[0] }
+        let millones = n / 1_000_000, reste = n % 1_000_000
+        return signe + joindre([millones > 0 ? (millones == 1 ? "un millón" : sousLeMillion(millones, true) + " millones") : "", reste > 0 ? sousLeMillion(reste, false) : ""], " ")
+    case "pt":
+        let U = ["zero", "um", "dois", "três", "quatro", "cinco", "seis", "sete", "oito", "nove", "dez", "onze", "doze", "treze", "catorze", "quinze", "dezasseis", "dezassete", "dezoito", "dezanove"]
+        let T = ["", "", "vinte", "trinta", "quarenta", "cinquenta", "sessenta", "setenta", "oitenta", "noventa"]
+        let C = ["", "cento", "duzentos", "trezentos", "quatrocentos", "quinhentos", "seiscentos", "setecentos", "oitocentos", "novecentos"]
+        func deux(_ x: Int) -> String { x < 20 ? U[x] : T[x / 10] + (x % 10 > 0 ? " e " + U[x % 10] : "") }
+        func trois(_ x: Int) -> String { x == 100 ? "cem" : joindre([C[x / 100], x % 100 > 0 ? deux(x % 100) : ""], " e ") }
+        if n == 0 { return U[0] }
+        let (milhoes, milhares, unidades) = (groupes[1], groupes[2], groupes[3])
+        let mots = [
+            (milhoes, milhoes == 1 ? "um milhão" : trois(milhoes) + " milhões"),
+            (milhares, milhares == 1 ? "mil" : trois(milhares) + " mil"),
+            (unidades, trois(unidades)),
+        ].filter { $0.0 > 0 }
+        // « e » devant le dernier groupe s'il est plus petit que cent, ou un nombre rond de centaines : « mil e cem ».
+        var texte = ""
+        for (i, mot) in mots.enumerated() {
+            if i > 0 { texte += i == mots.count - 1 && (mot.0 < 100 || mot.0 % 100 == 0) ? " e " : " " }
+            texte += mot.1
+        }
+        return signe + texte
+    case "sw":
+        let U = ["sifuri", "moja", "mbili", "tatu", "nne", "tano", "sita", "saba", "nane", "tisa"]
+        let T = ["", "kumi", "ishirini", "thelathini", "arobaini", "hamsini", "sitini", "sabini", "themanini", "tisini"]
+        func deux(_ x: Int) -> String { x < 10 ? U[x] : T[x / 10] + (x % 10 > 0 ? " na " + U[x % 10] : "") }
+        func trois(_ x: Int) -> String { joindre([x / 100 > 0 ? "mia " + U[x / 100] : "", x % 100 > 0 ? deux(x % 100) : ""], " na ") }
+        if n == 0 { return U[0] }
+        // Le nom de l'échelle vient d'abord : « elfu mbili » (deux mille), « milioni tatu ».
+        let echelles = ["bilioni ", "milioni ", "elfu ", ""]
+        return signe + joindre(groupes.enumerated().map { $0.element > 0 ? echelles[$0.offset] + trois($0.element) : "" }, " na ")
+    default:
+        break
+    }
     let U = ["zéro", "un", "deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf", "dix", "onze", "douze", "treize", "quatorze", "quinze", "seize", "dix-sept", "dix-huit", "dix-neuf"]
     let D = ["", "", "vingt", "trente", "quarante", "cinquante", "soixante", "soixante", "quatre-vingt", "quatre-vingt"]
     func dizaines(_ n: Int) -> String {
@@ -360,26 +469,25 @@ func formaterEnLettres(_ valeur: Double?) -> String {
         let tete = c == 1 ? "cent" : U[c] + " cent" + (r == 0 && final ? "s" : "")
         return fin.isEmpty ? tete : tete + " " + fin
     }
-    let n = Int(abs(valeur))
     if n == 0 { return U[0] }
-    let milliards = n / 1_000_000_000, millions = (n / 1_000_000) % 1000, milliers = (n / 1000) % 1000, reste = n % 1000
+    let (milliards, millions, milliers, reste) = (groupes[0], groupes[1], groupes[2], groupes[3])
     var mots: [String] = []
     if milliards > 0 { mots.append(centaines(milliards, true) + " milliard" + (milliards > 1 ? "s" : "")) }
     if millions > 0 { mots.append(centaines(millions, true) + " million" + (millions > 1 ? "s" : "")) }
     if milliers > 0 { mots.append(milliers == 1 ? "mille" : centaines(milliers, false) + " mille") }
     if reste > 0 { mots.append(centaines(reste, true)) }
-    return (valeur < 0 ? "moins " : "") + mots.joined(separator: " ")
+    return signe + mots.joined(separator: " ")
 }
 
 /** « lundi 9 novembre » → « Lundi 9 novembre ». */
-func avecMajuscule(_ texte: String?) -> String {
+func avecMajuscule(_ texte: String?, langue: String = "fr") -> String {
     guard let texte, let premiere = texte.first else { return "" }
-    return String(premiere).uppercased(with: Locale(identifier: "fr_FR")) + texte.dropFirst()
+    return String(premiere).uppercased(with: Locale(identifier: langue)) + texte.dropFirst()
 }
 
 /** « Direction générale » → « DG » : la première lettre des deux premiers mots. */
-func initialesDe(_ texte: String?) -> String {
-    (texte ?? "").split(whereSeparator: { $0.isWhitespace }).prefix(2).compactMap { $0.first.map(String.init) }.joined().uppercased(with: Locale(identifier: "fr_FR"))
+func initialesDe(_ texte: String?, langue: String = "fr") -> String {
+    (texte ?? "").split(whereSeparator: { $0.isWhitespace }).prefix(2).compactMap { $0.first.map(String.init) }.joined().uppercased(with: Locale(identifier: langue))
 }
 
 /** « il y a 3 jours », « il y a 2 heures », « à l’instant » ; rien pour une valeur absente. */
