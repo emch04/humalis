@@ -378,9 +378,9 @@ page "compte" reservee a connecte sinon vers "connexion" :
 });
 
 describe('cible Android — ce qui n\'existe pas encore est dit', () => {
-  it('la photo et le scanner restent propres à Apple', () => {
-    const app = compile('page "a" :\n    variable image = rien\n    titre "A"\n    bouton "Photo"\n    quand l\'utilisateur clique sur "Photo" :\n        photo dans image\n');
-    expect(verifierAppareilPourLaCible(app, 'android').map((d) => d.message).join('\n')).toMatch(/que sur la cible Apple.*--cible android/);
+  it('« avec hors ligne » reste propre à Apple pour l\'instant', () => {
+    const app = compile('page "a" :\n    variable p = [] avec hors ligne\n    titre "A"\n');
+    expect(verifierAppareilPourLaCible(app, 'android').map((d) => d.message).join('\n')).toMatch(/que sur la cible Apple/);
   });
 
   it('« sur application : » est gardé, « sur site : » retiré', () => {
@@ -611,6 +611,67 @@ page "profil" dans "espace" :
     const { diagnostics, fichiers } = produire(SOURCE);
     expect(diagnostics.map((d) => d.message).join('\n')).toContain('Compilez avec --empreinte');
     expect(fichiers.has('a-publier-sur-le-site/.well-known/assetlinks.json')).toBe(false);
+  });
+});
+
+describe('cible Android — les fonctions de l\'appareil', () => {
+  const SOURCE = `page "accueil" :
+    variable trace = ""
+    variable valeur = "vide"
+    variable cliche = rien
+    variable lieu = rien
+    variable identite = "?"
+    titre "Appareil"
+    signature dans trace
+    bouton "Tout"
+    quand l'utilisateur clique sur "Tout" :
+        vibrer
+        scanner code dans valeur
+        photo dans cliche
+        position dans lieu
+        verifier identite :
+            changer identite par "oui"
+        sinon :
+            changer identite par "non"
+`;
+  const f = projet(SOURCE);
+  const c = page(f, 'PageAccueil');
+
+  it('elles passent sur Android, et restent refusées ailleurs avec un message qui cite Android', () => {
+    const app = compile(SOURCE);
+    expect(verifierAppareilPourLaCible(app, 'android')).toEqual([]);
+    expect(verifierAppareilPourLaCible(app, 'mobile').map((d) => d.message).join('\n')).toContain('que sur les cibles Apple et Android');
+  });
+
+  it('chaque demande au système attend sa réponse sans bloquer l\'écran', () => {
+    expect(c).toContain('vibrer()');
+    expect(c).toContain('scannerCode()?.let { valeur = it }');
+    expect(c).toContain('prendrePhoto()?.let { cliche = it }');
+    expect(c).toContain('lirePosition()?.let { lieu = it }');
+    expect(c).toMatch(/if \(verifierIdentite\(\)\) \{\n\s+identite = "oui"\n\s+\} else \{\n\s+identite = "non"/);
+    expect(c).toContain('SignatureHumalis(trace, { trace = it })');
+    expect(f.get(`${CODE}/Systeme.kt`)).toContain('activite.activityResultRegistry.register(');
+    expect(f.get(`${CODE}/MainActivity.kt`)).toContain('class MainActivity : FragmentActivity() {');
+  });
+
+  it('le manifeste demande seulement ce qui sert, et Gradle ajoute ce qu\'il faut', () => {
+    const m = f.get('app/src/main/AndroidManifest.xml')!;
+    expect(m).toContain('android.permission.VIBRATE');
+    expect(m).toContain('android.permission.ACCESS_FINE_LOCATION');
+    expect(m).toContain('android:authorities="${applicationId}.fichiers"');
+    expect(f.get('app/build.gradle.kts')).toContain('androidx.biometric:biometric:');
+    expect(f.get('app/build.gradle.kts')).toContain('com.journeyapps:zxing-android-embedded:');
+    const simple = projet('page "a" :\n    titre "A"\n');
+    expect(simple.get('app/src/main/AndroidManifest.xml')).not.toContain('VIBRATE');
+    expect(simple.get('app/build.gradle.kts')).not.toContain('zxing');
+    expect(simple.has(`${CODE}/Appareil.kt`)).toBe(false);
+  });
+
+  it('une image se lit aussi d\'un fichier de l\'appareil ou d\'un texte data:', () => {
+    const i = f.get(`${CODE}/Interface.kt`)!;
+    expect(i).toContain('source.startsWith("file://")');
+    expect(i).toContain('source.startsWith("data:")');
+    expect(i).toContain('inSampleSize = reduction');
   });
 });
 

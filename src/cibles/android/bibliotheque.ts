@@ -388,14 +388,26 @@ private val imagesLues = HashMap<String, Bitmap>()
 private suspend fun chargerImage(source: String): Bitmap? = withContext(Dispatchers.IO) {
     imagesLues[source]?.let { return@withContext it }
     try {
-        val image = if (source.startsWith("http://") || source.startsWith("https://")) {
-            val connexion = URL(source).openConnection() as HttpURLConnection
-            connexion.connectTimeout = 10000
-            connexion.readTimeout = 15000
-            connexion.inputStream.use { BitmapFactory.decodeStream(it) }
-        } else {
-            Appli.contexte.assets.open(source).use { BitmapFactory.decodeStream(it) }
+        val octets: ByteArray = when {
+            source.startsWith("http://") || source.startsWith("https://") -> {
+                val connexion = URL(source).openConnection() as HttpURLConnection
+                connexion.connectTimeout = 10000
+                connexion.readTimeout = 15000
+                connexion.inputStream.use { it.readBytes() }
+            }
+            // Une photo prise ou un fichier choisi, gardé par l'application.
+            source.startsWith("file://") -> java.io.File(source.removePrefix("file://")).readBytes()
+            source.startsWith("content://") -> Appli.contexte.contentResolver.openInputStream(Uri.parse(source))!!.use { it.readBytes() }
+            // Une image écrite en texte : la signature, ou une image envoyée par le serveur.
+            source.startsWith("data:") -> android.util.Base64.decode(source.substringAfter(","), android.util.Base64.DEFAULT)
+            else -> Appli.contexte.assets.open(source).use { it.readBytes() }
         }
+        // Une grande photo est réduite à la taille de l'écran : elle ne remplit pas la mémoire.
+        val bornes = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(octets, 0, octets.size, bornes)
+        var reduction = 1
+        while (bornes.outWidth / (reduction * 2) >= 1600 || bornes.outHeight / (reduction * 2) >= 1600) reduction *= 2
+        val image = BitmapFactory.decodeByteArray(octets, 0, octets.size, BitmapFactory.Options().apply { inSampleSize = reduction })
         image?.also { imagesLues[source] = it }
     } catch (e: Exception) {
         null

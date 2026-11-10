@@ -3401,7 +3401,7 @@ chose de faux.
 | Raccourcis clavier | oui | oui | non | oui | oui | non |
 | Composants React | oui | non | oui (en React Native) | oui | non (`sur apple "Vue.swift"`) | non |
 | Le moteur sans React (par défaut) | oui | non | non | oui (sauf composant React ou `memorisee en secret`) | non | non |
-| Photo, scanner, Face ID, vibration, signature, hors ligne | oui (vibration : Android) | non | non | non | oui | non |
+| Photo, scanner, Face ID, vibration, signature, hors ligne | oui (vibration : Android) | non | non | non | oui | oui (sauf hors ligne) |
 | `en arriere plan` | non | non | non | non | oui | non |
 | Plan du site, aperçu de partage | oui | oui | non | non | non | non |
 
@@ -3434,9 +3434,14 @@ par `magasin://produit/42` ; avec `et domaine "…"`, les liens `https://` l'ouv
 compile avec `--empreinte` (l'empreinte SHA-256 du certificat, donnée par
 `keytool -list -v`) et publie le fichier écrit dans `a-publier-sur-le-site/`.
 
+Les fonctions de l'appareil marchent comme sur Apple : `photo dans …` (l'appareil photo
+du système), `scanner code dans …`, `position dans …`, `verifier identite` (l'empreinte, le
+visage ou le code de l'appareil), `vibrer` et `signature dans …`. Chaque permission est
+demandée la première fois qu'elle sert.
+
 Ce qui n'existe pas encore sur Android, et que la compilation refuse en le disant :
 les graphiques, les cartes,
-le son, la vidéo, le code QR, le choix d'un fichier, la photo, le scanner, la
+le son, la vidéo, le code QR, le choix d'un fichier, la
 connexion avec Google ou Apple, le paiement, l'IA et les notifications.
 
 Le CSS se traduit en Compose, règle par règle, quand une règle vise une classe

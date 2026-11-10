@@ -12,6 +12,9 @@ export const VERSIONS = {
   composeBom: '2026.06.01',
   activite: '1.12.4',
   navigation: '2.9.7',
+  fragment: '1.8.9',
+  biometrie: '1.1.0',
+  zxing: '4.3.0',
   sdkMinimum: 26,
   sdkCible: 36,
 } as const;
@@ -57,7 +60,7 @@ zipStoreBase=GRADLE_USER_HOME
 zipStorePath=wrapper/dists
 `;
 
-export function constructionApp(identifiant: string, nomAffiche: string): string {
+export function constructionApp(identifiant: string, nomAffiche: string, avec: { appareil?: boolean; scanner?: boolean } = {}): string {
   return `// Produit par Humalis.
 plugins {
     id("com.android.application")
@@ -95,12 +98,30 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.activity:activity-compose:${VERSIONS.activite}")
     implementation("androidx.navigation:navigation-compose:${VERSIONS.navigation}")
-    debugImplementation("androidx.compose.ui:ui-tooling")
+    implementation("androidx.fragment:fragment-ktx:${VERSIONS.fragment}")
+${avec.appareil ? `    implementation("androidx.biometric:biometric:${VERSIONS.biometrie}")
+` : ''}${avec.scanner ? `    implementation("com.journeyapps:zxing-android-embedded:${VERSIONS.zxing}")
+` : ''}    debugImplementation("androidx.compose.ui:ui-tooling")
 }
 `;
 }
 
-export function manifeste(reseau: boolean, liens?: { schema: string; domaine?: string }): string {
+export function manifeste(reseau: boolean, liens?: { schema: string; domaine?: string }, besoins: { photo?: boolean; position?: boolean; vibration?: boolean } = {}): string {
+  const permissions = [
+    ...(reseau ? ['android.permission.INTERNET'] : []),
+    ...(besoins.vibration ? ['android.permission.VIBRATE'] : []),
+    ...(besoins.position ? ['android.permission.ACCESS_COARSE_LOCATION', 'android.permission.ACCESS_FINE_LOCATION'] : []),
+  ];
+  const fournisseur = besoins.photo
+    ? `
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="\${applicationId}.fichiers"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/chemins_fichiers" />
+        </provider>`
+    : '';
   const hote = liens?.domaine?.split('/')[0];
   const debut = liens?.domaine?.split('/').slice(1).filter(Boolean).join('/');
   const profonds = liens
@@ -125,7 +146,7 @@ export function manifeste(reseau: boolean, liens?: { schema: string; domaine?: s
   return `<?xml version="1.0" encoding="utf-8"?>
 <!-- Produit par Humalis. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-${reseau ? '    <uses-permission android:name="android.permission.INTERNET" />\n' : ''}
+${permissions.map((p) => `    <uses-permission android:name="${p}" />\n`).join('')}${besoins.photo ? '    <uses-feature android:name="android.hardware.camera" android:required="false" />\n' : ''}
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -142,7 +163,7 @@ ${reseau ? '    <uses-permission android:name="android.permission.INTERNET" />\n
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>${profonds}
-        </activity>
+        </activity>${fournisseur}
     </application>
 </manifest>
 `;

@@ -601,7 +601,7 @@ describe('cible Apple — les fonctions de l\'appareil', () => {
     const { verifierAppareilPourLaCible } = await import('../../src/cibles/appareil.js');
     const refus = verifierAppareilPourLaCible(compile(PAGE), 'statique');
     expect(refus.length).toBe(5);
-    expect(refus[0].message).toContain('cible Apple');
+    expect(refus[0].message).toMatch(/cibles? Apple/);
   });
 });
 

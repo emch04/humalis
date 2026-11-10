@@ -220,6 +220,27 @@ export class EcrivainActions {
           e.ligne(`if (!nav.popBackStack()) allerVers(nav, ${route})`);
         } else e.ligne('nav.popBackStack()');
         return;
+      case 'prisePhoto':
+      case 'localisation':
+      case 'scanCode': {
+        const cible = this.variable(a.variable);
+        if (!cible) return this.hote.refuser(`« ${a.type === 'prisePhoto' ? 'photo' : a.type === 'scanCode' ? 'scanner code' : 'position'} dans ${a.variable} » : cette variable est inconnue ici`);
+        const appel = { prisePhoto: 'prendrePhoto()', localisation: 'lirePosition()', scanCode: 'scannerCode()' }[a.type];
+        e.ligne(`${appel}?.let { ${cible} = it }`);
+        return;
+      }
+      case 'verificationIdentite':
+        e.ligne('if (verifierIdentite()) {');
+        e.indenter(() => this.branche(e, a.alors, c));
+        if (a.sinon.length) {
+          e.ligne('} else {');
+          e.indenter(() => this.branche(e, a.sinon, c));
+        }
+        e.ligne('}');
+        return;
+      case 'vibration':
+        e.ligne('vibrer()');
+        return;
       case 'langue':
         e.ligne(`Langues.changer(${chaineKotlin(a.code)})`);
         return;
