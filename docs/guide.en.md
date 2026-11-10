@@ -4035,3 +4035,7 @@ site after an important deletion.
 | `se connecter`, `se deconnecter`, `utilisateur` | log in, log out, user |
 | `langues`, `traductions`, `selecteur de langue` | languages, translations, language switcher |
 | `composant`, `parametre`, `utiliser` | component, parameter, use |
+
+## Recording and cropping media
+
+Inside an event, declare a file variable with `rien`, then use `enregistrer audio dans note`, `enregistrer video dans clip`, `scanner document dans facture`, or `recadrer photo photo`. These are French language keywords. The result is a file, like `photo dans photo`, which can be displayed or sent to a server. Canceling keeps the previous value. Recording and cropping are available on the web and desktop targets. Document scanning is planned only for Apple and Android; native targets reject these actions until implemented.

@@ -810,6 +810,15 @@ class Construction {
         case 'PrisePhoto':
           actions.push({ type: 'prisePhoto', variable: instruction.variable });
           break;
+        case 'EnregistrementMedia':
+          actions.push({ type: instruction.media === 'audio' ? 'enregistrerAudio' : 'enregistrerVideo', variable: instruction.variable });
+          break;
+        case 'ScanDocument':
+          actions.push({ type: 'scannerDocument', variable: instruction.variable });
+          break;
+        case 'RecadragePhoto':
+          actions.push({ type: 'recadrerPhoto', variable: instruction.variable });
+          break;
 
         case 'Localisation':
           actions.push({ type: 'localisation', variable: instruction.variable });

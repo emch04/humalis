@@ -23,6 +23,7 @@ page "antiseche" a l'adresse "/antiseche" :
             lien "Le site, les langues et le reste" en anglais "The site, languages and the rest" vers "#site"
             lien "Les commandes" en anglais "Commands" vers "#commandes"
             lien "Les pièges" en anglais "Common traps" vers "#pieges"
+            lien "Médias" en anglais "Media" vers "#medias"
         bloc avec ancre "ecrire" et style "aide-section" :
             soustitre "Écrire" en anglais "Writing"
             bloc avec style "aide-entrees" :
@@ -1044,3 +1045,27 @@ page "antiseche" a l'adresse "/antiseche" :
                     texte "À écrire" en anglais "Write" avec style "aide-ecrire"
                     code humalis :
                         afficher "Prêt" pendant 3 secondes
+        bloc avec ancre "medias" et style "aide-section" :
+            soustitre "Médias" en anglais "Media"
+            bloc avec style "aide-entrees" :
+                bloc avec style "aide-entree" :
+                    texte "Enregistrer ou recadrer" en anglais "Record or crop" avec style "aide-besoin"
+                    code humalis :
+                        page "memo" :
+                            titre "Mémo"
+                            variable note = rien
+                            variable clip = rien
+                            variable facture = rien
+                            variable photo = rien
+                            bouton "Audio"
+                            quand l'utilisateur clique sur "Audio" :
+                                enregistrer audio dans note
+                            bouton "Vidéo"
+                            quand l'utilisateur clique sur "Vidéo" :
+                                enregistrer video dans clip
+                            bouton "Document"
+                            quand l'utilisateur clique sur "Document" :
+                                scanner document dans facture
+                            bouton "Recadrer"
+                            quand l'utilisateur clique sur "Recadrer" :
+                                recadrer photo photo

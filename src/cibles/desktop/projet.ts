@@ -106,7 +106,10 @@ export function genererProjetDesktop(application: Application, options: OptionsD
   const slug = simplifier(options.nom).replace(/_/g, '-') || 'application-humalis';
   const { relais, origines } = adressesDuServeur(application);
   const misesAJour = adresseDesMisesAJour(application);
-  fichiers.set('package.json', packageJson(slug, options, misesAJour, moteur, formes, application.site?.adresse));
+  const actionsMedias = JSON.stringify([application.ecrans, application.composants]);
+  const captureAudio = /"type":"enregistrerAudio"|"type":"enregistrerVideo"/.test(actionsMedias);
+  const captureVideo = /"type":"enregistrerVideo"/.test(actionsMedias);
+  fichiers.set('package.json', packageJson(slug, options, misesAJour, moteur, formes, application.site?.adresse, captureAudio, captureVideo));
   const menusWindows = scriptNsis(formes, slug);
   if (menusWindows) fichiers.set('build/menus.nsh', menusWindows);
   // Les bibliothèques des éléments d'écran (icônes, code QR) : Vite les emballe, comme React.
@@ -140,6 +143,8 @@ export function genererProjetDesktop(application: Application, options: OptionsD
       misesAJour: misesAJour !== undefined,
       pagesParAdresse: moteur,
       ...mediasDuProgramme(application),
+      captureAudio,
+      captureVideo,
     }),
   );
   return fichiers;
@@ -180,7 +185,7 @@ export function adressesDuServeur(application: Application): { relais: string[];
   return { relais, origines };
 }
 
-function packageJson(slug: string, options: OptionsDesktop, misesAJour?: string, moteur = false, formes?: FormesBureau, adresseSite?: string): string {
+function packageJson(slug: string, options: OptionsDesktop, misesAJour?: string, moteur = false, formes?: FormesBureau, adresseSite?: string, captureAudio = false, captureVideo = false): string {
   const associations = formes ? associationsDeFichiers(formes) : [];
   const menus = formes?.actions.some((a) => a.sorte === 'menu') ?? false;
   // Un fichier ouvert ou un menu clic droit sur Linux : le paquet .deb inscrit l'application auprès du bureau.
@@ -232,7 +237,7 @@ function packageJson(slug: string, options: OptionsDesktop, misesAJour?: string,
           productName: options.nom,
           files: ['dist/**/*', 'electron/dist/**/*'],
           directories: { output: 'paquets' },
-          mac: { target: ['dmg', 'zip'], category: 'public.app-category.productivity' },
+          mac: { target: ['dmg', 'zip'], category: 'public.app-category.productivity', ...(captureAudio || captureVideo ? { extendInfo: { ...(captureAudio ? { NSMicrophoneUsageDescription: 'Enregistrer un audio à votre demande.' } : {}), ...(captureVideo ? { NSCameraUsageDescription: 'Enregistrer une vidéo à votre demande.' } : {}) } } : {}) },
           win: { target: [{ target: 'nsis', arch: ['x64'] }] },
           linux: { target: deb ? ['AppImage', 'deb'] : ['AppImage'], category: 'Utility', ...(deb ? { maintainer: options.nom } : {}) },
           // « quand on ouvre un fichier » : « Ouvrir avec » sur Mac, Windows et Linux.
@@ -299,6 +304,8 @@ interface OptionsPrincipal {
   apercu: boolean;
   /** Un son ou une vidéo (media-src) est joué. */
   media: boolean;
+  captureAudio: boolean;
+  captureVideo: boolean;
   /** Les pages du moteur : /panier est servi par panier/index.html, une adresse inconnue par 404.html. */
   pagesParAdresse?: boolean;
 }
@@ -578,9 +585,16 @@ ${fichiers ? `    // « Ouvrir avec » ou le menu clic droit pendant que l'appli
   });
 
   void app.whenReady().then(() => {
-    // Ni caméra, ni micro, ni notifications, ni position.
+${o.captureAudio || o.captureVideo ? `    // Seules les captures déclarées par le programme accèdent au micro ou à la caméra.
+    const permissionMedia = (contenu, permission, details) => {
+      if (permission !== 'media' || contenu.getURL().startsWith(ORIGINE + '/') === false) return false;
+      const types = details?.mediaTypes ?? [];
+      return ${o.captureAudio} && (${o.captureVideo} || !types.includes('video'));
+    };
+    session.defaultSession.setPermissionRequestHandler((contenu, permission, repondre, details) => repondre(permissionMedia(contenu, permission, details)));
+    session.defaultSession.setPermissionCheckHandler((contenu, permission, _origine, details) => permissionMedia(contenu, permission, details));` : `    // Une application sans capture ne demande aucune permission du système.
     session.defaultSession.setPermissionRequestHandler((_contenu, _permission, repondre) => repondre(false));
-    session.defaultSession.setPermissionCheckHandler(() => false);
+    session.defaultSession.setPermissionCheckHandler(() => false);`}
     protocol.handle(SCHEMA, servir);
 ${o.secret ? '    ouvrirCoffre();\n' : ''}${fichiers ? '    ecouterLesFormes();\n' : ''}    Menu.setApplicationMenu(menu());
 ${f.demarrage ? '    preparerDemarrage();\n' : ''}${tray ? '    void poserLesIcones();\n' : ''}${menusLinux ? '    poserLesMenusLinux();\n' : ''}${discret ? `    // « avec discret » : lancée par le démarrage de l'ordinateur, elle attend dans la barre du système, sans fenêtre.
@@ -826,7 +840,7 @@ page ne le voit jamais.
 La page n'a ni Node ni \`require\` (\`contextIsolation\`, \`sandbox\`), elle
 est servie par le protocole \`humalis://\` (jamais \`file://\`), avec une
 politique de contenu stricte. La navigation vers un autre site, les
-nouvelles fenêtres et les permissions (caméra, micro…) sont refusées.
+nouvelles fenêtres et les permissions inutilisées sont refusées. Si le programme enregistre un média, l'accès au micro et à la caméra nécessaires est demandé au système.
 Le paquet active les fusibles d'Electron (clé \`build.electronFuses\` de
 \`package.json\`). L'identifiant \`com.humalis.${slug}\` est à remplacer par
 le tien avant de distribuer l'application.

@@ -24,7 +24,8 @@ export type Forme =
   | 'tuile'
   | 'miniApplication'
   | 'voiture'
-  | 'menuClicDroit';
+  | 'menuClicDroit'
+  | 'enregistrerAudio' | 'enregistrerVideo' | 'scannerDocument' | 'recadrerPhoto';
 
 /** Les cibles où chaque forme a un sens : ailleurs, elle est ignorée. */
 export const PREVUES: Record<Forme, string[]> = {
@@ -45,12 +46,16 @@ export const PREVUES: Record<Forme, string[]> = {
   miniApplication: ['apple'],
   voiture: ['apple', 'android'],
   menuClicDroit: ['apple', 'windows', 'desktop'],
+  enregistrerAudio: ['web', 'desktop', 'apple', 'android', 'windows'],
+  enregistrerVideo: ['web', 'desktop', 'apple', 'android', 'windows'],
+  scannerDocument: ['apple', 'android'],
+  recadrerPhoto: ['web', 'desktop', 'apple', 'android', 'windows'],
 };
 
 /** Les formes déjà écrites par chaque cible. */
 export const ECRITES: Record<string, Set<Forme>> = {};
 
-const NOMS_CIBLES: Record<string, string> = { apple: 'Apple', android: 'Android', windows: 'Windows', desktop: 'bureau (Electron)', serveur: 'serveur' };
+const NOMS_CIBLES: Record<string, string> = { apple: 'Apple', android: 'Android', windows: 'Windows', desktop: 'bureau (Electron)', web: 'web', serveur: 'serveur' };
 
 /** Où chaque forme est écrite dans le programme : une ligne et un nom lisible. */
 function formesDuProgramme(application: Application): { forme: Forme; quoi: string; ligne: number }[] {
@@ -79,6 +84,9 @@ function formesDuProgramme(application: Application): { forme: Forme; quoi: stri
   const lignes = JSON.stringify([application.ecrans, application.composants]);
   if (/"type":"activite","mode"/.test(lignes) && !trouvees.some((t) => t.forme === 'activite')) ajouter('activite', '« commencer activite »', 1);
   if (/"type":"dire"/.test(lignes) && !trouvees.some((t) => t.forme === 'commandeVocale')) ajouter('commandeVocale', '« dire »', 1);
+  for (const m of lignes.matchAll(/"type":"(enregistrerAudio|enregistrerVideo|scannerDocument|recadrerPhoto)","variable":"([^"]+)"/g)) {
+    ajouter(m[1] as Forme, `« ${m[1]} » dans ${m[2]}`, 1);
+  }
   // Le serveur : « mettre a jour activite », « … et boutons ».
   for (const s of application.serveurs ?? []) {
     const texte = JSON.stringify(s);
@@ -99,7 +107,9 @@ export function verifierFormesPourLaCible(application: Application, cible: strin
     if (cible === 'serveur' && !quoi.includes('serveur')) continue;
     if (cible !== 'serveur' && quoi.includes('du serveur')) continue;
     if (!prevues.includes(cible)) {
-      ignorees.push(quoi);
+      if (['enregistrerAudio', 'enregistrerVideo', 'scannerDocument', 'recadrerPhoto'].includes(forme)) {
+        diagnostics.push({ gravite: 'erreur', ligne, message: `${quoi} : cette action n'est pas disponible sur la cible ${NOMS_CIBLES[cible] ?? cible}. Cibles prévues : ${prevues.map((c) => NOMS_CIBLES[c] ?? c).join(', ')}.` });
+      } else ignorees.push(quoi);
       continue;
     }
     if (!ecrites.has(forme)) {
@@ -120,3 +130,7 @@ ECRITES.apple = new Set<Forme>(['widget', 'barreSysteme', 'partageRecu', 'montre
 
 // Le bureau (Electron, Linux compris) : src/cibles/desktop/formes.ts.
 ECRITES.desktop = new Set<Forme>(['barreSysteme', 'fichierOuvert', 'demarrage', 'menuClicDroit']);
+
+// Le navigateur et Electron partagent les fonctions de capture et de recadrage.
+ECRITES.web = new Set<Forme>(['enregistrerAudio', 'enregistrerVideo', 'recadrerPhoto']);
+for (const forme of ['enregistrerAudio', 'enregistrerVideo', 'recadrerPhoto'] as const) ECRITES.desktop.add(forme);
