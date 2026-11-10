@@ -109,3 +109,5 @@ export function verifierFormesPourLaCible(application: Application, cible: strin
   if (ignorees.length) diagnostics.push({ gravite: 'avertissement', ligne: 1, message: `sur la cible ${NOMS_CIBLES[cible] ?? cible}, ${ignorees.length > 1 ? 'ces formes n\'existent pas et sont ignorées' : 'cette forme n\'existe pas et est ignorée'} : ${ignorees.join(', ')}.` });
   return diagnostics;
 }
+
+ECRITES.apple = new Set<Forme>(['widget', 'barreSysteme', 'partageRecu', 'montre', 'tele', 'clavier', 'activite', 'raccourcisIcone', 'commandeVocale', 'fichierOuvert', 'demarrage', 'boutonsNotification', 'rechercheSysteme', 'tuile', 'miniApplication', 'voiture', 'menuClicDroit']);

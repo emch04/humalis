@@ -34,6 +34,33 @@ export interface OptionsXcode {
   icone?: boolean;
   /** Ajoute une cible de tests XCUITest (pour l'essai de bout en bout). */
   essaisUi?: boolean;
+  /** Les cibles des formes d'application (widget, partage, clavier, montre, télé, App Clip). */
+  cibles?: CibleXcode[];
+  /** Le simulateur iPhone a son propre fichier de droits (CarPlay, qu'Apple accorde sur demande). */
+  droitsSimulateur?: boolean;
+}
+
+/**
+ * Une cible de plus dans le projet : une extension (widget, partage, clavier), l'application de la montre,
+ * celle de la télévision, ou l'App Clip. Les cibles qui montrent des pages reprennent le dossier de
+ * l'application (`partageDossier`) : les pages et la bibliothèque Humalis y sont écrites une seule fois.
+ */
+export interface CibleXcode {
+  /** Le nom de la cible, du produit et de son dossier (« BoutiqueWidgets »). */
+  nom: string;
+  genre: 'extension' | 'montre' | 'tele' | 'clip';
+  /** Les plateformes : iPhone et Mac, iPhone seul, la montre, la télévision. */
+  plateformes: 'apple' | 'ios' | 'macos' | 'watchos' | 'tvos';
+  identifiant: string;
+  nomAffiche: string;
+  /** Vrai si la cible compile aussi le dossier de l'application. */
+  partageDossier: boolean;
+  /** Le fichier Info propre à la cible, à la racine du projet. */
+  info: string;
+  /** Le fichier des droits, dans le dossier de la cible. */
+  droits?: string;
+  /** Les conditions de compilation (`#if HUMALIS_WIDGETS`). */
+  conditions: string[];
 }
 
 /** Les versions minimales : celles de `@Observable` (et de Muzika). */
@@ -79,6 +106,7 @@ function reglagesCible(o: OptionsXcode, debug: boolean): string[] {
     'ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;',
     `CODE_SIGN_ENTITLEMENTS = ${pb(`${o.nom}/${o.nom}.entitlements`)};`,
     ...(o.droitsMac ? [`"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = ${pb(`${o.nom}/${o.nom}-mac.entitlements`)};`] : []),
+    ...(o.droitsSimulateur ? [`"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = ${pb(`${o.nom}/${o.nom}-simulateur.entitlements`)};`] : []),
     // Sans équipe : signé pour cet ordinateur et le simulateur seulement.
     ...(o.equipe ? ['CODE_SIGN_STYLE = Automatic;', `DEVELOPMENT_TEAM = ${pb(o.equipe)};`] : ['CODE_SIGN_IDENTITY = "-";', 'CODE_SIGN_STYLE = Manual;', 'DEVELOPMENT_TEAM = "";']),
     'CURRENT_PROJECT_VERSION = 1;',
@@ -137,8 +165,126 @@ ${reglages.map((r) => `\t\t\t\t${r}`).join('\n')}
 /** Le fichier `project.pbxproj`. */
 export function projetXcode(o: OptionsXcode): string {
   const produit = `${o.nom}.app`;
-  const texte = avecPaquets(projetDeBase(o, produit), o.paquets ?? []);
+  let texte = avecPaquets(projetDeBase(o, produit), o.paquets ?? []);
+  if (o.cibles?.length) texte = avecCibles(texte, o, o.cibles);
   return o.essaisUi ? avecEssaisUi(texte, o) : texte;
+}
+
+const PLATEFORMES: Record<CibleXcode['plateformes'], string[]> = {
+  apple: ['SDKROOT = auto;', 'SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";', 'TARGETED_DEVICE_FAMILY = "1,2";'],
+  ios: ['SDKROOT = iphoneos;', 'SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";', 'TARGETED_DEVICE_FAMILY = "1,2";'],
+  macos: ['SDKROOT = macosx;', 'SUPPORTED_PLATFORMS = macosx;'],
+  watchos: ['SDKROOT = watchos;', 'SUPPORTED_PLATFORMS = "watchos watchsimulator";', 'TARGETED_DEVICE_FAMILY = 4;', 'WATCHOS_DEPLOYMENT_TARGET = 10.0;'],
+  tvos: ['SDKROOT = appletvos;', 'SUPPORTED_PLATFORMS = "appletvos appletvsimulator";', 'TARGETED_DEVICE_FAMILY = 3;', 'TVOS_DEPLOYMENT_TARGET = 17.0;'],
+};
+
+/** Le type de produit d'une cible, et l'extension de son paquet. */
+const PRODUITS: Record<CibleXcode['genre'], { type: string; fichier: string; extension: string }> = {
+  extension: { type: 'com.apple.product-type.app-extension', fichier: 'wrapper.app-extension', extension: 'appex' },
+  montre: { type: 'com.apple.product-type.application', fichier: 'wrapper.application', extension: 'app' },
+  tele: { type: 'com.apple.product-type.application', fichier: 'wrapper.application', extension: 'app' },
+  clip: { type: 'com.apple.product-type.application.on-demand-install-capable', fichier: 'wrapper.application', extension: 'app' },
+};
+
+/** Où l'application range chaque cible : les extensions dans PlugIns, la montre dans Watch, l'App Clip dans AppClips. */
+const INCORPORATIONS = [
+  { genres: ['extension'], nom: 'Embed Foundation Extensions', chemin: '""', dossier: 13 },
+  { genres: ['montre'], nom: 'Embed Watch Content', chemin: '"$(CONTENTS_FOLDER_PATH)/Watch"', dossier: 16 },
+  { genres: ['clip'], nom: 'Embed App Clips', chemin: '"$(CONTENTS_FOLDER_PATH)/AppClips"', dossier: 16 },
+] as const;
+
+/** L'identifiant d'un objet d'une cible de plus : unique par cible et par rôle. */
+export const idCible = (rang: number, role: number): string => `1C${rang.toString(16).toUpperCase().padStart(2, '0')}${role.toString(16).toUpperCase().padStart(20, '0')}`;
+
+function reglagesCibleSecondaire(o: OptionsXcode, c: CibleXcode, debug: boolean): string[] {
+  return [
+    ...PLATEFORMES[c.plateformes],
+    ...(c.droits ? [`CODE_SIGN_ENTITLEMENTS = ${pb(`${c.nom}/${c.droits}`)};`] : []),
+    ...(o.equipe ? ['CODE_SIGN_STYLE = Automatic;', `DEVELOPMENT_TEAM = ${pb(o.equipe)};`] : ['CODE_SIGN_IDENTITY = "-";', 'CODE_SIGN_STYLE = Manual;', 'DEVELOPMENT_TEAM = "";']),
+    'CURRENT_PROJECT_VERSION = 1;',
+    'ENABLE_HARDENED_RUNTIME = YES;',
+    'GENERATE_INFOPLIST_FILE = YES;',
+    `INFOPLIST_FILE = ${pb(c.info)};`,
+    `INFOPLIST_KEY_CFBundleDisplayName = ${pb(c.nomAffiche)};`,
+    ...(c.genre === 'extension' ? ['APPLICATION_EXTENSION_API_ONLY = YES;', 'SKIP_INSTALL = YES;', 'LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks @executable_path/../../Frameworks";', '"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks @executable_path/../../../../Frameworks";'] : ['LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";']),
+    ...(c.genre === 'montre' ? ['SKIP_INSTALL = YES;', `INFOPLIST_KEY_WKCompanionAppBundleIdentifier = ${pb(o.identifiant)};`, 'INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = NO;'] : []),
+    ...(c.genre === 'clip' ? ['SKIP_INSTALL = YES;'] : []),
+    ...(c.genre !== 'extension' ? ['ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;', 'INFOPLIST_KEY_UILaunchScreen_Generation = YES;', 'INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;'] : []),
+    'MARKETING_VERSION = 1.0;',
+    `PRODUCT_BUNDLE_IDENTIFIER = ${pb(c.identifiant)};`,
+    'PRODUCT_NAME = "$(TARGET_NAME)";',
+    `SWIFT_ACTIVE_COMPILATION_CONDITIONS = ${pb(['$(inherited)', ...c.conditions].join(' '))};`,
+    'SWIFT_EMIT_LOC_STRINGS = YES;',
+    'SWIFT_VERSION = 6.0;',
+    ...(debug ? [] : ['VALIDATE_PRODUCT = YES;']),
+  ].sort();
+}
+
+/** Ajoute au projet les cibles des formes d'application, et les range dans l'application. */
+function avecCibles(texte: string, o: OptionsXcode, cibles: CibleXcode[]): string {
+  const ajouter = (repere: string, ajout: string) => {
+    if (!texte.includes(repere)) throw new Error(`modèle du projet inattendu : ${repere}`);
+    texte = texte.replace(repere, ajout + repere);
+  };
+  const remplacer = (avant: string, apres: string) => {
+    if (!texte.includes(avant)) throw new Error(`modèle du projet inattendu : ${avant}`);
+    texte = texte.replace(avant, apres);
+  };
+  const phase = (id: string, genre: string) => `\t\t${id} = {\n\t\t\tisa = ${genre};\n\t\t\tbuildActionMask = 2147483647;\n\t\t\tfiles = (\n\t\t\t);\n\t\t\trunOnlyForDeploymentPostprocessing = 0;\n\t\t};\n`;
+  const filtre = (c: CibleXcode) => (c.plateformes === 'ios' || c.plateformes === 'watchos' ? 'platformFilter = ios; ' : c.plateformes === 'macos' ? 'platformFilter = macos; ' : '');
+  // Rôles : 1 produit, 2 dossier, 3-5 phases, 6 cible, 7 réglages, 8-9 Debug et Release, 10 relais, 11 dépendance, 12 copie.
+  const fichiers: string[] = [];
+  const dossiers: string[] = [];
+  const phases: string[] = [];
+  const natives: string[] = [];
+  const relais: string[] = [];
+  const dependances: string[] = [];
+  const configs: string[] = [];
+  const listes: string[] = [];
+  const copies: string[] = [];
+  cibles.forEach((c, i) => {
+    const id = (role: number) => idCible(i, role);
+    const produit = PRODUITS[c.genre];
+    fichiers.push(`\t\t${id(1)} /* ${c.nom}.${produit.extension} */ = {isa = PBXFileReference; explicitFileType = ${produit.fichier}; includeInIndex = 0; path = ${pb(`${c.nom}.${produit.extension}`)}; sourceTree = BUILT_PRODUCTS_DIR; };\n`);
+    dossiers.push(`\t\t${id(2)} /* ${c.nom} */ = {isa = PBXFileSystemSynchronizedRootGroup; path = ${pb(c.nom)}; sourceTree = "<group>"; };\n`);
+    phases.push(phase(id(3), 'PBXSourcesBuildPhase'), phase(id(4), 'PBXFrameworksBuildPhase'), phase(id(5), 'PBXResourcesBuildPhase'));
+    const groupes = [...(c.partageDossier ? [`${ID.sources} /* ${o.nom} */`] : []), `${id(2)} /* ${c.nom} */`];
+    natives.push(`\t\t${id(6)} /* ${c.nom} */ = {\n\t\t\tisa = PBXNativeTarget;\n\t\t\tbuildConfigurationList = ${id(7)};\n\t\t\tbuildPhases = (\n\t\t\t\t${id(3)},\n\t\t\t\t${id(4)},\n\t\t\t\t${id(5)},\n\t\t\t);\n\t\t\tbuildRules = (\n\t\t\t);\n\t\t\tdependencies = (\n\t\t\t);\n\t\t\tfileSystemSynchronizedGroups = (\n${groupes.map((g) => `\t\t\t\t${g},`).join('\n')}\n\t\t\t);\n\t\t\tname = ${pb(c.nom)};\n\t\t\tproductName = ${pb(c.nom)};\n\t\t\tproductReference = ${id(1)};\n\t\t\tproductType = ${pb(produit.type)};\n\t\t};\n`);
+    configs.push(`${config(id(8), 'Debug', reglagesCibleSecondaire(o, c, true))}\n${config(id(9), 'Release', reglagesCibleSecondaire(o, c, false))}\n`);
+    listes.push(`\t\t${id(7)} = {\n\t\t\tisa = XCConfigurationList;\n\t\t\tbuildConfigurations = (\n\t\t\t\t${id(8)},\n\t\t\t\t${id(9)},\n\t\t\t);\n\t\t\tdefaultConfigurationIsVisible = 0;\n\t\t\tdefaultConfigurationName = Release;\n\t\t};\n`);
+    // La télévision a sa propre application : elle n'est pas rangée dans celle de l'iPhone.
+    if (c.genre === 'tele') return;
+    relais.push(`\t\t${id(10)} = {\n\t\t\tisa = PBXContainerItemProxy;\n\t\t\tcontainerPortal = ${ID.projet};\n\t\t\tproxyType = 1;\n\t\t\tremoteGlobalIDString = ${id(6)};\n\t\t\tremoteInfo = ${pb(c.nom)};\n\t\t};\n`);
+    dependances.push(`\t\t${id(11)} = {\n\t\t\tisa = PBXTargetDependency;\n\t\t\t${filtre(c).trim() ? `${filtre(c).trim()}\n\t\t\t` : ''}target = ${id(6)};\n\t\t\ttargetProxy = ${id(10)};\n\t\t};\n`);
+    copies.push(`\t\t${id(12)} = {isa = PBXBuildFile; fileRef = ${id(1)}; ${filtre(c)}settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };\n`);
+  });
+  const avecCopie = cibles.map((c, i) => ({ c, i })).filter(({ c }) => c.genre !== 'tele');
+  const phasesCopie = INCORPORATIONS.flatMap((inc, k) => {
+    const dedans = avecCopie.filter(({ c }) => (inc.genres as readonly string[]).includes(c.genre));
+    if (!dedans.length) return [];
+    const id = `1D${String(k).padStart(22, '0')}`;
+    return [{ id, texte: `\t\t${id} /* ${inc.nom} */ = {\n\t\t\tisa = PBXCopyFilesBuildPhase;\n\t\t\tbuildActionMask = 2147483647;\n\t\t\tdstPath = ${inc.chemin};\n\t\t\tdstSubfolderSpec = ${inc.dossier};\n\t\t\tfiles = (\n${dedans.map(({ i }) => `\t\t\t\t${idCible(i, 12)},`).join('\n')}\n\t\t\t);\n\t\t\tname = ${pb(inc.nom)};\n\t\t\trunOnlyForDeploymentPostprocessing = 0;\n\t\t};\n` }];
+  });
+  if (copies.length) {
+    if (texte.includes('/* Begin PBXBuildFile section */')) ajouter('/* End PBXBuildFile section */', copies.join(''));
+    else remplacer('/* Begin PBXFileReference section */', `/* Begin PBXBuildFile section */\n${copies.join('')}/* End PBXBuildFile section */\n\n/* Begin PBXFileReference section */`);
+    remplacer('/* Begin PBXFileReference section */', `/* Begin PBXContainerItemProxy section */\n${relais.join('')}/* End PBXContainerItemProxy section */\n\n/* Begin PBXCopyFilesBuildPhase section */\n${phasesCopie.map((p) => p.texte).join('')}/* End PBXCopyFilesBuildPhase section */\n\n/* Begin PBXFileReference section */`);
+    ajouter('/* Begin XCBuildConfiguration section */', `/* Begin PBXTargetDependency section */\n${dependances.join('')}/* End PBXTargetDependency section */\n\n`);
+    // L'application attend ses cibles, puis les range.
+    remplacer(`\t\t\t\t${ID.phaseRessources} /* Resources */,\n\t\t\t);\n\t\t\tbuildRules = (\n\t\t\t);\n\t\t\tdependencies = (\n\t\t\t);`, `\t\t\t\t${ID.phaseRessources} /* Resources */,\n${phasesCopie.map((p) => `\t\t\t\t${p.id},`).join('\n')}\n\t\t\t);\n\t\t\tbuildRules = (\n\t\t\t);\n\t\t\tdependencies = (\n${avecCopie.map(({ i }) => `\t\t\t\t${idCible(i, 11)},`).join('\n')}\n\t\t\t);`);
+  }
+  ajouter('/* End PBXFileReference section */', fichiers.join(''));
+  ajouter('/* End PBXFileSystemSynchronizedRootGroup section */', dossiers.join(''));
+  ajouter('/* End PBXFrameworksBuildPhase section */', phases.filter((_, k) => k % 3 === 1).join(''));
+  ajouter('/* End PBXResourcesBuildPhase section */', phases.filter((_, k) => k % 3 === 2).join(''));
+  ajouter('/* End PBXSourcesBuildPhase section */', phases.filter((_, k) => k % 3 === 0).join(''));
+  ajouter('/* End PBXNativeTarget section */', natives.join(''));
+  ajouter('/* End XCBuildConfiguration section */', configs.join(''));
+  ajouter('/* End XCConfigurationList section */', listes.join(''));
+  remplacer(`\t\t\t\t${ID.cible} /* ${o.nom} */,\n\t\t\t);\n\t\t};\n/* End PBXProject section */`, `\t\t\t\t${ID.cible} /* ${o.nom} */,\n${cibles.map((c, i) => `\t\t\t\t${idCible(i, 6)} /* ${c.nom} */,`).join('\n')}\n\t\t\t);\n\t\t};\n/* End PBXProject section */`);
+  remplacer(`\t\t\t\t${ID.sources} /* ${o.nom} */,\n\t\t\t\t${ID.produits} /* Products */,`, `\t\t\t\t${ID.sources} /* ${o.nom} */,\n${cibles.map((c, i) => `\t\t\t\t${idCible(i, 2)} /* ${c.nom} */,`).join('\n')}\n\t\t\t\t${ID.produits} /* Products */,`);
+  remplacer(`\t\t\t\t${ID.application} /* ${o.nom}.app */,\n\t\t\t);\n\t\t\tname = Products;`, `\t\t\t\t${ID.application} /* ${o.nom}.app */,\n${cibles.map((c, i) => `\t\t\t\t${idCible(i, 1)} /* ${c.nom}.${PRODUITS[c.genre].extension} */,`).join('\n')}\n\t\t\t);\n\t\t\tname = Products;`);
+  return texte;
 }
 
 /** Ajoute au projet les bibliothèques Swift : la référence au dépôt, et le lien avec l'application. */
@@ -336,14 +482,14 @@ ${config(ID.releaseCible, 'Release', reglagesCible(o, false))}
 `;
 }
 
-/** Le schéma partagé : `xcodebuild -scheme` le trouve sans ouvrir Xcode. */
-export function schemaXcode(nom: string, essais = false): string {
+/** Le schéma partagé : `xcodebuild -scheme` le trouve sans ouvrir Xcode. Une autre cible (la télévision) a le sien. */
+export function schemaXcode(nom: string, essais = false, autre?: { nom: string; rang: number; projet: string }): string {
   const reference = `<BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "${ID.cible}"
-               BuildableName = "${nom}.app"
-               BlueprintName = "${nom}"
-               ReferencedContainer = "container:${nom}.xcodeproj">
+               BlueprintIdentifier = "${autre ? idCible(autre.rang, 6) : ID.cible}"
+               BuildableName = "${autre ? autre.nom : nom}.app"
+               BlueprintName = "${autre ? autre.nom : nom}"
+               ReferencedContainer = "container:${autre ? autre.projet : nom}.xcodeproj">
             </BuildableReference>`;
   return `<?xml version="1.0" encoding="UTF-8"?>
 <Scheme LastUpgradeVersion = "2700" version = "1.7">
@@ -383,7 +529,7 @@ export function schemaXcode(nom: string, essais = false): string {
  * Les droits de l'application : le Mac l'enferme dans son bac à sable, et lui
  * ouvre seulement le réseau sortant (et les fichiers choisis, s'il en faut).
  */
-export function droits(fichiers: boolean, notifications?: 'ios' | 'mac', position = false, domaine?: string, connexionApple = false): string {
+export function droits(fichiers: boolean, notifications?: 'ios' | 'mac', position = false, domaine?: string, connexionApple = false, groupe?: string, autres = ''): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -405,7 +551,11 @@ export function droits(fichiers: boolean, notifications?: 'ios' | 'mac', positio
 		<string>Default</string>
 	</array>` : ''}${notifications ? `
 	<key>${notifications === 'mac' ? 'com.apple.developer.aps-environment' : 'aps-environment'}</key>
-	<string>development</string>` : ''}
+	<string>development</string>` : ''}${groupe ? `
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>${groupe}</string>
+	</array>` : ''}${autres}
 </dict>
 </plist>
 `;
@@ -416,7 +566,8 @@ export function droits(fichiers: boolean, notifications?: 'ios' | 'mac', positio
  * (HTTPS, Keychain) : TestFlight ne repose donc pas la question du chiffrement à chaque envoi.
  * `http://` reste permis sur le réseau local, seulement pour essayer contre un serveur de cet ordinateur.
  */
-export function infoSupplementaire(serveurLocal: boolean, usages: { camera?: boolean; identite?: boolean; position?: boolean; liens?: { schema: string; identifiant: string }; arrierePlan?: string } = {}): string {
+export function infoSupplementaire(serveurLocal: boolean, usages: { camera?: boolean; identite?: boolean; position?: boolean; liens?: { schema: string; identifiant: string }; arrierePlan?: string; schemaInterne?: string; formes?: string } = {}): string {
+  const schemas = [...(usages.liens ? [{ nom: usages.liens.identifiant, schema: usages.liens.schema }] : []), ...(usages.schemaInterne ? [{ nom: `${usages.schemaInterne}.formes`, schema: usages.schemaInterne }] : [])];
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -430,17 +581,17 @@ export function infoSupplementaire(serveurLocal: boolean, usages: { camera?: boo
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>L'application utilise votre position quand vous le demandez.</string>
 	<key>NSLocationUsageDescription</key>
-	<string>L'application utilise votre position quand vous le demandez.</string>` : ''}${usages.liens ? `
+	<string>L'application utilise votre position quand vous le demandez.</string>` : ''}${schemas.length ? `
 	<key>CFBundleURLTypes</key>
-	<array>
+	<array>${schemas.map((s) => `
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>${usages.liens.identifiant}</string>
+			<string>${s.nom}</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>${usages.liens.schema}</string>
+				<string>${s.schema}</string>
 			</array>
-		</dict>
+		</dict>`).join('')}
 	</array>` : ''}${usages.arrierePlan ? `
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
@@ -454,7 +605,7 @@ export function infoSupplementaire(serveurLocal: boolean, usages: { camera?: boo
 	<dict>
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
-	</dict>` : ''}
+	</dict>` : ''}${usages.formes ?? ''}
 </dict>
 </plist>
 `;

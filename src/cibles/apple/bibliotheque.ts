@@ -520,7 +520,7 @@ enum PolicesHumalis {
 /** « avec fond translucide » : le verre des systèmes récents, sinon le matériau translucide. */
 struct FondTranslucideHumalis: ViewModifier {
     func body(content: Content) -> some View {
-        if #available(iOS 26, macOS 26, *) {
+        if #available(iOS 26, macOS 26, watchOS 26, tvOS 26, *) {
             content.glassEffect(in: RoundedRectangle(cornerRadius: 12))
         } else {
             content.background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
@@ -569,6 +569,9 @@ func couleurHumalis(_ clair: UInt32, _ sombre: UInt32) -> Color {
         let v = apparence.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? sombre : clair
         return NSColor(srgbRed: composante(v, 16), green: composante(v, 8), blue: composante(v, 0), alpha: 1)
     })
+    #elseif os(watchOS)
+    // La montre est toujours sombre.
+    return Color(red: composante(sombre, 16), green: composante(sombre, 8), blue: composante(sombre, 0))
     #else
     return Color(uiColor: UIColor { traits in
         let v = traits.userInterfaceStyle == .dark ? sombre : clair
@@ -617,7 +620,10 @@ struct PageHumalis<Contenu: View>: View {
         } else {
             List {
                 if let enteteDefilante { enteteDefilante }
-                contenu().listRowSeparator(.hidden)
+                contenu()
+                    #if !os(watchOS) && !os(tvOS)
+                    .listRowSeparator(.hidden)
+                    #endif
                 if let pied { pied }
             }
             .listStyle(.plain)
@@ -667,10 +673,12 @@ struct PageHumalis<Contenu: View>: View {
         .toolbar {
             ToolbarItem(placement: .principal) { Color.clear.frame(width: 1, height: 1).accessibilityHidden(true) }
             // Le pavé numérique de l'iPhone n'a pas de touche pour se fermer.
+            #if !HUMALIS_SANS_FENETRE
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
                 Button("OK") { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) }
             }
+            #endif
         }
         #endif
     }
