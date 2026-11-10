@@ -13,6 +13,7 @@ import { contenuBinaire } from '../binaire.js';
 import { cheminsDesPages } from '../web/projet.js';
 import { COULEURS_CSS } from '../web/styles.js';
 import { EcrivainActions } from './actions.js';
+import { CARTES_KT, GRAPHIQUES_KT, LECTEURS_KT, QR_KT } from './medias.js';
 import { APPAREIL_KT, CHEMINS_FICHIERS, FICHIERS_KT, SCANNER_KT, SYSTEME_KT } from './appareil.js';
 import { CssAndroid, type Portee as PorteeCss } from './css.js';
 import { FORMATS_KT } from './formats.js';
@@ -636,6 +637,15 @@ export function genererProjetAndroid(application: Application, options: OptionsA
   const avecAppareil = besoins.photo || besoins.position || besoins.identite || besoins.vibration || /\bSignatureHumalis\(/.test(codePages);
   if (avecAppareil) ecrireCode('Appareil.kt', kotlin(paquet, APPAREIL_KT));
   if (besoins.scanner) ecrireCode('Scanner.kt', kotlin(paquet, SCANNER_KT));
+  const medias = {
+    qr: /\bQrHumalis\(/.test(codePages),
+    lecteurs: /\b(LecteurHumalis|VideoHumalis)\(/.test(codePages),
+    cartes: /\bCarteHumalis\(/.test(codePages),
+  };
+  if (medias.qr) ecrireCode('Qr.kt', kotlin(paquet, QR_KT));
+  if (medias.lecteurs) ecrireCode('Lecteurs.kt', kotlin(paquet, LECTEURS_KT));
+  if (medias.cartes) ecrireCode('Cartes.kt', kotlin(paquet, CARTES_KT));
+  ecrireCode('Graphiques.kt', kotlin(paquet, GRAPHIQUES_KT));
   if (app.langues) {
     const codes = app.langues;
     ecrireCode('Langues.kt', kotlin(paquet, LANGUES_KT).replace('LANGUES_DU_SITE', `listOf(${application.langues!.map((l) => `${chaineKotlin(l.code)} to ${chaineKotlin(l.nom)}`).join(', ')})`));
@@ -660,7 +670,7 @@ export function genererProjetAndroid(application: Application, options: OptionsA
   fichiers.set('build.gradle.kts', CONSTRUCTION_RACINE);
   fichiers.set('gradle.properties', PROPRIETES_GRADLE);
   fichiers.set('gradle/wrapper/gradle-wrapper.properties', ENVELOPPE_GRADLE);
-  fichiers.set('app/build.gradle.kts', constructionApp(identifiant, nomAffiche, { appareil: avecAppareil, scanner: besoins.scanner }));
+  fichiers.set('app/build.gradle.kts', constructionApp(identifiant, nomAffiche, { appareil: avecAppareil, scanner: besoins.scanner, ...medias }));
   fichiers.set('app/src/main/AndroidManifest.xml', manifeste(true, application.liensProfonds, besoins));
   if (besoins.fichiers) fichiers.set('app/src/main/res/xml/chemins_fichiers.xml', CHEMINS_FICHIERS);
   const domaine = application.liensProfonds?.domaine;

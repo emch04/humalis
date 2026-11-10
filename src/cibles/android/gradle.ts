@@ -15,6 +15,9 @@ export const VERSIONS = {
   fragment: '1.8.9',
   biometrie: '1.1.0',
   zxing: '4.3.0',
+  zxingCore: '3.5.3',
+  media3: '1.8.0',
+  osmdroid: '6.1.20',
   sdkMinimum: 26,
   sdkCible: 36,
 } as const;
@@ -60,7 +63,7 @@ zipStoreBase=GRADLE_USER_HOME
 zipStorePath=wrapper/dists
 `;
 
-export function constructionApp(identifiant: string, nomAffiche: string, avec: { appareil?: boolean; scanner?: boolean } = {}): string {
+export function constructionApp(identifiant: string, nomAffiche: string, avec: { appareil?: boolean; scanner?: boolean; qr?: boolean; lecteurs?: boolean; cartes?: boolean } = {}): string {
   return `// Produit par Humalis.
 plugins {
     id("com.android.application")
@@ -101,6 +104,10 @@ dependencies {
     implementation("androidx.fragment:fragment-ktx:${VERSIONS.fragment}")
 ${avec.appareil ? `    implementation("androidx.biometric:biometric:${VERSIONS.biometrie}")
 ` : ''}${avec.scanner ? `    implementation("com.journeyapps:zxing-android-embedded:${VERSIONS.zxing}")
+` : ''}${avec.qr && !avec.scanner ? `    implementation("com.google.zxing:core:${VERSIONS.zxingCore}")
+` : ''}${avec.lecteurs ? `    implementation("androidx.media3:media3-exoplayer:${VERSIONS.media3}")
+    implementation("androidx.media3:media3-ui:${VERSIONS.media3}")
+` : ''}${avec.cartes ? `    implementation("org.osmdroid:osmdroid-android:${VERSIONS.osmdroid}")
 ` : ''}    debugImplementation("androidx.compose.ui:ui-tooling")
 }
 `;

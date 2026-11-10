@@ -167,7 +167,7 @@ function compile(arguments_: string[]): number | Promise<number> {
   }
 
   // Les tuiles d'une carte viennent d'un fournisseur qui reçoit l'adresse IP des visiteurs : dit une fois.
-  if (cible === 'web' || cible === 'statique' || cible === 'desktop') afficherDiagnostics(prevenirDesTuiles(application));
+  if (cible === 'web' || cible === 'statique' || cible === 'desktop' || cible === 'android') afficherDiagnostics(prevenirDesTuiles(application));
 
   if (cible !== 'apple' && cible !== 'serveur') {
     const appareil = verifierAppareilPourLaCible(application, cible);

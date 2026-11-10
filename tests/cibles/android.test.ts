@@ -721,6 +721,53 @@ page "profil" :
   });
 });
 
+describe('cible Android — les médias', () => {
+  const SOURCE = `page "accueil" :
+    variable ventes = [fiche avec mois "Janvier" et montant 120 et achats 90, fiche avec mois "Février" et montant 180 et achats 110]
+    variable agences = [fiche avec nom "Gombe" et latitude -4,3 et longitude 15,3]
+    titre "Médias"
+    graphique en barres ventes avec etiquette mois et description "Les ventes montent." :
+        serie "Ventes" valeur montant en FC avec couleur bleu
+        serie "Achats" valeur achats en FC avec couleur orange
+    graphique en camembert ventes avec etiquette mois et valeur montant et description "Février pèse plus."
+    carte "Nos agences" :
+        pour chaque agence dans agences :
+            marqueur agence.nom avec latitude agence.latitude et longitude agence.longitude
+        marqueur "Entrepôt" avec latitude -4,39 et longitude 15,26
+    audio "extrait.wav" avec description "Un extrait" et transcription "Bonjour."
+    video "https://exemple.fr/visite.mp4" avec commandes et description "La visite"
+    code qr "https://exemple.fr/lampe" avec description "Lien vers ce produit"
+`;
+  const f = projet(SOURCE);
+  const c = page(f, 'PageAccueil');
+
+  it('un graphique est dessiné par Compose, avec ses séries, sa devise et sa description', () => {
+    expect(c).toContain('GraphiqueHumalis("barres", "Graphique en barres", "Les ventes montent.", liste(ventes).map { texte(champ(it, "mois")) }, listOf(SerieHumalis("Ventes", liste(ventes).map { nombre(champ(it, "montant")) }, Couleurs.bleu), SerieHumalis("Achats", liste(ventes).map { nombre(champ(it, "achats")) }, Couleurs.orange)), devise = "FC")');
+    expect(c).toContain('GraphiqueHumalis("camembert"');
+    const g = f.get(`${CODE}/Graphiques.kt`)!;
+    expect(g).toContain('fun graduations(minimum: Double, maximum: Double): List<Double>');
+    expect(g).toContain('"Voir les données"');
+  });
+
+  it('une carte montre ses marqueurs, dans ses boucles, avec l\'attribution des tuiles', () => {
+    expect(c).toMatch(/CarteHumalis\("Nos agences", buildList \{\n\s+for \(agence in liste\(agences\)\) \{\n\s+add\(LieuHumalis\(texte\(champ\(agence, "nom"\)\), nombre\(champ\(agence, "latitude"\)\), nombre\(champ\(agence, "longitude"\)\)\)\)/);
+    expect(c).toContain('add(LieuHumalis("Entrepôt", -4.39, 15.26))');
+    expect(f.get(`${CODE}/Cartes.kt`)).toContain("© les contributeurs d'OpenStreetMap");
+    expect(f.get('app/build.gradle.kts')).toContain('org.osmdroid:osmdroid-android:');
+  });
+
+  it('le son et la vidéo passent par Media3 ; un fichier du projet est lu dans l\'application', () => {
+    expect(c).toContain('LecteurHumalis("extrait.wav", true, "Un extrait", "Bonjour.")');
+    expect(c).toContain('VideoHumalis("https://exemple.fr/visite.mp4", false, "La visite", null)');
+    expect(f.get('app/build.gradle.kts')).toContain('androidx.media3:media3-exoplayer:');
+  });
+
+  it('le code QR est dessiné d\'après ZXing, noir sur blanc', () => {
+    expect(c).toContain('QrHumalis("https://exemple.fr/lampe", "Lien vers ce produit")');
+    expect(f.get('app/build.gradle.kts')).toContain('com.google.zxing:core:');
+  });
+});
+
 describe('cible Android — noms et icônes', () => {
   it('les noms Humalis deviennent des identifiants Kotlin sûrs', () => {
     expect(nomKotlin('nombre_articles')).toBe('nombreArticles');
