@@ -365,3 +365,243 @@ fun CarteHumalis(nom: String, lieux: List<LieuHumalis>, latitude: Double? = null
     }
 }
 `;
+
+export const MOUVEMENT_KT = String.raw`// Produit par Humalis : les animations d'entrée, l'effet au survol et les listes qui glissent.
+package PAQUET
+
+import android.provider.Settings
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.zIndex
+
+/** « mouvement est reduit » : la personne a demandé de réduire les animations (Réglages, Accessibilité). */
+fun mouvementReduit(): Boolean =
+    Settings.Global.getFloat(Appli.contexte.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
+
+/** L'élément arrive en douceur ; rien ne bouge si l'appareil demande de réduire les animations. */
+fun Modifier.animeHumalis(animation: String, duree: Int = 300, delai: Int = 0): Modifier = composed {
+    val reduit = remember { mouvementReduit() }
+    val progression = remember { Animatable(if (reduit) 1f else 0f) }
+    LaunchedEffect(Unit) { if (!reduit) progression.animateTo(1f, tween(durationMillis = duree, delayMillis = delai)) }
+    val decalage = with(LocalDensity.current) { 16.dp.toPx() }
+    graphicsLayer {
+        val p = progression.value
+        alpha = p
+        if (animation == "montee") translationY = (1 - p) * decalage
+        if (animation == "agrandissement") { val e = 0.95f + 0.05f * p; scaleX = e; scaleY = e }
+    }
+}
+
+/** « effet leve », « effet agrandi » : au survol d'une souris ou d'un pavé tactile. */
+fun Modifier.effetHumalis(effet: String): Modifier = composed {
+    val source = remember { MutableInteractionSource() }
+    val survole by source.collectIsHoveredAsState()
+    val actif = survole && !remember { mouvementReduit() }
+    val decalage = with(LocalDensity.current) { 2.dp.toPx() }
+    hoverable(source).graphicsLayer {
+        if (actif && effet == "leve") translationY = -decalage
+        if (actif && effet == "agrandi") { scaleX = 1.03f; scaleY = 1.03f }
+    }
+}
+
+/**
+ * « avec deplacement » : un appui long prend l'élément, le doigt le déplace, le lâcher le dépose.
+ * Le lecteur d'écran (TalkBack) propose « Monter » et « Descendre ». « apres » suit chaque déplacement terminé.
+ */
+@Composable
+fun ListeDeplacableHumalis(elements: List<Any?>, changer: (List<Any?>) -> Unit, apres: () -> Unit, contenu: @Composable ColumnScope.(Any?) -> Unit) {
+    val actuels by rememberUpdatedState(elements)
+    var pris by remember { mutableStateOf<String?>(null) }
+    var decalage by remember { mutableFloatStateOf(0f) }
+    val hauteurs = remember { mutableStateMapOf<String, Int>() }
+    val vibreur = LocalHapticFeedback.current
+    val espace = with(LocalDensity.current) { 8.dp.toPx() }
+    fun cleDe(element: Any?): String = identifiant(element).ifEmpty { element.hashCode().toString() }
+    fun deplacer(depart: Int, arrivee: Int): Boolean {
+        val l = actuels
+        if (depart !in l.indices || arrivee !in l.indices) return false
+        val m = l.toMutableList()
+        m.add(arrivee, m.removeAt(depart))
+        changer(m)
+        return true
+    }
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        for (element in elements) {
+            val cle = cleDe(element)
+            key(cle) {
+                val estPris = pris == cle
+                Column(
+                    Modifier.fillMaxWidth()
+                        .onSizeChanged { hauteurs[cle] = it.height }
+                        .zIndex(if (estPris) 1f else 0f)
+                        .graphicsLayer {
+                            if (estPris) {
+                                translationY = decalage
+                                shadowElevation = 12f
+                                scaleX = 1.02f
+                                scaleY = 1.02f
+                            }
+                        }
+                        .pointerInput(cle) {
+                            val fin = {
+                                if (pris != null) {
+                                    pris = null
+                                    decalage = 0f
+                                    apres()
+                                }
+                            }
+                            detectDragGesturesAfterLongPress(
+                                onDragStart = {
+                                    pris = cle
+                                    decalage = 0f
+                                    vibreur.performHapticFeedback(HapticFeedbackType.LongPress)
+                                },
+                                onDragEnd = fin,
+                                onDragCancel = fin,
+                            ) { changement, quantite ->
+                                changement.consume()
+                                decalage += quantite.y
+                                val i = actuels.indexOfFirst { cleDe(it) == cle }
+                                // Passé la moitié de l'élément voisin, les deux échangent leur place.
+                                if (decalage > 0 && i in 0 until actuels.size - 1) {
+                                    val h = (hauteurs[cleDe(actuels[i + 1])] ?: 0) + espace
+                                    if (decalage > h / 2 && deplacer(i, i + 1)) decalage -= h
+                                } else if (decalage < 0 && i > 0) {
+                                    val h = (hauteurs[cleDe(actuels[i - 1])] ?: 0) + espace
+                                    if (-decalage > h / 2 && deplacer(i, i - 1)) decalage += h
+                                }
+                            }
+                        }
+                        .semantics {
+                            customActions = listOf(
+                                CustomAccessibilityAction("Monter") {
+                                    val i = actuels.indexOfFirst { cleDe(it) == cle }
+                                    deplacer(i, i - 1).also { if (it) apres() }
+                                },
+                                CustomAccessibilityAction("Descendre") {
+                                    val i = actuels.indexOfFirst { cleDe(it) == cle }
+                                    deplacer(i, i + 1).also { if (it) apres() }
+                                },
+                            )
+                        },
+                ) { contenu(element) }
+            }
+        }
+    }
+}
+`;
+
+export const MENUS_KT = String.raw`// Produit par Humalis : « menu de l'application » : le menu « ⋮ » en haut de l'application et ses raccourcis.
+package PAQUET
+
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.dp
+
+class CommandeHumalis(val titre: String, val raccourci: String?, val action: suspend () -> Unit)
+class MenuHumalis(val titre: String, val commandes: List<CommandeHumalis>)
+
+/** Le raccourci d'une commande, avec un clavier branché (tablette, Chromebook). */
+fun raccourciDesMenus(menus: List<MenuHumalis>, evenement: KeyEvent, lancer: (suspend () -> Unit) -> Unit): Boolean {
+    val commande = menus.flatMap { it.commandes }.firstOrNull { it.raccourci != null && correspond(evenement, it.raccourci) } ?: return false
+    lancer(commande.action)
+    return true
+}
+
+/** « Ctrl+N » pour « ctrl+n », comme Android l'écrit dans ses menus. */
+private fun lisible(touches: String): String = touches.split("+").joinToString("+") { morceau ->
+    when (morceau.lowercase()) {
+        "cmd", "commande", "ctrl", "controle" -> "Ctrl"
+        "maj", "majuscule", "shift" -> "Maj"
+        "alt", "option" -> "Alt"
+        else -> morceau.uppercase()
+    }
+}
+
+/** Une barre fine en haut de l'application : le bouton « ⋮ » ouvre les menus, chacun sous son titre. */
+@Composable
+fun BarreMenusHumalis(menus: List<MenuHumalis>, lancer: (suspend () -> Unit) -> Unit) {
+    var ouvert by remember { mutableStateOf(false) }
+    val couleur = MaterialTheme.colorScheme.onSurface
+    Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), horizontalArrangement = Arrangement.End) {
+        Box {
+            IconButton(onClick = { ouvert = true }, modifier = Modifier.semantics { contentDescription = "Menu de l'application" }) {
+                Canvas(Modifier.size(24.dp)) {
+                    val r = 2.dp.toPx()
+                    for (i in -1..1) drawCircle(couleur, r, Offset(size.width / 2, size.height / 2 + i * 6.dp.toPx()))
+                }
+            }
+            DropdownMenu(expanded = ouvert, onDismissRequest = { ouvert = false }) {
+                menus.forEachIndexed { rang, menu ->
+                    if (rang > 0) HorizontalDivider()
+                    if (menus.size > 1 || menu.titre.isNotEmpty()) {
+                        Text(menu.titre, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).semantics { heading() })
+                    }
+                    for (commande in menu.commandes) {
+                        DropdownMenuItem(
+                            text = { Text(commande.titre) },
+                            trailingIcon = commande.raccourci?.let { r -> { Text(lisible(r), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) } },
+                            onClick = {
+                                ouvert = false
+                                lancer(commande.action)
+                            },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+`;

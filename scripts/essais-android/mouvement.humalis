@@ -1,0 +1,30 @@
+# L'essai du mouvement sur Android : une liste que l'on réordonne du doigt,
+# le menu de l'application et ses raccourcis, les animations.
+variable compteur = 0 avec partagee
+
+menu de l'application "Fichier" :
+    commande "Nouvelle tâche" avec raccourci "ctrl+n" :
+        changer compteur par compteur + 1
+        afficher "Commande lancée {compteur}"
+    commande "Réglages" :
+        rediriger vers "reglages"
+
+menu de l'application "Aide" :
+    commande "À propos" :
+        afficher "Humalis sur Android"
+
+page "accueil" :
+    variable taches = ["Acheter du pain", "Appeler Rey", "Écrire le guide", "Ranger le bureau"]
+    variable ordre = ""
+    titre "Mes tâches" avec animation montee
+    texte "Commandes : {compteur}"
+    pour chaque t dans taches avec deplacement :
+        bloc avec fond gris et ombre legere :
+            texte t
+    quand l'ordre de taches change :
+        changer ordre par "Ordre : {taches}"
+    texte ordre
+
+page "reglages" :
+    titre "Réglages"
+    lien "Retour" vers "accueil"

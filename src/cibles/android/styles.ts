@@ -3,6 +3,7 @@
  * l'ombre, puis la forme et le fond, puis le remplissage, puis la largeur.
  */
 import type { StyleCompose } from './css.js';
+import { MILLISECONDES } from '../commun/mouvement.js';
 import { nomKotlin } from './noms.js';
 
 export interface Option {
@@ -43,6 +44,15 @@ export function modificateurs(options: Option[], sorte: SorteVue, css?: StyleCom
   if (largeur && LARGEURS[largeur]) m.push(`.widthIn(max = ${LARGEURS[largeur]}.dp)`);
   else if (largeur === 'pleine') m.push('.fillMaxWidth()');
 
+  // Le mouvement : une animation d'entrée, et l'effet au survol d'une souris.
+  const animation = valeur('animation');
+  const mouvement: string[] = [];
+  if (animation && ['apparition', 'montee', 'agrandissement'].includes(animation)) {
+    mouvement.push(`.animeHumalis("${animation}", ${MILLISECONDES.duree[valeur('duree') ?? 'moyenne'] ?? 300}, ${MILLISECONDES.delai[valeur('delai') ?? ''] ?? 0})`);
+  }
+  const effet = valeur('effet');
+  if (effet === 'leve' || effet === 'agrandi') mouvement.push(`.effetHumalis("${effet}")`);
+  m.unshift(...mouvement);
   // Un bouton a déjà sa forme et sa couleur : elles passent par ses paramètres.
   if (sorte === 'bouton') return m.join('');
   const leForme = forme(valeur('bordure'));

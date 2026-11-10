@@ -3409,7 +3409,7 @@ chose de faux.
 | `memorisee` | oui | oui | oui | oui | oui | oui |
 | `memorisee en secret` | non | non | oui | oui | oui (Keychain) | oui (Keystore) |
 | `essayer` | oui | non | oui | oui | oui | oui |
-| Raccourcis clavier | oui | oui | non | oui | oui | non |
+| Raccourcis clavier | oui | oui | non | oui | oui | oui (clavier branché) |
 | Composants React | oui | non | oui (en React Native) | oui | non (`sur apple "Vue.swift"`) | non |
 | Le moteur sans React (par défaut) | oui | non | non | oui (sauf composant React ou `memorisee en secret`) | non | non |
 | Photo, scanner, Face ID, vibration, signature, hors ligne | oui (vibration : Android) | non | non | non | oui | oui |
@@ -3461,6 +3461,13 @@ Tout le langage passe sur Android, comme sur Apple :
 - **Temps réel et hors-ligne** : `en direct`, `avec hors ligne`, les envois `… hors ligne`
   (gardés sur l'appareil, envoyés dans l'ordre au retour du réseau) et `en arriere plan :`
   (lancé par le système environ tous les quarts d'heure, quand le réseau est là).
+- **Mouvement et clavier** : les animations d'entrée et `effet leve` suivent le réglage
+  « supprimer les animations » de l'appareil. Une liste `avec deplacement` se réordonne
+  par un appui long puis en glissant ; TalkBack propose « Monter » et « Descendre ».
+  Avec un clavier branché, les raccourcis de la page marchent. `menu de l'application`
+  devient le menu « ⋮ » en haut de l'application, avec ses raccourcis.
+- **Sources** : une source à clé secrète passe par la passerelle du serveur, avec la
+  session ; la clé ne part jamais avec l'application.
 
 Le CSS se traduit en Compose, règle par règle, quand une règle vise une classe
 (`.carte { … }`) : fond, couleur, taille et graisse du texte, marges et remplissage,

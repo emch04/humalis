@@ -229,6 +229,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.input.key.isAltPressed
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isMetaPressed
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
@@ -424,6 +429,38 @@ fun ImageHumalis(source: String, description: String?, modifier: Modifier = Modi
         return
     }
     Image(lue.asImageBitmap(), description, modifier, contentScale = if (remplir) ContentScale.Crop else ContentScale.Fit)
+}
+
+// ─── Le clavier ────────────────────────────────────────────────────────────
+
+/** « controle+maj+k » : vrai si la touche pressée est celle-là, avec ces modificateurs. Sur Android, « controle » est Ctrl (ou Meta). */
+fun correspond(evenement: androidx.compose.ui.input.key.KeyEvent, touches: String): Boolean {
+    if (evenement.type != androidx.compose.ui.input.key.KeyEventType.KeyDown) return false
+    val morceaux = touches.lowercase().split("+")
+    val touche = morceaux.last()
+    val mods = morceaux.dropLast(1)
+    val controle = mods.any { it in listOf("controle", "ctrl", "commande", "cmd") }
+    val maj = mods.any { it in listOf("maj", "majuscule", "shift") }
+    val alt = mods.any { it in listOf("alt", "option") }
+    if ((evenement.isCtrlPressed || evenement.isMetaPressed) != controle || evenement.isShiftPressed != maj || evenement.isAltPressed != alt) return false
+    val natif = evenement.nativeKeyEvent
+    val code = when (touche) {
+        "entree" -> android.view.KeyEvent.KEYCODE_ENTER
+        "echap" -> android.view.KeyEvent.KEYCODE_ESCAPE
+        "espace" -> android.view.KeyEvent.KEYCODE_SPACE
+        "tab", "tabulation" -> android.view.KeyEvent.KEYCODE_TAB
+        "haut" -> android.view.KeyEvent.KEYCODE_DPAD_UP
+        "bas" -> android.view.KeyEvent.KEYCODE_DPAD_DOWN
+        "gauche" -> android.view.KeyEvent.KEYCODE_DPAD_LEFT
+        "droite" -> android.view.KeyEvent.KEYCODE_DPAD_RIGHT
+        "retour" -> android.view.KeyEvent.KEYCODE_DEL
+        "suppr" -> android.view.KeyEvent.KEYCODE_FORWARD_DEL
+        else -> null
+    }
+    if (code != null) return natif.keyCode == code
+    // Une lettre, un chiffre ou un signe (« / ») : le caractère que la touche écrit, sans les modificateurs.
+    val ecrit = natif.getUnicodeChar(0)
+    return ecrit != 0 && ecrit.toChar().lowercaseChar() == touche.firstOrNull()
 }
 
 // ─── L'état d'une requête ──────────────────────────────────────────────────
