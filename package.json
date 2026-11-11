@@ -22,10 +22,11 @@
     "node": ">=24"
   },
   "scripts": {
-    "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc && rolldown dist/navigateur.js --format esm --minify --file dist/navigateur.js",
+    "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc && rolldown dist/navigateur.js --format esm --minify --file dist/navigateur.js && node scripts/construire-editeur.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "essai:web": "node scripts/essai-web.mjs",
+    "essai:editeur": "node scripts/essai-editeur.mjs",
     "essai:react-hote": "node scripts/essai-react-hote.mjs",
     "essai:serveur": "node scripts/essai-serveur.mjs",
     "essai:lien": "node scripts/essai-lien.mjs",
