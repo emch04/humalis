@@ -1,0 +1,71 @@
+# Produit par scripts/licence-site.mjs depuis LICENSE et LICENSE.en.md :
+# ne pas modifier à la main. Pour changer la licence, modifier ces deux fichiers,
+# puis relancer « npm run site:licence ».
+
+page "licence" a l'adresse "/licence" :
+    apercu :
+        description "La Licence Humalis en entier : ce que tu peux faire librement avec Humalis, ce qui demande un accord écrit, et ce qui t’appartient." en anglais "The full Humalis License: what you may do freely with Humalis, what needs written permission, and what belongs to you."
+    bloc avec style "page-intro" :
+        titre "Licence Humalis — version 1.1" en anglais "Humalis License — version 1.1"
+        texte "Copyright © 2026 Les auteurs de Humalis. Humalis a été créé par emch04. Le texte français de cette licence fait foi ; toute traduction n'est donnée qu'à titre d'information." en anglais "This is a translation for information only. The French text in the LICENSE file is the only authoritative version. Copyright © 2026 The Humalis authors (\"Les auteurs de Humalis\"). Humalis was created by emch04."
+    grille avec colonnes 3 et style "page-section legal-resume" et animation montee au defilement et en cascade :
+        bloc avec style "legal-point" et effet leve :
+            soustitre "Libre" en anglais "Free"
+            texte "Utiliser Humalis, le modifier, et créer, vendre ou héberger tes applications : sans rien demander." en anglais "Use Humalis, change it, and create, sell or host your apps: without asking anyone."
+        bloc avec style "legal-point" et effet leve :
+            soustitre "Avec un accord écrit" en anglais "With written permission"
+            texte "Vendre Humalis lui-même, ou le proposer à d’autres comme service payant." en anglais "Sell Humalis itself, or offer it to others as a paid service."
+        bloc avec style "legal-point" et effet leve :
+            soustitre "Contact" sans traduction
+            texte "Toute demande d’autorisation : contact@humalis.dev." en anglais "Any permission request: contact@humalis.dev."
+    colonne avec style "page-section licence-texte" :
+        soustitre "1. Définitions" en anglais "1. Definitions" avec ancre "article-1"
+        bloc avec style "licence-puces" :
+            liste :
+                texte "Le Logiciel : le compilateur Humalis, ses outils en ligne de commande, son extension d'éditeur, son code source, sa documentation et les fichiers distribués sous cette licence, à l'exclusion des composants de tiers régis par leur propre licence." en anglais "The Software: the Humalis compiler, its command-line tools, its editor extension, its source code, its documentation and the files distributed under this license, excluding third-party components governed by their own licenses."
+                texte "Une Application : un logiciel créé avec le Logiciel, c'est-à-dire les fichiers écrits en Humalis et tout ce que le compilateur génère à partir d'eux, y compris les fichiers d'aide que le compilateur copie dans les projets qu'il produit." en anglais "An Application: software created with the Software, that is, the files written in Humalis and everything the compiler generates from them, including the helper files the compiler copies into the projects it produces."
+                texte "Un Service Humalis : une plateforme ou un service proposé à des tiers, qui leur permet d'écrire en Humalis, de compiler, ou de créer, d'héberger ou de faire fonctionner des Applications au moyen du Logiciel, et dont le Logiciel constitue une fonction essentielle." en anglais "A Humalis Service: a platform or service offered to third parties that lets them write Humalis, compile, or create, host or run Applications by means of the Software, and of which the Software is an essential function."
+                texte "La Commercialisation du Logiciel : vendre, louer ou concéder contre paiement le Logiciel lui-même (une copie, une version modifiée ou renommée), le présenter comme son propre produit, ou proposer un Service Humalis contre paiement, par abonnement, avec de la publicité ou contre tout autre avantage. Ne sont pas une Commercialisation du Logiciel :" en anglais "Commercialisation of the Software: selling, renting or licensing for a fee the Software itself (a copy, a modified or renamed version), presenting it as one's own product, or offering a Humalis Service for a fee, by subscription, with advertising or for any other benefit. The following are not Commercialisation of the Software:"
+                texte "– vendre une Application faite avec Humalis ;" en anglais "– selling an Application made with Humalis;" avec style "licence-sous"
+                texte "– vendre ses services pour créer des Applications avec Humalis, y compris pour un client ;" en anglais "– selling one's services to create Applications with Humalis, including for a client;" avec style "licence-sous"
+                texte "– héberger ou faire fonctionner, gratuitement ou contre paiement, une Application déterminée, pour soi ou pour un client, y compris comme le fait un hébergeur de sites ;" en anglais "– hosting or running, free of charge or for a fee, a specific Application, for oneself or for a client, including as a website host does;" avec style "licence-sous"
+                texte "– proposer un Service Humalis réellement gratuit, sans publicité ni autre contrepartie ;" en anglais "– offering a Humalis Service that is genuinely free, with no advertising or other benefit;" avec style "licence-sous"
+                texte "– enseigner Humalis, écrire ou vendre des livres, des cours ou des formations sur Humalis." en anglais "– teaching Humalis, writing or selling books, courses or training about Humalis." avec style "licence-sous"
+                texte "Une Modification : tout changement apporté au Logiciel, y compris une copie dérivée (« fork »)." en anglais "A Modification: any change made to the Software, including a derived copy (\"fork\")."
+        soustitre "2. Ce que tu as le droit de faire" en anglais "2. What you may do" avec ancre "article-2"
+        texte "Gratuitement, partout dans le monde, à condition de respecter cette licence, tu peux :" en anglais "Free of charge, worldwide, provided you comply with this license, you may:"
+        bloc avec style "licence-lettres" :
+            liste :
+                texte "(a) télécharger, lire, exécuter et utiliser le Logiciel, à titre personnel, éducatif, de recherche, ou dans une entreprise, y compris pour créer des applications commerciales ;" en anglais "(a) download, read, run and use the Software, for personal, educational or research purposes, or in a company, including to create commercial applications;"
+                texte "(b) modifier le Logiciel ;" en anglais "(b) modify the Software;"
+                texte "(c) créer, déployer, distribuer et vendre des Applications, sans rien devoir aux auteurs de Humalis ;" en anglais "(c) create, deploy, distribute and sell Applications, owing nothing to the Humalis authors;"
+                texte "(d) partager gratuitement le Logiciel, tel quel ou modifié, aux conditions suivantes :" en anglais "(d) share the Software free of charge, unmodified or modified, under the following conditions:"
+                texte "– joindre cette licence et les mentions de droits d'auteur ;" en anglais "– include this license and the copyright notices;" avec style "licence-sous"
+                texte "– pour une version modifiée : indiquer clairement qu'elle est modifiée, ne pas l'appeler « Humalis » ni laisser croire qu'elle est la version officielle, et la partager sous cette même licence (elle ne peut donc pas non plus être vendue)." en anglais "– for a modified version: state clearly that it is modified, do not call it \"Humalis\" or imply that it is the official version, and share it under this same license (so it cannot be sold either)." avec style "licence-sous"
+        soustitre "3. Ce qui est interdit" en anglais "3. What is prohibited" avec ancre "article-3"
+        texte "Sans l'accord écrit préalable des auteurs de Humalis, tu ne peux pas :" en anglais "Without the prior written permission of the Humalis authors, you may not:"
+        bloc avec style "licence-lettres" :
+            liste :
+                texte "(a) commercialiser le Logiciel, y compris une version modifiée ou renommée ;" en anglais "(a) commercialise the Software, including a modified or renamed version;"
+                texte "(b) partager une Modification du Logiciel sans respecter les conditions de l'article 2 (d), ou la partager sous une autre licence ;" en anglais "(b) share a Modification of the Software without meeting the conditions of article 2 (d), or share it under another license;"
+                texte "(c) retirer, falsifier ou masquer les mentions de droits d'auteur, d'attribution ou de licence ;" en anglais "(c) remove, falsify or obscure copyright, attribution or license notices;"
+                texte "(d) utiliser le nom « Humalis », son logo ou ses marques d'une façon qui laisse croire à un soutien ou à un statut officiel ;" en anglais "(d) use the \"Humalis\" name, logo or trademarks in a way that suggests sponsorship or official status;"
+                texte "(e) accorder des droits sur le Logiciel à d'autres conditions que celles de cette licence." en anglais "(e) grant rights in the Software on terms other than those of this license."
+        soustitre "4. Ce que tu crées t'appartient" en anglais "4. What you create belongs to you" avec ancre "article-4"
+        texte "Les auteurs de Humalis ne revendiquent aucun droit sur les Applications. Tu peux les modifier, les distribuer et les vendre librement. Les fichiers d'aide que le compilateur copie dans une Application en font partie : tu peux les utiliser, les modifier, les distribuer et les vendre avec elle, sans autre condition. Les interdictions de l'article 3 ne s'appliquent jamais à une Application." en anglais "The Humalis authors claim no rights in Applications. You may modify, distribute and sell them freely. The helper files the compiler copies into an Application are part of it: you may use, modify, distribute and sell them with it, without any other condition. The prohibitions of article 3 never apply to an Application."
+        soustitre "5. Contributions" sans traduction avec ancre "article-5"
+        texte "Proposer une modification ne transfère aucun droit de propriété. Les contributions ne sont acceptées que selon des conditions écrites séparées." en anglais "Proposing a change does not transfer any ownership. Contributions are accepted only under separate written terms."
+        soustitre "6. Propriété et marques" en anglais "6. Ownership and trademarks" avec ancre "article-6"
+        texte "Tous les droits non accordés expressément sont réservés. Cette licence ne transfère aucun droit de propriété, de brevet ou de marque." en anglais "All rights not expressly granted are reserved. This license transfers no ownership, patent or trademark rights."
+        soustitre "7. Fin des droits" en anglais "7. Termination" avec ancre "article-7"
+        texte "Tes droits prennent fin si tu enfreins gravement cette licence et ne corriges pas l'infraction dans les 30 jours suivant un avertissement écrit, lorsque la correction est possible. Les Applications que tu as déjà créées restent à toi." en anglais "Your rights end if you seriously breach this license and do not cure the breach within 30 days of a written notice, where a cure is possible. The Applications you have already created remain yours."
+        soustitre "8. Aucune garantie" en anglais "8. No warranty" avec ancre "article-8"
+        texte "Dans les limites permises par la loi, le Logiciel est fourni « tel quel », sans garantie d'aucune sorte, et les auteurs de Humalis ne sont responsables d'aucun dommage indirect lié à son utilisation. Rien dans cette licence n'exclut une responsabilité que la loi interdit d'exclure." en anglais "To the extent permitted by law, the Software is provided \"as is\", without warranty of any kind, and the Humalis authors are not liable for any indirect damage arising from its use. Nothing in this license excludes liability that the law does not allow to be excluded."
+        soustitre "9. Droit applicable" en anglais "9. Governing law" avec ancre "article-9"
+        texte "Cette licence est régie par le droit français." en anglais "This license is governed by French law."
+        soustitre "10. Versions précédentes et composants de tiers" en anglais "10. Previous versions and third-party components" avec ancre "article-10"
+        texte "Cette licence ne s'applique qu'aux versions publiées sous elle. Les versions publiées sous la licence Apache 2.0 (1.0.0 à 1.0.3) restent sous cette licence. Les composants de tiers gardent leur propre licence." en anglais "This license applies only to the versions released under it. The versions released under the Apache License 2.0 (1.0.0 to 1.0.3) remain under that license. Third-party components keep their own licenses."
+        soustitre "11. Usage non autorisé" en anglais "11. Unauthorised use" avec ancre "article-11"
+        texte "Tout usage du Logiciel contraire à cette licence, notamment sa Commercialisation sans l'accord écrit préalable des auteurs de Humalis, n'est pas autorisé et peut constituer une contrefaçon. Les auteurs de Humalis se réservent le droit d'engager toute action civile ou pénale permise par la loi, pour faire cesser cet usage et obtenir réparation du préjudice subi." en anglais "Any use of the Software contrary to this license, in particular its Commercialisation without the prior written consent of the Humalis authors, is not authorised and may constitute copyright infringement. The Humalis authors reserve the right to bring any civil or criminal action permitted by law to stop such use and obtain compensation for the harm suffered."
+        texte "Toute demande d'autorisation s'adresse à contact@humalis.dev." en anglais "Requests for authorisation should be sent to contact@humalis.dev."
+        lien "Le fichier de la licence sur GitHub ↗" en anglais "The license file on GitHub ↗" vers "https://github.com/emch04/humalis/blob/main/LICENSE" avec nouvel onglet

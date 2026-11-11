@@ -408,6 +408,21 @@ let demarre = false;
 let numero = 0;
 let positions = new Map();
 const MAX_POSITIONS = 200;
+/**
+ * La zone qui défile : la fenêtre, ou la racine quand le CSS du site en fait la zone qui défile
+ * (en-tête fixe au-dessus). Changer de page doit remettre en haut celle qui défile vraiment.
+ */
+function racineDefilante() {
+  const racine = document.getElementById('racine');
+  return racine && /(auto|scroll)/.test(getComputedStyle(racine).overflowY) ? racine : null;
+}
+function positionDefilement() {
+  return racineDefilante()?.scrollTop ?? scrollY;
+}
+function defilerA(position) {
+  scrollTo(0, position);
+  racineDefilante()?.scrollTo(0, position);
+}
 /** La position d'une page de l'historique ; les plus anciennes finissent par être oubliées. */
 function retenirPosition(cle, valeur) {
   positions.delete(cle);
@@ -580,7 +595,7 @@ async function aller(url, { historique = true, remplacer = false, garde } = {}) 
     const { couches, options } = registre.get(adresse);
     if (refuse(options)) return aller(refuse(options), { remplacer, garde: cible.pathname + cible.search });
     if (historique) {
-      retenirPosition(cleEntree, scrollY);
+      retenirPosition(cleEntree, positionDefilement());
       cleEntree = Date.now();
       pousser(cible.href, remplacer, garde ? { apres: garde } : {});
     }
@@ -602,7 +617,7 @@ async function aller(url, { historique = true, remplacer = false, garde } = {}) 
       devoiler();
       marquerLiens();
       const position = historique ? 0 : (positions.get(history.state?.cle) ?? 0);
-      scrollTo(0, position);
+      defilerA(position);
       if (cible.hash) aLAncre();
       const titre = document.querySelector('main h1');
       if (titre && historique) {

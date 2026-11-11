@@ -68,6 +68,7 @@
     "essai:vitrine": "node scripts/essai-vitrine.mjs",
     "site:doc": "node scripts/doc-site.mjs",
     "site:antiseche": "node scripts/antiseche-site.mjs",
+    "site:licence": "node scripts/licence-site.mjs",
     "verifier:produit": "node scripts/verifier-code-produit.mjs",
     "llms": "node --disable-warning=ExperimentalWarning --experimental-loader ./scripts/charger-typescript.mjs scripts/generer-llms.mjs",
     "essai:medias": "node scripts/essai-medias.mjs",
