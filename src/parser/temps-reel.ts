@@ -481,8 +481,10 @@ function appel(flux: FluxTokens, video: boolean): Instruction[] {
   etat.appel ??= ligne;
   etat.reunion ??= ligne;
   return [
+    // L'appel d'avant ne compte plus : si le serveur refuse celui-ci, on reste sur la page.
+    ...phrases('changer hd_appel par rien', ligne),
     envoi('appels', ['appele', 'video'], [contact, { type: 'Booleen', valeur: video, ligne } as Expression], ligne, 'hd_appel'),
-    ...phrases(`rediriger vers "${PAGE_APPEL}"`, ligne),
+    ...phrases(`si hd_appel.id n'est pas vide :\n    rediriger vers "${PAGE_APPEL}"`, ligne),
   ];
 }
 
@@ -521,7 +523,13 @@ export function analyserPhraseTempsReel(flux: FluxTokens): Instruction[] | undef
   if (estLeMot(a, 'raccrocher') && flux.regarder(1).type === 'FIN_LIGNE') {
     const ligne = flux.avancer().ligne;
     etat.appel ??= ligne; etat.reunion ??= ligne;
-    return [envoi('appels_reponse', ['appel', 'reponse'], [champ('hd_appel', 'id', ligne), texte('fin', ligne)], ligne), { type: 'GesteReunion', geste: 'quitter', puis: phrases(REMISE_A_ZERO, ligne), ligne }, ...phrases('revenir', ligne)];
+    // La salle est quittée d'abord : l'annonce « fini » qui revient du serveur ne fait pas revenir une seconde fois.
+    return [
+      ...phrases('changer hd_reunion_salle par ""', ligne),
+      envoi('appels_reponse', ['appel', 'reponse'], [champ('hd_appel', 'id', ligne), texte('fin', ligne)], ligne),
+      { type: 'GesteReunion', geste: 'quitter', puis: phrases(REMISE_A_ZERO, ligne), ligne },
+      ...phrases('revenir', ligne),
+    ];
   }
   if (estLeMot(a, 'rejoindre') && estLeMot(flux.regarder(1), 'reunion')) {
     flux.avancer(); flux.avancer();
@@ -724,7 +732,8 @@ ${barreDeReunion()}
 bouton icone "raccrocher" avec nom "Raccrocher"
 quand l'utilisateur clique sur "Raccrocher" :
     raccrocher`, ligne);
-  const fin = phrases('si hd_appel.etat est egal a "fini" :\n    quitter reunion\n    revenir', ligne);
+  // Seulement si l'on est encore dans l'appel : « raccrocher » a déjà fait revenir.
+  const fin = phrases('si hd_appel.etat est egal a "fini" :\n    si hd_reunion_salle n\'est pas vide :\n        quitter reunion\n        revenir', ligne);
   const entree: Instruction[] = [...rejoindre(champ('hd_appel', 'salle', ligne), ligne), lecture('appels', champ('hd_appel', 'id', ligne), 'hd_appel', ligne, fin)];
   return { type: 'Page', nom: PAGE_APPEL, parametres: [], corps: [corps[0]!, imageReunion(ligne), ...corps.slice(1), { type: 'Evenement', genre: 'chargement', corps: entree, ligne }], ligne };
 }

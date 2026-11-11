@@ -677,8 +677,12 @@ export function monterTempsReel(cible: { use(routes: RequestHandler): unknown },
         const moi = voir(req);
         const corps = req.body as { appele?: unknown; video?: unknown };
         const contact = await compteDe(texteDe(corps.appele));
-        if (!contact?.id || contact.id === moi.id) {
+        if (!contact?.id) {
           res.status(404).json({ erreur: 'Cette personne est introuvable.' });
+          return;
+        }
+        if (contact.id === moi.id) {
+          res.status(400).json({ erreur: 'Vous ne pouvez pas vous appeler vous-même.' });
           return;
         }
         const appel = await appels.creer({ auteur: moi.id, auteurNom: nomDe(moi), appele: contact.id, salle: 'appel-' + randomUUID(), video: corps.video === true, etat: 'sonne', appeleLe: maintenant() });

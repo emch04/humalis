@@ -3,6 +3,8 @@ import { compiler } from '../src/compilateur.js';
 import { genererProjetServeur } from '../src/cibles/serveur/projet.js';
 import { genererProjetMoteur } from '../src/cibles/moteur/projet.js';
 import { verifierTempsReelPourLaCible } from '../src/cibles/temps-reel.js';
+import { genererProjetAndroid } from '../src/cibles/android/projet.js';
+import { genererProjetApple } from '../src/cibles/apple/projet.js';
 
 const SERVEUR = `serveur "agence" :
     roles client et agent
@@ -61,6 +63,22 @@ describe('le temps réel : les phrases', () => {
     expect(JSON.stringify(application.ecrans[0])).toContain('hdAppelEntrant'.length ? 'hd_appel_entrant' : '');
   });
 
+  it('un appel refusé par le serveur n\'ouvre pas la page d\'appel', () => {
+    const { application } = sans(programme('    bouton "Go"\n    quand l\'utilisateur clique sur "Go" :\n        appeler en video "compte-1"'));
+    const clic = JSON.stringify(application.ecrans[0]);
+    // L'appel d'avant est oublié, puis la page ne s'ouvre que si le serveur a rendu un appel.
+    expect(clic.indexOf('"nom":"hd_appel"')).toBeLessThan(clic.indexOf('/api/appels"'));
+    expect(clic).toMatch(/"condition".*hd_appel.*appel_en_cours/);
+  });
+
+  it('raccrocher quitte la salle avant d\'envoyer : l\'annonce « fini » ne fait pas revenir deux fois', () => {
+    const { application } = sans(programme('    bouton "Go"\n    quand l\'utilisateur clique sur "Go" :\n        appeler en video "compte-1"'));
+    const page = JSON.stringify(application.ecrans.find((e) => e.nom === 'appel_en_cours'));
+    const raccrocher = page.slice(page.indexOf('"Raccrocher"'));
+    expect(raccrocher.indexOf('hd_reunion_salle')).toBeLessThan(raccrocher.indexOf('/api/appels_reponse'));
+    expect(page).toMatch(/"fini".*hd_reunion_salle/);
+  });
+
   it('« quand un appel arrive » remplace la sonnerie par défaut', () => {
     const { application } = sans(programme('    quand un appel arrive :\n        afficher appel.auteur_nom\n        decrocher'));
     expect(JSON.stringify(application.ecrans[0])).not.toContain('Appel de');
@@ -111,6 +129,11 @@ describe('le temps réel : le serveur', () => {
     expect(code).toContain('timingSafeEqual');
   });
 
+  it('un départ brutal est annoncé : le serveur surveille les présents tant qu\'une salle est regardée', () => {
+    expect(code).toContain('listRooms()');
+    expect(code).toContain('surveillees');
+  });
+
   it('un rôle « membre » devient celui du pack', () => {
     expect(fichiers.get('src/serveur.ts')).toContain('"entre":["user"]');
   });
@@ -127,11 +150,41 @@ describe('le temps réel : les cibles', () => {
     expect(JSON.parse(f.get('package.json')!).dependencies['livekit-client']).toBeTruthy();
   });
 
+  it('Android porte LiveKit, son dépôt JitPack et la vue des réunions seulement si le programme en a une', () => {
+    const sansReunion = genererProjetAndroid(application, { nom: 'a', source: 'a.humalis' }).fichiers;
+    expect([...sansReunion.keys()].some((f) => f.endsWith('Reunion.kt'))).toBe(false);
+    expect(sansReunion.get('settings.gradle.kts')).not.toContain('jitpack');
+    const avec = genererProjetAndroid(sans(programme('    reunion "conseil"')).application, { nom: 'a', source: 'a.humalis' }).fichiers;
+    const reunion = [...avec.entries()].find(([f]) => f.endsWith('Reunion.kt'))![1];
+    expect(reunion).toContain('LiveKit.create(Appli.contexte, RoomOptions(adaptiveStream = false, dynacast = true))');
+    expect(reunion).toContain('ScreenCaptureParams');
+    expect(avec.get('settings.gradle.kts')).toContain('includeGroup("com.github.davidliu")');
+    expect(avec.get('app/build.gradle.kts')).toContain('io.livekit:livekit-android:2.29.2');
+    expect(avec.get('app/src/main/AndroidManifest.xml')).toContain('android.permission.RECORD_AUDIO');
+    expect(avec.get('app/src/main/AndroidManifest.xml')).toContain('android.permission.MODIFY_AUDIO_SETTINGS');
+  });
+
+  it('Android : la suite d\'une lecture sort par son étiquette, et une pièce jointe part avec la session', () => {
+    const fichiers = genererProjetAndroid(sans(programme('    discussion "support"')).application, { nom: 'a', source: 'a.humalis' }).fichiers;
+    const code = [...fichiers.entries()].filter(([f]) => f.endsWith('.kt')).map(([, c]) => c).join('\n');
+    expect(code).toMatch(/val charger\d+: suspend \(\) -> Unit = charge\d+@\{/);
+    expect(code).not.toMatch(/televerser\([^)]*source = Sources\./);
+  });
+
+  it('Apple : le micro est préparé avant d\'entrer, et éteint en sortant', () => {
+    const { fichiers } = genererProjetApple(sans(programme('    reunion "conseil"')).application, { nom: 'a', source: 'a.humalis' });
+    const reunion = [...fichiers.entries()].find(([f]) => f.endsWith('Reunion.swift'))![1];
+    expect(reunion.indexOf('requestAccess(for: .audio)')).toBeLessThan(reunion.indexOf('nouvelle.connect('));
+    expect(reunion).toContain('setRecordingAlwaysPreparedMode(true)');
+    expect(reunion).toContain('setRecordingAlwaysPreparedMode(false)');
+  });
+
   it('Expo, les pages statiques et React refusent clairement', () => {
     expect(verifierTempsReelPourLaCible(application, 'mobile', undefined)[0]!.message).toContain('--cible apple');
     expect(verifierTempsReelPourLaCible(application, 'statique', undefined)[0]!.message).toContain('--cible web');
     expect(verifierTempsReelPourLaCible(application, 'web', 'react')[0]!.message).toContain('--moteur react');
     expect(verifierTempsReelPourLaCible(application, 'web', 'humalis')).toEqual([]);
     expect(verifierTempsReelPourLaCible(application, 'apple', undefined)).toEqual([]);
+    expect(verifierTempsReelPourLaCible(application, 'android', undefined)).toEqual([]);
   });
 });

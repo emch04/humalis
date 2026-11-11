@@ -32,10 +32,12 @@ interface Cadre {
   fonction: boolean;
   /** L'envoi d'un formulaire : après une erreur, ses champs restent remplis. */
   formulaire?: boolean;
+  /** Dans une fonction anonyme (la suite d'une lecture) : on en sort par son étiquette. */
+  etiquette?: string;
 }
 
 /** Ce qui arrête la suite des actions : une fonction écrite en haut rend « rien ». */
-const sortie = (c: Cadre): string => (c.fonction ? 'return null' : 'return');
+const sortie = (c: Cadre): string => (c.etiquette ? `return@${c.etiquette}` : c.fonction ? 'return null' : 'return');
 
 export class EcrivainActions {
   private numero = 0;
@@ -251,7 +253,8 @@ export class EcrivainActions {
         if (!fichier) return this.hote.refuser(`« envoyer fichier ${a.variable} » : cette variable est inconnue ici`);
         const suivi = a.suivi !== undefined ? this.variable(a.suivi) : undefined;
         const resultat = a.resultat !== undefined ? this.variable(a.resultat) : undefined;
-        const options = [`source = Sources.${nomKotlin(a.source)}`, a.corpsBrut ? 'corpsBrut = true' : `champ = ${chaineKotlin(a.champ)}`, ...(suivi ? [`progression = { ${suivi} = it }`] : [])].join(', ');
+        // Sans source : le serveur Humalis lui-même, avec la session (les pièces jointes d'une discussion).
+        const options = [...(a.source ? [`source = Sources.${nomKotlin(a.source)}`] : []), a.corpsBrut ? 'corpsBrut = true' : `champ = ${chaineKotlin(a.champ)}`, ...(suivi ? [`progression = { ${suivi} = it }`] : [])].join(', ');
         const appel = `Serveur.${c.essai ? 'televerserOuEchouer' : 'televerser'}(${fichier}, ${chaineKotlin(a.adresse)}, ${options})`;
         e.ligne(resultat ? `${appel}?.let { ${resultat} = it }` : appel);
         return;
@@ -461,7 +464,13 @@ export class EcrivainActions {
     };
     // Une lecture sait se rejouer : « recharger » s'en sert.
     if (a.mode !== 'envoyer' && !c.essai) {
-      e.bloc(`val charger${n}: suspend () -> Unit = {`, () => e.ligne(`${appel}?.let { ${resultat} = it }`));
+      // « suite » : ce qui suit chaque lecture réussie (un message arrivé, un appel), relectures en direct comprises.
+      e.bloc(`val charger${n}: suspend () -> Unit = charge${n}@{`, () => {
+        if (!a.suite?.length) return e.ligne(`${appel}?.let { ${resultat} = it }`);
+        e.ligne(`val lu${n} = ${appel} ?: return@charge${n}`);
+        e.ligne(`${resultat} = lu${n}`);
+        this.branche(e, a.suite, { ...c, essai: false, formulaire: false, etiquette: `charge${n}` });
+      });
       e.ligne(`relances[${chaineKotlin(a.resultat!)}] = charger${n}`);
       e.ligne(`charger${n}()`);
       ecouter(`charger${n}`);

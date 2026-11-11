@@ -126,7 +126,7 @@ ${avec.appareil ? `    implementation("androidx.biometric:biometric:${VERSIONS.b
 `;
 }
 
-export function manifeste(reseau: boolean, liens?: { schema: string; domaine?: string }, besoins: { photo?: boolean; position?: boolean; vibration?: boolean; fichiers?: boolean; notifications?: boolean; micro?: boolean; camera?: boolean; ecranCapture?: boolean } = {}, formes?: { activite: string; application: string; permissions: string[] }): string {
+export function manifeste(reseau: boolean, liens?: { schema: string; domaine?: string }, besoins: { photo?: boolean; position?: boolean; vibration?: boolean; fichiers?: boolean; notifications?: boolean; micro?: boolean; camera?: boolean; ecranCapture?: boolean; audio?: boolean } = {}, formes?: { activite: string; application: string; permissions: string[] }): string {
   const permissions = [...new Set([
     ...(reseau ? ['android.permission.INTERNET'] : []),
     ...(besoins.vibration ? ['android.permission.VIBRATE'] : []),
@@ -134,6 +134,8 @@ export function manifeste(reseau: boolean, liens?: { schema: string; domaine?: s
     ...(besoins.notifications ? ['android.permission.POST_NOTIFICATIONS'] : []),
     ...(besoins.micro ? ['android.permission.RECORD_AUDIO'] : []),
     ...(besoins.camera ? ['android.permission.CAMERA'] : []),
+    // Les réunions : la sortie du son (haut-parleur, écouteurs) se règle pendant l'appel.
+    ...(besoins.audio ? ['android.permission.MODIFY_AUDIO_SETTINGS'] : []),
     ...(formes?.permissions ?? []),
   ])];
   const service = besoins.notifications
