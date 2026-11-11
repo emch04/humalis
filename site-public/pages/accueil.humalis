@@ -68,7 +68,7 @@ page "accueil" :
                 soustitre "Windows" en anglais "Windows" avec niveau 3
                 texte "C# et WPF natif" en anglais "Native C# and WPF"
             bloc avec style "target-card" :
-                icone "boite" avec decoratif
+                bloc avec style "logo-linux"
                 soustitre "Linux" en anglais "Linux" avec niveau 3
                 texte "Application Electron" en anglais "Electron app"
             bloc avec style "target-card" :
