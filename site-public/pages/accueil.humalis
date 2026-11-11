@@ -72,7 +72,7 @@ page "accueil" :
                 soustitre "Linux" en anglais "Linux" avec niveau 3
                 texte "Application Electron" en anglais "Electron app"
             bloc avec style "target-card" :
-                icone "bouclier" avec decoratif
+                bloc avec style "logo-serveur"
                 soustitre "Serveur" en anglais "Server" avec niveau 3
                 texte "Données, comptes, temps réel" en anglais "Data, accounts, real time"
     bloc avec style "section features" :
