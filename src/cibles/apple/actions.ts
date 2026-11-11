@@ -582,7 +582,11 @@ export class EcrivainActions {
     if (lecture && (suivie || a.direct) && !c.essai) {
       const charge = `charger${this.numero}`;
       e.bloc(`let ${charge}: @MainActor () async -> Void = {`, () => {
-        e.bloc(`if let ${nom} = ${appel} {`, () => e.ligne(`${resultat.code} = ${nom}`));
+        // « suite » : ce qui suit chaque lecture réussie (un message arrivé, un appel), relectures en direct comprises.
+        e.bloc(`if let ${nom} = ${appel} {`, () => {
+          e.ligne(`${resultat.code} = ${nom}`);
+          if (a.suite) this.suite(e, a.suite, { ...c, essai: false, formulaire: false }, modifies(a.suite));
+        });
       });
       if (suivie) e.ligne(`relances[${chaineSwift(a.resultat!)}] = ${charge}`);
       e.ligne(`await ${charge}()`);
@@ -664,12 +668,13 @@ export class EcrivainActions {
     const suivi = a.suivi !== undefined ? this.variable(a.suivi) : undefined;
     const resultat = a.resultat !== undefined ? this.variable(a.resultat) : undefined;
     const options = [
-      `source: Sources.${nomSwift(a.source)}`,
+      // Sans source : le serveur Humalis lui-même, avec la session (les pièces jointes d'une discussion).
+      a.source ? `source: Sources.${nomSwift(a.source)}` : 'source: nil',
       a.corpsBrut ? 'corpsBrut: true' : `champ: ${chaineSwift(a.champ)}`,
       ...(suivi ? [`progression: { ${suivi.code} = $0 }`] : []),
     ].join(', ');
     const type = resultat ? this.v.types.swift(resultat.type) : 'ValeurHumalis';
-    const appel = `await Serveur.commun.televerser(${fichier.code}, vers: ${chaineSwift(a.adresse)}, comme: ${type}.self, ${options})`;
+    const appel = `await Serveur.commun.televerser(${fichier.code}, vers: ${chaineSwift(a.source ? a.adresse : '/' + a.adresse.replace(/^\/+/, ''))}, comme: ${type}.self, ${options})`;
     if (c.essai) {
       const lu = `try ${appel.replace('televerser(', 'televerserOuEchouer(')}`;
       if (resultat) e.bloc(`if let reponse = ${lu} {`, () => e.ligne(`${resultat.code} = reponse`));

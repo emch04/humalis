@@ -3,6 +3,7 @@
  * une seule application native pour iPhone, iPad et Mac, sans navigateur
  * embarqué. Comme la cible web écrit du React, celle-ci écrit du Swift lisible.
  */
+import { avecReunion, PAQUET_LIVEKIT, REUNION_SWIFT } from './temps-reel.js';
 import type { TypeValeur } from '../../ri/types.js';
 import type { Diagnostic } from '../../analyse/erreurs.js';
 import { simplifier } from '../../analyse/elements.js';
@@ -1136,6 +1137,7 @@ export function genererProjetApple(application: Application, options: OptionsApp
   ecrire('Humalis/Couleurs.swift', couleursSwift(application.theme));
   ecrire('Humalis/Messages.swift', MESSAGES_SWIFT);
   ecrire('Humalis/Systeme.swift', SYSTEME_SWIFT);
+  if (avecReunion(application)) ecrire('Humalis/Reunion.swift', REUNION_SWIFT);
   ecrire('Humalis/Minuteries.swift', MINUTERIES_SWIFT);
   ecrire('Humalis/Memoire.swift', MEMOIRE_SWIFT);
   const reseau = /\b(Serveur\.commun|Session\.commun|GardeHumalis)\b/.test(pagesCode);
@@ -1170,7 +1172,9 @@ export function genererProjetApple(application: Application, options: OptionsApp
   for (const [chemin, contenu] of assets(octetsLogo !== undefined, marqueDe(application.theme))) ecrire(chemin, contenu);
   if (octetsLogo !== undefined) ecrire('Assets.xcassets/AppIcon.appiconset/icone.png', contenuBinaire(octetsLogo));
   const avecFichiers = /\b(ChoixFichierHumalis|prendrePhoto)\b|\bawait scannerDocument\(/.test(tout);
-  const appareilsCaptures = besoinsCaptures(tout);
+  // Une réunion prend la caméra et le micro.
+  const reunion = avecReunion(application);
+  const appareilsCaptures = reunion ? { ...besoinsCaptures(tout), camera: true, micro: true } : besoinsCaptures(tout);
   const avecPosition = /\blirePosition\(/.test(tout);
   // Sans équipe, l'application ne peut pas être signée avec ce droit : elle ne se construirait plus.
   const domaineLiens = options.equipe ? application.liensProfonds?.domaine : undefined;
@@ -1200,7 +1204,7 @@ export function genererProjetApple(application: Application, options: OptionsApp
   for (const adresse of new Set(adresses)) {
     if (/^http:\/\//i.test(adresse) && !/^http:\/\/(localhost|127\.0\.0\.1)([:/]|$)/i.test(adresse)) avertir(1, `l'application Apple ne peut pas appeler « ${adresse} » : le système bloque http://. Utilisez https://.`);
   }
-  fichiers.set('Info.plist', infoSupplementaire(serveurLocal, { camera: /\b(prendrePhoto|scannerCode)\(/.test(tout) || appareilsCaptures.camera, micro: appareilsCaptures.micro, identite: /\bverifierIdentite\(/.test(tout), position: avecPosition, ...(application.liensProfonds ? { liens: { schema: application.liensProfonds.schema, identifiant: identifiantApp } } : {}), ...(avecArrierePlan ? { arrierePlan: identifiantFond } : {}), ...(formes?.schemaInterne ? { schemaInterne: formes.schemaInterne } : {}), ...(formes?.infos ? { formes: formes.infos } : {}) }));
+  fichiers.set('Info.plist', infoSupplementaire(serveurLocal, { reunion, camera: /\b(prendrePhoto|scannerCode)\(/.test(tout) || appareilsCaptures.camera, micro: appareilsCaptures.micro, identite: /\bverifierIdentite\(/.test(tout), position: avecPosition, ...(application.liensProfonds ? { liens: { schema: application.liensProfonds.schema, identifiant: identifiantApp } } : {}), ...(avecArrierePlan ? { arrierePlan: identifiantFond } : {}), ...(formes?.schemaInterne ? { schemaInterne: formes.schemaInterne } : {}), ...(formes?.infos ? { formes: formes.infos } : {}) }));
   fichiers.set(
     `${nom}.xcodeproj/project.pbxproj`,
     projetXcode({
@@ -1210,7 +1214,7 @@ export function genererProjetApple(application: Application, options: OptionsApp
       ...(options.equipe ? { equipe: options.equipe } : {}),
       icone: octetsLogo !== undefined,
       serveurLocal,
-      paquets: paquetsDe(application, refuser),
+      paquets: [...paquetsDe(application, refuser), ...(reunion ? [PAQUET_LIVEKIT] : [])],
       droitsMac: (notifications || jetonActivite) && options.equipe !== undefined,
       essaisUi: options.essaisUi !== undefined,
       fichiers: avecFichiers,
