@@ -328,6 +328,7 @@ function ecrire(sortie: string, produits: Map<string, string>, kotlin?: OptionsL
   const fichiers = appliquerLignesHumalis(produits, {
     fichiers: fichiersDuProjet.length > 0 ? fichiersDuProjet : [cheminPrincipal ? basename(cheminPrincipal) : 'programme.humalis'],
     versLesSources: relative(resolve(sortie), dossierSource).split('\\').join('/') || '.',
+    dossierAbsolu: dossierSource,
     lire: (fichier) => {
       try { return readFileSync(join(dossierSource, fichier), 'utf8'); } catch { return undefined; }
     },

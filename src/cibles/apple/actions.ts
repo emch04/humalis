@@ -109,6 +109,8 @@ export class EcrivainActions {
   }
 
   private action(e: Ecrivain, a: Action, c: Cadre, vars: Set<string>): void {
+    // La ligne Humalis de l'action : #sourceLocation dans le projet écrit (voir lignes-humalis.ts).
+    e.repere(a.ligne);
     switch (a.type) {
       case 'affectation':
         return this.affectation(e, a);

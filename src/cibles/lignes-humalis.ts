@@ -66,6 +66,8 @@ export const sansReperes = (code: string): string => code.replace(MOTIF, '');
 export interface Segment {
   colonne: number;
   ligne: number;
+  /** Vrai pour un repère écrit par le générateur (le début d'une action), faux pour une ligne de sa portée. */
+  repere?: boolean;
 }
 
 export interface CodeLu {
@@ -89,7 +91,7 @@ export function lireReperes(code: string): CodeLu {
     let dernier = 0;
     for (const trouve of brute.matchAll(MOTIF)) {
       nette += brute.slice(dernier, trouve.index);
-      reperes.push({ colonne: nette.length, ligne: Number(trouve[1]) });
+      reperes.push({ colonne: nette.length, ligne: Number(trouve[1]), repere: true });
       dernier = trouve.index! + trouve[0].length;
     }
     nette += brute.slice(dernier);
@@ -291,7 +293,7 @@ function commenceUneInstruction(contenu: string, precedente: string): boolean {
   return !/[,(\[=+\-*/&|?:.]$|\breturn$/.test(precedente);
 }
 
-export function versSwift(lu: CodeLu, fichiers: readonly string[], chemin: (fichier: string) => string): string {
+export function versSwift(lu: CodeLu, fichiers: readonly string[], chemin: (fichier: string) => string, suivre = false): string {
   const lignes = lu.code.split('\n');
   const couvertes = lignesCouvertes(lu.segments);
   const sortie: string[] = [];
@@ -310,6 +312,8 @@ export function versSwift(lu: CodeLu, fichiers: readonly string[], chemin: (fich
       if (situe) {
         sortie.push(`${retrait}#sourceLocation(file: ${guillemets(chemin(situe.fichier))}, line: ${situe.ligne})`);
         active = voulue;
+        // La capture des erreurs fatales lit la dernière ligne Humalis commencée (un signal ne peut rien lire d'autre).
+        if (suivre && lu.segments[i]![0]?.repere && lu.segments[i]![0]!.colonne === retrait.length) sortie.push(`${retrait}HumalisLignes.ici = ${voulue}`);
       } else {
         sortie.push(`${retrait}#sourceLocation()`);
         active = 0;
@@ -395,6 +399,8 @@ export interface OptionsLignes {
   kotlin?: { paquet: string; dossier: string };
   /** Faux : les cartes ne portent pas le texte des fichiers Humalis (un site publié tel quel). */
   contenus?: boolean;
+  /** Le chemin absolu du dossier des fichiers Humalis : Swift l'écrit dans `#sourceLocation`, pour le débogueur. */
+  dossierAbsolu?: string;
 }
 
 const dossierDe = (chemin: string) => (chemin.includes('/') ? chemin.slice(0, chemin.lastIndexOf('/')) : '');
@@ -423,6 +429,9 @@ export function appliquerLignesHumalis(fichiers: Map<string, string>, options: O
   const racine = options.versLesSources.replace(/\/+$/, '');
   const versSource = (fichier: string) => (racine === '' || racine === '.' ? fichier : `${racine}/${fichier}`);
   const tablesKotlin: { fichier: string; plages: [number, number, number, number][] }[] = [];
+  // Une application Apple qui capture ses erreurs suit la dernière ligne Humalis commencée.
+  const captureSwift = [...fichiers.keys()].find((c) => c.endsWith('.swift') && fichiers.get(c)!.includes('enum HumalisLignes'));
+  const suivreSwift = captureSwift !== undefined;
   const indexKotlin = new Map<string, number>();
   for (const [chemin, brut] of fichiers) {
     // Le module Vite des lignes apprend ici où sont les fichiers Humalis.
@@ -450,7 +459,8 @@ export function appliquerLignesHumalis(fichiers: Map<string, string>, options: O
       resultat.set(chemin, lu.code);
       resultat.set(`${chemin}.map`, JSON.stringify(carteDeSources(nom, lu.segments, options.fichiers, (f) => depuis(dossier, versSource(f)), options.contenus === false ? undefined : options.lire)));
     } else if (langage === 'swift') {
-      resultat.set(chemin, versSwift(lu, options.fichiers, (f) => f));
+      const absolu = (f: string) => (options.dossierAbsolu ? `${options.dossierAbsolu.replace(/\/+$/, '')}/${f}` : f);
+      resultat.set(chemin, versSwift(lu, options.fichiers, absolu, suivreSwift));
     } else if (langage === 'csharp') {
       resultat.set(chemin, versCSharp(lu, options.fichiers, (f) => f));
     } else {
@@ -465,6 +475,10 @@ export function appliquerLignesHumalis(fichiers: Map<string, string>, options: O
       });
       if (plages.length > 0) tablesKotlin.push({ fichier: nomDe(chemin), plages });
     }
+  }
+  if (captureSwift) {
+    // La table des fichiers Humalis de la capture Apple : connue seulement ici.
+    resultat.set(captureSwift, resultat.get(captureSwift)!.replace('[/*@humalis-fichiers*/]', `[${options.fichiers.map(guillemets).join(', ')}]`));
   }
   if (options.kotlin) {
     resultat.set(`${options.kotlin.dossier}/HumalisLignes.kt`, tableKotlin(options.kotlin.paquet, [...indexKotlin.keys()], tablesKotlin));
