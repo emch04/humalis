@@ -46,6 +46,7 @@ qui t'intéresse.
 33. [Ce que chaque cible sait faire](#33-ce-que-chaque-cible-sait-faire)
 34. [Capturer les erreurs de l’application](#34-capturer-les-erreurs-de-lapplication)
 35. [Enregistrer et recadrer des médias](#35-enregistrer-et-recadrer-des-médias)
+36. [Déboguer](#36-déboguer)
 
 ---
 
@@ -4169,7 +4170,7 @@ reconstruis le site après une suppression importante.
 
 ## 34. Capturer les erreurs de l’application
 
-Placez cette forme en haut du fichier. Le bloc reçoit `erreur.message`, `erreur.pile`, `erreur.page` et `erreur.version`.
+Placez cette forme en haut du fichier. Le bloc reçoit `erreur.message`, `erreur.pile`, `erreur.ligne` (la ligne Humalis, `boutique.humalis:12`), `erreur.page` et `erreur.version`.
 
 ```humalis
 quand une erreur arrive :
@@ -4212,3 +4213,66 @@ Chaque enregistrement ouvre un écran avec la durée, Démarrer, Arrêter, la r�
 - **Windows** : le son est un `.m4a`, la vidéo un `.mp4`, sans paquet MSIX. Si la personne refuse le micro ou la caméra aux applications de bureau, dans Paramètres, Confidentialité, elle lit un message clair.
 
 Un document scanné est toujours un PDF ; `facture.apercu` montre l’image de sa première page.
+
+## 36. Déboguer
+
+### Une erreur montre sa ligne Humalis
+
+Quand une erreur arrive pendant que l’application tourne, elle nomme la ligne de ton fichier, pas une ligne du code produit :
+
+```
+Erreur, ligne 12 de boutique.humalis : Cannot read properties of null (reading 'prix')
+```
+
+C’est vrai sur chaque cible : la console du navigateur (site et bureau), le terminal du serveur, Logcat sur Android, la fenêtre Sortie de Visual Studio sur Windows, les rapports de plantage et le débogueur sur Apple. Dans `quand une erreur arrive`, `erreur.ligne` donne cette ligne (`boutique.humalis:12`) et `erreur.pile` nomme les lignes Humalis traversées.
+
+### Noter une valeur
+
+`noter` écrit des valeurs dans la console du développement, avec la ligne qui les note :
+
+```humalis
+page "panier" :
+    variable panier = ["Livre", "Stylo"]
+    variable total = 42.5
+    bouton "Payer"
+    quand l'utilisateur clique sur "Payer" :
+        noter panier et total
+        noter "Après paiement" et total * 2
+```
+
+La console montre `[boutique.humalis:6] panier = ["Livre", "Stylo"] ; total = 42,5`. Un texte entre guillemets s’écrit tel quel. `noter` s’écrit dans un événement, une fonction ou une action du serveur.
+
+En production, `noter` n’écrit rien : le site construit ne contient plus l’appel, une application Release non plus, et le serveur se tait quand `NODE_ENV` vaut `production`. Pendant le développement, les notes vont dans la console du navigateur, le terminal du serveur, la console de Xcode, Logcat (étiquette `Humalis`) ou la fenêtre Sortie de Visual Studio.
+
+### L’inspecteur
+
+Avec `humalis developper`, un bouton rond en bas à droite de la page ouvre l’inspecteur (ou Alt + Maj + I). Il montre en direct :
+
+- les variables de la page et leur valeur ;
+- les requêtes au serveur, avec ce qui est envoyé et la réponse ;
+- les droits refusés (réponses 401 et 403) et leur message ;
+- les notes et les erreurs.
+
+Chaque ligne citée s’ouvre dans VS Code. L’inspecteur n’existe qu’en développement : il n’entre jamais dans un site produit.
+
+### Le débogueur dans VS Code
+
+L’extension Humalis pour VS Code pose les points d’arrêt dans tes fichiers `.humalis`. Ouvre le fichier, clique dans la marge pour poser un point d’arrêt, puis appuie sur F5 (ou « Humalis : Déboguer ce fichier »). Le programme s’arrête sur la ligne ; tu avances pas à pas, d’une ligne Humalis à l’autre, et tu lis les variables.
+
+Dans `.vscode/launch.json`, `cible` choisit ce qui est débogué :
+
+```json
+{
+  "type": "humalis",
+  "request": "launch",
+  "name": "Le serveur",
+  "cible": "serveur",
+  "programme": "${workspaceFolder}/boutique.humalis"
+}
+```
+
+- `"web"` : le site, servi par `humalis developper` et ouvert dans Chrome (`"navigateur": "edge"` pour Edge) ;
+- `"serveur"` : le serveur, lancé dans Node ;
+- `"apple"` : l’application Mac, construite par Xcode et lancée par lldb (avec `"equipe"` pour la signature).
+
+Android et Windows n’ont pas encore de débogueur dans VS Code : sur Windows, Visual Studio suit les lignes Humalis du projet produit ; sur Android, les erreurs nomment leur ligne Humalis, mais Android Studio ne s’arrête pas dans un fichier `.humalis`.

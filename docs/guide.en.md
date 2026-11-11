@@ -53,6 +53,7 @@ its own.
 33. [What each target can do](#33-what-each-target-can-do)
 34. [Capture application errors](#34-capture-application-errors)
 35. [Recording and cropping media](#35-recording-and-cropping-media)
+36. [Debugging](#36-debugging)
 
 [French keywords at a glance](#french-keywords-at-a-glance)
 
@@ -4240,7 +4241,7 @@ site after an important deletion.
 
 ## 34. Capture application errors
 
-Place this form at the top of the file. Its body receives `erreur.message`, `erreur.pile`, `erreur.page`, and `erreur.version`.
+Place this form at the top of the file. Its body receives `erreur.message`, `erreur.pile`, `erreur.ligne` (the Humalis line, `boutique.humalis:12`), `erreur.page`, and `erreur.version`.
 
 ```humalis
 quand une erreur arrive :
@@ -4260,6 +4261,69 @@ Each recording opens a screen with the duration, Start, Stop, playback, Start ov
 - **Windows**: sound is an `.m4a` and video an `.mp4`, with no MSIX package. If the microphone or camera is denied to desktop apps in Settings, Privacy, the person reads a clear message.
 
 A scanned document is always a PDF; `facture.apercu` shows an image of its first page.
+
+## 36. Debugging
+
+### An error shows its Humalis line
+
+When an error happens while the application runs, it names the line of your file, not a line of the generated code:
+
+```
+Erreur, ligne 12 de boutique.humalis : Cannot read properties of null (reading 'prix')
+```
+
+This holds on every target: the browser console (site and desktop), the server terminal, Logcat on Android, the Visual Studio Output window on Windows, crash reports and the debugger on Apple. Inside `quand une erreur arrive`, `erreur.ligne` gives that line (`boutique.humalis:12`) and `erreur.pile` names the Humalis lines it went through.
+
+### Logging a value
+
+`noter` writes values to the development console, with the line that logs them:
+
+```humalis
+page "panier" :
+    variable panier = ["Livre", "Stylo"]
+    variable total = 42.5
+    bouton "Payer"
+    quand l'utilisateur clique sur "Payer" :
+        noter panier et total
+        noter "Après paiement" et total * 2
+```
+
+The console shows `[boutique.humalis:6] panier = ["Livre", "Stylo"] ; total = 42,5`. A quoted text is written as is. `noter` goes inside an event, a function, or a server action.
+
+In production, `noter` writes nothing: the built site no longer contains the call, neither does a Release app, and the server stays silent when `NODE_ENV` is `production`. During development, notes go to the browser console, the server terminal, the Xcode console, Logcat (tag `Humalis`), or the Visual Studio Output window.
+
+### The inspector
+
+With `humalis developper`, a round button at the bottom right of the page opens the inspector (or Alt + Shift + I). It shows live:
+
+- the page variables and their values;
+- the requests to the server, with what was sent and the response;
+- denied permissions (401 and 403 responses) and their message;
+- notes and errors.
+
+Each line it mentions opens in VS Code. The inspector exists only in development: it never goes into a built site.
+
+### The debugger in VS Code
+
+The Humalis extension for VS Code sets breakpoints in your `.humalis` files. Open the file, click in the gutter to set a breakpoint, then press F5 (or "Humalis: Debug this file"). The program stops on the line; you step from one Humalis line to the next and read the variables.
+
+In `.vscode/launch.json`, `cible` picks what is debugged:
+
+```json
+{
+  "type": "humalis",
+  "request": "launch",
+  "name": "The server",
+  "cible": "serveur",
+  "programme": "${workspaceFolder}/boutique.humalis"
+}
+```
+
+- `"web"`: the site, served by `humalis developper` and opened in Chrome (`"navigateur": "edge"` for Edge);
+- `"serveur"`: the server, run in Node;
+- `"apple"`: the Mac app, built by Xcode and run by lldb (with `"equipe"` for signing).
+
+Android and Windows have no debugger in VS Code yet: on Windows, Visual Studio follows the Humalis lines of the generated project; on Android, errors name their Humalis line, but Android Studio does not stop inside a `.humalis` file.
 
 ## French keywords at a glance
 
@@ -4292,6 +4356,7 @@ A scanned document is always a PDF; `facture.apercu` shows an image of its first
 | `envoyer requete vers … dans … avec` | send a request to … into … with |
 | `essayer`, `si erreur` | try, if error |
 | `confirmer`, `copier`, `partager` | confirm, copy, share |
+| `noter` | log (development console only) |
 | `apres … secondes`, `toutes les … secondes` | after … seconds, every … seconds |
 | `partagee`, `memorisee` | shared, remembered |
 | `serveur`, `donnee`, `route`, `source` | server, data type, route, external API |

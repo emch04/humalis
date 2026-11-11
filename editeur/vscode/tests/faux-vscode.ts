@@ -159,3 +159,52 @@ export function fauxDocument(chemin: string, texte: string) {
     }),
   };
 }
+
+// ─── Le débogage (src/debogage.ts) ──────────────────────────────────────
+
+export const debogage: { fournisseurs: { type: string; fournisseur: any; declencheur?: number }[]; adaptateurs: Record<string, any>; commandes: Record<string, (...args: any[]) => unknown>; lances: any[] } = { fournisseurs: [], adaptateurs: {}, commandes: {}, lances: [] };
+
+export const DebugConfigurationProviderTriggerKind = { Initial: 1, Dynamic: 2 };
+export const ProgressLocation = { Notification: 15 };
+
+export class DebugAdapterExecutable {
+  constructor(
+    public command: string,
+    public args: string[] = [],
+  ) {}
+}
+
+export const window = {
+  activeTextEditor: undefined as any,
+  messages: [] as string[],
+  createOutputChannel: () => ({ append() {}, appendLine() {}, show() {}, dispose() {} }),
+  showErrorMessage: (message: string) => { window.messages.push(message); return Promise.resolve(undefined); },
+  showInformationMessage: (message: string) => { window.messages.push(message); return Promise.resolve(undefined); },
+  showQuickPick: () => Promise.resolve(undefined),
+  withProgress: (_options: unknown, travail: (progres: { report(): void }, jeton: { isCancellationRequested: boolean; onCancellationRequested(): void }) => unknown) => travail({ report() {} }, { isCancellationRequested: false, onCancellationRequested() {} }),
+};
+
+export const debug = {
+  registerDebugConfigurationProvider: (type: string, fournisseur: unknown, declencheur?: number) => {
+    debogage.fournisseurs.push({ type, fournisseur, ...(declencheur !== undefined ? { declencheur } : {}) });
+    return { dispose() {} };
+  },
+  registerDebugAdapterDescriptorFactory: (type: string, fabrique: unknown) => {
+    debogage.adaptateurs[type] = fabrique;
+    return { dispose() {} };
+  },
+  onDidTerminateDebugSession: () => ({ dispose() {} }),
+  startDebugging: (_dossier: unknown, config: unknown) => {
+    debogage.lances.push(config);
+    return Promise.resolve(true);
+  },
+};
+
+export const commands = {
+  registerCommand: (nom: string, action: (...args: any[]) => unknown) => {
+    debogage.commandes[nom] = action;
+    return { dispose() {} };
+  },
+};
+
+export const extensions = { getExtension: () => undefined };

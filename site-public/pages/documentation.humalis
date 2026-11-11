@@ -42,7 +42,8 @@ page "documentation" a l'adresse "/documentation" :
             lien "33. Ce que chaque cible sait faire" en anglais "33. What each target can do" vers "documentation_33"
             lien "34. Capturer les erreurs de l’application" en anglais "34. Capture application errors" vers "documentation_34"
             lien "35. Enregistrer et recadrer des médias" en anglais "35. Recording and cropping media" vers "documentation_35"
-            lien "Les mots-clés de Humalis en anglais" en anglais "French keywords at a glance" vers "documentation_36"
+            lien "36. Déboguer" en anglais "36. Debugging" vers "documentation_36"
+            lien "Les mots-clés de Humalis en anglais" en anglais "French keywords at a glance" vers "documentation_37"
         bloc avec style "doc-contenu" :
             sous page
 
@@ -85,7 +86,8 @@ page "documentation_sommaire" dans "documentation" adresse "/documentation" :
         lien "Ce que chaque cible sait faire" en anglais "What each target can do" vers "documentation_33"
         lien "Capturer les erreurs de l’application" en anglais "Capture application errors" vers "documentation_34"
         lien "Enregistrer et recadrer des médias" en anglais "Recording and cropping media" vers "documentation_35"
-        lien "Les mots-clés de Humalis en anglais" en anglais "French keywords at a glance" vers "documentation_36"
+        lien "Déboguer" en anglais "Debugging" vers "documentation_36"
+        lien "Les mots-clés de Humalis en anglais" en anglais "French keywords at a glance" vers "documentation_37"
 
 page "documentation_1" dans "documentation" adresse "/documentation/installer-et-creer-un-projet" :
     apercu :
@@ -5579,16 +5581,16 @@ page "documentation_33" dans "documentation" adresse "/documentation/ce-que-chaq
 
 page "documentation_34" dans "documentation" adresse "/documentation/capturer-les-erreurs-de-l-application" :
     apercu :
-        description "Placez cette forme en haut du fichier. Le bloc reçoit erreur.message, erreur.pile, erreur.page et erreur.version." en anglais "Place this form at the top of the file. Its body receives erreur.message, erreur.pile, erreur.page, and erreur.version."
+        description "Placez cette forme en haut du fichier. Le bloc reçoit erreur.message, erreur.pile, erreur.ligne (la ligne Humalis, boutique.humalis:12), erreur.page et…" en anglais "Place this form at the top of the file. Its body receives erreur.message, erreur.pile, erreur.ligne (the Humalis line, boutique.humalis:12), erreur.page,…"
     titre "34. Capturer les erreurs de l’application" en anglais "34. Capture application errors"
     si langue est anglais :
-        texte "Place this form at the top of the file. Its body receives `erreur.message`, `erreur.pile`, `erreur.page`, and `erreur.version`."
+        texte "Place this form at the top of the file. Its body receives `erreur.message`, `erreur.pile`, `erreur.ligne` (the Humalis line, `boutique.humalis:12`), `erreur.page`, and `erreur.version`."
         code humalis :
             quand une erreur arrive :
                 envoyer requete vers "https://centrale.exemple.fr/v1/envoi" avec message = erreur.message et pile = erreur.pile
         texte "The capture uses each target's native error hooks. Fatal Apple and Android errors are saved and sent on the next launch. The same form can appear inside `serveur "api" :`. HTTPS requests time out after three seconds; sending failures are swallowed, and the same error is limited to three reports per minute. Passwords, secrets, URL parameters, and form contents are not sent."
     sinon :
-        texte "Placez cette forme en haut du fichier. Le bloc reçoit `erreur.message`, `erreur.pile`, `erreur.page` et `erreur.version`."
+        texte "Placez cette forme en haut du fichier. Le bloc reçoit `erreur.message`, `erreur.pile`, `erreur.ligne` (la ligne Humalis, `boutique.humalis:12`), `erreur.page` et `erreur.version`."
         code humalis :
             quand une erreur arrive :
                 envoyer requete vers "https://centrale.exemple.fr/v1/envoi" avec message = erreur.message et pile = erreur.pile
@@ -5639,9 +5641,101 @@ page "documentation_35" dans "documentation" adresse "/documentation/enregistrer
         texte "Un document scanné est toujours un PDF ; `facture.apercu` montre l’image de sa première page."
     ligne avec style "doc-suite" :
         lien "← 34. Capturer les erreurs de l’application" en anglais "← 34. Capture application errors" vers "documentation_34"
-        lien "Les mots-clés de Humalis en anglais →" en anglais "French keywords at a glance →" vers "documentation_36"
+        lien "36. Déboguer →" en anglais "36. Debugging →" vers "documentation_36"
 
-page "documentation_36" dans "documentation" adresse "/documentation/mots-cles-de-humalis-en-anglais" :
+page "documentation_36" dans "documentation" adresse "/documentation/deboguer" :
+    apercu :
+        description "Quand une erreur arrive pendant que l’application tourne, elle nomme la ligne de ton fichier, pas une ligne du code produit :" en anglais "When an error happens while the application runs, it names the line of your file, not a line of the generated code:"
+    titre "36. Déboguer" en anglais "36. Debugging"
+    si langue est anglais :
+        soustitre "An error shows its Humalis line"
+        texte "When an error happens while the application runs, it names the line of your file, not a line of the generated code:"
+        code :
+            Erreur, ligne 12 de boutique.humalis : Cannot read properties of null (reading 'prix')
+        texte "This holds on every target: the browser console (site and desktop), the server terminal, Logcat on Android, the Visual Studio Output window on Windows, crash reports and the debugger on Apple. Inside `quand une erreur arrive`, `erreur.ligne` gives that line (`boutique.humalis:12`) and `erreur.pile` names the Humalis lines it went through."
+        soustitre "Logging a value"
+        texte "`noter` writes values to the development console, with the line that logs them:"
+        code humalis :
+            page "panier" :
+                variable panier = ["Livre", "Stylo"]
+                variable total = 42.5
+                bouton "Payer"
+                quand l'utilisateur clique sur "Payer" :
+                    noter panier et total
+                    noter "Après paiement" et total * 2
+        texte "The console shows `[boutique.humalis:6] panier = ["Livre", "Stylo"] ; total = 42,5`. A quoted text is written as is. `noter` goes inside an event, a function, or a server action."
+        texte "In production, `noter` writes nothing: the built site no longer contains the call, neither does a Release app, and the server stays silent when `NODE_ENV` is `production`. During development, notes go to the browser console, the server terminal, the Xcode console, Logcat (tag `Humalis`), or the Visual Studio Output window."
+        soustitre "The inspector"
+        texte "With `humalis developper`, a round button at the bottom right of the page opens the inspector (or Alt + Shift + I). It shows live:"
+        liste :
+            texte "the page variables and their values;"
+            texte "the requests to the server, with what was sent and the response;"
+            texte "denied permissions (401 and 403 responses) and their message;"
+            texte "notes and errors."
+        texte "Each line it mentions opens in VS Code. The inspector exists only in development: it never goes into a built site."
+        soustitre "The debugger in VS Code"
+        texte "The Humalis extension for VS Code sets breakpoints in your `.humalis` files. Open the file, click in the gutter to set a breakpoint, then press F5 (or \"Humalis: Debug this file\"). The program stops on the line; you step from one Humalis line to the next and read the variables."
+        texte "In `.vscode/launch.json`, `cible` picks what is debugged:"
+        code texte :
+            {
+              "type": "humalis",
+              "request": "launch",
+              "name": "The server",
+              "cible": "serveur",
+              "programme": "${workspaceFolder}/boutique.humalis"
+            }
+        liste :
+            texte "`"web"`: the site, served by `humalis developper` and opened in Chrome (`"navigateur": "edge"` for Edge);"
+            texte "`"serveur"`: the server, run in Node;"
+            texte "`"apple"`: the Mac app, built by Xcode and run by lldb (with `"equipe"` for signing)."
+        texte "Android and Windows have no debugger in VS Code yet: on Windows, Visual Studio follows the Humalis lines of the generated project; on Android, errors name their Humalis line, but Android Studio does not stop inside a `.humalis` file."
+    sinon :
+        soustitre "Une erreur montre sa ligne Humalis"
+        texte "Quand une erreur arrive pendant que l’application tourne, elle nomme la ligne de ton fichier, pas une ligne du code produit :"
+        code :
+            Erreur, ligne 12 de boutique.humalis : Cannot read properties of null (reading 'prix')
+        texte "C’est vrai sur chaque cible : la console du navigateur (site et bureau), le terminal du serveur, Logcat sur Android, la fenêtre Sortie de Visual Studio sur Windows, les rapports de plantage et le débogueur sur Apple. Dans `quand une erreur arrive`, `erreur.ligne` donne cette ligne (`boutique.humalis:12`) et `erreur.pile` nomme les lignes Humalis traversées."
+        soustitre "Noter une valeur"
+        texte "`noter` écrit des valeurs dans la console du développement, avec la ligne qui les note :"
+        code humalis :
+            page "panier" :
+                variable panier = ["Livre", "Stylo"]
+                variable total = 42.5
+                bouton "Payer"
+                quand l'utilisateur clique sur "Payer" :
+                    noter panier et total
+                    noter "Après paiement" et total * 2
+        texte "La console montre `[boutique.humalis:6] panier = ["Livre", "Stylo"] ; total = 42,5`. Un texte entre guillemets s’écrit tel quel. `noter` s’écrit dans un événement, une fonction ou une action du serveur."
+        texte "En production, `noter` n’écrit rien : le site construit ne contient plus l’appel, une application Release non plus, et le serveur se tait quand `NODE_ENV` vaut `production`. Pendant le développement, les notes vont dans la console du navigateur, le terminal du serveur, la console de Xcode, Logcat (étiquette `Humalis`) ou la fenêtre Sortie de Visual Studio."
+        soustitre "L’inspecteur"
+        texte "Avec `humalis developper`, un bouton rond en bas à droite de la page ouvre l’inspecteur (ou Alt + Maj + I). Il montre en direct :"
+        liste :
+            texte "les variables de la page et leur valeur ;"
+            texte "les requêtes au serveur, avec ce qui est envoyé et la réponse ;"
+            texte "les droits refusés (réponses 401 et 403) et leur message ;"
+            texte "les notes et les erreurs."
+        texte "Chaque ligne citée s’ouvre dans VS Code. L’inspecteur n’existe qu’en développement : il n’entre jamais dans un site produit."
+        soustitre "Le débogueur dans VS Code"
+        texte "L’extension Humalis pour VS Code pose les points d’arrêt dans tes fichiers `.humalis`. Ouvre le fichier, clique dans la marge pour poser un point d’arrêt, puis appuie sur F5 (ou « Humalis : Déboguer ce fichier »). Le programme s’arrête sur la ligne ; tu avances pas à pas, d’une ligne Humalis à l’autre, et tu lis les variables."
+        texte "Dans `.vscode/launch.json`, `cible` choisit ce qui est débogué :"
+        code texte :
+            {
+              "type": "humalis",
+              "request": "launch",
+              "name": "Le serveur",
+              "cible": "serveur",
+              "programme": "${workspaceFolder}/boutique.humalis"
+            }
+        liste :
+            texte "`"web"` : le site, servi par `humalis developper` et ouvert dans Chrome (`"navigateur": "edge"` pour Edge) ;"
+            texte "`"serveur"` : le serveur, lancé dans Node ;"
+            texte "`"apple"` : l’application Mac, construite par Xcode et lancée par lldb (avec `"equipe"` pour la signature)."
+        texte "Android et Windows n’ont pas encore de débogueur dans VS Code : sur Windows, Visual Studio suit les lignes Humalis du projet produit ; sur Android, les erreurs nomment leur ligne Humalis, mais Android Studio ne s’arrête pas dans un fichier `.humalis`."
+    ligne avec style "doc-suite" :
+        lien "← 35. Enregistrer et recadrer des médias" en anglais "← 35. Recording and cropping media" vers "documentation_35"
+        lien "Les mots-clés de Humalis en anglais →" en anglais "French keywords at a glance →" vers "documentation_37"
+
+page "documentation_37" dans "documentation" adresse "/documentation/mots-cles-de-humalis-en-anglais" :
     apercu :
         description "Chaque mot de Humalis, avec son équivalent en anglais : pratique pour expliquer le langage à quelqu’un qui lit l’anglais." en anglais "Humalis guide, French keywords at a glance."
     titre "Les mots-clés de Humalis en anglais" en anglais "French keywords at a glance"
@@ -5675,6 +5769,7 @@ page "documentation_36" dans "documentation" adresse "/documentation/mots-cles-d
             rangee "`envoyer requete vers … dans … avec`", "send a request to … into … with"
             rangee "`essayer`, `si erreur`", "try, if error"
             rangee "`confirmer`, `copier`, `partager`", "confirm, copy, share"
+            rangee "`noter`", "log (development console only)"
             rangee "`apres … secondes`, `toutes les … secondes`", "after … seconds, every … seconds"
             rangee "`partagee`, `memorisee`", "shared, remembered"
             rangee "`serveur`, `donnee`, `route`, `source`", "server, data type, route, external API"
@@ -5715,6 +5810,7 @@ page "documentation_36" dans "documentation" adresse "/documentation/mots-cles-d
             rangee "`envoyer requete vers … dans … avec`", "send a request to … into … with"
             rangee "`essayer`, `si erreur`", "try, if error"
             rangee "`confirmer`, `copier`, `partager`", "confirm, copy, share"
+            rangee "`noter`", "log (development console only)"
             rangee "`apres … secondes`, `toutes les … secondes`", "after … seconds, every … seconds"
             rangee "`partagee`, `memorisee`", "shared, remembered"
             rangee "`serveur`, `donnee`, `route`, `source`", "server, data type, route, external API"
@@ -5725,4 +5821,4 @@ page "documentation_36" dans "documentation" adresse "/documentation/mots-cles-d
             rangee "`langues`, `traductions`, `selecteur de langue`", "languages, translations, language switcher"
             rangee "`composant`, `parametre`, `utiliser`", "component, parameter, use"
     ligne avec style "doc-suite" :
-        lien "← 35. Enregistrer et recadrer des médias" en anglais "← 35. Recording and cropping media" vers "documentation_35"
+        lien "← 36. Déboguer" en anglais "← 36. Debugging" vers "documentation_36"

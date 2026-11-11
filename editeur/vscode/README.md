@@ -22,6 +22,7 @@ page "accueil" :
 - **Aller à la déclaration** (F12 ou Ctrl+clic) : d'une variable à sa déclaration, d'un lien à sa page, d'une requête à sa route, y compris d'un fichier à l'autre.
 - **Le plan du document** (Ctrl+Maj+O) : pages, composants, serveur avec ses données et ses routes.
 - **La coloration du code**, jusqu'aux textes et aux `{variable}`. Une variable qui porte le nom d'un mot du langage reste colorée comme une variable.
+- **Le débogueur.** Posez un point d'arrêt dans la marge d'un fichier `.humalis`, puis F5 (ou « Humalis : Déboguer ce fichier ») : le programme s'arrête sur votre ligne, avance pas à pas d'une ligne Humalis à l'autre et montre ses variables. Pour le site (Chrome ou Edge, avec `humalis developper`), le serveur (Node) et l'application Mac (lldb, fourni avec Xcode). Dans `launch.json` : `"type": "humalis"`, `"cible": "web"`, `"serveur"` ou `"apple"`, et `"programme"`.
 - **La mise en forme** avec la commande « Formater le document », la même que `humalis formater`. Un fichier qui contient une erreur n'est pas modifié.
 - **Quelques aides à l'écriture** : l'indentation après une ligne qui finit par `:`, la fermeture de `""`, `[]` et `{}`, et des extraits pour `page`, `variable`, `si`, `sinon`, `pour` et `quand`, ainsi que pour les nouveautés : `discussion`, `appel`, `reunion`, `en-direct`, `widget`, `donnee-locale`, `cle-acces`, `media`, `erreur`, `composant-natif` et `style-natif`.
 
@@ -34,7 +35,7 @@ L'extension connaît le langage de Humalis 1.9.0, y compris les constructions le
 - **Les formes d'application :** `widget`, `activite en direct`, `tuile`, `commande vocale`, `clavier`, `raccourcis de l'icone`, `menu clic droit`, `page "x" sur montre`, `page "x" dans la barre du systeme`.
 - **Les médias :** `enregistrer audio dans note`, `enregistrer video dans clip`, `scanner document dans facture`, `recadrer photo`.
 - **Les données et les comptes :** `donnee locale notes avec chiffree :`, `synchronisee avec "notes"`, `connexion par cle d'acces`, `double authentification`, `ajouter cle d'acces`.
-- **Les erreurs :** `quand une erreur arrive :`, avec `erreur.message`, `erreur.pile`, `erreur.page` et `erreur.version`.
+- **Les erreurs :** `quand une erreur arrive :`, avec `erreur.message`, `erreur.pile`, `erreur.ligne`, `erreur.page` et `erreur.version` ; `noter panier et total` écrit des valeurs dans la console du développement.
 - **Les styles écrits en Humalis :** `style "carte" :` puis une propriété par ligne (`fond blanc`, `arrondi 12`, `ombre douce`).
 - **Les conditions et les champs :** `si actif :`, `bouton "Payer" avec desactive si panier est vide`, `champ "Référence" avec desactive`, `champ "Nom" avec valeur nom`, `lien "Notre site" vers site`, `video "presentation.mp4" avec commandes`.
 - **Les textes :** `{a la ligne}`, `{prix en lettres}`, `{jour en date longue avec majuscule}`, `initiales de nom`.

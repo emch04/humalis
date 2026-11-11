@@ -24,6 +24,7 @@ page "antiseche" a l'adresse "/antiseche" :
             lien "Les commandes" en anglais "Commands" vers "#commandes"
             lien "Les pièges" en anglais "Common traps" vers "#pieges"
             lien "Médias" en anglais "Media" vers "#medias"
+            lien "Déboguer" en anglais "Debugging" vers "#deboguer"
         bloc avec ancre "ecrire" et style "aide-section" :
             soustitre "Écrire" en anglais "Writing"
             bloc avec style "aide-entrees" :
@@ -1228,3 +1229,25 @@ page "antiseche" a l'adresse "/antiseche" :
                             bouton "Recadrer"
                             quand l'utilisateur clique sur "Recadrer" :
                                 recadrer photo
+        bloc avec ancre "deboguer" et style "aide-section" :
+            soustitre "Déboguer" en anglais "Debugging"
+            bloc avec style "aide-entrees" :
+                bloc avec style "aide-entree" :
+                    texte "Noter une valeur pendant le développement" en anglais "Log a value during development" avec style "aide-besoin"
+                    code humalis :
+                        page "panier" :
+                            variable panier = ["Livre", "Stylo"]
+                            variable total = 42.5
+                            bouton "Payer"
+                            quand l'utilisateur clique sur "Payer" :
+                                noter panier et total
+                                noter "Après paiement" et total * 2
+                bloc avec style "aide-entree" :
+                    texte "La ligne Humalis d'une erreur" en anglais "The Humalis line of an error" avec style "aide-besoin"
+                    code humalis :
+                        quand une erreur arrive :
+                            envoyer requete vers "https://centrale.exemple.fr/v1/envoi" avec message = erreur.message et ligne = erreur.ligne et pile = erreur.pile
+                bloc avec style "aide-entree" :
+                    texte "L'inspecteur : variables, requêtes, droits refusés" en anglais "The inspector: variables, requests, denied permissions" avec style "aide-besoin"
+                    code terminal :
+                        humalis developper

@@ -1349,3 +1349,30 @@ page "memo" :
     quand l'utilisateur clique sur "Recadrer" :
         recadrer photo
 ```
+
+## Déboguer | Debugging | deboguer
+
+### Noter une valeur pendant le développement | Log a value during development
+
+```humalis
+page "panier" :
+    variable panier = ["Livre", "Stylo"]
+    variable total = 42.5
+    bouton "Payer"
+    quand l'utilisateur clique sur "Payer" :
+        noter panier et total
+        noter "Après paiement" et total * 2
+```
+
+### La ligne Humalis d'une erreur | The Humalis line of an error
+
+```humalis
+quand une erreur arrive :
+    envoyer requete vers "https://centrale.exemple.fr/v1/envoi" avec message = erreur.message et ligne = erreur.ligne et pile = erreur.pile
+```
+
+### L'inspecteur : variables, requêtes, droits refusés | The inspector: variables, requests, denied permissions
+
+```terminal
+humalis developper
+```
