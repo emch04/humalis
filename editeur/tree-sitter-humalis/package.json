@@ -1,0 +1,24 @@
+{
+  "name": "tree-sitter-humalis",
+  "version": "1.0.0",
+  "description": "Grammaire tree-sitter du langage Humalis, pour la coloration dans Zed, Helix, Neovim et Emacs",
+  "private": true,
+  "license": "SEE LICENSE IN ../../LICENSE",
+  "homepage": "https://humalis.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/emch04/humalis.git",
+    "directory": "editeur/tree-sitter-humalis"
+  },
+  "main": "grammar.js",
+  "files": ["grammar.js", "mots.json", "tree-sitter.json", "src", "queries"],
+  "scripts": {
+    "mots": "node scripts/generer-mots.mjs",
+    "generer": "tree-sitter generate",
+    "test": "node scripts/generer-mots.mjs --verifier && tree-sitter generate && tree-sitter test",
+    "wasm": "tree-sitter build --wasm -o tree-sitter-humalis.wasm"
+  },
+  "devDependencies": {
+    "tree-sitter-cli": "0.27.2"
+  }
+}

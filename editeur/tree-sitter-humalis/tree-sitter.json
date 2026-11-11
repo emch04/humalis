@@ -1,0 +1,22 @@
+{
+  "$schema": "https://tree-sitter.github.io/tree-sitter/assets/schemas/config.schema.json",
+  "grammars": [
+    {
+      "name": "humalis",
+      "camelcase": "Humalis",
+      "scope": "source.humalis",
+      "path": ".",
+      "file-types": ["humalis"],
+      "highlights": "queries/neovim/highlights.scm",
+      "injection-regex": "^humalis$"
+    }
+  ],
+  "metadata": {
+    "version": "1.0.0",
+    "license": "Humalis",
+    "description": "Grammaire tree-sitter du langage Humalis",
+    "authors": [{ "name": "emch04" }],
+    "links": { "repository": "https://github.com/emch04/humalis" }
+  },
+  "bindings": { "c": false, "go": false, "node": false, "python": false, "rust": false, "swift": false, "zig": false }
+}
