@@ -3960,6 +3960,7 @@ texte "…" est absent` (a text is not shown).
 | `humalis formater <file>` | reformats the file |
 | `humalis tester` | runs the `*.test.humalis` tests |
 | `humalis packs` | says whether the Astratra packs have updates |
+| `humalis editeur --stdio` | the language server, which your editor starts by itself (see "In your editor") |
 
 For web and static, `--adresse https://…` gives the site's final address
 (sitemap, share links). For desktop, Apple, Android and Windows, `--serveur https://…` gives the address
@@ -4001,6 +4002,21 @@ declared. Perhaps "total"?)
 
 The "Humalis" VS Code extension shows them as you type, with highlighting,
 completion and hover help.
+
+### In your editor
+
+Humalis works in almost every editor. Each one shows errors as you type,
+hover help, completion, go to declaration, the file outline and formatting.
+They all rely on `humalis editeur --stdio`, the language server installed
+with Humalis (`npm install -g humalis`).
+
+| Editor | What you need |
+|---|---|
+| VS Code, Cursor, VSCodium, Windsurf | the "Humalis" extension from the extension store |
+| IntelliJ IDEA, Android Studio, WebStorm, Rider, PyCharm | the "Humalis" plugin from the JetBrains Marketplace |
+| Zed | the "Humalis" Zed extension |
+| Visual Studio 2022 and 2026 | the "Humalis" extension from the Visual Studio Marketplace |
+| Neovim, Helix, Emacs, Sublime Text | the settings in the `editeur` folder of the Humalis GitHub repository |
 
 ---
 

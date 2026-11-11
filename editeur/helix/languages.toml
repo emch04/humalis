@@ -27,4 +27,4 @@ language-servers = ["humalis"]
 
 [[grammar]]
 name = "humalis"
-source = { git = "https://github.com/emch04/humalis", rev = "REMPLACER_PAR_LE_COMMIT", subpath = "editeur/tree-sitter-humalis" }
+source = { git = "https://github.com/emch04/humalis", rev = "main", subpath = "editeur/tree-sitter-humalis" }

@@ -63,39 +63,25 @@ Le guide complet est sur [humalis.dev](https://humalis.dev).
 
 ## Avec un autre éditeur
 
-L'extension contient aussi un serveur de langage (LSP), qui ne demande que Node. Il offre les mêmes diagnostics, le survol, la complétion, la définition, le plan, la coloration et la mise en forme. Il se lance ainsi, depuis le dossier de l'extension installée :
+Le même serveur de langage (LSP) est livré avec Humalis : `npm install -g humalis` (Node 24 ou plus récent) installe la commande, qu'un éditeur lance ainsi :
 
 ```bash
-node dist/serveur-lsp.js --stdio
+humalis editeur --stdio
 ```
 
-Neovim (0.11 ou plus récent) :
+Il offre les mêmes erreurs en direct, le survol, la complétion, la déclaration, le plan, la coloration des noms et la mise en forme. Les extensions et les réglages des autres éditeurs sont dans le dossier [`editeur`](https://github.com/emch04/humalis/tree/main/editeur) du dépôt :
 
-```lua
-vim.filetype.add({ extension = { humalis = 'humalis' } })
-vim.lsp.config('humalis', {
-  cmd = { 'node', '/chemin/vers/dist/serveur-lsp.js', '--stdio' },
-  filetypes = { 'humalis' },
-})
-vim.lsp.enable('humalis')
-```
+| Éditeur | Dans le dépôt |
+|---|---|
+| IntelliJ IDEA, Android Studio, WebStorm, Rider, PyCharm | `editeur/jetbrains` (extension, avec LSP4IJ) |
+| Zed | `editeur/zed` (extension) |
+| Visual Studio 2022 (17.14) et 2026 | `editeur/visual-studio` (extension) |
+| Neovim 0.11 ou plus récent | `editeur/neovim/humalis.lua` |
+| Helix 25.07 ou plus récent | `editeur/helix/languages.toml` |
+| Emacs 29 ou plus récent (eglot) | `editeur/emacs/humalis-mode.el` |
+| Sublime Text 4 (module LSP) | `editeur/sublime/Humalis` |
 
-Helix (`languages.toml`) :
-
-```toml
-[language-server.humalis]
-command = "node"
-args = ["/chemin/vers/dist/serveur-lsp.js", "--stdio"]
-
-[[language]]
-name = "humalis"
-scope = "source.humalis"
-file-types = ["humalis"]
-indent = { tab-width = 4, unit = "    " }
-language-servers = ["humalis"]
-```
-
-Ces deux réglages n'ont pas encore été essayés dans Neovim et Helix.
+La coloration des mots du langage dans Zed, Helix et Neovim vient de la grammaire tree-sitter de `editeur/tree-sitter-humalis`.
 
 ## Licence
 

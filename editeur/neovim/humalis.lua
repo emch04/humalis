@@ -29,23 +29,16 @@ vim.lsp.config('humalis', {
 })
 vim.lsp.enable('humalis')
 
--- Facultatif : la coloration des mots du langage par tree-sitter, avec le
--- greffon nvim-treesitter (branche « main »). Décommenter, puis lancer
--- « :TSInstall humalis » une fois.
+-- La coloration des mots du langage, par tree-sitter (intégré à Neovim, sans
+-- greffon). Une fois, depuis le dossier editeur/tree-sitter-humalis du dépôt :
 --
--- vim.api.nvim_create_autocmd('User', {
---   pattern = 'TSUpdate',
---   callback = function()
---     require('nvim-treesitter.parsers').humalis = {
---       install_info = {
---         url = 'https://github.com/emch04/humalis',
---         location = 'editeur/tree-sitter-humalis',
---         queries = 'queries/neovim',
---       },
---     }
---   end,
--- })
--- vim.api.nvim_create_autocmd('FileType', {
---   pattern = 'humalis',
---   callback = function() pcall(vim.treesitter.start) end,
--- })
+--   mkdir -p ~/.local/share/nvim/site/parser ~/.config/nvim/queries/humalis
+--   cc -shared -fPIC -O2 -I src src/parser.c -o ~/.local/share/nvim/site/parser/humalis.so
+--   cp queries/neovim/highlights.scm ~/.config/nvim/queries/humalis/
+--
+-- (sous Windows : humalis.dll au lieu de humalis.so). Sans ce fichier,
+-- seuls les noms sont colorés, par le serveur de langage.
+vim.api.nvim_create_autocmd('FileType', {
+  pattern = 'humalis',
+  callback = function(evenement) pcall(vim.treesitter.start, evenement.buf, 'humalis') end,
+})

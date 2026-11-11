@@ -33,6 +33,21 @@ if not client then
   vim.cmd('cquit 1')
 end
 
+-- Coloration par tree-sitter, si la grammaire est installée (voir humalis.lua).
+if #vim.api.nvim_get_runtime_file('parser/humalis.*', false) > 0 then
+  local ligne, colonne
+  for numero, texte in ipairs(vim.api.nvim_buf_get_lines(tampon, 0, -1, false)) do
+    local debut = texte:find('page "boutique"', 1, true)
+    if debut then ligne, colonne = numero - 1, debut - 1 break end
+  end
+  -- Sans écran, Neovim n'analyse qu'au premier affichage : on le fait ici.
+  vim.treesitter.get_parser(tampon, 'humalis'):parse()
+  local captures = vim.tbl_map(function(c) return c.capture end, vim.treesitter.get_captures_at_pos(tampon, ligne, colonne))
+  local chaine = vim.tbl_map(function(c) return c.capture end, vim.treesitter.get_captures_at_pos(tampon, ligne, colonne + 6))
+  verifier('coloration des mots (tree-sitter)', vim.tbl_contains(captures, 'keyword') and vim.tbl_contains(chaine, 'string'),
+    table.concat(captures, ',') .. ' / ' .. table.concat(chaine, ','))
+end
+
 local function position(motif, decalage)
   for numero, ligne in ipairs(vim.api.nvim_buf_get_lines(tampon, 0, -1, false)) do
     local debut = ligne:find(motif, 1, true)
