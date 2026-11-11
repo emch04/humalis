@@ -2560,8 +2560,8 @@ deleted after 30 days, and the person is told at their next login. It
 does not work with `dans` (the answer would come later) or with an external API. To refresh
 the page afterwards, read the route `en direct`.
 
-**On the web**, these sentences work too, through browser APIs, on the engine as well as with
-React. `photo` opens the camera on a phone and a file picker on a computer. `scanner code` needs
+**On the web**, these sentences work too, through browser APIs.
+`photo` opens the camera on a phone and a file picker on a computer. `scanner code` needs
 a browser that can read codes (Chrome on Android or Mac, for example); otherwise the person is
 told. `verifier identite` uses Touch ID, Face ID or Windows Hello: it stays on the device and does
 not protect the server, only the server's rules do. `vibrer` only has an effect on Android, and
@@ -3505,8 +3505,7 @@ page "menu" :
 
 Each page is then written ahead of time in each language, with the links that
 connect its versions for search engines. The page arrives already in its
-language, without waiting for a script. This works on the website, with the
-Humalis engine as with React.
+language, without waiting for a script. This works on the website.
 
 This option is only written on the one-line form: `langues : anglais, francais
 avec adresse par langue`.
@@ -3586,9 +3585,9 @@ page "shop" :
 
 `parametre` declares a value the component receives.
 
-### A React component
+### Reusing a React component
 
-An existing React component is used like a Humalis component (web and
+A component from an older React project is used like a Humalis component (web and
 desktop):
 
 ```humalis
@@ -3599,29 +3598,12 @@ page "home" :
     Carte avec titre "School supplies"
 ```
 
-The file can be `.tsx`, `.ts`, `.jsx` or `.js`. The packages it imports (`three`,
-`gsap`…) are added to the generated project automatically: you only need to run
-`npm install`.
-
-Humalis does not draw 3D itself: write the scene in a React component.
-
-```humalis
-utiliser composant "Scene3D" depuis "./composants/Scene3D"
-
-page "home" :
-    titre "My portfolio"
-    Scene3D avec couleur "#c1e928"
-```
-
-A component that imports `three` or `@react-three/…` is loaded separately: the
-page text appears without waiting for the 3D. These packages have versions tried
-together: `three`, `@react-three/fiber`, `@react-three/drei`,
-`@react-three/postprocessing`, `postprocessing`, `gsap` and `lenis`. Any other
-package is installed at its latest version.
+The file can be `.tsx`, `.ts`, `.jsx` or `.js`. The packages it imports are added to
+the generated project automatically: you only need to run `npm install`.
 
 ### A JavaScript module
 
-To use a JavaScript library without React (Three.js, GSAP…), write a module. It
+To use a JavaScript library (Three.js for 3D, GSAP…), write a module. It
 receives the element to draw in and its properties, and returns a function that
 cleans up when the page is left (web and desktop):
 
@@ -3645,15 +3627,14 @@ The module is loaded separately and its packages are added to the project. When
 a property changes, it is restarted. If it can update itself, it returns
 `{ mettreAJour(properties) { … }, detruire() { … } }`.
 
-The other way round, `humalis compile … --composants <folder>` generates React
-components to import into an existing React project.
+For an older React project, `humalis compile … --composants <folder>` generates
+components to import into it.
 
 ### A hand-written native view
 
 When Humalis cannot draw something yet, write that piece in the platform's own
-language: Swift for iPhone, iPad and Mac, Kotlin for Android, C# for Windows. No React,
-no browser:
-each app stays native. One line gives the view for each platform:
+language: Swift for iPhone, iPad and Mac, Kotlin for Android, C# for Windows. No embedded
+browser: each app stays native. One line gives the view for each platform:
 
 ```humalis
 utiliser composant "Carte" sur apple "./natif/Carte.swift" et sur android "./natif/Carte.kt" et sur windows "./natif/Carte.cs"
@@ -4037,7 +4018,7 @@ target, the compiler says so clearly instead of producing something wrong.
 | Keyboard shortcuts | yes | yes | no | yes | yes | yes (keyboard attached) | yes |
 | Hand-written native view | no | no | no | no | yes (Swift, `sur apple`) | yes (Kotlin, `sur android`) | yes (C#, `sur windows`) |
 | React components (older projects) | yes | no | yes (in React Native) | yes | no | no | no |
-| The engine without React (the default) | yes | no | no | yes (except a React component or `memorisee en secret`) | no | no | no |
+| The Humalis engine (the default) | yes | no | no | yes (except a React component or `memorisee en secret`) | no | no | no |
 | Charts, maps, audio, video, files | yes | yes | partly | yes | yes | yes | yes |
 | Several languages | yes | yes | yes | yes | yes | yes | yes |
 | Photo, scanner, Face ID, vibration, signature, offline | yes (vibration: Android) | no | no | no | yes | yes | no |
@@ -4181,7 +4162,7 @@ info", then "Run anyway".
 
 ### The Humalis rendering engine
 
-The website is produced without React, by the Humalis engine: it is the default.
+The website is produced by the Humalis engine: it is the default.
 
 ```sh
 humalis compile site.humalis --cible web --sortie site
@@ -4189,25 +4170,24 @@ humalis compile site.humalis --cible web --sortie site
 
 Each page is an HTML file already written by the compiler, which a small script
 picks up without rebuilding it. When a variable changes, only what reads it
-changes. To keep React, write `--moteur react`, or once for a project in
+changes. The site can also be produced with React: write `--moteur react`, or once for a project in
 `humalis.projet.json`: `"moteur": "react"`; `humalis developper` and
-`humalis tester` use it too. A folder already produced with React stays React, and a
-program that uses what the engine cannot do yet is produced with React: the
-compiler says why.
+`humalis tester` use it too. A program that uses what the engine cannot do yet is
+produced with React: the compiler says why.
 
-The desktop app also takes the engine's pages, one per address, without React. It
-keeps React for a React component or a value `memorisee en secret`.
+The desktop app also takes the engine's pages, one per address. It switches to
+React for a React component or a value `memorisee en secret`.
 
-Modules (`utiliser module`), React, Vue and Svelte components and Web Components
+Modules (`utiliser module`), components (React, Vue, Svelte) and Web Components
 work the same way: the file is loaded only by the pages that use it. Anything shown after
-loading (data from the server, a React component) is not in the initial HTML.
+loading (data from the server, a component) is not in the initial HTML.
 
 A click made before the page is ready is not lost: it is replayed as soon as the
 page is ready.
 
 `pour chaque t dans taches avec animation :` makes rows slide when the list
 changes, and new rows fade in (unless the person asked for less motion). It works
-on the web, with this engine as well as with React: elsewhere the compiler says so and rows change without
+on the web: elsewhere the compiler says so and rows change without
 sliding.
 
 #### Real time
@@ -4224,8 +4204,8 @@ page "commandes" :
 
 An order created elsewhere appears by itself, without a reload. The server only
 announces that something changed: the page then re-reads the normal route, with its
-access rules, so nothing private travels through this channel. It works on the web
-(with this engine as well as with React), on the desktop, on Apple, on Android and on
+access rules, so nothing private travels through this channel. It works on the web,
+on the desktop, on Apple, on Android and on
 Windows. After a connection loss, the page reconnects by itself and catches up with what
 changed. The `mobile` target (Expo) and static pages read the list once, and the compiler
 says so.

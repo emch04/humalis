@@ -3126,7 +3126,7 @@ page "documentation_21" dans "documentation" adresse "/documentation/serveur" :
         texte "`liens profonds "magasin"`, at the top of the file, lets addresses such as `magasin://produit/42` open the app: the first word is the page, the next ones its parameters. A restricted page stays restricted. With `liens profonds "magasin" et domaine "example.com/test"`, addresses such as `https://example.com/test/produit/42` open the app too. Compile with `--equipe` and publish on the site the file written to `a-publier-sur-le-site/`."
         texte "`en arriere plan :`, directly in a page, says what the app does when the system wakes it. The system picks the moment: never before 15 minutes, often much later. This block only sees `avec partagee` variables, since no page is open. On Mac, the app must be open. On Windows, it is a scheduled task of the signed-in person, every 15 minutes, that starts the app without a window (or hands the work to the app already open)."
         texte "`hors ligne`, at the end of an `envoyer requete … avec …`, a `modifier` or a `supprimer`, keeps the request on the device when there is no network and sends it, in order, when the connection returns. A server refusal is shown. Each request belongs to the account that made it: on logout it is set aside and only leaves if the same person logs back in; it is deleted after 30 days, and the person is told at their next login. It does not work with `dans` (the answer would come later) or with an external API. To refresh the page afterwards, read the route `en direct`."
-        texte "{accent "On the web"}, these sentences work too, through browser APIs, on the engine as well as with React. `photo` opens the camera on a phone and a file picker on a computer. `scanner code` needs a browser that can read codes (Chrome on Android or Mac, for example); otherwise the person is told. `verifier identite` uses Touch ID, Face ID or Windows Hello: it stays on the device and does not protect the server, only the server's rules do. `vibrer` only has an effect on Android, and the compiler says so. A page that is already open keeps working without a network, but the web does not reopen a whole page offline. `liens profonds` changes nothing, as each page already has its address. `en arriere plan :` and `memorisee en secret` do not exist on the web: the compiler refuses rather than pretends."
+        texte "{accent "On the web"}, these sentences work too, through browser APIs. `photo` opens the camera on a phone and a file picker on a computer. `scanner code` needs a browser that can read codes (Chrome on Android or Mac, for example); otherwise the person is told. `verifier identite` uses Touch ID, Face ID or Windows Hello: it stays on the device and does not protect the server, only the server's rules do. `vibrer` only has an effect on Android, and the compiler says so. A page that is already open keeps working without a network, but the web does not reopen a whole page offline. `liens profonds` changes nothing, as each page already has its address. `en arriere plan :` and `memorisee en secret` do not exist on the web: the compiler refuses rather than pretends."
         texte "To use a Swift library in a hand-written view, write at the top of the file `paquet swift "https://github.com/example/package" version "1.2"`. If the product is not named after the repository, add `produit "Name"`."
         texte "On other targets, the compiler says these phrases are not available yet."
         texte "#### Asking an AI"
@@ -3522,7 +3522,7 @@ page "documentation_21" dans "documentation" adresse "/documentation/serveur" :
         texte "`liens profonds "magasin"`, en haut du fichier, fait ouvrir l'application par les adresses `magasin://produit/42` : le premier mot est la page, les suivants sont ses paramètres. Une page réservée reste réservée. Avec `liens profonds "magasin" et domaine "exemple.fr/essai"`, les adresses `https://exemple.fr/essai/produit/42` ouvrent aussi l'application. Il faut compiler avec `--equipe` et publier sur le site le fichier écrit dans `a-publier-sur-le-site/`."
         texte "`en arriere plan :`, directement dans une page, dit ce que l'application fait quand le système la réveille. Le système choisit le moment : jamais avant 15 minutes, souvent bien plus tard. Ce bloc ne voit que les variables `avec partagee`, puisqu'aucune page n'est ouverte. Sur Mac, l'application doit être ouverte. Sur Windows, c'est une tâche planifiée de la personne, toutes les 15 minutes, qui lance l'application sans fenêtre (ou passe le travail à l'application déjà ouverte)."
         texte "`hors ligne`, à la fin d'un `envoyer requete … avec …`, d'un `modifier` ou d'un `supprimer`, garde l'envoi sur l'appareil s'il n'y a pas de réseau, et l'envoie dans l'ordre quand la connexion revient. Un refus du serveur est affiché. Chaque envoi appartient au compte qui l'a fait : à la déconnexion il est mis de côté, et repart seulement si la même personne se reconnecte. Au bout de 30 jours il est effacé, et la personne en est prévenue à sa prochaine connexion. Cette fin de phrase ne marche pas avec `dans` (la réponse arrivera plus tard) ni vers une API externe. Pour que la page se mette à jour ensuite, lis la route `en direct`."
-        texte "{accent "Sur le web"}, ces phrases marchent aussi, avec les API du navigateur, sur le moteur comme avec React. `photo` ouvre l'appareil photo sur un téléphone et le choix d'un fichier sur un ordinateur. `scanner code` demande un navigateur qui sait lire les codes (Chrome sur Android ou sur Mac, par exemple) ; sinon la personne le lit. `verifier identite` passe par Touch ID, Face ID ou Windows Hello : cela reste sur l'appareil et ne protège pas le serveur, seules les règles du serveur le font. `vibrer` n'a d'effet que sur Android, et le compilateur le dit. Une page déjà ouverte continue sans réseau, mais le web ne rouvre pas une page entière sans réseau. `liens profonds` n'y change rien, chaque page ayant déjà son adresse. `en arriere plan :` et `memorisee en secret` n'existent pas sur le web : le compilateur refuse, plutôt que de faire semblant."
+        texte "{accent "Sur le web"}, ces phrases marchent aussi, avec les API du navigateur. `photo` ouvre l'appareil photo sur un téléphone et le choix d'un fichier sur un ordinateur. `scanner code` demande un navigateur qui sait lire les codes (Chrome sur Android ou sur Mac, par exemple) ; sinon la personne le lit. `verifier identite` passe par Touch ID, Face ID ou Windows Hello : cela reste sur l'appareil et ne protège pas le serveur, seules les règles du serveur le font. `vibrer` n'a d'effet que sur Android, et le compilateur le dit. Une page déjà ouverte continue sans réseau, mais le web ne rouvre pas une page entière sans réseau. `liens profonds` n'y change rien, chaque page ayant déjà son adresse. `en arriere plan :` et `memorisee en secret` n'existent pas sur le web : le compilateur refuse, plutôt que de faire semblant."
         texte "Pour se servir d'une bibliothèque Swift dans une vue écrite à la main, écris en haut du fichier `paquet swift "https://github.com/exemple/paquet" version "1.2"`. Si le produit ne porte pas le nom du dépôt, ajoute `produit "Nom"`."
         texte "Ailleurs que sur Apple, le compilateur dit que ces phrases ne sont pas encore disponibles."
         texte "#### Interroger une IA"
@@ -4683,7 +4683,7 @@ page "documentation_28" dans "documentation" adresse "/documentation/plusieurs-l
 
             page "menu" :
                 titre "The menu" en francais "La carte"
-        texte "Each page is then written ahead of time in each language, with the links that connect its versions for search engines. The page arrives already in its language, without waiting for a script. This works on the website, with the Humalis engine as with React."
+        texte "Each page is then written ahead of time in each language, with the links that connect its versions for search engines. The page arrives already in its language, without waiting for a script. This works on the website."
         texte "This option is only written on the one-line form: `langues : anglais, francais avec adresse par langue`."
     sinon :
         texte "On écrit le code en français ; le {accent "site"} peut parler plusieurs langues. La première langue du bloc est celle des textes écrits."
@@ -4736,7 +4736,7 @@ page "documentation_28" dans "documentation" adresse "/documentation/plusieurs-l
 
             page "carte" :
                 titre "La carte" en anglais "The menu"
-        texte "Chaque page est alors écrite d'avance dans chaque langue, avec les liens qui relient ses versions pour les moteurs de recherche. La page arrive déjà dans sa langue, sans attendre un script. Cela marche sur le site web, avec le moteur de Humalis comme avec React."
+        texte "Chaque page est alors écrite d'avance dans chaque langue, avec les liens qui relient ses versions pour les moteurs de recherche. La page arrive déjà dans sa langue, sans attendre un script. Cela marche sur le site web."
         texte "Cette option s'écrit seulement sur la forme en une ligne : `langues : francais, anglais avec adresse par langue`."
     ligne avec style "doc-suite" :
         lien "← 27. Les cartes" en anglais "← 27. Maps" vers "documentation_27"
@@ -4821,25 +4821,17 @@ page "documentation_30" dans "documentation" adresse "/documentation/composants-
                 Card avec name "Book" et price 12
                 Card avec name "Pen" et price 2
         texte "`parametre` declares a value the component receives."
-        soustitre "A React component"
-        texte "An existing React component is used like a Humalis component (web and desktop):"
+        soustitre "Reusing a React component"
+        texte "A component from an older React project is used like a Humalis component (web and desktop):"
         code humalis :
             utiliser composant "Carte" depuis "./composants/Carte"
 
             page "home" :
                 titre "Home"
                 Carte avec titre "School supplies"
-        texte "The file can be `.tsx`, `.ts`, `.jsx` or `.js`. The packages it imports (`three`, `gsap`…) are added to the generated project automatically: you only need to run `npm install`."
-        texte "Humalis does not draw 3D itself: write the scene in a React component."
-        code humalis :
-            utiliser composant "Scene3D" depuis "./composants/Scene3D"
-
-            page "home" :
-                titre "My portfolio"
-                Scene3D avec couleur "#c1e928"
-        texte "A component that imports `three` or `@react-three/…` is loaded separately: the page text appears without waiting for the 3D. These packages have versions tried together: `three`, `@react-three/fiber`, `@react-three/drei`, `@react-three/postprocessing`, `postprocessing`, `gsap` and `lenis`. Any other package is installed at its latest version."
+        texte "The file can be `.tsx`, `.ts`, `.jsx` or `.js`. The packages it imports are added to the generated project automatically: you only need to run `npm install`."
         soustitre "A JavaScript module"
-        texte "To use a JavaScript library without React (Three.js, GSAP…), write a module. It receives the element to draw in and its properties, and returns a function that cleans up when the page is left (web and desktop):"
+        texte "To use a JavaScript library (Three.js for 3D, GSAP…), write a module. It receives the element to draw in and its properties, and returns a function that cleans up when the page is left (web and desktop):"
         code humalis :
             utiliser module "Scene3D" depuis "./modules/Scene3D"
 
@@ -4853,9 +4845,9 @@ page "documentation_30" dans "documentation" adresse "/documentation/composants-
               };
             }
         texte "The module is loaded separately and its packages are added to the project. When a property changes, it is restarted. If it can update itself, it returns `{ mettreAJour(properties) { … }, detruire() { … } }`."
-        texte "The other way round, `humalis compile … --composants <folder>` generates React components to import into an existing React project."
+        texte "For an older React project, `humalis compile … --composants <folder>` generates components to import into it."
         soustitre "A hand-written native view"
-        texte "When Humalis cannot draw something yet, write that piece in the platform's own language: Swift for iPhone, iPad and Mac, Kotlin for Android, C# for Windows. No React, no browser: each app stays native. One line gives the view for each platform:"
+        texte "When Humalis cannot draw something yet, write that piece in the platform's own language: Swift for iPhone, iPad and Mac, Kotlin for Android, C# for Windows. No embedded browser: each app stays native. One line gives the view for each platform:"
         code humalis :
             utiliser composant "Carte" sur apple "./natif/Carte.swift" et sur android "./natif/Carte.kt" et sur windows "./natif/Carte.cs"
 
@@ -5057,25 +5049,17 @@ page "documentation_30" dans "documentation" adresse "/documentation/composants-
                 titre "Boutique"
                 Fiche avec nom "Livre" et prix 12
                 Fiche avec nom "Stylo" et prix 2
-        soustitre "Un composant React"
-        texte "Un composant React existant s'utilise comme un composant Humalis (web et desktop) :"
+        soustitre "Reprendre un composant React"
+        texte "Un composant d'un ancien projet React s'utilise comme un composant Humalis (web et desktop) :"
         code humalis :
             utiliser composant "Carte" depuis "./composants/Carte"
 
             page "accueil" :
                 titre "Accueil"
                 Carte avec titre "Fournitures scolaires"
-        texte "Le fichier peut être en `.tsx`, `.ts`, `.jsx` ou `.js`. Les paquets qu'il importe (`three`, `gsap`…) sont ajoutés tout seuls au projet produit : il suffit de lancer `npm install`."
-        texte "Humalis ne dessine pas de 3D lui-même : écris la scène dans un composant React."
-        code humalis :
-            utiliser composant "Scene3D" depuis "./composants/Scene3D"
-
-            page "accueil" :
-                titre "Mon portfolio"
-                Scene3D avec couleur "#c1e928"
-        texte "Un composant qui importe `three` ou `@react-three/…` est chargé à part : le texte de la page s'affiche sans attendre la 3D. Ces paquets ont des versions essayées ensemble : `three`, `@react-three/fiber`, `@react-three/drei`, `@react-three/postprocessing`, `postprocessing`, `gsap` et `lenis`. Un autre paquet est installé dans sa dernière version."
+        texte "Le fichier peut être en `.tsx`, `.ts`, `.jsx` ou `.js`. Les paquets qu'il importe sont ajoutés tout seuls au projet produit : il suffit de lancer `npm install`."
         soustitre "Un module JavaScript"
-        texte "Pour utiliser une bibliothèque JavaScript sans React (Three.js, GSAP…), écris un module. Il reçoit l'élément où dessiner et ses propriétés, et rend une fonction qui nettoie quand on quitte la page (web et desktop) :"
+        texte "Pour utiliser une bibliothèque JavaScript (Three.js pour la 3D, GSAP…), écris un module. Il reçoit l'élément où dessiner et ses propriétés, et rend une fonction qui nettoie quand on quitte la page (web et desktop) :"
         code humalis :
             utiliser module "Scene3D" depuis "./modules/Scene3D"
 
@@ -5090,7 +5074,7 @@ page "documentation_30" dans "documentation" adresse "/documentation/composants-
             }
         texte "Le module est chargé à part, et ses paquets sont ajoutés au projet. Quand une propriété change, il est relancé. S'il sait se mettre à jour lui-même, il rend `{ mettreAJour(proprietes) { … }, detruire() { … } }`."
         soustitre "Une vue native écrite à la main"
-        texte "Quand Humalis ne sait pas encore dessiner quelque chose, écris ce morceau dans la langue de la plateforme : Swift pour iPhone, iPad et Mac, Kotlin pour Android, C# pour Windows. Pas de React, pas de navigateur : chaque application reste native. Une seule ligne donne la vue de chaque plateforme :"
+        texte "Quand Humalis ne sait pas encore dessiner quelque chose, écris ce morceau dans la langue de la plateforme : Swift pour iPhone, iPad et Mac, Kotlin pour Android, C# pour Windows. Pas de navigateur embarqué : chaque application reste native. Une seule ligne donne la vue de chaque plateforme :"
         code humalis :
             utiliser composant "Carte" sur apple "./natif/Carte.swift" et sur android "./natif/Carte.kt" et sur windows "./natif/Carte.cs"
 
@@ -5127,7 +5111,7 @@ page "documentation_30" dans "documentation" adresse "/documentation/composants-
             }
         texte "Une plateforme sans sa vue s'arrête avec la ligne à ajouter : ici, le site n'a pas de « Carte ». Pour le site, écris le composant en Humalis (`composant "Carte" :`), ou un module JavaScript : `utiliser module "Carte" depuis "./modules/Carte.js"`, suivi des mêmes `sur …`."
         texte "Les bibliothèques de ces vues s'ajoutent en haut du fichier : `paquet swift "https://…" version "1.2"` pour Apple (voir plus haut), `paquet windows "Humanizer.Core" version "2.14.1"` pour Windows (NuGet), `paquet android "io.coil-kt:coil-compose" version "2.7.0"` pour Android (Gradle)."
-        texte "Dans l'autre sens, `humalis compile … --composants <dossier>` produit des composants React à importer dans un projet React existant."
+        texte "Pour un ancien projet React, `humalis compile … --composants <dossier>` produit des composants à y importer."
         soustitre "Les formes propres aux applications"
         texte "Au-delà des pages, une application vit ailleurs sur l'appareil : un widget sur l'écran d'accueil, une activité sur l'écran de verrouillage, une tuile dans les réglages rapides, un clavier, une commande pour Siri… Chacune s'écrit en haut du fichier, en une phrase. Ce qui s'affiche s'écrit comme une page ; ce qui agit, comme un événement."
         code humalis :
@@ -5394,7 +5378,7 @@ page "documentation_33" dans "documentation" adresse "/documentation/ce-que-chaq
             rangee "Keyboard shortcuts", "yes", "yes", "no", "yes", "yes", "yes (keyboard attached)", "yes"
             rangee "Hand-written native view", "no", "no", "no", "no", "yes (Swift, `sur apple`)", "yes (Kotlin, `sur android`)", "yes (C#, `sur windows`)"
             rangee "React components (older projects)", "yes", "no", "yes (in React Native)", "yes", "no", "no", "no"
-            rangee "The engine without React (the default)", "yes", "no", "no", "yes (except a React component or `memorisee en secret`)", "no", "no", "no"
+            rangee "The Humalis engine (the default)", "yes", "no", "no", "yes (except a React component or `memorisee en secret`)", "no", "no", "no"
             rangee "Charts, maps, audio, video, files", "yes", "yes", "partly", "yes", "yes", "yes", "yes"
             rangee "Several languages", "yes", "yes", "yes", "yes", "yes", "yes", "yes"
             rangee "Photo, scanner, Face ID, vibration, signature, offline", "yes (vibration: Android)", "no", "no", "no", "yes", "yes", "no"
@@ -5453,14 +5437,14 @@ page "documentation_33" dans "documentation" adresse "/documentation/ce-que-chaq
         texte "`Application.exe --desinstaller` removes everything the app registered: run it before deleting the `.exe` file."
         texte "Without code signing, Windows shows a warning (SmartScreen) on first launch: \"More info\", then \"Run anyway\"."
         soustitre "The Humalis rendering engine"
-        texte "The website is produced without React, by the Humalis engine: it is the default."
+        texte "The website is produced by the Humalis engine: it is the default."
         code terminal :
             humalis compile site.humalis --cible web --sortie site
-        texte "Each page is an HTML file already written by the compiler, which a small script picks up without rebuilding it. When a variable changes, only what reads it changes. To keep React, write `--moteur react`, or once for a project in `humalis.projet.json`: `"moteur": "react"`; `humalis developper` and `humalis tester` use it too. A folder already produced with React stays React, and a program that uses what the engine cannot do yet is produced with React: the compiler says why."
-        texte "The desktop app also takes the engine's pages, one per address, without React. It keeps React for a React component or a value `memorisee en secret`."
-        texte "Modules (`utiliser module`), React, Vue and Svelte components and Web Components work the same way: the file is loaded only by the pages that use it. Anything shown after loading (data from the server, a React component) is not in the initial HTML."
+        texte "Each page is an HTML file already written by the compiler, which a small script picks up without rebuilding it. When a variable changes, only what reads it changes. The site can also be produced with React: write `--moteur react`, or once for a project in `humalis.projet.json`: `"moteur": "react"`; `humalis developper` and `humalis tester` use it too. A program that uses what the engine cannot do yet is produced with React: the compiler says why."
+        texte "The desktop app also takes the engine's pages, one per address. It switches to React for a React component or a value `memorisee en secret`."
+        texte "Modules (`utiliser module`), components (React, Vue, Svelte) and Web Components work the same way: the file is loaded only by the pages that use it. Anything shown after loading (data from the server, a component) is not in the initial HTML."
         texte "A click made before the page is ready is not lost: it is replayed as soon as the page is ready."
-        texte "`pour chaque t dans taches avec animation :` makes rows slide when the list changes, and new rows fade in (unless the person asked for less motion). It works on the web, with this engine as well as with React: elsewhere the compiler says so and rows change without sliding."
+        texte "`pour chaque t dans taches avec animation :` makes rows slide when the list changes, and new rows fade in (unless the person asked for less motion). It works on the web: elsewhere the compiler says so and rows change without sliding."
         texte "#### Real time"
         texte "`en direct` keeps a page up to date when the server changes:"
         code humalis :
@@ -5469,7 +5453,7 @@ page "documentation_33" dans "documentation" adresse "/documentation/ce-que-chaq
                 titre "Commandes"
                 quand la page se charge :
                     envoyer requete vers "commandes" dans commandes en direct
-        texte "An order created elsewhere appears by itself, without a reload. The server only announces that something changed: the page then re-reads the normal route, with its access rules, so nothing private travels through this channel. It works on the web (with this engine as well as with React), on the desktop, on Apple, on Android and on Windows. After a connection loss, the page reconnects by itself and catches up with what changed. The `mobile` target (Expo) and static pages read the list once, and the compiler says so."
+        texte "An order created elsewhere appears by itself, without a reload. The server only announces that something changed: the page then re-reads the normal route, with its access rules, so nothing private travels through this channel. It works on the web, on the desktop, on Apple, on Android and on Windows. After a connection loss, the page reconnects by itself and catches up with what changed. The `mobile` target (Expo) and static pages read the list once, and the compiler says so."
         texte "With a PostgreSQL database you can run several copies of the server: a change received by one is announced by all. Without PostgreSQL, keep a single copy. Changes close together are grouped, and pages do not all re-read at the same moment."
         texte "#### Reading the server at build time"
         texte "To have public pages carry their content in the HTML, give your server's address in `humalis.projet.json`:"
@@ -5496,7 +5480,7 @@ page "documentation_33" dans "documentation" adresse "/documentation/ce-que-chaq
             rangee "Raccourcis clavier", "oui", "oui", "non", "oui", "oui", "oui (clavier branché)", "oui"
             rangee "Vue native écrite à la main", "non", "non", "non", "non", "oui (Swift, `sur apple`)", "oui (Kotlin, `sur android`)", "oui (C#, `sur windows`)"
             rangee "Composants React (anciens projets)", "oui", "non", "oui (en React Native)", "oui", "non", "non", "non"
-            rangee "Le moteur sans React (par défaut)", "oui", "non", "non", "oui (sauf composant React ou `memorisee en secret`)", "non", "non", "non"
+            rangee "Le moteur Humalis (par défaut)", "oui", "non", "non", "oui (sauf composant React ou `memorisee en secret`)", "non", "non", "non"
             rangee "Graphiques, cartes, audio, vidéo, fichiers", "oui", "oui", "en partie", "oui", "oui", "oui", "oui"
             rangee "Plusieurs langues", "oui", "oui", "oui", "oui", "oui", "oui", "oui"
             rangee "Photo, scanner, Face ID, vibration, signature, hors ligne", "oui (vibration : Android)", "non", "non", "non", "oui", "oui", "non"
@@ -5555,14 +5539,14 @@ page "documentation_33" dans "documentation" adresse "/documentation/ce-que-chaq
         texte "`Application.exe --desinstaller` retire tout ce que l'application a inscrit : à faire avant de supprimer le fichier `.exe`."
         texte "Sans signature de code, Windows affiche un avertissement (SmartScreen) au premier lancement : « Informations complémentaires », puis « Exécuter quand même »."
         soustitre "Le moteur de rendu de Humalis"
-        texte "Le site web est produit sans React, par le moteur de Humalis : c'est le défaut."
+        texte "Le site web est produit par le moteur de Humalis : c'est le défaut."
         code terminal :
             humalis compile site.humalis --cible web --sortie site
-        texte "Chaque page est un fichier HTML déjà écrit par le compilateur, qu'un petit script reprend sans le reconstruire. Quand une variable change, seul ce qui la lit change. Pour garder React, écris `--moteur react`, ou une fois pour un projet dans `humalis.projet.json` : `"moteur": "react"` ; `humalis developper` et `humalis tester` s'en servent aussi. Un dossier déjà produit avec React le reste, et un programme qui emploie ce que le moteur ne sait pas encore faire est produit avec React : la compilation dit pourquoi."
-        texte "L'application de bureau prend aussi les pages du moteur, une par adresse, sans React. Elle garde React pour un composant React ou une valeur `memorisee en secret`."
-        texte "Les modules (`utiliser module`), les composants React, Vue et Svelte et les Web Components marchent de la même façon : le fichier n'est chargé que par les pages qui s'en servent. Tout ce qui s'affiche après le chargement (ce qui vient du serveur, un composant React) n'est pas dans le HTML de départ."
+        texte "Chaque page est un fichier HTML déjà écrit par le compilateur, qu'un petit script reprend sans le reconstruire. Quand une variable change, seul ce qui la lit change. Le site peut aussi être produit en React : écris `--moteur react`, ou une fois pour un projet dans `humalis.projet.json` : `"moteur": "react"` ; `humalis developper` et `humalis tester` s'en servent aussi. Un programme qui emploie ce que le moteur ne sait pas encore faire est produit en React : la compilation dit pourquoi."
+        texte "L'application de bureau prend aussi les pages du moteur, une par adresse. Elle passe en React pour un composant React ou une valeur `memorisee en secret`."
+        texte "Les modules (`utiliser module`), les composants (React, Vue, Svelte) et les Web Components marchent de la même façon : le fichier n'est chargé que par les pages qui s'en servent. Tout ce qui s'affiche après le chargement (ce qui vient du serveur, un composant) n'est pas dans le HTML de départ."
         texte "Un clic fait avant que la page soit prête n'est pas perdu : il est rejoué dès qu'elle l'est."
-        texte "`pour chaque t dans taches avec animation :` fait glisser les lignes quand la liste change, et apparaître en fondu celles qui arrivent (sauf si la personne a demandé moins d'animations). Cela marche sur le web, avec ce moteur comme avec React : ailleurs, le compilateur le dit et les lignes changent sans glisser."
+        texte "`pour chaque t dans taches avec animation :` fait glisser les lignes quand la liste change, et apparaître en fondu celles qui arrivent (sauf si la personne a demandé moins d'animations). Cela marche sur le web : ailleurs, le compilateur le dit et les lignes changent sans glisser."
         texte "#### Le temps réel"
         texte "`en direct` garde une page à jour quand le serveur change :"
         code humalis :
@@ -5571,7 +5555,7 @@ page "documentation_33" dans "documentation" adresse "/documentation/ce-que-chaq
                 titre "Commandes"
                 quand la page se charge :
                     envoyer requete vers "commandes" dans commandes en direct
-        texte "Une commande créée ailleurs apparaît seule, sans recharger. Le serveur annonce seulement « ça a changé » : la page relit ensuite la route normale, avec ses droits, donc rien de privé ne passe par ce canal. Cela marche sur le web (avec ce moteur comme avec React), sur le bureau, sur Apple, sur Android et sur Windows. Après une coupure, la page se reconnecte seule et rattrape ce qui a changé. La cible `mobile` (Expo) et les pages statiques lisent la liste une fois, et la compilation le dit."
+        texte "Une commande créée ailleurs apparaît seule, sans recharger. Le serveur annonce seulement « ça a changé » : la page relit ensuite la route normale, avec ses droits, donc rien de privé ne passe par ce canal. Cela marche sur le web, sur le bureau, sur Apple, sur Android et sur Windows. Après une coupure, la page se reconnecte seule et rattrape ce qui a changé. La cible `mobile` (Expo) et les pages statiques lisent la liste une fois, et la compilation le dit."
         texte "Avec une base PostgreSQL, tu peux lancer plusieurs exemplaires du serveur : un changement reçu par l'un est annoncé par tous. Sans PostgreSQL, garde un seul exemplaire. Les changements rapprochés sont regroupés, et les pages ne relisent pas toutes au même instant."
         texte "#### Lire le serveur à la construction"
         texte "Pour que les pages publiques portent déjà leur contenu dans le HTML, indique l'adresse de ton serveur dans `humalis.projet.json` :"
