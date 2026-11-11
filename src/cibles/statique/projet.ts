@@ -23,6 +23,7 @@ import { FORMAT_JS, FORMAT_JS_LANGUES, TAILLE_JS, DATES_JS, FORMES_TEXTE_JS } fr
 import { CLE_LANGUE } from '../web/langue.js';
 import { messagesDuSiteStatique } from '../../i18n/messages.js';
 import type { Application, Gestionnaire, NoeudVue, LangueRI } from '../../ri/types.js';
+import { codeCaptureNavigateur, requetesCapture } from '../capture-erreurs.js';
 import type { Diagnostic } from '../../analyse/erreurs.js';
 import { nomsDesStyles } from '../web/projet.js';
 import { simplifier } from '../../analyse/elements.js';
@@ -78,6 +79,8 @@ export function fichiersDesPages(application: Application): Map<string, string> 
 /** Les fichiers du site statique, prêts à déposer chez un hébergeur. */
 export function genererProjetStatique(application: Application, options: OptionsStatique): Map<string, string> {
   const fichiers = new Map<string, string>();
+  const captureErreurs = application.formes?.erreurArrive ? codeCaptureNavigateur(requetesCapture(application.formes).requetes) : undefined;
+  if (captureErreurs) fichiers.set('humalis/capture-erreurs.js', captureErreurs);
   const pagesFichiers = fichiersDesPages(application);
   const site: ContexteSite = {
     partages: application.partages,
@@ -139,13 +142,13 @@ ${fonctions.join('\n')}`,
     // Une carte : Leaflet (copié dans humalis/, sans CDN) et sa feuille de style.
     const carte = /\bcarteLieux\(/.test(page.script) || (page.composants && /\bcarteLieux\(/.test(fichiers.get('composants.js') ?? ''));
     const graphique = /\bhumalisGraphique\./.test(page.script) || (page.composants && /\bhumalisGraphique\./.test(fichiers.get('composants.js') ?? ''));
-    const scripts = ['humalis/humalis.js', ...(qr ? ['humalis/qrcode.js'] : []), ...(graphique ? ['humalis/graphique.js'] : []), ...(carte ? ['humalis/leaflet.js'] : []), ...(application.fonctions.length > 0 ? ['fonctions.js'] : []), ...(page.composants ? ['composants.js'] : []), script];
+    const scripts = [...(captureErreurs ? ['humalis/capture-erreurs.js'] : []), 'humalis/humalis.js', ...(qr ? ['humalis/qrcode.js'] : []), ...(graphique ? ['humalis/graphique.js'] : []), ...(carte ? ['humalis/leaflet.js'] : []), ...(application.fonctions.length > 0 ? ['fonctions.js'] : []), ...(page.composants ? ['composants.js'] : []), script];
     const fichier = pagesFichiers.get(ecran.nom)!;
     const apercu = enTetePublication(application, ecran, page, fichier, adresse);
     fichiers.set(fichier, pageHtml(apercu.titre, apercu.description, carte ? ['humalis/leaflet.css', ...feuilles] : feuilles, scripts, page.html, { mode: modeTheme, bascule, site: avecEntete, langue }, apercu.balises));
     fichiers.set(script, page.script);
   }
-  fichiers.set('404.html', pageHtml('Page introuvable', "Cette page n'existe pas.", feuilles, application.langues ? ['humalis/humalis.js', 'pages/introuvable-humalis.js'] : [], [
+  fichiers.set('404.html', pageHtml('Page introuvable', "Cette page n'existe pas.", feuilles, [...(captureErreurs ? ['humalis/capture-erreurs.js'] : []), ...(application.langues ? ['humalis/humalis.js', 'pages/introuvable-humalis.js'] : [])], [
     '<h1>Page introuvable</h1>',
     "<p>Cette page n'existe pas.</p>",
     `<a href="index.html">Revenir à l'accueil</a>`,

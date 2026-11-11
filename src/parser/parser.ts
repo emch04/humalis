@@ -603,6 +603,7 @@ function analyserServeur(flux: FluxTokens): Serveur {
   let paiements: Serveur['paiements'];
   let droitIa: DroitIa | undefined;
   const departs: NonNullable<Serveur['departs']> = [];
+  let captureErreurs: Serveur['captureErreurs'];
 
   const discussions: NonNullable<Serveur['discussions']> = [];
   const salles: NonNullable<Serveur['salles']> = [];
@@ -611,6 +612,13 @@ function analyserServeur(flux: FluxTokens): Serveur {
     const token = flux.actuel();
     if (estPhraseServeurTempsReel(flux)) {
       analyserPhraseServeurTempsReel(flux, { donnees, routes, discussions, salles });
+      return;
+    }
+    if (estLeMot(token, 'quand') && estLeMot(flux.regarder(1), 'erreur') && estLeMot(flux.regarder(2), 'arrive')) {
+      flux.avancer(); flux.avancer(); flux.avancer();
+      flux.attendre('PONCTUATION', ':', 'deux-points après « quand une erreur arrive »');
+      if (captureErreurs) throw new ErreurSyntaxique(`« quand une erreur arrive » est déjà écrit ligne ${captureErreurs.ligne}.`, token.ligne);
+      captureErreurs = { corps: analyserCorpsServeur(flux), ligne: token.ligne };
       return;
     }
     // « donnees de depart pour produit : » puis une fiche par ligne : « nom "Café", prix 3 ».
@@ -748,6 +756,7 @@ function analyserServeur(flux: FluxTokens): Serveur {
     nom,
     donnees,
     routes,
+    ...(captureErreurs ? { captureErreurs } : {}),
     ...(departs.length ? { departs } : {}),
     ...(discussions.length ? { discussions } : {}),
     ...(salles.length ? { salles } : {}),
@@ -1764,6 +1773,22 @@ export function analyserInstruction(flux: FluxTokens): Instruction {
   }
 
   // Les fonctions de l'appareil : ces mots restent des noms ailleurs.
+  if (estLeMot(flux.actuel(), 'enregistrer') && (estLeMot(flux.regarder(1), 'audio') || estLeMot(flux.regarder(1), 'video')) && estLeMot(flux.regarder(2), 'dans')) {
+    const debut = flux.avancer();
+    const media = flux.avancer().valeur as 'audio' | 'video';
+    flux.avancer();
+    return { type: 'EnregistrementMedia', media, variable: flux.attendreNom('la variable qui reçoit le fichier').nom, ligne: debut.ligne };
+  }
+  if (estLeMot(flux.actuel(), 'scanner') && estLeMot(flux.regarder(1), 'document') && estLeMot(flux.regarder(2), 'dans')) {
+    const debut = flux.avancer(); flux.avancer(); flux.avancer();
+    return { type: 'ScanDocument', variable: flux.attendreNom('la variable qui reçoit le document').nom, ligne: debut.ligne };
+  }
+  // « recadrer photo » : la variable qui contient l'image, ici nommée « photo ».
+  if (estLeMot(flux.actuel(), 'recadrer') && estMot(flux.regarder(1)) && flux.regarder(2).type === 'FIN_LIGNE') {
+    const debut = flux.avancer();
+    const image = flux.avancer();
+    return { type: 'RecadragePhoto', variable: image.original ?? image.valeur, ligne: debut.ligne };
+  }
   if (estLeMot(flux.actuel(), 'photo') && estLeMot(flux.regarder(1), 'dans')) {
     const debut = flux.avancer();
     flux.avancer();
@@ -2509,8 +2534,10 @@ function analyserRequete(flux: FluxTokens, ligne: number): Requete {
         break;
       }
       // « avec customer = client » : le nom donné à la donnée envoyée (l'API attend ce nom).
-      const nomme = flux.verifierNom() && flux.regarder(1).type === 'PONCTUATION' && flux.regarder(1).valeur === '=';
-      cles.push(nomme ? flux.attendreNom('le nom de la donnée envoyée').nom : undefined);
+      // Avant « = », un mot du langage reste un nom : « page = erreur.page ».
+      const nomme = estMot(flux.actuel()) && flux.regarder(1).type === 'PONCTUATION' && flux.regarder(1).valeur === '=';
+      const cle = nomme ? flux.avancer() : undefined;
+      cles.push(cle ? cle.original ?? cle.valeur : undefined);
       if (nomme) flux.avancer();
       donnees.push(nomme ? analyserExpression(flux) : analyserOperande(flux));
     } while (flux.accepter('MOT_CLE', 'et'));
@@ -3305,8 +3332,8 @@ function analyserValeur(flux: FluxTokens): Expression {
   if (flux.verifierNom()) {
     flux.avancer();
     let valeur: Expression = { type: 'Reference', nom: token.original ?? token.valeur, ligne: token.ligne };
-    // « p.prix » : un champ d'une donnée du serveur.
-    while (flux.verifier('PONCTUATION', '.') && estUnNom(flux.regarder(1))) {
+    // « p.prix » : un champ d'une donnée du serveur. Après le point, un mot du langage reste un nom (« erreur.page »).
+    while (flux.verifier('PONCTUATION', '.') && estMot(flux.regarder(1))) {
       flux.avancer();
       const champ = flux.avancer();
       valeur = { type: 'AccesChamp', objet: valeur, champ: champ.original ?? champ.valeur, ligne: token.ligne };

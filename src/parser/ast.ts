@@ -153,6 +153,8 @@ export interface Serveur {
   discussions?: { nom: string; entre: string[]; ligne: number }[];
   /** « salle "conseil" pour membre animee par direction ». */
   salles?: { nom: string; pour: string[]; animateurs?: string[]; ligne: number }[];
+  /** Capture des erreurs du processus et d'Express. */
+  captureErreurs?: { corps: InstructionServeur[]; ligne: number };
   /** « donnees de depart pour produit : » : les fiches écrites au premier démarrage, si la table est vide. */
   departs?: { donnee: string; fiches: { champs: { champ: string; valeur: string | number | boolean; ligne: number }[]; ligne: number }[]; ligne: number }[];
   nom: string;
@@ -465,6 +467,7 @@ export interface EnvoiNotification {
 type MorceauTexte = EnvoiEmail['sujet'][number];
 
 export type InstructionServeur =
+  | { type: 'RequeteServeur'; adresse: string; champs: { nom: string; valeur: Expression }[]; ligne: number }
   | { type: 'SiServeur'; test: Test; alors: InstructionServeur[]; sinon: InstructionServeur[]; ligne: number }
   | { type: 'PourChaqueServeur'; variable: string; donnee: string; filtres: FiltreServeur[]; corps: InstructionServeur[]; ligne: number }
   | { type: 'CalculServeur'; nom: string; operation: OperationCalcul; donnee: string; champ?: string; filtres: FiltreServeur[]; ligne: number }
@@ -538,6 +541,8 @@ export interface Page {
   reglages?: boolean;
   /** « page "x" en pleine fenetre : » : sur Apple, le contenu va jusqu'aux bords de la fenêtre. */
   pleineFenetre?: boolean;
+  /** La page qui représente « quand une erreur arrive » : ses requêtes partent vers une adresse complète, hors du serveur du fichier. */
+  captureErreurs?: true;
   /** « page "rapide" dans la barre du systeme avec icone "horloge" : » : barre des menus du Mac, zone de notification. */
   barreSysteme?: { icone?: string };
   /** « page "x" sur montre : », « sur tele : » : la page de l'application de la montre ou de la télévision. */
@@ -604,6 +609,9 @@ export type Instruction =
   | TelechargementDocument
   | ActivationNotifications
   | PrisePhoto
+  | EnregistrementMedia
+  | ScanDocument
+  | RecadragePhoto
   | Localisation
   | ScanCode
   | VerificationIdentite
@@ -900,6 +908,28 @@ export interface Invitation {
 /** « position dans lieu » : la latitude, la longitude et la précision de l'appareil. */
 export interface Localisation {
   type: 'Localisation';
+  variable: string;
+  ligne: number;
+}
+
+/** « enregistrer audio/video dans fichier » : le résultat est un fichier. */
+export interface EnregistrementMedia {
+  type: 'EnregistrementMedia';
+  media: 'audio' | 'video';
+  variable: string;
+  ligne: number;
+}
+
+/** « scanner document dans fichier ». */
+export interface ScanDocument {
+  type: 'ScanDocument';
+  variable: string;
+  ligne: number;
+}
+
+/** « recadrer photo » : modifie la variable seulement après validation. */
+export interface RecadragePhoto {
+  type: 'RecadragePhoto';
   variable: string;
   ligne: number;
 }
@@ -1828,6 +1858,8 @@ export interface CorpsForme {
 }
 
 export interface Formes {
+  /** « quand une erreur arrive : » : actions exécutées avec la fiche erreur. */
+  erreurArrive?: CorpsForme & { ligne: number };
   /** « widget "solde" avec taille petite vers "compte" : » ; « actualiser toutes les 30 minutes ». */
   widgets: (CorpsForme & { nom: string; taille?: 'petite' | 'moyenne' | 'grande'; vers?: string; actualiser?: { nombre: number; unite: 'minutes' | 'heures' }; ligne: number })[];
   /** « activite en direct "livraison" : » (titre, texte, progression). */

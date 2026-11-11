@@ -941,6 +941,13 @@ object Serveur {
     suspend fun statut(adresse: String, methode: String, envoi: Map<String, Any?>): Int =
         envoyerRequete(adresseComplete(adresse, null, null, emptyList()), methode, versJson(envoi), null).code
 
+    /** Le code et le corps d'une réponse, sans qu'un refus devienne une erreur ; la session se renouvelle comme partout. Une coupure lève l'erreur habituelle. */
+    suspend fun echange(adresse: String, methode: String, envoi: Map<String, Any?>? = null, entetes: List<Pair<String, String>> = emptyList()): Pair<Int, Any?> {
+        val source = if (entetes.isEmpty()) null else SourceHumalis("", Configuration.SERVEUR, entetes, session = true, essais = 0, delai = 15000)
+        val r = envoyerRequete(adresseComplete(adresse, null, source, emptyList()), methode, envoi?.let { versJson(it) }, source)
+        return r.code to lireJson(r.corps)
+    }
+
     /** Vrai si l'appel a réussi ; sinon, le message est affiché. */
     suspend fun appelReussi(
         adresse: String,
@@ -1006,7 +1013,7 @@ object Session {
         demande?.await()
     }
 
-    private suspend fun brut(chemin: String, methode: String, corps: Map<String, Any?>? = null): Pair<Int, Any?>? = withContext(Dispatchers.IO) {
+    suspend fun brut(chemin: String, methode: String, corps: Map<String, Any?>? = null, entetes: Map<String, String> = emptyMap()): Pair<Int, Any?>? = withContext(Dispatchers.IO) {
         try {
             val connexion = URL(Configuration.SERVEUR.trimEnd('/') + chemin).openConnection() as HttpURLConnection
             connexion.requestMethod = methode
@@ -1016,6 +1023,7 @@ object Session {
             connexion.setRequestProperty("Accept", "application/json")
             connexion.setRequestProperty("x-humalis-mobile", "1")
             jeton?.let { connexion.setRequestProperty("Authorization", "Bearer " + it) }
+            entetes.forEach { (nom, valeur) -> connexion.setRequestProperty(nom, valeur) }
             if (corps != null) {
                 connexion.doOutput = true
                 connexion.setRequestProperty("Content-Type", "application/json")
@@ -1040,6 +1048,7 @@ object Session {
         if (r != null) {
             if (personne != null) Coffre.ecrire(CLE_COMPTE, identifiant(personne?.get("id"))) else if (r.first == 401 || r.first in 200..299) Coffre.effacer(CLE_COMPTE)
         }
+        compteDeLAppareil = compteGarde
         pret = true
         if (personne != null) quandCompteConnu?.invoke()
     }
@@ -1047,11 +1056,23 @@ object Session {
     /** L'identifiant du compte de la personne, gardé sur l'appareil ; rien pour un visiteur. */
     val compteGarde: String? get() = Coffre.lire(CLE_COMPTE)
 
+    /** Le compte à qui sont les données de l'appareil : la personne reconnue, ou, sans réseau, la dernière. */
+    var compteDeLAppareil by mutableStateOf<String?>(null)
+        private set
+
+    /** Lancée sans réseau, l'application reconnaît la personne quand il revient. */
+    suspend fun relireSiHorsLigne() {
+        if (pret && personne == null && compteGarde != null) relire()
+    }
+
     /** Appelée quand une personne est reconnue : ce qui attendait pour elle peut partir. */
     var quandCompteConnu: (() -> Unit)? = null
 
     /** Le jeton d'accès dure peu ; celui de renouvellement en donne un autre. Plusieurs refus, un seul renouvellement. */
-    suspend fun renouveler(): Boolean {
+    suspend fun renouveler(): Boolean = withContext(Dispatchers.Main.immediate) { renouvelerSurLEcran() }
+
+    /** Toujours sur le fil de l'écran : un second renouvellement en même temps rejouerait le jeton, et le serveur fermerait la session. */
+    private suspend fun renouvelerSurLEcran(): Boolean {
         renouvellement?.let { return it.await() }
         val tache = portee.async {
             try {
@@ -1082,7 +1103,22 @@ object Session {
         if (r.first == 429) throw ErreurHumalis("Trop de tentatives de connexion. Réessayez dans quelques minutes.")
         // Jamais lequel des deux est faux : on ne dit pas si un compte existe.
         if (r.first !in 200..299) throw ErreurHumalis("Email ou mot de passe incorrect.")
-        garder(champ(r.second, "data"))
+        val donnees = champ(r.second, "data")
+        // Le compte a le code à six chiffres : pas encore de session, l'écran du code l'ouvrira.
+        if (texte(champ(donnees, "etape")) == "code") {
+            val demander = demanderCode ?: throw ErreurHumalis("Ce compte demande un code à six chiffres, que cette application ne sait pas saisir.")
+            if (!demander(texte(champ(donnees, "jeton")))) throw ErreurHumalis("La connexion a été annulée.")
+            return
+        }
+        ouvrir(donnees)
+    }
+
+    /** L'écran du code à six chiffres, quand l'application l'a. */
+    var demanderCode: (suspend (String) -> Boolean)? = null
+
+    /** La réponse d'une connexion (mot de passe, code, clé d'accès) : la session s'ouvre. */
+    suspend fun ouvrir(donnees: Any?) {
+        garder(donnees)
         relire()
     }
 
@@ -1128,6 +1164,8 @@ object Session {
     suspend fun seDeconnecter() {
         brut("/auth/logout", "POST", fiche())
         oublier()
+        // Même sans réseau : les données de ce compte ne restent pas à l'écran.
+        Coffre.effacer(CLE_COMPTE)
         relire()
     }
 

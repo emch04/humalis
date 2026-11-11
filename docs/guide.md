@@ -62,6 +62,50 @@ humalis developper
 `humalis developper` ouvre le site dans le navigateur et le recompile à chaque
 enregistrement : écris, enregistre, regarde.
 
+### Lancer un fichier tout de suite : la machine
+
+Pour essayer un fichier sans créer de projet, sans `npm install` et sans construction :
+
+```sh
+humalis lancer mon-fichier.humalis
+```
+
+La machine Humalis compile le fichier en mémoire, l'ouvre à l'adresse `http://localhost:5173`
+(`--port` en choisit une autre, `--ouvrir` ouvre le navigateur) et **n'écrit rien sur le
+disque**. À chaque enregistrement, la page change en moins d'une seconde, et garde la valeur de ses
+variables tant que leur déclaration n'a pas changé. Une faute s'affiche par-dessus la page, avec son
+fichier, sa ligne et le code en cause ; la dernière version qui marchait reste vivante jusqu'à ce que
+tu corriges.
+
+Le bloc `serveur` tourne lui aussi, en mémoire : données, routes, droits, rôles, règles de champ,
+actions, résumés, données de départ, temps réel, tâches planifiées, comptes et session. La machine
+crée au démarrage un compte d'essai `admin@machine.humalis` et un compte par rôle
+(`gerant@machine.humalis`…) ; leur mot de passe, tiré au hasard à chaque lancement, est dit dans le
+terminal. Quand tu modifies le programme, les données et les comptes restent. Tout est perdu à l'arrêt.
+
+Le panneau `http://localhost:5173/__machine` montre les comptes d'essai (et en crée), la boîte
+d'envoi, les données en mémoire, et ce qui se lance à la main.
+
+**Ce que la machine ne fait pas pour de vrai.** Elle ne l'imite jamais en silence : la commande le
+dit au démarrage, pour ce que *ton* fichier emploie.
+
+| Dans ton fichier | Ce que fait la machine |
+|---|---|
+| e-mails (`envoyer email`, `inviter`, mot de passe oublié) | aucun e-mail ne part : il est gardé dans la boîte du panneau, avec son lien |
+| notifications et activités en direct | aucune n'est poussée : gardées dans la boîte |
+| paiement (`payer`, `quand … est payee`) | la route répond 501 ; le panneau marque une fiche « payée » à la main et lance ce que le programme fait ensuite |
+| bons et documents PDF, carte de fidélité, IA | la route répond 501 |
+| connexion Google ou Apple | « pas réglée », comme un serveur sans identifiants |
+| sources à jeton secret (passerelles) | 501 : les secrets restent dans le vrai serveur |
+| composants externes (`utiliser composant …`) | refusés avec leur ligne : la machine ne lance que du Humalis, sans npm. Utilise `humalis developper` |
+
+La machine n'écoute que `localhost`. Pour un vrai projet (npm, base de données, publication), la
+suite reste `humalis developper` puis `humalis compile`.
+
+La même machine tourne dans un navigateur : `dist/navigateur.js` exporte `Machine` et
+`brancherApercu`, qui montrent l'application dans une iframe grâce à un Service Worker
+(`SERVICE_WORKER_JS`, à servir à la racine du site). C'est ce que le bac à sable du site utilisera.
+
 Quand le site te plaît, compile-le vers la cible voulue :
 
 ```sh
@@ -3624,6 +3668,23 @@ page "accueil" :
 partent quand il revient, les suppressions suivent, et en cas de conflit la modification la plus
 récente l'emporte. L'identifiant de chaque fiche est géré par la base.
 
+Chaque compte a sa propre base sur l'appareil : une fois déconnecté, ses fiches quittent la page,
+et ce qui attend d'être envoyé reste à ce compte. Les champs de la donnée locale doivent être ceux
+de la donnée du serveur, avec les mêmes types. Chaque envoi repasse par la route : ses droits et
+ses vérifications s'appliquent, et une modification refusée est annulée sur l'appareil, avec un
+message. La modification la plus récente se compte fiche par fiche, selon l'horloge du serveur,
+même si l'heure de l'appareil est fausse.
+
+| Cible | Base | Clé du chiffrement | Retour du réseau |
+| --- | --- | --- | --- |
+| web, bureau | IndexedDB | WebCrypto, non extractible | à la réouverture et au retour du réseau, page ouverte |
+| Apple | SQLite | Keychain | application ouverte |
+| Android | SQLite | Android Keystore | même application fermée (WorkManager) |
+| Windows | SQLite | DPAPI | application ouverte |
+
+Sur le serveur, une suppression reste connue 180 jours (`HUMALIS_SYNCHRO_JOURS`). Un appareil absent
+plus longtemps repart des données du serveur, sans perdre ce qu'il n'a pas encore envoyé.
+
 ### La connexion sans mot de passe et le code à six chiffres
 
 Dans le serveur, deux lignes ouvrent ces portes en plus de l'email et du mot de passe :
@@ -3651,6 +3712,25 @@ Dans les pages, `se connecter par cle d'acces` ouvre la connexion par Face ID, T
 Windows Hello ; `ajouter cle d'acces` ajoute une clé au compte de la personne connectée ;
 `activer double authentification` montre le code QR à scanner dans une application
 d'authentification. Le code à six chiffres est ensuite demandé tout seul après le mot de passe.
+
+Activer le code ou ajouter une clé redemande le mot de passe. L'écran d'activation donne dix codes
+de secours, à usage unique. Cinq codes faux ferment le compte un quart d'heure. Une clé d'accès
+ne demande pas de code : elle vaut déjà deux preuves. La connexion avec Google ou Apple n'en demande
+pas non plus : c'est le fournisseur qui vérifie la personne.
+
+Sur le serveur, `ENCRYPTION_KEY` est obligatoire pour le code à six chiffres, et
+`WEBAUTHN_ALLOWED_ORIGINS` donne les adresses du site : la première fixe le domaine des clés.
+
+Ce que demandent les clés d'accès, cible par cible :
+
+- **Web** : un site en https (ou `localhost` pendant le développement).
+- **Bureau (Electron)** : elles sont refusées à la compilation. Le navigateur intégré n'accepte pas
+  l'adresse propre à l'application. Le code à six chiffres y fonctionne.
+- **Apple** : `--serveur https://…`, `--equipe`, et `WEBAUTHN_APPLE_APP` sur le serveur, qui publie
+  le fichier d'association du domaine.
+- **Android** : un domaine en https, `WEBAUTHN_ANDROID_APP` sur le serveur (le nom du paquet puis
+  les empreintes de signature), et un compte Google sur l'appareil.
+- **Windows** : Windows Hello configuré sur le poste, sans paquet MSIX.
 
 ### Plusieurs fichiers
 
@@ -3700,6 +3780,7 @@ Les autres étapes : `remplir champ "email" avec "…"`, `aller vers "panier"`,
 | `humalis nouveau <nom>` | crée un projet |
 | `humalis --version` | affiche la version installée (`humalis --aide` : le mode d'emploi) |
 | `humalis developper` | lance le site et le recompile à chaque enregistrement |
+| `humalis lancer <fichier>` | fait tourner un fichier tout de suite, en mémoire, avec son serveur, sans rien installer |
 | `humalis compile <fichier> --cible <cible> --sortie <dossier>` | produit le projet d'une cible |
 | `humalis compile <fichier> --cible web --composants <dossier>` | produit des composants React à importer ailleurs |
 | `humalis verifier <fichier>` | affiche les erreurs et les avertissements |
@@ -3989,3 +4070,49 @@ Une source qui envoie une clé n'est jamais lue.
 
 Une donnée retirée du serveur reste dans le HTML jusqu'à la prochaine construction :
 reconstruis le site après une suppression importante.
+
+## Capturer les erreurs de l’application
+
+Placez cette forme en haut du fichier. Le bloc reçoit `erreur.message`, `erreur.pile`, `erreur.page` et `erreur.version`.
+
+```humalis
+quand une erreur arrive :
+    envoyer requete vers "https://centrale.exemple.fr/v1/envoi" avec message = erreur.message et pile = erreur.pile
+```
+
+La capture écoute les erreurs natives de chaque cible. Les erreurs fatales Apple et Android sont enregistrées puis envoyées au lancement suivant. Le serveur accepte la même forme dans `serveur "api" :`. Les envois HTTPS expirent après trois secondes, leurs échecs sont absorbés et une même erreur est limitée à trois rapports par minute. Les mots de passe, les secrets, les paramètres d’URL et le contenu des formulaires ne sont pas envoyés.
+
+## Enregistrer et recadrer des médias
+
+Dans un événement, déclarez une variable de fichier avec `rien`, puis utilisez :
+
+```humalis
+page "memo" :
+    titre "Mémo"
+    variable note = rien
+    variable clip = rien
+    variable facture = rien
+    variable photo = rien
+    bouton "Audio"
+    quand l'utilisateur clique sur "Audio" :
+        enregistrer audio dans note
+    bouton "Vidéo"
+    quand l'utilisateur clique sur "Vidéo" :
+        enregistrer video dans clip
+    bouton "Document"
+    quand l'utilisateur clique sur "Document" :
+        scanner document dans facture
+    bouton "Recadrer"
+    quand l'utilisateur clique sur "Recadrer" :
+        recadrer photo
+```
+
+Le résultat est un fichier comme celui de `photo dans photo` : il peut être affiché et envoyé au serveur. L’annulation conserve la valeur précédente. L’enregistrement et le recadrage fonctionnent sur le web, le bureau, Apple, Android et Windows. Le scan de document existe sur Apple et Android ; les autres cibles refusent la compilation.
+
+Chaque enregistrement ouvre un écran avec la durée, Démarrer, Arrêter, la réécoute, Recommencer, Valider et Annuler. Selon la cible :
+
+- **Apple** : le son est un fichier `.m4a`, la vidéo un `.mov` en H.264. Le micro et la caméra sont déclarés dans le projet seulement s’ils servent. `scanner document` emploie le scanner de l’iPhone et de l’iPad ; sur Mac, qui n’en a pas, la personne choisit des images ou un PDF.
+- **Android** : le son est un `.m4a`, la vidéo un `.mp4` (CameraX). `scanner document` emploie le scanner de Google, qui demande les services Google Play à jour ; sans eux, la personne lit un message clair.
+- **Windows** : le son est un `.m4a`, la vidéo un `.mp4`, sans paquet MSIX. Si la personne refuse le micro ou la caméra aux applications de bureau, dans Paramètres, Confidentialité, elle lit un message clair.
+
+Un document scanné est toujours un PDF ; `facture.apercu` montre l’image de sa première page.

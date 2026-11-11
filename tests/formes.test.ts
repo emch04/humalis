@@ -90,12 +90,22 @@ describe('les formes d’application spéciales', () => {
     expect(etat.locale).toMatchObject({ chiffree: true, champs: [{ nom: 'titre' }, { nom: 'lu' }] });
     expect(etat.initiale).toMatchObject({ elements: [] });
     expect(app.formes!.donneesLocales[0]).toMatchObject({ nom: 'notes', chiffree: true });
-    expect(verifierFormesPourLaCible(app, 'web').map((d) => d.gravite)).toEqual(['erreur']);
+    expect(verifierFormesPourLaCible(app, 'web')).toEqual([]);
   });
 
   it('une donnée locale refuse une route inconnue', () => {
     const P = 'page "a" :\n    titre "A"\n';
     expect(erreurs(`donnee locale notes :\n    titre : texte\n    synchronisee avec "notes"\n${P}`)[0]).toContain("n'existe pas dans le serveur");
+  });
+
+  it('une donnée synchronisée doit convenir à sa route', () => {
+    const P = 'page "a" :\n    titre "A"\n';
+    const S = 'serveur "s" :\n    donnee note :\n        titre : texte\n        lu : booleen\n    route "notes" :\n        connecte peut lire note\n';
+    const locale = (champs: string) => `donnee locale notes :\n${champs}    synchronisee avec "notes"\n`;
+    expect(erreurs(S + locale('    titre : texte\n    lu : booleen\n    autre : texte\n') + P)[0]).toContain('« autre »');
+    expect(erreurs(S + locale('    titre : nombre\n    lu : booleen\n') + P)[0]).toContain("n'a pas le même type");
+    expect(erreurs(S + locale('    titre : texte\n') + P)[0]).toContain('refuserait chaque nouvelle fiche');
+    expect(erreurs(S + locale('    titre : texte\n    lu : booleen\n') + P)).toEqual([]);
   });
 
   it('les clés d’accès et la double authentification demandent leur ligne dans le serveur', () => {
@@ -106,7 +116,7 @@ describe('les formes d’application spéciales', () => {
     const app = compile(serveur("    connexion par cle d'acces\n    double authentification\n") + page("ajouter cle d'acces"));
     expect(app.serveurs[0]).toMatchObject({ connexionCleAcces: true, doubleAuthentification: true });
     expect(JSON.stringify(app.ecrans)).toContain('"type":"compteSecurise","quoi":"ajoutCle"');
-    expect(verifierFormesPourLaCible(app, 'web').some((d) => d.gravite === 'erreur' && d.message.includes('clés d’accès'))).toBe(true);
-    expect(verifierFormesPourLaCible(app, 'serveur').filter((d) => d.gravite === 'erreur')).toHaveLength(2);
+    expect(verifierFormesPourLaCible(app, 'web').filter((d) => d.gravite === 'erreur')).toEqual([]);
+    expect(verifierFormesPourLaCible(app, 'serveur').filter((d) => d.gravite === 'erreur')).toEqual([]);
   });
 });

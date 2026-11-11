@@ -824,7 +824,7 @@ public static class Coffre
 
     private const int SansFenetre = 0x1;
 
-    private static byte[]? Transformer(byte[] donnees, bool chiffrer)
+    internal static byte[]? Transformer(byte[] donnees, bool chiffrer)
     {
         var entree = new DonneesBlob { Taille = donnees.Length, Octets = Marshal.AllocHGlobal(Math.Max(1, donnees.Length)) };
         var sortie = new DonneesBlob();

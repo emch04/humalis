@@ -7,7 +7,7 @@ import { langueDuMot } from '../i18n/langues.js';
 import { texteSource } from '../parser/langues.js';
 import { lireExpressionDuTexte } from '../parser/parser.js';
 import { ErreurSyntaxique } from '../parser/erreurs.js';
-import type { FaireAction, Localisation, Paiement, PrisePhoto, ScanCode, TelechargementDocument, VerificationIdentite, Vibration } from '../parser/ast.js';
+import type { FaireAction, Localisation, Paiement, PrisePhoto, EnregistrementMedia, ScanDocument, RecadragePhoto, ScanCode, TelechargementDocument, VerificationIdentite, Vibration } from '../parser/ast.js';
 import type {
   Programme,
   RegleSource,
@@ -77,7 +77,7 @@ import { verifierAccessibilite } from './accessibilite.js';
 import { niveauxDesSousTitres } from './niveaux.js';
 import { verifierElementEcran, verifierBlocEcran, type Signaler } from './ecran.js';
 import { connaitreIconesDessinees } from '../vocabulaire/icones.js';
-import { verifierChoixFichier, verifierEnvoiFichier, typeFichierChoisi, aUnApercu, recenserFichiers, type FichiersDeLaPage } from './fichiers.js';
+import { verifierChoixFichier, verifierEnvoiFichier, typeFichierChoisi, aUnApercu, recenserFichiers, recenserCaptures, type FichiersDeLaPage } from './fichiers.js';
 import { verifierCarte, verifierMarqueur } from './carte.js';
 import { verifierMouvement, verifierDefilementsDeLaPage, verifierImage, verifierAudio, verifierVideo, verifierPrioritairesDeLaPage, verifierGraphique } from './medias.js';
 import { DEVISES } from '../cibles/format.js';
@@ -529,6 +529,8 @@ class AnalysePage {
   private readonly prioritaires: number[] = [];
   /** Les choix de fichier de la page, par variable (pour vérifier « envoyer fichier »). */
   private fichiers: FichiersDeLaPage = new Map();
+  /** Les variables remplies par une capture de la page : elles s'envoient comme un fichier choisi. */
+  private captures = new Set<string>();
 
   // ─── Les interactions (plan 2026-10-30-interactions) ───────────────────
   /** L'événement ouvert, et les blocs où l'on se trouve (minuterie, question, bouton d'un message, fenêtre). */
@@ -632,6 +634,7 @@ class AnalysePage {
     }
     this.recenserGardes(this.page.corps, undefined);
     this.fichiers = recenserFichiers(this.page.corps);
+    this.captures = recenserCaptures(this.page.corps);
     this.bloc(this.page.corps, 'vue', { genre: 'page' });
     for (const { partie, fiche, champ } of this.datesEnAttente) {
       if (fiche.champs.some((c) => c.nom === champ && c.date)) this.resultat.formats.set(partie, 'date');
@@ -1063,6 +1066,9 @@ class AnalysePage {
       }
 
       case 'PrisePhoto':
+      case 'EnregistrementMedia':
+      case 'ScanDocument':
+      case 'RecadragePhoto':
       case 'Localisation':
       case 'ScanCode':
       case 'VerificationIdentite':
@@ -1451,7 +1457,7 @@ class AnalysePage {
   }
 
   /** « photo dans image », « scanner code dans valeur », « verifier identite : », « vibrer » : un geste de la personne les déclenche. */
-  private fonctionAppareil(instruction: PrisePhoto | ScanCode | VerificationIdentite | Vibration | Localisation, contexte: Contexte, place: Place): void {
+  private fonctionAppareil(instruction: PrisePhoto | EnregistrementMedia | ScanDocument | RecadragePhoto | ScanCode | VerificationIdentite | Vibration | Localisation, contexte: Contexte, place: Place): void {
     if (contexte === 'vue') this.horsEvenement(actionInterditeDansUneFonction(instruction)!, instruction.ligne);
     if (this.cadre.evenement === 'arrierePlan' && instruction.type !== 'Vibration') {
       this.erreur(`« ${actionInterditeDansUneFonction(instruction)} » demande la personne devant l’écran : cela ne se place pas dans « en arriere plan ».`, instruction.ligne);
@@ -1463,15 +1469,17 @@ class AnalysePage {
     if (instruction.type === 'VerificationIdentite') {
       this.sousBloc(instruction.alors, contexte, place);
       this.sousBloc(instruction.sinon, contexte, place);
-    } else if (instruction.type === 'PrisePhoto') {
-      const symbole = this.variable(instruction.variable, instruction.ligne);
+    } else if (['PrisePhoto', 'EnregistrementMedia', 'ScanDocument', 'RecadragePhoto'].includes(instruction.type)) {
+      const fichier = instruction as PrisePhoto | EnregistrementMedia | ScanDocument | RecadragePhoto;
+      const symbole = this.variable(fichier.variable, fichier.ligne);
       if (!symbole) return;
       const type = typeFichierChoisi(false);
       if (!estConnu(symbole.type)) {
         symbole.type = type;
         if (symbole.origine) this.resultat.types.set(symbole.origine, type);
       } else if (!compatibles(symbole.type, type)) {
-        this.erreur(`« ${instruction.variable} » est ${decrireType(symbole.type)} ; elle reçoit une photo. Déclarez variable ${instruction.variable} = rien.`, instruction.ligne);
+        if (fichier.type === 'PrisePhoto') this.erreur(`« ${fichier.variable} » est ${decrireType(symbole.type)} ; elle reçoit une photo. Déclarez variable ${fichier.variable} = rien.`, fichier.ligne);
+        else this.erreur(`« ${fichier.variable} » est ${decrireType(symbole.type)} ; elle reçoit un fichier. Déclarez variable ${fichier.variable} = rien.`, fichier.ligne);
       }
     } else if (instruction.type === 'ScanCode') {
       this.variableDeTexte(instruction.variable, instruction.ligne, 'un code');
@@ -1525,7 +1533,7 @@ class AnalysePage {
   /** « envoyer fichier photo vers "…" de la source "…" » : voir `analyse/fichiers.ts`. */
   private envoiFichier(envoi: EnvoiFichier): void {
     const typeDe = (nom: string, ligne: number) => this.variable(nom, ligne)?.type;
-    verifierEnvoiFichier(envoi, { fichiers: this.fichiers, sources: this.liens.sources, typeDe }, this.signaler());
+    verifierEnvoiFichier(envoi, { fichiers: this.fichiers, captures: this.captures, sources: this.liens.sources, typeDe }, this.signaler());
     // La réponse peut être suivie comme celle d'une requête : « adresse est en chargement », « erreur de adresse ».
     if (envoi.resultat !== undefined) this.ciblesSources.add(envoi.resultat);
   }
@@ -2663,7 +2671,7 @@ class AnalysePage {
       this.resultat.adressesRequetes.set(requete, `/api/${adresseNormalisee(requete.adresse)}`);
       return;
     }
-    if (this.liens.routes.size === 0) {
+    if (this.liens.routes.size === 0 || (this.page.captureErreurs && /^https:\/\//i.test(requete.adresse))) {
       // Une adresse hors du fichier : « avec id » reste une lecture, jamais un envoi.
       if (requete.parId) this.resultat.lecturesUn.add(requete);
       return;
@@ -3155,6 +3163,12 @@ function actionInterditeDansUneFonction(instruction: Instruction): string | unde
       return 'activer notifications';
     case 'PrisePhoto':
       return 'photo';
+    case 'EnregistrementMedia':
+      return 'enregistrer';
+    case 'ScanDocument':
+      return 'scanner document';
+    case 'RecadragePhoto':
+      return 'recadrer photo';
     case 'Localisation':
       return 'position';
     case 'ScanCode':

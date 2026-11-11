@@ -167,6 +167,7 @@ export interface ConditionRegleRI {
 }
 
 export type ValeurServeurRI =
+  | { genre: 'erreur'; champ: 'message' | 'pile' | 'page' | 'version' }
   | { genre: 'valeur'; valeur: string | number | boolean }
   | { genre: 'aujourdhui' }
   | { genre: 'champ'; fiche: string; champ: string }
@@ -196,6 +197,7 @@ export type TestServeurRI =
   | { genre: 'combinaison'; operateur: 'et' | 'ou'; gauche: TestServeurRI; droite: TestServeurRI };
 
 export type InstructionServeurRI =
+  | { type: 'requete'; adresse: string; champs: { nom: string; valeur: ValeurServeurRI }[] }
   | { type: 'si'; test: TestServeurRI; alors: InstructionServeurRI[]; sinon: InstructionServeurRI[] }
   | { type: 'pourChaque'; variable: string; donnee: string; filtres: FiltreServeurRI[]; corps: InstructionServeurRI[] }
   | { type: 'calcul'; nom: string; operation: string; donnee: string; champ?: string; filtres: FiltreServeurRI[] }
@@ -229,6 +231,7 @@ export interface ServeurRI {
   discussions?: { nom: string; entre: string[]; ligne: number }[];
   /** « salle "conseil" pour membre animee par direction ». */
   salles?: { nom: string; pour: string[]; animateurs?: string[]; ligne: number }[];
+  captureErreurs?: InstructionServeurRI[];
   /** Les sources à jeton secret que ce serveur relaie (« /api/passerelle/<source> »). */
   passerelles?: PasserelleRI[];
   nom: string;
@@ -260,6 +263,8 @@ export interface ServeurRI {
     bon?: boolean;
     /** Une page lit cette route « en direct » : la route annonce ses changements (GET /direct). */
     direct?: boolean;
+    /** Une donnée locale se synchronise avec cette route (« synchronisee avec … ») : elle sert aussi /synchro. */
+    synchronisee?: boolean;
     /** « quand message est cree : » : les e-mails que la création fait partir. */
     envois?: EnvoiEmailRI[];
     ligne: number;
@@ -858,6 +863,7 @@ export type Action =
   | { type: 'activationNotifications' }
   /** « photo dans image ». */
   | { type: 'prisePhoto'; variable: string }
+  | { type: 'enregistrerAudio' | 'enregistrerVideo' | 'scannerDocument' | 'recadrerPhoto'; variable: string }
   /** « position dans lieu ». */
   | { type: 'localisation'; variable: string }
   /** « scanner code dans valeur ». */
@@ -1008,6 +1014,7 @@ export interface Option {
  * le gestionnaire « chargement » porte les actions, avec ses variables locales (partage, fichier, {produit}).
  */
 export interface FormesRI {
+  erreurArrive?: { ecran: Ecran; ligne: number };
   widgets: { nom: string; taille?: 'petite' | 'moyenne' | 'grande'; vers?: string; actualiser?: { nombre: number; unite: 'minutes' | 'heures' }; ecran: Ecran; ligne: number }[];
   activites: { nom: string; ecran: Ecran; ligne: number }[];
   raccourcisIcone: { titre: string; page: string; icone?: string; ligne: number }[];
