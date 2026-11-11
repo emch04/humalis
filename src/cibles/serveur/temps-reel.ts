@@ -127,7 +127,27 @@ function monterSalles(app: Application, o: Options, voir: (req: Request) => Moi,
   });
 
   // Deux routes pour la même réponse : une page peut lire la liste des participants et son propre état, chacune avec son écoute.
-  for (const route of ['/api/salles_vue', '/api/salles_moi']) app.get(route + '/direct', ...acces.connecte, (req, res) => ecouter('tr:salles', req, res, voir(req)));
+  for (const route of ['/api/salles_vue', '/api/salles_moi'])
+    app.get(route + '/direct', ...acces.connecte, (req, res) => {
+      ecouter('tr:salles', req, res, voir(req));
+      surveillees += 1;
+      req.on('close', () => { surveillees -= 1; });
+    });
+
+  // Une personne dont la connexion tombe (navigateur fermé, réseau coupé) quitte la salle sans le dire.
+  // Tant que quelqu'un regarde une salle, le serveur compare les présents et annonce tout changement.
+  let surveillees = 0;
+  let empreinte = '';
+  setInterval(() => {
+    if (surveillees <= 0 || !regle()) return;
+    void service().listRooms().then((pieces) => {
+      const nouvelle = pieces.map((p) => p.name + ':' + p.numParticipants + ':' + p.numPublishers).sort().join('|');
+      if (nouvelle !== empreinte) {
+        if (empreinte !== '') annoncer();
+        empreinte = nouvelle;
+      }
+    }).catch(() => undefined);
+  }, 5000).unref();
 
   app.get(['/api/salles_vue/:salle', '/api/salles_moi/:salle'], ...acces.connecte, async (req, res, next) => {
     try {
