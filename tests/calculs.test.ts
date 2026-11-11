@@ -224,7 +224,7 @@ describe('calculs — représentation intermédiaire', () => {
       droite: { type: 'nombre', valeur: 2 },
     });
     expect(ecran.gestionnaires[0].actions).toEqual([
-      { type: 'retrait', liste: 'panier', valeur: { type: 'texte', parties: [{ texte: 'Livre' }] } },
+      { type: 'retrait', liste: 'panier', valeur: { type: 'texte', parties: [{ texte: 'Livre' }] }, ligne: 6 },
     ]);
   });
 });
@@ -257,6 +257,7 @@ describe('calcul : une valeur qui se recalcule seule', () => {
         nom: 'nombre_articles',
         type: { genre: 'nombre' },
         valeur: { type: 'compte', liste: { type: 'variable', nom: 'panier' } },
+        ligne: expect.any(Number),
       },
     ]);
   });

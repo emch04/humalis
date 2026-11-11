@@ -17,7 +17,7 @@ function declaration(ligne: string): Instruction {
 
 const PARTAGE = 'variable partage = fiche avec texte "" et lien "" et fichier ""';
 const FICHIER = 'variable fichier = fiche avec nom "" et type "" et contenu ""';
-const ERREUR = 'variable erreur = fiche avec message "" et pile "" et version ""';
+const ERREUR = 'variable erreur = fiche avec message "" et pile "" et ligne "" et version ""';
 
 /** Une donnée locale envoie ses champs à sa route : ils doivent y exister, avec le même type, et suffire à créer une fiche. */
 function verifierChampsSynchronises(programme: Programme, d: NonNullable<Programme['formes']>['donneesLocales'][number], erreur: (message: string, ligne: number) => void): void {

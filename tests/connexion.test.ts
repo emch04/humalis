@@ -156,10 +156,10 @@ describe('connexion — représentation intermédiaire', () => {
     ).application!;
     const ecran = application.ecrans[0];
     expect(ecran.gestionnaires[0].actions).toEqual([
-      { type: 'connexion', email: { type: 'champ', id: 'champ_email' }, motDePasse: { type: 'champ', id: 'champ_mot_de_passe' } },
-      { type: 'message', genre: 'info', texte: { type: 'texte', parties: [{ texte: 'Bienvenue' }] } },
+      { type: 'connexion', email: { type: 'champ', id: 'champ_email' }, motDePasse: { type: 'champ', id: 'champ_mot_de_passe' }, ligne: 12 },
+      { type: 'message', genre: 'info', texte: { type: 'texte', parties: [{ texte: 'Bienvenue' }] }, ligne: 13 },
     ]);
-    expect(ecran.gestionnaires[1].actions).toEqual([{ type: 'deconnexion' }]);
+    expect(ecran.gestionnaires[1].actions).toMatchObject([{ type: 'deconnexion' }]);
     expect(ecran.vue.at(-1)).toMatchObject({ type: 'condition', test: { gauche: { type: 'utilisateur', etat: 'connecte' }, operateur: 'vrai' } });
   });
 });

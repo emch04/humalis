@@ -29,6 +29,7 @@ import { robotsTxt, manifeste, fichiersDuSite } from '../publication.js';
 import { camel, chaine, pascal } from '../web/noms.js';
 import type { Diagnostic } from '../../analyse/erreurs.js';
 import { MOTEUR_JS } from './execution.js';
+import { LIGNES_NAVIGATEUR_JS, lignesViteJs } from '../commun/lignes-web.js';
 import { GenerateurMoteur, NOMS_RESERVES, type ContexteMoteur } from './page.js';
 import { outilsJs, navigationJs } from './outils.js';
 import { adaptateursJs, baliseDe, paquetsDesExternes, sorteDe } from './adaptateurs.js';
@@ -445,6 +446,10 @@ document.title = ${traduit('Page introuvable')};
     devDependencies: { vite: VERSIONS.vite, ...paquets.dependancesDev },
   }, null, 2) + '\n');
   fichiers.set('vite.config.js', viteConfig(entrees, routes.filter((r) => r.chemin !== '/'), application.serveurs.length > 0, sortes));
+  // Les lignes Humalis : les cartes de sources pour Vite, la table du site construit, et le script qui rend les piles d'erreurs.
+  fichiers.set('humalis-vite.js', lignesViteJs());
+  fichiers.set('public/humalis/lignes.js', LIGNES_NAVIGATEUR_JS);
+  for (const [nom, contenu] of fichiers) if (nom.endsWith('.html')) fichiers.set(nom, contenu.replace('</head>', '<script src="/humalis/lignes.js"></script></head>'));
   fichiers.set('LISEZMOI.md', `# ${options.nom}\n\nSite produit par Humalis depuis \`${options.source}\`, avec son moteur de rendu, sans React.\n\n\`\`\`sh\nnpm install\nnpm run dev\nnpm run build\nnpm run preview\n\`\`\`\n\nChaque page est un fichier HTML déjà écrit ; un petit script la reprend.\n`);
   if (application.formes?.erreurArrive) {
     fichiers.set('public/humalis/capture-erreurs.js', codeCaptureNavigateur(requetesCapture(application.formes).requetes));
@@ -517,6 +522,7 @@ function viteConfig(entrees: [string, string][], adresses: { chemin: string; fic
   const reecritures = adresses.map((r) => `  [/^${r.chemin.replace(/\//g, '\\/').replace(/:[A-Za-z0-9_]+/g, '[^/]+')}\\/?$/, ${chaine(`${r.fichier}index.html`)}],`);
   return `import { defineConfig } from 'vite';
 import { resolve } from 'node:path';
+import { humalisLignes } from './humalis-vite.js';
 ${react ? "import react from '@vitejs/plugin-react';\n" : ''}${sortes.has('vue') ? "import vue from '@vitejs/plugin-vue';\n" : ''}${sortes.has('svelte') ? "import { svelte } from '@sveltejs/vite-plugin-svelte';\n" : ''}
 const entrees = {
 ${entrees.map(([cle, f]) => `  ${chaine(cle)}: resolve(import.meta.dirname, ${chaine(f)}),`).join('\n')}
@@ -541,7 +547,7 @@ const reecrire = (requete, _reponse, suite) => {
 ${serveur ? "\nconst cible = process.env.HUMALIS_SERVEUR ?? 'http://localhost:3000';\nconst proxy = { '/api': cible, '/auth': cible };\n" : ''}
 export default defineConfig({
   appType: 'mpa',
-  plugins: [${[react ? 'react()' : '', sortes.has('vue') ? 'vue()' : '', sortes.has('svelte') ? 'svelte()' : ''].filter(Boolean).concat("{ name: 'humalis-adresses', configureServer: (s) => void s.middlewares.use(reecrire), configurePreviewServer: (s) => void s.middlewares.use(reecrire) }").join(', ')}],
+  plugins: [${['humalisLignes()', react ? 'react()' : '', sortes.has('vue') ? 'vue()' : '', sortes.has('svelte') ? 'svelte()' : ''].filter(Boolean).concat("{ name: 'humalis-adresses', configureServer: (s) => void s.middlewares.use(reecrire), configurePreviewServer: (s) => void s.middlewares.use(reecrire) }").join(', ')}],
   build: { rollupOptions: { input: entrees } },${serveur ? '\n  server: { proxy },\n  preview: { proxy },' : ''}
 });
 `;

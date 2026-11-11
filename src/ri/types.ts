@@ -167,7 +167,7 @@ export interface ConditionRegleRI {
 }
 
 export type ValeurServeurRI =
-  | { genre: 'erreur'; champ: 'message' | 'pile' | 'page' | 'version' }
+  | { genre: 'erreur'; champ: 'message' | 'pile' | 'page' | 'version' | 'ligne' }
   | { genre: 'valeur'; valeur: string | number | boolean }
   | { genre: 'aujourdhui' }
   | { genre: 'champ'; fiche: string; champ: string }
@@ -417,6 +417,8 @@ export interface Calcul {
   valeur: Valeur;
   /** « premier de … » : il peut ne pas y avoir de valeur (on y lit un champ avec « ?. »). */
   facultatif?: boolean;
+  /** La ligne Humalis du calcul. */
+  ligne?: number;
 }
 
 export type GenreElement = 'titre' | 'soustitre' | 'texte' | 'image' | 'bouton' | 'lien' | 'champ';
@@ -738,7 +740,14 @@ export interface Gestionnaire {
   ligne: number;
 }
 
-export type Action =
+/**
+ * Une action, avec la ligne Humalis qui l'a écrite (ligne fusionnée du
+ * projet, voir src/fichiers.ts) : les cibles s'en servent pour relier le code
+ * produit au fichier Humalis (cartes de sources, tables de lignes).
+ */
+export type Action = ActionSeule & { ligne?: number };
+
+type ActionSeule =
   | { type: 'optimiste'; corps: Action[]; variables: string[] }
   /** « recharger produits » : relance la requête de la variable, sans le cache. */
   | { type: 'recharger'; variable: string }

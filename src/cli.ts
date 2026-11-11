@@ -3,7 +3,8 @@ import { mediasLocaux, type InfoMedia } from './ri/medias.js';
 import { dimensionsImage } from './image/entete.js';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
-import { basename, dirname, join } from 'node:path';
+import { basename, dirname, join, relative, resolve } from 'node:path';
+import { activerReperes, appliquerLignesHumalis, type OptionsLignes } from './cibles/lignes-humalis.js';
 import { compilerProjet, situer } from './fichiers.js';
 import type { Diagnostic } from './analyse/erreurs.js';
 import { appliquerExigence, resumerQualite } from './analyse/diagnosticsQualite.js';
@@ -163,6 +164,8 @@ function compile(arguments_: string[]): number | Promise<number> {
 
   const source = lire(chemin);
   if (source === undefined) return 2;
+  // Le code produit porte ses lignes Humalis : ecrire() en fait des cartes de sources ou des directives.
+  activerReperes(true);
 
   const resultat = compilerLeFichier(chemin, source);
   const application = resultat.application ? pourLaCible(resultat.application, cible) : undefined;
@@ -230,7 +233,8 @@ function compile(arguments_: string[]): number | Promise<number> {
   if (moteur === undefined) {
     const refusMoteur = verifierPourLeMoteur(application).filter((d) => d.gravite === 'erreur');
     if (composants !== undefined) moteur = 'react';
-    else if (existsSync(join(sortie, MARQUE))) {
+    // Le moteur et React portent la même marque : seul un dossier sans le moteur a été produit avec React.
+    else if (existsSync(join(sortie, MARQUE)) && !existsSync(join(sortie, 'src', 'humalis', 'moteur.js'))) {
       // Un dossier déjà produit avec React le reste : rien n'est mélangé.
       moteur = 'react';
       console.error(`Note : « ${sortie} » a été produit avec React ; il le reste. Pour passer au moteur Humalis, videz le dossier ou écrivez --moteur humalis dans un dossier neuf.`);
@@ -314,7 +318,21 @@ function dossierLibre(sortie: string, marque: string): boolean {
   return true;
 }
 
-function ecrire(sortie: string, fichiers: Map<string, string>): void {
+/**
+ * Écrit le projet produit. Les repères de lignes Humalis y deviennent des
+ * cartes de sources (JavaScript), des directives de ligne (Swift, C#) ou
+ * une table (Kotlin) : voir cibles/lignes-humalis.ts.
+ */
+function ecrire(sortie: string, produits: Map<string, string>, kotlin?: OptionsLignes['kotlin']): void {
+  const dossierSource = cheminPrincipal ? dirname(resolve(cheminPrincipal)) : process.cwd();
+  const fichiers = appliquerLignesHumalis(produits, {
+    fichiers: fichiersDuProjet.length > 0 ? fichiersDuProjet : [cheminPrincipal ? basename(cheminPrincipal) : 'programme.humalis'],
+    versLesSources: relative(resolve(sortie), dossierSource).split('\\').join('/') || '.',
+    lire: (fichier) => {
+      try { return readFileSync(join(dossierSource, fichier), 'utf8'); } catch { return undefined; }
+    },
+    ...(kotlin ? { kotlin } : {}),
+  });
   const dependances = (): string => {
     try {
       const { dependencies, devDependencies } = JSON.parse(readFileSync(join(sortie, 'package.json'), 'utf8'));

@@ -34,7 +34,7 @@ class Traduction {
   /** « commande.total », « utilisateur.id » : ce que la valeur désigne. */
   private acces(nom: string, champ: string, portee: Portee, ligne: number): ValeurServeurRI {
     if (nom === 'erreur' && this.avecErreur) {
-      if (champ === 'message' || champ === 'pile' || champ === 'page' || champ === 'version') return { genre: 'erreur', champ };
+      if (champ === 'message' || champ === 'pile' || champ === 'page' || champ === 'version' || champ === 'ligne') return { genre: 'erreur', champ };
       this.erreur(`la capture ne connaît pas « erreur.${champ} » : champs disponibles : message, pile, page et version.`, ligne);
       return vide;
     }
@@ -169,7 +169,7 @@ class Traduction {
         }
         const champs = i.champs.map((c) => ({ nom: c.nom, valeur: this.valeur(c.valeur, portee) }));
         const sure = (v: ValeurServeurRI): boolean => v.genre === 'erreur' || (v.genre === 'valeur' && v.valeur === '') || (v.genre === 'texte' && v.parties.every((p) => 'texte' in p || sure(p.valeur)));
-        if (this.avecErreur && champs.some((c) => !sure(c.valeur))) this.erreur('la capture du serveur n’envoie que erreur.message, erreur.pile, erreur.page, erreur.version ou un texte fixe.', i.ligne);
+        if (this.avecErreur && champs.some((c) => !sure(c.valeur))) this.erreur('la capture du serveur n’envoie que erreur.message, erreur.pile, erreur.ligne, erreur.page, erreur.version ou un texte fixe.', i.ligne);
         return { type: 'requete', adresse: i.adresse, champs };
       }
       case 'SiServeur':

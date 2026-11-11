@@ -674,7 +674,9 @@ ${
     try {
       await gestionnaire();
     } catch (erreur) {
-      console.error(erreur);
+      // Signalée comme une erreur non rattrapée : la console et « quand une erreur arrive » la voient.
+      if (typeof reportError === 'function') reportError(erreur);
+      else console.error(erreur);
     } finally {
       actualiser();
     }

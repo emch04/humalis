@@ -24,7 +24,7 @@ describe('actions de médias', () => {
   ]) {
     it(`analyse et construit « ${phrase} »`, () => {
       const application = compilerAction(phrase);
-      expect(application.ecrans[0]!.gestionnaires[0]!.actions).toContainEqual({ type, variable: 'fichier' });
+      expect(application.ecrans[0]!.gestionnaires[0]!.actions).toContainEqual({ type, variable: 'fichier', ligne: expect.any(Number) });
       expect(utiliseAppareil(application)).toBe(type !== 'scannerDocument');
     });
     it(`refuse une variable numérique pour « ${phrase} »`, () => {

@@ -136,7 +136,7 @@ describe('le thème — la représentation intermédiaire', () => {
 
   it('« changer theme » devient une action', () => {
     const gestionnaire = compile(THEME + PAGE).ecrans[0].gestionnaires[0];
-    expect(gestionnaire.actions).toEqual([{ type: 'theme', valeur: 'sombre' }]);
+    expect(gestionnaire.actions).toEqual([{ type: 'theme', valeur: 'sombre', ligne: 13 }]);
   });
 });
 

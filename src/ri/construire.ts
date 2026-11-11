@@ -398,6 +398,7 @@ class Construction {
           type: this.analyse.types.get(instruction) ?? INCONNU,
           valeur: this.valeur(instruction.valeur),
           ...(this.analyse.facultatives.has(instruction) ? { facultatif: true } : {}),
+          ligne: instruction.ligne,
         });
       } else if (instruction.type === 'Variable') {
         etat.push({ ...etatDe(instruction, this.analyse), initiale: this.valeur(instruction.valeur) });
@@ -665,7 +666,19 @@ class Construction {
     return this.actions(instructions);
   }
 
+  /** Chaque action porte la ligne de l'instruction qui l'a écrite. */
   private actions(instructions: Instruction[]): Action[] {
+    const resultat: Action[] = [];
+    for (const instruction of instructions) {
+      for (const action of this.actionsSansLigne([instruction])) {
+        if (action.ligne === undefined && instruction.ligne > 0) action.ligne = instruction.ligne;
+        resultat.push(action);
+      }
+    }
+    return resultat;
+  }
+
+  private actionsSansLigne(instructions: Instruction[]): Action[] {
     const actions: Action[] = [];
 
     for (const instruction of instructions) {

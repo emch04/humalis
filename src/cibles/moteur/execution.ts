@@ -18,6 +18,16 @@
  */
 export const MOTEUR_JS = `// Produit par Humalis : le moteur de rendu, écrit en clair et sans bibliothèque.
 
+/**
+ * Une erreur rattrapée n'arrête pas la page, mais elle est signalée comme une
+ * erreur non rattrapée : la console, « quand une erreur arrive » et les lignes
+ * Humalis la voient (reportError).
+ */
+export function signalerErreur(erreur) {
+  if (typeof reportError === 'function') reportError(erreur);
+  else console.error(erreur);
+}
+
 let observateur = null;
 let portee = null;
 let rang = 0;
@@ -87,7 +97,7 @@ function viderNoeud(n) {
       try {
         f();
       } catch (erreur) {
-        console.error(erreur);
+        signalerErreur(erreur);
       }
     }
     n.c = null;
@@ -115,7 +125,7 @@ function tourner(n) {
     if (n.o && !Object.is(valeur, n.x)) n.ver++;
     n.x = valeur;
   } catch (erreur) {
-    console.error(erreur);
+    signalerErreur(erreur);
   } finally {
     [observateur, portee] = avant;
   }
@@ -173,7 +183,7 @@ function sous(proprietaire, f) {
   try {
     f();
   } catch (erreur) {
-    console.error(erreur);
+    signalerErreur(erreur);
   } finally {
     [observateur, portee] = avant;
   }
@@ -221,7 +231,7 @@ export async function executer(f, valeur) {
   try {
     return await f(valeur);
   } catch (erreur) {
-    console.error(erreur);
+    signalerErreur(erreur);
   }
 }
 

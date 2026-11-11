@@ -42,7 +42,7 @@ describe('représentation intermédiaire — boutique', () => {
       {
         declencheur: 'clic',
         cibles: ['bouton_voir_le_panier'],
-        actions: [{ type: 'navigation', ecran: { type: 'texte', parties: [{ texte: 'panier' }] } }],
+        actions: [{ type: 'navigation', ecran: { type: 'texte', parties: [{ texte: 'panier' }] }, ligne: 20 }],
         ligne: 19,
       },
     ]);
@@ -106,8 +106,9 @@ describe('représentation intermédiaire — événements', () => {
         {
           type: 'si',
           test: { gauche: { type: 'champ', id: 'champ_email' }, operateur: 'vide' },
-          alors: [{ type: 'message', genre: 'erreur', texte: { type: 'texte', parties: [{ texte: 'Email requis' }] } }],
-          sinon: [{ type: 'message', genre: 'info', texte: { type: 'texte', parties: [{ texte: 'Connexion réussie' }] } }],
+          alors: [{ type: 'message', genre: 'erreur', texte: { type: 'texte', parties: [{ texte: 'Email requis' }] }, ligne: 7 }],
+          sinon: [{ type: 'message', genre: 'info', texte: { type: 'texte', parties: [{ texte: 'Connexion réussie' }] }, ligne: 9 }],
+          ligne: 6,
         },
       ],
       ligne: 5,
@@ -136,23 +137,25 @@ describe('représentation intermédiaire — événements', () => {
     expect(page.gestionnaires[0]).toEqual({
       declencheur: 'chargement',
       cibles: [],
-      actions: [{ type: 'requete', adresse: '/produits', mode: 'lire', donnees: [], resultat: 'produits' }],
+      actions: [{ type: 'requete', adresse: '/produits', mode: 'lire', donnees: [], resultat: 'produits', ligne: 8 }],
       ligne: 7,
     });
     expect(page.gestionnaires[1].actions).toEqual([
-      { type: 'locale', nom: 'etape', typeValeur: { genre: 'nombre' }, valeur: { type: 'nombre', valeur: 1 } },
-      { type: 'affectation', nom: 'clics', valeur: { type: 'nombre', valeur: 2 } },
-      { type: 'visibilite', ids: ['menu'], visible: true },
+      { type: 'locale', nom: 'etape', typeValeur: { genre: 'nombre' }, valeur: { type: 'nombre', valeur: 1 }, ligne: 10 },
+      { type: 'affectation', nom: 'clics', valeur: { type: 'nombre', valeur: 2 }, ligne: 11 },
+      { type: 'visibilite', ids: ['menu'], visible: true, ligne: 12 },
       {
         type: 'changerTexte',
         ids: ['menu'],
         texte: { type: 'texte', parties: [{ texte: 'Bonjour ' }, { variable: 'clics', format: 'nombre' }] },
+        ligne: 13,
       },
       {
         type: 'requete',
         adresse: '/inscription',
         mode: 'envoyer',
         donnees: [{ type: 'champ', id: 'champ_email' }],
+        ligne: 14,
       },
     ]);
   });

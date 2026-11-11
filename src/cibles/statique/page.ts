@@ -83,6 +83,8 @@ export interface Fonction {
   actions: Action[];
   /** La soumission d'un formulaire : son identifiant (vérifications, puis champs vidés). */
   formulaire?: string;
+  /** La ligne Humalis de l'événement (« quand … : »). */
+  ligne?: number;
 }
 
 /** Le type HTML d'une saisie d'une ligne, selon sa sorte (« champ telephone "…" »). */
@@ -296,7 +298,7 @@ export class GenerateurPage {
     if (gestionnaire.declencheur === 'bas') {
       const id = gestionnaire.cibles[0] ?? '';
       const fonction = this.nomUnique(`quandArriveEnBas${pascal(id.replace(/^bloc_/, ''))}`, false);
-      this.fonctions.push({ nom: fonction, parametres, actions: gestionnaire.actions });
+      this.fonctions.push({ nom: fonction, parametres, actions: gestionnaire.actions, ligne: gestionnaire.ligne });
       this.basDesBlocs.set(id, { fonction, gestionnaire });
       return;
     }
@@ -304,7 +306,7 @@ export class GenerateurPage {
     if (gestionnaire.declencheur === 'touche') {
       if (gestionnaire.touches === undefined) return;
       const nom = this.nomUnique(`quandAppuie${pascal(gestionnaire.touches.replace(/\+/g, '_').replace(/[^a-z0-9_]/g, '_'))}`, false);
-      this.fonctions.push({ nom, parametres, actions: gestionnaire.actions });
+      this.fonctions.push({ nom, parametres, actions: gestionnaire.actions, ligne: gestionnaire.ligne });
       const dans = gestionnaire.cibles[0];
       this.raccourcis.push(`[${chaine(gestionnaire.touches)}, ${nom}${dans !== undefined ? `, ${chaine(dans)}` : ''}]`);
       return;
@@ -314,7 +316,7 @@ export class GenerateurPage {
       const id = gestionnaire.cibles[0] ?? '';
       const frappe = gestionnaire.declencheur === 'saisie';
       const nom = this.nomUnique(`quand${frappe ? 'Ecrit' : 'ArreteDEcrire'}${pascal(sansGenre(id))}`, false);
-      this.fonctions.push({ nom, parametres, actions: gestionnaire.actions });
+      this.fonctions.push({ nom, parametres, actions: gestionnaire.actions, ligne: gestionnaire.ligne });
       const parAttribut = this.evenements.get(id) ?? new Map<string, string[]>();
       parAttribut.set(frappe ? 'onfrappe' : 'onpause', [frappe ? nom : `{ faire: ${nom}, millisecondes: ${gestionnaire.millisecondes ?? 300} }`]);
       this.evenements.set(id, parAttribut);
@@ -327,7 +329,7 @@ export class GenerateurPage {
       const formulaire = this.formulaires.get(id);
       if (!formulaire) return;
       const nom = this.nomUnique(`quandSoumis${pascal(formulaire.nom)}`, false);
-      this.fonctions.push({ nom, parametres, actions: gestionnaire.actions, formulaire: id });
+      this.fonctions.push({ nom, parametres, actions: gestionnaire.actions, formulaire: id, ligne: gestionnaire.ligne });
       formulaire.soumission = parametres.length === 0 ? nom : `() => ${nom}(${parametres.map((p) => this.lu(p.nom)).join(', ')})`;
       return;
     }
@@ -336,7 +338,7 @@ export class GenerateurPage {
     const attribut = EVENEMENTS[gestionnaire.declencheur];
     const verbe = gestionnaire.declencheur === 'clic' ? 'Clique' : 'Survole';
     const nom = this.nomUnique(`quand${verbe}${pascal(sansGenre(gestionnaire.cibles[0] ?? ''))}`, false);
-    this.fonctions.push({ nom, parametres, actions: gestionnaire.actions });
+    this.fonctions.push({ nom, parametres, actions: gestionnaire.actions, ligne: gestionnaire.ligne });
     const appel = parametres.length === 0 ? nom : `${nom}(${parametres.map((p) => this.lu(p.nom)).join(', ')})`;
     for (const id of gestionnaire.cibles) {
       const parAttribut = this.evenements.get(id) ?? new Map<string, string[]>();
@@ -607,6 +609,7 @@ ${prise}${code}}
     const formulaire = fonction.formulaire !== undefined ? this.formulaires.get(fonction.formulaire) : undefined;
     e.ligne();
     this.dansEvenement = true;
+    e.repere(fonction.ligne);
     e.bloc(`${asynchrone}function ${fonction.nom}(${parametres}) {`, () => {
       if (!formulaire) {
         this.ecrireActions(e, fonction.actions, locales, modifiees(fonction.actions));
@@ -672,6 +675,7 @@ ${prise}${code}}
   fonctionGlobale(f: FonctionRI): string {
     const e = new Ecrivain();
     for (const p of f.parametres) this.contexte.types.set(p.nom, p.type);
+    e.repere(f.ligne);
     e.bloc(`function ${nomJs(f.nom)}(${f.parametres.map((p) => nomJs(p.nom)).join(', ')}) {`, () =>
       this.ecrireActions(e, f.corps, new Set(f.parametres.map((p) => p.nom)), modifiees(f.corps)),
     );
@@ -681,6 +685,7 @@ ${prise}${code}}
   protected ecrireActions(e: Ecrivain, actions: Action[], locales: Set<string>, modifiees: Set<string>): void {
     const x = (v: Valeur) => expressionJs(v, this.contexte);
     for (const action of actions) {
+      e.repere(action.ligne);
       switch (action.type) {
         case 'rendre':
           e.ligne(`return ${x(action.valeur)};`);

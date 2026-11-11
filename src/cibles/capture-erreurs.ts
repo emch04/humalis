@@ -1,7 +1,8 @@
 /** Lecture sûre des requêtes écrites dans « quand une erreur arrive ». */
 import type { Action, FormesRI, Valeur } from '../ri/types.js';
 
-export type ChampErreur = 'message' | 'pile' | 'page' | 'version';
+/** `ligne` : « boutique.humalis:12 », la première ligne Humalis de la pile (vide si aucune). */
+export type ChampErreur = 'message' | 'pile' | 'page' | 'version' | 'ligne';
 export interface RequeteCapture {
   adresse: string;
   champs: { nom: string; valeur: ChampErreur | { texte: string } }[];
@@ -10,7 +11,7 @@ export interface RequeteCapture {
 const SENSIBLES = /mot.?de.?passe|password|secret|token|jeton|authorization|formulaire|contenu/i;
 
 function champErreur(valeur: Valeur): ChampErreur | { texte: string } | undefined {
-  if (valeur.type === 'champDonnee' && valeur.objet.type === 'variable' && valeur.objet.nom === 'erreur' && ['message', 'pile', 'page', 'version'].includes(valeur.champ)) return valeur.champ as ChampErreur;
+  if (valeur.type === 'champDonnee' && valeur.objet.type === 'variable' && valeur.objet.nom === 'erreur' && ['message', 'pile', 'page', 'version', 'ligne'].includes(valeur.champ)) return valeur.champ as ChampErreur;
   if (valeur.type === 'texte' && valeur.parties.every((p) => 'texte' in p)) return { texte: valeur.parties.map((p) => 'texte' in p ? p.texte : '').join('') };
   return undefined;
 }
@@ -32,7 +33,7 @@ export function requetesCapture(formes: FormesRI | undefined): { requetes: Reque
     for (let index = 0; index < action.donnees.length; index++) {
       const nom = action.cles?.[index];
       const valeur = champErreur(action.donnees[index]!);
-      if (!nom || SENSIBLES.test(nom) || !valeur) erreurs.push('la capture n’envoie que des champs nommés et des valeurs erreur.message, erreur.pile, erreur.page, erreur.version ou un texte fixe, sans donnée sensible');
+      if (!nom || SENSIBLES.test(nom) || !valeur) erreurs.push('la capture n’envoie que des champs nommés et des valeurs erreur.message, erreur.pile, erreur.ligne, erreur.page, erreur.version ou un texte fixe, sans donnée sensible');
       else champs.push({ nom, valeur });
     }
     if (champs.length === action.donnees.length && champs.length > 0) requetes.push({ adresse: action.adresse, champs });
@@ -57,7 +58,13 @@ function nettoyer(valeur) {
 
 async function rapporter(inconnue) {
   if (captureEnCours) return;
-  const erreur = { message: nettoyer(inconnue?.message ?? 'Erreur inconnue'), pile: nettoyer(inconnue?.stack), page: location.pathname, version: ${JSON.stringify(version)} };
+  // La pile rendue à ses lignes Humalis (« ligne 9 de boutique.humalis ») quand le site en a la table.
+  let pile = inconnue?.stack;
+  let ligne = '';
+  if (window.humalisLignes) {
+    try { ({ pile, ligne } = await window.humalisLignes.traduire(pile)); } catch { /* La pile reste celle du navigateur. */ }
+  }
+  const erreur = { message: nettoyer(inconnue?.message ?? 'Erreur inconnue'), pile: nettoyer(pile), ligne: nettoyer(ligne), page: location.pathname, version: ${JSON.stringify(version)} };
   const cle = erreur.message + '|' + erreur.pile.split('\\n')[1];
   const maintenant = Date.now();
   const dates = (passages.get(cle) ?? []).filter((date) => maintenant - date < 60000);

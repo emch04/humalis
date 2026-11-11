@@ -185,7 +185,7 @@ export class GenerateurMoteur extends GenerateurPage {
     }
     this.parcourirActions(gestionnaire.actions);
     const fonction = this.nomUnique(`quandOrdreChange${pascal(gestionnaire.variable ?? '')}`, false);
-    this.fonctions.push({ nom: fonction, parametres, actions: gestionnaire.actions });
+    this.fonctions.push({ nom: fonction, parametres, actions: gestionnaire.actions, ligne: gestionnaire.ligne });
     this.ordresDe().set(gestionnaire.variable ?? '', fonction);
   }
 
@@ -278,6 +278,7 @@ export class GenerateurMoteur extends GenerateurPage {
   protected override ecrireActions(e: Ecrivain, actions: Action[], locales: Set<string>, modif: Set<string>): void {
     const x = (v: Valeur) => expressionJs(v, this.contexte);
     for (const action of actions) {
+      e.repere(action.ligne);
       if (!ACTIONS_LUES.has(action.type) && this.actionEnPlus(e, action, locales, modif)) continue;
       switch (action.type) {
         case 'affectation':
@@ -615,7 +616,7 @@ export class GenerateurMoteur extends GenerateurPage {
     for (const etat of this.ecran.etat) {
       const initiale = expressionJs(etat.initiale, this.contexte);
       const cle = `${this.ecran.nom}:${etat.nom}`;
-      e.ligne(`const ${nomJs(etat.nom)} = signal(${this.moteur.donnees?.has(cle) ? `adresse.donnees[${chaine(cle)}] ?? ${initiale}` : initiale});`);
+      e.repere(etat.ligne).ligne(`const ${nomJs(etat.nom)} = signal(${this.moteur.donnees?.has(cle) ? `adresse.donnees[${chaine(cle)}] ?? ${initiale}` : initiale});`);
     }
     for (const [id, variable] of this.contexte.champs) {
       e.ligne(`const ${variable.replace(/\.v$/, '')} = signal(${this.contexte.sortes?.get(id) === 'case' ? 'false' : "''"});`);
@@ -683,7 +684,7 @@ export class GenerateurMoteur extends GenerateurPage {
     const options: string[] = [];
     corps.indenter(() => {
       this.ecrireEtatMoteur(corps);
-      for (const calcul of this.ecran.calculs) this.ecrireCalcul(corps, calcul.nom, calcul.valeur);
+      for (const calcul of this.ecran.calculs) this.ecrireCalcul(corps.repere(calcul.ligne), calcul.nom, calcul.valeur);
       this.ecrireDepartsMoteur(corps);
       for (const fonction of this.fonctions) this.ecrireFonction(corps, fonction);
       if (this.chargements.length > 0) {
@@ -768,7 +769,7 @@ ${this.gabarits.map((g) => `const ${g.nom} = /*#__PURE__*/ gabarit(${chaine(g.ht
     const corps = new Ecrivain();
     corps.indenter(() => {
       this.ecrireEtatMoteur(corps);
-      for (const calcul of this.ecran.calculs) this.ecrireCalcul(corps, calcul.nom, calcul.valeur);
+      for (const calcul of this.ecran.calculs) this.ecrireCalcul(corps.repere(calcul.ligne), calcul.nom, calcul.valeur);
       for (const fonction of this.fonctions) this.ecrireFonction(corps, fonction);
       const options: string[] = [];
       if (this.minuteries.length > 0) this.ecrireMinuteries(corps, options);
@@ -862,7 +863,14 @@ ${this.avecPlanificateur(corps.texte())}}
     }
   }
 
+  /** Chaque morceau produit garde la ligne Humalis de son nœud (`l`), pour la carte de sources. */
   private noeudM(noeud: NoeudVue, env: Environnement | null, sortie: M[]): void {
+    const debut = sortie.length;
+    this.noeudMSansLigne(noeud, env, sortie);
+    if (noeud.ligne > 0) for (let i = debut; i < sortie.length; i++) (sortie[i] as { l?: number }).l ??= noeud.ligne;
+  }
+
+  private noeudMSansLigne(noeud: NoeudVue, env: Environnement | null, sortie: M[]): void {
     switch (noeud.type) {
       case 'element':
         this.enVisibilite(noeud.id, [this.elementM(noeud, env)], env, sortie);
@@ -1265,59 +1273,62 @@ ${this.avecPlanificateur(corps.texte())}}
 
   // ─── Les liaisons ───────────────────────────────────────────────────────
 
-  private liaisons(liste: M[], e: Ecrivain): void {
+  private liaisons(liste: M[], e: Ecrivain, ligne?: number): void {
     const avecLocales = liste.some((m) => 'locale' in m);
     if (avecLocales) e.ligne('{');
     const ecrire = () => {
-      for (const m of liste) this.liaison(m, e);
+      for (const m of liste) this.liaison(m, e, ligne);
     };
     if (avecLocales) e.indenter(ecrire);
     else ecrire();
     if (avecLocales) e.ligne('}');
   }
 
-  private bloc(contenu: M[], e: Ecrivain, entree: string, sortie: string, params = '(r)'): void {
+  private bloc(contenu: M[], e: Ecrivain, entree: string, sortie: string, params = '(r)', ligne?: number): void {
     numeroter(contenu);
     const nom = this.nomGabarit(html(contenu));
-    e.bloc(`${entree}${nom}, ${params} => {`, () => this.liaisons(contenu, e), `}${sortie}`);
+    e.repere(ligne).bloc(`${entree}${nom}, ${params} => {`, () => this.liaisons(contenu, e, ligne), `}${sortie}`);
   }
 
-  private liaison(m: M, e: Ecrivain): void {
+  private liaison(m: M, e: Ecrivain, heritee?: number): void {
+    // La ligne Humalis du nœud (ou de son parent) devant chaque ligne écrite.
+    const l = (m as { l?: number }).l ?? heritee;
+    const ecrire = (texte: string) => e.repere(l).ligne(texte);
     if ('locale' in m) {
-      e.ligne(`const ${m.locale.nom} = ${m.locale.js};`);
+      ecrire(`const ${m.locale.nom} = ${m.locale.js};`);
     } else if ('tag' in m) {
-      this.liaisons(m.enfants, e);
+      this.liaisons(m.enfants, e, l);
       const r = `r[${m.h}]`;
       if (m.h === undefined) return;
       for (const [nom, v] of m.attrs) {
         if (nom.startsWith('on')) {
           if (typeof v !== 'string') continue;
-          if (nom === 'onpause') e.ligne(`ecouterLaPause(${r}, ${v});`);
-          else e.ligne(`ecouter(${r}, ${chaine(nom === 'onfrappe' ? 'input' : nom.slice(2))}, ${v});`);
-        } else if (dynamique(v)) e.ligne(`attribut(${r}, ${chaine(nom)}, () => ${v.js});`);
+          if (nom === 'onpause') ecrire(`ecouterLaPause(${r}, ${v});`);
+          else ecrire(`ecouter(${r}, ${chaine(nom === 'onfrappe' ? 'input' : nom.slice(2))}, ${v});`);
+        } else if (dynamique(v)) ecrire(`attribut(${r}, ${chaine(nom)}, () => ${v.js});`);
       }
-      for (const l of m.liaisons ?? []) e.ligne(l.replace(/@/g, r));
-      if (m.enfants.length === 1 && 'js' in m.enfants[0] && m.enfants[0].seul) e.ligne(`texte(${r}, () => ${m.enfants[0].js});`);
+      for (const liaison of m.liaisons ?? []) ecrire(liaison.replace(/@/g, r));
+      if (m.enfants.length === 1 && 'js' in m.enfants[0] && m.enfants[0].seul) ecrire(`texte(${r}, () => ${m.enfants[0].js});`);
     } else if ('si' in m) {
       const composant = (m as MSi & { composant?: { nom: string; proprietes: string } }).composant;
       if (composant) {
-        e.ligne(`si(r[${m.h}], () => 0, [[$g${composant.nom}, (r) => ${composant.nom}(r, { ${composant.proprietes} })]]);`);
+        ecrire(`si(r[${m.h}], () => 0, [[$g${composant.nom}, (r) => ${composant.nom}(r, { ${composant.proprietes} })]]);`);
         return;
       }
-      e.ligne(`si(r[${m.h}], () => ${m.si}, [`);
+      ecrire(`si(r[${m.h}], () => ${m.si}, [`);
       e.indenter(() => {
         for (const branche of m.branches ?? []) {
-          if (branche.length === 0) e.ligne('null,');
-          else this.bloc(branche, e, '[', '],');
+          if (branche.length === 0) ecrire('null,');
+          else this.bloc(branche, e, '[', '],', '(r)', l);
         }
       });
-      e.ligne(']);');
+      ecrire(']);');
     } else if ('chaque' in m) {
-      this.bloc(m.corps ?? [], e, `chaque(r[${m.h}], () => ${m.chaque}, `, m.animation ? ', animerListe);' : ');', `(r, ${m.variable})`);
+      this.bloc(m.corps ?? [], e, `chaque(r[${m.h}], () => ${m.chaque}, `, m.animation ? ', animerListe);' : ');', `(r, ${m.variable})`, l);
     } else if ('zone' in m) {
-      e.ligne(`zone(r[${m.h}], () => ${m.zone});`);
+      ecrire(`zone(r[${m.h}], () => ${m.zone});`);
     } else if ('js' in m && !m.seul) {
-      e.ligne(`texte(r[${m.h}], () => ${m.js});`);
+      ecrire(`texte(r[${m.h}], () => ${m.js});`);
     }
   }
 }

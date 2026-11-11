@@ -265,7 +265,7 @@ describe('langues — la représentation intermédiaire', () => {
 
   it('« changer langue par anglais » devient une action ; « langue » se lit comme une valeur', () => {
     const json = JSON.stringify(application().ecrans[0].gestionnaires);
-    expect(json).toContain('{"type":"langue","code":"en"}');
+    expect(json).toMatch(/\{"type":"langue","code":"en","ligne":\d+\}/);
     expect(json).toContain('{"type":"variable","nom":"langue"}');
   });
 
