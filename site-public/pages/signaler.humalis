@@ -4,9 +4,9 @@ page "signaler" a l'adresse "/signaler" :
     apercu :
         titre "Signaler un problème" en anglais "Report an issue"
         description "Signale un bug, une erreur dans la documentation ou un problème de sécurité sur Humalis." en anglais "Report a bug, a documentation mistake or a security issue in Humalis."
-    bloc avec style "page-intro" :
+    bloc avec style "page-intro signaler-intro" :
         titre "Signaler un problème" en anglais "Report an issue"
         texte "Un bug, une erreur dans la documentation, un problème de sécurité : dis-nous ce qui ne va pas, le message arrive directement à l’équipe." en anglais "A bug, a documentation mistake, a security issue: tell us what is wrong, your message goes straight to the team."
-    bloc avec style "page-section" :
+    bloc avec style "page-section signaler-section" :
         FormulaireSignalement
         texte "Ton message et ton e-mail, si tu le donnes, servent seulement à traiter ce signalement." en anglais "Your message and your email, if you give it, are only used to handle this report." avec style "signaler-note"
