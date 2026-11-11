@@ -424,6 +424,8 @@ enum ErreurHumalis: LocalizedError {
     case refus(String)
     /** Pas de réponse à cause du réseau : l'envoi n'est peut-être pas arrivé, on peut le recommencer sous le même identifiant. */
     case sansReseau
+    /** La personne a fermé la fenêtre du code : rien à lui dire, et la suite ne s'exécute pas. */
+    case annulee
     var errorDescription: String? {
         if case .refus(let raison) = self { return raison }
         return nil
@@ -530,6 +532,14 @@ struct SourceHumalis: Sendable {
         }
         retenirCsrf(reponse)
         return (donnees, reponse)
+    }
+
+    /** Un appel dont le code de réponse compte (la synchronisation, le compte), avec le même renouvellement de session que les autres. */
+    func brut(_ adresse: String, methode: String, envoi: [String: ValeurHumalis]? = nil, filtres: [(String, String)] = []) async throws -> (statut: Int, corps: ValeurHumalis) {
+        var r = try requete(adresse, methode: methode, id: nil, envoi: envoi, source: nil, filtres: filtres)
+        r.timeoutInterval = 30
+        let (donnees, reponse) = try await envoyerRequete(r, source: nil)
+        return (reponse.statusCode, (try? JSONDecoder().decode(ValeurHumalis.self, from: donnees)) ?? .rien)
     }
 
     private func lancer(_ requete: URLRequest, source: SourceHumalis?) async throws -> (Data, HTTPURLResponse) {
@@ -941,6 +951,11 @@ private final class SuiviEnvoi: NSObject, URLSessionTaskDelegate, Sendable {
         personne = lue?.id != nil ? lue : nil
     }
 
+    /** La session n'a pas pu être lue au lancement (pas de réseau) : le retour du réseau la relit. */
+    func relireSiHorsLigne() async {
+        if reponseRecue, personne == nil, compteGarde != nil { await relire() }
+    }
+
     /** Le jeton d'accès dure 15 minutes ; le jeton de renouvellement, gardé au Keychain, en donne un autre. Plusieurs requêtes refusées, un seul renouvellement. */
     func renouveler() async -> Bool {
         if let renouvellement { return await renouvellement.value }
@@ -970,6 +985,8 @@ private final class SuiviEnvoi: NSObject, URLSessionTaskDelegate, Sendable {
         do {
             try await action()
             return true
+        } catch ErreurHumalis.annulee {
+            return false
         } catch {
             Messages.commun.afficher(raisonDe(error) == pasDeReponse ? "Le serveur n'a pas répondu. Réessayez dans un instant." : raisonDe(error), .erreur)
             return false
@@ -988,10 +1005,25 @@ private final class SuiviEnvoi: NSObject, URLSessionTaskDelegate, Sendable {
         if http.statusCode == 429 { throw ErreurHumalis.refus("Trop de tentatives de connexion. Réessayez dans quelques minutes.") }
         // Jamais lequel des deux est faux : on ne dit pas si un compte existe.
         guard (200..<300).contains(http.statusCode) else { throw ErreurHumalis.refus("Email ou mot de passe incorrect.") }
+        let corps = try? JSONDecoder().decode(ValeurHumalis.self, from: donnees)
+        // Le compte a le code : pas encore de session, l'écran du code la demande.
+        if corps?["data"]["etape"].enTexte == "code" {
+            guard let quandCodeDemande else { throw ErreurHumalis.refus("Ce compte demande un code que cette application ne sait pas recevoir.") }
+            guard await quandCodeDemande(corps?["data"]["jeton"].enTexte ?? "") else { throw ErreurHumalis.annulee }
+            return
+        }
+        if let corps { await ouvrirSession(corps) } else { await relire() }
+    }
+
+    /** Appelée après un mot de passe juste, quand le compte a le code : vraie si la session est ouverte. */
+    var quandCodeDemande: (@MainActor (String) async -> Bool)?
+
+    /** La session reçue (mot de passe, code à six chiffres, clé d'accès). */
+    func ouvrirSession(_ corps: ValeurHumalis) async {
         // Tant que la personne n'est pas reconnue, rien de ce qui attendait ne part avec sa session.
         compteGarde = nil
         Coffre.effacer(Session.cleCompte)
-        if let corps = try? JSONDecoder().decode(ValeurHumalis.self, from: donnees) { garder(corps["data"]) }
+        garder(corps["data"])
         await relire()
     }
 

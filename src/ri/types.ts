@@ -257,6 +257,8 @@ export interface ServeurRI {
     bon?: boolean;
     /** Une page lit cette route « en direct » : la route annonce ses changements (GET /direct). */
     direct?: boolean;
+    /** Une donnée locale se synchronise avec cette route (« synchronisee avec … ») : elle sert aussi /synchro. */
+    synchronisee?: boolean;
     /** « quand message est cree : » : les e-mails que la création fait partir. */
     envois?: EnvoiEmailRI[];
     ligne: number;

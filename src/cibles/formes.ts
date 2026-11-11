@@ -149,7 +149,7 @@ ECRITES.windows = new Set<Forme>(['barreSysteme', 'partageRecu', 'raccourcisIcon
 
 // Android (Kotlin et Compose) et le serveur (APNs, Firebase).
 ECRITES.android = new Set<Forme>(['widget', 'partageRecu', 'montre', 'tele', 'clavier', 'activite', 'raccourcisIcone', 'commandeVocale', 'fichierOuvert', 'boutonsNotification', 'rechercheSysteme', 'tuile', 'voiture', 'captureErreur']);
-ECRITES.serveur = new Set<Forme>(['activite', 'boutonsNotification', 'captureErreur']);
+ECRITES.serveur = new Set<Forme>(['activite', 'boutonsNotification', 'captureErreur', 'cleAcces', 'doubleAuthentification']);
 ECRITES.apple = new Set<Forme>(['widget', 'barreSysteme', 'partageRecu', 'montre', 'tele', 'clavier', 'activite', 'raccourcisIcone', 'commandeVocale', 'fichierOuvert', 'demarrage', 'boutonsNotification', 'rechercheSysteme', 'tuile', 'miniApplication', 'voiture', 'menuClicDroit', 'captureErreur']);
 
 // Le bureau (Electron, Linux compris) : src/cibles/desktop/formes.ts.
@@ -164,3 +164,18 @@ for (const forme of ['enregistrerAudio', 'enregistrerVideo', 'scannerDocument', 
   ECRITES.android!.add(forme);
 }
 for (const forme of ['enregistrerAudio', 'enregistrerVideo', 'recadrerPhoto'] as const) ECRITES.windows!.add(forme);
+
+// Le web et le bureau (IndexedDB, WebCrypto, WebAuthn) : src/cibles/commun/donnees-comptes-web.ts.
+for (const forme of ['donneeLocale', 'cleAcces', 'doubleAuthentification'] as const) (ECRITES.web ??= new Set<Forme>()).add(forme);
+// Le bureau sert ses pages depuis humalis://application, une origine que WebAuthn refuse : les clés d'accès y restent refusées.
+ECRITES.desktop!.add('donneeLocale');
+ECRITES.desktop!.add('doubleAuthentification');
+
+// Apple (SQLite, CryptoKit, Keychain, ASAuthorization) : src/cibles/apple/donnees-comptes.ts.
+for (const forme of ['donneeLocale', 'cleAcces', 'doubleAuthentification'] as const) ECRITES.apple!.add(forme);
+
+// Android (SQLite, Keystore, WorkManager, Credential Manager) : src/cibles/android/donnees-comptes.ts.
+for (const forme of ['donneeLocale', 'cleAcces', 'doubleAuthentification'] as const) ECRITES.android!.add(forme);
+
+// Windows (SQLite, DPAPI, webauthn.dll) : src/cibles/windows/donnees-comptes.ts.
+for (const forme of ['donneeLocale', 'cleAcces', 'doubleAuthentification'] as const) ECRITES.windows!.add(forme);

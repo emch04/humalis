@@ -26,6 +26,7 @@ import { FORMES_CS, TOASTS_CS, ZONE_CS } from './bibliotheque/formes.js';
 import { captureErreursCs } from './capture-erreurs.js';
 import { requetesCapture } from '../capture-erreurs.js';
 import { formesWindows, type FormesWindows } from './formes.js';
+import { donneesComptesWindows, lisezmoiDonneesComptes, VERSION_SQLITE, type DonneesComptesWindows } from './donnees-comptes.js';
 import { chaineCs, commentaireCs, nomApplication, nomCs, nomMethode } from './noms.js';
 import { GenerateurBloc, classeDe, quatreEspaces, type ContexteWindows } from './page.js';
 import { reglesDeClasses, styleDesDeclarations } from './styles.js';
@@ -246,7 +247,7 @@ function partagesCs(application: Application, partages: Map<string, Lieu>): stri
   return e.texte();
 }
 
-function csproj(nom: string, application: Application, aDesRessources: boolean, formes?: FormesWindows, winrt = false): string {
+function csproj(nom: string, application: Application, aDesRessources: boolean, formes?: FormesWindows, winrt = false, donnees?: DonneesComptesWindows): string {
   return `<Project Sdk="Microsoft.NET.Sdk">
   <!-- Produit par Humalis depuis ${nom} : une application WPF pour Windows 10 et 11. -->
   <PropertyGroup>
@@ -282,6 +283,10 @@ ${aDesRessources ? `  <ItemGroup>
   <ItemGroup>
 ${application.paquetsWindows.map((p) => `    <PackageReference Include="${echapperXml(p.nom)}" Version="${echapperXml(p.version)}" />`).join('\n')}
   </ItemGroup>
+` : ''}${donnees?.sqlite ? `  <!-- « donnee locale » : une base SQLite sur l'appareil. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="${VERSION_SQLITE}" />
+  </ItemGroup>
 ` : ''}</Project>
 `;
 }
@@ -307,7 +312,7 @@ const MANIFESTE = `<?xml version="1.0" encoding="utf-8"?>
 </assembly>
 `;
 
-function lisezmoi(nom: string, options: OptionsWindows, formes?: FormesWindows, winrt = false): string {
+function lisezmoi(nom: string, options: OptionsWindows, formes?: FormesWindows, winrt = false, donnees?: DonneesComptesWindows): string {
   const app = nomApplication(nom);
   return `# ${nom} — application Windows
 
@@ -345,7 +350,7 @@ serveur sans recompiler : variable d'environnement \`HUMALIS_SERVEUR\`.
 - \`avec memorisee\` : \`%LOCALAPPDATA%\\${options.identifiant ?? `humalis.${nom}`}\\memoire.json\` ;
 - \`avec memorisee en secret\` et la session : chiffrés par Windows (DPAPI), lisibles seulement par
   la personne connectée à cette session Windows.
-${formes?.actives ? `
+${donnees ? lisezmoiDonneesComptes(options.identifiant ?? `humalis.${nom}`, donnees) : ''}${formes?.actives ? `
 ## Ce que l'application inscrit dans Windows
 
 À chaque lancement, l'application s'inscrit pour la personne connectée (registre HKCU, sans droits
@@ -419,6 +424,10 @@ export function genererProjetWindows(application: Application, options: OptionsW
   // Les formes d'application : zone de notification, Jump List, « Ouvrir avec », clic droit, notifications…
   const formes = formesWindows(application, ctx, app);
   for (const [chemin, code] of formes.fichiers) fichiers.set(chemin, code);
+
+  // Les données sur l'appareil, le code à six chiffres et les clés d'accès.
+  const donnees = donneesComptesWindows(application, diagnostics);
+  for (const [chemin, code] of donnees.fichiers) fichiers.set(chemin, code);
 
   if (ctx.nonDessinees.size > 0) {
     diagnostics.push({ gravite: 'avertissement', ligne: 1, message: `Sur Windows, ${[...ctx.nonDessinees].map((o) => `« ${o} »`).join(', ')} ne se dessine pas encore : les éléments s'affichent sans ce mouvement ou cet effet.` });
@@ -510,7 +519,7 @@ ${dictionnaires.map((d) => `        // « utiliser style "${d.nom}" sur windows 
         Routeur.ParAdresse = Pages.ParAdresse;
         var fenetre = new FenetrePrincipale(${disposition.entete ? `() => new ${disposition.entete}().Monter()` : 'null'}, ${disposition.pied ? `() => new ${disposition.pied}().Monter()` : 'null'});
         application.MainWindow = fenetre;
-        ${formes.actives ? 'FormesApplication.Demarrer(application, fenetre, arguments);' : 'fenetre.Show();'}
+${donnees.actif ? '        DonneesComptes.Demarrer(fenetre);\n' : ''}        ${formes.actives ? 'FormesApplication.Demarrer(application, fenetre, arguments);' : 'fenetre.Show();'}
         Routeur.Aller(Pages.Entree);
         application.Run();
     }
@@ -524,7 +533,7 @@ ${dictionnaires.map((d) => `        // « utiliser style "${d.nom}" sur windows 
   const avecEnregistrement = /\bEnregistrement\.Media\(/.test(codePages);
   if (avecEnregistrement) fichiers.set('Humalis/Enregistrement.cs', ENREGISTREMENT_CS);
   if (/\bRecadrage\.Photo\(/.test(codePages)) fichiers.set('Humalis/Recadrage.cs', RECADRAGE_CS);
-  fichiers.set(`${app}.csproj`, csproj(options.nom, application, aDesRessources, formes, avecEnregistrement));
+  fichiers.set(`${app}.csproj`, csproj(options.nom, application, aDesRessources, formes, avecEnregistrement, donnees));
   if (application.formes?.erreurArrive) fichiers.set('Humalis/CaptureErreurs.cs', captureErreursCs(requetesCapture(application.formes).requetes));
   // Les dictionnaires de styles XAML : compilés avec le projet (une erreur XAML arrête dotnet build).
   for (const d of dictionnaires) fichiers.set(`Styles/${d.nom}`, d.contenu);
@@ -556,6 +565,6 @@ ${dictionnaires.map((d) => `        // « utiliser style "${d.nom}" sur windows 
   }
   const cssPerdu = diagnostics.find((d) => d.message.includes('CSS-SUR-WINDOWS.md'));
   if (cssPerdu) fichiers.set('CSS-SUR-WINDOWS.md', `# Le CSS sur Windows\n\n${cssPerdu.message}\n\n## Les déclarations sans équivalent\n\n${cssIgnore.map((l) => `- \`${l}\``).join('\n')}\n`);
-  fichiers.set('LISEZMOI.md', lisezmoi(options.nom, options, formes, avecEnregistrement));
+  fichiers.set('LISEZMOI.md', lisezmoi(options.nom, options, formes, avecEnregistrement, donnees));
   return { fichiers, diagnostics };
 }

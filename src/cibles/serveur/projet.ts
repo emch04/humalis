@@ -5,6 +5,8 @@ import { ENVOIS } from './envois.js';
 import { MOTIF_SQL_DU_PACK, MOTIFS_SQL_CODE } from './pare-feu.js';
 import { codeResumes, avecPaiements, codePaiements, codeSurPaiement, PAIEMENTS, avecLogique, avecNotifications, codeActions, codeDocuments, codeNotificationsCreation, codeTaches, DOCUMENT, employe, LOGIQUE, NOTIFICATIONS, ROUTES_APPAREILS } from './logique.js';
 import { champsDuServeur, codeCompleter, codeCreation, noms as nomsVerifier, reglesEnvoi } from './regles.js';
+import { avecSynchro, codeAvantSynchro, codeCreationSynchro, codeSynchroRoute, ENV_SYNCHRO, SYNCHRO, tablesSynchro, testsSynchro } from './synchro.js';
+import { avecSecurite, codeAvantSecurite, codeCreationSecurite, codeRoutesSecurite, envSecurite, SECURITE, testsSecurite } from './securite.js';
 import { ligneLocale } from '../../fichiers.js';
 import type { ServeurRI, TypeChamp, QuiPeut } from '../../ri/types.js';
 import { simplifier } from '../../analyse/elements.js';
@@ -73,6 +75,16 @@ export function genererProjetServeur(serveur: ServeurRI, options: OptionsServeur
   if (serveur.captureErreurs) fichiers.set('src/humalis/capture-erreurs.ts', codeCaptureErreurs(serveur));
   fichiers.set('src/humalis/coffre.ts', coffreTs(serveur));
   fichiers.set('src/donnees.ts', donneesTs(serveur));
+  if (avecSynchro(serveur)) {
+    fichiers.set('src/humalis/synchro.ts', SYNCHRO);
+    const route = serveur.routes.find((r) => r.synchronisee)!;
+    const exemple = serveur.donnees.find((d) => d.nom === route.donnee)!.champs.filter((c) => !champsDuServeur(serveur.donnees.find((d) => d.nom === route.donnee)!, route).includes(camel(c.nom))).map((c) => `${camel(c.nom)}: ${exempleChamp(c.type)}`).join(', ');
+    fichiers.set('tests/synchro.test.ts', testsSynchro(serveur, serveur.donnees.map((d) => `    ${camel(d.nom)}: creerStockageMemoire(),`).join('\n'), route, `{ ${exemple} }`));
+  }
+  if (avecSecurite(serveur)) {
+    fichiers.set('src/humalis/securite.ts', SECURITE);
+    fichiers.set('tests/securite.test.ts', testsSecurite(serveur, serveur.donnees.map((d) => `    ${camel(d.nom)}: creerStockageMemoire(),`).join('\n')));
+  }
   if (avecEmails(serveur)) fichiers.set('src/humalis/emails.ts', EMAILS);
   if (avecComptes(serveur)) fichiers.set('src/humalis/comptes.ts', COMPTES);
   if (serveur.invitations || serveur.motDePasseOublie || serveur.routeComptes) {
@@ -278,6 +290,8 @@ function envExemple(serveur: ServeurRI): string {
     ...(serveur.connexionGoogle ? [ENV_GOOGLE] : []),
     ...(serveur.connexionApple ? [ENV_APPLE] : []),
     ...(serveur.emails ? [ENV_EMAILS] : []),
+    ...(avecSynchro(serveur) ? [ENV_SYNCHRO] : []),
+    ...(avecSecurite(serveur) ? [envSecurite(serveur)] : []),
     `# Requêtes par adresse et par 15 minutes (300 par défaut), tentatives de connexion (10 par défaut). À monter si beaucoup de personnes partagent une même adresse.\nHUMALIS_LIMITE_API=\nHUMALIS_LIMITE_CONNEXION=\n`,
     ...(avecIa(serveur) ? [ENV_IA] : []),
     ...(avecPaiements(serveur) ? [`# Les paiements (« paiements par stripe ») : une clé de test d'abord (sk_test_…), et le secret du webhook vers /paiements/webhook.\nSTRIPE_CLE_SECRETE=\nSTRIPE_SECRET_WEBHOOK=\nHUMALIS_PAIEMENT_DEVISE=eur\n`] : []),
@@ -497,7 +511,7 @@ export function creerRenouvellement({ magasin, dureeMs, maximumMs, horloge }: Re
   return service;
 }
 
-const CHEMINS = new Set(['/auth/login', '/auth/refresh', '/auth/logout', '/auth/google', '/auth/apple', '/auth/mot-de-passe']);
+const CHEMINS = new Set(['/auth/login', '/auth/refresh', '/auth/logout', '/auth/google', '/auth/apple', '/auth/mot-de-passe', '/auth/double/verifier', '/auth/cle-acces/connexion/verifier']);
 
 /**
  * Autour des routes de session du pack : le jeton de renouvellement part dans le cookie HttpOnly et
@@ -977,7 +991,8 @@ export const compresser: RequestHandler = (req, res, next) => {
 };
 `;
 
-const STOCKAGE = `import { randomUUID } from 'node:crypto';
+const STOCKAGE = `import { AsyncLocalStorage } from 'node:async_hooks';
+import { randomUUID } from 'node:crypto';
 
 /**
  * Produit par Humalis : le stockage des données de l'application, en
@@ -1008,6 +1023,15 @@ function trancher<T>(liste: T[], filtres?: Filtres): T[] {
   const debut = filtres?.depuis ?? 0;
   return filtres?.limite === undefined ? liste.slice(debut) : liste.slice(debut, debut + filtres.limite);
 }
+
+/** La synchronisation : la fiche créée garde l'identifiant choisi par l'appareil, le temps d'un seul « creer ». */
+export const idImpose = new AsyncLocalStorage<{ id: string; pris: boolean }>();
+const nouvelId = () => {
+  const impose = idImpose.getStore();
+  if (!impose || impose.pris) return randomUUID();
+  impose.pris = true;
+  return impose.id;
+};
 
 export interface Stockage {
   lister(filtres?: Filtres): Promise<Enregistrement[]>;
@@ -1043,7 +1067,7 @@ export function creerStockageMemoire(): Stockage {
       };
     },
     async creer(valeurs) {
-      const enregistrement = { ...valeurs, id: randomUUID() };
+      const enregistrement = { ...valeurs, id: nouvelId() };
       lignes.set(enregistrement.id, enregistrement);
       return enregistrement;
     },
@@ -1113,7 +1137,7 @@ export function creerStockagePostgres(pool: PoolPostgres, table: string): Stocka
     },
     async creer(valeurs) {
       await preparer();
-      const id = randomUUID();
+      const id = nouvelId();
       await pool.query(\`INSERT INTO \${table} (id, data) VALUES ($1, $2)\`, [id, JSON.stringify(valeurs)]);
       return { ...valeurs, id };
     },
@@ -1206,7 +1230,7 @@ function serveurTs(serveur: ServeurRI, chemins?: Map<string, string>): string {
       return `      // « ${route.adresse} » (ligne ${ligneLocale(route.ligne)}) — ${decrireDroits(route.droits)}.
       const ${variable} = express.Router();
 ${clesAnnoncees(serveur, route).length ? `      ${variable}.use(direct.apres(${JSON.stringify(clesAnnoncees(serveur, route))}));
-` : ''}${separee ? constantesSeparation(variable, donneeRoute, route) : ''}${codeResumes(route, variable, separee)}${route.direct ? routeDirect(variable, garde('lire'), route.donnee, separee ? { separation: `separation${variable}`, regles: `regles${variable}.lire` } : undefined) : ''}      ${variable}.get('/', ${cache}, ${garde('lire')}, async (req, res, next) => {
+` : ''}${separee ? constantesSeparation(variable, donneeRoute, route) : ''}${route.synchronisee ? codeSynchroRoute(route, donneeRoute, variable, garde, separee ? codePortee(variable, 'lire') : '') : ''}${codeResumes(route, variable, separee)}${route.direct ? routeDirect(variable, garde('lire'), route.donnee, separee ? { separation: `separation${variable}`, regles: `regles${variable}.lire` } : undefined) : ''}      ${variable}.get('/', ${cache}, ${garde('lire')}, async (req, res, next) => {
         try {
 ${separee ? codePortee(variable, 'lire') : ''}          // « ?produit=… » : seulement ce qui est demandé, pas toute la liste.
           const filtres = lireFiltres(${schema}, req.query as Record<string, unknown>);
@@ -1275,7 +1299,7 @@ ${serveur.routes.some((r) => r.direct) ? "import { direct } from './humalis/dire
 import type { Surveillance } from './humalis/centrale.js';
 import type { Coffre } from './humalis/coffre.js';
 ${comptes ? "import { creerComptes, refuserMotDePasseFaible, sansLesRetires } from './humalis/comptes.js';\n" : ''}${avecEmails(serveur) ? `import { creerEmails, ${envoisDansRoutes ? 'enTexte, ' : ''}type Emails } from './humalis/emails.js';\n` : ''}import { compresser } from './humalis/compresser.js';
-import { creerEnvoisMemoire, creerUnSeulEnvoi, type MagasinEnvois } from './humalis/envois.js';${avecPaiements(serveur) ? "\nimport { creerPaiements, type SurPaiement } from './humalis/paiements.js';" : ''}${avecIa(serveur) ? "\nimport { compterMemoire, creerIa, type Compter } from './humalis/ia.js';" : ''}${avecNotifications(serveur) ? "\nimport { creerNotifications } from './humalis/notifications.js';" : ''}${serveur.documents?.length ? "\nimport { creerDocument } from './humalis/document.js';" : ''}${avecBon ? "\nimport { creerBon } from './humalis/bon.js';" : ''}${serveur.fidelite ? "\nimport { carteDeFidelite } from './humalis/fidelite.js';" : ''}
+import { creerEnvoisMemoire, creerUnSeulEnvoi, type MagasinEnvois } from './humalis/envois.js';${avecSynchro(serveur) ? "\nimport { creerJournalMemoire, creerSynchro, type JournalSynchro } from './humalis/synchro.js';" : ''}${avecSecurite(serveur) ? "\nimport { creerMagasinSecuriteMemoire, creerSecurite, oublierCompte, type MagasinSecurite } from './humalis/securite.js';" : ''}${avecPaiements(serveur) ? "\nimport { creerPaiements, type SurPaiement } from './humalis/paiements.js';" : ''}${avecIa(serveur) ? "\nimport { compterMemoire, creerIa, type Compter } from './humalis/ia.js';" : ''}${avecNotifications(serveur) ? "\nimport { creerNotifications } from './humalis/notifications.js';" : ''}${serveur.documents?.length ? "\nimport { creerDocument } from './humalis/document.js';" : ''}${avecBon ? "\nimport { creerBon } from './humalis/bon.js';" : ''}${serveur.fidelite ? "\nimport { carteDeFidelite } from './humalis/fidelite.js';" : ''}
 ${avecLogique(serveur) ? `import { ${['Refus', 'agreger', 'resumer', 'enTexte', 'estVide', 'contient', 'noter', 'nouveauTravail', 'terminer', 'transactionMemoire', ...(serveur.taches?.length ? ['lancerTaches', 'type Reclamer'] : []), 'type Transaction'].join(', ')} } from './humalis/logique.js';\n` : ''}import { creerRenouvellement, reglagesDeSession, renouvellementEnCookie, type ReglagesSession } from './humalis/sessions.js';
 import { ${avecNotifications(serveur) ? 'creerStockageMemoire, ' : ''}${serveur.fidelite ? 'sansSeparateurs, ' : ''}type Stockage } from './humalis/stockage.js';
 ${compteRelu(serveur) ? (serveur.routes.some((r) => estSeparee(serveur.donnees.find((d) => d.nom === r.donnee)!, r)) ? "import { dansPortee, groupeACreer, listerDans, moiDe, porteeDe, REFUS_FICHES, type RegleAcces, type Separation } from './humalis/separation.js';\n" : '') : ''}import { lireFiltres, ${nomsVerifier(serveur).map((n) => n + ', ').join('')}verifierEnvoi } from './humalis/verifier.js';
@@ -1295,6 +1319,12 @@ ${avecLogique(serveur) ? `  /** Comment écrire tout ou rien ; par défaut, en m
   compterIa?: Compter;
 ` : ''}${avecNotifications(serveur) ? `  /** Les appareils inscrits ; par défaut, en mémoire. */
   appareils?: Stockage;
+` : ''}${avecSynchro(serveur) ? `  /** Le journal de la synchronisation ; par défaut, en mémoire. */
+  journalSynchro?: JournalSynchro;
+` : ''}${avecSecurite(serveur) ? `  /** Les clés d'accès et les secrets du code à six chiffres ; par défaut, en mémoire. */
+  magasinSecurite?: MagasinSecurite;
+  /** L'horloge du code à six chiffres (les tests la règlent). */
+  horlogeSecurite?: () => number;
 ` : ''}  /** Les envois déjà faits (en-tête X-Humalis-Envoi) ; par défaut, en mémoire. */
   envois?: MagasinEnvois;
   /** La durée de la session et où garder ses renouvellements ; par défaut, HUMALIS_SESSION et HUMALIS_SESSION_MAX, en mémoire. */
@@ -1359,7 +1389,7 @@ const sansCache = (res: Response) => res.set('Cache-Control', 'no-store');
  * limites et les en-têtes de sécurité viennent de createSaasApp. Les
  * routes des données s'ajoutent par extendRoutes, avec les gardes du pack.
  */
-export function creerServeur({ envois = creerEnvoisMemoire(), jwtSecret, usersStore${comptes ? ': tousLesComptes' : ''}, stockages${avecLogique(serveur) ? ', transaction = transactionMemoire(stockages)' : ''}${serveur.taches?.length ? ', reclamerTache' : ''}${avecNotifications(serveur) ? ', appareils = creerStockageMemoire()' : ''}${avecIa(serveur) ? ', compterIa = compterMemoire()' : ''}${serveur.connexionGoogle ? ', googleClientId, googleClientIdApple = () => undefined' : ''}${serveur.connexionApple ? ', identifiantsApple = () => ({})' : ''}, session = reglagesDeSession(process.env), surveillance, coffre${avecEmails(serveur) ? `, emails = creerEmails({ nom: ${boutique} })` : ''}${comptes ? ', jetons = createMemoryPasswordResetStore()' : ''} }: OptionsDuServeur) {
+export function creerServeur({ ${avecSynchro(serveur) ? 'journalSynchro = creerJournalMemoire(), ' : ''}${avecSecurite(serveur) ? 'magasinSecurite = creerMagasinSecuriteMemoire(), horlogeSecurite = Date.now, ' : ''}envois = creerEnvoisMemoire(), jwtSecret, usersStore${comptes ? ': tousLesComptes' : ''}, stockages${avecLogique(serveur) ? ', transaction = transactionMemoire(stockages)' : ''}${serveur.taches?.length ? ', reclamerTache' : ''}${avecNotifications(serveur) ? ', appareils = creerStockageMemoire()' : ''}${avecIa(serveur) ? ', compterIa = compterMemoire()' : ''}${serveur.connexionGoogle ? ', googleClientId, googleClientIdApple = () => undefined' : ''}${serveur.connexionApple ? ', identifiantsApple = () => ({})' : ''}, session = reglagesDeSession(process.env), surveillance, coffre${avecEmails(serveur) ? `, emails = creerEmails({ nom: ${boutique} })` : ''}${comptes ? ', jetons = createMemoryPasswordResetStore()' : ''} }: OptionsDuServeur) {
 ${serveur.captureErreurs ? '  brancherErreursProcessus();\n' : ''}
   const renouvellement = creerRenouvellement(session);
 ${comptes ? codeCreationComptes(serveur, chemins).replace('usersStore,', 'usersStore: tousLesComptes,') + '  // Pour les packs, un compte retiré n\'existe plus.\n  const usersStore = sansLesRetires(tousLesComptes);\n' : ''}${envoisDansRoutes || employe(serveur, (i) => i.type === 'email' && i.a.genre === 'admins') ? `  const adressesDesAdmins = async () => (await usersStore.list({ role: 'admin', limit: 100 })).map((compte) => String(compte.email)).filter(Boolean);\n` : ''}${avecNotifications(serveur) ? '  const notifications = creerNotifications({ usersStore, appareils });\n' : ''}${avecPaiements(serveur) ? `  let surPaiement: SurPaiement<ReturnType<typeof nouveauTravail>, OptionsDuServeur['stockages']> = {};
@@ -1370,7 +1400,7 @@ ${comptes ? codeCreationComptes(serveur, chemins).replace('usersStore,', 'usersS
       terminer(travail${serveur.routes.some((r) => r.direct) ? ', direct.annonce' : ''});
     },
   });
-` : ''}  const serveur = createSaasApp({
+` : ''}${avecSynchro(serveur) ? codeCreationSynchro(serveur) : ''}${avecSecurite(serveur) ? codeCreationSecurite(serveur).replace('jwtSecret,', 'jwtSecret,\n    horloge: horlogeSecurite,') : ''}  const serveur = createSaasApp({
     jwtSecret,
     // Le pare-feu du pack, sans son motif des commentaires SQL : le stockage passe par des requêtes paramétrées,
     // et « avenue #12 » ou « appeler -- après 18h » sont de vrais textes. Son motif « select … from » est remplacé
@@ -1410,7 +1440,7 @@ ${compteRelu(serveur) ? COMPTE_RELU : ''}      const unSeulEnvoi = creerUnSeulEn
       };
       // Les réponses des routes ci-dessous partent compressées (brotli ou gzip) quand le navigateur l'accepte.
       app.use(compresser);
-${google}
+${google}${avecSecurite(serveur) ? codeRoutesSecurite(serveur) : ''}
       // Le coffre des clés de service : admin seulement, et le CSRF garde les écritures.
       const coffreFerme: RequestHandler = (_req, res) => {
         res.status(503).json({ erreur: "le coffre des clés n'est pas ouvert sur ce serveur (ENCRYPTION_KEY)" });
@@ -1426,7 +1456,7 @@ ${fidelite}${avecPaiements(serveur) ? codeSurPaiement(serveur) : ''}${codeTaches
   (serveur as unknown as express.Application).disable('x-powered-by');
   // En tête de tout : la surveillance voit chaque requête, et le jeton de renouvellement passe par son cookie.
   const avant = express().disable('x-powered-by');
-${avecPaiements(serveur) ? "  avant.post('/paiements/webhook', ...paiements.webhook);\n" : ''}  if (surveillance) avant.use(surveillance.intergiciel());${comptes ? "\n  avant.post('/auth/reset-password', express.json({ limit: '16kb' }), refuserMotDePasseFaible);" : ''}
+${avecPaiements(serveur) ? "  avant.post('/paiements/webhook', ...paiements.webhook);\n" : ''}  if (surveillance) avant.use(surveillance.intergiciel());${codeAvantSecurite(serveur)}${codeAvantSynchro(serveur, adresseApi)}${comptes ? "\n  avant.post('/auth/reset-password', express.json({ limit: '16kb' }), refuserMotDePasseFaible);" : ''}
   return avant.use(renouvellementEnCookie(session.dureeMs)).use(serveur as unknown as express.Application);
 }
 `;
@@ -1447,7 +1477,7 @@ import pg from 'pg';
 import { creerServeur } from './serveur.js';
 ${serveur.routes.some((r) => r.direct) ? "import { direct } from './humalis/direct.js';\n" : ''}import { demarrerCentrale } from './humalis/centrale.js';
 ${avecIa(serveur) ? "import { compterPostgres } from './humalis/ia.js';\n" : ''}${avecLogique(serveur) ? `import { transactionPostgres${serveur.taches?.length ? ', reclamerMemoire, reclamerPostgres' : ''} } from './humalis/logique.js';\n` : ''}import { creerEnvoisPostgres } from './humalis/envois.js';
-import { ouvrirCoffre } from './humalis/coffre.js';${comptes ? "\nimport { creerMagasinJetons } from './humalis/comptes.js';" : ''}
+import { ouvrirCoffre } from './humalis/coffre.js';${avecSynchro(serveur) ? "\nimport { creerJournalPostgres } from './humalis/synchro.js';" : ''}${avecSecurite(serveur) ? "\nimport { creerMagasinSecuritePostgres } from './humalis/securite.js';" : ''}${comptes ? "\nimport { creerMagasinJetons } from './humalis/comptes.js';" : ''}
 import { creerMagasinMemoire, creerMagasinPostgres } from './humalis/renouvellements.js';
 import { reglagesDeSession, type ReglagesSession } from './humalis/sessions.js';
 import { creerStockageMemoire, creerStockagePostgres } from './humalis/stockage.js';
@@ -1499,7 +1529,7 @@ try {
 const coffre = await ouvrirCoffre(pool);
 
 const port = Number(process.env.PORT ?? 3000);
-const app = creerServeur({ ...(pool ? { envois: creerEnvoisPostgres(pool) } : {}), jwtSecret, usersStore, stockages${avecLogique(serveur) ? `, ...(pool ? { transaction: transactionPostgres(pool, (client) => ({ ${serveur.donnees.map((d) => `${camel(d.nom)}: creerStockagePostgres(client, '${nomTable(d.nom)}')`).join(', ')} })) } : {})` : ''}${serveur.taches?.length ? ', reclamerTache: pool ? reclamerPostgres(pool) : reclamerMemoire()' : ''}${avecNotifications(serveur) ? ", ...(pool ? { appareils: creerStockagePostgres(pool, 'humalis_appareils') } : {})" : ''}${avecIa(serveur) ? ', ...(pool ? { compterIa: compterPostgres(pool) } : {})' : ''}${serveur.connexionGoogle ? ', googleClientId: () => process.env.GOOGLE_CLIENT_ID || undefined, googleClientIdApple: () => process.env.GOOGLE_CLIENT_ID_APPLE || undefined' : ''}${serveur.connexionApple ? ', identifiantsApple: () => ({ application: process.env.APPLE_APP_ID || undefined, site: process.env.APPLE_SERVICE_ID || undefined })' : ''}${comptes ? ', jetons: creerMagasinJetons(pool)' : ''}, session, surveillance, coffre }) as unknown as { listen(port: number, pret: () => void): unknown };
+const app = creerServeur({ ...(pool ? { envois: creerEnvoisPostgres(pool)${avecSynchro(serveur) ? `, journalSynchro: creerJournalPostgres(pool, ${tablesSynchro(serveur, nomTable)})` : ''}${avecSecurite(serveur) ? ', magasinSecurite: creerMagasinSecuritePostgres(pool)' : ''} } : {}), jwtSecret, usersStore, stockages${avecLogique(serveur) ? `, ...(pool ? { transaction: transactionPostgres(pool, (client) => ({ ${serveur.donnees.map((d) => `${camel(d.nom)}: creerStockagePostgres(client, '${nomTable(d.nom)}')`).join(', ')} })) } : {})` : ''}${serveur.taches?.length ? ', reclamerTache: pool ? reclamerPostgres(pool) : reclamerMemoire()' : ''}${avecNotifications(serveur) ? ", ...(pool ? { appareils: creerStockagePostgres(pool, 'humalis_appareils') } : {})" : ''}${avecIa(serveur) ? ', ...(pool ? { compterIa: compterPostgres(pool) } : {})' : ''}${serveur.connexionGoogle ? ', googleClientId: () => process.env.GOOGLE_CLIENT_ID || undefined, googleClientIdApple: () => process.env.GOOGLE_CLIENT_ID_APPLE || undefined' : ''}${serveur.connexionApple ? ', identifiantsApple: () => ({ application: process.env.APPLE_APP_ID || undefined, site: process.env.APPLE_SERVICE_ID || undefined })' : ''}${comptes ? ', jetons: creerMagasinJetons(pool)' : ''}, session, surveillance, coffre }) as unknown as { listen(port: number, pret: () => void): unknown };
 // HUMALIS_ECOUTE : l'adresse d'écoute (127.0.0.1 derrière un relais) ; sans elle, toutes les adresses.
 const pret = () => console.log(\`Serveur « ${serveur.nom} » prêt : http://localhost:\${port}${premiere}\`);
 const ecoute = process.env.HUMALIS_ECOUTE?.trim();

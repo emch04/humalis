@@ -271,7 +271,16 @@ export class EcrivainActions {
       case 'envoiFichier':
         return this.envoiFichier(e, a, c);
       case 'connexion':
-        return this.compte(e, c, `Session.SeConnecter(${this.x.enTexte(a.email)}, ${this.x.enTexte(a.motDePasse)})`);
+        // Abandonnée à l'écran du code : la suite ne s'exécute pas, sans message.
+        if (c.essai) e.ligne(`if (!await Session.SeConnecter(${this.x.enTexte(a.email)}, ${this.x.enTexte(a.motDePasse)})) return;`);
+        else this.compte(e, c, `Session.SeConnecter(${this.x.enTexte(a.email)}, ${this.x.enTexte(a.motDePasse)})`);
+        return;
+      case 'compteSecurise': {
+        if (!this.hote.dansUnePage) return this.hote.refuser('une action sur le compte dans une fonction');
+        const methode = a.quoi === 'connexionCle' ? 'SeConnecterParCle' : a.quoi === 'ajoutCle' ? 'AjouterCle' : 'Activer';
+        e.ligne(`if (!await CompteSecurise.${methode}(${c.essai})) return;`);
+        return;
+      }
       case 'changementMotDePasse':
         return this.compte(e, c, `Session.ChangerMotDePasse(${this.x.enTexte(a.actuel)}, ${this.x.enTexte(a.nouveau)})`);
       case 'deconnexion':

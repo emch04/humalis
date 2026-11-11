@@ -8,6 +8,7 @@ import { analyser } from '../lexer/lexer.js';
 import { analyserSyntaxe } from '../parser/parser.js';
 import type { Diagnostic } from './erreurs.js';
 import { proposerNom } from './suggestions.js';
+import { simplifier } from './elements.js';
 
 /** Une déclaration écrite en Humalis (« variable partage = fiche avec texte "" … »), lue par le vrai parser. */
 function declaration(ligne: string): Instruction {
@@ -17,6 +18,27 @@ function declaration(ligne: string): Instruction {
 const PARTAGE = 'variable partage = fiche avec texte "" et lien "" et fichier ""';
 const FICHIER = 'variable fichier = fiche avec nom "" et type "" et contenu ""';
 const ERREUR = 'variable erreur = fiche avec message "" et pile "" et version ""';
+
+/** Une donnée locale envoie ses champs à sa route : ils doivent y exister, avec le même type, et suffire à créer une fiche. */
+function verifierChampsSynchronises(programme: Programme, d: NonNullable<Programme['formes']>['donneesLocales'][number], erreur: (message: string, ligne: number) => void): void {
+  if (d.synchronisee === undefined) return;
+  const adresse = d.synchronisee.replace(/^\//, '');
+  for (const serveur of programme.serveurs) {
+    const route = serveur.routes.find((r) => r.adresse.replace(/^\//, '') === adresse);
+    const donnee = route && serveur.donnees.find((x) => x.nom === route.regles[0]?.donnee);
+    if (!donnee) continue;
+    const distants = new Map(donnee.champs.map((c) => [simplifier(c.nom), c]));
+    for (const champ of d.champs) {
+      const distant = distants.get(simplifier(champ.nom));
+      if (!distant) erreur(`le champ « ${champ.nom} » de la donnée locale « ${d.nom} » n'existe pas dans la donnée « ${donnee.nom} » du serveur : la synchronisation l'y enverrait pour rien.`, d.ligne);
+      else if (JSON.stringify(distant.type) !== JSON.stringify(champ.type)) erreur(`le champ « ${champ.nom} » de la donnée locale « ${d.nom} » n'a pas le même type que dans la donnée « ${donnee.nom} » du serveur.`, d.ligne);
+    }
+    const locaux = new Set(d.champs.map((c) => simplifier(c.nom)));
+    for (const c of donnee.champs) {
+      if (!c.regle && !locaux.has(simplifier(c.nom))) erreur(`la donnée locale « ${d.nom} » n'a pas le champ « ${c.nom} » de la donnée « ${donnee.nom} » du serveur : sans lui, le serveur refuserait chaque nouvelle fiche.`, d.ligne);
+    }
+  }
+}
 
 /**
  * Analyse chaque forme : son corps (par `analyserCommePage`), les pages qu'elle ouvre, les listes qu'elle montre,
@@ -97,6 +119,7 @@ export function analyserFormes(programme: Programme, analyserCommePage: (page: P
     for (const d of formes.donneesLocales) {
       if (d.synchronisee !== undefined && !routes.has(d.synchronisee.replace(/^\//, ''))) erreur(`la route « ${d.synchronisee} » n'existe pas dans le serveur : une donnée locale se synchronise avec une route qui la lit et la modifie.${proposerNom(d.synchronisee, routes)}`, d.ligne);
     }
+    for (const d of formes.donneesLocales) verifierChampsSynchronises(programme, d, erreur);
     for (const b of formes.boutonsNotification) commePage(b, `bouton « ${b.bouton} » d'une notification`, b.corps, b.ligne, 'actions');
   }
 

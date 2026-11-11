@@ -167,3 +167,14 @@ describe('actions de médias', () => {
     expect(APPAREIL_JS).toContain('annuler.onclick');
   });
 });
+
+describe('le moteur Humalis attend la fin d’un enregistrement', () => {
+  it('le gestionnaire qui enregistre ou recadre est async', async () => {
+    const { genererProjetMoteur } = await import('../src/cibles/moteur/projet.js');
+    for (const action of ['enregistrer audio dans fichier', 'enregistrer video dans fichier', 'recadrer fichier']) {
+      const app = compilerAction(action);
+      const code = [...genererProjetMoteur(app, { nom: 'essai', source: 'essai.humalis', adresse: 'https://exemple.fr' } as never).values()].join('\n');
+      expect(code).toMatch(/async function quandClique\w*\(\) \{\s*\{\s*const resultatAppareil = await/);
+    }
+  });
+});

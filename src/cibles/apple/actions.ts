@@ -354,9 +354,14 @@ export class EcrivainActions {
       case 'dire':
         e.ligne(`Voix.dire(${this.v.texte(a.texte)})`);
         return;
-      // Les clés d'accès et la double authentification : refusées avant (verifierFormesPourLaCible) tant que cette cible ne les écrit pas.
-      case 'compteSecurise':
+      // Les clés d'accès et la double authentification : voir donnees-comptes.ts.
+      case 'compteSecurise': {
+        const appel = `CompteSecuriseHumalis.${a.quoi === 'connexionCle' ? 'seConnecterParCle' : a.quoi === 'ajoutCle' ? 'ajouterCle' : 'activer'}()`;
+        // Une fenêtre fermée n'est pas une erreur : la suite ne s'exécute simplement pas.
+        if (c.essai) e.ligne(`guard try await ${appel} else { return }`);
+        else e.ligne(`guard await CompteSecuriseHumalis.sinonDire({ try await ${appel} }) else { return }`);
         return;
+      }
       default: {
         // Une action ajoutée au langage doit être traitée ici : sinon le compilateur TypeScript s'arrête.
         const oubliee: never = a;
@@ -428,6 +433,11 @@ export class EcrivainActions {
     e.indenter(() => this.dansBranche(e, a.corps, { ...c, essai: true }, vars));
     // Swift refuse un « catch » que rien ne peut atteindre : un corps sans appel au serveur ne lève rien.
     if (!/^\s*(try|.*\btry await\b)/m.test(this.dernierCorps(a.corps))) e.indenter(() => e.ligne('if false { throw ErreurHumalis.refus("") }'));
+    // La personne a fermé la fenêtre du code : ce n'est pas une erreur à traiter.
+    if (contient(a.corps, ['connexion'])) {
+      e.ligne('} catch ErreurHumalis.annulee {');
+      e.indenter(() => e.ligne('return'));
+    }
     e.ligne('} catch {');
     const avant = this.v.portee.variables.get('raison');
     this.v.portee.variables.set('raison', { code: 'raison', type: TEXTE, opt: false });
@@ -444,7 +454,7 @@ export class EcrivainActions {
 
   /** Vrai si le corps fait un appel qui peut échouer : on écrit donc « try ». */
   private dernierCorps(actions: Action[]): string {
-    return contient(actions, ['requete', 'suppression', 'modification', 'connexion', 'connexionGoogle', 'connexionApple', 'changementMotDePasse', 'invitation', 'demandeLienMotDePasse', 'choixMotDePasse', 'envoiFichier', 'telechargementBon']) ? 'try await' : '';
+    return contient(actions, ['requete', 'suppression', 'modification', 'connexion', 'connexionGoogle', 'connexionApple', 'compteSecurise', 'changementMotDePasse', 'invitation', 'demandeLienMotDePasse', 'choixMotDePasse', 'envoiFichier', 'telechargementBon']) ? 'try await' : '';
   }
 
   private message(e: Ecrivain, a: Extract<Action, { type: 'message' }>, c: Cadre): void {

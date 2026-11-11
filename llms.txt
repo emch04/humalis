@@ -889,6 +889,9 @@ serveur "boutique" :
 - Trop de boutons sur une notification : une notification a au plus trois boutons
 - Une donnée locale sans champ : une donnée locale a au moins un champ
 - Une synchronisation vers une route inconnue : n'existe pas dans le serveur : une donnée locale se synchronise
+- Un champ local absent du serveur : la synchronisation l'y enverrait pour rien
+- Un champ local d’un autre type : n'a pas le même type que dans la donnée
+- Un champ du serveur absent de la donnée locale : le serveur refuserait chaque nouvelle fiche
 - Une clé d’accès que le serveur n’ouvre pas : demande la ligne « connexion par cle d'acces »
 - Une clé d’accès hors d’un événement : « se connecter par cle d'acces » ne s'utilise que dans un événement
 - Une capture déjà écrite dans l’application : est déjà écrit ligne
