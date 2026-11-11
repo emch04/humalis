@@ -1,8 +1,8 @@
-# La page d'accueil : la démonstration, les cinq cibles, les possibilités, les erreurs et l'appel final.
+# La page d'accueil : la démonstration, les plateformes, les possibilités, les erreurs et l'appel final.
 
 page "accueil" :
     apercu :
-        description "Écris ton application comme une phrase avec Humalis : découvre le langage, ses cinq cibles et ses possibilités."
+        description "Écris ton application comme une phrase avec Humalis : découvre le langage, ses plateformes natives et ses possibilités."
     bloc avec ancre "accueil" et style "hero" :
         ligne avec style "hero-grid" :
             colonne avec style "hero-copy" :
@@ -47,30 +47,34 @@ page "accueil" :
                             afficher reussite "Merci pour ta commande !" en anglais "Thank you for your order!"
     bloc avec style "section target-section" :
         colonne avec style "section-heading" :
-            soustitre "Un fichier, cinq cibles." en anglais "One file, five targets."
-            texte "Ton idée commence dans un fichier .humalis. Le compilateur prépare le reste, sans te faire réécrire chaque application." en anglais "Your idea starts in a .humalis file. The compiler prepares the rest, without making you rewrite every app."
+            soustitre "Un fichier, toutes tes plateformes." en anglais "One file, every platform."
+            texte "Ton idée commence dans un fichier .humalis. Humalis en fait une vraie application native sur chaque plateforme. Et si une plateforme demande plus, une porte de sortie en Swift, Kotlin ou C# reste toujours ouverte." en anglais "Your idea starts in a .humalis file. Humalis turns it into a real native app on every platform. And when a platform asks for more, a way out in Swift, Kotlin or C# always stays open."
         texte "application.humalis" en anglais "application.humalis" avec style "source-file"
-        grille avec colonnes 5 et style "target-diagram" et animation montee au defilement et en cascade :
+        grille avec colonnes 6 et style "target-diagram" et animation montee au defilement et en cascade :
             bloc avec style "target-card" :
                 icone "globe" avec decoratif
                 soustitre "Web" en anglais "Web" avec niveau 3
-                texte "Application React" en anglais "React app"
+                texte "Site rapide, ou pages statiques" en anglais "Fast site, or static pages"
             bloc avec style "target-card" :
                 icone "mobile" avec decoratif
-                soustitre "Mobile" en anglais "Mobile" avec niveau 3
-                texte "Application Expo" en anglais "Expo app"
+                soustitre "iPhone, iPad, Mac" en anglais "iPhone, iPad, Mac" avec niveau 3
+                texte "SwiftUI natif" en anglais "Native SwiftUI"
+            bloc avec style "target-card" :
+                icone "telephone" avec decoratif
+                soustitre "Android" en anglais "Android" avec niveau 3
+                texte "Kotlin et Jetpack Compose" en anglais "Kotlin and Jetpack Compose"
             bloc avec style "target-card" :
                 icone "ordinateur" avec decoratif
-                soustitre "Bureau" en anglais "Desktop" avec niveau 3
-                texte "Application Electron" en anglais "Electron app"
+                soustitre "Windows" en anglais "Windows" avec niveau 3
+                texte "C# et WPF natif" en anglais "Native C# and WPF"
             bloc avec style "target-card" :
-                icone "document" avec decoratif
-                soustitre "Statique" en anglais "Static" avec niveau 3
-                texte "Site prêt à publier" en anglais "Ready-to-publish site"
+                icone "boite" avec decoratif
+                soustitre "Linux" en anglais "Linux" avec niveau 3
+                texte "Application Electron" en anglais "Electron app"
             bloc avec style "target-card" :
                 icone "bouclier" avec decoratif
                 soustitre "Serveur" en anglais "Server" avec niveau 3
-                texte "Serveur Node" en anglais "Node server"
+                texte "Données, comptes, temps réel" en anglais "Data, accounts, real time"
     bloc avec style "section features" :
         colonne avec style "section-heading" :
             soustitre "De l’idée au concret." en anglais "From idea to reality."

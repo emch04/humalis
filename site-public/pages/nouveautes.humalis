@@ -20,18 +20,36 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
                     soustitre "Des applications natives pour iPhone, iPad et Mac" en anglais "Native apps for iPhone, iPad and Mac"
                     liste :
                         texte "Nouvelle cible `--cible apple` : un fichier Humalis devient un projet Xcode en SwiftUI, une seule application pour iPhone, iPad et Mac." en anglais "New `--cible apple` target: a Humalis file becomes a SwiftUI Xcode project, one app for iPhone, iPad and Mac."
-                        texte "`page \"accueil\" dessinee pour 1440 par 900 :` suit le CSS du site au point près sur Mac, avec sa propre `barre laterale`." en anglais "`page \"accueil\" dessinee pour 1440 par 900 :` follows the site’s CSS point for point on Mac, with its own `barre laterale`."
-                        texte "`groupe \"Équipe\" :` range les onglets sous un intertitre, et `page \"x\" en pleine fenetre :` va jusqu’aux bords." en anglais "`groupe \"Équipe\" :` files tabs under a heading, and `page \"x\" en pleine fenetre :` goes edge to edge."
-                    soustitre "Le moteur Humalis, sans React, par défaut" en anglais "The Humalis engine, without React, by default"
+                        texte "`page "accueil" dessinee pour 1440 par 900 :` suit le CSS du site au point près sur Mac, avec sa propre `barre laterale`." en anglais "`page "accueil" dessinee pour 1440 par 900 :` follows the site’s CSS point for point on Mac, with its own `barre laterale`."
+                        texte "`groupe "Équipe" :` range les onglets sous un intertitre, et `page "x" en pleine fenetre :` va jusqu’aux bords." en anglais "`groupe "Équipe" :` files tabs under a heading, and `page "x" en pleine fenetre :` goes edge to edge."
+                    soustitre "Le moteur Humalis par défaut" en anglais "The Humalis engine by default"
                     liste :
-                        texte "`--cible web` et `--cible desktop` produisent maintenant un site léger, sans React : une page HTML par adresse. `--moteur react` garde React." en anglais "`--cible web` and `--cible desktop` now produce a light site without React: one HTML page per address. `--moteur react` keeps React."
+                        texte "`--cible web` et `--cible desktop` produisent maintenant un site léger : une page HTML par adresse." en anglais "`--cible web` and `--cible desktop` now produce a light site: one HTML page per address."
                         texte "L’application de bureau se livre en installateur `.dmg` (Mac) et `.exe` (Windows)." en anglais "The desktop app ships as a `.dmg` (Mac) and `.exe` (Windows) installer."
+                    soustitre "Android et Windows en natif" en anglais "Native Android and Windows"
+                    liste :
+                        texte "`--cible android` produit un projet Kotlin et Jetpack Compose ; `--cible windows`, un projet C# et WPF pour Windows 10 et 11." en anglais "`--cible android` produces a Kotlin and Jetpack Compose project; `--cible windows`, a C# and WPF project for Windows 10 and 11."
+                        texte "Une porte de sortie native sur chaque cible : `utiliser composant "Carte" sur apple "….swift" et sur android "….kt" et sur windows "….cs"`, avec `paquet android` et `paquet windows` ; `utiliser style "….swift" sur apple` pour un style." en anglais "A native way out on every target: `utiliser composant "Carte" sur apple "….swift" et sur android "….kt" et sur windows "….cs"`, with `paquet android` and `paquet windows`; `utiliser style "….swift" sur apple` for a style."
+                    soustitre "Discuter, appeler, se réunir" en anglais "Chat, call, meet"
+                    liste :
+                        texte "`discussion "support" entre client et agent` dans le serveur, puis `discussion "support"` dans une page : messages, pièces jointes, « Lu », non lus et présence en ligne." en anglais "`discussion "support" entre client et agent` in the server, then `discussion "support"` in a page: messages, attachments, read receipts, unread counts and online presence."
+                        texte "`appeler en video contact`, `decrocher`, `raccrocher`, et `salle "classe" pour eleve et professeur animee par professeur` avec `reunion "classe"` : appels et réunions par LiveKit, sur le web, le bureau, Apple, Android et Windows." en anglais "`appeler en video contact`, `decrocher`, `raccrocher`, and `salle "classe" pour eleve et professeur animee par professeur` with `reunion "classe"`: calls and meetings through LiveKit, on the web, desktop, Apple, Android and Windows."
+                    soustitre "L’application au-delà de ses pages" en anglais "The app beyond its pages"
+                    liste :
+                        texte "Dix-huit formes d’application : `widget`, `activite en direct`, `tuile`, `commande vocale`, `clavier`, `raccourcis de l'icone`, `menu clic droit`, `recherche du systeme`, `voiture`, `mini application`, pages `sur montre`, `sur tele` ou `dans la barre du systeme`…" en anglais "Eighteen app forms: `widget`, `activite en direct`, `tuile`, `commande vocale`, `clavier`, `raccourcis de l'icone`, `menu clic droit`, `recherche du systeme`, `voiture`, `mini application`, pages `sur montre`, `sur tele` or `dans la barre du systeme`…"
+                        texte "`quand une erreur arrive :` reçoit chaque erreur de l’application, avec `erreur.message`, `erreur.pile`, `erreur.page` et `erreur.version`." en anglais "`quand une erreur arrive :` receives every app error, with `erreur.message`, `erreur.pile`, `erreur.page` and `erreur.version`."
+                    soustitre "Médias, données et comptes" en anglais "Media, data and accounts"
+                    liste :
+                        texte "`enregistrer audio dans note`, `enregistrer video dans clip`, `scanner document dans facture` et `recadrer photo`." en anglais "`enregistrer audio dans note`, `enregistrer video dans clip`, `scanner document dans facture` and `recadrer photo`."
+                        texte "`donnee locale notes avec chiffree :` garde les données sur l’appareil, chiffrées ; `synchronisee avec "notes"` les envoie au serveur quand le réseau revient." en anglais "`donnee locale notes avec chiffree :` keeps data on the device, encrypted; `synchronisee avec "notes"` sends it to the server when the network comes back."
+                        texte "`connexion par cle d'acces` et `double authentification` dans le serveur ; `se connecter par cle d'acces`, `ajouter cle d'acces` et `activer double authentification` dans les pages." en anglais "`connexion par cle d'acces` and `double authentification` in the server; `se connecter par cle d'acces`, `ajouter cle d'acces` and `activer double authentification` in pages."
+                        texte "`humalis lancer mon-fichier.humalis` fait tourner un fichier tout de suite, en mémoire, avec son serveur, sans rien installer." en anglais "`humalis lancer mon-fichier.humalis` runs a file right away, in memory, with its server, without installing anything."
                     soustitre "De nouvelles phrases" en anglais "New phrases"
                     liste :
-                        texte "`style \"carte\" :` puis une propriété par ligne (`fond blanc`, `arrondi 12`, `ombre douce`) : un style écrit en Humalis, valable sur toutes les cibles." en anglais "`style \"carte\" :` then one property per line (`fond blanc`, `arrondi 12`, `ombre douce`): a style written in Humalis, valid on every target."
+                        texte "`style "carte" :` puis une propriété par ligne (`fond blanc`, `arrondi 12`, `ombre douce`) : un style écrit en Humalis, valable sur toutes les cibles." en anglais "`style "carte" :` then one property per line (`fond blanc`, `arrondi 12`, `ombre douce`): a style written in Humalis, valid on every target."
                         texte "`si actif :` teste une valeur vrai ou faux sans « est vrai », et `non` donne son contraire." en anglais "`si actif :` tests a true-or-false value without `est vrai`, and `non` gives its opposite."
-                        texte "`avec desactive` et `avec desactive si …` sur un bouton ou un champ ; `champ \"Nom\" avec valeur nom` remplit un champ dès le départ." en anglais "`avec desactive` and `avec desactive si …` on a button or a field; `champ \"Nom\" avec valeur nom` fills a field from the start."
-                        texte "`lien \"Notre site\" vers site` suit une adresse lue dans une variable ; `video \"presentation.mp4\" avec commandes` ; `{a la ligne}` dans un texte." en anglais "`lien \"Notre site\" vers site` follows an address read from a variable; `video \"presentation.mp4\" avec commandes`; `{a la ligne}` in a text."
+                        texte "`avec desactive` et `avec desactive si …` sur un bouton ou un champ ; `champ "Nom" avec valeur nom` remplit un champ dès le départ." en anglais "`avec desactive` and `avec desactive si …` on a button or a field; `champ "Nom" avec valeur nom` fills a field from the start."
+                        texte "`lien "Notre site" vers site` suit une adresse lue dans une variable ; `video "presentation.mp4" avec commandes` ; `{a la ligne}` dans un texte." en anglais "`lien "Notre site" vers site` follows an address read from a variable; `video "presentation.mp4" avec commandes`; `{a la ligne}` in a text."
                     soustitre "Les textes et les langues" en anglais "Texts and languages"
                     liste :
                         texte "L’espagnol, le portugais, le swahili et le lingala rejoignent le français et l’anglais. Nombres, dates, montants et pluriels suivent la langue de la page." en anglais "Spanish, Portuguese, Swahili and Lingala join French and English. Numbers, dates, amounts and plurals follow the page’s language."
@@ -40,7 +58,7 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
                     soustitre "Le serveur" en anglais "The server"
                     liste :
                         texte "`seul son auteur peut modifier et supprimer avis` : seul le compte qui a créé une fiche peut la changer." en anglais "`seul son auteur peut modifier et supprimer avis`: only the account that created a record can change it."
-                        texte "`donnees de depart pour produit :` écrit les premières fiches, et `telephone : texte (avant \"tel\")` renomme un champ sans perdre les fiches." en anglais "`donnees de depart pour produit :` writes the first records, and `telephone : texte (avant \"tel\")` renames a field without losing records."
+                        texte "`donnees de depart pour produit :` écrit les premières fiches, et `telephone : texte (avant "tel")` renomme un champ sans perdre les fiches." en anglais "`donnees de depart pour produit :` writes the first records, and `telephone : texte (avant "tel")` renames a field without losing records."
                         texte "La clé secrète d’une API reste sur le serveur : la page passe par sa passerelle." en anglais "An API’s secret key stays on the server: the page goes through its gateway."
                     soustitre "Plus juste partout" en anglais "More accurate everywhere"
                     liste :
@@ -60,8 +78,8 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
                         texte "8 novembre 2026" en anglais "November 8, 2026" avec style "version-date"
                     soustitre "De la 3D dans une page Humalis" en anglais "3D in a Humalis page"
                     liste :
-                        texte "Un composant React peut être écrit en `.jsx` aussi bien qu’en `.tsx`." en anglais "A React component can be written in `.jsx` as well as `.tsx`."
-                        texte "Les paquets qu’un composant importe (`three`, `gsap`, `@react-three/…`, `lenis`) sont ajoutés tout seuls au projet produit." en anglais "The packages a component imports (`three`, `gsap`, `@react-three/…`, `lenis`) are added to the generated project automatically."
+                        texte "Un composant 3D peut être écrit en `.jsx` aussi bien qu’en `.tsx`." en anglais "A 3D component can be written in `.jsx` as well as `.tsx`."
+                        texte "Les paquets qu’un composant importe (`three`, `gsap`, `lenis`) sont ajoutés tout seuls au projet produit." en anglais "The packages a component imports (`three`, `gsap`, `lenis`) are added to the generated project automatically."
                         texte "Un composant 3D est chargé à part : le texte de la page s’affiche sans l’attendre." en anglais "A 3D component is loaded separately: the page text appears without waiting for it."
                 bloc avec style "version" :
                     ligne avec style "version-tete" :
@@ -79,7 +97,7 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
                     liste :
                         texte "`modifier` accepte de nouveau un champ `au depart` ou `calcule` : seule la création le refuse." en anglais "`modifier` accepts an `au depart` or `calcule` field again: only creation refuses it."
                         texte "Une variable `memorisee` est écrite tout de suite : un `rediriger` juste après ne la perd plus." en anglais "A `memorisee` variable is written at once: a `rediriger` right after no longer loses it."
-                        texte "`non vide` refuse une liste ou un texte vide, et `rediriger vers \"https://…\"` marche aussi sur le site statique." en anglais "`non vide` refuses an empty list or text, and `rediriger vers \"https://…\"` also works on the static target."
+                        texte "`non vide` refuse une liste ou un texte vide, et `rediriger vers "https://…"` marche aussi sur le site statique." en anglais "`non vide` refuses an empty list or text, and `rediriger vers "https://…"` also works on the static target."
                 bloc avec style "version" :
                     ligne avec style "version-tete" :
                         texte "1.7.2" sans traduction avec style "version-numero"
@@ -102,7 +120,7 @@ page "nouveautes" a l'adresse "/nouveautes" sans pied :
                         texte "4 novembre 2026" en anglais "November 4, 2026" avec style "version-date"
                     soustitre "Inviter son équipe, envoyer des e-mails" en anglais "Invite your team, send emails"
                     liste :
-                        texte "`inviter champ \"Adresse\" comme admin` envoie un lien à usage unique ; la personne choisit son mot de passe ou entre avec Google." en anglais "`inviter champ \"Adresse\" comme admin` sends a single-use link; the person chooses a password or comes in with Google."
+                        texte "`inviter champ "Adresse" comme admin` envoie un lien à usage unique ; la personne choisit son mot de passe ou entre avec Google." en anglais "`inviter champ "Adresse" comme admin` sends a single-use link; the person chooses a password or comes in with Google."
                         texte "Mot de passe oublié, liste des comptes et retrait d’un membre, dans la grammaire des routes." en anglais "Forgotten password, account list and member removal, in the same grammar as routes."
                         texte "`quand message est cree :` et `envoyer email aux admins avec sujet … et texte …` : le serveur écrit quand une fiche arrive." en anglais "`quand message est cree :` and `envoyer email aux admins avec sujet … et texte …`: the server writes when a record arrives."
                 bloc avec style "version" :
