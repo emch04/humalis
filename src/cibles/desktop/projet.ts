@@ -597,9 +597,11 @@ ${fichiers ? `    // « Ouvrir avec » ou le menu clic droit pendant que l'appli
 
   void app.whenReady().then(() => {
 ${o.captureAudio || o.captureVideo ? `    // Seules les captures déclarées par le programme accèdent au micro ou à la caméra.
-    const permissionMedia = (contenu, permission, details) => {
-      if (permission !== 'media' || contenu.getURL().startsWith(ORIGINE + '/') === false) return false;
-      const types = details?.mediaTypes ?? [];
+    const permissionMedia = (contenu: Electron.WebContents | null, permission: string, details?: unknown) => {
+      if (permission !== 'media' || contenu?.getURL().startsWith(ORIGINE + '/') !== true) return false;
+      // La demande donne mediaTypes ; la vérification, mediaType (« audio » ou « video »).
+      const lu = details as { mediaTypes?: string[]; mediaType?: string } | undefined;
+      const types = lu?.mediaTypes ?? (lu?.mediaType ? [lu.mediaType] : []);
       return ${o.captureAudio} && (${o.captureVideo} || !types.includes('video'));
     };
     session.defaultSession.setPermissionRequestHandler((contenu, permission, repondre, details) => repondre(permissionMedia(contenu, permission, details)));

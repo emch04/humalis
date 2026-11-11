@@ -31,6 +31,7 @@ import { Types, Valeurs, plusPrecis, type Portee } from './valeurs.js';
 import { genererFormesApple, aDesFormes, type FormesProduites } from './formes.js';
 import { requetesCapture } from '../capture-erreurs.js';
 import { captureErreursSwift } from './capture-erreurs.js';
+import { avecClesAcces, avecCompteSecurise, avecDonneesLocales, COMPTE_SECURISE_SWIFT, domaineDesCles, DONNEES_LOCALES_SWIFT, identifierFichesLocales, lisezmoiDonneesComptes, localesDuProgramme } from './donnees-comptes.js';
 import { CONFIDENTIALITE, assets, associationSite, infoSupplementaire, type PaquetSwift, droits, projetXcode, schemaXcode } from './xcode.js';
 
 export const MARQUE_APPLE = '.humalis-projet';
@@ -135,7 +136,7 @@ function donneesSwift(types: Types): string {
       // Une fiche a un identifiant pour SwiftUI, même sans champ « id ».
       for (const c of s.champs) e.ligne(`var ${c.swift}: ${types.swift(c.type, c.opt)} = ${c.opt ? 'nil' : types.defaut(c.type)}`);
       if (!s.champs.some((c) => c.swift === 'id')) e.ligne('var id: Int { hashValue }');
-      if (s.champs.some((c) => c.swift !== c.cle)) {
+      if (s.identifiee || s.champs.some((c) => c.swift !== c.cle)) {
         e.ligne();
         e.bloc('enum CodingKeys: String, CodingKey {', () => {
           for (const c of s.champs) e.ligne(c.swift === c.cle ? `case ${c.swift}` : `case ${c.swift} = ${chaineSwift(c.cle)}`);
@@ -156,6 +157,14 @@ function donneesSwift(types: Types): string {
           e.ligne(c.cle === 'id' && c.type.genre === 'texte' ? `${c.swift} = boite.lireIdentifiant(.${c.swift})` : `${c.swift} = boite.lire(.${c.swift}, ${c.swift})`);
         }
       });
+      // Une fiche pas encore enregistrée n'a pas d'identifiant : le JSON ne dit rien plutôt qu'un identifiant vide.
+      if (s.identifiee) {
+        e.ligne();
+        e.bloc('func encode(to encoder: Encoder) throws {', () => {
+          e.ligne('var boite = encoder.container(keyedBy: CodingKeys.self)');
+          for (const c of s.champs) e.ligne(c.cle === 'id' ? `if !${c.swift}.isEmpty { try boite.encode(${c.swift}, forKey: .${c.swift}) }` : `try boite.encode${c.opt ? 'IfPresent' : ''}(${c.swift}, forKey: .${c.swift})`);
+        });
+      }
     });
   }
   return e.texte();
@@ -176,7 +185,9 @@ function partageSwift(partages: Etat[], types: Types, cle: string, v: Valeurs, g
       // Avec des widgets ou des extensions : chaque valeur va aussi dans le groupe d'applications.
       const suites = [
         ...(p.memorisee || p.horsLigne ? [`Memoire.ecrire(${chaineSwift(`${cle}:partage:${simplifier(p.nom)}`)}, ${nom}${p.secret ? ', secret: true' : ''}${p.horsLigne ? ', fichier: true' : ''})`] : []),
-        ...(groupe && !p.secret ? [`if !relecture { GroupeHumalis.ecrire(${chaineSwift(`partage:${simplifier(p.nom)}`)}, ${nom}) }`] : []),
+        // Une donnée chiffrée ne va jamais en clair dans le groupe d'applications.
+        ...(groupe && !p.secret && !p.locale?.chiffree ? [`if !relecture { GroupeHumalis.ecrire(${chaineSwift(`partage:${simplifier(p.nom)}`)}, ${nom}) }`] : []),
+        ...(p.locale ? [`LocalesHumalis.${nom}.marquer()`] : []),
         ...(suivies.has(p.nom) ? [`FormesHumalis.partageChange(${chaineSwift(p.nom)})`] : []),
       ];
       if (suites.length) e.ligne(`var ${nom}: ${types.swift(p.type, p.facultatif)} = ${valeur} { didSet { ${suites.join('; ')} } }`);
@@ -194,7 +205,7 @@ function partageSwift(partages: Etat[], types: Types, cle: string, v: Valeurs, g
       e.bloc('func relireDuGroupe() {', () => {
         e.ligne('relecture = true');
         e.ligne('defer { relecture = false }');
-        for (const p of partages.filter((x) => !x.secret)) {
+        for (const p of partages.filter((x) => !x.secret && !x.locale?.chiffree)) {
           const t = types.swift(p.type, p.facultatif);
           const cleGroupe = chaineSwift(`partage:${simplifier(p.nom)}`);
           e.ligne(`if let donnees = GroupeHumalis.lire(${cleGroupe}), donnees != (try? JSONEncoder().encode(${nomSwift(p.nom)})), let lue = try? JSONDecoder().decode(${t}.self, from: donnees) { ${nomSwift(p.nom)} = lue }`);
@@ -608,7 +619,7 @@ function baseDuSite(application: Application): string {
   return stylesDuSite(formulaires, blocs) + cssTheme(theme as ThemeRI | undefined, false);
 }
 
-function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, disposition: Disposition, polices: { fichier: string; nom: string }[], policeTexte?: string, notifications = false, fonds: { dessin?: { largeur: number; hauteur: number; barre: boolean; barreVisible?: boolean[] }; barreLaterale?: string; liens?: boolean; domaine?: boolean; envois?: boolean; arrierePlan?: boolean; onglets?: { titre: string; route: string; icone: string }[]; menus?: ReturnType<typeof commandesSwift>['menus']; reglages?: string; formes?: FormesProduites['app'] } = {}): string {
+function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, disposition: Disposition, polices: { fichier: string; nom: string }[], policeTexte?: string, notifications = false, fonds: { dessin?: { largeur: number; hauteur: number; barre: boolean; barreVisible?: boolean[] }; barreLaterale?: string; liens?: boolean; domaine?: boolean; envois?: boolean; arrierePlan?: boolean; locales?: boolean; compteSecurise?: boolean; onglets?: { titre: string; route: string; icone: string }[]; menus?: ReturnType<typeof commandesSwift>['menus']; reglages?: string; formes?: FormesProduites['app'] } = {}): string {
   // Par la route, et non la page directement : une page d'entrée réservée garde sa protection.
   const racine = entree.reservee ? 'Route.accueilHumalis.vue' : `${nomPage(entree.nom)}()`;
   const sans = (liste: string[]) => (liste.length ? `![${liste.map((r) => `Route.${r}`).join(', ')}].contains(Routeur.commun.chemin.last ?? .accueilHumalis)` : 'true');
@@ -757,7 +768,7 @@ function applicationSwift(nom: string, nomAffiche: string, entree: Ecran, dispos
 `
     : '';
   const phase = fonds.envois || fonds.arrierePlan;
-  const auLancement = [...(fonds.domaine ? ['if let lien = ProcessInfo.processInfo.environment["HUMALIS_ESSAI_LIEN"], let url = URL(string: lien) { Routeur.commun.ouvrirLien(url) }'] : []), ...(fonds.envois ? ['EnvoisGardes.commun.demarrer()'] : []), ...(fonds.arrierePlan ? ['ArrierePlanHumalis.lancerSiEssai()'] : [])];
+  const auLancement = [...(fonds.domaine ? ['if let lien = ProcessInfo.processInfo.environment["HUMALIS_ESSAI_LIEN"], let url = URL(string: lien) { Routeur.commun.ouvrirLien(url) }'] : []), ...(fonds.envois ? ['EnvoisGardes.commun.demarrer()'] : []), ...(fonds.arrierePlan ? ['ArrierePlanHumalis.lancerSiEssai()'] : []), ...(fonds.compteSecurise ? ['CompteSecuriseHumalis.brancher()'] : []), ...(fonds.locales ? ['LocalesHumalis.demarrerHumalis()'] : [])];
   // Les formes reçoivent les adresses (widget, fichier, partage) et rendent les autres aux liens profonds.
   const ouvrir = fonds.formes?.url ? 'FormesHumalis.ouvrir($0)' : 'Routeur.commun.ouvrirLien($0)';
   const racineScene = `RacineHumalis()${fonds.liens || fonds.formes?.url ? `
@@ -938,6 +949,7 @@ export function genererProjetApple(application: Application, options: OptionsApp
   };
 
   const types = new Types(application, donneesDe);
+  identifierFichesLocales(application, types);
   const fonctions: Portee['fonctions'] = new Map();
   const pages: HotePage['pages'] = new Map(application.ecrans.map((e) => [e.nom, { parametres: e.parametresAdresse ?? [], filtres: e.filtres ?? [] }]));
   const ressources = new Map<string, string>();
@@ -1092,7 +1104,7 @@ export function genererProjetApple(application: Application, options: OptionsApp
   }
   if (notifications && !options.equipe) avertir(1, "« activer notifications » : sans --equipe, l'application demande la permission mais ne peut pas recevoir de notification d'Apple. Compilez avec --equipe pour qu'elle les reçoive.");
   const policesCopiees = (application.theme?.polices ?? []).flatMap((p) => (p.fichier && /\.(ttf|otf|woff2?)$/i.test(p.fichier) && options.polices?.has(p.fichier) ? [{ fichier: p.fichier, nom: p.nom }] : []));
-  let codeApplication = applicationSwift(nom, application.site?.nom ?? options.nom, entree, disposition, policesCopiees.map((p) => ({ fichier: nomFichierPlat(p.fichier), nom: p.nom })), application.theme?.polices.find((p) => p.role === 'texte')?.nom, notifications, { ...(dessinPrincipal ? { dessin: { ...dessinPrincipal, barre: application.disposition?.barre !== undefined, ...(barreVisible ? { barreVisible } : {}) } } : {}), barreLaterale: application.barreLaterale, liens: application.liensProfonds !== undefined, domaine: application.liensProfonds?.domaine !== undefined, envois: avecEnvois, arrierePlan: avecArrierePlan, ...(ongletsSwift ? { onglets: ongletsSwift } : {}), ...(commandesEcrites.menus.length ? { menus: commandesEcrites.menus } : {}), ...(pageReglages ? { reglages: `Route${routeSimple(pageReglages.nom, app)}` } : {}), ...(formes ? { formes: formes.app } : {}) });
+  let codeApplication = applicationSwift(nom, application.site?.nom ?? options.nom, entree, disposition, policesCopiees.map((p) => ({ fichier: nomFichierPlat(p.fichier), nom: p.nom })), application.theme?.polices.find((p) => p.role === 'texte')?.nom, notifications, { ...(dessinPrincipal ? { dessin: { ...dessinPrincipal, barre: application.disposition?.barre !== undefined, ...(barreVisible ? { barreVisible } : {}) } } : {}), barreLaterale: application.barreLaterale, liens: application.liensProfonds !== undefined, domaine: application.liensProfonds?.domaine !== undefined, envois: avecEnvois, arrierePlan: avecArrierePlan, locales: avecDonneesLocales(application), compteSecurise: avecCompteSecurise(application), ...(ongletsSwift ? { onglets: ongletsSwift } : {}), ...(commandesEcrites.menus.length ? { menus: commandesEcrites.menus } : {}), ...(pageReglages ? { reglages: `Route${routeSimple(pageReglages.nom, app)}` } : {}), ...(formes ? { formes: formes.app } : {}) });
   if (application.formes?.erreurArrive) {
     ecrire('Humalis/CaptureErreurs.swift', captureErreursSwift(requetesCapture(application.formes).requetes));
     // La page en cours, pour « erreur.page ».
@@ -1110,6 +1122,12 @@ export function genererProjetApple(application: Application, options: OptionsApp
   // Les variables partagées peuvent citer des types de fiches : avant Donnees.swift.
   portee.variables.clear();
   ecrire('Humalis/Partage.swift', partageSwift(application.partages, types, cle, valeurs, formes?.groupe !== undefined, formes?.suivies));
+
+  if (avecDonneesLocales(application)) {
+    ecrire('Humalis/DonneesLocales.swift', DONNEES_LOCALES_SWIFT);
+    ecrire('Humalis/Locales.swift', localesDuProgramme(application, types, cle));
+  }
+  if (avecCompteSecurise(application)) ecrire('Humalis/CompteSecurise.swift', COMPTE_SECURISE_SWIFT);
 
   const pagesCode = [...fichiers.values()].join('\n');
   ecrire('Humalis/Valeurs.swift', VALEURS_SWIFT);
@@ -1159,10 +1177,14 @@ export function genererProjetApple(application: Application, options: OptionsApp
   const avecConnexionApple = /\bseConnecterAvecApple\(/.test(codeAvecNatifs);
   if (avecConnexionApple && !options.equipe) avertir(1, "« se connecter avec apple » : sans --equipe, la fenêtre d'Apple ne peut pas s'ouvrir, et l'application le dit à la personne. Compilez avec --equipe.");
   const droitConnexionApple = avecConnexionApple && options.equipe !== undefined;
-  ecrire(`${nom}.entitlements`, droits(avecFichiers, (notifications || jetonActivite) && options.equipe ? 'ios' : undefined, avecPosition, domaineLiens, droitConnexionApple, formes?.groupe, '', appareilsCaptures));
-  if ((notifications || jetonActivite) && options.equipe) ecrire(`${nom}-mac.entitlements`, droits(avecFichiers, 'mac', avecPosition, domaineLiens, droitConnexionApple, formes?.groupe, '', appareilsCaptures));
+  // Les clés d'accès : le système ne les accorde qu'à un domaine https associé à l'application.
+  const domaineCles = avecClesAcces(application) ? domaineDesCles(options.serveur ?? application.sources.find((x) => x.session)?.adresse) : undefined;
+  const droitCles = options.equipe ? domaineCles : undefined;
+  if (avecClesAcces(application) && !droitCles) avertir(1, "les clés d'accès demandent un serveur en https (--serveur https://…) et une équipe (--equipe) : sans eux, le système les refuse, et l'application le dit à la personne.");
+  ecrire(`${nom}.entitlements`, droits(avecFichiers, (notifications || jetonActivite) && options.equipe ? 'ios' : undefined, avecPosition, domaineLiens, droitConnexionApple, formes?.groupe, '', appareilsCaptures, droitCles));
+  if ((notifications || jetonActivite) && options.equipe) ecrire(`${nom}-mac.entitlements`, droits(avecFichiers, 'mac', avecPosition, domaineLiens, droitConnexionApple, formes?.groupe, '', appareilsCaptures, droitCles));
   // CarPlay demande un droit qu'Apple accorde sur demande : sans lui, seul le simulateur montre l'écran de voiture.
-  if (formes?.droitsSimulateur) ecrire(`${nom}-simulateur.entitlements`, droits(avecFichiers, (notifications || jetonActivite) && options.equipe ? 'ios' : undefined, avecPosition, domaineLiens, droitConnexionApple, formes.groupe, formes.droitsSimulateur, appareilsCaptures));
+  if (formes?.droitsSimulateur) ecrire(`${nom}-simulateur.entitlements`, droits(avecFichiers, (notifications || jetonActivite) && options.equipe ? 'ios' : undefined, avecPosition, domaineLiens, droitConnexionApple, formes.groupe, formes.droitsSimulateur, appareilsCaptures, droitCles));
   if (application.liensProfonds?.domaine && !options.equipe) avertir(application.liensProfonds.ligne, `« domaine "${application.liensProfonds.domaine}" » : sans --equipe, les liens https:// ouvrent le site et pas l'application. Compilez avec --equipe.`);
   if (domaineLiens) {
     fichiers.set('a-publier-sur-le-site/.well-known/apple-app-site-association', associationSite(options.equipe!, identifiantApp, domaineLiens));
@@ -1203,7 +1225,7 @@ export function genererProjetApple(application: Application, options: OptionsApp
   });
   if (options.essaisUi !== undefined) fichiers.set(`${nom}Essais/Parcours.swift`, options.essaisUi);
   fichiers.set(MARQUE_APPLE, `Projet produit par Humalis depuis ${options.source}.\nLe compilateur réécrit ce dossier à chaque compilation.\n`);
-  fichiers.set('LISEZMOI.md', lisezmoi(nom, options) + (formes ? lisezmoiFormes(nom, application, formes) : ''));
+  fichiers.set('LISEZMOI.md', lisezmoi(nom, options) + (formes ? lisezmoiFormes(nom, application, formes) : '') + lisezmoiDonneesComptes(application, identifiantApp, options.equipe, domaineCles));
   return { fichiers, diagnostics };
 }
 

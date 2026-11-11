@@ -27,6 +27,8 @@ import { fichiersDesInteractions, cssInteractions } from './interactions.js';
 import { lecturesTs, lecturesDuChargement, routesPubliques, PRECHARGEMENT } from './lectures.js';
 import type { Diagnostic } from '../../analyse/erreurs.js';
 import { COULEURS_CSS } from './styles.js';
+import { avecDoubleWeb, avecLocalesSynchro, avecSecuriteWeb, COMPTE_SECURISE_JS, DONNEES_LOCALES_JS, reglagesLocale } from '../commun/donnees-comptes-web.js';
+import { QRCODE_GENERATOR } from '../statique/qrcode-donnees.js';
 
 export interface OptionsWeb {
   /** Le nom du projet, tiré du fichier Humalis (« boutique »). */
@@ -155,6 +157,8 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
   // Une page réservée demande la session, même si elle ne la lit pas elle-même.
   const reservees = application.ecrans.some((e) => e.reservee);
   session ||= reservees;
+  // Une donnée synchronisée suit le compte connecté.
+  session ||= avecLocalesSynchro(application);
   const introuvable = pages.find(({ ecran }) => ecran.nom === 'introuvable');
   const adresses = [...new Set([...application.ecrans.flatMap((e) => adressesDeRequetes(e)), ...adressesDeSources(application)])];
   // Pendant le prérendu, il n'y a personne : /auth/me est neutralisé.
@@ -272,11 +276,21 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
     application.partages.some((p) => p.memorisee) ||
     [...application.ecrans, ...application.composants].some((e) => e.etat.some((v) => (v.memorisee && !v.secret) || v.horsLigne));
   if (memorisees) fichiers.set('src/humalis/memoire.ts', MEMOIRE);
-  if (application.partages.length > 0) fichiers.set('src/humalis/partage.tsx', partageTsx(application.partages, contexte.cle));
+  if (application.partages.length > 0) fichiers.set('src/humalis/partage.tsx', partageTsx(application.partages, contexte.cle, application, sessionDuServeur));
+  if (application.partages.some((p) => p.locale)) {
+    fichiers.set('src/humalis/donnees-locales.js', DONNEES_LOCALES_JS);
+    fichiers.set('src/humalis/donnees-locales.d.ts', 'export function creerDonneeLocale(reglages: unknown, lien: unknown): { observer(liste: unknown): void; changerCompte(compte: unknown): void; demarrer(): void };\n');
+  }
+  if (avecSecuriteWeb(application)) {
+    fichiers.set('src/humalis/compte-securise.js', COMPTE_SECURISE_JS);
+    fichiers.set('src/humalis/compte-securise.d.ts', 'export function creerCompteSecurise(o: unknown): { demanderCode(jeton: string): Promise<boolean>; activer(dansUnEssai?: boolean): Promise<boolean>; ajouterCle(dansUnEssai?: boolean): Promise<boolean>; seConnecterParCle(dansUnEssai?: boolean): Promise<boolean> };\n');
+    if (avecDoubleWeb(application)) fichiers.set('public/humalis/qrcode.js', QRCODE_GENERATOR);
+  }
   if (application.serveurs.length > 0 || application.sources.length > 0) fichiers.set('src/humalis/donnees.ts', donneesTs(application));
   if (session) {
     const source = application.sources.find((x) => x.session);
-    fichiers.set('src/humalis/session.tsx', source ? sessionDeLaSource(SESSION, source) : sessionDuServeur ? sessionRenouvelee(SESSION) : SESSION);
+    const modeleSession = sessionSecurisee(SESSION, avecSecuriteWeb(application));
+    fichiers.set('src/humalis/session.tsx', source ? sessionDeLaSource(modeleSession, source) : sessionDuServeur ? sessionRenouvelee(modeleSession) : modeleSession);
     // « se connecter avec google » : la page où Google renvoie, qui rend le jeton au site.
     if (JSON.stringify(application.ecrans).includes('"animation":true')) fichiers.set('src/humalis/liste-animee.tsx', LISTE_ANIMEE);
     if (application.serveurs.some((s) => s.connexionGoogle)) fichiers.set('public/auth-google.html', PAGE_RETOUR_GOOGLE);
@@ -1499,7 +1513,7 @@ export function verifierPourLeWeb(application: Application): Diagnostic[] {
     }));
 }
 
-export function partageTsx(partages: Etat[], cle: string): string {
+export function partageTsx(partages: Etat[], cle: string, application?: Application, renouveler = false): string {
   const contexte = { types: new Map(partages.map((p) => [p.nom, p.type])), champs: new Map<string, string>() };
   const champsType = partages
     .map((p) => `  ${camel(p.nom)}: ${typeTS(p.type)};\n  ${setter(p.nom)}: (valeur: ${typeTS(p.type)}) => void;`)
@@ -1510,6 +1524,7 @@ export function partageTsx(partages: Etat[], cle: string): string {
       const initiale = expression(p.initiale, contexte);
       // Un secret n'existe que sur le mobile, gardé dans le coffre du téléphone.
       const crochet = p.secret ? 'useMemoriseSecret' : 'useMemorise';
+      if (p.locale && application) return `  const [${camel(p.nom)}, ${setter(p.nom)}] = useDonneeLocale<${typeTS(p.type)}>(${reglagesLocale(application, camel(p.nom), p.locale, cle)}, ${initiale}${p.locale.synchronisee !== undefined ? ', compteDe(utilisateur)' : ''});`;
       return p.memorisee
         ? `  const [${camel(p.nom)}, ${setter(p.nom)}] = ${crochet}${annotation}(${chaine(`${cle}:partage:${p.nom}`)}, ${initiale});`
         : `  const [${camel(p.nom)}, ${setter(p.nom)}] = useState${annotation}(${initiale});`;
@@ -1521,17 +1536,19 @@ export function partageTsx(partages: Etat[], cle: string): string {
     ...(partages.some((p) => p.memorisee && p.secret) ? ['useMemoriseSecret'] : []),
   ];
   const etat = partages.some((p) => !p.memorisee);
-  return `import { createContext, useContext${etat ? ', useState' : ''}, type ReactNode } from 'react';
-${crochets.length ? `import { ${crochets.join(', ')} } from './memoire';\n` : ''}
+  const locales = partages.some((p) => p.locale);
+  const synchro = partages.some((p) => p.locale?.synchronisee !== undefined);
+  return `import { createContext, useContext${locales ? ', useEffect, useRef' : ''}${etat ? ', useState' : ''}, type ReactNode } from 'react';
+${locales ? `import { creerDonneeLocale } from './donnees-locales.js';\nimport { useMessages } from './messages';\n` : ''}${synchro ? `import { useUtilisateur } from './session';\n${renouveler ? "import { avecSession, SessionFinie } from './renouveler';\n" : ''}` : ''}${crochets.length ? `import { ${crochets.join(', ')} } from './memoire';\n` : ''}
 /** Les variables partagées entre les pages (« variable … avec partagee »). */
 interface Partages {
 ${champsType}
 }
 
 const Contexte = createContext<Partages | null>(null);
-
+${locales ? localeTsx(synchro, renouveler) : ''}
 export function Partage({ children }: { children: ReactNode }) {
-${etats}
+${synchro ? '  const utilisateur = useUtilisateur();\n' : ''}${etats}
 
   return <Contexte.Provider value={{ ${valeurs} }}>{children}</Contexte.Provider>;
 }
@@ -1540,6 +1557,52 @@ export function usePartage(): Partages {
   const partages = useContext(Contexte);
   if (!partages) throw new Error("usePartage doit être utilisé à l'intérieur de <Partage>.");
   return partages;
+}
+`;
+}
+
+/** Une donnée locale dans React : la liste vit dans un état, la base la suit. */
+function localeTsx(synchro: boolean, renouveler: boolean): string {
+  return `
+const BASE_LOCALE = import.meta.env.VITE_HUMALIS_SERVEUR ?? '';
+${synchro ? `const compteDe = (u: { pret: boolean; personne: unknown }) => (u.pret ? (((u.personne as { id?: unknown } | null)?.id ?? null) as unknown) : undefined);
+const jetonCsrf = () => document.cookie.match(/(?:^|; )astratra_csrf=([^;]*)/)?.[1];
+async function appelLocal(chemin: string, options: RequestInit) {
+  const lancer = () => fetch(BASE_LOCALE + chemin, { ...options, cache: 'no-store', credentials: 'same-origin' });
+  try {
+    const reponse = await ${renouveler ? 'avecSession(lancer)' : 'lancer()'};
+    return { ok: reponse.ok, statut: reponse.status, corps: reponse.ok ? await reponse.json() : null };
+  } catch (erreur) {
+    if (${renouveler ? 'erreur instanceof SessionFinie' : 'false'}) return { ok: false, statut: 401, corps: null };
+    throw erreur;
+  }
+}
+const reseauLocal = {
+  lire: (chemin: string) => appelLocal(chemin, { method: 'GET' }),
+  envoyer: (chemin: string, corps: unknown) => {
+    const entetes = new Headers({ 'Content-Type': 'application/json' });
+    const jeton = jetonCsrf();
+    if (jeton) entetes.set('x-csrf-token', decodeURIComponent(jeton));
+    return appelLocal(chemin, { method: 'POST', headers: entetes, body: JSON.stringify(corps) });
+  },
+};
+` : ''}
+function useDonneeLocale<T>(reglages: unknown, initiale: T, compte?: unknown): [T, (valeur: T) => void] {
+  const { afficherMessage } = useMessages();
+  const [valeur, setValeur] = useState<T>(initiale);
+  const actuelle = useRef(valeur);
+  actuelle.current = valeur;
+  const locale = useRef<ReturnType<typeof creerDonneeLocale> | null>(null);
+  locale.current ??= creerDonneeLocale(reglages, {
+    lire: () => actuelle.current,
+    ecrire: (liste: T) => { actuelle.current = liste; setValeur(liste); },
+    dire: afficherMessage,
+    ${synchro ? 'transport: reseauLocal,' : ''}
+  });
+  useEffect(() => { locale.current!.demarrer(); }, []);
+  useEffect(() => { locale.current!.observer(valeur); }, [valeur]);
+  useEffect(() => { if (${synchro ? "compte !== undefined || (reglages as { route: unknown }).route === null" : 'true'}) locale.current!.changerCompte(compte ?? null); }, [compte]);
+  return [valeur, setValeur];
 }
 `;
 }
@@ -1709,6 +1772,16 @@ function serveurRenouvele(modele: string): string {
 }
 
 /** `session.tsx` avec le renouvellement : /auth/me, le mot de passe et la déconnexion passent par lui. */
+/** Les clés d'accès et le code à six chiffres, dans la session : seulement si le serveur les ouvre. */
+function sessionSecurisee(modele: string, securite: boolean): string {
+  return modele
+    .replace('ETAPE_CODE_REACT', securite ? "const etape = await reponse.clone().json().catch(() => null) as { data?: { etape?: string; jeton?: string } } | null;\n    if (etape?.data?.etape === 'code') return securite.demanderCode(etape.data.jeton!);\n    " : '')
+    .replace('    SECURITE_REACT_METHODES\n', securite ? '    seConnecterParCle: securite.seConnecterParCle,\n    ajouterCle: securite.ajouterCle,\n    activerDoubleAuthentification: securite.activer,\n' : '')
+    .replace('  SECURITE_REACT_CREATION\n', securite ? "  const securite = useRef(creerCompteSecurise({ base: BASE, credentials: 'same-origin', entetes, relire: () => relire(), dire: afficherMessage })).current;\n" : '')
+    .replace('SECURITE_REACT_IMPORT', securite ? "import { creerCompteSecurise } from './compte-securise.js';\n" : '')
+    .replace(/  \/\*\* « se connecter par cle d'acces »[^\n]*\n  seConnecterParCle[^\n]*\n  ajouterCle[^\n]*\n  activerDoubleAuthentification[^\n]*\n/, securite ? '$&' : '');
+}
+
 function sessionRenouvelee(modele: string): string {
   const remplacer = (texte: string, avant: string, apres: string) => {
     if (!texte.includes(avant)) throw new Error(`modèle de la session inattendu : ${avant}`);
@@ -1792,7 +1865,7 @@ function sessionRenouvelee(modele: string): string {
 }
 
 /** La session (décision L5) : src/humalis/session.tsx, placé autour des pages. */
-const SESSION = `import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+const SESSION = `SECURITE_REACT_IMPORTimport { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useMessages } from './messages';
 
 /** L'adresse du serveur : la même origine par défaut, ou VITE_HUMALIS_SERVEUR. */
@@ -1815,6 +1888,10 @@ interface Utilisateur {
   admin: boolean;
   /** Vrai si la connexion a réussi ; sinon un message d'erreur s'affiche (dans « essayer », l'erreur est levée : « si erreur » la reçoit). */
   seConnecter(email: string, motDePasse: string, dansUnEssai?: boolean): Promise<boolean>;
+  /** « se connecter par cle d'acces », « ajouter cle d'acces », « activer double authentification ». */
+  seConnecterParCle(dansUnEssai?: boolean): Promise<boolean>;
+  ajouterCle(dansUnEssai?: boolean): Promise<boolean>;
+  activerDoubleAuthentification(dansUnEssai?: boolean): Promise<boolean>;
   /** « se connecter avec google » : la fenêtre de Google, puis la session d'un compte déjà connu du serveur. */
   seConnecterAvecGoogle(dansUnEssai?: boolean): Promise<boolean>;
   /** « se connecter avec apple » : la fenêtre d'Apple, puis la session d'un compte déjà connu du serveur. */
@@ -1886,6 +1963,7 @@ export function Session({ children }: { children: ReactNode }) {
     void relire();
   }, [relire]);
 
+  SECURITE_REACT_CREATION
   async function seConnecter(email: string, motDePasse: string, dansUnEssai = false): Promise<boolean> {
     const refuser = (texte: string): boolean => {
       if (dansUnEssai) throw new Error(texte);
@@ -1910,7 +1988,7 @@ export function Session({ children }: { children: ReactNode }) {
       // Jamais lequel des deux est faux : on ne dit pas si un compte existe.
       return refuser('Email ou mot de passe incorrect.');
     }
-    // La réponse contient aussi un jeton : il n'est pas gardé, le cookie du pack suffit.
+    ETAPE_CODE_REACT// La réponse contient aussi un jeton : il n'est pas gardé, le cookie du pack suffit.
     await relire();
     return true;
   }
@@ -2204,6 +2282,7 @@ export function Session({ children }: { children: ReactNode }) {
       return derniere.current?.role === 'admin';
     },
     seConnecter,
+    SECURITE_REACT_METHODES
     seConnecterAvecGoogle,
     seConnecterAvecApple,
     changerMotDePasse,

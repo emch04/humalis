@@ -1,0 +1,47 @@
+# Essai : les données sur l'appareil, les clés d'accès et le code à six chiffres.
+serveur "carnet" :
+    connexion par cle d'acces
+    double authentification
+    donnee note :
+        titre : texte
+        lu : booleen
+    route "notes" :
+        connecte peut lire note
+        connecte peut creer note
+        connecte peut modifier note
+        connecte peut supprimer note
+
+donnee locale notes avec chiffree :
+    titre : texte
+    lu : booleen
+    synchronisee avec "notes"
+
+page "accueil" :
+    titre "Carnet"
+    formulaire "entree" :
+        champ email "Email"
+        champ mot de passe "Mot de passe"
+        bouton "Entrer"
+    quand le formulaire "entree" est soumis :
+        se connecter avec champ "Email" et champ "Mot de passe"
+    bouton "Avec une clé"
+    quand l'utilisateur clique sur "Avec une clé" :
+        se connecter par cle d'acces
+    formulaire "ajout" :
+        champ "Titre"
+        bouton "Ajouter"
+    quand le formulaire "ajout" est soumis :
+        ajouter fiche avec titre champ "Titre" et lu faux a notes
+    pour chaque n dans notes :
+        texte n.titre
+    si utilisateur est connecte :
+        texte "Connecté"
+    bouton "Sortir"
+    quand l'utilisateur clique sur "Sortir" :
+        se deconnecter
+    bouton "Ajouter une clé"
+    quand l'utilisateur clique sur "Ajouter une clé" :
+        ajouter cle d'acces
+    bouton "Code à six chiffres"
+    quand l'utilisateur clique sur "Code à six chiffres" :
+        activer double authentification

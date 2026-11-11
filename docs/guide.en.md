@@ -3742,6 +3742,22 @@ page "accueil" :
 network returns, deletions follow, and on a conflict the most recent change wins. Each record's
 identifier is managed by the database.
 
+Each account has its own database on the device: once signed out, its records leave the page, and
+what is waiting to be sent stays with that account. The fields of the local data must be those of
+the server's data, with the same types. Each change goes back through the route: its rights and
+checks apply, and a refused change is undone on the device, with a message. The most recent change
+is decided record by record, by the server's clock, even if the device's time is wrong.
+
+| Target | Database | Encryption key | When the network returns |
+| --- | --- | --- | --- |
+| web, desktop | IndexedDB | WebCrypto, non-extractable | on reopening and when the network returns, page open |
+| Apple | SQLite | Keychain | app open |
+| Android | SQLite | Android Keystore | even with the app closed (WorkManager) |
+| Windows | SQLite | DPAPI | app open |
+
+On the server, a deletion stays known for 180 days (`HUMALIS_SYNCHRO_JOURS`). A device away for longer
+starts again from the server's data, without losing what it has not yet sent.
+
 ### Passwordless sign-in and the six-digit code
 
 In the server, two lines open these doors on top of email and password:
@@ -3769,6 +3785,25 @@ In pages, `se connecter par cle d'acces` opens sign-in with Face ID, Touch ID or
 Hello; `ajouter cle d'acces` adds a key to the signed-in account; `activer double authentification`
 shows the QR code to scan in an authenticator app. The six-digit code is then asked for
 automatically after the password.
+
+Turning on the code or adding a passkey asks for the password again. The activation screen gives ten
+single-use recovery codes. Five wrong codes close the account for fifteen minutes. A passkey does not
+ask for a code: it already counts as two proofs. Signing in with Google or Apple does not either: the
+provider verifies the person.
+
+On the server, `ENCRYPTION_KEY` is required for the six-digit code, and `WEBAUTHN_ALLOWED_ORIGINS` gives
+the site's addresses: the first one sets the passkeys' domain.
+
+What passkeys need, target by target:
+
+- **Web**: a site on https (or `localhost` during development).
+- **Desktop (Electron)**: they are refused at compile time. The built-in browser does not accept the
+  app's own address. The six-digit code works there.
+- **Apple**: `--serveur https://…`, `--equipe`, and `WEBAUTHN_APPLE_APP` on the server, which publishes
+  the domain association file.
+- **Android**: a domain on https, `WEBAUTHN_ANDROID_APP` on the server (the package name, then the
+  signing fingerprints), and a Google account on the device.
+- **Windows**: Windows Hello set up on the machine, with no MSIX package.
 
 ### Several files
 

@@ -466,6 +466,11 @@ export class GenerateurMoteur extends GenerateurPage {
         e.ligne(`if (!(await utilisateur.seConnecter(${x(action.email)}, ${motDePasse}${this.dansEssai ? ', true' : ''}))) return;`);
         return true;
       }
+      case 'compteSecurise': {
+        const methode = action.quoi === 'connexionCle' ? 'seConnecterParCle' : action.quoi === 'ajoutCle' ? 'ajouterCle' : 'activerDoubleAuthentification';
+        e.ligne(`if (!(await utilisateur.${methode}(${this.dansEssai ? 'true' : ''}))) return;`);
+        return true;
+      }
       case 'connexionGoogle':
         e.ligne(`if (!(await utilisateur.seConnecterAvecGoogle(${this.dansEssai ? 'true' : ''}))) return;`);
         return true;

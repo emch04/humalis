@@ -529,7 +529,7 @@ export function schemaXcode(nom: string, essais = false, autre?: { nom: string; 
  * Les droits de l'application : le Mac l'enferme dans son bac à sable, et lui
  * ouvre seulement le réseau sortant (et les fichiers choisis, s'il en faut).
  */
-export function droits(fichiers: boolean, notifications?: 'ios' | 'mac', position = false, domaine?: string, connexionApple = false, groupe?: string, autres = '', appareils: { micro?: boolean; camera?: boolean } = {}): string {
+export function droits(fichiers: boolean, notifications?: 'ios' | 'mac', position = false, domaine?: string, connexionApple = false, groupe?: string, autres = '', appareils: { micro?: boolean; camera?: boolean } = {}, domaineCles?: string): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -545,10 +545,11 @@ export function droits(fichiers: boolean, notifications?: 'ios' | 'mac', positio
 	<key>com.apple.security.device.camera</key>
 	<true/>` : ''}${position ? `
 	<key>com.apple.security.personal-information.location</key>
-	<true/>` : ''}${domaine ? `
+	<true/>` : ''}${domaine || domaineCles ? `
 	<key>com.apple.developer.associated-domains</key>
-	<array>
-		<string>applinks:${domaine.split('/')[0]}</string>
+	<array>${domaine ? `
+		<string>applinks:${domaine.split('/')[0]}</string>` : ''}${domaineCles ? `
+		<string>webcredentials:${domaineCles}</string>` : ''}
 	</array>` : ''}${connexionApple ? `
 	<key>com.apple.developer.applesignin</key>
 	<array>

@@ -3668,6 +3668,23 @@ page "accueil" :
 partent quand il revient, les suppressions suivent, et en cas de conflit la modification la plus
 récente l'emporte. L'identifiant de chaque fiche est géré par la base.
 
+Chaque compte a sa propre base sur l'appareil : une fois déconnecté, ses fiches quittent la page,
+et ce qui attend d'être envoyé reste à ce compte. Les champs de la donnée locale doivent être ceux
+de la donnée du serveur, avec les mêmes types. Chaque envoi repasse par la route : ses droits et
+ses vérifications s'appliquent, et une modification refusée est annulée sur l'appareil, avec un
+message. La modification la plus récente se compte fiche par fiche, selon l'horloge du serveur,
+même si l'heure de l'appareil est fausse.
+
+| Cible | Base | Clé du chiffrement | Retour du réseau |
+| --- | --- | --- | --- |
+| web, bureau | IndexedDB | WebCrypto, non extractible | à la réouverture et au retour du réseau, page ouverte |
+| Apple | SQLite | Keychain | application ouverte |
+| Android | SQLite | Android Keystore | même application fermée (WorkManager) |
+| Windows | SQLite | DPAPI | application ouverte |
+
+Sur le serveur, une suppression reste connue 180 jours (`HUMALIS_SYNCHRO_JOURS`). Un appareil absent
+plus longtemps repart des données du serveur, sans perdre ce qu'il n'a pas encore envoyé.
+
 ### La connexion sans mot de passe et le code à six chiffres
 
 Dans le serveur, deux lignes ouvrent ces portes en plus de l'email et du mot de passe :
@@ -3695,6 +3712,25 @@ Dans les pages, `se connecter par cle d'acces` ouvre la connexion par Face ID, T
 Windows Hello ; `ajouter cle d'acces` ajoute une clé au compte de la personne connectée ;
 `activer double authentification` montre le code QR à scanner dans une application
 d'authentification. Le code à six chiffres est ensuite demandé tout seul après le mot de passe.
+
+Activer le code ou ajouter une clé redemande le mot de passe. L'écran d'activation donne dix codes
+de secours, à usage unique. Cinq codes faux ferment le compte un quart d'heure. Une clé d'accès
+ne demande pas de code : elle vaut déjà deux preuves. La connexion avec Google ou Apple n'en demande
+pas non plus : c'est le fournisseur qui vérifie la personne.
+
+Sur le serveur, `ENCRYPTION_KEY` est obligatoire pour le code à six chiffres, et
+`WEBAUTHN_ALLOWED_ORIGINS` donne les adresses du site : la première fixe le domaine des clés.
+
+Ce que demandent les clés d'accès, cible par cible :
+
+- **Web** : un site en https (ou `localhost` pendant le développement).
+- **Bureau (Electron)** : elles sont refusées à la compilation. Le navigateur intégré n'accepte pas
+  l'adresse propre à l'application. Le code à six chiffres y fonctionne.
+- **Apple** : `--serveur https://…`, `--equipe`, et `WEBAUTHN_APPLE_APP` sur le serveur, qui publie
+  le fichier d'association du domaine.
+- **Android** : un domaine en https, `WEBAUTHN_ANDROID_APP` sur le serveur (le nom du paquet puis
+  les empreintes de signature), et un compte Google sur l'appareil.
+- **Windows** : Windows Hello configuré sur le poste, sans paquet MSIX.
 
 ### Plusieurs fichiers
 

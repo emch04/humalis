@@ -1492,6 +1492,11 @@ class GenerateurEcran {
           e.ligne(`if (!(await utilisateur.seConnecter(${x(action.email)}, ${x(action.motDePasse)}${this.dansEssai ? ', true' : ''}))) return;`);
           break;
         }
+        case 'compteSecurise': {
+          const methode = action.quoi === 'connexionCle' ? 'seConnecterParCle' : action.quoi === 'ajoutCle' ? 'ajouterCle' : 'activerDoubleAuthentification';
+          e.ligne(`if (!(await utilisateur.${methode}(${this.dansEssai ? 'true' : ''}))) return;`);
+          break;
+        }
         case 'connexionGoogle':
           // La fenêtre de Google ; si elle échoue, un message s'affiche (ou « si erreur » le reçoit) et la suite ne s'exécute pas.
           e.ligne(`if (!(await utilisateur.seConnecterAvecGoogle(${this.dansEssai ? 'true' : ''}))) return;`);
@@ -2455,7 +2460,7 @@ function arrete(actions: Action[]): boolean {
   return actions.some((a) => a.type === 'arreter' || (!['repetition', 'tantQue', 'repeter', 'minuterie', 'message'].includes(a.type) && sousActions(a).some(arrete)));
 }
 
-const ATTENTES = new Set<Action['type']>(['requete', 'recharger', 'suppression', 'modification', 'connexion', 'connexionGoogle', 'connexionApple', 'invitation', 'changementRole', 'changementCompte', 'activationNotifications', 'demandeIa', 'paiement', 'prisePhoto', 'enregistrerAudio', 'enregistrerVideo', 'recadrerPhoto', 'scanCode', 'localisation', 'verificationIdentite', 'demandeLienMotDePasse', 'choixMotDePasse', 'changementMotDePasse', 'telechargementBon', 'deconnexion', 'envoiFichier', 'confirmation', 'copie', 'partage', 'telechargementCsv']);
+const ATTENTES = new Set<Action['type']>(['requete', 'recharger', 'suppression', 'modification', 'connexion', 'connexionGoogle', 'connexionApple', 'compteSecurise', 'invitation', 'changementRole', 'changementCompte', 'activationNotifications', 'demandeIa', 'paiement', 'prisePhoto', 'enregistrerAudio', 'enregistrerVideo', 'recadrerPhoto', 'scanCode', 'localisation', 'verificationIdentite', 'demandeLienMotDePasse', 'choixMotDePasse', 'changementMotDePasse', 'telechargementBon', 'deconnexion', 'envoiFichier', 'confirmation', 'copie', 'partage', 'telechargementCsv']);
 
 /** Les noms changés par des actions : affectations, ajouts, retraits, réponses. */
 function modifiees(actions: Action[], noms = new Set<string>()): Set<string> {

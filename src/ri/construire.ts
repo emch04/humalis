@@ -83,6 +83,9 @@ export function construireRepresentation(
     // Une source à jeton secret passe par le premier serveur du programme : lui seul lit le secret.
     serveurs: programme.serveurs.map((serveur, i) => {
       const ri = serveurRI(serveur, analyse);
+      // « synchronisee avec "notes" » : cette route sert aussi les changements et les envois par lot.
+      const synchronisees = new Set((programme.formes?.donneesLocales ?? []).flatMap((d) => (d.synchronisee !== undefined ? [d.synchronisee.replace(/^\//, '')] : [])));
+      for (const route of ri.routes) if (synchronisees.has(route.adresse.replace(/^\//, ''))) route.synchronisee = true;
       const passerelles = i === 0 ? programme.sources.flatMap(passerelleDe) : [];
       return passerelles.length ? { ...ri, passerelles } : ri;
     }),

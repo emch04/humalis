@@ -37,12 +37,15 @@ export interface StructSwift {
   nom: string;
   champs: ChampStruct[];
   commentaire: string;
+  /** Une fiche d'une donnée locale : son « id » n'est écrit dans le JSON que s'il existe. */
+  identifiee?: boolean;
 }
 
 /** Les types de données du programme : une donnée du serveur ou une fiche devient un `struct`. */
 export class Types {
   readonly donnees = new Map<string, StructSwift>();
   private readonly fiches = new Map<string, StructSwift>();
+  private readonly identifiees = new Set<string>();
 
   constructor(application: Application, donneesDesPages: (a: Application) => { nom: string; source: string; champs: { nom: string; type: TypeChamp }[] }[]) {
     const liste = donneesDesPages(application);
@@ -95,6 +98,11 @@ export class Types {
     }
   }
 
+  /** Les fiches de cette forme portent un identifiant (celles d'une donnée locale) ; à appeler avant d'écrire les pages. */
+  identifierFiche(type: TypeValeur): void {
+    if (type.genre === 'fiche' && !estFichierChoisi(type)) this.identifiees.add(this.cleFiche(type));
+  }
+
   private structFiche(type: Extract<TypeValeur, { genre: 'fiche' }>): StructSwift {
     const cle = this.cleFiche(type);
     let fiche = this.fiches.get(cle);
@@ -104,6 +112,10 @@ export class Types {
         champs: type.champs.map((c) => ({ nom: c.nom, swift: nomSwift(c.nom), cle: cleJson(c.nom), type: c.type, opt: false })),
         commentaire: `Une fiche : ${type.champs.map((c) => c.nom).join(', ') || 'sans champ'}.`,
       };
+      if (this.identifiees.has(cle) && !fiche.champs.some((c) => c.cle === 'id')) {
+        fiche.champs.push({ nom: 'id', swift: 'id', cle: 'id', type: TEXTE, opt: false });
+        fiche.identifiee = true;
+      }
       this.fiches.set(cle, fiche);
     }
     return fiche;
