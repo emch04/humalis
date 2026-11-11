@@ -64,8 +64,8 @@ page "installer" a l'adresse "/installer" :
     bloc avec style "install-section" :
         colonne avec style "section-heading" :
             soustitre "Puis choisis ta cible." en anglais "Then pick your target."
-            texte "Le même fichier devient un site, une application ou un serveur." en anglais "The same file becomes a website, an app or a server."
-        grille avec colonnes 5 et style "install-cibles" et animation montee au defilement et en cascade :
+            texte "Le même fichier devient un site, une application native ou un serveur. Chaque application native se construit avec l’outil de sa plateforme : Xcode pour Apple, Android Studio pour Android, .NET pour Windows." en anglais "The same file becomes a website, a native app or a server. Each native app is built with its platform’s own tool: Xcode for Apple, Android Studio for Android, .NET for Windows."
+        grille avec colonnes 4 et style "install-cibles" et animation montee au defilement et en cascade :
             bloc avec style "install-cible" et effet leve :
                 soustitre "Web" sans traduction avec niveau 3
                 texte "--cible web" sans traduction avec style "cible-code"
@@ -73,10 +73,16 @@ page "installer" a l'adresse "/installer" :
                 soustitre "Statique" en anglais "Static" avec niveau 3
                 texte "--cible statique" sans traduction avec style "cible-code"
             bloc avec style "install-cible" et effet leve :
-                soustitre "Mobile" sans traduction avec niveau 3
-                texte "--cible mobile" sans traduction avec style "cible-code"
+                soustitre "iPhone, iPad, Mac" sans traduction avec niveau 3
+                texte "--cible apple" sans traduction avec style "cible-code"
             bloc avec style "install-cible" et effet leve :
-                soustitre "Bureau" en anglais "Desktop" avec niveau 3
+                soustitre "Android" sans traduction avec niveau 3
+                texte "--cible android" sans traduction avec style "cible-code"
+            bloc avec style "install-cible" et effet leve :
+                soustitre "Windows" sans traduction avec niveau 3
+                texte "--cible windows" sans traduction avec style "cible-code"
+            bloc avec style "install-cible" et effet leve :
+                soustitre "Linux" sans traduction avec niveau 3
                 texte "--cible desktop" sans traduction avec style "cible-code"
             bloc avec style "install-cible" et effet leve :
                 soustitre "Serveur" en anglais "Server" avec niveau 3
@@ -88,7 +94,7 @@ page "installer" a l'adresse "/installer" :
             copier "humalis compile mon-projet.humalis --cible web --sortie mon-site" avec message "Commande copiée" en anglais "Command copied"
 
     # Vérifier et se faire aider.
-    grille avec colonnes 2 et style "install-section install-aide" et animation montee au defilement et en cascade :
+    grille avec colonnes 3 et style "install-section install-aide" et animation montee au defilement et en cascade :
         bloc avec style "install-carte" :
             soustitre "Vérifier avant de compiler" en anglais "Check before you compile" avec niveau 3
             texte "Humalis relit ton fichier et t’explique chaque erreur en français, avec la ligne et une piste pour la corriger." en anglais "Humalis reads your file and explains every error, with the line and a hint to fix it."
@@ -98,12 +104,20 @@ page "installer" a l'adresse "/installer" :
             quand l'utilisateur clique sur "copier-verifier" :
                 copier "humalis verifier mon-projet.humalis" avec message "Commande copiée" en anglais "Command copied"
         bloc avec style "install-carte" :
+            soustitre "Essayer un fichier tout de suite" en anglais "Try a file right away" avec niveau 3
+            texte "Sans créer de projet ni rien installer de plus : le fichier tourne en mémoire, avec son serveur, et la page change à chaque enregistrement." en anglais "Without creating a project or installing anything else: the file runs in memory, with its server, and the page changes every time you save."
+            ligne avec style "install-command" :
+                texte "humalis lancer mon-fichier.humalis" en anglais "humalis lancer my-file.humalis" avec style "install-code"
+                bouton "Copier" en anglais "Copy" avec nom "copier-lancer" et style "copy-button"
+            quand l'utilisateur clique sur "copier-lancer" :
+                copier "humalis lancer mon-fichier.humalis" avec message "Commande copiée" en anglais "Command copied"
+        bloc avec style "install-carte" :
             soustitre "Un souci ?" en anglais "Something wrong?" avec niveau 3
             liste :
                 texte "Vérifie ta version de Node.js avec `node -v` : il faut 24 ou plus." en anglais "Check your Node.js version with `node -v`: you need 24 or later."
                 texte "Si `npm install -g` refuse d’écrire, installe Node.js avec un gestionnaire de versions comme nvm." en anglais "If `npm install -g` cannot write, install Node.js with a version manager such as nvm."
-                texte "Toujours bloqué ? Décris le problème sur GitHub." en anglais "Still stuck? Describe the problem on GitHub."
-            lien "Signaler un problème ↗" en anglais "Report an issue ↗" vers "https://github.com/emch04/humalis/issues" avec nouvel onglet et style "button button-secondary"
+                texte "Toujours bloqué ? Décris-nous le problème." en anglais "Still stuck? Tell us about the problem."
+            lien "Signaler un problème" en anglais "Report an issue" vers "signaler" avec style "button button-secondary"
 
     # L'appel final.
     bloc avec style "install-section" :

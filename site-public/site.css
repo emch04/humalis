@@ -226,13 +226,13 @@ html[data-theme=clair] .install-titre .humalis-accent{color:#5c7a00;text-shadow:
 .install-etape .install-command{margin-top:auto}
 .etape-numero{margin:0!important;font:700 44px/1 'Space Grotesk',system-ui,sans-serif!important;letter-spacing:-.05em;color:transparent!important;-webkit-text-stroke:1px var(--lime);background:linear-gradient(180deg,rgba(215,255,58,.35),transparent 80%);-webkit-background-clip:text;background-clip:text}
 html[data-theme=clair] .etape-numero{-webkit-text-stroke:1px #5c7a00}
-.install-cibles{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;margin-bottom:22px}
+.install-cibles{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:22px}
 .install-cible{padding:20px 18px;gap:8px}
 .install-cible h3{font-size:18px}
 .cible-code{margin:0;font:12px 'JetBrains Mono',ui-monospace,monospace;color:var(--lime)}
 html[data-theme=clair] .cible-code{color:#5c7a00}
 .install-command-large{max-width:760px}
-.install-aide{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.install-aide{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
 .install-carte{padding:30px}
 .install-carte ul{margin:0;padding-left:20px;display:grid;gap:6px}
 .install-carte>a{align-self:flex-start;margin-top:4px}
