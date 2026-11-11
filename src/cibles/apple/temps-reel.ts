@@ -11,6 +11,7 @@ export const PAQUET_LIVEKIT: PaquetSwift = { adresse: 'https://github.com/liveki
 export const avecReunion = (application: Application): boolean => JSON.stringify([application.ecrans, application.composants]).includes('"type":"gesteReunion"');
 
 export const REUNION_SWIFT = String.raw`// Produit par Humalis : la réunion en cours, par LiveKit.
+import AVFoundation
 import LiveKit
 import SwiftUI
 
@@ -114,9 +115,17 @@ struct TuileReunion: Identifiable {
             guard let lu = try await Serveur.commun.appel("/api/salles_jeton", comme: AccesSalle.self, methode: "POST", envoi: ["salle": .texte(nom)]) else { return }
             acces = lu
         } catch {
-            Messages.commun.afficher((error as? ErreurHumalis)?.message ?? "La réunion n'a pas pu commencer.", .erreur)
+            Messages.commun.afficher((error as? ErreurHumalis)?.errorDescription ?? "La réunion n'a pas pu commencer.", .erreur)
             return
         }
+        // Les autorisations avant la connexion : une fois le son des autres lancé,
+        // passer le moteur audio en enregistrement échoue.
+        let micro = await AVCaptureDevice.requestAccess(for: .audio)
+        let camera = acces.video ? await AVCaptureDevice.requestAccess(for: .video) : false
+        if !micro { Messages.commun.afficher("Le micro est refusé : autorisez-le dans les réglages pour parler.", .avertissement) }
+        if acces.video && !camera { Messages.commun.afficher("La caméra est refusée : autorisez-la dans les réglages pour être vu.", .avertissement) }
+        // Le micro est préparé avant d'entrer : le moteur audio démarre d'emblée en lecture et enregistrement.
+        if micro { try? await AudioManager.shared.setRecordingAlwaysPreparedMode(true) }
         let relais = Relais(self)
         let nouvelle = Room(delegate: relais, roomOptions: RoomOptions(adaptiveStream: false, dynacast: true))
         self.relais = relais
@@ -130,10 +139,15 @@ struct TuileReunion: Identifiable {
             Messages.commun.afficher("La réunion n'a pas pu commencer : le serveur des réunions ne répond pas.", .erreur)
             return
         }
-        await essayer { local in
-            try await local.setMicrophone(enabled: true)
-            if acces.video { try await local.setCamera(enabled: true) }
+        // Le micro et la caméra séparément : une caméra absente ou occupée n'empêche pas de parler.
+        if micro {
+            do { try await nouvelle.localParticipant.setMicrophone(enabled: true) } catch { print("Réunion, micro :", error); Messages.commun.afficher("Le micro n'a pas pu démarrer.", .erreur) }
         }
+        if camera {
+            do { try await nouvelle.localParticipant.setCamera(enabled: true) } catch { print("Réunion, caméra :", error); Messages.commun.afficher("La caméra n'a pas pu démarrer.", .erreur) }
+        }
+        dessiner()
+        annoncer()
     }
 
     func quitter() async {
@@ -144,6 +158,8 @@ struct TuileReunion: Identifiable {
         tuiles = []
         guard let ancienne else { return }
         await ancienne.disconnect()
+        // Hors réunion, le micro n'est plus préparé : le témoin orange s'éteint.
+        try? await AudioManager.shared.setRecordingAlwaysPreparedMode(false)
         _ = await Serveur.commun.appelReussi("/api/salles_geste", envoi: ["salle": .texte(ancienneSalle), "participant": .texte(""), "geste": .texte("etat")])
     }
 

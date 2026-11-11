@@ -521,7 +521,7 @@ export function analyserPhraseTempsReel(flux: FluxTokens): Instruction[] | undef
   if (estLeMot(a, 'raccrocher') && flux.regarder(1).type === 'FIN_LIGNE') {
     const ligne = flux.avancer().ligne;
     etat.appel ??= ligne; etat.reunion ??= ligne;
-    return [envoi('appels_reponse', ['appel', 'reponse'], [champ('hd_appel', 'id', ligne), texte('fin', ligne)], ligne), { type: 'GesteReunion', geste: 'quitter', ligne }, ...phrases('changer hd_reunion_salle par ""\nrevenir', ligne)];
+    return [envoi('appels_reponse', ['appel', 'reponse'], [champ('hd_appel', 'id', ligne), texte('fin', ligne)], ligne), { type: 'GesteReunion', geste: 'quitter', puis: phrases(REMISE_A_ZERO, ligne), ligne }, ...phrases('revenir', ligne)];
   }
   if (estLeMot(a, 'rejoindre') && estLeMot(flux.regarder(1), 'reunion')) {
     flux.avancer(); flux.avancer();
@@ -534,13 +534,16 @@ export function analyserPhraseTempsReel(flux: FluxTokens): Instruction[] | undef
   if (estLeMot(a, 'quitter') && estLeMot(flux.regarder(1), 'reunion')) {
     flux.avancer(); flux.avancer();
     etat.reunion ??= a.ligne;
-    return [{ type: 'GesteReunion', geste: 'quitter', puis: phrases('changer hd_reunion_salle par ""', a.ligne), ligne: a.ligne }];
+    return [{ type: 'GesteReunion', geste: 'quitter', puis: phrases(REMISE_A_ZERO, a.ligne), ligne: a.ligne }];
   }
   if (suiteDeMots(flux, ['couper', 'micro']) && commenceValeur(flux.regarder(2))) return moderation(flux, 'couper_micro', 2);
   if (estLeMot(a, 'exclure') && commenceValeur(flux.regarder(1))) return moderation(flux, 'exclure', 1);
   for (const [mots, g] of GESTES) if (suiteDeMots(flux, mots) && flux.regarder(mots.length).type === 'FIN_LIGNE') return geste(flux, g, mots.length);
   return undefined;
 }
+
+/** En sortant d'une salle : plus de salle, la main baissée, plus de partage d'écran. */
+const REMISE_A_ZERO = 'changer hd_reunion_salle par ""\nchanger hd_main_levee par faux\nchanger hd_ecran_partage par faux';
 
 const commenceValeur = (t: Token) => t.type === 'IDENTIFIANT' || (t.type === 'MOT_CLE' && !t.reserve);
 const champ = (nom: string, c: string, ligne: number): Expression => ({ type: 'AccesChamp', objet: reference(nom, ligne), champ: c, ligne });
