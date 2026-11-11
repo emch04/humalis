@@ -44,7 +44,9 @@ const lancer = (commande, argv, options, pret, sur = 'stdout') => new Promise((o
   void sur;
 });
 
-await lancer(process.env.LIVEKIT_BIN, ['--dev', '--bind', '0.0.0.0'], {}, (m) => m.includes('starting LiveKit server'));
+// Un LiveKit déjà ouvert (celui d'un essai précédent, ou d'un appareil branché) sert tel quel.
+const livekitOuvert = await fetch('http://127.0.0.1:7880').then(() => true, () => false);
+if (!livekitOuvert) await lancer(process.env.LIVEKIT_BIN, ['--dev', '--bind', '0.0.0.0'], {}, (m) => m.includes('starting LiveKit server'));
 const serveur = join(travail, 'serveur');
 compiler('serveur', serveur);
 installer(serveur);
