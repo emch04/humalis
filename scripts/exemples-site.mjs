@@ -72,7 +72,7 @@ function section() {
   l.push('    bloc avec style "install-section" :');
   l.push('        colonne avec style "section-heading" :');
   l.push(`            soustitre ${deuxLangues(['Des applications complètes.', 'Complete apps.'])}`);
-  l.push(`            texte ${deuxLangues(['Serveur, comptes, temps réel, médias, données hors ligne : de vraies applications en quelques dizaines de lignes. Chacune est vérifiée par le compilateur, sur chaque plateforme indiquée.', 'Server, accounts, real time, media, offline data: real apps in a few dozen lines. Each one is checked by the compiler, on every platform listed.'])}`);
+  l.push(`            texte ${deuxLangues(['Serveur, comptes, temps réel, médias, données hors ligne : de vraies applications en quelques dizaines de lignes.', 'Server, accounts, real time, media, offline data: real apps in a few dozen lines.'])}`);
   l.push('        colonne avec style "applis-liste" et animation montee au defilement et en cascade :');
   for (const a of APPLICATIONS) {
     l.push('            bloc avec style "appli-carte" :');

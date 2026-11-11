@@ -98,7 +98,7 @@ page "exemples" a l'adresse "/exemples" :
     bloc avec style "install-section" :
         colonne avec style "section-heading" :
             soustitre "Des applications complètes." en anglais "Complete apps."
-            texte "Serveur, comptes, temps réel, médias, données hors ligne : de vraies applications en quelques dizaines de lignes. Chacune est vérifiée par le compilateur, sur chaque plateforme indiquée." en anglais "Server, accounts, real time, media, offline data: real apps in a few dozen lines. Each one is checked by the compiler, on every platform listed."
+            texte "Serveur, comptes, temps réel, médias, données hors ligne : de vraies applications en quelques dizaines de lignes." en anglais "Server, accounts, real time, media, offline data: real apps in a few dozen lines."
         colonne avec style "applis-liste" et animation montee au defilement et en cascade :
             bloc avec style "appli-carte" :
                 colonne avec style "appli-tete" :

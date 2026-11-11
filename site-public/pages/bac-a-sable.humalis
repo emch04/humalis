@@ -20,7 +20,7 @@ page "bac_a_sable" a l'adresse "/bac-a-sable" avec filtre exemple :
         grille avec colonnes 3 et style "bac-suite" et animation montee au defilement et en cascade :
             bloc avec style "install-carte" et effet leve :
                 soustitre "Apprendre le langage" en anglais "Learn the language" avec niveau 3
-                texte "Chaque construction de Humalis, avec un exemple vérifié." en anglais "Every Humalis construct, with a checked example."
+                texte "Chaque construction de Humalis, avec un exemple." en anglais "Every Humalis construct, with an example."
                 lien "Lire la documentation →" en anglais "Read the docs →" vers "documentation" avec style "exemple-lien"
             bloc avec style "install-carte" et effet leve :
                 soustitre "Partir d’un exemple" en anglais "Start from an example" avec niveau 3

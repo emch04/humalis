@@ -36,11 +36,9 @@ page "pourquoi" a l'adresse "/pourquoi" :
             liste :
                 texte "Le code s’écrit en français : `page`, `titre`, `bouton`. Les textes affichés, eux, peuvent être dans six langues." en anglais "The code is written in French: `page`, `titre`, `bouton`. The texts on screen can be in six languages."
                 texte "Il est fait pour les applications : écrans, données, comptes, échanges. Pas pour un jeu 3D ou du calcul scientifique." en anglais "It is made for apps: screens, data, accounts, conversations. Not for a 3D game or scientific computing."
-                texte "C’est un langage jeune : peu de bibliothèques tierces pour l’instant, et une communauté qui commence." en anglais "It is a young language: few third-party libraries for now, and a community that is just starting."
         bloc avec style "legal-bloc" :
             soustitre "Déjà en vrai" en anglais "Already for real"
             texte "Rey Store, une boutique de mode avec son application d’administration et son serveur, est écrite entièrement en Humalis." en anglais "Rey Store, a fashion shop with its admin app and its server, is written entirely in Humalis."
-            texte "Chaque exemple du guide est vérifié par le compilateur, et chaque cible est construite avec les outils de sa plateforme : Xcode, Gradle, .NET." en anglais "Every example in the guide is checked by the compiler, and every target is built with its platform’s own tools: Xcode, Gradle, .NET."
     ligne avec style "page-section pourquoi-actions" :
         lien "Essayer maintenant →" en anglais "Try it now →" vers "bac_a_sable" avec style "button button-primary"
         lien "Voir les exemples" en anglais "See the examples" vers "exemples" avec style "button button-secondary"
