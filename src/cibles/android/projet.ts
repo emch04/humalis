@@ -17,6 +17,7 @@ import { APPLE_KT, GOOGLE_KT, notificationsKotlin, type Firebase } from './compt
 import { DIRECT_KT, ENVOIS_KT, fondKotlin } from './temps-reel.js';
 import { langueDuStyle } from '../commun/styles-natifs.js';
 import { CARTES_KT, GRAPHIQUES_KT, LECTEURS_KT, MENUS_KT, MOUVEMENT_KT, NATIFS_KT, QR_KT } from './medias.js';
+import { besoinsCaptures, capturesKotlin, dependancesCaptures } from './captures.js';
 import { APPAREIL_KT, CHEMINS_FICHIERS, FICHIERS_KT, SCANNER_KT, SYSTEME_KT } from './appareil.js';
 import { CssAndroid, type Portee as PorteeCss } from './css.js';
 import { FORMATS_KT } from './formats.js';
@@ -29,6 +30,9 @@ import { GenerateurPage, type ContexteAndroid } from './page.js';
 import { Valeurs, type Portee } from './valeurs.js';
 import { dansLePaquet, lireVueNatifKt, stylesKotlinNommes, type VueNatifKt } from './natifs.js';
 import { ecrireFormes, lisezmoiFormes, VERSIONS_FORMES } from './formes.js';
+import { captureErreursKotlin } from './capture-erreurs.js';
+import { requetesCapture } from '../capture-erreurs.js';
+import { ecrireDonneesComptes, nomLocale, reglagesLocaleKotlin } from './donnees-comptes.js';
 
 export const MARQUE_ANDROID = '.humalis-projet';
 
@@ -820,7 +824,11 @@ export function genererProjetAndroid(complete: Application, options: OptionsAndr
     e.bloc('object Partage {', () => {
       for (const p of application.partages) {
         const depart = valeurs.x(p.initiale);
-        if (p.memorisee || p.secret || p.horsLigne) e.ligne(`var ${nomKotlin(p.nom)} by EtatMemorise(${chaineKotlin(`${app.cle}.${p.nom}`)}, ${depart}${p.secret ? ', secret = true' : ''})`);
+        if (p.locale) {
+          // Une donnée locale : une liste comme une autre pour les pages, une base sur l'appareil (DonneesLocales.kt).
+          e.ligne(`val ${nomLocale(p.nom)} = DonneeLocale(${reglagesLocaleKotlin(application, p.nom, p.locale)}, ${depart})`);
+          e.ligne(`var ${nomKotlin(p.nom)} by ${nomLocale(p.nom)}`);
+        } else if (p.memorisee || p.secret || p.horsLigne) e.ligne(`var ${nomKotlin(p.nom)} by EtatMemorise(${chaineKotlin(`${app.cle}.${p.nom}`)}, ${depart}${p.secret ? ', secret = true' : ''})`);
         else e.ligne(`var ${nomKotlin(p.nom)} by mutableStateOf<Any?>(${depart})`);
       }
     });
@@ -888,6 +896,15 @@ export function genererProjetAndroid(complete: Application, options: OptionsAndr
 
   const avecApple = application.liensProfonds !== undefined && /\bseConnecterAvecApple\(/.test([...fichiers.values()].join('\n'));
   ecrireCode('MainActivity.kt', applicationKotlin(paquet, application, routes, entree, disposition, onglets, avecApple, menus.length > 0));
+  if (application.formes?.erreurArrive) {
+    ecrireCode('CaptureErreurs.kt', kotlin(paquet, captureErreursKotlin(requetesCapture(application.formes).requetes)));
+    // La page en cours, pour « erreur.page ».
+    for (const [chemin, code] of fichiers) {
+      if (code.includes('val nav = rememberNavController()')) fichiers.set(chemin, code.replace(/^(\s*)val nav = rememberNavController\(\)$/m, (ligne, marge: string) => `${ligne}\n${marge}androidx.compose.runtime.DisposableEffect(nav) {\n${marge}    val suivi = androidx.navigation.NavController.OnDestinationChangedListener { _, destination, _ -> CaptureErreurs.page = destination.route ?: "" }\n${marge}    nav.addOnDestinationChangedListener(suivi)\n${marge}    onDispose { nav.removeOnDestinationChangedListener(suivi) }\n${marge}}`));
+    }
+    const cheminActivite = `${dossierCode}/MainActivity.kt`;
+    fichiers.set(cheminActivite, fichiers.get(cheminActivite)!.replace('        setContent { ApplicationHumalis() }', '        CaptureErreurs.installer(applicationContext)\n        setContent { ApplicationHumalis() }'));
+  }
   // Les polices livrées avec le projet (.ttf, .otf) : des ressources de l'application.
   const policesCopiees = new Set<string>();
   for (const p of application.theme?.polices ?? []) {
@@ -902,6 +919,8 @@ export function genererProjetAndroid(complete: Application, options: OptionsAndr
   ecrireCode('Memoire.kt', kotlin(paquet, MEMOIRE_KT));
   ecrireCode('Serveur.kt', kotlin(paquet, SERVEUR_KT));
   ecrireCode('Icones.kt', iconesKotlin(paquet, icones));
+  // Les données locales, le code à six chiffres et les clés d'accès : écrits avant de lire ce qu'il faut (le QR, par exemple).
+  const donneesComptes = ecrireDonneesComptes({ application, paquet, ecrireCode, code: [...fichiers.values()].join('\n') });
   // Ce que les pages emploient, lu avant d'ajouter la bibliothèque qui le définit.
   const codePages = [...fichiers.values()].join('\n');
   ecrireCode('Systeme.kt', kotlin(paquet, SYSTEME_KT));
@@ -923,6 +942,12 @@ export function genererProjetAndroid(complete: Application, options: OptionsAndr
     lecteurs: /\b(LecteurHumalis|VideoHumalis)\(/.test(codePages),
     cartes: /\bCarteHumalis\(/.test(codePages),
   };
+  // « enregistrer audio dans … », « scanner document dans … », « recadrer … » : voir captures.ts.
+  const captures = besoinsCaptures(codePages);
+  const avecCaptures = captures.son || captures.video || captures.scan || captures.recadrage;
+  if (avecCaptures) ecrireCode('Captures.kt', kotlin(paquet, capturesKotlin(captures)));
+  // La réécoute avant validation emploie les lecteurs de l'application.
+  if (captures.son || captures.video) medias.lecteurs = true;
   if (medias.qr) ecrireCode('Qr.kt', kotlin(paquet, QR_KT));
   if (medias.lecteurs) ecrireCode('Lecteurs.kt', kotlin(paquet, LECTEURS_KT));
   if (medias.cartes) ecrireCode('Cartes.kt', kotlin(paquet, CARTES_KT));
@@ -952,7 +977,8 @@ export function genererProjetAndroid(complete: Application, options: OptionsAndr
   if (/\becouterDirect\(/.test(codePages)) ecrireCode('Direct.kt', kotlin(paquet, DIRECT_KT));
   // L'activité démarre les envois gardés et planifie la tâche d'arrière-plan.
   const activite = `${dossierCode}/MainActivity.kt`;
-  fichiers.set(activite, fichiers.get(activite)!.replace('        setContent { ApplicationHumalis() }', `${avecGardes ? '        EnvoisGardes.demarrer()\n' : ''}${fonds.length ? '        ArrierePlan.planifier(applicationContext)\n' : ''}        setContent { ApplicationHumalis() }`));
+  fichiers.set(activite, fichiers.get(activite)!.replace('        setContent { ApplicationHumalis() }', `${donneesComptes.demarrage.map((l) => `        ${l}\n`).join('')}${avecGardes ? '        EnvoisGardes.demarrer()\n' : ''}${fonds.length ? '        ArrierePlan.planifier(applicationContext)\n' : ''}        setContent { ApplicationHumalis() }`));
+  if (donneesComptes.fenetres) fichiers.set(activite, fichiers.get(activite)!.replace(/^( *)ConfirmationHumalis\(\)\n/m, '$1ConfirmationHumalis()\n$1FenetreSecuriteHumalis()\n'));
   // Les formes d'application spéciales : widgets, tuiles, partage, clavier, activités, voiture…
   const formes = ecrireFormes({
     application,
@@ -1005,7 +1031,7 @@ export function genererProjetAndroid(complete: Application, options: OptionsAndr
     ecrireCode('Langues.kt', kotlin(paquet, LANGUES_KT).replace('LANGUES_DU_SITE', `listOf(${application.langues!.map((l) => `${chaineKotlin(l.code)} to ${chaineKotlin(l.nom)}`).join(', ')})`));
     // Les messages de Humalis écrits dans la bibliothèque passent par t(), dans chaque langue du site.
     const messages = MESSAGES.map((m) => ({ fr: m.fr, versions: Object.fromEntries(codes.map((c) => [c, versionDe(m, c)])) }));
-    for (const fichier of ['Interface.kt', 'Serveur.kt', 'MainActivity.kt']) {
+    for (const fichier of ['Interface.kt', 'Serveur.kt', 'MainActivity.kt', ...donneesComptes.aTraduire]) {
       const chemin = `${dossierCode}/${fichier}`;
       fichiers.set(chemin, traduireMessagesKotlin(fichiers.get(chemin)!, codes, messages));
     }
@@ -1035,8 +1061,8 @@ export function genererProjetAndroid(complete: Application, options: OptionsAndr
   fichiers.set('build.gradle.kts', CONSTRUCTION_RACINE);
   fichiers.set('gradle.properties', PROPRIETES_GRADLE);
   fichiers.set('gradle/wrapper/gradle-wrapper.properties', ENVELOPPE_GRADLE);
-  fichiers.set('app/build.gradle.kts', constructionApp(identifiant, nomAffiche, { appareil: avecAppareil, scanner: besoins.scanner, ...medias, ...connexions, travail: fonds.length > 0, notifications: avecNotifications, ...(application.paquetsAndroid?.length ? { paquets: application.paquetsAndroid } : {}), formes: formes.dependances }));
-  fichiers.set('app/src/main/AndroidManifest.xml', manifeste(true, application.liensProfonds, { ...besoins, notifications: avecNotifications }, formes));
+  fichiers.set('app/build.gradle.kts', constructionApp(identifiant, nomAffiche, { appareil: avecAppareil, scanner: besoins.scanner, ...medias, ...connexions, travail: fonds.length > 0, notifications: avecNotifications, ...(application.paquetsAndroid?.length ? { paquets: application.paquetsAndroid } : {}), formes: [...new Set([...formes.dependances, ...dependancesCaptures(captures), ...donneesComptes.dependances])] }));
+  fichiers.set('app/src/main/AndroidManifest.xml', manifeste(true, application.liensProfonds, { ...besoins, notifications: avecNotifications, micro: captures.son || captures.video, camera: captures.video, ecranCapture: captures.son || captures.video || captures.recadrage }, { ...formes, permissions: [...formes.permissions, ...donneesComptes.permissions] }));
   if (besoins.fichiers) fichiers.set('app/src/main/res/xml/chemins_fichiers.xml', CHEMINS_FICHIERS);
   const domaine = application.liensProfonds?.domaine;
   if (domaine && options.empreinte) {

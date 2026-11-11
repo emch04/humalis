@@ -20,7 +20,7 @@ import type { ResultatAnalyse } from '../analyse/analyse.js';
 import { INCONNU, NOMBRE, BOOLEEN, type TypeValeur } from '../analyse/types.js';
 import { optionCanonique } from '../analyse/styles.js';
 import { adresseNormalisee, conditionsDeRoute, droitsDeRoute } from '../analyse/serveur.js';
-import { traduireAction, traduireApresPaiement, traduireDocument, traduireNotification, traduireResume, traduireTache } from '../analyse/logique.js';
+import { traduireAction, traduireApresPaiement, traduireCaptureErreurs, traduireDocument, traduireNotification, traduireResume, traduireTache } from '../analyse/logique.js';
 import { encreSur } from '../analyse/couleurs.js';
 import { lireCible } from '../analyse/navigation.js';
 import { imageDe, REGLAGES_IMAGE, choixFichierDe } from './medias.js';
@@ -83,6 +83,9 @@ export function construireRepresentation(
     // Une source à jeton secret passe par le premier serveur du programme : lui seul lit le secret.
     serveurs: programme.serveurs.map((serveur, i) => {
       const ri = serveurRI(serveur, analyse);
+      // « synchronisee avec "notes" » : cette route sert aussi les changements et les envois par lot.
+      const synchronisees = new Set((programme.formes?.donneesLocales ?? []).flatMap((d) => (d.synchronisee !== undefined ? [d.synchronisee.replace(/^\//, '')] : [])));
+      for (const route of ri.routes) if (synchronisees.has(route.adresse.replace(/^\//, ''))) route.synchronisee = true;
       const passerelles = i === 0 ? programme.sources.flatMap(passerelleDe) : [];
       return passerelles.length ? { ...ri, passerelles } : ri;
     }),
@@ -152,6 +155,7 @@ export function construireRepresentation(
 function formesRI(formes: NonNullable<Programme['formes']>, analyse: ResultatAnalyse): FormesRI {
   const ecran = (forme: object): Ecran => new Construction(analyse.pagesFormes.get(forme)!, analyse).ecran();
   return {
+    ...(formes.erreurArrive ? { erreurArrive: { ecran: ecran(formes.erreurArrive), ligne: formes.erreurArrive.ligne } } : {}),
     widgets: formes.widgets.map(({ corps: _c, ...w }) => ({ ...w, ecran: ecran(formes.widgets.find((x) => x.nom === w.nom)!) })),
     activites: formes.activites.map((a) => ({ nom: a.nom, ecran: ecran(a), ligne: a.ligne })),
     raccourcisIcone: formes.raccourcisIcone,
@@ -231,6 +235,7 @@ function themeRI(theme: NonNullable<Programme['theme']>): ThemeRI {
 }
 
 function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
+  const captureErreurs = serveur.captureErreurs ? traduireCaptureErreurs(serveur.captureErreurs, serveur, () => undefined) : undefined;
   const fidelite = serveur.fidelite;
   const donneesComptes = new Set(serveur.donnees.filter((d) => d.comptes).map((d) => d.nom));
   const routeComptes = serveur.routes.find((r) => donneesComptes.has(r.regles[0]?.donnee ?? '') && !r.regles[0].soi);
@@ -273,6 +278,7 @@ function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
     }
   };
   return {
+    ...(captureErreurs ? { captureErreurs } : {}),
     nom: serveur.nom,
     ...(serveur.discussions?.length ? { discussions: serveur.discussions } : {}),
     ...(serveur.salles?.length ? { salles: serveur.salles } : {}),
@@ -831,6 +837,15 @@ class Construction {
           break;
         case 'PrisePhoto':
           actions.push({ type: 'prisePhoto', variable: instruction.variable });
+          break;
+        case 'EnregistrementMedia':
+          actions.push({ type: instruction.media === 'audio' ? 'enregistrerAudio' : 'enregistrerVideo', variable: instruction.variable });
+          break;
+        case 'ScanDocument':
+          actions.push({ type: 'scannerDocument', variable: instruction.variable });
+          break;
+        case 'RecadragePhoto':
+          actions.push({ type: 'recadrerPhoto', variable: instruction.variable });
           break;
 
         case 'Localisation':

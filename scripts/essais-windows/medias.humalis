@@ -1,0 +1,31 @@
+# L'essai des médias sur Windows : son, vidéo, recadrage, envoi au serveur.
+source "essai" :
+    adresse "http://192.168.64.1:4977"
+
+page "accueil" :
+    variable note = rien
+    variable clip = rien
+    variable cliche = rien
+    titre "Medias"
+    bouton "Audio"
+    quand l'utilisateur clique sur "Audio" :
+        enregistrer audio dans note
+    si note n'est pas rien :
+        texte "Note {note.nom} {note.taille} {note.type}"
+        audio note.apercu avec description "La note"
+    bouton "Envoyer audio"
+    quand l'utilisateur clique sur "Envoyer audio" :
+        envoyer fichier note vers "/recu" de la source "essai"
+    bouton "Video"
+    quand l'utilisateur clique sur "Video" :
+        enregistrer video dans clip
+    si clip n'est pas rien :
+        texte "Clip {clip.nom} {clip.taille} {clip.type}"
+        video clip.apercu avec description "Le clip" et commandes
+    fichier "Choisir une photo" dans cliche accepte images
+    bouton "Recadrer"
+    quand l'utilisateur clique sur "Recadrer" :
+        recadrer cliche
+    si cliche n'est pas rien :
+        texte "Photo {cliche.nom} {cliche.taille}"
+        image cliche.apercu avec description "La photo"

@@ -31,6 +31,7 @@ export function employe(serveur: ServeurRI, voir: (i: InstructionServeurRI) => b
 
 function valeur(v: ValeurServeurRI): string {
   switch (v.genre) {
+    case 'erreur': return `erreur.${v.champ}`;
     case 'valeur': return JSON.stringify(v.valeur);
     case 'aujourdhui': return 'new Date().toISOString().slice(0, 10)';
     case 'champ': return `${fiche(v.fiche)}[${chaine(v.champ === 'id' ? 'id' : camel(v.champ))}]`;
@@ -416,6 +417,8 @@ class Ecriture {
 
   private instruction(i: InstructionServeurRI, r: string): string {
     switch (i.type) {
+      case 'requete':
+        return `${r}try {\n${r}  await fetch(${chaine(i.adresse)}, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ${i.champs.map((c) => `${chaine(c.nom)}: ${valeur(c.valeur)}`).join(', ')} }), signal: AbortSignal.timeout(3000) });\n${r}} catch { /* La capture ne doit jamais interrompre le serveur. */ }`;
       case 'si': {
         const sinon = i.sinon.length ? ` else {\n${this.lignes(i.sinon, r + '  ')}\n${r}}` : '';
         return `${r}if (${test(i.test)}) {\n${this.lignes(i.alors, r + '  ')}\n${r}}${sinon}`;

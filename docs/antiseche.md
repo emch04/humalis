@@ -1170,3 +1170,34 @@ afficher "Prêt" pendant 3 s
 ```humalis action
 afficher "Prêt" pendant 3 secondes
 ```
+
+### Capturer une erreur | Capture an error
+
+```humalis
+quand une erreur arrive :
+    envoyer requete vers "https://centrale.exemple.fr/v1/envoi" avec message = erreur.message et pile = erreur.pile
+
+## Médias | Media | medias
+
+### Enregistrer ou recadrer | Record or crop
+
+```humalis
+page "memo" :
+    titre "Mémo"
+    variable note = rien
+    variable clip = rien
+    variable facture = rien
+    variable photo = rien
+    bouton "Audio"
+    quand l'utilisateur clique sur "Audio" :
+        enregistrer audio dans note
+    bouton "Vidéo"
+    quand l'utilisateur clique sur "Vidéo" :
+        enregistrer video dans clip
+    bouton "Document"
+    quand l'utilisateur clique sur "Document" :
+        scanner document dans facture
+    bouton "Recadrer"
+    quand l'utilisateur clique sur "Recadrer" :
+        recadrer photo
+```

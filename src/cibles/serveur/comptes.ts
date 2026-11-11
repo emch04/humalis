@@ -57,7 +57,7 @@ export function codeCreationComptes(serveur: ServeurRI, chemins?: Map<string, st
     rolesPermis: ${JSON.stringify(serveur.roles ?? [])},
     champsDeGroupe: ${JSON.stringify(champsDeGroupe(serveur))},
     schemaCompte: { ${(serveur.champsCompte ?? []).map((c) => `${chaine(camel(c.nom))}: ${schemaCompte(c.type)}`).join(', ')} },
-    pageOublie: ${cheminDe(serveur.motDePasseOublie, chemins)},
+    pageOublie: ${cheminDe(serveur.motDePasseOublie, chemins)},${serveur.connexionCleAcces || serveur.doubleAuthentification ? '\n    surRetrait: (id) => oublierCompte(magasinSecurite, id),' : ''}
   });
 `;
 }
@@ -336,6 +336,7 @@ export function creerComptes({
   champsDeGroupe = [],
   schemaCompte = {},
   pageOublie,
+  surRetrait,
   env = process.env,
 }: {
   /** Tous les comptes, retirés compris : une nouvelle invitation peut en rouvrir un. */
@@ -354,6 +355,8 @@ export function creerComptes({
   /** Les champs déclarés dans « compte : ». */
   schemaCompte?: Schema;
   pageOublie: string | null;
+  /** Ce qui disparaît en plus avec un compte retiré : ses clés d'accès et son code à six chiffres. */
+  surRetrait?: (id: string) => Promise<void>;
   env?: Record<string, string | undefined>;
 }) {
   // L'adresse du site vient de l'environnement, jamais d'une requête : un en-tête Host choisi ne détourne aucun lien.
@@ -553,6 +556,7 @@ export function creerComptes({
           return;
         }
         await usersStore.update(id, { role: ROLE_RETIRE, invitation: false, passwordHash: null, googleSubject: null, appleSubject: null } as unknown as Compte);
+        await surRetrait?.(id);
         await jetons.deleteForUser(id);
         await renouvellement.revokeAllForUser(id);
         await revocations.revokeAllForUser?.(id, Date.now());

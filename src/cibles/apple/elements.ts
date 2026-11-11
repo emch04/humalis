@@ -3,6 +3,8 @@
  * que si une page s'en sert (voir `fichiersElements`).
  */
 
+import { CAPTURES, emploieCaptures } from './captures.js';
+
 const CHAMPS = String.raw`// Produit par Humalis : les champs d'un formulaire.
 import SwiftUI
 
@@ -733,7 +735,9 @@ struct ChoixFichierHumalis: View {
             ForEach(noms, id: \.self) { Text(verbatim: $0).font(.footnote) }
             if !erreur.isEmpty { Text(verbatim: erreur).foregroundStyle(Couleurs.rouge).font(.footnote) }
         }
+        #if !os(watchOS) && !os(tvOS)
         .fileImporter(isPresented: $ouvert, allowedContentTypes: types, allowsMultipleSelection: liste != nil, onCompletion: recevoir)
+        #endif
     }
 }
 `;
@@ -1284,6 +1288,10 @@ export function fichiersElements(code: string): Map<string, string> {
   if (emploie(/\b(ChoixFichierHumalis|FichierChoisi|televerser)\b/)) fichiers.set('Humalis/Fichiers.swift', FICHIERS);
   if (emploie(/\b(prendrePhoto|scannerCode|verifierIdentite|vibrer|SignatureHumalis)\(/)) {
     fichiers.set('Humalis/Appareil.swift', APPAREIL);
+    fichiers.set('Humalis/Fichiers.swift', FICHIERS);
+  }
+  if (emploieCaptures(code)) {
+    fichiers.set('Humalis/Captures.swift', CAPTURES);
     fichiers.set('Humalis/Fichiers.swift', FICHIERS);
   }
   if (emploie(/\blirePosition\(/)) fichiers.set('Humalis/Position.swift', POSITION);

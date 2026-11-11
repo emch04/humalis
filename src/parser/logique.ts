@@ -2,6 +2,7 @@
  * Ce qui s'exécute sur le serveur : « seul gerant peut faire "rembourser" sur commande : »,
  * « tous les jours a 7 h : », et les instructions écrites dedans.
  */
+import { estMot } from './miseEnPage.js';
 import { FluxTokens } from './fluxTokens.js';
 import { ErreurSyntaxique } from './erreurs.js';
 import { chaqueLigne, estLeMot, analyserOperande, analyserExpression, analyserTestCombine, analyserCreationLiee, analyserEnvoiEmail, analyserEnvoiNotification, analyserTypeChamp } from './parser.js';
@@ -183,6 +184,24 @@ export function analyserCorpsServeur(flux: FluxTokens): InstructionServeur[] {
 function analyserInstructionServeur(flux: FluxTokens): InstructionServeur {
   const debut = flux.actuel();
   const { ligne } = debut;
+  if (estLeMot(debut, 'envoyer') && estLeMot(flux.regarder(1), 'requete')) {
+    flux.avancer(); flux.avancer();
+    if (!estLeMot(flux.actuel(), 'vers')) throw new ErreurSyntaxique('on écrit : envoyer requete vers "https://…" avec message = erreur.message', ligne);
+    flux.avancer();
+    const adresse = flux.attendre('CHAINE', undefined, 'l’adresse HTTPS de la requête entre guillemets').valeur;
+    if (!/^https:\/\/[^\s/?#]+(?:[/?#][^\s]*)?$/i.test(adresse)) throw new ErreurSyntaxique('une requête du serveur exige une adresse HTTPS complète.', ligne);
+    if (!estLeMot(flux.actuel(), 'avec')) throw new ErreurSyntaxique('une requête du serveur demande des champs : avec message = erreur.message', ligne);
+    flux.avancer();
+    const champs: { nom: string; valeur: Expression }[] = [];
+    do {
+      // Avant « = », un mot du langage reste un nom : « page = erreur.page ».
+      const jeton = flux.actuel();
+      const nom = estMot(jeton) ? (flux.avancer(), jeton.original ?? jeton.valeur) : flux.attendreNom('le nom du champ envoyé').nom;
+      flux.attendre('PONCTUATION', '=', '« = » après le nom du champ envoyé');
+      champs.push({ nom, valeur: analyserExpression(flux) });
+    } while (estLeMot(flux.actuel(), 'et') && flux.avancer());
+    return { type: 'RequeteServeur', adresse, champs, ligne };
+  }
   if (estLeMot(debut, 'si')) {
     flux.avancer();
     const test = analyserTestCombine(flux);

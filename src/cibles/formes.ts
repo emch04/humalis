@@ -6,8 +6,10 @@
  */
 import type { Diagnostic } from '../analyse/erreurs.js';
 import type { Application } from '../ri/types.js';
+import { requetesCapture } from './capture-erreurs.js';
 
 export type Forme =
+  | 'captureErreur'
   | 'widget'
   | 'barreSysteme'
   | 'partageRecu'
@@ -27,10 +29,12 @@ export type Forme =
   | 'menuClicDroit'
   | 'donneeLocale'
   | 'cleAcces'
-  | 'doubleAuthentification';
+  | 'doubleAuthentification'
+    | 'enregistrerAudio' | 'enregistrerVideo' | 'scannerDocument' | 'recadrerPhoto';
 
 /** Les cibles où chaque forme a un sens : ailleurs, elle est ignorée. */
 export const PREVUES: Record<Forme, string[]> = {
+  captureErreur: ['web', 'statique', 'desktop', 'mobile', 'apple', 'android', 'windows', 'serveur'],
   widget: ['apple', 'android'],
   barreSysteme: ['apple', 'windows', 'desktop'],
   partageRecu: ['apple', 'android', 'windows'],
@@ -51,18 +55,26 @@ export const PREVUES: Record<Forme, string[]> = {
   donneeLocale: ['web', 'desktop', 'apple', 'android', 'windows'],
   cleAcces: ['web', 'desktop', 'apple', 'android', 'windows', 'serveur'],
   doubleAuthentification: ['web', 'desktop', 'apple', 'android', 'windows', 'serveur'],
+  enregistrerAudio: ['web', 'desktop', 'apple', 'android', 'windows'],
+  enregistrerVideo: ['web', 'desktop', 'apple', 'android', 'windows'],
+  scannerDocument: ['apple', 'android'],
+  recadrerPhoto: ['web', 'desktop', 'apple', 'android', 'windows'],
 };
 
 /** Les formes déjà écrites par chaque cible. */
 export const ECRITES: Record<string, Set<Forme>> = {};
+ECRITES.web = new Set<Forme>(['captureErreur']);
+ECRITES.statique = new Set<Forme>(['captureErreur']);
+ECRITES.mobile = new Set<Forme>(['captureErreur']);
 
-const NOMS_CIBLES: Record<string, string> = { apple: 'Apple', android: 'Android', windows: 'Windows', desktop: 'bureau (Electron)', serveur: 'serveur' };
+const NOMS_CIBLES: Record<string, string> = { apple: 'Apple', android: 'Android', windows: 'Windows', desktop: 'bureau (Electron)', web: 'web', serveur: 'serveur' };
 
 /** Où chaque forme est écrite dans le programme : une ligne et un nom lisible. */
 function formesDuProgramme(application: Application): { forme: Forme; quoi: string; ligne: number }[] {
   const f = application.formes;
   const trouvees: { forme: Forme; quoi: string; ligne: number }[] = [];
   const ajouter = (forme: Forme, quoi: string, ligne: number) => trouvees.push({ forme, quoi, ligne });
+  if (f?.erreurArrive) ajouter('captureErreur', 'la capture des erreurs', f.erreurArrive.ligne);
   for (const w of f?.widgets ?? []) ajouter('widget', `le widget « ${w.nom} »`, w.ligne);
   for (const a of f?.activites ?? []) ajouter('activite', `l'activité en direct « ${a.nom} »`, a.ligne);
   if (f?.raccourcisIcone.length) ajouter('raccourcisIcone', 'les raccourcis de l’icône', f.raccourcisIcone[0]!.ligne);
@@ -88,8 +100,13 @@ function formesDuProgramme(application: Application): { forme: Forme; quoi: stri
   if (/"type":"dire"/.test(lignes) && !trouvees.some((t) => t.forme === 'commandeVocale')) ajouter('commandeVocale', '« dire »', 1);
   if (/"quoi":"(connexionCle|ajoutCle)"/.test(lignes)) ajouter('cleAcces', 'les clés d’accès', 1);
   if (/"quoi":"doubleAuthentification"/.test(lignes)) ajouter('doubleAuthentification', 'la double authentification', 1);
+  for (const m of lignes.matchAll(/"type":"(enregistrerAudio|enregistrerVideo|scannerDocument|recadrerPhoto)","variable":"([^"]+)"/g)) {
+    const phrase = { enregistrerAudio: `enregistrer audio dans ${m[2]}`, enregistrerVideo: `enregistrer video dans ${m[2]}`, scannerDocument: `scanner document dans ${m[2]}`, recadrerPhoto: `recadrer ${m[2]}` }[m[1] as 'enregistrerAudio'];
+    ajouter(m[1] as Forme, `« ${phrase} »`, 1);
+  }
   // Le serveur : « mettre a jour activite », « … et boutons ».
   for (const s of application.serveurs ?? []) {
+    if (s.captureErreurs) ajouter('captureErreur', 'la capture des erreurs du serveur', 1);
     const texte = JSON.stringify(s);
     if (texte.includes('"type":"activite"')) ajouter('activite', '« mettre a jour activite » du serveur', 1);
     if (texte.includes('"boutons":[')) ajouter('boutonsNotification', 'les boutons des notifications du serveur', 1);
@@ -102,6 +119,10 @@ function formesDuProgramme(application: Application): { forme: Forme; quoi: stri
 /** Ce que cette cible dit des formes du programme : refus de ce qui y est prévu sans être écrit, avertissement pour le reste. */
 export function verifierFormesPourLaCible(application: Application, cible: string): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
+  if (application.formes?.erreurArrive) {
+    // Un même fichier se compile pour le serveur et pour les applications : le serveur ignore la capture des pages.
+    if (cible !== 'serveur') for (const message of requetesCapture(application.formes).erreurs) diagnostics.push({ gravite: 'erreur', ligne: application.formes.erreurArrive.ligne, message });
+  }
   const ignorees: string[] = [];
   const ecrites = ECRITES[cible] ?? new Set<Forme>();
   for (const { forme, quoi, ligne } of formesDuProgramme(application)) {
@@ -110,7 +131,9 @@ export function verifierFormesPourLaCible(application: Application, cible: strin
     if (cible === 'serveur' && !quoi.includes('serveur')) continue;
     if (cible !== 'serveur' && quoi.includes('du serveur')) continue;
     if (!prevues.includes(cible)) {
-      ignorees.push(quoi);
+      if (['enregistrerAudio', 'enregistrerVideo', 'scannerDocument', 'recadrerPhoto'].includes(forme)) {
+        diagnostics.push({ gravite: 'erreur', ligne, message: `${quoi} : cette action n'est pas disponible sur la cible ${NOMS_CIBLES[cible] ?? cible}. Cibles prévues : ${prevues.map((c) => NOMS_CIBLES[c] ?? c).join(', ')}.` });
+      } else ignorees.push(quoi);
       continue;
     }
     if (!ecrites.has(forme)) {
@@ -122,12 +145,37 @@ export function verifierFormesPourLaCible(application: Application, cible: strin
 }
 
 // Windows (C# et WPF, sans paquet MSIX) : src/cibles/windows/formes.ts.
-ECRITES.windows = new Set<Forme>(['barreSysteme', 'partageRecu', 'raccourcisIcone', 'fichierOuvert', 'demarrage', 'boutonsNotification', 'menuClicDroit']);
+ECRITES.windows = new Set<Forme>(['barreSysteme', 'partageRecu', 'raccourcisIcone', 'fichierOuvert', 'demarrage', 'boutonsNotification', 'menuClicDroit', 'captureErreur']);
 
 // Android (Kotlin et Compose) et le serveur (APNs, Firebase).
-ECRITES.android = new Set<Forme>(['widget', 'partageRecu', 'montre', 'tele', 'clavier', 'activite', 'raccourcisIcone', 'commandeVocale', 'fichierOuvert', 'boutonsNotification', 'rechercheSysteme', 'tuile', 'voiture']);
-ECRITES.serveur = new Set<Forme>(['activite', 'boutonsNotification']);
-ECRITES.apple = new Set<Forme>(['widget', 'barreSysteme', 'partageRecu', 'montre', 'tele', 'clavier', 'activite', 'raccourcisIcone', 'commandeVocale', 'fichierOuvert', 'demarrage', 'boutonsNotification', 'rechercheSysteme', 'tuile', 'miniApplication', 'voiture', 'menuClicDroit']);
+ECRITES.android = new Set<Forme>(['widget', 'partageRecu', 'montre', 'tele', 'clavier', 'activite', 'raccourcisIcone', 'commandeVocale', 'fichierOuvert', 'boutonsNotification', 'rechercheSysteme', 'tuile', 'voiture', 'captureErreur']);
+ECRITES.serveur = new Set<Forme>(['activite', 'boutonsNotification', 'captureErreur', 'cleAcces', 'doubleAuthentification']);
+ECRITES.apple = new Set<Forme>(['widget', 'barreSysteme', 'partageRecu', 'montre', 'tele', 'clavier', 'activite', 'raccourcisIcone', 'commandeVocale', 'fichierOuvert', 'demarrage', 'boutonsNotification', 'rechercheSysteme', 'tuile', 'miniApplication', 'voiture', 'menuClicDroit', 'captureErreur']);
 
 // Le bureau (Electron, Linux compris) : src/cibles/desktop/formes.ts.
-ECRITES.desktop = new Set<Forme>(['barreSysteme', 'fichierOuvert', 'demarrage', 'menuClicDroit']);
+ECRITES.desktop = new Set<Forme>(['barreSysteme', 'fichierOuvert', 'demarrage', 'menuClicDroit', 'captureErreur']);
+
+// Le navigateur et Electron partagent les fonctions de capture et de recadrage.
+for (const cible of ['web', 'desktop'] as const) for (const forme of ['enregistrerAudio', 'enregistrerVideo', 'recadrerPhoto'] as const) (ECRITES[cible] ??= new Set<Forme>()).add(forme);
+
+// Les médias natifs : src/cibles/apple/captures.ts, src/cibles/android/captures.ts, src/cibles/windows/bibliotheque/captures.ts.
+for (const forme of ['enregistrerAudio', 'enregistrerVideo', 'scannerDocument', 'recadrerPhoto'] as const) {
+  ECRITES.apple!.add(forme);
+  ECRITES.android!.add(forme);
+}
+for (const forme of ['enregistrerAudio', 'enregistrerVideo', 'recadrerPhoto'] as const) ECRITES.windows!.add(forme);
+
+// Le web et le bureau (IndexedDB, WebCrypto, WebAuthn) : src/cibles/commun/donnees-comptes-web.ts.
+for (const forme of ['donneeLocale', 'cleAcces', 'doubleAuthentification'] as const) (ECRITES.web ??= new Set<Forme>()).add(forme);
+// Le bureau sert ses pages depuis humalis://application, une origine que WebAuthn refuse : les clés d'accès y restent refusées.
+ECRITES.desktop!.add('donneeLocale');
+ECRITES.desktop!.add('doubleAuthentification');
+
+// Apple (SQLite, CryptoKit, Keychain, ASAuthorization) : src/cibles/apple/donnees-comptes.ts.
+for (const forme of ['donneeLocale', 'cleAcces', 'doubleAuthentification'] as const) ECRITES.apple!.add(forme);
+
+// Android (SQLite, Keystore, WorkManager, Credential Manager) : src/cibles/android/donnees-comptes.ts.
+for (const forme of ['donneeLocale', 'cleAcces', 'doubleAuthentification'] as const) ECRITES.android!.add(forme);
+
+// Windows (SQLite, DPAPI, webauthn.dll) : src/cibles/windows/donnees-comptes.ts.
+for (const forme of ['donneeLocale', 'cleAcces', 'doubleAuthentification'] as const) ECRITES.windows!.add(forme);

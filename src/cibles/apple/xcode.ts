@@ -529,7 +529,7 @@ export function schemaXcode(nom: string, essais = false, autre?: { nom: string; 
  * Les droits de l'application : le Mac l'enferme dans son bac à sable, et lui
  * ouvre seulement le réseau sortant (et les fichiers choisis, s'il en faut).
  */
-export function droits(fichiers: boolean, notifications?: 'ios' | 'mac', position = false, domaine?: string, connexionApple = false, groupe?: string, autres = ''): string {
+export function droits(fichiers: boolean, notifications?: 'ios' | 'mac', position = false, domaine?: string, connexionApple = false, groupe?: string, autres = '', appareils: { micro?: boolean; camera?: boolean } = {}, domaineCles?: string): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -539,12 +539,17 @@ export function droits(fichiers: boolean, notifications?: 'ios' | 'mac', positio
 	<key>com.apple.security.network.client</key>
 	<true/>${fichiers ? `
 	<key>com.apple.security.files.user-selected.read-only</key>
+	<true/>` : ''}${appareils.micro ? `
+	<key>com.apple.security.device.audio-input</key>
+	<true/>` : ''}${appareils.camera ? `
+	<key>com.apple.security.device.camera</key>
 	<true/>` : ''}${position ? `
 	<key>com.apple.security.personal-information.location</key>
-	<true/>` : ''}${domaine ? `
+	<true/>` : ''}${domaine || domaineCles ? `
 	<key>com.apple.developer.associated-domains</key>
-	<array>
-		<string>applinks:${domaine.split('/')[0]}</string>
+	<array>${domaine ? `
+		<string>applinks:${domaine.split('/')[0]}</string>` : ''}${domaineCles ? `
+		<string>webcredentials:${domaineCles}</string>` : ''}
 	</array>` : ''}${connexionApple ? `
 	<key>com.apple.developer.applesignin</key>
 	<array>
@@ -566,7 +571,7 @@ export function droits(fichiers: boolean, notifications?: 'ios' | 'mac', positio
  * (HTTPS, Keychain) : TestFlight ne repose donc pas la question du chiffrement à chaque envoi.
  * `http://` reste permis sur le réseau local, seulement pour essayer contre un serveur de cet ordinateur.
  */
-export function infoSupplementaire(serveurLocal: boolean, usages: { camera?: boolean; identite?: boolean; position?: boolean; liens?: { schema: string; identifiant: string }; arrierePlan?: string; schemaInterne?: string; formes?: string } = {}): string {
+export function infoSupplementaire(serveurLocal: boolean, usages: { camera?: boolean; micro?: boolean; identite?: boolean; position?: boolean; liens?: { schema: string; identifiant: string }; arrierePlan?: string; schemaInterne?: string; formes?: string } = {}): string {
   const schemas = [...(usages.liens ? [{ nom: usages.liens.identifiant, schema: usages.liens.schema }] : []), ...(usages.schemaInterne ? [{ nom: `${usages.schemaInterne}.formes`, schema: usages.schemaInterne }] : [])];
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -575,7 +580,9 @@ export function infoSupplementaire(serveurLocal: boolean, usages: { camera?: boo
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>${usages.camera ? `
 	<key>NSCameraUsageDescription</key>
-	<string>L'application utilise l'appareil photo pour prendre une photo ou scanner un code.</string>` : ''}${usages.identite ? `
+	<string>L'application utilise l'appareil photo pour prendre une photo, filmer, ou scanner un code ou un document.</string>` : ''}${usages.micro ? `
+	<key>NSMicrophoneUsageDescription</key>
+	<string>L'application utilise le micro pour enregistrer un son ou une vidéo.</string>` : ''}${usages.identite ? `
 	<key>NSFaceIDUsageDescription</key>
 	<string>L'application vérifie qu'il s'agit bien de vous.</string>` : ''}${usages.position ? `
 	<key>NSLocationWhenInUseUsageDescription</key>

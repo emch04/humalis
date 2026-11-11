@@ -8,11 +8,13 @@
  * même test échoue tant qu'il n'est pas expliqué ici.
  */
 import { ENTREES_ERREURS_MEDIAS } from './erreurs-medias';
+import { ENTREES_ERREURS_ENREGISTREMENT } from './erreurs-enregistrement';
 import { ENTREES_ERREURS_INTERACTIONS } from './erreurs-interactions';
 import { ENTREES_ERREURS_COMPTES } from './erreurs-comptes';
 import { ENTREES_ERREURS_LANGUES } from './erreurs-langues';
 import { ENTREES_ERREURS_FORMES } from './erreurs-formes';
 import { ENTREES_ERREURS_TEMPS_REEL } from './erreurs-temps-reel';
+import { ENTREES_ERREURS_CAPTURE } from './erreurs-capture';
 
 export type GroupeErreur = 'ecriture' | 'grammaire' | 'sens' | 'avertissement';
 
@@ -5401,12 +5403,14 @@ page "carte" :
 
   // --- Graphiques, médias et mouvement (erreurs-medias.ts) ---
   ...ENTREES_ERREURS_MEDIAS,
+  ...ENTREES_ERREURS_ENREGISTREMENT,
   ...ENTREES_ERREURS_COMPTES,
   ...ENTREES_ERREURS_INTERACTIONS,
   // --- Les langues (erreurs-langues.ts) ---
   ...ENTREES_ERREURS_LANGUES,
   ...ENTREES_ERREURS_FORMES,
   ...ENTREES_ERREURS_TEMPS_REEL,
+  ...ENTREES_ERREURS_CAPTURE,
   e('supposant-forme', 'grammaire', 'Écrire le bloc optimiste',
     'Le bloc annonce que la requête suivante pourrait échouer.',
     'Écris « en supposant que ça marche : ».',

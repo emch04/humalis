@@ -17,7 +17,7 @@ const RESERVES = new Set([
   'estVide', 'longueur', 'contient', 'dans', 'somme', 'moyenne', 'minimum', 'maximum', 'arrondi', 'hasard', 'trier', 'grouper',
   'premier', 'premiers', 'champs', 'remplacer', 'identifiant', 'accorder', 'formaterNombre', 'formaterArgent', 'formaterDate',
   'formaterDateLongue', 'formaterDepuis', 'formaterEnLettres', 'formaterTaille', 'avecMajuscule', 'initialesDe', 'dateDuJour',
-  'maintenant', 'decalerDate', 'joursEntre', 'copier', 'partager', 'confirmer', 'ouvrirExterne', 'avecChamp', 'sansPremier',
+  'enregistrerMedia', 'scannerDocument', 'recadrerPhoto', 'maintenant', 'decalerDate', 'joursEntre', 'copier', 'partager', 'confirmer', 'ouvrirExterne', 'avecChamp', 'sansPremier',
   'Messages', 'Serveur', 'Session', 'Memoire', 'Coffre', 'Partage', 'Couleurs', 'Apparence', 'Routes',
 ]);
 

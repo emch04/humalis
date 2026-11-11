@@ -1,6 +1,7 @@
 /** Le transport du moteur : le texte produit reste du JavaScript sans React. */
 import type { Application } from '../../ri/types.js';
 import { variableDAdresse } from '../web/sources.js';
+import { avecLocalesSynchro, avecSecuriteWeb } from '../commun/donnees-comptes-web.js';
 
 export function serveurJs(o: { application: Application; session: boolean; sessionDuServeur: boolean }): string {
   const { application, session, sessionDuServeur } = o;
@@ -19,18 +20,20 @@ export function serveurJs(o: { application: Application; session: boolean; sessi
   return `// Produit par Humalis : les requêtes et la session des pages.
 import { signal, nettoyer } from './moteur.js';
 import { afficherMessage } from './outils.js';
-${sessionDuServeur ? "import { createSessionClient, SessionExpiredError } from '@astratra/client';\n" : ''}
+${sessionDuServeur ? "import { createSessionClient, SessionExpiredError } from '@astratra/client';\n" : ''}${session && avecSecuriteWeb(application) ? "import { creerCompteSecurise } from './compte-securise.js';\n" : ''}
 ${BASE}
 ${LECTURES}
 ${sources ? `const SOURCES = {\n${configuration}\n};\n${SOURCES}` : ''}
 ${sessionDuServeur ? RENOUVELLEMENT : ''}
 ${serveurTexte(sources, sessionDuServeur)}
-${session ? sessionTexte(baseSession, sourceSession !== undefined, sessionDuServeur) : ''}
+${session ? sessionTexte(baseSession, sourceSession !== undefined, sessionDuServeur, avecSecuriteWeb(application)) : ''}
+${avecLocalesSynchro(application) ? reseauLocal(sessionDuServeur) : ''}
 ${fichiers ? (sources ? TELEVERSER : `const SOURCES = {};\nconst suivre = (valeur, chemin) => (chemin ? chemin.split('.').reduce((v, cle) => v?.[cle], valeur) : valeur);\n${TELEVERSER}`) : ''}`;
 }
 
-function sessionTexte(base: string, source: boolean, renouveler: boolean): string {
-  return SESSION
+function sessionTexte(base: string, source: boolean, renouveler: boolean, securite: boolean): string {
+  return (SESSION + (securite ? SECURITE_SESSION : ''))
+    .replace('ETAPE_CODE', securite ? "const etape = await reponse.clone().json().catch(() => null);\n  if (etape?.data?.etape === 'code') return securite.demanderCode(etape.data.jeton);" : '')
     .replace('BASE_SESSION', base)
     .replaceAll('CREDENTIALS_SESSION', source ? 'include' : 'same-origin')
     .replace('LIRE_SESSION', renouveler ? 'avecSession(lancer)' : 'lancer()')
@@ -456,6 +459,7 @@ async function seConnecter(email, motDePasse, dansUnEssai = false) {
   } catch { return refuser(REESSAYER(), dansUnEssai); }
   if (reponse.status === 429) return refuser('Trop de tentatives de connexion. Réessayez dans quelques minutes.', dansUnEssai);
   if (!reponse.ok) return refuser('Email ou mot de passe incorrect.', dansUnEssai);
+  ETAPE_CODE
   await relireSession(); return true;
 }
 async function seConnecterAvecGoogle(dansUnEssai = false) {
@@ -612,6 +616,29 @@ async function seDeconnecter() {
   await relireSession();
 }
 `;
+
+/** Les clés d'accès et le code à six chiffres : le module partagé, branché sur la session. */
+const SECURITE_SESSION = String.raw`
+const securite = creerCompteSecurise({ base: BASE_AUTH, credentials: CREDENTIALS_AUTH, entetes: entetesSession, relire: relireSession, dire });
+Object.assign(utilisateur, { seConnecterParCle: securite.seConnecterParCle, ajouterCle: securite.ajouterCle, activerDoubleAuthentification: securite.activer });
+`;
+
+/** Ce que la synchronisation d'une donnée locale envoie : la même session que le reste, jamais un second renouvellement. */
+function reseauLocal(renouveler: boolean): string {
+  return String.raw`
+async function appelLocal(chemin, options) {
+  const lancer = () => fetch(BASE + chemin, { ...options, cache: 'no-store', credentials: 'same-origin' });
+  let reponse;
+  try { reponse = await ${renouveler ? 'avecSession(lancer)' : 'lancer()'}; }
+  catch (erreur) { if (${renouveler ? 'erreur instanceof SessionFinie' : 'false'}) return { ok: false, statut: 401, corps: null }; throw erreur; }
+  return { ok: reponse.ok, statut: reponse.status, corps: reponse.ok ? await reponse.json() : null };
+}
+export const reseauLocal = {
+  lire: (chemin) => appelLocal(chemin, { method: 'GET' }),
+  envoyer: (chemin, corps) => appelLocal(chemin, { method: 'POST', headers: ajouterCsrf(new Headers({ 'Content-Type': 'application/json' })), body: JSON.stringify(corps) }),
+};
+`;
+}
 
 const TELEVERSER = String.raw`
 const SERVEUR_PROPRE = { base: import.meta.env.VITE_HUMALIS_SERVEUR ?? '', session: true, entetes: {}, delai: 30, enveloppe: undefined, erreur: 'erreur' };

@@ -19,6 +19,9 @@ const NOTIFIE = (fin: string) => ['serveur "boutique" :', '    roles gerant', ' 
 const COMPTES = (lignes: string, action: string) => `serveur "boutique" :\n${lignes}    donnee note :\n        titre : texte\n    route "notes" :\n        connecte peut lire note\n        connecte peut creer note\n        connecte peut modifier note\n        connecte peut supprimer note\n\n${CLIC(action)}`;
 const CLIC = (ligne: string) => `${PAGE}\n    bouton "Go"\n    quand l'utilisateur clique sur "Go" :\n        ${ligne}`;
 
+/** Un programme avec une donnée synchronisée : ces champs-là, face à une route qui a titre et lu. */
+const SYNCHRO = (champs: string) => `serveur "s" :\n    donnee note :\n        titre : texte\n        lu : booleen\n    route "notes" :\n        connecte peut lire note\n        connecte peut creer note\n        connecte peut modifier note\n        connecte peut supprimer note\n\ndonnee locale notes :\n${champs}    synchronisee avec "notes"\n\npage "a" :\n    titre "A"\n`;
+
 export const ENTREES_ERREURS_FORMES: EntreeErreur[] = [
   e('forme-extension', 'grammaire', 'Une extension sans son point',
     'Une extension de fichier s’écrit avec son point et quelques lettres : ".csv", ".pdf", ".jpg".',
@@ -215,6 +218,24 @@ export const ENTREES_ERREURS_FORMES: EntreeErreur[] = [
     avec('donnee locale notes :', '    titre : texte', '    synchronisee avec "notes"'),
     avec('donnee locale notes :', '    titre : texte'),
     'n\'existe pas dans le serveur : une donnée locale se synchronise'),
+  e('donnee-locale-champ-inconnu', 'sens', 'Un champ local absent du serveur',
+    'Une donnée synchronisée envoie ses champs à sa route : chacun doit y exister.',
+    'Ajoute ce champ à la donnée du serveur, ou retire-le de la donnée locale.',
+    SYNCHRO('    titre : texte\n    lu : booleen\n    autre : texte\n'),
+    SYNCHRO('    titre : texte\n    lu : booleen\n'),
+    'la synchronisation l\'y enverrait pour rien'),
+  e('donnee-locale-champ-type', 'sens', 'Un champ local d’un autre type',
+    'Un champ synchronisé a le même type sur l’appareil et sur le serveur.',
+    'Donne-lui le type déclaré dans la donnée du serveur.',
+    SYNCHRO('    titre : nombre\n    lu : booleen\n'),
+    SYNCHRO('    titre : texte\n    lu : booleen\n'),
+    'n\'a pas le même type que dans la donnée'),
+  e('donnee-locale-champ-manquant', 'sens', 'Un champ du serveur absent de la donnée locale',
+    'Le serveur demande tous ses champs pour créer une fiche.',
+    'Ajoute ce champ à la donnée locale.',
+    SYNCHRO('    titre : texte\n'),
+    SYNCHRO('    titre : texte\n    lu : booleen\n'),
+    'le serveur refuserait chaque nouvelle fiche'),
   // --- Les clés d'accès et la double authentification ---
   e('cle-acces-sans-serveur', 'sens', 'Une clé d’accès que le serveur n’ouvre pas',
     'La connexion sans mot de passe passe par le serveur : il doit l’ouvrir.',

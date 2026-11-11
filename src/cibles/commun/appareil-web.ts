@@ -5,7 +5,7 @@
  */
 import type { Application } from '../../ri/types.js';
 
-const MOTIF = /"type":"(prisePhoto|scanCode|verificationIdentite|vibration|localisation)"|"genre":"signature"|"enAttente":true|"horsLigne":true/;
+const MOTIF = /"type":"(prisePhoto|enregistrerAudio|enregistrerVideo|recadrerPhoto|scanCode|verificationIdentite|vibration|localisation)"|"genre":"signature"|"enAttente":true|"horsLigne":true/;
 const texte = (a: Application) => JSON.stringify([a.ecrans, a.composants, a.disposition, a.partages]);
 
 export const utiliseAppareil = (application: Application) => MOTIF.test(texte(application));
@@ -14,6 +14,8 @@ export const utiliseFileEnvois = (application: Application) => /"enAttente":true
 /** src/humalis/appareil.d.ts (React) */
 export const APPAREIL_TYPES = `export const appareil: {
   prendrePhoto(): Promise<File | null>;
+  enregistrerMedia(media: 'audio' | 'video'): Promise<File | null>;
+  recadrerPhoto(fichier: File): Promise<File | null>;
   scannerCode(): Promise<string | null>;
   position(): Promise<{ latitude: number; longitude: number; precision: number } | null>;
   verifierIdentite(): Promise<boolean>;
@@ -37,6 +39,147 @@ function prendrePhoto() {
     champ.addEventListener('change', () => ok(champ.files?.[0] ?? null), { once: true });
     champ.addEventListener('cancel', () => ok(null), { once: true });
     champ.click();
+  });
+}
+
+/** Enregistrement avec aperçu, durée, arrêt, validation et annulation. */
+async function enregistrerMedia(media) {
+  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+    dire('Cet appareil ne permet pas cet enregistrement.');
+    return null;
+  }
+  let flux;
+  try {
+    flux = await navigator.mediaDevices.getUserMedia(media === 'audio' ? { audio: true } : { audio: true, video: { facingMode: 'environment' } });
+  } catch {
+    dire("L'accès au micro ou à la caméra est refusé sur cet appareil.");
+    return null;
+  }
+  return new Promise((resolve) => {
+    const dialogue = document.createElement('dialog');
+    const titre = document.createElement('h2');
+    titre.textContent = media === 'audio' ? 'Enregistrer un audio' : 'Enregistrer une vidéo';
+    const duree = document.createElement('p');
+    duree.setAttribute('role', 'timer');
+    duree.textContent = '00:00';
+    const apercu = document.createElement(media === 'audio' ? 'audio' : 'video');
+    apercu.controls = true;
+    apercu.style.cssText = 'display:block;max-width:100%;max-height:60vh';
+    const demarrer = document.createElement('button'); demarrer.textContent = 'Démarrer';
+    const arreter = document.createElement('button'); arreter.textContent = 'Arrêter'; arreter.disabled = true;
+    const valider = document.createElement('button'); valider.textContent = 'Valider'; valider.disabled = true;
+    const annuler = document.createElement('button'); annuler.textContent = 'Annuler';
+    for (const bouton of [demarrer, arreter, valider, annuler]) bouton.type = 'button';
+    dialogue.append(titre, duree, apercu, demarrer, arreter, valider, annuler);
+    document.body.append(dialogue);
+    dialogue.showModal();
+    let enregistreur;
+    let fichier = null;
+    let url;
+    let horloge;
+    let debut;
+    let fini = false;
+    const nettoyer = (resultat) => {
+      if (fini) return;
+      fini = true;
+      clearInterval(horloge);
+      for (const piste of flux.getTracks()) piste.stop();
+      if (enregistreur?.state === 'recording') enregistreur.stop();
+      if (url) URL.revokeObjectURL(url);
+      dialogue.close(); dialogue.remove();
+      resolve(resultat);
+    };
+    demarrer.onclick = () => {
+      const morceaux = [];
+      fichier = null;
+      if (url) URL.revokeObjectURL(url);
+      url = undefined;
+      apercu.removeAttribute('src');
+      try { enregistreur = new MediaRecorder(flux); }
+      catch { dire('Le format demandé ne peut pas être enregistré.'); nettoyer(null); return; }
+      enregistreur.ondataavailable = (e) => { if (e.data.size) morceaux.push(e.data); };
+      enregistreur.onstop = () => {
+        if (fini) return;
+        const type = enregistreur.mimeType || (media === 'audio' ? 'audio/webm' : 'video/webm');
+        const blob = new Blob(morceaux, { type });
+        if (!blob.size) { dire("L'enregistrement est vide."); demarrer.disabled = false; return; }
+        const ext = type.includes('mp4') ? 'mp4' : type.includes('ogg') ? 'ogg' : 'webm';
+        fichier = new File([blob], media + '.' + ext, { type });
+        url = URL.createObjectURL(fichier);
+        apercu.src = url;
+        apercu.controls = true;
+        valider.disabled = false;
+        demarrer.disabled = false;
+      };
+      enregistreur.onerror = () => { dire("L'enregistrement a échoué."); nettoyer(null); };
+      enregistreur.start();
+      debut = Date.now();
+      const afficherDuree = () => { const s = Math.floor((Date.now() - debut) / 1000); duree.textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
+      horloge = setInterval(afficherDuree, 250);
+      demarrer.disabled = true; arreter.disabled = false; valider.disabled = true;
+      if (media === 'video') { apercu.srcObject = flux; apercu.muted = true; apercu.play().catch(() => undefined); }
+    };
+    arreter.onclick = () => {
+      if (enregistreur?.state !== 'recording') return;
+      clearInterval(horloge);
+      arreter.disabled = true;
+      apercu.pause(); apercu.srcObject = null; apercu.muted = false;
+      enregistreur.stop();
+    };
+    valider.onclick = () => { if (fichier) nettoyer(fichier); };
+    annuler.onclick = () => nettoyer(null);
+    dialogue.addEventListener('cancel', (e) => { e.preventDefault(); nettoyer(null); });
+  });
+}
+
+async function recadrerPhoto(fichier) {
+  if (!(fichier instanceof Blob) || !fichier.type.startsWith('image/')) {
+    dire('La variable ne contient pas une image à recadrer.');
+    return null;
+  }
+  const url = URL.createObjectURL(fichier);
+  const image = new Image();
+  try { image.src = url; await image.decode(); }
+  catch { URL.revokeObjectURL(url); dire("L'image ne peut pas être ouverte."); return null; }
+  return new Promise((resolve) => {
+    const dialogue = document.createElement('dialog');
+    const titre = document.createElement('h2'); titre.textContent = 'Recadrer la photo';
+    const canvas = document.createElement('canvas');
+    const largeur = Math.min(800, image.naturalWidth);
+    const echelle = largeur / image.naturalWidth;
+    canvas.width = largeur; canvas.height = Math.round(image.naturalHeight * echelle);
+    canvas.style.cssText = 'display:block;max-width:90vw;max-height:65vh;touch-action:none;cursor:crosshair';
+    const ctx = canvas.getContext('2d');
+    let selection = { x: 0, y: 0, w: canvas.width, h: canvas.height };
+    let depart;
+    const dessiner = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+      ctx.strokeRect(selection.x, selection.y, selection.w, selection.h);
+    };
+    const point = (e) => { const r = canvas.getBoundingClientRect(); return { x: Math.max(0, Math.min(canvas.width, (e.clientX - r.left) * canvas.width / r.width)), y: Math.max(0, Math.min(canvas.height, (e.clientY - r.top) * canvas.height / r.height)) }; };
+    canvas.onpointerdown = (e) => { depart = point(e); canvas.setPointerCapture(e.pointerId); };
+    canvas.onpointermove = (e) => { if (!depart) return; const p = point(e); selection = { x: Math.min(depart.x,p.x), y: Math.min(depart.y,p.y), w: Math.abs(p.x-depart.x), h: Math.abs(p.y-depart.y) }; dessiner(); };
+    canvas.onpointerup = () => { depart = undefined; };
+    const aide = document.createElement('p'); aide.textContent = 'Tracez un rectangle sur la photo.';
+    const valider = document.createElement('button'); valider.type = 'button'; valider.textContent = 'Valider';
+    const annuler = document.createElement('button'); annuler.type = 'button'; annuler.textContent = 'Annuler';
+    dialogue.append(titre, aide, canvas, valider, annuler); document.body.append(dialogue); dialogue.showModal(); dessiner();
+    let fini = false;
+    const fermer = (resultat) => { if (fini) return; fini = true; URL.revokeObjectURL(url); dialogue.close(); dialogue.remove(); resolve(resultat); };
+    annuler.onclick = () => fermer(null);
+    dialogue.addEventListener('cancel', (e) => { e.preventDefault(); fermer(null); });
+    valider.onclick = () => {
+      if (selection.w < 2 || selection.h < 2) { dire('Tracez une zone à conserver.'); return; }
+      const sortie = document.createElement('canvas');
+      sortie.width = Math.round(selection.w / echelle); sortie.height = Math.round(selection.h / echelle);
+      sortie.getContext('2d').drawImage(image, selection.x / echelle, selection.y / echelle, selection.w / echelle, selection.h / echelle, 0, 0, sortie.width, sortie.height);
+      sortie.toBlob((blob) => {
+        if (!blob) { dire('Le recadrage a échoué.'); return; }
+        fermer(new File([blob], (fichier.name || 'photo').replace(/\.[^.]+$/, '') + '-recadree.png', { type: 'image/png' }));
+      }, 'image/png');
+    };
   });
 }
 
@@ -301,5 +444,5 @@ window.addEventListener('humalis:session', (e) => {
   void viderFile();
 });
 
-export const appareil = { prendrePhoto, scannerCode, position, verifierIdentite, vibrer, signature, envoyerHorsLigne };
+export const appareil = { prendrePhoto, enregistrerMedia, recadrerPhoto, scannerCode, position, verifierIdentite, vibrer, signature, envoyerHorsLigne };
 `;

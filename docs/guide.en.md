@@ -71,6 +71,49 @@ humalis developper
 `my-project.humalis`. `humalis developper` ("develop") opens the site in your
 browser and recompiles it every time you save: write, save, look.
 
+### Running a file right away: the machine
+
+To try a file without creating a project, without `npm install` and without a build:
+
+```sh
+humalis lancer my-file.humalis
+```
+
+The Humalis machine ("lancer" means "launch") compiles the file in memory, serves it at
+`http://localhost:5173` (`--port` picks another port, `--ouvrir` opens the browser) and **writes
+nothing to disk**. Every time you save, the page changes in under a second and keeps the value of its
+variables as long as their declaration has not changed. A mistake shows over the page, with its file,
+its line and the code at fault; the last version that worked stays alive until you fix it.
+
+The `serveur` block runs too, in memory: data, routes, rights, roles, field rules, actions, summaries,
+starting data, real time, scheduled tasks, accounts and session. At start the machine creates a test
+account `admin@machine.humalis` and one per role (`gerant@machine.humalis`…); their password, drawn at
+random on every launch, is printed in the terminal. When you change the program, the data and the
+accounts stay. Everything is lost when you stop it.
+
+The panel at `http://localhost:5173/__machine` shows the test accounts (and creates more), the outbox,
+the data in memory, and what you start by hand.
+
+**What the machine does not do for real.** It never fakes it silently: the command says so at start,
+for what *your* file uses.
+
+| In your file | What the machine does |
+|---|---|
+| e-mails (`envoyer email`, `inviter`, forgotten password) | no e-mail leaves: it is kept in the panel's outbox, with its link |
+| notifications and live activities | none is pushed: kept in the outbox |
+| payment (`payer`, `quand … est payee`) | the route answers 501; the panel marks a record "paid" by hand and runs what the program does next |
+| PDF vouchers and documents, loyalty card, AI | the route answers 501 |
+| Google or Apple sign-in | "not set up", like a server without credentials |
+| secret-token sources (gateways) | 501: the secrets stay on the real server |
+| external components (`utiliser composant …`) | refused with their line: the machine only runs Humalis, without npm. Use `humalis developper` |
+
+The machine only listens on `localhost`. For a real project (npm, database, publishing), the next
+steps are still `humalis developper` and `humalis compile`.
+
+The same machine runs in a browser: `dist/navigateur.js` exports `Machine` and `brancherApercu`, which
+show the app in an iframe through a Service Worker (`SERVICE_WORKER_JS`, to serve at the site root).
+This is what the site's playground uses.
+
 When you like the site, compile it to the target you want:
 
 ```sh
@@ -3699,6 +3742,22 @@ page "accueil" :
 network returns, deletions follow, and on a conflict the most recent change wins. Each record's
 identifier is managed by the database.
 
+Each account has its own database on the device: once signed out, its records leave the page, and
+what is waiting to be sent stays with that account. The fields of the local data must be those of
+the server's data, with the same types. Each change goes back through the route: its rights and
+checks apply, and a refused change is undone on the device, with a message. The most recent change
+is decided record by record, by the server's clock, even if the device's time is wrong.
+
+| Target | Database | Encryption key | When the network returns |
+| --- | --- | --- | --- |
+| web, desktop | IndexedDB | WebCrypto, non-extractable | on reopening and when the network returns, page open |
+| Apple | SQLite | Keychain | app open |
+| Android | SQLite | Android Keystore | even with the app closed (WorkManager) |
+| Windows | SQLite | DPAPI | app open |
+
+On the server, a deletion stays known for 180 days (`HUMALIS_SYNCHRO_JOURS`). A device away for longer
+starts again from the server's data, without losing what it has not yet sent.
+
 ### Passwordless sign-in and the six-digit code
 
 In the server, two lines open these doors on top of email and password:
@@ -3726,6 +3785,25 @@ In pages, `se connecter par cle d'acces` opens sign-in with Face ID, Touch ID or
 Hello; `ajouter cle d'acces` adds a key to the signed-in account; `activer double authentification`
 shows the QR code to scan in an authenticator app. The six-digit code is then asked for
 automatically after the password.
+
+Turning on the code or adding a passkey asks for the password again. The activation screen gives ten
+single-use recovery codes. Five wrong codes close the account for fifteen minutes. A passkey does not
+ask for a code: it already counts as two proofs. Signing in with Google or Apple does not either: the
+provider verifies the person.
+
+On the server, `ENCRYPTION_KEY` is required for the six-digit code, and `WEBAUTHN_ALLOWED_ORIGINS` gives
+the site's addresses: the first one sets the passkeys' domain.
+
+What passkeys need, target by target:
+
+- **Web**: a site on https (or `localhost` during development).
+- **Desktop (Electron)**: they are refused at compile time. The built-in browser does not accept the
+  app's own address. The six-digit code works there.
+- **Apple**: `--serveur https://…`, `--equipe`, and `WEBAUTHN_APPLE_APP` on the server, which publishes
+  the domain association file.
+- **Android**: a domain on https, `WEBAUTHN_ANDROID_APP` on the server (the package name, then the
+  signing fingerprints), and a Google account on the device.
+- **Windows**: Windows Hello set up on the machine, with no MSIX package.
 
 ### Several files
 
@@ -3777,6 +3855,7 @@ texte "…" est absent` (a text is not shown).
 | `humalis nouveau <name>` | creates a project |
 | `humalis --version` | shows the installed version (`humalis --help`: the usage) |
 | `humalis developper` | runs the site and recompiles it on every save |
+| `humalis lancer <file>` | runs a file right away, in memory, with its server, installing nothing |
 | `humalis compile <file> --cible <target> --sortie <folder>` | generates a target's project |
 | `humalis compile <file> --cible web --composants <folder>` | generates React components to import elsewhere |
 | `humalis verifier <file>` | shows errors and warnings |
@@ -4103,3 +4182,26 @@ site after an important deletion.
 | `se connecter`, `se deconnecter`, `utilisateur` | log in, log out, user |
 | `langues`, `traductions`, `selecteur de langue` | languages, translations, language switcher |
 | `composant`, `parametre`, `utiliser` | component, parameter, use |
+
+## Capture application errors
+
+Place this form at the top of the file. Its body receives `erreur.message`, `erreur.pile`, `erreur.page`, and `erreur.version`.
+
+```humalis
+quand une erreur arrive :
+    envoyer requete vers "https://centrale.exemple.fr/v1/envoi" avec message = erreur.message et pile = erreur.pile
+```
+
+The capture uses each target's native error hooks. Fatal Apple and Android errors are saved and sent on the next launch. The same form can appear inside `serveur "api" :`. HTTPS requests time out after three seconds; sending failures are swallowed, and the same error is limited to three reports per minute. Passwords, secrets, URL parameters, and form contents are not sent.
+
+## Recording and cropping media
+
+Inside an event, declare a file variable with `rien`, then use `enregistrer audio dans note`, `enregistrer video dans clip`, `scanner document dans facture`, or `recadrer photo`. These are French language keywords. The result is a file, like `photo dans photo`, which can be displayed or sent to a server. Canceling keeps the previous value. Recording and cropping are available on the web, desktop, Apple, Android, and Windows targets. Document scanning exists on Apple and Android; other targets reject it at compile time.
+
+Each recording opens a screen with the duration, Start, Stop, playback, Start over, Confirm, and Cancel. By target:
+
+- **Apple**: sound is an `.m4a` file and video a `.mov` in H.264. The microphone and camera are declared in the project only when used. `scanner document` uses the iPhone and iPad scanner; a Mac has none, so the person picks images or a PDF.
+- **Android**: sound is an `.m4a` and video an `.mp4` (CameraX). `scanner document` uses Google's scanner, which needs up-to-date Google Play services; without them, the person reads a clear message.
+- **Windows**: sound is an `.m4a` and video an `.mp4`, with no MSIX package. If the microphone or camera is denied to desktop apps in Settings, Privacy, the person reads a clear message.
+
+A scanned document is always a PDF; `facture.apercu` shows an image of its first page.
