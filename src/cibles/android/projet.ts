@@ -15,6 +15,7 @@ import { COULEURS_CSS } from '../web/styles.js';
 import { EcrivainActions } from './actions.js';
 import { APPLE_KT, GOOGLE_KT, notificationsKotlin, type Firebase } from './comptes.js';
 import { DIRECT_KT, ENVOIS_KT, fondKotlin } from './temps-reel.js';
+import { DEPOT_JITPACK, REUNION_KT, VERSION_LIVEKIT_ANDROID } from './reunion.js';
 import { langueDuStyle } from '../commun/styles-natifs.js';
 import { CARTES_KT, GRAPHIQUES_KT, LECTEURS_KT, MENUS_KT, MOUVEMENT_KT, NATIFS_KT, QR_KT } from './medias.js';
 import { besoinsCaptures, capturesKotlin, dependancesCaptures } from './captures.js';
@@ -937,6 +938,9 @@ export function genererProjetAndroid(complete: Application, options: OptionsAndr
   const avecAppareil = besoins.photo || besoins.position || besoins.identite || besoins.vibration || /\bSignatureHumalis\(/.test(codePages);
   if (avecAppareil) ecrireCode('Appareil.kt', kotlin(paquet, APPAREIL_KT));
   if (besoins.scanner) ecrireCode('Scanner.kt', kotlin(paquet, SCANNER_KT));
+  // Les réunions et les appels (LiveKit) : seulement si une page s'en sert.
+  const avecReunion = /\b(Reunion\.|ReunionVue\()/.test(codePages);
+  if (avecReunion) ecrireCode('Reunion.kt', kotlin(paquet, REUNION_KT));
   const medias = {
     qr: /\bQrHumalis\(/.test(codePages),
     lecteurs: /\b(LecteurHumalis|VideoHumalis)\(/.test(codePages),
@@ -1057,12 +1061,17 @@ export function genererProjetAndroid(complete: Application, options: OptionsAndr
       modules.push(appareil);
     }
   }
-  fichiers.set('settings.gradle.kts', reglagesGradle(nom).replace('include(":app")', ['app', ...modules].map((m) => `include(":${m}")`).join('\n')));
+  fichiers.set(
+    'settings.gradle.kts',
+    reglagesGradle(nom)
+      .replace('include(":app")', ['app', ...modules].map((m) => `include(":${m}")`).join('\n'))
+      .replace(/(dependencyResolutionManagement \{[\s\S]*?mavenCentral\(\)\n)/, (bloc) => (avecReunion ? bloc + DEPOT_JITPACK : bloc)),
+  );
   fichiers.set('build.gradle.kts', CONSTRUCTION_RACINE);
   fichiers.set('gradle.properties', PROPRIETES_GRADLE);
   fichiers.set('gradle/wrapper/gradle-wrapper.properties', ENVELOPPE_GRADLE);
-  fichiers.set('app/build.gradle.kts', constructionApp(identifiant, nomAffiche, { appareil: avecAppareil, scanner: besoins.scanner, ...medias, ...connexions, travail: fonds.length > 0, notifications: avecNotifications, ...(application.paquetsAndroid?.length ? { paquets: application.paquetsAndroid } : {}), formes: [...new Set([...formes.dependances, ...dependancesCaptures(captures), ...donneesComptes.dependances])] }));
-  fichiers.set('app/src/main/AndroidManifest.xml', manifeste(true, application.liensProfonds, { ...besoins, notifications: avecNotifications, micro: captures.son || captures.video, camera: captures.video, ecranCapture: captures.son || captures.video || captures.recadrage }, { ...formes, permissions: [...formes.permissions, ...donneesComptes.permissions] }));
+  fichiers.set('app/build.gradle.kts', constructionApp(identifiant, nomAffiche, { appareil: avecAppareil, scanner: besoins.scanner, ...medias, ...connexions, travail: fonds.length > 0, notifications: avecNotifications, ...(application.paquetsAndroid?.length ? { paquets: application.paquetsAndroid } : {}), formes: [...new Set([...formes.dependances, ...dependancesCaptures(captures), ...donneesComptes.dependances, ...(avecReunion ? [`implementation("io.livekit:livekit-android:${VERSION_LIVEKIT_ANDROID}")`] : [])])] }));
+  fichiers.set('app/src/main/AndroidManifest.xml', manifeste(true, application.liensProfonds, { ...besoins, notifications: avecNotifications, micro: captures.son || captures.video || avecReunion, camera: captures.video || avecReunion, audio: avecReunion, ecranCapture: captures.son || captures.video || captures.recadrage }, { ...formes, permissions: [...formes.permissions, ...donneesComptes.permissions] }));
   if (besoins.fichiers) fichiers.set('app/src/main/res/xml/chemins_fichiers.xml', CHEMINS_FICHIERS);
   const domaine = application.liensProfonds?.domaine;
   if (domaine && options.empreinte) {

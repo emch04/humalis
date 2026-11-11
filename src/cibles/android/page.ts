@@ -944,6 +944,10 @@ export class GenerateurPage implements HoteActions {
         });
         return;
       }
+      // « reunion "…" » : les images des participants (Reunion.kt).
+      case 'reunion':
+        e.ligne(`ReunionVue(${m ? `Modifier${m}` : ''})`);
+        return;
       case 'signature': {
         const lue = contenu.type === 'variable' ? this.portee.variables.get(contenu.nom) : undefined;
         if (!lue) return this.refuser('« signature » demande une variable pour garder sa valeur');
