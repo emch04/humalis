@@ -44,6 +44,8 @@ qui t'intéresse.
 31. [Tester en Humalis](#31-tester-en-humalis)
 32. [Les commandes](#32-les-commandes)
 33. [Ce que chaque cible sait faire](#33-ce-que-chaque-cible-sait-faire)
+34. [Capturer les erreurs de l’application](#34-capturer-les-erreurs-de-lapplication)
+35. [Enregistrer et recadrer des médias](#35-enregistrer-et-recadrer-des-médias)
 
 ---
 
@@ -4165,7 +4167,7 @@ Une source qui envoie une clé n'est jamais lue.
 Une donnée retirée du serveur reste dans le HTML jusqu'à la prochaine construction :
 reconstruis le site après une suppression importante.
 
-## Capturer les erreurs de l’application
+## 34. Capturer les erreurs de l’application
 
 Placez cette forme en haut du fichier. Le bloc reçoit `erreur.message`, `erreur.pile`, `erreur.page` et `erreur.version`.
 
@@ -4176,7 +4178,7 @@ quand une erreur arrive :
 
 La capture écoute les erreurs natives de chaque cible. Les erreurs fatales Apple et Android sont enregistrées puis envoyées au lancement suivant. Le serveur accepte la même forme dans `serveur "api" :`. Les envois HTTPS expirent après trois secondes, leurs échecs sont absorbés et une même erreur est limitée à trois rapports par minute. Les mots de passe, les secrets, les paramètres d’URL et le contenu des formulaires ne sont pas envoyés.
 
-## Enregistrer et recadrer des médias
+## 35. Enregistrer et recadrer des médias
 
 Dans un événement, déclarez une variable de fichier avec `rien`, puis utilisez :
 

@@ -51,6 +51,8 @@ its own.
 31. [Testing in Humalis](#31-testing-in-humalis)
 32. [Commands](#32-commands)
 33. [What each target can do](#33-what-each-target-can-do)
+34. [Capture application errors](#34-capture-application-errors)
+35. [Recording and cropping media](#35-recording-and-cropping-media)
 
 [French keywords at a glance](#french-keywords-at-a-glance)
 
@@ -4236,6 +4238,29 @@ A source that sends a key is never read.
 Data removed from the server stays in the HTML until the next build: rebuild the
 site after an important deletion.
 
+## 34. Capture application errors
+
+Place this form at the top of the file. Its body receives `erreur.message`, `erreur.pile`, `erreur.page`, and `erreur.version`.
+
+```humalis
+quand une erreur arrive :
+    envoyer requete vers "https://centrale.exemple.fr/v1/envoi" avec message = erreur.message et pile = erreur.pile
+```
+
+The capture uses each target's native error hooks. Fatal Apple and Android errors are saved and sent on the next launch. The same form can appear inside `serveur "api" :`. HTTPS requests time out after three seconds; sending failures are swallowed, and the same error is limited to three reports per minute. Passwords, secrets, URL parameters, and form contents are not sent.
+
+## 35. Recording and cropping media
+
+Inside an event, declare a file variable with `rien`, then use `enregistrer audio dans note`, `enregistrer video dans clip`, `scanner document dans facture`, or `recadrer photo`. These are French language keywords. The result is a file, like `photo dans photo`, which can be displayed or sent to a server. Canceling keeps the previous value. Recording and cropping are available on the web, desktop, Apple, Android, and Windows targets. Document scanning exists on Apple and Android; other targets reject it at compile time.
+
+Each recording opens a screen with the duration, Start, Stop, playback, Start over, Confirm, and Cancel. By target:
+
+- **Apple**: sound is an `.m4a` file and video a `.mov` in H.264. The microphone and camera are declared in the project only when used. `scanner document` uses the iPhone and iPad scanner; a Mac has none, so the person picks images or a PDF.
+- **Android**: sound is an `.m4a` and video an `.mp4` (CameraX). `scanner document` uses Google's scanner, which needs up-to-date Google Play services; without them, the person reads a clear message.
+- **Windows**: sound is an `.m4a` and video an `.mp4`, with no MSIX package. If the microphone or camera is denied to desktop apps in Settings, Privacy, the person reads a clear message.
+
+A scanned document is always a PDF; `facture.apercu` shows an image of its first page.
+
 ## French keywords at a glance
 
 | Humalis | English |
@@ -4276,26 +4301,3 @@ site after an important deletion.
 | `se connecter`, `se deconnecter`, `utilisateur` | log in, log out, user |
 | `langues`, `traductions`, `selecteur de langue` | languages, translations, language switcher |
 | `composant`, `parametre`, `utiliser` | component, parameter, use |
-
-## Capture application errors
-
-Place this form at the top of the file. Its body receives `erreur.message`, `erreur.pile`, `erreur.page`, and `erreur.version`.
-
-```humalis
-quand une erreur arrive :
-    envoyer requete vers "https://centrale.exemple.fr/v1/envoi" avec message = erreur.message et pile = erreur.pile
-```
-
-The capture uses each target's native error hooks. Fatal Apple and Android errors are saved and sent on the next launch. The same form can appear inside `serveur "api" :`. HTTPS requests time out after three seconds; sending failures are swallowed, and the same error is limited to three reports per minute. Passwords, secrets, URL parameters, and form contents are not sent.
-
-## Recording and cropping media
-
-Inside an event, declare a file variable with `rien`, then use `enregistrer audio dans note`, `enregistrer video dans clip`, `scanner document dans facture`, or `recadrer photo`. These are French language keywords. The result is a file, like `photo dans photo`, which can be displayed or sent to a server. Canceling keeps the previous value. Recording and cropping are available on the web, desktop, Apple, Android, and Windows targets. Document scanning exists on Apple and Android; other targets reject it at compile time.
-
-Each recording opens a screen with the duration, Start, Stop, playback, Start over, Confirm, and Cancel. By target:
-
-- **Apple**: sound is an `.m4a` file and video a `.mov` in H.264. The microphone and camera are declared in the project only when used. `scanner document` uses the iPhone and iPad scanner; a Mac has none, so the person picks images or a PDF.
-- **Android**: sound is an `.m4a` and video an `.mp4` (CameraX). `scanner document` uses Google's scanner, which needs up-to-date Google Play services; without them, the person reads a clear message.
-- **Windows**: sound is an `.m4a` and video an `.mp4`, with no MSIX package. If the microphone or camera is denied to desktop apps in Settings, Privacy, the person reads a clear message.
-
-A scanned document is always a PDF; `facture.apercu` shows an image of its first page.

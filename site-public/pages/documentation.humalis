@@ -40,7 +40,9 @@ page "documentation" a l'adresse "/documentation" :
             lien "31. Tester en Humalis" en anglais "31. Testing in Humalis" vers "documentation_31"
             lien "32. Les commandes" en anglais "32. Commands" vers "documentation_32"
             lien "33. Ce que chaque cible sait faire" en anglais "33. What each target can do" vers "documentation_33"
-            lien "Les mots-clés de Humalis en anglais" en anglais "French keywords at a glance" vers "documentation_34"
+            lien "34. Capturer les erreurs de l’application" en anglais "34. Capture application errors" vers "documentation_34"
+            lien "35. Enregistrer et recadrer des médias" en anglais "35. Recording and cropping media" vers "documentation_35"
+            lien "Les mots-clés de Humalis en anglais" en anglais "French keywords at a glance" vers "documentation_36"
         bloc avec style "doc-contenu" :
             sous page
 
@@ -81,7 +83,9 @@ page "documentation_sommaire" dans "documentation" adresse "/documentation" :
         lien "Tester en Humalis" en anglais "Testing in Humalis" vers "documentation_31"
         lien "Les commandes" en anglais "Commands" vers "documentation_32"
         lien "Ce que chaque cible sait faire" en anglais "What each target can do" vers "documentation_33"
-        lien "Les mots-clés de Humalis en anglais" en anglais "French keywords at a glance" vers "documentation_34"
+        lien "Capturer les erreurs de l’application" en anglais "Capture application errors" vers "documentation_34"
+        lien "Enregistrer et recadrer des médias" en anglais "Recording and cropping media" vers "documentation_35"
+        lien "Les mots-clés de Humalis en anglais" en anglais "French keywords at a glance" vers "documentation_36"
 
 page "documentation_1" dans "documentation" adresse "/documentation/installer-et-creer-un-projet" :
     apercu :
@@ -5571,11 +5575,75 @@ page "documentation_33" dans "documentation" adresse "/documentation/ce-que-chaq
         texte "Une donnée retirée du serveur reste dans le HTML jusqu'à la prochaine construction : reconstruis le site après une suppression importante."
     ligne avec style "doc-suite" :
         lien "← 32. Les commandes" en anglais "← 32. Commands" vers "documentation_32"
-        lien "Les mots-clés de Humalis en anglais →" en anglais "French keywords at a glance →" vers "documentation_34"
+        lien "34. Capturer les erreurs de l’application →" en anglais "34. Capture application errors →" vers "documentation_34"
 
-page "documentation_34" dans "documentation" adresse "/documentation/mots-cles-de-humalis-en-anglais" :
+page "documentation_34" dans "documentation" adresse "/documentation/capturer-les-erreurs-de-l-application" :
     apercu :
-        description "Cette page présente les mots-clés français de Humalis, avec leur sens, aux personnes qui lisent le guide en anglais." en anglais "Humalis guide, French keywords at a glance."
+        description "Placez cette forme en haut du fichier. Le bloc reçoit erreur.message, erreur.pile, erreur.page et erreur.version." en anglais "Place this form at the top of the file. Its body receives erreur.message, erreur.pile, erreur.page, and erreur.version."
+    titre "34. Capturer les erreurs de l’application" en anglais "34. Capture application errors"
+    si langue est anglais :
+        texte "Place this form at the top of the file. Its body receives `erreur.message`, `erreur.pile`, `erreur.page`, and `erreur.version`."
+        code humalis :
+            quand une erreur arrive :
+                envoyer requete vers "https://centrale.exemple.fr/v1/envoi" avec message = erreur.message et pile = erreur.pile
+        texte "The capture uses each target's native error hooks. Fatal Apple and Android errors are saved and sent on the next launch. The same form can appear inside `serveur "api" :`. HTTPS requests time out after three seconds; sending failures are swallowed, and the same error is limited to three reports per minute. Passwords, secrets, URL parameters, and form contents are not sent."
+    sinon :
+        texte "Placez cette forme en haut du fichier. Le bloc reçoit `erreur.message`, `erreur.pile`, `erreur.page` et `erreur.version`."
+        code humalis :
+            quand une erreur arrive :
+                envoyer requete vers "https://centrale.exemple.fr/v1/envoi" avec message = erreur.message et pile = erreur.pile
+        texte "La capture écoute les erreurs natives de chaque cible. Les erreurs fatales Apple et Android sont enregistrées puis envoyées au lancement suivant. Le serveur accepte la même forme dans `serveur "api" :`. Les envois HTTPS expirent après trois secondes, leurs échecs sont absorbés et une même erreur est limitée à trois rapports par minute. Les mots de passe, les secrets, les paramètres d’URL et le contenu des formulaires ne sont pas envoyés."
+    ligne avec style "doc-suite" :
+        lien "← 33. Ce que chaque cible sait faire" en anglais "← 33. What each target can do" vers "documentation_33"
+        lien "35. Enregistrer et recadrer des médias →" en anglais "35. Recording and cropping media →" vers "documentation_35"
+
+page "documentation_35" dans "documentation" adresse "/documentation/enregistrer-et-recadrer-des-medias" :
+    apercu :
+        description "Dans un événement, déclarez une variable de fichier avec rien, puis utilisez :" en anglais "Inside an event, declare a file variable with rien, then use enregistrer audio dans note, enregistrer video dans clip, scanner document dans facture, or…"
+    titre "35. Enregistrer et recadrer des médias" en anglais "35. Recording and cropping media"
+    si langue est anglais :
+        texte "Inside an event, declare a file variable with `rien`, then use `enregistrer audio dans note`, `enregistrer video dans clip`, `scanner document dans facture`, or `recadrer photo`. These are French language keywords. The result is a file, like `photo dans photo`, which can be displayed or sent to a server. Canceling keeps the previous value. Recording and cropping are available on the web, desktop, Apple, Android, and Windows targets. Document scanning exists on Apple and Android; other targets reject it at compile time."
+        texte "Each recording opens a screen with the duration, Start, Stop, playback, Start over, Confirm, and Cancel. By target:"
+        liste :
+            texte "{accent "Apple"}: sound is an `.m4a` file and video a `.mov` in H.264. The microphone and camera are declared in the project only when used. `scanner document` uses the iPhone and iPad scanner; a Mac has none, so the person picks images or a PDF."
+            texte "{accent "Android"}: sound is an `.m4a` and video an `.mp4` (CameraX). `scanner document` uses Google's scanner, which needs up-to-date Google Play services; without them, the person reads a clear message."
+            texte "{accent "Windows"}: sound is an `.m4a` and video an `.mp4`, with no MSIX package. If the microphone or camera is denied to desktop apps in Settings, Privacy, the person reads a clear message."
+        texte "A scanned document is always a PDF; `facture.apercu` shows an image of its first page."
+    sinon :
+        texte "Dans un événement, déclarez une variable de fichier avec `rien`, puis utilisez :"
+        code humalis :
+            page "memo" :
+                titre "Mémo"
+                variable note = rien
+                variable clip = rien
+                variable facture = rien
+                variable photo = rien
+                bouton "Audio"
+                quand l'utilisateur clique sur "Audio" :
+                    enregistrer audio dans note
+                bouton "Vidéo"
+                quand l'utilisateur clique sur "Vidéo" :
+                    enregistrer video dans clip
+                bouton "Document"
+                quand l'utilisateur clique sur "Document" :
+                    scanner document dans facture
+                bouton "Recadrer"
+                quand l'utilisateur clique sur "Recadrer" :
+                    recadrer photo
+        texte "Le résultat est un fichier comme celui de `photo dans photo` : il peut être affiché et envoyé au serveur. L’annulation conserve la valeur précédente. L’enregistrement et le recadrage fonctionnent sur le web, le bureau, Apple, Android et Windows. Le scan de document existe sur Apple et Android ; les autres cibles refusent la compilation."
+        texte "Chaque enregistrement ouvre un écran avec la durée, Démarrer, Arrêter, la réécoute, Recommencer, Valider et Annuler. Selon la cible :"
+        liste :
+            texte "{accent "Apple"} : le son est un fichier `.m4a`, la vidéo un `.mov` en H.264. Le micro et la caméra sont déclarés dans le projet seulement s’ils servent. `scanner document` emploie le scanner de l’iPhone et de l’iPad ; sur Mac, qui n’en a pas, la personne choisit des images ou un PDF."
+            texte "{accent "Android"} : le son est un `.m4a`, la vidéo un `.mp4` (CameraX). `scanner document` emploie le scanner de Google, qui demande les services Google Play à jour ; sans eux, la personne lit un message clair."
+            texte "{accent "Windows"} : le son est un `.m4a`, la vidéo un `.mp4`, sans paquet MSIX. Si la personne refuse le micro ou la caméra aux applications de bureau, dans Paramètres, Confidentialité, elle lit un message clair."
+        texte "Un document scanné est toujours un PDF ; `facture.apercu` montre l’image de sa première page."
+    ligne avec style "doc-suite" :
+        lien "← 34. Capturer les erreurs de l’application" en anglais "← 34. Capture application errors" vers "documentation_34"
+        lien "Les mots-clés de Humalis en anglais →" en anglais "French keywords at a glance →" vers "documentation_36"
+
+page "documentation_36" dans "documentation" adresse "/documentation/mots-cles-de-humalis-en-anglais" :
+    apercu :
+        description "Chaque mot de Humalis, avec son équivalent en anglais : pratique pour expliquer le langage à quelqu’un qui lit l’anglais." en anglais "Humalis guide, French keywords at a glance."
     titre "Les mots-clés de Humalis en anglais" en anglais "French keywords at a glance"
     si langue est anglais :
         tableau "Humalis, English" :
@@ -5617,6 +5685,44 @@ page "documentation_34" dans "documentation" adresse "/documentation/mots-cles-d
             rangee "`langues`, `traductions`, `selecteur de langue`", "languages, translations, language switcher"
             rangee "`composant`, `parametre`, `utiliser`", "component, parameter, use"
     sinon :
-        texte "Cette page présente les mots-clés français de Humalis, avec leur sens, aux personnes qui lisent le guide en anglais."
+        texte "Chaque mot de Humalis, avec son équivalent en anglais : pratique pour expliquer le langage à quelqu’un qui lit l’anglais."
+        tableau "Humalis, En anglais" :
+            colonnes "Humalis", "En anglais"
+            rangee "`page`, `titre`, `soustitre`, `texte`", "page, title, subtitle, text"
+            rangee "`image`, `bouton`, `lien … vers`", "image, button, link … to"
+            rangee "`champ`, `formulaire`, `choix`, `liste deroulante`, `case a cocher`", "field, form, choice, drop-down, checkbox"
+            rangee "`section`, `bloc`, `ligne`, `colonne`, `grille`", "section, box, row, column, grid"
+            rangee "`entete`, `pied`, `menu`, `fil d'Ariane`", "header, footer, menu, breadcrumb"
+            rangee "`onglets`, `deroulant`, `accordeon`, `carrousel`, `fenetre`", "tabs, collapsible, accordion, carousel, dialog"
+            rangee "`icone`, `etoiles`, `compteur`, `progression`, `chargement`", "icon, stars, stepper, progress bar, loading"
+            rangee "`graphique`, `carte`, `marqueur`, `audio`, `video`, `fichier`", "chart, map, marker, audio, video, file"
+            rangee "`avec … et …`", "with … and …"
+            rangee "`couleur`, `fond`, `taille`, `nom`, `style`", "colour, background, size, name, CSS class"
+            rangee "`desactive`, `desactive si`", "disabled, disabled if"
+            rangee "`variable`, `calcul`, `constante`, `fiche`", "variable, computed value, constant, record"
+            rangee "`vrai`, `faux`, `rien`", "true, false, nothing"
+            rangee "`si`, `sinon`, `et`, `ou`, `n'est pas`, `non`", "if, otherwise, and, or, is not, not"
+            rangee "`est egal a`, `est superieur a`, `est inferieur a`, `est vide`, `contient`", "equals, greater than, less than, is empty, contains"
+            rangee "`pour chaque … dans`", "for each … in"
+            rangee "`ajouter … à`, `retirer … de`, `nombre de`", "add … to, remove … from, count of"
+            rangee "`trier … par`, `dont`, `grouper … par`", "sort … by, whose (filter), group … by"
+            rangee "`repeter … fois`, `tant que`, `selon … cas`", "repeat … times, while, switch … case"
+            rangee "`fonction … avec`, `rendre`", "function … with, return"
+            rangee "`quand`, `l'utilisateur clique sur`, `la page se charge`", "when, the user clicks on, the page loads"
+            rangee "`le formulaire … est soumis`", "the form … is submitted"
+            rangee "`afficher`, `montrer`, `cacher`, `changer … par`", "show a message, show, hide, change … to"
+            rangee "`rediriger vers`, `revenir vers`", "go to, go back to"
+            rangee "`envoyer requete vers … dans … avec`", "send a request to … into … with"
+            rangee "`essayer`, `si erreur`", "try, if error"
+            rangee "`confirmer`, `copier`, `partager`", "confirm, copy, share"
+            rangee "`apres … secondes`, `toutes les … secondes`", "after … seconds, every … seconds"
+            rangee "`partagee`, `memorisee`", "shared, remembered"
+            rangee "`serveur`, `donnee`, `route`, `source`", "server, data type, route, external API"
+            rangee "`tout le monde`, `connecte`, `seul admin`", "everyone, logged-in users, admins only"
+            rangee "`lire`, `creer`, `modifier`, `supprimer`", "read, create, update, delete"
+            rangee "`seul son auteur`, `donnees de depart pour`, `avant`", "only its author, starting data for, formerly"
+            rangee "`se connecter`, `se deconnecter`, `utilisateur`", "log in, log out, user"
+            rangee "`langues`, `traductions`, `selecteur de langue`", "languages, translations, language switcher"
+            rangee "`composant`, `parametre`, `utiliser`", "component, parameter, use"
     ligne avec style "doc-suite" :
-        lien "← 33. Ce que chaque cible sait faire" en anglais "← 33. What each target can do" vers "documentation_33"
+        lien "← 35. Enregistrer et recadrer des médias" en anglais "← 35. Recording and cropping media" vers "documentation_35"
