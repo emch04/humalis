@@ -171,7 +171,9 @@ public static class Enregistrement
             arreter.Visibility = etape == Etape.EnCours ? Visibility.Visible : Visibility.Collapsed;
             recommencer.Visibility = etape == Etape.Termine ? Visibility.Visible : Visibility.Collapsed;
             valider.Visibility = etape == Etape.Termine ? Visibility.Visible : Visibility.Collapsed;
-            duree.Foreground = etape == Etape.EnCours ? Apparence.Pinceau("#C42B1C") : null;
+            // Hors enregistrement, la couleur du thème : un pinceau vide rendrait la durée invisible.
+            if (etape == Etape.EnCours) duree.Foreground = Apparence.Pinceau("#C42B1C");
+            else duree.ClearValue(TextBlock.ForegroundProperty);
             if (etape == Etape.Termine) return;
             relecture?.Dispose();
             relecture = null;
