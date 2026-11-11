@@ -65,7 +65,11 @@ const adresse = await lancer(join(web, 'node_modules', '.bin', 'vite'), ['previe
 console.log(`Serveur : ${base} ; site : ${adresse}`);
 
 const navigateur = await chromium.launch({ args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--auto-select-desktop-capture-source=Entire screen', '--autoplay-policy=no-user-gesture-required'] });
-const voit = (p, texte, delai = 8000) => p.getByText(texte).first().waitFor({ timeout: delai }).then(() => true, () => false);
+// Une page cachée ne relit rien tant qu'on n'y revient pas (comme un onglet en arrière-plan) : on regarde la page qu'on vérifie.
+const voit = async (p, texte, delai = 8000) => {
+  await p.bringToFront().catch(() => undefined);
+  return p.getByText(texte).first().waitFor({ timeout: delai }).then(() => true, () => false);
+};
 const erreurs = [];
 async function connecter(email) {
   const contexte = await navigateur.newContext({ permissions: ['camera', 'microphone'] });
@@ -169,6 +173,7 @@ try {
   await ligneChloe.waitFor({ timeout: 5000 });
   const nCouper = await binta.locator('text=/^Présent :/').evaluateAll((l) => l.findIndex((e) => e.textContent.includes('chloe')));
   await binta.getByRole('button', { name: 'Couper', exact: true }).nth(nCouper).click();
+  await chloe.bringToFront();
   verifier(await chloe.getByRole('button', { name: 'Activer le micro' }).waitFor({ timeout: 8000 }).then(() => true, () => false), 'réunion : l’animatrice coupe un micro, la personne le voit');
   await binta.getByRole('button', { name: 'Exclure', exact: true }).nth(nCouper).click();
   verifier(await binta.getByText('Présent : chloe@essai.test').waitFor({ state: 'detached', timeout: 10000 }).then(() => true, () => false), 'réunion : l’animatrice exclut une personne');
