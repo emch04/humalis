@@ -395,8 +395,6 @@ export interface OptionsLignes {
   versLesSources: string;
   /** Le texte d'un fichier Humalis, pour l'écrire dans la carte ; undefined : non écrit. */
   lire?: (fichier: string) => string | undefined;
-  /** Kotlin : le paquet et le dossier de la table (`app/src/main/java/…`). */
-  kotlin?: { paquet: string; dossier: string };
   /** Faux : les cartes ne portent pas le texte des fichiers Humalis (un site publié tel quel). */
   contenus?: boolean;
   /** Le chemin absolu du dossier des fichiers Humalis : Swift l'écrit dans `#sourceLocation`, pour le débogueur. */
@@ -480,8 +478,11 @@ export function appliquerLignesHumalis(fichiers: Map<string, string>, options: O
     // La table des fichiers Humalis de la capture Apple : connue seulement ici.
     resultat.set(captureSwift, resultat.get(captureSwift)!.replace('[/*@humalis-fichiers*/]', `[${options.fichiers.map(guillemets).join(', ')}]`));
   }
-  if (options.kotlin) {
-    resultat.set(`${options.kotlin.dossier}/HumalisLignes.kt`, tableKotlin(options.kotlin.paquet, [...indexKotlin.keys()], tablesKotlin));
+  // Android : la table écrite avec le projet (vide) est remplie ici, une fois tous les fichiers Kotlin lus.
+  for (const [chemin, contenu] of resultat) {
+    if (!chemin.endsWith('/HumalisLignes.kt') || !contenu.includes('object HumalisLignes')) continue;
+    const paquet = /^package\s+([\w.]+)/m.exec(contenu)?.[1] ?? 'humalis';
+    resultat.set(chemin, tableKotlin(paquet, [...indexKotlin.keys()], tablesKotlin));
   }
   return resultat;
 }
@@ -493,15 +494,21 @@ export function appliquerLignesHumalis(fichiers: Map<string, string>, options: O
  */
 export function tableKotlin(paquet: string, fichiersHumalis: string[], tables: { fichier: string; plages: [number, number, number, number][] }[]): string {
   const donnees = tables.map((t) => `${t.fichier}\n${t.plages.map((p) => p.join(' ')).join('\n')}`).join('\n\n');
+  // Une chaîne de la JVM ne dépasse pas 65 535 octets : la table est découpée en morceaux.
+  const morceaux: string[] = [];
+  for (let i = 0; i < donnees.length; i += 30_000) morceaux.push(donnees.slice(i, i + 30_000));
   return `// Produit par Humalis : les lignes Humalis du code produit, pour les piles d'erreurs.
 package ${paquet}
 
+import android.util.Log
+
 object HumalisLignes {
-    private val fichiers = arrayOf(${fichiersHumalis.map(guillemets).join(', ')})
+    private val fichiers = arrayOf<String>(${fichiersHumalis.map(guillemets).join(', ')})
+    private val donnees = arrayOf<String>(${morceaux.map(guillemets).join(', ')})
     private val plages: Map<String, List<IntArray>> by lazy {
         val resultat = HashMap<String, MutableList<IntArray>>()
         var courant: MutableList<IntArray>? = null
-        for (ligne in DONNEES.lineSequence()) {
+        for (ligne in donnees.joinToString("").lineSequence()) {
             if (ligne.isEmpty()) { courant = null; continue }
             val parties = ligne.split(' ')
             if (parties.size == 1) { courant = resultat.getOrPut(parties[0]) { mutableListOf() }; continue }
@@ -510,7 +517,7 @@ object HumalisLignes {
         resultat
     }
 
-    /** « ligne 12 de boutique.humalis », ou null si la ligne produite n'en vient pas. */
+    /** Le fichier Humalis et la ligne d'une ligne produite, ou null si elle n'en vient pas. */
     fun situer(fichier: String?, ligne: Int): Pair<String, Int>? {
         val liste = plages[fichier ?: return null] ?: return null
         var bas = 0
@@ -527,7 +534,7 @@ object HumalisLignes {
         return null
     }
 
-    /** La première ligne Humalis d'une pile : « boutique.humalis:12 », ou "" si aucune. */
+    /** « boutique.humalis:12 » : la première ligne Humalis de la pile, ou "" si aucune. */
     fun ligne(erreur: Throwable): String {
         for (cadre in erreur.stackTrace) situer(cadre.fileName, cadre.lineNumber)?.let { return "\${it.first}:\${it.second}" }
         return erreur.cause?.let { ligne(it) } ?: ""
@@ -536,17 +543,37 @@ object HumalisLignes {
     /** La pile, chaque ligne produite rendue à sa ligne Humalis quand elle en vient. */
     fun pile(erreur: Throwable): String = buildString {
         append(erreur.toString())
+        // Une ligne répétée (une fonction qui s'appelle sans fin) n'est écrite qu'une fois, avec son nombre.
+        var precedente = ""
+        var fois = 0
+        fun fermer() { if (fois > 1) append(" (\${fois} fois)") }
         for (cadre in erreur.stackTrace) {
             val situe = situer(cadre.fileName, cadre.lineNumber)
-            append("\\n    at ").append(cadre.className).append('.').append(cadre.methodName).append(" (")
-            if (situe != null) append("ligne ").append(situe.second).append(" de ").append(situe.first)
-            else append(cadre.fileName ?: "?").append(':').append(cadre.lineNumber)
-            append(')')
+            val texte = "\\n    at " + cadre.className + "." + cadre.methodName + " (" + (if (situe != null) "ligne \${situe.second} de \${situe.first}" else "\${cadre.fileName ?: "?"}:\${cadre.lineNumber}") + ")"
+            if (texte == precedente) { fois++; continue }
+            fermer()
+            append(texte)
+            precedente = texte
+            fois = 1
         }
+        fermer()
         erreur.cause?.let { append("\\nCaused by: ").append(pile(it)) }
     }
 
-    private const val DONNEES = ${guillemets(donnees)}
+    /** Une erreur non rattrapée est écrite dans Logcat avec sa ligne Humalis, puis suit son chemin habituel. */
+    fun installer() {
+        val ancien = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { fil, erreur ->
+            try {
+                val ici = ligne(erreur)
+                if (ici.isNotEmpty()) {
+                    val i = ici.lastIndexOf(':')
+                    Log.e("Humalis", "Erreur, ligne \${ici.substring(i + 1)} de \${ici.substring(0, i)} : \${erreur.message ?: erreur}\\n" + pile(erreur).lineSequence().filter { it.contains(".humalis") }.joinToString("\\n"))
+                }
+            } catch (_: Throwable) { }
+            ancien?.uncaughtException(fil, erreur)
+        }
+    }
 }
 `;
 }

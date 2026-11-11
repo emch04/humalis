@@ -4,6 +4,7 @@
  * écrit du SwiftUI, celle-ci écrit du Kotlin lisible, sans navigateur embarqué
  * ni JavaScript.
  */
+import { tableKotlin } from '../lignes-humalis.js';
 import type { Diagnostic } from '../../analyse/erreurs.js';
 import { MESSAGES, versionDe } from '../../i18n/messages.js';
 import { simplifier } from '../../analyse/elements.js';
@@ -897,6 +898,10 @@ export function genererProjetAndroid(complete: Application, options: OptionsAndr
 
   const avecApple = application.liensProfonds !== undefined && /\bseConnecterAvecApple\(/.test([...fichiers.values()].join('\n'));
   ecrireCode('MainActivity.kt', applicationKotlin(paquet, application, routes, entree, disposition, onglets, avecApple, menus.length > 0));
+  // Les lignes Humalis : la table est remplie quand le projet est écrit (cibles/lignes-humalis.ts).
+  ecrireCode('HumalisLignes.kt', tableKotlin(paquet, [], []));
+  const cheminActiviteLignes = `${dossierCode}/MainActivity.kt`;
+  fichiers.set(cheminActiviteLignes, fichiers.get(cheminActiviteLignes)!.replace('        setContent { ApplicationHumalis() }', '        HumalisLignes.installer()\n        setContent { ApplicationHumalis() }'));
   if (application.formes?.erreurArrive) {
     ecrireCode('CaptureErreurs.kt', kotlin(paquet, captureErreursKotlin(requetesCapture(application.formes).requetes)));
     // La page en cours, pour « erreur.page ».

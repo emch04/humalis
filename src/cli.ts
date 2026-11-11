@@ -4,7 +4,7 @@ import { dimensionsImage } from './image/entete.js';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, relative, resolve } from 'node:path';
-import { activerReperes, appliquerLignesHumalis, type OptionsLignes } from './cibles/lignes-humalis.js';
+import { activerReperes, appliquerLignesHumalis } from './cibles/lignes-humalis.js';
 import { compilerProjet, situer } from './fichiers.js';
 import type { Diagnostic } from './analyse/erreurs.js';
 import { appliquerExigence, resumerQualite } from './analyse/diagnosticsQualite.js';
@@ -323,7 +323,7 @@ function dossierLibre(sortie: string, marque: string): boolean {
  * cartes de sources (JavaScript), des directives de ligne (Swift, C#) ou
  * une table (Kotlin) : voir cibles/lignes-humalis.ts.
  */
-function ecrire(sortie: string, produits: Map<string, string>, kotlin?: OptionsLignes['kotlin']): void {
+function ecrire(sortie: string, produits: Map<string, string>): void {
   const dossierSource = cheminPrincipal ? dirname(resolve(cheminPrincipal)) : process.cwd();
   const fichiers = appliquerLignesHumalis(produits, {
     fichiers: fichiersDuProjet.length > 0 ? fichiersDuProjet : [cheminPrincipal ? basename(cheminPrincipal) : 'programme.humalis'],
@@ -332,7 +332,6 @@ function ecrire(sortie: string, produits: Map<string, string>, kotlin?: OptionsL
     lire: (fichier) => {
       try { return readFileSync(join(dossierSource, fichier), 'utf8'); } catch { return undefined; }
     },
-    ...(kotlin ? { kotlin } : {}),
   });
   const dependances = (): string => {
     try {

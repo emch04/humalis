@@ -64,6 +64,8 @@ export class EcrivainActions {
   }
 
   private action(e: EcrivainKotlin, a: Action, c: Cadre): void {
+    // La ligne Humalis de l'action : la table HumalisLignes.kt rend les piles d'erreurs à leurs lignes.
+    e.repere(a.ligne);
     switch (a.type) {
       case 'affectation': {
         const cible = this.variable(a.nom);

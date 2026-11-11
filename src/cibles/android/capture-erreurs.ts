@@ -18,6 +18,8 @@ export function captureErreursKotlin(requetes: RequeteCapture[]): string {
             if (reponse !in 200..299) return@thread
         } catch (_: Exception) { return@thread }`).join('\n');
   return `// Produit par Humalis : les erreurs fatales sont envoyées au lancement suivant.
+package PAQUET
+
 import android.content.Context
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -39,7 +41,8 @@ object CaptureErreurs {
             try {
                 val rapport = JSONObject().apply {
                     put("message", nettoyer(exception.message))
-                    put("pile", nettoyer(exception.stackTraceToString()))
+                    put("pile", nettoyer(HumalisLignes.pile(exception)))
+                    put("ligne", HumalisLignes.ligne(exception))
                     put("page", page)
                     put("version", try { contexte.packageManager.getPackageInfo(contexte.packageName, 0).versionName ?: "" } catch (_: Exception) { "" })
                 }
