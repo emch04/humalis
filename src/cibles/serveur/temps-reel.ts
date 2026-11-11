@@ -155,6 +155,8 @@ function monterSalles(app: Application, o: Options, voir: (req: Request) => Moi,
         } catch { /* Des métadonnées illisibles : pas animateur. */ }
         return { id: p.identity, nom: p.name || p.identity, micro: actif(TrackSource.MICROPHONE), camera: actif(TrackSource.CAMERA), ecran: actif(TrackSource.SCREEN_SHARE), main: p.attributes?.main === '1', animateur };
       });
+      // Un ordre stable : la liste ne saute pas d'une lecture à l'autre.
+      participants.sort((a, b) => a.nom.localeCompare(b.nom, 'fr') || a.id.localeCompare(b.id));
       const moiDansLaSalle = participants.find((p) => p.id === moi.id);
       res.json({ id: nom, microCoupe: moiDansLaSalle ? !moiDansLaSalle.micro : false, cameraCoupee: moiDansLaSalle ? !moiDansLaSalle.camera : false, participants });
     } catch (erreur) {
