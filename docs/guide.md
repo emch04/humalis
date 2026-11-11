@@ -2481,8 +2481,8 @@ connexion.
 Cette fin de phrase ne marche pas avec `dans` (la réponse arrivera plus tard) ni vers une
 API externe. Pour que la page se mette à jour ensuite, lis la route `en direct`.
 
-**Sur le web**, ces phrases marchent aussi, avec les API du navigateur, sur le moteur comme avec
-React. `photo` ouvre l'appareil photo sur un téléphone et le choix d'un fichier sur un ordinateur.
+**Sur le web**, ces phrases marchent aussi, avec les API du navigateur.
+`photo` ouvre l'appareil photo sur un téléphone et le choix d'un fichier sur un ordinateur.
 `scanner code` demande un navigateur qui sait lire les codes (Chrome sur Android ou sur Mac, par
 exemple) ; sinon la personne le lit. `verifier identite` passe par Touch ID, Face ID ou Windows
 Hello : cela reste sur l'appareil et ne protège pas le serveur, seules les règles du serveur le
@@ -3431,8 +3431,7 @@ page "carte" :
 
 Chaque page est alors écrite d'avance dans chaque langue, avec les liens qui
 relient ses versions pour les moteurs de recherche. La page arrive déjà dans sa
-langue, sans attendre un script. Cela marche sur le site web, avec le moteur de
-Humalis comme avec React.
+langue, sans attendre un script. Cela marche sur le site web.
 
 Cette option s'écrit seulement sur la forme en une ligne : `langues : francais,
 anglais avec adresse par langue`.
@@ -3511,9 +3510,9 @@ page "boutique" :
     Fiche avec nom "Stylo" et prix 2
 ```
 
-### Un composant React
+### Reprendre un composant React
 
-Un composant React existant s'utilise comme un composant Humalis (web et
+Un composant d'un ancien projet React s'utilise comme un composant Humalis (web et
 desktop) :
 
 ```humalis
@@ -3525,28 +3524,11 @@ page "accueil" :
 ```
 
 Le fichier peut être en `.tsx`, `.ts`, `.jsx` ou `.js`. Les paquets qu'il
-importe (`three`, `gsap`…) sont ajoutés tout seuls au projet produit : il suffit
-de lancer `npm install`.
-
-Humalis ne dessine pas de 3D lui-même : écris la scène dans un composant React.
-
-```humalis
-utiliser composant "Scene3D" depuis "./composants/Scene3D"
-
-page "accueil" :
-    titre "Mon portfolio"
-    Scene3D avec couleur "#c1e928"
-```
-
-Un composant qui importe `three` ou `@react-three/…` est chargé à part : le texte
-de la page s'affiche sans attendre la 3D. Ces paquets ont des versions essayées
-ensemble : `three`, `@react-three/fiber`, `@react-three/drei`,
-`@react-three/postprocessing`, `postprocessing`, `gsap` et `lenis`. Un autre paquet
-est installé dans sa dernière version.
+importe sont ajoutés tout seuls au projet produit : il suffit de lancer `npm install`.
 
 ### Un module JavaScript
 
-Pour utiliser une bibliothèque JavaScript sans React (Three.js, GSAP…), écris un
+Pour utiliser une bibliothèque JavaScript (Three.js pour la 3D, GSAP…), écris un
 module. Il reçoit l'élément où dessiner et ses propriétés, et rend une fonction
 qui nettoie quand on quitte la page (web et desktop) :
 
@@ -3575,7 +3557,7 @@ propriété change, il est relancé. S'il sait se mettre à jour lui-même, il r
 Quand Humalis ne sait pas encore dessiner quelque chose, écris ce morceau dans la
 langue de la plateforme : Swift pour iPhone, iPad et Mac, Kotlin pour Android, C# pour
 Windows. Pas de
-React, pas de navigateur : chaque application reste native. Une seule ligne donne
+navigateur embarqué : chaque application reste native. Une seule ligne donne
 la vue de chaque plateforme :
 
 ```humalis
@@ -3639,8 +3621,8 @@ version "1.2"` pour Apple (voir plus haut), `paquet windows "Humanizer.Core" ver
 "2.14.1"` pour Windows (NuGet), `paquet android "io.coil-kt:coil-compose" version "2.7.0"`
 pour Android (Gradle).
 
-Dans l'autre sens, `humalis compile … --composants <dossier>` produit des
-composants React à importer dans un projet React existant.
+Pour un ancien projet React, `humalis compile … --composants <dossier>` produit des
+composants à y importer.
 
 ### Les formes propres aux applications
 
@@ -3964,7 +3946,7 @@ chose de faux.
 | Raccourcis clavier | oui | oui | non | oui | oui | oui (clavier branché) | oui |
 | Vue native écrite à la main | non | non | non | non | oui (Swift, `sur apple`) | oui (Kotlin, `sur android`) | oui (C#, `sur windows`) |
 | Composants React (anciens projets) | oui | non | oui (en React Native) | oui | non | non | non |
-| Le moteur sans React (par défaut) | oui | non | non | oui (sauf composant React ou `memorisee en secret`) | non | non | non |
+| Le moteur Humalis (par défaut) | oui | non | non | oui (sauf composant React ou `memorisee en secret`) | non | non | non |
 | Graphiques, cartes, audio, vidéo, fichiers | oui | oui | en partie | oui | oui | oui | oui |
 | Plusieurs langues | oui | oui | oui | oui | oui | oui | oui |
 | Photo, scanner, Face ID, vibration, signature, hors ligne | oui (vibration : Android) | non | non | non | oui | oui | non |
@@ -4110,7 +4092,7 @@ lancement : « Informations complémentaires », puis « Exécuter quand même �
 
 ### Le moteur de rendu de Humalis
 
-Le site web est produit sans React, par le moteur de Humalis : c'est le défaut.
+Le site web est produit par le moteur de Humalis : c'est le défaut.
 
 ```sh
 humalis compile site.humalis --cible web --sortie site
@@ -4118,27 +4100,25 @@ humalis compile site.humalis --cible web --sortie site
 
 Chaque page est un fichier HTML déjà écrit par le compilateur, qu'un petit
 script reprend sans le reconstruire. Quand une variable change, seul ce qui la
-lit change. Pour garder React, écris `--moteur react`, ou une fois pour un projet
+lit change. Le site peut aussi être produit en React : écris `--moteur react`, ou une fois pour un projet
 dans `humalis.projet.json` : `"moteur": "react"` ; `humalis developper` et
-`humalis tester` s'en servent aussi. Un dossier déjà produit avec React le reste, et
-un programme qui emploie ce que le moteur ne sait pas encore faire est produit avec
-React : la compilation dit pourquoi.
+`humalis tester` s'en servent aussi. Un programme qui emploie ce que le moteur ne sait pas
+encore faire est produit en React : la compilation dit pourquoi.
 
-L'application de bureau prend aussi les pages du moteur, une par adresse, sans
-React. Elle garde React pour un composant React ou une valeur `memorisee en secret`.
+L'application de bureau prend aussi les pages du moteur, une par adresse. Elle
+passe en React pour un composant React ou une valeur `memorisee en secret`.
 
-Les modules (`utiliser module`), les composants React, Vue et Svelte et les Web
+Les modules (`utiliser module`), les composants (React, Vue, Svelte) et les Web
 Components marchent de la même façon : le fichier n'est chargé que par les pages qui s'en
 servent. Tout ce qui s'affiche après le chargement (ce qui vient du serveur,
-un composant React) n'est pas dans le HTML de départ.
+un composant) n'est pas dans le HTML de départ.
 
 Un clic fait avant que la page soit prête n'est pas perdu : il est rejoué dès
 qu'elle l'est.
 
 `pour chaque t dans taches avec animation :` fait glisser les lignes quand la
 liste change, et apparaître en fondu celles qui arrivent (sauf si la personne a
-demandé moins d'animations). Cela marche sur le web, avec ce moteur comme avec
-React : ailleurs, le compilateur le dit et les lignes changent sans glisser.
+demandé moins d'animations). Cela marche sur le web : ailleurs, le compilateur le dit et les lignes changent sans glisser.
 
 #### Le temps réel
 
@@ -4154,8 +4134,7 @@ page "commandes" :
 
 Une commande créée ailleurs apparaît seule, sans recharger. Le serveur annonce
 seulement « ça a changé » : la page relit ensuite la route normale, avec ses droits,
-donc rien de privé ne passe par ce canal. Cela marche sur le web (avec ce moteur
-comme avec React), sur le bureau, sur Apple, sur Android et sur Windows. Après une
+donc rien de privé ne passe par ce canal. Cela marche sur le web, sur le bureau, sur Apple, sur Android et sur Windows. Après une
 coupure, la page se reconnecte seule et rattrape ce qui a changé. La cible `mobile`
 (Expo) et les pages statiques lisent la liste une fois, et la compilation le dit.
 
