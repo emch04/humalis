@@ -82,7 +82,13 @@ const allerA = async (p, nom) => {
   await p.goto(`${adresse}/${nom}`);
   await p.waitForLoadState('networkidle').catch(() => undefined);
 };
-const videoVivante = (p, n = 1) => p.waitForFunction((min) => [...document.querySelectorAll('humalis-reunion video')].filter((v) => v.videoWidth > 0 && !v.paused).length >= min, n, { timeout: 15000 }).then(() => true, () => false);
+const videoVivante = async (p, n = 1) => {
+  // Une page cachée voit ses vidéos suspendues par LiveKit (adaptiveStream) : comme une personne, on regarde la page qu'on vérifie.
+  await p.bringToFront().catch(() => undefined);
+  const ok = await p.waitForFunction((min) => [...document.querySelectorAll('humalis-reunion video')].filter((v) => v.videoWidth > 0 && !v.paused).length >= min, n, { timeout: 20000 }).then(() => true, () => false);
+  if (!ok) console.log('  images :', JSON.stringify(await p.evaluate(() => [document.visibilityState, ...[...document.querySelectorAll('humalis-reunion figure')].map((f) => [f.querySelector('video')?.videoWidth ?? 'sans video', f.querySelector('video')?.paused, f.querySelector('video')?.readyState, f.textContent])])));
+  return ok;
+};
 
 try {
   const awa = await connecter('awa@essai.test');
@@ -179,12 +185,15 @@ try {
     const chemin = readFileSync(join(bureau, 'node_modules/electron/path.txt'), 'utf8').trim();
     const application = await _electron.launch({ executablePath: join(bureau, 'node_modules/electron/dist', chemin), args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', bureau], env: { ...process.env, HUMALIS_SERVEUR: base } });
     const fenetre = await application.firstWindow();
+    fenetre.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') console.log(`  [bureau] ${m.text()}`.slice(0, 220)); });
     await fenetre.getByRole('heading', { name: 'Agence' }).waitFor();
     const statut = await fenetre.evaluate(async ([e, m]) => (await fetch('/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: e, password: m }) })).status, ['dia@essai.test', MOT]);
     verifier(statut === 200, 'bureau : la connexion passe par le relais');
     await fenetre.evaluate(() => { location.href = '/conseil'; });
     await fenetre.getByRole('button', { name: 'Rejoindre' }).click();
-    verifier(await videoVivante(fenetre, 3), 'bureau : Electron voit les images de la réunion');
+    const vuParElectron = await videoVivante(fenetre, 3);
+    if (!vuParElectron) console.log('  Electron :', JSON.stringify(await fenetre.evaluate(() => [...document.querySelectorAll('humalis-reunion video')].map((v) => [v.videoWidth, v.paused, v.readyState, v.muted]))));
+    verifier(vuParElectron, 'bureau : Electron voit les images de la réunion');
     verifier(await videoVivante(awa, 3), 'bureau : le navigateur voit l’image d’Electron');
     await application.close();
   }

@@ -195,6 +195,8 @@ function monterSalles(app: Application, o: Options, voir: (req: Request) => Moi,
         }
       }
       annoncer();
+      // LiveKit peut prendre un instant pour refléter le geste : une seconde annonce rattrape l'état.
+      if (geste !== 'etat') setTimeout(annoncer, 1500).unref();
       res.status(201).json({ id: nom, salle: nom, participant: '', geste });
     } catch (erreur) {
       next(erreur);
