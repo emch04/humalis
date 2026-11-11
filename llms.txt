@@ -19,7 +19,8 @@ Humalis est un langage en français. Un fichier .humalis décrit des pages, des 
 - Dans `{nom}`, les accolades n’acceptent qu’un nom de variable, sans calcul ni phrase.
 - Un événement s’écrit sous l’élément concerné, jamais comme une instruction isolée.
 - Utilise des espaces, jamais des tabulations ; indentation par multiples de 4.
-- La 3D n’existe pas dans le langage : écris la scène dans un composant React (`.tsx` ou `.jsx`) et utilise-le avec `utiliser composant "Scene3D" depuis "./composants/Scene3D"`. Ses paquets (`three`, `gsap`…) sont ajoutés seuls au projet.
+- Pour essayer un fichier sans projet : `humalis lancer mon-fichier.humalis`.
+- La 3D s’écrit dans un module JavaScript, utilisé avec `utiliser module "Scene3D" depuis "./modules/Scene3D"`. Ses paquets (`three`, `gsap`…) sont ajoutés seuls au projet.
 
 ## Exemple complet vérifié
 
@@ -102,6 +103,121 @@ Un saut de ligne dans un texte.
 page "accueil" :
     titre "Adresse"
     texte "12 rue des Lilas{a la ligne}Lyon"
+```
+
+### widget "…" :
+
+En haut du fichier, une forme d’application : widget de l’écran d’accueil, activité en direct, tuile, commande vocale, clavier, menu clic droit, page sur montre ou dans la barre du système. Ce qui s’affiche s’écrit comme une page ; ce qui agit, comme un événement.
+
+```humalis
+variable solde = 120 avec partagee
+
+widget "solde" avec taille petite :
+    texte "{solde} €"
+    actualiser toutes les 30 minutes
+
+commande vocale "Mon solde" :
+    dire "Votre solde est de {solde} €"
+
+page "accueil" :
+    titre "Accueil"
+```
+
+### quand une erreur arrive :
+
+En haut du fichier : reçoit chaque erreur non rattrapée de l’application, avec erreur.message, erreur.pile, erreur.page et erreur.version.
+
+```humalis
+quand une erreur arrive :
+    envoyer requete vers "https://centrale.exemple.fr/v1/envoi" avec message = erreur.message et pile = erreur.pile
+
+page "accueil" :
+    titre "Accueil"
+```
+
+### enregistrer audio dans …
+
+Les médias de l’appareil : enregistrer audio, enregistrer video, scanner document dans une variable, et recadrer photo.
+
+```humalis
+page "memo" :
+    titre "Mémo"
+    variable note = rien
+    bouton "Audio"
+    quand l'utilisateur clique sur "Audio" :
+        enregistrer audio dans note
+```
+
+### donnee locale … avec chiffree :
+
+Une donnée gardée sur l’appareil, lue comme une liste ; « avec chiffree » la chiffre, « synchronisee avec "route" » l’envoie au serveur quand le réseau revient.
+
+```humalis
+serveur "carnet" :
+    donnee note :
+        titre : texte
+    route "notes" :
+        connecte peut lire note
+        connecte peut creer note
+        connecte peut modifier note
+        connecte peut supprimer note
+
+donnee locale notes avec chiffree :
+    titre : texte
+    synchronisee avec "notes"
+
+page "accueil" :
+    titre "Notes"
+    pour chaque n dans notes :
+        texte n.titre
+```
+
+### connexion par cle d'acces
+
+Dans le serveur : les clés d’accès (Face ID, Touch ID, Windows Hello) et « double authentification » (le code à six chiffres). Dans les pages : se connecter par cle d’acces, ajouter cle d’acces, activer double authentification.
+
+```humalis
+serveur "boutique" :
+    connexion par cle d'acces
+    double authentification
+    donnee note :
+        titre : texte
+    route "notes" :
+        connecte peut lire note
+
+page "compte" :
+    titre "Compte"
+    bouton "Ajouter une clé"
+    quand l'utilisateur clique sur "Ajouter une clé" :
+        ajouter cle d'acces
+```
+
+### discussion "…" entre … et …
+
+Le temps réel : une discussion déclarée dans le serveur, montrée dans une page ; « appeler en video », « salle … pour … animee par … » et « reunion "…" » font les appels et les réunions (LiveKit, par les variables d’environnement LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET).
+
+```humalis
+serveur "boutique" :
+    roles client et agent
+    discussion "support" entre client et agent
+
+page "accueil" :
+    titre "Support"
+    discussion "support"
+    quand un message arrive dans "support" :
+        afficher message.texte
+```
+
+### utiliser composant "…" sur apple "…"
+
+Une porte de sortie native : une vue écrite en Swift, Kotlin ou C#, avec ses bibliothèques (paquet swift, paquet android, paquet windows). « utiliser style "…" sur apple » fait de même pour un style.
+
+```humalis
+paquet windows "Humanizer.Core" version "2.14.1"
+utiliser composant "Carte" sur apple "./natif/Carte.swift" et sur android "./natif/Carte.kt" et sur windows "./natif/Carte.cs"
+
+page "vitrine" :
+    Carte avec titre "Café" et prix 3.5
 ```
 
 ### désactivé

@@ -57,7 +57,9 @@ humalis developper
 ```sh
 humalis compile my-project.humalis --cible web --sortie my-project-web
 humalis compile my-project.humalis --cible statique --sortie my-project-static
-humalis compile my-project.humalis --cible mobile --sortie my-project-mobile
+humalis compile my-project.humalis --cible apple --sortie my-project-apple
+humalis compile my-project.humalis --cible android --sortie my-project-android
+humalis compile my-project.humalis --cible windows --sortie my-project-windows
 humalis compile my-project.humalis --cible desktop --sortie my-project-desktop
 humalis compile my-project.humalis --cible serveur --sortie my-project-server   # if the file has a « serveur "…" : » block
 ```
@@ -66,11 +68,12 @@ humalis compile my-project.humalis --cible serveur --sortie my-project-server   
 
 | Target | What Humalis produces |
 |---|---|
-| `web` | a React + Vite project, prerendered (one HTML page per address) |
+| `web` | a light site, prerendered (one HTML page per address) |
 | `statique` | static HTML, CSS and JavaScript pages, no build step |
 | `serveur` | a Node server with the [Astratra](https://github.com/emch04/framework) packs (login, permissions, sessions) |
-| `mobile` | an Expo app (iPhone, Android) |
-| `desktop` | an Electron app (Mac, Windows, Linux) |
+| `android` | a native Kotlin and Jetpack Compose app |
+| `windows` | a native C# and WPF app (Windows 10 and 11) |
+| `desktop` | an Electron app: the Linux target |
 | `apple` | a native SwiftUI app (iPhone, iPad and Mac), with no embedded browser |
 
 When a construct does not exist yet on a target, the compiler says so clearly instead of producing something wrong.

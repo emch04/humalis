@@ -23,6 +23,7 @@ page "antiseche" a l'adresse "/antiseche" :
             lien "Le site, les langues et le reste" en anglais "The site, languages and the rest" vers "#site"
             lien "Les commandes" en anglais "Commands" vers "#commandes"
             lien "Les pièges" en anglais "Common traps" vers "#pieges"
+            lien "Médias" en anglais "Media" vers "#medias"
         bloc avec ancre "ecrire" et style "aide-section" :
             soustitre "Écrire" en anglais "Writing"
             bloc avec style "aide-entrees" :
@@ -355,6 +356,14 @@ page "antiseche" a l'adresse "/antiseche" :
                         page "vitrine" :
                             Carte avec titre "Café" et prix 3.5
                 bloc avec style "aide-entree" :
+                    texte "Les bibliothèques de ces vues : Swift, NuGet, Gradle" en anglais "The libraries of these views: Swift, NuGet, Gradle" avec style "aide-besoin"
+                    code humalis :
+                        paquet android "io.coil-kt:coil-compose" version "2.7.0"
+                        paquet windows "Humanizer.Core" version "2.14.1"
+
+                        page "accueil" :
+                            titre "Accueil"
+                bloc avec style "aide-entree" :
                     texte "Un widget pour l'écran d'accueil" en anglais "A home screen widget" avec style "aide-besoin"
                     code humalis :
                         variable solde = 120 avec partagee
@@ -465,6 +474,60 @@ page "antiseche" a l'adresse "/antiseche" :
 
                         page "accueil" :
                             titre "Accueil"
+                bloc avec style "aide-entree" :
+                    texte "Une tuile, des raccourcis sur l'icône, un clavier" en anglais "A tile, icon shortcuts, a keyboard" avec style "aide-besoin"
+                    code humalis :
+                        raccourcis de l'icone :
+                            raccourci "Mon compte" vers "accueil" avec icone "user"
+
+                        tuile "Pointer" avec icone "clock" :
+                            afficher "Pointé"
+
+                        clavier "Réponses rapides" :
+                            touche "Merci" ecrit "Merci beaucoup !"
+
+                        page "accueil" :
+                            titre "Accueil"
+                bloc avec style "aide-entree" :
+                    texte "Sur l'ordinateur : clic droit, barre du système, démarrage" en anglais "On the computer: right-click, system bar, startup" avec style "aide-besoin"
+                    code humalis :
+                        menu clic droit "Envoyer" pour les fichiers ".jpg" et ".png" :
+                            afficher "Reçu {fichier.nom}"
+
+                        lancer au demarrage de l'ordinateur avec discret
+
+                        page "rapide" dans la barre du systeme avec icone "clock" :
+                            titre "Rapide"
+                bloc avec style "aide-entree" :
+                    texte "Une page pour la montre ou la télévision" en anglais "A page for the watch or the TV" avec style "aide-besoin"
+                    code humalis :
+                        page "minuteur" sur montre :
+                            titre "Minuteur"
+                bloc avec style "aide-entree" :
+                    texte "Des données gardées sur l'appareil, chiffrées et synchronisées" en anglais "Data kept on the device, encrypted and synced" avec style "aide-besoin"
+                    code humalis :
+                        serveur "carnet" :
+                            donnee note :
+                                titre : texte
+                                lu : booleen
+                            route "notes" :
+                                connecte peut lire note
+                                connecte peut creer note
+                                connecte peut modifier note
+                                connecte peut supprimer note
+
+                        donnee locale notes avec chiffree :
+                            titre : texte
+                            lu : booleen
+                            synchronisee avec "notes"
+
+                        page "accueil" :
+                            titre "Notes"
+                            pour chaque n dans notes :
+                                texte n.titre
+                            bouton "Ajouter"
+                            quand l'utilisateur clique sur "Ajouter" :
+                                ajouter fiche avec titre "Nouvelle" et lu faux a notes
         bloc avec ancre "variables" et style "aide-section" :
             soustitre "Les variables et les calculs" en anglais "Variables and calculations"
             bloc avec style "aide-entrees" :
@@ -859,6 +922,28 @@ page "antiseche" a l'adresse "/antiseche" :
                         demander un lien de mot de passe pour champ "Email"
                         choisir le mot de passe avec champ "Nom"
                         changer le mot de passe avec champ "Nom" et champ "Email"
+                bloc avec style "aide-entree" :
+                    texte "Se connecter par clé d'accès, activer le code à six chiffres" en anglais "Sign in with a passkey, turn on the six-digit code" avec style "aide-besoin"
+                    code humalis :
+                        serveur "boutique" :
+                            connexion par cle d'acces
+                            double authentification
+                            donnee note :
+                                titre : texte
+                            route "notes" :
+                                connecte peut lire note
+
+                        page "compte" :
+                            titre "Compte"
+                            bouton "Face ID"
+                            quand l'utilisateur clique sur "Face ID" :
+                                se connecter par cle d'acces
+                            bouton "Ajouter une clé"
+                            quand l'utilisateur clique sur "Ajouter une clé" :
+                                ajouter cle d'acces
+                            bouton "Code à six chiffres"
+                            quand l'utilisateur clique sur "Code à six chiffres" :
+                                activer double authentification
         bloc avec ancre "site" et style "aide-section" :
             soustitre "Le site, les langues et le reste" en anglais "The site, languages and the rest"
             bloc avec style "aide-entrees" :
@@ -930,7 +1015,7 @@ page "antiseche" a l'adresse "/antiseche" :
                 bloc avec style "aide-entree" :
                     texte "Ajouter une scène 3D" en anglais "Add a 3D scene" avec style "aide-besoin"
                     code humalis :
-                        utiliser composant "Scene3D" depuis "./composants/Scene3D"
+                        utiliser module "Scene3D" depuis "./modules/Scene3D"
 
                         page "accueil" :
                             Scene3D avec couleur "#c1e928"
@@ -954,6 +1039,10 @@ page "antiseche" a l'adresse "/antiseche" :
                         npm install -g humalis
                         humalis nouveau mon-projet
                 bloc avec style "aide-entree" :
+                    texte "Lancer un fichier tout de suite, sans rien installer" en anglais "Run a file right away, without installing anything" avec style "aide-besoin"
+                    code terminal :
+                        humalis lancer mon-fichier.humalis
+                bloc avec style "aide-entree" :
                     texte "Voir le site pendant que tu écris" en anglais "See the site as you write" avec style "aide-besoin"
                     code terminal :
                         humalis developper
@@ -973,10 +1062,6 @@ page "antiseche" a l'adresse "/antiseche" :
                     texte "Produire le projet : web, statique, mobile, desktop ou serveur" en anglais "Build the project: web, statique, mobile, desktop or serveur" avec style "aide-besoin"
                     code terminal :
                         humalis compile mon-projet.humalis --cible web --sortie mon-site
-                bloc avec style "aide-entree" :
-                    texte "Le site est produit sans React ; `--moteur react` le garde" en anglais "The site is built without React; `--moteur react` keeps it" avec style "aide-besoin"
-                    code terminal :
-                        humalis compile mon-projet.humalis --cible web --moteur react --sortie mon-site
         bloc avec ancre "pieges" et style "aide-section" :
             soustitre "Les pièges" en anglais "Common traps"
             bloc avec style "aide-entrees" :
@@ -1115,12 +1200,12 @@ page "antiseche" a l'adresse "/antiseche" :
                     code humalis :
                         quand une erreur arrive :
                             envoyer requete vers "https://centrale.exemple.fr/v1/envoi" avec message = erreur.message et pile = erreur.pile
-
-                        ## Médias | Media | medias
-
-                        ### Enregistrer ou recadrer | Record or crop
-
-                        ```humalis
+        bloc avec ancre "medias" et style "aide-section" :
+            soustitre "Médias" en anglais "Media"
+            bloc avec style "aide-entrees" :
+                bloc avec style "aide-entree" :
+                    texte "Enregistrer ou recadrer" en anglais "Record or crop" avec style "aide-besoin"
+                    code humalis :
                         page "memo" :
                             titre "Mémo"
                             variable note = rien

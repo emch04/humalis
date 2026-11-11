@@ -57,18 +57,21 @@ humalis developper
 ```sh
 humalis compile mon-projet.humalis --cible web --sortie mon-projet-web
 humalis compile mon-projet.humalis --cible statique --sortie mon-projet-statique
-humalis compile mon-projet.humalis --cible mobile --sortie mon-projet-mobile
+humalis compile mon-projet.humalis --cible apple --sortie mon-projet-apple
+humalis compile mon-projet.humalis --cible android --sortie mon-projet-android
+humalis compile mon-projet.humalis --cible windows --sortie mon-projet-windows
 humalis compile mon-projet.humalis --cible desktop --sortie mon-projet-desktop
 humalis compile mon-projet.humalis --cible serveur --sortie mon-projet-serveur   # si le fichier a un bloc « serveur "…" : »
 ```
 
 | Cible | Ce que Humalis produit |
 |---|---|
-| `web` | un projet React + Vite, prérendu (une page HTML par adresse) |
+| `web` | un site léger, prérendu (une page HTML par adresse) |
 | `statique` | des pages HTML, CSS et JavaScript, sans construction |
 | `serveur` | un serveur Node avec les packs [Astratra](https://github.com/emch04/framework) (connexion, droits, sessions) |
-| `mobile` | une application Expo (iPhone, Android) |
-| `desktop` | une application Electron (Mac, Windows, Linux) |
+| `android` | une application native en Kotlin et Jetpack Compose |
+| `windows` | une application native en C# et WPF (Windows 10 et 11) |
+| `desktop` | une application Electron : la cible Linux |
 | `apple` | une application native en SwiftUI (iPhone, iPad et Mac), sans navigateur embarqué |
 
 Quand une construction n'existe pas encore sur une cible, le compilateur le dit clairement au lieu de produire quelque chose de faux.

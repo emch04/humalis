@@ -392,6 +392,15 @@ page "vitrine" :
     Carte avec titre "Café" et prix 3.5
 ```
 
+### Les bibliothèques de ces vues : Swift, NuGet, Gradle | The libraries of these views: Swift, NuGet, Gradle
+```humalis racine
+paquet android "io.coil-kt:coil-compose" version "2.7.0"
+paquet windows "Humanizer.Core" version "2.14.1"
+
+page "accueil" :
+    titre "Accueil"
+```
+
 ### Un widget pour l'écran d'accueil | A home screen widget
 ```humalis racine
 variable solde = 120 avec partagee
@@ -509,6 +518,64 @@ commande vocale "Mon solde" :
 
 page "accueil" :
     titre "Accueil"
+```
+
+### Une tuile, des raccourcis sur l'icône, un clavier | A tile, icon shortcuts, a keyboard
+```humalis racine
+raccourcis de l'icone :
+    raccourci "Mon compte" vers "accueil" avec icone "user"
+
+tuile "Pointer" avec icone "clock" :
+    afficher "Pointé"
+
+clavier "Réponses rapides" :
+    touche "Merci" ecrit "Merci beaucoup !"
+
+page "accueil" :
+    titre "Accueil"
+```
+
+### Sur l'ordinateur : clic droit, barre du système, démarrage | On the computer: right-click, system bar, startup
+```humalis racine
+menu clic droit "Envoyer" pour les fichiers ".jpg" et ".png" :
+    afficher "Reçu {fichier.nom}"
+
+lancer au demarrage de l'ordinateur avec discret
+
+page "rapide" dans la barre du systeme avec icone "clock" :
+    titre "Rapide"
+```
+
+### Une page pour la montre ou la télévision | A page for the watch or the TV
+```humalis racine
+page "minuteur" sur montre :
+    titre "Minuteur"
+```
+
+### Des données gardées sur l'appareil, chiffrées et synchronisées | Data kept on the device, encrypted and synced
+```humalis complet
+serveur "carnet" :
+    donnee note :
+        titre : texte
+        lu : booleen
+    route "notes" :
+        connecte peut lire note
+        connecte peut creer note
+        connecte peut modifier note
+        connecte peut supprimer note
+
+donnee locale notes avec chiffree :
+    titre : texte
+    lu : booleen
+    synchronisee avec "notes"
+
+page "accueil" :
+    titre "Notes"
+    pour chaque n dans notes :
+        texte n.titre
+    bouton "Ajouter"
+    quand l'utilisateur clique sur "Ajouter" :
+        ajouter fiche avec titre "Nouvelle" et lu faux a notes
 ```
 
 ## Les variables et les calculs | Variables and calculations | variables
@@ -957,6 +1024,29 @@ choisir le mot de passe avec champ "Nom"
 changer le mot de passe avec champ "Nom" et champ "Email"
 ```
 
+### Se connecter par clé d'accès, activer le code à six chiffres | Sign in with a passkey, turn on the six-digit code
+```humalis complet
+serveur "boutique" :
+    connexion par cle d'acces
+    double authentification
+    donnee note :
+        titre : texte
+    route "notes" :
+        connecte peut lire note
+
+page "compte" :
+    titre "Compte"
+    bouton "Face ID"
+    quand l'utilisateur clique sur "Face ID" :
+        se connecter par cle d'acces
+    bouton "Ajouter une clé"
+    quand l'utilisateur clique sur "Ajouter une clé" :
+        ajouter cle d'acces
+    bouton "Code à six chiffres"
+    quand l'utilisateur clique sur "Code à six chiffres" :
+        activer double authentification
+```
+
 ## Le site, les langues et le reste | The site, languages and the rest | site
 
 ### Présenter le site | Describe the site
@@ -1035,7 +1125,7 @@ page "vitrine" :
 
 ### Ajouter une scène 3D | Add a 3D scene
 ```humalis racine
-utiliser composant "Scene3D" depuis "./composants/Scene3D"
+utiliser module "Scene3D" depuis "./modules/Scene3D"
 
 page "accueil" :
     Scene3D avec couleur "#c1e928"
@@ -1061,6 +1151,11 @@ npm install -g humalis
 humalis nouveau mon-projet
 ```
 
+### Lancer un fichier tout de suite, sans rien installer | Run a file right away, without installing anything
+```terminal
+humalis lancer mon-fichier.humalis
+```
+
 ### Voir le site pendant que tu écris | See the site as you write
 ```terminal
 humalis developper
@@ -1084,11 +1179,6 @@ humalis tester
 ### Produire le projet : web, statique, mobile, desktop ou serveur | Build the project: web, statique, mobile, desktop or serveur
 ```terminal
 humalis compile mon-projet.humalis --cible web --sortie mon-site
-```
-
-### Le site est produit sans React ; `--moteur react` le garde | The site is built without React; `--moteur react` keeps it
-```terminal
-humalis compile mon-projet.humalis --cible web --moteur react --sortie mon-site
 ```
 
 ## Les pièges | Common traps | pieges
@@ -1228,6 +1318,7 @@ afficher "Prêt" pendant 3 secondes
 ```humalis
 quand une erreur arrive :
     envoyer requete vers "https://centrale.exemple.fr/v1/envoi" avec message = erreur.message et pile = erreur.pile
+```
 
 ## Médias | Media | medias
 

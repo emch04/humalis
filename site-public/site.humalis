@@ -25,7 +25,7 @@ site :
 
 traductions anglais :
     "Humalis" : "Humalis"
-    "Écris ton application comme une phrase avec Humalis : découvre le langage, ses cinq cibles et ses possibilités." : "Write your app like a sentence with Humalis: discover the language, its five targets and what it can do."
+    "Écris ton application comme une phrase avec Humalis : découvre le langage, ses plateformes natives et ses possibilités." : "Write your app like a sentence with Humalis: discover the language, its native platforms and what it can do."
     "Humalis, le langage en français qui transforme un seul fichier en applications web, mobile, bureau, site statique et serveur." : "Humalis, the French language that turns one file into web, mobile, desktop, static site and server applications."
 
 theme :
