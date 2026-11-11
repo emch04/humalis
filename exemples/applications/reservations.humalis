@@ -1,0 +1,39 @@
+# Des réservations payées en ligne : chacun voit les siennes, l'administration voit tout,
+# et le serveur n'enregistre le paiement que lorsque Stripe le confirme.
+serveur "salon" :
+    paiements par stripe
+    donnee reservation :
+        nom : texte
+        total : nombre
+    route "reservations" :
+        connecte peut lire reservation
+        connecte peut creer reservation
+        seul admin peut modifier reservation
+        quand reservation est payee :
+            creer journal avec nom reservation.nom
+    donnee journal :
+        nom : texte
+    route "journaux" :
+        seul admin peut lire journal
+        seul admin peut modifier journal
+
+page "connexion" :
+    titre "Connexion"
+    formulaire "entrer" :
+        champ email "Email" avec obligatoire
+        champ mot de passe "Mot de passe" avec obligatoire
+        bouton "Se connecter"
+    quand le formulaire "entrer" est soumis :
+        se connecter avec champ "Email" et champ "Mot de passe"
+        rediriger vers "reserver"
+
+page "reserver" reservee a connecte sinon vers "connexion" :
+    variable reservations = []
+    titre "Mes réservations"
+    quand la page se charge :
+        envoyer requete vers "reservations" dans reservations
+    pour chaque r dans reservations :
+        texte "{r.nom} : {r.total} €"
+        bouton "Payer"
+        quand l'utilisateur clique sur "Payer" :
+            payer total pour r

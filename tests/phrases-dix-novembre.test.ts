@@ -224,6 +224,16 @@ describe('« avec adresse par langue » sur le moteur Humalis', () => {
     expect(f.get('en/index.html')).toContain('href="/en/menu"');
     expect(f.get('src/humalis/navigation.js')).toContain('const LANGUES_ADRESSE = ["en"];');
   });
+  it('met les pages de chaque langue dans le plan du site, reliées entre elles', async () => {
+    const { genererProjetMoteur } = await import('../src/cibles/moteur/projet.js');
+    const f = genererProjetMoteur(sansErreur(programme('site :', '>nom "Le Comptoir"', '>description "Une cuisine de saison au cœur de la ville, ouverte du lundi au samedi."', 'langues : francais, anglais avec adresse par langue', '', 'page "accueil" :', '>titre "Bienvenue" en anglais "Welcome"', 'page "menu" :', '>titre "Le menu" en anglais "The menu"')), { nom: 'a', source: 'a.humalis', adresse: 'https://exemple.test' } as never);
+    const plan = f.get('public/sitemap.xml')!;
+    expect(plan).toContain('<loc>https://exemple.test/menu</loc>');
+    expect(plan).toContain('<loc>https://exemple.test/en/menu</loc>');
+    expect(plan).toContain('<loc>https://exemple.test/en/</loc>');
+    expect(plan).toContain('hreflang="en" href="https://exemple.test/en/menu"');
+    expect(plan).toContain('xmlns:xhtml="http://www.w3.org/1999/xhtml"');
+  });
 });
 
 describe('l’application de bureau sur le moteur Humalis', () => {

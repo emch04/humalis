@@ -1,0 +1,31 @@
+# Un carnet qui marche sans réseau : les notes sont chiffrées sur l'appareil et partent
+# au serveur quand le réseau revient. On s'y connecte par Face ID, Touch ID ou Windows Hello.
+serveur "carnet" :
+    connexion par cle d'acces
+    double authentification
+    donnee note :
+        titre : texte
+        faite : booleen
+    route "notes" :
+        connecte peut lire note
+        connecte peut creer note
+        connecte peut modifier note
+        connecte peut supprimer note
+
+donnee locale notes avec chiffree :
+    titre : texte
+    faite : booleen
+    synchronisee avec "notes"
+
+page "carnet" :
+    titre "Mon carnet"
+    formulaire "nouvelle" :
+        champ texte "Note" avec obligatoire
+        bouton "Ajouter"
+    quand le formulaire "nouvelle" est soumis :
+        ajouter fiche avec titre champ "Note" et faite faux a notes
+    pour chaque n dans notes :
+        texte n.titre
+    bouton "Se connecter avec Face ID"
+    quand l'utilisateur clique sur "Se connecter avec Face ID" :
+        se connecter par cle d'acces

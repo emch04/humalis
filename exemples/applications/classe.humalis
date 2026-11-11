@@ -1,0 +1,20 @@
+# Une classe en ligne : le professeur anime, les élèves lèvent la main,
+# et le professeur peut couper un micro.
+serveur "ecole" :
+    roles eleve et professeur
+    salle "classe" pour eleve et professeur animee par professeur
+
+page "classe" :
+    titre "Cours du jour"
+    reunion "classe"
+    bouton "Lever la main"
+    quand l'utilisateur clique sur "Lever la main" :
+        lever la main
+    bouton "Partager mon écran"
+    quand l'utilisateur clique sur "Partager mon écran" :
+        partager ecran
+    pour chaque p dans participants de reunion "classe" :
+        texte p.nom
+        bouton "Couper"
+        quand l'utilisateur clique sur "Couper" :
+            couper micro de p

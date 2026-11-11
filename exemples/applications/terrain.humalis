@@ -1,0 +1,30 @@
+# Un rapport de terrain : une photo recadrée, un mémo vocal, un document scanné,
+# un widget qui compte les rapports, et chaque erreur envoyée à ta surveillance.
+variable rapports = 0 avec partagee
+
+widget "rapports" avec taille petite :
+    texte "{rapports} rapports aujourd'hui"
+    actualiser toutes les 30 minutes
+
+quand une erreur arrive :
+    envoyer requete vers "https://surveillance.exemple.fr/erreurs" avec message = erreur.message et page = erreur.page
+
+page "rapport" :
+    titre "Nouveau rapport"
+    variable cliche = rien
+    variable memo = rien
+    variable bon = rien
+    bouton "Prendre une photo"
+    quand l'utilisateur clique sur "Prendre une photo" :
+        photo dans cliche
+        recadrer cliche
+    bouton "Mémo vocal"
+    quand l'utilisateur clique sur "Mémo vocal" :
+        enregistrer audio dans memo
+    bouton "Scanner le bon"
+    quand l'utilisateur clique sur "Scanner le bon" :
+        scanner document dans bon
+    bouton "Envoyer"
+    quand l'utilisateur clique sur "Envoyer" :
+        changer rapports par rapports + 1
+        afficher reussite "Rapport envoyé"

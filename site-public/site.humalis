@@ -7,6 +7,7 @@ utiliser composant "FormulaireSignalement" depuis "./composants/FormulaireSignal
 utiliser fichier "./commun/entete.humalis"
 utiliser fichier "./commun/pied.humalis"
 utiliser fichier "./pages/accueil.humalis"
+utiliser fichier "./pages/pourquoi.humalis"
 utiliser fichier "./pages/documentation.humalis"
 utiliser fichier "./pages/antiseche.humalis"
 utiliser fichier "./pages/exemples.humalis"
@@ -22,6 +23,7 @@ utiliser fichier "./pages/introuvable.humalis"
 site :
     nom "Humalis"
     logo "./logo.png"
+    image "./partage.png"
     description "Humalis, le langage en français qui transforme un seul fichier en applications web, mobile, bureau, site statique et serveur."
 
 traductions anglais :
@@ -37,6 +39,4 @@ theme :
     mode sombre
     largeur large
 
-langues :
-    francais
-    anglais
+langues : francais, anglais avec adresse par langue
