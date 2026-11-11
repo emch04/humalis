@@ -35,7 +35,7 @@ page "pourquoi" a l'adresse "/pourquoi" :
         bloc avec style "legal-bloc" :
             soustitre "Ses limites, dites franchement" en anglais "Its limits, stated plainly"
             liste :
-                texte "Le code s’écrit en français : `page`, `titre`, `bouton`. Les textes affichés, eux, peuvent être dans six langues." en anglais "The code is written in French: `page`, `titre`, `bouton`. The texts on screen can be in six languages."
+                texte "Le code s’écrit en français : `page`, `titre`, `bouton`. Les textes de ton application, eux, s’écrivent dans la langue de ton choix. La traduction intégrée, avec ses dates, ses nombres et ses messages déjà traduits, couvre six langues : français, anglais, espagnol, portugais, swahili et lingala." en anglais "The code is written in French: `page`, `titre`, `bouton`. Your app’s texts are written in whatever language you choose. Built-in translation, with its dates, numbers and messages already translated, covers six languages: French, English, Spanish, Portuguese, Swahili and Lingala."
                 texte "Il est fait pour les applications : écrans, données, comptes, échanges. Pas pour un jeu 3D ou du calcul scientifique." en anglais "It is made for apps: screens, data, accounts, conversations. Not for a 3D game or scientific computing."
         bloc avec style "legal-bloc" :
             soustitre "Déjà en vrai" en anglais "Already for real"
