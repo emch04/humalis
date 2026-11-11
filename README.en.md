@@ -76,6 +76,8 @@ humalis compile my-project.humalis --cible serveur --sortie my-project-server   
 | `desktop` | an Electron app: the Linux target |
 | `apple` | a native SwiftUI app (iPhone, iPad and Mac), with no embedded browser |
 
+The site can also be built with React: add `--moteur react` to `--cible web` or `--cible desktop`.
+
 When a construct does not exist yet on a target, the compiler says so clearly instead of producing something wrong.
 
 ### Running each generated project

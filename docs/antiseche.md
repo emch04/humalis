@@ -1181,6 +1181,11 @@ humalis tester
 humalis compile mon-projet.humalis --cible web --sortie mon-site
 ```
 
+### Produire le site en React | Build the site with React
+```terminal
+humalis compile mon-projet.humalis --cible web --moteur react --sortie mon-site
+```
+
 ## Les pièges | Common traps | pieges
 
 ### Une comparaison a besoin de `est` | A comparison needs `est`
