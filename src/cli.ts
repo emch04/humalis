@@ -58,6 +58,7 @@ const AIDE = `Utilisation :
   humalis compile <fichier.humalis> --cible web [--moteur humalis|react] --sortie <dossier> [--adresse https://…] [--lire-serveur https://…]
   humalis compile <fichier.humalis> --cible statique --sortie <dossier> [--adresse https://…]
   humalis packs [--verifier <dossier>]
+  humalis editeur --stdio
 
 lancer    fait tourner un fichier tout de suite, sans projet produit, sans
           npm install et sans construction : le programme est compilé en
@@ -79,7 +80,12 @@ compile   produit un projet complet pour la cible choisie : web (Vite + React
           Avec --composants, seulement les pages web et leurs outils, à
           déposer dans un projet React existant.
 packs     compare les packs Astratra du compilateur à leur dernière version
-          sur npm. Avec --verifier, dit si un projet déjà produit est en retard.`;
+          sur npm. Avec --verifier, dit si un projet déjà produit est en retard.
+editeur   le serveur de langage Humalis (LSP), sur l'entrée et la sortie
+          standard : c'est la commande qu'un éditeur lance pour montrer les
+          erreurs, le survol, la complétion, la déclaration, le plan et la
+          mise en forme (JetBrains, Zed, Neovim, Helix, Emacs, Sublime Text,
+          Visual Studio…). Elle ne s'utilise pas à la main.`;
 
 /** Les fichiers du projet compilé, pour situer les diagnostics des cibles (« panier.humalis, ligne 6 »). */
 let fichiersDuProjet: string[] = [];
@@ -949,5 +955,16 @@ if (reponse !== undefined) {
   } else {
     try { process.exitCode = await lancer(fichiers[0] ?? trouverPrincipal(process.cwd()), { port, ouvrir: autres.includes('--ouvrir'), dire: (m) => console.error(m) }); }
     catch (erreur) { console.error((erreur as Error).message); process.exitCode = 1; }
+  }
+} else if (argumentsCli[0] === 'editeur') {
+  // Les clients LSP ajoutent parfois « --clientProcessId=1234 » : accepté, sans effet.
+  const autres = argumentsCli.slice(1).filter((argument) => !/^--clientProcessId(=\d+)?$/.test(argument));
+  if (autres.length !== 1 || autres[0] !== '--stdio') {
+    console.error(AIDE);
+    process.exitCode = 2;
+  } else {
+    // Le serveur, construit avec le paquet (scripts/construire-editeur.mjs), prend la main sur l'entrée standard.
+    const serveur = './editeur/serveur.js';
+    await import(serveur);
   }
 } else process.exitCode = await principal(argumentsCli);

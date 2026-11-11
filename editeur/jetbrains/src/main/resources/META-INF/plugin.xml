@@ -1,0 +1,37 @@
+<idea-plugin>
+    <id>dev.humalis.intellij</id>
+    <name>Humalis</name>
+    <vendor url="https://humalis.dev">emch04</vendor>
+    <description><![CDATA[
+<p>Le langage <a href="https://humalis.dev">Humalis</a> dans les IDE JetBrains (IntelliJ IDEA, Android Studio, WebStorm, Rider, PyCharm…) :</p>
+<ul>
+  <li>coloration des mots du langage, avec ou sans accents ;</li>
+  <li>erreurs du compilateur en direct ;</li>
+  <li>survol, complétion, aller à la déclaration ;</li>
+  <li>plan du fichier (vue Structure) et mise en forme ;</li>
+  <li>icône des fichiers <code>.humalis</code> et commentaires avec <code>#</code>.</li>
+</ul>
+<p>Il faut la commande <code>humalis</code> (Node 24 ou plus récent) : <code>npm install -g humalis</code>.
+Le serveur de langage est branché par LSP4IJ, installé avec l'extension.</p>
+]]></description>
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.redhat.devtools.lsp4ij</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <fileType name="Humalis" implementationClass="dev.humalis.intellij.HumalisFileType" fieldName="INSTANCE"
+                  language="Humalis" extensions="humalis"/>
+        <lang.parserDefinition language="Humalis" implementationClass="dev.humalis.intellij.HumalisParserDefinition"/>
+        <lang.syntaxHighlighterFactory language="Humalis" implementationClass="dev.humalis.intellij.HumalisSyntaxHighlighterFactory"/>
+        <lang.commenter language="Humalis" implementationClass="dev.humalis.intellij.HumalisCommenter"/>
+        <!-- Le plan du fichier (vue Structure) vient du serveur de langage (textDocument/documentSymbol). -->
+        <lang.psiStructureViewFactory language="Humalis"
+                                      implementationClass="com.redhat.devtools.lsp4ij.features.documentSymbol.LSPDocumentSymbolStructureViewFactory"/>
+    </extensions>
+
+    <extensions defaultExtensionNs="com.redhat.devtools.lsp4ij">
+        <server id="humalis" name="Humalis" factoryClass="dev.humalis.intellij.HumalisServeurFactory">
+            <description><![CDATA[Le serveur de langage Humalis : <code>humalis editeur --stdio</code>.]]></description>
+        </server>
+        <languageMapping language="Humalis" serverId="humalis" languageId="humalis"/>
+    </extensions>
+</idea-plugin>

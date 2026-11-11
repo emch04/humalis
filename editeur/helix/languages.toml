@@ -1,0 +1,30 @@
+# Humalis dans Helix (25.07 ou plus récent).
+#
+# Prérequis : la commande « humalis » (npm install -g humalis).
+# À ajouter à ~/.config/helix/languages.toml, puis :
+#   1. copier queries/humalis/ dans ~/.config/helix/runtime/queries/humalis/ ;
+#   2. lancer « hx --grammar fetch » puis « hx --grammar build » ;
+#   3. vérifier avec « hx --health humalis ».
+
+[language-server.humalis]
+command = "humalis"
+args = ["editeur", "--stdio"]
+
+[[language]]
+name = "humalis"
+scope = "source.humalis"
+file-types = ["humalis"]
+roots = ["package.json"]
+comment-token = "#"
+indent = { tab-width = 4, unit = "    " }
+auto-format = false
+language-servers = ["humalis"]
+
+[language.auto-pairs]
+'"' = '"'
+'[' = ']'
+'{' = '}'
+
+[[grammar]]
+name = "humalis"
+source = { git = "https://github.com/emch04/humalis", rev = "main", subpath = "editeur/tree-sitter-humalis" }

@@ -1,0 +1,8 @@
+// Le serveur de langage Humalis, lancé par le module LSP de Sublime Text.
+// Pour changer la commande (par exemple un chemin complet vers « humalis ») :
+// Preferences > Package Settings > LSP > Servers > LSP-humalis.
+{
+	"enabled": true,
+	"command": ["humalis", "editeur", "--stdio"],
+	"selector": "source.humalis"
+}

@@ -1,0 +1,251 @@
+[
+  {
+    "type": "chaine",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "code_en_ligne",
+          "named": true
+        },
+        {
+          "type": "contenu",
+          "named": true
+        },
+        {
+          "type": "echappement",
+          "named": true
+        },
+        {
+          "type": "interpolation",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "operateur",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "ponctuation",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "source_file",
+    "named": true,
+    "root": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "chaine",
+          "named": true
+        },
+        {
+          "type": "commentaire",
+          "named": true
+        },
+        {
+          "type": "constante",
+          "named": true
+        },
+        {
+          "type": "mot_contextuel",
+          "named": true
+        },
+        {
+          "type": "mot_reserve",
+          "named": true
+        },
+        {
+          "type": "nom",
+          "named": true
+        },
+        {
+          "type": "nombre",
+          "named": true
+        },
+        {
+          "type": "operateur",
+          "named": true
+        },
+        {
+          "type": "ponctuation",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "!",
+    "named": false
+  },
+  {
+    "type": "\"",
+    "named": false
+  },
+  {
+    "type": "$",
+    "named": false
+  },
+  {
+    "type": "%",
+    "named": false
+  },
+  {
+    "type": "&",
+    "named": false
+  },
+  {
+    "type": "'",
+    "named": false
+  },
+  {
+    "type": "(",
+    "named": false
+  },
+  {
+    "type": ")",
+    "named": false
+  },
+  {
+    "type": "*",
+    "named": false
+  },
+  {
+    "type": "+",
+    "named": false
+  },
+  {
+    "type": ",",
+    "named": false
+  },
+  {
+    "type": "-",
+    "named": false
+  },
+  {
+    "type": ".",
+    "named": false
+  },
+  {
+    "type": "/",
+    "named": false
+  },
+  {
+    "type": ":",
+    "named": false
+  },
+  {
+    "type": ";",
+    "named": false
+  },
+  {
+    "type": "<",
+    "named": false
+  },
+  {
+    "type": "=",
+    "named": false
+  },
+  {
+    "type": ">",
+    "named": false
+  },
+  {
+    "type": "?",
+    "named": false
+  },
+  {
+    "type": "@",
+    "named": false
+  },
+  {
+    "type": "[",
+    "named": false
+  },
+  {
+    "type": "\\",
+    "named": false
+  },
+  {
+    "type": "]",
+    "named": false
+  },
+  {
+    "type": "^",
+    "named": false
+  },
+  {
+    "type": "`",
+    "named": false
+  },
+  {
+    "type": "code_en_ligne",
+    "named": true
+  },
+  {
+    "type": "commentaire",
+    "named": true
+  },
+  {
+    "type": "constante",
+    "named": true
+  },
+  {
+    "type": "contenu",
+    "named": true
+  },
+  {
+    "type": "echappement",
+    "named": true
+  },
+  {
+    "type": "interpolation",
+    "named": true
+  },
+  {
+    "type": "mot_contextuel",
+    "named": true
+  },
+  {
+    "type": "mot_reserve",
+    "named": true
+  },
+  {
+    "type": "nom",
+    "named": true
+  },
+  {
+    "type": "nombre",
+    "named": true
+  },
+  {
+    "type": "{",
+    "named": false
+  },
+  {
+    "type": "|",
+    "named": false
+  },
+  {
+    "type": "}",
+    "named": false
+  },
+  {
+    "type": "~",
+    "named": false
+  },
+  {
+    "type": "’",
+    "named": false
+  }
+]

@@ -1,0 +1,141 @@
+# Humalis dans les éditeurs
+
+Tous les éditeurs s'appuient sur le même serveur de langage (LSP), livré avec
+Humalis :
+
+```bash
+npm install -g humalis      # Node 24 ou plus récent
+humalis editeur --stdio     # lancé par l'éditeur, jamais à la main
+```
+
+Il donne les erreurs du compilateur pendant qu'on écrit, le survol des mots,
+la complétion, le saut à la déclaration, le plan du fichier, la mise en forme
+et la coloration des noms (jetons sémantiques). La coloration des mots du
+langage vient d'une grammaire propre à chaque famille d'éditeurs, toujours
+tirée du vocabulaire du compilateur (`src/lexer/motsCles.ts`).
+
+| Dossier | Éditeurs | Coloration des mots |
+|---|---|---|
+| `vscode` | VS Code, Cursor, VSCodium, Windsurf | grammaire TextMate (`syntaxes/humalis.tmLanguage.json`) |
+| `jetbrains` | IntelliJ IDEA, Android Studio, WebStorm, Rider, PyCharm… (2024.2 et plus récent) | analyseur Kotlin de l'extension |
+| `zed` | Zed | grammaire tree-sitter |
+| `visual-studio` | Visual Studio 2022 (17.14) et 2026 | jetons sémantiques du serveur (les noms seulement) |
+| `neovim` | Neovim 0.11 et plus récent | grammaire tree-sitter (facultative) |
+| `helix` | Helix 25.07 et plus récent | grammaire tree-sitter |
+| `emacs` | Emacs 29 et plus récent (eglot) | mode `humalis-mode` |
+| `sublime` | Sublime Text 4 (module LSP) | grammaire TextMate, tirée de celle de VS Code |
+| `tree-sitter-humalis` | — | la grammaire tree-sitter partagée |
+| `essais` | — | les essais en vrai de chaque éditeur |
+
+Quand le vocabulaire change, on régénère les mots, à la racine du dépôt :
+
+```bash
+npm run build
+(cd editeur/tree-sitter-humalis && npm install && npm run mots && npm run generer && npm test)
+node editeur/sublime/generer.mjs
+```
+
+`tests/editeurs.test.ts` (dans `npx vitest run`) échoue tant que ce n'est pas fait.
+
+## Installer
+
+### IntelliJ IDEA, Android Studio, WebStorm, Rider…
+
+Depuis la marketplace JetBrains : *Settings › Plugins › Marketplace › Humalis*.
+LSP4IJ (le client LSP de Red Hat) s'installe avec elle. Sans la marketplace :
+*Settings › Plugins › ⚙ › Install Plugin from Disk…* avec
+`jetbrains/build/distributions/humalis-jetbrains-1.0.0.zip`.
+
+### Zed
+
+Depuis les extensions de Zed (*zed: extensions*, « Humalis »). L'extension
+utilise la commande `humalis` du PATH, sinon installe elle-même le paquet npm.
+Pour un autre chemin, dans les réglages de Zed :
+
+```json
+{ "lsp": { "humalis": { "binary": { "path": "/chemin/vers/humalis", "arguments": ["editeur", "--stdio"] } } } }
+```
+
+### Visual Studio
+
+Depuis *Extensions › Gérer les extensions*, « Humalis », ou en ouvrant le
+fichier `Humalis.VisualStudio.vsix` (double-clic ; Windows demande l'accord
+de l'administrateur). Essayée dans Visual Studio 2022 17.14 : erreurs en
+direct, survol, complétion et déclaration (F12) marchent ; la mise en forme
+et le plan ne répondent pas encore, et le survol n'affiche que l'exemple de
+la fiche.
+
+### Neovim
+
+Copier `neovim/humalis.lua` dans `~/.config/nvim/plugin/`. Pour colorer aussi
+les mots du langage, suivre les trois commandes au bas de ce fichier
+(compilation de la grammaire, sans greffon).
+
+### Helix
+
+Ajouter `helix/languages.toml` à `~/.config/helix/languages.toml`, copier
+`tree-sitter-humalis/queries/helix/highlights.scm` dans
+`~/.config/helix/runtime/queries/humalis/`, puis :
+
+```bash
+hx --grammar fetch && hx --grammar build && hx --health humalis
+```
+
+### Emacs
+
+Copier `emacs/humalis-mode.el` dans un dossier du `load-path`, puis dans
+`init.el` :
+
+```elisp
+(require 'humalis-mode)
+(add-hook 'humalis-mode-hook #'eglot-ensure)
+```
+
+### Sublime Text
+
+Installer le module LSP (*Package Control: Install Package › LSP*), puis
+copier le dossier `sublime/Humalis` dans le dossier des paquets
+(*Preferences › Browse Packages…*). Pour un autre chemin vers `humalis` :
+*Preferences › Package Settings › LSP › Servers › LSP-humalis*.
+
+## Construire et essayer
+
+| Éditeur | Construire | Essayer en vrai |
+|---|---|---|
+| serveur | `npm run build` | `npm run essai:editeur` |
+| JetBrains | `cd jetbrains && ./gradlew buildPlugin` | `./gradlew test` (plateforme IntelliJ sans fenêtre, vrai serveur ; `humalis` dans le PATH) |
+| Zed | `cd zed && cargo build --release --target wasm32-wasip2` | *zed: install dev extension* sur le dossier `zed` |
+| Visual Studio | sous Windows : `dotnet build -c Release` dans `visual-studio/Humalis.VisualStudio` (sur Mac ou Linux, compile sans assembler le .vsix) | F5 dans Visual Studio (instance expérimentale) |
+| Neovim | — | `nvim --headless --clean -l editeur/essais/neovim.lua <fichier.humalis>` |
+| Helix | — | `python editeur/essais/helix.py <dossier>` (Python avec pyte) |
+| Emacs | — | `emacs --batch -Q -l editeur/essais/emacs.el <fichier.humalis>` |
+| Sublime Text | `node editeur/sublime/generer.mjs` | `sh editeur/essais/sublime.sh <dossier>` |
+
+Le JDK de JetBrains suffit pour Gradle :
+`JAVA_HOME="/Applications/IntelliJ IDEA.app/Contents/jbr/Contents/Home"`, et
+`-PideLocal="/Applications/IntelliJ IDEA.app"` construit avec l'IDE installé
+au lieu d'en télécharger un.
+
+## Publier
+
+Rien n'est publié automatiquement. Dans l'ordre :
+
+1. **Le paquet npm** `humalis`, qui contient `humalis editeur --stdio` : toutes
+   les extensions en dépendent. Avant cette publication, elles ne trouvent pas
+   la commande.
+2. **JetBrains** : créer un compte sur <https://plugins.jetbrains.com>, puis
+   *Upload plugin* avec `humalis-jetbrains-1.0.0.zip` (ou `./gradlew publishPlugin`
+   avec un jeton `PUBLISH_TOKEN`). Avant, `./gradlew verifyPlugin` vérifie la
+   compatibilité avec les IDE récents.
+3. **Zed** : pousser le dépôt, remplacer `REMPLACER_PAR_LE_COMMIT` dans
+   `zed/extension.toml` par le commit poussé (`git rev-parse HEAD`), puis
+   proposer une demande de fusion à <https://github.com/zed-industries/extensions>
+   (sous-module `extensions/humalis` + entrée dans `extensions.toml`). Zed
+   n'accepte que des extensions sous une licence libre reconnue (MIT,
+   Apache-2.0…) : la licence Humalis devra être acceptée ou l'extension
+   publiée sous une autre licence.
+4. **Visual Studio** : construire le `.vsix` sous Windows, puis le déposer sur
+   <https://marketplace.visualstudio.com/manage> (même éditeur `emch04` que
+   l'extension VS Code).
+5. **Neovim, Helix, Emacs, Sublime Text** : rien à publier, les réglages sont
+   lus dans ce dossier. Helix lit la grammaire sur la branche `main` de GitHub.

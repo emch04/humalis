@@ -1,0 +1,91 @@
+================================================================================
+Mots réservés, contextuels, noms et constantes
+================================================================================
+
+variable simple = vrai
+si Simple est Égal à 0 :
+    titre "Bonjour"
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (mot_reserve)
+  (nom)
+  (operateur)
+  (constante)
+  (mot_reserve)
+  (nom)
+  (mot_reserve)
+  (mot_contextuel)
+  (nom)
+  (nombre)
+  (ponctuation)
+  (mot_contextuel)
+  (chaine
+    (contenu)))
+
+================================================================================
+Chaîne avec valeur insérée, guillemet échappé et code de phrase
+================================================================================
+
+texte "Total : {total}, \"ok\" `titre \"x\"`"
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (mot_contextuel)
+  (chaine
+    (contenu)
+    (interpolation)
+    (contenu)
+    (echappement)
+    (contenu)
+    (echappement)
+    (contenu)
+    (code_en_ligne)))
+
+================================================================================
+Chaîne pas encore fermée : elle s'arrête à la fin de la ligne
+================================================================================
+
+texte "pas fermé
+bouton "Envoyer" # un commentaire
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (mot_contextuel)
+  (chaine
+    (contenu))
+  (mot_contextuel)
+  (chaine
+    (contenu))
+  (commentaire))
+
+================================================================================
+Nombres, listes et accents
+================================================================================
+
+variable prix = [1.5, 20]
+quand l'utilisateur clique sur "Payer" :
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (mot_reserve)
+  (nom)
+  (operateur)
+  (ponctuation)
+  (nombre)
+  (ponctuation)
+  (nombre)
+  (ponctuation)
+  (mot_reserve)
+  (nom)
+  (ponctuation)
+  (mot_contextuel)
+  (mot_contextuel)
+  (mot_contextuel)
+  (chaine
+    (contenu))
+  (ponctuation))

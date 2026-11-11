@@ -3888,6 +3888,7 @@ Les autres étapes : `remplir champ "email" avec "…"`, `aller vers "panier"`,
 | `humalis formater <fichier>` | remet le fichier en forme |
 | `humalis tester` | lance les tests `*.test.humalis` |
 | `humalis packs` | dit si les packs Astratra ont des mises à jour |
+| `humalis editeur --stdio` | le serveur de langage, que ton éditeur lance lui-même (voir « Dans ton éditeur ») |
 
 Pour le web et le statique, `--adresse https://…` donne l'adresse finale du
 site (plan du site, liens de partage). Pour le desktop, Apple, Android et Windows, `--serveur https://…`
@@ -3929,6 +3930,23 @@ Une erreur montre aussi la ligne de code en cause, avec un trait sous le mot fau
 
 L'extension VS Code « Humalis » les affiche pendant que tu écris, avec la
 coloration, la complétion et le survol des mots.
+
+### Dans ton éditeur
+
+Humalis s'écrit dans presque tous les éditeurs. Chacun montre les erreurs
+pendant que tu écris, le survol des mots, la complétion et le saut à la
+déclaration ; tous, sauf Visual Studio, ajoutent le plan du fichier et la
+mise en forme. Tous s'appuient sur
+`humalis editeur --stdio`, le serveur de langage installé avec Humalis
+(`npm install -g humalis`).
+
+| Éditeur | Ce qu'il faut |
+|---|---|
+| VS Code, Cursor, VSCodium, Windsurf | l'extension « Humalis » de la boutique d'extensions |
+| IntelliJ IDEA, Android Studio, WebStorm, Rider, PyCharm | l'extension « Humalis » de la marketplace JetBrains |
+| Zed | l'extension « Humalis » de Zed |
+| Visual Studio 2022 et 2026 | l'extension « Humalis » de la marketplace Visual Studio |
+| Neovim, Helix, Emacs, Sublime Text | les réglages du dossier `editeur` du dépôt GitHub de Humalis |
 
 ---
 
