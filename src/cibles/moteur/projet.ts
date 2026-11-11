@@ -392,7 +392,8 @@ document.title = ${traduit('Page introuvable')};
     if (adresse && application.site.indexation) {
       const adresses = new Map(routes.map((r) => [r.chemin, r.chemin]));
       void adresses;
-      fichiers.set('public/sitemap.xml', planDuSite(application, new Map([...chemins].map(([n, c]) => [n, c.replace(/^\//, '')])), adresse));
+      const parLangue = languesAdresse.length && application.langues ? { premiere: application.langues[0]!.code, autres: languesAdresse } : undefined;
+      fichiers.set('public/sitemap.xml', planDuSite(application, new Map([...chemins].map(([n, c]) => [n, c.replace(/^\//, '')])), adresse, parLangue));
     }
     if (application.site.logo) fichiers.set('public/manifest.webmanifest', manifeste(application.site, options.images, '/'));
     for (const [c, contenu] of fichiersDuSite(application.site, options.images, 'public/')) fichiers.set(c, contenu);

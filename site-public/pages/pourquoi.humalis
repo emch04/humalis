@@ -1,0 +1,46 @@
+# Pourquoi Humalis : à qui il s'adresse, ce qu'il fait mieux, et ses limites, dites franchement.
+
+page "pourquoi" a l'adresse "/pourquoi" :
+    apercu :
+        titre "Pourquoi Humalis" en anglais "Why Humalis"
+        description "Pourquoi Humalis : un langage en français, un seul fichier pour des applications natives sur chaque plateforme, et ses limites dites franchement." en anglais "Why Humalis: a language in French, one file for native apps on every platform, and its limits stated plainly."
+    bloc avec style "page-intro" :
+        titre "Pourquoi Humalis ?" en anglais "Why Humalis?"
+        texte "Aujourd’hui, faire une application demande plusieurs langages, plusieurs outils et souvent plusieurs équipes : une pour le site, une pour l’iPhone, une pour Android, une pour le serveur. Humalis part d’une autre idée : décrire ton application en phrases, une seule fois, et laisser le compilateur faire le reste." en anglais "Today, building an app takes several languages, several tools and often several teams: one for the website, one for the iPhone, one for Android, one for the server. Humalis starts from another idea: describe your app in sentences, once, and let the compiler do the rest."
+    grille avec colonnes 3 et style "page-section legal-resume" et animation montee au defilement et en cascade :
+        bloc avec style "legal-point" et effet leve :
+            soustitre "Écrire comme on parle" en anglais "Write the way you speak"
+            texte "`bouton "Commander"`, `si panier est vide :`, `seul admin peut modifier produit` : chaque ligne dit ce que fait l’application, en français." en anglais "`bouton "Commander"`, `si panier est vide :`, `seul admin peut modifier produit`: each line says what the app does, in French."
+        bloc avec style "legal-point" et effet leve :
+            soustitre "Une fois, partout, en natif" en anglais "Once, everywhere, natively"
+            texte "Le même fichier devient un site, une application SwiftUI pour iPhone, iPad et Mac, une application Kotlin pour Android, une application C# pour Windows, et son serveur." en anglais "The same file becomes a website, a SwiftUI app for iPhone, iPad and Mac, a Kotlin app for Android, a C# app for Windows, and its server."
+        bloc avec style "legal-point" et effet leve :
+            soustitre "Le reste est compris" en anglais "The rest is included"
+            texte "Comptes, droits, données, discussions, appels, réunions, médias, données hors ligne : ce qui prend des semaines ailleurs tient en quelques lignes." en anglais "Accounts, permissions, data, chats, calls, meetings, media, offline data: what takes weeks elsewhere fits in a few lines."
+    grille avec colonnes 2 et style "page-section legal" et animation montee au defilement et en cascade :
+        bloc avec style "legal-bloc" :
+            soustitre "À qui il s’adresse" en anglais "Who it is for"
+            liste :
+                texte "Aux indépendants et aux petites équipes qui veulent une vraie application sur chaque plateforme, sans une équipe par plateforme." en anglais "Freelancers and small teams who want a real app on every platform, without one team per platform."
+                texte "Aux personnes qui apprennent à programmer, et qui comprennent chaque mot qu’elles écrivent." en anglais "People learning to code, who understand every word they write."
+                texte "Aux commerces, aux écoles et aux associations qui veulent leur propre outil, à leur image." en anglais "Shops, schools and associations that want their own tool, in their own image."
+        bloc avec style "legal-bloc" :
+            soustitre "Ce qu’il fait mieux" en anglais "What it does better"
+            liste :
+                texte "Des erreurs en français, avec la ligne et une piste pour corriger, avant même de lancer quoi que ce soit." en anglais "Errors in plain words, with the line and a hint to fix them, before anything runs."
+                texte "La sécurité par défaut : le serveur vérifie chaque droit, et les clés secrètes ne quittent jamais le serveur." en anglais "Security by default: the server checks every permission, and secret keys never leave the server."
+                texte "De vraies applications natives, pas un site dans une coquille : chaque plateforme reçoit le code qu’elle attend." en anglais "Real native apps, not a website in a shell: each platform gets the code it expects."
+                texte "Jamais bloqué : ce que le langage ne sait pas encore faire s’écrit en Swift, en Kotlin ou en C#, à côté." en anglais "Never stuck: what the language cannot do yet is written in Swift, Kotlin or C#, alongside."
+        bloc avec style "legal-bloc" :
+            soustitre "Ses limites, dites franchement" en anglais "Its limits, stated plainly"
+            liste :
+                texte "Le code s’écrit en français : `page`, `titre`, `bouton`. Les textes affichés, eux, peuvent être dans six langues." en anglais "The code is written in French: `page`, `titre`, `bouton`. The texts on screen can be in six languages."
+                texte "Il est fait pour les applications : écrans, données, comptes, échanges. Pas pour un jeu 3D ou du calcul scientifique." en anglais "It is made for apps: screens, data, accounts, conversations. Not for a 3D game or scientific computing."
+                texte "C’est un langage jeune : peu de bibliothèques tierces pour l’instant, et une communauté qui commence." en anglais "It is a young language: few third-party libraries for now, and a community that is just starting."
+        bloc avec style "legal-bloc" :
+            soustitre "Déjà en vrai" en anglais "Already for real"
+            texte "Rey Store, une boutique de mode avec son application d’administration et son serveur, est écrite entièrement en Humalis." en anglais "Rey Store, a fashion shop with its admin app and its server, is written entirely in Humalis."
+            texte "Chaque exemple du guide est vérifié par le compilateur, et chaque cible est construite avec les outils de sa plateforme : Xcode, Gradle, .NET." en anglais "Every example in the guide is checked by the compiler, and every target is built with its platform’s own tools: Xcode, Gradle, .NET."
+    ligne avec style "page-section pourquoi-actions" :
+        lien "Essayer maintenant →" en anglais "Try it now →" vers "bac_a_sable" avec style "button button-primary"
+        lien "Voir les exemples" en anglais "See the examples" vers "exemples" avec style "button button-secondary"

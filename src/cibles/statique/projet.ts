@@ -249,12 +249,27 @@ function texteDe(valeur: NonNullable<NonNullable<Application['ecrans'][number]['
   return valeur.parties.map((p) => ('texte' in p ? p.texte : '')).join('');
 }
 
-/** sitemap.xml : une adresse complète par page indexable. */
-export function planDuSite(application: Application, pagesFichiers: Map<string, string>, adresse: string): string {
-  const adresses = application.ecrans
-    .filter((e) => e.apercu?.indexation !== false && e.nom !== 'introuvable')
-    .map((e) => `  <url><loc>${echapper(adresseDePage(adresse, pagesFichiers.get(e.nom)!))}</loc></url>\n`);
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${adresses.join('')}</urlset>\n`;
+/**
+ * sitemap.xml : une adresse complète par page indexable. Avec une adresse par langue
+ * (`langues`, la première langue sans préfixe puis les autres avec le leur), chaque version
+ * de la page a son adresse, et chacune nomme les autres (xhtml:link) pour les moteurs de recherche.
+ */
+export function planDuSite(application: Application, pagesFichiers: Map<string, string>, adresse: string, langues?: { premiere: string; autres: string[] }): string {
+  const pages = application.ecrans.filter((e) => e.apercu?.indexation !== false && e.nom !== 'introuvable');
+  if (!langues || langues.autres.length === 0) {
+    const adresses = pages.map((e) => `  <url><loc>${echapper(adresseDePage(adresse, pagesFichiers.get(e.nom)!))}</loc></url>\n`);
+    return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${adresses.join('')}</urlset>\n`;
+  }
+  const adresses = pages.flatMap((e) => {
+    const fichier = pagesFichiers.get(e.nom)!;
+    const versions = [
+      { code: langues.premiere, loc: adresseDePage(adresse, fichier) },
+      ...langues.autres.map((code) => ({ code, loc: adresseDePage(adresse, `${code}/${fichier === 'index.html' ? '' : fichier}`) })),
+    ];
+    const liens = versions.map((v) => `<xhtml:link rel="alternate" hreflang="${v.code}" href="${echapper(v.loc)}"/>`).join('') + `<xhtml:link rel="alternate" hreflang="x-default" href="${echapper(versions[0]!.loc)}"/>`;
+    return versions.map((v) => `  <url><loc>${echapper(v.loc)}</loc>${liens}</url>\n`);
+  });
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n${adresses.join('')}</urlset>\n`;
 }
 
 function pageHtml(titre: string, description: string, feuilles: string[], scripts: string[], contenu: string[], theme: { mode?: string; bascule: boolean; site?: boolean; langue?: string } = { bascule: false }, balises: string[] = []): string {

@@ -1,4 +1,4 @@
-# Les six exemples, chacun ouvrable dans le bac à sable.
+# Les six exemples, chacun ouvrable dans le bac à sable, puis des applications complètes.
 
 page "exemples" a l'adresse "/exemples" :
     apercu :
@@ -94,6 +94,235 @@ page "exemples" a l'adresse "/exemples" :
                     ligne avec style "exemple-tags" :
                     texte "Langues" en anglais "Languages" avec style "tag"
                     lien "Ouvrir dans le bac à sable →" en anglais "Open in the playground →" vers "bac_a_sable" avec exemple "bilingue" et style "exemple-lien"
+    # --- Les applications complètes : écrit par scripts/exemples-site.mjs, ne pas modifier à la main. ---
+    bloc avec style "install-section" :
+        colonne avec style "section-heading" :
+            soustitre "Des applications complètes." en anglais "Complete apps."
+            texte "Serveur, comptes, temps réel, médias, données hors ligne : de vraies applications en quelques dizaines de lignes. Chacune est vérifiée par le compilateur, sur chaque plateforme indiquée." en anglais "Server, accounts, real time, media, offline data: real apps in a few dozen lines. Each one is checked by the compiler, on every platform listed."
+        colonne avec style "applis-liste" et animation montee au defilement et en cascade :
+            bloc avec style "appli-carte" :
+                colonne avec style "appli-tete" :
+                    texte "support.humalis" sans traduction avec style "vignette-fichier"
+                    soustitre "Un support client en direct" en anglais "Live customer support" avec niveau 3
+                    texte "Les clients écrivent aux agents, voient qui est en ligne et passent un appel vidéo." en anglais "Customers write to agents, see who is online and start a video call."
+                    ligne avec style "exemple-tags" :
+                        texte "Discussion" en anglais "Chat" avec style "tag"
+                        texte "Appel vidéo" en anglais "Video call" avec style "tag"
+                        texte "Présence" en anglais "Presence" avec style "tag"
+                    ligne avec style "appli-cibles" :
+                        texte "Web" sans traduction avec style "tag tag-cible"
+                        texte "Bureau" en anglais "Desktop" avec style "tag tag-cible"
+                        texte "iPhone, iPad, Mac" sans traduction avec style "tag tag-cible"
+                        texte "Android" sans traduction avec style "tag tag-cible"
+                        texte "Windows" sans traduction avec style "tag tag-cible"
+                code humalis :
+                    # Un support client en direct : les clients écrivent aux agents, voient qui est en ligne,
+                    # et peuvent passer un appel vidéo.
+                    serveur "support" :
+                        roles client et agent
+                        discussion "aide" entre client et agent
+                        donnee agent :
+                            compte : texte
+                            nom : texte
+                        route "agents" :
+                            tout le monde peut lire agent
+                            seul agent peut modifier agent
+
+                    page "aide" :
+                        variable agents = []
+                        titre "Besoin d'aide ?"
+                        quand la page se charge :
+                            envoyer requete vers "agents" dans agents
+                        pour chaque agent dans agents :
+                            texte agent.nom
+                            si agent.compte est en ligne :
+                                badge "En ligne"
+                            bouton "Appeler"
+                            quand l'utilisateur clique sur "Appeler" :
+                                appeler en video agent.compte
+                        discussion "aide"
+                        quand un message arrive dans "aide" :
+                            afficher message.texte
+            bloc avec style "appli-carte" :
+                colonne avec style "appli-tete" :
+                    texte "classe.humalis" sans traduction avec style "vignette-fichier"
+                    soustitre "Une classe en ligne" en anglais "An online class" avec niveau 3
+                    texte "Le professeur anime la réunion, les élèves lèvent la main et partagent leur écran." en anglais "The teacher runs the meeting, students raise their hand and share their screen."
+                    ligne avec style "exemple-tags" :
+                        texte "Réunion" en anglais "Meeting" avec style "tag"
+                        texte "Modération" en anglais "Moderation" avec style "tag"
+                        texte "Partage d’écran" en anglais "Screen sharing" avec style "tag"
+                    ligne avec style "appli-cibles" :
+                        texte "Web" sans traduction avec style "tag tag-cible"
+                        texte "Bureau" en anglais "Desktop" avec style "tag tag-cible"
+                        texte "iPhone, iPad, Mac" sans traduction avec style "tag tag-cible"
+                        texte "Android" sans traduction avec style "tag tag-cible"
+                        texte "Windows" sans traduction avec style "tag tag-cible"
+                code humalis :
+                    # Une classe en ligne : le professeur anime, les élèves lèvent la main,
+                    # et le professeur peut couper un micro.
+                    serveur "ecole" :
+                        roles eleve et professeur
+                        salle "classe" pour eleve et professeur animee par professeur
+
+                    page "classe" :
+                        titre "Cours du jour"
+                        reunion "classe"
+                        bouton "Lever la main"
+                        quand l'utilisateur clique sur "Lever la main" :
+                            lever la main
+                        bouton "Partager mon écran"
+                        quand l'utilisateur clique sur "Partager mon écran" :
+                            partager ecran
+                        pour chaque p dans participants de reunion "classe" :
+                            texte p.nom
+                            bouton "Couper"
+                            quand l'utilisateur clique sur "Couper" :
+                                couper micro de p
+            bloc avec style "appli-carte" :
+                colonne avec style "appli-tete" :
+                    texte "carnet.humalis" sans traduction avec style "vignette-fichier"
+                    soustitre "Un carnet qui marche sans réseau" en anglais "A notebook that works offline" avec niveau 3
+                    texte "Les notes sont chiffrées sur l’appareil et partent au serveur quand le réseau revient. Connexion par Face ID, Touch ID ou Windows Hello." en anglais "Notes are encrypted on the device and reach the server when the network comes back. Sign in with Face ID, Touch ID or Windows Hello."
+                    ligne avec style "exemple-tags" :
+                        texte "Hors ligne" en anglais "Offline" avec style "tag"
+                        texte "Chiffrement" en anglais "Encryption" avec style "tag"
+                        texte "Clés d’accès" en anglais "Passkeys" avec style "tag"
+                    ligne avec style "appli-cibles" :
+                        texte "Web" sans traduction avec style "tag tag-cible"
+                        texte "iPhone, iPad, Mac" sans traduction avec style "tag tag-cible"
+                        texte "Android" sans traduction avec style "tag tag-cible"
+                        texte "Windows" sans traduction avec style "tag tag-cible"
+                code humalis :
+                    # Un carnet qui marche sans réseau : les notes sont chiffrées sur l'appareil et partent
+                    # au serveur quand le réseau revient. On s'y connecte par Face ID, Touch ID ou Windows Hello.
+                    serveur "carnet" :
+                        connexion par cle d'acces
+                        double authentification
+                        donnee note :
+                            titre : texte
+                            faite : booleen
+                        route "notes" :
+                            connecte peut lire note
+                            connecte peut creer note
+                            connecte peut modifier note
+                            connecte peut supprimer note
+
+                    donnee locale notes avec chiffree :
+                        titre : texte
+                        faite : booleen
+                        synchronisee avec "notes"
+
+                    page "carnet" :
+                        titre "Mon carnet"
+                        formulaire "nouvelle" :
+                            champ texte "Note" avec obligatoire
+                            bouton "Ajouter"
+                        quand le formulaire "nouvelle" est soumis :
+                            ajouter fiche avec titre champ "Note" et faite faux a notes
+                        pour chaque n dans notes :
+                            texte n.titre
+                        bouton "Se connecter avec Face ID"
+                        quand l'utilisateur clique sur "Se connecter avec Face ID" :
+                            se connecter par cle d'acces
+            bloc avec style "appli-carte" :
+                colonne avec style "appli-tete" :
+                    texte "reservations.humalis" sans traduction avec style "vignette-fichier"
+                    soustitre "Des réservations payées en ligne" en anglais "Bookings paid online" avec niveau 3
+                    texte "Chacun voit ses réservations et les paie par Stripe. Le serveur n’enregistre le paiement que lorsque Stripe le confirme." en anglais "Everyone sees their bookings and pays with Stripe. The server records the payment only once Stripe confirms it."
+                    ligne avec style "exemple-tags" :
+                        texte "Comptes" en anglais "Accounts" avec style "tag"
+                        texte "Droits" en anglais "Permissions" avec style "tag"
+                        texte "Paiement" en anglais "Payment" avec style "tag"
+                    ligne avec style "appli-cibles" :
+                        texte "Web" sans traduction avec style "tag tag-cible"
+                        texte "Bureau" en anglais "Desktop" avec style "tag tag-cible"
+                        texte "iPhone, iPad, Mac" sans traduction avec style "tag tag-cible"
+                        texte "Android" sans traduction avec style "tag tag-cible"
+                code humalis :
+                    # Des réservations payées en ligne : chacun voit les siennes, l'administration voit tout,
+                    # et le serveur n'enregistre le paiement que lorsque Stripe le confirme.
+                    serveur "salon" :
+                        paiements par stripe
+                        donnee reservation :
+                            nom : texte
+                            total : nombre
+                        route "reservations" :
+                            connecte peut lire reservation
+                            connecte peut creer reservation
+                            seul admin peut modifier reservation
+                            quand reservation est payee :
+                                creer journal avec nom reservation.nom
+                        donnee journal :
+                            nom : texte
+                        route "journaux" :
+                            seul admin peut lire journal
+                            seul admin peut modifier journal
+
+                    page "connexion" :
+                        titre "Connexion"
+                        formulaire "entrer" :
+                            champ email "Email" avec obligatoire
+                            champ mot de passe "Mot de passe" avec obligatoire
+                            bouton "Se connecter"
+                        quand le formulaire "entrer" est soumis :
+                            se connecter avec champ "Email" et champ "Mot de passe"
+                            rediriger vers "reserver"
+
+                    page "reserver" reservee a connecte sinon vers "connexion" :
+                        variable reservations = []
+                        titre "Mes réservations"
+                        quand la page se charge :
+                            envoyer requete vers "reservations" dans reservations
+                        pour chaque r dans reservations :
+                            texte "{r.nom} : {r.total} €"
+                            bouton "Payer"
+                            quand l'utilisateur clique sur "Payer" :
+                                payer total pour r
+            bloc avec style "appli-carte" :
+                colonne avec style "appli-tete" :
+                    texte "terrain.humalis" sans traduction avec style "vignette-fichier"
+                    soustitre "Un rapport de terrain" en anglais "A field report" avec niveau 3
+                    texte "Une photo recadrée, un mémo vocal, un document scanné, un widget sur l’écran d’accueil, et chaque erreur envoyée à ta surveillance." en anglais "A cropped photo, a voice memo, a scanned document, a home screen widget, and every error sent to your monitoring."
+                    ligne avec style "exemple-tags" :
+                        texte "Médias" en anglais "Media" avec style "tag"
+                        texte "Widget" sans traduction avec style "tag"
+                        texte "Erreurs" en anglais "Errors" avec style "tag"
+                    ligne avec style "appli-cibles" :
+                        texte "iPhone, iPad, Mac" sans traduction avec style "tag tag-cible"
+                        texte "Android" sans traduction avec style "tag tag-cible"
+                code humalis :
+                    # Un rapport de terrain : une photo recadrée, un mémo vocal, un document scanné,
+                    # un widget qui compte les rapports, et chaque erreur envoyée à ta surveillance.
+                    variable rapports = 0 avec partagee
+
+                    widget "rapports" avec taille petite :
+                        texte "{rapports} rapports aujourd'hui"
+                        actualiser toutes les 30 minutes
+
+                    quand une erreur arrive :
+                        envoyer requete vers "https://surveillance.exemple.fr/erreurs" avec message = erreur.message et page = erreur.page
+
+                    page "rapport" :
+                        titre "Nouveau rapport"
+                        variable cliche = rien
+                        variable memo = rien
+                        variable bon = rien
+                        bouton "Prendre une photo"
+                        quand l'utilisateur clique sur "Prendre une photo" :
+                            photo dans cliche
+                            recadrer cliche
+                        bouton "Mémo vocal"
+                        quand l'utilisateur clique sur "Mémo vocal" :
+                            enregistrer audio dans memo
+                        bouton "Scanner le bon"
+                        quand l'utilisateur clique sur "Scanner le bon" :
+                            scanner document dans bon
+                        bouton "Envoyer"
+                        quand l'utilisateur clique sur "Envoyer" :
+                            changer rapports par rapports + 1
+                            afficher reussite "Rapport envoyé"
+    # --- Fin des applications complètes. ---
     bloc avec style "install-section" :
         bloc avec style "call-panel" et animation agrandissement au defilement :
             soustitre "À toi d’écrire le tien." en anglais "Now write your own."

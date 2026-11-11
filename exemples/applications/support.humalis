@@ -1,0 +1,27 @@
+# Un support client en direct : les clients écrivent aux agents, voient qui est en ligne,
+# et peuvent passer un appel vidéo.
+serveur "support" :
+    roles client et agent
+    discussion "aide" entre client et agent
+    donnee agent :
+        compte : texte
+        nom : texte
+    route "agents" :
+        tout le monde peut lire agent
+        seul agent peut modifier agent
+
+page "aide" :
+    variable agents = []
+    titre "Besoin d'aide ?"
+    quand la page se charge :
+        envoyer requete vers "agents" dans agents
+    pour chaque agent dans agents :
+        texte agent.nom
+        si agent.compte est en ligne :
+            badge "En ligne"
+        bouton "Appeler"
+        quand l'utilisateur clique sur "Appeler" :
+            appeler en video agent.compte
+    discussion "aide"
+    quand un message arrive dans "aide" :
+        afficher message.texte
