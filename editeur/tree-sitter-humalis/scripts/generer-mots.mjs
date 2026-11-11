@@ -1,8 +1,11 @@
 /**
  * Écrit mots.json, les mots du langage que grammar.js colore, depuis le
  * compilateur construit (dist/lexer/motsCles.js, après « npm run build » à
- * la racine du dépôt). Les mots ne sont jamais écrits à la main : un mot
- * ajouté au vocabulaire est coloré dès la grammaire régénérée.
+ * la racine du dépôt), et les mêmes listes dans le mode Emacs
+ * (editeur/emacs/humalis-mode.el, entre « <mots> » et « </mots> »). Les
+ * mots ne sont jamais écrits à la main : un mot ajouté au vocabulaire est
+ * coloré dès la grammaire régénérée. Avec --verifier : ne fait que dire si
+ * tout est à jour.
  *
  *     npm run mots && npm run generer
  */
@@ -32,14 +35,30 @@ const mots = {
 };
 const chemin = join(ici, 'mots.json');
 const texte = `${JSON.stringify(mots, null, 2)}\n`;
-const avant = existsSync(chemin) ? readFileSync(chemin, 'utf8') : '';
+
+const cheminEmacs = join(ici, '..', 'emacs', 'humalis-mode.el');
+const listeEmacs = (liste) => liste.map((m) => JSON.stringify(m)).join(' ');
+const blocEmacs = [
+  ';; <mots>',
+  '(defconst humalis--mots-reserves',
+  `  '(${listeEmacs(mots.reserves)}))`,
+  '(defconst humalis--mots-contextuels',
+  `  '(${listeEmacs(mots.contextuels)}))`,
+  `(defconst humalis--constantes '(${listeEmacs(mots.constantes)}))`,
+  ';; </mots>',
+].join('\n');
+const emacs = readFileSync(cheminEmacs, 'utf8');
+const emacsAJour = emacs.replace(/;; <mots>[\s\S]*?;; <\/mots>/, blocEmacs);
+
+const fichiers = [[chemin, texte], [cheminEmacs, emacsAJour]];
 if (process.argv.includes('--verifier')) {
-  if (avant !== texte) {
-    console.error('mots.json n’est plus à jour avec le vocabulaire : lancez « npm run mots && npm run generer ».');
+  const enRetard = fichiers.filter(([c, t]) => !existsSync(c) || readFileSync(c, 'utf8') !== t);
+  if (enRetard.length > 0) {
+    console.error(`Pas à jour avec le vocabulaire : ${enRetard.map(([c]) => c).join(', ')}. Lancez « npm run mots && npm run generer ».`);
     process.exit(1);
   }
-  console.error('mots.json est à jour.');
+  console.error('Les mots de la grammaire et du mode Emacs sont à jour.');
 } else {
-  writeFileSync(chemin, texte);
-  console.error(`mots.json : ${mots.reserves.length} mots réservés, ${mots.contextuels.length} contextuels.`);
+  for (const [c, t] of fichiers) writeFileSync(c, t);
+  console.error(`mots.json et humalis-mode.el : ${mots.reserves.length} mots réservés, ${mots.contextuels.length} contextuels.`);
 }

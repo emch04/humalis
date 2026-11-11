@@ -1,0 +1,16 @@
+id = "humalis"
+name = "Humalis"
+version = "1.0.0"
+schema_version = 1
+authors = ["emch04"]
+description = "Le langage Humalis : coloration, erreurs en direct, survol, complétion, déclaration, plan et mise en forme."
+repository = "https://github.com/emch04/humalis"
+
+[language_servers.humalis]
+name = "Humalis"
+languages = ["Humalis"]
+
+[grammars.humalis]
+repository = "https://github.com/emch04/humalis"
+rev = "REMPLACER_PAR_LE_COMMIT"
+path = "editeur/tree-sitter-humalis"

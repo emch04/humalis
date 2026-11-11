@@ -1,0 +1,15 @@
+name = "Humalis"
+grammar = "humalis"
+path_suffixes = ["humalis"]
+line_comments = ["# "]
+tab_size = 4
+hard_tabs = false
+increase_indent_pattern = "^[^#]*:\\s*(#.*)?$"
+autoclose_before = ";:.,=}])> \n\t\""
+brackets = [
+  { start = "\"", end = "\"", close = true, newline = false, not_in = ["chaine", "commentaire"] },
+  { start = "[", end = "]", close = true, newline = true },
+  { start = "{", end = "}", close = true, newline = false },
+  { start = "(", end = ")", close = true, newline = false },
+]
+word_characters = ["_"]
