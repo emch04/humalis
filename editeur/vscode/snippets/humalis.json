@@ -58,22 +58,6 @@
     ],
     "description": "Un formulaire : ses champs, son bouton, et ce qui se passe quand on l'envoie (Entrée ou bouton)"
   },
-  "Composant React": {
-    "prefix": "composant-react",
-    "body": [
-      "utiliser composant \"${1:Scene3D}\" depuis \"./composants/${1:Scene3D}\"",
-      "$0"
-    ],
-    "description": "Utilise un composant React (.tsx ou .jsx), par exemple une scène 3D"
-  },
-  "Module JavaScript": {
-    "prefix": "module-js",
-    "body": [
-      "utiliser module \"${1:Scene3D}\" depuis \"./modules/${1:Scene3D}\"",
-      "$0"
-    ],
-    "description": "Utilise un module JavaScript sans framework, par exemple Three.js"
-  },
   "Style écrit en Humalis": {
     "prefix": "style",
     "body": [
@@ -137,5 +121,215 @@
       "        seul son auteur peut modifier et supprimer ${2:avis}$0"
     ],
     "description": "Chacun peut lire, un compte connecté peut écrire, et seul l'auteur d'une fiche peut la modifier ou la supprimer."
+  },
+  "Composant natif": {
+    "prefix": [
+      "composant-natif",
+      "natif"
+    ],
+    "body": [
+      "utiliser composant \"${1:Carte}\" sur apple \"./natif/${1:Carte}.swift\" et sur android \"./natif/${1:Carte}.kt\" et sur windows \"./natif/${1:Carte}.cs\"",
+      "$0"
+    ],
+    "description": "Une vue écrite dans la langue de chaque plateforme : Swift (Apple), Kotlin (Android), C# (Windows)"
+  },
+  "Style natif": {
+    "prefix": [
+      "style-natif"
+    ],
+    "body": [
+      "utiliser style \"./styles/${1:apple}.swift\" sur apple",
+      "utiliser style \"./styles/${2:android}.kt\" sur android",
+      "utiliser style \"./styles/${3:windows}.xaml\" sur windows$0"
+    ],
+    "description": "Des styles écrits en SwiftUI, Kotlin ou XAML"
+  },
+  "Module JavaScript": {
+    "prefix": "module-js",
+    "body": [
+      "utiliser module \"${1:Scene3D}\" depuis \"./modules/${1:Scene3D}\"",
+      "$0"
+    ],
+    "description": "Utilise un module JavaScript sans framework, par exemple Three.js"
+  },
+  "Liste en direct": {
+    "prefix": [
+      "en-direct",
+      "direct"
+    ],
+    "body": [
+      "serveur \"${1:notes}\" :",
+      "    donnee ${2:note} :",
+      "        texte : texte",
+      "    route \"${3:notes}\" :",
+      "        tout le monde peut lire ${2:note}",
+      "        tout le monde peut creer ${2:note}",
+      "",
+      "page \"${4:accueil}\" :",
+      "    variable ${3:notes} = []",
+      "    titre \"${5:Notes}\"",
+      "    quand la page se charge :",
+      "        envoyer requete vers \"${3:notes}\" dans ${3:notes} en direct",
+      "    pour chaque n dans ${3:notes} :",
+      "        texte n.texte$0"
+    ],
+    "description": "Une liste qui se met à jour seule quand le serveur change"
+  },
+  "Discussion": {
+    "prefix": [
+      "discussion"
+    ],
+    "body": [
+      "serveur \"${1:boutique}\" :",
+      "    roles ${2:client} et ${3:agent}",
+      "    discussion \"${4:support}\" entre ${2:client} et ${3:agent}",
+      "",
+      "page \"${5:accueil}\" :",
+      "    titre \"${6:Support}\"",
+      "    discussion \"${4:support}\"",
+      "    quand un message arrive dans \"${4:support}\" :",
+      "        afficher message.texte$0"
+    ],
+    "description": "Une discussion entre deux rôles : messages, pièces jointes, « Lu » et présence en ligne"
+  },
+  "Appel vidéo": {
+    "prefix": [
+      "appel",
+      "appeler"
+    ],
+    "body": [
+      "serveur \"${1:agence}\" :",
+      "    donnee contact :",
+      "        compte : texte",
+      "        nom : texte",
+      "    route \"contacts\" :",
+      "        connecte peut lire contact",
+      "",
+      "page \"${2:accueil}\" :",
+      "    variable contacts = []",
+      "    titre \"${3:Contacts}\"",
+      "    quand la page se charge :",
+      "        envoyer requete vers \"contacts\" dans contacts",
+      "    pour chaque contact dans contacts :",
+      "        texte contact.nom",
+      "        si contact.compte est en ligne :",
+      "            badge \"En ligne\"",
+      "        bouton \"Appeler\"",
+      "        quand l'utilisateur clique sur \"Appeler\" :",
+      "            appeler en ${4|video,audio|} contact.compte$0"
+    ],
+    "description": "Appeler un contact en vidéo ou en audio, avec sa présence en ligne (LiveKit)"
+  },
+  "Réunion": {
+    "prefix": [
+      "reunion",
+      "salle"
+    ],
+    "body": [
+      "serveur \"${1:ecole}\" :",
+      "    roles ${2:eleve} et ${3:professeur}",
+      "    salle \"${4:classe}\" pour ${2:eleve} et ${3:professeur} animee par ${3:professeur}",
+      "",
+      "page \"${5:accueil}\" :",
+      "    titre \"${6:Classe}\"",
+      "    reunion \"${4:classe}\"",
+      "    pour chaque p dans participants de reunion \"${4:classe}\" :",
+      "        texte p.nom",
+      "        bouton \"Couper\"",
+      "        quand l'utilisateur clique sur \"Couper\" :",
+      "            couper micro de p$0"
+    ],
+    "description": "Une réunion vidéo avec une personne qui l'anime et peut couper le micro des autres (LiveKit)"
+  },
+  "Widget": {
+    "prefix": [
+      "widget"
+    ],
+    "body": [
+      "variable ${1:solde} = ${2:120} avec partagee",
+      "",
+      "widget \"${1:solde}\" avec taille ${3|petite,moyenne,grande|} :",
+      "    texte \"{${1:solde}} €\"",
+      "    actualiser toutes les ${4:30} minutes",
+      "",
+      "page \"accueil\" :",
+      "    titre \"Accueil\"$0"
+    ],
+    "description": "Un widget pour l'écran d'accueil (iPhone, iPad, Mac, Android)"
+  },
+  "Donnée sur l'appareil": {
+    "prefix": [
+      "donnee-locale",
+      "locale"
+    ],
+    "body": [
+      "serveur \"${1:carnet}\" :",
+      "    donnee note :",
+      "        titre : texte",
+      "    route \"${2:notes}\" :",
+      "        connecte peut lire note",
+      "        connecte peut creer note",
+      "        connecte peut modifier note",
+      "        connecte peut supprimer note",
+      "",
+      "donnee locale ${2:notes} avec chiffree :",
+      "    titre : texte",
+      "    synchronisee avec \"${2:notes}\"",
+      "",
+      "page \"accueil\" :",
+      "    titre \"Notes\"",
+      "    pour chaque n dans ${2:notes} :",
+      "        texte n.titre$0"
+    ],
+    "description": "Des données gardées sur l'appareil, chiffrées, envoyées au serveur quand le réseau revient"
+  },
+  "Clés d'accès et code à six chiffres": {
+    "prefix": [
+      "cle-acces",
+      "double-authentification"
+    ],
+    "body": [
+      "serveur \"${1:boutique}\" :",
+      "    connexion par cle d'acces",
+      "    double authentification",
+      "    donnee note :",
+      "        titre : texte",
+      "    route \"notes\" :",
+      "        connecte peut lire note",
+      "",
+      "page \"compte\" :",
+      "    titre \"Compte\"",
+      "    bouton \"Ajouter une clé\"",
+      "    quand l'utilisateur clique sur \"Ajouter une clé\" :",
+      "        ajouter cle d'acces",
+      "    bouton \"Code à six chiffres\"",
+      "    quand l'utilisateur clique sur \"Code à six chiffres\" :",
+      "        activer double authentification$0"
+    ],
+    "description": "La connexion par Face ID, Touch ID ou Windows Hello, et le code à six chiffres"
+  },
+  "Enregistrer un média": {
+    "prefix": [
+      "media",
+      "enregistrer"
+    ],
+    "body": [
+      "variable ${1:note} = rien",
+      "bouton \"${2:Enregistrer}\"",
+      "quand l'utilisateur clique sur \"${2:Enregistrer}\" :",
+      "    ${3|enregistrer audio,enregistrer video,scanner document|} dans ${1:note}$0"
+    ],
+    "description": "Enregistrer un son, une vidéo, ou scanner un document"
+  },
+  "Quand une erreur arrive": {
+    "prefix": [
+      "erreur",
+      "capture-erreurs"
+    ],
+    "body": [
+      "quand une erreur arrive :",
+      "    envoyer requete vers \"${1:https://mon-service.exemple/erreurs}\" avec message = erreur.message et pile = erreur.pile et page = erreur.page et version = erreur.version$0"
+    ],
+    "description": "Envoie chaque erreur de l'application où tu veux : ton serveur, ta surveillance, un webhook"
   }
 }
