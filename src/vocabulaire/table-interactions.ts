@@ -160,6 +160,23 @@ export const ENTREES_INTERACTIONS: EntreeVocabulaire[] = [
       '    variable compte = 10\n    variable actif = vrai\n    toutes les 1 seconde tant que actif est vrai :\n        changer compte par compte - 1\n        si compte est egal a 0 :\n            arreter\n    texte "Il reste {compte} secondes"\n    bouton "Pause"\n    quand l\'utilisateur clique sur "Pause" :\n        changer actif par faux',
     ),
   }),
+  // ─── Le débogage ─────────────────────────────────────────────────────
+  mot({
+    mot: 'noter',
+    categorie: 'action',
+    concept: 'action.noter',
+    cibles: {
+      web: t('if (import.meta.env.DEV) noter(lieu, valeurs) : console.log, et l’inspecteur de humalis developper ; retiré du site construit'),
+      mobile: t('if (__DEV__) console.log(…)'),
+      desktop: { produit: 'comme la cible web', note: 'Electron affiche la page web' },
+      serveur: t('noter(lieu, valeurs) : le terminal, sauf si NODE_ENV vaut production'),
+      statique: null,
+    },
+    couvre: [],
+    description:
+      'Dans un événement, une fonction ou une action du serveur : « noter panier et total » écrit les valeurs avec la ligne Humalis (« [boutique.humalis:12] panier = [2 éléments] ; total = 42,5 ») dans la console du développement — navigateur et inspecteur, terminal du serveur, Xcode, Logcat, fenêtre Sortie de Visual Studio. Un texte entre guillemets s’écrit tel quel : « noter "Après paiement" et total ». Rien en production.',
+    exemple: AU_CLIC('        noter panier et total', '    variable panier = ["Livre"]\n    variable total = 12\n'),
+  }),
   // ─── Copier et partager ──────────────────────────────────────────────
   mot({
     mot: 'copier',
