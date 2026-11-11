@@ -286,12 +286,17 @@ function ouvrir(proprietaire, g, lier, fin, ...valeurs) {
 
 // ─── Les liaisons ───────────────────────────────────────────────────────────
 
-/** Un texte qui change : le seul contenu d'un élément, ou juste après un repère. */
+/**
+ * Un texte qui change : le seul contenu d'un élément, ou juste après un repère. Dans un élément,
+ * le texte reste seul : ce qu'un autre script y a ajouté ou découpé (l'hébergeur qui masque puis
+ * rétablit une adresse e-mail, une extension de traduction) ne s'ajoute pas au texte.
+ */
 export function texte(n, f) {
   let t;
   if (n.nodeType === 1) {
     t = n.firstChild;
     if (!t || t.nodeType !== 3) t = n.insertBefore(document.createTextNode(''), t);
+    while (t.nextSibling) n.removeChild(t.nextSibling);
   } else {
     t = n.nextSibling;
     if (!t || t.nodeType !== 3) t = n.parentNode.insertBefore(document.createTextNode(''), t);
