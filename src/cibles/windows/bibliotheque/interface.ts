@@ -212,6 +212,9 @@ public static class Icones
         ["deconnexion"] = "", ["connexion"] = "", ["image"] = "", ["fichier"] = "", ["dossier"] = "", ["carte"] = "",
         ["lieu"] = "", ["argent"] = "", ["camion"] = "", ["livraison"] = "", ["lien"] = "", ["copier"] = "",
         ["actualiser"] = "", ["filtre"] = "", ["graphique"] = "", ["notification"] = "", ["cloche"] = "", ["oeil"] = "", ["lecture"] = "", ["pause"] = "",
+        // Les réunions et les appels (Segoe Fluent Icons : Microphone, MicOff, Video, Project, NUIFPPressHand, Phone, HangUp).
+        ["micro"] = "\uE720", ["micro_coupe"] = "\uEC54", ["video"] = "\uE714", ["video_coupee"] = "\uE714", ["camera"] = "\uE722",
+        ["partage_ecran"] = "\uEBC6", ["partage_ecran_arrete"] = "\uEBC6", ["main"] = "\uEB8A", ["main_levee"] = "\uEB8A", ["decrocher"] = "\uE717", ["raccrocher"] = "\uE778",
     };
 
     public static string Glyphe(string nom) => glyphes.TryGetValue(nom, out var g) ? g : "";
