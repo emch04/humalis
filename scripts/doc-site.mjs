@@ -162,7 +162,18 @@ const adresse = (titre) =>
 const fr = chapitres(lire('docs/guide.md'));
 const en = chapitres(lire('docs/guide.en.md'));
 const pages = en.map((chapitreEn, index) => {
-  const chapitreFr = fr[index] ?? { numero: null, titre: 'Les mots-clés de Humalis en anglais', lignes: ['Cette page présente les mots-clés français de Humalis, avec leur sens, aux personnes qui lisent le guide en anglais.'] };
+  // Le tableau des mots-clés n'existe que dans le guide anglais : en français, la page montre le même
+  // tableau, pour expliquer le langage à quelqu'un qui lit l'anglais.
+  const chapitreFr = fr[index] ?? {
+    numero: null,
+    titre: 'Les mots-clés de Humalis en anglais',
+    lignes: [
+      '',
+      'Chaque mot de Humalis, avec son équivalent en anglais : pratique pour expliquer le langage à quelqu’un qui lit l’anglais.',
+      '',
+      ...chapitreEn.lignes.map((l) => (l.trim() === '| Humalis | English |' ? '| Humalis | En anglais |' : l)),
+    ],
+  };
   const numero = chapitreEn.numero ?? index + 1;
   return {
     nom: `documentation_${numero}`,
