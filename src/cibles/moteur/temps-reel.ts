@@ -10,10 +10,20 @@ export const VERSION_LIVEKIT_WEB = '2.23.0';
 
 export const utiliseReunion = (application: Application): boolean => JSON.stringify([application.ecrans, application.composants]).includes('"type":"gesteReunion"');
 
+/** Les images des participants : une grille qui suit la largeur. */
+export const REUNION_CSS = `humalis-reunion { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); width: 100%; }
+.humalis-reunion-tuile { position: relative; margin: 0; aspect-ratio: 16 / 9; background: #1c1c1e; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.humalis-reunion-tuile video { width: 100%; height: 100%; object-fit: cover; }
+.humalis-reunion-tuile figcaption { position: absolute; left: 8px; bottom: 6px; color: #fff; font-size: 13px; text-shadow: 0 1px 2px #000; }
+.humalis-reunion-initiale { color: #fff; font-size: 40px; }
+`;
+
 export const REUNION_JS = String.raw`// Produit par Humalis : la réunion en cours, par LiveKit.
 import { Room, RoomEvent, Track } from 'livekit-client';
 import { serveur } from './serveur.js';
 import { afficherMessage } from './outils.js';
+// Une feuille à part : la politique de contenu du bureau refuse les styles écrits dans la page.
+import './reunion.css';
 
 let salle = '';
 let piece;
@@ -23,11 +33,30 @@ function annoncer() {
   if (salle) serveur.envoyer('/api/salles_geste', { salle, participant: '', geste: 'etat' }).catch(() => undefined);
 }
 
+/**
+ * Une seule image par piste, gardée d'un dessin à l'autre : LiveKit suspend une vidéo dont l'image a quitté la page
+ * (« adaptiveStream »), il ne faut donc pas en créer une nouvelle à chaque changement.
+ */
+const videos = new Map();
+function videoDe(track) {
+  let video = videos.get(track.sid);
+  if (!video) {
+    video = track.attach();
+    videos.set(track.sid, video);
+  }
+  return video;
+}
+function oublierVideo(track) {
+  const video = videos.get(track.sid);
+  if (video) track.detach(video);
+  videos.delete(track.sid);
+}
+
 function tuile(participant, publication, local) {
   const cadre = document.createElement('figure');
   cadre.className = 'humalis-reunion-tuile';
   if (publication?.track && !publication.isMuted) {
-    const video = publication.track.attach();
+    const video = videoDe(publication.track);
     video.muted = local;
     video.setAttribute('aria-label', participant.name || participant.identity);
     cadre.append(video);
@@ -76,13 +105,6 @@ class HumalisReunion extends HTMLElement {
 }
 if (!customElements.get('humalis-reunion')) customElements.define('humalis-reunion', HumalisReunion);
 
-if (!document.getElementById('humalis-reunion-styles')) {
-  const styles = document.createElement('style');
-  styles.id = 'humalis-reunion-styles';
-  styles.textContent = 'humalis-reunion{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));width:100%}.humalis-reunion-tuile{position:relative;margin:0;aspect-ratio:16/9;background:#1c1c1e;border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center}.humalis-reunion-tuile video{width:100%;height:100%;object-fit:cover}.humalis-reunion-tuile figcaption{position:absolute;left:8px;bottom:6px;color:#fff;font-size:13px;text-shadow:0 1px 2px #000}.humalis-reunion-initiale{color:#fff;font-size:40px}';
-  document.head.append(styles);
-}
-
 const dire = (erreur) => {
   const refuse = erreur?.name === 'NotAllowedError';
   afficherMessage(refuse ? "L'accès à la caméra ou au micro est refusé : autorisez-le dans les réglages." : (erreur?.message || 'La réunion a rencontré un problème.'), 'erreur');
@@ -113,7 +135,10 @@ export const reunion = {
     const nouvelle = new Room({ adaptiveStream: true, dynacast: true });
     for (const evenement of [RoomEvent.ParticipantConnected, RoomEvent.ParticipantDisconnected, RoomEvent.TrackPublished, RoomEvent.TrackUnpublished, RoomEvent.TrackMuted, RoomEvent.TrackUnmuted, RoomEvent.LocalTrackPublished, RoomEvent.LocalTrackUnpublished, RoomEvent.ParticipantAttributesChanged]) nouvelle.on(evenement, dessiner);
     nouvelle.on(RoomEvent.TrackSubscribed, (track) => { brancherSon(track); dessiner(); });
-    nouvelle.on(RoomEvent.TrackUnsubscribed, (track) => { track.detach().forEach((e) => e.remove()); dessiner(); });
+    nouvelle.on(RoomEvent.TrackUnsubscribed, (track) => { oublierVideo(track); track.detach().forEach((e) => e.remove()); dessiner(); });
+    nouvelle.on(RoomEvent.LocalTrackUnpublished, (publication) => { if (publication.track) oublierVideo(publication.track); dessiner(); });
+    // Une personne qui anime coupe ce micro : la page l'apprend par le serveur.
+    for (const evenement of [RoomEvent.TrackMuted, RoomEvent.TrackUnmuted]) nouvelle.on(evenement, (_publication, participant) => { if (participant === nouvelle.localParticipant) annoncer(); });
     nouvelle.on(RoomEvent.Disconnected, () => { if (piece === nouvelle) { piece = undefined; dessiner(); } });
     piece = nouvelle;
     salle = nom;
@@ -129,6 +154,7 @@ export const reunion = {
     piece = undefined;
     salle = '';
     document.querySelectorAll('[data-humalis-reunion]').forEach((e) => e.remove());
+    videos.clear();
     dessiner();
     if (ancienne) {
       await ancienne.disconnect();

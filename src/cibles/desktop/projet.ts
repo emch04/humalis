@@ -603,12 +603,14 @@ ${o.captureAudio || o.captureVideo || o.reunion ? `    // Seules les captures d�
     const permissionMedia = (contenu: Electron.WebContents | null, permission: string, details?: unknown) => {
       if (contenu?.getURL().startsWith(ORIGINE + '/') !== true) return false;
       if (permission === 'display-capture') return ${o.reunion};
-      if (permission !== 'media') return false;
-      if (${o.reunion}) return true;
+      if (permission !== 'media') return false;${o.reunion ? `
+      // Une réunion prend le micro et la caméra.
+      void details;
+      return true;` : `
       // La demande donne mediaTypes ; la vérification, mediaType (« audio » ou « video »).
       const lu = details as { mediaTypes?: string[]; mediaType?: string } | undefined;
       const types = lu?.mediaTypes ?? (lu?.mediaType ? [lu.mediaType] : []);
-      return ${o.captureAudio} && (${o.captureVideo} || !types.includes('video'));
+      return ${o.captureAudio} && (${o.captureVideo} || !types.includes('video'));`}
     };
     session.defaultSession.setPermissionRequestHandler((contenu, permission, repondre, details) => {
       if (!permissionMedia(contenu, permission, details)) return repondre(false);
