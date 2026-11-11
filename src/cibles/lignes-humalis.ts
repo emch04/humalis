@@ -370,10 +370,11 @@ export function plagesKotlin(lu: CodeLu, fichiers: readonly string[], index: (fi
 
 // --- Le projet entier -------------------------------------------------------
 
-export type LangageProduit = 'js' | 'swift' | 'csharp' | 'kotlin';
+export type LangageProduit = 'js' | 'ts' | 'swift' | 'csharp' | 'kotlin';
 
 export function langageDe(chemin: string): LangageProduit | undefined {
   if (/\.(m|c)?js$/.test(chemin)) return 'js';
+  if (/\.(m|c)?tsx?$/.test(chemin) && !chemin.endsWith('.d.ts')) return 'ts';
   if (chemin.endsWith('.swift')) return 'swift';
   if (chemin.endsWith('.cs')) return 'csharp';
   if (chemin.endsWith('.kt')) return 'kotlin';
@@ -442,6 +443,12 @@ export function appliquerLignesHumalis(fichiers: Map<string, string>, options: O
       const carte = carteDeSources(nom, lu.segments, options.fichiers, (f) => depuis(dossier, versSource(f)), options.contenus === false ? undefined : options.lire);
       resultat.set(chemin, `${lu.code.replace(/\n?$/, '\n')}//# sourceMappingURL=${nom}.map\n`);
       resultat.set(`${chemin}.map`, JSON.stringify(carte));
+    } else if (langage === 'ts') {
+      // TypeScript : la carte va à côté, sans commentaire ; après tsc, humalis-cartes.mjs la compose avec celle de tsc.
+      const nom = nomDe(chemin);
+      const dossier = dossierDe(chemin);
+      resultat.set(chemin, lu.code);
+      resultat.set(`${chemin}.map`, JSON.stringify(carteDeSources(nom, lu.segments, options.fichiers, (f) => depuis(dossier, versSource(f)), options.contenus === false ? undefined : options.lire)));
     } else if (langage === 'swift') {
       resultat.set(chemin, versSwift(lu, options.fichiers, (f) => f));
     } else if (langage === 'csharp') {
@@ -529,3 +536,137 @@ object HumalisLignes {
 }
 `;
 }
+
+/**
+ * Le script écrit dans un projet TypeScript (serveur, bureau) : après tsc,
+ * il compose chaque carte `dist/…/x.js.map` (JavaScript → TypeScript) avec
+ * la carte `src/…/x.ts.map` écrite par Humalis (TypeScript → Humalis). Node,
+ * lancé avec --enable-source-maps, montre alors les lignes Humalis dans les
+ * piles d'erreurs, et le débogueur pose ses points d'arrêt dans les
+ * fichiers `.humalis`.
+ */
+export const COMPOSER_CARTES_JS = `// Produit par Humalis : relie le JavaScript construit aux lignes Humalis.
+import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { dirname, join, relative, resolve, sep } from 'node:path';
+
+const BASE64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+function decoder(texte) {
+  const valeurs = [];
+  let valeur = 0;
+  let decalage = 0;
+  for (const caractere of texte) {
+    const chiffre = BASE64.indexOf(caractere);
+    if (chiffre < 0) continue;
+    valeur += (chiffre & 31) << decalage;
+    if (chiffre & 32) decalage += 5;
+    else {
+      valeurs.push(valeur & 1 ? -(valeur >>> 1) : valeur >>> 1);
+      valeur = 0;
+      decalage = 0;
+    }
+  }
+  return valeurs;
+}
+function coder(valeur) {
+  let v = valeur < 0 ? (-valeur << 1) | 1 : valeur << 1;
+  let sortie = '';
+  do {
+    let chiffre = v & 31;
+    v >>>= 5;
+    if (v > 0) chiffre |= 32;
+    sortie += BASE64[chiffre];
+  } while (v > 0);
+  return sortie;
+}
+
+/** Une carte décodée : par ligne, des segments [colonne, source, ligne, colonne source] (source -1 : sans lien). */
+function lire(carte) {
+  const lignes = [];
+  let source = 0, ligne = 0, colonneSource = 0;
+  for (const texte of carte.mappings.split(';')) {
+    const segments = [];
+    let colonne = 0;
+    for (const morceau of texte.split(',')) {
+      if (!morceau) continue;
+      const v = decoder(morceau);
+      colonne += v[0] ?? 0;
+      if (v.length >= 4) {
+        source += v[1]; ligne += v[2]; colonneSource += v[3];
+        segments.push([colonne, source, ligne, colonneSource]);
+      } else segments.push([colonne, -1, 0, 0]);
+    }
+    lignes.push(segments);
+  }
+  return lignes;
+}
+
+function ecrireMappings(lignes) {
+  let source = 0, ligne = 0, colonneSource = 0;
+  return lignes.map((segments) => {
+    let colonne = 0;
+    return segments.map(([c, s, l, cs]) => {
+      let code = coder(c - colonne);
+      colonne = c;
+      if (s >= 0) {
+        code += coder(s - source) + coder(l - ligne) + coder(cs - colonneSource);
+        source = s; ligne = l; colonneSource = cs;
+      }
+      return code;
+    }).join(',');
+  }).join(';');
+}
+
+/** Le segment d'une ligne qui couvre la colonne (le premier si la colonne est avant). */
+function couvrant(segments, colonne) {
+  if (!segments || segments.length === 0) return undefined;
+  let trouve = segments[0];
+  for (const s of segments) if (s[0] <= colonne) trouve = s; else break;
+  return trouve;
+}
+
+function fichiers(dossier) {
+  if (!existsSync(dossier)) return [];
+  return readdirSync(dossier).flatMap((nom) => {
+    const chemin = join(dossier, nom);
+    return statSync(chemin).isDirectory() ? fichiers(chemin) : chemin.endsWith('.js.map') ? [chemin] : [];
+  });
+}
+
+let composees = 0;
+for (const cheminCarte of fichiers(resolve(process.argv[2] ?? 'dist'))) {
+  const exterieure = JSON.parse(readFileSync(cheminCarte, 'utf8'));
+  const ici = dirname(cheminCarte);
+  const interieures = exterieure.sources.map((s) => {
+    const ts = resolve(ici, exterieure.sourceRoot ?? '', s);
+    if (!existsSync(ts + '.map')) return undefined;
+    const carte = JSON.parse(readFileSync(ts + '.map', 'utf8'));
+    return { carte, lignes: lire(carte), dossier: dirname(ts) };
+  });
+  if (interieures.every((i) => i === undefined)) continue;
+  const sources = [];
+  const contenus = [];
+  const indexDe = (chemin, contenu) => {
+    let i = sources.indexOf(chemin);
+    if (i < 0) { i = sources.push(chemin) - 1; contenus.push(contenu ?? null); }
+    return i;
+  };
+  const lignes = lire(exterieure).map((segments) => segments.map(([c, s, l, cs]) => {
+    if (s < 0) return [c, -1, 0, 0];
+    const interieure = interieures[s];
+    const cheminTs = resolve(ici, exterieure.sourceRoot ?? '', exterieure.sources[s]);
+    if (interieure) {
+      const segment = couvrant(interieure.lignes[l], cs);
+      if (segment && segment[1] >= 0) {
+        const humalis = resolve(interieure.dossier, interieure.carte.sources[segment[1]]);
+        return [c, indexDe(relative(ici, humalis).split(sep).join('/'), interieure.carte.sourcesContent?.[segment[1]]), segment[2], 0];
+      }
+    }
+    return [c, indexDe(relative(ici, cheminTs).split(sep).join('/'), exterieure.sourcesContent?.[s]), l, cs];
+  }));
+  const composee = { version: 3, file: exterieure.file, sources, names: [], mappings: ecrireMappings(lignes) };
+  if (contenus.some((c) => c !== null)) composee.sourcesContent = contenus;
+  writeFileSync(cheminCarte, JSON.stringify(composee));
+  composees++;
+}
+if (composees > 0) console.error('Lignes Humalis : ' + composees + ' carte(s) composée(s).');
+`;

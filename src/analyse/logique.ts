@@ -154,7 +154,13 @@ class Traduction {
     return { genre: 'tableau', donnee: liee.nom, filtres: this.filtres(l.filtres, liee, portee, l.ligne), colonnes, ...(liee.par !== undefined ? { groupeDe: parent.nom } : {}) };
   }
 
+  /** Chaque instruction garde sa ligne Humalis (cartes de sources du serveur). */
   private instruction(i: InstructionServeur, portee: Portee): InstructionServeurRI {
+    const resultat = this.instructionSansLigne(i, portee);
+    return i.ligne > 0 ? { ...resultat, ligne: i.ligne } : resultat;
+  }
+
+  private instructionSansLigne(i: InstructionServeur, portee: Portee): InstructionServeurRI {
     switch (i.type) {
       case 'RequeteServeur': {
         if (!this.avecErreur) {

@@ -13,7 +13,9 @@ export function codeCaptureErreurs(serveur: ServeurRI): string {
     return "''";
   };
   return `// Produit par Humalis : capture sûre des erreurs du processus et d'Express.
-type Rapport = { message: string; pile: string; page: string; version: string };
+import { ligneHumalis, pileHumalis } from './lignes.js';
+
+type Rapport = { message: string; pile: string; ligne: string; page: string; version: string };
 const enCours = new Set<string>();
 const limites = new Map<string, number[]>();
 let dansLaCapture = false;
@@ -27,7 +29,7 @@ function nettoyer(texte: unknown): string {
 export async function rapporterErreur(inconnue: unknown, page = ''): Promise<void> {
   if (dansLaCapture) return;
   const brute = inconnue instanceof Error ? inconnue : new Error('Erreur inconnue');
-  const erreur: Rapport = { message: nettoyer(brute.message), pile: nettoyer(brute.stack), page: nettoyer(page), version: ${q('1.0.0')} };
+  const erreur: Rapport = { message: nettoyer(brute.message), pile: nettoyer(pileHumalis(String(brute.stack ?? ''))), ligne: nettoyer(ligneHumalis(brute)), page: nettoyer(page), version: ${q('1.0.0')} };
   const cle = erreur.message + '|' + erreur.pile.split('\\n')[1];
   const maintenant = Date.now();
   const passages = (limites.get(cle) ?? []).filter((instant) => maintenant - instant < 60_000);

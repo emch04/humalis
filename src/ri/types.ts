@@ -196,7 +196,10 @@ export type TestServeurRI =
   | { genre: 'comparaison'; operateur: string; gauche: ValeurServeurRI; droite?: ValeurServeurRI; negation?: boolean }
   | { genre: 'combinaison'; operateur: 'et' | 'ou'; gauche: TestServeurRI; droite: TestServeurRI };
 
-export type InstructionServeurRI =
+/** Une instruction du serveur, avec sa ligne Humalis (ligne fusionnée du projet). */
+export type InstructionServeurRI = InstructionServeurSeule & { ligne?: number };
+
+type InstructionServeurSeule =
   | { type: 'requete'; adresse: string; champs: { nom: string; valeur: ValeurServeurRI }[] }
   | { type: 'si'; test: TestServeurRI; alors: InstructionServeurRI[]; sinon: InstructionServeurRI[] }
   | { type: 'pourChaque'; variable: string; donnee: string; filtres: FiltreServeurRI[]; corps: InstructionServeurRI[] }
@@ -208,7 +211,7 @@ export type InstructionServeurRI =
   | { type: 'email'; a: { genre: 'admins' } | { genre: 'valeur'; valeur: ValeurServeurRI }; sujet: ValeurServeurRI; texte: ValeurServeurRI }
   | { type: 'notification'; a: { genre: 'roles'; roles: string[]; groupe?: { champ: string; fiche: string } } | { genre: 'compte'; valeur: ValeurServeurRI }; titre: ValeurServeurRI; texte: ValeurServeurRI; /** « et boutons "Accepter" et "Refuser" ». */ boutons?: string[] }
   /** « mettre a jour activite "livraison" pour commande.client » : l'activité en direct de ces comptes. */
-  | { type: 'activite'; nom: string; a: Extract<InstructionServeurRI, { type: 'notification' }>['a'] };
+  | { type: 'activite'; nom: string; a: Extract<InstructionServeurSeule, { type: 'notification' }>['a'] };
 
 export type FrequenceRI = { genre: 'heure' } | { genre: 'jour'; heure: number; minute: number } | { genre: 'semaine'; jour: number; heure: number; minute: number };
 

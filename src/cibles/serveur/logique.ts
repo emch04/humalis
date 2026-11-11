@@ -1,3 +1,4 @@
+import { repereLigne } from '../lignes-humalis.js';
 /**
  * « seul gerant peut faire … » et « tous les jours a 7 h : » : le code produit.
  * Une action tourne dans une transaction : un « refuser » ou une panne annule tout ce
@@ -415,7 +416,16 @@ class Ecriture {
     return liste.map((i) => this.instruction(i, retrait)).join('\n');
   }
 
+  /** Le repère de la ligne Humalis devant le code de l'instruction (voir lignes-humalis.ts). */
   private instruction(i: InstructionServeurRI, r: string): string {
+    const code = this.instructionSansLigne(i, r);
+    const repere = repereLigne(i.ligne);
+    if (!repere) return code;
+    // Chaque ligne de l'instruction écrite à son retrait (pas celles des instructions qu'elle contient, qui ont les leurs).
+    return code.split('\n').map((ligne) => (ligne.startsWith(r) && ligne[r.length] !== ' ' && !ligne.slice(r.length).startsWith('/*@') ? r + repere + ligne.slice(r.length) : ligne)).join('\n');
+  }
+
+  private instructionSansLigne(i: InstructionServeurRI, r: string): string {
     switch (i.type) {
       case 'requete':
         return `${r}try {\n${r}  await fetch(${chaine(i.adresse)}, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ${i.champs.map((c) => `${chaine(c.nom)}: ${valeur(c.valeur)}`).join(', ')} }), signal: AbortSignal.timeout(3000) });\n${r}} catch { /* La capture ne doit jamais interrompre le serveur. */ }`;

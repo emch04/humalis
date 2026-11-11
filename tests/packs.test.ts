@@ -95,6 +95,8 @@ describe('le démarrage du serveur produit', () => {
   it('lit le fichier .env, comme le dit le LISEZMOI (cp .env.exemple .env, puis npm start)', () => {
     const { application } = compiler(['serveur "boutique" :', '    donnee produit :', '        nom : texte'].join('\n'));
     const paquet = JSON.parse(genererProjetServeur(application!.serveurs[0], { nom: 'boutique', source: 'boutique.humalis' }).get('package.json')!);
-    expect(paquet.scripts.start).toBe('node --env-file-if-exists=.env dist/src/demarrer.js');
+    expect(paquet.scripts.start).toBe('node --enable-source-maps --env-file-if-exists=.env dist/src/demarrer.js');
+    // Les piles d'erreurs nomment les lignes Humalis : les cartes de tsc sont composées après la construction.
+    expect(paquet.scripts.build).toBe('tsc && node humalis-cartes.mjs');
   });
 });

@@ -1,3 +1,5 @@
+import { LIGNES_SERVEUR_TS } from './lignes.js';
+import { COMPOSER_CARTES_JS } from '../lignes-humalis.js';
 import { avecComptes, avecEmails, CLES_BREVO, codeCreationComptes, codeEnvois, codeRoutesComptes, COMPTES, EMAILS, ENV_EMAILS, ENV_LIENS, testsComptes } from './comptes.js';
 import { codeFicheVisible, codePortee, compteRelu, conditionsDe, constantesSeparation, estSeparee, SEPARATION, testsSeparee } from './separation.js';
 import { avecIa, ENV_IA, IA, routeIa } from './ia.js';
@@ -80,6 +82,9 @@ export function genererProjetServeur(complet: ServeurRI, options: OptionsServeur
   fichiers.set('src/humalis/sessions.ts', SESSIONS);
   fichiers.set('src/humalis/centrale.ts', CENTRALE);
   if (serveur.captureErreurs) fichiers.set('src/humalis/capture-erreurs.ts', codeCaptureErreurs(serveur));
+  // Les lignes Humalis : les erreurs du journal et de la capture nomment le fichier .humalis et sa ligne.
+  fichiers.set('src/humalis/lignes.ts', LIGNES_SERVEUR_TS);
+  fichiers.set('humalis-cartes.mjs', COMPOSER_CARTES_JS);
   fichiers.set('src/humalis/coffre.ts', coffreTs(serveur));
   fichiers.set('src/donnees.ts', donneesTs(serveur));
   if (avecSynchro(serveur)) {
@@ -174,8 +179,9 @@ function packageJson(nom: string, serveur: ServeurRI, livekit = false): string {
       private: true,
       type: 'module',
       scripts: {
-        build: 'tsc',
-        start: 'node --env-file-if-exists=.env dist/src/demarrer.js',
+        // Après tsc, les cartes de sources sont reliées aux fichiers Humalis : les piles d'erreurs nomment leurs lignes.
+        build: 'tsc && node humalis-cartes.mjs',
+        start: 'node --enable-source-maps --env-file-if-exists=.env dist/src/demarrer.js',
         test: 'vitest run --dir tests',
         // Les failles connues des dépendances, et les secrets écrits en dur dans un journal ou une réponse.
         'audit:deps': 'astratra audit:deps',
@@ -225,6 +231,7 @@ const TSCONFIG = JSON.stringify(
       strict: true,
       skipLibCheck: true,
       outDir: 'dist',
+      sourceMap: true,
       types: ['node'],
     },
     include: ['src', 'tests'],
@@ -1303,7 +1310,8 @@ ${codePaiements(route, variable, garde('lire'), voir('lire'), separee, donnee)}$
 import { createSaasApp, ${comptes ? 'createMemoryPasswordResetStore, type PasswordResetStore, ' : ''}type UsersStore } from '@astratra/saas-kit';
 import { ${[...(serveur.connexionGoogle ? ['createGoogleIdTokenVerifier'] : []), ...(serveur.connexionApple ? ['createAppleIdTokenVerifier'] : []), ...(serveur.connexionGoogle || serveur.connexionApple ? ['IdTokenError'] : []), ...(serveur.invitations ? ['createApiLimiter'] : []), ...(comptes ? ['createMemoryRevocationStore'] : [])].map((n) => n + ', ').join('')}createLoginLimiter, hashPassword, isStrongPassword, verifyPasswordHash, WAF_PATTERNS } from '@astratra/security';
 import express, { type RequestHandler, type Response } from 'express';
-${montageTempsReel ? IMPORT_TEMPS_REEL : ''}${serveur.captureErreurs ? "import { brancherErreursProcessus, rapporterErreur } from './humalis/capture-erreurs.js';\n" : ''}
+${montageTempsReel ? IMPORT_TEMPS_REEL : ''}import { journaliserErreur } from './humalis/lignes.js';
+${serveur.captureErreurs ? "import { brancherErreursProcessus, rapporterErreur } from './humalis/capture-erreurs.js';\n" : ''}
 ${serveur.routes.some((r) => r.direct) ? "import { direct } from './humalis/direct.js';\n" : ''}import { ${schemas} } from './donnees.js';
 import type { Surveillance } from './humalis/centrale.js';
 import type { Coffre } from './humalis/coffre.js';
@@ -1457,7 +1465,9 @@ ${google}${avecSecurite(serveur) ? codeRoutesSecurite(serveur) : ''}
       app.use('/auth/cles', authMiddleware, authorizeAdmin, csrfMiddleware, coffre ? coffre.routes(authorizeAdmin) : coffreFerme);
 
 ${avecIa(serveur) ? routeIa(serveur) : ''}${avecNotifications(serveur) ? ROUTES_APPAREILS : ''}${codeCompleter(serveur)}${comptes ? codeRoutesComptes(serveur, adresseApi, (a) => `route${pascal(a)}`) : ''}${routes}${codePasserelles(serveur)}
-${fidelite}${avecPaiements(serveur) ? codeSurPaiement(serveur) : ''}${codeTaches(serveur)}${montageTempsReel}${serveur.captureErreurs ? "      app.use((erreur: unknown, req: express.Request, _res: express.Response, next: express.NextFunction) => { void rapporterErreur(erreur, req.path); next(erreur); });\n" : ''}      // Le dernier avant la réponse d'erreur du pack, qui répond ensuite comme d'habitude.
+${fidelite}${avecPaiements(serveur) ? codeSurPaiement(serveur) : ''}${codeTaches(serveur)}${montageTempsReel}      // Une erreur venue d'une ligne Humalis est écrite avec cette ligne dans le journal.
+      app.use((erreur: unknown, req: express.Request, _res: express.Response, next: express.NextFunction) => { journaliserErreur(erreur, \`\${req.method} \${req.path}\`); next(erreur); });
+${serveur.captureErreurs ? "      app.use((erreur: unknown, req: express.Request, _res: express.Response, next: express.NextFunction) => { void rapporterErreur(erreur, req.path); next(erreur); });\n" : ''}      // Le dernier avant la réponse d'erreur du pack, qui répond ensuite comme d'habitude.
       if (surveillance) app.use(surveillance.gestionnaireErreurs());
     },
   });
