@@ -3933,8 +3933,9 @@ coloration, la complétion et le survol des mots.
 ### Dans ton éditeur
 
 Humalis s'écrit dans presque tous les éditeurs. Chacun montre les erreurs
-pendant que tu écris, le survol des mots, la complétion, le saut à la
-déclaration, le plan du fichier et la mise en forme. Tous s'appuient sur
+pendant que tu écris, le survol des mots, la complétion et le saut à la
+déclaration ; tous, sauf Visual Studio, ajoutent le plan du fichier et la
+mise en forme. Tous s'appuient sur
 `humalis editeur --stdio`, le serveur de langage installé avec Humalis
 (`npm install -g humalis`).
 

@@ -19,7 +19,7 @@ tirée du vocabulaire du compilateur (`src/lexer/motsCles.ts`).
 | `vscode` | VS Code, Cursor, VSCodium, Windsurf | grammaire TextMate (`syntaxes/humalis.tmLanguage.json`) |
 | `jetbrains` | IntelliJ IDEA, Android Studio, WebStorm, Rider, PyCharm… (2024.2 et plus récent) | analyseur Kotlin de l'extension |
 | `zed` | Zed | grammaire tree-sitter |
-| `visual-studio` | Visual Studio 2022 (17.14) et 2026 | jetons sémantiques du serveur |
+| `visual-studio` | Visual Studio 2022 (17.14) et 2026 | jetons sémantiques du serveur (les noms seulement) |
 | `neovim` | Neovim 0.11 et plus récent | grammaire tree-sitter (facultative) |
 | `helix` | Helix 25.07 et plus récent | grammaire tree-sitter |
 | `emacs` | Emacs 29 et plus récent (eglot) | mode `humalis-mode` |
@@ -59,7 +59,11 @@ Pour un autre chemin, dans les réglages de Zed :
 ### Visual Studio
 
 Depuis *Extensions › Gérer les extensions*, « Humalis », ou en ouvrant le
-fichier `Humalis.VisualStudio.vsix`.
+fichier `Humalis.VisualStudio.vsix` (double-clic ; Windows demande l'accord
+de l'administrateur). Essayée dans Visual Studio 2022 17.14 : erreurs en
+direct, survol, complétion et déclaration (F12) marchent ; la mise en forme
+et le plan ne répondent pas encore, et le survol n'affiche que l'exemple de
+la fiche.
 
 ### Neovim
 
