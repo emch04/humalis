@@ -30,6 +30,7 @@ page "mentions_legales" a l'adresse "/mentions-legales" :
             soustitre "Propriété intellectuelle" en anglais "Intellectual property"
             texte "Le langage Humalis, son compilateur et ce site sont distribués sous la Licence Humalis 1.1. © 2026 Les auteurs de Humalis. Tous droits réservés, sauf ce que la licence permet." en anglais "The Humalis language, its compiler and this website are distributed under the Humalis License 1.1. © 2026 The Humalis authors. All rights reserved, except what the license allows."
             texte "Les polices Space Grotesk, Inter et JetBrains Mono sont utilisées sous la licence SIL Open Font License 1.1." en anglais "The Space Grotesk, Inter and JetBrains Mono fonts are used under the SIL Open Font License 1.1."
+            texte "Le robot Android est reproduit ou modifié à partir d’une œuvre créée et partagée par Google, et utilisé selon les conditions de la licence Creative Commons Attribution 3.0. Android est une marque de Google LLC." en anglais "The Android robot is reproduced or modified from work created and shared by Google and used according to terms described in the Creative Commons 3.0 Attribution License. Android is a trademark of Google LLC."
             lien "Lire la Licence Humalis ↗" en anglais "Read the Humalis License ↗" vers "https://github.com/emch04/humalis/blob/main/LICENSE" avec nouvel onglet
         bloc avec style "legal-bloc" :
             soustitre "Responsabilité" en anglais "Liability"

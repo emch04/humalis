@@ -60,7 +60,7 @@ page "accueil" :
                 soustitre "iPhone, iPad, Mac" en anglais "iPhone, iPad, Mac" avec niveau 3
                 texte "SwiftUI natif" en anglais "Native SwiftUI"
             bloc avec style "target-card" :
-                icone "telephone" avec decoratif
+                bloc avec style "logo-android"
                 soustitre "Android" en anglais "Android" avec niveau 3
                 texte "Kotlin et Jetpack Compose" en anglais "Kotlin and Jetpack Compose"
             bloc avec style "target-card" :
