@@ -192,7 +192,7 @@ const sortie = [
   '',
   'page "documentation" a l\'adresse "/documentation" :',
   '    apercu :',
-  '        description "Le guide complet de Humalis : de l’installation au serveur, chaque construction du langage avec un exemple vérifié." en anglais "The complete Humalis guide: from installation to the server, every construct of the language with a checked example."',
+  '        description "Le guide complet de Humalis : de l’installation au serveur, chaque construction du langage avec un exemple." en anglais "The complete Humalis guide: from installation to the server, every construct of the language with an example."',
   '    ligne avec style "doc" :',
   '        menu vertical avec style "doc-sommaire" et defilement interne :',
   ...pages.map((p) => `            lien ${guillemets(p.titreFr)} en anglais ${guillemets(p.titreEn)} vers ${guillemets(p.nom)}`),
@@ -201,7 +201,7 @@ const sortie = [
   '',
   'page "documentation_sommaire" dans "documentation" adresse "/documentation" :',
   '    titre "Documentation de Humalis" en anglais "Humalis documentation"',
-  '    texte "Le guide complet du langage, du premier titre jusqu’au serveur. Chaque exemple est vérifié par le compilateur : s’il est écrit ici, il marche." en anglais "The complete guide to the language, from the first title to the server. Every example is checked by the compiler: if it is written here, it works."',
+  '    texte "Le guide complet du langage, du premier titre jusqu’au serveur." en anglais "The complete guide to the language, from the first title to the server."',
   // La liste numérote déjà : les titres y sont écrits sans leur numéro.
   '    liste numerotee :',
   ...pages.map((p) => `        lien ${guillemets(sansNumero(p.titreFr))} en anglais ${guillemets(sansNumero(p.titreEn))} vers ${guillemets(p.nom)}`),
