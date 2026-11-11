@@ -13,6 +13,7 @@ type Moteur = {
   racine: (f: () => void) => () => void;
   nettoyer: (f: () => void) => void;
   appliquer: () => void;
+  texte: (n: unknown, f: () => string) => void;
 };
 const charger = (): Promise<Moteur> => import(/* @vite-ignore */ `data:text/javascript,${encodeURIComponent(MOTEUR_JS)}#${Math.random()}`);
 
@@ -21,6 +22,41 @@ function projet(source: string) {
   if (!application) throw new Error('le programme ne compile pas');
   return genererProjetMoteur(application, { nom: 'essai', source: 'essai.humalis' });
 }
+
+describe('le moteur : un texte relié', () => {
+  it('reste seul dans son élément, même si un autre script l’a découpé (une adresse e-mail rétablie)', async () => {
+    const { signal, texte, appliquer } = await charger();
+    // Un paragraphe où l'hébergeur a remplacé l'adresse par un lien, puis rétabli le texte en morceaux.
+    type Noeud = { nodeType: number; data?: string; nextSibling: Noeud | null };
+    const morceaux: Noeud[] = [
+      { nodeType: 3, data: 'Écrire à ', nextSibling: null },
+      { nodeType: 3, data: 'contact@humalis.dev', nextSibling: null },
+      { nodeType: 3, data: '.', nextSibling: null },
+    ];
+    morceaux.forEach((m, i) => (m.nextSibling = morceaux[i + 1] ?? null));
+    const p = {
+      nodeType: 1,
+      firstChild: morceaux[0] as Noeud | null,
+      removeChild(enfant: Noeud) {
+        let n = this.firstChild;
+        if (n === enfant) this.firstChild = enfant.nextSibling;
+        else while (n) { if (n.nextSibling === enfant) { n.nextSibling = enfant.nextSibling; break; } n = n.nextSibling; }
+        return enfant;
+      },
+      get texteVu() {
+        let t = '';
+        for (let n = this.firstChild; n; n = n.nextSibling) t += n.data ?? '';
+        return t;
+      },
+    };
+    const message = signal('Écrire à contact@humalis.dev.');
+    texte(p, () => message.v);
+    expect(p.texteVu).toBe('Écrire à contact@humalis.dev.');
+    message.v = 'Write to contact@humalis.dev.';
+    appliquer();
+    expect(p.texteVu).toBe('Write to contact@humalis.dev.');
+  });
+});
 
 describe('le moteur : les boîtes', () => {
   it('une lecture suivie se relance quand la valeur change, une seule fois par lot', async () => {
