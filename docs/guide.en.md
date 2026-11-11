@@ -3118,6 +3118,120 @@ phone number, and nobody can write to it. No time limit applies: a stamp is neve
 lost. Rewards handed over are not recorded: `recompenses` counts those earned since
 the beginning, and `tampons` restarts from zero at each reward earned.
 
+
+### Chatting, calling, meeting
+
+Three lines in the server, and the app has chats, video calls and meetings.
+Every message, call and room goes through the server, which checks rights on
+every read and every send.
+
+```humalis
+serveur "agence" :
+    roles client, agent et collegue
+    donnee contact :
+        compte : texte
+        nom : texte
+    route "contacts" :
+        connecte peut lire contact
+        seul admin peut modifier contact
+    discussion "support" entre client et agent
+    discussion "equipe" entre collegue
+    salle "conseil" pour collegue, client et agent animee par agent
+
+page "accueil" :
+    variable contacts = []
+    titre "Agence"
+    si utilisateur est connecte :
+        badge non lus de "support"
+    quand la page se charge :
+        envoyer requete vers "contacts" dans contacts
+    pour chaque contact dans contacts :
+        texte contact.nom
+        si contact.compte est en ligne :
+            badge "En ligne"
+        bouton "Appeler"
+        quand l'utilisateur clique sur "Appeler" :
+            appeler en video contact.compte
+    quand un message arrive dans "support" :
+        afficher message.texte
+
+page "support" :
+    titre "Support"
+    discussion "support"
+
+page "conseil" :
+    titre "Conseil"
+    reunion "conseil"
+    si main est levee :
+        texte "Main levée"
+    pour chaque p dans participants de reunion "conseil" :
+        texte "Présent : {p.nom}"
+        bouton "Couper"
+        quand l'utilisateur clique sur "Couper" :
+            couper micro de p
+        bouton "Exclure"
+        quand l'utilisateur clique sur "Exclure" :
+            exclure p
+```
+
+**Chats.** `discussion "support" entre client et agent` creates one conversation
+between each client and the agents; `entre collegue` puts all colleagues in the
+same conversation. In a page, `discussion "support"` shows it: messages arrive
+without reloading, "Lu" (read) shows when the other side has read, "écrit…"
+while they type, and an attachment (10 MB at most) goes with the message. Its link
+is signed and downloads; it never opens inside the page. `sans pieces jointes`
+removes the file picker. `ouvrir discussion "support" avec commande.client` opens
+one person's conversation (for an agent).
+
+**Calls.** `appeler en video contact.compte` (or `en audio`) rings the other person
+on every open page: "Appel de …", with `decrocher` and `refuser appel`. With no
+answer, the call stops after 45 seconds. `raccrocher` ends it on both sides.
+`quand un appel arrive :` replaces the ring with your own.
+
+**Meetings.** `reunion "conseil"` shows the participants' video and the bar:
+microphone, camera, screen sharing, raised hand, leave. Hosts (`animee par agent`)
+can `couper micro de p` and `exclure p`. The list `participants de reunion
+"conseil"` updates by itself, even for someone who has not joined; a person whose
+connection drops disappears from it.
+
+| Phrase | What it does |
+|---|---|
+| `discussion "…" entre client et agent` | (server) one conversation per client, with the team |
+| `salle "…" pour membre animee par direction` | (server) a meeting room and its hosts |
+| `discussion "…"`, `… sans pieces jointes` | the conversation in the page |
+| `ouvrir discussion "…" avec personne` | one person's conversation |
+| `quand un message arrive dans "…" :` | `message.texte`, `message.auteur_nom` |
+| `non lus de "…"` | the number of unread messages |
+| `si contact est en ligne :` | presence, with an id or a record |
+| `appeler en video …`, `appeler en audio …` | a call to a person |
+| `quand un appel arrive :`, `decrocher`, `refuser appel`, `raccrocher` | answer and end |
+| `reunion "…"`, `rejoindre reunion "…"`, `quitter reunion` | join, leave |
+| `couper micro`, `activer micro`, `couper camera`, `activer camera` | microphone and camera |
+| `partager ecran`, `arreter partage`, `lever la main`, `baisser la main` | screen and hand |
+| `si micro est coupe`, `si camera est coupee`, `si main est levee` | the bar's state |
+| `pour chaque p dans participants de reunion "…"` | `p.nom`, `p.micro`, `p.camera`, `p.main` |
+| `couper micro de p`, `exclure p` | (hosts) moderation |
+
+**Sound and video go through LiveKit**, an open-source meeting server you host
+yourself or rent from LiveKit Cloud. The Humalis server reads its address and keys
+from the environment, never from the code:
+
+```
+LIVEKIT_URL=wss://meetings.example.com
+LIVEKIT_API_KEY=…
+LIVEKIT_API_SECRET=…
+```
+
+Without these three variables, chats still work and joining a meeting answers that
+the service is not set up. To try it at home: `livekit-server --dev` gives
+`ws://localhost:7880`, `devkey` and `secret`.
+
+**On each target.** The web (Humalis engine), desktop, Apple (iPhone, iPad, Mac),
+Android and Windows (x64 and ARM64) have everything: chats, calls, meetings and
+screen sharing. On Windows, sharing shows the whole main screen; on iPhone, it
+shows the app. The `mobile` target (Expo), static pages and `--moteur react` refuse
+these phrases at compile time and name the target to use.
+
 ---
 
 ## 23. Using an existing API
