@@ -3046,6 +3046,121 @@ tampon ne se perd pas. Les récompenses données ne sont pas enregistrées :
 `recompenses` compte celles qui ont été gagnées depuis le début, et `tampons`
 repart de zéro à chaque récompense gagnée.
 
+### Discuter, appeler, se réunir
+
+Trois lignes dans le serveur, et l'application a ses discussions, ses appels
+vidéo et ses réunions. Chaque message, chaque appel et chaque salle passe par le
+serveur, qui vérifie les droits à chaque lecture et à chaque envoi.
+
+```humalis
+serveur "agence" :
+    roles client, agent et collegue
+    donnee contact :
+        compte : texte
+        nom : texte
+    route "contacts" :
+        connecte peut lire contact
+        seul admin peut modifier contact
+    discussion "support" entre client et agent
+    discussion "equipe" entre collegue
+    salle "conseil" pour collegue, client et agent animee par agent
+
+page "accueil" :
+    variable contacts = []
+    titre "Agence"
+    si utilisateur est connecte :
+        badge non lus de "support"
+    quand la page se charge :
+        envoyer requete vers "contacts" dans contacts
+    pour chaque contact dans contacts :
+        texte contact.nom
+        si contact.compte est en ligne :
+            badge "En ligne"
+        bouton "Appeler"
+        quand l'utilisateur clique sur "Appeler" :
+            appeler en video contact.compte
+    quand un message arrive dans "support" :
+        afficher message.texte
+
+page "support" :
+    titre "Support"
+    discussion "support"
+
+page "conseil" :
+    titre "Conseil"
+    reunion "conseil"
+    si main est levee :
+        texte "Main levée"
+    pour chaque p dans participants de reunion "conseil" :
+        texte "Présent : {p.nom}"
+        bouton "Couper"
+        quand l'utilisateur clique sur "Couper" :
+            couper micro de p
+        bouton "Exclure"
+        quand l'utilisateur clique sur "Exclure" :
+            exclure p
+```
+
+**Les discussions.** `discussion "support" entre client et agent` crée une
+conversation entre une cliente et l'équipe des agents ; `entre collegue` met tous
+les collègues dans la même conversation. Dans une page, `discussion "support"`
+montre la conversation : les messages arrivent sans recharger, « Lu » s'affiche
+quand l'autre a lu, « écrit… » pendant qu'il écrit, et une pièce jointe (10 Mo au
+plus) part avec le message. Son lien est signé et se télécharge, il ne s'ouvre
+jamais dans la page. `sans pieces jointes` retire le choix de fichier.
+`ouvrir discussion "support" avec commande.client` ouvre la conversation d'une
+personne précise (pour un agent).
+
+**Les appels.** `appeler en video contact.compte` (ou `en audio`) fait sonner
+l'autre personne sur toutes ses pages ouvertes : « Appel de … », avec
+`decrocher` et `refuser appel`. Sans réponse, l'appel s'arrête au bout de
+45 secondes. `raccrocher` termine l'appel des deux côtés. `quand un appel arrive :`
+remplace la sonnerie par la tienne.
+
+**Les réunions.** `reunion "conseil"` montre les images des participants et la
+barre : micro, caméra, partage d'écran, main levée, quitter. Les personnes qui
+animent (`animee par agent`) peuvent `couper micro de p` et `exclure p`. La liste
+`participants de reunion "conseil"` se met à jour seule, même pour quelqu'un qui
+n'est pas entré ; une personne dont la connexion tombe en disparaît.
+
+| Phrase | Ce qu'elle fait |
+|---|---|
+| `discussion "…" entre client et agent` | (serveur) une conversation par cliente, avec l'équipe |
+| `salle "…" pour membre animee par direction` | (serveur) une salle de réunion et ses animateurs |
+| `discussion "…"`, `… sans pieces jointes` | la conversation dans la page |
+| `ouvrir discussion "…" avec personne` | la conversation d'une personne précise |
+| `quand un message arrive dans "…" :` | `message.texte`, `message.auteur_nom` |
+| `non lus de "…"` | le nombre de messages non lus |
+| `si contact est en ligne :` | la présence, avec un identifiant ou une fiche |
+| `appeler en video …`, `appeler en audio …` | un appel à une personne |
+| `quand un appel arrive :`, `decrocher`, `refuser appel`, `raccrocher` | répondre et finir |
+| `reunion "…"`, `rejoindre reunion "…"`, `quitter reunion` | entrer, sortir |
+| `couper micro`, `activer micro`, `couper camera`, `activer camera` | le micro et la caméra |
+| `partager ecran`, `arreter partage`, `lever la main`, `baisser la main` | l'écran et la main |
+| `si micro est coupe`, `si camera est coupee`, `si main est levee` | l'état de la barre |
+| `pour chaque p dans participants de reunion "…"` | `p.nom`, `p.micro`, `p.camera`, `p.main` |
+| `couper micro de p`, `exclure p` | (animateurs) la modération |
+
+**Le son et l'image passent par LiveKit**, un serveur de réunions libre que tu
+héberges toi-même ou que tu prends chez LiveKit Cloud. Le serveur Humalis lit son
+adresse et ses clés dans l'environnement, jamais dans le code :
+
+```
+LIVEKIT_URL=wss://reunions.exemple.fr
+LIVEKIT_API_KEY=…
+LIVEKIT_API_SECRET=…
+```
+
+Sans ces trois variables, les discussions marchent et rejoindre une réunion répond
+que le service n'est pas réglé. Pour essayer chez toi :
+`livekit-server --dev` donne `ws://localhost:7880`, `devkey` et `secret`.
+
+**Sur chaque cible.** Le web (moteur Humalis), le bureau, Apple (iPhone, iPad,
+Mac), Android et Windows (x64 et ARM64) ont tout : discussions, appels, réunions
+et partage d'écran. Sur Windows, le partage montre l'écran principal en entier ;
+sur iPhone, il montre l'application. La cible `mobile` (Expo), les pages statiques
+et `--moteur react` refusent ces phrases à la compilation, avec la cible à prendre.
+
 ---
 
 ## 23. Utiliser une API qui existe déjà

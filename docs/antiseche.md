@@ -422,6 +422,58 @@ page "accueil" :
         texte n.texte
 ```
 
+### Une discussion entre clients et agents | A chat between clients and agents
+```humalis racine
+serveur "boutique" :
+    roles client et agent
+    discussion "support" entre client et agent
+
+page "accueil" :
+    titre "Support"
+    discussion "support"
+    quand un message arrive dans "support" :
+        afficher message.texte
+```
+
+### Un appel vidéo | A video call
+```humalis racine
+serveur "agence" :
+    donnee contact :
+        compte : texte
+        nom : texte
+    route "contacts" :
+        connecte peut lire contact
+
+page "accueil" :
+    variable contacts = []
+    titre "Contacts"
+    quand la page se charge :
+        envoyer requete vers "contacts" dans contacts
+    pour chaque contact dans contacts :
+        texte contact.nom
+        si contact.compte est en ligne :
+            badge "En ligne"
+        bouton "Appeler"
+        quand l'utilisateur clique sur "Appeler" :
+            appeler en video contact.compte
+```
+
+### Une réunion avec modération | A meeting with moderation
+```humalis racine
+serveur "ecole" :
+    roles eleve et professeur
+    salle "classe" pour eleve et professeur animee par professeur
+
+page "accueil" :
+    titre "Classe"
+    reunion "classe"
+    pour chaque p dans participants de reunion "classe" :
+        texte p.nom
+        bouton "Couper"
+        quand l'utilisateur clique sur "Couper" :
+            couper micro de p
+```
+
 ### Une activité en direct sur l'écran de verrouillage | A live activity on the lock screen
 ```humalis racine
 activite en direct "livraison" :

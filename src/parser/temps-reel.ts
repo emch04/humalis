@@ -654,7 +654,8 @@ function suiteSiNouveau(variable: string, vu: string, corps: Instruction[], lign
 
 /** Vérifie les noms, ajoute les variables partagées, la page d'appel, et la sonnerie des pages. */
 function finirProgramme(programme: Programme): Programme {
-  const serveur = programme.serveurs?.[0];
+  // Le serveur qui déclare les discussions ou les salles ; sinon le premier.
+  const serveur = programme.serveurs?.find((x) => x.discussions?.length || x.salles?.length) ?? programme.serveurs?.[0];
   const ligneDe = (l?: number) => l ?? 1;
   const discussions = serveur?.discussions ?? [];
   const salles = serveur?.salles ?? [];
