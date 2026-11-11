@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
 import { ServeurLangage } from '../src/lsp/serveur.js';
+import paquet from '../package.json';
 import { dossierExemples, exemple } from './aide-langage.js';
 
 interface Message {
@@ -54,7 +55,7 @@ describe('ServeurLangage', () => {
       completionProvider: { triggerCharacters: ['"', '.'] },
       semanticTokensProvider: { full: true, legend: { tokenTypes: expect.arrayContaining(['variable']) } },
     });
-    expect(result.serverInfo).toEqual({ name: 'humalis', version: '1.0.0' });
+    expect(result.serverInfo).toEqual({ name: 'humalis', version: paquet.version });
   });
 
   it('publie les diagnostics du compilateur à l’ouverture et à chaque modification', () => {

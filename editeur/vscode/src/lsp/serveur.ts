@@ -8,6 +8,7 @@
  * UTF-16 (le défaut du protocole, et celui des chaînes JavaScript).
  */
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import paquet from '../../package.json';
 import { formaterSource } from '../../../../src/outils/formatage.js';
 import { lireSurLeDisque, listerSurLeDisque, verifierAvec, versDiagnostics } from '../diagnostics.js';
 import { lireProjet, type Lecteur } from '../langage/projet.js';
@@ -135,7 +136,7 @@ export class ServeurLangage {
               full: true,
             },
           },
-          serverInfo: { name: 'humalis', version: '1.0.0' },
+          serverInfo: { name: 'humalis', version: paquet.version },
         };
       case 'initialized':
       case '$/cancelRequest':
