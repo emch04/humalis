@@ -289,6 +289,10 @@ export class EcrivainActions {
       case 'langue':
         e.ligne(`Langues.Changer(${chaineCs(a.code)});`);
         return;
+      // Les réunions et les appels (Humalis/Reunion.cs, par LiveKit).
+      case 'gesteReunion':
+        e.ligne(a.valeur ? `await Reunion.Rejoindre(${this.x.enTexte(a.valeur)});` : `await Reunion.${a.geste.charAt(0).toUpperCase()}${a.geste.slice(1)}();`);
+        return;
       // Formes sans sens sur Windows (activité en direct, assistant vocal) : ignorées comme la forme elle-même.
       case 'activite':
         e.ligne(`// « ${a.mode} activite "${commentaireCs(a.nom)}" » : pas d'activité en direct sur Windows.`);
@@ -379,7 +383,13 @@ export class EcrivainActions {
       e.ligne('{');
       e.indenter(() => {
         e.ligne(`var (hOk${n}, hValeur${n}) = await Serveur.Lire(${adresse}${fin});`);
-        e.ligne(`if (hOk${n} && hValeur${n} is not null) ${ecrire(`hValeur${n}`)}`);
+        if (!a.suite?.length) e.ligne(`if (hOk${n} && hValeur${n} is not null) ${ecrire(`hValeur${n}`)}`);
+        else {
+          // « suite » : ce qui suit chaque lecture réussie (un message arrivé, un appel), relectures en direct comprises.
+          e.ligne(`if (!hOk${n} || hValeur${n} is null) return;`);
+          e.ligne(ecrire(`hValeur${n}`));
+          this.suite(e, a.suite, { ...c, essai: false, formulaire: false });
+        }
       });
       e.ligne('};');
       e.ligne(`await relances[${chaineCs(a.resultat!)}]();`);
@@ -414,7 +424,8 @@ export class EcrivainActions {
     if (!this.hote.dansUnePage) return this.hote.refuser('un envoi de fichier dans une fonction');
     const fichier = this.lieu(a.variable);
     if (!fichier) return;
-    const options = [`source: ${sourceCs(a.source)}`];
+    // Sans source : le serveur Humalis lui-même, avec la session (les pièces jointes d'une discussion).
+    const options = a.source ? [`source: ${sourceCs(a.source)}`] : [];
     if (a.corpsBrut) options.push('corpsBrut: true');
     if (a.champ !== 'fichier') options.push(`champ: ${chaineCs(a.champ)}`);
     const suivi = a.suivi !== undefined ? this.lieu(a.suivi) : undefined;
@@ -423,7 +434,7 @@ export class EcrivainActions {
     const suivie = a.resultat !== undefined && this.hote.etatsRequetes.has(a.resultat);
     if (suivie) options.push(`etat: Etat(${chaineCs(a.resultat!)})`);
     const n = ++this.numero;
-    const appel = `await Fichiers.Envoyer(${fichier.lire}, ${chaineCs(a.adresse)}, ${options.join(', ')})`;
+    const appel = `await Fichiers.Envoyer(${fichier.lire}, ${chaineCs(a.adresse)}${options.length ? ', ' + options.join(', ') : ''})`;
     const ecrire = resultat ? this.affecter(resultat, a.resultat!, `hFichier${n}`) : undefined;
     if (c.essai) {
       e.ligne(`var hFichier${n} = ${appel};`);

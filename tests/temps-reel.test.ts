@@ -5,6 +5,7 @@ import { genererProjetMoteur } from '../src/cibles/moteur/projet.js';
 import { verifierTempsReelPourLaCible } from '../src/cibles/temps-reel.js';
 import { genererProjetAndroid } from '../src/cibles/android/projet.js';
 import { genererProjetApple } from '../src/cibles/apple/projet.js';
+import { genererProjetWindows } from '../src/cibles/windows/projet.js';
 
 const SERVEUR = `serveur "agence" :
     roles client et agent
@@ -169,6 +170,18 @@ describe('le temps réel : les cibles', () => {
     const code = [...fichiers.entries()].filter(([f]) => f.endsWith('.kt')).map(([, c]) => c).join('\n');
     expect(code).toMatch(/val charger\d+: suspend \(\) -> Unit = charge\d+@\{/);
     expect(code).not.toMatch(/televerser\([^)]*source = Sources\./);
+  });
+
+  it('Windows : LiveKit natif (x64 et ARM64), la vue et les gestes, seulement si le programme a une réunion', () => {
+    const sansReunion = genererProjetWindows(application, { nom: 'a', source: 'a.humalis' }).fichiers;
+    expect(sansReunion.has('Humalis/Reunion.cs')).toBe(false);
+    const { fichiers, diagnostics } = genererProjetWindows(sans(programme('    reunion "conseil"')).application, { nom: 'a', source: 'a.humalis' });
+    expect(diagnostics.filter((d) => d.gravite === 'erreur')).toEqual([]);
+    expect(fichiers.get('Humalis/Reunion.cs')).toContain('VideoStream.FromTrack');
+    const projet = [...fichiers.entries()].find(([f]) => f.endsWith('.csproj'))![1];
+    expect(projet).toContain('Livekit.Rtc.Dotnet');
+    expect(projet).toContain('net10.0-windows10.0.19041.0');
+    expect([...fichiers.entries()].some(([f, c]) => f.startsWith('Pages/') && c.includes('Reunion.Vue()'))).toBe(true);
   });
 
   it('Apple : le micro est préparé avant d\'entrer, et éteint en sortant', () => {
