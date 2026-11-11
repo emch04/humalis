@@ -472,7 +472,12 @@ public static class UI
             if (tache is not null) await tache;
         }
         catch (ErreurHumalis e) { Messages.Afficher(e.Message, "erreur"); }
-        catch (Exception e) { Messages.Afficher("Une erreur est survenue : " + e.Message, "erreur"); }
+        catch (Exception e)
+        {
+            // Rattrapée pour ne pas fermer l'application, mais signalée : journal avec la ligne Humalis, et « quand une erreur arrive ».
+            HumalisLignes.Rattrapee(e);
+            Messages.Afficher("Une erreur est survenue : " + e.Message, "erreur");
+        }
     }
 
     public static Button Bouton(Func<string> texte, Func<Task>? clic, string? id = null, Func<bool>? desactive = null, string? icone = null, bool principal = false)

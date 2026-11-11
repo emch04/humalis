@@ -35,6 +35,7 @@ public static class CaptureErreurs
         application.DispatcherUnhandledException += (_, evenement) => Signaler(evenement.Exception);
         AppDomain.CurrentDomain.UnhandledException += (_, evenement) => Signaler(evenement.ExceptionObject as Exception);
         TaskScheduler.UnobservedTaskException += (_, evenement) => { Signaler(evenement.Exception); evenement.SetObserved(); };
+        HumalisLignes.ErreurRattrapee += Signaler;
     }
 
     private static void Signaler(Exception? exception)

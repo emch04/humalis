@@ -52,6 +52,15 @@ public static class HumalisLignes
         try { Console.Error.WriteLine(texte); } catch { /* Sans console, la fenêtre Sortie suffit. */ }
     }
 
+    /** Une exception rattrapée par l'application (un événement qui échoue) : la capture des erreurs l'écoute. */
+    public static event Action<Exception>? ErreurRattrapee;
+
+    public static void Rattrapee(Exception exception)
+    {
+        Journaliser(exception);
+        ErreurRattrapee?.Invoke(exception);
+    }
+
     public static void Installer(Application application)
     {
         application.DispatcherUnhandledException += (_, evenement) => Journaliser(evenement.Exception);
