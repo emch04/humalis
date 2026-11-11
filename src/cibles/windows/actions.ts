@@ -78,6 +78,8 @@ export class EcrivainActions {
   }
 
   private action(e: Ecrivain, a: Action, c: Cadre): void {
+    // La ligne Humalis de l'action : #line dans le projet écrit (voir lignes-humalis.ts).
+    e.repere(a.ligne);
     switch (a.type) {
       case 'affectation':
         return this.ecrireAffectation(e, a.nom, (actuel) => (a.champs?.length ? `V.AvecChamp(${actuel}, new[] { ${a.champs.map((ch) => chaineCs(cleJson(ch))).join(', ')} }, ${this.x.expr(a.valeur)})` : this.x.expr(a.valeur)));

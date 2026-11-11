@@ -40,7 +40,7 @@ public static class CaptureErreurs
     private static void Signaler(Exception? exception)
     {
         if (exception is null) return;
-        var rapport = new Rapport(Nettoyer(exception.Message), Nettoyer(exception.StackTrace), Routeur.Page?.GetType().Name ?? "", System.Reflection.Assembly.GetEntryAssembly()?.GetName().Version?.ToString() ?? "");
+        var rapport = new Rapport(Nettoyer(exception.Message), Nettoyer(HumalisLignes.Pile(exception)), HumalisLignes.Ligne(exception), Routeur.Page?.GetType().Name ?? "", System.Reflection.Assembly.GetEntryAssembly()?.GetName().Version?.ToString() ?? "");
         var cle = rapport.message + "|" + rapport.pile.Split('\\n')[0];
         lock (Verrou) {
             if (enCours) return;
@@ -56,7 +56,7 @@ ${envois}
         } finally { lock (Verrou) enCours = false; }
     }
 
-    private sealed record Rapport(string message, string pile, string page, string version);
+    private sealed record Rapport(string message, string pile, string ligne, string page, string version);
 }
 `;
 }

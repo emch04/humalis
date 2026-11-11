@@ -460,7 +460,9 @@ export function appliquerLignesHumalis(fichiers: Map<string, string>, options: O
       const absolu = (f: string) => (options.dossierAbsolu ? `${options.dossierAbsolu.replace(/\/+$/, '')}/${f}` : f);
       resultat.set(chemin, versSwift(lu, options.fichiers, absolu, suivreSwift));
     } else if (langage === 'csharp') {
-      resultat.set(chemin, versCSharp(lu, options.fichiers, (f) => f));
+      // Un chemin relatif au fichier C# : le compilateur le résout, et le projet peut être construit ailleurs (Windows).
+      const dossier = dossierDe(chemin);
+      resultat.set(chemin, versCSharp(lu, options.fichiers, (f) => depuis(dossier, versSource(f)).split('/').join('\\')));
     } else {
       resultat.set(chemin, lu.code);
       const plages = plagesKotlin(lu, options.fichiers, (f) => {
@@ -473,6 +475,10 @@ export function appliquerLignesHumalis(fichiers: Map<string, string>, options: O
       });
       if (plages.length > 0) tablesKotlin.push({ fichier: nomDe(chemin), plages });
     }
+  }
+  // Windows : la liste des fichiers Humalis de HumalisLignes.cs.
+  for (const [chemin, contenu] of resultat) {
+    if (chemin.endsWith('.cs') && contenu.includes('/*@humalis-fichiers*/')) resultat.set(chemin, contenu.replace('/*@humalis-fichiers*/', options.fichiers.map(guillemets).join(', ')));
   }
   if (captureSwift) {
     // La table des fichiers Humalis de la capture Apple : connue seulement ici.

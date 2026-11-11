@@ -4,6 +4,7 @@
  * Apple écrit du Swift lisible, celle-ci écrit du C# lisible, qui se compile aussi sur
  * macOS et Linux (`dotnet build`), et se publie en un seul fichier .exe.
  */
+import { HUMALIS_LIGNES_CS } from './lignes.js';
 import type { Diagnostic } from '../../analyse/erreurs.js';
 import { nomDeLaCopie, type InfoMedia } from '../../ri/medias.js';
 import type { Application, Ecran, ThemeRI } from '../../ri/types.js';
@@ -270,6 +271,8 @@ function csproj(nom: string, application: Application, aDesRessources: boolean, 
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <!-- Le thème Fluent de Windows 11 est encore marqué « à l'essai » par .NET. -->
     <NoWarn>$(NoWarn);WPF0001;CS1998;WFO0003</NoWarn>
+    <!-- Le PDB dans l'application, même publiée : les piles d'exceptions nomment les lignes Humalis (#line). -->
+    <DebugType>embedded</DebugType>
   </PropertyGroup>
   <!-- Publication (dotnet publish -r win-x64) : un seul fichier .exe, avec .NET dedans (rien à installer). -->
   <PropertyGroup Condition="'$(RuntimeIdentifier)' != ''">
@@ -519,6 +522,8 @@ ${formes.actives ? `        // Les formes de l'application : un seul lancement �
         var application = new System.Windows.Application { ShutdownMode = ShutdownMode.OnMainWindowClose };
         // La première page se charge avant application.Run() : sans ce contexte, la suite d'un « await » reprendrait hors du fil de l'interface.
         System.Threading.SynchronizationContext.SetSynchronizationContext(new System.Windows.Threading.DispatcherSynchronizationContext(application.Dispatcher));
+        // Une exception venue d'une ligne Humalis est écrite avec cette ligne (fenêtre Sortie, sortie d'erreur).
+        HumalisLignes.Installer(application);
 ${application.formes?.erreurArrive ? '        CaptureErreurs.Installer(application);\n' : ''}
         Apparence.Appliquer();
 ${dictionnaires.map((d) => `        // « utiliser style "${d.nom}" sur windows » : chargé après le thème, il passe devant.
@@ -546,6 +551,7 @@ ${donnees.actif ? '        DonneesComptes.Demarrer(fenetre);\n' : ''}        ${f
   if (avecReunion) fichiers.set('Humalis/Reunion.cs', REUNION_CS);
   fichiers.set(`${app}.csproj`, csproj(options.nom, application, aDesRessources, formes, avecEnregistrement || avecReunion, donnees, avecReunion));
   if (application.formes?.erreurArrive) fichiers.set('Humalis/CaptureErreurs.cs', captureErreursCs(requetesCapture(application.formes).requetes));
+  fichiers.set('Humalis/HumalisLignes.cs', HUMALIS_LIGNES_CS);
   // Les dictionnaires de styles XAML : compilés avec le projet (une erreur XAML arrête dotnet build).
   for (const d of dictionnaires) fichiers.set(`Styles/${d.nom}`, d.contenu);
   // Les vues C# écrites à la main, recopiées telles quelles.
