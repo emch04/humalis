@@ -52,7 +52,10 @@ describe('captures natives produites', () => {
     const application = compiler(SOURCE).application!;
     const options = { nom: 'Essai', source: 'essai.humalis' };
     const android = genererProjetAndroid(application, options).fichiers;
-    expect([...android.values()].find((x) => x.includes('Thread.setDefaultUncaughtExceptionHandler'))).toContain('en_attente');
+    expect([...android.values()].find((x) => x.includes('object CaptureErreurs'))).toContain('en_attente');
+    // Les lignes Humalis : la pile et erreur.ligne passent par la table HumalisLignes.kt, écrite avec le projet.
+    expect([...android.values()].find((x) => x.includes('object CaptureErreurs'))).toContain('put("ligne", HumalisLignes.ligne(exception))');
+    expect([...android.keys()].some((c) => c.endsWith('/HumalisLignes.kt'))).toBe(true);
     const apple = genererProjetApple(application, options).fichiers;
     expect([...apple.values()].find((x) => x.includes('NSSetUncaughtExceptionHandler'))).toContain('SIGSEGV');
     const windows = genererProjetWindows(application, options).fichiers;
