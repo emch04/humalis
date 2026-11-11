@@ -1467,8 +1467,20 @@ ${google}${avecSecurite(serveur) ? codeRoutesSecurite(serveur) : ''}
 ${avecIa(serveur) ? routeIa(serveur) : ''}${avecNotifications(serveur) ? ROUTES_APPAREILS : ''}${codeCompleter(serveur)}${comptes ? codeRoutesComptes(serveur, adresseApi, (a) => `route${pascal(a)}`) : ''}${routes}${codePasserelles(serveur)}
 ${fidelite}${avecPaiements(serveur) ? codeSurPaiement(serveur) : ''}${codeTaches(serveur)}${montageTempsReel}      // Une erreur venue d'une ligne Humalis est écrite avec cette ligne dans le journal.
       app.use((erreur: unknown, req: express.Request, _res: express.Response, next: express.NextFunction) => { journaliserErreur(erreur, \`\${req.method} \${req.path}\`); next(erreur); });
-${serveur.captureErreurs ? "      app.use((erreur: unknown, req: express.Request, _res: express.Response, next: express.NextFunction) => { void rapporterErreur(erreur, req.path); next(erreur); });\n" : ''}      // Le dernier avant la réponse d'erreur du pack, qui répond ensuite comme d'habitude.
+${serveur.captureErreurs ? "      app.use((erreur: unknown, req: express.Request, _res: express.Response, next: express.NextFunction) => { void rapporterErreur(erreur, req.path); next(erreur); });\n" : ''}      // Le dernier avant la réponse d'erreur.
       if (surveillance) app.use(surveillance.gestionnaireErreurs());
+      // La réponse d'erreur, écrite ici plutôt que par le pack : jamais la pile ni le message interne
+      // d'une erreur 500, même hors production (chemins du disque, requêtes SQL). Le détail reste
+      // dans le journal du serveur.
+      app.use((erreur: unknown, req: express.Request, res: express.Response, next: express.NextFunction) => {
+        if (res.headersSent) return next(erreur);
+        const e = (erreur ?? {}) as { statusCode?: unknown; status?: unknown; message?: unknown };
+        const brut = Number(e.statusCode ?? e.status);
+        const statut = Number.isInteger(brut) && brut >= 400 && brut < 600 ? brut : 500;
+        if (statut >= 500) console.error(\`[requestId=\${(req as { requestId?: string }).requestId ?? 'n/a'}]\`, erreur);
+        const message = statut >= 500 ? 'Erreur interne du serveur.' : typeof e.message === 'string' && e.message ? e.message : 'Requête refusée.';
+        res.status(statut).json({ success: false, message, data: null, timestamp: new Date().toISOString(), error: message });
+      });
     },
   });
   // Express s'annonce par défaut : l'application du pack ne le fait plus.
