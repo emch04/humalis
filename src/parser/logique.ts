@@ -258,6 +258,16 @@ function analyserInstructionServeur(flux: FluxTokens): InstructionServeur {
     flux.avancer();
     return { type: 'Refuser', message: analyserExpression(flux), ligne };
   }
+  if (estLeMot(debut, 'noter')) {
+    flux.avancer();
+    const valeurs: { expression: Expression; libelle: string }[] = [];
+    do {
+      const marque = flux.marque();
+      const expression = analyserExpression(flux);
+      valeurs.push({ expression, libelle: flux.texteDepuis(marque) });
+    } while (flux.accepter('MOT_CLE', 'et'));
+    return { type: 'NoterServeur', valeurs, ligne };
+  }
   if (estLeMot(debut, 'creer')) return { type: 'CreerFiche', creation: analyserCreationLiee(flux), ligne };
   if (estLeMot(debut, 'envoyer') && estLeMot(flux.regarder(1), 'notification')) return { type: 'NotificationServeur', envoi: analyserEnvoiNotification(flux), ligne };
   // « mettre a jour activite "livraison" pour commande.client » : l'activité en direct, application fermée.
@@ -275,5 +285,5 @@ function analyserInstructionServeur(flux: FluxTokens): InstructionServeur {
     return { type: 'MiseAJourActivite', nom, pour, ligne };
   }
   if (estLeMot(debut, 'envoyer')) return { type: 'EmailServeur', envoi: analyserEnvoiEmail(flux), ligne };
-  throw new ErreurSyntaxique(`sur le serveur, on écrit « si », « pour chaque », « calcul », « changer … par », « creer », « supprimer », « refuser » ou « envoyer … », mais « ${debut.original ?? debut.valeur} » a été trouvé`, ligne);
+  throw new ErreurSyntaxique(`sur le serveur, on écrit « si », « pour chaque », « calcul », « changer … par », « creer », « supprimer », « refuser », « noter » ou « envoyer … », mais « ${debut.original ?? debut.valeur} » a été trouvé`, ligne);
 }

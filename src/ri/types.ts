@@ -207,6 +207,8 @@ type InstructionServeurSeule =
   | { type: 'changer'; fiche: string; donnee: string; champ: string; valeur: ValeurServeurRI }
   | { type: 'supprimer'; fiche: string; donnee: string }
   | { type: 'refuser'; message: ValeurServeurRI }
+  /** « noter commande.total et montant » : le terminal du serveur, jamais en production. */
+  | { type: 'noter'; valeurs: { libelle: string; valeur: ValeurServeurRI; titre?: boolean }[] }
   | { type: 'creer'; donnee: string; valeurs: { champ: string; valeur: ValeurServeurRI }[]; groupeDe?: string }
   | { type: 'email'; a: { genre: 'admins' } | { genre: 'valeur'; valeur: ValeurServeurRI }; sujet: ValeurServeurRI; texte: ValeurServeurRI }
   | { type: 'notification'; a: { genre: 'roles'; roles: string[]; groupe?: { champ: string; fiche: string } } | { genre: 'compte'; valeur: ValeurServeurRI }; titre: ValeurServeurRI; texte: ValeurServeurRI; /** « et boutons "Accepter" et "Refuser" ». */ boutons?: string[] }
@@ -770,6 +772,13 @@ type ActionSeule =
    * quand la page est quittée. `tantQue` : elle n'existe que tant que le test est vrai.
    */
   | { type: 'minuterie'; mode: 'apres' | 'toutes'; millisecondes: Valeur; tantQue?: Test; corps: Action[] }
+  /**
+   * « noter panier et total » : les valeurs écrites dans la console du
+   * développement, avec leur lieu (« boutique.humalis:12 »). `titre` : un
+   * texte écrit tel quel (« noter "Après paiement" et total »). Rien en
+   * production.
+   */
+  | { type: 'note'; valeurs: { libelle: string; valeur: Valeur; titre?: boolean }[] }
   /** « copier code » ; `message` null : sans message. */
   | { type: 'copie'; valeur: Valeur; message: string | null; texte?: Valeur }
   /** « partager … » : la feuille de partage du système, sinon le lien copié. */

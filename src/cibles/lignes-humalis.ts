@@ -432,8 +432,12 @@ export function appliquerLignesHumalis(fichiers: Map<string, string>, options: O
   const suivreSwift = captureSwift !== undefined;
   const indexKotlin = new Map<string, number>();
   for (const [chemin, brut] of fichiers) {
-    // Le module Vite des lignes apprend ici où sont les fichiers Humalis.
-    const contenu = brut.includes(REPERE_SOURCES) ? brut.replaceAll(JSON.stringify(REPERE_SOURCES), JSON.stringify(depuis('', racine === '' ? '.' : racine) || '.')) : brut;
+    // Le module Vite des lignes apprend ici où sont les fichiers Humalis ; « noter » apprend son lieu.
+    const avecSources = brut.includes(REPERE_SOURCES) ? brut.replaceAll(JSON.stringify(REPERE_SOURCES), JSON.stringify(depuis('', racine === '' ? '.' : racine) || '.')) : brut;
+    const contenu = avecSources.includes('@humalis-lieu:') ? avecSources.replace(/@humalis-lieu:(\d+)/g, (_tout, n: string) => {
+      const situe = situerLigne(Number(n), options.fichiers);
+      return situe ? `${situe.fichier}:${situe.ligne}` : '';
+    }) : avecSources;
     if (!aDesReperes(contenu)) {
       resultat.set(chemin, contenu);
       continue;
@@ -506,7 +510,31 @@ export function tableKotlin(paquet: string, fichiersHumalis: string[], tables: {
   return `// Produit par Humalis : les lignes Humalis du code produit, pour les piles d'erreurs.
 package ${paquet}
 
+import android.content.Context
+import android.content.pm.ApplicationInfo
 import android.util.Log
+
+/** « noter … » : Logcat (étiquette Humalis), seulement si l'application est débogable. */
+object HumalisNotes {
+    @Volatile var actif = false
+
+    inline fun noter(lieu: String, valeurs: () -> List<Triple<String, Any?, Boolean>>) {
+        if (!actif) return
+        val texte = valeurs().joinToString(" ; ") { (libelle, valeur, titre) -> if (titre) apercu(valeur, false) else "\$libelle = \${apercu(valeur)}" }
+        Log.d("Humalis", if (lieu.isEmpty()) texte else "[\$lieu] \$texte")
+    }
+
+    fun apercu(valeur: Any?, guillemets: Boolean = true): String = when (valeur) {
+        null -> "rien"
+        is String -> if (guillemets) "\\"\$valeur\\"" else valeur
+        is Boolean -> if (valeur) "vrai" else "faux"
+        is Double -> if (valeur % 1.0 == 0.0 && kotlin.math.abs(valeur) < 1e15) valeur.toLong().toString() else valeur.toString().replace('.', ',')
+        is Number -> valeur.toString()
+        is List<*> -> "[" + valeur.take(5).joinToString(", ") { apercu(it) } + (if (valeur.size > 5) ", … (\${valeur.size} éléments)" else "") + "]"
+        is Map<*, *> -> "{ " + valeur.entries.take(8).joinToString(", ") { "\${it.key}: \${apercu(it.value)}" } + " }"
+        else -> valeur.toString()
+    }
+}
 
 object HumalisLignes {
     private val fichiers = arrayOf<String>(${fichiersHumalis.map(guillemets).join(', ')})
@@ -567,7 +595,8 @@ object HumalisLignes {
     }
 
     /** Une erreur non rattrapée est écrite dans Logcat avec sa ligne Humalis, puis suit son chemin habituel. */
-    fun installer() {
+    fun installer(contexte: Context) {
+        HumalisNotes.actif = (contexte.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
         val ancien = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { fil, erreur ->
             try {

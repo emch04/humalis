@@ -7,6 +7,7 @@ import type { Action, ArgumentsPage, TypeValeur, Valeur } from '../../ri/types.j
 import { sousActions } from '../../ri/actions.js';
 import { lireCible } from '../../analyse/navigation.js';
 import { Ecrivain } from '../web/ecrivain.js';
+import { lieuNote } from '../commun/noter.js';
 import { chaineSwift, cleJson, nomRoute, nomSwift } from './noms.js';
 import { plusPrecis, type Expr, type Valeurs } from './valeurs.js';
 
@@ -365,6 +366,12 @@ export class EcrivainActions {
         // Une fenêtre fermée n'est pas une erreur : la suite ne s'exécute simplement pas.
         if (c.essai) e.ligne(`guard try await ${appel} else { return }`);
         else e.ligne(`guard await CompteSecuriseHumalis.sinonDire({ try await ${appel} }) else { return }`);
+        return;
+      }
+      case 'note': {
+        // « noter … » : HumalisNotes ne fait rien en Release, et ne calcule même pas les valeurs (@autoclosure).
+        const valeurs = a.valeurs.map((v) => `(${chaineSwift(v.libelle)}, ${this.x(v.valeur).code} as Any?, ${v.titre ? 'true' : 'false'})`);
+        e.ligne(`HumalisNotes.noter(${chaineSwift(lieuNote(a.ligne))}, [${valeurs.join(', ')}])`);
         return;
       }
       default: {

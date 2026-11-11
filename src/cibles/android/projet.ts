@@ -901,7 +901,7 @@ export function genererProjetAndroid(complete: Application, options: OptionsAndr
   // Les lignes Humalis : la table est remplie quand le projet est écrit (cibles/lignes-humalis.ts).
   ecrireCode('HumalisLignes.kt', tableKotlin(paquet, [], []));
   const cheminActiviteLignes = `${dossierCode}/MainActivity.kt`;
-  fichiers.set(cheminActiviteLignes, fichiers.get(cheminActiviteLignes)!.replace('        setContent { ApplicationHumalis() }', '        HumalisLignes.installer()\n        setContent { ApplicationHumalis() }'));
+  fichiers.set(cheminActiviteLignes, fichiers.get(cheminActiviteLignes)!.replace('        setContent { ApplicationHumalis() }', '        HumalisLignes.installer(applicationContext)\n        setContent { ApplicationHumalis() }'));
   if (application.formes?.erreurArrive) {
     ecrireCode('CaptureErreurs.kt', kotlin(paquet, captureErreursKotlin(requetesCapture(application.formes).requetes)));
     // La page en cours, pour « erreur.page ».

@@ -83,6 +83,7 @@ export const RENDU_MOBILE: Rendu = {
     return lignes;
   },
   navigateur: 'const routeur = useRouter();',
+  enDeveloppement: '__DEV__',
   naviguer: (chemin) => `routeur.push(${chemin});`,
   // Une adresse reçue : une page de l'application, ou une adresse permise ouverte par le système ; une autre est refusée.
   allerVers: (valeur) =>

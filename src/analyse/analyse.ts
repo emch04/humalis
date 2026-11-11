@@ -49,6 +49,7 @@ import {
   verifierMessage,
   verifierMinuterie,
   verifierCopier,
+  verifierNoter,
   verifierPartager,
   verifierConfirmer,
   verifierFenetre,
@@ -1214,6 +1215,10 @@ class AnalysePage {
 
       case 'Copier':
         verifierCopier(this.hote(), instruction, this.placeGeste(contexte));
+        return;
+
+      case 'Noter':
+        verifierNoter(this.hote(), instruction, this.placeGeste(contexte));
         return;
 
       case 'Partager':
@@ -3209,6 +3214,7 @@ function actionInterditeDansUneFonction(instruction: Instruction): string | unde
       return instruction.mode === 'apres' ? 'apres …' : 'toutes les …';
     case 'Copier':
       return 'copier';
+
     case 'Partager':
       return 'partager';
     case 'Confirmer':

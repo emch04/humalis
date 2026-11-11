@@ -32,6 +32,21 @@ export class FluxTokens {
     return { position: this.position, liaisons: new Map(this.liaisons) };
   }
 
+  /**
+   * Le texte des tokens lus depuis la marque, tel qu'on l'écrit
+   * (« p.prix », « total * 2 », « "Après paiement" ») : un libellé.
+   */
+  texteDepuis(m: { position: number }): string {
+    let texte = '';
+    for (let i = m.position; i < this.position; i++) {
+      const token = this.tokens[i]!;
+      const mot = token.type === 'CHAINE' ? JSON.stringify(token.valeur) : (token.original ?? token.valeur);
+      const colle = texte === '' || /^[.,)\]]$/.test(mot) || /[.([]$/.test(texte);
+      texte += (colle ? '' : ' ') + mot;
+    }
+    return texte;
+  }
+
   revenir(m: { position: number; liaisons: Map<number, Token> }): void {
     this.position = m.position;
     this.liaisons.clear();

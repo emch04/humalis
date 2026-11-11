@@ -58,4 +58,34 @@ public static class HumalisLignes
         AppDomain.CurrentDomain.UnhandledException += (_, evenement) => Journaliser(evenement.ExceptionObject as Exception);
     }
 }
+
+/** « noter … » : la fenêtre Sortie de Visual Studio (et la console) en Debug ; rien en Release. */
+public static class HumalisNotes
+{
+    [Conditional("DEBUG")]
+    public static void Noter(string lieu, params (string libelle, object? valeur, bool titre)[] valeurs)
+    {
+        var texte = string.Join(" ; ", valeurs.Select(v => v.titre ? Apercu(v.valeur, false) : $"{v.libelle} = {Apercu(v.valeur)}"));
+        var ligne = lieu.Length == 0 ? texte : $"[{lieu}] {texte}";
+        Debug.WriteLine(ligne);
+        try { Console.WriteLine(ligne); } catch { /* Sans console, la fenêtre Sortie suffit. */ }
+    }
+
+    public static string Apercu(object? valeur, bool guillemets = true) => valeur switch
+    {
+        null => "rien",
+        string texte => guillemets ? $"\\"{texte}\\"" : texte,
+        bool vrai => vrai ? "vrai" : "faux",
+        double nombre => nombre.ToString("0.######", System.Globalization.CultureInfo.GetCultureInfo("fr-FR")),
+        System.Collections.Generic.IDictionary<string, object?> fiche => "{ " + string.Join(", ", fiche.Take(8).Select(c => $"{c.Key}: {Apercu(c.Value)}")) + " }",
+        System.Collections.IEnumerable liste => Liste(liste),
+        _ => valeur.ToString() ?? "",
+    };
+
+    private static string Liste(System.Collections.IEnumerable liste)
+    {
+        var tout = liste.Cast<object?>().ToList();
+        return "[" + string.Join(", ", tout.Take(5).Select(v => Apercu(v))) + (tout.Count > 5 ? $", … ({tout.Count} éléments)" : "") + "]";
+    }
+}
 `;

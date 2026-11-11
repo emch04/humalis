@@ -3,6 +3,7 @@
  * modules : l'assembleur ne garde que ce qu'une page emploie. Les textes
  * (messages, formats, presse-papier…) sont ceux de la cible statique.
  */
+import { NOTER_NAVIGATEUR_JS } from '../commun/noter.js';
 import { MESSAGES_JS, LISTES_JS, STOCKAGE_JS, PRESSE_PAPIER_JS, QUESTIONS_JS } from '../statique/projet.js';
 import { elementsJs, exportsElements, type UsageElements } from '../statique/elements-js.js';
 import { FORMAT_JS, FORMAT_JS_LANGUES, TAILLE_JS, DATES_JS, FORMES_TEXTE_JS, NOMS_FORMES_TEXTE } from '../format.js';
@@ -38,7 +39,7 @@ export function outilsJs(b: BesoinsOutils): string {
   const exportes = [
     'creer', 'afficherMessage', 'planifier', 'planificateur', 'arreterMinuteries', 'minuteriesDeCouche', 'ecouterRaccourcis', 'mouvementReduit', 'themeSombre', 'cliquer', 'focaliser', 'fenetre', 'observerLeBas', 'titreDeLaPage', 'descriptionDeLaPage',
     'retirerPremier', 'grouper', 'formaterNombre', 'formaterDate', 'formaterArgent', 'accorder', 'formaterTaille', 'dateDuJour', 'maintenant', 'decalerDate', 'joursEntre', 'formaterDepuis', ...NOMS_FORMES_TEXTE,
-    'lireMemoire', 'garderMemoire', 'lirePartage', 'garderPartage', 'copier', 'partager', 'telechargerCsv', 'confirmer',
+    'lireMemoire', 'garderMemoire', 'lirePartage', 'garderPartage', 'copier', 'partager', 'telechargerCsv', 'confirmer', 'noter',
     ...exportsElements(usage),
     ...(usage.carrousel ? ['activerCarrousel'] : []),
     ...(usage.motDePasse ? ['activerMotDePasse'] : []),
@@ -268,7 +269,7 @@ ${langues ? FORMAT_JS_LANGUES : FORMAT_JS}
 ${TAILLE_JS}
 ${DATES_JS}
 ${FORMES_TEXTE_JS}
-${STOCKAGE_JS}${elementsMoteur(usage)}${PRESSE_PAPIER_JS}${QUESTIONS_JS}${langues ? langueMoteur(langues, parAdresse) : ''}${theme !== undefined ? themeMoteur(theme) : ''}
+${STOCKAGE_JS}${elementsMoteur(usage)}${PRESSE_PAPIER_JS}${NOTER_NAVIGATEUR_JS}${QUESTIONS_JS}${langues ? langueMoteur(langues, parAdresse) : ''}${theme !== undefined ? themeMoteur(theme) : ''}
 export { ${[...new Set(exportes)].join(', ')} };
 `;
 }

@@ -26,6 +26,7 @@ import type {
   Fenetre,
   Instruction,
   Minuterie,
+  Noter,
   Partager,
   SuiteMessage,
   UniteDuree,
@@ -133,15 +134,16 @@ export function estInteraction(flux: FluxTokens): boolean {
   return (
     // « apres 3 secondes : » ; « apres 3 : » aussi, pour dire qu'il manque l'unité.
     ((estLeMot(mot, 'apres') || estLeMot(mot, 'toutes') || estLeMot(mot, 'tous')) && (estUneDuree(flux, 1) || suivant.type === 'NOMBRE')) ||
-    ((estLeMot(mot, 'copier') || estLeMot(mot, 'partager') || estLeMot(mot, 'confirmer')) && valeurSuit) ||
+    ((estLeMot(mot, 'copier') || estLeMot(mot, 'partager') || estLeMot(mot, 'confirmer') || estLeMot(mot, 'noter')) && valeurSuit) ||
     (estLeMot(mot, 'fenetre') && suivant.type === 'CHAINE')
   );
 }
 
 /** Lit l'instruction des interactions qui commence la ligne (estInteraction est vrai). */
-export function analyserInteraction(flux: FluxTokens, outils: OutilsParser): Minuterie | Copier | Partager | Confirmer | Fenetre {
+export function analyserInteraction(flux: FluxTokens, outils: OutilsParser): Minuterie | Copier | Noter | Partager | Confirmer | Fenetre {
   const mot = flux.actuel();
   if (estLeMot(mot, 'copier')) return analyserCopier(flux, outils);
+  if (estLeMot(mot, 'noter')) return analyserNoter(flux, outils);
   if (estLeMot(mot, 'partager')) return analyserPartager(flux, outils);
   if (estLeMot(mot, 'confirmer')) return analyserConfirmer(flux, outils);
   if (estLeMot(mot, 'fenetre')) return analyserFenetre(flux, outils);
@@ -183,6 +185,18 @@ function analyserCopier(flux: FluxTokens, outils: OutilsParser): Copier {
     return { type: 'Copier', valeur, message: null, ligne: debut.ligne };
   }
   return { type: 'Copier', valeur, ligne: debut.ligne };
+}
+
+/** « noter panier et total », « noter "Après paiement" et total ». */
+function analyserNoter(flux: FluxTokens, outils: OutilsParser): Noter {
+  const debut = flux.avancer();
+  const valeurs: Noter['valeurs'] = [];
+  do {
+    const marque = flux.marque();
+    const expression = outils.expression(flux);
+    valeurs.push({ expression, libelle: flux.texteDepuis(marque) });
+  } while (flux.accepter('MOT_CLE', 'et'));
+  return { type: 'Noter', valeurs, ligne: debut.ligne };
 }
 
 /** « partager "…" avec titre "…" avec lien vers "produit" avec id p.id ». */

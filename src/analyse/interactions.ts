@@ -16,6 +16,7 @@ import type {
   Comparaison,
   Confirmer,
   Copier,
+  Noter,
   Duree,
   Evenement,
   Expression,
@@ -193,6 +194,12 @@ export function verifierCopier(hote: Hote, copier: Copier, place: PlaceGeste): v
     hote.erreur(`« copier » attend un texte ou un nombre ; ici, c’est ${decrireType(type)}. Écrivez le texte voulu : copier "{p.nom}".`, copier.ligne);
   }
   if (copier.message === '') hote.erreur('le message de « copier » est vide : écrivez un texte, ou « sans message ».', copier.ligne);
+}
+
+/** « noter panier et total » : des valeurs connues, dans un événement ou une fonction. */
+export function verifierNoter(hote: Hote, noter: Noter, place: PlaceGeste): void {
+  for (const { expression } of noter.valeurs) hote.typeDe(expression);
+  if (place.dansLaPage) hote.erreur('« noter » s’écrit dans un événement, une fonction ou une action (quand l’utilisateur clique sur … :), pas directement dans la page.', noter.ligne);
 }
 
 /** « partager … » : le texte, le titre et le lien (vérifié par l'appelant, comme un lien). */

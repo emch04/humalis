@@ -3,6 +3,7 @@
  * une seule application native pour iPhone, iPad et Mac, sans navigateur
  * embarqué. Comme la cible web écrit du React, celle-ci écrit du Swift lisible.
  */
+import { NOTES_SWIFT } from '../commun/noter.js';
 import { avecReunion, PAQUET_LIVEKIT, REUNION_SWIFT } from './temps-reel.js';
 import type { TypeValeur } from '../../ri/types.js';
 import type { Diagnostic } from '../../analyse/erreurs.js';
@@ -1131,7 +1132,7 @@ export function genererProjetApple(application: Application, options: OptionsApp
   if (avecCompteSecurise(application)) ecrire('Humalis/CompteSecurise.swift', COMPTE_SECURISE_SWIFT);
 
   const pagesCode = [...fichiers.values()].join('\n');
-  ecrire('Humalis/Valeurs.swift', VALEURS_SWIFT);
+  ecrire('Humalis/Valeurs.swift', VALEURS_SWIFT + NOTES_SWIFT);
   ecrire('Humalis/Formats.swift', FORMATS_SWIFT);
   ecrire('Humalis/Interface.swift', INTERFACE_SWIFT);
   ecrire('Humalis/Couleurs.swift', couleursSwift(application.theme));

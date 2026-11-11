@@ -468,6 +468,8 @@ type MorceauTexte = EnvoiEmail['sujet'][number];
 
 export type InstructionServeur =
   | { type: 'RequeteServeur'; adresse: string; champs: { nom: string; valeur: Expression }[]; ligne: number }
+  /** « noter commande.total et montant » : le terminal du serveur, jamais en production. */
+  | { type: 'NoterServeur'; valeurs: { expression: Expression; libelle: string }[]; ligne: number }
   | { type: 'SiServeur'; test: Test; alors: InstructionServeur[]; sinon: InstructionServeur[]; ligne: number }
   | { type: 'PourChaqueServeur'; variable: string; donnee: string; filtres: FiltreServeur[]; corps: InstructionServeur[]; ligne: number }
   | { type: 'CalculServeur'; nom: string; operation: OperationCalcul; donnee: string; champ?: string; filtres: FiltreServeur[]; ligne: number }
@@ -648,6 +650,7 @@ export type Instruction =
   // Les interactions (plan 2026-10-30-interactions)
   | Minuterie
   | Copier
+  | Noter
   | Partager
   | Confirmer
   | Fenetre
@@ -682,6 +685,18 @@ export interface Copier {
   message?: string | null;
   /** « avec message "Copié" en anglais "Copied" » : le message et ses versions. */
   texte?: LitteralChaine;
+  ligne: number;
+}
+
+/**
+ * « noter panier et total », « noter "Après paiement" et total » : écrit les
+ * valeurs dans la console du développement, avec la ligne Humalis. Rien en
+ * production.
+ */
+export interface Noter {
+  type: 'Noter';
+  /** Chaque valeur et son libellé tel qu'il est écrit (« panier », « p.prix »). */
+  valeurs: { expression: Expression; libelle: string }[];
   ligne: number;
 }
 

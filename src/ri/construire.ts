@@ -961,6 +961,18 @@ class Construction {
           });
           break;
 
+        case 'Noter':
+          actions.push({
+            type: 'note',
+            valeurs: instruction.valeurs.map(({ expression, libelle }) => ({
+              libelle,
+              valeur: this.valeur(expression),
+              // Un texte écrit seul (« noter "Après paiement" ») sert de titre : il s'écrit tel quel.
+              ...(expression.type === 'Chaine' && libelle.startsWith('"') ? { titre: true } : {}),
+            })),
+          });
+          break;
+
         case 'Copier':
           actions.push({
             type: 'copie',

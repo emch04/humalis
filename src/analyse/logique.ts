@@ -218,6 +218,15 @@ class Traduction {
       }
       case 'Refuser':
         return { type: 'refuser', message: this.valeur(i.message, portee) };
+      case 'NoterServeur':
+        return {
+          type: 'noter',
+          valeurs: i.valeurs.map(({ expression, libelle }) => ({
+            libelle,
+            valeur: this.valeur(expression, portee),
+            ...(expression.type === 'Chaine' && libelle.startsWith('"') ? { titre: true } : {}),
+          })),
+        };
       case 'CreerFiche': {
         const { creation } = i;
         const liee = this.serveur.donnees.find((d) => d.nom === creation.donnee && !d.comptes);

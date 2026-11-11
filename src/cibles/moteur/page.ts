@@ -20,6 +20,7 @@ import { Ecrivain } from '../web/ecrivain.js';
 import { camel, chaine, pascal } from '../web/noms.js';
 import { premiereValeur, titreEtDescription } from '../web/ecran.js';
 import { ficheAvec } from '../web/valeurs.js';
+import { lieuNote } from '../commun/noter.js';
 import { lireCible } from '../../analyse/navigation.js';
 import { lecturesDuChargement } from '../web/lectures.js';
 import { attributsFrappe } from '../commun/mouvement.js';
@@ -279,6 +280,12 @@ export class GenerateurMoteur extends GenerateurPage {
     const x = (v: Valeur) => expressionJs(v, this.contexte);
     for (const action of actions) {
       e.repere(action.ligne);
+      if (action.type === 'note') {
+        // « noter … » : Vite remplace import.meta.env.DEV par faux à la construction ; l'appel disparaît du site construit.
+        const valeurs = action.valeurs.map((v) => `[${chaine(v.libelle)}, ${x(v.valeur)}${v.titre ? ', true' : ''}]`);
+        e.ligne(`if (import.meta.env.DEV) noter(${chaine(lieuNote(action.ligne))}, [${valeurs.join(', ')}]);`);
+        continue;
+      }
       if (!ACTIONS_LUES.has(action.type) && this.actionEnPlus(e, action, locales, modif)) continue;
       switch (action.type) {
         case 'affectation':
@@ -1351,7 +1358,7 @@ export const NOMS_RESERVES = (): Set<string> => new Set(['appareil', 'reunion', 
 export const ADAPTATEURS = { module: 'monterModule', react: 'monterReact', vue: 'monterVue', svelte: 'monterSvelte', web: 'monterWeb' } as const;
 
 const NOMS_MOTEUR = ['animerListe', 'signal', 'calcul', 'lecture', 'effet', 'nettoyer', 'gabarit', 'texte', 'attribut', 'ecouter', 'soumettre', 'ecouterLaPause', 'modele', 'si', 'chaque', 'zone', 'contenu', 'executer'];
-const NOMS_OUTILS = ['formaterDateLongue', 'formaterEnLettres', 'avecMajuscule', 'initialesDe', 'creer', 'icone', 'avatar', 'etoiles', 'codeQr', 'carteLieux', 'fenetre', 'observerLeBas', 'titreDeLaPage', 'descriptionDeLaPage', 'activerCarrousel', 'activerMotDePasse', 'afficherMessage', 'planifier', 'planificateur', 'minuteriesDeCouche', 'ecouterRaccourcis', 'mouvementReduit', 'themeSombre', 'copier', 'partager', 'telechargerCsv', 'confirmer', 'retirerPremier', 'grouper', 'formaterNombre', 'formaterDate', 'formaterArgent', 'accorder', 'formaterTaille', 'dateDuJour', 'maintenant', 'decalerDate', 'joursEntre', 'formaterDepuis', 'lireMemoire', 'garderMemoire', 'cliquer', 'focaliser', 't', 'langue', 'changerLangue', 'definirTheme'];
+const NOMS_OUTILS = ['formaterDateLongue', 'formaterEnLettres', 'avecMajuscule', 'initialesDe', 'creer', 'icone', 'avatar', 'etoiles', 'codeQr', 'carteLieux', 'fenetre', 'observerLeBas', 'titreDeLaPage', 'descriptionDeLaPage', 'activerCarrousel', 'activerMotDePasse', 'afficherMessage', 'planifier', 'planificateur', 'minuteriesDeCouche', 'ecouterRaccourcis', 'mouvementReduit', 'themeSombre', 'copier', 'partager', 'telechargerCsv', 'confirmer', 'noter', 'retirerPremier', 'grouper', 'formaterNombre', 'formaterDate', 'formaterArgent', 'accorder', 'formaterTaille', 'dateDuJour', 'maintenant', 'decalerDate', 'joursEntre', 'formaterDepuis', 'lireMemoire', 'garderMemoire', 'cliquer', 'focaliser', 't', 'langue', 'changerLangue', 'definirTheme'];
 const NOMS_NAV = ['naviguer', 'adresseDe', 'adresseDuLien', 'filtre', 'revenir', 'changerFiltre', 'apresLaGarde'];
 const NOMS_ADAPT = ['monterModule', 'monterReact', 'monterVue', 'monterSvelte', 'monterWeb'];
 const NOMS_SERVEUR = ['serveur', 'derniereRequete', 'utilisateur', 'televerser', 'REPOS', 'lectureGardee', 'directDeCouche'];

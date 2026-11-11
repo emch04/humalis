@@ -1,4 +1,5 @@
 import { repereLigne } from '../lignes-humalis.js';
+import { lieuNote } from '../commun/noter.js';
 /**
  * « seul gerant peut faire … » et « tous les jours a 7 h : » : le code produit.
  * Une action tourne dans une transaction : un « refuser » ou une panne annule tout ce
@@ -443,6 +444,9 @@ class Ecriture {
         return `${r}await s.${camel(i.donnee)}.supprimer(${fiche(i.fiche)}.id);\n${r}noter(travail, ${chaine(i.donnee)}${this.groupeDe(i.donnee, fiche(i.fiche))});`;
       case 'refuser':
         return `${r}throw new Refus(enTexte(${valeur(i.message)}));`;
+      // « noter … » : le terminal du serveur, sauf en production (lignes.ts).
+      case 'noter':
+        return `${r}noter(${chaine(lieuNote(i.ligne))}, [${i.valeurs.map((v) => `[${chaine(v.libelle)}, ${valeur(v.valeur)}${v.titre ? ', true' : ''}]`).join(', ')}]);`;
       case 'creer': {
         const liee = this.serveur.donnees.find((d) => d.nom === i.donnee)!;
         const groupe = liee.par && i.groupeDe ? [`${chaine(camel(liee.par))}: ${fiche(i.groupeDe)}[${chaine(camel(liee.par))}]`] : [];

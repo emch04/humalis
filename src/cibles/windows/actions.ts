@@ -3,6 +3,7 @@
  * devient une méthode `async Task` ; une variable de la page s'écrit par son Signal,
  * et ce qui la lit se redessine seul.
  */
+import { lieuNote } from '../commun/noter.js';
 import type { Action, ArgumentsPage, Valeur } from '../../ri/types.js';
 import { Ecrivain } from '../web/ecrivain.js';
 import { chaineCs, cleJson, nomCs, commentaireCs } from './noms.js';
@@ -301,6 +302,10 @@ export class EcrivainActions {
         return;
       case 'dire':
         e.ligne('// « dire » : pas d\'assistant vocal sur Windows.');
+        return;
+      // « noter … » : [Conditional("DEBUG")] retire l'appel (et le calcul des valeurs) d'une construction Release.
+      case 'note':
+        e.ligne(`HumalisNotes.Noter(${chaineCs(lieuNote(a.ligne))}${a.valeurs.map((v) => `, (${chaineCs(v.libelle)}, (object?)(${this.x.expr(v.valeur)}), ${v.titre ? 'true' : 'false'})`).join('')});`);
         return;
       default:
         return this.hote.refuser(`« ${NOMS_ACTIONS[a.type] ?? a.type} »`);

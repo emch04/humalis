@@ -7,6 +7,7 @@
  * arrive ».
  */
 import { REPERE_SOURCES } from '../commun/lignes-web.js';
+import { NOTER_SERVEUR_TS } from '../commun/noter.js';
 
 export const LIGNES_SERVEUR_TS = `// Produit par Humalis : les erreurs du serveur rendues à leurs lignes Humalis.
 import { basename, relative, resolve, sep } from 'node:path';
@@ -44,4 +45,4 @@ export function journaliserErreur(erreur: unknown, ou = ''): void {
   const lignes = pileHumalis(String(erreur.stack ?? '')).split('\\n').filter((l) => l.includes('.humalis'));
   console.error(\`Erreur, ligne \${ligne.slice(i + 1)} de \${ligne.slice(0, i)}\${ou ? \` (\${ou})\` : ''} : \${erreur.message}\\n\${lignes.join('\\n')}\`);
 }
-`;
+${NOTER_SERVEUR_TS}`;

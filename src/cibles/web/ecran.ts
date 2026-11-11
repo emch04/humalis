@@ -1,3 +1,4 @@
+import { lieuNote } from '../commun/noter.js';
 import { verificationsDuChamp, messageEnCode, messageFixeEnCode, libellesEnLangues, type MessageEnLangues } from '../../i18n/messages.js';
 import { titreComplet, adresseImage, sansBarreFinale } from '../publication.js';
 import { sousActions } from '../../ri/actions.js';
@@ -48,6 +49,8 @@ export interface Rendu {
   /** La déclaration de ce qui permet d'aller vers une autre page. */
   navigateur: string;
   naviguer(chemin: string): string;
+  /** Vrai pendant le développement seulement : « noter … » n'écrit rien ailleurs (Vite : import.meta.env.DEV ; Expo : __DEV__). */
+  enDeveloppement?: string;
   /** « rediriger vers » une adresse reçue (page ou adresse permise), et vers une adresse externe écrite : absents, les aides du web. */
   allerVers?(valeur: string): string;
   ouvrirExterne?(adresse: string): string;
@@ -1319,6 +1322,12 @@ class GenerateurEcran {
             e.ligne('}');
           }
           break;
+        case 'note': {
+          // « noter … » : la console, pendant le développement seulement (l'assembleur retire l'appel du site construit).
+          const morceaux = action.valeurs.flatMap((v, i) => [...(i > 0 ? [chaine(';')] : []), ...(v.titre ? [x(v.valeur)] : [chaine(`${v.libelle} =`), x(v.valeur)])]);
+          e.ligne(`if (${this.rendu.enDeveloppement ?? 'import.meta.env.DEV'}) console.log(${chaine(`[${lieuNote(action.ligne)}]`)}, ${morceaux.join(', ')});`);
+          break;
+        }
         case 'copie':
           // « copier code » : le résultat est dit à la personne, sauf « sans message ».
           e.ligne(

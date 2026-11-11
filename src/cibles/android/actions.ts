@@ -6,6 +6,7 @@
 import { lireCible } from '../../analyse/navigation.js';
 import type { Action, ArgumentsPage, Valeur } from '../../ri/types.js';
 import type { EcrivainKotlin } from './ecrivain.js';
+import { lieuNote } from '../commun/noter.js';
 import { chaineKotlin, cleJson, nomKotlin } from './noms.js';
 import { nomEtatRequete, type Valeurs } from './valeurs.js';
 
@@ -350,6 +351,10 @@ export class EcrivainActions {
         e.ligne(c.essai ? `if (!${appel}) ${sortie(c)}` : `if (!Session.gere { ${appel} }) ${sortie(c)}`);
         return;
       }
+      // « noter … » : Logcat, seulement si l'application est débogable ; sinon les valeurs ne sont même pas calculées.
+      case 'note':
+        e.ligne(`HumalisNotes.noter(${chaineKotlin(lieuNote(a.ligne))}) { listOf(${a.valeurs.map((v) => `Triple(${chaineKotlin(v.libelle)}, ${this.v.x(v.valeur)}, ${v.titre ? 'true' : 'false'})`).join(', ')}) }`);
+        return;
       default: {
         // Une action ajoutée au langage doit être traitée ici : sinon le compilateur TypeScript s'arrête.
         const oubliee: never = a;
