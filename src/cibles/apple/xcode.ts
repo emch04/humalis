@@ -9,6 +9,8 @@ export interface PaquetSwift {
   adresse: string;
   version: string;
   produit: string;
+  /** Vrai pour une version épinglée : le projet ne prend ni correctif ni version suivante sans qu'on le décide. */
+  exacte?: boolean;
 }
 
 export interface OptionsXcode {
@@ -300,7 +302,7 @@ function avecPaquets(texte: string, paquets: PaquetSwift[]): string {
   remplacer(`${ID.phaseFrameworks} /* Frameworks */ = {\n\t\t\tisa = PBXFrameworksBuildPhase;\n\t\t\tbuildActionMask = 2147483647;\n\t\t\tfiles = (\n`, `${ID.phaseFrameworks} /* Frameworks */ = {\n\t\t\tisa = PBXFrameworksBuildPhase;\n\t\t\tbuildActionMask = 2147483647;\n\t\t\tfiles = (\n${liste('A')}\n`);
   remplacer('\t\t\tfileSystemSynchronizedGroups = (', `\t\t\tpackageProductDependencies = (\n${liste('C')}\n\t\t\t);\n\t\t\tfileSystemSynchronizedGroups = (`);
   remplacer('\t\t\tproductRefGroup =', `\t\t\tpackageReferences = (\n${liste('B')}\n\t\t\t);\n\t\t\tproductRefGroup =`);
-  remplacer('\t};\n\trootObject', `/* Begin XCRemoteSwiftPackageReference section */\n${paquets.map((p, i) => `\t\t${id('B', i)} = {\n\t\t\tisa = XCRemoteSwiftPackageReference;\n\t\t\trepositoryURL = ${pb(p.adresse)};\n\t\t\trequirement = {\n\t\t\t\tkind = upToNextMajorVersion;\n\t\t\t\tminimumVersion = ${pb(p.version)};\n\t\t\t};\n\t\t};`).join('\n')}\n/* End XCRemoteSwiftPackageReference section */\n\n/* Begin XCSwiftPackageProductDependency section */\n${paquets.map((p, i) => `\t\t${id('C', i)} = {\n\t\t\tisa = XCSwiftPackageProductDependency;\n\t\t\tpackage = ${id('B', i)};\n\t\t\tproductName = ${pb(p.produit)};\n\t\t};`).join('\n')}\n/* End XCSwiftPackageProductDependency section */\n\t};\n\trootObject`);
+  remplacer('\t};\n\trootObject', `/* Begin XCRemoteSwiftPackageReference section */\n${paquets.map((p, i) => `\t\t${id('B', i)} = {\n\t\t\tisa = XCRemoteSwiftPackageReference;\n\t\t\trepositoryURL = ${pb(p.adresse)};\n\t\t\trequirement = {\n\t\t\t\t${p.exacte ? `kind = exactVersion;\n\t\t\t\tversion = ${pb(p.version)};` : `kind = upToNextMajorVersion;\n\t\t\t\tminimumVersion = ${pb(p.version)};`}\n\t\t\t};\n\t\t};`).join('\n')}\n/* End XCRemoteSwiftPackageReference section */\n\n/* Begin XCSwiftPackageProductDependency section */\n${paquets.map((p, i) => `\t\t${id('C', i)} = {\n\t\t\tisa = XCSwiftPackageProductDependency;\n\t\t\tpackage = ${id('B', i)};\n\t\t\tproductName = ${pb(p.produit)};\n\t\t};`).join('\n')}\n/* End XCSwiftPackageProductDependency section */\n\t};\n\trootObject`);
   return texte;
 }
 
@@ -571,7 +573,7 @@ export function droits(fichiers: boolean, notifications?: 'ios' | 'mac', positio
  * (HTTPS, Keychain) : TestFlight ne repose donc pas la question du chiffrement à chaque envoi.
  * `http://` reste permis sur le réseau local, seulement pour essayer contre un serveur de cet ordinateur.
  */
-export function infoSupplementaire(serveurLocal: boolean, usages: { camera?: boolean; micro?: boolean; identite?: boolean; position?: boolean; liens?: { schema: string; identifiant: string }; arrierePlan?: string; schemaInterne?: string; formes?: string } = {}): string {
+export function infoSupplementaire(serveurLocal: boolean, usages: { reunion?: boolean; camera?: boolean; micro?: boolean; identite?: boolean; position?: boolean; liens?: { schema: string; identifiant: string }; arrierePlan?: string; schemaInterne?: string; formes?: string } = {}): string {
   const schemas = [...(usages.liens ? [{ nom: usages.liens.identifiant, schema: usages.liens.schema }] : []), ...(usages.schemaInterne ? [{ nom: `${usages.schemaInterne}.formes`, schema: usages.schemaInterne }] : [])];
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -580,9 +582,9 @@ export function infoSupplementaire(serveurLocal: boolean, usages: { camera?: boo
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>${usages.camera ? `
 	<key>NSCameraUsageDescription</key>
-	<string>L'application utilise l'appareil photo pour prendre une photo, filmer, ou scanner un code ou un document.</string>` : ''}${usages.micro ? `
+	<string>${usages.reunion ? "L'application utilise la caméra pendant les réunions et les appels, et pour prendre une photo, filmer ou scanner." : "L'application utilise l'appareil photo pour prendre une photo, filmer, ou scanner un code ou un document."}</string>` : ''}${usages.micro ? `
 	<key>NSMicrophoneUsageDescription</key>
-	<string>L'application utilise le micro pour enregistrer un son ou une vidéo.</string>` : ''}${usages.identite ? `
+	<string>${usages.reunion ? "L'application utilise le micro pendant les réunions et les appels, et pour enregistrer un son ou une vidéo." : "L'application utilise le micro pour enregistrer un son ou une vidéo."}</string>` : ''}${usages.identite ? `
 	<key>NSFaceIDUsageDescription</key>
 	<string>L'application vérifie qu'il s'agit bien de vous.</string>` : ''}${usages.position ? `
 	<key>NSLocationWhenInUseUsageDescription</key>
@@ -606,7 +608,14 @@ export function infoSupplementaire(serveurLocal: boolean, usages: { camera?: boo
 	</array>
 	<key>UIBackgroundModes</key>
 	<array>
-		<string>fetch</string>
+		<string>fetch</string>${usages.reunion ? `
+		<string>audio</string>
+		<string>voip</string>` : ''}
+	</array>` : usages.reunion ? `
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+		<string>voip</string>
 	</array>` : ''}${serveurLocal ? `
 	<key>NSAppTransportSecurity</key>
 	<dict>

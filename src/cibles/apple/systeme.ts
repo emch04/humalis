@@ -784,6 +784,8 @@ struct SourceHumalis: Sendable {
     func televerserOuEchouer<T: Decodable>(_ fichier: FichierChoisi?, vers adresse: String, comme type: T.Type, source: SourceHumalis?, corpsBrut: Bool = false, champ: String = "fichier", progression: (@MainActor (Double) -> Void)? = nil) async throws -> T? {
         guard let fichier else { throw ErreurHumalis.refus("Choisissez d'abord un fichier.") }
         var r = try requete(adresse, methode: "POST", id: nil, envoi: nil, source: source, filtres: [])
+        // Le serveur Humalis lui-même : l'envoi part avec la session.
+        if source == nil { r = await identifiee(r) }
         guard let contenu = try? Data(contentsOf: fichier.url) else { throw ErreurHumalis.refus("Le fichier n'a pas pu être lu.") }
         let corps: Data
         if corpsBrut {

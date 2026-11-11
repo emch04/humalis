@@ -1494,6 +1494,11 @@ export class GenerateurPage implements HotePage {
         this.modifieurs(e, noeud.options, 'bloc', [id]);
         return;
       }
+      // « reunion "…" » : les images des participants (Humalis/Reunion.swift).
+      case 'reunion':
+        e.ligne('ReunionVue()');
+        this.modifieurs(e, noeud.options, 'bloc', [id]);
+        return;
       case 'signature':
         e.ligne(`SignatureHumalis(trace: ${lien(TEXTE)})`);
         this.modifieurs(e, noeud.options, 'bloc', [id]);
