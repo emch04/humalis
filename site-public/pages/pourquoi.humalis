@@ -21,6 +21,7 @@ page "pourquoi" a l'adresse "/pourquoi" :
         bloc avec style "legal-bloc" :
             soustitre "À qui il s’adresse" en anglais "Who it is for"
             liste :
+                texte "Aux entreprises, petites ou grandes, qui veulent leurs outils internes et leurs applications pour leurs clients sur chaque plateforme, avec une seule équipe et la sécurité par défaut." en anglais "Companies, small or large, that want their internal tools and their customer apps on every platform, with a single team and security by default."
                 texte "Aux indépendants et aux petites équipes qui veulent une vraie application sur chaque plateforme, sans une équipe par plateforme." en anglais "Freelancers and small teams who want a real app on every platform, without one team per platform."
                 texte "Aux personnes qui apprennent à programmer, et qui comprennent chaque mot qu’elles écrivent." en anglais "People learning to code, who understand every word they write."
                 texte "Aux commerces, aux écoles et aux associations qui veulent leur propre outil, à leur image." en anglais "Shops, schools and associations that want their own tool, in their own image."
