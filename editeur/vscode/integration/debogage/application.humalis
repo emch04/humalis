@@ -1,0 +1,7 @@
+page "accueil" :
+    titre "Panier"
+    variable total = 12
+    texte "Total : {total}"
+    quand la page se charge :
+        changer total par total + 30
+        changer total par total * 2

@@ -88,7 +88,7 @@ enum HumalisNotes {
 export const NOTER_SERVEUR_TS = `
 ${APERCU_NOTE_JS.replace('function apercuNote(valeur, profondeur = 0) {', 'function apercuNote(valeur: unknown, profondeur = 0): string {').replace('function texteNote(lieu, valeurs) {', 'function texteNote(lieu: string, valeurs: [string, unknown, boolean?][]): string {').replace('const champs = Object.entries(valeur);', 'const champs = Object.entries(valeur as Record<string, unknown>);')}
 /** « noter … » : le terminal du serveur, sauf en production (NODE_ENV=production). */
-export function noter(lieu: string, valeurs: [string, unknown, boolean?][]): void {
+export function noterHumalis(lieu: string, valeurs: [string, unknown, boolean?][]): void {
   if (process.env.NODE_ENV === 'production') return;
   console.log(texteNote(lieu, valeurs));
 }

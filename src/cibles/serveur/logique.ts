@@ -446,7 +446,7 @@ class Ecriture {
         return `${r}throw new Refus(enTexte(${valeur(i.message)}));`;
       // « noter … » : le terminal du serveur, sauf en production (lignes.ts).
       case 'noter':
-        return `${r}noter(${chaine(lieuNote(i.ligne))}, [${i.valeurs.map((v) => `[${chaine(v.libelle)}, ${valeur(v.valeur)}${v.titre ? ', true' : ''}]`).join(', ')}]);`;
+        return `${r}noterHumalis(${chaine(lieuNote(i.ligne))}, [${i.valeurs.map((v) => `[${chaine(v.libelle)}, ${valeur(v.valeur)}${v.titre ? ', true' : ''}]`).join(', ')}]);`;
       case 'creer': {
         const liee = this.serveur.donnees.find((d) => d.nom === i.donnee)!;
         const groupe = liee.par && i.groupeDe ? [`${chaine(camel(liee.par))}: ${fiche(i.groupeDe)}[${chaine(camel(liee.par))}]`] : [];

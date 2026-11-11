@@ -1,0 +1,12 @@
+serveur "essai" :
+    donnee commande :
+        total : nombre
+    route "commandes" :
+        seul admin peut lire commande
+        seul admin peut creer commande
+        seul admin peut faire "doubler" sur commande :
+            noter commande.total
+            changer commande.total par commande.total * 2
+
+page "accueil" :
+    titre "Commandes"

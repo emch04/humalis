@@ -8,6 +8,7 @@ import { completerSource, type GenreProposition } from './langage/completion.js'
 import { definir } from './langage/definition.js';
 import { symbolesDuDocument, type GenreSymboleDocument, type SymboleDocument } from './langage/symboles.js';
 import { encoderJetons, jetonsSemantiques, MODIFICATEURS_JETONS, TYPES_JETONS } from './langage/semantique.js';
+import { activerDebogage } from './debogage.js';
 
 const LANGAGE = 'humalis';
 /** Court délai après la frappe : assez bref pour sembler instantané (< 0,5 s). */
@@ -63,6 +64,8 @@ const GENRES_SYMBOLE: Record<GenreSymboleDocument, vscode.SymbolKind> = {
 const LEGENDE = new vscode.SemanticTokensLegend([...TYPES_JETONS], [...MODIFICATEURS_JETONS]);
 
 export function activate(contexte: vscode.ExtensionContext): void {
+  // Le débogueur : points d'arrêt dans les fichiers .humalis (debogage.ts).
+  activerDebogage(contexte);
   const collection = vscode.languages.createDiagnosticCollection(LANGAGE);
   const minuteries = new Map<string, ReturnType<typeof setTimeout>>();
   const verification = verifierAvec(lire);

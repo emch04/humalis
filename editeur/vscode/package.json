@@ -1,8 +1,8 @@
 {
   "name": "humalis",
   "displayName": "Humalis",
-  "description": "Le langage Humalis dans VS Code : erreurs du compilateur en direct, survol, complétion, saut à la déclaration, symboles, coloration (y compris sémantique), indentation et extraits de code ; un serveur de langage (LSP) pour les autres éditeurs.",
-  "version": "1.3.0",
+  "description": "Le langage Humalis dans VS Code : erreurs du compilateur en direct, survol, complétion, saut à la déclaration, symboles, coloration (y compris sémantique), indentation et extraits de code ; un débogueur (points d'arrêt dans les fichiers .humalis, pas à pas, variables) ; un serveur de langage (LSP) pour les autres éditeurs.",
+  "version": "1.4.0",
   "publisher": "emch04",
   "private": true,
   "license": "SEE LICENSE IN LICENSE",
@@ -20,7 +20,8 @@
   },
   "categories": [
     "Programming Languages",
-    "Snippets"
+    "Snippets",
+    "Debuggers"
   ],
   "icon": "images/icon.png",
   "main": "./dist/extension.js",
@@ -57,6 +58,180 @@
         "language": "humalis",
         "path": "./snippets/humalis.json"
       }
+    ],
+    "breakpoints": [
+      {
+        "language": "humalis"
+      }
+    ],
+    "commands": [
+      {
+        "command": "humalis.deboguer",
+        "title": "Déboguer ce fichier",
+        "category": "Humalis",
+        "icon": "$(debug-alt)"
+      }
+    ],
+    "menus": {
+      "editor/title/run": [
+        {
+          "command": "humalis.deboguer",
+          "when": "resourceLangId == humalis",
+          "group": "navigation@1"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "humalis.deboguer",
+          "when": "resourceLangId == humalis"
+        }
+      ]
+    },
+    "debuggers": [
+      {
+        "type": "humalis",
+        "label": "Humalis",
+        "languages": [
+          "humalis"
+        ],
+        "configurationAttributes": {
+          "launch": {
+            "required": [
+              "cible"
+            ],
+            "properties": {
+              "cible": {
+                "type": "string",
+                "enum": [
+                  "web",
+                  "serveur",
+                  "apple"
+                ],
+                "enumDescriptions": [
+                  "Le site : humalis developper, ouvert dans Chrome ou Edge.",
+                  "Le serveur produit, lancé dans Node.",
+                  "L'application Mac, construite par Xcode et lancée par lldb."
+                ],
+                "description": "Ce qui est débogué.",
+                "default": "web"
+              },
+              "programme": {
+                "type": "string",
+                "description": "Le fichier Humalis principal.",
+                "default": "${file}"
+              },
+              "sortie": {
+                "type": "string",
+                "description": "Le dossier du projet produit (par défaut .humalis/<cible> à côté du programme)."
+              },
+              "port": {
+                "type": "number",
+                "description": "Le port du site de développement (web).",
+                "default": 5180
+              },
+              "humalis": {
+                "type": "string",
+                "description": "La commande du compilateur (chemin de humalis ou de cli.js). Par défaut celle du projet, sinon npx humalis."
+              },
+              "navigateur": {
+                "type": "string",
+                "enum": [
+                  "chrome",
+                  "edge"
+                ],
+                "default": "chrome",
+                "description": "Le navigateur du site (web)."
+              },
+              "env": {
+                "type": "object",
+                "description": "Les variables d'environnement du serveur.",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "equipe": {
+                "type": "string",
+                "description": "Apple : l'équipe de signature (DEVELOPMENT_TEAM)."
+              },
+              "constructionApple": {
+                "type": "string",
+                "description": "Apple : un script de construction à la place de xcodebuild ; il reçoit le projet, le schéma, le dossier dérivé et Debug."
+              },
+              "runtimeArgs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Web : des options de plus pour le navigateur."
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "type": "humalis",
+            "request": "launch",
+            "name": "Humalis : le site",
+            "cible": "web",
+            "programme": "${file}"
+          }
+        ],
+        "configurationSnippets": [
+          {
+            "label": "Humalis : le site",
+            "description": "Déboguer les pages dans Chrome, avec humalis developper.",
+            "body": {
+              "type": "humalis",
+              "request": "launch",
+              "name": "Humalis : le site",
+              "cible": "web",
+              "programme": "^\"\\${file}\""
+            }
+          },
+          {
+            "label": "Humalis : le serveur",
+            "description": "Déboguer le serveur produit dans Node.",
+            "body": {
+              "type": "humalis",
+              "request": "launch",
+              "name": "Humalis : le serveur",
+              "cible": "serveur",
+              "programme": "^\"\\${file}\""
+            }
+          },
+          {
+            "label": "Humalis : l'application Mac",
+            "description": "Déboguer l'application Apple avec lldb (Xcode).",
+            "body": {
+              "type": "humalis",
+              "request": "launch",
+              "name": "Humalis : l'application Mac",
+              "cible": "apple",
+              "programme": "^\"\\${file}\""
+            }
+          }
+        ]
+      },
+      {
+        "type": "humalis-lldb",
+        "label": "Humalis (lldb, application Apple)",
+        "languages": [
+          "humalis"
+        ],
+        "configurationAttributes": {
+          "launch": {
+            "required": [
+              "program"
+            ],
+            "properties": {
+              "program": {
+                "type": "string",
+                "description": "L'exécutable de l'application construite."
+              }
+            }
+          }
+        }
+      }
     ]
   },
   "scripts": {
@@ -67,7 +242,8 @@
     "paquet": "npm run build && vsce package --skip-license --out humalis-$npm_package_version.vsix",
     "test:vscode": "npm run build && esbuild integration/lancer.ts integration/suite.ts --bundle --platform=node --format=cjs --external:vscode --outdir=out/integration && node out/integration/lancer.js",
     "essai:lsp": "npm run build && tsx scripts/essai-lsp.ts",
-    "essai:projet": "npm run build && tsx scripts/essai-projet.ts"
+    "essai:projet": "npm run build && tsx scripts/essai-projet.ts",
+    "test:debogage": "npm run build && esbuild integration/lancer-debogage.ts integration/debogage-suite.ts --bundle --platform=node --format=cjs --external:vscode --outdir=out/integration && node out/integration/lancer-debogage.js"
   },
   "devDependencies": {
     "@types/node": "26.2.0",

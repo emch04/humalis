@@ -1310,7 +1310,7 @@ ${codePaiements(route, variable, garde('lire'), voir('lire'), separee, donnee)}$
 import { createSaasApp, ${comptes ? 'createMemoryPasswordResetStore, type PasswordResetStore, ' : ''}type UsersStore } from '@astratra/saas-kit';
 import { ${[...(serveur.connexionGoogle ? ['createGoogleIdTokenVerifier'] : []), ...(serveur.connexionApple ? ['createAppleIdTokenVerifier'] : []), ...(serveur.connexionGoogle || serveur.connexionApple ? ['IdTokenError'] : []), ...(serveur.invitations ? ['createApiLimiter'] : []), ...(comptes ? ['createMemoryRevocationStore'] : [])].map((n) => n + ', ').join('')}createLoginLimiter, hashPassword, isStrongPassword, verifyPasswordHash, WAF_PATTERNS } from '@astratra/security';
 import express, { type RequestHandler, type Response } from 'express';
-${montageTempsReel ? IMPORT_TEMPS_REEL : ''}import { journaliserErreur, noter } from './humalis/lignes.js';
+${montageTempsReel ? IMPORT_TEMPS_REEL : ''}import { journaliserErreur, noterHumalis } from './humalis/lignes.js';
 ${serveur.captureErreurs ? "import { brancherErreursProcessus, rapporterErreur } from './humalis/capture-erreurs.js';\n" : ''}
 ${serveur.routes.some((r) => r.direct) ? "import { direct } from './humalis/direct.js';\n" : ''}import { ${schemas} } from './donnees.js';
 import type { Surveillance } from './humalis/centrale.js';

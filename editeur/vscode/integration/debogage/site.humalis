@@ -1,0 +1,9 @@
+page "accueil" :
+    titre "Panier"
+    variable panier = ["Livre", "Stylo"]
+    variable total = 12
+    texte "Total : {total}"
+    quand la page se charge :
+        changer total par total + 30
+        noter panier et total
+        changer total par total * 2
