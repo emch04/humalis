@@ -294,7 +294,7 @@ function compile(arguments_: string[]): number | Promise<number> {
     : genererProjetWeb(application, optionsWeb);
   if (portDiagnostics !== undefined && fichiers.has('index.html')) {
     const index = fichiers.get('index.html')!;
-    fichiers.set('index.html', index.replace('</body>', `<script type="module" src="http://localhost:${portDiagnostics}/diagnostics.js"></script></body>`));
+    fichiers.set('index.html', avecInspecteur(index, portDiagnostics).replace('</body>', `<script type="module" src="http://localhost:${portDiagnostics}/diagnostics.js"></script></body>`));
   }
   ecrire(sortie, fichiers);
 
@@ -305,6 +305,16 @@ function compile(arguments_: string[]): number | Promise<number> {
     console.error(`Pour le lancer : cd ${sortie} && npm install && npm run dev`);
   }
   return 0;
+}
+
+/**
+ * « humalis developper » : l'inspecteur, chargé avant tout autre script de la
+ * page pour voir aussi les premières requêtes. Jamais dans une compilation
+ * normale (seulement avec --diagnostics-port).
+ */
+function avecInspecteur(html: string, port: string): string {
+  const balise = `<script src="http://localhost:${port}/inspecteur.js"></script>`;
+  return /<meta charset="utf-8">/i.test(html) ? html.replace(/(<meta charset="utf-8">)/i, `$1\n    ${balise}`) : html.replace('<head>', `<head>\n    ${balise}`);
 }
 
 /** Un dossier non vide doit porter la marque d'un projet produit par Humalis. */
@@ -608,7 +618,7 @@ async function compileMoteur(application: Application, chemin: string, sortie: s
   // « humalis developper » : l'aide au survol et le panneau des erreurs, dans chaque page.
   if (portDiagnostics !== undefined) {
     for (const [nom, contenu] of fichiers) {
-      if (nom.endsWith('.html')) fichiers.set(nom, contenu.replace('</body>', `<script type="module" src="http://localhost:${portDiagnostics}/diagnostics.js"></script></body>`));
+      if (nom.endsWith('.html')) fichiers.set(nom, avecInspecteur(contenu, portDiagnostics).replace('</body>', `<script type="module" src="http://localhost:${portDiagnostics}/diagnostics.js"></script></body>`));
     }
   }
   ecrire(sortie, fichiers);

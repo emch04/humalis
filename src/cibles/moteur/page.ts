@@ -685,6 +685,30 @@ export class GenerateurMoteur extends GenerateurPage {
     return env;
   }
 
+  /**
+   * « humalis developper » : la couche inscrit ses variables pour
+   * l'inspecteur (window.__humalisCouches), et les retire quand on la quitte.
+   * Seulement en développement : rien n'est écrit sans les repères, et Vite
+   * retire le bloc du site construit (import.meta.env.DEV).
+   */
+  private ecrireInspection(e: Ecrivain): void {
+    if (!this.moteur.reperes) return;
+    const noms = [
+      ...(this.ecran.parametresAdresse ?? []).map((p) => ({ nom: p, ligne: this.ecran.ligne })),
+      ...(this.ecran.filtres ?? []).map((f) => ({ nom: f.nom, ligne: this.ecran.ligne })),
+      ...this.ecran.etat.map((v) => ({ nom: v.nom, ligne: v.ligne })),
+      ...this.ecran.calculs.map((c) => ({ nom: c.nom, ligne: c.ligne ?? this.ecran.ligne })),
+    ];
+    if (noms.length === 0) return;
+    const variables = noms.map((v) => `${chaine(v.nom)}: { boite: ${nomJs(v.nom)}, lieu: ${chaine(lieuNote(v.ligne))} }`).join(', ');
+    e.bloc('if (import.meta.env.DEV) {', () => {
+      e.ligne(`const inspection = { page: ${chaine(this.ecran.nom)}, lieu: ${chaine(lieuNote(this.ecran.ligne))}, variables: { ${variables} } };`);
+      e.ligne('(window.__humalisCouches ??= new Set()).add(inspection);');
+      e.ligne("window.dispatchEvent(new Event('humalis:couches'));");
+      e.ligne("nettoyer(() => { window.__humalisCouches.delete(inspection); window.dispatchEvent(new Event('humalis:couches')); });");
+    });
+  }
+
   /** Le script de la couche : une fois par écran. */
   scriptCouche(): { script: string; session: boolean; serveur: boolean } {
     const corps = new Ecrivain();
@@ -693,6 +717,7 @@ export class GenerateurMoteur extends GenerateurPage {
       this.ecrireEtatMoteur(corps);
       for (const calcul of this.ecran.calculs) this.ecrireCalcul(corps.repere(calcul.ligne), calcul.nom, calcul.valeur);
       this.ecrireDepartsMoteur(corps);
+      this.ecrireInspection(corps);
       for (const fonction of this.fonctions) this.ecrireFonction(corps, fonction);
       if (this.chargements.length > 0) {
         const asynchrone = contientRequete(this.chargements) ? 'async ' : '';
