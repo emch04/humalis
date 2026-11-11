@@ -34,6 +34,7 @@ import { reglesDeClasses, styleDesDeclarations } from './styles.js';
 import { ExpressionsCs, type Lieu } from './valeurs.js';
 import { lireVueNatifCs, type VueNatifCs } from './natifs.js';
 import { langueDuStyle, stylesXamlDu } from '../commun/styles-natifs.js';
+import { PAQUETS_REUNION_WINDOWS, REUNION_CS } from './bibliotheque/reunion.js';
 
 export const MARQUE_WINDOWS = '.humalis-windows';
 
@@ -248,7 +249,7 @@ function partagesCs(application: Application, partages: Map<string, Lieu>): stri
   return e.texte();
 }
 
-function csproj(nom: string, application: Application, aDesRessources: boolean, formes?: FormesWindows, winrt = false, donnees?: DonneesComptesWindows): string {
+function csproj(nom: string, application: Application, aDesRessources: boolean, formes?: FormesWindows, winrt = false, donnees?: DonneesComptesWindows, reunion = false): string {
   return `<Project Sdk="Microsoft.NET.Sdk">
   <!-- Produit par Humalis depuis ${nom} : une application WPF pour Windows 10 et 11. -->
   <PropertyGroup>
@@ -283,6 +284,10 @@ ${aDesRessources ? `  <ItemGroup>
 ` : ''}${application.paquetsWindows?.length ? `  <!-- « paquet windows » : les bibliothèques NuGet des vues C# écrites à la main. -->
   <ItemGroup>
 ${application.paquetsWindows.map((p) => `    <PackageReference Include="${echapperXml(p.nom)}" Version="${echapperXml(p.version)}" />`).join('\n')}
+  </ItemGroup>
+` : ''}${reunion ? `  <!-- Les réunions : LiveKit (sa bibliothèque native pour x64 et ARM64 vient avec le paquet), le son par winmm. -->
+  <ItemGroup>
+${PAQUETS_REUNION_WINDOWS.map((p) => `    <PackageReference Include="${p.nom}" Version="${p.version}" />`).join('\n')}
   </ItemGroup>
 ` : ''}${donnees?.sqlite ? `  <!-- « donnee locale » : une base SQLite sur l'appareil. -->
   <ItemGroup>
@@ -536,7 +541,10 @@ ${donnees.actif ? '        DonneesComptes.Demarrer(fenetre);\n' : ''}        ${f
   const avecEnregistrement = /\bEnregistrement\.Media\(/.test(codePages);
   if (avecEnregistrement) fichiers.set('Humalis/Enregistrement.cs', ENREGISTREMENT_CS);
   if (/\bRecadrage\.Photo\(/.test(codePages)) fichiers.set('Humalis/Recadrage.cs', RECADRAGE_CS);
-  fichiers.set(`${app}.csproj`, csproj(options.nom, application, aDesRessources, formes, avecEnregistrement, donnees));
+  // Les réunions et les appels : LiveKit natif (livekit_ffi.dll), la caméra par Windows.Media.Capture.
+  const avecReunion = /\bReunion\.(Vue|Rejoindre|Quitter)\(/.test(codePages);
+  if (avecReunion) fichiers.set('Humalis/Reunion.cs', REUNION_CS);
+  fichiers.set(`${app}.csproj`, csproj(options.nom, application, aDesRessources, formes, avecEnregistrement || avecReunion, donnees, avecReunion));
   if (application.formes?.erreurArrive) fichiers.set('Humalis/CaptureErreurs.cs', captureErreursCs(requetesCapture(application.formes).requetes));
   // Les dictionnaires de styles XAML : compilés avec le projet (une erreur XAML arrête dotnet build).
   for (const d of dictionnaires) fichiers.set(`Styles/${d.nom}`, d.contenu);

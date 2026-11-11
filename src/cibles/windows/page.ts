@@ -43,7 +43,7 @@ interface Methode {
   boucles: string[];
 }
 
-const GLYPHES_WIDGETS = new Set(['icone', 'badge', 'avatar', 'progression', 'chargement', 'etoiles', 'compteur', 'selecteurLangue', 'fichier', 'qr', 'audio', 'video']);
+const GLYPHES_WIDGETS = new Set(['icone', 'badge', 'avatar', 'progression', 'chargement', 'etoiles', 'compteur', 'selecteurLangue', 'fichier', 'qr', 'audio', 'video', 'reunion']);
 
 /** Indente un morceau de code de plusieurs lignes (sauf sa première ligne). */
 const decaler = (code: string, espaces = '  ') => code.replace(/\n/g, `\n${espaces}`);
@@ -668,6 +668,9 @@ export class GenerateurBloc implements HoteActions {
         code = `Medias.Lecteur(${args.join(', ')})`;
         break;
       }
+      // « reunion "…" » : les images des participants (Humalis/Reunion.cs).
+      case 'reunion':
+        return 'Reunion.Vue()';
       case 'qr': {
         const taille = { petite: 128, normale: 192, grande: 256, tres_grande: 320 }[n.options.find((o) => o.nom === 'taille')?.valeur ?? 'normale'] ?? 192;
         const description = n.reglages.descriptionLangues?.length ? `Langues.T(${n.reglages.descriptionLangues.map((l) => `(${chaineCs(l.code)}, ${chaineCs(l.texte)})`).join(', ')})` : chaineCs(n.reglages.description ?? 'Code QR');

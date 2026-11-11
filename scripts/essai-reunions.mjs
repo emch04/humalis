@@ -58,7 +58,8 @@ const code = readFileSync(demarrer, 'utf8');
 const graine = `\nfor (const [id, email, role] of [['compte-awa','awa@essai.test','client'],['compte-binta','binta@essai.test','agent'],['compte-chloe','chloe@essai.test','client'],['compte-dia','dia@essai.test','collegue']]) await usersStore.create({ id, email, role, passwordHash: await hashPassword(${JSON.stringify(MOT)}) });\n`;
 writeFileSync(demarrer, code.replace(/(const usersStore = [^\n]*\n)/, `$1${graine}`));
 const base = `http://127.0.0.1:${port}`;
-await lancer('node', ['dist/src/demarrer.js'], { cwd: serveur, env: { ...process.env, JWT_SECRET: randomBytes(32).toString('hex'), PORT: String(port), HUMALIS_LIMITE_CONNEXION: '1000', HUMALIS_LIMITE_API: '100000', LIVEKIT_URL: 'ws://127.0.0.1:7880', LIVEKIT_API_KEY: 'devkey', LIVEKIT_API_SECRET: 'secret' } }, (m) => m.includes('prêt'));
+await lancer('node', ['dist/src/demarrer.js'], { cwd: serveur, env: { ...process.env, JWT_SECRET: randomBytes(32).toString('hex'), PORT: String(port), HUMALIS_LIMITE_CONNEXION: '1000', HUMALIS_LIMITE_API: '100000', // Une machine virtuelle ou un émulateur joint LiveKit par l'adresse du Mac (ESSAI_LIVEKIT_URL=ws://192.168.64.1:7880).
+    LIVEKIT_URL: process.env.ESSAI_LIVEKIT_URL ?? 'ws://127.0.0.1:7880', LIVEKIT_API_KEY: 'devkey', LIVEKIT_API_SECRET: 'secret' } }, (m) => m.includes('prêt'));
 const web = join(travail, 'web');
 compiler('web', web, '--moteur', 'humalis');
 installer(web);
