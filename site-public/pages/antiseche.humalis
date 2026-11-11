@@ -1062,6 +1062,10 @@ page "antiseche" a l'adresse "/antiseche" :
                     texte "Produire le projet : web, statique, mobile, desktop ou serveur" en anglais "Build the project: web, statique, mobile, desktop or serveur" avec style "aide-besoin"
                     code terminal :
                         humalis compile mon-projet.humalis --cible web --sortie mon-site
+                bloc avec style "aide-entree" :
+                    texte "Produire le site en React" en anglais "Build the site with React" avec style "aide-besoin"
+                    code terminal :
+                        humalis compile mon-projet.humalis --cible web --moteur react --sortie mon-site
         bloc avec ancre "pieges" et style "aide-section" :
             soustitre "Les pièges" en anglais "Common traps"
             bloc avec style "aide-entrees" :

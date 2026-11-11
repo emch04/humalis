@@ -74,6 +74,8 @@ humalis compile mon-projet.humalis --cible serveur --sortie mon-projet-serveur  
 | `desktop` | une application Electron : la cible Linux |
 | `apple` | une application native en SwiftUI (iPhone, iPad et Mac), sans navigateur embarqué |
 
+Le site peut aussi être produit en React : ajoute `--moteur react` à `--cible web` ou `--cible desktop`.
+
 Quand une construction n'existe pas encore sur une cible, le compilateur le dit clairement au lieu de produire quelque chose de faux.
 
 ### Lancer chaque projet produit
