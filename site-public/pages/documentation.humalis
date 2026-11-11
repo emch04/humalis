@@ -2,10 +2,10 @@
 # ne pas modifier à la main. Pour changer la documentation, modifier le guide,
 # puis lancer « npm run site:doc ».
 
-page "documentation" a l'adresse "/documentation" sans pied :
+page "documentation" a l'adresse "/documentation" :
     apercu :
         description "Le guide complet de Humalis : de l’installation au serveur, chaque construction du langage avec un exemple vérifié." en anglais "The complete Humalis guide: from installation to the server, every construct of the language with a checked example."
-    ligne avec style "doc" et hauteur ecran :
+    ligne avec style "doc" :
         menu vertical avec style "doc-sommaire" et defilement interne :
             lien "1. Installer et créer un projet" en anglais "1. Install and create a project" vers "documentation_1"
             lien "2. Les règles d'écriture" en anglais "2. Writing rules" vers "documentation_2"

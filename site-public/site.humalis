@@ -15,6 +15,7 @@ utiliser fichier "./pages/installer.humalis"
 utiliser fichier "./pages/nouveautes.humalis"
 utiliser fichier "./pages/mentions-legales.humalis"
 utiliser fichier "./pages/confidentialite.humalis"
+utiliser fichier "./pages/licence.humalis"
 utiliser fichier "./pages/signaler.humalis"
 utiliser fichier "./pages/introuvable.humalis"
 

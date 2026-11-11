@@ -23,7 +23,7 @@ pied avec style "site-footer" :
             lien "GitHub" sans traduction vers "https://github.com/emch04/humalis" avec nouvel onglet
             lien "Signaler un problème" en anglais "Report an issue" vers "signaler"
             lien "Paquet npm" en anglais "npm package" vers "https://www.npmjs.com/package/humalis" avec nouvel onglet
-            lien "Licence Humalis" en anglais "Humalis License" vers "https://github.com/emch04/humalis/blob/main/LICENSE" avec nouvel onglet
+            lien "Licence Humalis" en anglais "Humalis License" vers "licence"
     ligne avec style "footer-bas" :
         texte "© 2026 Les auteurs de Humalis. Tous droits réservés." en anglais "© 2026 The Humalis authors. All rights reserved."
         ligne avec style "footer-legal" :
