@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Vérifie en vrai les discussions, les appels et les réunions : le vrai serveur produit par Humalis, un vrai
-// serveur LiveKit (mode développement) et deux navigateurs à la caméra simulée. Laisse le serveur ouvert avec
+// serveur LiveKit (mode développement) et un navigateur par personne, à la caméra simulée. Laisse le serveur ouvert avec
 // --garder, pour y brancher ensuite des appareils.
 //
 // Lancer : LIVEKIT_BIN=<livekit-server> npm run build && node scripts/essai-reunions.mjs <dossier-de-travail> [--port 4992] [--garder]
@@ -66,7 +66,9 @@ execFileSync('npx', ['vite', 'build', '--logLevel', 'error'], { cwd: web, stdio:
 const adresse = await lancer(join(web, 'node_modules', '.bin', 'vite'), ['preview', '--port', '0', '--strictPort', 'false'], { cwd: web, env: { ...process.env, HUMALIS_SERVEUR: base } }, (m) => m.match(/http:\/\/localhost:\d+/)?.[0]);
 console.log(`Serveur : ${base} ; site : ${adresse}`);
 
-const navigateur = await chromium.launch({ args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--auto-select-desktop-capture-source=Entire screen', '--autoplay-policy=no-user-gesture-required'] });
+// Un navigateur par personne, comme des appareils distincts : un onglet en arrière-plan d'un même navigateur est ralenti.
+const navigateurs = [];
+const ARGUMENTS = { args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--auto-select-desktop-capture-source=Entire screen', '--autoplay-policy=no-user-gesture-required'] };
 // Une page cachée ne relit rien tant qu'on n'y revient pas (comme un onglet en arrière-plan) : on regarde la page qu'on vérifie.
 const voit = async (p, texte, delai = 8000) => {
   await p.bringToFront().catch(() => undefined);
@@ -74,6 +76,8 @@ const voit = async (p, texte, delai = 8000) => {
 };
 const erreurs = [];
 async function connecter(email) {
+  const navigateur = await chromium.launch(ARGUMENTS);
+  navigateurs.push(navigateur);
   const contexte = await navigateur.newContext({ permissions: ['camera', 'microphone'] });
   const page = await contexte.newPage();
   page.on('pageerror', (e) => erreurs.push(`${email} : ${e}`));
@@ -92,7 +96,7 @@ const videoVivante = async (p, n = 1) => {
   // Une page cachée voit ses vidéos suspendues par LiveKit (adaptiveStream) : comme une personne, on regarde la page qu'on vérifie.
   await p.bringToFront().catch(() => undefined);
   const ok = await p.waitForFunction((min) => [...document.querySelectorAll('humalis-reunion video')].filter((v) => v.videoWidth > 0 && !v.paused).length >= min, n, { timeout: 20000 }).then(() => true, () => false);
-  if (!ok) console.log('  images :', JSON.stringify(await p.evaluate(() => [document.visibilityState, ...[...document.querySelectorAll('humalis-reunion figure')].map((f) => [f.querySelector('video')?.videoWidth ?? 'sans video', f.querySelector('video')?.paused, f.querySelector('video')?.readyState, f.textContent])])));
+  if (!ok) console.log('  images :', JSON.stringify(await p.evaluate(() => [document.visibilityState, ...[...document.querySelectorAll('humalis-reunion figure')].map((f) => [f.querySelector('video')?.videoWidth ?? 'sans video', f.querySelector('video')?.paused, f.querySelector('video')?.readyState, f.textContent]), globalThis.humalisReunion?.()])));
   return ok;
 };
 
@@ -171,14 +175,17 @@ try {
     return (await fetch('/api/salles_geste', { method: 'POST', headers: { 'content-type': 'application/json', 'x-csrf-token': decodeURIComponent(csrf) }, body: JSON.stringify({ salle: 'conseil', participant: 'compte-awa', geste: 'exclure' }) })).status;
   });
   verifier(refus === 403, 'réunion : une personne qui n’anime pas ne peut pas exclure');
-  const ligneChloe = binta.locator('text=Présent : chloe@essai.test');
-  await ligneChloe.waitFor({ timeout: 5000 });
-  const nCouper = await binta.locator('text=/^Présent :/').evaluateAll((l) => l.findIndex((e) => e.textContent.includes('chloe')));
-  await binta.getByRole('button', { name: 'Couper', exact: true }).nth(nCouper).click();
+  const boutonPourChloe = (nom) => binta.locator('text=Présent : chloe@essai.test').locator(`xpath=following::button[normalize-space()="${nom}"][1]`);
+  await boutonPourChloe('Couper').waitFor({ timeout: 5000 });
+  await boutonPourChloe('Couper').click();
   await chloe.bringToFront();
-  verifier(await chloe.getByRole('button', { name: 'Activer le micro' }).waitFor({ timeout: 8000 }).then(() => true, () => false), 'réunion : l’animatrice coupe un micro, la personne le voit');
-  await binta.getByRole('button', { name: 'Exclure', exact: true }).nth(nCouper).click();
+  const microCoupe = await chloe.getByRole('button', { name: 'Activer le micro' }).waitFor({ timeout: 8000 }).then(() => true, () => false);
+  if (!microCoupe) console.log('  micro de Chloé :', JSON.stringify(await chloe.evaluate(async () => [await (await fetch('/api/salles_moi/conseil')).json().then((v) => ({ microCoupe: v.microCoupe })), globalThis.humalisReunion?.()])));
+  verifier(microCoupe || await chloe.getByRole('button', { name: 'Activer le micro' }).waitFor({ timeout: 8000 }).then(() => true, () => false), 'réunion : l’animatrice coupe un micro, la personne le voit');
+  await binta.bringToFront();
+  await boutonPourChloe('Exclure').click();
   verifier(await binta.getByText('Présent : chloe@essai.test').waitFor({ state: 'detached', timeout: 10000 }).then(() => true, () => false), 'réunion : l’animatrice exclut une personne');
+  verifier(await voit(chloe, 'Vous avez été retiré de la réunion.'), 'réunion : la personne exclue le lit');
   await awa.screenshot({ path: join(travail, 'reunion.png') });
 
   // Le bureau : Electron entre dans la même réunion, à travers son relais.
@@ -208,7 +215,7 @@ try {
 } catch (erreur) {
   verifier(false, String(erreur).slice(0, 500));
 } finally {
-  await navigateur.close();
+  for (const n of navigateurs) await n.close();
   if (!garder) for (const p of processus) p.kill();
 }
 console.log(problemes.length ? `\n${problemes.length} problème(s).` : '\nTout est vérifié.');
