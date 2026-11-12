@@ -52,7 +52,7 @@ describe('connexion avec Google', () => {
     const application = compiler(source()).application!;
     const fichiers = genererProjetServeur(application.serveurs[0], { nom: 'b', source: 'b.humalis' } as never);
     const serveur = fichiers.get('src/serveur.ts')!;
-    expect(serveur).toContain("import { createGoogleIdTokenVerifier, IdTokenError, createLoginLimiter, hashPassword, isStrongPassword, verifyPasswordHash, WAF_PATTERNS } from '@astratra/security';");
+    expect(serveur).toContain("import { createGoogleIdTokenVerifier, IdTokenError, createMemoryRevocationStore, type RevocationStore, createLoginLimiter, hashPassword, isStrongPassword, verifyPasswordHash, WAF_PATTERNS } from '@astratra/security';");
     expect(serveur).toContain("routeGoogle.post('/', createLoginLimiter() as unknown as RequestHandler, csrfMiddleware, async (req, res, next) => {");
     // Le pare-feu du pack, sans le motif des commentaires SQL : « avenue #12 » et « -- » sont de vrais textes.
     expect(serveur).toContain("waf: { patterns: [...WAF_PATTERNS.filter((motif) => !motif.source.includes('--') && !motif.source.includes('union|select|insert')), ...MOTIFS_SQL].map((motif) => new MotifDuPareFeu(motif.source, motif.flags)) },");

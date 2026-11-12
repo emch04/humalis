@@ -368,12 +368,14 @@ describe('performance — 5. ne pas tout télécharger', () => {
     const fichiers = serveur();
     const { lireFiltres } = await charger<{ lireFiltres(s: Record<string, unknown>, r: Record<string, unknown>): unknown }>(fichiers.get('src/humalis/verifier.ts')!);
     const schema = { produit: 'texte', ordre: 'nombre', visible: 'booleen', image: 'image' };
-    expect(lireFiltres(schema, { produit: 'a', inconnu: 'x', image: 'y' })).toEqual({ egal: { produit: 'a' } });
+    expect(lireFiltres(schema, { produit: 'a', inconnu: 'x', image: 'y' })).toEqual({ egal: { produit: 'a' }, limite: 1000 });
     expect(lireFiltres(schema, { ordre: '2', visible: 'vrai', limite: '10', depuis: '20' })).toEqual({ egal: { ordre: 2, visible: true }, limite: 10, depuis: 20 });
     // Une valeur qui ne peut pas être celle du champ ne trouve rien ; une tranche mal écrite est ignorée.
     expect(lireFiltres(schema, { ordre: 'deux' })).toBeNull();
     expect(lireFiltres(schema, { produit: ['a', 'b'] })).toBeNull();
-    expect(lireFiltres(schema, { limite: '-1' })).toEqual({ egal: {} });
+    expect(lireFiltres(schema, { limite: '-1' })).toEqual({ egal: {}, limite: 1000 });
+    // Une limite demandée au-delà du plafond est ramenée au plafond.
+    expect(lireFiltres(schema, { limite: '999999' })).toEqual({ egal: {}, limite: 1000 });
     expect(fichiers.get('src/serveur.ts')).toContain('res.json(filtres ? await stockages.photoProduit.lister(filtres) : []);');
   });
 

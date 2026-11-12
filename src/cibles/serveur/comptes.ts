@@ -44,8 +44,7 @@ ${lignes.join('\n')}
 
 /** Ce que serveur.ts met dans createSaasApp et autour, quand le serveur a des comptes. */
 export function codeCreationComptes(serveur: ServeurRI, chemins?: Map<string, string>): string {
-  return `  const revocations = createMemoryRevocationStore();
-  const comptes = creerComptes({
+  return `  const comptes = creerComptes({
     usersStore,
     jetons,
     emails,
@@ -323,6 +322,22 @@ export const refuserMotDePasseFaible: RequestHandler = (req, res, next) => {
   next();
 };
 
+/** Tous les comptes, page par page : au-delà de 500, aucun n'est oublié. */
+export async function tousLesComptes(store: UsersStore): Promise<Compte[]> {
+  const PAGE = 500;
+  const tous: Compte[] = [];
+  const vus = new Set<string>();
+  for (let depuis = 0; depuis < 200_000; depuis += PAGE) {
+    const page = (await store.list({ limit: PAGE, offset: depuis })) as Compte[];
+    const neufs = page.filter((c) => !vus.has(String(c.id)));
+    for (const c of neufs) vus.add(String(c.id));
+    tous.push(...neufs);
+    // Une page incomplète, ou un magasin qui ignore « offset » et redonne les mêmes : c'est fini.
+    if (page.length < PAGE || neufs.length === 0) break;
+  }
+  return tous;
+}
+
 export function creerComptes({
   usersStore,
   jetons,
@@ -430,6 +445,12 @@ export function creerComptes({
           res.json({ envoye: true });
           return;
         }
+        // Une invitation en attente dans un autre groupe n'est pas reprise : sinon un membre ferait passer
+        // l'invité d'un autre dans son propre groupe. Même réponse, pour ne rien dire des comptes des autres.
+        if (existant && existant.invitation === true && !estAdmin && !portee(moi, existant as Record<string, unknown>)) {
+          res.json({ envoye: true });
+          return;
+        }
         const compte = existant
           ? await usersStore.update(String(existant.id), { role, invitation: true, ...groupes, ...envoi.valeur } as Compte)
           : await usersStore.create({ email: adresse, role, invitation: true, ...groupes, ...envoi.valeur } as Compte);
@@ -504,7 +525,9 @@ export function creerComptes({
     monCompte: (async (req, res, next) => {
       try {
         const moi = moiDe(req);
-        const compte = ((await usersStore.list({ limit: 500 })) as Compte[]).find((c) => String(c.id) === String(moi.id));
+        // Lu par son identifiant : la liste des comptes n'a pas à être parcourue, quel que soit leur nombre.
+        const lu = (await usersStore.findById(String(moi.id))) as Compte | null;
+        const compte = lu && lu.role !== ROLE_RETIRE ? lu : undefined;
         res.json(compte ? [{
           id: String(compte.id),
           email: String(compte.email ?? ''),
@@ -520,7 +543,7 @@ export function creerComptes({
     /** La liste des comptes, sans aucun secret. */
     lister: (async (req, res, next) => {
       try {
-        const tous = (await usersStore.list({ limit: 500 })) as Compte[];
+        const tous = await tousLesComptes(usersStore);
         const moi = moiDe(req);
         const presents = tous.filter((compte) => compte.role !== ROLE_RETIRE && portee(moi, compte));
         presents.sort((a, b) => String(a.email).localeCompare(String(b.email)));

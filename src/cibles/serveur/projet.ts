@@ -311,6 +311,7 @@ function envExemple(serveur: ServeurRI): string {
     ...(serveur.emails ? [ENV_EMAILS] : []),
     ...(avecSynchro(serveur) ? [ENV_SYNCHRO] : []),
     ...(avecSecurite(serveur) ? [envSecurite(serveur)] : []),
+    `# Le plus grand nombre de fiches qu'une lecture de liste renvoie (1000 par défaut). La suite se lit avec ?depuis=1000.\nHUMALIS_LISTE_MAX=`,
     `# Requêtes par adresse et par 15 minutes (300 par défaut), tentatives de connexion (10 par défaut). À monter si beaucoup de personnes partagent une même adresse.\nHUMALIS_LIMITE_API=\nHUMALIS_LIMITE_CONNEXION=\n`,
     ...(avecIa(serveur) ? [ENV_IA] : []),
     ...((serveur as { tempsReel?: boolean }).tempsReel ? [ENV_TEMPS_REEL] : []),
@@ -372,6 +373,52 @@ export function creerMagasinMemoire(): MagasinRenouvellements {
     async debutDeFamille(familyId) {
       const debuts = deLaFamille(familyId).map((l) => l.familyStartedAt ?? l.createdAt);
       return debuts.length > 0 ? Math.min(...debuts) : null;
+    },
+  };
+}
+
+/**
+ * Les jetons fermés avant leur fin, dans PostgreSQL : une déconnexion ou un compte retiré valent sur tous les
+ * exemplaires du serveur, et après un redémarrage. Un jeton d'accès dure quinze minutes : les lignes passées sont effacées.
+ */
+export function creerRevocationsPostgres(pool: PoolPostgres): { revoke(jti: string, expiresAt: number): Promise<void>; isRevoked(jti?: string): Promise<boolean>; revokeAllForUser(userId: string, revokedBeforeMs: number): Promise<void>; isRevokedForUser(userId: string, issuedAtSeconds: number): Promise<boolean> } {
+  let prete: Promise<unknown> | undefined;
+  const preparer = () =>
+    (prete ??= pool
+      .query(
+        'CREATE TABLE IF NOT EXISTS jetons_fermes (jti TEXT PRIMARY KEY, expire_le BIGINT NOT NULL);' +
+          ' CREATE TABLE IF NOT EXISTS comptes_fermes (utilisateur TEXT PRIMARY KEY, avant BIGINT NOT NULL);',
+      )
+      .catch((erreur: unknown) => {
+        prete = undefined;
+        throw erreur;
+      }));
+  return {
+    async revoke(jti, expiresAt) {
+      if (!jti) return;
+      await preparer();
+      const fin = Number(expiresAt);
+      await pool.query('DELETE FROM jetons_fermes WHERE expire_le < $1', [Date.now()]);
+      await pool.query('INSERT INTO jetons_fermes (jti, expire_le) VALUES ($1, $2) ON CONFLICT (jti) DO UPDATE SET expire_le = EXCLUDED.expire_le', [jti, Number.isFinite(fin) ? fin : Date.now()]);
+    },
+    async isRevoked(jti) {
+      if (!jti) return false;
+      await preparer();
+      return (await pool.query('SELECT 1 FROM jetons_fermes WHERE jti = $1 AND expire_le >= $2', [jti, Date.now()])).rows.length > 0;
+    },
+    async revokeAllForUser(userId, revokedBeforeMs) {
+      if (!userId) return;
+      await preparer();
+      const avant = Number(revokedBeforeMs);
+      await pool.query('INSERT INTO comptes_fermes (utilisateur, avant) VALUES ($1, $2) ON CONFLICT (utilisateur) DO UPDATE SET avant = GREATEST(comptes_fermes.avant, EXCLUDED.avant)', [userId, Number.isFinite(avant) ? avant : Date.now()]);
+    },
+    async isRevokedForUser(userId, issuedAtSeconds) {
+      if (!userId) return false;
+      const emis = Number(issuedAtSeconds) * 1000;
+      if (!Number.isFinite(emis)) return false;
+      await preparer();
+      const { rows } = await pool.query('SELECT avant FROM comptes_fermes WHERE utilisateur = $1', [userId]);
+      return rows.length > 0 && emis <= Number(rows[0]!.avant);
     },
   };
 }
@@ -906,6 +953,15 @@ function entier(valeur: unknown): number | undefined {
  * ne trouve rien : la réponse est \`null\`. « limite » et « depuis » découpent
  * la liste (« ?limite=20&depuis=40 »), sauf si la donnée a un champ de ce nom.
  */
+/**
+ * Le plus grand nombre de fiches qu'une lecture de liste renvoie : 1 000, ou HUMALIS_LISTE_MAX. Sans plafond,
+ * une seule requête sur une grande table remplit la mémoire du serveur. Pour lire la suite : « ?depuis=1000 ».
+ */
+export function plafondDesListes(env: Record<string, string | undefined> = process.env): number {
+  const regle = Number(env.HUMALIS_LISTE_MAX);
+  return Number.isInteger(regle) && regle > 0 ? regle : 1000;
+}
+
 export function lireFiltres(schema: Schema, requete: Record<string, unknown>): Filtres | null {
   const filtres: Filtres = { egal: {} };
   for (const [cle, brut] of Object.entries(requete)) {
@@ -930,6 +986,8 @@ export function lireFiltres(schema: Schema, requete: Record<string, unknown>): F
       filtres.egal[cle] = texte;
     }
   }
+  const plafond = plafondDesListes();
+  if (filtres.limite === undefined || filtres.limite > plafond) filtres.limite = plafond;
   return filtres;
 }
 `;
@@ -1312,7 +1370,7 @@ ${codePaiements(route, variable, garde('lire'), voir('lire'), separee, donnee)}$
 
   return `// Produit par Humalis : le serveur « ${serveur.nom} », assemblé avec les packs Astratra.
 import { createSaasApp, ${comptes ? 'createMemoryPasswordResetStore, type PasswordResetStore, ' : ''}type UsersStore } from '@astratra/saas-kit';
-import { ${[...(serveur.connexionGoogle ? ['createGoogleIdTokenVerifier'] : []), ...(serveur.connexionApple ? ['createAppleIdTokenVerifier'] : []), ...(serveur.connexionGoogle || serveur.connexionApple ? ['IdTokenError'] : []), ...(serveur.invitations ? ['createApiLimiter'] : []), ...(comptes ? ['createMemoryRevocationStore'] : [])].map((n) => n + ', ').join('')}createLoginLimiter, hashPassword, isStrongPassword, verifyPasswordHash, WAF_PATTERNS } from '@astratra/security';
+import { ${[...(serveur.connexionGoogle ? ['createGoogleIdTokenVerifier'] : []), ...(serveur.connexionApple ? ['createAppleIdTokenVerifier'] : []), ...(serveur.connexionGoogle || serveur.connexionApple ? ['IdTokenError'] : []), ...(serveur.invitations ? ['createApiLimiter'] : []), ].map((n) => n + ', ').join('')}createMemoryRevocationStore, type RevocationStore, createLoginLimiter, hashPassword, isStrongPassword, verifyPasswordHash, WAF_PATTERNS } from '@astratra/security';
 import express, { type RequestHandler, type Response } from 'express';
 ${montageTempsReel ? IMPORT_TEMPS_REEL : ''}import { journaliserErreur, noterHumalis } from './humalis/lignes.js';
 ${serveur.captureErreurs ? "import { brancherErreursProcessus, rapporterErreur } from './humalis/capture-erreurs.js';\n" : ''}
@@ -1349,7 +1407,9 @@ ${avecLogique(serveur) ? `  /** Comment écrire tout ou rien ; par défaut, en m
 ` : ''}  /** Les envois déjà faits (en-tête X-Humalis-Envoi) ; par défaut, en mémoire. */
   envois?: MagasinEnvois;
   /** La durée de la session et où garder ses renouvellements ; par défaut, HUMALIS_SESSION et HUMALIS_SESSION_MAX, en mémoire. */
-  session?: ReglagesSession;${avecEmails(serveur) ? `
+  session?: ReglagesSession;
+  /** Les jetons fermés avant leur fin (déconnexion, compte retiré) ; par défaut, en mémoire. */
+  revocations?: RevocationStore;${avecEmails(serveur) ? `
   /** Les e-mails ; par défaut, Brevo avec BREVO_API_KEY et BREVO_EXPEDITEUR. */
   emails?: Emails;` : ''}${comptes ? `
   /** Les empreintes des liens envoyés par e-mail ; par défaut, en mémoire. */
@@ -1410,7 +1470,7 @@ const sansCache = (res: Response) => res.set('Cache-Control', 'no-store');
  * limites et les en-têtes de sécurité viennent de createSaasApp. Les
  * routes des données s'ajoutent par extendRoutes, avec les gardes du pack.
  */
-export function creerServeur({ ${avecSynchro(serveur) ? 'journalSynchro = creerJournalMemoire(), ' : ''}${avecSecurite(serveur) ? 'magasinSecurite = creerMagasinSecuriteMemoire(), horlogeSecurite = Date.now, ' : ''}envois = creerEnvoisMemoire(), jwtSecret, usersStore${comptes ? ': tousLesComptes' : ''}, stockages${avecLogique(serveur) ? ', transaction = transactionMemoire(stockages)' : ''}${serveur.taches?.length ? ', reclamerTache' : ''}${avecNotifications(serveur) ? ', appareils = creerStockageMemoire()' : ''}${avecIa(serveur) ? ', compterIa = compterMemoire()' : ''}${serveur.connexionGoogle ? ', googleClientId, googleClientIdApple = () => undefined' : ''}${serveur.connexionApple ? ', identifiantsApple = () => ({})' : ''}, session = reglagesDeSession(process.env), surveillance, coffre${avecEmails(serveur) ? `, emails = creerEmails({ nom: ${boutique} })` : ''}${comptes ? ', jetons = createMemoryPasswordResetStore()' : ''} }: OptionsDuServeur) {
+export function creerServeur({ ${avecSynchro(serveur) ? 'journalSynchro = creerJournalMemoire(), ' : ''}${avecSecurite(serveur) ? 'magasinSecurite = creerMagasinSecuriteMemoire(), horlogeSecurite = Date.now, ' : ''}envois = creerEnvoisMemoire(), jwtSecret, usersStore${comptes ? ': tousLesComptes' : ''}, stockages${avecLogique(serveur) ? ', transaction = transactionMemoire(stockages)' : ''}${serveur.taches?.length ? ', reclamerTache' : ''}${avecNotifications(serveur) ? ', appareils = creerStockageMemoire()' : ''}${avecIa(serveur) ? ', compterIa = compterMemoire()' : ''}${serveur.connexionGoogle ? ', googleClientId, googleClientIdApple = () => undefined' : ''}${serveur.connexionApple ? ', identifiantsApple = () => ({})' : ''}, session = reglagesDeSession(process.env), surveillance, coffre${avecEmails(serveur) ? `, emails = creerEmails({ nom: ${boutique} })` : ''}${comptes ? ', jetons = createMemoryPasswordResetStore()' : ''}, revocations = createMemoryRevocationStore() }: OptionsDuServeur) {
 ${serveur.captureErreurs ? '  brancherErreursProcessus();\n' : ''}
   const renouvellement = creerRenouvellement(session);
 ${comptes ? codeCreationComptes(serveur, chemins).replace('usersStore,', 'usersStore: tousLesComptes,') + '  // Pour les packs, un compte retiré n\'existe plus.\n  const usersStore = sansLesRetires(tousLesComptes);\n' : ''}${envoisDansRoutes || employe(serveur, (i) => i.type === 'email' && i.a.genre === 'admins') ? `  const adressesDesAdmins = async () => (await usersStore.list({ role: 'admin', limit: 100 })).map((compte) => String(compte.email)).filter(Boolean);\n` : ''}${avecNotifications(serveur) ? '  const notifications = creerNotifications({ usersStore, appareils });\n' : ''}${avecPaiements(serveur) ? `  let surPaiement: SurPaiement<ReturnType<typeof nouveauTravail>, OptionsDuServeur['stockages']> = {};
@@ -1439,10 +1499,11 @@ ${comptes ? codeCreationComptes(serveur, chemins).replace('usersStore,', 'usersS
     roles: { adminRoles: ['admin'], ownerRoles: ['admin'] },
     verifyPassword: async (utilisateur, motDePasse) =>
       typeof utilisateur.passwordHash === 'string' && verifyPasswordHash(motDePasse, utilisateur.passwordHash),
-    notify: async () => {},${comptes ? `
+    notify: async () => {},
+    // Un jeton fermé (déconnexion, compte retiré) le reste sur tous les exemplaires du serveur, et après un redémarrage.
+    revocationStore: revocations,${comptes ? `
     // Le mot de passe oublié et la consommation d'un lien (invitation comprise) : les routes du pack, jeton haché et usage unique.
     hashPassword,
-    revocationStore: revocations,
     passwordReset: { send: comptes.envoyerLienOublie, store: jetons },` : ''}
     extendRoutes: (app, contexte) => {
       // Les gardes du pack, telles quelles.
@@ -1513,7 +1574,7 @@ import { creerServeur } from './serveur.js';
 ${avecDirect(serveur) ? "import { direct } from './humalis/direct.js';\n" : ''}import { demarrerCentrale } from './humalis/centrale.js';
 ${avecIa(serveur) ? "import { compterPostgres } from './humalis/ia.js';\n" : ''}${avecLogique(serveur) ? `import { transactionPostgres${serveur.taches?.length ? ', reclamerMemoire, reclamerPostgres' : ''} } from './humalis/logique.js';\n` : ''}import { creerEnvoisPostgres } from './humalis/envois.js';
 import { ouvrirCoffre } from './humalis/coffre.js';${avecSynchro(serveur) ? "\nimport { creerJournalPostgres } from './humalis/synchro.js';" : ''}${avecSecurite(serveur) ? "\nimport { creerMagasinSecuritePostgres } from './humalis/securite.js';" : ''}${comptes ? "\nimport { creerMagasinJetons } from './humalis/comptes.js';" : ''}
-import { creerMagasinMemoire, creerMagasinPostgres } from './humalis/renouvellements.js';
+import { creerMagasinMemoire, creerMagasinPostgres, creerRevocationsPostgres } from './humalis/renouvellements.js';
 import { reglagesDeSession, type ReglagesSession } from './humalis/sessions.js';
 import { creerStockageMemoire, creerStockagePostgres } from './humalis/stockage.js';
 
@@ -1539,6 +1600,15 @@ ${avecDirect(serveur) ? "if (pool) await direct.brancher(pool);\n" : ''}const us
 const stockages = {
 ${stockages}
 };
+// Les index, créés une fois au démarrage : sans eux, chaque lecture filtrée ou triée parcourt toute la table.
+// L'index des données sert les filtres (« ?produit=… ») et la séparation par groupe ; l'autre, l'ordre de création.
+if (pool) {
+  for (const table of [${serveur.donnees.map((d) => `'${nomTable(d.nom)}'`).join(', ')}]) {
+    await pool.query(\`CREATE TABLE IF NOT EXISTS \${table} (id TEXT PRIMARY KEY, data JSONB NOT NULL, cree_le TIMESTAMPTZ NOT NULL DEFAULT now())\`);
+    await pool.query(\`CREATE INDEX IF NOT EXISTS \${table}_donnees ON \${table} USING GIN (data jsonb_path_ops)\`);
+    await pool.query(\`CREATE INDEX IF NOT EXISTS \${table}_cree_le ON \${table} (cree_le)\`);
+  }
+}
 ${codeEvolutionEtDeparts(serveur)}
 // Le premier administrateur vient de l'environnement : aucun mot de passe
 // n'est écrit dans le code.
@@ -1564,7 +1634,7 @@ try {
 const coffre = await ouvrirCoffre(pool);
 
 const port = Number(process.env.PORT ?? 3000);
-const app = creerServeur({ ...(pool ? { envois: creerEnvoisPostgres(pool)${avecSynchro(serveur) ? `, journalSynchro: creerJournalPostgres(pool, ${tablesSynchro(serveur, nomTable)})` : ''}${avecSecurite(serveur) ? ', magasinSecurite: creerMagasinSecuritePostgres(pool)' : ''} } : {}), jwtSecret, usersStore, stockages${avecLogique(serveur) ? `, ...(pool ? { transaction: transactionPostgres(pool, (client) => ({ ${serveur.donnees.map((d) => `${camel(d.nom)}: creerStockagePostgres(client, '${nomTable(d.nom)}')`).join(', ')} })) } : {})` : ''}${serveur.taches?.length ? ', reclamerTache: pool ? reclamerPostgres(pool) : reclamerMemoire()' : ''}${avecNotifications(serveur) ? ", ...(pool ? { appareils: creerStockagePostgres(pool, 'humalis_appareils') } : {})" : ''}${avecIa(serveur) ? ', ...(pool ? { compterIa: compterPostgres(pool) } : {})' : ''}${serveur.connexionGoogle ? ', googleClientId: () => process.env.GOOGLE_CLIENT_ID || undefined, googleClientIdApple: () => process.env.GOOGLE_CLIENT_ID_APPLE || undefined' : ''}${serveur.connexionApple ? ', identifiantsApple: () => ({ application: process.env.APPLE_APP_ID || undefined, site: process.env.APPLE_SERVICE_ID || undefined })' : ''}${comptes ? ', jetons: creerMagasinJetons(pool)' : ''}, session, surveillance, coffre }) as unknown as { listen(port: number, pret: () => void): unknown };
+const app = creerServeur({ ...(pool ? { envois: creerEnvoisPostgres(pool), revocations: creerRevocationsPostgres(pool)${avecSynchro(serveur) ? `, journalSynchro: creerJournalPostgres(pool, ${tablesSynchro(serveur, nomTable)})` : ''}${avecSecurite(serveur) ? ', magasinSecurite: creerMagasinSecuritePostgres(pool)' : ''} } : {}), jwtSecret, usersStore, stockages${avecLogique(serveur) ? `, ...(pool ? { transaction: transactionPostgres(pool, (client) => ({ ${serveur.donnees.map((d) => `${camel(d.nom)}: creerStockagePostgres(client, '${nomTable(d.nom)}')`).join(', ')} })) } : {})` : ''}${serveur.taches?.length ? ', reclamerTache: pool ? reclamerPostgres(pool) : reclamerMemoire()' : ''}${avecNotifications(serveur) ? ", ...(pool ? { appareils: creerStockagePostgres(pool, 'humalis_appareils') } : {})" : ''}${avecIa(serveur) ? ', ...(pool ? { compterIa: compterPostgres(pool) } : {})' : ''}${serveur.connexionGoogle ? ', googleClientId: () => process.env.GOOGLE_CLIENT_ID || undefined, googleClientIdApple: () => process.env.GOOGLE_CLIENT_ID_APPLE || undefined' : ''}${serveur.connexionApple ? ', identifiantsApple: () => ({ application: process.env.APPLE_APP_ID || undefined, site: process.env.APPLE_SERVICE_ID || undefined })' : ''}${comptes ? ', jetons: creerMagasinJetons(pool)' : ''}, session, surveillance, coffre }) as unknown as { listen(port: number, pret: () => void): unknown };
 // HUMALIS_ECOUTE : l'adresse d'écoute (127.0.0.1 derrière un relais) ; sans elle, toutes les adresses.
 const pret = () => console.log(\`Serveur « ${serveur.nom} » prêt : http://localhost:\${port}${premiere}\`);
 const ecoute = process.env.HUMALIS_ECOUTE?.trim();
