@@ -25,6 +25,7 @@
  */
 import { DECALAGE, ligneLocale } from '../fichiers.js';
 import { REPERE_SOURCES } from './commun/lignes-web.js';
+import { TABLE_DEBOGUEUR } from './android/gradle.js';
 
 const DEBUT = '/*@humalis-ligne ';
 const MOTIF = /\/\*@humalis-ligne (\d+)\*\//g;
@@ -426,7 +427,7 @@ export function appliquerLignesHumalis(fichiers: Map<string, string>, options: O
   const resultat = new Map<string, string>();
   const racine = options.versLesSources.replace(/\/+$/, '');
   const versSource = (fichier: string) => (racine === '' || racine === '.' ? fichier : `${racine}/${fichier}`);
-  const tablesKotlin: { fichier: string; plages: [number, number, number, number][] }[] = [];
+  const tablesKotlin: { fichier: string; chemin: string; plages: [number, number, number, number][] }[] = [];
   // Une application Apple qui capture ses erreurs suit la dernière ligne Humalis commencée.
   const captureSwift = [...fichiers.keys()].find((c) => c.endsWith('.swift') && fichiers.get(c)!.includes('enum HumalisLignes'));
   const suivreSwift = captureSwift !== undefined;
@@ -477,7 +478,7 @@ export function appliquerLignesHumalis(fichiers: Map<string, string>, options: O
         }
         return i;
       });
-      if (plages.length > 0) tablesKotlin.push({ fichier: nomDe(chemin), plages });
+      if (plages.length > 0) tablesKotlin.push({ fichier: nomDe(chemin), chemin, plages });
     }
   }
   // Windows : la liste des fichiers Humalis de HumalisLignes.cs.
@@ -493,6 +494,9 @@ export function appliquerLignesHumalis(fichiers: Map<string, string>, options: O
     if (!chemin.endsWith('/HumalisLignes.kt') || !contenu.includes('object HumalisLignes')) continue;
     const paquet = /^package\s+([\w.]+)/m.exec(contenu)?.[1] ?? 'humalis';
     resultat.set(chemin, tableKotlin(paquet, [...indexKotlin.keys()], tablesKotlin));
+    // La table du débogueur, lue par la construction (strate « Humalis » des classes) et par Android Studio.
+    const module = /^(.*?)src\/main\/(?:java|kotlin)\//.exec(chemin)?.[1] ?? '';
+    resultat.set(`${module}${TABLE_DEBOGUEUR}`, tableDebogueurKotlin([...indexKotlin.keys()].map((f) => versSource(f)), tablesKotlin, module));
   }
   return resultat;
 }
@@ -746,3 +750,24 @@ for (const cheminCarte of fichiers(resolve(process.argv[2] ?? 'dist'))) {
 }
 if (composees > 0) console.error('Lignes Humalis : ' + composees + ' carte(s) composée(s).');
 `;
+
+/**
+ * La table du débogueur Android (humalis-lignes.txt, dans le dossier du
+ * module) : les fichiers Humalis, avec leur chemin depuis la racine du
+ * projet produit, puis chaque fichier Kotlin (chemin depuis la racine des
+ * sources : paquet et nom) et ses plages [début, fin, fichier, ligne
+ * Humalis]. La construction en tire la strate « Humalis » des classes
+ * (SourceDebugExtension, JSR-45) ; l'extension Humalis d'Android Studio y
+ * trouve les paquets à surveiller et les fichiers .humalis.
+ */
+export function tableDebogueurKotlin(fichiersHumalis: string[], tables: { chemin: string; plages: [number, number, number, number][] }[], module = ''): string {
+  const sources = (chemin: string) => chemin.slice(module.length).replace(/^src\/main\/(?:java|kotlin)\//, '');
+  const lignes = [
+    '# Produit par Humalis : les lignes Humalis du code Kotlin, pour le débogueur (strate « Humalis », JSR-45).',
+    '# racine : la racine du projet, depuis cette table ; fichier : un fichier Humalis, depuis la racine ; kotlin : un fichier produit, puis ses plages (début, fin, fichier, ligne Humalis).',
+    `racine\t${module.split('/').filter(Boolean).map(() => '..').join('/') || '.'}`,
+    ...fichiersHumalis.map((f) => `fichier\t${f}`),
+  ];
+  for (const t of tables) lignes.push(`kotlin\t${sources(t.chemin)}`, ...t.plages.map((p) => p.join(' ')));
+  return `${lignes.join('\n')}\n`;
+}

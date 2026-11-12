@@ -15,6 +15,7 @@ import {
   plagesKotlin,
   repereLigne,
   situerLigne,
+  tableDebogueurKotlin,
   tableDepuisCarte,
   versCSharp,
   versSwift,
@@ -121,6 +122,49 @@ describe('les lignes Humalis du code natif', () => {
   it('Kotlin : une table de plages (ligne produite → ligne Humalis)', () => {
     const lu = lireReperes(['fun f() {', `    ${R(3)}a()`, '        .b()', `    ${R(4)}c()`, '}'].join('\n'));
     expect(plagesKotlin(lu, ['app.humalis'], () => 0)).toEqual([[2, 3, 0, 3], [4, 4, 0, 4]]);
+  });
+});
+
+describe('le débogueur Android (strate « Humalis », JSR-45)', () => {
+  it('la table humalis-lignes.txt : racine, fichiers Humalis depuis la racine, plages de chaque fichier Kotlin', () => {
+    const table = tableDebogueurKotlin(['../boutique.humalis', '../pages/panier.humalis'], [
+      { chemin: 'app/src/main/java/dev/rey/boutique/PageAccueil.kt', plages: [[50, 51, 0, 13], [52, 52, 1, 4]] },
+    ], 'app/');
+    expect(table.split('\n').filter((l) => !l.startsWith('#'))).toEqual([
+      'racine\t..',
+      'fichier\t../boutique.humalis',
+      'fichier\t../pages/panier.humalis',
+      'kotlin\tdev/rey/boutique/PageAccueil.kt',
+      '50 51 0 13',
+      '52 52 1 4',
+      '',
+    ]);
+  });
+
+  it('appliquerLignesHumalis l’écrit dans le module, avec le chemin des fichiers vu de la racine du projet', () => {
+    const fichiers = new Map([
+      ['app/src/main/java/dev/rey/boutique/PageAccueil.kt', `package dev.rey.boutique\nfun f() {\n    ${R(6)}a()\n}\n`],
+      ['app/src/main/java/dev/rey/boutique/HumalisLignes.kt', 'package dev.rey.boutique\nobject HumalisLignes {}\n'],
+    ]);
+    const sortie = appliquerLignesHumalis(fichiers, { fichiers: ['boutique.humalis'], versLesSources: '..' });
+    const table = sortie.get('app/humalis-lignes.txt')!;
+    expect(table).toContain('racine\t..\nfichier\t../boutique.humalis\nkotlin\tdev/rey/boutique/PageAccueil.kt\n3 3 0 6\n');
+  });
+
+  it('le projet Gradle inscrit la strate dans les classes de la construction « debug », sans toucher au SMAP de Kotlin', () => {
+    const { fichiers } = genererProjetAndroid(application(PAGE), { nom: 'Essai', source: 'essai.humalis' });
+    const gradle = fichiers.get('app/build.gradle.kts')!;
+    // Les imports d'un script Gradle viennent avant le bloc plugins.
+    expect(gradle.indexOf('import com.android.build.api.instrumentation.AsmClassVisitorFactory')).toBeLessThan(gradle.indexOf('plugins {'));
+    expect(gradle).toContain('onVariants(selector().withBuildType("debug"))');
+    expect(gradle).toContain('variante.instrumentation.transformClassesWith(StrateHumalis::class.java, InstrumentationScope.PROJECT)');
+    expect(gradle).toContain('parametres.table.set(layout.projectDirectory.file("humalis-lignes.txt"))');
+    // La strate Humalis passe devant celle de Kotlin ; une classe sans SMAP reçoit Java comme strate par défaut.
+    expect(gradle).toContain('return entete + "\\n" + section + debug.substring(entete.length + 1)');
+    expect(gradle).toContain('return "SMAP\\n" + source + "\\nJava\\n" + section + "*E\\n"');
+    // La fabrique ne garde que ses paramètres : Gradle la copie vers la tâche de transformation.
+    expect(gradle).not.toMatch(/class StrateHumalis[\s\S]*?by lazy/);
+    expect(gradle).not.toContain('${');
   });
 });
 

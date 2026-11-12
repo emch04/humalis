@@ -4340,7 +4340,19 @@ In `.vscode/launch.json`, `cible` picks what is debugged:
 - `"serveur"`: the server, run in Node;
 - `"apple"`: the Mac app, built by Xcode and run by lldb (with `"equipe"` for signing).
 
-Android and Windows have no debugger in VS Code yet: on Windows, Visual Studio follows the Humalis lines of the generated project; on Android, errors name their Humalis line, but Android Studio does not stop inside a `.humalis` file.
+Windows has no debugger in VS Code yet: Visual Studio follows the Humalis lines of the generated project. Android is debugged in Android Studio.
+
+### The debugger in Android Studio
+
+With the Humalis extension for JetBrains IDEs, Android Studio stops inside your `.humalis` files:
+
+1. `humalis compile boutique.humalis --cible android --sortie android` generates the project;
+2. open the `android` folder in Android Studio, then your `boutique.humalis` file (File › Open);
+3. click in the gutter of an event line to set a breakpoint, then run "Debug 'app'" on the emulator or on the phone.
+
+The app stops on the line. "Step Over" (F8) moves from one Humalis line to the next; the Variables view shows the page variables under their name (`compte = 3.0`, `panier`, `message = "Bonjour"`) and the call stack names the Humalis lines it went through. Breakpoint conditions work as usual.
+
+Lines that produce code (the body of events, functions, timers) take a breakpoint; an empty line or a comment does not. The project's "debug" build writes a "Humalis" stratum (JSR-45) into every class, from the `app/humalis-lignes.txt` table: that is what Android Studio reads. A Release build carries none.
 
 ## French keywords at a glance
 

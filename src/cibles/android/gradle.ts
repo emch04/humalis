@@ -72,6 +72,7 @@ export function constructionApp(identifiant: string, nomAffiche: string, avec: {
   const travail = `implementation("androidx.work:work-runtime-ktx:${VERSIONS.travail}")`;
   const formes = (avec.formes ?? []).filter((d) => !(avec.travail && d.startsWith('implementation("androidx.work:')));
   return `// Produit par Humalis.
+${IMPORTS_STRATE}
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
@@ -123,7 +124,7 @@ ${avec.appareil ? `    implementation("androidx.biometric:biometric:${VERSIONS.b
 ` : ''}${avec.notifications ? `    implementation("com.google.firebase:firebase-messaging:${VERSIONS.firebase}")
 ` : ''}${formes.length ? `    // Les formes de l'application (widget, recherche, voiture…).\n${formes.map((d) => `    ${d}\n`).join('')}` : ''}${(avec.paquets ?? []).map((p) => `    // « paquet android » : pour les vues et les styles écrits à la main.\n    implementation(${JSON.stringify(`${p.nom}:${p.version}`)})\n`).join('')}    debugImplementation("androidx.compose.ui:ui-tooling")
 }
-`;
+${STRATE_HUMALIS}`;
 }
 
 export function manifeste(reseau: boolean, liens?: { schema: string; domaine?: string }, besoins: { photo?: boolean; position?: boolean; vibration?: boolean; fichiers?: boolean; notifications?: boolean; micro?: boolean; camera?: boolean; ecranCapture?: boolean; audio?: boolean } = {}, formes?: { activite: string; application: string; permissions: string[] }): string {
@@ -268,4 +269,225 @@ app/build/
 local.properties
 .idea/
 *.iml
+`;
+
+/** Le nom de la table que lit l'étape de la strate Humalis (dans le dossier du module « app »). */
+export const TABLE_DEBOGUEUR = 'humalis-lignes.txt';
+
+const IMPORTS_STRATE = `import com.android.build.api.instrumentation.AsmClassVisitorFactory
+import com.android.build.api.instrumentation.ClassContext
+import com.android.build.api.instrumentation.ClassData
+import com.android.build.api.instrumentation.InstrumentationParameters
+import com.android.build.api.instrumentation.InstrumentationScope
+import org.objectweb.asm.ClassVisitor
+import org.objectweb.asm.Opcodes
+import java.io.File
+import java.util.TreeMap
+import java.util.concurrent.ConcurrentHashMap
+`;
+
+/**
+ * Le débogage dans les fichiers .humalis. Kotlin n'a pas de directive de
+ * ligne : une étape de la construction (l'instrumentation des classes du
+ * plugin Android, avant D8) inscrit dans l'attribut SourceDebugExtension de
+ * chaque classe une strate « Humalis » (JSR-45) qui relie ses lignes aux
+ * lignes des fichiers .humalis, d'après la table humalis-lignes.txt. Le SMAP
+ * de Kotlin (fonctions inline) est gardé tel quel : la strate Humalis vient
+ * avant la sienne, et les lignes d'une fonction inline reçoivent la ligne
+ * Humalis de leur appel. D8 garde l'attribut (dalvik.annotation.SourceDebugExtension),
+ * l'appareil le transmet au débogueur (JDWP), et l'extension Humalis
+ * d'Android Studio s'en sert pour les points d'arrêt et le pas à pas.
+ * Seulement pour la construction « debug ».
+ */
+const STRATE_HUMALIS = String.raw`
+// Le débogage dans les fichiers .humalis (Android Studio avec l'extension Humalis) : chaque classe
+// reçoit, dans son attribut SourceDebugExtension (JSR-45), une strate « Humalis » qui relie ses
+// lignes aux lignes des fichiers .humalis (table : humalis-lignes.txt). La strate de Kotlin est gardée.
+androidComponents {
+    onVariants(selector().withBuildType("debug")) { variante ->
+        variante.instrumentation.transformClassesWith(StrateHumalis::class.java, InstrumentationScope.PROJECT) { parametres ->
+            parametres.table.set(layout.projectDirectory.file("humalis-lignes.txt"))
+        }
+    }
+}
+
+abstract class StrateHumalis : AsmClassVisitorFactory<StrateHumalis.Parametres> {
+    interface Parametres : InstrumentationParameters {
+        @get:InputFile
+        @get:PathSensitive(PathSensitivity.RELATIVE)
+        val table: RegularFileProperty
+    }
+
+    // La fabrique ne garde rien d'autre que ses paramètres (Gradle la copie vers la tâche) : la table lue est gardée à part.
+    private val lue: TableHumalis
+        get() = TableHumalis.lue(parameters.get().table.get().asFile)
+
+    override fun isInstrumentable(classData: ClassData): Boolean = classData.className.substringBeforeLast('.', "") in lue.paquets
+
+    override fun createClassVisitor(classContext: ClassContext, nextClassVisitor: ClassVisitor): ClassVisitor =
+        object : ClassVisitor(Opcodes.ASM9, nextClassVisitor) {
+            private var paquet = ""
+
+            override fun visit(version: Int, access: Int, name: String, signature: String?, superName: String?, interfaces: Array<String>?) {
+                paquet = name.substringBeforeLast('/', "")
+                super.visit(version, access, name, signature, superName, interfaces)
+            }
+
+            override fun visitSource(source: String?, debug: String?) {
+                val plages = source?.let { lue.kotlin[if (paquet.isEmpty()) it else "$paquet/$it"] }
+                super.visitSource(source, if (source == null || plages == null) debug else lue.strate(source, debug, plages))
+            }
+        }
+}
+
+/** La table : les fichiers Humalis (chemins depuis la racine du projet), puis, pour chaque fichier Kotlin, ses plages [début, fin, fichier, ligne Humalis]. */
+class TableHumalis(private val fichiers: List<String>, val kotlin: Map<String, List<IntArray>>) {
+    val paquets: Set<String> = kotlin.keys.mapTo(HashSet()) { it.substringBeforeLast('/', "").replace('/', '.') }
+
+    companion object {
+        private val lues = ConcurrentHashMap<String, Pair<Long, TableHumalis>>()
+
+        /** La table d'un fichier, lue une fois tant qu'il ne change pas. */
+        fun lue(fichier: File): TableHumalis {
+            val date = fichier.lastModified()
+            lues[fichier.path]?.let { (avant, table) -> if (avant == date) return table }
+            return lire(fichier.readText()).also { lues[fichier.path] = date to it }
+        }
+
+        fun lire(texte: String): TableHumalis {
+            val fichiers = ArrayList<String>()
+            val kotlin = HashMap<String, MutableList<IntArray>>()
+            var courant: MutableList<IntArray>? = null
+            for (ligne in texte.lineSequence()) {
+                when {
+                    ligne.isBlank() || ligne.startsWith("#") || ligne.startsWith("racine\t") -> {}
+                    ligne.startsWith("fichier\t") -> fichiers += ligne.substringAfter('\t')
+                    ligne.startsWith("kotlin\t") -> courant = kotlin.getOrPut(ligne.substringAfter('\t')) { ArrayList() }
+                    else -> courant?.add(ligne.trim().split(' ').map(String::toInt).toIntArray())
+                }
+            }
+            return TableHumalis(fichiers, kotlin)
+        }
+    }
+
+    private fun situer(plages: List<IntArray>, ligne: Int): IntArray? {
+        var bas = 0
+        var haut = plages.size - 1
+        while (bas <= haut) {
+            val milieu = (bas + haut) ushr 1
+            val p = plages[milieu]
+            when {
+                ligne < p[0] -> haut = milieu - 1
+                ligne > p[1] -> bas = milieu + 1
+                else -> return p
+            }
+        }
+        return null
+    }
+
+    /** Le SMAP de la classe, avec la strate Humalis ; celui de Kotlin, s'il existe, est gardé. */
+    fun strate(source: String, debug: String?, plages: List<IntArray>): String? {
+        if (debug != null && debug.contains("\n*S Humalis\n")) return debug
+        val existant = debug?.takeIf { it.startsWith("SMAP") }?.let { Smap.lire(it) }
+        // Chaque ligne de la classe, et la ligne Kotlin du fichier qui l'a produite (l'appel, pour une fonction inline).
+        val origines = TreeMap<Int, Int>()
+        val strateKotlin = existant?.get("Kotlin")
+        if (strateKotlin == null) {
+            for (p in plages) for (l in p[0]..p[1]) origines[l] = l
+        } else {
+            val propres = strateKotlin.fichiers.filterValues { it == source }.keys
+            val appels = HashMap<Int, Int>()
+            existant?.get("KotlinDebug")?.parcourir { entree, _, sortie -> appels[sortie] = entree }
+            strateKotlin.parcourir { entree, fichier, sortie ->
+                val origine = appels[sortie] ?: if (fichier in propres) entree else null
+                if (origine != null) origines[sortie] = origine
+            }
+        }
+        val lignes = StringBuilder()
+        var cle: IntArray? = null
+        var debut = 0
+        var fin = 0
+        fun fermer() {
+            val c = cle ?: return
+            lignes.append(c[3]).append('#').append(c[2] + 1).append(':').append(debut)
+            if (fin > debut) lignes.append(',').append(fin - debut + 1)
+            lignes.append('\n')
+        }
+        for ((sortie, origine) in origines) {
+            val p = situer(plages, origine)
+            val c = cle
+            if (p != null && c != null && p[2] == c[2] && p[3] == c[3] && sortie == fin + 1) {
+                fin = sortie
+                continue
+            }
+            fermer()
+            cle = p
+            debut = sortie
+            fin = sortie
+        }
+        fermer()
+        if (lignes.isEmpty()) return debug
+        val section = StringBuilder("*S Humalis\n*F\n")
+        fichiers.forEachIndexed { i, chemin -> section.append("+ ").append(i + 1).append(' ').append(chemin.substringAfterLast('/')).append('\n').append(chemin).append('\n') }
+        section.append("*L\n").append(lignes)
+        if (existant == null || debug == null) return "SMAP\n" + source + "\nJava\n" + section + "*E\n"
+        // La strate Humalis passe devant celle de Kotlin ; l'en-tête (et la strate par défaut, Kotlin) ne change pas.
+        val entete = debug.split('\n').take(3).joinToString("\n")
+        return entete + "\n" + section + debug.substring(entete.length + 1)
+    }
+}
+
+/** Un SMAP (JSR-45) lu : ses strates, chacune avec ses fichiers et ses lignes [entrée, fichier, répétitions, sortie, pas]. */
+class Smap(val fichiers: Map<Int, String>, private val lignes: List<IntArray>) {
+    fun parcourir(action: (entree: Int, fichier: Int, sortie: Int) -> Unit) {
+        for (l in lignes) for (i in 0 until l[2]) {
+            if (l[4] == 0) action(l[0] + i, l[1], l[3]) else for (j in 0 until l[4]) action(l[0] + i, l[1], l[3] + i * l[4] + j)
+        }
+    }
+
+    companion object {
+        private val LIGNE = Regex("""^(\d+)(?:#(\d+))?(?:,(\d+))?:(\d+)(?:,(\d+))?$""")
+
+        fun lire(texte: String): Map<String, Smap> {
+            val strates = HashMap<String, Smap>()
+            val lignes = texte.split('\n')
+            var nom: String? = null
+            var section = ""
+            var fichiers = HashMap<Int, String>()
+            var entrees = ArrayList<IntArray>()
+            var fichier = 1
+            fun fermer() { nom?.let { strates[it] = Smap(fichiers, entrees) } }
+            var i = 3
+            while (i < lignes.size) {
+                val l = lignes[i].trimEnd('\r')
+                when {
+                    l.startsWith("*S ") -> {
+                        fermer()
+                        nom = l.substring(3).trim()
+                        fichiers = HashMap()
+                        entrees = ArrayList()
+                        fichier = 1
+                        section = ""
+                    }
+                    l == "*E" -> break
+                    l.startsWith("*") -> section = l
+                    section == "*F" && l.isNotBlank() -> {
+                        val avecChemin = l.startsWith("+ ")
+                        val parties = l.removePrefix("+ ").trim().split(' ', limit = 2)
+                        fichiers[parties[0].toInt()] = parties.getOrElse(1) { "" }
+                        if (avecChemin) i++
+                    }
+                    section == "*L" -> LIGNE.find(l.trim())?.let { m ->
+                        val g = m.groupValues
+                        if (g[2].isNotEmpty()) fichier = g[2].toInt()
+                        entrees += intArrayOf(g[1].toInt(), fichier, g[3].ifEmpty { "1" }.toInt(), g[4].toInt(), g[5].ifEmpty { "1" }.toInt())
+                    }
+                }
+                i++
+            }
+            fermer()
+            return strates
+        }
+    }
+}
 `;

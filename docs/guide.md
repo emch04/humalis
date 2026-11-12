@@ -4293,4 +4293,16 @@ Dans `.vscode/launch.json`, `cible` choisit ce qui est débogué :
 - `"serveur"` : le serveur, lancé dans Node ;
 - `"apple"` : l’application Mac, construite par Xcode et lancée par lldb (avec `"equipe"` pour la signature).
 
-Android et Windows n’ont pas encore de débogueur dans VS Code : sur Windows, Visual Studio suit les lignes Humalis du projet produit ; sur Android, les erreurs nomment leur ligne Humalis, mais Android Studio ne s’arrête pas dans un fichier `.humalis`.
+Windows n’a pas encore de débogueur dans VS Code : Visual Studio suit les lignes Humalis du projet produit. Android se débogue dans Android Studio.
+
+### Le débogueur dans Android Studio
+
+Avec l’extension Humalis pour les IDE JetBrains, Android Studio s’arrête dans tes fichiers `.humalis` :
+
+1. `humalis compile boutique.humalis --cible android --sortie android` produit le projet ;
+2. ouvre le dossier `android` dans Android Studio, puis ton fichier `boutique.humalis` (File › Open) ;
+3. clique dans la marge d’une ligne d’événement pour poser un point d’arrêt, puis lance « Debug 'app' » sur l’émulateur ou sur le téléphone.
+
+L’application s’arrête sur la ligne. « Step Over » (F8) avance d’une ligne Humalis à la suivante ; la vue Variables montre les variables de la page sous leur nom (`compte = 3.0`, `panier`, `message = "Bonjour"`) et la pile nomme les lignes Humalis traversées. Les conditions des points d’arrêt marchent comme d’habitude.
+
+Les lignes qui produisent du code (le corps des événements, des fonctions, des minuteries) portent un point d’arrêt ; une ligne vide ou un commentaire n’en porte pas. La construction « debug » du projet inscrit dans chaque classe une strate « Humalis » (JSR-45), d’après la table `app/humalis-lignes.txt` : c’est elle que lit Android Studio. Une construction Release n’en porte pas.

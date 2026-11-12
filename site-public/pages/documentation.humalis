@@ -5708,7 +5708,15 @@ page "documentation_36" dans "documentation" adresse "/documentation/deboguer" :
             texte "`"web"`: the site, served by `humalis developper` and opened in Chrome (`"navigateur": "edge"` for Edge);"
             texte "`"serveur"`: the server, run in Node;"
             texte "`"apple"`: the Mac app, built by Xcode and run by lldb (with `"equipe"` for signing)."
-        texte "Android and Windows have no debugger in VS Code yet: on Windows, Visual Studio follows the Humalis lines of the generated project; on Android, errors name their Humalis line, but Android Studio does not stop inside a `.humalis` file."
+        texte "Windows has no debugger in VS Code yet: Visual Studio follows the Humalis lines of the generated project. Android is debugged in Android Studio."
+        soustitre "The debugger in Android Studio"
+        texte "With the Humalis extension for JetBrains IDEs, Android Studio stops inside your `.humalis` files:"
+        liste numerotee :
+            texte "`humalis compile boutique.humalis --cible android --sortie android` generates the project;"
+            texte "open the `android` folder in Android Studio, then your `boutique.humalis` file (File › Open);"
+            texte "click in the gutter of an event line to set a breakpoint, then run \"Debug 'app'\" on the emulator or on the phone."
+        texte "The app stops on the line. \"Step Over\" (F8) moves from one Humalis line to the next; the Variables view shows the page variables under their name (`compte = 3.0`, `panier`, `message = "Bonjour"`) and the call stack names the Humalis lines it went through. Breakpoint conditions work as usual."
+        texte "Lines that produce code (the body of events, functions, timers) take a breakpoint; an empty line or a comment does not. The project's \"debug\" build writes a \"Humalis\" stratum (JSR-45) into every class, from the `app/humalis-lignes.txt` table: that is what Android Studio reads. A Release build carries none."
     sinon :
         soustitre "Une erreur montre sa ligne Humalis"
         texte "Quand une erreur arrive pendant que l’application tourne, elle nomme la ligne de ton fichier, pas une ligne du code produit :"
@@ -5750,7 +5758,15 @@ page "documentation_36" dans "documentation" adresse "/documentation/deboguer" :
             texte "`"web"` : le site, servi par `humalis developper` et ouvert dans Chrome (`"navigateur": "edge"` pour Edge) ;"
             texte "`"serveur"` : le serveur, lancé dans Node ;"
             texte "`"apple"` : l’application Mac, construite par Xcode et lancée par lldb (avec `"equipe"` pour la signature)."
-        texte "Android et Windows n’ont pas encore de débogueur dans VS Code : sur Windows, Visual Studio suit les lignes Humalis du projet produit ; sur Android, les erreurs nomment leur ligne Humalis, mais Android Studio ne s’arrête pas dans un fichier `.humalis`."
+        texte "Windows n’a pas encore de débogueur dans VS Code : Visual Studio suit les lignes Humalis du projet produit. Android se débogue dans Android Studio."
+        soustitre "Le débogueur dans Android Studio"
+        texte "Avec l’extension Humalis pour les IDE JetBrains, Android Studio s’arrête dans tes fichiers `.humalis` :"
+        liste numerotee :
+            texte "`humalis compile boutique.humalis --cible android --sortie android` produit le projet ;"
+            texte "ouvre le dossier `android` dans Android Studio, puis ton fichier `boutique.humalis` (File › Open) ;"
+            texte "clique dans la marge d’une ligne d’événement pour poser un point d’arrêt, puis lance « Debug 'app' » sur l’émulateur ou sur le téléphone."
+        texte "L’application s’arrête sur la ligne. « Step Over » (F8) avance d’une ligne Humalis à la suivante ; la vue Variables montre les variables de la page sous leur nom (`compte = 3.0`, `panier`, `message = "Bonjour"`) et la pile nomme les lignes Humalis traversées. Les conditions des points d’arrêt marchent comme d’habitude."
+        texte "Les lignes qui produisent du code (le corps des événements, des fonctions, des minuteries) portent un point d’arrêt ; une ligne vide ou un commentaire n’en porte pas. La construction « debug » du projet inscrit dans chaque classe une strate « Humalis » (JSR-45), d’après la table `app/humalis-lignes.txt` : c’est elle que lit Android Studio. Une construction Release n’en porte pas."
     ligne avec style "doc-suite" :
         lien "← 35. Enregistrer et recadrer des médias" en anglais "← 35. Recording and cropping media" vers "documentation_35"
         lien "Les mots-clés de Humalis en anglais →" en anglais "French keywords at a glance →" vers "documentation_37"

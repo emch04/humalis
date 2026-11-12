@@ -1,0 +1,11 @@
+<!-- Le débogueur des applications Android produites par Humalis : chargé avec le débogueur Java (Android Studio, IntelliJ IDEA). -->
+<idea-plugin>
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Le clic dans la marge d'un fichier .humalis pose un point d'arrêt. -->
+        <xdebugger.breakpointType implementation="dev.humalis.intellij.debogueur.PointArretHumalisType"/>
+        <debugger.javaBreakpointHandlerFactory implementation="dev.humalis.intellij.debogueur.PointArretHumalisHandlerFactory"/>
+        <!-- La strate « Humalis » des classes (JSR-45) : lignes Humalis ↔ code produit. -->
+        <debugger.positionManagerFactory implementation="dev.humalis.intellij.debogueur.HumalisPositionManagerFactory" order="last"/>
+        <projectService serviceImplementation="dev.humalis.intellij.debogueur.TablesDuProjet"/>
+    </extensions>
+</idea-plugin>
