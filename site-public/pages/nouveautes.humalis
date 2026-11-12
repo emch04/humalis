@@ -27,7 +27,12 @@ page "nouveautes" a l'adresse "/nouveautes" :
                     liste :
                         texte "`humalis editeur --stdio` lance le serveur de langage : erreurs en direct, survol, complétion, aller à la déclaration, plan du fichier et mise en forme." en anglais "`humalis editeur --stdio` starts the language server: live errors, hover, completion, go to definition, document outline and formatting."
                         texte "Des extensions pour les IDE JetBrains (IntelliJ IDEA, Android Studio, WebStorm, Rider), Zed et Visual Studio, et des réglages pour Neovim, Helix, Emacs et Sublime Text." en anglais "Extensions for JetBrains IDEs (IntelliJ IDEA, Android Studio, WebStorm, Rider), Zed and Visual Studio, and settings for Neovim, Helix, Emacs and Sublime Text."
+                        texte "Dans Visual Studio : la mise en forme, le plan du fichier et le survol complet." en anglais "In Visual Studio: formatting, document outline and full hover."
                         texte "L’extension VS Code passe en 1.4.0, avec le débogueur et des extraits pour les discussions, les réunions, les widgets, les données sur l’appareil, les clés d’accès et les médias." en anglais "The VS Code extension moves to 1.4.0, with the debugger and snippets for chats, meetings, widgets, on-device data, passkeys and media."
+                    soustitre "Windows et le bureau" en anglais "Windows and desktop"
+                    liste :
+                        texte "`payer total pour r` marche sur Windows : la page de paiement Stripe s’ouvre, et la fiche payée se relit au retour dans l’application." en anglais "`payer total pour r` works on Windows: the Stripe payment page opens, and the paid record is read again when you come back to the app."
+                        texte "Les clés d’accès arrivent sur l’application de bureau : Touch ID sur Mac, avec une clé gardée dans la Secure Enclave, et Windows Hello sur Windows." en anglais "Passkeys come to the desktop app: Touch ID on Mac, with a key kept in the Secure Enclave, and Windows Hello on Windows."
                     soustitre "Plus juste partout" en anglais "More accurate everywhere"
                     liste :
                         texte "Une erreur 500 du serveur ne renvoie plus ni la pile ni le message interne au navigateur, même hors production." en anglais "A server 500 error no longer sends the stack or the internal message to the browser, even outside production."
