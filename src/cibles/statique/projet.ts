@@ -362,7 +362,7 @@ export function verifierPourLeStatique(application: Application): Diagnostic[] {
     diagnostics.push({
       gravite: 'erreur',
       ligne: deplacee.ligne,
-      message: '« avec deplacement » ne peut pas encore être produit pour le site statique : compile pour le web, le desktop ou le mobile, ou retire « avec deplacement ».',
+      message: '« avec deplacement » ne peut pas encore être produit pour le site statique : compile pour le web, le bureau, Apple ou Android, ou retire « avec deplacement ».',
     });
   }
   for (const c of application.composants) {

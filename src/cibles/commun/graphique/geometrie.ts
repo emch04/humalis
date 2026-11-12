@@ -2,7 +2,7 @@
  * La géométrie des graphiques : une seule fonction, `calculerGraphique`, écrite une fois en
  * JavaScript lisible, et reprise telle quelle par chaque cible :
  *
- * - le web, le desktop et le mobile la reçoivent dans
+ * - le web et le desktop la reçoivent dans
  *   `graphique-geometrie.js` (avec ses types, `graphique-geometrie.d.ts`) ;
  * - le site statique la reçoit dans `humalis/graphique.js`, avec
  *   `htmlDuGraphique`, qui écrit le HTML d'un graphique ;
@@ -294,7 +294,7 @@ function htmlDuGraphique(config, lignes, formater) {
 }
 `;
 
-/** Les types de `graphique-geometrie.js`, pour le web, le desktop et le mobile (TypeScript). */
+/** Les types de `graphique-geometrie.js`, pour le web et le desktop (TypeScript). */
 export const DECLARATIONS_GEOMETRIE = `// Produit par Humalis : les types de graphique-geometrie.js.
 
 export type Role = 'axe' | 'grille' | 'graduation' | 'etiquette' | 'courbe' | 'barre' | 'repere' | 'part';

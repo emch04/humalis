@@ -94,13 +94,6 @@ npm run build    # the final site, in dist/
 
 **Static**: nothing to install. Open `index.html` in a browser, or upload the folder as it is to a host.
 
-**Mobile**: you need [Expo Go](https://expo.dev/go) on the phone, or the iPhone simulator (Xcode, on a Mac) or the Android emulator.
-
-```sh
-cd my-project-mobile && npm install
-npx expo start   # then « i » for iPhone, « a » for Android, or scan the code with Expo Go
-```
-
 **Desktop**: an Electron app, with a French menu.
 
 **Apple**: an Xcode project in SwiftUI, a single app for iPhone, iPad and Mac. Open the `.xcodeproj` file in Xcode, pick a device, then run. Xcode 16 or later is required.

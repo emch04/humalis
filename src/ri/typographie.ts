@@ -1,6 +1,6 @@
 /**
  * Les espaces insécables du français, posés une fois dans la RI : toutes les
- * cibles (web React, moteur Humalis, statique, mobile, bureau, Apple) affichent
+ * cibles (web React, moteur Humalis, statique, bureau, Apple, Android, Windows) affichent
  * donc le même texte.
  *
  * Devant « ; ? ! » et à l'intérieur des guillemets « », une espace fine

@@ -20,7 +20,7 @@ const ENTREES: Record<string, string> = {
   montee: 'from { opacity: 0; transform: translateY(1rem); }',
   agrandissement: 'from { opacity: 0; transform: scale(0.95); }',
 };
-/** Les durées et délais en millisecondes, pour le mobile (Animated.timing). */
+/** Les durées et délais en millisecondes, pour Apple et Android. */
 export const MILLISECONDES = {
   duree: { courte: 150, moyenne: 300, longue: 600 } as Record<string, number>,
   delai: { courte: 100, moyenne: 250, longue: 500 } as Record<string, number>,

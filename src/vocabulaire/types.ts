@@ -2,8 +2,8 @@
  * Les types de la table de vocabulaire. La table elle-même est dans `table.ts`.
  */
 
-/** Les cinq cibles de la feuille de route. */
-export type Cible = 'web' | 'mobile' | 'desktop' | 'serveur' | 'statique';
+/** Les cibles de la table : le web (et le bureau qui le reprend), le serveur et le site statique. */
+export type Cible = 'web' | 'desktop' | 'serveur' | 'statique';
 
 export type Categorie =
   | 'structure' // page, composant, serveur
@@ -19,7 +19,7 @@ export type Categorie =
   | 'evenement' // clique, survole, se charge
   | 'action' // afficher, rediriger, ajouter
   | 'etat' // variable, calcul
-  | 'appareil' // camera, position (Expo et web)
+  | 'appareil' // camera, position (web et applications)
   | 'bureau' // fenetre, menu (Electron)
   | 'donnee' // types de champs du serveur
   | 'droit'; // peut, seul, tout le monde (serveur)

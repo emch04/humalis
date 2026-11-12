@@ -307,7 +307,7 @@ function relatif(depuis: string, vers: string): string {
 }
 
 /**
- * Les messages intégrés d'un projet web, bureau ou mobile, en plusieurs
+ * Les messages intégrés d'un projet web ou bureau, en plusieurs
  * langues. `outils` est le dossier de Humalis (« src/humalis/ » ou
  * « humalis/ ») ; ses fichiers et la page introuvable sont traduits partout,
  * les pages et les composants seulement dans leurs attributs.
@@ -326,9 +326,8 @@ export function messagesDuProjet(fichiers: Map<string, string>, codes: string[],
     const partout = chemin.startsWith(outils) || chemin === introuvable;
     fichiers.set(chemin, traduireMessages(contenu, codes, { importer: relatif(chemin, langue), partout }));
   }
-  // La taille d'un fichier choisi, le lecteur de son : après les messages, t est alors importé.
+  // La taille d'un fichier choisi : après les messages, t est alors importé.
   adapter('choix-fichier.tsx', (code) => choixFichierEnLangues(code, codes));
-  adapter('lecteur.tsx', lecteurEnLangues);
 }
 
 /** Les messages intégrés d'un site statique : humalis.js partout, les scripts des pages dans leurs attributs (t est pris à humalis). */
@@ -385,7 +384,7 @@ export function declarationsGeometrieEnLangues(code: string): string {
 }
 
 /**
- * Le composant graphique (web ou mobile) avec des langues : les montants et
+ * Le composant graphique avec des langues : les montants et
  * les nombres suivent la langue courante, et le composant se redessine quand
  * elle change (même si la page n'écrit aucun texte à versions).
  */
@@ -410,13 +409,6 @@ export function choixFichierEnLangues(code: string, codes: string[] = ['fr', 'en
     .replace(/^  (\w+): (t\(\{[^\n]*\}\)),$/gm, (ligne, nom: string, valeur: string) => (['images', 'audio', 'videos', 'pdf', 'documents'].includes(nom) ? `  get ${nom}() {\n    return ${valeur};\n  },` : ligne))
     .replace("import { t } from './langue';", "import { t, useLangue } from './langue';")
     .replace(/^(export default function ChoixFichier\([^\n]*\{\n)/m, '$1  useLangue();\n');
-}
-
-/** Le lecteur de son du mobile avec des langues : il se redessine quand la langue change. */
-export function lecteurEnLangues(code: string): string {
-  return code
-    .replace("import { t } from './langue';", "import { t, useLangue } from './langue';")
-    .replace(/^(export default function Lecteur\([^\n]*\{\n)/m, '$1  useLangue();\n');
 }
 
 /**

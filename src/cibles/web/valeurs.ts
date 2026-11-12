@@ -354,7 +354,7 @@ export function aParentheser(v: Valeur): boolean {
 
 /**
  * Les calculs sur les nombres et les listes, en JavaScript lisible (le même
- * texte pour le web, le mobile et le site statique).
+ * texte pour le web et le site statique).
  */
 export function calculDeListe(
   valeur: Extract<Valeur, { type: 'agregat' | 'arrondi' | 'hasard' | 'champs' }>,

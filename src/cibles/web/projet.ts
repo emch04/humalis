@@ -24,7 +24,7 @@ import { camel, setter, chaine, pascal } from './noms.js';
 import { typeTS, expression } from './valeurs.js';
 import { sourcesTs, serveurAvecSources, sessionDeLaSource } from './sources.js';
 import { fichiersDesInteractions, cssInteractions } from './interactions.js';
-import { lecturesTs, lecturesDuChargement, routesPubliques, PRECHARGEMENT } from './lectures.js';
+import { LECTURES_TS, lecturesDuChargement, routesPubliques, PRECHARGEMENT } from './lectures.js';
 import type { Diagnostic } from '../../analyse/erreurs.js';
 import { COULEURS_CSS } from './styles.js';
 import { avecDoubleWeb, avecLocalesSynchro, avecSecuriteWeb, COMPTE_SECURISE_JS, DONNEES_LOCALES_JS, reglagesLocale } from '../commun/donnees-comptes-web.js';
@@ -227,7 +227,7 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
   // Les outils des interactions (minuteries, presse-papier, raccourcis, fenêtres…), seulement s'ils servent.
   for (const [nom, contenu] of fichiersDesInteractions([...fichiers.values(), ...pages.map(({ page }) => page.code)])) fichiers.set(`src/humalis/${nom}`, contenu);
   // Les graphiques : le composant et la géométrie, seulement si une page en dessine.
-  for (const [nom, contenu] of fichiersGraphique([...fichiers.values(), ...pages.map(({ page }) => page.code)], false)) fichiers.set(`src/humalis/${nom}`, contenu);
+  for (const [nom, contenu] of fichiersGraphique([...fichiers.values(), ...pages.map(({ page }) => page.code)])) fichiers.set(`src/humalis/${nom}`, contenu);
   const dependances = dependancesDesElements([...fichiers.values(), ...pages.map(({ page }) => page.code)]);
   const dependancesDev = dependancesDeDeveloppement([...fichiers.values(), ...pages.map(({ page }) => page.code)]);
   if (Object.keys(dependances).length > 0) {
@@ -267,7 +267,7 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
   const codes = [...fichiers.values(), ...pages.map(({ page }) => page.code)];
   fichiers.set('src/humalis/serveur.ts', avecEchecs(avecTelechargement(application.sources.length > 0 ? serveurAvecSources(modeleServeur) : modeleServeur, codes, sessionDuServeur), codes));
   // La dernière réponse de chaque lecture publique : une page déjà vue s'affiche tout de suite, puis se met à jour.
-  fichiers.set('src/humalis/lectures.ts', lecturesTs('web'));
+  fichiers.set('src/humalis/lectures.ts', LECTURES_TS);
   if (application.sources.length > 0) fichiers.set('src/humalis/sources.ts', sourcesTs(application));
   if (application.fonctions.length > 0) fichiers.set('src/humalis/fonctions.ts', genererFonctions(application.fonctions, contexte));
   fichiers.set('src/humalis/outils.ts', outils([...codes, ...(application.fonctions.length > 0 ? [fichiers.get('src/humalis/fonctions.ts')!] : [])], application.langues !== undefined));
@@ -1470,7 +1470,7 @@ function avecTelechargement(modele: string, codes: string[], renouvelee: boolean
  * `useServeur()` compte ses échecs quand une page en a besoin : la
  * soumission d'un formulaire s'arrête après une requête refusée, et ne vide
  * ses champs qu'après un envoi réussi. Sans formulaire, le fichier reste
- * celui d'avant. Le même pour le web et le mobile.
+ * celui d'avant.
  */
 export function avecEchecs(modele: string, codes: string[]): string {
   if (!codes.some((c) => c.includes('serveur.echecs()'))) return modele;
@@ -1522,7 +1522,6 @@ export function partageTsx(partages: Etat[], cle: string, application?: Applicat
     .map((p) => {
       const annotation = `<${typeTS(p.type)}>`;
       const initiale = expression(p.initiale, contexte);
-      // Un secret n'existe que sur le mobile, gardé dans le coffre du téléphone.
       const crochet = p.secret ? 'useMemoriseSecret' : 'useMemorise';
       if (p.locale && application) return `  const [${camel(p.nom)}, ${setter(p.nom)}] = useDonneeLocale<${typeTS(p.type)}>(${reglagesLocale(application, camel(p.nom), p.locale, cle)}, ${initiale}${p.locale.synchronisee !== undefined ? ', compteDe(utilisateur)' : ''});`;
       return p.memorisee

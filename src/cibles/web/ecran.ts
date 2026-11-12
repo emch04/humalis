@@ -41,7 +41,7 @@ type Attribut = string;
 /**
  * Ce qui change d'une plateforme à l'autre : les éléments, la navigation et
  * l'enveloppe de la page. Le reste (état, événements, conditions, boucles,
- * requêtes) est écrit une seule fois, pour le web comme pour le mobile.
+ * requêtes) est écrit une seule fois.
  */
 export interface Rendu {
   /** Les imports propres à la plateforme, lus dans le code produit. */
@@ -49,7 +49,7 @@ export interface Rendu {
   /** La déclaration de ce qui permet d'aller vers une autre page. */
   navigateur: string;
   naviguer(chemin: string): string;
-  /** Vrai pendant le développement seulement : « noter … » n'écrit rien ailleurs (Vite : import.meta.env.DEV ; Expo : __DEV__). */
+  /** Vrai pendant le développement seulement : « noter … » n'écrit rien ailleurs (Vite : import.meta.env.DEV). */
   enDeveloppement?: string;
   /** « rediriger vers » une adresse reçue (page ou adresse permise), et vers une adresse externe écrite : absents, les aides du web. */
   allerVers?(valeur: string): string;
@@ -81,7 +81,7 @@ export interface Rendu {
   soumission: { bouton?: Attribut; saisie?: Attribut };
   /** Les éléments d'écran (icône, badge, onglets…) : ce que la plateforme écrit pour chacun. */
   widgets: RenduWidgets;
-  /** La liste déroulante est écrite à la main et a besoin d'un état « ouverte » (le mobile). */
+  /** La liste déroulante est écrite à la main et a besoin d'un état « ouverte » (une plateforme sans liste native). */
   listeAOuvrir?: boolean;
   /** L'attribut de la touche Entrée dans une saisie (« arrete d'ecrire » ne attend plus). */
   entree: Attribut;
@@ -443,7 +443,7 @@ class GenerateurEcran {
   private readonly formulaires = new Map<string, { nom: string; champs: string[]; soumission?: string }>();
   /** Pour un champ ou un bouton placé dans un formulaire : ce formulaire. */
   private readonly formulaireDe = new Map<string, string>();
-  /** Une liste déroulante écrite à la main (le mobile) : l'état qui dit si elle est ouverte. */
+  /** Une liste déroulante écrite à la main : l'état qui dit si elle est ouverte. */
   private readonly ouvertes = new Map<string, string>();
   /** Pendant l'écriture d'une soumission qui envoie : la variable du compte des échecs du serveur. */
   private echecs?: string;
@@ -1010,8 +1010,7 @@ class GenerateurEcran {
         this.besoins.memoire = true;
         e.ligne(`const [${camel(etat.nom)}, ${setter(etat.nom)}] = useMemorise${annotation}(${chaine(`humalis-hors-ligne:${this.application.cle}:${simplifier(this.ecran.nom)}:${simplifier(etat.nom)}`)}, ${initiale});`);
       } else if (etat.memorisee) {
-        // Gardée dans le navigateur (ou le téléphone), sous une clé propre à
-        // la page ; un secret, seulement sur le mobile, dans son coffre.
+        // Gardée dans le navigateur, sous une clé propre à la page.
         if (etat.secret) this.besoins.secret = true;
         else this.besoins.memoire = true;
         const crochet = etat.secret ? 'useMemoriseSecret' : 'useMemorise';
@@ -1919,7 +1918,7 @@ class GenerateurEcran {
           // Écrit par sa carte (lieuxDeLaCarte) : un marqueur seul n'a pas de place dans la vue.
           break;
 
-        // Un graphique : le même composant <Graphique> sur le web et le mobile (graphique.ts).
+        // Un graphique : le composant <Graphique> (graphique.ts).
         case 'graphique':
           e.ligne(baliseGraphique(noeud, (v) => expression(v, this.contexte), texteLitteral));
           break;

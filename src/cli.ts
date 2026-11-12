@@ -218,7 +218,7 @@ function compile(arguments_: string[]): number | Promise<number> {
     return 1;
   }
 
-  // « avec animation » n'existe que sur le web et Apple et Android ; « en direct » partout sauf Expo et les pages statiques : dit plutôt que perdu en silence.
+  // « avec animation » n'existe que sur le web et Apple et Android ; « en direct » partout sauf les pages statiques : dit plutôt que perdu en silence.
   const programme = JSON.stringify(application.ecrans);
   if (programme.includes('"animation":true') && cible !== 'web' && cible !== 'serveur' && cible !== 'apple' && cible !== 'android') {
     console.error('Avertissement : « avec animation » n\'a d\'effet que sur le web : ici, les lignes changent sans glisser.');

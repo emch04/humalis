@@ -1,8 +1,7 @@
 /**
  * La langue du site dans le projet produit (plan 2026-10-30-qualite-publication,
- * partie 1, § 1.3) : `src/humalis/langue.tsx` sur le web et le bureau,
- * `src/humalis/langue.tsx` aussi sur le mobile (Expo), avec son propre
- * stockage. Écrit seulement si le programme déclare au moins deux langues.
+ * partie 1, § 1.3) : `src/humalis/langue.tsx` sur le web et le bureau.
+ * Écrit seulement si le programme déclare au moins deux langues.
  *
  * - `t({ fr: '…', en: '…' })` choisit la version de la langue courante ;
  * - `useLangue()` redessine la page quand la langue change ;
@@ -44,7 +43,7 @@ const estLangue = (code: unknown): code is Langue => (LANGUES as readonly unknow
 `;
 }
 
-/** La partie commune au web et au mobile : la langue courante, t(), changerLangue(), useLangue(). */
+/** La langue courante, t(), changerLangue(), useLangue(). */
 const CORPS = `const abonnes = new Set<() => void>();
 
 /** Le texte dans la langue de la personne ; à défaut, celui de la langue de base. */
@@ -224,62 +223,3 @@ export function SelecteurLangue({ className }: { className?: string }) {
 `;
 }
 
-/** src/humalis/langue.tsx du mobile (Expo) : langue du téléphone par expo-localization, choix gardé par AsyncStorage. */
-export function langueMobileTsx(langues: LangueRI[]): string {
-  return `import { useSyncExternalStore } from 'react';
-import { Pressable, Text, View } from 'react-native';
-import { getLocales } from 'expo-localization';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-${entete(langues)}const CLE = ${chaine(CLE_LANGUE)};
-
-/** La première langue du site que demande le téléphone, sinon la première du site. */
-function langueDuTelephone(): Langue {
-  for (const { languageCode } of getLocales()) {
-    if (estLangue(languageCode)) return languageCode;
-  }
-  return LANGUES[0];
-}
-
-let actuelle: Langue = langueDuTelephone();
-
-// Le choix gardé arrive un instant après le démarrage : il passe avant la langue du téléphone.
-AsyncStorage.getItem(CLE)
-  .then((gardee) => {
-    if (estLangue(gardee) && gardee !== actuelle) {
-      actuelle = gardee;
-      for (const prevenir of abonnes) prevenir();
-    }
-  })
-  .catch(() => {});
-
-/** Change la langue, et la garde sur le téléphone : c'est un choix de la personne. */
-export function changerLangue(langue: Langue): void {
-  actuelle = langue;
-  AsyncStorage.setItem(CLE, langue).catch(() => {});
-  for (const prevenir of abonnes) prevenir();
-}
-
-${CORPS}
-/** « selecteur de langue » : un bouton par langue, écrite dans sa langue, l'actuelle marquée. */
-export function SelecteurLangue() {
-  const { langue } = useLangue();
-  return (
-    <View accessibilityRole="radiogroup" accessibilityLabel={t({ ${langues.map((l) => `${l.code}: ${chaine(NOM_DU_CHOIX[l.code] ?? 'Langue')}`).join(', ')} })} style={{ flexDirection: 'row', gap: 8 }}>
-      {LANGUES.map((code) => (
-        <Pressable
-          key={code}
-          accessibilityRole="radio"
-          accessibilityState={{ checked: code === langue }}
-          accessibilityLanguage={code}
-          onPress={() => changerLangue(code)}
-          style={{ paddingVertical: 6, paddingHorizontal: 10, borderRadius: 6, borderWidth: 1, opacity: code === langue ? 1 : 0.6 }}
-        >
-          <Text style={{ fontWeight: code === langue ? '700' : '400' }}>{NOMS_LANGUES[code]}</Text>
-        </Pressable>
-      ))}
-    </View>
-  );
-}
-`;
-}

@@ -104,7 +104,7 @@ export function formaterDepuis(valeur: string | null | undefined): string {
   return dire(Math.floor(minutes / 525600), 'an');
 }
 
-/** Les fonctions de format, en TypeScript, pour humalis/outils.ts (web, mobile, desktop). */
+/** Les fonctions de format, en TypeScript, pour humalis/outils.ts (web, desktop). */
 export const FORMAT_TS = `/** 28000 → « 28 000 », 3.5 → « 3,5 » ; rien pour une valeur absente. */
 export function formaterNombre(valeur: number | null | undefined): string {
   return typeof valeur === 'number' ? valeur.toLocaleString('fr-FR') : '';
@@ -177,7 +177,7 @@ export const FORMAT_JS = `  /** 28000 → « 28 000 », 3.5 → « 3,5 » ; rien
  * ci-dessus, octet pour octet.
  */
 
-/** Les fonctions de format avec la langue, en TypeScript, pour humalis/outils.ts (web, mobile, desktop). */
+/** Les fonctions de format avec la langue, en TypeScript, pour humalis/outils.ts (web, desktop). */
 export const FORMAT_TS_LANGUES = `/** Les réglages régionaux des nombres de chaque langue (le lingala suit l'usage français de Kinshasa). */
 const REGIONS: Record<string, string> = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', pt: 'pt-PT', sw: 'sw', ln: 'fr-FR' };
 const region = (langue: string) => REGIONS[langue] ?? REGIONS.fr;

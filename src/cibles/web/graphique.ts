@@ -1,11 +1,10 @@
 /**
- * Les graphiques sur le web, le desktop et le mobile (plan des médias, 4.1) :
+ * Les graphiques sur le web et le desktop (plan des médias, 4.1) :
  * le composant `<Graphique>` que les pages écrivent, ses deux versions
  * (React DOM et React Native), la géométrie partagée et le CSS.
  *
  * Aucune bibliothèque de graphiques : le composant habille les formes que
  * calcule `graphique-geometrie.js` (la même fonction pour toutes les cibles).
- * Le mobile ajoute seulement `react-native-svg`, déjà fournie par Expo.
  */
 import { GEOMETRIE_JS, DECLARATIONS_GEOMETRIE } from '../commun/graphique/geometrie.js';
 import { COULEURS_CSS } from './styles.js';
@@ -17,7 +16,7 @@ import { messageEnCode } from '../../i18n/messages.js';
 const attribut = (texte: string) => (/["\\{}\n]/.test(texte) ? `{${chaine(texte)}}` : `"${texte}"`);
 
 /**
- * La balise `<Graphique … />` d'une page (web et mobile écrivent la même).
+ * La balise `<Graphique … />` d'une page .
  * `valeur` traduit une valeur Humalis en expression ; `texte` rend le texte
  * d'une valeur écrite en clair, sinon undefined.
  */
@@ -45,7 +44,7 @@ export function baliseGraphique(noeud: GraphiqueRI, valeur: (v: GraphiqueRI['lis
 /**
  * La lecture d'un graphique, en JavaScript (ES2019) recopié tel quel, comme
  * la géométrie : ce que le doigt, la souris et le clavier peuvent lire. Le
- * web, le desktop et le mobile la reçoivent dans `graphique-geometrie.js`,
+ * web et le desktop la reçoivent dans `graphique-geometrie.js`,
  * le site statique dans `humalis/graphique.js`.
  */
 export const LECTURE_JS = String.raw`/**
@@ -208,11 +207,11 @@ ${LECTURE_JS}
 export { PALETTE_GRAPHIQUE, calculerGraphique, repere, lireGraphique, texteDuPoint };
 `;
 
-/** Les fichiers des graphiques (dans `src/humalis/` pour le web, `humalis/` pour le mobile), si une page en dessine. */
-export function fichiersGraphique(codes: string[], mobile: boolean): Map<string, string> {
+/** Les fichiers des graphiques (dans `src/humalis/`), si une page en dessine. */
+export function fichiersGraphique(codes: string[]): Map<string, string> {
   const fichiers = new Map<string, string>();
   if (!codes.some((c) => /<Graphique\b/.test(c))) return fichiers;
-  fichiers.set('graphique.tsx', mobile ? GRAPHIQUE_MOBILE : GRAPHIQUE_WEB);
+  fichiers.set('graphique.tsx', GRAPHIQUE_WEB);
   fichiers.set('graphique-geometrie.js', GEOMETRIE_MODULE);
   fichiers.set('graphique-geometrie.d.ts', DECLARATIONS_GEOMETRIE + DECLARATIONS_LECTURE);
   return fichiers;
@@ -580,225 +579,6 @@ export default function Graphique({ donnees, titre, description, devise, classNa
 }
 `;
 
-// ─── Le composant mobile (React Native) ──────────────────────────────────
-
-const GRAPHIQUE_MOBILE = `// Produit par Humalis : un graphique dessiné avec react-native-svg, sans
-// bibliothèque de graphiques. Les formes viennent de graphique-geometrie.js
-// (la même géométrie que sur le web), aux couleurs du thème du téléphone.
-// Toucher ou glisser le doigt montre une bulle avec l'étiquette et la valeur ;
-// un graphique trop long pour l'écran défile, et montre d'abord la fin.
-import { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Pressable, ScrollView, Text, View, type AccessibilityActionEvent, type GestureResponderEvent, type LayoutChangeEvent } from 'react-native';
-import Svg, { Circle, Line, Path, Rect, Text as TexteSvg } from 'react-native-svg';
-import { calculerGraphique, lireGraphique, repere, texteDuPoint, type ConfigGraphique, type Forme, type PointGraphique } from './graphique-geometrie';
-import { formaterArgent, formaterNombre } from './outils';
-import { useCouleurs } from './styles';
-
-interface Proprietes extends ConfigGraphique {
-  donnees: readonly unknown[] | null | undefined;
-  titre: string;
-  description: string;
-  devise?: 'FC' | 'EUR' | 'USD';
-  /** Les classes CSS du web : sans effet sur le téléphone. */
-  className?: string;
-}
-
-/** Une forme de la géométrie, aux couleurs du thème (clair ou sombre) ; les autres valeurs pâlissent quand une est lue. */
-function FormeSvg({ forme, couleurs, pale = false, actif = false }: { forme: Forme; couleurs: Record<string, string>; pale?: boolean; actif?: boolean }) {
-  const encre = couleurs.encre;
-  const teinte = forme.couleur ? couleurs[forme.couleur] ?? couleurs.bleu : encre;
-  const opacite = pale ? 0.45 : 1;
-  switch (forme.type) {
-    case 'ligne':
-      return <Line x1={forme.x1} y1={forme.y1} x2={forme.x2} y2={forme.y2} stroke={encre} strokeOpacity={forme.role === 'axe' ? 0.6 : 0.15} />;
-    case 'texte':
-      return (
-        <TexteSvg x={forme.x} y={forme.y} textAnchor={forme.ancre} fill={encre} fontSize={14}>
-          {forme.texte}
-        </TexteSvg>
-      );
-    case 'rect':
-      return <Rect x={forme.x} y={forme.y} width={forme.largeur} height={forme.hauteur} fill={teinte} opacity={opacite} />;
-    case 'cercle':
-      return <Circle cx={forme.x} cy={forme.y} r={actif ? forme.r * 1.7 : forme.r} fill={teinte} stroke={actif ? couleurs.page : 'none'} strokeWidth={actif ? 1.5 : 0} />;
-    case 'chemin':
-      return forme.role === 'courbe' ? (
-        <Path d={forme.d} fill="none" stroke={teinte} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
-      ) : (
-        <Path d={forme.d} fill={teinte} opacity={opacite} stroke={forme.role === 'part' ? couleurs.page : actif ? couleurs.page : 'none'} strokeWidth={forme.role === 'part' ? 2 : actif ? 1.5 : 0} />
-      );
-  }
-}
-
-/**
- * Le graphique : le dessin étroit (un téléphone est étroit), lu comme une
- * image avec sa description, la légende, et « Voir les données ». Le doigt
- * lit les valeurs ; un lecteur d'écran les parcourt en balayant vers le haut
- * ou le bas sur la ligne « Lire les valeurs » (rôle « adjustable »).
- */
-export default function Graphique({ donnees, titre, description, devise, ...reglage }: Proprietes) {
-  const couleurs = useCouleurs() as Record<string, string>;
-  const [ouvert, setOuvert] = useState(false);
-  const [actif, setActif] = useState<number | null>(null);
-  const [largeurVue, setLargeurVue] = useState(0);
-  const [reduit, setReduit] = useState(false);
-  const defileur = useRef<ScrollView>(null);
-  const appui = useRef<{ suit: boolean; minuteur: ReturnType<typeof setTimeout> | undefined }>({ suit: false, minuteur: undefined });
-
-  useEffect(() => {
-    AccessibilityInfo.isReduceMotionEnabled().then(setReduit, () => undefined);
-  }, []);
-
-  const formater = (valeur: number) => (devise ? formaterArgent(valeur, devise) : formaterNombre(valeur));
-  const calculer = (config: ConfigGraphique, largeur: number) => calculerGraphique(config, donnees, formater, largeur);
-  const lecture = lireGraphique(reglage, 400, calculer);
-  const { graphe, points, defilant } = lecture;
-  if (graphe.vide) {
-    return (
-      <Text accessibilityLiveRegion="polite" style={{ color: couleurs.encre, marginVertical: 8 }}>
-        Aucune donnée à afficher.
-      </Text>
-    );
-  }
-  const vueX = defilant ? lecture.gauche : 0;
-  const vueLargeur = graphe.largeur - vueX;
-  const point: PointGraphique | undefined = actif === null ? undefined : points.find((p) => p.index === actif);
-
-  /** Le point sous le doigt : le plus proche en largeur (courbe, barres), ou de la part touchée (camembert). */
-  function lireSous(e: GestureResponderEvent) {
-    if (largeurVue === 0 || points.length === 0) return;
-    const echelle = vueLargeur / largeurVue;
-    const x = vueX + e.nativeEvent.locationX * echelle;
-    const y = e.nativeEvent.locationY * echelle;
-    const distance = (p: PointGraphique) => (reglage.genre === 'camembert' ? Math.hypot(p.x - x, p.y - y) : Math.abs(p.x - x));
-    let proche = points[0];
-    for (const p of points) if (distance(p) < distance(proche)) proche = p;
-    setActif(proche.index);
-  }
-
-  function surAppui(e: GestureResponderEvent) {
-    lireSous(e);
-    // Un dessin qui défile laisse le glissement au défilement ; après un appui long, le doigt lit les valeurs.
-    appui.current.suit = !defilant;
-    if (defilant) appui.current.minuteur = setTimeout(() => (appui.current.suit = true), 300);
-  }
-
-  function surFin() {
-    if (appui.current.minuteur) clearTimeout(appui.current.minuteur);
-    appui.current = { suit: false, minuteur: undefined };
-  }
-
-  function parcourir(e: AccessibilityActionEvent) {
-    if (points.length === 0) return;
-    const position = points.findIndex((p) => p.index === actif);
-    const suivante = e.nativeEvent.actionName === 'increment' ? (position < 0 ? 0 : Math.min(points.length - 1, position + 1)) : position < 0 ? points.length - 1 : Math.max(0, position - 1);
-    setActif(points[suivante].index);
-    const p = points[suivante];
-    if (defilant && defileur.current) defileur.current.scrollTo({ x: Math.max(0, p.x - vueX - 150), animated: !reduit });
-  }
-
-  let bulle = null;
-  if (point && largeurVue > 0) {
-    const gauche = ((point.x - vueX) / vueLargeur) * largeurVue;
-    const aDroite = point.x - vueX < vueLargeur / 2;
-    const haut = reglage.genre === 'camembert' ? Math.max(0, (point.y / graphe.hauteur) * (largeurVue * (graphe.hauteur / vueLargeur)) - 24) : 4;
-    bulle = (
-      <View pointerEvents="none" importantForAccessibility="no-hide-descendants" accessibilityElementsHidden style={{ position: 'absolute', top: haut, ...(aDroite ? { left: gauche + 12 } : { right: largeurVue - gauche + 12 }), maxWidth: 200, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, backgroundColor: couleurs.encre }}>
-        <Text style={{ color: couleurs.page, fontWeight: '600' }}>{point.libelle}</Text>
-        {point.lignes.map((ligne, i) => (
-          <Text key={i} style={{ color: couleurs.page }}>{ligne}</Text>
-        ))}
-      </View>
-    );
-  }
-
-  const trace = (
-    <View
-      pointerEvents="box-only"
-      onLayout={(e: LayoutChangeEvent) => setLargeurVue(e.nativeEvent.layout.width)}
-      onStartShouldSetResponder={() => true}
-      onMoveShouldSetResponder={() => true}
-      onResponderGrant={surAppui}
-      onResponderMove={(e) => appui.current.suit && lireSous(e)}
-      onResponderRelease={surFin}
-      onResponderTerminate={surFin}
-      onResponderTerminationRequest={() => !appui.current.suit || !defilant}
-      style={defilant ? { width: vueLargeur, height: graphe.hauteur } : { width: '100%', aspectRatio: graphe.largeur / graphe.hauteur }}
-    >
-      <Svg width="100%" height="100%" viewBox={vueX + ' 0 ' + vueLargeur + ' ' + graphe.hauteur}>
-        {point && reglage.genre !== 'camembert' && <Line x1={point.x} y1={lecture.haut} x2={point.x} y2={lecture.bas} stroke={couleurs.encre} strokeOpacity={0.4} strokeDasharray="3 3" />}
-        {graphe.formes.map((forme, i) =>
-          defilant && forme.role === 'graduation' ? null : (
-            <FormeSvg key={i} forme={forme} couleurs={couleurs} pale={point !== undefined && lecture.lignesDesFormes[i] >= 0 && lecture.lignesDesFormes[i] !== point.index} actif={point !== undefined && lecture.lignesDesFormes[i] === point.index} />
-          ),
-        )}
-      </Svg>
-      {bulle}
-    </View>
-  );
-
-  return (
-    <View style={{ marginVertical: 12 }}>
-      <View accessible accessibilityRole="image" accessibilityLabel={titre + '. ' + description}>
-        {defilant ? (
-          <View style={{ flexDirection: 'row' }}>
-            <Svg width={lecture.gauche} height={graphe.hauteur} viewBox={'0 0 ' + lecture.gauche + ' ' + graphe.hauteur}>
-              {graphe.formes.map((forme, i) => (forme.role === 'graduation' ? <FormeSvg key={i} forme={forme} couleurs={couleurs} /> : null))}
-            </Svg>
-            <ScrollView ref={defileur} horizontal showsHorizontalScrollIndicator onContentSizeChange={() => defileur.current?.scrollToEnd({ animated: false })}>
-              {trace}
-            </ScrollView>
-          </View>
-        ) : (
-          trace
-        )}
-      </View>
-      {defilant && (
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Revenir aux premières valeurs" onPress={() => defileur.current?.scrollTo({ x: 0, animated: !reduit })} style={{ minHeight: 44, minWidth: 44, justifyContent: 'center', paddingHorizontal: 12 }}>
-            <Text style={{ color: couleurs.bleu }}>« Début</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="Aller aux dernières valeurs" onPress={() => defileur.current?.scrollToEnd({ animated: !reduit })} style={{ minHeight: 44, minWidth: 44, justifyContent: 'center', paddingHorizontal: 12 }}>
-            <Text style={{ color: couleurs.bleu }}>Fin »</Text>
-          </Pressable>
-        </View>
-      )}
-      <View
-        accessible
-        accessibilityRole="adjustable"
-        accessibilityLabel="Lire les valeurs du graphique"
-        accessibilityValue={{ text: point ? texteDuPoint(point) : 'Aucune valeur choisie' }}
-        accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
-        onAccessibilityAction={parcourir}
-        style={{ minHeight: 44, justifyContent: 'center' }}
-      >
-        <Text style={{ color: couleurs.encre, opacity: 0.7 }}>{point ? texteDuPoint(point) : 'Touchez le graphique pour lire une valeur.'}</Text>
-      </View>
-      {graphe.legende.length > 0 && (
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 8 }}>
-          {graphe.legende.map((element, i) => (
-            <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Svg width={12} height={12} viewBox="0 0 12 12">
-                <FormeSvg forme={repere(element.repere, 6, 6, element.couleur)} couleurs={couleurs} />
-              </Svg>
-              <Text style={{ color: couleurs.encre }}>{element.nom}</Text>
-            </View>
-          ))}
-        </View>
-      )}
-      <Pressable accessibilityRole="button" accessibilityState={{ expanded: ouvert }} onPress={() => setOuvert(!ouvert)} style={{ paddingVertical: 8, minHeight: 44, justifyContent: 'center' }}>
-        <Text style={{ color: couleurs.bleu, textDecorationLine: 'underline' }}>{ouvert ? 'Cacher les données' : 'Voir les données'}</Text>
-      </Pressable>
-      {ouvert &&
-        graphe.table.lignes.map((ligne, i) => (
-          <Text key={i} style={{ color: couleurs.encre, paddingVertical: 2 }}>
-            {ligne.map((cellule, j) => (j === 0 ? cellule : graphe.table.entetes[j] + ' : ' + cellule)).join(', ')}
-          </Text>
-        ))}
-    </View>
-  );
-}
-`;
 
 // ─── Le CSS (web, desktop, statique) ─────────────────────────────────────
 

@@ -9,10 +9,9 @@ import type { Cible, EntreeVocabulaire, Traduction } from './types.js';
 const t = (produit: string, note?: string): Traduction => (note ? { produit, note } : { produit });
 
 /** Les traductions d'une idée d'écran : le bureau comme le web, pas de serveur. */
-function ecran(web: string, mobile: string | null, statique: string | null): Readonly<Record<Cible, Traduction | null>> {
+function ecran(web: string, statique: string | null): Readonly<Record<Cible, Traduction | null>> {
   return {
     web: t(web),
-    mobile: mobile === null ? null : t(mobile),
     desktop: { produit: web, note: 'comme la cible web : Electron affiche la page web' },
     serveur: null,
     statique: statique === null ? null : t(statique),
@@ -31,7 +30,7 @@ function langue(mot: string, accentue: string | undefined, code: string, nom: st
     categorie: 'valeur',
     concept: `langue.${code}`,
     contextes: ['tournure'],
-    cibles: ecran(`'${code}' (t({ ${code}: '…' }), <html lang="${code}">)`, `'${code}' (expo-localization)`, `'${code}'`),
+    cibles: ecran(`'${code}' (t({ ${code}: '…' }), <html lang="${code}">)`, `'${code}'`),
     couvre: [`bcp47:${code}`],
     description: disponible
       ? `Le ${nom}, une langue du site : une ligne du bloc « langues », une version « en ${mot} "…" », ou une valeur (« changer langue par ${mot} »).`
@@ -54,10 +53,9 @@ export const ENTREES_LANGUES: readonly EntreeVocabulaire[] = [
     contextes: ['declaration'],
     cibles: ecran(
       'src/humalis/langue.tsx : LANGUES, t(), useLangue(), <html lang>',
-      'humalis/langue.tsx : la langue du téléphone par expo-localization, le choix gardé par AsyncStorage',
       'humalis.js : t(), langue(), changerLangue() ; le HTML de départ dans la première langue',
     ),
-    couvre: ['html:lang', 'i18n', 'navigator.languages', 'expo-localization'],
+    couvre: ['html:lang', 'i18n', 'navigator.languages'],
     description:
       'Le bloc « langues : » en haut du fichier déclare les langues du site, une par ligne, ou sur la même ligne séparées par des virgules (« langues : francais, anglais »). La première est celle des textes écrits tels quels ; les autres s’ajoutent après un texte (« en anglais "…" ») ou dans un bloc « traductions ». La personne voit d’abord la langue de son navigateur (ou de son téléphone), si le site la parle.',
     exemple: `${LANGUES}page "accueil" :\n    selecteur de langue\n    titre "Bienvenue" en anglais "Welcome"`,
@@ -71,7 +69,7 @@ export const ENTREES_LANGUES: readonly EntreeVocabulaire[] = [
     categorie: 'option',
     concept: 'langue.version',
     contextes: ['tournure'],
-    cibles: ecran("t({ fr: 'Bienvenue', en: 'Welcome' })", "t({ fr: 'Bienvenue', en: 'Welcome' })", "t({ fr: 'Bienvenue', en: 'Welcome' }) dans le script"),
+    cibles: ecran("t({ fr: 'Bienvenue', en: 'Welcome' })", "t({ fr: 'Bienvenue', en: 'Welcome' }) dans le script"),
     couvre: ['i18n:message'],
     description:
       'Après un texte, « en anglais "…" » donne sa version dans une autre langue du bloc « langues » : « titre "Bienvenue" en anglais "Welcome" ». Cela marche partout où un texte s’écrit : titre, texte, bouton, lien, libellé de champ ou de fichier, « afficher », valeur d’une variable, aperçu, et les textes des options : « avec description "…" » (image, son, icône, graphique…), « et transcription "…" », « serie "Ventes" », les « etiquettes [...] » d’un graphique, « avec indice "…" » d’un champ, le « nom » et la « description » du bloc « site ». Le nom d’un fichier son ou image ne se traduit jamais.',
@@ -86,7 +84,7 @@ export const ENTREES_LANGUES: readonly EntreeVocabulaire[] = [
     categorie: 'structure',
     concept: 'structure.traductions',
     contextes: ['declaration'],
-    cibles: ecran("les mêmes t({ fr: '…', en: '…' }) que les versions écrites à côté", "les mêmes t({ fr: '…', en: '…' })", "les mêmes t({ fr: '…', en: '…' })"),
+    cibles: ecran("les mêmes t({ fr: '…', en: '…' }) que les versions écrites à côté", "les mêmes t({ fr: '…', en: '…' })"),
     couvre: ['i18n:catalogue'],
     description:
       'Le bloc « traductions anglais : » range les versions en un seul endroit : une ligne « "texte" : "version" » par texte. Partout où ce texte exact s’écrit, sa version anglaise est montrée. Une version écrite à côté du texte passe avant celle du bloc.',
@@ -104,7 +102,6 @@ export const ENTREES_LANGUES: readonly EntreeVocabulaire[] = [
     contextes: ['miseEnPage'],
     cibles: ecran(
       '<select> : chaque langue écrite dans sa langue, avec lang="…" (SelecteurLangue)',
-      'des boutons radio, un par langue (SelecteurLangue)',
       '<select> redessiné par humalis.js',
     ),
     couvre: ['html:select', 'html:option[lang]'],
@@ -121,7 +118,7 @@ export const ENTREES_LANGUES: readonly EntreeVocabulaire[] = [
     categorie: 'valeur',
     concept: 'langue.courante',
     contextes: ['tournure'],
-    cibles: ecran('const { langue, changerLangue } = useLangue()', 'const { langue, changerLangue } = useLangue()', 'langue(), changerLangue() (humalis.js)'),
+    cibles: ecran('const { langue, changerLangue } = useLangue()', 'langue(), changerLangue() (humalis.js)'),
     couvre: ['html:lang', 'localStorage'],
     description:
       'Avec un bloc « langues », « langue » est la langue choisie par la personne : « si langue est anglais : » la lit, « changer langue par anglais » la change (et le choix est gardé). Une variable ne peut alors pas s’appeler « langue ».',

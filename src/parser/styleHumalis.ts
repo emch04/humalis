@@ -9,7 +9,7 @@
  *         ombre douce
  *
  * Le bloc devient une classe CSS ordinaire (« .carte »), ajoutée au CSS du
- * projet : chaque cible qui lit le CSS (web, moteur, statique, mobile, Apple)
+ * projet : chaque cible qui lit le CSS (web, moteur, statique, Apple, Android, Windows)
  * la comprend sans rien de plus. On l'emploie comme aujourd'hui :
  * « bloc avec style "carte" ».
  */
@@ -124,7 +124,7 @@ export function cssDuStyle(style: StyleHumalis, theme?: Theme): string {
   return `.${style.nom} { ${declarationsDuStyle(style, theme).map(([p, v]) => `${p}: ${v}`).join('; ')}; }`;
 }
 
-/** Les déclarations CSS d'un style, une par ligne écrite : le mobile les traduit à sa façon. */
+/** Les déclarations CSS d'un style, une par ligne écrite : chaque cible native les traduit à sa façon. */
 export function declarationsDuStyle(style: StyleHumalis, theme?: Theme): [string, string][] {
   return style.lignes.map(({ propriete, mots, ligne }): [string, string] => {
     const [p, ...v] = declaration(propriete, mots, ligne, theme).split(': ');

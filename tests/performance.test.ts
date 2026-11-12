@@ -4,7 +4,7 @@ import { brotliDecompressSync, gunzipSync } from 'node:zlib';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
 import { genererProjetServeur } from '../src/cibles/serveur/projet.js';
-import { lecturesTs, PRECHARGEMENT } from '../src/cibles/web/lectures.js';
+import { LECTURES_TS, PRECHARGEMENT } from '../src/cibles/web/lectures.js';
 import { programme, erreurs } from './analyse/aide.js';
 
 // « Les serveurs doivent servir ce qui est demandé ; certaines choses déjà en avance, d'autres en arrière-plan » (le mainteneur).
@@ -212,7 +212,7 @@ describe('performance — 3. ce qui est déjà connu s’affiche tout de suite (
   it('garde la réponse d’une lecture publique, la rend, et la range dans l’onglet', async () => {
     const stockage = fauxStockage();
     vi.stubGlobal('sessionStorage', stockage);
-    const lectures = await charger<Lectures>(lecturesTs('web'));
+    const lectures = await charger<Lectures>(LECTURES_TS);
     expect(lectures.lectureGardee('/api/produits', [])).toEqual([]);
     lectures.garder('/api/produits', [{ id: '1' }], '[{"id":"1"}]');
     expect(lectures.lectureGardee('/api/produits', [])).toEqual([{ id: '1' }]);
@@ -221,7 +221,7 @@ describe('performance — 3. ce qui est déjà connu s’affiche tout de suite (
     expect(lectures.lectureGardee('/api/reglages', [])).toEqual([]);
     expect(JSON.parse(stockage.valeurs.get('humalis:lectures')!)['/api/produits']).toBe('[{"id":"1"}]');
     // Au rechargement de l'onglet, elle est retrouvée.
-    const relue = await charger<Lectures>(lecturesTs('web'));
+    const relue = await charger<Lectures>(LECTURES_TS);
     expect(relue.lectureGardee('/api/produits', [])).toEqual([{ id: '1' }]);
     vi.unstubAllGlobals();
   });
@@ -229,7 +229,7 @@ describe('performance — 3. ce qui est déjà connu s’affiche tout de suite (
   it('une réponse de plus de 200 000 caractères (des photos) reste en mémoire, pas dans l’onglet', async () => {
     const stockage = fauxStockage();
     vi.stubGlobal('sessionStorage', stockage);
-    const lectures = await charger<Lectures>(lecturesTs('web'));
+    const lectures = await charger<Lectures>(LECTURES_TS);
     const photos = 'x'.repeat(250_000);
     lectures.garder('/api/photos', [photos], JSON.stringify([photos]));
     expect(lectures.lectureGardee('/api/photos', [])).toEqual([photos]);
@@ -238,7 +238,7 @@ describe('performance — 3. ce qui est déjà connu s’affiche tout de suite (
   });
 
   it('seule une lecture publique est gardée : jamais celle d’une route réservée', async () => {
-    const lectures = await charger<Lectures>(lecturesTs('web'));
+    const lectures = await charger<Lectures>(LECTURES_TS);
     expect(lectures.seGarde(reponse([], 'public, max-age=30, stale-while-revalidate=300'))).toBe(true);
     // La première lecture d'un visiteur pose son cookie CSRF : gardée par son navigateur seulement.
     expect(lectures.seGarde(reponse([], 'private, max-age=30, stale-while-revalidate=300'))).toBe(true);
@@ -252,7 +252,7 @@ describe('performance — 3. ce qui est déjà connu s’affiche tout de suite (
   it('deux lectures de la même adresse en même temps ne font qu’un appel', async () => {
     const appels: string[] = [];
     vi.stubGlobal('fetch', async (url: string) => (appels.push(url), reponse([{ id: '1' }])));
-    const lectures = await charger<Lectures>(lecturesTs('web'));
+    const lectures = await charger<Lectures>(LECTURES_TS);
     const [a, b] = await Promise.all([lectures.lireEnCommun('/api/produits', '/api/produits', {}), lectures.lireEnCommun('/api/produits', '/api/produits', {})]);
     expect(await a.json()).toEqual([{ id: '1' }]);
     expect(await b.json()).toEqual([{ id: '1' }]);
@@ -263,7 +263,7 @@ describe('performance — 3. ce qui est déjà connu s’affiche tout de suite (
   it('un envoi vers une route oublie ses lectures, qui passent ensuite par le serveur (pas le cache du navigateur)', async () => {
     const options: RequestInit[] = [];
     vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => (options.push(init), reponse([])));
-    const lectures = await charger<Lectures>(lecturesTs('web'));
+    const lectures = await charger<Lectures>(LECTURES_TS);
     lectures.garder('/api/photos?produit=a', [1], '[1]');
     lectures.garder('/api/photos/12', { id: '12' }, '{"id":"12"}');
     lectures.garder('/api/produits', [2], '[2]');

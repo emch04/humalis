@@ -29,20 +29,17 @@ export function contientAction(actions: Action[], test: (action: Action) => bool
   return actions.some((a) => test(a) || sousActions(a).some((liste) => contientAction(liste, test)));
 }
 
-/** La plateforme du projet produit : le navigateur (web, bureau) ou le téléphone (Expo). */
-export type Plateforme = 'web' | 'mobile';
-
 /** Les fichiers de humalis/ que les pages emploient, d'après leurs imports (« ../humalis/temps », « ../../humalis/temps »). */
-export function fichiersDesInteractions(codes: string[], plateforme: Plateforme = 'web'): Map<string, string> {
+export function fichiersDesInteractions(codes: string[]): Map<string, string> {
   const fichiers = new Map<string, string>();
   const emploie = (fichier: string) => codes.some((c) => c.includes(`humalis/${fichier}';`));
-  if (emploie('temps')) fichiers.set('temps.ts', tempsTs(plateforme));
-  if (emploie('presse-papier')) fichiers.set('presse-papier.ts', pressePapierTs(plateforme));
+  if (emploie('temps')) fichiers.set('temps.ts', TEMPS_TS);
+  if (emploie('presse-papier')) fichiers.set('presse-papier.ts', PRESSE_PAPIER_TS);
   if (emploie('clavier')) fichiers.set('clavier.ts', CLAVIER_TS);
-  if (emploie('confirmation')) fichiers.set(plateforme === 'web' ? 'confirmation.ts' : 'confirmation.tsx', plateforme === 'web' ? CONFIRMATION_TS : CONFIRMATION_MOBILE);
-  if (emploie('fenetre')) fichiers.set('fenetre.tsx', plateforme === 'web' ? FENETRE_TSX : FENETRE_MOBILE);
-  if (emploie('voir-plus')) fichiers.set('voir-plus.ts', plateforme === 'web' ? VOIR_PLUS_TS : VOIR_PLUS_MOBILE);
-  if (emploie('deplacer')) fichiers.set('deplacer.ts', plateforme === 'web' ? DEPLACER_TS : DEPLACER_MOBILE);
+  if (emploie('confirmation')) fichiers.set('confirmation.ts', CONFIRMATION_TS);
+  if (emploie('fenetre')) fichiers.set('fenetre.tsx', FENETRE_TSX);
+  if (emploie('voir-plus')) fichiers.set('voir-plus.ts', VOIR_PLUS_TS);
+  if (emploie('deplacer')) fichiers.set('deplacer.ts', DEPLACER_TS);
   if (emploie('menu')) fichiers.set('menu.ts', MENU_TS);
   return fichiers;
 }
@@ -78,10 +75,8 @@ export function importsDesInteractions(code: string, dossier: string, outils: Re
  * la visibilité de l'onglet et prefers-reduced-motion ; le téléphone, l'état
  * de l'application (AppState) et le réglage d'accessibilité du système.
  */
-function tempsTs(plateforme: Plateforme): string {
-  const web = plateforme === 'web';
-  return `import { useCallback, useEffect, useLayoutEffect, useRef, useState${web ? ', useSyncExternalStore' : ''} } from 'react';
-${web ? '' : "import { AccessibilityInfo, AppState, useColorScheme } from 'react-native';\n"}
+const TEMPS_TS = `import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
+
 /**
  * Les dernières valeurs de la page, pour ce qui s'exécute plus tard (une
  * minuterie lancée par un clic, le bouton d'un message) : sans cela, il
@@ -95,16 +90,9 @@ export function useActuel<T>(valeurs: T) {
   return actuel;
 }
 
-${
-  web
-    ? `/** La page est-elle à l'écran ? Un onglet caché suspend les minuteries qui se répètent. */
+/** La page est-elle à l'écran ? Un onglet caché suspend les minuteries qui se répètent. */
 function pageVisible(): boolean {
   return typeof document === 'undefined' || !document.hidden;
-}`
-    : `/** L'application est-elle à l'écran ? En arrière-plan, les minuteries qui se répètent sont suspendues. */
-function pageVisible(): boolean {
-  return AppState.currentState === 'active';
-}`
 }
 
 interface OptionsMinuterie {
@@ -192,9 +180,7 @@ export function usePlanifier() {
   );
 }
 
-${
-  web
-    ? `const REQUETE = '(prefers-reduced-motion: reduce)';
+const REQUETE = '(prefers-reduced-motion: reduce)';
 
 /** « mouvement est reduit » : la personne a demandé à son système de réduire les animations, suivi en direct. */
 export function useMouvementReduit(): boolean {
@@ -230,22 +216,6 @@ export function useThemeSombre(): boolean {
     // Le prérendu ne connaît pas le thème du visiteur.
     () => false,
   );
-}`
-    : `/** « mouvement est reduit » : la personne a demandé à son téléphone de réduire les animations, suivi en direct. */
-export function useMouvementReduit(): boolean {
-  const [reduit, setReduit] = useState(false);
-  useEffect(() => {
-    void AccessibilityInfo.isReduceMotionEnabled().then(setReduit);
-    const abonnement = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduit);
-    return () => abonnement.remove();
-  }, []);
-  return reduit;
-}
-
-/** « theme est sombre » : le thème affiché par le téléphone, suivi en direct. */
-export function useThemeSombre(): boolean {
-  return useColorScheme() === 'dark';
-}`
 }
 
 /**
@@ -311,98 +281,13 @@ export function useQuandPause(valeur: unknown, millisecondes: number, faire: () 
   };
 }
 `;
-}
-
-/** Ce que copier et partager disent à la personne : sans retour, un lecteur d'écran n'entendrait rien. */
-const MESSAGES_PRESSE_PAPIER = `/** Afficher un message (useMessages) : le résultat est toujours dit à la personne. */
-type Afficher = (texte: string, genre: 'info' | 'erreur') => void;
-
-/**
- * « copier » : met le texte dans le presse-papier, puis dit si c'est fait
- * (\`message\`, « Copié » par défaut). Sans \`afficher\` : « sans message ».
- */
-export async function copier(texte: string, afficher?: Afficher, message = 'Copié'): Promise<boolean> {
-  const fait = await copierTexte(texte);
-  if (afficher) afficher(fait ? message : 'Copie impossible.', fait ? 'info' : 'erreur');
-  return fait;
-}`;
 
 /**
  * humalis/presse-papier.ts : « copier » et « partager ». Le navigateur a
  * l'API du presse-papier (et un repli) et la feuille de partage quand le
- * système en a une ; le téléphone, expo-clipboard et Share de React Native.
+ * système en a une.
  */
-function pressePapierTs(plateforme: Plateforme): string {
-  if (plateforme === 'mobile') {
-    return `import * as Clipboard from 'expo-clipboard';
-import { Platform, Share } from 'react-native';
-
-/** Met un texte dans le presse-papier du téléphone. Vrai si c'est fait. */
-export async function copierTexte(texte: string): Promise<boolean> {
-  try {
-    await Clipboard.setStringAsync(texte);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-${MESSAGES_PRESSE_PAPIER}
-
-/**
- * L'adresse complète d'une page, pour la partager : celle du site
- * (EXPO_PUBLIC_HUMALIS_SITE, par exemple https://boutique.exemple.fr). Sans elle,
- * une application n'a pas d'adresse : seul le texte est partagé.
- */
-export function adresseAbsolue(chemin: string): string | undefined {
-  const site = process.env.EXPO_PUBLIC_HUMALIS_SITE;
-  return site ? new URL(chemin, site).href : undefined;
-}
-
-/**
- * « partager » : la feuille de partage du téléphone. Sur Android, l'adresse
- * va dans le message ; sur iPhone, dans son propre champ. Fermer la feuille
- * n'est pas une erreur.
- */
-export async function partager(donnees: { texte: string; titre?: string; adresse?: string }, afficher: Afficher): Promise<void> {
-  const { texte, titre, adresse } = donnees;
-  try {
-    await Share.share({
-      message: adresse && Platform.OS !== 'ios' ? \`\${texte} \${adresse}\` : texte,
-      ...(adresse ? { url: adresse } : {}),
-      ...(titre ? { title: titre } : {}),
-    });
-  } catch {
-    afficher('Partage impossible.', 'erreur');
-  }
-}
-
-/**
- * « telecharger … en csv » : une ligne de titres (les champs), puis une ligne par élément. Le point-virgule et
- * le BOM font ouvrir le fichier correctement par Excel en français. Une valeur qui commence par = + - ou @
- * reçoit une apostrophe : le tableur ne la lira pas comme une formule.
- */
-function texteCsv(liste: unknown[]): string {
-  const lignes = liste.map((e) => (e !== null && typeof e === 'object' && !Array.isArray(e) ? (e as Record<string, unknown>) : { valeur: e }));
-  const champs = [...new Set(lignes.flatMap((l) => Object.keys(l)))];
-  const cellule = (v: unknown): string => {
-    const lu = v === null || v === undefined ? '' : Array.isArray(v) ? v.join(', ') : typeof v === 'object' ? JSON.stringify(v) : String(v);
-    const sur = typeof v === 'string' && /^[=+\\-@\\t\\r]/.test(lu) && !/^[+-]?[\\d\\s().-]+$/.test(lu) ? \`'\${lu}\` : lu;
-    return /[;"\\n\\r]/.test(sur) ? \`"\${sur.replace(/"/g, '""')}"\` : sur;
-  };
-  return [champs.map(cellule), ...lignes.map((l) => champs.map((c) => cellule(l[c])))].map((l) => l.join(';')).join('\\r\\n');
-}
-
-export async function telechargerCsv(liste: unknown[], fichier: string, afficher: Afficher): Promise<void> {
-  try {
-    await Share.share({ title: fichier, message: texteCsv(liste) });
-  } catch {
-    afficher('Partage impossible.', 'erreur');
-  }
-}
-`;
-  }
-  return `/**
+const PRESSE_PAPIER_TS = `/**
  * Met un texte dans le presse-papier. Vrai si c'est fait. Sans l'API du
  * navigateur (page non sécurisée, vieux Safari), une zone de texte cachée et
  * la commande « copier » prennent le relais.
@@ -432,7 +317,18 @@ export async function copierTexte(texte: string): Promise<boolean> {
   }
 }
 
-${MESSAGES_PRESSE_PAPIER}
+/** Afficher un message (useMessages) : le résultat est toujours dit à la personne. */
+type Afficher = (texte: string, genre: 'info' | 'erreur') => void;
+
+/**
+ * « copier » : met le texte dans le presse-papier, puis dit si c'est fait
+ * (\`message\`, « Copié » par défaut). Sans \`afficher\` : « sans message ».
+ */
+export async function copier(texte: string, afficher?: Afficher, message = 'Copié'): Promise<boolean> {
+  const fait = await copierTexte(texte);
+  if (afficher) afficher(fait ? message : 'Copie impossible.', fait ? 'info' : 'erreur');
+  return fait;
+}
 
 /** L'adresse complète d'une page du site (« /produit/42 » → « https://site.cd/produit/42 »). */
 export function adresseAbsolue(chemin: string): string {
@@ -489,7 +385,6 @@ export async function telechargerCsv(liste: unknown[], fichier: string, afficher
   }
 }
 `;
-}
 
 /** Les noms des touches de Humalis pour le lecteur d'écran (aria-keyshortcuts) et pour l'œil (title). */
 const TOUCHES_NOMMEES: Record<string, [string, string]> = {
@@ -673,138 +568,6 @@ export function confirmer(question: string, boutons: { oui?: string; non?: strin
 }
 `;
 
-/**
- * La fenêtre sur le téléphone : un Modal, fermé par le bouton retour
- * d'Android et le geste d'iOS, sauf si elle est obligatoire (la croix reste).
- */
-const FENETRE_MOBILE = `import { useEffect, useState, type ReactNode } from 'react';
-import { AccessibilityInfo, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useCouleurs } from './styles';
-
-export function Fenetre({
-  ouverte,
-  fermer,
-  titre,
-  description,
-  obligatoire = false,
-  children,
-}: {
-  ouverte: boolean;
-  fermer: () => void;
-  titre: string;
-  description?: string;
-  obligatoire?: boolean;
-  /** Le CSS ne s'applique pas sur le téléphone : la classe est ignorée. */
-  className?: string;
-  children: ReactNode;
-}) {
-  const couleurs = useCouleurs();
-  // « Réduire les animations » : la fenêtre apparaît sans fondu.
-  const [reduit, setReduit] = useState(false);
-  useEffect(() => {
-    void AccessibilityInfo.isReduceMotionEnabled().then(setReduit);
-  }, []);
-  const fermerSiPermis = () => {
-    if (!obligatoire) fermer();
-  };
-  return (
-    <Modal transparent visible={ouverte} animationType={reduit ? 'none' : 'fade'} onRequestClose={fermerSiPermis}>
-      <View style={styles.fond}>
-        <Pressable style={StyleSheet.absoluteFill} accessible={false} onPress={fermerSiPermis} />
-        <View accessibilityViewIsModal style={[styles.carte, { backgroundColor: couleurs.page }]}>
-          <Text accessibilityRole="header" style={[styles.titre, { color: couleurs.encre }]}>
-            {titre}
-          </Text>
-          {description && <Text style={{ color: couleurs.encre }}>{description}</Text>}
-          <ScrollView>{children}</ScrollView>
-          <Pressable accessibilityRole="button" accessibilityLabel="Fermer" hitSlop={8} onPress={fermer} style={styles.fermer}>
-            <Text style={{ color: couleurs.encre, fontSize: 20 }}>×</Text>
-          </Pressable>
-        </View>
-      </View>
-    </Modal>
-  );
-}
-
-const styles = StyleSheet.create({
-  fond: { flex: 1, justifyContent: 'center', padding: 16, backgroundColor: 'rgba(0, 0, 0, 0.45)' },
-  carte: { borderRadius: 12, padding: 20, paddingTop: 16, gap: 12, maxHeight: '90%' },
-  titre: { fontSize: 20, fontWeight: '600', paddingRight: 32 },
-  fermer: { position: 'absolute', top: 8, right: 8, padding: 8 },
-});
-`;
-
-/**
- * « confirmer » sur le téléphone : une seule fenêtre de question pour toute
- * l'application (<Confirmations> dans app/_layout.tsx) ; useConfirmer() rend
- * la fonction qui pose la question et attend la réponse.
- */
-const CONFIRMATION_MOBILE = `import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useCouleurs } from './styles';
-
-type Confirmer = (question: string, boutons?: { oui?: string; non?: string }) => Promise<boolean>;
-
-const Contexte = createContext<Confirmer>(async () => false);
-
-interface Question {
-  texte: string;
-  oui: string;
-  non: string;
-}
-
-export function Confirmations({ children }: { children: ReactNode }) {
-  const couleurs = useCouleurs();
-  const [question, setQuestion] = useState<Question | null>(null);
-  const repondre = useRef<(reponse: boolean) => void>(() => {});
-  const confirmer = useCallback<Confirmer>(
-    (texte, boutons = {}) =>
-      new Promise((resoudre) => {
-        repondre.current = (reponse) => {
-          setQuestion(null);
-          resoudre(reponse);
-        };
-        setQuestion({ texte, oui: boutons.oui ?? 'Oui', non: boutons.non ?? 'Non' });
-      }),
-    [],
-  );
-  return (
-    <Contexte.Provider value={confirmer}>
-      {children}
-      <Modal transparent visible={question !== null} animationType="none" onRequestClose={() => repondre.current(false)}>
-        <View style={styles.fond}>
-          <View accessibilityViewIsModal accessibilityRole="alert" style={[styles.carte, { backgroundColor: couleurs.page }]}>
-            <Text style={[styles.question, { color: couleurs.encre }]}>{question?.texte}</Text>
-            <View style={styles.boutons}>
-              {/* Le bouton qui annule d'abord : c'est le choix sûr. */}
-              <Pressable accessibilityRole="button" onPress={() => repondre.current(false)} style={[styles.bouton, { borderColor: couleurs.encre }]}>
-                <Text style={{ color: couleurs.encre }}>{question?.non}</Text>
-              </Pressable>
-              <Pressable accessibilityRole="button" onPress={() => repondre.current(true)} style={[styles.bouton, { backgroundColor: couleurs.encre, borderColor: couleurs.encre }]}>
-                <Text style={{ color: couleurs.page }}>{question?.oui}</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
-    </Contexte.Provider>
-  );
-}
-
-/** La fonction qui pose une question : vrai si la personne répond oui. */
-export function useConfirmer(): Confirmer {
-  return useContext(Contexte);
-}
-
-const styles = StyleSheet.create({
-  fond: { flex: 1, justifyContent: 'center', padding: 16, backgroundColor: 'rgba(0, 0, 0, 0.45)' },
-  carte: { borderRadius: 12, padding: 20, gap: 16 },
-  question: { fontSize: 18 },
-  boutons: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
-  bouton: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8, borderWidth: 1 },
-});
-`;
-
 const FENETRE_TSX = `import { useEffect, useId, useRef, type ReactNode } from 'react';
 
 /**
@@ -922,69 +685,6 @@ export function useVoirPlus(faire: () => void | Promise<void>, actif: boolean) {
     return () => observateur.disconnect();
   }, [actif, sentinelle, charger, tours]);
   return { sentinelle: setSentinelle, charger, enCours };
-}
-`;
-
-/** « arrive en bas de » sur le téléphone : le bouton « Voir plus », un chargement à la fois. */
-const VOIR_PLUS_MOBILE = `import { useCallback, useLayoutEffect, useRef, useState } from 'react';
-
-export function useVoirPlus(faire: () => void | Promise<void>, actif: boolean) {
-  const dernier = useRef(faire);
-  useLayoutEffect(() => {
-    dernier.current = faire;
-  });
-  const [enCours, setEnCours] = useState(false);
-  const charger = useCallback(async () => {
-    if (!actif || enCours) return;
-    setEnCours(true);
-    try {
-      await dernier.current();
-    } finally {
-      setEnCours(false);
-    }
-  }, [actif, enCours]);
-  return { charger, enCours };
-}
-`;
-
-/**
- * « avec deplacement » sur le téléphone : chaque élément monte ou descend
- * d'un cran (boutons visibles et actions du lecteur d'écran). \`quandChange\`
- * est appelé une fois par déplacement.
- */
-const DEPLACER_MOBILE = `import { useLayoutEffect, useRef } from 'react';
-import { AccessibilityInfo } from 'react-native';
-
-export function useDeplacement<T>(liste: T[], changer: (liste: T[]) => void, nommer: (element: T) => string, quandChange?: () => void | Promise<void>) {
-  const dernier = useRef({ liste, changer, quandChange });
-  useLayoutEffect(() => {
-    dernier.current = { liste, changer, quandChange };
-  });
-  const deplacer = (de: number, vers: number) => {
-    const actuelle = dernier.current.liste;
-    if (vers < 0 || vers >= actuelle.length) return;
-    const copie = [...actuelle];
-    const [element] = copie.splice(de, 1);
-    copie.splice(vers, 0, element);
-    dernier.current.changer(copie);
-    AccessibilityInfo.announceForAccessibility(\`Déplacé en position \${vers + 1} sur \${copie.length}.\`);
-    void dernier.current.quandChange?.();
-  };
-  return {
-    monter: (index: number) => deplacer(index, index - 1),
-    descendre: (index: number) => deplacer(index, index + 1),
-    element(index: number) {
-      return {
-        accessibilityLabel: \`\${nommer(liste[index])}, position \${index + 1} sur \${liste.length}\`,
-        accessibilityActions: [
-          { name: 'monter', label: 'Monter' },
-          { name: 'descendre', label: 'Descendre' },
-        ],
-        onAccessibilityAction: (evenement: { nativeEvent: { actionName: string } }) =>
-          deplacer(index, evenement.nativeEvent.actionName === 'monter' ? index - 1 : index + 1),
-      };
-    },
-  };
 }
 `;
 

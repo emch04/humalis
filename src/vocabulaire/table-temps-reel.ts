@@ -14,7 +14,7 @@ const CLIC = (ligne: string) => PAGE(`    bouton "Go"\n    quand l'utilisateur c
 const t = (produit: string): Traduction => ({ produit });
 /** Le web et le bureau par le moteur ; Apple, Android et Windows ont leur propre code. */
 function partout(produit: string): Readonly<Record<Cible, Traduction | null>> {
-  return { web: t(produit), mobile: null, desktop: { produit, note: 'comme la cible web : Electron affiche la page web' }, serveur: t(produit), statique: null };
+  return { web: t(produit), desktop: { produit, note: 'comme la cible web : Electron affiche la page web' }, serveur: t(produit), statique: null };
 }
 
 function mot(entree: Omit<EntreeVocabulaire, 'variantes' | 'contextes' | 'statut' | 'etape' | 'cibles' | 'couvre'> & { produit: string }): EntreeVocabulaire {

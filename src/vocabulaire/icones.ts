@@ -5,7 +5,7 @@ import type { IconeDessinee } from '../icones-svg.js';
  * des noms français, d'une liste fermée, qui désignent chacun une icône de
  * Lucide (https://lucide.dev, licence ISC). Le compilateur ne dépend pas
  * de Lucide : il ne connaît que cette table de noms. Le code produit
- * utilise `lucide-react` (web, desktop) ou `lucide-react-native` (mobile) ;
+ * utilise `lucide-react` (web, desktop) ;
  * le site statique reçoit les tracés des icônes utilisées
  * (`src/cibles/icones-donnees.ts`, recopiés de Lucide par
  * `scripts/generer-icones.mjs`).

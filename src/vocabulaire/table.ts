@@ -9,7 +9,7 @@
  * l'exemple de chaque mot pris en charge.
  *
  * Honnêteté : seule la colonne `web` décrit du code produit et testé
- * aujourd'hui. Les colonnes `mobile`, `desktop`, `serveur` et `statique`
+ * aujourd'hui. Les colonnes `desktop`, `serveur` et `statique`
  * sont des intentions, reprises de la vision et du plan du vocabulaire.
  */
 import type { Cible, EntreeVocabulaire, Traduction } from './types.js';
@@ -23,16 +23,14 @@ const t = (produit: string, note?: string): Traduction => (note ? { produit, not
 
 const COMME_WEB = 'comme la cible web : Electron affiche la page web';
 
-/** Un mot d'écran : web, mobile et statique ; le bureau reprend le web ; pas de serveur. */
+/** Un mot d'écran : web et statique ; le bureau reprend le web ; pas de serveur. */
 function ecran(
   web: string,
-  mobile: string | null,
   statique: string | null,
   noteWeb?: string,
 ): Readonly<Record<Cible, Traduction | null>> {
   return {
     web: t(web, noteWeb),
-    mobile: mobile === null ? null : t(mobile),
     desktop: t(web, COMME_WEB),
     serveur: null,
     statique: statique === null ? null : t(statique),
@@ -41,31 +39,30 @@ function ecran(
 
 /** Une idée de logique : la même partout où il y a du code, serveur compris. */
 function partout(produit: string): Readonly<Record<Cible, Traduction | null>> {
-  return { web: t(produit), mobile: t(produit), desktop: t(produit), serveur: t(produit), statique: t(produit) };
+  return { web: t(produit), desktop: t(produit), serveur: t(produit), statique: t(produit) };
 }
 
 /** Un mot du serveur : seule la cible serveur le traduit (Node + packs Astratra). */
 function serveurSeul(produit: string, note?: string): Readonly<Record<Cible, Traduction | null>> {
-  return { web: null, mobile: null, desktop: null, serveur: t(produit, note), statique: null };
+  return { web: null, desktop: null, serveur: t(produit, note), statique: null };
 }
 
 /**
  * Un mot de la connexion dans une page : la cible web le traduit ; le
- * bureau reprend le web. Le mobile et le statique viendront avec leurs étapes.
+ * bureau reprend le web. Le statique viendra avec son étape.
  */
 function pageEtServeur(web: string): Pick<Record<Cible, Traduction | null>, 'web' | 'desktop'> {
   return { web: t(web), desktop: t(web, COMME_WEB) };
 }
 
-/** Un mot d'un bloc « source » : le web (et le bureau) le traduisent ; le mobile et le statique le refusent pour l'instant. */
+/** Un mot d'un bloc « source » : le web (et le bureau) le traduisent ; le statique le refuse pour l'instant. */
 function sourceWeb(produit: string, note?: string): Readonly<Record<Cible, Traduction | null>> {
-  return { web: t(produit, note), mobile: null, desktop: t(produit, COMME_WEB), serveur: null, statique: null };
+  return { web: t(produit, note), desktop: t(produit, COMME_WEB), serveur: null, statique: null };
 }
 
 /** Un mot qui ne produit rien par lui-même : il sert à lire la phrase. */
 const AUCUNE: Readonly<Record<Cible, Traduction | null>> = {
   web: null,
-  mobile: null,
   desktop: null,
   serveur: null,
   statique: null,
@@ -117,7 +114,6 @@ function valeurStyle(
     valeurDe,
     cibles: ecran(
       `className="humalis-${valeurDe[0]}-${mot}"`,
-      `StyleSheet (${valeurDe[0]} ${mot})`,
       `class="humalis-${valeurDe[0]}-${mot}"`,
       valeurDe.length > 1 ? `de même pour ${valeurDe.slice(1).join(' et ')}` : undefined,
     ),
@@ -159,7 +155,6 @@ function saisie(entree: {
   accentue?: string;
   variantes?: string[];
   web: string;
-  mobile: string;
   statique?: string;
   couvre: string[];
   description: string;
@@ -173,7 +168,7 @@ function saisie(entree: {
     categorie: 'saisie',
     concept: `saisie.${entree.mot.replace(/ /g, '_')}`,
     contextes: ['saisie'],
-    cibles: ecran(entree.web, entree.mobile, entree.statique ?? entree.web),
+    cibles: ecran(entree.web, entree.statique ?? entree.web),
     couvre: entree.couvre,
     description: entree.description,
     exemple: EN_FORMULAIRE(`        ${entree.ligne}`),
@@ -188,7 +183,6 @@ const CHAMPS: EntreeVocabulaire[] = [
   saisie({
     mot: 'texte',
     web: '<input> (texte d’une ligne)',
-    mobile: '<TextInput>',
     couvre: ['html:input[type=text]'],
     description: 'Dans « champ texte "…" » : un texte d’une ligne. C’est la sorte d’un champ quand on n’en écrit pas.',
     ligne: 'champ texte "Nom"',
@@ -196,7 +190,6 @@ const CHAMPS: EntreeVocabulaire[] = [
   saisie({
     mot: 'email',
     web: '<input type="email" autoComplete="email">',
-    mobile: '<TextInput keyboardType="email-address">',
     couvre: ['html:input[type=email]', 'rn:keyboardType.email-address'],
     description: 'Dans « champ email "…" » (ou « e-mail ») : une adresse email. Sa forme (nom@domaine.ext) est vérifiée avant l’envoi du formulaire.',
     ligne: 'champ email "Email"',
@@ -205,7 +198,6 @@ const CHAMPS: EntreeVocabulaire[] = [
     mot: 'telephone',
     accentue: 'téléphone',
     web: '<input type="tel" autoComplete="tel">',
-    mobile: '<TextInput keyboardType="phone-pad">',
     couvre: ['html:input[type=tel]', 'rn:keyboardType.phone-pad'],
     description: 'Dans « champ telephone "…" » : un numéro de téléphone, avec le clavier des chiffres sur un téléphone.',
     ligne: 'champ telephone "Téléphone"',
@@ -213,7 +205,6 @@ const CHAMPS: EntreeVocabulaire[] = [
   saisie({
     mot: 'nombre',
     web: '<input type="number" min={…} max={…}>',
-    mobile: '<TextInput keyboardType="numeric">',
     couvre: ['html:input[type=number]', 'html:min', 'html:max', 'rn:keyboardType.numeric'],
     description:
       'Dans « champ nombre "…" » : un nombre. Sa valeur se compare, se calcule et s’envoie à un champ « nombre » du serveur ; la virgule est lue comme un point.',
@@ -222,27 +213,22 @@ const CHAMPS: EntreeVocabulaire[] = [
   saisie({
     mot: 'date',
     web: '<input type="date">',
-    mobile: '<TextInput> avec l’indice AAAA-MM-JJ',
     couvre: ['html:input[type=date]'],
     description: 'Dans « champ date "…" » : une date, écrite AAAA-MM-JJ (par exemple 2026-01-31), qui s’envoie à un champ « date » du serveur.',
     ligne: 'champ date "Naissance"',
-    note: 'Sur le mobile, la date se tape au clavier (pas de calendrier, qui demanderait une dépendance) ; sa forme est vérifiée avant l’envoi.',
   }),
   saisie({
     mot: 'heure',
     web: '<input type="time">',
-    mobile: '<TextInput> avec l’indice HH:MM',
     couvre: ['html:input[type=time]'],
     description: 'Dans « champ heure "…" » : une heure, écrite HH:MM (par exemple 14:30).',
     ligne: 'champ heure "Heure du rendez-vous"',
-    note: 'Sur le mobile, l’heure se tape au clavier ; sa forme est vérifiée avant l’envoi.',
   }),
   saisie({
     mot: 'mot passe',
     accentue: 'mot de passe',
     variantes: ['motdepasse', 'mot_de_passe'],
     web: '<input type="password">',
-    mobile: '<TextInput secureTextEntry>',
     couvre: ['html:input[type=password]', 'rn:secureTextEntry'],
     description:
       'Dans « champ mot de passe "…" » (ou « mot_de_passe ») : un texte caché pendant qu’on l’écrit. Utilisé par « se connecter », il est effacé dès l’envoi.',
@@ -252,7 +238,6 @@ const CHAMPS: EntreeVocabulaire[] = [
     mot: 'texte long',
     variantes: ['textelong', 'texte_long'],
     web: '<textarea rows={4}>',
-    mobile: '<TextInput multiline>',
     couvre: ['html:textarea', 'rn:multiline'],
     description: 'Dans « champ texte long "…" » : un texte de plusieurs lignes. La touche Entrée y va à la ligne au lieu d’envoyer.',
     ligne: 'champ texte long "Message"',
@@ -261,7 +246,6 @@ const CHAMPS: EntreeVocabulaire[] = [
     mot: 'adresse web',
     variantes: ['adresseweb', 'adresse_web'],
     web: '<input type="url" autoComplete="url">',
-    mobile: '<TextInput keyboardType="url">',
     couvre: ['html:input[type=url]', 'rn:keyboardType.url'],
     description: 'Dans « champ adresse web "…" » : l’adresse d’un site (https://…).',
     ligne: 'champ adresse web "Site"',
@@ -271,7 +255,6 @@ const CHAMPS: EntreeVocabulaire[] = [
     accentue: 'case à cocher',
     variantes: ['caseacocher', 'case_a_cocher'],
     web: '<label><input type="checkbox"> …</label>',
-    mobile: '<Switch> et son libellé',
     couvre: ['html:input[type=checkbox]', 'rn:Switch'],
     description:
       '« case a cocher "…" » (ou « case à cocher ») : une case qu’on coche ou non. Sa valeur est vrai ou faux ; obligatoire, elle doit être cochée.',
@@ -280,7 +263,6 @@ const CHAMPS: EntreeVocabulaire[] = [
   saisie({
     mot: 'choix',
     web: '<fieldset><legend>…</legend> et un <input type="radio"> par valeur',
-    mobile: 'des <Pressable accessibilityRole="radio">',
     couvre: ['html:input[type=radio]', 'html:fieldset', 'html:legend'],
     description: '« choix "…" parmi [ … ] » : une seule valeur à choisir parmi quelques-unes (boutons radio). Sa valeur est le texte choisi.',
     ligne: 'choix "Taille" parmi ["S", "M", "L"]',
@@ -290,7 +272,6 @@ const CHAMPS: EntreeVocabulaire[] = [
     accentue: 'liste déroulante',
     variantes: ['listederoulante', 'liste_deroulante'],
     web: '<select> et ses <option>',
-    mobile: 'un <Pressable> qui ouvre la liste des valeurs',
     couvre: ['html:select', 'html:option'],
     description:
       '« liste deroulante "…" parmi … » : une valeur à choisir dans une liste qui se déplie. « liste » seul reste un nom de variable possible.',
@@ -299,7 +280,6 @@ const CHAMPS: EntreeVocabulaire[] = [
   saisie({
     mot: 'parmi',
     web: 'les <option> ou les boutons radio',
-    mobile: 'un Pressable par valeur',
     couvre: [],
     description: 'Après un choix ou une liste déroulante : la liste des valeurs possibles, écrite ou dans une variable (une liste de textes).',
     ligne: 'choix "Livraison" parmi ["Retrait", "À domicile"]',
@@ -310,7 +290,7 @@ const CHAMPS: EntreeVocabulaire[] = [
     categorie: 'option',
     concept: 'option.minimum',
     contextes: ['option'],
-    cibles: ecran('min={…}, et une vérification avant l’envoi', 'une vérification avant l’envoi', 'min="…"'),
+    cibles: ecran('min={…}, et une vérification avant l’envoi', 'min="…"'),
     couvre: ['html:min'],
     description: 'Le plus petit nombre accepté par un champ nombre, vérifié avant l’envoi du formulaire.',
     exemple: EN_FORMULAIRE('        champ nombre "Places" avec minimum 1'),
@@ -323,7 +303,7 @@ const CHAMPS: EntreeVocabulaire[] = [
     categorie: 'option',
     concept: 'option.maximum',
     contextes: ['option'],
-    cibles: ecran('max={…}, et une vérification avant l’envoi', 'une vérification avant l’envoi', 'max="…"'),
+    cibles: ecran('max={…}, et une vérification avant l’envoi', 'max="…"'),
     couvre: ['html:max'],
     description: 'Le plus grand nombre accepté par un champ nombre, vérifié avant l’envoi du formulaire.',
     exemple: EN_FORMULAIRE('        champ nombre "Places" avec maximum 10'),
@@ -342,7 +322,6 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     contextes: ['partout'],
     cibles: {
       web: t('un composant React et sa route (react-router)'),
-      mobile: t('un écran et sa navigation (expo-router)'),
       desktop: t('un composant React et sa route', COMME_WEB),
       serveur: null,
       statique: t('un fichier accueil.html'),
@@ -359,7 +338,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'structure',
     concept: 'structure.composant',
     contextes: ['partout'],
-    cibles: ecran('une fonction composant React exportée', 'une fonction composant React', null),
+    cibles: ecran('une fonction composant React exportée', null),
     couvre: ['react:function component'],
     description:
       'Un morceau d’écran réutilisable, avec ses paramètres : « composant "Fiche" : », puis on l’utilise dans une page par son nom. « utiliser composant » importe un composant React déjà écrit.',
@@ -388,7 +367,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'structure',
     concept: 'structure.vers',
     contextes: ['partout'],
-    cibles: ecran('to="…" (Link), navigate("…"), fetch("…")', 'router.push("…")', 'href="…"'),
+    cibles: ecran('to="…" (Link), navigate("…"), fetch("…")', 'href="…"'),
     couvre: ['html:href'],
     description: 'Désigne une destination : la page d’un lien, la page d’une redirection, l’adresse d’une requête. Sans guillemets (lien "Notre site" vers site), le lien ouvre l’adresse rangée dans la variable.',
     exemple: PAGE('    lien "En savoir plus" vers "apropos"') + '\n\npage "apropos" :\n    titre "À propos"',
@@ -401,7 +380,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'structure',
     concept: 'structure.par',
     contextes: ['partout'],
-    cibles: ecran('la nouvelle valeur passée à setX(…)', 'la nouvelle valeur passée à setX(…)', 'une affectation'),
+    cibles: ecran('la nouvelle valeur passée à setX(…)', 'une affectation'),
     couvre: [],
     description: 'Introduit la nouvelle valeur : « changer clics par 0 », « changer texte de "x" par "y" ». Dans une lecture du serveur du fichier, la taille d’un morceau : « envoyer requete vers "produits" par 20 dans produits » ne lit que les 20 premières fiches (de 1 à 500), et « charger la suite de produits » lit les suivantes.',
     exemple: PAGE('    variable clics = 0\n    bouton "Remettre à zéro"\n    quand l\'utilisateur clique sur "Remettre à zéro" :\n        changer clics par 0'),
@@ -416,7 +395,6 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     contextes: ['instruction', 'option'],
     cibles: {
       web: t('className="…" et une feuille CSS recopiée telle quelle'),
-      mobile: null,
       desktop: t('className="…" et une feuille CSS', COMME_WEB),
       serveur: null,
       statique: t('class="…" et une feuille CSS'),
@@ -427,7 +405,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     exemple: 'style :\n    .grand { font-size: 3rem; }\n\npage "accueil" :\n    titre "Bienvenue" avec style "grand"',
     statut: 'supporte',
     etape: 0,
-    note: 'Le CSS ne vaut que pour les cibles web ; le mobile sera décidé plus tard. Les variantes ne valent qu’après « avec ».',
+    note: 'Le CSS ne vaut que pour les cibles web. Les variantes ne valent qu’après « avec ».',
   },
   {
     mot: 'utiliser',
@@ -437,7 +415,6 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     contextes: ['instruction'],
     cibles: {
       web: t("import './styles/theme.css'"),
-      mobile: null,
       desktop: t("import './styles/theme.css'", COMME_WEB),
       serveur: null,
       statique: t('<link rel="stylesheet" href="theme.css">'),
@@ -459,7 +436,6 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     contextes: ['partout'],
     cibles: {
       web: t('const [x, setX] = useState(…)'),
-      mobile: t('const [x, setX] = useState(…)'),
       desktop: t('const [x, setX] = useState(…)', COMME_WEB),
       serveur: null,
       statique: t('let x = …', "suivi d'un rafraîchissement de l'affichage généré"),
@@ -476,7 +452,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'etat',
     concept: 'etat.calcul',
     contextes: ['instruction'],
-    cibles: ecran('const total = … (recalculé à chaque affichage)', 'const total = …', 'une fonction recalculée'),
+    cibles: ecran('const total = … (recalculé à chaque affichage)', 'une fonction recalculée'),
     couvre: ['react:useMemo'],
     description:
       'Une valeur calculée, qui se recalcule seule quand les variables dont elle dépend changent : « calcul total = prix * 2 ».',
@@ -492,7 +468,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     concept: 'etat.constante',
     // Reconnue à son texte (« constante nom = … ») : le lexer n'en fait pas un mot-clé, « constante » reste un nom possible.
     contextes: ['declaration'],
-    cibles: ecran('const tva = 16 (dans chaque page qui la lit)', 'const tva = 16', 'déjà écrite dans la page'),
+    cibles: ecran('const tva = 16 (dans chaque page qui la lit)', 'déjà écrite dans la page'),
     couvre: ['js:const'],
     description:
       'Une valeur fixe, qui ne change jamais : « constante tva = 16 ». Écrite en haut du fichier, elle vaut dans toutes les pages ; dans une page, seulement dans celle-ci. « changer tva par … » est refusé.',
@@ -957,7 +933,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'controle',
     concept: 'condition.si',
     contextes: ['partout'],
-    cibles: ecran('{condition ? … : …} dans la vue, if (…) dans un événement', '{condition ? … : …}', 'if (…)'),
+    cibles: ecran('{condition ? … : …} dans la vue, if (…) dans un événement', 'if (…)'),
     couvre: ['js:if'],
     description: 'Fait quelque chose seulement si une condition est vraie.',
     exemple: PAGE('    variable stock = 0\n    si stock est égal à 0 :\n        afficher "Rupture de stock"'),
@@ -970,7 +946,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'controle',
     concept: 'condition.sinon',
     contextes: ['partout'],
-    cibles: ecran('la branche « : … » ou « else »', 'la branche « : … »', 'else'),
+    cibles: ecran('la branche « : … » ou « else »', 'else'),
     couvre: ['js:else'],
     description: 'Ce qui se passe quand la condition du « si » est fausse.',
     exemple: PAGE('    variable stock = 3\n    si stock est égal à 0 :\n        afficher "Rupture de stock"\n    sinon :\n        bouton "Commander"'),
@@ -983,7 +959,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'controle',
     concept: 'boucle.pour',
     contextes: ['partout'],
-    cibles: ecran('liste.map((nom) => …)', 'FlatList ou liste.map(…)', 'for (const nom of liste)'),
+    cibles: ecran('liste.map((nom) => …)', 'for (const nom of liste)'),
     couvre: ['js:map', 'rn:FlatList', 'html:li'],
     description: 'Répète un bloc pour chaque élément d’une liste : « pour chaque nom dans produits ».',
     exemple: PAGE('    variable produits = ["Livre", "Stylo"]\n    pour chaque nom dans produits :\n        texte nom'),
@@ -996,7 +972,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'controle',
     concept: 'boucle.chaque',
     contextes: ['instruction'],
-    cibles: ecran('le paramètre de liste.map((nom) => …)', 'le paramètre de liste.map(…)', 'for (const nom of …)'),
+    cibles: ecran('le paramètre de liste.map((nom) => …)', 'for (const nom of …)'),
     couvre: [],
     description: 'Suit « pour » : chaque élément de la liste, un par un. Ailleurs, c’est un nom libre.',
     exemple: PAGE('    variable produits = ["Livre", "Stylo"]\n    pour chaque nom dans produits :\n        texte nom'),
@@ -1009,7 +985,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'controle',
     concept: 'boucle.dans',
     contextes: ['partout'],
-    cibles: ecran('la liste parcourue, ou la variable qui reçoit la réponse', 'la liste parcourue', 'la liste parcourue'),
+    cibles: ecran('la liste parcourue, ou la variable qui reçoit la réponse', 'la liste parcourue'),
     couvre: [],
     description: 'Désigne la liste à parcourir, la liste qui reçoit une valeur, ou la variable qui reçoit la réponse d’une requête. Après « est » : la valeur fait partie de la liste (« si categorie est dans ["robes", "pagnes"] »).',
     exemple: PAGE('    variable produits = ["Livre", "Stylo"]\n    pour chaque nom dans produits :\n        texte nom'),
@@ -1151,7 +1127,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     exemple: PAGE('    titre "Accueil"\n    bouton "Saluer"\n    quand l\'utilisateur clique sur "Saluer" :\n        essayer :\n            afficher "Bonjour"\n        si erreur :\n            afficher erreur "Impossible : {raison}"'),
     statut: 'supporte',
     etape: 9,
-    note: 'Web, bureau et mobile ; pas encore le site statique.',
+    note: 'Web et bureau ; pas encore le site statique.',
   },
   {
     mot: 'aujourdhui',
@@ -1199,7 +1175,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'structure',
     concept: 'composant.module',
     contextes: ['declaration'],
-    cibles: ecran('un module JavaScript chargé à part', null, null),
+    cibles: ecran('un module JavaScript chargé à part', null),
     couvre: [],
     description: 'Utilise un module JavaScript sans framework (Three.js, GSAP…) : « utiliser module "Scene3D" depuis "./modules/Scene3D" ». Il reçoit un élément et ses propriétés, et rend de quoi nettoyer.',
     exemple: 'utiliser module "Scene3D" depuis "./modules/Scene3D"\n\npage "accueil" :\n    Scene3D avec couleur "#c1e928"',
@@ -1278,7 +1254,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'option',
     concept: 'option.et',
     contextes: ['partout'],
-    cibles: ecran('une option de plus (ou une donnée de plus dans une requête)', 'une option de plus', 'une option de plus'),
+    cibles: ecran('une option de plus (ou une donnée de plus dans une requête)', 'une option de plus'),
     couvre: ['js:&&'],
     description: 'Enchaîne plusieurs options après « avec », ou plusieurs données dans une requête. Dans un « si » ou un « tant que », relie deux conditions qui doivent être vraies toutes les deux : « si stock est superieur a 0 et prix est inferieur a 20000 ».',
     exemple: PAGE('    titre "Bienvenue" avec couleur bleu et taille grande'),
@@ -1306,7 +1282,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'element',
     concept: 'element.titre',
     contextes: ['instruction'],
-    cibles: ecran('<h1>', '<Text> (style titre)', '<h1>'),
+    cibles: ecran('<h1>', '<h1>'),
     couvre: ['html:h1', 'html:title'],
     description: 'Un grand titre.',
     exemple: PAGE('    titre "Bienvenue"'),
@@ -1319,7 +1295,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'element',
     concept: 'element.texte',
     contextes: ['instruction', 'donnee'],
-    cibles: { ...ecran('<p>', '<Text>', '<p>'), serveur: t('string (type du champ)') },
+    cibles: { ...ecran('<p>', '<p>'), serveur: t('string (type du champ)') },
     couvre: ['html:p', 'rn:Text'],
     description: 'Un paragraphe de texte. Après « changer », le texte d’un élément. Dans une donnée du serveur, le type d’un champ : « nom : texte ».',
     exemple: PAGE('    texte "Ceci est la page d\'accueil"'),
@@ -1332,8 +1308,8 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'element',
     concept: 'element.image',
     contextes: ['instruction'],
-    cibles: ecran('<img src="…" alt="…" width height loading="lazy" decoding="async">', '<Image> (expo-image)', '<img loading="lazy" decoding="async">'),
-    couvre: ['html:img', 'rn:Image', 'expo-image'],
+    cibles: ecran('<img src="…" alt="…" width height loading="lazy" decoding="async">', '<img loading="lazy" decoding="async">'),
+    couvre: ['html:img'],
     description:
       'Une image, désignée par le nom de son fichier (cherché à côté du fichier Humalis, puis recopié dans le projet) ou par une adresse. Sa description est obligatoire : « avec description "…" », ou « avec decorative » si elle ne porte aucune information.',
     exemple: PAGE('    image "photo_profil.png" avec description "Léa, souriant, devant le fleuve"'),
@@ -1346,7 +1322,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'element',
     concept: 'element.bouton',
     contextes: ['instruction'],
-    cibles: ecran('<button type="button">', '<Pressable><Text>…</Text></Pressable>', '<button type="button">'),
+    cibles: ecran('<button type="button">', '<button type="button">'),
     couvre: ['html:button', 'rn:Pressable', 'rn:Button', 'rn:TouchableOpacity'],
     description: 'Un bouton sur lequel on peut cliquer ou appuyer.',
     exemple: PAGE('    bouton "Valider" avec fond vert'),
@@ -1359,7 +1335,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'element',
     concept: 'element.lien',
     contextes: ['instruction'],
-    cibles: ecran('<Link to="…"> (react-router)', '<Link href="…"> (expo-router)', '<a href="….html">'),
+    cibles: ecran('<Link to="…"> (react-router)', '<a href="….html">'),
     couvre: ['html:a', 'react-router:Link'],
     description: 'Un lien vers une autre page, avec « vers ».',
     exemple: PAGE('    lien "En savoir plus" vers "apropos"') + '\n\npage "apropos" :\n    titre "À propos"',
@@ -1372,7 +1348,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'element',
     concept: 'element.champ',
     contextes: ['instruction', 'expression'],
-    cibles: ecran('<label>…<input value={…} onChange={…} /></label>', '<TextInput>', '<label><input></label>'),
+    cibles: ecran('<label>…<input value={…} onChange={…} /></label>', '<label><input></label>'),
     couvre: ['html:input', 'html:label', 'rn:TextInput'],
     description: 'Une zone où l’utilisateur écrit. « champ "email" » désigne aussi sa valeur dans une condition ou une requête.',
     exemple: PAGE('    champ "email"'),
@@ -1387,7 +1363,6 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     contextes: ['instruction', 'evenement'],
     cibles: ecran(
       '<form noValidate onSubmit={…}> ; le bouton devient type="submit"',
-      '<View> ; le bouton (onPress) et la touche « Envoyer » du clavier (onSubmitEditing)',
       '<form>',
     ),
     couvre: ['html:form', 'html:fieldset', 'html:legend', 'react:onSubmit', 'rn:onSubmitEditing'],
@@ -1404,7 +1379,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'element',
     concept: 'element.section',
     contextes: ['miseEnPage'],
-    cibles: ecran('<section className="humalis-section">, et son titre', '<View style={s.section}>', '<section class="humalis-section">'),
+    cibles: ecran('<section className="humalis-section">, et son titre', '<section class="humalis-section">'),
     couvre: ['html:section', 'html:article', 'html:aside', 'html:header', 'html:footer', 'html:main', 'html:hgroup'],
     description:
       'Une partie de la page, avec son titre : « section "Nos plats" : », puis son contenu en dessous, décalé. Le CSS la met en forme avec « avec style "…" ».',
@@ -1419,7 +1394,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'element',
     concept: 'element.bloc',
     contextes: ['miseEnPage'],
-    cibles: ecran('<div className="humalis-bloc">', '<View style={s.bloc}>', '<div class="humalis-bloc">'),
+    cibles: ecran('<div className="humalis-bloc">', '<div class="humalis-bloc">'),
     couvre: ['html:div', 'rn:View'],
     description:
       'Une boîte sans sens particulier, pour regrouper des éléments que le CSS met en forme ensemble (une fiche, une carte).',
@@ -1433,7 +1408,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'element',
     concept: 'element.ligne',
     contextes: ['miseEnPage'],
-    cibles: ecran('<div className="humalis-ligne"> (flex, à la ligne si la place manque)', "<View style={s.ligne}> (flexDirection: 'row')", '<div class="humalis-ligne">'),
+    cibles: ecran('<div className="humalis-ligne"> (flex, à la ligne si la place manque)', '<div class="humalis-ligne">'),
     couvre: ['css:flex-row'],
     description:
       'Des éléments côte à côte, qui passent à la ligne quand la place manque (des boutons, des liens).',
@@ -1447,7 +1422,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'element',
     concept: 'element.colonne',
     contextes: ['miseEnPage'],
-    cibles: ecran('<div className="humalis-colonne"> (flex en colonne)', '<View style={s.colonne}>', '<div class="humalis-colonne">'),
+    cibles: ecran('<div className="humalis-colonne"> (flex en colonne)', '<div class="humalis-colonne">'),
     couvre: ['css:flex-column'],
     description:
       'Des éléments les uns sous les autres, avec un espace régulier entre eux.',
@@ -1461,7 +1436,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'element',
     concept: 'element.grille',
     contextes: ['miseEnPage'],
-    cibles: ecran('<div className="humalis-grille"> (grid, colonnes selon la largeur)', '<View style={s.grille}> (une colonne : le téléphone est étroit)', '<div class="humalis-grille">'),
+    cibles: ecran('<div className="humalis-grille"> (grid, colonnes selon la largeur)', '<div class="humalis-grille">'),
     couvre: ['css:grid'],
     description:
       'Une grille qui s’adapte à la largeur de l’écran : plusieurs colonnes sur un ordinateur, une seule sur un téléphone.',
@@ -1479,7 +1454,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'evenement',
     concept: 'evenement.quand',
     contextes: ['partout'],
-    cibles: ecran('un gestionnaire d’événement (onClick, useEffect…)', 'un gestionnaire d’événement (onPress…)', 'addEventListener(…)'),
+    cibles: ecran('un gestionnaire d’événement (onClick, useEffect…)', 'addEventListener(…)'),
     couvre: [],
     description: 'Ouvre un événement : ce qui doit se passer quand quelque chose arrive.',
     exemple: EN_EVENEMENT('    bouton "Valider"\n', 'quand l\'utilisateur clique sur "Valider"', 'afficher "Merci"'),
@@ -1492,7 +1467,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'evenement',
     concept: 'evenement.utilisateur',
     contextes: ['evenement'],
-    cibles: ecran('un événement déclenché par la personne', 'un événement déclenché par la personne', 'un événement du DOM'),
+    cibles: ecran('un événement déclenché par la personne', 'un événement du DOM'),
     couvre: [],
     description: 'Celui qui utilise l’application, dans « quand l’utilisateur clique sur … ».',
     exemple: EN_EVENEMENT('    bouton "Valider"\n', 'quand l\'utilisateur survole "Valider"', 'afficher "Aperçu"'),
@@ -1505,9 +1480,9 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'evenement',
     concept: 'evenement.clic',
     contextes: ['evenement'],
-    cibles: ecran('onClick={…}', 'onPress={…}', "element.addEventListener('click', …)"),
+    cibles: ecran('onClick={…}', "element.addEventListener('click', …)"),
     couvre: ['react:onClick', 'rn:onPress', 'dom:click'],
-    description: 'Un clic (ou un appui, sur mobile) sur un élément.',
+    description: 'Un clic (ou un appui, sur téléphone) sur un élément.',
     exemple: EN_EVENEMENT('    bouton "Valider"\n', 'quand l\'utilisateur clique sur "Valider"', 'afficher "Merci"'),
     statut: 'supporte',
     etape: 0,
@@ -1518,7 +1493,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'evenement',
     concept: 'evenement.sur',
     contextes: ['evenement'],
-    cibles: ecran('l’élément qui reçoit onClick', 'l’élément qui reçoit onPress', 'l’élément visé'),
+    cibles: ecran('l’élément qui reçoit onClick', 'l’élément visé'),
     couvre: [],
     description: 'Fait partie de « clique sur » : la cible du clic suit.',
     exemple: EN_EVENEMENT('    bouton "Valider"\n', 'quand l\'utilisateur clique sur "Valider"', 'afficher "Merci"'),
@@ -1531,7 +1506,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'evenement',
     concept: 'evenement.survol',
     contextes: ['evenement'],
-    cibles: ecran('onMouseEnter={…}', null, "element.addEventListener('mouseenter', …)"),
+    cibles: ecran('onMouseEnter={…}', "element.addEventListener('mouseenter', …)"),
     couvre: ['react:onMouseEnter', 'react:onPointerEnter'],
     description: 'Le pointeur passe au-dessus d’un élément.',
     exemple: EN_EVENEMENT('    image "produit.png" avec description "Le produit"\n', 'quand l\'utilisateur survole "produit.png"', 'afficher "Aperçu du produit"'),
@@ -1544,7 +1519,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'evenement',
     concept: 'evenement.chargement',
     contextes: ['evenement'],
-    cibles: ecran('useEffect(() => { … }, [])', 'useEffect(() => { … }, [])', "addEventListener('DOMContentLoaded', …)"),
+    cibles: ecran('useEffect(() => { … }, [])', "addEventListener('DOMContentLoaded', …)"),
     couvre: ['react:useEffect', 'dom:load'],
     description: 'La page vient de s’ouvrir, dans « quand la page se charge ».',
     exemple: PAGE('    quand la page se charge :\n        afficher "Chargement terminé"'),
@@ -1557,7 +1532,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'evenement',
     concept: 'evenement.soumission',
     contextes: ['evenement'],
-    cibles: ecran('onSubmit={…} (avec preventDefault)', 'onPress du bouton et onSubmitEditing des saisies', "addEventListener('submit', …)"),
+    cibles: ecran('onSubmit={…} (avec preventDefault)', "addEventListener('submit', …)"),
     couvre: ['react:onSubmit'],
     description: 'Le formulaire vient d’être envoyé (touche Entrée ou bouton), dans « est soumis ».',
     exemple: FORMULAIRE,
@@ -1572,7 +1547,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'action',
     concept: 'action.afficher',
     contextes: ['instruction'],
-    cibles: ecran('un message dans le bandeau de l’application (role="status")', 'un message bref à l’écran', 'un message dans la page'),
+    cibles: ecran('un message dans le bandeau de l’application (role="status")', 'un message dans la page'),
     couvre: [],
     description: 'Montre un message. Pour faire apparaître un élément, on utilise « montrer ».',
     exemple: PAGE('    quand la page se charge :\n        afficher "Bonjour"'),
@@ -1585,7 +1560,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'action',
     concept: 'action.afficherErreur',
     contextes: ['instruction'],
-    cibles: ecran('un message d’erreur dans le bandeau (role="alert")', 'un message d’erreur', 'un message d’erreur'),
+    cibles: ecran('un message d’erreur dans le bandeau (role="alert")', 'un message d’erreur'),
     couvre: ['aria:alert'],
     description: 'Dans « afficher erreur "…" », montre un message d’erreur.',
     exemple: PAGE('    quand la page se charge :\n        afficher erreur "Email requis"'),
@@ -1598,7 +1573,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'action',
     concept: 'action.montrer',
     contextes: ['instruction'],
-    cibles: ecran('setVisibilite({ …, nom: true })', 'un état de visibilité', 'element.hidden = false'),
+    cibles: ecran('setVisibilite({ …, nom: true })', 'element.hidden = false'),
     couvre: [],
     description: 'Fait apparaître un élément caché.',
     exemple: EN_EVENEMENT('    texte "Menu" avec nom "menu"\n    bouton "Ouvrir"\n', 'quand l\'utilisateur clique sur "Ouvrir"', 'montrer "menu"'),
@@ -1611,7 +1586,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'action',
     concept: 'action.cacher',
     contextes: ['instruction'],
-    cibles: ecran('setVisibilite({ …, nom: false })', 'un état de visibilité', 'element.hidden = true'),
+    cibles: ecran('setVisibilite({ …, nom: false })', 'element.hidden = true'),
     couvre: ['html:hidden'],
     description: 'Fait disparaître un élément de la page.',
     exemple: EN_EVENEMENT('    texte "Bienvenue" avec nom "popup"\n    bouton "Fermer"\n', 'quand l\'utilisateur clique sur "Fermer"', 'cacher "popup"'),
@@ -1624,7 +1599,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'action',
     concept: 'action.changer',
     contextes: ['instruction'],
-    cibles: ecran('setX(…), ou setTextes({ …, nom: "…" }) pour un texte', 'setX(…)', 'une affectation'),
+    cibles: ecran('setX(…), ou setTextes({ …, nom: "…" }) pour un texte', 'une affectation'),
     couvre: [],
     description: 'Change le texte d’un élément (« changer texte de … par … ») ou la valeur d’une variable (« changer x par … »).',
     exemple: PAGE('    variable clics = 0\n    bouton "Remettre à zéro"\n    quand l\'utilisateur clique sur "Remettre à zéro" :\n        changer clics par 0'),
@@ -1637,7 +1612,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'action',
     concept: 'action.rediriger',
     contextes: ['instruction'],
-    cibles: ecran('navigate("…") (useNavigate de react-router)', 'router.push("…") (expo-router)', 'location.href = "….html"'),
+    cibles: ecran('navigate("…") (useNavigate de react-router)', 'location.href = "….html"'),
     couvre: ['react-router:useNavigate'],
     description: 'Envoie l’utilisateur vers une autre page.',
     exemple:
@@ -1651,7 +1626,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'action',
     concept: 'liste.ajouter',
     contextes: ['instruction'],
-    cibles: ecran('setListe([...liste, valeur])', 'setListe([...liste, valeur])', 'liste.push(valeur)'),
+    cibles: ecran('setListe([...liste, valeur])', 'liste.push(valeur)'),
     couvre: [],
     description: 'Ajoute une valeur à la fin d’une liste : « ajouter nom à panier ».',
     exemple: PAGE('    variable panier = []\n    bouton "Ajouter une pomme"\n    quand l\'utilisateur clique sur "Ajouter une pomme" :\n        ajouter "Pomme" à panier'),
@@ -1664,7 +1639,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'action',
     concept: 'liste.retirer',
     contextes: ['instruction'],
-    cibles: ecran('setListe(retirer(liste, valeur))', 'setListe(retirer(liste, valeur))', 'liste.splice(…)'),
+    cibles: ecran('setListe(retirer(liste, valeur))', 'liste.splice(…)'),
     couvre: [],
     description: 'Retire une valeur d’une liste : « retirer nom de panier ».',
     exemple: PAGE('    variable panier = ["Pomme"]\n    bouton "Retirer la pomme"\n    quand l\'utilisateur clique sur "Retirer la pomme" :\n        retirer "Pomme" de panier'),
@@ -1690,7 +1665,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'action',
     concept: 'requete.envoyer',
     contextes: ['instruction'],
-    cibles: ecran('fetch("…", { method: "POST", body: … })', 'fetch("…")', 'fetch("…")'),
+    cibles: ecran('fetch("…", { method: "POST", body: … })', 'fetch("…")'),
     couvre: ['web:fetch'],
     description: 'Envoie une requête, dans « envoyer requete vers "…" ».',
     exemple: PAGE('    variable produits = []\n    quand la page se charge :\n        envoyer requete vers "/produits" dans produits'),
@@ -1704,7 +1679,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'action',
     concept: 'requete.requete',
     contextes: ['instruction'],
-    cibles: ecran('fetch("…")', 'fetch("…")', 'fetch("…")'),
+    cibles: ecran('fetch("…")', 'fetch("…")'),
     couvre: ['web:fetch'],
     description: 'La demande envoyée à un serveur pour lire ou envoyer des données.',
     exemple: PAGE('    variable produits = []\n    quand la page se charge :\n        envoyer requete vers "/produits" dans produits'),
@@ -1719,7 +1694,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'option',
     concept: 'option.avec',
     contextes: ['partout'],
-    cibles: ecran('les attributs et les classes de l’élément', 'les propriétés du composant', 'les attributs de la balise'),
+    cibles: ecran('les attributs et les classes de l’élément', 'les attributs de la balise'),
     couvre: [],
     description: 'Introduit les options d’un élément : styles, nom. Introduit aussi les données d’une requête.',
     exemple: PAGE('    titre "Bienvenue" avec couleur bleu'),
@@ -1732,7 +1707,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'option',
     concept: 'option.nom',
     contextes: ['option'],
-    cibles: ecran('l’élément visé par montrer, cacher, changer texte (id="…")', 'une référence à l’élément', 'id="…"'),
+    cibles: ecran('l’élément visé par montrer, cacher, changer texte (id="…")', 'id="…"'),
     couvre: ['html:id'],
     description: 'Donne un nom à un élément, pour le viser depuis un événement : « avec nom "popup" ».',
     exemple: EN_EVENEMENT('    texte "Bienvenue" avec nom "popup"\n    bouton "Fermer"\n', 'quand l\'utilisateur clique sur "Fermer"', 'cacher "popup"'),
@@ -1748,7 +1723,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'style',
     concept: 'style.couleur',
     contextes: ['option'],
-    cibles: ecran('className="humalis-couleur-…" (color)', 'StyleSheet color', 'class="humalis-couleur-…"'),
+    cibles: ecran('className="humalis-couleur-…" (color)', 'class="humalis-couleur-…"'),
     couvre: ['css:color'],
     description: 'La couleur du texte d’un élément.',
     exemple: PAGE('    titre "Bienvenue" avec couleur bleu'),
@@ -1761,7 +1736,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'style',
     concept: 'style.fond',
     contextes: ['option'],
-    cibles: ecran('className="humalis-fond-…" (background)', 'StyleSheet backgroundColor', 'class="humalis-fond-…"'),
+    cibles: ecran('className="humalis-fond-…" (background)', 'class="humalis-fond-…"'),
     couvre: ['css:background-color'],
     description: 'La couleur de fond d’un élément ; le texte posé dessus reste lisible.',
     exemple: PAGE('    bouton "Valider" avec fond vert'),
@@ -1774,7 +1749,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'style',
     concept: 'style.texte',
     contextes: ['option'],
-    cibles: ecran('className="humalis-texte-…" (color)', 'StyleSheet color', 'class="humalis-texte-…"'),
+    cibles: ecran('className="humalis-texte-…" (color)', 'class="humalis-texte-…"'),
     couvre: ['css:color'],
     description: 'Après « avec », la couleur du texte : « bouton "OK" avec fond bleu et texte blanc ».',
     exemple: PAGE('    bouton "OK" avec fond bleu et texte blanc'),
@@ -1787,7 +1762,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'style',
     concept: 'style.taille',
     contextes: ['option'],
-    cibles: ecran('className="humalis-taille-…" (font-size)', 'StyleSheet fontSize', 'class="humalis-taille-…"'),
+    cibles: ecran('className="humalis-taille-…" (font-size)', 'class="humalis-taille-…"'),
     couvre: ['css:font-size', 'html:small'],
     description: 'La taille du texte.',
     exemple: PAGE('    titre "Bienvenue" avec taille grande'),
@@ -1800,7 +1775,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'style',
     concept: 'style.position',
     contextes: ['option'],
-    cibles: ecran('className="humalis-position-…" (text-align)', 'StyleSheet textAlign', 'class="humalis-position-…"'),
+    cibles: ecran('className="humalis-position-…" (text-align)', 'class="humalis-position-…"'),
     couvre: ['css:text-align'],
     description: 'L’alignement du texte : à gauche, au centre ou à droite.',
     exemple: PAGE('    titre "Bienvenue" avec position centrée'),
@@ -1813,7 +1788,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'style',
     concept: 'style.bordure',
     contextes: ['option'],
-    cibles: ecran('className="humalis-bordure-…" (border-radius)', 'StyleSheet borderRadius', 'class="humalis-bordure-…"'),
+    cibles: ecran('className="humalis-bordure-…" (border-radius)', 'class="humalis-bordure-…"'),
     couvre: ['css:border-radius'],
     description: 'La forme des coins : arrondis ou carrés.',
     exemple: PAGE('    bouton "Valider" avec bordure arrondie'),
@@ -1870,7 +1845,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'structure',
     concept: 'composant.depuis',
     contextes: ['declaration'],
-    cibles: ecran('import Carte from "./composants/Carte"', null, null),
+    cibles: ecran('import Carte from "./composants/Carte"', null),
     couvre: ['react:import'],
     description: 'Dit dans quel fichier se trouve un composant React : « utiliser composant "Carte" depuis "./composants/Carte" ».',
     exemple: 'utiliser composant "Carte" depuis "./composants/Carte"\n\npage "accueil" :\n    Carte avec titre "Bienvenue"',
@@ -1884,7 +1859,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'structure',
     concept: 'projet.fichier',
     contextes: ['declaration'],
-    cibles: ecran('les pages du fichier rejoignent le projet', 'les pages du fichier rejoignent le projet', 'les pages du fichier rejoignent le site'),
+    cibles: ecran('les pages du fichier rejoignent le projet', 'les pages du fichier rejoignent le site'),
     couvre: [],
     description: 'Utilise un autre fichier du projet : « utiliser fichier "./panier.humalis" ». Ses pages, ses composants, ses variables partagées et son serveur rejoignent l’application.',
     exemple: 'utiliser fichier "./panier.humalis"\n\npage "accueil" :\n    lien "Voir le panier" vers "panier"',
@@ -1899,13 +1874,13 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'structure',
     concept: 'composant.parametre',
     contextes: ['composant', 'declaration'],
-    cibles: ecran('une propriété du composant React (props.nom)', 'une propriété du composant', null),
+    cibles: ecran('une propriété du composant React (props.nom)', null),
     couvre: ['react:props'],
     description: 'Une valeur que le composant reçoit de la page qui l’utilise : « parametre nom », puis « nom » s’emploie comme une variable. Une page aussi peut en recevoir un, lu dans son adresse : « page "produit" avec parametre id : », et « lien … vers "produit" avec id p.id ».',
     exemple: 'composant "Fiche" :\n    parametre nom\n    parametre prix\n    texte nom\n    texte "{prix} €"\n\npage "accueil" :\n    Fiche avec nom "Livre" et prix 12',
     statut: 'supporte',
     etape: 2,
-    note: 'En tête de ligne dans un composant, ou après « page "…" avec » : ailleurs, « parametre » reste un nom libre. Une page à paramètre a l’adresse /produit/42 sur le web et le mobile, produit.html?id=42 en site statique.',
+    note: 'En tête de ligne dans un composant, ou après « page "…" avec » : ailleurs, « parametre » reste un nom libre. Une page à paramètre a l’adresse /produit/42 sur le web, produit.html?id=42 en site statique.',
   },
   {
     mot: 'partagee',
@@ -1914,7 +1889,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'option',
     concept: 'variable.partagee',
     contextes: ['option'],
-    cibles: ecran('un contexte React (src/humalis/partage.tsx) autour de toutes les pages', null, null),
+    cibles: ecran('un contexte React (src/humalis/partage.tsx) autour de toutes les pages', null),
     couvre: ['react:createContext'],
     description: 'Une variable écrite en haut du fichier, vue et modifiée par toutes les pages : « variable panier = [] avec partagee ».',
     exemple: 'variable panier = [] avec partagee\n\npage "boutique" :\n    calcul total = nombre de panier\n    texte "Articles : {total}"\n\npage "panier" :\n    pour chaque nom dans panier :\n        texte nom',
@@ -1929,7 +1904,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'option',
     concept: 'variable.memorisee',
     contextes: ['option'],
-    cibles: ecran('la valeur est gardée dans le navigateur (localStorage)', null, null),
+    cibles: ecran('la valeur est gardée dans le navigateur (localStorage)', null),
     couvre: ['web:localStorage'],
     description: 'Une variable gardée après un rechargement de la page : « variable visites = 0 avec memorisee ».',
     exemple: 'page "accueil" :\n    variable visites = 0 avec memorisee\n    texte "Visites : {visites}"',
@@ -1945,7 +1920,6 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     contextes: ['option'],
     cibles: {
       web: t('refusé à la compilation', 'le navigateur n’a pas de coffre sûr : un secret n’y est jamais mémorisé'),
-      mobile: null,
       desktop: null,
       serveur: null,
       statique: null,
@@ -2005,7 +1979,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
   {
     mot: 'donnees', variantes: [], categorie: 'structure', concept: 'fichier.donnees',
     contextes: ['declaration'],
-    cibles: { web: { produit: 'liste de fiches intégrée au code' }, mobile: { produit: 'liste de fiches intégrée au code' }, desktop: { produit: 'liste de fiches intégrée au code' }, statique: { produit: 'liste de fiches dans le HTML et le JavaScript' }, serveur: null },
+    cibles: { web: { produit: 'liste de fiches intégrée au code' }, desktop: { produit: 'liste de fiches intégrée au code' }, statique: { produit: 'liste de fiches dans le HTML et le JavaScript' }, serveur: null },
     couvre: [], description: 'Lit un fichier CSV ou JSON voisin à la compilation, en lecture seule.',
     exemple: 'utiliser donnees "produits" depuis "./produits.csv"\npage "accueil" :\n    pour chaque p dans produits :\n        texte p.nom',
     statut: 'supporte', etape: 9,
@@ -2400,7 +2374,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
       'serveur "boutique" :\n    connexion apple\n    donnee commande :\n        nom : texte\n    route "commandes" :\n        seul admin peut lire commande\n\npage "p" :\n    titre "P"\n    bouton "Apple"\n    quand l\'utilisateur clique sur "Apple" :\n        se connecter avec apple',
     statut: 'supporte',
     etape: 9,
-    note: 'Web et cible Apple. Le téléphone Expo, le bureau et le site statique refusent la phrase à la compilation.',
+    note: 'Web et cible Apple. Le bureau et le site statique refusent la phrase à la compilation.',
   },
   {
     mot: 'connecter avec google',
@@ -2411,7 +2385,6 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     cibles: {
       ...AUCUNE,
       ...pageEtServeur('ouvre la fenêtre de Google (page auth-google.html), puis envoie le jeton au serveur'),
-      mobile: t('un message dit que la connexion avec Google n’est pas encore disponible'),
     },
     couvre: ['oauth:google'],
     description:
@@ -2494,7 +2467,6 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     cibles: {
       ...AUCUNE,
       ...pageEtServeur('POST /auth/invitations'),
-      mobile: t('un message renvoie vers le site : pas encore disponible dans l’application'),
     },
     couvre: [],
     description:
@@ -2514,7 +2486,6 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     cibles: {
       ...AUCUNE,
       ...pageEtServeur('POST /auth/forgot-password'),
-      mobile: t('un message renvoie vers le site : pas encore disponible dans l’application'),
     },
     couvre: [],
     description:
@@ -2534,7 +2505,6 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     cibles: {
       ...AUCUNE,
       ...pageEtServeur('POST /auth/reset-password, avec le jeton du fragment de l’adresse'),
-      mobile: t('un message renvoie vers le site : pas encore disponible dans l’application'),
     },
     couvre: [],
     description:
@@ -2628,7 +2598,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'structure',
     concept: 'site.erreursPendant',
     contextes: ['serveur'],
-    cibles: { ...AUCUNE, web: t('la durée des erreurs dans src/humalis/messages.tsx'), desktop: t('la durée des erreurs dans src/humalis/messages.tsx', COMME_WEB), mobile: t('la durée des erreurs dans humalis/messages.tsx'), statique: t('la durée des erreurs dans humalis/humalis.js'), serveur: t('rien : le serveur ne lit pas cette ligne, seules les pages affichent les erreurs') },
+    cibles: { ...AUCUNE, web: t('la durée des erreurs dans src/humalis/messages.tsx'), desktop: t('la durée des erreurs dans src/humalis/messages.tsx', COMME_WEB), statique: t('la durée des erreurs dans humalis/humalis.js'), serveur: t('rien : le serveur ne lit pas cette ligne, seules les pages affichent les erreurs') },
     couvre: [],
     description:
       'Dans le bloc « site : », « erreurs pendant 5 secondes » règle combien de temps restent les erreurs du site, celles que Humalis affiche de lui-même comprises. De 1 à 60 secondes ; sans la ligne, 8 secondes.',
@@ -2860,7 +2830,6 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     contextes: ['interaction'],
     cibles: {
       web: t('telechargerCsv(liste, "nom.csv", afficherMessage) : le fichier se fait dans le navigateur'),
-      mobile: t('la feuille de partage du téléphone, avec le texte du fichier'),
       desktop: t('telechargerCsv(liste, "nom.csv", afficherMessage)', COMME_WEB),
       serveur: null,
       statique: t('telechargerCsv(liste, "nom.csv")'),
@@ -2895,7 +2864,6 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     contextes: ['interaction'],
     cibles: {
       web: t('serveur.telechargerBon(…) : GET /api/<adresse>/:id/bon, puis le PDF est enregistré'),
-      mobile: t('un message dit que ce n’est pas encore disponible'),
       desktop: t('serveur.telechargerBon(…) : GET /api/<adresse>/:id/bon', COMME_WEB),
       serveur: t('GET /api/<adresse>/:id/bon, un PDF fait avec @astratra/pdf', 'seulement si une page s’en sert, avec les droits de lecture de la route'),
       statique: null,
@@ -2934,7 +2902,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'action',
     concept: 'action.charger_suite',
     contextes: ['interaction'],
-    cibles: ecran('lit le morceau suivant (« ?limite=21&depuis=20 ») et l’ajoute à la liste', 'comme le web', 'comme le web'),
+    cibles: ecran('lit le morceau suivant (« ?limite=21&depuis=20 ») et l’ajoute à la liste', 'comme le web'),
     couvre: [],
     description:
       'Une liste longue se lit par morceaux : « envoyer requete vers "produits" par 20 dans produits » lit les 20 premières fiches d’une route du serveur du fichier. Dans un événement, « charger la suite de produits » lit le morceau suivant, dans la même page, et l’ajoute à la liste. Deux demandes parties ensemble n’ajoutent pas deux fois les mêmes fiches ; une lecture ratée n’ajoute rien et se redemande.',
@@ -2949,7 +2917,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'comparaison',
     concept: 'comparaison.suite',
     contextes: ['tournure'],
-    cibles: ecran('vrai tant que le serveur a encore des fiches après celles de la liste', 'comme le web', 'comme le web'),
+    cibles: ecran('vrai tant que le serveur a encore des fiches après celles de la liste', 'comme le web'),
     couvre: [],
     description:
       'Une condition : « produits a une suite » est vrai tant qu’il reste des fiches à lire pour une liste lue « par 20 » ; « produits n’a pas de suite » dit le contraire. Sert à garder ou retirer le bouton « Voir plus ».',
@@ -2963,7 +2931,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'action',
     concept: 'action.viderChamp',
     contextes: ['tournure'],
-    cibles: ecran('setChamp("")', 'champ = ""', 'champ = ""'),
+    cibles: ecran('setChamp("")', 'champ = ""'),
     couvre: [],
     description: 'Remet un champ à vide (« vider champ "Message" »), après un envoi par exemple.',
     exemple: PAGE('    champ "Message"\n    bouton "Effacer"\n    quand l\'utilisateur clique sur "Effacer" :\n        vider champ "Message"'),
@@ -2979,7 +2947,6 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     contextes: ['interaction'],
     cibles: ecran(
       'le thème inverse de celui qu’on voit (clair ↔ sombre), gardé par l’appareil',
-      'le thème inverse de celui de l’appareil, pour la session',
       'le thème inverse de celui qu’on voit, gardé par l’appareil',
     ),
     couvre: [],
@@ -3148,7 +3115,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'option',
     concept: 'langues.sansTraduction',
     contextes: ['tournure'],
-    cibles: ecran('le même texte dans toutes les langues, sans entrée dans les traductions', 'le même texte dans toutes les langues', 'le même texte dans toutes les langues'),
+    cibles: ecran('le même texte dans toutes les langues, sans entrée dans les traductions', 'le même texte dans toutes les langues'),
     couvre: [],
     description: 'Après un texte, « "GitHub" sans traduction » le garde tel quel dans toutes les langues : un nom propre, une marque. Il ne se combine pas avec « en anglais "…" ».',
     exemple: 'langues :\n    francais\n    anglais\n\npage "accueil" :\n    titre "Bienvenue" en anglais "Welcome"\n    texte "GitHub" sans traduction',
@@ -3163,7 +3130,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'element',
     concept: 'element.listeNumerotee',
     contextes: ['tournure'],
-    cibles: ecran('<ol> et ses <li>', 'une liste numérotée de lignes', '<ol>'),
+    cibles: ecran('<ol> et ses <li>', '<ol>'),
     couvre: ['html:ol'],
     description: 'Une liste dont chaque entrée est numérotée : « liste numerotee : », puis une instruction par entrée. Sans « numerotee », « liste : » donne des puces.',
     exemple: PAGE('    liste numerotee :\n        texte "Mélanger"\n        texte "Cuire"'),
@@ -3178,7 +3145,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'structure',
     concept: 'element.tableau.rangee',
     contextes: ['tournure'],
-    cibles: ecran('une ligne <tr> du tableau', 'une ligne du tableau', 'une ligne <tr> du tableau'),
+    cibles: ecran('une ligne <tr> du tableau', 'une ligne <tr> du tableau'),
     couvre: ['html:tr'],
     description: 'Dans un tableau, une ligne de cellules séparées par des virgules : « rangee "Livre", "10" ». « colonnes » écrit les titres de colonnes.',
     exemple: PAGE('    tableau "Produits" :\n        colonnes "Nom", "Prix"\n        rangee "Livre", "10"\n        rangee "Cahier", "4"'),
@@ -3192,7 +3159,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'option',
     concept: 'menu.repliable',
     contextes: ['miseEnPage'],
-    cibles: ecran('un bouton « Menu » (burger) ouvre et ferme les liens sur un petit écran', 'les liens restent visibles : aucun style propre sur le téléphone', 'un bouton « Menu » ouvre et ferme les liens sur un petit écran'),
+    cibles: ecran('un bouton « Menu » (burger) ouvre et ferme les liens sur un petit écran', 'un bouton « Menu » ouvre et ferme les liens sur un petit écran'),
     couvre: [],
     description: 'Après « menu » : « menu repliable : » range les liens derrière un bouton « Menu » sur un petit écran. Se combine avec « vertical », dans n’importe quel ordre.',
     exemple: PAGE('    menu repliable :\n        lien "Accueil" vers "accueil"\n        lien "Carte" vers "carte"') + '\n\npage "carte" :\n    titre "Carte"',
@@ -3206,7 +3173,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'option',
     concept: 'menu.vertical',
     contextes: ['miseEnPage'],
-    cibles: ecran('les liens du menu en colonne', 'les liens du menu en colonne', 'les liens du menu en colonne'),
+    cibles: ecran('les liens du menu en colonne', 'les liens du menu en colonne'),
     couvre: [],
     description: 'Après « menu » : « menu vertical : » met les liens en colonne au lieu de côte à côte. Se combine avec « repliable », dans n’importe quel ordre.',
     exemple: PAGE('    menu vertical :\n        lien "Accueil" vers "accueil"\n        lien "Carte" vers "carte"') + '\n\npage "carte" :\n    titre "Carte"',
@@ -3220,7 +3187,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'option',
     concept: 'animation.cascade',
     contextes: ['option'],
-    cibles: ecran('le bloc reste en place, ses enfants s’animent l’un après l’autre (80 ms d’écart)', 'sans effet sur le téléphone : l’animation « au defilement » n’y existe pas', 'comme la cible web : le CSS du mouvement'),
+    cibles: ecran('le bloc reste en place, ses enfants s’animent l’un après l’autre (80 ms d’écart)', 'comme la cible web : le CSS du mouvement'),
     couvre: ['css:animation-delay'],
     description: 'Après « avec animation montee au defilement » : « et en cascade » fait apparaître les enfants du bloc l’un après l’autre quand il arrive à l’écran.',
     exemple: PAGE('    grille avec animation montee au defilement et en cascade :\n        texte "a"\n        texte "b"'),
@@ -3237,7 +3204,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'element',
     concept: 'element.soustitre',
     contextes: ['instruction'],
-    cibles: ecran('<h2> à <h6>, selon l’option niveau', '<Text> (style sous-titre)', '<h2>'),
+    cibles: ecran('<h2> à <h6>, selon l’option niveau', '<h2>'),
     couvre: ['html:h2', 'html:h3', 'html:h4', 'html:h5', 'html:h6', 'html:hgroup'],
     description: 'Un titre de section, plus petit que le titre de la page.',
     exemple: PAGE('    soustitre "Détails" avec niveau 3'),
@@ -3250,7 +3217,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'element',
     concept: 'element.liste',
     contextes: ['instruction'],
-    cibles: ecran('<ul> et ses <li>', 'FlatList', '<ul>'),
+    cibles: ecran('<ul> et ses <li>', '<ul>'),
     couvre: ['html:ul', 'html:ol', 'html:li', 'html:menu', 'rn:FlatList'],
     description: 'Une liste à puces (ou numérotée). Ailleurs, « liste » reste un nom de variable possible.',
     exemple: PAGE('    liste :\n        texte "Livre"'),
@@ -3264,7 +3231,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'element',
     concept: 'element.tableau',
     contextes: ['instruction'],
-    cibles: ecran('<table> et ses lignes', 'une liste de lignes', '<table>'),
+    cibles: ecran('<table> et ses lignes', '<table>'),
     couvre: ['html:table', 'html:thead', 'html:tbody', 'html:tr', 'html:td', 'html:th', 'html:caption'],
     description: 'Un tableau, décrit par ses colonnes et la liste qu’il affiche.',
     exemple: PAGE('    tableau "Produits" :\n        colonnes "Nom", "Prix"\n        rangee "Livre", "10"'),
@@ -3281,7 +3248,6 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     contextes: ['miseEnPage'],
     cibles: ecran(
       '<Fenetre> (src/humalis/fenetre.tsx) : <dialog> ouvert par showModal(), Échap, la croix ou un clic à côté la ferment',
-      '<Fenetre> (humalis/fenetre.tsx) : <Modal>, fermée par le bouton retour d’Android et le geste d’iOS',
       'humalis.fenetre(…) : <dialog> écrit fermé dans le HTML, ouvert par showModal()',
     ),
     couvre: ['html:dialog', 'rn:Modal', 'aria:aria-modal'],
@@ -3298,8 +3264,8 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'element',
     concept: 'element.video',
     contextes: ['miseEnPage'],
-    cibles: ecran('<video controls preload="metadata" playsinline src aria-label> (jamais autoplay)', '<VideoView> (expo-video)', '<video controls preload="metadata" playsinline src aria-label>'),
-    couvre: ['html:video', 'expo:expo-video'],
+    cibles: ecran('<video controls preload="metadata" playsinline src aria-label> (jamais autoplay)', '<video controls preload="metadata" playsinline src aria-label>'),
+    couvre: ['html:video'],
     description: 'Une vidéo avec ses commandes : « video "film.mp4" avec commandes et description "Présentation de la boutique" ». La description est obligatoire : elle nomme le lecteur. « avec commandes » est obligatoire aussi : la vidéo ne démarre jamais toute seule. « et transcription "…" » ajoute le texte de ce qui est dit ; « et boucle » la relance à la fin.',
     exemple: PAGE('    video "film.mp4" avec commandes et description "Présentation de la boutique"'),
     statut: 'supporte',
@@ -3311,7 +3277,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'option',
     concept: 'option.indice',
     contextes: ['option'],
-    cibles: ecran('placeholder="…" ; pour une liste déroulante, sa première option', 'placeholder="…" (TextInput)', 'placeholder="…"'),
+    cibles: ecran('placeholder="…" ; pour une liste déroulante, sa première option', 'placeholder="…"'),
     couvre: ['html:placeholder', 'rn:TextInput.placeholder'],
     description: 'Le texte gris affiché dans un champ vide, pour guider l’utilisateur.',
     exemple: PAGE('    champ "email" avec indice "vous@exemple.fr"'),
@@ -3324,7 +3290,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'option',
     concept: 'option.obligatoire',
     contextes: ['option'],
-    cibles: ecran('required, et une vérification avant l’envoi', 'une vérification avant l’envoi', 'required'),
+    cibles: ecran('required, et une vérification avant l’envoi', 'required'),
     couvre: ['html:required'],
     description:
       'Un champ qu’il faut remplir (une case à cocher : qu’il faut cocher). Sans lui, le formulaire n’est pas envoyé et un message dit quoi corriger.',
@@ -3418,14 +3384,14 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'element',
     concept: 'element.menu',
     contextes: ['miseEnPage'],
-    cibles: ecran('<nav className="humalis-menu"> (flex, à la ligne si la place manque)', "<View style={s.menu}> (flexDirection: 'row')", '<nav class="humalis-menu">'),
+    cibles: ecran('<nav className="humalis-menu"> (flex, à la ligne si la place manque)', '<nav class="humalis-menu">'),
     couvre: ['html:nav'],
     description:
       'Le menu de navigation d’une page : des liens côte à côte. Le lien de la page affichée est marqué (classe humalis-actif, aria-current) pour que le CSS le mette en valeur.',
     exemple: PAGE('    menu :\n        lien "Accueil" vers "accueil"\n        lien "Carte" vers "carte"') + '\n\npage "carte" :\n    titre "Carte"',
     statut: 'supporte',
     etape: 9,
-    note: 'En tête de ligne, suivi de « : » : ailleurs, « menu » reste un nom libre. Sur le mobile, le lien actif n’est pas marqué.',
+    note: 'En tête de ligne, suivi de « : » : ailleurs, « menu » reste un nom libre.',
   },
   {
     mot: 'desactive',
@@ -3434,7 +3400,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     categorie: 'option',
     concept: 'option.desactive',
     contextes: ['option'],
-    cibles: ecran('disabled', 'disabled (Pressable)', 'disabled'),
+    cibles: ecran('disabled', 'disabled'),
     couvre: ['html:disabled'],
     description: 'Un bouton ou un champ sur lequel on ne peut pas agir pour l’instant : « avec desactive », ou « avec desactive si … » qui suit une condition.',
     exemple: PAGE('    variable panier = []\n    variable verrou = vrai\n    bouton "Payer" avec desactive si panier est vide\n    champ "Référence" avec desactive si verrou'),

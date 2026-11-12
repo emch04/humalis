@@ -22,7 +22,7 @@ export interface WidgetProduit {
   id: string;
   /** Les classes CSS (styles nommés, `avec style`), séparées par des espaces. */
   classes: string;
-  /** Les noms de style (`taille_grande`…), pour le mobile. */
+  /** Les noms de style (`taille_grande`…). */
   styles: string[];
   /** La valeur, en expression JavaScript. */
   valeur: string;

@@ -59,12 +59,12 @@ describe('la table de vocabulaire : sa forme', () => {
     }
   });
 
-  it('a une description, un concept, un exemple et les cinq cibles pour chaque entrée', () => {
+  it('a une description, un concept, un exemple et les quatre cibles pour chaque entrée', () => {
     for (const e of VOCABULAIRE) {
       expect(e.description, e.mot).not.toBe('');
       expect(e.concept, e.mot).toMatch(/^[a-zA-Z]+\.[a-zA-Z0-9_.]+$/);
       expect(e.exemple, e.mot).not.toBe('');
-      expect(Object.keys(e.cibles).sort(), e.mot).toEqual(['desktop', 'mobile', 'serveur', 'statique', 'web']);
+      expect(Object.keys(e.cibles).sort(), e.mot).toEqual(['desktop', 'serveur', 'statique', 'web']);
       expect(['supporte', 'prevu'], e.mot).toContain(e.statut);
     }
   });

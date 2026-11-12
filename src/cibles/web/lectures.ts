@@ -10,35 +10,37 @@ import { camel, chaine } from './noms.js';
  * puis relit le serveur ; un envoi vers une route oublie ses lectures.
  * Seules les réponses que le serveur permet de garder (« max-age », que le
  * serveur produit met sur ce que tout le monde peut lire) le sont : jamais
- * celles d'une route réservée (« no-store »). Le web les garde aussi pour l'onglet
- * (sessionStorage, avec une taille limitée) ; le mobile, en mémoire.
+ * celles d'une route réservée (« no-store »). Elles sont gardées aussi pour l'onglet
+ * (sessionStorage, avec une taille limitée).
  */
-export function lecturesTs(plateforme: 'web' | 'mobile'): string {
-  const web = plateforme === 'web';
-  return `/**
+export const LECTURES_TS = `/**
  * Produit par Humalis : la dernière réponse de chaque lecture (GET) du serveur.
  * Une page déjà vue s'affiche tout de suite avec elle, puis se met à jour quand
  * le serveur répond. Seules les réponses que le serveur permet de garder
  * (Cache-Control « max-age ») le sont : jamais celles d'une route réservée
  * (connecté, admin), qui répond « no-store ».
  */
-${web ? "\n/** L'adresse du serveur : la même origine par défaut, ou VITE_HUMALIS_SERVEUR. */\nconst BASE: string = import.meta.env?.VITE_HUMALIS_SERVEUR ?? '';\n" : ''}
+
+/** L'adresse du serveur : la même origine par défaut, ou VITE_HUMALIS_SERVEUR. */
+const BASE: string = import.meta.env?.VITE_HUMALIS_SERVEUR ?? '';
+
 /** Le nombre d'adresses gardées en mémoire ; les plus anciennes partent d'abord. */
 const MAXIMUM = 60;
 /** Après un envoi, les lectures de sa route demandent au serveur (pas au cache du navigateur) pendant 5 min 30. */
 const FRAICHEUR = 330_000;
 /** Une lecture préparée (survol d'un lien) n'est pas refaite avant 30 secondes. */
 const PREPAREE = 30_000;
-${web ? `/** Ce que l'onglet garde (sessionStorage) : une réponse de plus de 200 000 caractères (des photos) reste en mémoire seulement. */
+/** Ce que l'onglet garde (sessionStorage) : une réponse de plus de 200 000 caractères (des photos) reste en mémoire seulement. */
 const CLE = 'humalis:lectures';
 const TAILLE_UNE = 200_000;
 const TAILLE_TOUTES = 1_000_000;
-` : ''}
+
 const gardees = new Map<string, unknown>();
-${web ? 'const textes = new Map<string, string>();\n' : ''}const enCours = new Map<string, Promise<Response>>();
+const textes = new Map<string, string>();
+const enCours = new Map<string, Promise<Response>>();
 const envois = new Map<string, number>();
 const preparees = new Map<string, number>();
-${web ? `
+
 // Au rechargement de l'onglet, les réponses gardées pour lui.
 try {
   const stockees = JSON.parse(sessionStorage.getItem(CLE) ?? '{}') as Record<string, string>;
@@ -65,7 +67,7 @@ function enregistrer(): void {
     // Stockage plein ou interdit : la mémoire suffit.
   }
 }
-` : ''}
+
 /** « /api/photos?produit=a » et « /api/photos/12 » sont de la route « /api/photos ». */
 const deLaRoute = (adresse: string, route: string) => adresse === route || adresse.startsWith(route + '/') || adresse.startsWith(route + '?');
 
@@ -85,11 +87,12 @@ export function garder(adresse: string, valeur: unknown, texte: string): void {
   for (const ancienne of gardees.keys()) {
     if (gardees.size <= MAXIMUM) break;
     gardees.delete(ancienne);
-${web ? '    textes.delete(ancienne);\n' : ''}  }
-${web ? `  textes.delete(adresse);
+    textes.delete(ancienne);
+  }
+  textes.delete(adresse);
   if (texte.length <= TAILLE_UNE) textes.set(adresse, texte);
   enregistrer();
-` : '  void texte;\n'}}
+}
 
 /** Un envoi réussi (POST, PATCH, DELETE) : les lectures de sa route sont oubliées, et relues au serveur. */
 export function oublier(adresse: string, methode: string): void {
@@ -98,9 +101,11 @@ export function oublier(adresse: string, methode: string): void {
   const route = methode === 'POST' ? chemin : chemin.replace(/\\/[^/]*$/, '');
   envois.set(route, Date.now());
   for (const cle of [...gardees.keys()]) if (deLaRoute(cle, route)) gardees.delete(cle);
-${web ? '  for (const cle of [...textes.keys()]) if (deLaRoute(cle, route)) textes.delete(cle);\n' : ''}  for (const cle of [...enCours.keys()]) if (deLaRoute(cle, route)) enCours.delete(cle);
+  for (const cle of [...textes.keys()]) if (deLaRoute(cle, route)) textes.delete(cle);
+  for (const cle of [...enCours.keys()]) if (deLaRoute(cle, route)) enCours.delete(cle);
   for (const cle of [...preparees.keys()]) if (deLaRoute(cle, route)) preparees.delete(cle);
-${web ? '  enregistrer();\n' : ''}}
+  enregistrer();
+}
 
 /**
  * Vrai pour une réponse que le serveur permet de garder : une lecture que tout le monde peut faire
@@ -131,7 +136,7 @@ export async function lireEnCommun(adresse: string, url: string, options: Reques
   }
   return (await attente).clone();
 }
-${web ? `
+
 /**
  * Prépare la lecture d'une page sur le point d'être ouverte (survol ou toucher
  * d'un lien) : sa réponse est gardée, la page s'affiche aussitôt avec elle.
@@ -148,8 +153,7 @@ export function prelire(adresse: string): void {
     })
     .catch(() => preparees.delete(adresse));
 }
-` : '\nvoid PREPAREE;\n'}`;
-}
+`;
 
 /**
  * Le chargement en avance (src/humalis/prechargement.ts) : le morceau de

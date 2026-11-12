@@ -11,11 +11,10 @@ import type { Cible, EntreeVocabulaire, Traduction } from './types.js';
 
 const t = (produit: string): Traduction => ({ produit });
 
-/** Un mot d'écran : web, mobile et statique ; le bureau reprend le web. */
-function ecran(web: string, mobile: string | null, statique: string | null): Readonly<Record<Cible, Traduction | null>> {
+/** Un mot d'écran : web et statique ; le bureau reprend le web. */
+function ecran(web: string, statique: string | null): Readonly<Record<Cible, Traduction | null>> {
   return {
     web: t(web),
-    mobile: mobile === null ? null : t(mobile),
     desktop: { produit: web, note: 'comme la cible web : Electron affiche la page web' },
     serveur: null,
     statique: statique === null ? null : t(statique),
@@ -25,7 +24,7 @@ function ecran(web: string, mobile: string | null, statique: string | null): Rea
 const PAGE = (corps: string) => `page "accueil" :\n${corps}`;
 
 /** Une option de mouvement : une classe CSS rangée dans « prefers-reduced-motion: no-preference ». */
-function mouvement(mot: string, accentue: string | undefined, description: string, exemple: string, mobile: string | null, note?: string): EntreeVocabulaire {
+function mouvement(mot: string, accentue: string | undefined, description: string, exemple: string, note?: string): EntreeVocabulaire {
   return {
     mot,
     ...(accentue ? { accentue } : {}),
@@ -33,7 +32,7 @@ function mouvement(mot: string, accentue: string | undefined, description: strin
     categorie: 'style',
     concept: `style.${mot}`,
     contextes: ['option'],
-    cibles: ecran(`className="humalis-${mot}-…" (CSS dans @media (prefers-reduced-motion: no-preference))`, mobile, `class="humalis-${mot}-…"`),
+    cibles: ecran(`className="humalis-${mot}-…" (CSS dans @media (prefers-reduced-motion: no-preference))`, `class="humalis-${mot}-…"`),
     couvre: [`css:${mot}`, 'css:prefers-reduced-motion'],
     description,
     exemple,
@@ -53,7 +52,7 @@ function valeur(mot: string, valeurDe: readonly string[], description: string, e
     concept: `valeurStyle.${mot}`,
     contextes: ['valeurStyle'],
     valeurDe,
-    cibles: ecran(`className="humalis-${valeurDe[0]}-${mot}"`, `Animated (${valeurDe[0]} ${mot})`, `class="humalis-${valeurDe[0]}-${mot}"`),
+    cibles: ecran(`className="humalis-${valeurDe[0]}-${mot}"`, `class="humalis-${valeurDe[0]}-${mot}"`),
     couvre: ['css'],
     description,
     exemple,
@@ -66,7 +65,7 @@ const ANIME = (options: string) => PAGE(`    titre "Le Fleuve" avec ${options}`)
 const IMAGE = (options: string) => PAGE(`    image "salle.jpg" avec ${options}`);
 
 /** Une option dont la valeur est libre (un texte, deux nombres, ou aucune), vérifiée avec l'élément. */
-function reglage(mot: string, accentue: string | undefined, description: string, exemple: string, surElements: readonly string[], web: string, mobile: string, statique: string): EntreeVocabulaire {
+function reglage(mot: string, accentue: string | undefined, description: string, exemple: string, surElements: readonly string[], web: string, statique: string): EntreeVocabulaire {
   return {
     mot,
     ...(accentue ? { accentue } : {}),
@@ -74,7 +73,7 @@ function reglage(mot: string, accentue: string | undefined, description: string,
     categorie: 'style',
     concept: `style.${mot}`,
     contextes: ['option'],
-    cibles: ecran(web, mobile, statique),
+    cibles: ecran(web, statique),
     couvre: [],
     description,
     exemple,
@@ -92,17 +91,15 @@ export const ENTREES_MEDIAS: readonly EntreeVocabulaire[] = [
     undefined,
     'Une animation d’entrée, jouée une fois quand l’élément apparaît : apparition, montee ou agrandissement. « au defilement » attend que l’élément entre à l’écran. Elle ne se joue jamais si l’appareil demande de réduire les animations.',
     ANIME('animation montee'),
-    'Animated.View (opacité, déplacement, échelle), sauf si « réduire les animations » est demandé',
     'Aucune animation sans fin : seules les entrées existent. Sur le téléphone, « au defilement » se joue au premier affichage.',
   ),
-  mouvement('duree', 'durée', 'La durée d’une animation : courte (150 ms), moyenne (300 ms, par défaut) ou longue (600 ms).', ANIME('animation apparition et duree longue'), 'la durée d’Animated.timing'),
-  mouvement('delai', 'délai', 'L’attente avant qu’une animation commence, pour les échelonner : court (100 ms), moyen (250 ms) ou long (500 ms).', ANIME('animation montee et delai court'), 'le délai d’Animated.timing'),
+  mouvement('duree', 'durée', 'La durée d’une animation : courte (150 ms), moyenne (300 ms, par défaut) ou longue (600 ms).', ANIME('animation apparition et duree longue')),
+  mouvement('delai', 'délai', 'L’attente avant qu’une animation commence, pour les échelonner : court (100 ms), moyen (250 ms) ou long (500 ms).', ANIME('animation montee et delai court')),
   mouvement(
     'transition',
     undefined,
     'Adoucit les changements de couleur, de fond, de bordure, d’ombre ou de position quand l’état change (survol, variable) : « transition douce ».',
     PAGE('    bouton "Réserver" avec transition douce'),
-    null,
     'Sans effet sur le téléphone (un avertissement le dit).',
   ),
   mouvement(
@@ -110,7 +107,6 @@ export const ENTREES_MEDIAS: readonly EntreeVocabulaire[] = [
     undefined,
     'Une réaction au survol, au focus et à l’appui : « effet leve » soulève l’élément, « effet agrandi » le grossit un peu.',
     PAGE('    bloc avec effet leve et ombre legere :\n        texte "Poisson braisé"'),
-    'l’état d’appui d’un Pressable',
   ),
   valeur('apparition', ['animation'], 'L’élément apparaît en fondu.', ANIME('animation apparition')),
   valeur('montee', ['animation'], 'L’élément apparaît en montant un peu.', ANIME('animation montee'), [], 'montée'),
@@ -129,7 +125,6 @@ export const ENTREES_MEDIAS: readonly EntreeVocabulaire[] = [
     IMAGE('description "La salle" et prioritaire'),
     ['image'],
     'fetchPriority="high", sans loading="lazy"',
-    'priority="high" (expo-image)',
     'fetchpriority="high", sans loading="lazy"',
   ),
   reglage(
@@ -139,7 +134,6 @@ export const ENTREES_MEDIAS: readonly EntreeVocabulaire[] = [
     IMAGE('description "La salle" et proportions 16 sur 9'),
     ['image', 'graphique'],
     'style={{ aspectRatio: "4 / 3" }}',
-    'style={{ aspectRatio: 4 / 3 }}',
     'style="aspect-ratio: 4 / 3"',
   ),
   optionImage(
@@ -157,7 +151,7 @@ export const ENTREES_MEDIAS: readonly EntreeVocabulaire[] = [
     categorie: 'element',
     concept: 'element.audio',
     contextes: ['miseEnPage'],
-    cibles: ecran('<audio controls preload="none" src aria-label> (jamais autoplay)', 'un lecteur fait de Pressable, avec expo-audio', '<audio controls preload="none" src aria-label>'),
+    cibles: ecran('<audio controls preload="none" src aria-label> (jamais autoplay)', '<audio controls preload="none" src aria-label>'),
     couvre: ['html:audio'],
     description:
       'Un lecteur de son avec ses commandes : « audio "extrait.mp3" avec description "Extrait de la chanson" ». La description est obligatoire : elle nomme le lecteur. Le son ne démarre jamais tout seul ; rien n’est téléchargé avant que la personne le lance. « et transcription "…" » ajoute le texte de ce qui est dit, sous le lecteur ; « et boucle » le relance à la fin.',
@@ -173,7 +167,6 @@ export const ENTREES_MEDIAS: readonly EntreeVocabulaire[] = [
     PAGE('    audio "entretien.mp3" avec description "Entretien avec la cheffe" et transcription "Bonjour et bienvenue au Fleuve."'),
     ['audio', 'video'],
     '<details><summary>Lire la transcription</summary>…</details>',
-    'un Text sous le lecteur',
     '<details><summary>Lire la transcription</summary>…</details>',
   ),
   reglage(
@@ -183,7 +176,6 @@ export const ENTREES_MEDIAS: readonly EntreeVocabulaire[] = [
     PAGE('    audio "ambiance.mp3" avec description "Ambiance de la salle" et boucle'),
     ['audio', 'video'],
     'loop',
-    'loop (expo-audio)',
     'loop',
   ),
   reglage(
@@ -193,7 +185,6 @@ export const ENTREES_MEDIAS: readonly EntreeVocabulaire[] = [
     PAGE('    video "film.mp4" avec commandes et description "Présentation de la boutique"'),
     ['video'],
     'controls',
-    'nativeControls (expo-video)',
     'controls',
   ),
 
@@ -206,7 +197,6 @@ export const ENTREES_MEDIAS: readonly EntreeVocabulaire[] = [
     contextes: ['miseEnPage'],
     cibles: {
       web: t('<input type="file" accept="…"> masqué et un <label> qui l’ouvre ; aperçu par URL.createObjectURL'),
-      mobile: null,
       desktop: { produit: '<input type="file"> comme le web', note: 'comme la cible web : Electron ouvre le sélecteur du système' },
       serveur: null,
       statique: null,
@@ -217,7 +207,7 @@ export const ENTREES_MEDIAS: readonly EntreeVocabulaire[] = [
     exemple: PAGE('    variable photo = rien\n    fichier "Choisir une photo" dans photo accepte images avec maximum 5 Mo'),
     statut: 'supporte',
     etape: 10,
-    note: 'Web et bureau seulement pour l’instant : le mobile et le site statique le refusent à la compilation.',
+    note: 'Web et bureau seulement pour l’instant : le site statique le refuse à la compilation.',
   },
   {
     mot: 'accepte',
@@ -225,7 +215,7 @@ export const ENTREES_MEDIAS: readonly EntreeVocabulaire[] = [
     categorie: 'option',
     concept: 'fichier.accepte',
     contextes: ['miseEnPage'],
-    cibles: ecran('l’attribut accept de l’entrée de fichier', null, null),
+    cibles: ecran('l’attribut accept de l’entrée de fichier', null),
     couvre: ['html:accept'],
     description: 'Après un choix de fichier, les sortes de fichier permises : images, audio, videos, pdf, documents (« accepte images ou pdf »). Sans « accepte », tout fichier est permis et le serveur doit vérifier.',
     exemple: PAGE('    variable photo = rien\n    fichier "Choisir" dans photo accepte images ou pdf'),
@@ -238,7 +228,7 @@ export const ENTREES_MEDIAS: readonly EntreeVocabulaire[] = [
     categorie: 'structure',
     concept: 'fichier.suivi',
     contextes: ['source'],
-    cibles: ecran('la progression de xhr.upload.onprogress, de 0 à 100', null, null),
+    cibles: ecran('la progression de xhr.upload.onprogress, de 0 à 100', null),
     couvre: [],
     description: 'Dans « envoyer fichier … », la variable nombre qui reçoit la progression de l’envoi, de 0 à 100 : « suivi dans envoi ». Elle s’affiche avec « progression envoi ».',
     exemple:
@@ -252,7 +242,7 @@ export const ENTREES_MEDIAS: readonly EntreeVocabulaire[] = [
     categorie: 'structure',
     concept: 'fichier.brut',
     contextes: ['source'],
-    cibles: ecran('le fichier seul comme corps de la requête (Blob)', null, null),
+    cibles: ecran('le fichier seul comme corps de la requête (Blob)', null),
     couvre: [],
     description: 'Dans « envoyer fichier … », « en corps brut » envoie le fichier seul, comme le veulent certaines API ; sans cela, un formulaire (multipart) est envoyé sous le nom « fichier », ou sous « sous le nom "photo" ».',
     exemple:
@@ -270,7 +260,6 @@ export const ENTREES_MEDIAS: readonly EntreeVocabulaire[] = [
     contextes: ['miseEnPage'],
     cibles: ecran(
       'le composant CarteLieux : une carte Leaflet 1.9.4 (tuiles OpenStreetMap) et, dessous, la liste des lieux',
-      'MapView de react-native-maps (Apple Plans sur iPhone, Google Maps sur Android) et la liste des lieux',
       'une carte Leaflet 1.9.4 recopiée dans humalis/ (sans CDN) et la liste des lieux, déjà dans le HTML de départ',
     ),
     couvre: ['html:map'],
@@ -287,7 +276,7 @@ export const ENTREES_MEDIAS: readonly EntreeVocabulaire[] = [
     categorie: 'element',
     concept: 'element.marqueur',
     contextes: ['miseEnPage'],
-    cibles: ecran('un repère Leaflet focalisable au clavier, avec une bulle (nom, adresse)', '<Marker coordinate title description> de react-native-maps', 'un repère Leaflet focalisable au clavier, avec une bulle (nom, adresse)'),
+    cibles: ecran('un repère Leaflet focalisable au clavier, avec une bulle (nom, adresse)', 'un repère Leaflet focalisable au clavier, avec une bulle (nom, adresse)'),
     couvre: [],
     description:
       'Un lieu de la carte : « marqueur "Gombe" avec adresse "12 avenue du Port" et latitude -4,3047 et longitude 15,3070 ». Le nom s’affiche dans une bulle au clic ou à Entrée ; l’adresse est facultative. Se place dans une carte, dans un « pour chaque » ou un « si » au besoin. Latitude entre -90 et 90, longitude entre -180 et 180.',
@@ -307,7 +296,7 @@ export const ENTREES_MEDIAS: readonly EntreeVocabulaire[] = [
     categorie: 'option',
     concept: `carte.${mot}`,
     contextes: ['miseEnPage'],
-    cibles: ecran(`un réglage de CarteLieux (${mot})`, `un réglage de MapView (${mot})`, `un réglage de la carte Leaflet (${mot})`),
+    cibles: ecran(`un réglage de CarteLieux (${mot})`, `un réglage de la carte Leaflet (${mot})`),
     couvre: [],
     description,
     exemple: PAGE(`    carte "Le restaurant Le Fleuve" ${options}`),
@@ -320,7 +309,7 @@ export const ENTREES_MEDIAS: readonly EntreeVocabulaire[] = [
     categorie: 'option',
     concept: 'marqueur.adresse',
     contextes: ['miseEnPage'],
-    cibles: ecran('l’adresse dans la bulle et dans la liste des lieux', 'la description du Marker', 'l’adresse dans la bulle et dans la liste des lieux'),
+    cibles: ecran('l’adresse dans la bulle et dans la liste des lieux', 'l’adresse dans la bulle et dans la liste des lieux'),
     couvre: [],
     description: 'Sur un marqueur, l’adresse écrite sous son nom, dans la bulle et dans la liste des lieux : « marqueur "Gombe" avec adresse "12 avenue du Port" et latitude … et longitude … ». Facultative.',
     exemple: PAGE('    carte "Nos agences" :\n        marqueur "Gombe" avec adresse "12 avenue du Port" et latitude -4,3047 et longitude 15,3070'),
@@ -336,10 +325,9 @@ export const ENTREES_MEDIAS: readonly EntreeVocabulaire[] = [
     contextes: ['miseEnPage'],
     cibles: ecran(
       '<figure> : un <svg role="img"> écrit par Humalis (sans bibliothèque), sa légende et la table « Voir les données »',
-      'react-native-svg (déjà fourni par Expo), et « Voir les données »',
       'le SVG écrit dans le HTML de départ, redessiné par humalis/graphique.js',
     ),
-    couvre: ['html:figure', 'html:svg', 'html:table', 'html:details', 'rn:react-native-svg'],
+    couvre: ['html:figure', 'html:svg', 'html:table', 'html:details'],
     description:
       'Un graphique en courbe, en barres ou en camembert, tiré d’une liste : « graphique en courbe ventes avec etiquette mois et valeur montant en FC et description "…" ». La description est obligatoire : elle dit ce que montre le graphique. La table des données est toujours écrite à côté.',
     exemple: GRAPHIQUE('graphique en courbe ventes avec etiquette mois et valeur montant en FC et description "Les ventes montent de janvier à mars."'),
@@ -357,7 +345,7 @@ export const ENTREES_MEDIAS: readonly EntreeVocabulaire[] = [
     categorie: 'element',
     concept: 'element.serie',
     contextes: ['miseEnPage'],
-    cibles: ecran('une courbe ou un groupe de barres de plus, et une ligne de la légende', 'idem (react-native-svg)', 'idem (humalis/graphique.js)'),
+    cibles: ecran('une courbe ou un groupe de barres de plus, et une ligne de la légende', 'idem (humalis/graphique.js)'),
     couvre: [],
     description: 'Dans un graphique en bloc, une série de valeurs : « serie "Ventes" valeur ventes en FC avec couleur bleu ». Chaque série a sa couleur et la forme de ses repères.',
     exemple: PAGE(
@@ -399,7 +387,7 @@ function genreGraphique(mot: string, description: string, variantes: readonly st
     concept: `graphique.${mot}`,
     contextes: ['miseEnPage'],
     valeurDe: ['graphique'],
-    cibles: ecran(`<Graphique genre="${mot}">`, `<Graphique genre="${mot}"> (react-native-svg)`, `humalisGraphique.dessiner({ genre: '${mot}', … })`),
+    cibles: ecran(`<Graphique genre="${mot}">`, `humalisGraphique.dessiner({ genre: '${mot}', … })`),
     couvre: [],
     description,
     exemple: GRAPHIQUE(`graphique en ${mot} ventes avec etiquette mois et valeur montant et description "Les ventes montent de janvier à mars."`),
@@ -419,7 +407,7 @@ function optionGraphique(mot: string, accentue: string | undefined, description:
     concept: `option.${mot}`,
     contextes: ['option'],
     surElements: ['graphique'],
-    cibles: ecran(`<Graphique ${mot}=…>`, `<Graphique ${mot}=…>`, `humalisGraphique.dessiner({ ${mot}: … })`),
+    cibles: ecran(`<Graphique ${mot}=…>`, `humalisGraphique.dessiner({ ${mot}: … })`),
     couvre: [],
     description,
     exemple: GRAPHIQUE(ligne),
@@ -436,7 +424,7 @@ function optionImage(mot: string, description: string, exemple: string): EntreeV
     categorie: 'style',
     concept: `style.${mot}`,
     contextes: ['option'],
-    cibles: ecran(`className="humalis-${mot}-…" (object-fit)`, 'contentFit (expo-image)', `class="humalis-${mot}-…"`),
+    cibles: ecran(`className="humalis-${mot}-…" (object-fit)`, `class="humalis-${mot}-…"`),
     couvre: ['css:object-fit'],
     description,
     exemple,
