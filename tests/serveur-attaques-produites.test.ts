@@ -51,3 +51,19 @@ describe('les tests d’attaque écrits dans chaque serveur produit', () => {
     expect(bloc).toContain('sans session ou avec un faux jeton');
   });
 });
+
+describe('une donnée séparée a toujours un intrus', () => {
+  it('« par compte » sans rôle déclaré : un autre compte ordinaire essaie de lire, modifier et supprimer la fiche', () => {
+    const test = produit('serveur "carnet" :\n    donnee note par compte :\n        titre : texte\n    route "notes" :\n        connecte peut lire note\n        connecte peut creer note\n        connecte peut modifier note\n        connecte peut supprimer note\n' + PAGE)!;
+    expect(test).toContain("voisin = await compte('voisin@exemple.cd', 'utilisateur'");
+    expect(test).toContain('for (const intrus of [voisin]) {');
+    // Une liste vide n'essaierait rien, et ne passerait pas la vérification des types (« npm run build » échouerait).
+    expect(test).not.toContain('of []');
+  });
+
+  it('les connexions des comptes d’essai ne butent pas sur la limite par adresse', () => {
+    const test = produit('serveur "b" :\n    roles a, b, c, d, e\n    donnee note par compte :\n        titre : texte\n    route "notes" :\n        connecte peut lire note\n        connecte peut creer note\n' + PAGE)!;
+    expect(test.indexOf("process.env.HUMALIS_LIMITE_CONNEXION = '1000';")).toBeGreaterThan(0);
+    expect(test.indexOf("process.env.HUMALIS_LIMITE_CONNEXION = '1000';")).toBeLessThan(test.indexOf('app = creerServeur('));
+  });
+});

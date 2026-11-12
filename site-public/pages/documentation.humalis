@@ -5928,6 +5928,7 @@ page "documentation_37" dans "documentation" adresse "/documentation/mettre-en-p
     si langue est anglais :
         texte "`npm start` is enough to try things out. To open your app to real people, you need a server that restarts on its own, a backed-up database, HTTPS, and a way to update without losing anything. The produced server brings what is needed; this chapter says how to use it."
         soustitre "Before opening"
+        texte "What the server answers at each address (sign-in, data, sync, errors) is described in the protocol of the produced server (in French), for anyone who wants to plug another client into it."
         liste :
             texte "`DATABASE_URL` (PostgreSQL) or `HUMALIS_BASE` (SQLite) is set: without a database, data stays in memory and is lost on stop. SQLite suits a single server; for several instances, PostgreSQL. With SQLite, the backup is a copy of the file (`sauvegardes/….sqlite`)."
             texte "`JWT_SECRET` is at least 32 random characters, and is in no repository."
@@ -6001,6 +6002,7 @@ page "documentation_37" dans "documentation" adresse "/documentation/mettre-en-p
     sinon :
         texte "`npm start` suffit pour essayer. Pour ouvrir ton application à de vraies personnes, il faut un serveur qui redémarre seul, une base sauvegardée, du HTTPS et un moyen de mettre à jour sans rien perdre. Le serveur produit apporte ce qu'il faut ; ce chapitre dit comment t'en servir."
         soustitre "Avant d'ouvrir"
+        texte "Ce que le serveur répond à chaque adresse (connexion, données, synchronisation, erreurs) est décrit dans le protocole du serveur produit, pour qui veut y brancher un autre client."
         liste :
             texte "`DATABASE_URL` (PostgreSQL) ou `HUMALIS_BASE` (SQLite) est réglée : sans base, les données restent en mémoire et sont perdues à l'arrêt. SQLite convient à un serveur seul ; pour plusieurs exemplaires, PostgreSQL. Avec SQLite, la sauvegarde est une copie du fichier (`sauvegardes/….sqlite`)."
             texte "`JWT_SECRET` fait au moins 32 caractères au hasard, et n'est dans aucun dépôt."

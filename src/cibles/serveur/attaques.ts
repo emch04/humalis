@@ -81,6 +81,7 @@ let app: Parameters<typeof request>[0];
 let admin: Compte;
 /** Un compte connecté sans rôle déclaré, et un compte par rôle déclaré, dans le groupe « groupe-a » puis « groupe-b ». */
 let simple: Compte;
+let voisin: Compte;
 const ici: Record<string, Compte> = {};
 const ailleurs: Record<string, Compte> = {};
 
@@ -101,6 +102,8 @@ const refuse = (statut: number) => statut >= 400 && statut < 500;
 beforeAll(async () => {
   const usersStore = createMemoryUsersStore() as UsersStore;
   const passwordHash = await hashPassword(MOT_DE_PASSE);
+  // Chaque compte d'essai se connecte une fois : la limite des connexions par adresse ne doit pas arrêter l'essai.
+  process.env.HUMALIS_LIMITE_CONNEXION = '1000';
   app = creerServeur({ jwtSecret: 'secret-de-test-assez-long-pour-les-sessions', usersStore, stockages }) as never;
   const compte = async (email: string, role: string, groupes: Record<string, string> = {}): Promise<Compte> => {
     const cree = await usersStore.create({ email, role, passwordHash, ...groupes });
@@ -109,6 +112,8 @@ beforeAll(async () => {
   };
   admin = await compte('admin@exemple.cd', 'admin');
   simple = await compte('simple@exemple.cd', 'utilisateur'${dans('groupe-a')});
+  // Un autre compte ordinaire, d'un autre groupe : l'intrus de toute donnée séparée, même sans rôle déclaré.
+  voisin = await compte('voisin@exemple.cd', 'utilisateur'${dans('groupe-b')});
 ${roles.map((role) => `  ici[${chaine(role)}] = await compte(${chaine(`${role}-a@exemple.cd`)}, ${chaine(role)}${dans('groupe-a')});\n  ailleurs[${chaine(role)}] = await compte(${chaine(`${role}-b@exemple.cd`)}, ${chaine(role)}${dans('groupe-b')});`).join('\n')}
 });
 
@@ -226,7 +231,7 @@ ${essais.join('\n')}
 
   // 5. Une donnée séparée : un compte d'un autre groupe (ou un autre compte) ne voit ni ne touche la fiche, et personne ne la déplace.
   if (champGroupe) {
-    const intrus = roles.map((r) => `${parCompte ? 'ici' : 'ailleurs'}[${chaine(r)}]`);
+    const intrus = ['voisin', ...roles.map((r) => `${parCompte ? 'ici' : 'ailleurs'}[${chaine(r)}]`)];
     const deplaceurs = ['admin', 'simple', ...roles.map((r) => `ici[${chaine(r)}]`)];
     const versAilleurs = parCompte ? 'admin.id' : "'groupe-b'";
     tests.push(`    it('séparée par ${apostrophe(donnee.par!)} : un autre ${parCompte ? 'compte' : 'groupe'} ne lit, ne modifie ni ne supprime la fiche, et personne ne la déplace', async () => {

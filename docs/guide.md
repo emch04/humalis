@@ -4451,6 +4451,9 @@ perdre. Le serveur produit apporte ce qu'il faut ; ce chapitre dit comment t'en 
 
 ### Avant d'ouvrir
 
+Ce que le serveur répond à chaque adresse (connexion, données, synchronisation, erreurs) est décrit
+dans [le protocole du serveur produit](protocole.md), pour qui veut y brancher un autre client.
+
 - `DATABASE_URL` (PostgreSQL) ou `HUMALIS_BASE` (SQLite) est réglée : sans base, les données restent en mémoire et sont perdues à l'arrêt. SQLite convient à un serveur seul ; pour plusieurs exemplaires, PostgreSQL. Avec SQLite, la sauvegarde est une copie du fichier (`sauvegardes/….sqlite`).
 - `JWT_SECRET` fait au moins 32 caractères au hasard, et n'est dans aucun dépôt.
 - Le pare-feu refuse par défaut un texte envoyé qui contient une balise de script, `javascript:`, `${…}`, `../../../` ou `eval(` ; le refus nomme le champ. Pour un cours d'informatique, un forum technique ou un support où l'on colle du code, règle `HUMALIS_PARE_FEU=adresses` : ces textes s'enregistrent, les injections SQL et les adresses piégées restent refusées.
