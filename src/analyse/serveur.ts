@@ -30,6 +30,18 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[], pag
 
   for (const donnee of serveur.donnees) for (const champ of donnee.champs) verifierRegleChamp(champ, donnee, serveur, erreur);
 
+  // « seul son auteur peut … » : le champ « auteur » est rempli par le serveur avec le compte connecté. Déclaré à la
+  // main, la requête pourrait le choisir et se faire passer pour un autre compte.
+  const auteursVus = new Set<string>();
+  for (const regle of serveur.routes.flatMap((r) => r.regles)) {
+    if (!regle.auteur || auteursVus.has(regle.donnee)) continue;
+    auteursVus.add(regle.donnee);
+    const champ = serveur.donnees.find((d) => d.nom === regle.donnee)?.champs.find((c) => c.nom === 'auteur');
+    if (champ && champ.regle?.genre !== 'auteur') {
+      erreur(`le champ « auteur » de la donnée « ${regle.donnee} » est rempli par le serveur avec le compte qui crée la fiche (« seul son auteur peut … ») : retire-le de la donnée, ou donne-lui un autre nom.`, champ.ligne);
+    }
+  }
+
   // « donnees de depart pour produit : » : la donnée existe, chaque champ aussi, avec une valeur de son type.
   for (const depart of serveur.departs ?? []) {
     const donnee = serveur.donnees.find((d) => d.nom === depart.donnee);

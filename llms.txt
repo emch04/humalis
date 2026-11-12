@@ -862,6 +862,7 @@ serveur "boutique" :
 - Une action sur une donnée inconnue : n'existe pas dans le serveur
 - Un document sur une donnée inconnue : n'existe pas. Données
 - Un « refuser » après un paiement : le paiement est déjà fait
+- Un champ « auteur » écrit à la main : est rempli par le serveur avec le compte qui crée la fiche
 - Une durée oubliée : il manque une durée
 - Une durée sans unité : il manque l’unité de la durée
 - Une durée qui n’est pas un nombre : une durée est un nombre suivi de son unité

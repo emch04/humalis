@@ -28,8 +28,9 @@ export function reglesEnvoi(donnee: Donnee, route: Route): string {
   const serveur = champsDuServeur(donnee, route);
   const site = champsDuSite(donnee);
   const nonVides = donnee.champs.filter((c) => c.nonVide).map((c) => camel(c.nom));
-  // « auteur » ne change jamais, même dans une modification.
-  const fixes = donnee.champs.filter((c) => c.regle?.genre === 'auteur').map((c) => camel(c.nom));
+  // « auteur » et le champ de séparation (« par compte », « par boutique ») ne changent jamais, même dans une
+  // modification : sinon un compte pourrait déplacer sa fiche dans l'espace d'un autre.
+  const fixes = donnee.champs.filter((c) => c.regle?.genre === 'auteur' || c.regle?.genre === 'groupe').map((c) => camel(c.nom));
   if (serveur.length === 0 && site.length === 0 && nonVides.length === 0) return '';
   return `, { duServeur: ${JSON.stringify(serveur)}, duSite: ${JSON.stringify(site)}${nonVides.length > 0 ? `, nonVides: ${JSON.stringify(nonVides)}` : ''}${fixes.length > 0 ? `, fixes: ${JSON.stringify(fixes)}` : ''} }`;
 }

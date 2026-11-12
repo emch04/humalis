@@ -904,4 +904,10 @@ export const ENTREES_ERREURS_COMPTES: readonly EntreeErreur[] = [
     serveurPaye(PAIEMENTS_OK, ['quand reservation est payee :', '    refuser "Non"']),
     serveurPaye(PAIEMENTS_OK),
     'le paiement est déjà fait'),
+  e('auteur-declare-a-la-main', 'sens', 'Un champ « auteur » écrit à la main',
+    'Avec « seul son auteur peut … », le serveur remplit lui-même le champ « auteur » avec le compte qui crée la fiche. Déclaré dans la donnée, il pourrait être choisi par la requête, et un compte se ferait passer pour un autre.',
+    'Retire le champ « auteur » de la donnée : le serveur l’ajoute lui-même.',
+    serveur('donnee avis :', '    texte : texte', '    auteur : texte', 'route "avis" :', '    tout le monde peut lire avis', '    connecte peut creer avis', '    seul son auteur peut modifier avis'),
+    serveur('donnee avis :', '    texte : texte', 'route "avis" :', '    tout le monde peut lire avis', '    connecte peut creer avis', '    seul son auteur peut modifier avis'),
+    'est rempli par le serveur avec le compte qui crée la fiche'),
 ];
