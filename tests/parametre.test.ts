@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
-import { genererProjetMobile } from '../src/cibles/mobile/projet.js';
 import { genererProjetStatique } from '../src/cibles/statique/projet.js';
 import { programme, erreurs } from './analyse/aide.js';
 
@@ -88,15 +87,6 @@ describe('page avec paramètre — cible web', () => {
   });
 });
 
-describe('page avec paramètre — cible mobile', () => {
-  it('place la page dans app/produit/[id].tsx et lit useLocalSearchParams', () => {
-    const fichiers = genererProjetMobile(compiler(BOUTIQUE).application!, { nom: 'boutique', source: 'boutique.humalis' });
-    const page = fichiers.get('app/produit/[id].tsx')!;
-    expect(page).toContain("const { id = '' } = useLocalSearchParams<{ id: string }>();");
-    expect(fichiers.get('app/index.tsx')).toContain('href={`/produit/${encodeURIComponent(String(p.id))}`}');
-  });
-});
-
 describe('page avec paramètre — cible statique', () => {
   it('lit le paramètre dans l’adresse de la page (produit.html?id=…)', () => {
     const fichiers = genererProjetStatique(compiler(BOUTIQUE).application!, { nom: 'boutique', source: 'boutique.humalis' });
@@ -120,7 +110,6 @@ describe('page avec paramètre — la page d’entrée', () => {
     expect(fichiers.get('src/main.tsx')).toContain('<Route path="/" element={<Liste />} />');
     expect(fichiers.get('src/main.tsx')).toContain('<Route path="/produit/:id" element={<Produit />} />');
     expect(genererProjetStatique(application!, { nom: 'essai', source: 'essai.humalis' }).get('index.html')).toContain('Le premier');
-    expect(genererProjetMobile(application!, { nom: 'essai', source: 'essai.humalis' }).get('app/index.tsx')).toContain('export default function Liste()');
   });
 });
 

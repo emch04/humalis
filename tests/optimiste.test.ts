@@ -18,7 +18,6 @@ describe('en supposant que ça marche', () => {
   it('produit le retour arrière après la requête et refuse les cibles sans moteur', () => {
     const resultat = compiler(base('        en supposant que ca marche :\n            retirer "Luc" de membres\n        envoyer requete vers "equipe" de la source "boutique" avec membres'));
     const application = resultat.application!;
-    expect(verifierSourcesPourLaCible(application, 'mobile').some((d) => d.message.includes('en supposant'))).toBe(true);
     expect(verifierSourcesPourLaCible(application, 'statique').some((d) => d.message.includes('en supposant'))).toBe(true);
     const fichiers = genererProjetWeb(application, { nom: 'essai', source: 'essai.humalis' });
     const ecran = [...fichiers.entries()].find(([nom]) => nom.includes('Equipe'))?.[1] ?? [...fichiers.values()].find((texte) => texte.includes('avantOptimiste'))!;

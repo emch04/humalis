@@ -495,7 +495,7 @@ page "accueil" :
   });
 
   it('les autres cibles ignorent ce qui vise Windows', () => {
-    for (const cible of ['web', 'apple', 'mobile', 'desktop', 'statique']) {
+    for (const cible of ['web', 'apple', 'desktop', 'statique']) {
       const app = pour(cible);
       const texte = JSON.stringify(app.ecrans);
       expect(texte, cible).not.toContain('Seulement sous Windows');
@@ -736,7 +736,6 @@ describe('cible Windows — ce qui n\'existe pas ici est dit clairement', () => 
     const { diagnostics } = produire(`utiliser composant "Carte" depuis "./Carte.tsx"\npage "accueil" :\n    Carte\n`);
     expect(diagnostics.some((d) => d.gravite === 'erreur' && d.message.includes('sur windows "./natif/Carte.cs"'))).toBe(true);
   });
-
 
   it('une animation est dite, sans bloquer', () => {
     const { diagnostics } = produire(`page "a" :\n    titre "Bonjour" avec animation apparition\n`);

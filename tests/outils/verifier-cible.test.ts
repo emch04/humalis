@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { afterAll, beforeAll, describe, it, expect } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -9,24 +9,37 @@ import { join } from 'node:path';
  * refuserait ou ignorerait, sans compiler dans un dossier. Avant, on ne l'apprenait qu'en compilant.
  */
 const cli = readFileSync('src/cli.ts', 'utf8');
-// La commande construite, si elle est à jour : après « npm run build ». Sinon, seuls les essais sur le texte tournent.
-const construite = existsSync('dist/cli.js') && statSync('dist/cli.js').mtimeMs >= statSync('src/cli.ts').mtimeMs;
+// La commande est construite ici, dans un dossier à elle : un autre test reconstruit « dist » pendant la suite.
+const construction = mkdtempSync(join(process.env.TMPDIR ?? tmpdir(), 'humalis-commande-'));
+const COMMANDE = join(construction, 'cli.js');
 
 describe('verifier --cible', () => {
+  it('la cible « mobile » (Expo) n’existe plus : ni dans l’aide, ni dans le compilateur', () => {
+    expect(cli).not.toContain('--cible mobile --sortie');
+    expect(cli).not.toContain('genererProjetMobile');
+    expect(existsSync('src/cibles/mobile')).toBe(false);
+  });
+
   it('l’aide la décrit, et rien ne s’écrit pendant la vérification', () => {
     expect(cli).toContain('  humalis verifier <fichier.humalis> [--exigeant] [--ri] [--cible <cible>]');
     expect(cli).toContain('if (aBlanc) return;');
     expect(cli.indexOf('if (aBlanc) return;')).toBeLessThan(cli.indexOf('ecrireSiChange(join(sortie, relatif), contenu)'));
   });
 
-  it.skipIf(!construite)('dit ce que la cible refuse, rend 1, et n’écrit aucun fichier', () => {
+  beforeAll(() => {
+    execFileSync('npx', ['tsc', '--outDir', construction], { stdio: 'pipe' });
+    writeFileSync(join(construction, 'package.json'), '{"type":"module"}');
+  }, 120_000);
+  afterAll(() => rmSync(construction, { recursive: true, force: true }));
+
+  it('dit ce que la cible refuse, rend 1, et n’écrit aucun fichier', () => {
     const dossier = mkdtempSync(join(process.env.TMPDIR ?? tmpdir(), 'humalis-verifier-cible-'));
     try {
       const fichier = join(dossier, 'essai.humalis');
       writeFileSync(fichier, 'page "a" :\n    titre "A"\n    bouton "Retour"\n    quand l\'utilisateur clique sur "Retour" :\n        revenir\n');
       const lancer = (...options: string[]) => {
         try {
-          return { code: 0, texte: execFileSync('node', ['dist/cli.js', 'verifier', fichier, ...options], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }) };
+          return { code: 0, texte: execFileSync('node', [COMMANDE, 'verifier', fichier, ...options], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }) };
         } catch (erreur) {
           const e = erreur as { status?: number; stderr?: string; stdout?: string };
           return { code: e.status ?? -1, texte: String(e.stderr ?? '') + String(e.stdout ?? '') };
@@ -40,6 +53,10 @@ describe('verifier --cible', () => {
       expect(lancer('--cible', 'web').code).toBe(0);
       expect(lancer('--cible', 'apple').code).toBe(0);
       expect(lancer('--cible', 'inconnue').code).toBe(2);
+      // L'ancienne cible Expo : retirée, avec les deux cibles qui la remplacent.
+      const ancienne = lancer('--cible', 'mobile');
+      expect(ancienne.code).toBe(2);
+      expect(ancienne.texte).toContain('La cible « mobile » (Expo) a été retirée : compilez avec --cible apple');
       expect(lancer('--cible').code).toBe(2);
       // Sans --cible, la vérification ordinaire, comme avant.
       expect(lancer().code).toBe(0);

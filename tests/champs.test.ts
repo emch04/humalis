@@ -3,7 +3,6 @@ import { analyser } from '../src/lexer/lexer.js';
 import { analyserSyntaxe } from '../src/parser/parser.js';
 import { compiler } from './aide-qualite.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
-import { genererProjetMobile } from '../src/cibles/mobile/projet.js';
 import { programme, erreurs, avertissements } from './analyse/aide.js';
 
 const corps = (...lignes: string[]) => analyserSyntaxe(analyser(programme('page "a" :', ...lignes))).pages[0].corps;
@@ -13,11 +12,6 @@ const pageWeb = (source: string, fichier = 'src/pages/A.tsx') => {
   const { application, diagnostics } = compiler(source);
   expect(diagnostics.filter((d) => d.gravite === 'erreur')).toEqual([]);
   return genererProjetWeb(application!, { nom: 'a', adresse: 'https://a.exemple.cd', source: 'a.humalis' }).get(fichier)!;
-};
-const pageMobile = (source: string) => {
-  const { application, diagnostics } = compiler(source);
-  expect(diagnostics.filter((d) => d.gravite === 'erreur')).toEqual([]);
-  return genererProjetMobile(application!, { nom: 'a', source: 'a.humalis' }).get('app/index.tsx')!;
 };
 
 /** Un formulaire d'une page « a » qui contient ces lignes, puis son événement. */
@@ -306,49 +300,3 @@ describe('champs — cible web', () => {
   });
 });
 
-describe('champs — cible mobile', () => {
-  const tout = pageMobile(
-    formulaire(
-      'champ "Nom" avec obligatoire',
-      'champ email "Email" avec indice "vous@exemple.cd"',
-      'champ telephone "Téléphone"',
-      'champ nombre "Âge"',
-      'champ date "Naissance"',
-      'champ heure "Heure"',
-      'champ mot de passe "Mot de passe"',
-      'champ texte long "Présentation"',
-      'champ adresse web "Site"',
-      'case a cocher "J\'accepte"',
-      'choix "Taille" parmi ["S", "M", "L"]',
-      'liste deroulante "Pays" parmi ["Congo", "France"]',
-    ),
-  );
-
-  it('ouvre le bon clavier pour chaque sorte', () => {
-    expect(tout).toContain('<Text style={s.texte}>Nom *</Text>');
-    expect(tout).toContain('keyboardType="email-address" autoComplete="email" autoCapitalize="none" placeholder="vous@exemple.cd"');
-    expect(tout).toContain('keyboardType="phone-pad" autoComplete="tel"');
-    expect(tout).toContain('testID="champ_age" accessibilityLabel="Âge" keyboardType="numeric"');
-    expect(tout).toContain('keyboardType="numbers-and-punctuation" placeholder="AAAA-MM-JJ"');
-    expect(tout).toContain('keyboardType="numbers-and-punctuation" placeholder="HH:MM"');
-    expect(tout).toContain('<MotDePasse');
-    expect(tout).toContain('autoComplete="new-password" autoCapitalize="none"');
-    expect(tout).toContain('multiline numberOfLines={4} textAlignVertical="top" style={[s.saisie, s.saisieLongue]}');
-    expect(tout).toContain('keyboardType="url" autoComplete="url" autoCapitalize="none"');
-  });
-
-  it('écrit la case (Switch), le choix et la liste avec leurs rôles accessibles', () => {
-    expect(tout).toContain("import { Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';");
-    expect(tout).toContain('<Switch testID="champ_j_accepte" accessibilityLabel="J\'accepte" value={champJAccepte} onValueChange={setChampJAccepte} />');
-    expect(tout).toContain('accessibilityRole="radiogroup"');
-    expect(tout).toContain('accessibilityRole="radio" aria-checked={champTaille === option}');
-    expect(tout).toContain('const [ouvertPays, setOuvertPays] = useState(false);');
-    expect(tout).toContain('aria-expanded={ouvertPays}');
-    expect(tout).toContain("{champPays || 'Choisissez…'} ▾");
-  });
-
-  it('vérifie aussi la forme de la date et de l’heure', () => {
-    expect(tout).toContain("if (champNaissance.trim() !== '' && !/^\\d{4}-\\d{2}-\\d{2}$/.test(champNaissance.trim())) {");
-    expect(tout).toContain("if (champHeure.trim() !== '' && !/^\\d{2}:\\d{2}$/.test(champHeure.trim())) {");
-  });
-});

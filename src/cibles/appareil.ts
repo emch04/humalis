@@ -38,10 +38,10 @@ function verifierPourLeNavigateur(application: Application): Diagnostic[] {
 
 /**
  * « utiliser composant "Carte" sur apple "….swift" … » sans « depuis » : le composant n'a que des vues natives.
- * Sur le web, le bureau et le mobile Expo, il n'a rien pour se dessiner : la compilation le dit.
+ * Sur le web et le bureau, il n'a rien pour se dessiner : la compilation le dit.
  */
 export function verifierComposantsSansWeb(application: Application, cible: string): Diagnostic[] {
-  if (!['web', 'statique', 'desktop', 'mobile'].includes(cible)) return [];
+  if (!['web', 'statique', 'desktop'].includes(cible)) return [];
   return application.composantsReact
     .filter((c) => c.chemin === undefined)
     .map((c) => ({
@@ -64,7 +64,7 @@ export function verifierAppareilPourLaCible(application: Application, cible: str
     const ligne = lieu?.ligne ?? partage?.ligne;
     if (ligne !== undefined) diagnostics.push({ gravite: 'erreur', ligne, message: windows ? `${nom} n'est disponible que sur les cibles Apple, Android et Windows pour l'instant : compilez avec --cible apple, --cible android ou --cible windows (ici, --cible ${cible}).` : android ? `${nom} n'est disponible que sur les cibles Apple et Android pour l'instant : compilez avec --cible apple ou --cible android (ici, --cible ${cible}).` : `${nom} n'est disponible que sur la cible Apple pour l'instant : compilez avec --cible apple (ici, --cible ${cible}).` });
   }
-  if (['mobile', 'desktop', 'statique'].includes(cible)) {
+  if (['desktop', 'statique'].includes(cible)) {
     const lieu = lieux.find((e) => /"type":"connexionApple"/.test(JSON.stringify(e)));
     if (lieu) diagnostics.push({ gravite: 'erreur', ligne: lieu.ligne, message: `« se connecter avec apple » n'existe pas pour cette cible : compilez avec --cible web ou --cible apple, ou retirez cette ligne.` });
   }

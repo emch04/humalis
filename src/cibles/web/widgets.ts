@@ -5,8 +5,7 @@
  * 2026-10-30-mise-en-page-et-elements, chapitre 5).
  *
  * `ecran.ts` décide quoi écrire et où ; ce fichier dit comment chaque
- * plateforme l'écrit (`RenduWidgets`). Le mobile a le sien
- * (`cibles/mobile/widgets.ts`).
+ * plateforme l'écrit (`RenduWidgets`).
  */
 import { setterDe } from './noms.js';
 import type { GenreBloc } from '../../parser/ast.js';

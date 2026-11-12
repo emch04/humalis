@@ -4,7 +4,6 @@ import { analyserSyntaxe } from '../src/parser/parser.js';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
 import { genererProjetStatique } from '../src/cibles/statique/projet.js';
-import { genererProjetMobile } from '../src/cibles/mobile/projet.js';
 import { genererProjetDesktop } from '../src/cibles/desktop/projet.js';
 import { mouvementHorsBloc } from '../src/cibles/commun/mouvement.js';
 import { programme, erreurs, avertissements } from './analyse/aide.js';
@@ -18,7 +17,6 @@ const compile = (source: string) => {
 };
 const web = (source: string) => genererProjetWeb(compile(source), { nom: 'e', adresse: 'https://x.cd', source: 'e.humalis' });
 const statique = (source: string) => genererProjetStatique(compile(source), { nom: 'e', source: 'e.humalis' });
-const mobile = (source: string) => genererProjetMobile(compile(source), { nom: 'e', source: 'e.humalis' });
 const desktop = (source: string) => genererProjetDesktop(compile(source), { nom: 'e', source: 'e.humalis' });
 const fichier = (fichiers: Map<string, string>, fin: string) => [...fichiers.entries()].find(([n]) => n.endsWith(fin))?.[1] ?? '';
 
@@ -166,23 +164,6 @@ describe('mouvement — statique', () => {
   });
 });
 
-describe('mouvement — mobile', () => {
-  it('Animated, et rien ne bouge si l’appareil demande de réduire les animations', () => {
-    const fichiers = mobile(ANIME);
-    const anime = fichiers.get('humalis/mouvement.tsx')!;
-    expect(anime).toContain('AccessibilityInfo.isReduceMotionEnabled()');
-    expect(anime).toContain("addEventListener('reduceMotionChanged'");
-    expect(anime).toContain('Animated.timing');
-    expect(anime).toContain('useNativeDriver: true');
-    const page = fichier(fichiers, 'app/index.tsx');
-    expect(page).toContain('<Anime animation="apparition" duree={300} delai={0}>');
-    expect(page).toContain('<Anime animation="montee" duree={600} delai={100}>');
-  });
-  it('sans animation, le fichier n’est pas écrit ; « transition » est sans effet et le dit', () => {
-    expect(mobile(p('>titre "a"')).has('humalis/mouvement.tsx')).toBe(false);
-  });
-});
-
 // Manque n° 5 du site public : « avec animation montee au defilement et en cascade » sur un bloc.
 describe('les apparitions en cascade', () => {
   const source = p('>titre "a"', '>grille avec animation montee au defilement et en cascade :', '>>texte "Un"', '>>texte "Deux"', '>>texte "Trois"');
@@ -207,8 +188,4 @@ describe('les apparitions en cascade', () => {
     expect(mouvementHorsBloc(css)).toEqual([]);
   });
 
-  it('mobile : le bloc s’anime en entier', () => {
-    const mobile = [...genererProjetMobile(compile(source), { nom: 'e', source: 'e.humalis' }).values()].join('\n');
-    expect(mobile).not.toContain('cascade');
-  });
 });

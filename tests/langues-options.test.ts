@@ -4,7 +4,6 @@ import { analyserSyntaxe } from '../src/parser/parser.js';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
 import { genererProjetStatique } from '../src/cibles/statique/projet.js';
-import { genererProjetMobile } from '../src/cibles/mobile/projet.js';
 import { MESSAGES, geometrieEnLangues, messageEnLangues } from '../src/i18n/messages.js';
 import { programme } from './analyse/aide.js';
 
@@ -194,22 +193,6 @@ describe('langues des options — le code produit', () => {
     expect(graphique).toContain('REGION_GRAPHIQUE');
   });
 
-  it('le mobile écrit les mêmes versions, et son lecteur et son graphique suivent la langue', () => {
-    const r = compiler(PROGRAMME.replace(/^site :[\s\S]*?\n\n/m, '').replace(/    apercu :[\s\S]*?    titre "Le Fleuve"/m, '    titre "Le Fleuve"'));
-    const fichiers = genererProjetMobile(r.application!, { nom: 'rey', source: 'fleuve.humalis' });
-    const page = fichiers.get('app/index.tsx')!;
-    expect(page).toContain("accessibilityLabel={t({ fr: 'Favori', en: 'Favourite' })}");
-    expect(page).toContain("description={t({ fr: 'Un extrait', en: 'An excerpt' })}");
-    expect(page).toContain("placeholder={t({ fr: 'Votre nom', en: 'Your name' })}");
-    expect(fichiers.get('humalis/lecteur.tsx')).toContain("t({ fr: 'Lire la transcription', en: 'Read the transcript' })");
-    expect(fichiers.get('humalis/lecteur.tsx')).toContain('useLangue();');
-    const graphique = fichiers.get('humalis/graphique.tsx')!;
-    expect(graphique).toContain("t({ fr: 'Voir les données', en: 'View the data' })");
-    expect(graphique).toContain("t({ fr: 'Cacher les données', en: 'Hide the data' })");
-    expect(graphique).toContain('useLangue();');
-    expect(graphique).toContain('langue: langueActuelle()');
-  });
-
   it('le web traduit le graphique et le choix de fichier (messages, tailles, types)', () => {
     const source = `${PROGRAMME}    variable photo = rien\n    fichier "Choisir une photo" en anglais "Choose a photo" dans photo accepte images avec maximum 5 Mo\n`;
     const r = compiler(source);
@@ -271,8 +254,7 @@ describe('langues des options — sans bloc « langues », le code produit ne ch
     expect(r.diagnostics.filter((d) => d.gravite === 'erreur')).toEqual([]);
     const web = genererProjetWeb(r.application!, { nom: 'rey', adresse: 'http://localhost', source: 'fleuve.humalis' });
     const statique = genererProjetStatique(r.application!, { nom: 'rey', source: 'fleuve.humalis' });
-    const mobile = genererProjetMobile(r.application!, { nom: 'rey', source: 'fleuve.humalis' });
-    for (const fichiers of [web, statique, mobile]) {
+    for (const fichiers of [web, statique]) {
       const traces = [...fichiers.entries()].filter(([, c]) => /\bt\(\{|useLangue|langueActuelle|REGION_GRAPHIQUE|humalis\.langue/.test(c)).map(([n]) => n);
       expect(traces).toEqual([]);
     }

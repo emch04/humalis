@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { compiler } from '../src/compilateur.js';
 import { compilerProjet } from '../src/fichiers.js';
-import { web, statique, mobile, desktop, fichier, erreurs } from './interactions/aide.js';
+import { web, statique, desktop, fichier, erreurs } from './interactions/aide.js';
 
 const page = (...lignes: string[]) => ['page "P" :', '    titre "T"', ...lignes.map((l) => `    ${l}`)].join('\n');
 const NOTES = 'variable notes = [fiche avec prix 1 et vu "o", fiche avec prix 60 et vu "n"]';
@@ -77,9 +77,8 @@ describe('un calcul dans un texte', () => {
     expect(fichier(fichiers, 'index.html')).toContain('>4</p>');
     expect(fichier(fichiers, 'pages/p.js')).toContain('prix * 2');
   });
-  it('mobile et bureau', () => {
+  it('bureau', () => {
     const source = page('variable prix = 2', 'texte "{prix * 2}"');
-    expect(fichier(mobile(source), 'app/index.tsx')).toContain('prix * 2');
     expect(fichier(desktop(source), 'pages/P.tsx')).toContain('prix * 2');
   });
 });
@@ -124,7 +123,6 @@ describe('selon dans la page', () => {
     expect(erreurs(source)).toEqual([]);
     expect(code(source)).toContain("etat === 'a' || etat === 'b'");
     expect(fichier(statique(source), 'index.html')).toContain('>un</p>');
-    expect(fichier(mobile(source), 'app/index.tsx')).toContain("etat === 'c'");
   });
   it('reste une action dans un événement', () => {
     const action = page('variable etat = "a"', 'bouton "x"', 'quand l\'utilisateur clique sur "x" :', '    selon etat :', '        cas "a" :', '            afficher "un"');
@@ -176,18 +174,14 @@ describe('le saut de ligne', () => {
     expect(code(page('variable n = 1', 'lien "W" vers "https://wa.me/1?text=A{saut de ligne}{n}"'))).toContain('text=A%0A');
     expect(code(page('lien "W" vers "https://wa.me/1?text=A{saut de ligne}B"'))).toContain('text=A%0AB');
   });
-  it('mobile : une chaîne suffit', () => {
-    expect(fichier(mobile(page('texte "A{saut de ligne}B"')), 'app/index.tsx')).toContain("{'A\\nB'}");
-  });
 });
 
 describe('télécharger en CSV', () => {
   const source = page(NOTES, 'bouton "x"', 'quand l\'utilisateur clique sur "x" :', '    telecharger notes en csv');
-  it('web, bureau, mobile et statique', () => {
+  it('web, bureau et statique', () => {
     expect(erreurs(source)).toEqual([]);
     expect(code(source)).toContain("await telechargerCsv(notes, 'notes.csv', afficherMessage);");
     expect(fichier(web(source), 'humalis/presse-papier.ts')).toContain('createObjectURL');
-    expect(fichier(mobile(source), 'humalis/presse-papier.ts')).toContain('Share.share({ title: fichier');
     expect(fichier(desktop(source), 'pages/P.tsx')).toContain('telechargerCsv');
     expect(fichier(statique(source), 'humalis/humalis.js')).toContain('function texteCsv');
   });

@@ -3,7 +3,6 @@ import { analyser } from '../src/lexer/lexer.js';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
 import { genererProjetStatique } from '../src/cibles/statique/projet.js';
-import { genererProjetMobile } from '../src/cibles/mobile/projet.js';
 
 const page = (contenu: string) => `page "accueil" :\n    titre "Accueil"\n${contenu}`;
 const application = (source: string) => {
@@ -26,7 +25,6 @@ describe('documentation', () => {
     const app = application(source);
     expect(genererProjetWeb(app, options).get('src/pages/Accueil.tsx')).toContain('humalis-code-ligne');
     expect(genererProjetStatique(app, options).get('index.html')).toContain('<code class="humalis-code-ligne">titre</code>');
-    expect(genererProjetMobile(app, options).get('app/index.tsx')).toContain('title');
   });
 
   it('lit un bloc de code sans analyser ses lignes', () => {
@@ -45,7 +43,6 @@ describe('documentation', () => {
     expect(web).toContain('void copier(');
     const statique = genererProjetStatique(app, options).get('index.html')!;
     expect(statique).toContain('&lt;script&gt;alerte()&lt;/script&gt;');
-    expect(genererProjetMobile(app, options).get('app/index.tsx')).toContain('fontFamily');
     expect(genererProjetStatique(app, options).get('pages/accueil.js')).toContain('copier(');
   });
 
@@ -83,7 +80,6 @@ describe('documentation', () => {
     expect(web).toContain('<ul');
     expect(web).toContain('<ol');
     expect(genererProjetStatique(app, options).get('index.html')).toContain('<li');
-    expect(genererProjetMobile(app, options).get('app/index.tsx')).toContain('•');
   });
 
   it('une boucle dans une liste produit une puce par valeur', () => {
@@ -100,7 +96,6 @@ describe('documentation', () => {
     const app = application(page('    tableau "Commandes" :\n        colonnes "Commande", "Rôle"\n        rangee "humalis", "compile"'));
     expect(genererProjetWeb(app, options).get('src/pages/Accueil.tsx')).toContain('<table');
     expect(genererProjetStatique(app, options).get('index.html')).toContain('<caption');
-    expect(genererProjetMobile(app, options).get('app/index.tsx')).toContain('humalis');
     expect(compiler(page('    tableau "Commandes" :\n        colonnes "Commande", "Rôle"\n        rangee "humalis"')).diagnostics.map((d) => d.message).join(' ')).toMatch(/rangée.*cellules/i);
   });
 

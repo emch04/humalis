@@ -3,7 +3,6 @@ import { analyser } from '../src/lexer/lexer.js';
 import { analyserSyntaxe } from '../src/parser/parser.js';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
-import { genererProjetMobile } from '../src/cibles/mobile/projet.js';
 import { genererProjetStatique } from '../src/cibles/statique/projet.js';
 import { programme, erreurs } from './analyse/aide.js';
 
@@ -75,11 +74,6 @@ describe('comparaisons en français courant — les cibles', () => {
     expect(page).toContain('stock > 2');
     expect(page).toContain('stock !== 0');
     expect(page).toContain('stock < 1');
-  });
-
-  it('mobile : la même condition produit !==', () => {
-    const fichiers = genererProjetMobile(compiler(BOUTIQUE).application!, { nom: 'a', source: 'a.humalis' });
-    expect(fichiers.get('app/index.tsx')).toContain('stock !== 0');
   });
 
   it('site statique : le HTML de départ est déjà juste', () => {

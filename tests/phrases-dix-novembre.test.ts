@@ -200,12 +200,6 @@ describe('les styles écrits en Humalis', () => {
     expect(css).toContain('.carte { background: #ffffff; border: 1px solid #cfd0d2; border-radius: 12px; padding: 16px; box-shadow:');
     expect(css).toContain('.titre-marque { color: var(--humalis-marque, #4b42d6); font-weight: 700; }');
   });
-  it('deviennent des styles natifs sur le téléphone', async () => {
-    const { genererProjetMobile } = await import('../src/cibles/mobile/projet.js');
-    const f = genererProjetMobile(sansErreur(source), { nom: 'a', source: 'a.humalis' } as never);
-    expect(f.get('humalis/styles.ts')).toContain('humalisCarte: { backgroundColor: "#ffffff", borderWidth: 1, borderColor: "#cfd0d2", borderRadius: 12');
-    expect([...f.values()].join('\n')).toContain('style={[s.bloc, s.humalisCarte]}');
-  });
   it('refusent une propriété inconnue en disant lesquelles existent', () => {
     const r = compiler(programme('style "carte" :', '>brillance 3', '', 'page "accueil" :', '>titre "a"'));
     expect(r.diagnostics.map((d) => d.message).join(' ')).toContain('Propriétés possibles : fond, couleur, bord');

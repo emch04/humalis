@@ -30,7 +30,6 @@
     "essai:react-hote": "node scripts/essai-react-hote.mjs",
     "essai:serveur": "node scripts/essai-serveur.mjs",
     "essai:lien": "node scripts/essai-lien.mjs",
-    "essai:mobile": "node scripts/essai-mobile.mjs",
     "essai:windows": "node scripts/essai-windows.mjs",
     "essai:temps-reel": "node scripts/essai-temps-reel.mjs",
     "essai:reunions": "node scripts/essai-reunions.mjs",

@@ -4,7 +4,6 @@ import { analyserSyntaxe } from '../src/parser/parser.js';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
 import { genererProjetStatique } from '../src/cibles/statique/projet.js';
-import { genererProjetMobile } from '../src/cibles/mobile/projet.js';
 import { BINAIRE } from '../src/cibles/binaire.js';
 import { dimensionsImage } from '../src/image/entete.js';
 import { programme, erreurs, avertissements } from './analyse/aide.js';
@@ -221,13 +220,6 @@ describe('publication — le site statique', () => {
     const sansAdresse = genererProjetStatique(compiler(programme('site :', '>nom "R"', '', 'page "a" :', '>titre "A"')).application!, { nom: 'a', source: 'a.humalis' });
     expect(sansAdresse.has('sitemap.xml')).toBe(false);
     expect(sansAdresse.get('robots.txt')).toBe('User-agent: *\nContent-Signal: search=yes, ai-input=yes\nAllow: /\n');
-  });
-});
-
-describe('publication — le mobile', () => {
-  it('le nom du site devient le nom de l’application', () => {
-    const fichiers = genererProjetMobile(compiler(programme('site :', '>nom "Boutique Démo"', '', 'page "a" :', '>titre "A"')).application!, { nom: 'boutique', source: 'b.humalis' });
-    expect(JSON.parse(fichiers.get('app.json')!).expo.name).toBe('Boutique Démo');
   });
 });
 

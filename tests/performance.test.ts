@@ -4,7 +4,6 @@ import { brotliDecompressSync, gunzipSync } from 'node:zlib';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
 import { genererProjetServeur } from '../src/cibles/serveur/projet.js';
-import { genererProjetMobile } from '../src/cibles/mobile/projet.js';
 import { lecturesTs, PRECHARGEMENT } from '../src/cibles/web/lectures.js';
 import { programme, erreurs } from './analyse/aide.js';
 
@@ -290,15 +289,6 @@ describe('performance — 3. ce qui est déjà connu s’affiche tout de suite (
     expect(avecFormulaire.match(/echecs\.current \+= 1/g)).toHaveLength(1);
   });
 
-  it('le mobile fait de même, en mémoire', () => {
-    const fichiers = genererProjetMobile(application(fiche()), { nom: 'boutique', source: 'b.humalis' });
-    expect(fichiers.get('humalis/lectures.ts')).toContain('export function lectureGardee<T>');
-    expect(fichiers.get('humalis/lectures.ts')).not.toContain('sessionStorage');
-    expect(fichiers.get('humalis/serveur.ts')).toContain('if (lecture && seGarde(reponse)) garder(adresse, valeur, texte);');
-    const page = [...fichiers].find(([nom]) => /produit/i.test(nom) && nom.startsWith('app/'))![1];
-    expect(page).toMatch(/import \{ lectureGardee \} from '(\.\.\/)+humalis\/lectures';/);
-    expect(page).toContain('lectureGardee(`/api/photos?produit=${encodeURIComponent(id)}`, [])');
-  });
 });
 
 describe('performance — 4. charger en avance la page qu’un lien ouvre', () => {

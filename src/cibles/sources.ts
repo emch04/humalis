@@ -13,7 +13,7 @@ export function verifierAdresseParLangue(application: Application, cible: string
     : [];
 }
 
-export function verifierSourcesPourLaCible(application: Application, cible: 'mobile' | 'statique'): Diagnostic[] {
+export function verifierSourcesPourLaCible(application: Application, cible: 'statique'): Diagnostic[] {
   const diagnostics: Diagnostic[] = application.sources.map((s) => ({
     gravite: 'erreur' as const,
     ligne: 1,
@@ -47,7 +47,7 @@ export function verifierNomsPourLeWeb(application: Application): Diagnostic[] {
     }));
 }
 
-export function verifierNavigationPourLaCible(application: Application, cible: 'mobile' | 'statique'): Diagnostic[] {
+export function verifierNavigationPourLaCible(application: Application, cible: 'statique'): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
   for (const e of application.ecrans) {
     const dit = (quoi: string) =>
@@ -69,10 +69,10 @@ export function verifierNavigationPourLaCible(application: Application, cible: '
 /**
  * Le choix et l'envoi d'un fichier (plan des médias, 4.3) ne sont produits que
  * pour le web et le desktop : l'envoi passe par le moteur des sources, qui
- * n'existe pas encore sur le mobile ni sur le site statique. Refusé avec un
+ * n'existe pas encore sur le site statique. Refusé avec un
  * message clair plutôt qu'un bouton qui n'enverrait rien.
  */
-export function verifierFichiersPourLaCible(application: Application, cible: 'mobile' | 'statique'): Diagnostic[] {
+export function verifierFichiersPourLaCible(application: Application, cible: 'statique'): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
   for (const e of [...application.ecrans, ...application.composants]) {
     const code = JSON.stringify([e.vue, e.gestionnaires]);

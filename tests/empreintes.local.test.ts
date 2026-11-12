@@ -5,7 +5,6 @@ import { createHash } from 'node:crypto';
 import { compilerProjet } from '../src/fichiers.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
 import { genererProjetStatique } from '../src/cibles/statique/projet.js';
-import { genererProjetMobile } from '../src/cibles/mobile/projet.js';
 import { genererProjetDesktop } from '../src/cibles/desktop/projet.js';
 
 it.runIf(process.env.SORTIE_EMPREINTES)('empreintes', () => {
@@ -28,7 +27,6 @@ it.runIf(process.env.SORTIE_EMPREINTES)('empreintes', () => {
     const gens: [string, () => Map<string, string>][] = [
       ['web', () => genererProjetWeb(a, { nom: 'e', adresse: 'https://x.cd', source: f })],
       ['statique', () => genererProjetStatique(a, { nom: 'e', source: f })],
-      ['mobile', () => genererProjetMobile(a, { nom: 'e', source: f })],
       ['desktop', () => genererProjetDesktop(a, { nom: 'e', source: f })],
     ];
     for (const [c, g] of gens) {

@@ -109,13 +109,6 @@ describe('navigation — code web', () => {
     expect(web('page "a" :\n    titre "x"').has('src/humalis/reservee.tsx')).toBe(false);
   });
 
-  it("le mobile et le statique refusent clairement une page réservée ou une adresse choisie", () => {
-    const application = compiler(source).application!;
-    const messages = verifierNavigationPourLaCible(application, 'mobile').map((d) => d.message).join('\n');
-    expect(messages).toMatch(/Une adresse choisie \(page « compte »\)/);
-    expect(messages).toMatch(/Une page réservée/);
-    expect(messages).toMatch(/« continuer vers »/);
-  });
 });
 
 describe('navigation — avec l’en-tête et le pied communs', () => {

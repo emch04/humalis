@@ -3,7 +3,6 @@ import { analyser } from '../src/lexer/lexer.js';
 import { analyserSyntaxe } from '../src/parser/parser.js';
 import { compiler } from './aide-qualite.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
-import { genererProjetMobile } from '../src/cibles/mobile/projet.js';
 import { programme, erreurs, avertissements } from './analyse/aide.js';
 
 // Huit lignes : la page commence ligne 9.
@@ -40,11 +39,6 @@ const projetWeb = (source: string) => {
   const { application, diagnostics } = compiler(source);
   expect(diagnostics.filter((d) => d.gravite === 'erreur')).toEqual([]);
   return genererProjetWeb(application!, { nom: 'contact', adresse: 'https://contact.exemple.cd', source: 'contact.humalis' });
-};
-const projetMobile = (source: string) => {
-  const { application, diagnostics } = compiler(source);
-  expect(diagnostics.filter((d) => d.gravite === 'erreur')).toEqual([]);
-  return genererProjetMobile(application!, { nom: 'contact', source: 'contact.humalis' });
 };
 
 describe('formulaire — parser', () => {
@@ -327,21 +321,3 @@ describe('formulaire — cible web', () => {
   });
 });
 
-describe('formulaire — cible mobile', () => {
-  const projet = projetMobile(contact());
-  const page = projet.get('app/index.tsx')!;
-
-  it('regroupe les champs, et envoie par le bouton ou la touche du clavier', () => {
-    expect(page).toContain('<View testID="formulaire_message" style={s.formulaire}>');
-    expect(page).toContain(
-      '<Pressable testID="bouton_envoyer" accessibilityRole="button" style={s.bouton} onPress={quandSoumisMessage}><Text style={s.texteBouton}>Envoyer</Text></Pressable>',
-    );
-    expect(page).toContain('returnKeyType="send" onSubmitEditing={quandSoumisMessage}');
-    expect(projet.get('humalis/serveur.ts')).toContain('echecs: () => echecs.current');
-    expect(projet.get('humalis/styles.ts')).toContain('formulaire: {');
-  });
-
-  it('vide les champs après un envoi réussi', () => {
-    expect(page).toContain("    if (serveur.echecs() > echecs) return;\n    afficherMessage('Merci\u202f!', 'info');\n    setChampEmail('');");
-  });
-});

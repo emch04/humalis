@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
-import { genererProjetMobile } from '../src/cibles/mobile/projet.js';
 import { genererProjetStatique } from '../src/cibles/statique/projet.js';
 import { formaterNombre, formaterDate } from '../src/cibles/format.js';
 import { programme } from './analyse/aide.js';
@@ -78,12 +77,6 @@ describe('format français — ce que produit chaque cible', () => {
     expect(page).toContain('`${r.nom}, le ${formaterDate(r.jour)}, ${formaterNombre(r.personnes)} personnes`');
     expect(page).toContain("import { formaterDate, formaterNombre } from '../humalis/outils';");
     expect(fichiers.get('src/humalis/outils.ts')).toContain('export function formaterNombre(');
-  });
-
-  it('mobile : les mêmes outils', () => {
-    const fichiers = genererProjetMobile(application(), { nom: 'resto', source: 'resto.humalis' });
-    expect(fichiers.get('humalis/outils.ts')).toContain('export function formaterDate(');
-    expect([...fichiers.values()].join('\n')).toContain('${formaterNombre(total)}');
   });
 
   it('site statique : le HTML de départ est déjà au format français, comme le premier dessin', () => {

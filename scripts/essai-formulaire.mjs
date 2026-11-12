@@ -8,10 +8,6 @@
 // chaque valeur avec son type (nombre, booléen, date). Serveur arrêté :
 // l'envoi échoue et les champs restent remplis.
 //
-// Mobile : le même exemple en --cible mobile passe tsc et expo export, puis
-// sa version web se pilote à la taille d'un iPhone (sans serveur : l'envoi
-// échoue, les champs restent remplis).
-//
 // Lancer : npm run build && npm run essai:formulaire [dossier-de-travail]
 import { execFileSync, spawn } from 'node:child_process';
 import { createServer } from 'node:http';
@@ -25,7 +21,6 @@ const travail = resolve(process.argv[2] ?? join(tmpdir(), 'humalis-essai-formula
 rmSync(travail, { recursive: true, force: true });
 const web = join(travail, 'web');
 const serveur = join(travail, 'serveur');
-const mobile = join(travail, 'mobile');
 const problemes = [];
 const verifier = (condition, message) => {
   if (!condition) problemes.push(message);
@@ -215,71 +210,6 @@ try {
   for (const p of processus) p.kill();
 }
 
-// ─── Mobile ─────────────────────────────────────────────────────────────
-
-execFileSync('node', ['dist/cli.js', 'compile', source, '--cible', 'mobile', '--sortie', mobile], { stdio: 'inherit' });
-execFileSync('npx', ['-y', 'npm@11', 'install', '--no-audit', '--no-fund'], { cwd: mobile, stdio: 'inherit' });
-execFileSync('npx', ['tsc', '--noEmit'], { cwd: mobile, stdio: 'inherit' });
-verifier(true, 'mobile : les types du projet Expo passent (tsc)');
-execFileSync('npx', ['expo', 'export', '--platform', 'web', '--output-dir', 'dist-web'], { cwd: mobile, stdio: 'inherit', env: { ...process.env, CI: '1' } });
-
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.json': 'application/json', '.ico': 'image/x-icon' };
-const racine = join(mobile, 'dist-web');
-const statique = createServer((requete, reponse) => {
-  const chemin = decodeURIComponent(new URL(requete.url, 'http://x').pathname);
-  const candidats = [join(racine, chemin), join(racine, `${chemin}.html`), join(racine, chemin, 'index.html')];
-  const trouve = candidats.find((c) => c.startsWith(racine) && existsSync(c) && statSync(c).isFile()) ?? join(racine, '+not-found.html');
-  reponse.writeHead(trouve.endsWith('+not-found.html') ? 404 : 200, { 'Content-Type': TYPES[extname(trouve)] ?? 'application/octet-stream' });
-  reponse.end(readFileSync(trouve));
-});
-await new Promise((ok) => statique.listen(0, '127.0.0.1', ok));
-const navigateurMobile = await chromium.launch();
-try {
-  const contexte = await navigateurMobile.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
-  const page = await contexte.newPage();
-  await page.goto(`http://127.0.0.1:${statique.address().port}`);
-  const champ = (id) => page.getByTestId(id).filter({ visible: true }).first();
-  const apparait = (locator) => locator.filter({ visible: true }).first().waitFor({ timeout: 5000 }).then(() => true, () => false);
-
-  verifier(await apparait(page.getByTestId('formulaire_inscription')), 'mobile : le formulaire s’affiche');
-  // React Native Web traduit le clavier demandé : phone-pad → type="tel", email-address → type="email".
-  verifier(await champ('champ_telephone').getAttribute('type') === 'tel', 'mobile : le téléphone ouvre le clavier des numéros (keyboardType="phone-pad")');
-  verifier(await champ('champ_age').getAttribute('inputmode') === 'numeric', 'mobile : l’âge ouvre le clavier des chiffres (keyboardType="numeric")');
-  verifier(await champ('champ_email').getAttribute('type') === 'email', 'mobile : l’email ouvre le clavier des adresses (keyboardType="email-address")');
-  verifier(await champ('champ_email').getAttribute('enterkeyhint') === 'send', 'mobile : la touche du clavier dit « Envoyer » (returnKeyType="send")');
-  verifier(await champ('champ_naissance').getAttribute('placeholder') === 'AAAA-MM-JJ', 'mobile : la date se tape, avec l’indice AAAA-MM-JJ');
-
-  await page.getByTestId('bouton_s_inscrire').filter({ visible: true }).tap();
-  verifier(await apparait(page.getByText('Le champ « Nom » est obligatoire.')), 'mobile : le bouton vérifie les champs obligatoires');
-  await champ('champ_nom').fill('Léa');
-  await champ('champ_email').fill('lea@exemple.cd');
-  await champ('champ_age').fill('34');
-  await champ('champ_naissance').fill('14/05/1992');
-  await champ('champ_nom').press('Enter');
-  verifier(await apparait(page.getByText('« Naissance » doit être une date écrite AAAA-MM-JJ')), 'mobile : la touche Entrée (onSubmitEditing) envoie, et une date mal écrite est refusée');
-  await champ('champ_naissance').fill('1992-05-14');
-  await page.getByRole('radio').filter({ hasText: /^. M$/ }).first().tap();
-  verifier(
-    await page.getByRole('radio', { checked: true }).filter({ hasText: /^. M$/ }).count() === 1 && (await page.getByRole('radio', { checked: true }).count()) === 1,
-    'mobile : un appui coche le choix « M », et lui seul (role="radio", aria-checked)',
-  );
-  await page.getByRole('switch').first().tap();
-  verifier(await page.getByRole('switch').first().isChecked(), 'mobile : la case à cocher est un Switch, qu’un appui coche');
-  await page.getByRole('button', { name: 'Pays' }).tap();
-  await page.getByRole('radio', { name: 'Belgique' }).tap();
-  verifier(await apparait(page.getByText('Belgique ▾')), 'mobile : la liste déroulante s’ouvre, et la valeur choisie s’affiche');
-  await page.screenshot({ path: join(travail, 'mobile-1-rempli.png'), fullPage: true });
-  await champ('champ_email').press('Enter');
-  // Pas de serveur ici : l'envoi échoue, les champs restent remplis.
-  verifier(await apparait(page.getByText("Le serveur n'a pas répondu.")), 'mobile : sans serveur, l’échec de l’envoi est dit en français');
-  verifier((await champ('champ_nom').inputValue()) === 'Léa', 'mobile : après l’échec, les champs restent remplis');
-  await page.screenshot({ path: join(travail, 'mobile-2-echec.png'), fullPage: true });
-} finally {
-  await navigateurMobile.close();
-  statique.close();
-}
-
 console.log(`Captures : ${travail}`);
-console.log('Non vérifié ici : le simulateur iPhone (Mac + Xcode).');
 console.log(problemes.length === 0 ? 'Tout est vérifié.' : `${problemes.length} problème(s).`);
 process.exit(problemes.length === 0 ? 0 : 1);

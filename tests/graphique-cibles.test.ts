@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
 import { genererProjetStatique } from '../src/cibles/statique/projet.js';
-import { genererProjetMobile } from '../src/cibles/mobile/projet.js';
 import { genererProjetDesktop } from '../src/cibles/desktop/projet.js';
 import { GEOMETRIE_JS } from '../src/cibles/commun/graphique/geometrie.js';
 import { formaterArgent, formaterNombre } from '../src/cibles/format.js';
@@ -22,7 +21,6 @@ const compile = (source: string) => {
 };
 const web = (source: string) => genererProjetWeb(compile(source), { nom: 'e', adresse: 'https://x.cd', source: 'e.humalis' });
 const statique = (source: string) => genererProjetStatique(compile(source), { nom: 'e', source: 'e.humalis' });
-const mobile = (source: string) => genererProjetMobile(compile(source), { nom: 'e', source: 'e.humalis' });
 const desktop = (source: string) => genererProjetDesktop(compile(source), { nom: 'e', source: 'e.humalis' });
 const fichier = (fichiers: Map<string, string>, fin: string) => [...fichiers.entries()].find(([n]) => n.endsWith(fin))?.[1] ?? '';
 
@@ -64,7 +62,6 @@ describe('graphiques — le web', () => {
     expect([...sans.keys()].filter((n) => n.includes('graphique'))).toEqual([]);
     expect(sans.get('src/humalis/styles.css')).not.toContain('humalis-graphique');
     expect([...statique(SANS).entries()].filter(([n, c]) => n.includes('graphique') || c.includes('graphique'))).toEqual([]);
-    expect([...mobile(SANS).keys()].filter((n) => n.includes('graphique'))).toEqual([]);
   });
 
   it('le desktop reprend le web', () => {
@@ -102,17 +99,3 @@ describe('graphiques — le site statique', () => {
   });
 });
 
-describe('graphiques — le mobile', () => {
-  const projet = mobile(VENTES);
-
-  it('react-native-svg (version d’Expo 57) seulement quand un graphique est dessiné, et un libellé accessible', () => {
-    expect(JSON.parse(projet.get('package.json')!).dependencies['react-native-svg']).toBe('15.15.4');
-    expect(JSON.parse(mobile(SANS).get('package.json')!).dependencies['react-native-svg']).toBeUndefined();
-    const composant = projet.get('humalis/graphique.tsx')!;
-    expect(composant).toContain("from 'react-native-svg'");
-    expect(composant).toContain("accessibilityRole=\"image\" accessibilityLabel={titre + '. ' + description}");
-    expect(composant).toContain("'Voir les données'");
-    expect(projet.get('humalis/graphique-geometrie.js')).toContain(GEOMETRIE_JS);
-    expect(fichier(projet, 'app/index.tsx')).toContain('<Graphique genre="courbe"');
-  });
-});

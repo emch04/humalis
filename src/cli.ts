@@ -13,8 +13,6 @@ import { prevenirDesTuiles } from './analyse/carte.js';
 import { cheminsDesPages, genererProjetWeb, genererComposantsWeb, verifierPourLeWeb, adressesDeRequetes, MARQUE } from './cibles/web/projet.js';
 import { genererProjetServeur, MARQUE_SERVEUR } from './cibles/serveur/projet.js';
 import { verifierSourcesPourLaCible, verifierNavigationPourLaCible, verifierFichiersPourLaCible, verifierNomsPourLeWeb, verifierAdresseParLangue } from './cibles/sources.js';
-import { genererProjetMobile, verifierPourLeMobile, verifierModulesPourLeMobile, MARQUE_MOBILE } from './cibles/mobile/projet.js';
-import { verifierFichiersPourLeMobile } from './cibles/mobile/fichiers.js';
 import { genererProjetMoteur, verifierPourLeMoteur, MARQUE_MOTEUR } from './cibles/moteur/projet.js';
 import { lecturesPermises, lireLesDonnees, type ReglageLecture } from './cibles/moteur/lecture-construction.js';
 import { genererProjetStatique, verifierPourLeStatique, MARQUE_STATIQUE } from './cibles/statique/projet.js';
@@ -50,7 +48,6 @@ const AIDE = `Utilisation :
   humalis verifier <fichier.humalis> [--exigeant] [--ri] [--cible <cible>]
   humalis compile <fichier.humalis> --cible web --sortie <dossier> [--adresse https://…] [--exigeant]
   humalis compile <fichier.humalis> --cible web --composants <dossier>
-  humalis compile <fichier.humalis> --cible mobile --sortie <dossier>
   humalis compile <fichier.humalis> --cible desktop --sortie <dossier> [--serveur https://…]
   humalis compile <fichier.humalis> --cible apple --sortie <dossier> [--serveur https://…] [--identifiant com.exemple.app] [--equipe ABCDE12345]
   humalis compile <fichier.humalis> --cible android --sortie <dossier> [--serveur https://…] [--identifiant com.exemple.app] [--empreinte AA:BB:…] [--firebase google-services.json]
@@ -80,8 +77,7 @@ compile   produit un projet complet pour la cible choisie : web (un site
           JavaScript, sans construction), apple (SwiftUI natif, iPhone, iPad
           et Mac), android (Kotlin et Jetpack Compose), windows (C# et WPF
           natif, Windows 10 et 11), desktop (Electron, la cible Linux),
-          serveur (Node + packs Astratra) ou mobile (ancienne cible, par
-          Expo).
+          ou serveur (Node + packs Astratra).
           Avec --composants, seulement les pages web et leurs outils, à
           déposer dans un projet existant.
 packs     compare les packs Astratra du compilateur à leur dernière version
@@ -192,11 +188,16 @@ function compile(arguments_: string[]): number | Promise<number> {
     console.error(AIDE);
     return 2;
   }
-  if (cible !== 'web' && cible !== 'mobile' && cible !== 'desktop' && cible !== 'apple' && cible !== 'android' && cible !== 'windows' && cible !== 'serveur' && cible !== 'statique') {
+  if (cible === 'mobile') {
+    // L'ancienne cible Expo : les applications iPhone et Android sont produites en natif.
+    console.error('La cible « mobile » (Expo) a été retirée : compilez avec --cible apple pour iPhone, iPad et Mac, et --cible android pour Android.');
+    return 2;
+  }
+  if (cible !== 'web' && cible !== 'desktop' && cible !== 'apple' && cible !== 'android' && cible !== 'windows' && cible !== 'serveur' && cible !== 'statique') {
     console.error(
       cible === undefined
-        ? 'Précisez la cible avec --cible web, --cible mobile, --cible desktop, --cible apple, --cible android, --cible windows, --cible serveur ou --cible statique.'
-        : `La cible « ${cible} » n'existe pas encore. Cibles disponibles : web, mobile, desktop, apple, android, windows, serveur, statique.`,
+        ? 'Précisez la cible avec --cible web, --cible desktop, --cible apple, --cible android, --cible windows, --cible serveur ou --cible statique.'
+        : `La cible « ${cible} » n'existe pas encore. Cibles disponibles : web, statique, apple, android, windows, desktop, serveur.`,
     );
     return 2;
   }
@@ -222,7 +223,7 @@ function compile(arguments_: string[]): number | Promise<number> {
   if (programme.includes('"animation":true') && cible !== 'web' && cible !== 'serveur' && cible !== 'apple' && cible !== 'android') {
     console.error('Avertissement : « avec animation » n\'a d\'effet que sur le web : ici, les lignes changent sans glisser.');
   }
-  if (programme.includes('"direct":true') && (cible === 'mobile' || cible === 'statique')) {
+  if (programme.includes('"direct":true') && cible === 'statique') {
     console.error(`Avertissement : « en direct » n'a pas d'effet sur la cible ${cible} : ici, la liste est lue une fois.`);
   }
 
@@ -247,7 +248,6 @@ function compile(arguments_: string[]): number | Promise<number> {
   }
 
   if (cible === 'serveur') return compileServeur(application, chemin, sortie);
-  if (cible === 'mobile') return compileMobile(application, chemin, sortie);
   if (cible === 'statique') return compileStatique(application, chemin, sortie, option(arguments_, 'adresse'));
   if (cible === 'desktop') return compileDesktop(application, chemin, sortie, option(arguments_, 'serveur'), option(arguments_, 'moteur') ?? moteurDuProjet(chemin));
   if (cible === 'apple') return compileApple(application, chemin, sortie, arguments_);
@@ -505,34 +505,6 @@ function lireComposantsReact(application: Application, chemin: string, extension
     composantsReact.set(composant.chemin, { nom: basename(trouve), contenu: readFileSync(trouve, 'utf8') });
   }
   return composantsReact;
-}
-
-function compileMobile(application: Application, chemin: string, sortie: string): number {
-  if (application.ecrans.length === 0) {
-    console.error(`Le fichier ${basename(chemin)} ne contient aucune page : rien n'a été écrit.`);
-    return 1;
-  }
-  // Ce qui n'existe pas sur un téléphone (CSS, survol…) : signalé, sans bloquer.
-  afficherDiagnostics(verifierPourLeMobile(application));
-  const sansSources = [...verifierModulesPourLeMobile(application), ...verifierSourcesPourLaCible(application, 'mobile'), ...verifierNavigationPourLaCible(application, 'mobile'), ...verifierFichiersPourLeMobile(application)];
-  if (sansSources.length > 0) {
-    afficherDiagnostics(sansSources);
-    console.error('\nLe programme ne peut pas être produit pour le mobile : rien n\'a été écrit.');
-    return 1;
-  }
-  if (!dossierLibre(sortie, MARQUE_MOBILE)) return 1;
-  const composantsReact = lireComposantsReact(application, chemin);
-  if (!composantsReact) return 1;
-  const nom = basename(chemin).replace(/\.humalis$/, '');
-  const images = lireImagesDuSite(application, chemin);
-  if (!images) return 1;
-  const medias = lireMedias(application, chemin);
-  if (!medias) return 1;
-  const fichiers = genererProjetMobile(application, { nom, source: basename(chemin), composantsReact, images, medias });
-  ecrire(sortie, fichiers);
-  console.error(`Projet mobile (Expo) écrit dans « ${sortie} » (${fichiers.size} fichiers).`);
-  console.error(`Pour le lancer : cd ${sortie} && npm install && npx expo start (voir LISEZMOI.md)`);
-  return 0;
 }
 
 function compileDesktop(application: Application, chemin: string, sortie: string, serveur: string | undefined, moteurDemande?: string): number {

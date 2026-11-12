@@ -442,7 +442,7 @@ describe('connexion avec Apple', () => {
 
   it('les cibles qui ne l\'ont pas le disent', async () => {
     const { verifierAppareilPourLaCible } = await import('../../src/cibles/appareil.js');
-    for (const cible of ['mobile', 'desktop', 'statique']) expect(verifierAppareilPourLaCible(compile(SOURCE), cible).map((d) => d.message).join()).toContain('se connecter avec apple');
+    for (const cible of ['desktop', 'statique']) expect(verifierAppareilPourLaCible(compile(SOURCE), cible).map((d) => d.message).join()).toContain('se connecter avec apple');
     expect(verifierAppareilPourLaCible(compile(SOURCE), 'web')).toEqual([]);
   });
 });

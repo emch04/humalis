@@ -2,7 +2,6 @@ import { it, expect } from 'vitest';
 import { compiler } from '../src/compilateur.js';
 import { contraste } from '../src/analyse/couleurs.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
-import { genererProjetMobile } from '../src/cibles/mobile/projet.js';
 import { genererProjetStatique } from '../src/cibles/statique/projet.js';
 
 const verifier = (corps: string) => compiler(`page "accueil" :\n${corps.split('\n').map((l) => `    ${l}`).join('\n')}`).diagnostics;
@@ -67,13 +66,10 @@ it('produit les attributs des images décrites et décoratives sur chaque cible'
   expect(resultat.application, JSON.stringify(resultat.diagnostics)).toBeDefined();
   const application = resultat.application!;
   const web = genererProjetWeb(application, { nom: 'essai', adresse: 'https://exemple.fr', source: 'essai.humalis' });
-  const mobile = genererProjetMobile(application, { nom: 'essai', source: 'essai.humalis' });
   const statique = genererProjetStatique(application, { nom: 'essai', source: 'essai.humalis' });
   const textes = (fichiers: Map<string, string>) => [...fichiers.values()].join('\n');
   expect(textes(web)).toContain('alt="Une salle claire"');
   expect(textes(web)).toContain('alt="" aria-hidden="true"');
-  expect(textes(mobile)).toContain('accessibilityLabel="Une salle claire"');
-  expect(textes(mobile)).toContain('accessible={false}');
   expect(textes(statique)).toContain('alt="Une salle claire"');
   expect(textes(statique)).toContain('aria-hidden="true"');
 });

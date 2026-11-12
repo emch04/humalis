@@ -3336,7 +3336,7 @@ the service is not set up. To try it at home: `livekit-server --dev` gives
 **On each target.** The web (Humalis engine), desktop, Apple (iPhone, iPad, Mac),
 Android and Windows (x64 and ARM64) have everything: chats, calls, meetings and
 screen sharing. On Windows, sharing shows the whole main screen; on iPhone, it
-shows the app. The `mobile` target (Expo), static pages and `--moteur react` refuse
+shows the app. Static pages and `--moteur react` refuse
 these phrases at compile time and name the target to use.
 
 ---
@@ -4151,23 +4151,23 @@ with Humalis (`npm install -g humalis`).
 The same file produces every target. When a construct does not exist on a
 target, the compiler says so clearly instead of producing something wrong.
 
-| | web | static | mobile | desktop | apple | android | windows |
-|---|---|---|---|---|---|---|---|
-| Pages, elements, styles, theme | yes | yes | yes | yes | yes | yes | yes |
-| Your own CSS | yes | yes | no (named styles only) | yes | partly (single-class rules; the rest is listed); to the point in a `dessinee pour` page, `@media` and dark mode included | partly (single-class rules; the rest is listed) | partly (single-class rules; the rest is listed) |
-| Requests to a server | yes | yes | yes | yes | yes | yes | yes |
-| `memorisee` | yes | yes | yes | yes | yes | yes | yes |
-| `memorisee en secret` | no | no | yes | yes | yes (Keychain) | yes (Keystore) | yes (encrypted by Windows) |
-| `essayer` | yes | no | yes | yes | yes | yes | yes |
-| Keyboard shortcuts | yes | yes | no | yes | yes | yes (keyboard attached) | yes |
-| Hand-written native view | no | no | no | no | yes (Swift, `sur apple`) | yes (Kotlin, `sur android`) | yes (C#, `sur windows`) |
-| React components (older projects) | yes | no | yes (in React Native) | yes | no | no | no |
-| The Humalis engine (the default) | yes | no | no | yes (except a React component or `memorisee en secret`) | no | no | no |
-| Charts, maps, audio, video, files | yes | yes | partly | yes | yes | yes | yes |
-| Several languages | yes | yes | yes | yes | yes | yes | yes |
-| Photo, scanner, Face ID, vibration, signature, offline | yes (vibration: Android) | no | no | no | yes | yes | no |
-| `en arriere plan` | no | no | no | no | yes | yes | yes (scheduled task) |
-| Sitemap, share preview | yes | yes | no | no | no | no | no |
+| | web | static | desktop | apple | android | windows |
+|---|---|---|---|---|---|---|
+| Pages, elements, styles, theme | yes | yes | yes | yes | yes | yes |
+| Your own CSS | yes | yes | yes | partly (single-class rules; the rest is listed); to the point in a `dessinee pour` page, `@media` and dark mode included | partly (single-class rules; the rest is listed) | partly (single-class rules; the rest is listed) |
+| Requests to a server | yes | yes | yes | yes | yes | yes |
+| `memorisee` | yes | yes | yes | yes | yes | yes |
+| `memorisee en secret` | no | no | yes | yes (Keychain) | yes (Keystore) | yes (encrypted by Windows) |
+| `essayer` | yes | no | yes | yes | yes | yes |
+| Keyboard shortcuts | yes | yes | yes | yes | yes (keyboard attached) | yes |
+| Hand-written native view | no | no | no | yes (Swift, `sur apple`) | yes (Kotlin, `sur android`) | yes (C#, `sur windows`) |
+| React components (older projects) | yes | no | yes | no | no | no |
+| The Humalis engine (the default) | yes | no | yes (except a React component or `memorisee en secret`) | no | no | no |
+| Charts, maps, audio, video, files | yes | yes | yes | yes | yes | yes |
+| Several languages | yes | yes | yes | yes | yes | yes |
+| Photo, scanner, Face ID, vibration, signature, offline | yes (vibration: Android) | no | no | yes | yes | no |
+| `en arriere plan` | no | no | no | yes | yes | yes (scheduled task) |
+| Sitemap, share preview | yes | yes | no | no | no | no |
 
 The server (`--cible serveur`) is generated separately, from the `serveur`
 block.
@@ -4353,8 +4353,7 @@ announces that something changed: the page then re-reads the normal route, with 
 access rules, so nothing private travels through this channel. It works on the web,
 on the desktop, on Apple, on Android and on
 Windows. After a connection loss, the page reconnects by itself and catches up with what
-changed. The `mobile` target (Expo) and static pages read the list once, and the compiler
-says so.
+changed. Static pages read the list once, and the compiler says so.
 
 With a PostgreSQL database you can run several copies of the server: a change received
 by one is announced by all. Without PostgreSQL, keep a single copy. Changes close

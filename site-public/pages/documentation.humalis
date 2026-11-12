@@ -4109,7 +4109,7 @@ page "documentation_22" dans "documentation" adresse "/documentation/relier-les-
             LIVEKIT_API_KEY=…
             LIVEKIT_API_SECRET=…
         texte "Without these three variables, chats still work and joining a meeting answers that the service is not set up. To try it at home: `livekit-server --dev` gives `ws://localhost:7880`, `devkey` and `secret`."
-        texte "{accent "On each target."} The web (Humalis engine), desktop, Apple (iPhone, iPad, Mac), Android and Windows (x64 and ARM64) have everything: chats, calls, meetings and screen sharing. On Windows, sharing shows the whole main screen; on iPhone, it shows the app. The `mobile` target (Expo), static pages and `--moteur react` refuse these phrases at compile time and name the target to use."
+        texte "{accent "On each target."} The web (Humalis engine), desktop, Apple (iPhone, iPad, Mac), Android and Windows (x64 and ARM64) have everything: chats, calls, meetings and screen sharing. On Windows, sharing shows the whole main screen; on iPhone, it shows the app. Static pages and `--moteur react` refuse these phrases at compile time and name the target to use."
     sinon :
         texte "Quand le serveur et les pages sont dans le même fichier, Humalis {accent "vérifie chaque requête à la compilation"} : la route existe, les champs existent, les types sont les bons, et la personne a le droit."
         code humalis :
@@ -4463,7 +4463,7 @@ page "documentation_22" dans "documentation" adresse "/documentation/relier-les-
             LIVEKIT_API_KEY=…
             LIVEKIT_API_SECRET=…
         texte "Sans ces trois variables, les discussions marchent et rejoindre une réunion répond que le service n'est pas réglé. Pour essayer chez toi : `livekit-server --dev` donne `ws://localhost:7880`, `devkey` et `secret`."
-        texte "{accent "Sur chaque cible."} Le web (moteur Humalis), le bureau, Apple (iPhone, iPad, Mac), Android et Windows (x64 et ARM64) ont tout : discussions, appels, réunions et partage d'écran. Sur Windows, le partage montre l'écran principal en entier ; sur iPhone, il montre l'application. La cible `mobile` (Expo), les pages statiques et `--moteur react` refusent ces phrases à la compilation, avec la cible à prendre."
+        texte "{accent "Sur chaque cible."} Le web (moteur Humalis), le bureau, Apple (iPhone, iPad, Mac), Android et Windows (x64 et ARM64) ont tout : discussions, appels, réunions et partage d'écran. Sur Windows, le partage montre l'écran principal en entier ; sur iPhone, il montre l'application. Les pages statiques et `--moteur react` refusent ces phrases à la compilation, avec la cible à prendre."
     ligne avec style "doc-suite" :
         lien "← 21. Le serveur" en anglais "← 21. The server" vers "documentation_21"
         lien "23. Utiliser une API qui existe déjà →" en anglais "23. Using an existing API →" vers "documentation_23"
@@ -5535,23 +5535,23 @@ page "documentation_33" dans "documentation" adresse "/documentation/ce-que-chaq
     titre "33. Ce que chaque cible sait faire" en anglais "33. What each target can do"
     si langue est anglais :
         texte "The same file produces every target. When a construct does not exist on a target, the compiler says so clearly instead of producing something wrong."
-        tableau "web, static, mobile, desktop, apple, android, windows" :
-            colonnes " ", "web", "static", "mobile", "desktop", "apple", "android", "windows"
-            rangee "Pages, elements, styles, theme", "yes", "yes", "yes", "yes", "yes", "yes", "yes"
-            rangee "Your own CSS", "yes", "yes", "no (named styles only)", "yes", "partly (single-class rules; the rest is listed); to the point in a `dessinee pour` page, `@media` and dark mode included", "partly (single-class rules; the rest is listed)", "partly (single-class rules; the rest is listed)"
-            rangee "Requests to a server", "yes", "yes", "yes", "yes", "yes", "yes", "yes"
-            rangee "`memorisee`", "yes", "yes", "yes", "yes", "yes", "yes", "yes"
-            rangee "`memorisee en secret`", "no", "no", "yes", "yes", "yes (Keychain)", "yes (Keystore)", "yes (encrypted by Windows)"
-            rangee "`essayer`", "yes", "no", "yes", "yes", "yes", "yes", "yes"
-            rangee "Keyboard shortcuts", "yes", "yes", "no", "yes", "yes", "yes (keyboard attached)", "yes"
-            rangee "Hand-written native view", "no", "no", "no", "no", "yes (Swift, `sur apple`)", "yes (Kotlin, `sur android`)", "yes (C#, `sur windows`)"
-            rangee "React components (older projects)", "yes", "no", "yes (in React Native)", "yes", "no", "no", "no"
-            rangee "The Humalis engine (the default)", "yes", "no", "no", "yes (except a React component or `memorisee en secret`)", "no", "no", "no"
-            rangee "Charts, maps, audio, video, files", "yes", "yes", "partly", "yes", "yes", "yes", "yes"
-            rangee "Several languages", "yes", "yes", "yes", "yes", "yes", "yes", "yes"
-            rangee "Photo, scanner, Face ID, vibration, signature, offline", "yes (vibration: Android)", "no", "no", "no", "yes", "yes", "no"
-            rangee "`en arriere plan`", "no", "no", "no", "no", "yes", "yes", "yes (scheduled task)"
-            rangee "Sitemap, share preview", "yes", "yes", "no", "no", "no", "no", "no"
+        tableau "web, static, desktop, apple, android, windows" :
+            colonnes " ", "web", "static", "desktop", "apple", "android", "windows"
+            rangee "Pages, elements, styles, theme", "yes", "yes", "yes", "yes", "yes", "yes"
+            rangee "Your own CSS", "yes", "yes", "yes", "partly (single-class rules; the rest is listed); to the point in a `dessinee pour` page, `@media` and dark mode included", "partly (single-class rules; the rest is listed)", "partly (single-class rules; the rest is listed)"
+            rangee "Requests to a server", "yes", "yes", "yes", "yes", "yes", "yes"
+            rangee "`memorisee`", "yes", "yes", "yes", "yes", "yes", "yes"
+            rangee "`memorisee en secret`", "no", "no", "yes", "yes (Keychain)", "yes (Keystore)", "yes (encrypted by Windows)"
+            rangee "`essayer`", "yes", "no", "yes", "yes", "yes", "yes"
+            rangee "Keyboard shortcuts", "yes", "yes", "yes", "yes", "yes (keyboard attached)", "yes"
+            rangee "Hand-written native view", "no", "no", "no", "yes (Swift, `sur apple`)", "yes (Kotlin, `sur android`)", "yes (C#, `sur windows`)"
+            rangee "React components (older projects)", "yes", "no", "yes", "no", "no", "no"
+            rangee "The Humalis engine (the default)", "yes", "no", "yes (except a React component or `memorisee en secret`)", "no", "no", "no"
+            rangee "Charts, maps, audio, video, files", "yes", "yes", "yes", "yes", "yes", "yes"
+            rangee "Several languages", "yes", "yes", "yes", "yes", "yes", "yes"
+            rangee "Photo, scanner, Face ID, vibration, signature, offline", "yes (vibration: Android)", "no", "no", "yes", "yes", "no"
+            rangee "`en arriere plan`", "no", "no", "no", "yes", "yes", "yes (scheduled task)"
+            rangee "Sitemap, share preview", "yes", "yes", "no", "no", "no", "no"
         texte "The server (`--cible serveur`) is generated separately, from the `serveur` block."
         soustitre "The Android application"
         texte "`--cible android` writes readable Kotlin: each page is a Compose function, its variables are state, and its events are functions that wait for the server without blocking the screen. Navigation goes through Navigation Compose, and Android's back button returns to the previous page. The icons are the same as on the web."
@@ -5622,7 +5622,7 @@ page "documentation_33" dans "documentation" adresse "/documentation/ce-que-chaq
                 titre "Commandes"
                 quand la page se charge :
                     envoyer requete vers "commandes" dans commandes en direct
-        texte "An order created elsewhere appears by itself, without a reload. The server only announces that something changed: the page then re-reads the normal route, with its access rules, so nothing private travels through this channel. It works on the web, on the desktop, on Apple, on Android and on Windows. After a connection loss, the page reconnects by itself and catches up with what changed. The `mobile` target (Expo) and static pages read the list once, and the compiler says so."
+        texte "An order created elsewhere appears by itself, without a reload. The server only announces that something changed: the page then re-reads the normal route, with its access rules, so nothing private travels through this channel. It works on the web, on the desktop, on Apple, on Android and on Windows. After a connection loss, the page reconnects by itself and catches up with what changed. Static pages read the list once, and the compiler says so."
         texte "With a PostgreSQL database you can run several copies of the server: a change received by one is announced by all. Without PostgreSQL, keep a single copy. Changes close together are grouped, and pages do not all re-read at the same moment."
         texte "#### Reading the server at build time"
         texte "To have public pages carry their content in the HTML, give your server's address in `humalis.projet.json`:"
@@ -5638,23 +5638,23 @@ page "documentation_33" dans "documentation" adresse "/documentation/ce-que-chaq
         texte "Data removed from the server stays in the HTML until the next build: rebuild the site after an important deletion."
     sinon :
         texte "Le même fichier donne toutes les cibles. Quand une construction n'existe pas sur une cible, le compilateur le dit clairement au lieu de produire quelque chose de faux."
-        tableau "web, statique, mobile, desktop, apple, android, windows" :
-            colonnes " ", "web", "statique", "mobile", "desktop", "apple", "android", "windows"
-            rangee "Pages, éléments, styles, thème", "oui", "oui", "oui", "oui", "oui", "oui", "oui"
-            rangee "Ton propre CSS", "oui", "oui", "non (styles nommés seulement)", "oui", "en partie (règles d'une classe ; le reste est listé) ; au point près dans une page `dessinee pour`, `@media` et mode sombre compris", "en partie (règles d'une classe ; le reste est listé)", "en partie (règles d'une classe ; le reste est listé)"
-            rangee "Requêtes vers un serveur", "oui", "oui", "oui", "oui", "oui", "oui", "oui"
-            rangee "`memorisee`", "oui", "oui", "oui", "oui", "oui", "oui", "oui"
-            rangee "`memorisee en secret`", "non", "non", "oui", "oui", "oui (Keychain)", "oui (Keystore)", "oui (chiffré par Windows)"
-            rangee "`essayer`", "oui", "non", "oui", "oui", "oui", "oui", "oui"
-            rangee "Raccourcis clavier", "oui", "oui", "non", "oui", "oui", "oui (clavier branché)", "oui"
-            rangee "Vue native écrite à la main", "non", "non", "non", "non", "oui (Swift, `sur apple`)", "oui (Kotlin, `sur android`)", "oui (C#, `sur windows`)"
-            rangee "Composants React (anciens projets)", "oui", "non", "oui (en React Native)", "oui", "non", "non", "non"
-            rangee "Le moteur Humalis (par défaut)", "oui", "non", "non", "oui (sauf composant React ou `memorisee en secret`)", "non", "non", "non"
-            rangee "Graphiques, cartes, audio, vidéo, fichiers", "oui", "oui", "en partie", "oui", "oui", "oui", "oui"
-            rangee "Plusieurs langues", "oui", "oui", "oui", "oui", "oui", "oui", "oui"
-            rangee "Photo, scanner, Face ID, vibration, signature, hors ligne", "oui (vibration : Android)", "non", "non", "non", "oui", "oui", "non"
-            rangee "`en arriere plan`", "non", "non", "non", "non", "oui", "oui", "oui (tâche planifiée)"
-            rangee "Plan du site, aperçu de partage", "oui", "oui", "non", "non", "non", "non", "non"
+        tableau "web, statique, desktop, apple, android, windows" :
+            colonnes " ", "web", "statique", "desktop", "apple", "android", "windows"
+            rangee "Pages, éléments, styles, thème", "oui", "oui", "oui", "oui", "oui", "oui"
+            rangee "Ton propre CSS", "oui", "oui", "oui", "en partie (règles d'une classe ; le reste est listé) ; au point près dans une page `dessinee pour`, `@media` et mode sombre compris", "en partie (règles d'une classe ; le reste est listé)", "en partie (règles d'une classe ; le reste est listé)"
+            rangee "Requêtes vers un serveur", "oui", "oui", "oui", "oui", "oui", "oui"
+            rangee "`memorisee`", "oui", "oui", "oui", "oui", "oui", "oui"
+            rangee "`memorisee en secret`", "non", "non", "oui", "oui (Keychain)", "oui (Keystore)", "oui (chiffré par Windows)"
+            rangee "`essayer`", "oui", "non", "oui", "oui", "oui", "oui"
+            rangee "Raccourcis clavier", "oui", "oui", "oui", "oui", "oui (clavier branché)", "oui"
+            rangee "Vue native écrite à la main", "non", "non", "non", "oui (Swift, `sur apple`)", "oui (Kotlin, `sur android`)", "oui (C#, `sur windows`)"
+            rangee "Composants React (anciens projets)", "oui", "non", "oui", "non", "non", "non"
+            rangee "Le moteur Humalis (par défaut)", "oui", "non", "oui (sauf composant React ou `memorisee en secret`)", "non", "non", "non"
+            rangee "Graphiques, cartes, audio, vidéo, fichiers", "oui", "oui", "oui", "oui", "oui", "oui"
+            rangee "Plusieurs langues", "oui", "oui", "oui", "oui", "oui", "oui"
+            rangee "Photo, scanner, Face ID, vibration, signature, hors ligne", "oui (vibration : Android)", "non", "non", "oui", "oui", "non"
+            rangee "`en arriere plan`", "non", "non", "non", "oui", "oui", "oui (tâche planifiée)"
+            rangee "Plan du site, aperçu de partage", "oui", "oui", "non", "non", "non", "non"
         texte "Le serveur (`--cible serveur`) se produit à part, depuis le bloc `serveur`."
         soustitre "L'application Android"
         texte "`--cible android` écrit du Kotlin lisible : chaque page est une fonction Compose, ses variables sont des états, ses événements des fonctions qui attendent le serveur sans bloquer l'écran. La navigation passe par Navigation Compose, et le bouton retour d'Android revient à la page d'avant. Les icônes sont celles du web."
@@ -5725,7 +5725,7 @@ page "documentation_33" dans "documentation" adresse "/documentation/ce-que-chaq
                 titre "Commandes"
                 quand la page se charge :
                     envoyer requete vers "commandes" dans commandes en direct
-        texte "Une commande créée ailleurs apparaît seule, sans recharger. Le serveur annonce seulement « ça a changé » : la page relit ensuite la route normale, avec ses droits, donc rien de privé ne passe par ce canal. Cela marche sur le web, sur le bureau, sur Apple, sur Android et sur Windows. Après une coupure, la page se reconnecte seule et rattrape ce qui a changé. La cible `mobile` (Expo) et les pages statiques lisent la liste une fois, et la compilation le dit."
+        texte "Une commande créée ailleurs apparaît seule, sans recharger. Le serveur annonce seulement « ça a changé » : la page relit ensuite la route normale, avec ses droits, donc rien de privé ne passe par ce canal. Cela marche sur le web, sur le bureau, sur Apple, sur Android et sur Windows. Après une coupure, la page se reconnecte seule et rattrape ce qui a changé. Les pages statiques lisent la liste une fois, et la compilation le dit."
         texte "Avec une base PostgreSQL, tu peux lancer plusieurs exemplaires du serveur : un changement reçu par l'un est annoncé par tous. Sans PostgreSQL, garde un seul exemplaire. Les changements rapprochés sont regroupés, et les pages ne relisent pas toutes au même instant."
         texte "#### Lire le serveur à la construction"
         texte "Pour que les pages publiques portent déjà leur contenu dans le HTML, indique l'adresse de ton serveur dans `humalis.projet.json` :"

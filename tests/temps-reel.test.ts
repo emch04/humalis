@@ -193,7 +193,6 @@ describe('le temps réel : les cibles', () => {
   });
 
   it('Expo, les pages statiques et React refusent clairement', () => {
-    expect(verifierTempsReelPourLaCible(application, 'mobile', undefined)[0]!.message).toContain('--cible apple');
     expect(verifierTempsReelPourLaCible(application, 'statique', undefined)[0]!.message).toContain('--cible web');
     expect(verifierTempsReelPourLaCible(application, 'web', 'react')[0]!.message).toContain('--moteur react');
     expect(verifierTempsReelPourLaCible(application, 'web', 'humalis')).toEqual([]);

@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
-import { genererProjetMobile } from '../src/cibles/mobile/projet.js';
 import { genererProjetStatique } from '../src/cibles/statique/projet.js';
 import { programme, erreurs } from './analyse/aide.js';
 
@@ -15,12 +14,10 @@ const web = () => {
 const SERVEUR = ['serveur "club" :', '>donnee membre :', '>>nom : texte', '>route "membres" :', '>>tout le monde peut lire membre'];
 
 describe('session — rien ne s’affiche avant de savoir qui est connecté', () => {
-  it('la session dit quand elle a lu /auth/me (web et mobile)', () => {
+  it('la session dit quand elle a lu /auth/me (web)', () => {
     expect(web().get('src/humalis/session.tsx')).toContain('pret: boolean;');
     expect(web().get('src/humalis/session.tsx')).toContain('setPret(true);');
     const { application } = compiler(avis);
-    const mobile = genererProjetMobile(application!, { nom: 'avis', source: 'avis.humalis' });
-    expect(mobile.get('humalis/session.tsx')).toContain('setPret(true);');
   });
 
   it('une condition sur la session attend la réponse du serveur', () => {
@@ -85,34 +82,6 @@ describe('session — toujours à jour (projet « Le Fleuve »)', () => {
     'page "accueil" :',
     '>titre "Bienvenue"',
   ];
-  const projet = (cible: 'web' | 'mobile') => {
-    const { application } = compiler(programme(...ADMIN));
-    return cible === 'web'
-      ? genererProjetWeb(application!, { nom: 'resto', adresse: 'https://resto.exemple.cd', source: 'resto.humalis' })
-      : genererProjetMobile(application!, { nom: 'resto', source: 'resto.humalis' });
-  };
-
-  it('« connecte » et « admin » lisent la dernière réponse de /auth/me, même dans un événement en cours (web et mobile)', () => {
-    for (const session of [projet('web').get('src/humalis/session.tsx')!, projet('mobile').get('humalis/session.tsx')!]) {
-      expect(session).toContain('const derniere = useRef<Personne | null>(null);');
-      expect(session).toContain("get admin() {\n      return derniere.current?.role === 'admin';");
-      expect(session).toContain('get connecte() {\n      return derniere.current !== null;');
-    }
-  });
-
-  it('seules les pages qui lisent la session demandent /auth/me (pas d’appel au démarrage)', () => {
-    for (const session of [projet('web').get('src/humalis/session.tsx')!, projet('mobile').get('humalis/session.tsx')!]) {
-      expect(session).not.toContain('useEffect(() => {\n    void relire();\n  }, [relire]);');
-      expect(session).toContain('utilisateur.demander();');
-    }
-    expect(projet('web').get('src/pages/Accueil.tsx')).not.toContain('useUtilisateur');
-  });
-
-  it('un chargement qui lit la session attend la réponse de /auth/me', () => {
-    const page = projet('web').get('src/pages/Admin.tsx')!;
-    expect(page).toContain('    if (!utilisateur.pret) return;');
-    expect(page).toContain('  }, [utilisateur.pret]);');
-  });
 
   it('site statique : le chargement attend aussi la réponse de /auth/me', () => {
     const { application } = compiler(programme(...ADMIN));

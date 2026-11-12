@@ -4,7 +4,6 @@ import { analyserSyntaxe } from '../src/parser/parser.js';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
 import { genererProjetStatique } from '../src/cibles/statique/projet.js';
-import { genererProjetMobile } from '../src/cibles/mobile/projet.js';
 import { genererProjetDesktop } from '../src/cibles/desktop/projet.js';
 import { mediasLocaux, type InfoMedia } from '../src/ri/medias.js';
 import { programme, erreurs, avertissements } from './analyse/aide.js';
@@ -19,7 +18,6 @@ const compile = (source: string) => {
 const MEDIAS = new Map<string, InfoMedia>([['extrait.mp3', { octets: 12, genre: 'audio', contenu: 'AAEC' }]]);
 const web = (source: string) => genererProjetWeb(compile(source), { nom: 'e', adresse: 'https://x.cd', source: 'e.humalis', medias: MEDIAS });
 const statique = (source: string) => genererProjetStatique(compile(source), { nom: 'e', source: 'e.humalis', medias: MEDIAS });
-const mobile = (source: string) => genererProjetMobile(compile(source), { nom: 'e', source: 'e.humalis', medias: MEDIAS });
 const desktop = (source: string) => genererProjetDesktop(compile(source), { nom: 'e', source: 'e.humalis', medias: MEDIAS });
 const fichier = (fichiers: Map<string, string>, fin: string) => [...fichiers.entries()].find(([n]) => n.endsWith(fin))?.[1] ?? '';
 
@@ -137,22 +135,3 @@ describe('audio — le desktop', () => {
   });
 });
 
-describe('audio — le mobile', () => {
-  it('écrit un lecteur fait de boutons, avec expo-audio (version accordée à Expo 57)', () => {
-    const fichiers = mobile(COMPLET);
-    const page = [...fichiers.entries()].find(([n]) => /app\/.*index|app\/index/.test(n) || n.endsWith('P.tsx'))?.[1] ?? '';
-    const lecteur = fichier(fichiers, 'humalis/lecteur.tsx');
-    expect(lecteur).toContain("from 'expo-audio'");
-    expect(lecteur).toContain("accessibilityLabel={etat.playing ? 'Pause' : 'Lecture'}");
-    expect(lecteur).not.toMatch(/autoPlay|\.play\(\);\s*\n\s*useEffect/);
-    expect(JSON.parse(fichier(fichiers, 'package.json')).dependencies['expo-audio']).toBe('57.0.5');
-    expect(fichiers.has('assets/audio/extrait.mp3')).toBe(true);
-    expect([...fichiers.values()].join('\n')).toContain(`<Lecteur source={require("../assets/audio/extrait.mp3")} description="Extrait de la chanson" boucle />`);
-    void page;
-  });
-  it('sans son, ni lecteur ni dépendance', () => {
-    const fichiers = mobile('page "p" :\n    texte "a"');
-    expect(fichiers.has('humalis/lecteur.tsx')).toBe(false);
-    expect(fichier(fichiers, 'package.json')).not.toContain('expo-audio');
-  });
-});

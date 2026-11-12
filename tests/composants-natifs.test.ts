@@ -53,9 +53,9 @@ describe('« utiliser composant … sur apple / android / windows » : une vue n
     expect(() => syntaxe('utiliser composant "Carte" sur windows "./A.cs" et sur windows "./B.cs"\npage "a" :\n    titre "A"')).toThrow(/donné deux fois/);
   });
 
-  it('le web, le bureau et le mobile refusent un composant qui n’a que des vues natives', () => {
+  it('le web et le bureau refusent un composant qui n’a que des vues natives', () => {
     const app = compile('utiliser composant "Carte" sur windows "./Carte.cs"\npage "a" :\n    titre "A"');
-    for (const cible of ['web', 'statique', 'desktop', 'mobile']) {
+    for (const cible of ['web', 'statique', 'desktop']) {
       const erreurs = verifierAppareilPourLaCible(app, cible).filter((d) => d.gravite === 'erreur');
       expect(erreurs.map((d) => d.message).join()).toContain('n\'a que des vues natives');
     }

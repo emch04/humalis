@@ -54,9 +54,8 @@ describe('sources — cible web', () => {
 });
 
 describe('sources — autres cibles', () => {
-  it('le mobile et le statique refusent clairement une source', () => {
+  it('le statique refuse clairement une source', () => {
     const application = compiler(exemple).application!;
-    expect(verifierSourcesPourLaCible(application, 'mobile')[0].message).toMatch(/pas encore disponible sur la cible mobile/);
     expect(verifierSourcesPourLaCible(application, 'statique')).toHaveLength(1);
   });
 

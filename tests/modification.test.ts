@@ -3,7 +3,6 @@ import { analyser } from '../src/lexer/lexer.js';
 import { analyserSyntaxe } from '../src/parser/parser.js';
 import { compiler } from './aide-qualite.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
-import { genererProjetMobile } from '../src/cibles/mobile/projet.js';
 import { programme, erreurs, avertissements } from './analyse/aide.js';
 
 // Sept lignes : la page commence ligne 8.
@@ -147,12 +146,6 @@ describe('modifier et supprimer — cibles', () => {
     expect(serveur).toContain('supprimer(adresse: string, id: string): Promise<unknown>;');
   });
 
-  it('le mobile fait de même', () => {
-    const { application } = compiler(gestion('supprimer p de "produits"'));
-    const fichiers = genererProjetMobile(application!, { nom: 'boutique', source: 'boutique.humalis' });
-    expect(fichiers.get('app/index.tsx')).toContain("await serveur.supprimer('/api/produits', p.id);");
-    expect(fichiers.get('humalis/serveur.ts')).toContain("method: 'DELETE'");
-  });
 });
 
 import { genererProjetStatique } from '../src/cibles/statique/projet.js';

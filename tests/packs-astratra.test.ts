@@ -3,7 +3,6 @@ import { stripTypeScriptTypes } from 'node:module';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetServeur, VERSIONS_SERVEUR } from '../src/cibles/serveur/projet.js';
 import { genererProjetWeb, VERSIONS } from '../src/cibles/web/projet.js';
-import { genererProjetMobile, VERSIONS_MOBILE } from '../src/cibles/mobile/projet.js';
 import { programme } from './analyse/aide.js';
 
 // Les packs @astratra branchés sur ce que Humalis produit : tout s'active par variables d'environnement.
@@ -387,23 +386,3 @@ describe('le renouvellement dans la page', () => {
   });
 });
 
-describe('le mobile produit', () => {
-  const MOBILE = programme(
-    ...SERVEUR.filter((l) => l !== '>connexion google'),
-    'page "accueil" :',
-    '>titre "Accueil"',
-    '>si utilisateur est connecte :',
-    '>>texte "Bonjour"',
-  );
-  const fichiers = genererProjetMobile(application(MOBILE), { nom: 'boutique', source: 'boutique.humalis' });
-
-  it('range ses jetons dans le coffre, et relit le jeton à chaque essai', () => {
-    expect(JSON.parse(fichiers.get('package.json')!).dependencies['@astratra/client']).toBe(VERSIONS_MOBILE.client);
-    const renouveler = fichiers.get('humalis/renouveler.ts')!;
-    expect(renouveler).toContain('SecureStore.setItemAsync(CLE_RENOUVELLEMENT, corps.refreshToken)');
-    expect(renouveler).toContain("'x-humalis-mobile': '1'");
-    const serveur = fichiers.get('humalis/serveur.ts')!;
-    expect(serveur).toContain("await securiser(entetes, options.method ?? 'GET');\n        return lecture ?");
-    expect(fichiers.get('humalis/session.tsx')).toContain("entetes.set('x-humalis-mobile', '1')");
-  });
-});

@@ -5,7 +5,6 @@ import { analyserSyntaxe } from '../../src/parser/parser.js';
 import { compiler } from '../../src/compilateur.js';
 import { genererProjetWeb } from '../../src/cibles/web/projet.js';
 import { genererProjetStatique } from '../../src/cibles/statique/projet.js';
-import { genererProjetMobile } from '../../src/cibles/mobile/projet.js';
 import { genererProjetDesktop } from '../../src/cibles/desktop/projet.js';
 import { programme } from '../analyse/aide.js';
 
@@ -25,7 +24,6 @@ export const compile = (source: string) => {
 };
 export const web = (source: string) => genererProjetWeb(compile(source), { nom: 'e', source: 'e.humalis' });
 export const statique = (source: string) => genererProjetStatique(compile(source), { nom: 'e', source: 'e.humalis' });
-export const mobile = (source: string) => genererProjetMobile(compile(source), { nom: 'e', source: 'e.humalis' });
 export const desktop = (source: string) => genererProjetDesktop(compile(source), { nom: 'e', source: 'e.humalis' });
 /** Le fichier dont le nom finit par `fin` (« pages/P.tsx », « p.js »). */
 export const fichier = (fichiers: Map<string, string>, fin: string) => [...fichiers.entries()].find(([n]) => n.endsWith(fin))?.[1] ?? '';

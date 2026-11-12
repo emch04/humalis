@@ -34,7 +34,7 @@ export type Forme =
 
 /** Les cibles où chaque forme a un sens : ailleurs, elle est ignorée. */
 export const PREVUES: Record<Forme, string[]> = {
-  captureErreur: ['web', 'statique', 'desktop', 'mobile', 'apple', 'android', 'windows', 'serveur'],
+  captureErreur: ['web', 'statique', 'desktop', 'apple', 'android', 'windows', 'serveur'],
   widget: ['apple', 'android'],
   barreSysteme: ['apple', 'windows', 'desktop'],
   partageRecu: ['apple', 'android', 'windows'],
@@ -65,7 +65,6 @@ export const PREVUES: Record<Forme, string[]> = {
 export const ECRITES: Record<string, Set<Forme>> = {};
 ECRITES.web = new Set<Forme>(['captureErreur']);
 ECRITES.statique = new Set<Forme>(['captureErreur']);
-ECRITES.mobile = new Set<Forme>(['captureErreur']);
 
 const NOMS_CIBLES: Record<string, string> = { apple: 'Apple', android: 'Android', windows: 'Windows', desktop: 'bureau (Electron)', web: 'web', serveur: 'serveur' };
 

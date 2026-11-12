@@ -5,7 +5,6 @@ import { compiler } from '../src/compilateur.js';
 import { compilerProjet } from '../src/fichiers.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
 import { genererProjetStatique } from '../src/cibles/statique/projet.js';
-import { genererProjetMobile, verifierPourLeMobile } from '../src/cibles/mobile/projet.js';
 import { encreSur, contraste, normaliserCouleur, lireCouleur } from '../src/analyse/couleurs.js';
 import { programme, erreurs, avertissements } from './analyse/aide.js';
 
@@ -220,45 +219,13 @@ describe('le thème — le site statique', () => {
   });
 });
 
-describe('le thème — le mobile', () => {
-  const application = compile(THEME + PAGE);
-  const fichiers = genererProjetMobile(application, { nom: 'essai', source: 'essai.humalis' });
-
-  it('range les couleurs du thème dans le StyleSheet, en clair et en sombre', () => {
-    const styles = fichiers.get('humalis/styles.ts')!;
-    expect(styles).toContain("couleurMarque: { color: '#0e5a6b' },");
-    expect(styles).toContain("couleurMarque: { color: '#5fc3d6' },");
-    expect(styles).toContain("fondMarque: { backgroundColor: '#0e5a6b', borderColor: 'transparent' },");
-    expect(styles).toContain("encreMarque: { color: '#ffffff' },");
-    expect(styles).toContain("marque: '#0e5a6b'");
-    expect(fichiers.get('app/index.tsx')).toContain('s.couleurMarque');
-  });
-
-  it('change le thème avec Appearance', () => {
-    expect(fichiers.get('humalis/theme.ts')).toContain('Appearance.setColorScheme');
-    expect(fichiers.get('app/index.tsx')).toContain("definirTheme('sombre');");
-  });
-
-  it('avertit des polices, pas encore chargées', () => {
-    expect(verifierPourLeMobile(application).map((d) => d.message)).toContain(
-      'les polices du bloc « theme » ne sont pas encore chargées sur le téléphone : la police du système est utilisée.',
-    );
-  });
-
-  it('fixe le mode du projet', () => {
-    const f = genererProjetMobile(compile(programme('theme :', '>mode sombre', '', 'page "p" :', '>titre "a"')), { nom: 'e', source: 'e.humalis' });
-    expect(f.get('humalis/styles.ts')).toContain("Appearance.setColorScheme('dark');");
-  });
-});
-
 describe('le thème — changé depuis l’en-tête commun', () => {
   const source = 'entete :\n    bouton "Sombre"\n    quand l\'utilisateur clique sur "Sombre" :\n        changer theme par sombre\n\npage "p" :\n    titre "a"';
 
-  it('le web, le statique et le mobile reçoivent l’outil', () => {
+  it('le web et le statique reçoivent l’outil', () => {
     const application = compile(source);
     expect(genererProjetWeb(application, { nom: 'e', adresse: 'https://x.cd', source: 'e.humalis' }).has('src/humalis/theme.ts')).toBe(true);
     expect(genererProjetStatique(application, { nom: 'e', source: 'e.humalis' }).get('humalis/humalis.js')).toContain('function definirTheme(theme)');
-    expect(genererProjetMobile(application, { nom: 'e', source: 'e.humalis' }).has('humalis/theme.ts')).toBe(true);
   });
 });
 
@@ -280,14 +247,11 @@ describe('basculer theme', () => {
     expect(theme).toContain('prefers-color-scheme: dark');
   });
 
-  it('statique et mobile : la même bascule', () => {
+  it('statique : la bascule', () => {
     const { application } = compiler(source);
     const statique = [...genererProjetStatique(application!, { nom: 'a', source: 'a.humalis' }).values()].join('\n');
     expect(statique).toContain("definirTheme('bascule')");
     expect(statique).toContain("theme === 'bascule'");
-    const mobile = [...genererProjetMobile(application!, { nom: 'a', source: 'a.humalis' }).values()].join('\n');
-    expect(mobile).toContain("definirTheme('bascule')");
-    expect(mobile).toContain("demande === 'bascule'");
   });
 });
 
@@ -310,15 +274,13 @@ describe('si theme est sombre', () => {
     expect(erreurs(programme('page "p" :', '>titre "a"', '>variable theme = "x"', '>si theme est egal a "x" :', '>>texte "ok"'))).toEqual([]);
   });
 
-  it('web et mobile : un crochet suivi en direct', () => {
+  it('web : un crochet suivi en direct', () => {
     const fichiers = genererProjetWeb(compiler(source).application!, { nom: 'a', adresse: 'https://a.fr', source: 'a.humalis' });
     const page = [...fichiers.entries()].find(([n]) => n.endsWith('P.tsx'))![1];
     expect(page).toContain('const themeSombre = useThemeSombre();');
     expect(page).toContain('themeSombre');
     expect(page).toContain('!themeSombre');
     expect(fichiers.get('src/humalis/temps.ts')).toContain('export function useThemeSombre');
-    const mobile = genererProjetMobile(compiler(source).application!, { nom: 'a', source: 'a.humalis' });
-    expect([...mobile.values()].join('\n')).toContain('useColorScheme');
   });
 
   it('statique : themeSombre(), relu à chaque dessin', () => {

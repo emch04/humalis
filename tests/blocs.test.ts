@@ -249,17 +249,6 @@ describe('blocs — ce que produit chaque cible', () => {
     expect(fichiers.get('src/humalis/styles.css')).not.toContain('humalis-ligne');
   });
 
-  it('mobile : des View, avec les styles de mise en page', async () => {
-    const { genererProjetMobile } = await import('../src/cibles/mobile/projet.js');
-    const fichiers = genererProjetMobile(application(), { nom: 'resto', source: 'resto.humalis' });
-    const page = [...fichiers.entries()].find(([chemin]) => chemin.startsWith('app/') && chemin.includes('index'))?.[1] ?? '';
-    expect(page).toContain('<View style={s.section}>');
-    expect(page).toContain('<View style={s.grille}>');
-    expect(page).toContain('<View style={[s.bloc, s.fondVert]}>');
-    expect(page).toContain('<View style={s.ligne}>');
-    expect(fichiers.get('humalis/styles.ts')).toContain("ligne: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12 },");
-  });
-
   it('site statique : le même HTML que le web, écrit d’avance', async () => {
     const { genererProjetStatique } = await import('../src/cibles/statique/projet.js');
     const fichiers = genererProjetStatique(application(), { nom: 'resto', source: 'resto.humalis' });

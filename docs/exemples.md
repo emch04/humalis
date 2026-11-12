@@ -75,8 +75,8 @@ page "accueil" :
     bouton "Commencer" avec fond vert et style "principal"
 ```
 
-Le CSS ne vaut que pour le web (et le desktop) : le style du mobile sera
-décidé à l'étape 5.
+Le CSS vaut pour le web et le desktop ; les applications natives le suivent en partie
+(voir le tableau des cibles du guide).
 
 ## La mise en page : section, bloc, ligne, colonne, grille
 
@@ -799,23 +799,6 @@ page "inscription" :
 ne valent que pour un champ `nombre` ; `indice` n'a pas de sens sur une
 case à cocher ni sur un choix : le compilateur le dit.
 
-## Le même programme sur le téléphone
-
-Rien ne change dans le langage : `--cible mobile` traduit les mêmes pages
-pour iPhone et Android (Expo). `titre` et `texte` deviennent des `Text`,
-`bouton` un `Pressable`, `champ` un `TextInput`. `avec fond vert` et les
-autres styles nommés sont traduits. Le CSS (`style :`, `avec style "…"`)
-ne s'applique pas sur le téléphone : Humalis le signale sans bloquer. Le
-survol non plus, faute de souris.
-
-```sh
-humalis compile boutique.humalis --cible mobile --sortie boutique-mobile
-cd boutique-mobile && npm install && npx expo start
-```
-
-Sur le téléphone, `memorisee en secret` est permis : la valeur va dans le
-coffre du téléphone (Keychain, Keystore).
-
 ## Le même programme en site statique
 
 Rien ne change non plus : `--cible statique` écrit un site en HTML, CSS et
@@ -943,8 +926,8 @@ page "catalogue" :
   n'en parle pas reçoit d'office un message avec un bouton « Réessayer » ;
   une page qui en parle prend la main, Humalis se tait. Pas encore pour les
   requêtes vers le serveur du fichier.
-- Web et desktop seulement pour l'instant ; le mobile et le statique
-  refusent avec un message.
+- Web et desktop seulement pour l'instant ; le site statique refuse avec un
+  message.
 
 ## Adresse choisie, page réservée, page introuvable
 
@@ -984,8 +967,8 @@ page "introuvable" :
   la page donnée.
 - La page nommée « introuvable » est la page 404 (une convention de nom,
   comme « accueil »).
-- Web et desktop seulement pour l'instant ; le mobile et le statique
-  refusent avec un message.
+- Web et desktop seulement pour l'instant ; le site statique refuse avec un
+  message.
 
 ## Sous-pages, filtres d'adresse, ancres, retour, liens externes, menu
 
@@ -1085,10 +1068,9 @@ web) ; un `lien` vers la page affichée prend `aria-current="page"` et la
 classe `humalis-actif` (un lien vers une page à filtres n'est actif que si
 l'adresse a les mêmes filtres), pour que le CSS mette l'entrée en valeur.
 
-- Web et desktop seulement pour l'instant ; le mobile et le statique
-  refusent avec un message.
-- Pas encore : le défilement vers l'ancre sur le mobile, les sous-pages sur
-  un site statique.
+- Web et desktop seulement pour l'instant ; le site statique refuse avec un
+  message.
+- Pas encore : les sous-pages sur un site statique.
 
 ## Les interactions
 
@@ -1222,7 +1204,7 @@ page "musique" :
   (`public/audio/`, `audio/`, `assets/audio/`) ; une adresse reste telle quelle.
   Formats : mp3, ogg, wav, m4a, aac, flac, opus.
 - Web, desktop et site statique : le lecteur natif du navigateur, au clavier
-  (Tab, puis Espace). Mobile : un lecteur fait de boutons, avec `expo-audio`.
+  (Tab, puis Espace).
   Pas de pilotage depuis la page (jouer, pause par un bouton à soi) pour
   l'instant.
 
@@ -1273,10 +1255,6 @@ page "agences" :
 - Web et desktop : Leaflet 1.9.4, dépendance épinglée du projet produit,
   chargée à l'ouverture de la carte. Site statique : Leaflet recopié dans
   `humalis/` (aucun CDN, licence BSD-2-Clause dans `docs/licences/leaflet.md`).
-  Mobile : la carte native (`react-native-maps` 1.27.2), avec l'emplacement de la
-  clé Google Maps dans `app.json` (`expo.android.config.googleMaps.apiKey`) :
-  Android en demande une, l'iPhone (Apple Plans) n'en a pas besoin ; Humalis
-  n'invente pas la clé, il laisse l'emplacement vide et le dit.
 - « Réduire les animations » : la carte ne zoome pas en animation, ne fond pas et
   n'a pas d'inertie. Les repères se focalisent au clavier (Tab, Entrée) et les
   commandes s'appellent « Agrandir » et « Réduire ». Pas de regroupement de
@@ -1344,8 +1322,8 @@ page "profil" :
   qui dit pourquoi : les packs Astratra n'ont pas encore de route d'envoi de
   fichier, et écrire un récepteur à la main serait de la sécurité inventée.
   L'envoi vers une source à jeton secret est refusé aussi.
-- Web et desktop seulement : le mobile et le site statique refusent le
-  programme à la compilation.
+- Web et desktop seulement : le site statique refuse le programme à la
+  compilation.
 ## Les graphiques
 
 Une ligne pour une série : la liste, le champ des libellés, celui des
@@ -1376,7 +1354,7 @@ page "bilan" :
 ```
 
 - Du SVG écrit par Humalis, sans bibliothèque : une seule géométrie pour le
-  web, le desktop, le mobile (`react-native-svg`) et le site statique (le
+  web, le desktop et le site statique (le
   dessin est déjà dans le HTML de départ). Un dessin étroit remplace le
   large sous 34rem.
 - Chaque graphique est une figure : son dessin est une image nommée

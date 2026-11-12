@@ -4,7 +4,6 @@ import { analyserSyntaxe } from '../src/parser/parser.js';
 import { compiler } from './aide-qualite.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
 import { genererProjetStatique } from '../src/cibles/statique/projet.js';
-import { genererProjetMobile } from '../src/cibles/mobile/projet.js';
 import { genererProjetDesktop } from '../src/cibles/desktop/projet.js';
 import { chercherIcone, iconeProche, contientUnEmoji, ICONES } from '../src/vocabulaire/icones.js';
 import { FORMES_LUCIDE } from '../src/cibles/icones-donnees.js';
@@ -20,7 +19,6 @@ const compile = (source: string) => {
 const web = (source: string) => genererProjetWeb(compile(source), { nom: 'e', adresse: 'https://x.cd', source: 'e.humalis' });
 const page = (fichiers: Map<string, string>, nom = 'P.tsx') => [...fichiers.entries()].find(([n]) => n.endsWith(nom))![1];
 const statique = (source: string) => genererProjetStatique(compile(source), { nom: 'e', source: 'e.humalis' });
-const mobile = (source: string) => genererProjetMobile(compile(source), { nom: 'e', source: 'e.humalis' });
 
 describe('les icônes — la table', () => {
   it('chaque icône de Humalis a ses tracés (recopiés de Lucide) et un nom unique', () => {
@@ -327,59 +325,3 @@ describe('éléments d’écran — le site statique', () => {
   });
 });
 
-describe('éléments d’écran — le mobile', () => {
-  const fichiers = mobile(
-    programme(
-      'page "p" :',
-      '>variable note = 3',
-      '>variable q = 1',
-      '>icone "panier"',
-      '>badge "Nouveau"',
-      '>avatar "Camille Martin"',
-      '>etoiles note avec modifiable',
-      '>compteur q',
-      '>progression 40',
-      '>chargement',
-      '>code qr "https://x.cd"',
-      '>onglets :',
-      '>>onglet "A" :',
-      '>>>texte "a"',
-      '>deroulant "D" :',
-      '>>texte "d"',
-      '>carrousel :',
-      '>>texte "x"',
-    ),
-  );
-  const code = fichiers.get('app/index.tsx')!;
-
-  it('utilise les composants de React Native, Lucide et le code QR', () => {
-    expect(code).toContain("import { ShoppingCartIcon } from 'lucide-react-native';");
-    expect(code).toContain("import QRCode from 'react-native-qrcode-svg';");
-    expect(code).toContain('<Icone icone={ShoppingCartIcon}');
-    expect(code).toContain('<ActivityIndicator />');
-    expect(code).toContain('accessibilityRole="tab"');
-    expect(code).toContain('<QRCode value=');
-    expect(code).toContain('<Carrousel>');
-  });
-
-  it('écrit les petits fichiers et les dépendances demandées', () => {
-    for (const f of ['icone', 'avatar', 'progression', 'etoiles', 'compteur', 'carrousel']) expect(fichiers.has(`humalis/${f}.tsx`), f).toBe(true);
-    const dependances = JSON.parse(fichiers.get('package.json')!).dependencies;
-    expect(dependances['lucide-react-native']).toBeDefined();
-    expect(dependances['react-native-svg']).toBeDefined();
-    expect(dependances['react-native-qrcode-svg']).toBeDefined();
-  });
-
-  it('écrit les styles des éléments utilisés', () => {
-    const styles = fichiers.get('humalis/styles.ts')!;
-    expect(styles).toContain('badge:');
-    expect(styles).toContain('onglets:');
-    expect(styles).toContain('deroulantTitre:');
-  });
-
-  it('n’ajoute rien à un programme qui n’en a pas besoin', () => {
-    const sans = mobile(p('>titre "a"'));
-    expect(JSON.parse(sans.get('package.json')!).dependencies['lucide-react-native']).toBeUndefined();
-    expect(sans.has('humalis/icone.tsx')).toBe(false);
-  });
-});

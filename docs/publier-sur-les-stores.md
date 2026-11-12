@@ -12,7 +12,7 @@ donc aucun chiffre à ce sujet : à chaque fois, il te dit où aller vérifier.
 1. [À quoi sert ce guide](#1-à-quoi-sert-ce-guide)
 2. [Avant de commencer](#2-avant-de-commencer)
 3. [Partie Apple native (SwiftUI)](#3-partie-apple-native-swiftui)
-4. [Partie Expo (iPhone et Android)](#4-partie-expo-iphone-et-android)
+4. [Partie Android native (Kotlin)](#4-partie-android-native-kotlin)
 5. [Les mises à jour](#5-les-mises-à-jour)
 6. [Liste de vérification finale](#6-liste-de-vérification-finale)
 7. [Où vérifier les règles et les prix](#7-où-vérifier-les-règles-et-les-prix)
@@ -21,20 +21,19 @@ donc aucun chiffre à ce sujet : à chaque fois, il te dit où aller vérifier.
 
 ## 1. À quoi sert ce guide
 
-Humalis sait produire deux sortes de projets pour un téléphone. Ils n'ont pas
+Humalis produit une application native pour chaque magasin. Elles n'ont pas
 le même chemin de publication.
 
 | Tu veux | Commande Humalis | Ce que tu obtiens |
 |---|---|---|
 | Une application native Apple (iPhone, iPad et Mac) | `--cible apple` | Un projet Xcode en SwiftUI |
-| Une application iPhone et Android | `--cible mobile` | Un projet Expo |
+| Une application native Android | `--cible android` | Un projet Gradle en Kotlin et Jetpack Compose |
 
 Humalis fabrique le projet. **Humalis ne publie pas à ta place** : il n'envoie
-rien aux stores. Tu fais cette dernière partie avec les outils d'Apple, de
-Google et d'Expo. Ce guide t'y accompagne.
+rien aux stores. Tu fais cette dernière partie avec les outils d'Apple et de
+Google. Ce guide t'y accompagne.
 
-Si tu vises seulement Apple, prends la partie 3. Si tu veux Android, prends la
-partie 4 (elle couvre aussi l'iPhone).
+Pour l'App Store, prends la partie 3. Pour Google Play, prends la partie 4.
 
 ---
 
@@ -48,8 +47,6 @@ partie 4 (elle couvre aussi l'iPhone).
 - **Pour Google Play** : un compte développeur dans la Google Play Console
   (play.google.com/console). Il y a des frais d'inscription ; leur montant est
   indiqué sur la Play Console.
-- **Pour la partie Expo** : un compte sur expo.dev, si tu passes par les
-  outils d'Expo (EAS). Les offres sont sur docs.expo.dev.
 
 Prépare ces comptes tôt. Certaines vérifications d'identité prennent du temps ;
 la durée est indiquée par chaque store.
@@ -58,8 +55,7 @@ la durée est indiquée par chaque store.
 
 - **Pour Apple** : un Mac avec Xcode (l'outil gratuit d'Apple pour fabriquer
   des applications). Sans Mac, la partie 3 n'est pas faisable.
-- **Pour Android** : n'importe quel ordinateur. Android Studio est utile si tu
-  ne passes pas par EAS.
+- **Pour Android** : n'importe quel ordinateur, avec Android Studio (gratuit).
 
 ### L'icône, le nom et l'identifiant
 
@@ -76,9 +72,8 @@ site :
 
 - `nom` devient le nom affiché sous l'icône de l'application.
 - `logo` devient l'icône, **à condition que ce soit un fichier PNG carré**.
-  La cible Apple demande du 1024×1024 ; pour Expo, c'est la taille conseillée.
-- Si le logo n'est pas un PNG, la cible mobile refuse de compiler. La cible
-  Apple, elle, avertit et garde l'icône par défaut.
+  La cible Apple demande du 1024×1024.
+- Si le logo n'est pas un PNG, la cible Apple avertit et garde l'icône par défaut.
 
 **2. Un identifiant unique** (en anglais : *bundle ID*). C'est le nom
 technique de ton application, qui ne doit exister nulle part ailleurs. Il
@@ -204,99 +199,60 @@ de build (partie 5) et renvoie.
 
 ---
 
-## 4. Partie Expo (iPhone et Android)
+## 4. Partie Android native (Kotlin)
 
 ### 4.1 Compiler le projet
 
 ```sh
-humalis compile app.humalis --cible mobile --sortie ./MonApp
-cd MonApp
-npm install
+humalis compile app.humalis --cible android --sortie ./MonApp --identifiant com.exemple.app
 ```
 
-Humalis écrit un projet Expo avec expo-router (une page Humalis devient un
-fichier dans le dossier `app/`). Le fichier `app.json` contient :
+Humalis écrit un projet Gradle, en Kotlin et Jetpack Compose. Il contient :
 
 - le nom de l'application (celui du bloc `site`, sinon le nom du projet) ;
-- la version `1.0.0` ;
-- l'icône, si le logo du bloc `site` est un PNG (copié dans
-  `assets/icone.png`).
+- l'identifiant donné par `--identifiant` : c'est lui qui désigne l'application
+  sur Google Play, pour toujours. Choisis-le avant le premier envoi ;
+- la version `1.0` et le numéro de build `1`.
 
-Essaie d'abord l'application avec `npx expo start`. Ensuite seulement,
-prépare la publication.
+Ouvre le dossier dans Android Studio et essaie d'abord l'application dans
+l'émulateur ou sur un téléphone. Ensuite seulement, prépare la publication.
 
-### 4.2 Ajouter l'identifiant dans app.json
+**Attention :** Humalis réécrit ce dossier à chaque compilation. Ce que tu
+changes à la main dans le projet (version, signature) est à refaire après une
+recompilation ; garde une copie de tes réglages.
 
-Humalis n'écrit **pas** d'identifiant pour les stores dans `app.json`. Il faut
-l'ajouter toi-même, dans la partie `expo`. Il y en a un pour chaque store.
-
-```json
-{
-  "expo": {
-    "ios": { "bundleIdentifier": "com.exemple.app" },
-    "android": { "package": "com.exemple.app" }
-  }
-}
-```
-
-Tu peux prendre le même texte pour les deux.
-
-**Attention :** Humalis réécrit ce dossier à chaque compilation. Après avoir
-ajouté tes réglages, tu as deux choix :
-
-- soit tu ne recompiles plus, et tu continues à la main dans le dossier. Pour
-  cela, supprime le fichier `.humalis-projet` : Humalis refusera alors
-  d'écraser le dossier ;
-- soit tu recompiles vers un dossier neuf et tu reportes tes réglages à
-  chaque fois.
-
-Garde une copie de tes réglages quelque part, pour ne pas les perdre.
-
-### 4.3 Deux façons de construire l'application
-
-Pour publier, il faut fabriquer un fichier d'installation (on dit
-« construire »). Il y a deux voies.
-
-**Voie A : EAS (les outils d'Expo).** EAS construit l'application sur les
-ordinateurs d'Expo. Tu n'as pas besoin d'un Mac pour la version Android. Pour
-la version iPhone, EAS construit aussi sans Mac, mais il te faut ton compte
-Apple Developer. Tout est expliqué sur docs.expo.dev (cherche « EAS Build » et
-« EAS Submit »). L'idée générale :
-
-```sh
-npm install --global eas-cli
-eas login
-eas build:configure
-eas build --platform ios
-eas build --platform android
-```
-
-**Voie B : à la main, avec Xcode et Android Studio.** Commence par créer les
-projets natifs :
-
-```sh
-npx expo prebuild
-```
-
-Cette commande crée deux dossiers, `ios` et `android`. Ouvre ensuite `ios`
-dans Xcode et suis la partie 3 à partir de « Archiver ». Ouvre `android` dans
-Android Studio pour fabriquer le fichier de publication Android (voir ci-dessous).
-
-### 4.4 Le fichier pour Google Play : l'AAB
+### 4.2 Le fichier pour Google Play : l'AAB
 
 Google Play demande un fichier **AAB** (*Android App Bundle*). C'est un
 paquet complet de l'application, à partir duquel le store fabrique lui-même
-la bonne version pour chaque téléphone. Avec EAS, c'est ce que produit
-`eas build --platform android` en général ; vérifie le format par défaut dans
-la documentation d'Expo.
+la bonne version pour chaque téléphone.
 
 Un fichier APK, lui, sert à installer l'application directement sur un
 téléphone pour l'essayer. Ce n'est pas le format de publication de Google Play.
 
+### 4.3 Construire l'AAB signé
+
+Dans Android Studio, le menu « Build » propose « Generate Signed App Bundle or
+APK ». Choisis « Android App Bundle », puis suis l'assistant : il te fait
+créer ou choisir la clé de signature (voir ci-dessous), puis fabrique le
+fichier `.aab` de la version « release ».
+
+L'aide d'Android Studio (developer.android.com/studio/publish) décrit chaque
+écran de cet assistant.
+
+### 4.4 Avant le premier envoi
+
+- Vérifie l'identifiant de l'application : il ne se change plus après la
+  publication.
+- Si l'application se connecte avec Google ou reçoit des notifications, donne
+  à la compilation l'empreinte de ta clé de publication (`--empreinte`) et le
+  fichier de ton projet Firebase (`--firebase google-services.json`) : le
+  `LISEZMOI.md` du projet produit dit lesquels sont attendus.
+
 ### 4.5 La clé de signature Android
 
-Android signe aussi l'application avec une clé. Avec EAS, la clé est créée et
-gardée pour toi si tu le laisses faire. À la main, c'est toi qui la crées.
+Android signe l'application avec une clé. C'est toi qui la crées, dans
+l'assistant d'Android Studio.
 
 **Garde cette clé en lieu sûr.** Si tu la perds, la documentation de la Play
 Console explique ce qu'il est possible de faire : lis la section sur la
@@ -309,9 +265,7 @@ signature des applications dans l'aide de la Play Console
    payante).
 2. Remplis les déclarations demandées : la Console te guide, avec une liste de
    tâches à terminer.
-3. Envoie ton fichier AAB, soit à la main dans la Console, soit avec
-   `eas submit --platform android`. Le premier envoi est souvent à faire à la
-   main : la documentation d'Expo explique ce qu'il faut préparer.
+3. Envoie ton fichier AAB dans la Console.
 
 ### 4.7 Les pistes de test
 
@@ -345,12 +299,6 @@ Crée une version dans la piste voulue, ajoute l'AAB, relis le récapitulatif,
 puis envoie à la validation. Google relit l'application. Les règles sont dans
 la Play Console et son aide.
 
-### 4.10 Pour l'iPhone avec EAS
-
-Si tu as pris la voie A pour iOS, `eas submit --platform ios` envoie le build à
-App Store Connect. Ensuite, tout se passe comme dans les parties 3.5 à 3.7 :
-TestFlight, la fiche, la confidentialité, puis la soumission.
-
 ---
 
 ## 5. Les mises à jour
@@ -369,11 +317,10 @@ projet Xcode. Change-les dans Xcode (onglet « General » de la cible) avant
 d'archiver. Attention : si tu recompiles avec Humalis, il les remet aux valeurs
 de départ ; règle-les à nouveau après chaque compilation.
 
-**Expo.** Humalis écrit la version `1.0.0` dans `app.json`. Pour les
-numéros de build (iOS et Android), le plus simple est de laisser EAS les
-compter ; sinon, ils se règlent dans `app.json`. Le détail est sur
-docs.expo.dev. Là encore, une recompilation Humalis dans le même dossier
-écrase `app.json` (voir 4.2).
+**Android native.** Humalis écrit la version `1.0` (`versionName`) et le
+build `1` (`versionCode`) dans `app/build.gradle.kts`. Change-les avant de
+construire l'AAB. Là encore, une recompilation Humalis les remet aux valeurs
+de départ.
 
 Après chaque changement : compiler, tester, construire, envoyer, mettre à
 jour la fiche si besoin, puis soumettre.
@@ -408,7 +355,7 @@ Avant d'envoyer à la validation, coche chaque ligne.
 
 **Android**
 
-- [ ] `android.package` est dans `app.json`.
+- [ ] L'identifiant donné par `--identifiant` est le bon : il ne se change plus.
 - [ ] L'envoi est un fichier AAB.
 - [ ] La clé de signature est sauvegardée.
 - [ ] La piste de test a été utilisée avant la publication.
@@ -432,8 +379,8 @@ délai ou une règle : va voir la source.
 | Fiches, TestFlight, envois chez Apple | appstoreconnect.apple.com |
 | Compte, fiches et déclarations Google Play | play.google.com/console |
 | Aide de la Play Console (pistes, signature, règles) | support.google.com/googleplay/android-developer |
-| EAS Build, EAS Submit, `app.json` d'Expo | docs.expo.dev |
-| Ce que Humalis produit pour Apple et pour le mobile | le fichier `LISEZMOI.md` écrit dans chaque projet compilé |
+| Construire et signer l'application Android | developer.android.com/studio/publish |
+| Ce que Humalis produit pour Apple et pour Android | le fichier `LISEZMOI.md` écrit dans chaque projet compilé |
 
 Si une page change et que ce guide ne correspond plus, fais confiance à la
 page du store.

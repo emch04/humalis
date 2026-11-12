@@ -4,7 +4,6 @@ import { analyserSyntaxe } from '../src/parser/parser.js';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
 import { genererProjetStatique } from '../src/cibles/statique/projet.js';
-import { genererProjetMobile } from '../src/cibles/mobile/projet.js';
 import { programme, erreurs } from './analyse/aide.js';
 
 // « menu vertical : » : les liens en colonne, sans jamais passer sur une deuxième colonne.
@@ -29,10 +28,4 @@ describe('menu vertical', () => {
     expect(statique).toContain('humalis-menu-vertical');
   });
 
-  it('mobile : le style existe, comme celui du menu repliable', () => {
-    const vertical = [...genererProjetMobile(compiler(source('menu vertical repliable :')).application!, { nom: 'a', source: 'a.humalis' }).values()].join('\n');
-    expect(vertical).toContain('s.menuVertical');
-    expect(vertical).toMatch(/menuVertical: \{[^}]*flexDirection: 'column'/);
-    expect(vertical).toMatch(/menuRepliable: \{/);
-  });
 });

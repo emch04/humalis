@@ -5,7 +5,7 @@ import { proposerNom } from './suggestions.js';
 /**
  * Le jeu de styles nommés commun à toutes les cibles (décision W2) :
  * chaque cible traduit ces valeurs à sa façon (classes CSS pour le web,
- * StyleSheet pour Expo plus tard). Les styles, leurs valeurs et leurs
+ * modificateurs SwiftUI, Compose ou styles WPF pour les applications). Les styles, leurs valeurs et leurs
  * accords viennent de la table de vocabulaire (`src/vocabulaire/table.ts`).
  */
 interface Option {

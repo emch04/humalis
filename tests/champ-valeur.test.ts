@@ -4,7 +4,6 @@ import { analyserSyntaxe } from '../src/parser/parser.js';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
 import { genererProjetStatique } from '../src/cibles/statique/projet.js';
-import { genererProjetMobile } from '../src/cibles/mobile/projet.js';
 import { programme, erreurs } from './analyse/aide.js';
 
 const exemple = programme(
@@ -54,8 +53,6 @@ describe('valeur courante d’un champ dans une action', () => {
     expect(web).toContain('setTaches([...taches, champNouvelleTache])');
     const statique = genererProjetStatique(application!, { nom: 'a', source: 'a.humalis' });
     expect([...statique.values()].join('\n')).toMatch(/champNouvelleTache/);
-    const mobile = genererProjetMobile(application!, { nom: 'a', source: 'a.humalis' });
-    expect([...mobile.values()].join('\n')).toContain('setDernier(champNouvelleTache)');
   });
 
   it('relit la valeur à jour d’une variable changée plus haut dans le même événement', () => {

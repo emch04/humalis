@@ -124,8 +124,7 @@ export function cartesDe(noeuds: NoeudVue[]): Extract<NoeudVue, { type: 'carte' 
 /**
  * Dit une fois par programme que les tuiles viennent d'un fournisseur : chaque
  * tuile demandée envoie l'adresse IP du visiteur (et la page d'où il vient) à ce
- * fournisseur. Pour le web, le desktop et le site statique ; le mobile dit la même
- * chose avec la clé de Google Maps (`cibles/mobile/projet.ts`). Un avertissement,
+ * fournisseur. Pour le web, le desktop et le site statique. Un avertissement,
  * donné par la commande à la compilation (le sens du programme n'est pas en cause).
  */
 export function prevenirDesTuiles(application: Application): Diagnostic[] {

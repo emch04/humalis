@@ -86,48 +86,6 @@ window.addEventListener('unhandledrejection', (evenement) => { void rapporter(ev
 `;
 }
 
-/** Expo installe ErrorUtils dès le chargement de la disposition racine. */
-export function codeCaptureExpo(requetes: RequeteCapture[], version = '1.0.0'): string {
-  const corps = requetes.map((r) => `    try {
-      const delai = new AbortController();
-      const minuteur = setTimeout(() => delai.abort(), 3000);
-      try { await fetch(${JSON.stringify(r.adresse)}, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ${r.champs.map((c) => `${JSON.stringify(c.nom)}: ${typeof c.valeur === 'string' ? `erreur.${c.valeur}` : JSON.stringify(c.valeur.texte)}`).join(', ')} }), signal: delai.signal }); }
-      finally { clearTimeout(minuteur); }
-    } catch { /* Un échec d'envoi n'interrompt pas l'application. */ }`).join('\n');
-  return `// @ts-nocheck
-// Produit par Humalis : capture des erreurs d'Expo, sans lire les formulaires.
-const dates = new Map();
-let enCours = false;
-function nettoyer(texte) {
-  return String(texte ?? '').slice(0, 4000)
-    .replace(/([?&][^=\\s]+)=([^&\\s]+)/g, '$1=[masqué]')
-    .replace(/(password|mot.?de.?passe|secret|token|jeton|authorization)(\\s*[:=]\\s*)[^\\s,;]+/gi, '$1$2[masqué]');
-}
-
-async function rapporter(inconnue) {
-  if (enCours) return;
-  const erreur = { message: nettoyer(inconnue?.message ?? 'Erreur inconnue'), pile: nettoyer(inconnue?.stack), page: '', version: ${JSON.stringify(version)} };
-  const cle = erreur.message + '|' + erreur.pile.split('\\n')[1];
-  const maintenant = Date.now();
-  const recentes = (dates.get(cle) ?? []).filter((date) => maintenant - date < 60000);
-  if (recentes.length >= 3) return;
-  recentes.push(maintenant); dates.set(cle, recentes);
-  enCours = true;
-  try {
-${corps}
-  } finally { enCours = false; }
-}
-const utilitaire = globalThis.ErrorUtils;
-if (utilitaire?.setGlobalHandler) {
-  const ancien = utilitaire.getGlobalHandler?.();
-  utilitaire.setGlobalHandler((erreur, fatale) => {
-    void rapporter(erreur);
-    if (typeof ancien === 'function') ancien(erreur, fatale);
-  });
-}
-`;
-}
-
 /** Le processus principal Electron garde sa propre capture, distincte des fenêtres. */
 export function codeCaptureNode(requetes: RequeteCapture[], version = '1.0.0'): string {
   const corps = requetes.map((r) => `    try {

@@ -4,7 +4,6 @@ import { lireJson } from '../src/donnees/json.js';
 import { compilerProjet } from '../src/fichiers.js';
 import { genererProjetStatique } from '../src/cibles/statique/projet.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
-import { genererProjetMobile } from '../src/cibles/mobile/projet.js';
 import { genererProjetDesktop } from '../src/cibles/desktop/projet.js';
 
 describe('fichiers de données locales', () => {
@@ -37,7 +36,7 @@ describe('fichiers de données locales', () => {
     const application = projet('    pour chaque p dans produits :\n        texte p.nom').application!;
     const html = genererProjetStatique(application, { nom: 'app', source: 'app.humalis' }).get('index.html')!;
     expect(html).toContain('Livre');
-    for (const produire of [genererProjetWeb, genererProjetMobile, genererProjetDesktop]) {
+    for (const produire of [genererProjetWeb, genererProjetDesktop]) {
       const fichiersProduits = produire(application, { nom: 'app', source: 'app.humalis' });
       expect([...fichiersProduits.values()].some((contenu) => contenu.includes('Livre'))).toBe(true);
     }

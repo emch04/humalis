@@ -3,13 +3,12 @@
  * une barre ou une part montre une bulle (l'étiquette et la valeur formatée),
  * et un graphique trop long pour sa largeur défile au doigt, la fin d'abord.
  * Aucune phrase nouvelle dans le langage : tout se passe dans le code produit
- * (web et desktop, mobile, site statique) et dans la lecture partagée.
+ * (web et desktop, site statique) et dans la lecture partagée.
  */
 import { describe, it, expect } from 'vitest';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
 import { genererProjetStatique } from '../src/cibles/statique/projet.js';
-import { genererProjetMobile } from '../src/cibles/mobile/projet.js';
 import { LECTURE_JS } from '../src/cibles/web/graphique.js';
 import { GEOMETRIE_JS, type ConfigGraphique, type Graphe } from '../src/cibles/commun/graphique/geometrie.js';
 import { formaterArgent, formaterNombre } from '../src/cibles/format.js';
@@ -170,23 +169,6 @@ describe('graphiques tactiles — le web et le desktop', () => {
     expect(css).toContain('background: var(--humalis-encre); color: var(--humalis-page);');
     expect(css).toContain('@media (prefers-reduced-motion: no-preference) {\n  .humalis-graphique-barre, .humalis-graphique-repere, path.humalis-graphique-part { transition:');
     expect(composant).toContain("behavior: mouvementReduit() ? 'auto' : 'smooth'");
-  });
-});
-
-describe('graphiques tactiles — le mobile', () => {
-  const composant = genererProjetMobile(compile(PROGRAMME), { nom: 'e', source: 'e.humalis' }).get('humalis/graphique.tsx')!;
-
-  it('toucher et glisser montrent la bulle ; un long graphique défile et montre la fin', () => {
-    expect(composant).toContain('onResponderGrant={surAppui}');
-    expect(composant).toContain('onResponderMove={(e) => appui.current.suit && lireSous(e)}');
-    expect(composant).toContain("onContentSizeChange={() => defileur.current?.scrollToEnd({ animated: false })}");
-    expect(composant).toContain('minHeight: 44');
-  });
-
-  it('un lecteur d’écran parcourt les valeurs (rôle « adjustable ») ; le mouvement réduit est respecté', () => {
-    expect(composant).toContain('accessibilityRole="adjustable"');
-    expect(composant).toContain("accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}");
-    expect(composant).toContain('AccessibilityInfo.isReduceMotionEnabled()');
   });
 });
 

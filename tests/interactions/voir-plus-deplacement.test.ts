@@ -1,9 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { compiler } from '../../src/compilateur.js';
-import { verifierPourLeMobile } from '../../src/cibles/mobile/projet.js';
 import { verifierPourLeStatique } from '../../src/cibles/statique/projet.js';
 import { programme } from '../analyse/aide.js';
-import { p, corps, web, statique, mobile, compile, fichier, erreurs, avertissements } from './aide.js';
+import { p, corps, web, statique, compile, fichier, erreurs, avertissements } from './aide.js';
 
 const CATALOGUE = programme(
   'page "catalogue" :',
@@ -59,10 +58,6 @@ describe('défilement infini', () => {
     expect(page).toContain('<button type="button" className="humalis-voir-plus" disabled={voirPlusCatalogue.enCours} aria-busy={voirPlusCatalogue.enCours} onClick={() => void voirPlusCatalogue.charger()}>Voir plus de produits</button>');
     expect(fichier(fichiers, 'humalis/voir-plus.ts')).toContain("rootMargin: '400px'");
   });
-  it('mobile : le bouton seul, et un avertissement', () => {
-    expect(fichier(mobile(CATALOGUE), 'app/index.tsx')).toContain('onPress={() => void voirPlusCatalogue.charger()}');
-    expect(verifierPourLeMobile(compile(CATALOGUE)).map((d) => d.message).join('\n')).toMatch(/la suite se charge avec le bouton « Voir plus »/);
-  });
   it('statique : la sentinelle et le bouton dans le HTML de départ, observés par humalis.js', () => {
     const fichiers = statique(CATALOGUE);
     expect(fichier(fichiers, 'index.html')).toContain('<button type="button" class="humalis-voir-plus" data-humalis="bloc_catalogue-voir-plus">Voir plus de produits</button>');
@@ -99,12 +94,6 @@ describe('glisser-déposer (réordonner une liste)', () => {
     expect(deplacer).toContain("evenement.key === 'ArrowUp'");
     expect(deplacer).toContain('setPointerCapture');
     expect(fichier(fichiers, 'styles.css')).toContain('.humalis-deplacable');
-  });
-  it('mobile : monter et descendre (boutons et actions du lecteur d’écran), avec un avertissement', () => {
-    const fichiers = mobile(TACHES);
-    expect(fichier(fichiers, 'app/index.tsx')).toContain('onPress={() => deplacementTaches.monter(indexT)}');
-    expect(fichier(fichiers, 'humalis/deplacer.ts')).toContain("{ name: 'monter', label: 'Monter' }");
-    expect(verifierPourLeMobile(compile(TACHES)).map((d) => d.message).join('\n')).toMatch(/montent et descendent avec deux boutons/);
   });
   it('statique : refusé avec la raison', () => {
     expect(verifierPourLeStatique(compile(TACHES))[0].message).toMatch(/ne peut pas encore être produit pour le site statique/);

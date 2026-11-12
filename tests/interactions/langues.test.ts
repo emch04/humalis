@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { programme } from '../analyse/aide.js';
-import { web, statique, mobile, fichier } from './aide.js';
+import { web, statique, fichier } from './aide.js';
 
 // Avec un bloc « langues », les textes que Humalis écrit lui-même pour les interactions passent par t().
 const DEUX_LANGUES = programme(
@@ -33,10 +33,6 @@ describe('interactions — deux langues', () => {
     expect(fichier(fichiers, 'humalis/confirmation.ts')).toContain("t({ fr: 'Non', en: 'No' })");
     expect(fichier(fichiers, 'humalis/deplacer.ts')).toContain("en: 'Cancelled.'");
     expect(fichier(fichiers, 'pages/Catalogue.tsx')).toContain(">{t({ fr: 'Voir plus', en: 'See more' })}</button>");
-  });
-  it('mobile : « Monter » et « Descendre » suivent la langue', () => {
-    const page = fichier(mobile(DEUX_LANGUES.replace(/>section[\s\S]*?a produits\n/, '')), 'app/index.tsx');
-    expect(page).toContain("accessibilityLabel={t({ fr: 'Monter', en: 'Move up' })}");
   });
   it('statique : humalis.js et le bouton « Voir plus »', () => {
     const fichiers = statique(DEUX_LANGUES.replace(/>pour chaque tache dans taches avec deplacement :\n>>texte tache/, '').replace(/ {4}pour chaque tache dans taches avec deplacement :\n {8}texte tache\n?/, ''));

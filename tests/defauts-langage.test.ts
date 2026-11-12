@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
-import { genererProjetMobile } from '../src/cibles/mobile/projet.js';
 import { genererProjetStatique } from '../src/cibles/statique/projet.js';
 import { programme, erreurs } from './analyse/aide.js';
 
@@ -260,7 +259,7 @@ describe('défauts trouvés avec Boutique Démo', () => {
     expect(erreurs(source)).toEqual([]);
   });
 
-  it('un carrousel porte sa description (web, mobile) ; seule l\'image d\'une diapositive prend toute la largeur', () => {
+  it('un carrousel porte sa description (web) ; seule l\'image d\'une diapositive prend toute la largeur', () => {
     const source = programme('page "p" :', '>titre "P"', '>carrousel avec description "Vitrine" :', '>>image "a.jpg" avec description "A"');
     expect(erreurs(source)).toEqual([]);
     const application = compiler(source).application!;
@@ -269,16 +268,12 @@ describe('défauts trouvés avec Boutique Démo', () => {
     const css = [...web].filter(([nom]) => nom.endsWith('.css')).map(([, contenu]) => contenu).join('\n');
     expect(css).toContain('.humalis-carrousel-piste > img, .humalis-carrousel-piste > figure img { width: 100%; }');
     expect(css).not.toContain('.humalis-carrousel-piste img {');
-    expect([...genererProjetMobile(application, { nom: 'b' } as never).values()].join('\n')).toContain("description='Vitrine'");
   });
 
-  it('un mot de passe a son œil sur mobile et sur le site statique', () => {
+  it('un mot de passe a son œil sur le site statique', () => {
     const source = programme('page "p" :', '>titre "P"', '>champ mot de passe "Secret"');
     expect(erreurs(source)).toEqual([]);
     const application = compiler(source).application!;
-    const mobile = genererProjetMobile(application, { nom: 'b' } as never);
-    expect(mobile.get('humalis/mot-de-passe.tsx')).toContain('Afficher le mot de passe');
-    expect([...mobile.values()].join('\n')).toContain('<MotDePasse ');
     const statique = genererProjetStatique(application, { nom: 'b', adresse: 'https://b.cd', source: 'b.humalis' } as never);
     const outils = statique.get('humalis/humalis.js')!;
     expect(outils).toContain('function activerMotsDePasse()');

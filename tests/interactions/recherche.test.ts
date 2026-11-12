@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { compiler } from '../../src/compilateur.js';
 import { programme } from '../analyse/aide.js';
-import { p, corps, web, statique, mobile, fichier, erreurs, avertissements } from './aide.js';
+import { p, corps, web, statique, fichier, erreurs, avertissements } from './aide.js';
 
 const CATALOGUE = programme(
   'page "catalogue" :',
@@ -72,12 +72,6 @@ describe('recherche pendant la frappe — les cibles', () => {
     expect(page).toContain('const derniereRequete = useDerniere();');
     expect(page).toMatch(/<p data-humalis="[^"]+" aria-live="polite" aria-atomic="true">/);
     expect(fichier(fichiers, 'humalis/temps.ts')).toContain('export function useDerniere()');
-  });
-  it('mobile : le même effet ; la touche du clavier envoie tout de suite ; région vivante polie', () => {
-    const page = fichier(mobile(CATALOGUE), 'app/index.tsx');
-    expect(page).toContain('const pauseRecherche = useQuandPause(champRecherche, 500, async () => {');
-    expect(page).toContain('onSubmitEditing={pauseRecherche.entree}');
-    expect(page).toContain('accessibilityLiveRegion="polite"');
   });
   it('statique : les écouteurs de frappe et de pause, la région vivante dans le HTML de départ', () => {
     const fichiers = statique(CATALOGUE);

@@ -24,7 +24,6 @@ fichier .humalis → lexer → parser → analyse → représentation intermédi
 | Lien écran ↔ serveur (vérifié à la compilation) | fait, vérifié dans un navigateur |
 | Connexion depuis une page (packs Astratra) | faite, vérifiée dans un navigateur |
 | Mises à jour des packs Astratra (`humalis packs`) | faite |
-| Cible mobile (Expo) | faite, essayée dans le simulateur iPhone (Expo Go) : ajout au panier, panier partagé, navigation |
 | Cible desktop (Electron) | faite, lancée et pilotée dans Electron sur Mac et sous Linux, application `.app` construite et ouverte |
 | Cible statique (HTML, CSS, JavaScript) | faite, vérifiée dans un navigateur |
 | Cible Apple (SwiftUI, iPhone, iPad et Mac) | faite ; `npm run essai:apple` construit et lance chaque exemple sur le simulateur iPhone et sur Mac |
@@ -101,7 +100,7 @@ node dist/cli.js verifier exemples/boutique.humalis --ri   # avec la représenta
 
 ## Prochaines étapes
 
-Le cœur, la cible web et le partage de données entre pages sont faits ; l'interop React (étape 2) et le serveur Node + Astratra (étape 3) et le lien écran ↔ serveur (étape 4) aussi, avec la connexion. La cible mobile Expo (étape 5) tourne dans le simulateur iPhone. La cible desktop Electron (étape 6) aussi tourne en application Mac : `npm run essai:desktop` la lance et la pilote, sur un Mac comme sous Linux.
+Le cœur, la cible web et le partage de données entre pages sont faits ; l'interop React (étape 2) et le serveur Node + Astratra (étape 3) et le lien écran ↔ serveur (étape 4) aussi, avec la connexion. La cible desktop Electron (étape 6) aussi tourne en application Mac : `npm run essai:desktop` la lance et la pilote, sur un Mac comme sous Linux.
 
 ### Tests Humalis
 

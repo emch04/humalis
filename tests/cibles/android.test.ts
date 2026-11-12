@@ -619,7 +619,6 @@ describe('cible Android — les fonctions de l\'appareil', () => {
   it('elles passent sur Android, et restent refusées ailleurs avec un message qui cite Android', () => {
     const app = compile(SOURCE);
     expect(verifierAppareilPourLaCible(app, 'android')).toEqual([]);
-    expect(verifierAppareilPourLaCible(app, 'mobile').map((d) => d.message).join('\n')).toContain('que sur les cibles Apple et Android');
   });
 
   it('chaque demande au système attend sa réponse sans bloquer l\'écran', () => {

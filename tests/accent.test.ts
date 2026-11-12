@@ -25,7 +25,6 @@ describe('accent dans les cibles', async () => {
   const { genererProjetWeb } = await import('../src/cibles/web/projet.js');
   const { genererProjetDesktop } = await import('../src/cibles/desktop/projet.js');
   const { genererProjetStatique } = await import('../src/cibles/statique/projet.js');
-  const { genererProjetMobile } = await import('../src/cibles/mobile/projet.js');
   const options = { nom: 'a', adresse: 'https://exemple.test', source: 'a.humalis' };
 
   it('porte le texte et son marqueur dans la représentation intermédiaire', () => {
@@ -47,19 +46,12 @@ describe('accent dans les cibles', async () => {
     expect([...statique.values()].join('\n')).toContain("creer('span', { class: 'humalis-accent' }");
   });
 
-  it('écrit un Text imbriqué sur mobile', () => {
-    const mobile = genererProjetMobile(application(page('Un {accent "mot"} utile')), { nom: 'a', source: 'a.humalis' });
-    expect(mobile.get('app/index.tsx')).toContain('<Text style={s.accent}>');
-    expect(mobile.get('humalis/styles.ts')).toContain("accent: { fontWeight: '700' }");
-  });
-
   it('choisit les bons accents par langue', () => {
     const code = source(['langues :', '    francais', '    anglais', '', 'page "accueil" :', '    titre "Un {accent "mot"}" en anglais "One {accent "word"}"']);
     const a = application(code);
     expect(genererProjetWeb(a, options).get('src/pages/Accueil.tsx')).toContain("langue === 'en'");
     expect(genererProjetStatique(a, { nom: 'a', source: 'a.humalis' }).get('index.html')).toContain('<span class="humalis-accent">mot</span>');
     expect([...genererProjetStatique(a, { nom: 'a', source: 'a.humalis' }).values()].join('\n')).toContain("langue() === 'en'");
-    expect(genererProjetMobile(a, { nom: 'a', source: 'a.humalis' }).get('app/index.tsx')).toContain('word');
   });
 
   it('refuse accent hors des trois éléments autorisés', () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { compiler } from '../../src/compilateur.js';
-import { auClic, p, corps, compile, web, statique, mobile, desktop, fichier, erreurs, avertissements } from './aide.js';
+import { auClic, p, corps, compile, web, statique, desktop, fichier, erreurs, avertissements } from './aide.js';
 import { genererProjetWeb } from '../../src/cibles/web/projet.js';
 import { programme } from '../analyse/aide.js';
 
@@ -110,20 +110,10 @@ describe('messages — les cibles', () => {
     expect(fichier(desktop(MESSAGES), 'pages/P.tsx')).toContain("afficherMessage('Brouillon sauvegardé', 'info', { duree: 10000 });");
   });
 
-  it('mobile : la pile, les genres, l’annonce au lecteur d’écran', () => {
-    const fichiers = mobile(MESSAGES);
-    expect(fichier(fichiers, 'app/index.tsx')).toContain("afficherMessage('Enregistré', 'reussite');");
-    const messages = fichier(fichiers, 'humalis/messages.tsx');
-    expect(messages).toContain('AccessibilityInfo.announceForAccessibility(texte);');
-    expect(messages).toContain('accessibilityLabel="Fermer le message"');
-    expect(messages).toContain('couleurs.vertEncre');
-    expect(fichier(fichiers, 'humalis/styles.ts')).toContain("vertEncre: '#ffffff'");
-  });
-
-  it('une erreur disparaît seule, un peu après une information ; seul « sans disparaitre » la garde (web, mobile, statique)', () => {
+  it('une erreur disparaît seule, un peu après une information ; seul « sans disparaitre » la garde (web, statique)', () => {
     const erreur = auClic(['afficher erreur "Impossible d’enregistrer"']);
     expect(fichier(web(erreur), 'pages/P.tsx')).toContain("afficherMessage('Impossible d’enregistrer', 'erreur');");
-    const composants = [fichier(web(erreur), 'humalis/messages.tsx'), fichier(mobile(erreur), 'humalis/messages.tsx'), fichier(statique(erreur), 'humalis/humalis.js')];
+    const composants = [fichier(web(erreur), 'humalis/messages.tsx'), fichier(statique(erreur), 'humalis/humalis.js')];
     for (const messages of composants) {
       expect(messages).toMatch(/info: 4000, reussite: 4000, avertissement: 8000, erreur: 8000/);
       // La durée n'est « null » (le message reste) que pour « sans disparaitre » ; la croix ferme toujours plus tôt.
@@ -132,8 +122,8 @@ describe('messages — les cibles', () => {
     }
     // Sur un écran tactile, toucher le message ne le met pas en pause pour toujours.
     expect(composants[0]).toContain("evenement.pointerType !== 'touch'");
-    expect(composants[2]).toContain("message.addEventListener('pointerleave', (evenement) => evenement.pointerType !== 'touch' && attendre());");
-    expect(composants[2]).not.toContain("'mouseleave'");
+    expect(composants[1]).toContain("message.addEventListener('pointerleave', (evenement) => evenement.pointerType !== 'touch' && attendre());");
+    expect(composants[1]).not.toContain("'mouseleave'");
   });
 
   it('statique : la même pile, écrite en JavaScript clair', () => {
@@ -152,7 +142,7 @@ describe('messages — « erreurs pendant … » dans le bloc site', () => {
   const site = (ligne: string, ...suite: string[]) => programme('site :', '>nom "Le Fleuve"', '>adresse "https://lefleuve.cd"', `>${ligne}`, '', 'page "p" :', '>bouton "Go"', '>quand l\'utilisateur clique sur "Go" :', '>>afficher erreur "Raté"', ...suite);
   // Un site avec une adresse se prérend : la commande passe la même adresse à la génération.
   const webPublie = (source: string) => genererProjetWeb(compile(source), { nom: 'e', source: 'e.humalis', adresse: 'https://lefleuve.cd' });
-  const fichiersDeMessages = (source: string) => [fichier(webPublie(source), 'humalis/messages.tsx'), fichier(mobile(source), 'humalis/messages.tsx'), fichier(statique(source), 'humalis/humalis.js')];
+  const fichiersDeMessages = (source: string) => [fichier(webPublie(source), 'humalis/messages.tsx'), fichier(statique(source), 'humalis/humalis.js')];
 
   it('donne la durée de toutes les erreurs sans durée à chaque cible, le reste ne bouge pas', () => {
     for (const messages of fichiersDeMessages(site('erreurs pendant 2 secondes'))) {
@@ -190,8 +180,8 @@ describe('messages — « erreurs pendant … » dans le bloc site', () => {
 describe('messages — une panne ne montre pas le texte du navigateur', () => {
   const lecture = programme('serveur "s" :', '>donnee d :', '>>prix : nombre', '>route "d" :', '>>tout le monde peut lire d', '>>tout le monde peut creer d', '', 'page "p" :', '>titre "P"', '>bouton "Créer"', '>quand l\'utilisateur clique sur "Créer" :', '>>envoyer requete vers "d" avec prix = 3');
 
-  it('web et mobile : « Failed to fetch » et une réponse illisible deviennent « pas répondu »', () => {
-    for (const serveur of [fichier(web(lecture), 'humalis/serveur.ts'), fichier(mobile(lecture), 'humalis/serveur.ts')]) {
+  it('web : « Failed to fetch » et une réponse illisible deviennent « pas répondu »', () => {
+    for (const serveur of [fichier(web(lecture), 'humalis/serveur.ts')]) {
       expect(serveur).toContain('derniereRaison = raisonDe(erreur);');
       expect(serveur).toContain('!(erreur instanceof TypeError) && !(erreur instanceof SyntaxError)');
       expect(serveur).not.toContain('erreur.message !== PAS_DE_REPONSE');

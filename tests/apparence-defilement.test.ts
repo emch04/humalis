@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
 import { genererProjetStatique } from '../src/cibles/statique/projet.js';
-import { genererProjetMobile } from '../src/cibles/mobile/projet.js';
 import { mouvementHorsBloc } from '../src/cibles/commun/mouvement.js';
 
 // Trois options d'apparence sans CSS : « defilement interne », « hauteur ecran », « entete avec fixe ».
@@ -65,12 +64,6 @@ describe('les options de défilement et de hauteur', () => {
     const projet = genererProjetWeb(sans('entete :\n    lien "Accueil" vers "a"\n\npage "a" :\n    titre "A"\n'), options);
     expect(projet.has('src/humalis/entete.ts')).toBe(false);
     expect(projet.get('src/humalis/styles.css')).not.toContain('humalis-fixe-oui');
-  });
-
-  it('mobile : compile, et dit que ces options n’ont pas d’effet sur un téléphone', () => {
-    const r = compiler(documentation);
-    const mobile = genererProjetMobile(r.application!, { nom: 'a', source: 'a.humalis' });
-    expect(mobile.size).toBeGreaterThan(0);
   });
 
   it('refuse ces options là où elles n’ont pas de sens', () => {

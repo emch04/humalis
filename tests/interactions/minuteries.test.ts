@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { compiler } from '../../src/compilateur.js';
-import { auClic, p, corps, web, statique, mobile, fichier, erreurs, avertissements } from './aide.js';
+import { auClic, p, corps, web, statique, fichier, erreurs, avertissements } from './aide.js';
 
 const PAGE = p(
   '>variable compte = 10',
@@ -107,13 +107,6 @@ describe('minuteries — les cibles', () => {
     expect(temps).toContain('document.hidden');
     expect(temps).toContain('clearInterval(minuterie);');
     expect(temps).not.toContain('AppState');
-  });
-  it('mobile : le même code, suspendu quand l’application passe en arrière-plan', () => {
-    const fichiers = mobile(PAGE);
-    expect(fichier(fichiers, 'app/index.tsx')).toContain('useMinuterie((arreter) => {');
-    const temps = fichier(fichiers, 'humalis/temps.ts');
-    expect(temps).toContain("AppState.currentState === 'active'");
-    expect(temps).not.toContain('document.hidden');
   });
   it('statique : planifier et les minuteries de la page, redessinées à chaque tour', () => {
     const fichiers = statique(PAGE);

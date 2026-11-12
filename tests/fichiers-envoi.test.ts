@@ -3,7 +3,6 @@ import { compiler } from '../src/compilateur.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
 import { genererProjetDesktop } from '../src/cibles/desktop/projet.js';
 import { verifierFichiersPourLaCible } from '../src/cibles/sources.js';
-import { verifierFichiersPourLeMobile } from '../src/cibles/mobile/fichiers.js';
 import { programme, erreurs, avertissements } from './analyse/aide.js';
 
 const p = (...lignes: string[]) => programme('page "p" :', ...lignes);
@@ -143,12 +142,5 @@ describe('fichiers choisis — les autres cibles', () => {
     const messages = verifierFichiersPourLaCible(compile(PROFIL), 'statique').map((d) => d.message);
     expect(messages).toHaveLength(1);
     expect(messages[0]).toContain('ne sont pas encore disponibles sur la cible statique');
-  });
-  it('le mobile refuse seulement l’envoi à une source (le choix est produit, voir mobile-photo.test.ts)', () => {
-    const messages = verifierFichiersPourLeMobile(compile(PROFIL)).map((d) => d.message);
-    expect(messages).toHaveLength(1);
-    expect(messages[0]).toContain('« envoyer fichier … de la source » (page « profil ») n\'est pas encore disponible sur la cible mobile');
-    const sansEnvoi = PROFIL.replace(/\n {4}quand l'utilisateur clique sur "Envoyer la photo" :\n.*$/, '');
-    expect(verifierFichiersPourLeMobile(compile(sansEnvoi))).toEqual([]);
   });
 });

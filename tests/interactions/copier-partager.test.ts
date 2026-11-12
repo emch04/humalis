@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { compiler } from '../../src/compilateur.js';
 import { programme } from '../analyse/aide.js';
-import { auClic, p, corps, web, statique, mobile, fichier, erreurs, avertissements } from './aide.js';
+import { auClic, p, corps, web, statique, fichier, erreurs, avertissements } from './aide.js';
 
 const BILLET = programme(
   'page "billet" :',
@@ -94,14 +94,6 @@ describe('copier et partager — les cibles', () => {
     expect(outil).toContain("document.execCommand('copy')");
     expect(outil).toContain("erreur.name === 'AbortError'");
     expect(outil).toContain('Lien copié');
-  });
-  it('mobile : expo-clipboard (dans package.json seulement s’il sert) et Share', () => {
-    const fichiers = mobile(BILLET);
-    const outil = fichier(fichiers, 'humalis/presse-papier.ts');
-    expect(outil).toContain('Clipboard.setStringAsync(texte)');
-    expect(outil).toContain('Share.share(');
-    expect(JSON.parse(fichier(fichiers, 'package.json')).dependencies['expo-clipboard']).toBe('57.0.2');
-    expect(JSON.parse(fichier(mobile(p('>titre "a"')), 'package.json')).dependencies['expo-clipboard']).toBeUndefined();
   });
   it('statique : les mêmes outils dans humalis.js, seulement s’ils servent', () => {
     const fichiers = statique(BILLET);

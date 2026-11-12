@@ -4,7 +4,6 @@ import { analyserSyntaxe } from '../src/parser/parser.js';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
 import { genererProjetStatique } from '../src/cibles/statique/projet.js';
-import { genererProjetMobile } from '../src/cibles/mobile/projet.js';
 import { genererProjetDesktop } from '../src/cibles/desktop/projet.js';
 import { mediasLocaux, nomDeLaCopie, type InfoMedia } from '../src/ri/medias.js';
 import { programme, erreurs, avertissements } from './analyse/aide.js';
@@ -19,7 +18,6 @@ const compile = (source: string) => {
 const MEDIAS = new Map<string, InfoMedia>([['salle.jpg', { octets: 120_000, largeur: 1600, hauteur: 900 }]]);
 const web = (source: string, medias = MEDIAS) => genererProjetWeb(compile(source), { nom: 'e', adresse: 'https://x.cd', source: 'e.humalis', medias });
 const statique = (source: string, medias = MEDIAS) => genererProjetStatique(compile(source), { nom: 'e', source: 'e.humalis', medias });
-const mobile = (source: string, medias = MEDIAS) => genererProjetMobile(compile(source), { nom: 'e', source: 'e.humalis', medias });
 const desktop = (source: string, medias = MEDIAS) => genererProjetDesktop(compile(source), { nom: 'e', source: 'e.humalis', medias });
 const fichier = (fichiers: Map<string, string>, fin: string) => [...fichiers.entries()].find(([n]) => n.endsWith(fin))?.[1] ?? '';
 
@@ -129,30 +127,3 @@ describe('images — statique', () => {
   });
 });
 
-describe('images — mobile', () => {
-  it('expo-image, require pour un fichier local, uri sinon, contentFit et accessibilité', () => {
-    const fichiers = mobile(IMAGES);
-    const page = fichier(fichiers, 'app/index.tsx');
-    expect(page).toContain("import { Image } from 'expo-image';");
-    expect(page).toContain("source={require('../assets/images/salle.jpg')}");
-    expect(page).toContain('accessibilityLabel="Le fleuve au coucher du soleil"');
-    expect(page).toContain('priority="high"');
-    expect(page).toContain('accessible={false}');
-    expect(page).toContain('source={{ uri: plat.photo }}');
-    expect(page).toContain('contentFit="cover"');
-    expect(page).toContain('aspectRatio: 4 / 3');
-    expect(page).toContain('aspectRatio: 1600 / 900');
-    expect(JSON.parse(fichiers.get('package.json')!).dependencies['expo-image']).toBeDefined();
-  });
-  it('sans image, ni expo-image ni dossier d’images', () => {
-    const fichiers = mobile(p('>titre "a"'));
-    expect(JSON.parse(fichiers.get('package.json')!).dependencies['expo-image']).toBeUndefined();
-  });
-});
-
-describe('images — mobile, une page plus profonde', () => {
-  it('le chemin de l’image suit la profondeur du fichier (app/plat/[slug].tsx)', () => {
-    const fichiers = mobile(programme('page "plat" avec parametre slug :', '>titre "Plat"', '>image "salle.jpg" avec description "La salle"'));
-    expect(fichier(fichiers, 'app/plat/[slug].tsx')).toContain("source={require('../../assets/images/salle.jpg')}");
-  });
-});

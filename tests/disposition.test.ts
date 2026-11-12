@@ -5,7 +5,6 @@ import { compiler } from './aide-qualite.js';
 import { compilerProjet } from './aide-qualite.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
 import { genererProjetStatique } from '../src/cibles/statique/projet.js';
-import { genererProjetMobile } from '../src/cibles/mobile/projet.js';
 import { genererProjetMoteur } from '../src/cibles/moteur/projet.js';
 import { pourLaCible } from '../src/ri/plateforme.js';
 import { erreurs, avertissements } from './analyse/aide.js';
@@ -177,26 +176,6 @@ describe('en-tête et pied communs — le site statique', () => {
     const source = 'entete :\n    variable ouvert = faux\n    bouton "Menu"\n    quand l\'utilisateur clique sur "Menu" :\n        changer ouvert par vrai\n    si ouvert est vrai :\n        texte "Ouvert"\n\npage "p" :\n    titre "a"';
     const f = genererProjetStatique(compile(source), { nom: 'e', source: 'e.humalis' });
     expect(f.get('pages/p.js') ?? [...f.entries()].find(([n]) => n.startsWith('pages/'))![1]).toContain('ouvert');
-  });
-});
-
-describe('en-tête et pied communs — le mobile', () => {
-  const fichiers = genererProjetMobile(compile(SOURCE), { nom: 'e', source: 'e.humalis' });
-
-  it('met l’en-tête au-dessus de la pile et le pied en dessous', () => {
-    const layout = fichiers.get('app/_layout.tsx')!;
-    expect(layout).toContain("import EnteteSite from '../composants/EnteteSite';");
-    expect(layout).toContain('headerShown: false');
-    expect(layout).toContain('const SANS_ENTETE: string[] = ["/connexion"];');
-    expect(layout).toContain('const SANS_PIED: string[] = ["/connexion", "/mentions"];');
-    expect(layout.indexOf('<EnteteSite />')).toBeLessThan(layout.indexOf('<Stack'));
-    expect(layout.indexOf('<Stack')).toBeLessThan(layout.indexOf('<PiedSite />'));
-    expect(fichiers.get('composants/PiedSite.tsx')).toContain('Ouvert de mardi');
-  });
-
-  it('ne change rien sans en-tête ni pied', () => {
-    const sans = genererProjetMobile(compile('page "p" :\n    titre "a"'), { nom: 'e', source: 'e.humalis' });
-    expect(sans.get('app/_layout.tsx')).not.toContain('usePathname');
   });
 });
 

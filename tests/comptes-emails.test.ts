@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetServeur } from '../src/cibles/serveur/projet.js';
 import { cheminsDesPages, genererProjetWeb } from '../src/cibles/web/projet.js';
-import { genererProjetMobile } from '../src/cibles/mobile/projet.js';
 import { verifierPourLeStatique } from '../src/cibles/statique/projet.js';
 import { programme } from './analyse/aide.js';
 
@@ -160,11 +159,6 @@ describe('les e-mails et les comptes — les pages', () => {
     const session = fichiers.get('src/humalis/session.tsx')!;
     expect(session).toContain("new URLSearchParams(window.location.hash.slice(1)).get('jeton')");
     expect(session).toContain("window.history.replaceState(null, '', window.location.pathname + window.location.search);");
-  });
-
-  it('mobile : un message renvoie vers le site', () => {
-    const fichiers = genererProjetMobile(application(), { nom: 'b', source: 'b.humalis' });
-    expect(fichiers.get('humalis/session.tsx')).toContain("pas encore disponibles dans l'application mobile");
   });
 
   it('statique : les trois phrases sont refusées à la compilation', () => {

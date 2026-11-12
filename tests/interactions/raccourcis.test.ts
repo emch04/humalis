@@ -1,9 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { compiler } from '../../src/compilateur.js';
-import { verifierPourLeMobile } from '../../src/cibles/mobile/projet.js';
 import { decrireTouches } from '../../src/cibles/web/interactions.js';
 import { lireTouches } from '../../src/analyse/interactions.js';
-import { p, corps, web, statique, mobile, compile, fichier, erreurs, avertissements } from './aide.js';
+import { p, corps, web, statique, compile, fichier, erreurs, avertissements } from './aide.js';
 
 const PAGE = p(
   '>variable aide = faux',
@@ -82,12 +81,6 @@ describe('raccourcis — les cibles', () => {
     expect(clavier).toContain('evenement.ctrlKey || evenement.metaKey');
     expect(clavier).toContain('if (evenement.repeat || evenement.isComposing) return;');
     expect(clavier).toContain("document.querySelector('dialog[open]')");
-  });
-  it('mobile : rien de produit, un avertissement', () => {
-    const page = fichier(mobile(PAGE), 'app/index.tsx');
-    expect(page).not.toContain('useRaccourcis');
-    expect(page).not.toContain('quandAppuie');
-    expect(verifierPourLeMobile(compile(PAGE)).map((d) => d.message).join('\n')).toMatch(/raccourcis clavier sont ignorés sur le mobile/);
   });
   it('statique : l’écouteur de humalis.js, les mêmes attributs dans le HTML de départ', () => {
     const fichiers = statique(PAGE);

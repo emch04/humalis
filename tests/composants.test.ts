@@ -3,7 +3,6 @@ import { analyser } from '../src/lexer/lexer.js';
 import { analyserSyntaxe } from '../src/parser/parser.js';
 import { compiler } from './aide-qualite.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
-import { verifierModulesPourLeMobile } from '../src/cibles/mobile/projet.js';
 import { verifierNomsPourLeWeb } from '../src/cibles/sources.js';
 import { dependancesDesComposantsReact, paquetsImportes } from '../src/cibles/web/composants-react.js';
 import { programme, erreurs, avertissements } from './analyse/aide.js';
@@ -219,11 +218,6 @@ describe('utiliser module — JavaScript sans framework', () => {
     const application = compiler('utiliser module "Compteur" depuis "./m"\n\npage "accueil" :\n    Compteur\n').application!;
     expect(verifierNomsPourLeWeb(application)[0]).toMatchObject({ gravite: 'erreur', ligne: 1 });
     expect(verifierNomsPourLeWeb(compiler(source).application!)).toEqual([]);
-  });
-
-  it('un module est refusé sur le mobile', () => {
-    expect(verifierModulesPourLeMobile(compiler(source).application!)[0]).toMatchObject({ gravite: 'erreur', ligne: 1 });
-    expect(verifierModulesPourLeMobile(compiler(avecCarte).application!)).toEqual([]);
   });
 
   it('un composant React reste un composant React', () => {

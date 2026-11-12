@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { compiler } from '../../src/compilateur.js';
 import { programme } from '../analyse/aide.js';
-import { p, corps, web, statique, mobile, fichier, erreurs, avertissements } from './aide.js';
+import { p, corps, web, statique, fichier, erreurs, avertissements } from './aide.js';
 
 const PRODUITS = programme(
   'page "produits" :',
@@ -93,15 +93,6 @@ describe('fenêtres et confirmations — la RI et les cibles', () => {
     expect(css).toContain('.humalis-fenetre::backdrop');
     expect(css).toMatch(/@media \(prefers-reduced-motion: no-preference\) \{\n {2}\.humalis-fenetre\[open\]/);
     expect(fichier(web(p('>titre "a"')), 'humalis/confirmation.ts')).toBe('');
-  });
-  it('mobile : Modal, et une seule fenêtre de question dans app/_layout.tsx', () => {
-    const fichiers = mobile(PRODUITS);
-    const page = fichier(fichiers, 'app/index.tsx');
-    expect(page).toContain('const confirmer = useConfirmer();');
-    expect(page).toContain("import { useConfirmer } from '../humalis/confirmation';");
-    expect(fichier(fichiers, 'humalis/fenetre.tsx')).toContain('onRequestClose={fermerSiPermis}');
-    expect(fichier(fichiers, 'humalis/confirmation.tsx')).toContain('export function Confirmations');
-    expect(fichier(fichiers, 'app/_layout.tsx')).toContain('<Confirmations>');
   });
   it('statique : un <dialog> fermé dans le HTML de départ, humalis.fenetre et humalis.confirmer', () => {
     const fichiers = statique(PRODUITS);

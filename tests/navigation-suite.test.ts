@@ -320,11 +320,11 @@ describe('lien actif et menu', () => {
 });
 
 describe('cibles qui ne les produisent pas encore', () => {
-  it('le mobile et le statique le disent clairement', () => {
+  it('le statique le dit clairement', () => {
     const application = compiler(programme(...ADMIN, ...CATALOGUE.map((l) => l))).application;
     // Les noms de pages se répètent : on ne garde que les sous-pages.
     const sous = compiler(programme(...ADMIN)).application!;
-    for (const cible of ['mobile', 'statique'] as const) {
+    for (const cible of ['statique'] as const) {
       const messages = verifierNavigationPourLaCible(sous, cible).map((d) => d.message).join('\n');
       expect(messages).toMatch(/sous-page/);
     }

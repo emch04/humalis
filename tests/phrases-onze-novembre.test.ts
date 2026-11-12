@@ -3,7 +3,6 @@ import { compiler } from '../src/compilateur.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
 import { genererProjetMoteur } from '../src/cibles/moteur/projet.js';
 import { genererProjetStatique } from '../src/cibles/statique/projet.js';
-import { genererProjetMobile } from '../src/cibles/mobile/projet.js';
 import { genererProjetDesktop } from '../src/cibles/desktop/projet.js';
 import { genererProjetApple } from '../src/cibles/apple/projet.js';
 import { analyserSyntaxe } from '../src/parser/parser.js';
@@ -23,7 +22,6 @@ const tout = (fichiers: Map<string, string>) => [...fichiers.values()].join('\n'
 const web = (source: string) => genererProjetWeb(sansErreur(source), { nom: 'a', adresse: 'https://a.fr', source: 'a.humalis' });
 const moteur = (source: string) => genererProjetMoteur(sansErreur(source), { nom: 'a', source: 'a.humalis' });
 const statique = (source: string) => genererProjetStatique(sansErreur(source), { nom: 'a', source: 'a.humalis' });
-const mobile = (source: string) => genererProjetMobile(sansErreur(source), { nom: 'a', source: 'a.humalis' });
 const bureauReact = (source: string) => genererProjetDesktop(sansErreur(source), { nom: 'a', source: 'a.humalis' });
 const bureauMoteur = (source: string) => genererProjetDesktop(sansErreur(source), { nom: 'a', source: 'a.humalis', moteur: 'humalis' });
 const apple = (source: string) => trouver(genererProjetApple(sansErreur(source), { nom: 'a', source: 'a.humalis' }).fichiers, 'PageAccueil.swift');
@@ -99,13 +97,6 @@ describe('« si actif : » : une valeur vrai ou faux seule', () => {
     const bureau = trouver(bureauReact(source), 'src/pages/Accueil.tsx');
     expect(bureau).toContain('{actif && pret && (');
     expect(tout(bureauMoteur(source))).toContain('() => actif.v && pret.v ? 0 : -1');
-  });
-
-  it('devient du React Native sur le mobile', () => {
-    const page = trouver(mobile(source), 'app/index.tsx');
-    expect(page).toContain('const tout = (actif && pret);');
-    expect(page).toContain('{actif && pret && (');
-    expect(page).toContain('disabled={actif} accessibilityState={{ disabled: actif }}');
   });
 
   it('devient du Swift sur Apple', () => {
@@ -197,16 +188,6 @@ describe('« avec desactive » sur un champ', () => {
   it('suit sa condition sur le bureau', () => {
     expect(trouver(bureauReact(source), 'src/pages/Accueil.tsx')).toContain('<input data-humalis="champ_ville" disabled={verrou}');
     expect(tout(bureauMoteur(source))).toMatch(/attribut\(r\[\d+\], 'disabled', \(\) => verrou\.v\);/);
-  });
-
-  it('ne se modifie plus sur le mobile', () => {
-    const page = trouver(mobile(source), 'app/index.tsx');
-    expect(page).toContain('<TextInput testID="champ_nom" accessibilityLabel="Nom" editable={false} accessibilityState={{ disabled: true }}');
-    expect(page).toContain('<TextInput testID="champ_ville" accessibilityLabel="Ville" editable={!(verrou)} accessibilityState={{ disabled: verrou }}');
-    expect(page).toContain('<MotDePasse testID="champ_secret" accessibilityLabel="Secret" autoComplete="new-password" autoCapitalize="none" editable={!(verrou)}');
-    expect(page).toContain('<Switch testID="champ_accord" accessibilityLabel="Accord" disabled={verrou} accessibilityState={{ disabled: verrou }}');
-    expect(page).toContain('accessibilityRole="radio" aria-checked={champTaille === option} disabled={verrou}');
-    expect(page).toContain('aria-expanded={ouvertPays} disabled={verrou} accessibilityState={{ disabled: verrou }}');
   });
 
   it('devient .disabled sur Apple', () => {

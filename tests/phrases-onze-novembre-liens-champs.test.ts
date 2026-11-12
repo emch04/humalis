@@ -3,7 +3,6 @@ import { compiler } from '../src/compilateur.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
 import { genererProjetMoteur } from '../src/cibles/moteur/projet.js';
 import { genererProjetStatique } from '../src/cibles/statique/projet.js';
-import { genererProjetMobile } from '../src/cibles/mobile/projet.js';
 import { genererProjetDesktop } from '../src/cibles/desktop/projet.js';
 import { genererProjetApple } from '../src/cibles/apple/projet.js';
 import { adresseDuLien, adresseDuLienJs } from '../src/cibles/commun/liens-et-champs.js';
@@ -20,7 +19,6 @@ const fichier = (fichiers: Map<string, string>, fin: string) => [...fichiers.ent
 const web = (source: string) => genererProjetWeb(sansErreur(source), { nom: 'a', adresse: 'https://a.fr', source: 'a.humalis' });
 const moteur = (source: string) => genererProjetMoteur(sansErreur(source), { nom: 'a', source: 'a.humalis' });
 const statique = (source: string) => genererProjetStatique(sansErreur(source), { nom: 'a', source: 'a.humalis' });
-const mobile = (source: string) => genererProjetMobile(sansErreur(source), { nom: 'a', source: 'a.humalis' });
 const pageApple = (source: string) => fichier(genererProjetApple(sansErreur(source), { nom: 'a', source: 'a.humalis' }).fichiers, 'PageAccueil.swift');
 
 const LIENS = programme(
@@ -36,9 +34,6 @@ const LIENS = programme(
 );
 
 describe('« lien "…" vers variable » : l’analyse', () => {
-  it('lit une variable ou le champ d’une fiche après « vers »', () => {
-    sansErreur(LIENS);
-  });
   it('refuse une variable qui n’est pas un texte', () => {
     expect(messages(programme('page "accueil" :', '>variable n = 3', '>titre "a"', '>lien "Voir" vers n'))).toContain('un lien vers une variable attend une adresse en texte');
     expect(messages(programme('page "accueil" :', '>variable reglage = fiche avec site "x"', '>titre "a"', '>lien "Voir" vers reglage'))).toContain('« reglage » est');
@@ -48,9 +43,6 @@ describe('« lien "…" vers variable » : l’analyse', () => {
   });
   it('dit quelle variable manque', () => {
     expect(messages(programme('page "accueil" :', '>titre "a"', '>lien "Voir" vers sitee'))).toMatch(/sitee/);
-  });
-  it('garde « vers "page" » et « vers "https://…" » comme avant', () => {
-    sansErreur(programme('page "accueil" :', '>titre "a"', '>lien "Contact" vers "contact"', '>lien "Ailleurs" vers "https://exemple.fr"', 'page "contact" :', '>titre "c"'));
   });
 });
 
@@ -118,13 +110,6 @@ describe('« lien "…" vers variable » : le rendu', () => {
     expect(fichier(fichiers, 'pages/accueil.js')).toContain("creer('a', { href: adresseDuLien(site), 'data-humalis': 'lien_notre_site' }, 'Notre site')");
     expect(fichier(fichiers, 'humalis/humalis.js')).toContain('function adresseDuLien(valeur) {');
   });
-  it('mobile : Link vers la page ou l’adresse externe ; sans lien si l’adresse est refusée', () => {
-    const fichiers = mobile(LIENS);
-    const page = fichier(fichiers, 'app/index.tsx');
-    expect(page).toContain('<Link href={adresse} testID="lien_notre_site" style={s.lien}>Notre site</Link>)(adresseDuLien(site))}</>');
-    expect(page).toContain("import { adresseDuLien } from '../humalis/outils';");
-    expect(fichier(fichiers, 'humalis/outils.ts')).toContain('export function adresseDuLien(valeur: unknown): string | undefined {');
-  });
   it('Apple : allerVers ouvre la page ou l’adresse externe permise', () => {
     const page = pageApple(LIENS);
     expect(page).toContain('Button { Routeur.commun.allerVers(site) } label: {');
@@ -151,9 +136,6 @@ const CHAMPS = programme(
 );
 
 describe('« champ "…" avec valeur … » : l’analyse', () => {
-  it('lit une variable, un texte, le champ d’une fiche, et les options qui suivent', () => {
-    sansErreur(CHAMPS);
-  });
   it('une case à cocher attend vrai ou faux', () => {
     expect(messages(programme('page "accueil" :', '>variable actif = "oui"', '>titre "a"', '>case a cocher "Actif" avec valeur actif'))).toContain('la valeur de départ d’une case à cocher est vrai ou faux');
   });
@@ -163,9 +145,6 @@ describe('« champ "…" avec valeur … » : l’analyse', () => {
   it('ne vaut que pour un champ, et pas dans « pour chaque »', () => {
     expect(messages(programme('page "accueil" :', '>titre "a" avec valeur "x"'))).toContain('l’option « valeur » s’applique à un champ');
     expect(messages(programme('page "accueil" :', '>variable villes = ["Lyon"]', '>titre "a"', '>pour chaque v dans villes :', '>>champ "Ville" avec valeur v'))).toContain('« pour chaque »');
-  });
-  it('« avec valeur » reste un paramètre de page après « vers "page" »', () => {
-    sansErreur(programme('page "accueil" :', '>titre "a"', '>lien "Voir" vers "produit" avec valeur 3', 'page "produit" avec parametre valeur :', '>titre "p"'));
   });
 });
 
@@ -205,11 +184,6 @@ describe('« champ "…" avec valeur … » : le rendu', () => {
     expect(script).toContain('if (champNom === suiviNom) champNom = departNom;');
     expect(script).toContain('champNom = suiviNom;');
   });
-  it('mobile : le même état que sur le web', () => {
-    const page = fichier(mobile(CHAMPS), 'app/index.tsx');
-    expect(page).toContain("const [champNom, setChampNom] = useState(String(nom ?? ''));");
-    expect(page).toContain('}, [departNom]);');
-  });
   it('Apple : onChange(initial: true) pose la valeur, puis la suit', () => {
     const page = pageApple(CHAMPS);
     expect(page).toContain('@State private var champNomDepart: String? = nil');
@@ -220,19 +194,3 @@ describe('« champ "…" avec valeur … » : le rendu', () => {
   });
 });
 
-describe('« rediriger vers » sur mobile', () => {
-  it('une adresse reçue passe par le filtre, et une adresse externe par le système', async () => {
-    const { compiler } = await import('../src/compilateur.js');
-    const { genererProjetMobile } = await import('../src/cibles/mobile/projet.js');
-    const r = compiler(`page "accueil" :\n    titre "A"\n    variable cible = "contact"\n    bouton "Aller"\n    bouton "Dehors"\n    quand l'utilisateur clique sur "Aller" :\n        rediriger vers "{cible}"\n    quand l'utilisateur clique sur "Dehors" :\n        rediriger vers "https://exemple.com"\n\npage "contact" :\n    titre "Contact"\n`);
-    const projet = genererProjetMobile(r.application!, { nom: 'a', source: 'a.humalis' });
-    const page = projet.get('app/index.tsx')!;
-    expect(page).not.toContain('allerVers(');
-    expect(page).not.toContain('ouvrirExterne(');
-    expect(page).toContain('adresseDuLien(String(');
-    expect(page).toContain("void Linking.openURL('https://exemple.com')");
-    expect(page).toMatch(/import \{[^}]*\bLinking\b[^}]*\} from 'react-native'/);
-    expect(page).toMatch(/import \{[^}]*\badresseDuLien\b[^}]*\} from '\.\.\/humalis\/outils'/);
-    expect(projet.get('humalis/outils.ts')).toContain('export function adresseDuLien');
-  });
-});

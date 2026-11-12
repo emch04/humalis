@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
 import { genererProjetStatique } from '../src/cibles/statique/projet.js';
-import { genererProjetMobile, verifierPourLeMobile } from '../src/cibles/mobile/projet.js';
 import { genererProjetDesktop } from '../src/cibles/desktop/projet.js';
 import { LEAFLET_JS, LEAFLET_CSS } from '../src/cibles/statique/leaflet-donnees.js';
 import { programme } from './analyse/aide.js';
@@ -25,7 +24,6 @@ const compile = (source: string) => {
 };
 const web = (source: string) => genererProjetWeb(compile(source), { nom: 'e', adresse: 'https://x.cd', source: 'e.humalis' });
 const statique = (source: string) => genererProjetStatique(compile(source), { nom: 'e', source: 'e.humalis' });
-const mobile = (source: string) => genererProjetMobile(compile(source), { nom: 'e', source: 'e.humalis' });
 const desktop = (source: string) => genererProjetDesktop(compile(source), { nom: 'e', source: 'e.humalis' });
 const fichier = (fichiers: Map<string, string>, fin: string) => [...fichiers.entries()].find(([n]) => n.endsWith(fin))?.[1] ?? '';
 
@@ -148,51 +146,14 @@ describe('carte — le desktop', () => {
   });
 });
 
-describe('carte — le mobile (décision M15)', () => {
-  const fichiers = mobile(MARQUEURS);
-  it('écrit une carte native, react-native-maps (version accordée à Expo 57), et la liste des lieux', () => {
-    const composant = fichier(fichiers, 'humalis/carte-lieux.tsx');
-    expect(composant).toContain("from 'react-native-maps'");
-    expect(composant).toContain('<Marker key={i} coordinate={lieu} title={lieu.nom} description={lieu.adresse}');
-    expect(composant).toContain('accessibilityLabel={nom}');
-    expect(JSON.parse(fichier(fichiers, 'package.json')).dependencies['react-native-maps']).toBe('1.27.2');
-  });
-  it('laisse l’emplacement vide de la clé Google pour Android dans app.json, et l’explique', () => {
-    expect(JSON.parse(fichier(fichiers, 'app.json')).expo.android.config.googleMaps.apiKey).toBe('');
-    const lisezmoi = fichier(fichiers, 'LISEZMOI.md');
-    expect(lisezmoi).toContain('ajoutez votre clé Google Maps dans app.json');
-    expect(lisezmoi).toContain('Sur iPhone, la carte est celle d’Apple et n’a besoin d’aucune clé');
-  });
-  it('dit la même chose à la compilation, une fois', () => {
-    expect(verifierPourLeMobile(compile(MARQUEURS)).filter((d) => d.message.includes('clé Google Maps'))).toHaveLength(1);
-  });
-  it('sans carte, ni dépendance, ni clé, ni phrase', () => {
-    const sans = mobile(SANS_CARTE);
-    expect(fichier(sans, 'package.json')).not.toContain('react-native-maps');
-    expect(fichier(sans, 'app.json')).not.toContain('googleMaps');
-    expect(fichier(sans, 'LISEZMOI.md')).not.toContain('Google Maps');
-    expect([...sans.keys()].some((n) => n.includes('carte-lieux'))).toBe(false);
-  });
-});
-
 describe('carte — un programme sans carte produit les mêmes octets', () => {
   it('aucun fichier ni mot de la carte dans les quatre cibles', () => {
-    for (const fichiers of [web(SANS_CARTE), statique(SANS_CARTE), mobile(SANS_CARTE), desktop(SANS_CARTE)]) {
+    for (const fichiers of [web(SANS_CARTE), statique(SANS_CARTE), desktop(SANS_CARTE)]) {
       for (const [nom, code] of fichiers) {
         expect(nom, nom).not.toMatch(/carte-lieux|leaflet/);
         expect(code, nom).not.toMatch(/CarteLieux|carteLieux|leaflet|react-native-maps|humalis-carte/);
       }
     }
-  });
-});
-
-describe('mobile : « transition » et « effet » sont sans effet sur un bouton', () => {
-  it('n’écrit aucune référence à un style qui n’existe pas', () => {
-    const fichiers = mobile(p('>bouton "Réserver" avec transition douce et effet agrandi et fond vert'));
-    const page = [...fichiers.entries()].find(([n]) => n.startsWith('app/index'))?.[1] ?? '';
-    expect(page).not.toMatch(/transitionDouce|effetAgrandi|effetLeve/);
-    expect(page).toContain('s.texteBouton');
-    expect(page).toContain('s.fondVert');
   });
 });
 

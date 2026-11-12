@@ -2,7 +2,7 @@ import type { BornesChamp, DonneeLocaleOptions } from '../parser/ast.js';
 import type { IconeDessinee } from '../icones-svg.js';
 /**
  * La représentation intermédiaire (RI) : un arbre neutre, sans aucun mot
- * de plateforme, que chaque cible (React, Expo, Electron, statique) lit
+ * de plateforme, que chaque cible (web, statique, Apple, Android, Windows, bureau, serveur) lit
  * pour produire son code. Ce sont des données pures, sérialisables en
  * JSON.
  *

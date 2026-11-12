@@ -7,7 +7,6 @@ import type { Application } from './types.js';
 
 const VISEES: Record<string, string[]> = {
   apple: ['application', 'apple', 'ios', 'macos', 'montre', 'tele'],
-  mobile: ['application'],
   android: ['application', 'android', 'montre', 'tele'],
   desktop: ['application'],
   windows: ['application', 'windows'],
@@ -73,7 +72,6 @@ export function pourLaCible(application: Application, cible: string): Applicatio
             return DANS_LE_PROJET.has(lue[1]) ? [c] : [lue[2]];
           })];
         }
-        if (cible === 'mobile' && cle === 'options' && Array.isArray(valeur)) return [cle, (valeur as { nom: string; valeur: string }[]).filter((o) => !(o.nom === 'fond' && o.valeur === 'translucide'))];
         return [cle, adapter(valeur)];
       }),
     );

@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
 import { genererProjetStatique } from '../src/cibles/statique/projet.js';
-import { genererProjetMobile } from '../src/cibles/mobile/projet.js';
 import { mouvementHorsBloc } from '../src/cibles/commun/mouvement.js';
 
 // « code … avec animation frappe » : le code s'écrit lettre par lettre, au chargement ou au défilement.
@@ -40,11 +39,6 @@ describe('l\'animation de frappe d\'un bloc de code', () => {
     expect(projet.get('index.html')).toContain('data-humalis-frappe="defilement"');
     expect([...projet.values()].join('\n')).toMatch(/'data-humalis-frappe': 'defilement'/);
     expect(projet.get('humalis/humalis.js')).toContain('humalis-frappe-copie');
-  });
-
-  it('montre le code entier sur le mobile', () => {
-    const projet = genererProjetMobile(application(page('    code humalis avec animation frappe :\n        titre "Bonjour"')), options);
-    expect(projet.get('app/index.tsx')).toContain(`{'titre "Bonjour"'}`);
   });
 
   it('un bloc sans animation ne charge pas le script', () => {

@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { compiler } from './aide-qualite.js';
 import { compilerProjet } from './aide-qualite.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
-import { genererProjetMobile } from '../src/cibles/mobile/projet.js';
 import { genererProjetStatique } from '../src/cibles/statique/projet.js';
 import { programme, erreurs } from './analyse/aide.js';
 
@@ -79,11 +78,6 @@ describe('fonctions — ce que produit chaque cible', () => {
     const page = fichiers.get('src/pages/Panier.tsx')!;
     expect(page).toContain("import { prixTtc, remise } from '../humalis/fonctions';");
     expect(page).toContain('remise(prixTtc(prix), 10)');
-  });
-
-  it('mobile : le même fichier de fonctions', () => {
-    const fichiers = genererProjetMobile(application(), { nom: 'a', source: 'a.humalis' });
-    expect(fichiers.get('humalis/fonctions.ts')).toContain('export function prixTtc(');
   });
 
   it('site statique : fonctions.js chargé avant la page, et le HTML de départ déjà calculé', () => {

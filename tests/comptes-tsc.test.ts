@@ -5,7 +5,6 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
-import { genererProjetMobile } from '../src/cibles/mobile/projet.js';
 
 /** Le premier exemple de cette section du guide : celui qu'une personne recopie. */
 function exempleDuGuide(guide: string, titre: string): string {
@@ -61,8 +60,4 @@ describe('les comptes dans les pages : le code produit passe tsc', () => {
     expect(app.serveurs[0].donnees).toEqual([]);
   });
 
-  it('mobile : le même type', () => {
-    const fichiers = genererProjetMobile(application(exempleDuGuide('guide.md', guides[0].titre)), { nom: 'b', source: 'b.humalis' });
-    expect(fichiers.get('humalis/donnees.ts')).toContain('export interface Comptes {');
-  });
 });

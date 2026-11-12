@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { compiler } from '../../src/compilateur.js';
 import { genererProjetWeb } from '../../src/cibles/web/projet.js';
-import { genererProjetMobile, verifierPourLeMobile } from '../../src/cibles/mobile/projet.js';
 import { genererProjetStatique } from '../../src/cibles/statique/projet.js';
 import { genererProjetDesktop } from '../../src/cibles/desktop/projet.js';
 import { programme } from '../analyse/aide.js';
@@ -12,7 +11,6 @@ const compile = (source: string) => {
   return application!;
 };
 const web = (source: string) => genererProjetWeb(compile(source), { nom: 'essai', adresse: 'https://exemple.cd', source: 'essai.humalis' });
-const mobile = (source: string) => genererProjetMobile(compile(source), { nom: 'essai', source: 'essai.humalis' });
 const statique = (source: string) => genererProjetStatique(compile(source), { nom: 'essai', source: 'essai.humalis' });
 
 const SOURCE = programme(
@@ -81,46 +79,6 @@ describe('mise en page — sur telephone, sur tablette (4.2)', () => {
     expect(fichiers.get('humalis/styles.css')).toContain('.humalis-sur-tablette { display: contents; }');
   });
 
-  it('mobile : un composant SurAppareil, écrit seulement quand il sert', () => {
-    const fichiers = mobile(source);
-    const page = fichiers.get('app/index.tsx')!;
-    expect(page).toContain("<SurAppareil sur={['telephone']}>");
-    expect(page).toContain("<SurAppareil sur={['tablette', 'ordinateur']}>");
-    expect(page).toContain("import { SurAppareil } from '../humalis/appareil';");
-    expect(fichiers.get('humalis/appareil.tsx')).toContain('useWindowDimensions');
-    expect(mobile(programme('page "p" :', '>texte "a"')).has('humalis/appareil.tsx')).toBe(false);
-  });
-});
-
-describe('mise en page — la cible mobile (4.1, 4.4, 4.5)', () => {
-  it('traduit les réglages en StyleSheet', () => {
-    const fichiers = mobile(SOURCE);
-    const styles = fichiers.get('humalis/styles.ts')!;
-    expect(styles).toContain('espacementMoyenne: { gap: 16 },');
-    expect(styles).toContain('alignementCentree: { alignItems: \'center\' },');
-    expect(styles).toContain('repartitionEntre: { justifyContent: \'space-between\' },');
-    expect(styles).toContain('largeurEtroite:');
-    expect(styles).toContain('ombreLegere:');
-    expect(styles).toContain('bordureDouce: { borderRadius: 8 },');
-    expect(fichiers.get('app/index.tsx')).toContain('s.espacementMoyenne');
-  });
-
-  it('un dégradé devient un composant Degrade, et la dépendance expo-linear-gradient n’arrive qu’alors', () => {
-    const avec = mobile(programme('page "p" :', '>bloc avec degrade bleu vers violet vertical :', '>>texte "a"'));
-    expect(avec.get('app/index.tsx')).toContain('<Degrade de="bleu" vers="violet" direction="vertical"');
-    expect(avec.get('humalis/degrade.tsx')).toContain("from 'expo-linear-gradient'");
-    expect(JSON.parse(avec.get('package.json')!).dependencies['expo-linear-gradient']).toBeDefined();
-    const sans = mobile(programme('page "p" :', '>bloc :', '>>texte "a"'));
-    expect(sans.has('humalis/degrade.tsx')).toBe(false);
-    expect(JSON.parse(sans.get('package.json')!).dependencies['expo-linear-gradient']).toBeUndefined();
-  });
-
-  it('« colle » est signalé : sans effet sur le téléphone', () => {
-    const avertissements = verifierPourLeMobile(compile(programme('page "p" :', '>bloc avec colle :', '>>texte "a"')));
-    expect(avertissements.map((d) => d.message)).toEqual(["« colle » n'a pas d'effet sur le téléphone, sauf pour l'en-tête et le pied de page."]);
-    const page = mobile(programme('page "p" :', '>bloc avec colle :', '>>texte "a"')).get('app/index.tsx')!;
-    expect(page).not.toContain('colle');
-  });
 });
 
 describe('mise en page — dégradé et élément collé sur le web et en statique (4.4, 4.5)', () => {

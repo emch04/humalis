@@ -7,7 +7,6 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetServeur } from '../src/cibles/serveur/projet.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
-import { genererProjetMobile } from '../src/cibles/mobile/projet.js';
 import { verifierPourLeStatique } from '../src/cibles/statique/projet.js';
 import { programme, erreurs } from './analyse/aide.js';
 
@@ -113,11 +112,6 @@ describe('ce qui est produit selon la cible', () => {
   it('web : sans la phrase, le client n’a pas ce code', () => {
     const sans = compiler(programme(...SERVEUR, '', 'page "a" :', '>titre "A"')).application!;
     expect(genererProjetWeb(sans, { nom: 'm', adresse: 'https://m.test', source: 'm.humalis' }).get('src/humalis/serveur.ts')).not.toContain('telecharger');
-  });
-
-  it('mobile : un message clair « pas encore »', () => {
-    const fichiers = genererProjetMobile(application, { nom: 'm', source: 'm.humalis' } as never);
-    expect(fichiers.get('humalis/serveur.ts')).toContain("Le téléchargement d'un bon n'est pas encore disponible dans l'application mobile.");
   });
 
   it('site statique : refusé clairement', () => {

@@ -8,7 +8,6 @@ import { analyserSens } from '../src/analyse/analyse.js';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
 import { genererProjetStatique } from '../src/cibles/statique/projet.js';
-import { genererProjetMobile } from '../src/cibles/mobile/projet.js';
 import { genererProjetDesktop } from '../src/cibles/desktop/projet.js';
 import { FORMAT_JS_LANGUES } from '../src/cibles/format.js';
 import { programme } from './analyse/aide.js';
@@ -337,20 +336,6 @@ describe('langues — le web et le bureau', () => {
   });
 });
 
-describe('langues — le mobile', () => {
-  it('ajoute expo-localization et le stockage seulement avec des langues', () => {
-    const avec = genererProjetMobile(application(), { nom: 'rey', source: 'deux-langues.humalis' });
-    const paquet = JSON.parse(avec.get('package.json')!);
-    expect(paquet.dependencies['expo-localization']).toBe('57.0.2');
-    expect(paquet.dependencies['@react-native-async-storage/async-storage']).toBeDefined();
-    expect(avec.get('humalis/langue.tsx')).toContain('getLocales()');
-    expect(avec.get('app/index.tsx')).toContain("t({ fr: 'Bienvenue chez Boutique Démo', en: 'Welcome to Boutique Démo' })");
-    const sans = genererProjetMobile(compiler(programme('page "a" :', '>titre "A"')).application!, { nom: 'a', source: 'a.humalis' });
-    expect(JSON.parse(sans.get('package.json')!).dependencies['expo-localization']).toBeUndefined();
-    expect(sans.has('humalis/langue.tsx')).toBe(false);
-  });
-});
-
 describe('langues — le site statique', () => {
   it('le HTML de départ est dans la langue de base, le script traduit', () => {
     const fichiers = genererProjetStatique(application(), { nom: 'rey', source: 'deux-langues.humalis' });
@@ -396,7 +381,7 @@ describe('langues — les montants et les pluriels', () => {
   });
 });
 
-/** Un programme qui choisit un fichier : refusé sur le mobile et le site statique (seulement web et bureau). */
+/** Un programme qui choisit un fichier : refusé sur le site statique (seulement web et bureau). */
 const webSeulement = (a: { ecrans: unknown[] }) => JSON.stringify(a.ecrans).includes('"genre":"fichier"');
 
 describe('langues — les messages intégrés (T10)', () => {
@@ -419,7 +404,7 @@ describe('langues — les messages intégrés (T10)', () => {
         return [
           genererProjetWeb(a, { nom: 'e', adresse: 'https://x.cd', source: f }),
           // Le choix d'un fichier n'est produit que pour le web et le bureau.
-          ...(webSeulement(a) ? [] : [genererProjetMobile(a, { nom: 'e', source: f }), genererProjetStatique(a, { nom: 'e', source: f })]),
+          ...(webSeulement(a) ? [] : [genererProjetStatique(a, { nom: 'e', source: f })]),
         ];
       });
 

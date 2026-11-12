@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
-import { genererProjetMobile } from '../src/cibles/mobile/projet.js';
 import { genererProjetStatique } from '../src/cibles/statique/projet.js';
 import { genererProjetMoteur } from '../src/cibles/moteur/projet.js';
 import { genererProjetApple } from '../src/cibles/apple/projet.js';
@@ -30,7 +29,7 @@ describe('les espaces insécables du français', () => {
     expect(espacerEnFrancais('Déjà espacé !')).toBe(`Déjà espacé${FINE}!`);
   });
 
-  it('dans les textes affichés de chaque cible : web, moteur, statique, mobile, Apple', () => {
+  it('dans les textes affichés de chaque cible : web, moteur, statique, Apple', () => {
     const source = programme('page "p" :', '>titre "Bonjour !"', '>variable nom = "Léa"', '>texte "Prix : 12 € ; merci {nom} !"', '>texte "Le code `a ; b` reste"', '>bouton "Envoyer ?"', '>quand l\'utilisateur clique sur "Envoyer ?" :', '>>afficher "Merci !"');
     const app = application(source);
     const web = genererProjetWeb(app, OPTIONS).get('src/pages/P.tsx')!;
@@ -43,7 +42,7 @@ describe('les espaces insécables du français', () => {
     for (const [nom, sortie] of [
       ['moteur', tout(genererProjetMoteur(app, OPTIONS as never))],
       ['statique', tout(genererProjetStatique(app, OPTIONS as never))],
-      ['mobile', tout(genererProjetMobile(app, OPTIONS as never))],
+      
     ] as const) {
       expect(sortie, nom).toContain(`Bonjour${FINE}!`);
       expect(sortie, nom).toContain(`Merci${FINE}!`);

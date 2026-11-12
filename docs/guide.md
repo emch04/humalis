@@ -3267,8 +3267,8 @@ que le service n'est pas réglé. Pour essayer chez toi :
 **Sur chaque cible.** Le web (moteur Humalis), le bureau, Apple (iPhone, iPad,
 Mac), Android et Windows (x64 et ARM64) ont tout : discussions, appels, réunions
 et partage d'écran. Sur Windows, le partage montre l'écran principal en entier ;
-sur iPhone, il montre l'application. La cible `mobile` (Expo), les pages statiques
-et `--moteur react` refusent ces phrases à la compilation, avec la cible à prendre.
+sur iPhone, il montre l'application. Les pages statiques et `--moteur react`
+refusent ces phrases à la compilation, avec la cible à prendre.
 
 ---
 
@@ -4082,23 +4082,23 @@ Le même fichier donne toutes les cibles. Quand une construction n'existe pas
 sur une cible, le compilateur le dit clairement au lieu de produire quelque
 chose de faux.
 
-| | web | statique | mobile | desktop | apple | android | windows |
-|---|---|---|---|---|---|---|---|
-| Pages, éléments, styles, thème | oui | oui | oui | oui | oui | oui | oui |
-| Ton propre CSS | oui | oui | non (styles nommés seulement) | oui | en partie (règles d'une classe ; le reste est listé) ; au point près dans une page `dessinee pour`, `@media` et mode sombre compris | en partie (règles d'une classe ; le reste est listé) | en partie (règles d'une classe ; le reste est listé) |
-| Requêtes vers un serveur | oui | oui | oui | oui | oui | oui | oui |
-| `memorisee` | oui | oui | oui | oui | oui | oui | oui |
-| `memorisee en secret` | non | non | oui | oui | oui (Keychain) | oui (Keystore) | oui (chiffré par Windows) |
-| `essayer` | oui | non | oui | oui | oui | oui | oui |
-| Raccourcis clavier | oui | oui | non | oui | oui | oui (clavier branché) | oui |
-| Vue native écrite à la main | non | non | non | non | oui (Swift, `sur apple`) | oui (Kotlin, `sur android`) | oui (C#, `sur windows`) |
-| Composants React (anciens projets) | oui | non | oui (en React Native) | oui | non | non | non |
-| Le moteur Humalis (par défaut) | oui | non | non | oui (sauf composant React ou `memorisee en secret`) | non | non | non |
-| Graphiques, cartes, audio, vidéo, fichiers | oui | oui | en partie | oui | oui | oui | oui |
-| Plusieurs langues | oui | oui | oui | oui | oui | oui | oui |
-| Photo, scanner, Face ID, vibration, signature, hors ligne | oui (vibration : Android) | non | non | non | oui | oui | non |
-| `en arriere plan` | non | non | non | non | oui | oui | oui (tâche planifiée) |
-| Plan du site, aperçu de partage | oui | oui | non | non | non | non | non |
+| | web | statique | desktop | apple | android | windows |
+|---|---|---|---|---|---|---|
+| Pages, éléments, styles, thème | oui | oui | oui | oui | oui | oui |
+| Ton propre CSS | oui | oui | oui | en partie (règles d'une classe ; le reste est listé) ; au point près dans une page `dessinee pour`, `@media` et mode sombre compris | en partie (règles d'une classe ; le reste est listé) | en partie (règles d'une classe ; le reste est listé) |
+| Requêtes vers un serveur | oui | oui | oui | oui | oui | oui |
+| `memorisee` | oui | oui | oui | oui | oui | oui |
+| `memorisee en secret` | non | non | oui | oui (Keychain) | oui (Keystore) | oui (chiffré par Windows) |
+| `essayer` | oui | non | oui | oui | oui | oui |
+| Raccourcis clavier | oui | oui | oui | oui | oui (clavier branché) | oui |
+| Vue native écrite à la main | non | non | non | oui (Swift, `sur apple`) | oui (Kotlin, `sur android`) | oui (C#, `sur windows`) |
+| Composants React (anciens projets) | oui | non | oui | non | non | non |
+| Le moteur Humalis (par défaut) | oui | non | oui (sauf composant React ou `memorisee en secret`) | non | non | non |
+| Graphiques, cartes, audio, vidéo, fichiers | oui | oui | oui | oui | oui | oui |
+| Plusieurs langues | oui | oui | oui | oui | oui | oui |
+| Photo, scanner, Face ID, vibration, signature, hors ligne | oui (vibration : Android) | non | non | oui | oui | non |
+| `en arriere plan` | non | non | non | oui | oui | oui (tâche planifiée) |
+| Plan du site, aperçu de partage | oui | oui | non | non | non | non |
 
 Le serveur (`--cible serveur`) se produit à part, depuis le bloc `serveur`.
 
@@ -4284,8 +4284,8 @@ page "commandes" :
 Une commande créée ailleurs apparaît seule, sans recharger. Le serveur annonce
 seulement « ça a changé » : la page relit ensuite la route normale, avec ses droits,
 donc rien de privé ne passe par ce canal. Cela marche sur le web, sur le bureau, sur Apple, sur Android et sur Windows. Après une
-coupure, la page se reconnecte seule et rattrape ce qui a changé. La cible `mobile`
-(Expo) et les pages statiques lisent la liste une fois, et la compilation le dit.
+coupure, la page se reconnecte seule et rattrape ce qui a changé. Les pages statiques
+lisent la liste une fois, et la compilation le dit.
 
 Avec une base PostgreSQL, tu peux lancer plusieurs exemplaires du serveur : un
 changement reçu par l'un est annoncé par tous. Sans PostgreSQL, garde un seul

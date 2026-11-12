@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { analyser } from '../../src/lexer/lexer.js';
 import { analyserSyntaxe } from '../../src/parser/parser.js';
-import { p, web, statique, mobile, fichier } from './aide.js';
+import { p, web, statique, fichier } from './aide.js';
 
 const lire = (source: string) => () => analyserSyntaxe(analyser(source));
 
@@ -14,8 +14,8 @@ describe('socle des interactions', () => {
   // Une minuterie dans un clic s'exécute plus tard : elle lit les dernières valeurs de la page.
   const PLUS_TARD = p('>variable n = 0', '>texte "{n}"', '>bouton "Go"', '>quand l\'utilisateur clique sur "Go" :', '>>apres 10 millisecondes :', '>>>changer n par n + 1');
 
-  it('web et mobile : ce qui s’exécute plus tard lit les dernières valeurs (useActuel)', () => {
-    for (const [fichiers, nom] of [[web(PLUS_TARD), 'pages/P.tsx'], [mobile(PLUS_TARD), 'app/index.tsx']] as const) {
+  it('web : ce qui s’exécute plus tard lit les dernières valeurs (useActuel)', () => {
+    for (const [fichiers, nom] of [[web(PLUS_TARD), 'pages/P.tsx']] as const) {
       const page = fichier(fichiers, nom);
       expect(page).toContain('const actuel = useActuel({ n });');
       expect(page).toContain('actuel.current.n = actuel.current.n + 1;');
@@ -37,7 +37,6 @@ describe('socle des interactions', () => {
     expect(page).toContain('const mouvementReduit = useMouvementReduit();');
     expect(page).toContain('{mouvementReduit && (');
     expect(page).toContain('{!mouvementReduit && (');
-    expect(fichier(mobile(source), 'humalis/temps.ts')).toContain("AccessibilityInfo.addEventListener('reduceMotionChanged', setReduit)");
     const site = statique(source);
     expect(fichier(site, 'pages/p.js')).toContain('...(mouvementReduit()');
     expect(fichier(site, 'index.html')).toContain('Animations permises');
