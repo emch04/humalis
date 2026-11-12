@@ -6,6 +6,9 @@
         <debugger.javaBreakpointHandlerFactory implementation="dev.humalis.intellij.debogueur.PointArretHumalisHandlerFactory"/>
         <!-- La strate « Humalis » des classes (JSR-45) : lignes Humalis ↔ code produit. -->
         <debugger.positionManagerFactory implementation="dev.humalis.intellij.debogueur.HumalisPositionManagerFactory" order="last"/>
+        <!-- Le pas à pas ne montre pas le code produit appelé par une ligne Humalis. -->
+        <debugger.extraSteppingFilter implementation="dev.humalis.intellij.debogueur.PasAPasHumalis"/>
+        <debugger.steppingListener implementation="dev.humalis.intellij.debogueur.DebutPasHumalis"/>
         <projectService serviceImplementation="dev.humalis.intellij.debogueur.TablesDuProjet"/>
     </extensions>
 </idea-plugin>

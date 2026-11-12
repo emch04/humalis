@@ -1,6 +1,9 @@
 package dev.humalis.intellij.debogueur
 
 import com.intellij.debugger.DebuggerContext
+import com.intellij.icons.AllIcons
+import com.intellij.ui.ColoredTextContainer
+import com.intellij.ui.SimpleTextAttributes
 import com.intellij.debugger.engine.JavaStackFrame
 import com.intellij.debugger.engine.JavaValue
 import com.intellij.debugger.engine.evaluation.EvaluateException
@@ -10,10 +13,13 @@ import com.intellij.debugger.ui.impl.watch.ValueDescriptorImpl
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiExpression
 import com.intellij.xdebugger.frame.XNamedValue
+import com.intellij.xdebugger.frame.XStackFrameUiPresentationContainer
 import com.intellij.xdebugger.frame.XValueChildrenList
 import com.sun.jdi.ClassType
 import com.sun.jdi.ObjectReference
 import com.sun.jdi.Value
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 
 /**
  * Un cadre de la pile qui vient d'un fichier .humalis. Les variables y sont
@@ -23,6 +29,27 @@ import com.sun.jdi.Value
  * suspendues, objet de la fonction).
  */
 class CadreHumalis(descriptor: StackFrameDescriptorImpl) : JavaStackFrame(descriptor, true) {
+
+    /** Dans la pile : « quandCliqueAjouter — ligne 13 de compteur.humalis ». */
+    override fun customizePresentation(component: ColoredTextContainer) {
+        val position = sourcePosition
+        val endroit = descriptor.location ?: try {
+            stackFrameProxy.location()
+        } catch (_: Exception) {
+            null
+        }
+        if (position == null || endroit == null) return super.customizePresentation(component)
+        component.append(endroit.method().name().substringAfterLast('$'), SimpleTextAttributes.REGULAR_ATTRIBUTES)
+        component.append(" — ligne ${position.line + 1} de ${position.file.name}", SimpleTextAttributes.GRAYED_ATTRIBUTES)
+        component.setIcon(AllIcons.Debugger.Frame)
+    }
+
+    /** La même présentation pour la liste des cadres (qui la demande sous forme de flux). */
+    override fun customizePresentation(): Flow<XStackFrameUiPresentationContainer> {
+        val conteneur = XStackFrameUiPresentationContainer()
+        customizePresentation(conteneur)
+        return flowOf(conteneur)
+    }
 
     override fun createThisNode(evaluationContext: EvaluationContextImpl): XNamedValue? = null
 

@@ -293,8 +293,8 @@ import java.util.concurrent.ConcurrentHashMap
  * chaque classe une strate « Humalis » (JSR-45) qui relie ses lignes aux
  * lignes des fichiers .humalis, d'après la table humalis-lignes.txt. Le SMAP
  * de Kotlin (fonctions inline) est gardé tel quel : la strate Humalis vient
- * avant la sienne, et les lignes d'une fonction inline reçoivent la ligne
- * Humalis de leur appel. D8 garde l'attribut (dalvik.annotation.SourceDebugExtension),
+ * avant la sienne, et le code recopié d'une fonction inline garde sa source
+ * Kotlin. D8 garde l'attribut (dalvik.annotation.SourceDebugExtension),
  * l'appareil le transmet au débogueur (JDWP), et l'extension Humalis
  * d'Android Studio s'en sert pour les points d'arrêt et le pas à pas.
  * Seulement pour la construction « debug ».
@@ -389,18 +389,19 @@ class TableHumalis(private val fichiers: List<String>, val kotlin: Map<String, L
     fun strate(source: String, debug: String?, plages: List<IntArray>): String? {
         if (debug != null && debug.contains("\n*S Humalis\n")) return debug
         val existant = debug?.takeIf { it.startsWith("SMAP") }?.let { Smap.lire(it) }
-        // Chaque ligne de la classe, et la ligne Kotlin du fichier qui l'a produite (l'appel, pour une fonction inline).
+        // Chaque ligne de la classe qui vient du fichier lui-même, et sa ligne Kotlin. Le code recopié d'une
+        // fonction inline n'en fait pas partie : il garde sa source Kotlin (un point d'arrêt posé dans la
+        // fonction inline s'y arrête), et le pas à pas Humalis le traverse.
         val origines = TreeMap<Int, Int>()
         val strateKotlin = existant?.get("Kotlin")
         if (strateKotlin == null) {
             for (p in plages) for (l in p[0]..p[1]) origines[l] = l
         } else {
             val propres = strateKotlin.fichiers.filterValues { it == source }.keys
-            val appels = HashMap<Int, Int>()
-            existant?.get("KotlinDebug")?.parcourir { entree, _, sortie -> appels[sortie] = entree }
+            val recopiees = HashSet<Int>()
+            existant?.get("KotlinDebug")?.parcourir { _, _, sortie -> recopiees += sortie }
             strateKotlin.parcourir { entree, fichier, sortie ->
-                val origine = appels[sortie] ?: if (fichier in propres) entree else null
-                if (origine != null) origines[sortie] = origine
+                if (fichier in propres && sortie !in recopiees) origines[sortie] = entree
             }
         }
         val lignes = StringBuilder()

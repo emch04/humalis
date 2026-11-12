@@ -36,6 +36,9 @@ class PointArretHumalisType : JavaLineBreakpointTypeBase<JavaLineBreakpointPrope
 
     override fun createBreakpointProperties(file: VirtualFile, line: Int): JavaLineBreakpointProperties = JavaLineBreakpointProperties()
 
+    /** Les réglages d'un point d'arrêt relu à l'ouverture du projet (sans eux, le débogueur Java le refuse). */
+    override fun createProperties(): JavaLineBreakpointProperties = JavaLineBreakpointProperties()
+
     @Suppress("UNCHECKED_CAST")
     override fun createJavaBreakpoint(project: Project, breakpoint: XBreakpoint<JavaLineBreakpointProperties>): Breakpoint<JavaLineBreakpointProperties> =
         LineBreakpoint.create(project, breakpoint) as Breakpoint<JavaLineBreakpointProperties>

@@ -162,6 +162,8 @@ describe('le débogueur Android (strate « Humalis », JSR-45)', () => {
     // La strate Humalis passe devant celle de Kotlin ; une classe sans SMAP reçoit Java comme strate par défaut.
     expect(gradle).toContain('return entete + "\\n" + section + debug.substring(entete.length + 1)');
     expect(gradle).toContain('return "SMAP\\n" + source + "\\nJava\\n" + section + "*E\\n"');
+    // Le code recopié d'une fonction inline garde sa source Kotlin (strate KotlinDebug) : la strate Humalis ne le couvre pas.
+    expect(gradle).toContain('if (fichier in propres && sortie !in recopiees) origines[sortie] = entree');
     // La fabrique ne garde que ses paramètres : Gradle la copie vers la tâche de transformation.
     expect(gradle).not.toMatch(/class StrateHumalis[\s\S]*?by lazy/);
     expect(gradle).not.toContain('${');

@@ -126,10 +126,18 @@ class HumalisPositionManager(private val process: DebugProcess) : MultiRequestPo
     override fun evaluateCondition(context: EvaluationContext, frame: StackFrameProxyImpl, location: Location, expression: String): ThreeState = ThreeState.UNSURE
 
     override fun createStackFrames(descriptor: StackFrameDescriptorImpl): List<XStackFrame>? {
-        val location = descriptor.location ?: return null
+        // L'endroit d'un cadre qui n'est pas en haut de la pile n'est pas toujours déjà calculé par le descripteur.
+        val location = descriptor.location ?: try {
+            descriptor.frameProxy.location()
+        } catch (_: Exception) {
+            null
+        } ?: return null
         if (!aLaStrate(location.declaringType()) || location.lineNumber(STRATE_HUMALIS) <= 0) return null
         return listOf(CadreHumalis(descriptor))
     }
+
+    /** Les cadres sous le premier sont demandés ainsi (la version par défaut ne rend rien). */
+    override suspend fun createStackFramesAsync(descriptor: StackFrameDescriptorImpl): List<XStackFrame>? = createStackFrames(descriptor)
 
     /** Les tables qui contiennent le fichier de la position (un fichier .humalis), sinon : pas pour nous. */
     private fun cibles(position: SourcePosition): List<Pair<TableDebogueur, String>> {
