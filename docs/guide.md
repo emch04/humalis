@@ -47,6 +47,7 @@ qui t'intéresse.
 34. [Capturer les erreurs de l’application](#34-capturer-les-erreurs-de-lapplication)
 35. [Enregistrer et recadrer des médias](#35-enregistrer-et-recadrer-des-médias)
 36. [Déboguer](#36-déboguer)
+37. [Mettre en production](#37-mettre-en-production)
 
 ---
 
@@ -4365,3 +4366,128 @@ Avec l’extension Humalis pour les IDE JetBrains, Android Studio s’arrête da
 L’application s’arrête sur la ligne. « Step Over » (F8) avance d’une ligne Humalis à la suivante, « Step Into » (F7) entre dans une fonction Humalis appelée par la ligne, et un pas après la dernière ligne d’un événement laisse l’application continuer jusqu’au prochain point d’arrêt : le pas à pas ne montre jamais le code Kotlin produit. La vue Variables montre les variables sous leur nom (`compte = 3.0`, `panier`, `message = "Bonjour"`, les paramètres d’une fonction) et la pile nomme les lignes Humalis traversées (« quandCliqueAjouter — ligne 20 de boutique.humalis »). Les conditions des points d’arrêt marchent comme d’habitude.
 
 Les lignes qui produisent du code (le corps des événements, des fonctions, des minuteries) portent un point d’arrêt ; une ligne vide ou un commentaire n’en porte pas. La construction « debug » du projet inscrit dans chaque classe une strate « Humalis » (JSR-45), d’après la table `app/humalis-lignes.txt` : c’est elle que lit Android Studio. Elle s’ajoute à celle de Kotlin sans la changer : un point d’arrêt posé dans le code Kotlin produit, même dans une fonction `inline`, s’arrête comme d’habitude, en même temps que ceux du fichier `.humalis`. Une construction Release n’en porte pas.
+
+---
+
+## 37. Mettre en production
+
+`npm start` suffit pour essayer. Pour ouvrir ton application à de vraies personnes, il faut un
+serveur qui redémarre seul, une base sauvegardée, du HTTPS et un moyen de mettre à jour sans rien
+perdre. Le serveur produit apporte ce qu'il faut ; ce chapitre dit comment t'en servir.
+
+### Avant d'ouvrir
+
+- `DATABASE_URL` est réglée : sans base PostgreSQL, les données restent en mémoire et sont perdues à l'arrêt.
+- `JWT_SECRET` fait au moins 32 caractères au hasard, et n'est dans aucun dépôt.
+- `HUMALIS_ADRESSE_SITE` est l'adresse publique du site, en `https://`.
+- `npm test` passe : les tests de règles, de sessions et d'attaque (`tests/attaques.test.ts`) sont écrits pour ton programme.
+- Le serveur est derrière un relais qui fait le HTTPS, avec `HUMALIS_RELAIS=1` et `HUMALIS_ECOUTE=127.0.0.1`.
+- Une sauvegarde tourne chaque nuit, et tu as essayé une restauration au moins une fois.
+
+### Le serveur : un service, un relais, HTTPS
+
+Le dossier `deploiement/` du serveur produit donne des exemples à adapter. Rien ne les lit :
+recopie ceux qui te servent.
+
+- `<nom>.service` : le serveur comme service systemd, relancé s'il tombe.
+- `Caddyfile` : un relais Caddy devant le serveur, qui demande lui-même le certificat HTTPS.
+- `Dockerfile` : une image, si tu préfères un conteneur.
+
+`GET /sante` répond 200 quand le serveur et sa base répondent, 503 sinon. Donne cette adresse au
+relais ou à l'orchestrateur : il n'enverra rien à un serveur qui démarre ou qui s'arrête.
+
+À l'arrêt (`SIGTERM` d'un déploiement, ou Ctrl+C), le serveur n'accepte plus de nouvelle requête,
+finit celles en cours, puis ferme sa base. `HUMALIS_ARRET_SECONDES` borne cette attente (10 par
+défaut) : une écoute `en direct` est fermée à la fin du délai, et la page se rebranche seule.
+
+Si la base redémarre, le serveur ne tombe pas : pendant la coupure `/sante` répond 503 et les
+requêtes répondent 500, puis tout repart sans intervention.
+
+### Sauvegarder
+
+```sh
+npm run sauvegarde                          # sauvegardes/2026-11-12-03-15-00.jsonl.gz
+npm run sauvegarde -- /ailleurs/copie.gz    # à l'endroit choisi
+```
+
+Toutes les tables sont lues au même instant, serveur en marche. Le fichier contient les comptes et
+leurs mots de passe hachés : copie-le hors du serveur, et chiffré. `deploiement/` donne le service
+et la minuterie systemd d'une sauvegarde chaque nuit, qui garde les quatorze dernières.
+
+Pour une très grande base, `pg_dump` de PostgreSQL reste l'outil de référence ; les deux se valent
+tant que la base tient en quelques gigaoctets.
+
+### Restaurer
+
+```sh
+npm run restauration -- sauvegardes/2026-11-12-03-15-00.jsonl.gz
+npm run restauration -- sauvegardes/2026-11-12-03-15-00.jsonl.gz --remplacer
+```
+
+Arrête le serveur avant. Sur une base neuve, démarre-le une fois pour créer les tables, puis
+arrête-le. La restauration refuse une table qui contient déjà des lignes ; `--remplacer` les vide
+d'abord. Elle est tout ou rien : un fichier coupé, une table manquante ou une ligne refusée, et
+rien n'est changé.
+
+### Changer le programme sans perdre de données
+
+Les fiches sont gardées telles qu'elles ont été écrites. Quand la donnée change dans le programme :
+
+- **un champ ajouté** avec `au depart` : les anciennes fiches reçoivent cette valeur au démarrage ;
+  sans `au depart`, elles n'ont pas le champ ;
+- **un champ renommé** : écris `telephone : texte (avant "tel")`, et les fiches gardent leur valeur ;
+- **un champ retiré** : il reste dans les anciennes fiches et continue d'être renvoyé. Pour l'effacer,
+  une requête dans PostgreSQL : `UPDATE humalis_produit SET data = data - 'ancien_champ'` ;
+- **un type qui change**, ou une limite plus stricte : les anciennes valeurs ne sont pas converties
+  ni revérifiées ; seules les créations et les modifications suivantes le sont.
+
+Fais une sauvegarde avant de déployer un programme qui change ses données.
+
+### Mettre à jour
+
+Recompile avec la nouvelle version de Humalis dans le même dossier (ton `.env`, tes
+`node_modules` et tes sauvegardes sont gardés), puis :
+
+```sh
+npm install && npm test && npm run build
+```
+
+et redémarre le service. `humalis packs --verifier <dossier>` dit si les packs de sécurité du
+projet sont en retard. Avec deux exemplaires derrière le relais, mets-les à jour l'un après
+l'autre : `/sante` retire du relais celui qui redémarre.
+
+### Plusieurs exemplaires
+
+Avec PostgreSQL, les sessions, les jetons fermés, les envois déjà faits et les tâches planifiées
+sont en base : plusieurs exemplaires du même serveur peuvent tourner derrière un relais. Deux
+choses sont comptées par exemplaire : les limites de débit, et le volume de pièces jointes par
+heure.
+
+### Surveiller
+
+- Le journal du serveur (la sortie du service) dit chaque erreur 500 avec son numéro de requête,
+  et sa ligne Humalis quand elle vient de ton programme.
+- `CENTRALE_ADRESSE` et `CENTRALE_CLE` envoient les pannes à la surveillance, masquées avant de partir.
+- `GET /sante` suffit à une sonde extérieure.
+
+### Les secrets
+
+- Changer `JWT_SECRET` déconnecte tout le monde : chacun se reconnecte, rien n'est perdu.
+- `ENCRYPTION_KEY` chiffre le coffre des clés et les secrets du code à six chiffres : la perdre
+  les rend illisibles. Garde-la hors de la base, et ne la change pas sans vider ces secrets.
+- Les clés des services (Stripe, Brevo, LiveKit) se changent dans le `.env`, puis un redémarrage.
+
+### Le site et les applications
+
+- Le site (`--cible web` ou `statique`) se dépose chez un hébergeur de fichiers. Son fichier
+  `_headers` porte la politique de contenu : Cloudflare Pages et Netlify le lisent seuls ; ailleurs,
+  recopie ses lignes dans les en-têtes de réponse.
+- Les applications Apple, Android et Windows passent par leurs magasins : voir
+  `docs/publier-sur-les-stores.md`.
+- L'application de bureau (Electron) ne se met pas encore à jour seule : une nouvelle version se
+  réinstalle.
+
+### Ce que Humalis ne fait pas à ta place
+
+Louer la machine, ouvrir le domaine, surveiller l'espace disque, garder les sauvegardes ailleurs et
+vérifier de temps en temps qu'elles se relisent.

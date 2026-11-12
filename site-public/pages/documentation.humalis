@@ -43,7 +43,8 @@ page "documentation" a l'adresse "/documentation" :
             lien "34. Capturer les erreurs de l’application" en anglais "34. Capture application errors" vers "documentation_34"
             lien "35. Enregistrer et recadrer des médias" en anglais "35. Recording and cropping media" vers "documentation_35"
             lien "36. Déboguer" en anglais "36. Debugging" vers "documentation_36"
-            lien "Les mots-clés de Humalis en anglais" en anglais "French keywords at a glance" vers "documentation_37"
+            lien "37. Mettre en production" en anglais "37. Going to production" vers "documentation_37"
+            lien "Les mots-clés de Humalis en anglais" en anglais "French keywords at a glance" vers "documentation_38"
         bloc avec style "doc-contenu" :
             sous page
 
@@ -87,7 +88,8 @@ page "documentation_sommaire" dans "documentation" adresse "/documentation" :
         lien "Capturer les erreurs de l’application" en anglais "Capture application errors" vers "documentation_34"
         lien "Enregistrer et recadrer des médias" en anglais "Recording and cropping media" vers "documentation_35"
         lien "Déboguer" en anglais "Debugging" vers "documentation_36"
-        lien "Les mots-clés de Humalis en anglais" en anglais "French keywords at a glance" vers "documentation_37"
+        lien "Mettre en production" en anglais "Going to production" vers "documentation_37"
+        lien "Les mots-clés de Humalis en anglais" en anglais "French keywords at a glance" vers "documentation_38"
 
 page "documentation_1" dans "documentation" adresse "/documentation/installer-et-creer-un-projet" :
     apercu :
@@ -5829,9 +5831,141 @@ page "documentation_36" dans "documentation" adresse "/documentation/deboguer" :
         texte "Les lignes qui produisent du code (le corps des événements, des fonctions, des minuteries) portent un point d’arrêt ; une ligne vide ou un commentaire n’en porte pas. La construction « debug » du projet inscrit dans chaque classe une strate « Humalis » (JSR-45), d’après la table `app/humalis-lignes.txt` : c’est elle que lit Android Studio. Elle s’ajoute à celle de Kotlin sans la changer : un point d’arrêt posé dans le code Kotlin produit, même dans une fonction `inline`, s’arrête comme d’habitude, en même temps que ceux du fichier `.humalis`. Une construction Release n’en porte pas."
     ligne avec style "doc-suite" :
         lien "← 35. Enregistrer et recadrer des médias" en anglais "← 35. Recording and cropping media" vers "documentation_35"
-        lien "Les mots-clés de Humalis en anglais →" en anglais "French keywords at a glance →" vers "documentation_37"
+        lien "37. Mettre en production →" en anglais "37. Going to production →" vers "documentation_37"
 
-page "documentation_37" dans "documentation" adresse "/documentation/mots-cles-de-humalis-en-anglais" :
+page "documentation_37" dans "documentation" adresse "/documentation/mettre-en-production" :
+    apercu :
+        description "npm start suffit pour essayer. Pour ouvrir ton application à de vraies personnes, il faut un serveur qui redémarre seul, une base sauvegardée, du HTTPS et…" en anglais "npm start is enough to try things out. To open your app to real people, you need a server that restarts on its own, a backed-up database, HTTPS, and a way…"
+    titre "37. Mettre en production" en anglais "37. Going to production"
+    si langue est anglais :
+        texte "`npm start` is enough to try things out. To open your app to real people, you need a server that restarts on its own, a backed-up database, HTTPS, and a way to update without losing anything. The produced server brings what is needed; this chapter says how to use it."
+        soustitre "Before opening"
+        liste :
+            texte "`DATABASE_URL` is set: without a PostgreSQL database, data stays in memory and is lost on stop."
+            texte "`JWT_SECRET` is at least 32 random characters, and is in no repository."
+            texte "`HUMALIS_ADRESSE_SITE` is the site's public address, in `https://`."
+            texte "`npm test` passes: the rule, session and attack tests (`tests/attaques.test.ts`) are written for your program."
+            texte "The server sits behind a relay doing HTTPS, with `HUMALIS_RELAIS=1` and `HUMALIS_ECOUTE=127.0.0.1`."
+            texte "A backup runs every night, and you have tried a restore at least once."
+        soustitre "The server: a service, a relay, HTTPS"
+        texte "The produced server's `deploiement/` folder gives examples to adapt. Nothing reads them: copy the ones you need."
+        liste :
+            texte "`<name>.service`: the server as a systemd service, restarted if it falls."
+            texte "`Caddyfile`: a Caddy relay in front of the server, which requests the HTTPS certificate itself."
+            texte "`Dockerfile`: an image, if you prefer a container."
+        texte "`GET /sante` answers 200 when the server and its database answer, 503 otherwise. Give this address to the relay or the orchestrator: it will send nothing to a server that is starting or stopping."
+        texte "On stop (`SIGTERM` from a deployment, or Ctrl+C), the server accepts no new request, finishes the ones in progress, then closes its database. `HUMALIS_ARRET_SECONDES` bounds that wait (10 by default): an `en direct` listener is closed when the delay ends, and the page reconnects on its own."
+        texte "If the database restarts, the server does not fall: during the cut `/sante` answers 503 and requests answer 500, then everything resumes without intervention."
+        soustitre "Backing up"
+        code terminal :
+            npm run sauvegarde                          # sauvegardes/2026-11-12-03-15-00.jsonl.gz
+            npm run sauvegarde -- /elsewhere/copy.gz    # where you choose
+        texte "All tables are read at the same instant, with the server running. The file holds the accounts and their hashed passwords: copy it off the server, encrypted. `deploiement/` gives the systemd service and timer for a nightly backup that keeps the last fourteen."
+        texte "For a very large database, PostgreSQL's `pg_dump` remains the reference tool; both are equivalent as long as the database fits in a few gigabytes."
+        soustitre "Restoring"
+        code terminal :
+            npm run restauration -- sauvegardes/2026-11-12-03-15-00.jsonl.gz
+            npm run restauration -- sauvegardes/2026-11-12-03-15-00.jsonl.gz --remplacer
+        texte "Stop the server first. On a fresh database, start it once to create the tables, then stop it. The restore refuses a table that already holds rows; `--remplacer` empties them first. It is all or nothing: a cut file, a missing table or a refused row, and nothing is changed."
+        soustitre "Changing the program without losing data"
+        texte "Records are kept as they were written. When the data changes in the program:"
+        liste :
+            texte "{accent "a field added"} with `au depart`: old records receive that value on start; without `au depart`, they do not have the field;"
+            texte "{accent "a field renamed"}: write `telephone : texte (avant "tel")`, and records keep their value;"
+            texte "{accent "a field removed"}: it stays in old records and keeps being returned. To erase it, a query in PostgreSQL: `UPDATE humalis_produit SET data = data - 'old_field'`;"
+            texte "{accent "a type that changes"}, or a stricter limit: old values are neither converted nor re-checked; only later creations and changes are."
+        texte "Take a backup before deploying a program that changes its data."
+        soustitre "Updating"
+        texte "Recompile with the new Humalis version into the same folder (your `.env`, your `node_modules` and your backups are kept), then:"
+        code terminal :
+            npm install && npm test && npm run build
+        texte "and restart the service. `humalis packs --verifier <folder>` says whether the project's security packs are behind. With two instances behind the relay, update them one after the other: `/sante` takes the restarting one out of the relay."
+        soustitre "Several instances"
+        texte "With PostgreSQL, sessions, closed tokens, sends already done and scheduled tasks are in the database: several instances of the same server can run behind a relay. Two things are counted per instance: rate limits, and the attachment volume per hour."
+        soustitre "Monitoring"
+        liste :
+            texte "The server log (the service output) reports each 500 error with its request number, and its Humalis line when it comes from your program."
+            texte "`CENTRALE_ADRESSE` and `CENTRALE_CLE` send failures to monitoring, masked before leaving."
+            texte "`GET /sante` is enough for an outside probe."
+        soustitre "Secrets"
+        liste :
+            texte "Changing `JWT_SECRET` signs everyone out: each person signs in again, nothing is lost."
+            texte "`ENCRYPTION_KEY` encrypts the key vault and the six-digit code secrets: losing it makes them unreadable. Keep it out of the database, and do not change it without emptying those secrets."
+            texte "Service keys (Stripe, Brevo, LiveKit) are changed in the `.env`, then a restart."
+        soustitre "The site and the apps"
+        liste :
+            texte "The site (`--cible web` or `statique`) is dropped on a file host. Its `_headers` file carries the content policy: Cloudflare Pages and Netlify read it on their own; elsewhere, copy its lines into the response headers."
+            texte "Apple, Android and Windows apps go through their stores: see `docs/publier-sur-les-stores.md`."
+            texte "The desktop app (Electron) does not update itself yet: a new version is reinstalled."
+        soustitre "What Humalis does not do for you"
+        texte "Renting the machine, opening the domain, watching disk space, keeping backups elsewhere, and checking from time to time that they can be read back."
+    sinon :
+        texte "`npm start` suffit pour essayer. Pour ouvrir ton application à de vraies personnes, il faut un serveur qui redémarre seul, une base sauvegardée, du HTTPS et un moyen de mettre à jour sans rien perdre. Le serveur produit apporte ce qu'il faut ; ce chapitre dit comment t'en servir."
+        soustitre "Avant d'ouvrir"
+        liste :
+            texte "`DATABASE_URL` est réglée : sans base PostgreSQL, les données restent en mémoire et sont perdues à l'arrêt."
+            texte "`JWT_SECRET` fait au moins 32 caractères au hasard, et n'est dans aucun dépôt."
+            texte "`HUMALIS_ADRESSE_SITE` est l'adresse publique du site, en `https://`."
+            texte "`npm test` passe : les tests de règles, de sessions et d'attaque (`tests/attaques.test.ts`) sont écrits pour ton programme."
+            texte "Le serveur est derrière un relais qui fait le HTTPS, avec `HUMALIS_RELAIS=1` et `HUMALIS_ECOUTE=127.0.0.1`."
+            texte "Une sauvegarde tourne chaque nuit, et tu as essayé une restauration au moins une fois."
+        soustitre "Le serveur : un service, un relais, HTTPS"
+        texte "Le dossier `deploiement/` du serveur produit donne des exemples à adapter. Rien ne les lit : recopie ceux qui te servent."
+        liste :
+            texte "`<nom>.service` : le serveur comme service systemd, relancé s'il tombe."
+            texte "`Caddyfile` : un relais Caddy devant le serveur, qui demande lui-même le certificat HTTPS."
+            texte "`Dockerfile` : une image, si tu préfères un conteneur."
+        texte "`GET /sante` répond 200 quand le serveur et sa base répondent, 503 sinon. Donne cette adresse au relais ou à l'orchestrateur : il n'enverra rien à un serveur qui démarre ou qui s'arrête."
+        texte "À l'arrêt (`SIGTERM` d'un déploiement, ou Ctrl+C), le serveur n'accepte plus de nouvelle requête, finit celles en cours, puis ferme sa base. `HUMALIS_ARRET_SECONDES` borne cette attente (10 par défaut) : une écoute `en direct` est fermée à la fin du délai, et la page se rebranche seule."
+        texte "Si la base redémarre, le serveur ne tombe pas : pendant la coupure `/sante` répond 503 et les requêtes répondent 500, puis tout repart sans intervention."
+        soustitre "Sauvegarder"
+        code terminal :
+            npm run sauvegarde                          # sauvegardes/2026-11-12-03-15-00.jsonl.gz
+            npm run sauvegarde -- /ailleurs/copie.gz    # à l'endroit choisi
+        texte "Toutes les tables sont lues au même instant, serveur en marche. Le fichier contient les comptes et leurs mots de passe hachés : copie-le hors du serveur, et chiffré. `deploiement/` donne le service et la minuterie systemd d'une sauvegarde chaque nuit, qui garde les quatorze dernières."
+        texte "Pour une très grande base, `pg_dump` de PostgreSQL reste l'outil de référence ; les deux se valent tant que la base tient en quelques gigaoctets."
+        soustitre "Restaurer"
+        code terminal :
+            npm run restauration -- sauvegardes/2026-11-12-03-15-00.jsonl.gz
+            npm run restauration -- sauvegardes/2026-11-12-03-15-00.jsonl.gz --remplacer
+        texte "Arrête le serveur avant. Sur une base neuve, démarre-le une fois pour créer les tables, puis arrête-le. La restauration refuse une table qui contient déjà des lignes ; `--remplacer` les vide d'abord. Elle est tout ou rien : un fichier coupé, une table manquante ou une ligne refusée, et rien n'est changé."
+        soustitre "Changer le programme sans perdre de données"
+        texte "Les fiches sont gardées telles qu'elles ont été écrites. Quand la donnée change dans le programme :"
+        liste :
+            texte "{accent "un champ ajouté"} avec `au depart` : les anciennes fiches reçoivent cette valeur au démarrage ; sans `au depart`, elles n'ont pas le champ ;"
+            texte "{accent "un champ renommé"} : écris `telephone : texte (avant "tel")`, et les fiches gardent leur valeur ;"
+            texte "{accent "un champ retiré"} : il reste dans les anciennes fiches et continue d'être renvoyé. Pour l'effacer, une requête dans PostgreSQL : `UPDATE humalis_produit SET data = data - 'ancien_champ'` ;"
+            texte "{accent "un type qui change"}, ou une limite plus stricte : les anciennes valeurs ne sont pas converties ni revérifiées ; seules les créations et les modifications suivantes le sont."
+        texte "Fais une sauvegarde avant de déployer un programme qui change ses données."
+        soustitre "Mettre à jour"
+        texte "Recompile avec la nouvelle version de Humalis dans le même dossier (ton `.env`, tes `node_modules` et tes sauvegardes sont gardés), puis :"
+        code terminal :
+            npm install && npm test && npm run build
+        texte "et redémarre le service. `humalis packs --verifier <dossier>` dit si les packs de sécurité du projet sont en retard. Avec deux exemplaires derrière le relais, mets-les à jour l'un après l'autre : `/sante` retire du relais celui qui redémarre."
+        soustitre "Plusieurs exemplaires"
+        texte "Avec PostgreSQL, les sessions, les jetons fermés, les envois déjà faits et les tâches planifiées sont en base : plusieurs exemplaires du même serveur peuvent tourner derrière un relais. Deux choses sont comptées par exemplaire : les limites de débit, et le volume de pièces jointes par heure."
+        soustitre "Surveiller"
+        liste :
+            texte "Le journal du serveur (la sortie du service) dit chaque erreur 500 avec son numéro de requête, et sa ligne Humalis quand elle vient de ton programme."
+            texte "`CENTRALE_ADRESSE` et `CENTRALE_CLE` envoient les pannes à la surveillance, masquées avant de partir."
+            texte "`GET /sante` suffit à une sonde extérieure."
+        soustitre "Les secrets"
+        liste :
+            texte "Changer `JWT_SECRET` déconnecte tout le monde : chacun se reconnecte, rien n'est perdu."
+            texte "`ENCRYPTION_KEY` chiffre le coffre des clés et les secrets du code à six chiffres : la perdre les rend illisibles. Garde-la hors de la base, et ne la change pas sans vider ces secrets."
+            texte "Les clés des services (Stripe, Brevo, LiveKit) se changent dans le `.env`, puis un redémarrage."
+        soustitre "Le site et les applications"
+        liste :
+            texte "Le site (`--cible web` ou `statique`) se dépose chez un hébergeur de fichiers. Son fichier `_headers` porte la politique de contenu : Cloudflare Pages et Netlify le lisent seuls ; ailleurs, recopie ses lignes dans les en-têtes de réponse."
+            texte "Les applications Apple, Android et Windows passent par leurs magasins : voir `docs/publier-sur-les-stores.md`."
+            texte "L'application de bureau (Electron) ne se met pas encore à jour seule : une nouvelle version se réinstalle."
+        soustitre "Ce que Humalis ne fait pas à ta place"
+        texte "Louer la machine, ouvrir le domaine, surveiller l'espace disque, garder les sauvegardes ailleurs et vérifier de temps en temps qu'elles se relisent."
+    ligne avec style "doc-suite" :
+        lien "← 36. Déboguer" en anglais "← 36. Debugging" vers "documentation_36"
+        lien "Les mots-clés de Humalis en anglais →" en anglais "French keywords at a glance →" vers "documentation_38"
+
+page "documentation_38" dans "documentation" adresse "/documentation/mots-cles-de-humalis-en-anglais" :
     apercu :
         description "Chaque mot de Humalis, avec son équivalent en anglais : pratique pour expliquer le langage à quelqu’un qui lit l’anglais." en anglais "Humalis guide, French keywords at a glance."
     titre "Les mots-clés de Humalis en anglais" en anglais "French keywords at a glance"
@@ -5917,4 +6051,4 @@ page "documentation_37" dans "documentation" adresse "/documentation/mots-cles-d
             rangee "`langues`, `traductions`, `selecteur de langue`", "languages, translations, language switcher"
             rangee "`composant`, `parametre`, `utiliser`", "component, parameter, use"
     ligne avec style "doc-suite" :
-        lien "← 36. Déboguer" en anglais "← 36. Debugging" vers "documentation_36"
+        lien "← 37. Mettre en production" en anglais "← 37. Going to production" vers "documentation_37"

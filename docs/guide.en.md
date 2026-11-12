@@ -54,6 +54,7 @@ its own.
 34. [Capture application errors](#34-capture-application-errors)
 35. [Recording and cropping media](#35-recording-and-cropping-media)
 36. [Debugging](#36-debugging)
+37. [Going to production](#37-going-to-production)
 
 [French keywords at a glance](#french-keywords-at-a-glance)
 
@@ -4412,6 +4413,129 @@ With the Humalis extension for JetBrains IDEs, Android Studio stops inside your 
 The app stops on the line. "Step Over" (F8) moves from one Humalis line to the next, "Step Into" (F7) enters a Humalis function called by the line, and a step after the last line of an event lets the app run until the next breakpoint: stepping never shows the generated Kotlin code. The Variables view shows the variables under their name (`compte = 3.0`, `panier`, `message = "Bonjour"`, the parameters of a function) and the call stack names the Humalis lines it went through ("quandCliqueAjouter — ligne 20 de boutique.humalis"). Breakpoint conditions work as usual.
 
 Lines that produce code (the body of events, functions, timers) take a breakpoint; an empty line or a comment does not. The project's "debug" build writes a "Humalis" stratum (JSR-45) into every class, from the `app/humalis-lignes.txt` table: that is what Android Studio reads. It sits next to Kotlin's own stratum without changing it: a breakpoint set in the generated Kotlin code, even inside an `inline` function, stops as usual, together with those of the `.humalis` file. A Release build carries none.
+
+---
+
+## 37. Going to production
+
+`npm start` is enough to try things out. To open your app to real people, you need a server that
+restarts on its own, a backed-up database, HTTPS, and a way to update without losing anything. The
+produced server brings what is needed; this chapter says how to use it.
+
+### Before opening
+
+- `DATABASE_URL` is set: without a PostgreSQL database, data stays in memory and is lost on stop.
+- `JWT_SECRET` is at least 32 random characters, and is in no repository.
+- `HUMALIS_ADRESSE_SITE` is the site's public address, in `https://`.
+- `npm test` passes: the rule, session and attack tests (`tests/attaques.test.ts`) are written for your program.
+- The server sits behind a relay doing HTTPS, with `HUMALIS_RELAIS=1` and `HUMALIS_ECOUTE=127.0.0.1`.
+- A backup runs every night, and you have tried a restore at least once.
+
+### The server: a service, a relay, HTTPS
+
+The produced server's `deploiement/` folder gives examples to adapt. Nothing reads them: copy the
+ones you need.
+
+- `<name>.service`: the server as a systemd service, restarted if it falls.
+- `Caddyfile`: a Caddy relay in front of the server, which requests the HTTPS certificate itself.
+- `Dockerfile`: an image, if you prefer a container.
+
+`GET /sante` answers 200 when the server and its database answer, 503 otherwise. Give this address
+to the relay or the orchestrator: it will send nothing to a server that is starting or stopping.
+
+On stop (`SIGTERM` from a deployment, or Ctrl+C), the server accepts no new request, finishes the
+ones in progress, then closes its database. `HUMALIS_ARRET_SECONDES` bounds that wait (10 by
+default): an `en direct` listener is closed when the delay ends, and the page reconnects on its own.
+
+If the database restarts, the server does not fall: during the cut `/sante` answers 503 and
+requests answer 500, then everything resumes without intervention.
+
+### Backing up
+
+```sh
+npm run sauvegarde                          # sauvegardes/2026-11-12-03-15-00.jsonl.gz
+npm run sauvegarde -- /elsewhere/copy.gz    # where you choose
+```
+
+All tables are read at the same instant, with the server running. The file holds the accounts and
+their hashed passwords: copy it off the server, encrypted. `deploiement/` gives the systemd service
+and timer for a nightly backup that keeps the last fourteen.
+
+For a very large database, PostgreSQL's `pg_dump` remains the reference tool; both are equivalent
+as long as the database fits in a few gigabytes.
+
+### Restoring
+
+```sh
+npm run restauration -- sauvegardes/2026-11-12-03-15-00.jsonl.gz
+npm run restauration -- sauvegardes/2026-11-12-03-15-00.jsonl.gz --remplacer
+```
+
+Stop the server first. On a fresh database, start it once to create the tables, then stop it. The
+restore refuses a table that already holds rows; `--remplacer` empties them first. It is all or
+nothing: a cut file, a missing table or a refused row, and nothing is changed.
+
+### Changing the program without losing data
+
+Records are kept as they were written. When the data changes in the program:
+
+- **a field added** with `au depart`: old records receive that value on start; without `au depart`,
+  they do not have the field;
+- **a field renamed**: write `telephone : texte (avant "tel")`, and records keep their value;
+- **a field removed**: it stays in old records and keeps being returned. To erase it, a query in
+  PostgreSQL: `UPDATE humalis_produit SET data = data - 'old_field'`;
+- **a type that changes**, or a stricter limit: old values are neither converted nor re-checked;
+  only later creations and changes are.
+
+Take a backup before deploying a program that changes its data.
+
+### Updating
+
+Recompile with the new Humalis version into the same folder (your `.env`, your `node_modules` and
+your backups are kept), then:
+
+```sh
+npm install && npm test && npm run build
+```
+
+and restart the service. `humalis packs --verifier <folder>` says whether the project's security
+packs are behind. With two instances behind the relay, update them one after the other: `/sante`
+takes the restarting one out of the relay.
+
+### Several instances
+
+With PostgreSQL, sessions, closed tokens, sends already done and scheduled tasks are in the
+database: several instances of the same server can run behind a relay. Two things are counted per
+instance: rate limits, and the attachment volume per hour.
+
+### Monitoring
+
+- The server log (the service output) reports each 500 error with its request number, and its
+  Humalis line when it comes from your program.
+- `CENTRALE_ADRESSE` and `CENTRALE_CLE` send failures to monitoring, masked before leaving.
+- `GET /sante` is enough for an outside probe.
+
+### Secrets
+
+- Changing `JWT_SECRET` signs everyone out: each person signs in again, nothing is lost.
+- `ENCRYPTION_KEY` encrypts the key vault and the six-digit code secrets: losing it makes them
+  unreadable. Keep it out of the database, and do not change it without emptying those secrets.
+- Service keys (Stripe, Brevo, LiveKit) are changed in the `.env`, then a restart.
+
+### The site and the apps
+
+- The site (`--cible web` or `statique`) is dropped on a file host. Its `_headers` file carries the
+  content policy: Cloudflare Pages and Netlify read it on their own; elsewhere, copy its lines into
+  the response headers.
+- Apple, Android and Windows apps go through their stores: see `docs/publier-sur-les-stores.md`.
+- The desktop app (Electron) does not update itself yet: a new version is reinstalled.
+
+### What Humalis does not do for you
+
+Renting the machine, opening the domain, watching disk space, keeping backups elsewhere, and
+checking from time to time that they can be read back.
+
+---
 
 ## French keywords at a glance
 

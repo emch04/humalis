@@ -1,3 +1,4 @@
+import { CODE_SANTE, CODE_SANTE_DEMARRAGE, codeArret, fichiersDeploiement, lisezmoiExploitation, restaurerMjs, sauvegarderMjs } from './exploitation.js';
 import { BORNES_TS, exempleDansLesBornes } from './bornes.js';
 import { testsAttaques } from './attaques.js';
 import { LIGNES_SERVEUR_TS } from './lignes.js';
@@ -73,7 +74,11 @@ export function genererProjetServeur(complet: ServeurRI, options: OptionsServeur
   fichiers.set(MARQUE_SERVEUR, `Projet produit par Humalis depuis ${options.source}.\nLe compilateur réécrit ce dossier à chaque compilation.\n`);
   fichiers.set('package.json', packageJson(options.nom, serveur, avecLiveKit(complet)));
   fichiers.set('tsconfig.json', TSCONFIG);
-  fichiers.set('.gitignore', 'node_modules\ndist\n.env\n');
+  fichiers.set('.gitignore', 'node_modules\ndist\n.env\nsauvegardes\n');
+  // L'exploitation : sauvegarde, restauration, exemples de déploiement.
+  fichiers.set('scripts/sauvegarder.mjs', sauvegarderMjs(serveur));
+  fichiers.set('scripts/restaurer.mjs', restaurerMjs(serveur));
+  for (const [chemin, contenu] of fichiersDeploiement(serveur)) fichiers.set(chemin, contenu);
   fichiers.set('.env.exemple', envExemple(serveur));
   fichiers.set('LISEZMOI.md', lisezmoi(serveur, options));
   fichiers.set('src/humalis/verifier.ts', VERIFIER);
@@ -188,6 +193,8 @@ function packageJson(nom: string, serveur: ServeurRI, livekit = false): string {
         build: 'tsc && node humalis-cartes.mjs',
         start: 'node --enable-source-maps --env-file-if-exists=.env dist/src/demarrer.js',
         test: 'vitest run --dir tests',
+        sauvegarde: 'node --env-file-if-exists=.env scripts/sauvegarder.mjs',
+        restauration: 'node --env-file-if-exists=.env scripts/restaurer.mjs',
         // Les failles connues des dépendances, et les secrets écrits en dur dans un journal ou une réponse.
         'audit:deps': 'astratra audit:deps',
         'audit:secrets': 'astratra audit:secrets',
@@ -1420,7 +1427,9 @@ ${avecLogique(serveur) ? `  /** Comment écrire tout ou rien ; par défaut, en m
   /** La durée de la session et où garder ses renouvellements ; par défaut, HUMALIS_SESSION et HUMALIS_SESSION_MAX, en mémoire. */
   session?: ReglagesSession;
   /** Les jetons fermés avant leur fin (déconnexion, compte retiré) ; par défaut, en mémoire. */
-  revocations?: RevocationStore;${avecEmails(serveur) ? `
+  revocations?: RevocationStore;
+  /** Ce que GET /sante vérifie (la base répond, le serveur ne s'arrête pas) ; par défaut, toujours prêt. */
+  sante?: () => Promise<boolean>;${avecEmails(serveur) ? `
   /** Les e-mails ; par défaut, Brevo avec BREVO_API_KEY et BREVO_EXPEDITEUR. */
   emails?: Emails;` : ''}${comptes ? `
   /** Les empreintes des liens envoyés par e-mail ; par défaut, en mémoire. */
@@ -1481,7 +1490,7 @@ const sansCache = (res: Response) => res.set('Cache-Control', 'no-store');
  * limites et les en-têtes de sécurité viennent de createSaasApp. Les
  * routes des données s'ajoutent par extendRoutes, avec les gardes du pack.
  */
-export function creerServeur({ ${avecSynchro(serveur) ? 'journalSynchro = creerJournalMemoire(), ' : ''}${avecSecurite(serveur) ? 'magasinSecurite = creerMagasinSecuriteMemoire(), horlogeSecurite = Date.now, ' : ''}envois = creerEnvoisMemoire(), jwtSecret, usersStore${comptes ? ': tousLesComptes' : ''}, stockages${avecLogique(serveur) ? ', transaction = transactionMemoire(stockages)' : ''}${serveur.taches?.length ? ', reclamerTache' : ''}${avecNotifications(serveur) ? ', appareils = creerStockageMemoire()' : ''}${avecIa(serveur) ? ', compterIa = compterMemoire()' : ''}${serveur.connexionGoogle ? ', googleClientId, googleClientIdApple = () => undefined' : ''}${serveur.connexionApple ? ', identifiantsApple = () => ({})' : ''}, session = reglagesDeSession(process.env), surveillance, coffre${avecEmails(serveur) ? `, emails = creerEmails({ nom: ${boutique} })` : ''}${comptes ? ', jetons = createMemoryPasswordResetStore()' : ''}, revocations = createMemoryRevocationStore() }: OptionsDuServeur) {
+export function creerServeur({ ${avecSynchro(serveur) ? 'journalSynchro = creerJournalMemoire(), ' : ''}${avecSecurite(serveur) ? 'magasinSecurite = creerMagasinSecuriteMemoire(), horlogeSecurite = Date.now, ' : ''}envois = creerEnvoisMemoire(), jwtSecret, usersStore${comptes ? ': tousLesComptes' : ''}, stockages${avecLogique(serveur) ? ', transaction = transactionMemoire(stockages)' : ''}${serveur.taches?.length ? ', reclamerTache' : ''}${avecNotifications(serveur) ? ', appareils = creerStockageMemoire()' : ''}${avecIa(serveur) ? ', compterIa = compterMemoire()' : ''}${serveur.connexionGoogle ? ', googleClientId, googleClientIdApple = () => undefined' : ''}${serveur.connexionApple ? ', identifiantsApple = () => ({})' : ''}, session = reglagesDeSession(process.env), surveillance, coffre${avecEmails(serveur) ? `, emails = creerEmails({ nom: ${boutique} })` : ''}${comptes ? ', jetons = createMemoryPasswordResetStore()' : ''}, revocations = createMemoryRevocationStore(), sante = async () => true }: OptionsDuServeur) {
 ${serveur.captureErreurs ? '  brancherErreursProcessus();\n' : ''}
   const renouvellement = creerRenouvellement(session);
 ${comptes ? codeCreationComptes(serveur, chemins).replace('usersStore,', 'usersStore: tousLesComptes,') + '  // Pour les packs, un compte retiré n\'existe plus.\n  const usersStore = sansLesRetires(tousLesComptes);\n' : ''}${envoisDansRoutes || employe(serveur, (i) => i.type === 'email' && i.a.genre === 'admins') ? `  const adressesDesAdmins = async () => (await usersStore.list({ role: 'admin', limit: 100 })).map((compte) => String(compte.email)).filter(Boolean);\n` : ''}${avecNotifications(serveur) ? '  const notifications = creerNotifications({ usersStore, appareils });\n' : ''}${avecPaiements(serveur) ? `  let surPaiement: SurPaiement<ReturnType<typeof nouveauTravail>, OptionsDuServeur['stockages']> = {};
@@ -1565,7 +1574,7 @@ ${serveur.captureErreurs ? "      app.use((erreur: unknown, req: express.Request
   (serveur as unknown as express.Application).disable('x-powered-by');
   // En tête de tout : la surveillance voit chaque requête, et le jeton de renouvellement passe par son cookie.
   const avant = express().disable('x-powered-by');
-${avecPaiements(serveur) ? "  avant.post('/paiements/webhook', ...paiements.webhook);\n" : ''}  if (surveillance) avant.use(surveillance.intergiciel());${codeAvantSecurite(serveur)}${codeAvantSynchro(serveur, adresseApi)}${comptes ? "\n  avant.post('/auth/reset-password', express.json({ limit: '16kb' }), refuserMotDePasseFaible);" : ''}
+${CODE_SANTE}${avecPaiements(serveur) ? "  avant.post('/paiements/webhook', ...paiements.webhook);\n" : ''}  if (surveillance) avant.use(surveillance.intergiciel());${codeAvantSecurite(serveur)}${codeAvantSynchro(serveur, adresseApi)}${comptes ? "\n  avant.post('/auth/reset-password', express.json({ limit: '16kb' }), refuserMotDePasseFaible);" : ''}
   return avant.use(renouvellementEnCookie(session.dureeMs)).use(serveur as unknown as express.Application);
 }
 `;
@@ -1605,6 +1614,9 @@ if (jwtSecret.length < 32) {
 }
 
 const pool = process.env.DATABASE_URL ? new pg.Pool({ connectionString: process.env.DATABASE_URL }) : null;
+// Quand la base redémarre, elle coupe les connexions au repos : sans cette écoute, l'erreur ferait tomber le serveur.
+// Le pool en rouvre une à la requête suivante ; pendant la coupure, /sante répond 503 et les requêtes, 500.
+pool?.on('error', (erreur) => console.error('La base a coupé une connexion au repos : le serveur continue.', erreur.message));
 if (!pool) {
   console.warn('Sans DATABASE_URL, les données restent en mémoire et sont perdues à l\\'arrêt : développement seulement.');
 }
@@ -1646,15 +1658,16 @@ try {
 // Le coffre garde process.env à jour : les clés qu'il gère y sont relues à chaud.
 const coffre = await ouvrirCoffre(pool);
 
+${CODE_SANTE_DEMARRAGE}
 const port = Number(process.env.PORT ?? 3000);
-const app = creerServeur({ ...(pool ? { envois: creerEnvoisPostgres(pool), revocations: creerRevocationsPostgres(pool)${avecSynchro(serveur) ? `, journalSynchro: creerJournalPostgres(pool, ${tablesSynchro(serveur, nomTable)})` : ''}${avecSecurite(serveur) ? ', magasinSecurite: creerMagasinSecuritePostgres(pool)' : ''} } : {}), jwtSecret, usersStore, stockages${avecLogique(serveur) ? `, ...(pool ? { transaction: transactionPostgres(pool, (client) => ({ ${serveur.donnees.map((d) => `${camel(d.nom)}: creerStockagePostgres(client, '${nomTable(d.nom)}')`).join(', ')} })) } : {})` : ''}${serveur.taches?.length ? ', reclamerTache: pool ? reclamerPostgres(pool) : reclamerMemoire()' : ''}${avecNotifications(serveur) ? ", ...(pool ? { appareils: creerStockagePostgres(pool, 'humalis_appareils') } : {})" : ''}${avecIa(serveur) ? ', ...(pool ? { compterIa: compterPostgres(pool) } : {})' : ''}${serveur.connexionGoogle ? ', googleClientId: () => process.env.GOOGLE_CLIENT_ID || undefined, googleClientIdApple: () => process.env.GOOGLE_CLIENT_ID_APPLE || undefined' : ''}${serveur.connexionApple ? ', identifiantsApple: () => ({ application: process.env.APPLE_APP_ID || undefined, site: process.env.APPLE_SERVICE_ID || undefined })' : ''}${comptes ? ', jetons: creerMagasinJetons(pool)' : ''}, session, surveillance, coffre }) as unknown as { listen(port: number, pret: () => void): unknown };
+const app = creerServeur({ sante, ...(pool ? { envois: creerEnvoisPostgres(pool), revocations: creerRevocationsPostgres(pool)${avecSynchro(serveur) ? `, journalSynchro: creerJournalPostgres(pool, ${tablesSynchro(serveur, nomTable)})` : ''}${avecSecurite(serveur) ? ', magasinSecurite: creerMagasinSecuritePostgres(pool)' : ''} } : {}), jwtSecret, usersStore, stockages${avecLogique(serveur) ? `, ...(pool ? { transaction: transactionPostgres(pool, (client) => ({ ${serveur.donnees.map((d) => `${camel(d.nom)}: creerStockagePostgres(client, '${nomTable(d.nom)}')`).join(', ')} })) } : {})` : ''}${serveur.taches?.length ? ', reclamerTache: pool ? reclamerPostgres(pool) : reclamerMemoire()' : ''}${avecNotifications(serveur) ? ", ...(pool ? { appareils: creerStockagePostgres(pool, 'humalis_appareils') } : {})" : ''}${avecIa(serveur) ? ', ...(pool ? { compterIa: compterPostgres(pool) } : {})' : ''}${serveur.connexionGoogle ? ', googleClientId: () => process.env.GOOGLE_CLIENT_ID || undefined, googleClientIdApple: () => process.env.GOOGLE_CLIENT_ID_APPLE || undefined' : ''}${serveur.connexionApple ? ', identifiantsApple: () => ({ application: process.env.APPLE_APP_ID || undefined, site: process.env.APPLE_SERVICE_ID || undefined })' : ''}${comptes ? ', jetons: creerMagasinJetons(pool)' : ''}, session, surveillance, coffre }) as unknown as { listen(port: number, pret: () => void): unknown };
 // HUMALIS_ECOUTE : l'adresse d'écoute (127.0.0.1 derrière un relais) ; sans elle, toutes les adresses.
 const pret = () => console.log(\`Serveur « ${serveur.nom} » prêt : http://localhost:\${port}${premiere}\`);
 const ecoute = process.env.HUMALIS_ECOUTE?.trim();
 const auditeur = createServer(app as unknown as RequestListener);
 if (ecoute) auditeur.listen(port, ecoute, pret);
 else auditeur.listen(port, pret);
-`;
+${codeArret(true)}`;
 }
 
 function testsRegles(serveur: ServeurRI): string {
@@ -2156,7 +2169,7 @@ La liste se filtre par les champs de la donnée, comparés par égalité :
 lecture réservée ne l'est jamais (\`private, no-store\`). Les réponses de plus
 de 1 Ko partent compressées (brotli ou gzip).
 Se connecter : \`POST /auth/login\` avec \`{ "email", "password" }\`.
-${lisezmoiEnPlus(serveur)}
+${lisezmoiEnPlus(serveur)}${lisezmoiExploitation(serveur)}
 ## La sécurité et ses mises à jour
 
 Toute la sécurité vient des packs Astratra (\`@astratra/saas-kit\`,

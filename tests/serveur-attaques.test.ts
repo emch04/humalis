@@ -66,6 +66,9 @@ const r = {
   champConstructeur: await envoyer('PATCH', '/api/secrets/' + secretAwa.corps.id, a, { hasOwnProperty: 1 }),
   jsonCasse: await (async () => { const reponse = await fetch(base + '/api/secrets', { method: 'POST', headers: a, body: '{"texte":' }); return { statut: reponse.status, corps: await reponse.json().catch(() => null) }; })(),
 };
+// La santé : sans session, sans cache, et rien d'autre que l'état.
+const sante = await fetch(base + '/sante');
+r.sante = { statut: sante.status, corps: { ...(await sante.json()), cache: sante.headers.get('cache-control') } };
 // Les limites sur les valeurs (S7) : à la création, à la modification, et celles par défaut.
 const bon = { nom: 'Stylo', prix: 3, stock: 10, contact: 'a@essai.test', statut: 'brouillon', photos: ['/a.png'], note: 'ok' };
 const article = await envoyer('POST', '/api/articles', a, bon);
@@ -174,6 +177,10 @@ describe('des attaques sur un vrai serveur produit', () => {
     expect(signalees).toHaveLength(1);
     expect(signalees[0]).toContain('paiement de 5 reçu pour « reservation »');
     expect(signalees[0]).toContain('mais la fiche demande 7');
+  });
+  it('GET /sante répond 200 sans session, sans cache, et ne dit rien d’autre que l’état', () => {
+    expect(r.sante!.statut).toBe(200);
+    expect(r.sante!.corps).toEqual({ etat: 'pret', cache: 'no-store' });
   });
   it('une valeur hors de ses limites est refusée à la création, avec une phrase qui dit pourquoi (S7)', () => {
     const essais = r.limitesALaCreation!.corps as Record<string, Reponse>;
