@@ -15,6 +15,11 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[], pag
   const erreur = (message: string, ligne: number) => diagnostics.push({ gravite: 'erreur', message, ligne });
   const avertissement = (message: string, ligne: number) => diagnostics.push({ gravite: 'avertissement', message, ligne });
 
+  // Le nom du serveur est écrit dans le code produit (commentaires, messages du journal) : pas de signe qui le casserait.
+  if (!/^[\p{L}\p{N}][\p{L}\p{N} _.'’-]*$/u.test(serveur.nom)) {
+    erreur(`« ${serveur.nom} » ne peut pas nommer un serveur : écris des lettres, des chiffres, des espaces ou des tirets, par exemple serveur "boutique".`, serveur.ligne);
+  }
+
   const donnees = new Map<string, number>();
   for (const donnee of serveur.donnees) {
     if (donnees.has(donnee.nom)) {
@@ -91,6 +96,10 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[], pag
       erreur(`la route « ${route.adresse} » est déjà déclarée (ligne ${adresses.get(route.adresse)}).`, route.ligne);
     }
     adresses.set(route.adresse, route.ligne);
+    // L'adresse est écrite telle quelle dans le serveur produit (/api/<adresse>).
+    if (!route.interne && !/^[a-z0-9]+(?:[_-][a-z0-9]+)*$/i.test(route.adresse)) {
+      erreur(`« ${route.adresse} » ne peut pas servir d’adresse à une route : écris des lettres sans accent, des chiffres et des tirets, par exemple route "commandes".`, route.ligne);
+    }
 
     let servie: string | undefined;
     const permises = new Set<ActionDonnee>();
@@ -124,6 +133,28 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[], pag
         if (regle.soi) {
           if (regle.qui === 'tout_le_monde') erreur('un visiteur n’a pas de compte : écrivez « connecte peut lire son compte ».', regle.ligne);
         } else if (regle.qui === 'tout_le_monde' || regle.qui === 'connecte') erreur(`les comptes se réservent à un rôle : écrivez par exemple « seul gerant peut ${regle.actions.join(' et ')} comptes ».`, regle.ligne);
+      }
+    }
+
+    if (!route.interne) {
+      // Une règle simple (sans « si », « par identifiant », « son auteur » ni « son compte ») remplace la précédente sur la même action.
+      const dernieres = new Map<ActionDonnee, Regle>();
+      for (const regle of route.regles) {
+        if (regle.si || regle.parIdentifiant || regle.auteur || regle.soi || !donnees.has(regle.donnee)) continue;
+        for (const action of regle.actions) {
+          const avant = dernieres.get(action);
+          if (avant && avant.ligne !== regle.ligne && JSON.stringify(avant.qui) !== JSON.stringify(regle.qui)) {
+            avertissement(`la route « ${route.adresse} » a deux règles pour ${action} « ${regle.donnee} » (lignes ${avant.ligne} et ${regle.ligne}) : seule la dernière compte. Retire celle que tu ne veux pas.`, regle.ligne);
+          }
+          dernieres.set(action, regle);
+        }
+      }
+      // Ce qu'un visiteur sans compte peut détruire : la règle qui compte, pas une règle remplacée.
+      for (const action of ['modifier', 'supprimer'] as const) {
+        const regle = dernieres.get(action);
+        if (regle?.qui !== 'tout_le_monde' || serveur.donnees.find((d) => d.nom === regle.donnee)?.par !== undefined) continue;
+        const effet = action === 'modifier' ? 'changer, créer et effacer' : 'effacer';
+        avertissement(`tout le monde peut ${action} « ${regle.donnee} » : un visiteur sans compte peut ${effet} chaque fiche. Réserve cette action, par exemple « seul admin peut ${action} ${regle.donnee} ».`, regle.ligne);
       }
     }
 

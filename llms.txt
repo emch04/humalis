@@ -864,6 +864,11 @@ serveur "boutique" :
 - Un « refuser » après un paiement : le paiement est déjà fait
 - Un champ « auteur » écrit à la main : est rempli par le serveur avec le compte qui crée la fiche
 - Un nom de champ réservé : ce nom est réservé par le serveur
+- Une route dont le nom n’est pas une adresse : ne peut pas servir d’adresse à une route
+- Un serveur dont le nom contient un signe interdit : ne peut pas nommer un serveur
+- Deux règles pour la même action : seule la dernière compte
+- Tout le monde peut modifier ou supprimer : un visiteur sans compte peut
+- Un deuxième bloc « serveur » : est le deuxième bloc « serveur »
 - Une durée oubliée : il manque une durée
 - Une durée sans unité : il manque l’unité de la durée
 - Une durée qui n’est pas un nombre : une durée est un nombre suivi de son unité

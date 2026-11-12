@@ -459,6 +459,10 @@ export function analyserSens(programme: Programme, classesCss?: Set<string>): Re
   }
 
   for (const serveur of programme.serveurs) analyserServeur(serveur, resultat.diagnostics, programme.pages);
+  // « compile --cible serveur » n'en produit qu'un : autant le savoir dès la vérification.
+  for (const autre of programme.serveurs.slice(1)) {
+    resultat.diagnostics.push({ gravite: 'avertissement', ligne: autre.ligne, message: `le serveur « ${autre.nom} » est le deuxième bloc « serveur » de l’application (le premier est ligne ${programme.serveurs[0].ligne}) : la cible serveur n’en produit qu’un pour l’instant.` });
+  }
   verifierRoles(programme, resultat.diagnostics);
   analyserSources(programme.sources, programme.serveurs, resultat.diagnostics);
   analyserNavigation(programme, resultat.diagnostics);

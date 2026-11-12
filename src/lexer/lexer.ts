@@ -133,7 +133,14 @@ function decouperChaine(
   return parties;
 }
 
-export function analyser(source: string): Token[] {
+/**
+ * Le texte tel que le lexer le lit : sans la marque d'ordre des octets qu'écrivent certains éditeurs de
+ * Windows, et avec des fins de ligne simples (« \r\n » et « \r » deviennent « \n »). Les lignes gardent leur numéro.
+ */
+export const normaliserSource = (source: string): string => source.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
+
+export function analyser(brute: string): Token[] {
+  const source = normaliserSource(brute);
   const tokens: Token[] = [];
   const lignes = source.split('\n');
   const pile: number[] = [0];
