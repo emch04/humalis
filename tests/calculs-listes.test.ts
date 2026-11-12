@@ -48,8 +48,9 @@ describe('calculs — ce que produit chaque cible', () => {
     expect(page).toContain('Math.max(...notes)');
     expect(page).toContain('Math.min(...notes)');
     expect(page).toContain('panier.map((element) => element.prix).reduce((somme, n) => somme + n, 0)');
-    expect(page).toContain('Math.round(moyenneNotes * 10) / 10');
-    expect(page).toContain('Math.round(moyenneNotes)');
+    // La moitié s'éloigne de zéro sur toutes les cibles (-2,5 → -3), comme Swift, Kotlin et C#.
+    expect(page).toContain('((n) => Math.sign(n) * Math.round(Math.abs(n) * 10) / 10)(moyenneNotes)');
+    expect(page).toContain('((n) => Math.sign(n) * Math.round(Math.abs(n) * 1) / 1)(moyenneNotes)');
     expect(page).toContain('setTirage(1 + Math.floor(Math.random() * (6 - 1 + 1)));');
   });
 

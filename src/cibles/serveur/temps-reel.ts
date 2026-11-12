@@ -6,6 +6,7 @@
  */
 import type { ServeurRI } from '../../ri/types.js';
 import { slugTempsReel } from '../../parser/temps-reel.js';
+import { champsDeGroupe } from './separation.js';
 
 /** LiveKit : le SDK du serveur, publié avant le 1er novembre 2026. */
 export const VERSION_LIVEKIT_SERVEUR = '2.19.2';
@@ -38,6 +39,7 @@ function reglages(serveur: ServeurRI): string {
     appels,
     salle: avecLiveKit(serveur),
     presence,
+    groupes: champsDeGroupe(serveur),
   });
 }
 
@@ -285,7 +287,8 @@ interface Options {
   usersStore: UsersLus;
   secret: string;
   tables: Record<string, Stockage>;
-  reglages: { discussions: Discussion[]; salles: Salle[]; appels: boolean; salle: boolean; presence: boolean };
+  /** groupes : les champs « par boutique », « par classe » du compte ; la présence ne montre que les siens. */
+  reglages: { discussions: Discussion[]; salles: Salle[]; appels: boolean; salle: boolean; presence: boolean; groupes?: string[] };
 }
 
 const MESSAGES_AU_PLUS = 200;
@@ -734,7 +737,18 @@ export function monterTempsReel(cible: { use(routes: RequestHandler): unknown },
     app.get('/api/presence/:id', pourVisiteur({ id: 'moi', comptes: [] }), ...acces.connecte, async (req, res, next) => {
       try {
         const limite = new Date(Date.now() - PRESENCE_MS).toISOString();
-        const comptes = (await (tablePresence?.lister({ egal: {} }) ?? Promise.resolve([]))).filter((l) => String(l.vuLe) > limite).map((l) => String(l.compte));
+        const enLigne = (await (tablePresence?.lister({ egal: {} }) ?? Promise.resolve([]))).filter((l) => String(l.vuLe) > limite).map((l) => String(l.compte));
+        // « par boutique » : on ne voit en ligne que les comptes de ses boutiques (tous, pour un admin).
+        const moi = voir(req);
+        const groupes = reglages.groupes ?? [];
+        const memeCercle = async (compte: string): Promise<boolean> => {
+          if (groupes.length === 0 || moi.role === 'admin' || compte === moi.id) return true;
+          const autre = (await Promise.resolve(usersStore.findById(compte)).catch(() => null)) as Moi | null;
+          if (!autre) return false;
+          const miens = groupes.filter((g) => typeof moi[g] === 'string' && moi[g] !== '');
+          return miens.length > 0 ? miens.every((g) => autre[g] === moi[g]) : groupes.every((g) => typeof autre[g] !== 'string' || autre[g] === '');
+        };
+        const comptes = (await Promise.all(enLigne.map(async (c) => ((await memeCercle(c)) ? c : '')))).filter(Boolean);
         res.set('Cache-Control', 'no-store').json({ id: 'moi', comptes });
       } catch (erreur) {
         next(erreur);

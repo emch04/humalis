@@ -379,9 +379,9 @@ export function calculDeListe(
       break;
     }
     case 'arrondi': {
-      if (valeur.chiffres === undefined || valeur.chiffres === 0) return `Math.round(${x(valeur.valeur)})`;
-      const facteur = 10 ** valeur.chiffres;
-      return `Math.round(${membre(valeur.valeur)} * ${facteur}) / ${facteur}`;
+      // Comme Apple, Android et Windows : la moitié s'éloigne de zéro (2,5 → 3, -2,5 → -3), pas Math.round seul (-2,5 → -2).
+      const facteur = 10 ** (valeur.chiffres ?? 0);
+      return `((n) => Math.sign(n) * Math.round(Math.abs(n) * ${facteur}) / ${facteur})(${x(valeur.valeur)})`;
     }
     case 'hasard': {
       const min = membre(valeur.minimum);

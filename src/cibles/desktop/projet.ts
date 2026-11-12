@@ -417,7 +417,9 @@ const relayee = (chemin: string) => RELAIS.some((r) => chemin === r || chemin.st
  */
 async function relayer(requete: Request, url: URL): Promise<Response> {
   const entetes = new Headers();
-  for (const nom of ['accept', 'content-type']) {
+  // x-humalis-envoi : la clé d'un envoi gardé hors ligne ; sans elle, un envoi renvoyé après une coupure
+  // était fait deux fois (deux commandes).
+  for (const nom of ['accept', 'content-type', 'x-humalis-envoi']) {
     const valeur = requete.headers.get(nom);
     if (valeur) entetes.set(nom, valeur);
   }

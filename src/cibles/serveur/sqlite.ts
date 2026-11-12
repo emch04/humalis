@@ -227,15 +227,15 @@ export function creerStockageSqlite(base: BaseSqlite, table: string, champs?: re
 /** src/humalis/synchro-sqlite.ts : seulement quand le programme synchronise une donnée. */
 export const SYNCHRO_SQLITE = String.raw`import type { BaseSqlite } from './sqlite.js';
 import { preparerTableSqlite } from './sqlite.js';
-import type { Enregistrement, Stockage } from './stockage.js';
-import type { JournalSynchro, LigneJournal, Resultat } from './synchro.js';
+import type { Stockage } from './stockage.js';
+import { ficheRendue, type JournalSynchro, type LigneJournal, type Resultat } from './synchro.js';
 
 /**
  * Produit par Humalis : le journal de la synchronisation dans SQLite. Un seul serveur écrit dans le fichier :
  * chaque écriture d'une fiche suivie note sa ligne au journal dans la même transaction (avec PostgreSQL, ce
  * sont des déclencheurs de la base, pour plusieurs serveurs).
  */
-export function creerJournalSqlite(base: BaseSqlite, tables: Record<string, { table: string; portee: string[] }>): JournalSynchro {
+export function creerJournalSqlite(base: BaseSqlite, tables: Record<string, { table: string; portee: string[]; champs?: string[] }>): JournalSynchro {
   for (const { table } of Object.values(tables)) if (!/^[a-z_][a-z0-9_]*$/.test(table)) throw new Error('nom de table invalide : ' + table);
   const porteeDe = (donnee: string, fiche: Record<string, unknown> | null) => Object.fromEntries((tables[donnee]?.portee ?? []).filter((c) => fiche !== null && c in fiche).map((c) => [c, fiche![c]]));
   let prete: Promise<void> | undefined;
@@ -320,7 +320,7 @@ export function creerJournalSqlite(base: BaseSqlite, tables: Record<string, { ta
         valeurs,
       );
       return {
-        lignes: rows.map((l) => ({ ...lire(l), fiche: l.data ? ({ ...(JSON.parse(String(l.data)) as object), id: String(l.id) } as Enregistrement) : null })),
+        lignes: rows.map((l) => ({ ...lire(l), fiche: l.data ? ficheRendue(JSON.parse(String(l.data)) as Record<string, unknown>, String(l.id), tables[donnee]?.champs) : null })),
         tete: Number(tete?.version ?? 0),
         plancher: Number(tete?.plancher ?? 0),
       };

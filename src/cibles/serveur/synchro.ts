@@ -14,6 +14,7 @@
 import type { ServeurRI } from '../../ri/types.js';
 import { camel } from '../web/noms.js';
 import { conditionsDe, estSeparee } from './separation.js';
+import { champsRendus } from './evolution.js';
 
 type Route = ServeurRI['routes'][number];
 type Donnee = ServeurRI['donnees'][number];
@@ -79,7 +80,11 @@ export function codeAvantSynchro(serveur: ServeurRI, adresseApi: (adresse: strin
 export function tablesSynchro(serveur: ServeurRI, nomTable: (donnee: string) => string): string {
   return `{ ${serveur.routes
     .filter((r) => r.synchronisee)
-    .map((r) => `${JSON.stringify(camel(r.donnee))}: { table: ${JSON.stringify(nomTable(r.donnee))}, portee: ${JSON.stringify(champsDePortee(serveur.donnees.find((d) => d.nom === r.donnee)!, r))} }`)
+    .map((r) => {
+      const donnee = serveur.donnees.find((d) => d.nom === r.donnee)!;
+      const champs = champsRendus(serveur, donnee, camel);
+      return `${JSON.stringify(camel(r.donnee))}: { table: ${JSON.stringify(nomTable(r.donnee))}, portee: ${JSON.stringify(champsDePortee(donnee, r))}${champs ? `, champs: ${JSON.stringify(champs)}` : ''} }`;
+    })
     .join(', ')} }`;
 }
 
@@ -222,7 +227,15 @@ export interface PoolAvecClients extends PoolPostgres {
   connect(): Promise<PoolPostgres & { release(): void }>;
 }
 
-export function creerJournalPostgres(pool: PoolAvecClients, tables: Record<string, { table: string; portee: string[] }>): JournalSynchro {
+/** Comme une lecture ordinaire : seulement les champs de la donnée d'aujourd'hui (un champ retiré ne sort plus). */
+export function ficheRendue(donnees: Record<string, unknown>, id: string, champs: readonly string[] | undefined): Enregistrement {
+  if (!champs) return { ...donnees, id } as Enregistrement;
+  const fiche: Record<string, unknown> = {};
+  for (const champ of champs) if (champ !== 'id' && Object.hasOwn(donnees, champ)) fiche[champ] = donnees[champ];
+  return { ...fiche, id } as Enregistrement;
+}
+
+export function creerJournalPostgres(pool: PoolAvecClients, tables: Record<string, { table: string; portee: string[]; champs?: string[] }>): JournalSynchro {
   for (const { table, portee } of Object.values(tables)) {
     if (!/^[a-z_][a-z0-9_]*$/.test(table)) throw new Error('nom de table invalide : ' + table);
     for (const champ of portee) if (/[,'\\]/.test(champ)) throw new Error('nom de champ invalide : ' + champ);
@@ -313,7 +326,7 @@ $corps$ LANGUAGE plpgsql` + '`' + String.raw`);
         [donnee, depuis, JSON.stringify(egal), limite],
       );
       return {
-        lignes: rows.map((l) => ({ ...lire(l), fiche: l.data ? ({ ...(l.data as object), id: String(l.id) } as Enregistrement) : null })),
+        lignes: rows.map((l) => ({ ...lire(l), fiche: l.data ? ficheRendue(l.data as Record<string, unknown>, String(l.id), tables[donnee]?.champs) : null })),
         tete: Number(tete?.version ?? 0),
         plancher: Number(tete?.plancher ?? 0),
       };

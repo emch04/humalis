@@ -380,7 +380,8 @@ export function evaluer(valeur: Valeur, env: Environnement): unknown {
     }
     case 'arrondi': {
       const facteur = 10 ** (valeur.chiffres ?? 0);
-      return Math.round((evaluer(valeur.valeur, env) as number) * facteur) / facteur;
+      const n = evaluer(valeur.valeur, env) as number;
+      return (Math.sign(n) * Math.round(Math.abs(n) * facteur)) / facteur;
     }
     // Les dates ne sont pas figées dans le HTML de départ : le script les calcule au chargement.
     case 'dateDuJour':

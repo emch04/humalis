@@ -911,24 +911,24 @@ export function estDuSite(valeur: unknown, adresseDuSite = process.env.HUMALIS_A
 }
 
 /** « calcule somme prix de produit par refs » : le prix relu pour chaque identifiant ; un texte dit ce qui ne va pas. */
-export async function sommeDesPrix(stockage: { trouver(id: string): Promise<Record<string, unknown> | null> }, liste: unknown, champ: string, cercle?: Record<string, string>): Promise<number | string> {
+export async function sommeDesPrix(stockage: { trouver(id: string): Promise<Record<string, unknown> | null> }, liste: unknown, champ: string, voit?: (fiche: Record<string, unknown>) => boolean): Promise<number | string> {
   const ids = Array.isArray(liste) ? liste.map(String) : [];
   const differents = new Set(ids);
   if (differents.size > 200) return 'la liste est trop longue';
   const prix = new Map<string, number>();
   for (const id of differents) {
     const fiche = await stockage.trouver(id);
-    // Une fiche hors du cercle de cette personne (autre boutique, autre compte) n'existe pas pour elle.
-    if (!fiche || (cercle && Object.entries(cercle).some(([c, v]) => fiche[c] !== v))) return \`« \${id} » n'existe pas\`;
+    // Une fiche que cette personne ne pourrait pas lire (autre boutique, « seul son auteur », « si … ») n'existe pas pour elle.
+    if (!fiche || (voit && !voit(fiche))) return \`« \${id} » n'existe pas\`;
     prix.set(id, Number(fiche[champ]) || 0);
   }
   return ids.reduce((total, id) => total + prix.get(id)!, 0);
 }
 
 /** « au plus prix de zone par commune » : le prix de la fiche dont le champ est égal ; 0 si aucune, ce qui laisse passer 0. */
-export async function plafondDe(stockage: { lister(filtres: Filtres): Promise<Record<string, unknown>[]> }, par: string, valeur: unknown, champ: string, cercle?: Record<string, string>): Promise<number> {
+export async function plafondDe(stockage: { lister(filtres: Filtres): Promise<Record<string, unknown>[]> }, par: string, valeur: unknown, champ: string, voit?: (fiche: Record<string, unknown>) => boolean): Promise<number> {
   if (typeof valeur !== 'string' && typeof valeur !== 'number') return 0;
-  const [fiche] = await stockage.lister({ egal: { ...cercle, [par]: valeur } });
+  const fiche = (await stockage.lister({ egal: { [par]: valeur } })).find((f) => !voit || voit(f));
   return fiche ? Number(fiche[champ]) || 0 : 0;
 }
 

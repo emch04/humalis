@@ -275,7 +275,9 @@ export class ServeurMemoire {
       const periode = this.periode(tache.frequence, new Date(this.maintenant()));
       if (periode === null || this.derniereTache.get(tache.nom) === periode) continue;
       this.derniereTache.set(tache.nom, periode);
-      await this.lancerTache(tache.nom);
+      // Comme le serveur produit : une tâche qui échoue rend sa période et sera retentée au tour suivant.
+      const fait = await this.lancerTache(tache.nom);
+      if (!fait.ok && this.derniereTache.get(tache.nom) === periode) this.derniereTache.delete(tache.nom);
     }
   }
   /** Lance une tâche tout de suite (le panneau, les tests) : elle fait ce qu'elle ferait à l'heure dite. */
@@ -307,7 +309,8 @@ export class ServeurMemoire {
         if (fiche.paye === true) throw new Refus('déjà payé');
         const payee = this.stock(route.donnee).modifier(id, { paye: true })!;
         noter(travail, route.donnee, donnee.par ? payee[camel(donnee.par)] : undefined);
-        await this.jouer(route.apresPaiement!, { fiches: new Map([[route.donnee, payee]]), locaux: new Map(), travail });
+        // Comme une action : le traitement après paiement reste dans le groupe de la fiche payée.
+        await this.jouer(route.apresPaiement!, { fiches: new Map([[route.donnee, payee]]), locaux: new Map(), travail, groupeImpose: donnee.par ? { champ: donnee.par, fiche: payee } : undefined });
       });
       this.terminer(travail);
       return { ok: true };
@@ -477,30 +480,33 @@ export class ServeurMemoire {
       if (regle?.genre !== 'auPlus' || !(camel(nom) in envoye || camel(regle.par) in envoye)) continue;
       const valeur = fiche[camel(nom)];
       const cle = fiche[camel(regle.par)];
-      const [reference] = typeof cle === 'string' || typeof cle === 'number' ? this.stock(regle.donnee).lister({ egal: { ...cercles[regle.donnee], [camel(regle.par)]: cle } }) : [];
+      const [reference] = typeof cle === 'string' || typeof cle === 'number' ? this.stock(regle.donnee).lister({ egal: { [camel(regle.par)]: cle } }).filter((f) => !cercles[regle.donnee] || cercles[regle.donnee]!(f)) : [];
       const plafond = reference ? Number(reference[camel(regle.prix)]) || 0 : 0;
       if (typeof valeur !== 'number' || valeur < 0 || valeur > plafond) return `le champ « ${camel(nom)} » doit être entre 0 et ${plafond}`;
     }
     return undefined;
   }
   /**
-   * Les fiches qu'un calcul peut citer pour cette personne (comme dans le serveur produit) : « produit par boutique »,
-   * un produit de sa boutique ; « par compte », un des siens. undefined : toutes (un admin sans groupe, ou le serveur).
+   * Les fiches qu'un calcul peut citer pour cette personne, comme dans le serveur produit : celles qu'elle pourrait lire
+   * par la route de cette donnée (rôle, groupe, « seul son auteur », « si … »). groupe : celui de la fiche écrite, qu'une
+   * référence doit partager. Sans personne (le serveur lui-même) ou sans route, tout se lit.
    */
-  private cercles(donnee: Donnee, moi: Compte | undefined, groupe: unknown): Record<string, Record<string, string> | undefined> {
+  private cercles(donnee: Donnee, moi: Compte | undefined, groupe: unknown): Record<string, ((fiche: Record<string, unknown>) => boolean) | undefined> {
     if (!moi) return {};
-    const resultat: Record<string, Record<string, string> | undefined> = {};
+    const resultat: Record<string, ((fiche: Record<string, unknown>) => boolean) | undefined> = {};
     for (const c of donnee.champs) {
       if (c.regle?.genre !== 'somme' && c.regle?.genre !== 'auPlus') continue;
-      const source = this.donnee(c.regle.donnee);
-      if (source.par === undefined) continue;
-      if (source.par === 'compte') {
-        resultat[c.regle.donnee] = moi.role === 'admin' ? undefined : { compte: moi.id };
-        continue;
-      }
-      const champ = camel(source.par);
-      const v = (donnee.par === source.par && typeof groupe === 'string' && groupe !== '' ? groupe : undefined) ?? moi[champ];
-      resultat[c.regle.donnee] = typeof v === 'string' && v !== '' ? { [champ]: v } : moi.role === 'admin' ? undefined : { [champ]: '\u0000' };
+      const nom = c.regle.donnee;
+      const source = this.donnee(nom);
+      const route = this.serveur.routes.find((r) => r.donnee === nom && r.interne === undefined);
+      if (!route) continue;
+      const libre = route.droits.lire;
+      const conditions = route.conditions?.lire ?? [];
+      const admin = moi.role === 'admin';
+      const roleOk = libre === 'tout_le_monde' || libre === 'connecte' || (libre === null && conditions.length > 0) || admin || (libre?.startsWith('role:') === true && libre.slice(5).split(',').includes(moi.role));
+      const portee = this.estSeparee(source, route) ? porteeDe(moi, this.separation(source), this.regles(route, 'lire')) : { egal: {} };
+      const champGroupe = source.par !== undefined && source.par !== 'compte' && donnee.par === source.par ? camel(source.par) : undefined;
+      resultat[nom] = (fiche) => roleOk && portee !== null && dansPortee(fiche, portee) && (champGroupe === undefined || typeof groupe !== 'string' || groupe === '' || fiche[champGroupe] === groupe);
     }
     return resultat;
   }
@@ -522,26 +528,26 @@ export class ServeurMemoire {
     }
     return undefined;
   }
-  private sommeDe(regle: Extract<RegleChampRI, { genre: 'somme' }>, fiche: Record<string, unknown>, cercle: Record<string, string> | undefined): number | string {
+  private sommeDe(regle: Extract<RegleChampRI, { genre: 'somme' }>, fiche: Record<string, unknown>, voit: ((fiche: Record<string, unknown>) => boolean) | undefined): number | string {
     const ids = Array.isArray(fiche[camel(regle.liste)]) ? (fiche[camel(regle.liste)] as unknown[]).map(String) : [];
     const differents = new Set(ids);
     if (differents.size > 200) return `le champ « ${camel(regle.liste)} » : la liste est trop longue`;
     const prix = new Map<string, number>();
     for (const id of differents) {
       const trouve = this.stock(regle.donnee).trouver(id);
-      if (!trouve || (cercle && Object.entries(cercle).some(([c, v]) => trouve[c] !== v))) return `le champ « ${camel(regle.liste)} » : « ${id} » n'existe pas`;
+      if (!trouve || (voit && !voit(trouve))) return `le champ « ${camel(regle.liste)} » : « ${id} » n'existe pas`;
       prix.set(id, Number(trouve[camel(regle.prix)]) || 0);
     }
     return ids.reduce((total, id) => total + prix.get(id)!, 0) + (regle.plus !== undefined ? Number(fiche[camel(regle.plus)]) : 0);
   }
-  private async completer(donnee: Donnee, recu: Record<string, unknown>, cercles: Record<string, Record<string, string> | undefined> = {}): Promise<{ valeur: Record<string, unknown> } | { erreur: string }> {
+  private async completer(donnee: Donnee, recu: Record<string, unknown>, cercles: Record<string, ((fiche: Record<string, unknown>) => boolean) | undefined> = {}): Promise<{ valeur: Record<string, unknown> } | { erreur: string }> {
     const fiche: Record<string, unknown> = { ...recu };
     for (const { nom, regle } of donnee.champs) if (regle?.genre === 'depart') fiche[camel(nom)] = regle.valeur.genre === 'aujourdhui' ? aujourdhui() : regle.valeur.valeur;
     for (const { nom, regle } of donnee.champs) {
       if (regle?.genre !== 'auPlus') continue;
       const valeur = fiche[camel(nom)];
       const cle = fiche[camel(regle.par)];
-      const [reference] = typeof cle === 'string' || typeof cle === 'number' ? this.stock(regle.donnee).lister({ egal: { ...cercles[regle.donnee], [camel(regle.par)]: cle } }) : [];
+      const [reference] = typeof cle === 'string' || typeof cle === 'number' ? this.stock(regle.donnee).lister({ egal: { [camel(regle.par)]: cle } }).filter((f) => !cercles[regle.donnee] || cercles[regle.donnee]!(f)) : [];
       const plafond = reference ? Number(reference[camel(regle.prix)]) || 0 : 0;
       if (typeof valeur !== 'number' || valeur < 0 || valeur > plafond) return { erreur: `le champ « ${camel(nom)} » doit être entre 0 et ${plafond}` };
     }
@@ -776,6 +782,9 @@ export class ServeurMemoire {
     if (groupe !== undefined && sep) recue[sep.champ] = groupe;
     for (const champ of donnee.champs) if (champ.regle?.genre === 'auteur') recue[camel(champ.nom)] = c.moi?.id;
     if (separee && portee.test && !portee.test(recue)) return rep(403, { erreur: REFUS_FICHES });
+    // Les fiches liées déjà créées s'effacent si la suite échoue : jamais de fiche orpheline.
+    const creees: [string, string][] = [];
+    const toutAnnuler = () => { for (const [d, id] of creees.reverse()) this.stock(d).supprimer(id); };
     for (const creation of route.creations ?? []) {
       const liee = this.donnee(creation.donnee);
       const valeurs: Record<string, unknown> = Object.fromEntries(creation.valeurs.map((v) => [camel(v.champ), valeurLiee(v.valeur, recue)]));
@@ -783,13 +792,23 @@ export class ServeurMemoire {
       let finale = valeurs;
       if (this.aCompleter(liee)) {
         const complete = await this.completer(liee, valeurs, this.cercles(liee, c.moi, groupe));
-        if ('erreur' in complete) return rep(400, { erreur: complete.erreur });
+        if ('erreur' in complete) {
+          toutAnnuler();
+          return rep(400, { erreur: complete.erreur });
+        }
         finale = complete.valeur;
       }
       const creee = this.stock(creation.donnee).creer(finale);
+      creees.push([creation.donnee, creee.id]);
       if (creation.dans !== undefined) recue[camel(creation.dans)] = creee.id;
     }
-    const cree = stock.creer(recue);
+    let cree: Enregistrement;
+    try {
+      cree = stock.creer(recue);
+    } catch (erreur) {
+      toutAnnuler();
+      throw erreur;
+    }
     const travail = nouveauTravail();
     noter(travail, route.donnee, groupe);
     for (const e of route.envois ?? []) {

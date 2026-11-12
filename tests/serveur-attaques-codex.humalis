@@ -1,0 +1,51 @@
+serveur "marche" :
+    roles vendeur et client
+    paiements par stripe
+    donnee produit par boutique :
+        nom : texte
+        prix : nombre
+        vendus : nombre
+    donnee commande par boutique :
+        refs : liste de texte
+        total : nombre calcule somme prix de produit par refs
+    donnee note :
+        prix : nombre
+    donnee panier :
+        refs : liste de texte
+        total : nombre calcule somme prix de note par refs
+    donnee suivi :
+        etape : texte
+    donnee envoi :
+        nom : texte
+        suivi : texte
+    route "produits" :
+        connecte peut lire produit
+        seul vendeur peut creer produit
+        seul vendeur peut modifier produit
+        seul vendeur peut supprimer produit
+    route "commandes" :
+        connecte peut lire commande
+        connecte peut creer commande
+        seul son auteur peut modifier commande
+        seul admin peut supprimer commande
+        quand commande est payee :
+            pour chaque p dans produit :
+                changer p.vendus par 1
+    route "notes" :
+        connecte peut creer note
+        seul son auteur peut lire note
+    route "paniers" :
+        connecte peut creer panier
+        connecte peut lire panier
+    route "suivis" :
+        seul admin peut lire suivi
+    route "envois" :
+        connecte peut creer envoi
+        seul admin peut lire envoi
+        quand envoi est cree :
+            creer suivi avec etape "ouvert" dans envoi.suivi
+    discussion "support" entre client et vendeur par boutique
+
+page "a" :
+    titre "A"
+    discussion "support"

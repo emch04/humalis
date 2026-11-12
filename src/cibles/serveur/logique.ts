@@ -665,7 +665,7 @@ export function codeSurPaiement(serveur: ServeurRI): string {
           if (attendu !== montant) throw new Error('paiement de ' + montant / 100 + ' reçu pour « ${route.donnee} » ' + id + ', mais la fiche demande ' + attendu / 100 + ' : corrige « ' + champ + ' » ou rembourse');
           Object.assign(${nom}, await s.${camel(route.donnee)}.modifier(id, { paye: true }));
           noter(travail, ${chaine(route.donnee)}${donnee.par ? `, ${nom}[${chaine(camel(donnee.par))}]` : ''});
-${new Ecriture(serveur, undefined).lignes(route.apresPaiement!, '          ')}
+${new Ecriture(serveur, donnee.par ? { champ: donnee.par, variable: nom } : undefined).lignes(route.apresPaiement!, '          ')}
         },`;
   });
   return `      surPaiement = {
@@ -874,7 +874,8 @@ export function transactionPostgres<S>(pool: pg.Pool, fabriquer: (client: pg.Poo
 }
 
 export type Frequence = { genre: 'heure' } | { genre: 'jour'; heure: number; minute: number } | { genre: 'semaine'; jour: number; heure: number; minute: number };
-export type Reclamer = (nom: string, periode: string) => Promise<boolean>;
+/** rendre : une tâche qui a échoué rend sa période, et le tour suivant (une minute plus tard) la retente. */
+export type Reclamer = ((nom: string, periode: string) => Promise<boolean>) & { rendre?: (nom: string, periode: string) => Promise<void> };
 
 const deux = (n: number) => String(n).padStart(2, '0');
 
@@ -890,21 +891,31 @@ export function periodeDe(frequence: Frequence, maintenant: Date): string | null
 
 export function reclamerMemoire(): Reclamer {
   const faites = new Map<string, string>();
-  return async (nom, periode) => {
+  const prendre = async (nom: string, periode: string) => {
     if (faites.get(nom) === periode) return false;
     faites.set(nom, periode);
     return true;
   };
+  return Object.assign(prendre, {
+    rendre: async (nom: string, periode: string) => {
+      if (faites.get(nom) === periode) faites.delete(nom);
+    },
+  });
 }
 
 /** Plusieurs serveurs : la base donne chaque période à un seul d'entre eux. */
 export function reclamerPostgres(pool: pg.Pool): Reclamer {
   let prete: Promise<unknown> | undefined;
-  return async (nom, periode) => {
+  const prendre = async (nom: string, periode: string) => {
     await (prete ??= pool.query('CREATE TABLE IF NOT EXISTS humalis_taches (nom TEXT PRIMARY KEY, periode TEXT NOT NULL)'));
     const { rowCount } = await pool.query('INSERT INTO humalis_taches (nom, periode) VALUES ($1, $2) ON CONFLICT (nom) DO UPDATE SET periode = EXCLUDED.periode WHERE humalis_taches.periode <> EXCLUDED.periode', [nom, periode]);
     return (rowCount ?? 0) > 0;
   };
+  return Object.assign(prendre, {
+    rendre: async (nom: string, periode: string) => {
+      await pool.query("UPDATE humalis_taches SET periode = '' WHERE nom = $1 AND periode = $2", [nom, periode]);
+    },
+  });
 }
 
 export interface Tache<S> {
@@ -916,14 +927,18 @@ export interface Tache<S> {
 export function lancerTaches<S>(taches: Tache<S>[], reclamer: Reclamer, transaction: Transaction<S>, annoncer?: (cle: string) => void): void {
   const tourner = async () => {
     for (const tache of taches) {
+      let prise: string | null = null;
       try {
         const periode = periodeDe(tache.frequence, new Date());
         if (periode === null || !(await reclamer(tache.nom, periode))) continue;
+        prise = periode;
         const travail = nouveauTravail();
         await transaction((s) => tache.travail(travail, s));
         terminer(travail, annoncer);
       } catch (erreur) {
-        console.error('La tâche « ' + tache.nom + ' » a échoué :', erreur instanceof Error ? erreur.message : erreur);
+        console.error('La tâche « ' + tache.nom + ' » a échoué' + (prise !== null ? ' : elle sera retentée dans une minute' : '') + ' :', erreur instanceof Error ? erreur.message : erreur);
+        // Rien n'a été fait (la transaction est annulée) : la période revient, pour un nouvel essai tant qu'elle dure.
+        if (prise !== null) await reclamer.rendre?.(tache.nom, prise).catch(() => undefined);
       }
     }
   };

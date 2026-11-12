@@ -80,7 +80,7 @@ export function codePlafondsModification(donnee: Donnee, serveur?: ServeurRI): s
           {
             const avant = await stockages.${camel(donnee.nom)}.trouver(req.params.id);
             const fusion: Record<string, unknown> = { ...(avant ?? {}), ...envoi.valeur };
-            const cercles: Record<string, Record<string, string> | undefined> = ${serveur ? codeCercles(serveur, donnee, donnee.par !== undefined && donnee.par !== 'compte' ? `avant?.[${chaine(camel(donnee.par))}] as string | undefined` : undefined) : '{}'};
+            const cercles: Record<string, ((fiche: Record<string, unknown>) => boolean) | undefined> = ${serveur ? codeCercles(serveur, donnee, donnee.par !== undefined && donnee.par !== 'compte' ? `avant?.[${chaine(camel(donnee.par))}] as string | undefined` : undefined) : '{}'};
 ${lignes.join('\n')}
           }
 `;
@@ -111,7 +111,7 @@ function fonctionCompleter(donnee: Donnee): string {
   }
   return `      // Ce que le serveur décide pour « ${donnee.nom} » : la requête ne peut pas le choisir.
       // cercles : pour chaque donnée lue (« somme prix de produit », « au plus prix de zone »), les fiches permises.
-      const completer${pascal(donnee.nom)} = async (recu: Record<string, unknown>, cercles: Record<string, Record<string, string> | undefined> = {}): Promise<{ valeur: Record<string, unknown> } | { erreur: string }> => {
+      const completer${pascal(donnee.nom)} = async (recu: Record<string, unknown>, cercles: Record<string, ((fiche: Record<string, unknown>) => boolean) | undefined> = {}): Promise<{ valeur: Record<string, unknown> } | { erreur: string }> => {
         const fiche: Record<string, unknown> = { ...recu };
 ${lignes.join('\n')}
         return { valeur: fiche };
@@ -138,21 +138,36 @@ function valeurLiee(valeur: ValeurLieeRI, parent: string): string {
 
 /** Le corps de POST : vérifier, compléter, créer les fiches liées, créer, répondre. */
 /**
- * Les fiches qu'une requête peut citer dans un calcul : « somme prix de produit par refs » ne lit qu'un produit que
- * cette personne pourrait lire. Avec « produit par boutique », un produit de sa boutique (celle de la fiche créée, ou
- * celle de son compte) ; avec « produit par compte », un des siens. Sans cela, citer l'identifiant d'un produit d'une
- * autre boutique révélait son prix et le mettait dans la commande. Un admin sans groupe lit tout.
+ * Les fiches qu'une requête peut citer dans un calcul (« somme prix de produit par refs », « au plus prix de zone par … ») :
+ * seulement celles que cette personne pourrait lire par la route de cette donnée, avec les mêmes règles (rôle, « par
+ * boutique », « par compte », « seul son auteur », « si … »). Sinon, citer l'identifiant d'une fiche cachée révélait son
+ * prix dans le total. Une donnée sans route reste lue par le serveur seul : rien à cacher à une requête.
+ * groupeExpr : le groupe de la fiche écrite ; une référence doit alors être du même groupe (même pour un admin).
  */
 export function codeCercles(serveur: ServeurRI, donnee: Donnee, groupeExpr?: string): string {
   const lues = [...new Set(donnee.champs.flatMap((c) => (c.regle?.genre === 'somme' || c.regle?.genre === 'auPlus' ? [c.regle.donnee] : [])))];
+  const moi = '(req as unknown as { user?: Record<string, unknown> }).user';
   const entrees = lues.flatMap((nom) => {
     const source = serveur.donnees.find((d) => d.nom === nom);
-    if (source?.par === undefined) return [];
-    const moi = '(req as unknown as { user?: Record<string, unknown> }).user';
-    if (source.par === 'compte') return [`${chaine(nom)}: ${moi}?.role === 'admin' ? undefined : { compte: String(${moi}?.id ?? '\\u0000') }`];
-    const champ = camel(source.par);
-    const valeur = groupeExpr !== undefined && donnee.par === source.par ? `${groupeExpr} ?? ${moi}?.[${chaine(champ)}]` : `${moi}?.[${chaine(champ)}]`;
-    return [`${chaine(nom)}: ((v: unknown) => (typeof v === 'string' && v !== '' ? { ${chaine(champ)}: v } : ${moi}?.role === 'admin' ? undefined : { ${chaine(champ)}: '\\u0000' }))(${valeur})`];
+    const route = serveur.routes.find((r) => r.donnee === nom && r.interne === undefined);
+    if (!source || !route) return [];
+    const tests: string[] = [];
+    const libre = route.droits.lire;
+    const conditions = route.conditions?.lire ?? [];
+    if (libre === 'connecte' || (libre === null && conditions.length > 0)) tests.push(`u !== undefined`);
+    else if (libre?.startsWith('role:')) tests.push(`(u?.role === 'admin' || ${JSON.stringify(libre.slice(5).split(','))}.includes(String(u?.role)))`);
+    else if (libre === 'admin' || (libre === null && conditions.length === 0)) tests.push(`u?.role === 'admin'`);
+    const separee = source.par !== undefined || Object.values(route.conditions ?? {}).some((c) => c.length > 0);
+    if (separee) {
+      const v = `route${pascal(route.adresse)}`;
+      tests.push(`((p) => p !== null && dansPortee(f, p))(porteeDe(u as never, separation${v}, regles${v}.lire))`);
+    }
+    if (groupeExpr !== undefined && source.par !== undefined && source.par !== 'compte' && donnee.par === source.par) {
+      const champ = chaine(camel(source.par));
+      tests.push(`((g: unknown) => typeof g !== 'string' || g === '' || f[${champ}] === g)(${groupeExpr})`);
+    }
+    if (tests.length === 0) return [];
+    return [`${chaine(nom)}: (f: Record<string, unknown>) => { const u = ${moi}; return ${tests.join(' && ')}; }`];
   });
   return `{ ${entrees.join(', ')} }`;
 }
@@ -188,7 +203,7 @@ ${paye ? `            if (avant?.[${chaine(camel(paye.nom))}] === true && (req a
               return;
             }
 ` : ''}            const fusion: Record<string, unknown> = { ...(avant ?? {}), ...envoi.valeur };
-            const cercles: Record<string, Record<string, string> | undefined> = ${codeCercles(serveur, donnee, groupe)};
+            const cercles: Record<string, ((fiche: Record<string, unknown>) => boolean) | undefined> = ${codeCercles(serveur, donnee, groupe)};
 ${lignes.join('\n')}
           }
 `;
@@ -243,6 +258,8 @@ export function codeCreation(serveur: ServeurRI, route: Route, donnee: Donnee, s
   if (separee !== undefined) {
     lignes.push(`          if (portee.test && !portee.test(recue)) {`, `            res.status(403).json({ erreur: REFUS_FICHES });`, `            return;`, `          }`);
   }
+  // Les fiches liées déjà créées s'effacent si la suite échoue : jamais de fiche orpheline.
+  if (creations.length > 0) lignes.push(`          const annuler: (() => Promise<unknown>)[] = [];`, `          const toutAnnuler = async () => { for (const a of annuler.reverse()) await a().catch(() => undefined); };`);
   creations.forEach((creation, i) => {
     const liee = serveur.donnees.find((d) => d.nom === creation.donnee)!;
     const valeurs = `{ ${[...creation.valeurs.map((v) => `${chaine(camel(v.champ))}: ${valeurLiee(v.valeur, 'recue')}`), ...(groupe && liee.par !== undefined ? [`${champGroupe}: groupe.valeur`] : [])].join(', ')} }`;
@@ -251,15 +268,28 @@ export function codeCreation(serveur: ServeurRI, route: Route, donnee: Donnee, s
       lignes.push(
         `          const liee${i} = await completer${pascal(liee.nom)}(${valeurs}, ${codeCercles(serveur, liee, groupe && liee.par !== undefined ? 'groupe.valeur' : undefined)});`,
         `          if ('erreur' in liee${i}) {`,
+        `            await toutAnnuler();`,
         `            res.status(400).json({ erreur: liee${i}.erreur });`,
         `            return;`,
         `          }`,
         `          const creee${i} = await stockages.${camel(liee.nom)}.creer(liee${i}.valeur);`,
       );
     } else lignes.push(`          const creee${i} = await stockages.${camel(liee.nom)}.creer(${valeurs});`);
+    lignes.push(`          annuler.push(() => stockages.${camel(liee.nom)}.supprimer(creee${i}.id));`);
     if (creation.dans !== undefined) lignes.push(`          recue[${chaine(camel(creation.dans))}] = creee${i}.id;`);
   });
-  lignes.push(`          const cree = await stockages.${nom}.creer(recue);`, `          res.status(201).json(cree);`);
+  if (creations.length > 0) {
+    lignes.push(
+      `          let cree;`,
+      `          try {`,
+      `            cree = await stockages.${nom}.creer(recue);`,
+      `          } catch (erreur) {`,
+      `            await toutAnnuler();`,
+      `            throw erreur;`,
+      `          }`,
+      `          res.status(201).json(cree);`,
+    );
+  } else lignes.push(`          const cree = await stockages.${nom}.creer(recue);`, `          res.status(201).json(cree);`);
   if (emails !== '') lignes.push(`          // La réponse est partie : un e-mail raté ne fait pas échouer la création.`, emails);
   return lignes.join('\n');
 }

@@ -121,7 +121,9 @@ fun maximum(l: Any?): Double = liste(l).maxOfOrNull { nombre(it) } ?: 0.0
 
 fun arrondi(v: Any?, chiffres: Int = 0): Double {
     val facteur = Math.pow(10.0, chiffres.toDouble())
-    return Math.round(nombre(v) * facteur) / facteur
+    // La moitié s'éloigne de zéro, comme sur les autres cibles (Math.round seul donne -2 pour -2,5).
+    val n = nombre(v)
+    return Math.signum(n) * Math.round(Math.abs(n) * facteur) / facteur
 }
 
 /** « hasard entre 1 et 6 » : un entier, bornes comprises. */
