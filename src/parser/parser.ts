@@ -734,7 +734,7 @@ function analyserServeur(flux: FluxTokens): Serveur {
   for (const route of routes) {
     if (!route.apresPaiement) continue;
     const payee = donnees.find((d) => d.nom === route.apresPaiement!.donnee);
-    if (payee) payee.champs.push({ nom: 'paye', type: { genre: 'booleen' }, regle: { genre: 'depart', valeur: { genre: 'valeur', valeur: false } }, ligne: route.apresPaiement.ligne });
+    if (payee) payee.champs.push({ nom: 'paye', type: { genre: 'booleen' }, regle: { genre: 'depart', valeur: { genre: 'valeur', valeur: false }, paiement: true }, ligne: route.apresPaiement.ligne });
   }
 
   // « seul son auteur peut … » : la donnée garde le compte qui a créé chaque fiche.

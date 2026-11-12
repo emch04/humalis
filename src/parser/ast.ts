@@ -278,7 +278,7 @@ export type ValeurFixe = { genre: 'valeur'; valeur: string | number | boolean } 
 
 /** Ce que le serveur décide d'un champ : « au depart "…" », « du site », « calcule … », « au plus … ». */
 export type RegleChamp =
-  | { genre: 'depart'; valeur: ValeurFixe }
+  | { genre: 'depart'; valeur: ValeurFixe; paiement?: true }
   | { genre: 'site' }
   | { genre: 'nombreDe'; liste: string }
   | { genre: 'somme'; prix: string; donnee: string; liste: string; plus?: string }

@@ -863,6 +863,7 @@ serveur "boutique" :
 - Un document sur une donnée inconnue : n'existe pas. Données
 - Un « refuser » après un paiement : le paiement est déjà fait
 - Un champ « auteur » écrit à la main : est rempli par le serveur avec le compte qui crée la fiche
+- Un nom de champ réservé : ce nom est réservé par le serveur
 - Une durée oubliée : il manque une durée
 - Une durée sans unité : il manque l’unité de la durée
 - Une durée qui n’est pas un nombre : une durée est un nombre suivi de son unité

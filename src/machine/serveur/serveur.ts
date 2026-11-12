@@ -468,6 +468,19 @@ export class ServeurMemoire {
       adresseDuSite: this.options.adresse,
     };
   }
+  /** « au plus » vaut aussi dans une modification : la fiche modifiée reste dans ses bornes. */
+  private plafondsModifies(donnee: Donnee, avant: Record<string, unknown>, envoye: Record<string, unknown>): string | undefined {
+    const fiche = { ...avant, ...envoye };
+    for (const { nom, regle } of donnee.champs) {
+      if (regle?.genre !== 'auPlus' || !(camel(nom) in envoye || camel(regle.par) in envoye)) continue;
+      const valeur = fiche[camel(nom)];
+      const cle = fiche[camel(regle.par)];
+      const [reference] = typeof cle === 'string' || typeof cle === 'number' ? this.stock(regle.donnee).lister({ egal: { [camel(regle.par)]: cle } }) : [];
+      const plafond = reference ? Number(reference[camel(regle.prix)]) || 0 : 0;
+      if (typeof valeur !== 'number' || valeur < 0 || valeur > plafond) return `le champ « ${camel(nom)} » doit être entre 0 et ${plafond}`;
+    }
+    return undefined;
+  }
   private async completer(donnee: Donnee, recu: Record<string, unknown>): Promise<{ valeur: Record<string, unknown> } | { erreur: string }> {
     const fiche: Record<string, unknown> = { ...recu };
     for (const { nom, regle } of donnee.champs) if (regle?.genre === 'depart') fiche[camel(nom)] = regle.valeur.genre === 'aujourdhui' ? aujourdhui() : regle.valeur.valeur;
@@ -651,6 +664,8 @@ export class ServeurMemoire {
       if (!('fiche' in v)) return v;
       const envoi = verifierEnvoi(schema, c.requete.corps, false, this.reglesEnvoi(donnee, route, c.moi?.role === 'admin'));
       if ('erreur' in envoi) return rep(400, { erreur: envoi.erreur });
+      const borne = this.plafondsModifies(donnee, v.fiche, envoi.valeur);
+      if (borne) return rep(400, { erreur: borne });
       const modifie = stock.modifier(premier, envoi.valeur);
       if (!modifie) return rep(404, { erreur: introuvable(route.donnee) });
       this.annoncerEcriture(route.donnee, donnee, modifie);

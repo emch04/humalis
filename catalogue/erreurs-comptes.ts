@@ -910,4 +910,10 @@ export const ENTREES_ERREURS_COMPTES: readonly EntreeErreur[] = [
     serveur('donnee avis :', '    texte : texte', '    auteur : texte', 'route "avis" :', '    tout le monde peut lire avis', '    connecte peut creer avis', '    seul son auteur peut modifier avis'),
     serveur('donnee avis :', '    texte : texte', 'route "avis" :', '    tout le monde peut lire avis', '    connecte peut creer avis', '    seul son auteur peut modifier avis'),
     'est rempli par le serveur avec le compte qui crée la fiche'),
+  e('champ-nom-reserve', 'sens', 'Un nom de champ réservé',
+    'Le serveur donne lui-même l’identifiant « id » de chaque fiche, et quelques noms (« constructor », « __proto__ », « prototype ») sont ceux des objets JavaScript : un champ ainsi nommé tromperait le serveur.',
+    'Donne au champ un autre nom.',
+    serveur('donnee avis :', '    id : texte', 'route "avis" :', '    tout le monde peut lire avis', '    connecte peut creer avis', '    seul admin peut modifier avis', '    seul admin peut supprimer avis'),
+    serveur('donnee avis :', '    reference : texte', 'route "avis" :', '    tout le monde peut lire avis', '    connecte peut creer avis', '    seul admin peut modifier avis', '    seul admin peut supprimer avis'),
+    'ce nom est réservé par le serveur'),
 ];

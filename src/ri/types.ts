@@ -149,7 +149,7 @@ export type ValeurLieeRI = ValeurFixeRI | { genre: 'champ'; champ: string };
 
 /** Ce que le serveur décide d'un champ ; les noms sont ceux du programme. */
 export type RegleChampRI =
-  | { genre: 'depart'; valeur: ValeurFixeRI }
+  | { genre: 'depart'; valeur: ValeurFixeRI; paiement?: true }
   | { genre: 'site' }
   | { genre: 'nombreDe'; liste: string }
   | { genre: 'somme'; prix: string; donnee: string; liste: string; plus?: string }

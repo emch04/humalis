@@ -23,6 +23,8 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[], pag
     donnees.set(donnee.nom, donnee.ligne);
     const champs = new Map<string, number>();
     for (const champ of donnee.champs) {
+      // « id » est donné par le serveur ; les autres noms sont ceux des objets JavaScript, qui tromperaient le serveur.
+      if (['id', '__proto__', 'constructor', 'prototype'].includes(champ.nom)) erreur(`« ${champ.nom} » ne peut pas nommer un champ de la donnée « ${donnee.nom} » : ce nom est réservé par le serveur. Choisis-en un autre.`, champ.ligne);
       if (champs.has(champ.nom)) erreur(`le champ « ${champ.nom} » est déjà déclaré (ligne ${champs.get(champ.nom)}).`, champ.ligne);
       champs.set(champ.nom, champ.ligne);
     }

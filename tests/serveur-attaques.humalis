@@ -1,0 +1,40 @@
+serveur "atelier" :
+    roles gerant
+    paiements par stripe
+    donnee produit :
+        nom : texte
+        prix : nombre
+    donnee secret par compte :
+        texte : texte
+    donnee facture :
+        montant : nombre
+        paye : booleen au depart faux
+    donnee reservation :
+        nom : texte
+        refs : liste de texte
+        total : nombre calcule somme prix de produit par refs
+        frais : nombre au plus prix de produit par nom
+    donnee journal :
+        nom : texte
+    route "produits" :
+        tout le monde peut lire produit
+        seul admin peut modifier produit
+    route "secrets" :
+        connecte peut lire secret
+        connecte peut creer secret
+        connecte peut modifier secret
+    route "factures" :
+        seul gerant peut lire facture
+        seul gerant peut creer facture
+        seul gerant peut modifier facture
+    route "reservations" :
+        connecte peut lire reservation
+        connecte peut creer reservation
+        seul son auteur peut modifier reservation
+        quand reservation est payee :
+            creer journal avec nom "payée"
+    route "journaux" :
+        seul admin peut lire journal
+
+page "a" :
+    titre "A"

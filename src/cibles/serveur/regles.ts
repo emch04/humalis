@@ -30,7 +30,7 @@ export function champsDuServeur(donnee: Donnee, route?: Route): string[] {
  */
 export function champsFiges(donnee: Donnee, admin = false): string[] {
   return donnee.champs
-    .filter((c) => c.regle?.genre === 'auteur' || c.regle?.genre === 'groupe' || (!admin && (c.regle?.genre === 'nombreDe' || c.regle?.genre === 'somme')) || (c.nom === 'paye' && c.regle?.genre === 'depart' && c.type.genre === 'booleen'))
+    .filter((c) => c.regle?.genre === 'auteur' || c.regle?.genre === 'groupe' || (!admin && (c.regle?.genre === 'nombreDe' || c.regle?.genre === 'somme')) || (c.regle?.genre === 'depart' && c.regle.paiement === true))
     .map((c) => camel(c.nom));
 }
 
@@ -41,7 +41,9 @@ export function reglesEnvoi(donnee: Donnee, route: Route, modification = false):
   const serveur = champsDuServeur(donnee, route);
   const site = champsDuSite(donnee);
   const nonVides = donnee.champs.filter((c) => c.nonVide).map((c) => camel(c.nom));
-  const fixes = champsFiges(donnee);
+  // Le champ que « creer … dans … » remplit sur cette route est écrit par le serveur : un admin peut le corriger.
+  const dans = (route.creations ?? []).flatMap((c) => (c.dans !== undefined ? [camel(c.dans)] : []));
+  const fixes = [...new Set([...champsFiges(donnee), ...dans])];
   const fixesHorsAdmin = champsFiges(donnee, true);
   // Dans une modification, un admin peut corriger un calcul ; personne d'autre.
   const codeFixes = modification && fixesHorsAdmin.length !== fixes.length
@@ -49,6 +51,35 @@ export function reglesEnvoi(donnee: Donnee, route: Route, modification = false):
     : JSON.stringify(fixes);
   if (serveur.length === 0 && site.length === 0 && nonVides.length === 0) return '';
   return `, { duServeur: ${JSON.stringify(serveur)}, duSite: ${JSON.stringify(site)}${nonVides.length > 0 ? `, nonVides: ${JSON.stringify(nonVides)}` : ''}${fixes.length > 0 ? `, fixes: ${codeFixes}` : ''} }`;
+}
+
+/**
+ * « au plus » vaut aussi dans une modification : quand la requête change le champ borné ou celui qui choisit son
+ * plafond, la fiche modifiée est revérifiée. Rien si la donnée n'a pas de champ « au plus ».
+ */
+export function codePlafondsModification(donnee: Donnee): string {
+  const bornes = donnee.champs.filter((c) => c.regle?.genre === 'auPlus');
+  if (bornes.length === 0) return '';
+  const lignes = bornes.map(({ nom, regle }) => {
+    if (regle?.genre !== 'auPlus') return '';
+    const champ = chaine(camel(nom));
+    const par = chaine(camel(regle.par));
+    return `            if (${champ} in envoi.valeur || ${par} in envoi.valeur) {
+              const plafond = await plafondDe(stockages.${camel(regle.donnee)}, ${par}, fusion[${par}], ${chaine(camel(regle.prix))});
+              const valeur = fusion[${champ}];
+              if (typeof valeur !== 'number' || valeur < 0 || valeur > plafond) {
+                res.status(400).json({ erreur: \`le champ « ${camel(nom)} » doit être entre 0 et \${plafond}\` });
+                return;
+              }
+            }`;
+  });
+  return `          // « au plus » : la fiche modifiée reste dans ses bornes.
+          {
+            const avant = await stockages.${camel(donnee.nom)}.trouver(req.params.id);
+            const fusion: Record<string, unknown> = { ...(avant ?? {}), ...envoi.valeur };
+${lignes.join('\n')}
+          }
+`;
 }
 
 /** Vrai si la création de cette donnée passe par une fonction « completer… ». */
