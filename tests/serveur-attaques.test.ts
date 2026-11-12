@@ -70,6 +70,7 @@ console.log(JSON.stringify(r));
 
 type Reponse = { statut: number; corps: Record<string, unknown> };
 let r: Record<string, Reponse>;
+let produits = '';
 
 describe('des attaques sur un vrai serveur produit', () => {
   beforeAll(() => {
@@ -86,8 +87,19 @@ describe('des attaques sur un vrai serveur produit', () => {
     if (!existsSync(join(dossier, 'node_modules', 'typescript'))) execFileSync('npm', ['install', '--no-audit', '--no-fund'], { cwd: dossier, stdio: 'pipe' });
     execFileSync('npx', ['tsc'], { cwd: dossier, stdio: 'pipe' });
     r = JSON.parse(execFileSync('node', ['scenario.mjs'], { cwd: dossier, encoding: 'utf8' }).trim().split('\n').at(-1)!);
+    // Les tests que le compilateur écrit dans le serveur (règles, sessions, attaques) : lancés pour de vrai.
+    try {
+      produits = execFileSync('npx', ['vitest', 'run', '--dir', 'tests'], { cwd: dossier, encoding: 'utf8', stdio: 'pipe' });
+    } catch (erreur) {
+      produits = String((erreur as { stdout?: unknown }).stdout ?? erreur);
+    }
   }, 300_000);
 
+  it('les tests écrits dans le serveur produit passent tous : règles, sessions et attaques', () => {
+    expect(produits).not.toMatch(/\bfailed\b/);
+    expect(produits).toMatch(/Test Files\s+3 passed/);
+    expect(Number(/Tests\s+(\d+) passed/.exec(produits)?.[1])).toBeGreaterThan(50);
+  });
   it('les fiches de départ sont créées', () => {
     expect([r.secretAwa!.statut, r.resa!.statut, r.facture!.statut]).toEqual([201, 201, 201]);
   });

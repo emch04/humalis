@@ -1,3 +1,4 @@
+import { testsAttaques } from './attaques.js';
 import { LIGNES_SERVEUR_TS } from './lignes.js';
 import { COMPOSER_CARTES_JS } from '../lignes-humalis.js';
 import { avecComptes, avecEmails, CLES_BREVO, codeCreationComptes, codeEnvois, codeRoutesComptes, COMPTES, EMAILS, ENV_EMAILS, ENV_LIENS, testsComptes } from './comptes.js';
@@ -105,6 +106,9 @@ export function genererProjetServeur(complet: ServeurRI, options: OptionsServeur
   fichiers.set('src/serveur.ts', serveurTs(serveur, options.chemins, avecTempsReel(complet) ? codeMontageTempsReel(complet) : ''));
   fichiers.set('src/demarrer.ts', demarrerTs(serveur));
   fichiers.set('tests/regles.test.ts', testsRegles(serveur));
+  // Les tests négatifs : ce qu'un attaquant essaie sur chaque route de ce programme.
+  const attaques = testsAttaques(serveur);
+  if (attaques) fichiers.set('tests/attaques.test.ts', attaques);
   fichiers.set('tests/sessions.test.ts', testsSessions(serveur));
   if (avecDirect(serveur)) fichiers.set('src/humalis/direct.ts', DIRECT);
   if (compteRelu(serveur) || serveur.routes.some((r) => r.actions?.length && serveur.donnees.find((d) => d.nom === r.donnee)?.par)) fichiers.set('src/humalis/separation.ts', SEPARATION);
@@ -1474,11 +1478,9 @@ ${serveur.captureErreurs ? "      app.use((erreur: unknown, req: express.Request
       // dans le journal du serveur.
       app.use((erreur: unknown, req: express.Request, res: express.Response, next: express.NextFunction) => {
         if (res.headersSent) return next(erreur);
-        const e = (erreur ?? {}) as { statusCode?: unknown; status?: unknown; message?: unknown; expose?: unknown };
+        const e = (erreur ?? {}) as { statusCode?: unknown; status?: unknown; message?: unknown };
         const brut = Number(e.statusCode ?? e.status);
-        const lu = Number.isInteger(brut) && brut >= 400 && brut < 600 ? brut : 500;
-        // Un 4xx d'Express se déclare « expose ». Celui d'un service extérieur (clé Stripe refusée) devient 502, sans son message.
-        const statut = lu < 500 && e.expose !== true ? 502 : lu;
+        const statut = Number.isInteger(brut) && brut >= 400 && brut < 600 ? brut : 500;
         if (statut >= 500) console.error(\`[requestId=\${(req as { requestId?: string }).requestId ?? 'n/a'}]\`, erreur);
         const message = statut >= 500 ? 'Erreur interne du serveur.' : typeof e.message === 'string' && e.message ? e.message : 'Requête refusée.';
         res.status(statut).json({ success: false, message, data: null, timestamp: new Date().toISOString(), error: message });

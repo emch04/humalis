@@ -703,14 +703,21 @@ export function creerPaiements<T, S>({ surConfirme }: { surConfirme: (donnee: st
       if (!Number.isInteger(centimes) || centimes <= 0) return { erreur: 'ce montant ne peut pas être payé', statut: 400 };
       // Seulement un chemin de ce site : un lien de retour ne doit jamais mener ailleurs.
       const chemin = typeof retour === 'string' && /^\/(?!\/)/.test(retour) ? retour : '/';
-      const session = await stripe.checkout.sessions.create({
-        mode: 'payment',
-        line_items: [{ quantity: 1, price_data: { currency: process.env.HUMALIS_PAIEMENT_DEVISE ?? 'eur', unit_amount: centimes, product_data: { name: donnee } } }],
-        success_url: site + chemin,
-        cancel_url: site + chemin,
-        metadata: { donnee, id, champ },
-      });
-      return session.url ? { url: session.url } : { erreur: "le paiement n'a pas pu commencer", statut: 502 };
+      // Un refus de Stripe (clé fausse, compte fermé) n'est pas un refus de la personne : il reste dans le journal,
+      // et la page reçoit 502, jamais le 401 de Stripe qui lui ferait croire sa session finie.
+      try {
+        const session = await stripe.checkout.sessions.create({
+          mode: 'payment',
+          line_items: [{ quantity: 1, price_data: { currency: process.env.HUMALIS_PAIEMENT_DEVISE ?? 'eur', unit_amount: centimes, product_data: { name: donnee } } }],
+          success_url: site + chemin,
+          cancel_url: site + chemin,
+          metadata: { donnee, id, champ },
+        });
+        return session.url ? { url: session.url } : { erreur: "le paiement n'a pas pu commencer", statut: 502 };
+      } catch (erreur) {
+        console.error('Stripe a refusé de commencer un paiement :', erreur instanceof Error ? erreur.message : erreur);
+        return { erreur: "le paiement n'a pas pu commencer : le service de paiement a refusé la demande", statut: 502 };
+      }
     },
 
     /** Stripe rappelle ici. Le corps brut est nécessaire pour vérifier la signature. */

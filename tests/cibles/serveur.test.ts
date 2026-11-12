@@ -12,7 +12,7 @@ describe('cible serveur — projet produit', () => {
     expect([...fichiers.keys()].sort()).toEqual([
       '.env.exemple', '.gitignore', '.humalis-projet', 'LISEZMOI.md', 'humalis-cartes.mjs', 'package.json',
       'src/demarrer.ts', 'src/donnees.ts', 'src/humalis/centrale.ts', 'src/humalis/coffre.ts', 'src/humalis/compresser.ts', 'src/humalis/envois.ts', 'src/humalis/lignes.ts', 'src/humalis/renouvellements.ts', 'src/humalis/sessions.ts', 'src/humalis/stockage.ts', 'src/humalis/verifier.ts', 'src/serveur.ts',
-      'tests/regles.test.ts', 'tests/sessions.test.ts', 'tsconfig.json',
+      'tests/attaques.test.ts', 'tests/regles.test.ts', 'tests/sessions.test.ts', 'tsconfig.json',
     ]);
   });
 
