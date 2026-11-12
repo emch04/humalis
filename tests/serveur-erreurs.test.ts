@@ -21,9 +21,18 @@ describe('la réponse d’une erreur du serveur', () => {
   });
 
   it('ne dépend pas de NODE_ENV et ne contient jamais la pile', () => {
-    const bloc = serveur.slice(serveur.indexOf("const message = statut >= 500 ? 'Erreur interne du serveur.'") - 600, serveur.indexOf("error: message });") + 20);
+    const bloc = serveur.slice(serveur.indexOf("const message = statut >= 500 ? 'Erreur interne du serveur.'") - 900, serveur.indexOf("error: message });") + 20);
     expect(bloc).not.toContain('NODE_ENV');
     expect(bloc).not.toMatch(/stack/);
     expect(bloc).toContain('res.headersSent');
+  });
+});
+
+describe('une erreur 4xx venue d’un service extérieur', () => {
+  const source = 'serveur "boutique" :\n    donnee produit :\n        nom : texte\n    route "produits" :\n        tout le monde peut lire produit\n\npage "a" :\n    titre "A"\n';
+  const serveur = genererProjetServeur(compiler(source).application!.serveurs[0]!, { nom: 'b', source: 'b.humalis' }).get('src/serveur.ts')!;
+
+  it('ne part pas telle quelle : sans « expose », elle devient 502 et son message reste dans le journal', () => {
+    expect(serveur).toContain('const statut = lu < 500 && e.expose !== true ? 502 : lu;');
   });
 });

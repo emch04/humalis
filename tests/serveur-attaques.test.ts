@@ -59,6 +59,9 @@ const r = {
   fraisNegatifs: await envoyer('PATCH', '/api/reservations/' + resa.corps.id, a, { frais: -5000 }),
   fraisPermis: await envoyer('PATCH', '/api/reservations/' + resa.corps.id, a, { frais: 15 }),
   factureEncaissee: await envoyer('PATCH', '/api/factures/' + facture.corps.id, gerant, { paye: true }),
+  champHerite: await envoyer('POST', '/api/secrets', a, { texte: 'x', toString: 'y' }),
+  champConstructeur: await envoyer('PATCH', '/api/secrets/' + secretAwa.corps.id, a, { hasOwnProperty: 1 }),
+  jsonCasse: await (async () => { const reponse = await fetch(base + '/api/secrets', { method: 'POST', headers: a, body: '{"texte":' }); return { statut: reponse.status, corps: await reponse.json().catch(() => null) }; })(),
 };
 ecoute.close();
 ecoute.closeAllConnections();
@@ -103,6 +106,13 @@ describe('des attaques sur un vrai serveur produit', () => {
   });
   it('« au plus » vaut aussi dans une modification', () => {
     expect([r.fraisTropHauts!.statut, r.fraisNegatifs!.statut, r.fraisPermis!.statut]).toEqual([400, 400, 200]);
+  });
+  it('un nom hérité des objets JavaScript (toString, hasOwnProperty) est un champ inconnu comme un autre', () => {
+    expect([r.champHerite!.statut, r.champConstructeur!.statut]).toEqual([400, 400]);
+    expect(String(r.champHerite!.corps.erreur)).toContain("n'existe pas");
+  });
+  it('un corps illisible reste une erreur 400', () => {
+    expect(r.jsonCasse!.statut).toBe(400);
   });
   it('un « paye » ordinaire, sans Stripe, s’encaisse à la main', () => {
     expect(r.factureEncaissee!.statut).toBe(200);

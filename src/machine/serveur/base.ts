@@ -141,7 +141,7 @@ export function verifierEnvoi(schema: Schema, corps: unknown, complet: boolean, 
   for (const cle of Object.keys(corps)) {
     if (cle === 'id') return { erreur: "l'identifiant est donné par le serveur : ne l'envoie pas" };
     if ((complet && regles.duServeur?.includes(cle)) || regles.fixes?.includes(cle)) return { erreur: `le champ « ${cle} » est donné par le serveur : ne l'envoie pas` };
-    if (!(cle in schema)) return { erreur: `le champ « ${cle} » n'existe pas. Champs : ${champs.join(', ')}` };
+    if (!Object.hasOwn(schema, cle)) return { erreur: `le champ « ${cle} » n'existe pas. Champs : ${champs.join(', ')}` };
   }
   const valeur: Record<string, unknown> = {};
   for (const champ of champs) {

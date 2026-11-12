@@ -864,7 +864,7 @@ export function verifierEnvoi(
   for (const cle of Object.keys(corps)) {
     if (cle === 'id') return { erreur: "l'identifiant est donné par le serveur : ne l'envoie pas" };
     if ((complet && regles.duServeur?.includes(cle)) || regles.fixes?.includes(cle)) return { erreur: \`le champ « \${cle} » est donné par le serveur : ne l'envoie pas\` };
-    if (!(cle in schema)) return { erreur: \`le champ « \${cle} » n'existe pas. Champs : \${champs.join(', ')}\` };
+    if (!Object.hasOwn(schema, cle)) return { erreur: \`le champ « \${cle} » n'existe pas. Champs : \${champs.join(', ')}\` };
   }
   const valeur: Record<string, unknown> = {};
   for (const champ of champs) {
@@ -1474,9 +1474,11 @@ ${serveur.captureErreurs ? "      app.use((erreur: unknown, req: express.Request
       // dans le journal du serveur.
       app.use((erreur: unknown, req: express.Request, res: express.Response, next: express.NextFunction) => {
         if (res.headersSent) return next(erreur);
-        const e = (erreur ?? {}) as { statusCode?: unknown; status?: unknown; message?: unknown };
+        const e = (erreur ?? {}) as { statusCode?: unknown; status?: unknown; message?: unknown; expose?: unknown };
         const brut = Number(e.statusCode ?? e.status);
-        const statut = Number.isInteger(brut) && brut >= 400 && brut < 600 ? brut : 500;
+        const lu = Number.isInteger(brut) && brut >= 400 && brut < 600 ? brut : 500;
+        // Un 4xx d'Express se déclare « expose ». Celui d'un service extérieur (clé Stripe refusée) devient 502, sans son message.
+        const statut = lu < 500 && e.expose !== true ? 502 : lu;
         if (statut >= 500) console.error(\`[requestId=\${(req as { requestId?: string }).requestId ?? 'n/a'}]\`, erreur);
         const message = statut >= 500 ? 'Erreur interne du serveur.' : typeof e.message === 'string' && e.message ? e.message : 'Requête refusée.';
         res.status(statut).json({ success: false, message, data: null, timestamp: new Date().toISOString(), error: message });
