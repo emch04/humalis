@@ -56,6 +56,29 @@ const r = {
 };
 const charge = r.jetonAutre.corps?.jeton ? JSON.parse(Buffer.from(r.jetonAutre.corps.jeton.split('.')[1], 'base64url').toString()) : {};
 r.nomDansLeJeton = { statut: 0, corps: { nom: charge.name ?? '', duree: (charge.exp ?? 0) - (charge.iat ?? charge.nbf ?? 0) } };
+// Les pièces jointes (S9) : un volume par heure et par compte (ici 1 Mo), et peu de fichiers en attente d'un message.
+process.env.HUMALIS_PIECES_MO_PAR_HEURE = '1';
+const deposer = async (entetes, octets, nom = 'f.txt') => {
+  const formulaire = new FormData();
+  formulaire.append('fichier', new Blob([new Uint8Array(octets).fill(65)]), nom);
+  const { 'content-type': _json, ...sans } = entetes;
+  const reponse = await fetch(base + '/api/discussions_aide_pieces', { method: 'POST', headers: sans, body: formulaire });
+  return { statut: reponse.status, corps: await reponse.json().catch(() => null) };
+};
+const enAttente = async (compte) => (await stockages.pieceAide.lister()).filter((p) => p.auteur === String(compte.id) && p.conversation === '').length;
+const petits = [];
+for (let i = 0; i < 6; i++) petits.push(await deposer(un, 10, 'petit' + i + '.txt'));
+r.petitsFichiers = { statut: 0, corps: { statuts: petits.map((p) => p.statut), enAttente: await enAttente(e1) } };
+// La dernière pièce déposée, jointe à un message, n'est plus « en attente » : le ménage ne la touche pas.
+const jointe = petits.at(-1).corps.id;
+r.messageAvecPiece = await envoyer('/api/discussions_aide_messages', un, { texte: 'voici', piece: jointe });
+for (let i = 0; i < 4; i++) await deposer(un, 10, 'encore' + i + '.txt');
+r.pieceJointeGardee = { statut: 0, corps: { gardee: (await stockages.pieceAide.trouver(jointe)) !== null, enAttente: await enAttente(e1) } };
+r.grosPermis = await deposer(un, 600 * 1024, 'gros1.bin');
+r.grosRefuse = await deposer(un, 600 * 1024, 'gros2.bin');
+r.autreCompte = await deposer(deux, 600 * 1024, 'gros3.bin');
+r.pieceSansCsrf = await deposer(parCookie, 10);
+r.pieceSansSession = await deposer({}, 10);
 ecoute.close();
 ecoute.closeAllConnections();
 console.log(JSON.stringify(r));
@@ -90,6 +113,20 @@ describe('le temps réel sur un vrai serveur produit', () => {
   it('le jeton dure dix minutes, et le nom affiché n’est pas l’adresse e-mail', () => {
     expect(r.nomDansLeJeton!.corps.nom).toBe('eleve.deux');
     expect(r.nomDansLeJeton!.corps.duree).toBeLessThanOrEqual(600);
+  });
+  it('les fichiers envoyés puis jamais joints ne s’entassent pas : trois en attente au plus par compte (S9)', () => {
+    expect(r.petitsFichiers!.corps.statuts).toEqual([201, 201, 201, 201, 201, 201]);
+    expect(r.petitsFichiers!.corps.enAttente).toBe(3);
+  });
+  it('une pièce jointe à un message est gardée, quoi qu’on envoie ensuite', () => {
+    expect(r.messageAvecPiece!.statut).toBe(201);
+    expect(r.pieceJointeGardee!.corps).toEqual({ gardee: true, enAttente: 3 });
+  });
+  it('au-delà du volume par heure, le compte est refusé (429) ; un autre compte envoie encore', () => {
+    expect([r.grosPermis!.statut, r.grosRefuse!.statut, r.autreCompte!.statut]).toEqual([201, 429, 201]);
+  });
+  it('déposer un fichier demande une session et la garde CSRF', () => {
+    expect([r.pieceSansCsrf!.statut, r.pieceSansSession!.statut]).toEqual([403, 401]);
   });
   it('une écriture normale passe toujours', () => {
     expect(r.message!.statut).toBe(201);

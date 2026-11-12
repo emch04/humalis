@@ -656,11 +656,13 @@ export function codeSurPaiement(serveur: ServeurRI): string {
     const donnee = serveur.donnees.find((d) => d.nom === route.donnee)!;
     return `        ${chaine(route.donnee)}: async (travail, s, id, champ, montant) => {
           const ${repereNom(route.donnee, route.ligneApresPaiement)}${nom} = await s.${camel(route.donnee)}.trouver(id, true);
-          if (!${nom} || ${nom}.paye === true) return;
-          if (Math.round(Number(${nom}[champ]) * 100) !== montant) {
-            console.error('Paiement ignoré : le montant ne correspond plus à la fiche', id);
-            return;
-          }
+          // De l'argent est arrivé mais la fiche ne peut pas être marquée payée : ce n'est jamais passé sous silence.
+          // L'erreur annule tout, le webhook répond 500, et Stripe représente le paiement (et le montre dans son
+          // tableau de bord) : corriger la fiche suffit pour que le prochain essai l'enregistre.
+          if (!${nom}) throw new Error('paiement de ' + montant / 100 + ' reçu pour « ${route.donnee} » ' + id + ', mais cette fiche a disparu : à rembourser ou à traiter à la main');
+          if (${nom}.paye === true) return;
+          const attendu = Math.round(Number(${nom}[champ]) * 100);
+          if (attendu !== montant) throw new Error('paiement de ' + montant / 100 + ' reçu pour « ${route.donnee} » ' + id + ', mais la fiche demande ' + attendu / 100 + ' : corrige « ' + champ + ' » ou rembourse');
           Object.assign(${nom}, await s.${camel(route.donnee)}.modifier(id, { paye: true }));
           noter(travail, ${chaine(route.donnee)}${donnee.par ? `, ${nom}[${chaine(camel(donnee.par))}]` : ''});
 ${new Ecriture(serveur, undefined).lignes(route.apresPaiement!, '          ')}

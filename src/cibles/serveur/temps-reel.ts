@@ -58,6 +58,8 @@ export const ENV_TEMPS_REEL = `# Les réunions et les appels (LiveKit, hébergé
 LIVEKIT_URL=
 LIVEKIT_API_KEY=
 LIVEKIT_API_SECRET=
+# Ce qu'un compte peut envoyer en pièces jointes par heure, en Mo (50 par défaut).
+HUMALIS_PIECES_MO_PAR_HEURE=
 # L'adresse publique de ce serveur, pour les liens des pièces jointes (sinon, celle de la requête).
 HUMALIS_ADRESSE=`;
 
@@ -288,6 +290,26 @@ interface Options {
 const MESSAGES_AU_PLUS = 200;
 const TEXTE_AU_PLUS = 8000;
 const PIECE_AU_PLUS = 10 * 1024 * 1024;
+const HEURE_MS = 3600000;
+/** Les fichiers envoyés puis jamais joints à un message : on n'en garde que quelques-uns par compte. */
+const ORPHELINES_AU_PLUS = 3;
+/** Ce qu'un compte peut envoyer en une heure, tous fichiers confondus : 50 Mo, ou HUMALIS_PIECES_MO_PAR_HEURE. */
+const quotaPieces = (): number => {
+  const regle = Number(process.env.HUMALIS_PIECES_MO_PAR_HEURE);
+  return (Number.isFinite(regle) && regle > 0 ? regle : 50) * 1024 * 1024;
+};
+/** Les envois récents de chaque compte (moment, octets) : en mémoire, comme les autres limites de débit. */
+const envoisDePieces = new Map<string, [number, number][]>();
+function dejaEnvoye(compte: string, instant: number): number {
+  // De temps en temps, les comptes qui n'envoient plus rien sortent de la mémoire.
+  if (envoisDePieces.size > 5000) {
+    for (const [autre, envois] of envoisDePieces) if (envois.every(([quand]) => quand <= instant - HEURE_MS)) envoisDePieces.delete(autre);
+  }
+  const recents = (envoisDePieces.get(compte) ?? []).filter(([quand]) => quand > instant - HEURE_MS);
+  if (recents.length > 0) envoisDePieces.set(compte, recents);
+  else envoisDePieces.delete(compte);
+  return recents.reduce((total, [, octets]) => total + octets, 0);
+}
 const ECRITURE_MS = 6000;
 const SONNERIE_MS = 45000;
 const PRESENCE_MS = 60000;
@@ -665,7 +687,16 @@ export function monterTempsReel(cible: { use(routes: RequestHandler): unknown },
           res.status(413).json({ erreur: 'Ce fichier dépasse 10 Mo.' });
           return;
         }
-        const cree = await pieces.creer({ conversation: '', auteur: moi.id, nom: fichier.nom, genre: fichier.type, contenu: fichier.contenu.toString('base64') });
+        // Un compte n'entasse pas des fichiers dans la base : un volume par heure, et peu de fichiers en attente d'un message.
+        const instant = Date.now();
+        if (dejaEnvoye(moi.id, instant) + fichier.contenu.length > quotaPieces()) {
+          res.status(429).json({ erreur: 'Vous avez envoyé beaucoup de fichiers : réessayez dans une heure.' });
+          return;
+        }
+        const enAttente = (await pieces.lister({ egal: { auteur: moi.id, conversation: '' } })).sort((a, b) => String(b.creeLe ?? '').localeCompare(String(a.creeLe ?? '')));
+        for (const ancienne of enAttente.slice(ORPHELINES_AU_PLUS - 1)) await pieces.supprimer(String(ancienne.id));
+        const cree = await pieces.creer({ conversation: '', auteur: moi.id, nom: fichier.nom, genre: fichier.type, contenu: fichier.contenu.toString('base64'), creeLe: maintenant() });
+        envoisDePieces.set(moi.id, [...(envoisDePieces.get(moi.id) ?? []), [instant, fichier.contenu.length]]);
         res.status(201).json({ id: cree.id, conversation: '', auteur: moi.id, nom: fichier.nom, genre: fichier.type, contenu: '' });
       } catch (erreur) {
         next(erreur);

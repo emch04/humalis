@@ -63,6 +63,20 @@ const r = {
   champConstructeur: await envoyer('PATCH', '/api/secrets/' + secretAwa.corps.id, a, { hasOwnProperty: 1 }),
   jsonCasse: await (async () => { const reponse = await fetch(base + '/api/secrets', { method: 'POST', headers: a, body: '{"texte":' }); return { statut: reponse.status, corps: await reponse.json().catch(() => null) }; })(),
 };
+// Un paiement confirmé par Stripe dont le montant n'est pas celui de la fiche : jamais passé sous silence.
+const { createHmac } = await import('node:crypto');
+const webhook = async (montant) => {
+  const corps = JSON.stringify({ id: 'evt_1', object: 'event', type: 'checkout.session.completed', data: { object: { id: 'cs_1', object: 'checkout.session', payment_status: 'paid', amount_total: montant, metadata: { donnee: 'reservation', id: resa.corps.id, champ: 'total' } } } });
+  const t = Math.floor(Date.now() / 1000);
+  const reponse = await fetch(base + '/paiements/webhook', { method: 'POST', headers: { ...json, 'stripe-signature': 't=' + t + ',v1=' + createHmac('sha256', process.env.STRIPE_SECRET_WEBHOOK).update(t + '.' + corps).digest('hex') }, body: corps });
+  return { statut: reponse.status, corps: { ...(await stockages.reservation.trouver(resa.corps.id)) } };
+};
+const silence = console.error; console.error = () => {};
+r.paiementMauvaisMontant = await webhook(500);
+r.paiementBonMontant = await webhook(700);
+r.paiementRejoue = await webhook(700);
+console.error = silence;
+r.journalApresPaiement = { statut: 0, corps: { lignes: (await stockages.journal.lister()).length } };
 ecoute.close();
 ecoute.closeAllConnections();
 console.log(JSON.stringify(r));
@@ -125,6 +139,14 @@ describe('des attaques sur un vrai serveur produit', () => {
   });
   it('un corps illisible reste une erreur 400', () => {
     expect(r.jsonCasse!.statut).toBe(400);
+  });
+  it('un paiement confirmé au mauvais montant : 500, fiche impayée ; Stripe le représente, et le bon montant l’enregistre une seule fois', () => {
+    expect(r.paiementMauvaisMontant!.statut).toBe(500);
+    expect(r.paiementMauvaisMontant!.corps.paye).toBe(false);
+    expect(r.paiementBonMontant!.statut).toBe(200);
+    expect(r.paiementBonMontant!.corps.paye).toBe(true);
+    expect(r.paiementRejoue!.statut).toBe(200);
+    expect(r.journalApresPaiement!.corps.lignes).toBe(1);
   });
   it('un « paye » ordinaire, sans Stripe, s’encaisse à la main', () => {
     expect(r.factureEncaissee!.statut).toBe(200);
