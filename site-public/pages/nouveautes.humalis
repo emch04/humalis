@@ -32,6 +32,7 @@ page "nouveautes" a l'adresse "/nouveautes" :
                     soustitre "Windows et le bureau" en anglais "Windows and desktop"
                     liste :
                         texte "`payer total pour r` marche sur Windows : la page de paiement Stripe s’ouvre, et la fiche payée se relit au retour dans l’application." en anglais "`payer total pour r` works on Windows: the Stripe payment page opens, and the paid record is read again when you come back to the app."
+                        texte "`mises a jour depuis "https://telechargements.exemple.fr/boutique"` : l’application de bureau installée cherche ses nouvelles versions à cette adresse, même sans site public. La commande prévient quand une application de bureau n’a aucune adresse de mises à jour." en anglais "`mises a jour depuis "https://telechargements.exemple.fr/boutique"`: the installed desktop app looks for its new versions at this address, even without a public site. The command warns when a desktop app has no update address."
                         texte "Les clés d’accès arrivent sur l’application de bureau : Touch ID sur Mac, avec une clé gardée dans la Secure Enclave, et Windows Hello sur Windows." en anglais "Passkeys come to the desktop app: Touch ID on Mac, with a key kept in the Secure Enclave, and Windows Hello on Windows."
                     soustitre "Plus juste partout" en anglais "More accurate everywhere"
                     liste :

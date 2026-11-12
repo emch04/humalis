@@ -3578,8 +3578,23 @@ Sur le desktop, la même `adresse` sert aux mises à jour automatiques :
 l'application installée cherche une nouvelle version dans le dossier
 `mises-a-jour/` de cette adresse. `npm run paquet` y prépare tout (l'installateur
 `.dmg` pour Mac, `.exe` pour Windows, et les fichiers `latest*.yml`) : tu déposes
-ces fichiers dans ce dossier. Sans `adresse`, l'application ne cherche pas de mise
-à jour. Sur Mac, la mise à jour automatique demande une application signée.
+ces fichiers dans ce dossier. Sur Mac, la mise à jour automatique demande une
+application signée.
+
+Une application sans site public donne l'adresse en haut du fichier :
+
+```humalis
+mises a jour depuis "https://telechargements.exemple.fr/boutique"
+
+page "accueil" :
+    titre "Boutique"
+```
+
+L'application installée cherche ses nouvelles versions à cette adresse au
+lancement, les télécharge en arrière-plan et les installe à la fermeture.
+L'adresse est en `https`, sans mot de passe ; elle passe avant celle du bloc
+`site`. Sans l'une ni l'autre, l'application ne se met pas à jour seule : elle
+garde son moteur d'origine, et la commande le dit à la compilation.
 
 La ligne `erreurs pendant 5 secondes` du bloc `site :` règle combien de temps
 restent les erreurs du site, celles que tu écris sans durée et celles que

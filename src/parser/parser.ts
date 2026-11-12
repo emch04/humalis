@@ -95,6 +95,7 @@ function lireLeProgramme(tokens: Token[]): Programme {
   let paquetsAndroid: NonNullable<Programme['paquetsAndroid']> | undefined;
   let paquetsWindows: NonNullable<Programme['paquetsWindows']> | undefined;
   let liensProfonds: Programme['liensProfonds'];
+  let misesAJour: Programme['misesAJour'];
   let ongletsApplication: Programme['ongletsApplication'];
   let barreLaterale: string | undefined;
   const commandesMenu: Evenement[] = [];
@@ -291,6 +292,25 @@ function lireLeProgramme(tokens: Token[]): Programme {
       continue;
     }
 
+    // « mises a jour depuis "https://…" » : où l'application installée cherche ses nouvelles versions.
+    if (estLeMot(flux.actuel(), 'mises') && estLeMot(flux.regarder(1), 'jour')) {
+      const debut = flux.avancer();
+      flux.avancer();
+      const exemple = 'mises a jour depuis "https://telechargements.exemple.fr/boutique"';
+      if (!estLeMot(flux.actuel(), 'depuis')) throw new ErreurSyntaxique(`après « mises a jour », « depuis » puis l’adresse entre guillemets : ${exemple}`, debut.ligne);
+      flux.avancer();
+      if (!flux.verifier('CHAINE')) throw new ErreurSyntaxique(`il manque l’adresse entre guillemets : ${exemple}`, debut.ligne);
+      const adresse = flux.avancer().valeur.trim();
+      // Les nouvelles versions sont du code qui s'exécute : https seulement, sans mot de passe ni paramètre dans l'adresse.
+      if (!/^https:\/\/[a-z0-9.-]+(:\d+)?(\/[^\s?#]*)?$/i.test(adresse)) {
+        throw new ErreurSyntaxique(`« ${adresse} » ne convient pas pour des mises à jour : une adresse complète en https://, sans mot de passe, sans « ? » ni « # », par exemple ${exemple}`, debut.ligne);
+      }
+      if (misesAJour) throw new ErreurSyntaxique('« mises a jour depuis » ne s’écrit qu’une fois par application.', debut.ligne);
+      misesAJour = { adresse: adresse.replace(/\/+$/, ''), ligne: debut.ligne };
+      flux.sauterFinsDeLigne();
+      continue;
+    }
+
     // « liens profonds "magasin" » : les adresses magasin://… ouvrent les pages.
     if (estLeMot(flux.actuel(), 'liens') && estLeMot(flux.regarder(1), 'profonds')) {
       const debut = flux.avancer();
@@ -483,7 +503,7 @@ function lireLeProgramme(tokens: Token[]): Programme {
   for (const s of stylesHumalis) styles.push({ type: 'BlocStyle', css: cssDuStyle(s, theme), ligne: s.ligne });
   const stylesDeclares = stylesHumalis.map((s) => ({ nom: s.nom, declarations: declarationsDuStyle(s, theme) }));
   for (const d of formes?.donneesLocales ?? []) partages.push(variableDeDonneeLocale(d));
-  const programme: Programme = { type: 'Programme', ...(stylesDeclares.length ? { stylesHumalis: stylesDeclares } : {}), pages, ...(fichiersIcones.length ? { fichiersIcones } : {}), ...(barreDessinee ? { barreDessinee } : {}), ...(ongletsApplication ? { ongletsApplication } : {}), ...(barreLaterale ? { barreLaterale } : {}), ...(paquetsSwift ? { paquetsSwift } : {}), ...(formes ? { formes } : {}), ...(paquetsAndroid ? { paquetsAndroid } : {}), ...(paquetsWindows ? { paquetsWindows } : {}), ...(liensProfonds ? { liensProfonds } : {}), ...(enTete.length > 0 ? { calculsPartages: enTete } : {}), styles, fichiersStyle, donneesFichiers, partages, composantsReact, composants, serveurs, sources, fichiersHumalis, fonctions, tests, ...(theme ? { theme } : {}), ...(site ? { site } : {}), ...(langues ? { langues } : {}), ...(traductions.length ? { traductions } : {}), ...(entete ? { entete } : {}), ...(pied ? { pied } : {}) };
+  const programme: Programme = { type: 'Programme', ...(stylesDeclares.length ? { stylesHumalis: stylesDeclares } : {}), pages, ...(fichiersIcones.length ? { fichiersIcones } : {}), ...(barreDessinee ? { barreDessinee } : {}), ...(ongletsApplication ? { ongletsApplication } : {}), ...(barreLaterale ? { barreLaterale } : {}), ...(paquetsSwift ? { paquetsSwift } : {}), ...(formes ? { formes } : {}), ...(paquetsAndroid ? { paquetsAndroid } : {}), ...(paquetsWindows ? { paquetsWindows } : {}), ...(liensProfonds ? { liensProfonds } : {}), ...(misesAJour ? { misesAJour } : {}), ...(enTete.length > 0 ? { calculsPartages: enTete } : {}), styles, fichiersStyle, donneesFichiers, partages, composantsReact, composants, serveurs, sources, fichiersHumalis, fonctions, tests, ...(theme ? { theme } : {}), ...(site ? { site } : {}), ...(langues ? { langues } : {}), ...(traductions.length ? { traductions } : {}), ...(entete ? { entete } : {}), ...(pied ? { pied } : {}) };
   // Les appels de fonctions d'actions sont remplacés par leur corps (src/parser/fonctionsActions.ts).
   const actions = deplierFonctionsActions(programme);
   if (actions.length) programme.fonctionsActions = actions;

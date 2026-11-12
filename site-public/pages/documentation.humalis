@@ -4894,7 +4894,14 @@ page "documentation_29" dans "documentation" adresse "/documentation/publier-un-
                     description "The story of The Corner Café, seasonal cooking since 2020, in the heart of the city."
                 titre "About"
         texte "With an `adresse`, the web target writes the sitemap (`sitemap.xml`) and `robots.txt`. A page with `indexation non` is left out of search engines. `robots.txt` also tells AI tools the site may appear in their searches and serve as a source for their answers (`Content-Signal: search=yes, ai-input=yes`). Humalis warns when a title or description is too long or too short for search engines."
-        texte "On the desktop, the same `adresse` is used for automatic updates: the installed application looks for a new version in the `mises-a-jour/` folder of that address. `npm run paquet` prepares everything (the `.dmg` installer for Mac, the `.exe` for Windows, and the `latest*.yml` files): you put these files in that folder. Without an `adresse`, the application does not look for updates. On a Mac, automatic updates need a signed application."
+        texte "On the desktop, the same `adresse` is used for automatic updates: the installed application looks for a new version in the `mises-a-jour/` folder of that address. `npm run paquet` prepares everything (the `.dmg` installer for Mac, the `.exe` for Windows, and the `latest*.yml` files): you put these files in that folder. On a Mac, automatic updates need a signed application."
+        texte "An application without a public site gives the address at the top of the file:"
+        code humalis :
+            mises a jour depuis "https://downloads.example.com/shop"
+
+            page "accueil" :
+                titre "Shop"
+        texte "The installed application looks for its new versions at this address when it starts, downloads them in the background and installs them when it closes. The address is in `https`, without a password; it takes precedence over the one of the `site` block. Without either, the application does not update by itself: it keeps its original engine, and the command says so when compiling."
         texte "The line `erreurs pendant 5 secondes` in the `site :` block sets how long the site's errors stay on screen: the ones you write without a duration and the ones Humalis shows by itself, such as a failed read. It ranges from 1 to 60 seconds; without it, errors stay 8 seconds. Below 4 seconds, many people won't have time to read: the choice is yours. A `pendant` written on a message takes priority, and a message with a button keeps enough time to click (6 seconds, 12 for « Réessayer »)."
     sinon :
         texte "Le bloc `site :` en haut du fichier décrit le site pour les moteurs de recherche et les réseaux sociaux. Le bloc `apercu :` règle une page."
@@ -4920,7 +4927,14 @@ page "documentation_29" dans "documentation" adresse "/documentation/publier-un-
                     description "L'histoire du Comptoir, une cuisine de saison née en 2020 au cœur de la ville."
                 titre "À propos"
         texte "Avec une `adresse`, la cible web écrit le plan du site (`sitemap.xml`) et `robots.txt`. Une page en `indexation non` n'y apparaît pas. `robots.txt` dit aussi aux IA que le site peut apparaître dans leurs recherches et servir de source à leurs réponses (`Content-Signal: search=yes, ai-input=yes`). Humalis prévient quand un titre ou une description est trop long ou trop court pour les moteurs de recherche."
-        texte "Sur le desktop, la même `adresse` sert aux mises à jour automatiques : l'application installée cherche une nouvelle version dans le dossier `mises-a-jour/` de cette adresse. `npm run paquet` y prépare tout (l'installateur `.dmg` pour Mac, `.exe` pour Windows, et les fichiers `latest*.yml`) : tu déposes ces fichiers dans ce dossier. Sans `adresse`, l'application ne cherche pas de mise à jour. Sur Mac, la mise à jour automatique demande une application signée."
+        texte "Sur le desktop, la même `adresse` sert aux mises à jour automatiques : l'application installée cherche une nouvelle version dans le dossier `mises-a-jour/` de cette adresse. `npm run paquet` y prépare tout (l'installateur `.dmg` pour Mac, `.exe` pour Windows, et les fichiers `latest*.yml`) : tu déposes ces fichiers dans ce dossier. Sur Mac, la mise à jour automatique demande une application signée."
+        texte "Une application sans site public donne l'adresse en haut du fichier :"
+        code humalis :
+            mises a jour depuis "https://telechargements.exemple.fr/boutique"
+
+            page "accueil" :
+                titre "Boutique"
+        texte "L'application installée cherche ses nouvelles versions à cette adresse au lancement, les télécharge en arrière-plan et les installe à la fermeture. L'adresse est en `https`, sans mot de passe ; elle passe avant celle du bloc `site`. Sans l'une ni l'autre, l'application ne se met pas à jour seule : elle garde son moteur d'origine, et la commande le dit à la compilation."
         texte "La ligne `erreurs pendant 5 secondes` du bloc `site :` règle combien de temps restent les erreurs du site, celles que tu écris sans durée et celles que Humalis affiche de lui-même. Elle va de 1 à 60 secondes ; sans elle, c'est 8 secondes. Sous 4 secondes, beaucoup de personnes n'ont pas le temps de lire : le choix est le tien. Un `pendant` écrit sur un message garde la priorité, et un message avec un bouton garde le temps de cliquer (6 secondes, 12 pour « Réessayer »)."
     ligne avec style "doc-suite" :
         lien "← 28. Plusieurs langues" en anglais "← 28. Several languages" vers "documentation_28"

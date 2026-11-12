@@ -3649,8 +3649,22 @@ On the desktop, the same `adresse` is used for automatic updates: the installed
 application looks for a new version in the `mises-a-jour/` folder of that
 address. `npm run paquet` prepares everything (the `.dmg` installer for Mac, the
 `.exe` for Windows, and the `latest*.yml` files): you put these files in that
-folder. Without an `adresse`, the application does not look for updates. On a
-Mac, automatic updates need a signed application.
+folder. On a Mac, automatic updates need a signed application.
+
+An application without a public site gives the address at the top of the file:
+
+```humalis
+mises a jour depuis "https://downloads.example.com/shop"
+
+page "accueil" :
+    titre "Shop"
+```
+
+The installed application looks for its new versions at this address when it
+starts, downloads them in the background and installs them when it closes. The
+address is in `https`, without a password; it takes precedence over the one of
+the `site` block. Without either, the application does not update by itself: it
+keeps its original engine, and the command says so when compiling.
 
 The line `erreurs pendant 5 secondes` in the `site :` block sets how long the
 site's errors stay on screen: the ones you write without a duration and the ones

@@ -17,7 +17,7 @@ import { verifierFichiersPourLeMobile } from './cibles/mobile/fichiers.js';
 import { genererProjetMoteur, verifierPourLeMoteur, MARQUE_MOTEUR } from './cibles/moteur/projet.js';
 import { lecturesPermises, lireLesDonnees, type ReglageLecture } from './cibles/moteur/lecture-construction.js';
 import { genererProjetStatique, verifierPourLeStatique, MARQUE_STATIQUE } from './cibles/statique/projet.js';
-import { genererProjetDesktop, bureauSurLeMoteur, MARQUE_DESKTOP, SERVEUR_PAR_DEFAUT } from './cibles/desktop/projet.js';
+import { genererProjetDesktop, adresseDesMisesAJour, bureauSurLeMoteur, MARQUE_DESKTOP, SERVEUR_PAR_DEFAUT } from './cibles/desktop/projet.js';
 import { genererProjetApple, MARQUE_APPLE } from './cibles/apple/projet.js';
 import { genererProjetAndroid, identifiantDe, MARQUE_ANDROID } from './cibles/android/projet.js';
 import { lireFirebase, type Firebase } from './cibles/android/comptes.js';
@@ -560,6 +560,10 @@ function compileDesktop(application: Application, chemin: string, sortie: string
   const pages = [...fichiers].filter(([f]) => f.startsWith('src/pages/') || f.startsWith('src/composants/'));
   if (pages.some(([, code]) => /\buse(Serveur|Utilisateur)\(\)/.test(code))) {
     console.error(`Les requêtes vers le serveur partent de l'application vers ${serveur ?? SERVEUR_PAR_DEFAUT} ; HUMALIS_SERVEUR la remplace au lancement.`);
+  }
+  // Une application installée qui ne se met pas à jour garde son moteur d'origine, et ses failles avec.
+  if (adresseDesMisesAJour(application) === undefined) {
+    console.error('Note : sans adresse de mises à jour, l\'application installée ne se mettra pas à jour seule. Écrivez en haut du fichier : mises a jour depuis "https://…"');
   }
   console.error(`Pour la lancer : cd ${sortie} && npm install && npm start (voir LISEZMOI.md)`);
   return 0;

@@ -54,12 +54,13 @@ export const VERSIONS_DESKTOP = {
 };
 
 /**
- * L'adresse des mises à jour automatiques : le dossier « mises-a-jour/ » de
- * l'adresse du bloc « site ». electron-builder y range les installateurs et
- * leurs fichiers latest*.yml ; l'application installée les y cherche. Sans
- * adresse, pas de mise à jour automatique.
+ * L'adresse des mises à jour automatiques : celle de « mises a jour depuis "https://…" », sinon le
+ * dossier « mises-a-jour/ » de l'adresse du bloc « site ». electron-builder y range les installateurs
+ * et leurs fichiers latest*.yml ; l'application installée les y cherche. Sans adresse, pas de mise à
+ * jour automatique.
  */
 export function adresseDesMisesAJour(application: Application): string | undefined {
+  if (application.misesAJour) return `${application.misesAJour.adresse}/`;
   const adresse = application.site?.adresse;
   if (!adresse || !/^https:\/\/[^/\s]+/.test(adresse)) return undefined;
   return `${adresse.replace(/\/+$/, '')}/mises-a-jour/`;
@@ -138,7 +139,7 @@ export function genererProjetDesktop(application: Application, options: OptionsD
   }
   fichiers.set('tsconfig.electron.json', TSCONFIG_ELECTRON);
   fichiers.set('.gitignore', `node_modules\ndist\nelectron/dist\npaquets\n${cles ? 'electron/natif/humalis-cles\n' : ''}`);
-  fichiers.set('LISEZMOI.md', lisezmoi(options, slug, misesAJour) + lisezmoiFormes(formes) + (cles ? LISEZMOI_CLES : ''));
+  fichiers.set('LISEZMOI.md', lisezmoi(options, slug, misesAJour, application.misesAJour !== undefined) + lisezmoiFormes(formes) + (cles ? LISEZMOI_CLES : ''));
   fichiers.set(
     'electron/principal.ts',
     principal({
@@ -824,7 +825,7 @@ export function useMemoriseSecret<T>(cle: string, initiale: T): [T, (valeur: T) 
 `;
 }
 
-function lisezmoi(options: OptionsDesktop, slug: string, misesAJour?: string): string {
+function lisezmoi(options: OptionsDesktop, slug: string, misesAJour?: string, explicite = false): string {
   return `# ${options.nom}
 
 Application de bureau (Electron) produite par Humalis depuis
@@ -856,19 +857,26 @@ lancement que l'éditeur est inconnu.
 ## Les mises à jour automatiques
 
 ${misesAJour ? `L'application installée cherche une nouvelle version au lancement, à
-l'adresse \`${misesAJour}\` (le dossier \`mises-a-jour/\` de l'adresse du bloc
-« site »). Pour publier une version :
+l'adresse \`${misesAJour}\` (${explicite ? 'celle de « mises a jour depuis »' : "le dossier \`mises-a-jour/\` de l'adresse du bloc\n« site »"}). Pour publier une version :
 
 1. augmente \`version\` dans \`package.json\` (par exemple 1.0.1) ;
 2. lance \`npm run paquet\` ;
 3. dépose le contenu de \`paquets/\` (le \`.dmg\`, le \`.zip\`, le \`.exe\` et les
-   fichiers \`latest*.yml\`) dans ce dossier de ton site.
+   fichiers \`latest*.yml\`) à cette adresse.
 
 La nouvelle version est téléchargée en arrière-plan et installée à la fermeture.
 Sur Mac, la mise à jour automatique demande une application signée par Apple ;
-sur Windows, elle marche sans signature.` : `Sans adresse dans le bloc « site », l'application ne cherche pas de mise à
-jour. Avec \`adresse "https://…"\` dans le bloc « site », elle les cherche dans le
-dossier \`mises-a-jour/\` de cette adresse.`}
+sur Windows, elle marche sans signature.
+
+Une application qui ne se met pas à jour garde son moteur d'origine, et ses
+failles avec : publie une version quand Electron en publie une.` : `Sans adresse, l'application ne cherche pas de mise à jour : elle garde son
+moteur d'origine, et ses failles avec. Écris en haut du fichier :
+
+    mises a jour depuis "https://telechargements.exemple.fr/${slug}"
+
+L'application installée cherchera ses nouvelles versions à cette adresse
+(https seulement). Avec \`adresse "https://…"\` dans un bloc « site », elle les
+cherche dans le dossier \`mises-a-jour/\` de cette adresse.`}
 
 ## Le serveur
 

@@ -1090,6 +1090,13 @@ page "antiseche" a l'adresse "/antiseche" :
                     code terminal :
                         humalis tester
                 bloc avec style "aide-entree" :
+                    texte "Mettre à jour l'application de bureau installée" en anglais "Update the installed desktop app" avec style "aide-besoin"
+                    code humalis :
+                        mises a jour depuis "https://telechargements.exemple.fr/boutique"
+
+                        page "accueil" :
+                            titre "Boutique"
+                bloc avec style "aide-entree" :
                     texte "Produire le projet : web, statique, mobile, desktop ou serveur" en anglais "Build the project: web, statique, mobile, desktop or serveur" avec style "aide-besoin"
                     code terminal :
                         humalis compile mon-projet.humalis --cible web --sortie mon-site

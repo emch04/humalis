@@ -1208,6 +1208,14 @@ humalis formater mon-projet.humalis
 humalis tester
 ```
 
+### Mettre à jour l'application de bureau installée | Update the installed desktop app
+```humalis racine
+mises a jour depuis "https://telechargements.exemple.fr/boutique"
+
+page "accueil" :
+    titre "Boutique"
+```
+
 ### Produire le projet : web, statique, mobile, desktop ou serveur | Build the project: web, statique, mobile, desktop or serveur
 ```terminal
 humalis compile mon-projet.humalis --cible web --sortie mon-site

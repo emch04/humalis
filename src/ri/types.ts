@@ -41,6 +41,8 @@ export interface Application {
   /** « avec barre laterale "X" » : la barre du Mac est dessinée par ce module. */
   barreLaterale?: string;
   liensProfonds?: { schema: string; domaine?: string; ligne: number };
+  /** « mises a jour depuis "https://…" » : l'adresse des nouvelles versions de l'application de bureau, sans « / » à la fin. */
+  misesAJour?: { adresse: string; ligne: number };
   /** Les composants écrits en Humalis : des écrans qui reçoivent des paramètres. */
   composants: ComposantHumalis[];
   /** Les serveurs : données, routes et droits. */

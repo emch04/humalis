@@ -440,6 +440,18 @@ export const ENTREES_INTERACTIONS: EntreeVocabulaire[] = [
     exemple: 'page "p" :\n    titre "P"\n    variable lieu = rien\n    bouton "Go"\n    quand l\'utilisateur clique sur "Go" :\n        position dans lieu',
   }),
   mot({
+    mot: 'mises a jour depuis',
+    accentue: 'mises à jour depuis',
+    categorie: 'action',
+    concept: 'bureau.misesAJour',
+    contextes: ['option'],
+    cibles: { ...ecran('(cible bureau : electron-updater cherche les versions à cette adresse)', null, null) },
+    couvre: [],
+    description: 'En haut du fichier : « mises a jour depuis "https://telechargements.exemple.fr/boutique" » dit où l’application de bureau installée cherche ses nouvelles versions. Elle regarde au lancement, télécharge en arrière-plan et installe à la fermeture. Adresse en https seulement. Sans cette phrase, l’adresse du bloc « site » sert (dossier « mises-a-jour/ »).',
+    exemple: 'mises a jour depuis "https://telechargements.exemple.fr/boutique"\npage "p" :\n    titre "P"',
+    note: 'Sur Mac, la mise à jour automatique demande une application signée par Apple.',
+  }),
+  mot({
     mot: 'liens',
     categorie: 'action',
     concept: 'action.liensProfonds',

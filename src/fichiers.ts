@@ -248,6 +248,7 @@ function reunir(programmes: Programme[], fichiers: string[], diagnostics: Diagno
     paquetsAndroid: [...(premier.paquetsAndroid ?? [])],
     paquetsWindows: [...(premier.paquetsWindows ?? [])],
     ...(premier.liensProfonds ? { liensProfonds: premier.liensProfonds } : {}),
+    ...(premier.misesAJour ? { misesAJour: premier.misesAJour } : {}),
     ...(premier.ongletsApplication ? { ongletsApplication: premier.ongletsApplication } : {}),
     ...(premier.barreLaterale ? { barreLaterale: premier.barreLaterale } : {}),
     composants: [...premier.composants],
@@ -328,6 +329,7 @@ function reunir(programmes: Programme[], fichiers: string[], diagnostics: Diagno
       f.erreurArrive ??= p.formes.erreurArrive;
     }
     tout.liensProfonds ??= p.liensProfonds;
+    tout.misesAJour ??= p.misesAJour;
     tout.ongletsApplication ??= p.ongletsApplication;
     tout.barreLaterale ??= p.barreLaterale;
     // Un composant (Humalis ou React) n'a qu'une définition dans toute l'application.

@@ -124,6 +124,7 @@ export function construireRepresentation(
     ...(programme.paquetsWindows?.length ? { paquetsWindows: programme.paquetsWindows } : {}),
     ...(programme.formes ? { formes: formesRI(programme.formes, analyse) } : {}),
     ...(programme.liensProfonds ? { liensProfonds: programme.liensProfonds } : {}),
+    ...(programme.misesAJour ? { misesAJour: programme.misesAJour } : {}),
     ...(programme.ongletsApplication?.length ? { ongletsApplication: programme.ongletsApplication } : {}),
     ...(programme.barreLaterale ? { barreLaterale: programme.barreLaterale } : {}),
     composantsReact: programme.composantsReact.map((c) => ({ nom: c.nom, ...(c.chemin !== undefined ? { chemin: c.chemin } : {}), ligne: c.ligne, ...(c.module ? { module: true as const } : {}), ...(c.apple !== undefined ? { apple: c.apple } : {}), ...(c.android !== undefined ? { android: c.android } : {}), ...(c.windows !== undefined ? { windows: c.windows } : {}) })),
