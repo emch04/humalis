@@ -3884,7 +3884,11 @@ page "accueil" :
         ajouter fiche avec titre "Nouvelle" et lu faux a notes
 ```
 
-`avec chiffree` chiffre la base, avec une clé gardée dans le coffre de l'appareil.
+`avec chiffree` chiffre la base. Sur Apple, Android, Windows et l'application de bureau, la clé est
+gardée dans le coffre du système. Dans un navigateur, la clé reste dans le navigateur lui-même : le
+chiffrement protège une copie du disque, pas contre un script de la page ni contre quelqu'un qui ouvre
+le même profil du navigateur ; ce qui attend d'être envoyé n'y est pas chiffré. Pour des données
+sensibles, préfère une application native, ou garde-les sur le serveur.
 `synchronisee avec "notes"` la relie à une route du serveur : les changements faits sans réseau
 partent quand il revient, les suppressions suivent, et en cas de conflit la modification la plus
 récente l'emporte. L'identifiant de chaque fiche est géré par la base.

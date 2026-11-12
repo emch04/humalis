@@ -5134,7 +5134,7 @@ page "documentation_30" dans "documentation" adresse "/documentation/composants-
                 bouton "Ajouter"
                 quand l'utilisateur clique sur "Ajouter" :
                     ajouter fiche avec titre "New" et lu faux a notes
-        texte "`avec chiffree` encrypts the database, with a key kept in the device's vault. `synchronisee avec "notes"` links it to a server route: changes made offline leave when the network returns, deletions follow, and on a conflict the most recent change wins. Each record's identifier is managed by the database."
+        texte "`avec chiffree` encrypts the database. On Apple, Android, Windows and the desktop app, the key is kept in the system vault. In a browser, the key stays in the browser itself: encryption protects a copy of the disk, not against a script of the page nor against someone who opens the same browser profile; what is waiting to be sent is not encrypted there. For sensitive data, prefer a native app, or keep it on the server. `synchronisee avec "notes"` links it to a server route: changes made offline leave when the network returns, deletions follow, and on a conflict the most recent change wins. Each record's identifier is managed by the database."
         texte "Each account has its own database on the device: once signed out, its records leave the page, and what is waiting to be sent stays with that account. The fields of the local data must be those of the server's data, with the same types. Each change goes back through the route: its rights and checks apply, and a refused change is undone on the device, with a message. The most recent change is decided record by record, by the server's clock, even if the device's time is wrong."
         tableau "Target, Database, Encryption key, When the network returns" :
             colonnes "Target", "Database", "Encryption key", "When the network returns"
@@ -5362,7 +5362,7 @@ page "documentation_30" dans "documentation" adresse "/documentation/composants-
                 bouton "Ajouter"
                 quand l'utilisateur clique sur "Ajouter" :
                     ajouter fiche avec titre "Nouvelle" et lu faux a notes
-        texte "`avec chiffree` chiffre la base, avec une clé gardée dans le coffre de l'appareil. `synchronisee avec "notes"` la relie à une route du serveur : les changements faits sans réseau partent quand il revient, les suppressions suivent, et en cas de conflit la modification la plus récente l'emporte. L'identifiant de chaque fiche est géré par la base."
+        texte "`avec chiffree` chiffre la base. Sur Apple, Android, Windows et l'application de bureau, la clé est gardée dans le coffre du système. Dans un navigateur, la clé reste dans le navigateur lui-même : le chiffrement protège une copie du disque, pas contre un script de la page ni contre quelqu'un qui ouvre le même profil du navigateur ; ce qui attend d'être envoyé n'y est pas chiffré. Pour des données sensibles, préfère une application native, ou garde-les sur le serveur. `synchronisee avec "notes"` la relie à une route du serveur : les changements faits sans réseau partent quand il revient, les suppressions suivent, et en cas de conflit la modification la plus récente l'emporte. L'identifiant de chaque fiche est géré par la base."
         texte "Chaque compte a sa propre base sur l'appareil : une fois déconnecté, ses fiches quittent la page, et ce qui attend d'être envoyé reste à ce compte. Les champs de la donnée locale doivent être ceux de la donnée du serveur, avec les mêmes types. Chaque envoi repasse par la route : ses droits et ses vérifications s'appliquent, et une modification refusée est annulée sur l'appareil, avec un message. La modification la plus récente se compte fiche par fiche, selon l'horloge du serveur, même si l'heure de l'appareil est fausse."
         tableau "Cible, Base, Clé du chiffrement, Retour du réseau" :
             colonnes "Cible", "Base", "Clé du chiffrement", "Retour du réseau"
@@ -5464,6 +5464,7 @@ page "documentation_32" dans "documentation" adresse "/documentation/commandes" 
             rangee "`humalis compile <file> --cible web --composants <folder>`", "generates React components to import elsewhere"
             rangee "`humalis verifier <file>`", "shows errors and warnings"
             rangee "`humalis verifier <file> --exigeant`", "also treats warnings as errors"
+            rangee "`humalis verifier <file> --cible statique`", "also says what this target would refuse or ignore, without writing anything"
             rangee "`humalis formater <file>`", "reformats the file"
             rangee "`humalis tester`", "runs the `*.test.humalis` tests"
             rangee "`humalis packs`", "says whether the Astratra packs have updates"
@@ -5499,6 +5500,7 @@ page "documentation_32" dans "documentation" adresse "/documentation/commandes" 
             rangee "`humalis compile <fichier> --cible web --composants <dossier>`", "produit des composants React à importer ailleurs"
             rangee "`humalis verifier <fichier>`", "affiche les erreurs et les avertissements"
             rangee "`humalis verifier <fichier> --exigeant`", "traite aussi les avertissements comme des erreurs"
+            rangee "`humalis verifier <fichier> --cible statique`", "dit aussi ce que cette cible refuserait ou ignorerait, sans rien écrire"
             rangee "`humalis formater <fichier>`", "remet le fichier en forme"
             rangee "`humalis tester`", "lance les tests `*.test.humalis`"
             rangee "`humalis packs`", "dit si les packs Astratra ont des mises à jour"

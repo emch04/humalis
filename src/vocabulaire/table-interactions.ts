@@ -918,7 +918,7 @@ export const ENTREES_INTERACTIONS: EntreeVocabulaire[] = [
     contextes: ['tournure'],
     cibles: { ...ecran('(web, bureau, Apple, Android, Windows)', null, null) },
     couvre: [],
-    description: '« donnee locale notes avec chiffree : » : la base est chiffrée sur l’appareil.',
+    description: '« donnee locale notes avec chiffree : » : la base est chiffrée sur l’appareil. La clé est dans le coffre du système sur Apple, Android, Windows et le bureau ; dans un navigateur, elle reste dans le navigateur : cela protège une copie du disque, pas contre un script de la page.',
     exemple: 'donnee locale notes avec chiffree :\n    titre : texte\npage "p" :\n    titre "P"\n    pour chaque n dans notes :\n        texte n.titre',
   }),
   mot({

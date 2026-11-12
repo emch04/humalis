@@ -3953,7 +3953,11 @@ page "accueil" :
         ajouter fiche avec titre "New" et lu faux a notes
 ```
 
-`avec chiffree` encrypts the database, with a key kept in the device's vault.
+`avec chiffree` encrypts the database. On Apple, Android, Windows and the desktop app, the key is kept
+in the system vault. In a browser, the key stays in the browser itself: encryption protects a copy of
+the disk, not against a script of the page nor against someone who opens the same browser profile; what
+is waiting to be sent is not encrypted there. For sensitive data, prefer a native app, or keep it on
+the server.
 `synchronisee avec "notes"` links it to a server route: changes made offline leave when the
 network returns, deletions follow, and on a conflict the most recent change wins. Each record's
 identifier is managed by the database.

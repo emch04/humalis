@@ -6,7 +6,8 @@ Ce document s'adresse à ceux qui travaillent sur le compilateur lui-même. Pour
 
 ```
 fichier .humalis → lexer → parser → analyse → représentation intermédiaire
-                 → cibles : web (React) · mobile (Expo) · desktop (Electron) · apple (SwiftUI) · serveur (Node + Astratra) · statique
+                 → cibles : web (moteur Humalis) · statique · apple (SwiftUI) · android (Kotlin, Compose) · windows (C#, WPF)
+                            desktop (Electron) · serveur (Node + Astratra)
 ```
 
 | Étape | État |
@@ -14,10 +15,10 @@ fichier .humalis → lexer → parser → analyse → représentation intermédi
 | Lexer | fait, testé |
 | Parser | fait, testé |
 | Analyse, représentation intermédiaire | fait, testé |
-| Commande `humalis verifier` | faite |
+| Commande `humalis verifier` (et `--cible`, pour ce qu'une cible refuserait) | faite |
 | Extension VS Code (erreurs, coloration, survol, complétion, saut à la déclaration, serveur LSP) | faite ; serveur LSP essayé en vrai, l'extension reste à essayer dans VS Code |
-| Cible web (React, prérendue) | faite, vérifiée dans un navigateur |
-| Commande `humalis compile` | faite (cibles web, mobile, desktop, serveur, statique) |
+| Cible web (moteur de rendu Humalis, une page HTML par adresse) | faite, vérifiée dans un navigateur |
+| Commande `humalis compile` | faite (cibles web, statique, apple, android, windows, desktop, serveur) |
 | Interop React (pages dans un projet React, composants React dans Humalis) | faite, vérifiée dans un navigateur |
 | Cible serveur (Node + packs Astratra) | faite, démarrée et testée |
 | Lien écran ↔ serveur (vérifié à la compilation) | fait, vérifié dans un navigateur |
@@ -27,8 +28,11 @@ fichier .humalis → lexer → parser → analyse → représentation intermédi
 | Cible desktop (Electron) | faite, lancée et pilotée dans Electron sur Mac et sous Linux, application `.app` construite et ouverte |
 | Cible statique (HTML, CSS, JavaScript) | faite, vérifiée dans un navigateur |
 | Cible Apple (SwiftUI, iPhone, iPad et Mac) | faite ; `npm run essai:apple` construit et lance chaque exemple sur le simulateur iPhone et sur Mac |
+| Cible Android (Kotlin et Jetpack Compose) | faite, essayée dans l'émulateur |
+| Cible Windows (C# et WPF, .NET 10) | faite, essayée dans une machine virtuelle Windows |
+| Serveur produit : PostgreSQL ou SQLite, sauvegarde, restauration, vérification des données | fait, essayé sur de vraies bases |
 
-Humalis produit donc déjà des sites web : un projet Vite + React lisible, prérendu (une page HTML par adresse, grâce à `@astratra/prerender`), qu'on peut reprendre à la main.
+Humalis produit des sites web (une page HTML par adresse, rendue par son propre moteur), des applications natives pour Apple, Android et Windows, une application de bureau, et leur serveur.
 
 ```sh
 npm run build
@@ -81,6 +85,12 @@ node dist/cli.js verifier exemples/boutique.humalis --ri   # avec la représenta
 | `src/cibles/statique/` | la cible statique : chaque écran devient une page HTML et son script |
 | `src/cibles/moteur/` | le moteur de rendu sans React, le défaut de `--cible web` (`--moteur react` garde React) : HTML écrit, reprise, mises à jour fines |
 | `src/cibles/apple/` | la cible Apple : chaque écran devient une vue SwiftUI, le tout dans un projet Xcode |
+| `src/cibles/android/` | la cible Android : Kotlin et Jetpack Compose, dans un projet Gradle |
+| `src/cibles/windows/` | la cible Windows : C# et WPF, dans un projet .NET |
+| `src/cibles/desktop/` | l'application de bureau : les pages du web dans Electron |
+| `src/cibles/serveur/` | le serveur produit : routes, droits, comptes, stockage (PostgreSQL, SQLite), exploitation |
+| `src/machine/` | `humalis lancer` : le programme tourne tout de suite, serveur en mémoire compris |
+| `catalogue/` | le catalogue des erreurs : chaque message du compilateur, avec un exemple fautif et sa correction |
 | `scripts/essai-web.mjs` | l'essai en vrai de la cible web, dans Chromium |
 | `src/compilateur.ts` | `compiler(source)` : tout enchaîner, renvoyer la RI ou les diagnostics |
 | `editeur/vscode/` | l'extension VS Code (voir son README) |

@@ -1,8 +1,10 @@
 # Humalis — guide court pour les assistants
 
-Humalis est un langage en français. Un fichier .humalis décrit des pages, des éléments et des actions ; le compilateur produit web, mobile, statique, desktop ou serveur selon la cible.
+Humalis est un langage en français. Un fichier .humalis décrit des pages, des éléments et des actions ; le compilateur produit un site web, un site statique, une application Apple, Android ou Windows, une application de bureau, ou le serveur, selon la cible (web, statique, apple, android, windows, desktop, serveur).
 
 ## Grammaire en une page
+
+Les listes de mots ci-dessous disent ce que le langage reconnaît, pas comment l’écrire : un mot seul (« minutes », « jour », « h ») n’est pas une phrase. Pour écrire une phrase, pars toujours d’un exemple de ce guide, et vérifie avec `humalis verifier`.
 
 - Une page commence par `page "nom" :`. Son contenu est indenté de 4 espaces ; chaque bloc ajoute 4 espaces.
 - Les éléments d’écran pris en charge : titre, texte, image, bouton, lien, champ, formulaire, section, bloc, ligne, colonne, grille, liste numérotée, sous-titre, liste, tableau, fenêtre, vidéo, menu, icône, badge, avatar, progression, chargement, étoiles, compteur, code QR, onglets, onglet, déroulant, accordéon, carrousel, fil d’Ariane, audio, fichier, carte, marqueur, graphique, série, sélecteur. Leur texte s’écrit entre guillemets.
@@ -241,6 +243,40 @@ utiliser composant "Carte" sur apple "./natif/Carte.swift" et sur android "./nat
 
 page "vitrine" :
     Carte avec titre "Café" et prix 3.5
+```
+
+### envoyer requete vers "…" par 20 dans …
+
+Une longue liste du serveur du fichier se lit par morceaux : « par 20 » lit les 20 premières fiches, « charger la suite de produits » lit les suivantes et les ajoute, « produits a une suite » dit s’il en reste.
+
+```humalis
+serveur "boutique" :
+    donnee produit :
+        nom : texte
+    route "produits" :
+        tout le monde peut lire produit
+
+page "accueil" :
+    variable produits = []
+    titre "Produits"
+    section avec nom "liste" :
+        pour chaque p dans produits :
+            texte p.nom
+    quand la page se charge :
+        envoyer requete vers "produits" par 20 dans produits
+    quand l'utilisateur arrive en bas de "liste" tant que produits a une suite avec bouton "Voir plus" :
+        charger la suite de produits
+```
+
+### mises a jour depuis "https://…"
+
+En haut du fichier : où l’application de bureau installée cherche ses nouvelles versions (https seulement).
+
+```humalis
+mises a jour depuis "https://telechargements.exemple.fr/boutique"
+
+page "accueil" :
+    titre "Boutique"
 ```
 
 ### désactivé
