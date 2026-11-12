@@ -40,7 +40,7 @@ const CATEGORIES: Record<Categorie, string> = {
   saisie: 'sorte de champ',
 };
 
-const CIBLES: readonly Cible[] = ['web', 'mobile', 'desktop', 'serveur', 'statique'];
+const CIBLES: readonly Cible[] = ['web', 'desktop', 'serveur', 'statique'];
 
 /** Un bout de code en ligne, qui reste lisible même s'il contient une apostrophe inverse ou une barre. */
 const code = (texte: string) => {

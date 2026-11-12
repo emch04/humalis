@@ -16,7 +16,7 @@ describe('survoler : un mot du vocabulaire', () => {
     expect(texte).toContain('élément');
     expect(texte).toContain('Un bouton sur lequel on peut cliquer ou appuyer.');
     expect(texte).toContain('| web | `<button type="button">` |');
-    expect(texte).toContain('| mobile | `<Pressable><Text>…</Text></Pressable>` |');
+    expect(texte).not.toContain('| mobile |');
     expect(texte).toContain('| serveur | — |');
     expect(texte).toContain('```humalis\npage "accueil" :\n    bouton "Valider" avec fond vert\n```');
   });
