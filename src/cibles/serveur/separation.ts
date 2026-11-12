@@ -18,7 +18,7 @@ export const gardeAction = (qui: string) => `...acces.${qui.startsWith('role:') 
 /** Vrai si le serveur doit relire le compte à chaque requête. */
 export function compteRelu(serveur: ServeurRI): boolean {
   const droitsComptes = Object.values(serveur.routeComptes?.droits ?? {});
-  return Boolean(serveur.changeDeRole) || Boolean(serveur.changeDeCompte) || droitsComptes.some((d) => d?.startsWith('role:')) || serveur.routes.some((r) => estSeparee(serveur.donnees.find((d) => d.nom === r.donnee)!, r));
+  return Boolean(serveur.changeDeRole) || Boolean(serveur.changeDeCompte) || droitsComptes.some((d) => d?.startsWith('role:')) || serveur.routes.some((r) => estSeparee(serveur.donnees.find((d) => d.nom === r.donnee)!, r)) || [...(serveur.discussions ?? []), ...(serveur.salles ?? [])].some((x) => x.par);
 }
 
 /** Les champs de groupe que porte un compte : « par boutique » oui, « par compte » non. */

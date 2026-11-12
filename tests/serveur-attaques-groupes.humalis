@@ -1,0 +1,23 @@
+serveur "marche" :
+    roles client, vendeur, eleve et professeur
+    donnee commande par boutique :
+        total : nombre
+    route "commandes" :
+        connecte peut lire commande
+        connecte peut creer commande
+        connecte peut modifier commande
+        connecte peut supprimer commande
+    donnee cours par classe :
+        titre : texte
+    route "cours" :
+        connecte peut lire cours
+        connecte peut creer cours
+        connecte peut modifier cours
+        connecte peut supprimer cours
+    discussion "support" entre client et vendeur par boutique
+    salle "classe" pour eleve et professeur par classe animee par professeur
+
+page "a" :
+    titre "A"
+    reunion "classe"
+    discussion "support"

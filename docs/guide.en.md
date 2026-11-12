@@ -3197,10 +3197,13 @@ can `couper micro de p` and `exclure p`. The list `participants de reunion
 "conseil"` updates by itself, even for someone who has not joined; a person whose
 connection drops disappears from it.
 
+**Per shop.** `discussion "support" entre client et vendeur par boutique` gives each shop its own conversations: a seller sees only the clients of their shop, and an account without a shop opens none. Likewise, `salle "classe" pour eleve et professeur par classe` gives one room per class. The group is the one a data type uses (`donnee commande par boutique`), carried by each account.
+
 | Phrase | What it does |
 |---|---|
 | `discussion "…" entre client et agent` | (server) one conversation per client, with the team |
 | `salle "…" pour membre animee par direction` | (server) a meeting room and its hosts |
+| `… par boutique` | (server) conversations, or a room, per shop |
 | `discussion "…"`, `… sans pieces jointes` | the conversation in the page |
 | `ouvrir discussion "…" avec personne` | one person's conversation |
 | `quand un message arrive dans "…" :` | `message.texte`, `message.auteur_nom` |

@@ -33,8 +33,8 @@ function reglages(serveur: ServeurRI): string {
   const appels = serveur.routes.some((r) => r.interne === 'appels');
   const presence = serveur.routes.some((r) => r.interne === 'presence');
   return JSON.stringify({
-    discussions: (serveur.discussions ?? []).map((d) => ({ nom: d.nom, cle: slugTempsReel(d.nom), entre: d.entre.map(roleDuPack) })),
-    salles: (serveur.salles ?? []).map((s) => ({ nom: s.nom, pour: s.pour.map(roleDuPack), animateurs: (s.animateurs ?? []).map(roleDuPack) })),
+    discussions: (serveur.discussions ?? []).map((d) => ({ nom: d.nom, cle: slugTempsReel(d.nom), entre: d.entre.map(roleDuPack), ...(d.par ? { par: camel(d.par) } : {}) })),
+    salles: (serveur.salles ?? []).map((s) => ({ nom: s.nom, pour: s.pour.map(roleDuPack), animateurs: (s.animateurs ?? []).map(roleDuPack), ...(s.par ? { par: camel(s.par) } : {}) })),
     appels,
     salle: avecLiveKit(serveur),
     presence,
@@ -99,20 +99,25 @@ function monterSalles(app: Application, o: Options, voir: (req: Request) => Moi,
     return compte !== null && (compte.role === 'admin' || salle.animateurs.includes(compte.role ?? ''));
   };
 
-  /** Rend le droit de cette personne sur la salle ; undefined : elle n'y entre pas. */
-  async function droit(moi: Moi, nom: string, pourEntrer = false): Promise<{ animateur: boolean; video: boolean } | undefined> {
+  /**
+   * Rend le droit de cette personne sur la salle, et la pièce où elle entre ; undefined : elle n'y entre pas.
+   * « par classe » : chaque classe a sa pièce ; un admin choisit la sienne (« cercle »), sinon celle de son compte.
+   */
+  async function droit(moi: Moi, nom: string, pourEntrer = false, cercleDemande = ''): Promise<{ animateur: boolean; video: boolean; piece: string } | undefined> {
     if (nom.startsWith('appel-')) {
       if (!appels) return undefined;
       const [appel] = await appels.lister({ egal: { salle: nom } });
       if (!appel || (appel.auteur !== moi.id && appel.appele !== moi.id) || (pourEntrer && appel.etat === 'fini')) return undefined;
-      return { animateur: false, video: appel.video === true };
+      return { animateur: false, video: appel.video === true, piece: nom };
     }
     const salle = salleDe(nom);
     if (!salle) return undefined;
     const admin = moi.role === 'admin';
     const animateur = admin || salle.animateurs.includes(moi.role ?? '');
     if (!admin && !animateur && !salle.pour.includes(moi.role ?? '')) return undefined;
-    return { animateur, video: true };
+    const cercle = admin && salle.par && cercleDemande ? cercleDemande : cercleDe(moi, salle.par);
+    if (cercle === undefined) return undefined;
+    return { animateur, video: true, piece: salle.par ? nom + '\u0000' + cercle : nom };
   }
 
   const texteDe = (valeur: unknown): string => (typeof valeur === 'string' ? valeur : valeur && typeof valeur === 'object' && 'id' in valeur ? String((valeur as { id: unknown }).id) : '');
@@ -120,13 +125,14 @@ function monterSalles(app: Application, o: Options, voir: (req: Request) => Moi,
   app.post('/api/salles_jeton', ...acces.connecte, csrf, async (req, res, next) => {
     try {
       const moi = voir(req);
-      const nom = texteDe((req.body as { salle?: unknown }).salle);
-      const permis = await droit(moi, nom, true);
+      const corps = req.body as { salle?: unknown; cercle?: unknown };
+      const nom = texteDe(corps.salle);
+      const permis = await droit(moi, nom, true, texteDe(corps.cercle));
       if (!permis) {
         res.status(403).json({ erreur: "Vous n'avez pas accès à cette réunion." });
         return;
       }
-      if (estExclu(nom, moi.id)) {
+      if (estExclu(permis.piece, moi.id)) {
         res.status(403).json({ erreur: 'Vous avez été exclu de cette réunion.' });
         return;
       }
@@ -142,7 +148,7 @@ function monterSalles(app: Application, o: Options, voir: (req: Request) => Moi,
         // peut donc pas revenir avec l'ancien.
         ttl: '10m',
       });
-      jeton.addGrant({ roomJoin: true, room: nomLiveKit(nom), canPublish: true, canSubscribe: true, canPublishData: true, canUpdateOwnMetadata: true });
+      jeton.addGrant({ roomJoin: true, room: nomLiveKit(permis.piece), canPublish: true, canSubscribe: true, canPublishData: true, canUpdateOwnMetadata: true });
       res.status(201).json({ id: nom, adresse: adresse(), jeton: await jeton.toJwt(), video: permis.video });
     } catch (erreur) {
       next(erreur);
@@ -176,7 +182,8 @@ function monterSalles(app: Application, o: Options, voir: (req: Request) => Moi,
     try {
       const moi = voir(req);
       const nom = String(req.params.salle);
-      if (!(await droit(moi, nom))) {
+      const permis = await droit(moi, nom, false, texteDe(req.query.cercle));
+      if (!permis) {
         res.status(403).json({ erreur: "Vous n'avez pas accès à cette réunion." });
         return;
       }
@@ -185,7 +192,7 @@ function monterSalles(app: Application, o: Options, voir: (req: Request) => Moi,
         res.json({ id: nom, microCoupe: false, cameraCoupee: false, participants: [] });
         return;
       }
-      const presents = await service().listParticipants(nomLiveKit(nom)).catch(() => []);
+      const presents = await service().listParticipants(nomLiveKit(permis.piece)).catch(() => []);
       const animateurs = new Set((await Promise.all(presents.map(async (p) => ((await anime(nom, p.identity)) ? p.identity : '')))).filter(Boolean));
       const participants = presents.map((p) => {
         const piste = (source: number) => p.tracks.find((t) => t.source === source);
@@ -208,10 +215,10 @@ function monterSalles(app: Application, o: Options, voir: (req: Request) => Moi,
   app.post('/api/salles_geste', ...acces.connecte, csrf, async (req, res, next) => {
     try {
       const moi = voir(req);
-      const corps = req.body as { salle?: unknown; participant?: unknown; geste?: unknown };
+      const corps = req.body as { salle?: unknown; participant?: unknown; geste?: unknown; cercle?: unknown };
       const nom = texteDe(corps.salle);
       const geste = texteDe(corps.geste);
-      const permis = await droit(moi, nom);
+      const permis = await droit(moi, nom, false, texteDe(corps.cercle));
       if (!permis) {
         res.status(403).json({ erreur: "Vous n'avez pas accès à cette réunion." });
         return;
@@ -226,9 +233,9 @@ function monterSalles(app: Application, o: Options, voir: (req: Request) => Moi,
           return;
         }
         const cible = texteDe(corps.participant);
-        const piece = nomLiveKit(nom);
+        const piece = nomLiveKit(permis.piece);
         if (geste === 'exclure') {
-          exclus.set(nom + '\u0000' + cible, Date.now() + EXCLUSION_MS);
+          exclus.set(permis.piece + '\u0000' + cible, Date.now() + EXCLUSION_MS);
           // Déjà partie, la personne n'est plus dans la salle : l'exclusion compte quand même.
           await service().removeParticipant(piece, cible).catch(() => undefined);
         }
@@ -263,8 +270,9 @@ import type { Stockage } from './stockage.js';
  * personne concernée, sans donnée ; la page relit ensuite sa route.
  */
 interface Moi { id: string; email?: string; role?: string; nom?: string; [cle: string]: unknown }
-interface Discussion { nom: string; cle: string; entre: string[] }
-interface Salle { nom: string; pour: string[]; animateurs: string[] }
+/** « par boutique » : par = le champ du compte qui range chaque personne dans son cercle. */
+interface Discussion { nom: string; cle: string; entre: string[]; par?: string }
+interface Salle { nom: string; pour: string[]; animateurs: string[]; par?: string }
 interface UsersLus { findById(id: string): unknown; findByEmail(email: string): unknown }
 type Application = ReturnType<typeof express.Router>;
 interface Options {
@@ -285,6 +293,12 @@ const SONNERIE_MS = 45000;
 const PRESENCE_MS = 60000;
 
 // Le nom affiché aux autres : celui du compte, sinon le début de son adresse, jamais l'adresse entière.
+/** Le cercle d'une personne (« par boutique ») : '' sans séparation, undefined si son compte n'en a pas. */
+const cercleDe = (moi: Moi, par: string | undefined): string | undefined => {
+  if (!par) return '';
+  const valeur = moi[par];
+  return typeof valeur === 'string' && valeur !== '' ? valeur : moi.role === 'admin' ? '' : undefined;
+};
 const nomDe = (p: Moi): string => (typeof p.nom === 'string' && p.nom !== '' ? p.nom : typeof p.email === 'string' && p.email.includes('@') ? p.email.slice(0, p.email.indexOf('@')) : 'Quelqu’un');
 const maintenant = () => new Date().toISOString();
 
@@ -383,7 +397,12 @@ export function monterTempsReel(cible: { use(routes: RequestHandler): unknown },
     const cleDe = (compte: string) => 'tr:' + d.cle + ':' + compte;
     const groupe = d.entre.length === 1;
     const estAgent = (moi: Moi) => moi.role === 'admin' || (!groupe && moi.role === d.entre[1]);
-    const estMembre = (moi: Moi) => moi.role === 'admin' || d.entre.includes(moi.role ?? '');
+    // « par boutique » : un compte sans boutique n'entre dans aucune conversation ; un admin les voit toutes.
+    const estMembre = (moi: Moi) => moi.role === 'admin' || (d.entre.includes(moi.role ?? '') && cercleDe(moi, d.par) !== undefined);
+    const avecCercle = (moi: Moi): Record<string, string> => (d.par ? { cercle: cercleDe(moi, d.par) ?? '' } : {});
+    /** Les conversations qu'un agent voit : celles de son cercle, toutes pour un admin. */
+    const conversationsVisibles = (moi: Moi) => conversations.lister({ egal: d.par && moi.role !== 'admin' ? avecCercle(moi) : {}, limite: 2000 });
+    const equipe = (cercle: unknown) => 'tr:' + d.cle + ':equipe' + (d.par ? ':' + String(cercle ?? '') : '');
     const refus = (res: Response) => res.status(403).json({ erreur: "Vous n'avez pas accès à cette discussion." });
 
     /** Ceux qui voient une conversation : la personne et les agents, ou tout le groupe. Les comptes connus par leurs messages et lectures suffisent à annoncer. */
@@ -395,23 +414,26 @@ export function monterTempsReel(cible: { use(routes: RequestHandler): unknown },
     }
     async function annoncer(conversation: Record<string, unknown>): Promise<void> {
       for (const compte of await concernes(conversation)) direct.annonce(cleDe(compte));
-      direct.annonce('tr:' + d.cle + ':equipe');
+      direct.annonce(equipe(conversation.cercle));
+      if (d.par) direct.annonce(equipe('*'));
     }
 
     async function conversationDe(moi: Moi, id: string, creerSiBesoin = true): Promise<Record<string, unknown> | undefined> {
       if (id === 'moi' || id === '') {
         if (groupe) {
-          const [commune] = await conversations.lister({ egal: { personne: '' } });
+          const [commune] = await conversations.lister({ egal: { personne: '', ...avecCercle(moi) } });
           if (commune) return commune;
-          return creerSiBesoin ? conversations.creer({ titre: d.nom, personne: '', dernier: '', dernierLe: '', nonLus: 0, enLigne: false }) : undefined;
+          return creerSiBesoin ? conversations.creer({ titre: d.nom, personne: '', ...avecCercle(moi), dernier: '', dernierLe: '', nonLus: 0, enLigne: false }) : undefined;
         }
         if (moi.role !== d.entre[0]) return undefined;
-        const [mienne] = await conversations.lister({ egal: { personne: moi.id } });
+        const [mienne] = await conversations.lister({ egal: { personne: moi.id, ...avecCercle(moi) } });
         if (mienne) return mienne;
-        return creerSiBesoin ? conversations.creer({ titre: nomDe(moi), personne: moi.id, dernier: '', dernierLe: '', nonLus: 0, enLigne: false }) : undefined;
+        return creerSiBesoin ? conversations.creer({ titre: nomDe(moi), personne: moi.id, ...avecCercle(moi), dernier: '', dernierLe: '', nonLus: 0, enLigne: false }) : undefined;
       }
       const trouvee = await conversations.trouver(id);
       if (!trouvee) return undefined;
+      // Une conversation d'une autre boutique n'existe pas pour cette personne.
+      if (d.par && moi.role !== 'admin' && trouvee.cercle !== cercleDe(moi, d.par)) return undefined;
       if (groupe || estAgent(moi) || trouvee.personne === moi.id) return trouvee;
       return undefined;
     }
@@ -437,7 +459,7 @@ export function monterTempsReel(cible: { use(routes: RequestHandler): unknown },
         return;
       }
       // Un agent entend toutes les conversations ; les autres, seulement les leurs.
-      ecouter(estAgent(moi) || groupe ? 'tr:' + d.cle + ':equipe' : cleDe(moi.id), req, res, moi);
+      ecouter(estAgent(moi) || groupe ? equipe(moi.role === 'admin' && d.par ? '*' : cercleDe(moi, d.par)) : cleDe(moi.id), req, res, moi);
     };
     for (const suite of ['conversations', 'vue', 'messages', 'non_lus']) app.get(base + '_' + suite + '/direct', ...acces.connecte, ecouterDiscussion);
 
@@ -449,7 +471,7 @@ export function monterTempsReel(cible: { use(routes: RequestHandler): unknown },
           return;
         }
         // Seuls les agents choisissent une conversation : les autres n'en ont qu'une, ouverte d'office.
-        const liste = estAgent(moi) && !groupe ? await conversations.lister({ egal: {}, limite: 2000 }) : [];
+        const liste = estAgent(moi) && !groupe ? await conversationsVisibles(moi) : [];
         const enLigne = await presents();
         const lues: Record<string, unknown>[] = await Promise.all(liste.map(async (c) => ({ ...c, nonLus: await nonLus(String(c.id), moi.id), enLigne: typeof c.personne === 'string' && enLigne.has(c.personne), titre: groupe || !estAgent(moi) ? d.nom : c.titre })));
         res.set('Cache-Control', 'no-store').json(lues.sort((a, b) => String(b.dernierLe).localeCompare(String(a.dernierLe))));
@@ -471,12 +493,14 @@ export function monterTempsReel(cible: { use(routes: RequestHandler): unknown },
           return;
         }
         const personne = await compteDe(texteDe((req.body as { personne?: unknown }).personne));
-        if (!personne || personne.role !== d.entre[0]) {
+        // Un vendeur n'ouvre une conversation qu'avec un client de sa boutique.
+        const sonCercle = personne ? cercleDe(personne, d.par) : undefined;
+        if (!personne || personne.role !== d.entre[0] || sonCercle === undefined || (d.par && moi.role !== 'admin' && sonCercle !== cercleDe(moi, d.par))) {
           res.status(404).json({ erreur: 'Cette personne ne peut pas participer à cette discussion.' });
           return;
         }
-        const [deja] = await conversations.lister({ egal: { personne: personne.id } });
-        res.status(201).json(deja ?? (await conversations.creer({ titre: nomDe(personne), personne: personne.id, dernier: '', dernierLe: '', nonLus: 0, enLigne: false })));
+        const [deja] = await conversations.lister({ egal: { personne: personne.id, ...avecCercle(personne) } });
+        res.status(201).json(deja ?? (await conversations.creer({ titre: nomDe(personne), personne: personne.id, ...avecCercle(personne), dernier: '', dernierLe: '', nonLus: 0, enLigne: false })));
       } catch (erreur) {
         next(erreur);
       }
@@ -537,7 +561,7 @@ export function monterTempsReel(cible: { use(routes: RequestHandler): unknown },
           refus(res);
           return;
         }
-        const visibles = estAgent(moi) ? await conversations.lister({ egal: {}, limite: 2000 }) : [await conversationDe(moi, 'moi')].filter((c): c is Record<string, unknown> & { id: string } => Boolean(c));
+        const visibles = estAgent(moi) ? await conversationsVisibles(moi) : [await conversationDe(moi, 'moi')].filter((c): c is Record<string, unknown> & { id: string } => Boolean(c));
         const lus = (await Promise.all(visibles.map((c) => messages.lister({ egal: { conversation: String(c.id) } })))).flat();
         const dernier = lus.filter((m) => m.auteur !== moi.id).sort((a, b) => String(b.creeLe).localeCompare(String(a.creeLe)))[0];
         res.set('Cache-Control', 'no-store').json(dernier ?? messageVide);
@@ -617,7 +641,7 @@ export function monterTempsReel(cible: { use(routes: RequestHandler): unknown },
           res.set('Cache-Control', 'no-store').json({ id: 'moi', nombre: 0 });
           return;
         }
-        const visibles = estAgent(moi) ? await conversations.lister({ egal: {}, limite: 2000 }) : [await conversationDe(moi, 'moi', false)].filter((c): c is Record<string, unknown> & { id: string } => Boolean(c));
+        const visibles = estAgent(moi) ? await conversationsVisibles(moi) : [await conversationDe(moi, 'moi', false)].filter((c): c is Record<string, unknown> & { id: string } => Boolean(c));
         const totaux = await Promise.all(visibles.map((c) => nonLus(String(c.id), moi.id)));
         res.set('Cache-Control', 'no-store').json({ id: 'moi', nombre: totaux.reduce((a, b) => a + b, 0) });
       } catch (erreur) {

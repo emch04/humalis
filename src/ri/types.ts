@@ -233,9 +233,9 @@ export interface PasserelleRI {
 
 export interface ServeurRI {
   /** « discussion "support" entre client et agent ». */
-  discussions?: { nom: string; entre: string[]; ligne: number }[];
+  discussions?: { nom: string; entre: string[]; par?: string; ligne: number }[];
   /** « salle "conseil" pour membre animee par direction ». */
-  salles?: { nom: string; pour: string[]; animateurs?: string[]; ligne: number }[];
+  salles?: { nom: string; pour: string[]; par?: string; animateurs?: string[]; ligne: number }[];
   captureErreurs?: InstructionServeurRI[];
   /** Les sources à jeton secret que ce serveur relaie (« /api/passerelle/<source> »). */
   passerelles?: PasserelleRI[];

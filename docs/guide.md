@@ -3126,10 +3126,13 @@ animent (`animee par agent`) peuvent `couper micro de p` et `exclure p`. La list
 `participants de reunion "conseil"` se met à jour seule, même pour quelqu'un qui
 n'est pas entré ; une personne dont la connexion tombe en disparaît.
 
+**Par boutique.** `discussion "support" entre client et vendeur par boutique` donne à chaque boutique ses propres conversations : un vendeur ne voit que les clients de sa boutique, et un compte sans boutique n'en ouvre aucune. De même, `salle "classe" pour eleve et professeur par classe` donne une salle par classe. Le groupe est celui d'une donnée (`donnee commande par boutique`), porté par chaque compte.
+
 | Phrase | Ce qu'elle fait |
 |---|---|
 | `discussion "…" entre client et agent` | (serveur) une conversation par cliente, avec l'équipe |
 | `salle "…" pour membre animee par direction` | (serveur) une salle de réunion et ses animateurs |
+| `… par boutique` | (serveur) des conversations, ou une salle, par boutique |
 | `discussion "…"`, `… sans pieces jointes` | la conversation dans la page |
 | `ouvrir discussion "…" avec personne` | la conversation d'une personne précise |
 | `quand un message arrive dans "…" :` | `message.texte`, `message.auteur_nom` |

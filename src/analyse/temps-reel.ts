@@ -17,8 +17,22 @@ export function analyserTempsReel(programme: Programme, diagnostics: Diagnostic[
       const connus = [...roles].filter((r) => r !== 'admin' && r !== 'membre');
       diagnostics.push({ gravite: 'erreur', message: `${quoi} nomme le rôle « ${role} », qui n'est pas déclaré. ${connus.length ? `Rôles : ${connus.join(', ')}.${proposerNom(role, connus)}` : `Ajoutez dans le serveur : roles ${role}.`}`, ligne });
     };
-    for (const d of serveur.discussions ?? []) for (const r of d.entre) verifier(r, `la discussion « ${d.nom} »`, d.ligne);
+    // « par boutique » : le groupe est celui d'une donnée (« donnee commande par boutique »), porté par chaque compte.
+    const groupes = [...new Set(serveur.donnees.flatMap((d) => (d.par && d.par !== 'compte' ? [d.par] : [])))];
+    const verifierGroupe = (par: string | undefined, quoi: string, ligne: number) => {
+      if (par === undefined || groupes.includes(par)) return;
+      if (par === 'compte') {
+        diagnostics.push({ gravite: 'erreur', message: `${quoi} ne se sépare pas « par compte » : chaque personne a déjà sa propre conversation. Séparez-la par un groupe, comme « par boutique ».`, ligne });
+        return;
+      }
+      diagnostics.push({ gravite: 'erreur', message: `${quoi} se sépare « par ${par} », mais aucune donnée n'est rangée par ${par}. ${groupes.length ? `Groupes : ${groupes.join(', ')}.${proposerNom(par, groupes)}` : `Écrivez par exemple : donnee commande par ${par}.`}`, ligne });
+    };
+    for (const d of serveur.discussions ?? []) {
+      for (const r of d.entre) verifier(r, `la discussion « ${d.nom} »`, d.ligne);
+      verifierGroupe(d.par, `la discussion « ${d.nom} »`, d.ligne);
+    }
     for (const s of serveur.salles ?? []) {
+      verifierGroupe(s.par, `la salle « ${s.nom} »`, s.ligne);
       for (const r of s.pour) verifier(r, `la salle « ${s.nom} »`, s.ligne);
       for (const r of s.animateurs ?? []) verifier(r, `la salle « ${s.nom} »`, s.ligne);
     }

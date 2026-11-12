@@ -150,9 +150,9 @@ export interface Disposition {
 export interface Serveur {
   type: 'Serveur';
   /** « discussion "support" entre client et agent ». */
-  discussions?: { nom: string; entre: string[]; ligne: number }[];
+  discussions?: { nom: string; entre: string[]; par?: string; ligne: number }[];
   /** « salle "conseil" pour membre animee par direction ». */
-  salles?: { nom: string; pour: string[]; animateurs?: string[]; ligne: number }[];
+  salles?: { nom: string; pour: string[]; par?: string; animateurs?: string[]; ligne: number }[];
   /** Capture des erreurs du processus et d'Express. */
   captureErreurs?: { corps: InstructionServeur[]; ligne: number };
   /** « donnees de depart pour produit : » : les fiches écrites au premier démarrage, si la table est vide. */

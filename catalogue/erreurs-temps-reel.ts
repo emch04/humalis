@@ -14,6 +14,7 @@ const AVEC = (corps: string) => `${PAGE}\n${corps}`;
 const CLIC = (ligne: string) => AVEC(`    bouton "Go"\n    quand l'utilisateur clique sur "Go" :\n        ${ligne}`);
 const D = '    discussion "support" entre client et agent';
 const SA = '    salle "conseil" pour client';
+const G = '    donnee commande par boutique :\n        total : nombre\n    route "commandes" :\n        connecte peut lire commande\n        connecte peut creer commande\n        connecte peut modifier commande\n        connecte peut supprimer commande';
 
 export const ENTREES_ERREURS_TEMPS_REEL: EntreeErreur[] = [
   e('discussion-sans-entre', 'grammaire', 'Une discussion sans ses rôles', 'Une discussion dit entre quels rôles elle se fait.', 'Ajoute « entre » et les rôles.', S('    discussion "support"'), S(D), 'il manque « entre » et les rôles'),
@@ -31,4 +32,7 @@ export const ENTREES_ERREURS_TEMPS_REEL: EntreeErreur[] = [
   e('discussion-sans-page', 'noms', 'Ouvrir une discussion qu’aucune page ne montre', '« ouvrir discussion » mène à la page qui montre cette discussion.', 'Écris la discussion dans une page.', S(D, CLIC('ouvrir discussion "support" avec "compte-1"')), S(D, `${AVEC('    discussion "support"\n    bouton "Go"\n    quand l\'utilisateur clique sur "Go" :\n        ouvrir discussion "support" avec "compte-1"')}`), 'aucune page ne montre la discussion'),
   e('reunion-geste-hors-evenement', 'grammaire', 'Un geste de réunion hors d’un événement', 'Couper le micro est une action : elle se fait quand quelque chose arrive.', 'Mets-la dans un événement.', S(SA, AVEC('    couper micro')), S(SA, CLIC('couper micro')), 'ne s\'utilise que dans un événement'),
   e('temps-reel-role-inconnu', 'noms', 'Un rôle non déclaré', 'Une discussion et une salle nomment des rôles déclarés dans le serveur.', 'Déclare le rôle, ou corrige son nom.', S('    discussion "support" entre client et vendeur'), S(D), 'qui n\'est pas déclaré'),
+  e('temps-reel-groupe-manquant', 'grammaire', '« par » sans le groupe', 'Après « par », une discussion ou une salle nomme le groupe qui la sépare.', 'Écris le nom du groupe.', S(`${G}\n    discussion "support" entre client et agent par`), S(`${G}\n    discussion "support" entre client et agent par boutique`), 'il manque le nom du groupe après « par »'),
+  e('temps-reel-groupe-inconnu', 'noms', 'Un groupe qu’aucune donnée n’utilise', '« par boutique » sépare les conversations comme les données : une donnée doit être rangée par ce groupe, et chaque compte porte le sien.', 'Range une donnée par ce groupe, ou corrige son nom.', S(`${G}\n    discussion "support" entre client et agent par magasin`), S(`${G}\n    discussion "support" entre client et agent par boutique`), 'mais aucune donnée n\'est rangée par'),
+  e('temps-reel-par-compte', 'grammaire', 'Une discussion « par compte »', 'Chaque personne a déjà sa propre conversation : « par compte » ne sépare rien de plus.', 'Sépare-la par un groupe, comme « par boutique ».', S(`${G}\n    discussion "support" entre client et agent par compte`), S(`${G}\n    discussion "support" entre client et agent par boutique`), 'ne se sépare pas « par compte »'),
 ];

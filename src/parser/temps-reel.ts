@@ -102,9 +102,18 @@ function rolesLus(flux: FluxTokens, exemple: string): string[] {
   return roles;
 }
 
-const DONNEES_DISCUSSION = (s: string) => `donnee conversation_${s} :
+/** « par boutique » après les rôles : chaque boutique a ses conversations, chaque classe sa salle. */
+function groupeLu(flux: FluxTokens, exemple: string): string | undefined {
+  if (!estLeMot(flux.actuel(), 'par')) return undefined;
+  flux.avancer();
+  const jeton = flux.actuel();
+  if (!estMot(jeton)) throw new ErreurSyntaxique(`il manque le nom du groupe après « par » : ${exemple}`, jeton.ligne);
+  return flux.avancer().valeur;
+}
+
+const DONNEES_DISCUSSION = (s: string, par?: string) => `donnee conversation_${s} :
     titre : texte
-    personne : texte
+${par ? '    cercle : texte\n' : ''}    personne : texte
     dernier : texte
     dernier_le : texte
     non_lus : nombre
@@ -241,10 +250,11 @@ export function analyserPhraseServeurTempsReel(flux: FluxTokens, serveur: { donn
     if (!estLeMot(flux.actuel(), 'entre')) throw new ErreurSyntaxique(`il manque « entre » et les rôles : ${exemple}`, flux.actuel().ligne);
     flux.avancer();
     const entre = rolesLus(flux, exemple);
+    const par = groupeLu(flux, 'discussion "support" entre client et vendeur par boutique');
     if (entre.length > 2) throw new ErreurSyntaxique(`une discussion se fait entre un rôle ou deux : ${exemple}, ou discussion "equipe" entre membre.`, debut.ligne);
     if (serveur.discussions.some((d) => d.nom === nom)) throw new ErreurSyntaxique(`la discussion « ${nom} » est déjà écrite : donnez-lui un autre nom.`, debut.ligne);
-    serveur.discussions.push({ nom, entre, ligne: debut.ligne });
-    ajouterAuServeur(serveur, DONNEES_DISCUSSION(s), debut.ligne, `discussion:${nom}`);
+    serveur.discussions.push({ nom, entre, ...(par ? { par } : {}), ligne: debut.ligne });
+    ajouterAuServeur(serveur, DONNEES_DISCUSSION(s, par), debut.ligne, `discussion:${nom}`);
     ajouterAuServeur(serveur, DONNEES_PRESENCE, debut.ligne, 'presence');
     return;
   }
@@ -252,6 +262,7 @@ export function analyserPhraseServeurTempsReel(flux: FluxTokens, serveur: { donn
   if (!flux.verifier('MOT_CLE', 'pour') && !estLeMot(flux.actuel(), 'pour')) throw new ErreurSyntaxique(`il manque « pour » et les rôles : ${exemple}`, flux.actuel().ligne);
   flux.avancer();
   const pour = rolesLus(flux, exemple);
+  const par = groupeLu(flux, 'salle "classe" pour eleve et professeur par classe');
   let animateurs: string[] | undefined;
   if (estLeMot(flux.actuel(), 'animee')) {
     flux.avancer();
@@ -260,7 +271,7 @@ export function analyserPhraseServeurTempsReel(flux: FluxTokens, serveur: { donn
     animateurs = rolesLus(flux, 'salle "conseil" pour membre animee par direction');
   }
   if (serveur.salles.some((x) => x.nom === nom)) throw new ErreurSyntaxique(`la salle « ${nom} » est déjà écrite : donnez-lui un autre nom.`, debut.ligne);
-  serveur.salles.push({ nom, pour, ...(animateurs ? { animateurs } : {}), ligne: debut.ligne });
+  serveur.salles.push({ nom, pour, ...(par ? { par } : {}), ...(animateurs ? { animateurs } : {}), ligne: debut.ligne });
   ajouterAuServeur(serveur, DONNEES_SALLES, debut.ligne, 'salles');
 }
 

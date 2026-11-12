@@ -194,7 +194,7 @@ page "compte" :
 
 ### discussion "…" entre … et …
 
-Le temps réel : une discussion déclarée dans le serveur, montrée dans une page ; « appeler en video », « salle … pour … animee par … » et « reunion "…" » font les appels et les réunions (LiveKit, par les variables d’environnement LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET).
+Le temps réel : une discussion déclarée dans le serveur, montrée dans une page ; « appeler en video », « salle … pour … animee par … » et « reunion "…" » font les appels et les réunions ; « … par boutique » donne des conversations ou une salle par groupe (LiveKit, par les variables d’environnement LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET).
 
 ```humalis
 serveur "boutique" :
@@ -1033,6 +1033,9 @@ serveur "boutique" :
 - Ouvrir une discussion qu’aucune page ne montre : aucune page ne montre la discussion
 - Un geste de réunion hors d’un événement : ne s'utilise que dans un événement
 - Un rôle non déclaré : qui n'est pas déclaré
+- « par » sans le groupe : il manque le nom du groupe après « par »
+- Un groupe qu’aucune donnée n’utilise : mais aucune donnée n'est rangée par
+- Une discussion « par compte » : ne se sépare pas « par compte »
 - Une capture déjà écrite dans l’application : est déjà écrit ligne
 - Une capture déjà écrite dans le serveur : est déjà écrit ligne
 - La destination de la requête manque : on écrit : envoyer requete vers

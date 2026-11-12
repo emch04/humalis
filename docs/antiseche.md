@@ -471,7 +471,9 @@ page "accueil" :
 ```humalis racine
 serveur "ecole" :
     roles eleve et professeur
-    salle "classe" pour eleve et professeur animee par professeur
+    donnee cours par classe :
+        titre : texte
+    salle "classe" pour eleve et professeur par classe animee par professeur
 
 page "accueil" :
     titre "Classe"
