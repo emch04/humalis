@@ -102,3 +102,28 @@ describe('les droits dangereux ou contradictoires', () => {
     expect(avertissements(avec(['seul admin peut lire produit', 'seul admin peut lire produit', 'seul admin peut modifier produit']))).toEqual([]);
   });
 });
+
+describe('les fautes de frappe et les messages', () => {
+  const erreur = (source: string) => erreurs(source)[0];
+
+  it('un mot du langage mal écrit : le compilateur propose le bon', () => {
+    expect(erreur('page "a" :\n    tittre "x"\n')).toBe('instruction inconnue : « tittre » Peut-être « titre » ?');
+    expect(erreur('page "a" :\n    titre "x"\n    boutton "B"\n')).toBe('instruction inconnue : « boutton » Peut-être « bouton » ?');
+  });
+
+  it('un mot sans rapport ne reçoit pas de proposition', () => {
+    expect(erreur('page "a" :\n    titre "x"\n    xyzzyplugh "B"\n')).toBe('instruction inconnue : « xyzzyplugh »');
+  });
+
+  it('deux lettres échangées dans un nom de variable : le compilateur propose la variable', () => {
+    expect(erreur('page "a" :\n    titre "x"\n    variable total = 3\n    texte "{totla}"\n')).toContain('Peut-être « total » ?');
+  });
+
+  it('« calcul de = 1 » dit que « de » ne peut pas nommer, comme pour une variable', () => {
+    expect(erreur('page "a" :\n    titre "x"\n    calcul de = 1\n')).toContain('« de » est un petit mot ignoré par Humalis');
+  });
+
+  it('un émoji hors d’un texte est montré tel quel', () => {
+    expect(erreur('page "a" :\n    titre "x" 😀\n')).toContain('😀');
+  });
+});

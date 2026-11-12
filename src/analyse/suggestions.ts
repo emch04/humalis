@@ -1,16 +1,20 @@
 /** Compare deux noms sans tenir compte de la casse ni des accents. */
 const normaliserNom = (nom: string): string => nom.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
-/** Distance d'édition : insertion, suppression ou remplacement d'un caractère. */
+/** Distance d'édition : insertion, suppression, remplacement d'un caractère, ou échange de deux voisins. */
 export function distanceEdition(a: string, b: string): number {
   const gauche = normaliserNom(a);
   const droite = normaliserNom(b);
+  let avant: number[] = [];
   let precedente = Array.from({ length: droite.length + 1 }, (_, i) => i);
   for (let i = 1; i <= gauche.length; i++) {
     const courante = [i];
     for (let j = 1; j <= droite.length; j++) {
       courante[j] = Math.min(courante[j - 1] + 1, precedente[j] + 1, precedente[j - 1] + (gauche[i - 1] === droite[j - 1] ? 0 : 1));
+      // « totla » pour « total » : deux lettres voisines échangées, une seule faute de frappe.
+      if (i > 1 && j > 1 && gauche[i - 1] === droite[j - 2] && gauche[i - 2] === droite[j - 1]) courante[j] = Math.min(courante[j], avant[j - 2] + 1);
     }
+    avant = precedente;
     precedente = courante;
   }
   return precedente[droite.length];

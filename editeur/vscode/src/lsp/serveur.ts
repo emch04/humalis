@@ -34,6 +34,7 @@ interface PositionLsp {
 
 const ERREUR_METHODE_INCONNUE = -32601;
 const ERREUR_INTERNE = -32603;
+const ERREUR_PARAMETRES = -32602;
 const ERREUR_ARRET = -32600;
 
 /** CompletionItemKind du protocole. */
@@ -121,6 +122,22 @@ export class ServeurLangage {
       if (this.arretDemande && demande && method !== 'shutdown') {
         this.repondreErreur(id, ERREUR_ARRET, 'le serveur est en train de s’arrêter');
         return;
+      }
+      if (demande && method.startsWith('textDocument/')) {
+        const recus = params as { textDocument?: { uri?: unknown }; position?: { line?: unknown; character?: unknown } } | null | undefined;
+        if (!recus || typeof recus.textDocument?.uri !== 'string') {
+          this.repondreErreur(id, ERREUR_PARAMETRES, 'paramètres invalides : il manque textDocument.uri');
+          return;
+        }
+        // Une position qui n'est pas dans le document (ligne négative, au-delà de la fin) n'a rien à montrer.
+        if (recus.position !== undefined) {
+          const { line, character } = recus.position;
+          const lignes = (this.documents.get(recus.textDocument.uri) ?? '').split('\n').length;
+          if (!Number.isInteger(line) || !Number.isInteger(character) || (line as number) < 0 || (character as number) < 0 || (line as number) >= lignes) {
+            this.envoyer({ jsonrpc: '2.0', id, result: null });
+            return;
+          }
+        }
       }
       const resultat = this.traiter(method, params);
       if (demande) {

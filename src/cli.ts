@@ -72,13 +72,15 @@ lancer    fait tourner un fichier tout de suite, sans projet produit, sans
 verifier  affiche les erreurs et les avertissements avec leur ligne. Avec
           --ri, affiche aussi la représentation intermédiaire (pour qui
           travaille sur le compilateur).
-compile   produit un projet complet pour la cible choisie : web (Vite + React
-          prérendu), mobile (Expo, iPhone et Android), desktop (Electron, Mac,
-          Windows et Linux), apple (SwiftUI natif, iPhone, iPad et Mac), windows (C# et WPF natif,
-          Windows 10 et 11), serveur (Node + packs Astratra) ou statique (HTML,
-          CSS, JavaScript, sans construction).
+compile   produit un projet complet pour la cible choisie : web (un site
+          prérendu, une page HTML par adresse), statique (HTML, CSS,
+          JavaScript, sans construction), apple (SwiftUI natif, iPhone, iPad
+          et Mac), android (Kotlin et Jetpack Compose), windows (C# et WPF
+          natif, Windows 10 et 11), desktop (Electron, la cible Linux),
+          serveur (Node + packs Astratra) ou mobile (ancienne cible, par
+          Expo).
           Avec --composants, seulement les pages web et leurs outils, à
-          déposer dans un projet React existant.
+          déposer dans un projet existant.
 packs     compare les packs Astratra du compilateur à leur dernière version
           sur npm. Avec --verifier, dit si un projet déjà produit est en retard.
 editeur   le serveur de langage Humalis (LSP), sur l'entrée et la sortie

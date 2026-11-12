@@ -442,13 +442,15 @@ export function analyser(brute: string): Token[] {
         continue;
       }
 
+      // Un émoji tient sur deux unités : on le lit en entier, pour le montrer tel quel dans le message.
+      const signe = String.fromCodePoint(ligne.codePointAt(i)!);
       tokens.push({
         type: 'PONCTUATION',
-        valeur: c,
+        valeur: signe,
         ligne: numLigne + 1,
         colonne: i + 1,
       });
-      i++;
+      i += signe.length;
     }
 
     tokens.push({

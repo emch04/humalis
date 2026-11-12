@@ -1,3 +1,5 @@
+import { proposerNom } from '../analyse/suggestions.js';
+import { formesConnues } from '../vocabulaire/recherche.js';
 import { analyserStyleHumalis, cssDuStyle, declarationsDuStyle, estStyleHumalis, type StyleHumalis } from './styleHumalis.js';
 import { deplierFonctionsActions } from './fonctionsActions.js';
 import { estSite, analyserSite, estApercu, analyserApercu } from './site.js';
@@ -1621,9 +1623,9 @@ export function analyserInstruction(flux: FluxTokens): Instruction {
   // « calcul total = … » ; « calcul » seul reste un nom de variable possible.
   if (
     flux.verifier('MOT_CLE', 'calcul') &&
-    estUnNom(flux.regarder(1)) &&
-    flux.regarder(2).type === 'PONCTUATION' &&
-    flux.regarder(2).valeur === '='
+    ((estUnNom(flux.regarder(1)) && flux.regarder(2).type === 'PONCTUATION' && flux.regarder(2).valeur === '=') ||
+      // « calcul de = 1 » : le petit mot est sauté, le « = » suit aussitôt ; analyserVariable dit pourquoi « de » ne peut pas nommer.
+      (flux.regarder(1).type === 'PONCTUATION' && flux.regarder(1).valeur === '='))
   ) {
     return { ...analyserVariable(flux), calcul: true };
   }
@@ -1965,7 +1967,7 @@ export function analyserInstruction(flux: FluxTokens): Instruction {
     throw new ErreurSyntaxique(messageMotPrevu(token), token.ligne);
   }
   throw new ErreurSyntaxique(
-    `instruction inconnue : « ${token.valeur || token.type} »`,
+    `instruction inconnue : « ${token.valeur || token.type} »${token.type === 'IDENTIFIANT' && token.valeur.length > 2 ? proposerNom(token.valeur, formesConnues()) : ''}`,
     token.ligne,
   );
 }

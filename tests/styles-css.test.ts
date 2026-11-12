@@ -63,7 +63,7 @@ describe('CSS — analyse', () => {
     expect(resultat.diagnostics).toEqual([
       {
         gravite: 'avertissement',
-        message: "le style « grnad » n'est défini dans aucun CSS du projet.",
+        message: "le style « grnad » n'est défini dans aucun CSS du projet. Peut-être « grand » ?",
         ligne: 4,
       },
     ]);

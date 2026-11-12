@@ -1,7 +1,7 @@
 {
   "name": "humalis",
   "version": "1.10.0",
-  "description": "Un seul langage, en français, pour créer une application complète : web, mobile, desktop et serveur",
+  "description": "Un seul langage, en français, pour créer une application complète : site web, applications Apple, Android, Windows et Linux, et leur serveur",
   "type": "module",
   "bin": {
     "humalis": "dist/cli.js"
@@ -86,8 +86,9 @@
     "langage de programmation",
     "français",
     "compilateur",
-    "react",
-    "expo",
+    "swiftui",
+    "android",
+    "windows",
     "electron",
     "site statique",
     "language",

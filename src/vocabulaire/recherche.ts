@@ -84,3 +84,8 @@ export function entreePrevue(mot: string): EntreeVocabulaire | undefined {
   if (entrees.some((e) => e.statut === 'supporte')) return undefined;
   return entrees.find((e) => e.statut === 'prevu');
 }
+
+/** Toutes les formes écrites des mots pris en charge (hors mots de liaison), pour proposer le mot voulu après une faute de frappe. */
+export function formesConnues(): string[] {
+  return [...parForme].filter(([, entrees]) => entrees.some((e) => e.categorie !== 'liaison' && e.statut === 'supporte')).map(([forme]) => forme);
+}
