@@ -26,6 +26,8 @@ dependencies {
         val ideLocal = providers.gradleProperty("ideLocal").get()
         if (ideLocal.isNotBlank()) local(ideLocal) else intellijIdea(providers.gradleProperty("ideVersion").get())
         plugin("com.redhat.devtools.lsp4ij", providers.gradleProperty("lsp4ijVersion").get())
+        // Le débogueur Java : les points d'arrêt dans les fichiers .humalis (applications Android).
+        bundledPlugin("com.intellij.java")
         testFramework(TestFrameworkType.Platform)
     }
     testImplementation("junit:junit:4.13.2")

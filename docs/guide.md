@@ -4295,8 +4295,20 @@ Dans `.vscode/launch.json`, `cible` choisit ce qui est débogué :
 
 Les variables portent leur nom Humalis : sur le serveur, la fiche d’une action s’appelle `commande`, comme dans ton fichier.
 
-Android et Windows n’ont pas encore de débogueur dans VS Code. Sur Android, les erreurs nomment leur ligne Humalis, mais Android Studio ne s’arrête pas dans un fichier `.humalis`.
+Android et Windows ne se déboguent pas dans VS Code : Windows se débogue dans Visual Studio, Android dans Android Studio.
 
 ### Le débogueur de Visual Studio (Windows)
 
 Ouvre le projet produit par `humalis compile --cible windows` dans Visual Studio 2026 (le projet vise .NET 10). Pose le point d’arrêt dans ton fichier `.humalis`, puis lance avec F5. Le programme s’arrête sur ta ligne. F10 passe à la ligne Humalis suivante, F11 entre dans une fonction sur sa première ligne, et le C# produit n’apparaît jamais. Une variable de page montre sa valeur, avec le type « variable Humalis ».
+
+### Le débogueur dans Android Studio
+
+Avec l’extension Humalis pour les IDE JetBrains, Android Studio s’arrête dans tes fichiers `.humalis` :
+
+1. `humalis compile boutique.humalis --cible android --sortie android` produit le projet ;
+2. ouvre le dossier `android` dans Android Studio, puis ton fichier `boutique.humalis` (File › Open) ;
+3. clique dans la marge d’une ligne d’événement pour poser un point d’arrêt, puis lance « Debug 'app' » sur l’émulateur ou sur le téléphone.
+
+L’application s’arrête sur la ligne. « Step Over » (F8) avance d’une ligne Humalis à la suivante, « Step Into » (F7) entre dans une fonction Humalis appelée par la ligne, et un pas après la dernière ligne d’un événement laisse l’application continuer jusqu’au prochain point d’arrêt : le pas à pas ne montre jamais le code Kotlin produit. La vue Variables montre les variables sous leur nom (`compte = 3.0`, `panier`, `message = "Bonjour"`, les paramètres d’une fonction) et la pile nomme les lignes Humalis traversées (« quandCliqueAjouter — ligne 20 de boutique.humalis »). Les conditions des points d’arrêt marchent comme d’habitude.
+
+Les lignes qui produisent du code (le corps des événements, des fonctions, des minuteries) portent un point d’arrêt ; une ligne vide ou un commentaire n’en porte pas. La construction « debug » du projet inscrit dans chaque classe une strate « Humalis » (JSR-45), d’après la table `app/humalis-lignes.txt` : c’est elle que lit Android Studio. Elle s’ajoute à celle de Kotlin sans la changer : un point d’arrêt posé dans le code Kotlin produit, même dans une fonction `inline`, s’arrête comme d’habitude, en même temps que ceux du fichier `.humalis`. Une construction Release n’en porte pas.

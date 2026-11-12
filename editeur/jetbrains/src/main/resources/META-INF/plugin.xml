@@ -9,13 +9,16 @@
   <li>erreurs du compilateur en direct ;</li>
   <li>survol, complétion, aller à la déclaration ;</li>
   <li>plan du fichier (vue Structure) et mise en forme ;</li>
-  <li>icône des fichiers <code>.humalis</code> et commentaires avec <code>#</code>.</li>
+  <li>icône des fichiers <code>.humalis</code> et commentaires avec <code>#</code> ;</li>
+  <li>dans Android Studio : points d'arrêt dans le fichier <code>.humalis</code>, pas à pas par lignes Humalis et variables sous leur nom Humalis, sur une application produite par <code>humalis compile --cible android</code>.</li>
 </ul>
 <p>Il faut la commande <code>humalis</code> (Node 24 ou plus récent) : <code>npm install -g humalis</code>.
 Le serveur de langage est branché par LSP4IJ, installé avec l'extension.</p>
 ]]></description>
     <depends>com.intellij.modules.platform</depends>
     <depends>com.redhat.devtools.lsp4ij</depends>
+    <!-- Le débogueur des applications Android produites par Humalis (Android Studio, IntelliJ IDEA) : avec le débogueur Java. -->
+    <depends optional="true" config-file="humalis-debogueur.xml">com.intellij.java</depends>
 
     <extensions defaultExtensionNs="com.intellij">
         <fileType name="Humalis" implementationClass="dev.humalis.intellij.HumalisFileType" fieldName="INSTANCE"

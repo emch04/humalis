@@ -25,7 +25,7 @@ import { CssAndroid, type Portee as PorteeCss } from './css.js';
 import { FORMATS_KT } from './formats.js';
 import { LANGUES_KT, traduireMessagesKotlin, INTERFACE_KT, MEMOIRE_KT, SERVEUR_KT, VALEURS_KT, kotlin } from './bibliotheque.js';
 import { EcrivainKotlin } from './ecrivain.js';
-import { AVANT_PLAN_ICONE, CONSTRUCTION_RACINE, ENVELOPPE_GRADLE, IGNORES_GIT, PROPRIETES_GRADLE, SECURITE_RESEAU, THEME_XML, VERSIONS, constructionApp, couleurIcone, iconeAdaptative, manifeste, reglagesGradle } from './gradle.js';
+import { AVANT_PLAN_ICONE, CONSTRUCTION_RACINE, ENVELOPPE_GRADLE, IGNORES_GIT, PROPRIETES_GRADLE, SECURITE_RESEAU, TABLE_DEBOGUEUR, THEME_XML, VERSIONS, constructionApp, couleurIcone, iconeAdaptative, manifeste, reglagesGradle } from './gradle.js';
 import { iconesKotlin } from './icones.js';
 import { chaineKotlin, identifiantAndroid, nomApplication, nomComposant, nomKotlin, nomRoute } from './noms.js';
 import { GenerateurPage, type ContexteAndroid } from './page.js';
@@ -503,6 +503,14 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 Depuis l'émulateur, l'ordinateur s'appelle \`10.0.2.2\` : un serveur Humalis lancé sur
 \`http://localhost:3000\` est appelé à \`http://10.0.2.2:3000\`. Sur un vrai téléphone,
 compilez avec \`--serveur https://…\`.
+
+## Déboguer
+
+Avec l'extension Humalis d'Android Studio, ouvrez aussi le fichier Humalis (File › Open),
+posez un point d'arrêt dans sa marge et lancez « Debug 'app' » : l'application s'arrête
+sur la ligne Humalis, le pas à pas avance d'une ligne Humalis à la suivante et la vue
+Variables montre les variables de la page. La construction « debug » relie le code aux
+lignes Humalis d'après \`app/${TABLE_DEBOGUEUR}\`.
 `;
 }
 
