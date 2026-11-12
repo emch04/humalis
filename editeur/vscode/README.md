@@ -28,7 +28,7 @@ page "accueil" :
 
 ## Tout le langage
 
-L'extension connaît le langage de Humalis 1.9.0, y compris les constructions les plus récentes :
+L'extension connaît le langage de Humalis 1.10.0, y compris les constructions les plus récentes :
 
 - **Les cibles natives :** `--cible apple`, `--cible android`, `--cible windows`, et les portes de sortie `utiliser composant "Carte" sur apple "….swift" et sur android "….kt" et sur windows "….cs"`, `paquet android`, `paquet windows`, `utiliser style "….swift" sur apple`.
 - **Le temps réel :** `discussion "support" entre client et agent`, `appeler en video contact`, `decrocher`, `raccrocher`, `salle "classe" pour eleve et professeur animee par professeur`, `reunion "classe"`, `couper micro de p`.

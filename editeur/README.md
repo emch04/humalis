@@ -4,7 +4,7 @@ Tous les éditeurs s'appuient sur le même serveur de langage (LSP), livré avec
 Humalis :
 
 ```bash
-npm install -g humalis      # Node 24 ou plus récent
+npm install -g humalis      # Humalis 1.10.0 ou plus récent, Node 24 ou plus récent
 humalis editeur --stdio     # lancé par l'éditeur, jamais à la main
 ```
 

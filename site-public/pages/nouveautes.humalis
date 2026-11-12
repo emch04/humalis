@@ -14,8 +14,29 @@ page "nouveautes" a l'adresse "/nouveautes" :
             colonne avec style "frise" et animation montee au defilement et en cascade :
                 bloc avec style "version version-recente" :
                     ligne avec style "version-tete" :
-                        texte "1.9.0" sans traduction avec style "version-numero"
+                        texte "1.10.0" sans traduction avec style "version-numero"
                         texte "Dernière version" en anglais "Latest" avec style "pastille pastille-vive"
+                        texte "12 novembre 2026" en anglais "November 12, 2026" avec style "version-date"
+                    soustitre "Déboguer en Humalis" en anglais "Debugging in Humalis"
+                    liste :
+                        texte "Une erreur nomme sa ligne Humalis (« ligne 12 de boutique.humalis ») sur le web, le bureau, le serveur, Apple, Android et Windows ; `quand une erreur arrive :` reçoit aussi `erreur.ligne`." en anglais "An error names its Humalis line (“line 12 of boutique.humalis”) on the web, desktop, server, Apple, Android and Windows; `quand une erreur arrive :` also receives `erreur.ligne`."
+                        texte "`noter panier et total` montre des valeurs pendant le développement, dans la console de chaque plateforme, et disparaît du site ou de l’application construits." en anglais "`noter panier et total` shows values during development, in each platform’s console, and disappears from the built site or app."
+                        texte "L’inspecteur de `humalis developper` (Alt + Maj + I) montre en direct les variables, les requêtes et leurs réponses, les droits refusés et les erreurs." en anglais "The `humalis developper` inspector (Alt + Shift + I) shows variables, requests and their responses, denied permissions and errors, live."
+                        texte "Des points d’arrêt dans le fichier `.humalis` : dans VS Code pour le site, le serveur et le Mac, dans Visual Studio pour Windows, dans Android Studio pour Android. Le pas à pas avance de ligne Humalis en ligne Humalis, et les variables gardent leur nom." en anglais "Breakpoints in the `.humalis` file: in VS Code for the site, server and Mac, in Visual Studio for Windows, in Android Studio for Android. Stepping moves from Humalis line to Humalis line, and variables keep their names."
+                    soustitre "Humalis dans tes éditeurs" en anglais "Humalis in your editors"
+                    liste :
+                        texte "`humalis editeur --stdio` lance le serveur de langage : erreurs en direct, survol, complétion, aller à la déclaration, plan du fichier et mise en forme." en anglais "`humalis editeur --stdio` starts the language server: live errors, hover, completion, go to definition, document outline and formatting."
+                        texte "Des extensions pour les IDE JetBrains (IntelliJ IDEA, Android Studio, WebStorm, Rider), Zed et Visual Studio, et des réglages pour Neovim, Helix, Emacs et Sublime Text." en anglais "Extensions for JetBrains IDEs (IntelliJ IDEA, Android Studio, WebStorm, Rider), Zed and Visual Studio, and settings for Neovim, Helix, Emacs and Sublime Text."
+                        texte "L’extension VS Code passe en 1.4.0, avec le débogueur et des extraits pour les discussions, les réunions, les widgets, les données sur l’appareil, les clés d’accès et les médias." en anglais "The VS Code extension moves to 1.4.0, with the debugger and snippets for chats, meetings, widgets, on-device data, passkeys and media."
+                    soustitre "Plus juste partout" en anglais "More accurate everywhere"
+                    liste :
+                        texte "Une erreur 500 du serveur ne renvoie plus ni la pile ni le message interne au navigateur, même hors production." en anglais "A server 500 error no longer sends the stack or the internal message to the browser, even outside production."
+                        texte "Sous un en-tête fixe, changer de page ramène en haut, et le retour arrière retrouve sa position." en anglais "Under a fixed header, changing page goes back to the top, and going back restores the position."
+                        texte "Avec une adresse par langue, le plan du site liste chaque version de chaque page, reliées entre elles." en anglais "With one address per language, the sitemap lists every version of every page, linked together."
+                        texte "Un texte mis à jour reste seul dans son élément, même quand un autre script l’a découpé." en anglais "An updated text stays alone in its element, even when another script has split it."
+                bloc avec style "version" :
+                    ligne avec style "version-tete" :
+                        texte "1.9.0" sans traduction avec style "version-numero"
                         texte "10 novembre 2026" en anglais "November 10, 2026" avec style "version-date"
                     soustitre "Des applications natives pour iPhone, iPad et Mac" en anglais "Native apps for iPhone, iPad and Mac"
                     liste :
@@ -239,7 +260,7 @@ page "nouveautes" a l'adresse "/nouveautes" :
         colonne avec style "nouveautes-aside" et animation montee au defilement et en cascade :
             bloc avec style "aside-carte aside-vive" :
                 texte "Version actuelle" en anglais "Current version" avec style "aside-etiquette"
-                texte "1.9.0" sans traduction avec style "aside-version"
+                texte "1.10.0" sans traduction avec style "aside-version"
                 texte "Pour mettre à jour Humalis sur ta machine :" en anglais "To update Humalis on your machine:"
                 ligne avec style "install-command" :
                     texte "npm install -g humalis" sans traduction avec style "install-code"
