@@ -838,6 +838,10 @@ npm run paquet    # construit l'application installable dans paquets/
 npm run dev       # les pages seules, dans le navigateur (http://localhost:5173)
 \`\`\`
 
+npm 11 n'exécute plus les scripts d'installation sans accord : si \`npm start\`
+dit qu'Electron n'est pas installé, lancez une fois
+\`node node_modules/electron/install.js\`.
+
 Sur Mac, \`npm run paquet\` donne \`paquets/mac-arm64/${options.nom}.app\` (ou
 \`paquets/mac/\` sur un Mac Intel) et un \`.dmg\`. Le paquet n'est pas signé :
 la signature Apple demande un compte développeur. Avec \`npm start\`, le
