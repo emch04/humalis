@@ -86,7 +86,8 @@ export function compilerProjet(principal: string | undefined, lire: Lecteur, sou
         return;
       }
       if (erreur instanceof ErreurSyntaxique) {
-        diagnostics.push({ gravite: 'erreur', message: sansPrefixe(erreur.message), ligne: decalage + erreur.ligne });
+        // Chaque faute de grammaire du fichier, pas seulement la première.
+        for (const faute of [erreur, ...(erreur.autres ?? [])]) diagnostics.push({ gravite: 'erreur', message: sansPrefixe(faute.message), ligne: decalage + faute.ligne });
         return;
       }
       throw erreur;

@@ -9,6 +9,8 @@ export class FluxTokens {
   private position = 0;
   /** Les tokens que lit le parser : tout sauf les mots de liaison. */
   private readonly tokens: Token[] = [];
+  /** Pour chaque token, le nombre de blocs ouverts avant lui (reprise après une faute). */
+  private readonly niveaux: number[] = [];
   /** Pour chaque token lu, le mot de liaison écrit juste avant (« de » dans « de 1 »). */
   private readonly liaisons = new Map<number, Token>();
 
@@ -25,6 +27,17 @@ export class FluxTokens {
       this.tokens.push(token);
       liaison = undefined;
     }
+    let niveau = 0;
+    for (const token of this.tokens) {
+      this.niveaux.push(niveau);
+      if (token.type === 'INDENT') niveau++;
+      else if (token.type === 'DEDENT') niveau--;
+    }
+  }
+
+  /** Le décalage du token actuel : combien de blocs sont ouverts avant lui. */
+  niveau(): number {
+    return this.niveaux[this.position] ?? 0;
   }
 
   /** Une marque pour relire depuis ici (« calcul ok = a est vrai » : on lit « a », puis on relit une condition). */

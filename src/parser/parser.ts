@@ -76,8 +76,55 @@ import type {
   GenreEvenement,
   Connexion, ConnexionGoogle, ConnexionApple, ChangementMotDePasse, Invitation, ChangementRole, ChangementCompte, ResumeServeur, DroitIa, DemandeIa, Paiement, ApresPaiement, FaireAction, TelechargementDocument, DocumentServeur, ActionServeur, TachePlanifiee, EnvoiNotification, ConditionRegle, OperandeRegle, DemandeLienMotDePasse, ChoixMotDePasse, ApresCreation, EnvoiEmail, CreationLiee, RegleChamp, ValeurFixe, TelechargementBon, TelechargementCsv, Fidelite, Suppression, Modification, EnvoiFichier, ArgumentPage } from './ast.js';
 
+/**
+ * Les fautes trouvées dans des instructions pendant la lecture d'un fichier. Après une faute, la lecture
+ * reprend à l'instruction suivante du même bloc : toutes les fautes de grammaire se montrent d'un coup,
+ * au lieu d'une seule (revue L6). Le programme n'est pas rendu pour autant : une faute reste une faute.
+ */
+let reprises: ErreurSyntaxique[] = [];
+let lecturesOuvertes = 0;
+const FAUTES_AU_PLUS = 20;
+
+/** La première faute du fichier, qui porte les autres. */
+function regrouper(fautes: ErreurSyntaxique[]): ErreurSyntaxique {
+  const vues = new Set<string>();
+  const [premiere, ...autres] = [...fautes].sort((a, b) => a.ligne - b.ligne).filter((f) => !vues.has(f.message) && Boolean(vues.add(f.message)));
+  if (autres.length > 0) premiere!.autres = autres;
+  return premiere!;
+}
+
 export function analyserSyntaxe(tokens: Token[]): Programme {
-  return lireProgramme(() => lireLeProgramme(tokens));
+  // Des phrases dépliées (temps réel, lecture par morceaux) : leurs fautes remontent telles quelles.
+  if (lecturesOuvertes > 0) {
+    lecturesOuvertes++;
+    try {
+      return lireProgramme(() => lireLeProgramme(tokens));
+    } finally {
+      lecturesOuvertes--;
+    }
+  }
+  lecturesOuvertes = 1;
+  reprises = [];
+  try {
+    const programme = lireProgramme(() => lireLeProgramme(tokens));
+    if (reprises.length > 0) throw regrouper(reprises);
+    return programme;
+  } catch (erreur) {
+    if (erreur instanceof ErreurSyntaxique && reprises.length > 0 && !reprises.includes(erreur) && erreur.autres === undefined) throw regrouper([...reprises, erreur]);
+    throw erreur;
+  } finally {
+    lecturesOuvertes = 0;
+    reprises = [];
+  }
+}
+
+/** Après une faute dans une instruction : avance jusqu'à l'instruction suivante du même bloc, le bloc décalé sous la ligne fautive compris. */
+function reprendre(flux: FluxTokens, niveau: number): void {
+  for (;;) {
+    if (flux.estFini() || flux.niveau() < niveau || (flux.niveau() === niveau && flux.verifier('DEDENT'))) return;
+    const lu = flux.avancer();
+    if (flux.niveau() === niveau && (lu.type === 'FIN_LIGNE' || lu.type === 'DEDENT') && !flux.verifier('INDENT') && !flux.verifier('FIN_LIGNE')) return;
+  }
 }
 
 function lireLeProgramme(tokens: Token[]): Programme {
@@ -1526,14 +1573,22 @@ export function analyserBloc(flux: FluxTokens): Instruction[] {
   }
 
   flux.sauterFinsDeLigne();
+  const niveau = flux.niveau();
 
   while (!flux.verifier('DEDENT') && !flux.estFini()) {
-    const plusieurs = flux.verifier('MOT_CLE', 'quand') ? analyserEvenementTempsReel(flux) : (analyserPhraseTempsReel(flux) ?? analyserPhraseMorceaux(flux));
-    if (plusieurs) instructions.push(...plusieurs);
-    else {
-      const instruction = analyserInstruction(flux);
-      // « envoyer requete … par 20 dans produits » : ce qui suit la lecture d'un premier morceau.
-      instructions.push(instruction, ...apresInstruction(instruction));
+    try {
+      const plusieurs = flux.verifier('MOT_CLE', 'quand') ? analyserEvenementTempsReel(flux) : (analyserPhraseTempsReel(flux) ?? analyserPhraseMorceaux(flux));
+      if (plusieurs) instructions.push(...plusieurs);
+      else {
+        const instruction = analyserInstruction(flux);
+        // « envoyer requete … par 20 dans produits » : ce qui suit la lecture d'un premier morceau.
+        instructions.push(instruction, ...apresInstruction(instruction));
+      }
+    } catch (erreur) {
+      // La faute est notée, et la lecture reprend à l'instruction suivante de ce bloc.
+      if (!(erreur instanceof ErreurSyntaxique) || lecturesOuvertes !== 1 || reprises.length >= FAUTES_AU_PLUS || erreur.autres !== undefined) throw erreur;
+      reprises.push(erreur);
+      reprendre(flux, niveau);
     }
     flux.sauterFinsDeLigne();
   }

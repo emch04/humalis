@@ -168,3 +168,39 @@ describe('petits pièges du langage (revue L8, L9, L10, L12)', () => {
     expect(messages('serveur "s" :\n    donnee n :\n        t : texte\n    route "n" :\n        tout le monde peut lire n\n', 'avertissement').join(' ')).not.toMatch(/aucune page/);
   });
 });
+
+describe('le lecteur continue après une faute (revue L6)', () => {
+  const fautes = (source: string) => compiler(source).diagnostics.filter((d) => d.gravite === 'erreur').map((d) => [d.ligne, d.message.slice(0, 40)] as const);
+
+  it('deux fautes dans deux pages : les deux sont montrées, chacune à sa ligne', () => {
+    const lues = fautes('page "a" :\n    titre\n    texte "ok"\n\npage "b" :\n    bouton\n    texte "ok"\n');
+    expect(lues.map(([ligne]) => ligne)).toEqual([2, 6]);
+  });
+
+  it('une faute dans un bloc n’emporte pas la suite : le bloc décalé sous la ligne fautive est sauté avec elle', () => {
+    const source = ['page "a" :', '    variable n = 0', '    titre "A"', '    si n est :', '        texte "jamais lu"', '        texte "lui non plus"', '    texte', '    bouton "Go"', '    quand l\'utilisateur clique sur "Go" :', '        changer n', '        changer n par 2', ''].join('\n');
+    expect(fautes(source).map(([ligne]) => ligne)).toEqual([4, 7, 10]);
+  });
+
+  it('une faute seule reste une faute seule, avec le même message qu’avant', () => {
+    const lues = compiler('page "a" :\n    titre\n').diagnostics;
+    expect(lues).toHaveLength(1);
+    expect(lues[0]!.message).toMatch(/une valeur est attendue/);
+  });
+
+  it('un programme sans faute se lit comme avant, et une faute n’en laisse pas trace dans la lecture suivante', () => {
+    expect(fautes('page "a" :\n    titre\n')).toHaveLength(1);
+    expect(fautes('page "a" :\n    titre "A"\n')).toEqual([]);
+  });
+
+  it('au plus vingt fautes sont gardées : un fichier illisible ne noie pas l’écran', () => {
+    const source = 'page "a" :\n' + Array.from({ length: 40 }, () => '    titre\n').join('');
+    expect(fautes(source).length).toBeLessThanOrEqual(21);
+    expect(fautes(source).length).toBeGreaterThan(1);
+  });
+
+  it('une phrase dépliée (lecture par morceaux) garde son message quand elle est fausse', () => {
+    const source = 'page "a" :\n    variable p = []\n    titre "A"\n    bouton "Go"\n    quand l\'utilisateur clique sur "Go" :\n        charger la suite de p\n';
+    expect(fautes(source)).toHaveLength(1);
+  });
+});
