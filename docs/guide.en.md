@@ -4493,6 +4493,7 @@ produced server brings what is needed; this chapter says how to use it.
 
 - `DATABASE_URL` (PostgreSQL) or `HUMALIS_BASE` (SQLite) is set: without a database, data stays in memory and is lost on stop. SQLite suits a single server; for several instances, PostgreSQL. With SQLite, the backup is a copy of the file (`sauvegardes/….sqlite`).
 - `JWT_SECRET` is at least 32 random characters, and is in no repository.
+- By default the firewall refuses a sent text that contains a script tag, `javascript:`, `${…}`, `../../../` or `eval(`; the refusal names the field. For a programming course, a technical forum or a support desk where people paste code, set `HUMALIS_PARE_FEU=adresses`: these texts are stored, SQL injections and trapped addresses are still refused.
 - `HUMALIS_ADRESSE_SITE` is the site's public address, in `https://`.
 - `npm test` passes: the rule, session and attack tests (`tests/attaques.test.ts`) are written for your program.
 - The server sits behind a relay doing HTTPS, with `HUMALIS_RELAIS=1` and `HUMALIS_ECOUTE=127.0.0.1`.

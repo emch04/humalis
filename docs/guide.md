@@ -4448,6 +4448,7 @@ perdre. Le serveur produit apporte ce qu'il faut ; ce chapitre dit comment t'en 
 
 - `DATABASE_URL` (PostgreSQL) ou `HUMALIS_BASE` (SQLite) est réglée : sans base, les données restent en mémoire et sont perdues à l'arrêt. SQLite convient à un serveur seul ; pour plusieurs exemplaires, PostgreSQL. Avec SQLite, la sauvegarde est une copie du fichier (`sauvegardes/….sqlite`).
 - `JWT_SECRET` fait au moins 32 caractères au hasard, et n'est dans aucun dépôt.
+- Le pare-feu refuse par défaut un texte envoyé qui contient une balise de script, `javascript:`, `${…}`, `../../../` ou `eval(` ; le refus nomme le champ. Pour un cours d'informatique, un forum technique ou un support où l'on colle du code, règle `HUMALIS_PARE_FEU=adresses` : ces textes s'enregistrent, les injections SQL et les adresses piégées restent refusées.
 - `HUMALIS_ADRESSE_SITE` est l'adresse publique du site, en `https://`.
 - `npm test` passe : les tests de règles, de sessions et d'attaque (`tests/attaques.test.ts`) sont écrits pour ton programme.
 - Le serveur est derrière un relais qui fait le HTTPS, avec `HUMALIS_RELAIS=1` et `HUMALIS_ECOUTE=127.0.0.1`.

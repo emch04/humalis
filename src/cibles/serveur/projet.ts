@@ -339,6 +339,7 @@ function envExemple(serveur: ServeurRI): string {
     ...(avecSynchro(serveur) ? [ENV_SYNCHRO] : []),
     ...(avecSecurite(serveur) ? [envSecurite(serveur)] : []),
     `# Le plus grand nombre de fiches qu'une lecture de liste renvoie (1000 par défaut). La suite se lit avec ?depuis=1000.\nHUMALIS_LISTE_MAX=`,
+    `# Le pare-feu. « strict » (par défaut) refuse aussi un texte envoyé qui contient une balise de script, « javascript: »,\n# « \${…} », « ../../../ » ou « eval( ». « adresses » ne lit que l'adresse pour ces motifs : à choisir pour un cours\n# d'informatique, un forum technique, un support où l'on colle du code. Les injections SQL restent refusées partout.\nHUMALIS_PARE_FEU=`,
     `# Requêtes par adresse et par 15 minutes (300 par défaut), tentatives de connexion (10 par défaut). À monter si beaucoup de personnes partagent une même adresse.\nHUMALIS_LIMITE_API=\nHUMALIS_LIMITE_CONNEXION=\n`,
     ...(avecIa(serveur) ? [ENV_IA] : []),
     ...((serveur as { tempsReel?: boolean }).tempsReel ? [ENV_TEMPS_REEL] : []),
@@ -1500,10 +1501,72 @@ const lecturePrivee: RequestHandler = (_req, res, next) => {
   next();
 };
 
-/** Le pare-feu ne lit pas les mots de passe : hachés, jamais interprétés, ils peuvent contenir « -- » ou « /* ». */
-class MotifDuPareFeu extends RegExp {
+/**
+ * Le pare-feu du pack lit d'un seul tenant l'adresse, ses paramètres et le corps de la requête. Ici :
+ * - les mots de passe ne sont pas lus : hachés, jamais interprétés, ils peuvent contenir « -- » ou « /* » ;
+ * - un refus dit en français ce qui est refusé, et dans quel champ ;
+ * - HUMALIS_PARE_FEU=adresses : les motifs qui ne visent qu'un texte affiché ou exécuté tel quel (balise de
+ *   script, « javascript: », « \${…} », « ../../../ », « eval( ») ne lisent plus le corps. Les pages affichent
+ *   toujours un texte comme un texte : un cours d'informatique ou un forum technique peut alors les enregistrer.
+ *   Les injections SQL restent refusées partout, et l'adresse reste lue en entier.
+ */
+const dernierRefus = { erreur: '' };
+/** La réponse d'un refus : le pack l'envoie telle quelle, elle se lit au moment de l'envoi. */
+const REFUS_DU_PARE_FEU = { toJSON: () => ({ erreur: dernierRefus.erreur }) };
+
+/** Sépare ce que le pack lit d'un seul tenant : l'adresse et ses paramètres (une valeur JSON) d'un côté, le corps de l'autre. */
+export function partagerCibles(cibles: string): { adresse: string; corps: string } {
+  const debut = cibles.indexOf(' ');
+  if (debut < 0) return { adresse: cibles, corps: '' };
+  let i = debut + 1;
+  let profondeur = 0;
+  let chaine = false;
+  for (; i < cibles.length; i++) {
+    const c = cibles[i];
+    if (chaine) {
+      if (c === '\\\\') i++;
+      else if (c === '"') chaine = false;
+    } else if (c === '"') chaine = true;
+    else if (c === '{' || c === '[') profondeur++;
+    else if ((c === '}' || c === ']') && --profondeur === 0) {
+      i++;
+      break;
+    }
+  }
+  return { adresse: cibles.slice(0, i), corps: cibles.slice(i + 1) };
+}
+
+/** Ce qui a été reconnu, sans déborder sur la suite du JSON : vingt-quatre caractères au plus. */
+const extrait = (trouve: string) => trouve.split('"')[0]!.slice(0, 24);
+
+export class MotifDuPareFeu extends RegExp {
+  /** « affichage » : ce motif ne vise qu'un texte affiché ou exécuté tel quel ; « corpsLibre » : HUMALIS_PARE_FEU=adresses. */
+  constructor(source: string, flags: string, private readonly affichage = false, private readonly corpsLibre = false) {
+    super(source, flags);
+  }
+
   override test(cibles: string): boolean {
-    return super.test(cibles.replace(/"(password|actuel|nouveau)":"(?:[^"\\\\]|\\\\.)*"/g, '""'));
+    const lisible = cibles.replace(/"(password|actuel|nouveau)":"(?:[^"\\\\\\\\]|\\\\\\\\.)*"/g, '""');
+    const { adresse, corps } = partagerCibles(lisible);
+    const seul = new RegExp(this.source, this.flags.replace('g', ''));
+    const dansLAdresse = seul.exec(adresse);
+    if (dansLAdresse) {
+      dernierRefus.erreur = 'cette adresse est refusée par sécurité : elle contient « ' + extrait(dansLAdresse[0]) + ' »';
+      return true;
+    }
+    if (this.affichage && this.corpsLibre) return false;
+    const dansLeCorps = seul.exec(corps);
+    if (!dansLeCorps) return false;
+    // Le champ en cause, pour que la personne sache quoi changer.
+    let champ: string | undefined;
+    try {
+      const envoi: unknown = JSON.parse(corps);
+      if (envoi !== null && typeof envoi === 'object') champ = Object.entries(envoi).find(([cle, valeur]) => seul.test(JSON.stringify({ [cle]: valeur })))?.[0];
+    } catch {
+      // Un corps qui n'est pas du JSON : le refus reste, sans nom de champ.
+    }
+    dernierRefus.erreur = (champ === undefined ? 'cet envoi' : 'le champ « ' + champ + ' »') + ' contient « ' + extrait(dansLeCorps[0]) + ' », que le serveur refuse par sécurité';
+    return true;
   }
 }
 
@@ -1524,6 +1587,10 @@ const sansCache = (res: Response) => res.set('Cache-Control', 'no-store');
 export function creerServeur({ ${avecSynchro(serveur) ? 'journalSynchro = creerJournalMemoire(), ' : ''}${avecSecurite(serveur) ? 'magasinSecurite = creerMagasinSecuriteMemoire(), horlogeSecurite = Date.now, ' : ''}envois = creerEnvoisMemoire(), jwtSecret, usersStore${comptes ? ': tousLesComptes' : ''}, stockages${avecLogique(serveur) ? ', transaction = transactionMemoire(stockages)' : ''}${serveur.taches?.length ? ', reclamerTache' : ''}${avecNotifications(serveur) ? ', appareils = creerStockageMemoire()' : ''}${avecIa(serveur) ? ', compterIa = compterMemoire()' : ''}${serveur.connexionGoogle ? ', googleClientId, googleClientIdApple = () => undefined' : ''}${serveur.connexionApple ? ', identifiantsApple = () => ({})' : ''}, session = reglagesDeSession(process.env), surveillance, coffre${avecEmails(serveur) ? `, emails = creerEmails({ nom: ${boutique} })` : ''}${comptes ? ', jetons = createMemoryPasswordResetStore()' : ''}, revocations = createMemoryRevocationStore(), sante = async () => true }: OptionsDuServeur) {
 ${serveur.captureErreurs ? '  brancherErreursProcessus();\n' : ''}
   const renouvellement = creerRenouvellement(session);
+  // Le pare-feu : « strict » (par défaut) lit aussi les textes envoyés ; « adresses » ne lit que l'adresse pour les motifs d'affichage.
+  const reglagePareFeu = (process.env.HUMALIS_PARE_FEU ?? 'strict').trim().toLowerCase();
+  if (reglagePareFeu !== 'strict' && reglagePareFeu !== 'adresses') console.warn('HUMALIS_PARE_FEU vaut « ' + reglagePareFeu + ' » : seuls « strict » et « adresses » sont connus ; le pare-feu reste strict.');
+  const corpsLibre = reglagePareFeu === 'adresses';
 ${comptes ? codeCreationComptes(serveur, chemins).replace('usersStore,', 'usersStore: tousLesComptes,') + '  // Pour les packs, un compte retiré n\'existe plus.\n  const usersStore = sansLesRetires(tousLesComptes);\n' : ''}${envoisDansRoutes || employe(serveur, (i) => i.type === 'email' && i.a.genre === 'admins') ? `  const adressesDesAdmins = async () => (await usersStore.list({ role: 'admin', limit: 100 })).map((compte) => String(compte.email)).filter(Boolean);\n` : ''}${avecNotifications(serveur) ? '  const notifications = creerNotifications({ usersStore, appareils });\n' : ''}${avecPaiements(serveur) ? `  let surPaiement: SurPaiement<ReturnType<typeof nouveauTravail>, OptionsDuServeur['stockages']> = {};
   const paiements = creerPaiements({
     // Un paiement reçu mais non enregistré part aussi à la surveillance, pour que quelqu'un le voie.
@@ -1539,7 +1606,14 @@ ${comptes ? codeCreationComptes(serveur, chemins).replace('usersStore,', 'usersS
     // Le pare-feu du pack, sans son motif des commentaires SQL : le stockage passe par des requêtes paramétrées,
     // et « avenue #12 » ou « appeler -- après 18h » sont de vrais textes. Son motif « select … from » est remplacé
     // par MOTIFS_SQL : une phrase anglaise passe, une injection non. Les autres motifs restent.
-    waf: { patterns: [...WAF_PATTERNS.filter((motif) => !motif.source.includes('--') && !motif.source.includes('${MOTIF_SQL_DU_PACK}')), ...MOTIFS_SQL].map((motif) => new MotifDuPareFeu(motif.source, motif.flags)) },
+    // HUMALIS_PARE_FEU=adresses : les textes du corps ne sont plus lus pour les motifs d'affichage (voir MotifDuPareFeu).
+    waf: {
+      message: REFUS_DU_PARE_FEU as unknown as Record<string, unknown>,
+      patterns: [
+        ...WAF_PATTERNS.filter((motif) => !motif.source.includes('--') && !motif.source.includes('${MOTIF_SQL_DU_PACK}')).map((motif) => new MotifDuPareFeu(motif.source, motif.flags, !motif.source.includes('(or|and)'), corpsLibre)),
+        ...MOTIFS_SQL.map((motif) => new MotifDuPareFeu(motif.source, motif.flags)),
+      ],
+    },
     // Les limites par adresse : un établissement entier peut sortir par une seule adresse.
     ...(process.env.HUMALIS_LIMITE_API ? { apiRateLimit: { max: Number(process.env.HUMALIS_LIMITE_API) } } : {}),
     ...(process.env.HUMALIS_LIMITE_CONNEXION ? { loginRateLimit: { max: Number(process.env.HUMALIS_LIMITE_CONNEXION) } } : {}),

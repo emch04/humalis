@@ -72,7 +72,9 @@ describe('le pare-feu du serveur produit et le SQL', () => {
     const source = 'serveur "s" :\n    donnee avis :\n        texte : texte\n    route "avis" :\n        tout le monde peut creer avis\n        seul admin peut lire avis\n';
     const serveur = genererProjetServeur(compiler(source).application!.serveurs[0], { nom: 'b', source: 'b.humalis' } as never).get('src/serveur.ts')!;
     expect(serveur).toContain(`const MOTIFS_SQL: RegExp[] = ${MOTIFS_SQL_CODE};`);
-    expect(serveur).toContain("!motif.source.includes('union|select|insert')), ...MOTIFS_SQL]");
+    // Le motif large du pack est retiré, les motifs étroits sont ajoutés et lisent toujours tout (adresse et corps).
+    expect(serveur).toContain("!motif.source.includes('union|select|insert'))");
+    expect(serveur).toContain('...MOTIFS_SQL.map((motif) => new MotifDuPareFeu(motif.source, motif.flags)),');
     const relus = new Function(`return ${MOTIFS_SQL_CODE};`)() as RegExp[];
     expect(relus.map(String)).toEqual(MOTIFS_SQL.map(String));
   });

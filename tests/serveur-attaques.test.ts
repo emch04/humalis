@@ -67,6 +67,23 @@ const r = {
   champConstructeur: await envoyer('PATCH', '/api/secrets/' + secretAwa.corps.id, a, { hasOwnProperty: 1 }),
   jsonCasse: await (async () => { const reponse = await fetch(base + '/api/secrets', { method: 'POST', headers: a, body: '{"texte":' }); return { statut: reponse.status, corps: await reponse.json().catch(() => null) }; })(),
 };
+// Le pare-feu (S12) : un refus dit quoi et où ; « adresses » laisse passer les textes, jamais les injections SQL.
+r.scriptRefuse = await envoyer('POST', '/api/secrets', a, { texte: 'Voici <script>alert(1)</script>' });
+r.gabaritRefuse = await envoyer('POST', '/api/secrets', a, { texte: 'prix : \${7*7}' });
+r.adresseRefusee = await envoyer('GET', '/api/secrets?x=../../../../etc/passwd', a);
+r.sqlRefuse = await envoyer('POST', '/api/secrets', a, { texte: "x' UNION SELECT password FROM users" });
+process.env.HUMALIS_PARE_FEU = 'adresses';
+const ecouteLibre = creerServeur({ jwtSecret: 'secret-de-test-assez-long-pour-les-sessions', usersStore, stockages, surveillance }).listen(0);
+await new Promise((pret) => ecouteLibre.once('listening', pret));
+delete process.env.HUMALIS_PARE_FEU;
+const versLibre = async (methode, chemin, corps) => {
+  const reponse = await fetch('http://127.0.0.1:' + ecouteLibre.address().port + chemin, { method: methode, headers: a, body: corps === undefined ? undefined : JSON.stringify(corps) });
+  return { statut: reponse.status, corps: await reponse.json().catch(() => null) };
+};
+r.scriptLibre = await versLibre('POST', '/api/secrets', { texte: 'Voici <script>alert(1)</script> et \${7*7}, ../../../../etc/passwd, eval(x)' });
+r.sqlToujoursRefuse = await versLibre('POST', '/api/secrets', { texte: "x' UNION SELECT password FROM users" });
+r.adresseToujoursRefusee = await versLibre('GET', '/api/secrets?x=<script>alert(1)</script>');
+ecouteLibre.close();
 // La santé : sans session, sans cache, et rien d'autre que l'état.
 const sante = await fetch(base + '/sante');
 r.sante = { statut: sante.status, corps: { ...(await sante.json()), cache: sante.headers.get('cache-control') } };
@@ -134,6 +151,24 @@ describe.each(BASES)('des attaques sur un vrai serveur produit, %s', (_base, sql
       produits = String((erreur as { stdout?: unknown }).stdout ?? erreur);
     }
   }, 300_000);
+
+  it('le pare-feu dit en français ce qu’il refuse, et dans quel champ (S12)', () => {
+    expect(r.scriptRefuse!.statut).toBe(403);
+    expect(String(r.scriptRefuse!.corps.erreur)).toBe('le champ « texte » contient « <script> », que le serveur refuse par sécurité');
+    expect(r.gabaritRefuse!.statut).toBe(403);
+    expect(String(r.gabaritRefuse!.corps.erreur)).toMatch(/^le champ « texte » contient « \$\{7\*7\} »/);
+    expect(r.adresseRefusee!.statut).toBe(403);
+    expect(String(r.adresseRefusee!.corps.erreur)).toMatch(/^cette adresse est refusée par sécurité/);
+    expect(r.sqlRefuse!.statut).toBe(403);
+    expect(String(r.sqlRefuse!.corps.erreur)).toMatch(/^le champ « texte » contient « ' UNION SELECT/);
+  });
+
+  it('HUMALIS_PARE_FEU=adresses : un texte de code s’enregistre ; l’injection SQL et l’adresse restent refusées', () => {
+    expect(r.scriptLibre!.statut).toBe(201);
+    expect(String(r.scriptLibre!.corps.texte)).toContain('<script>alert(1)</script>');
+    expect(r.sqlToujoursRefuse!.statut).toBe(403);
+    expect(r.adresseToujoursRefusee!.statut).toBe(403);
+  });
 
   it('les tests écrits dans le serveur produit passent tous : règles, sessions et attaques', () => {
     expect(produits).not.toMatch(/\bfailed\b/);
