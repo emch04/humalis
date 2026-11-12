@@ -98,8 +98,8 @@ describe('ce que le serveur décide — le serveur produit', () => {
 
   it('calcule tout avant de créer, et la fiche liée d\'abord', () => {
     const route = code();
-    const corps = route.slice(route.indexOf('completerCommande(envoi.valeur)'));
-    const ordre = ['completerCommande(envoi.valeur)', 'stockages.suivi.creer(', 'recue["suivi"] = creee0.id;', 'stockages.commande.creer(recue)'].map((t) => corps.indexOf(t));
+    const corps = route.slice(route.indexOf('completerCommande(envoi.valeur, '));
+    const ordre = ['completerCommande(envoi.valeur, ', 'stockages.suivi.creer(', 'recue["suivi"] = creee0.id;', 'stockages.commande.creer(recue)'].map((t) => corps.indexOf(t));
     expect(ordre.every((p) => p >= 0)).toBe(true);
     expect([...ordre].sort((a, b) => a - b)).toEqual(ordre);
     expect(route).toContain('fiche["statut"] = "en_attente";');

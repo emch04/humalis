@@ -60,7 +60,7 @@ export function reglesEnvoi(donnee: Donnee, route: Route, modification = false):
  * « au plus » vaut aussi dans une modification : quand la requête change le champ borné ou celui qui choisit son
  * plafond, la fiche modifiée est revérifiée. Rien si la donnée n'a pas de champ « au plus ».
  */
-export function codePlafondsModification(donnee: Donnee): string {
+export function codePlafondsModification(donnee: Donnee, serveur?: ServeurRI): string {
   const bornes = donnee.champs.filter((c) => c.regle?.genre === 'auPlus');
   if (bornes.length === 0) return '';
   const lignes = bornes.map(({ nom, regle }) => {
@@ -68,7 +68,7 @@ export function codePlafondsModification(donnee: Donnee): string {
     const champ = chaine(camel(nom));
     const par = chaine(camel(regle.par));
     return `            if (${champ} in envoi.valeur || ${par} in envoi.valeur) {
-              const plafond = await plafondDe(stockages.${camel(regle.donnee)}, ${par}, fusion[${par}], ${chaine(camel(regle.prix))});
+              const plafond = await plafondDe(stockages.${camel(regle.donnee)}, ${par}, fusion[${par}], ${chaine(camel(regle.prix))}, cercles[${chaine(regle.donnee)}]);
               const valeur = fusion[${champ}];
               if (typeof valeur !== 'number' || valeur < 0 || valeur > plafond) {
                 res.status(400).json({ erreur: \`le champ « ${camel(nom)} » doit être entre 0 et \${plafond}\` });
@@ -80,6 +80,7 @@ export function codePlafondsModification(donnee: Donnee): string {
           {
             const avant = await stockages.${camel(donnee.nom)}.trouver(req.params.id);
             const fusion: Record<string, unknown> = { ...(avant ?? {}), ...envoi.valeur };
+            const cercles: Record<string, Record<string, string> | undefined> = ${serveur ? codeCercles(serveur, donnee, donnee.par !== undefined && donnee.par !== 'compte' ? `avant?.[${chaine(camel(donnee.par))}] as string | undefined` : undefined) : '{}'};
 ${lignes.join('\n')}
           }
 `;
@@ -96,7 +97,7 @@ function fonctionCompleter(donnee: Donnee): string {
   }
   for (const { nom, regle } of donnee.champs) {
     if (regle?.genre !== 'auPlus') continue;
-    lignes.push(`        const plafond${pascal(nom)} = await plafondDe(stockages.${camel(regle.donnee)}, ${chaine(camel(regle.par))}, ${cle(regle.par)}, ${chaine(camel(regle.prix))});
+    lignes.push(`        const plafond${pascal(nom)} = await plafondDe(stockages.${camel(regle.donnee)}, ${chaine(camel(regle.par))}, ${cle(regle.par)}, ${chaine(camel(regle.prix))}, cercles[${chaine(regle.donnee)}]);
         if (typeof ${cle(nom)} !== 'number' || ${cle(nom)} < 0 || ${cle(nom)} > plafond${pascal(nom)}) return { erreur: \`le champ « ${camel(nom)} » doit être entre 0 et \${plafond${pascal(nom)}}\` };`);
   }
   for (const { nom, regle } of donnee.champs) {
@@ -104,12 +105,13 @@ function fonctionCompleter(donnee: Donnee): string {
   }
   for (const { nom, regle } of donnee.champs) {
     if (regle?.genre !== 'somme') continue;
-    lignes.push(`        const somme${pascal(nom)} = await sommeDesPrix(stockages.${camel(regle.donnee)}, ${cle(regle.liste)}, ${chaine(camel(regle.prix))});
+    lignes.push(`        const somme${pascal(nom)} = await sommeDesPrix(stockages.${camel(regle.donnee)}, ${cle(regle.liste)}, ${chaine(camel(regle.prix))}, cercles[${chaine(regle.donnee)}]);
         if (typeof somme${pascal(nom)} === 'string') return { erreur: \`le champ « ${camel(regle.liste)} » : \${somme${pascal(nom)}}\` };
         ${cle(nom)} = somme${pascal(nom)}${regle.plus !== undefined ? ` + Number(${cle(regle.plus)})` : ''};`);
   }
   return `      // Ce que le serveur décide pour « ${donnee.nom} » : la requête ne peut pas le choisir.
-      const completer${pascal(donnee.nom)} = async (recu: Record<string, unknown>): Promise<{ valeur: Record<string, unknown> } | { erreur: string }> => {
+      // cercles : pour chaque donnée lue (« somme prix de produit », « au plus prix de zone »), les fiches permises.
+      const completer${pascal(donnee.nom)} = async (recu: Record<string, unknown>, cercles: Record<string, Record<string, string> | undefined> = {}): Promise<{ valeur: Record<string, unknown> } | { erreur: string }> => {
         const fiche: Record<string, unknown> = { ...recu };
 ${lignes.join('\n')}
         return { valeur: fiche };
@@ -135,6 +137,63 @@ function valeurLiee(valeur: ValeurLieeRI, parent: string): string {
 }
 
 /** Le corps de POST : vérifier, compléter, créer les fiches liées, créer, répondre. */
+/**
+ * Les fiches qu'une requête peut citer dans un calcul : « somme prix de produit par refs » ne lit qu'un produit que
+ * cette personne pourrait lire. Avec « produit par boutique », un produit de sa boutique (celle de la fiche créée, ou
+ * celle de son compte) ; avec « produit par compte », un des siens. Sans cela, citer l'identifiant d'un produit d'une
+ * autre boutique révélait son prix et le mettait dans la commande. Un admin sans groupe lit tout.
+ */
+export function codeCercles(serveur: ServeurRI, donnee: Donnee, groupeExpr?: string): string {
+  const lues = [...new Set(donnee.champs.flatMap((c) => (c.regle?.genre === 'somme' || c.regle?.genre === 'auPlus' ? [c.regle.donnee] : [])))];
+  const entrees = lues.flatMap((nom) => {
+    const source = serveur.donnees.find((d) => d.nom === nom);
+    if (source?.par === undefined) return [];
+    const moi = '(req as unknown as { user?: Record<string, unknown> }).user';
+    if (source.par === 'compte') return [`${chaine(nom)}: ${moi}?.role === 'admin' ? undefined : { compte: String(${moi}?.id ?? '\\u0000') }`];
+    const champ = camel(source.par);
+    const valeur = groupeExpr !== undefined && donnee.par === source.par ? `${groupeExpr} ?? ${moi}?.[${chaine(champ)}]` : `${moi}?.[${chaine(champ)}]`;
+    return [`${chaine(nom)}: ((v: unknown) => (typeof v === 'string' && v !== '' ? { ${chaine(champ)}: v } : ${moi}?.role === 'admin' ? undefined : { ${chaine(champ)}: '\\u0000' }))(${valeur})`];
+  });
+  return `{ ${entrees.join(', ')} }`;
+}
+
+/**
+ * Une modification recalcule ce que le serveur calcule (« nombre de », « somme … ») quand elle change la liste lue :
+ * sinon une réservation créée avec un article à 1 € gardait ce total après qu'on y a mis des articles à 1 000 €. Et
+ * une fiche déjà payée ne change plus ce qui fait son montant (sauf par un admin).
+ */
+export function codeCalculsModification(serveur: ServeurRI, donnee: Donnee): string {
+  const calculs = donnee.champs.filter((c) => c.regle?.genre === 'somme' || c.regle?.genre === 'nombreDe');
+  if (calculs.length === 0) return '';
+  const entrees = [...new Set(calculs.flatMap((c) => (c.regle?.genre === 'somme' ? [c.regle.liste, ...(c.regle.plus !== undefined ? [c.regle.plus] : [])] : c.regle?.genre === 'nombreDe' ? [c.regle.liste] : [])))].map((n) => chaine(camel(n)));
+  const paye = donnee.champs.find((c) => c.regle?.genre === 'depart' && c.regle.paiement === true);
+  const groupe = donnee.par !== undefined && donnee.par !== 'compte' ? `avant?.[${chaine(camel(donnee.par))}] as string | undefined` : undefined;
+  const lignes = calculs.map(({ nom, regle }) => {
+    if (regle?.genre === 'nombreDe') return `            envoi.valeur[${chaine(camel(nom))}] = Array.isArray(fusion[${chaine(camel(regle.liste))}]) ? (fusion[${chaine(camel(regle.liste))}] as unknown[]).length : 0;`;
+    if (regle?.genre !== 'somme') return '';
+    return `            {
+              const somme = await sommeDesPrix(stockages.${camel(regle.donnee)}, fusion[${chaine(camel(regle.liste))}], ${chaine(camel(regle.prix))}, cercles[${chaine(regle.donnee)}]);
+              if (typeof somme === 'string') {
+                res.status(400).json({ erreur: \`le champ « ${camel(regle.liste)} » : \${somme}\` });
+                return;
+              }
+              envoi.valeur[${chaine(camel(nom))}] = somme${regle.plus !== undefined ? ` + Number(fusion[${chaine(camel(regle.plus))}])` : ''};
+            }`;
+  });
+  return `          // Les calculs suivent la liste modifiée ; une fiche payée garde ce qui fait son montant.
+          if ([${entrees.join(', ')}].some((c) => c in envoi.valeur)) {
+            const avant = await stockages.${camel(donnee.nom)}.trouver(req.params.id);
+${paye ? `            if (avant?.[${chaine(camel(paye.nom))}] === true && (req as unknown as { user?: { role?: unknown } }).user?.role !== 'admin') {
+              res.status(409).json({ erreur: 'Cette fiche est payée : ce qui fait son montant ne change plus.' });
+              return;
+            }
+` : ''}            const fusion: Record<string, unknown> = { ...(avant ?? {}), ...envoi.valeur };
+            const cercles: Record<string, Record<string, string> | undefined> = ${codeCercles(serveur, donnee, groupe)};
+${lignes.join('\n')}
+          }
+`;
+}
+
 export function codeCreation(serveur: ServeurRI, route: Route, donnee: Donnee, schema: string, emails: string, separee?: string): string {
   const nom = camel(route.donnee);
   const verifier = `const envoi = verifierEnvoi(${schema}, req.body, true${reglesEnvoi(donnee, route)});`;
@@ -170,7 +229,7 @@ export function codeCreation(serveur: ServeurRI, route: Route, donnee: Donnee, s
   ];
   if (aCompleter(donnee)) {
     lignes.push(
-      `          const complete = await completer${pascal(donnee.nom)}(envoi.valeur);`,
+      `          const complete = await completer${pascal(donnee.nom)}(envoi.valeur, ${codeCercles(serveur, donnee, groupe ? 'groupe.valeur' : undefined)});`,
       `          if ('erreur' in complete) {`,
       `            res.status(400).json({ erreur: complete.erreur });`,
       `            return;`,
@@ -190,7 +249,7 @@ export function codeCreation(serveur: ServeurRI, route: Route, donnee: Donnee, s
     lignes.push(`          // « creer ${creation.donnee} » : la fiche liée vient de ce que le serveur a vérifié.`);
     if (aCompleter(liee)) {
       lignes.push(
-        `          const liee${i} = await completer${pascal(liee.nom)}(${valeurs});`,
+        `          const liee${i} = await completer${pascal(liee.nom)}(${valeurs}, ${codeCercles(serveur, liee, groupe && liee.par !== undefined ? 'groupe.valeur' : undefined)});`,
         `          if ('erreur' in liee${i}) {`,
         `            res.status(400).json({ erreur: liee${i}.erreur });`,
         `            return;`,

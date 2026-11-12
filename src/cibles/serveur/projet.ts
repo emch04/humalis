@@ -8,7 +8,7 @@ import { avecIa, ENV_IA, IA, routeIa } from './ia.js';
 import { ENVOIS } from './envois.js';
 import { MOTIF_SQL_DU_PACK, MOTIFS_SQL_CODE } from './pare-feu.js';
 import { codeResumes, avecPaiements, codePaiements, codeSurPaiement, PAIEMENTS, avecLogique, avecNotifications, codeActions, codeDocuments, codeNotificationsCreation, codeTaches, DOCUMENT, employe, LOGIQUE, NOTIFICATIONS, ROUTES_APPAREILS } from './logique.js';
-import { champsDuServeur, codeCompleter, codeCreation, codePlafondsModification, noms as nomsVerifier, reglesEnvoi } from './regles.js';
+import { champsDuServeur, codeCalculsModification, codeCompleter, codeCreation, codePlafondsModification, noms as nomsVerifier, reglesEnvoi } from './regles.js';
 import { avecSynchro, codeAvantSynchro, codeCreationSynchro, codeSynchroRoute, ENV_SYNCHRO, SYNCHRO, tablesSynchro, testsSynchro } from './synchro.js';
 import { avecSecurite, codeAvantSecurite, codeCreationSecurite, codeRoutesSecurite, envSecurite, SECURITE, testsSecurite } from './securite.js';
 import { ligneLocale } from '../../fichiers.js';
@@ -884,23 +884,24 @@ export function estDuSite(valeur: unknown, adresseDuSite = process.env.HUMALIS_A
 }
 
 /** « calcule somme prix de produit par refs » : le prix relu pour chaque identifiant ; un texte dit ce qui ne va pas. */
-export async function sommeDesPrix(stockage: { trouver(id: string): Promise<Record<string, unknown> | null> }, liste: unknown, champ: string): Promise<number | string> {
+export async function sommeDesPrix(stockage: { trouver(id: string): Promise<Record<string, unknown> | null> }, liste: unknown, champ: string, cercle?: Record<string, string>): Promise<number | string> {
   const ids = Array.isArray(liste) ? liste.map(String) : [];
   const differents = new Set(ids);
   if (differents.size > 200) return 'la liste est trop longue';
   const prix = new Map<string, number>();
   for (const id of differents) {
     const fiche = await stockage.trouver(id);
-    if (!fiche) return \`« \${id} » n'existe pas\`;
+    // Une fiche hors du cercle de cette personne (autre boutique, autre compte) n'existe pas pour elle.
+    if (!fiche || (cercle && Object.entries(cercle).some(([c, v]) => fiche[c] !== v))) return \`« \${id} » n'existe pas\`;
     prix.set(id, Number(fiche[champ]) || 0);
   }
   return ids.reduce((total, id) => total + prix.get(id)!, 0);
 }
 
 /** « au plus prix de zone par commune » : le prix de la fiche dont le champ est égal ; 0 si aucune, ce qui laisse passer 0. */
-export async function plafondDe(stockage: { lister(filtres: Filtres): Promise<Record<string, unknown>[]> }, par: string, valeur: unknown, champ: string): Promise<number> {
+export async function plafondDe(stockage: { lister(filtres: Filtres): Promise<Record<string, unknown>[]> }, par: string, valeur: unknown, champ: string, cercle?: Record<string, string>): Promise<number> {
   if (typeof valeur !== 'string' && typeof valeur !== 'number') return 0;
-  const [fiche] = await stockage.lister({ egal: { [par]: valeur } });
+  const [fiche] = await stockage.lister({ egal: { ...cercle, [par]: valeur } });
   return fiche ? Number(fiche[champ]) || 0 : 0;
 }
 
@@ -1352,7 +1353,7 @@ ${voir('modifier')}          const envoi = verifierEnvoi(${schema}, req.body, fa
             res.status(400).json({ erreur: envoi.erreur });
             return;
           }
-${codePlafondsModification(donneeRoute)}          const modifie = await stockages.${donnee}.modifier(req.params.id, envoi.valeur);
+${codePlafondsModification(donneeRoute, serveur)}${codeCalculsModification(serveur, donneeRoute)}          const modifie = await stockages.${donnee}.modifier(req.params.id, envoi.valeur);
           if (modifie) res.json(modifie);
           else res.status(404).json({ erreur: introuvable('${route.donnee}') });
         } catch (erreur) {

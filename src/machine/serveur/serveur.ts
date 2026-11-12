@@ -470,43 +470,87 @@ export class ServeurMemoire {
     };
   }
   /** « au plus » vaut aussi dans une modification : la fiche modifiée reste dans ses bornes. */
-  private plafondsModifies(donnee: Donnee, avant: Record<string, unknown>, envoye: Record<string, unknown>): string | undefined {
+  private plafondsModifies(donnee: Donnee, avant: Record<string, unknown>, envoye: Record<string, unknown>, moi?: Compte): string | undefined {
     const fiche = { ...avant, ...envoye };
+    const cercles = this.cercles(donnee, moi, donnee.par !== undefined ? avant[camel(donnee.par)] : undefined);
     for (const { nom, regle } of donnee.champs) {
       if (regle?.genre !== 'auPlus' || !(camel(nom) in envoye || camel(regle.par) in envoye)) continue;
       const valeur = fiche[camel(nom)];
       const cle = fiche[camel(regle.par)];
-      const [reference] = typeof cle === 'string' || typeof cle === 'number' ? this.stock(regle.donnee).lister({ egal: { [camel(regle.par)]: cle } }) : [];
+      const [reference] = typeof cle === 'string' || typeof cle === 'number' ? this.stock(regle.donnee).lister({ egal: { ...cercles[regle.donnee], [camel(regle.par)]: cle } }) : [];
       const plafond = reference ? Number(reference[camel(regle.prix)]) || 0 : 0;
       if (typeof valeur !== 'number' || valeur < 0 || valeur > plafond) return `le champ « ${camel(nom)} » doit être entre 0 et ${plafond}`;
     }
     return undefined;
   }
-  private async completer(donnee: Donnee, recu: Record<string, unknown>): Promise<{ valeur: Record<string, unknown> } | { erreur: string }> {
+  /**
+   * Les fiches qu'un calcul peut citer pour cette personne (comme dans le serveur produit) : « produit par boutique »,
+   * un produit de sa boutique ; « par compte », un des siens. undefined : toutes (un admin sans groupe, ou le serveur).
+   */
+  private cercles(donnee: Donnee, moi: Compte | undefined, groupe: unknown): Record<string, Record<string, string> | undefined> {
+    if (!moi) return {};
+    const resultat: Record<string, Record<string, string> | undefined> = {};
+    for (const c of donnee.champs) {
+      if (c.regle?.genre !== 'somme' && c.regle?.genre !== 'auPlus') continue;
+      const source = this.donnee(c.regle.donnee);
+      if (source.par === undefined) continue;
+      if (source.par === 'compte') {
+        resultat[c.regle.donnee] = moi.role === 'admin' ? undefined : { compte: moi.id };
+        continue;
+      }
+      const champ = camel(source.par);
+      const v = (donnee.par === source.par && typeof groupe === 'string' && groupe !== '' ? groupe : undefined) ?? moi[champ];
+      resultat[c.regle.donnee] = typeof v === 'string' && v !== '' ? { [champ]: v } : moi.role === 'admin' ? undefined : { [champ]: '\u0000' };
+    }
+    return resultat;
+  }
+  /** Une modification recalcule les calculs quand elle change leur liste ; une fiche payée garde son montant. */
+  private calculsModifies(donnee: Donnee, avant: Record<string, unknown>, envoye: Record<string, unknown>, moi: Compte | undefined): { statut: number; erreur: string } | undefined {
+    const calculs = donnee.champs.filter((c) => c.regle?.genre === 'somme' || c.regle?.genre === 'nombreDe');
+    const entrees = calculs.flatMap((c) => (c.regle?.genre === 'somme' ? [c.regle.liste, ...(c.regle.plus !== undefined ? [c.regle.plus] : [])] : c.regle?.genre === 'nombreDe' ? [c.regle.liste] : []));
+    if (!entrees.some((n) => camel(n) in envoye)) return undefined;
+    const paye = donnee.champs.find((c) => c.regle?.genre === 'depart' && c.regle.paiement === true);
+    if (paye && avant[camel(paye.nom)] === true && moi?.role !== 'admin') return { statut: 409, erreur: 'Cette fiche est payée : ce qui fait son montant ne change plus.' };
+    const fusion = { ...avant, ...envoye };
+    const cercles = this.cercles(donnee, moi, donnee.par !== undefined ? avant[camel(donnee.par)] : undefined);
+    for (const { nom, regle } of calculs) {
+      if (regle?.genre === 'nombreDe') envoye[camel(nom)] = Array.isArray(fusion[camel(regle.liste)]) ? (fusion[camel(regle.liste)] as unknown[]).length : 0;
+      if (regle?.genre !== 'somme') continue;
+      const somme = this.sommeDe(regle, fusion, cercles[regle.donnee]);
+      if (typeof somme === 'string') return { statut: 400, erreur: somme };
+      envoye[camel(nom)] = somme;
+    }
+    return undefined;
+  }
+  private sommeDe(regle: Extract<RegleChampRI, { genre: 'somme' }>, fiche: Record<string, unknown>, cercle: Record<string, string> | undefined): number | string {
+    const ids = Array.isArray(fiche[camel(regle.liste)]) ? (fiche[camel(regle.liste)] as unknown[]).map(String) : [];
+    const differents = new Set(ids);
+    if (differents.size > 200) return `le champ « ${camel(regle.liste)} » : la liste est trop longue`;
+    const prix = new Map<string, number>();
+    for (const id of differents) {
+      const trouve = this.stock(regle.donnee).trouver(id);
+      if (!trouve || (cercle && Object.entries(cercle).some(([c, v]) => trouve[c] !== v))) return `le champ « ${camel(regle.liste)} » : « ${id} » n'existe pas`;
+      prix.set(id, Number(trouve[camel(regle.prix)]) || 0);
+    }
+    return ids.reduce((total, id) => total + prix.get(id)!, 0) + (regle.plus !== undefined ? Number(fiche[camel(regle.plus)]) : 0);
+  }
+  private async completer(donnee: Donnee, recu: Record<string, unknown>, cercles: Record<string, Record<string, string> | undefined> = {}): Promise<{ valeur: Record<string, unknown> } | { erreur: string }> {
     const fiche: Record<string, unknown> = { ...recu };
     for (const { nom, regle } of donnee.champs) if (regle?.genre === 'depart') fiche[camel(nom)] = regle.valeur.genre === 'aujourdhui' ? aujourdhui() : regle.valeur.valeur;
     for (const { nom, regle } of donnee.champs) {
       if (regle?.genre !== 'auPlus') continue;
       const valeur = fiche[camel(nom)];
       const cle = fiche[camel(regle.par)];
-      const [reference] = typeof cle === 'string' || typeof cle === 'number' ? this.stock(regle.donnee).lister({ egal: { [camel(regle.par)]: cle } }) : [];
+      const [reference] = typeof cle === 'string' || typeof cle === 'number' ? this.stock(regle.donnee).lister({ egal: { ...cercles[regle.donnee], [camel(regle.par)]: cle } }) : [];
       const plafond = reference ? Number(reference[camel(regle.prix)]) || 0 : 0;
       if (typeof valeur !== 'number' || valeur < 0 || valeur > plafond) return { erreur: `le champ « ${camel(nom)} » doit être entre 0 et ${plafond}` };
     }
     for (const { nom, regle } of donnee.champs) if (regle?.genre === 'nombreDe') fiche[camel(nom)] = Array.isArray(fiche[camel(regle.liste)]) ? (fiche[camel(regle.liste)] as unknown[]).length : 0;
     for (const { nom, regle } of donnee.champs) {
       if (regle?.genre !== 'somme') continue;
-      const ids = Array.isArray(fiche[camel(regle.liste)]) ? (fiche[camel(regle.liste)] as unknown[]).map(String) : [];
-      const differents = new Set(ids);
-      if (differents.size > 200) return { erreur: `le champ « ${camel(regle.liste)} » : la liste est trop longue` };
-      const prix = new Map<string, number>();
-      for (const id of differents) {
-        const trouve = this.stock(regle.donnee).trouver(id);
-        if (!trouve) return { erreur: `le champ « ${camel(regle.liste)} » : « ${id} » n'existe pas` };
-        prix.set(id, Number(trouve[camel(regle.prix)]) || 0);
-      }
-      const somme = ids.reduce((total, id) => total + prix.get(id)!, 0);
-      fiche[camel(nom)] = somme + (regle.plus !== undefined ? Number(fiche[camel(regle.plus)]) : 0);
+      const somme = this.sommeDe(regle, fiche, cercles[regle.donnee]);
+      if (typeof somme === 'string') return { erreur: somme };
+      fiche[camel(nom)] = somme;
     }
     return { valeur: fiche };
   }
@@ -665,8 +709,10 @@ export class ServeurMemoire {
       if (!('fiche' in v)) return v;
       const envoi = verifierEnvoi(schema, c.requete.corps, false, this.reglesEnvoi(donnee, route, c.moi?.role === 'admin'));
       if ('erreur' in envoi) return rep(400, { erreur: envoi.erreur });
-      const borne = this.plafondsModifies(donnee, v.fiche, envoi.valeur);
+      const borne = this.plafondsModifies(donnee, v.fiche, envoi.valeur, c.moi);
       if (borne) return rep(400, { erreur: borne });
+      const calcul = this.calculsModifies(donnee, v.fiche, envoi.valeur, c.moi);
+      if (calcul) return rep(calcul.statut, { erreur: calcul.erreur });
       const modifie = stock.modifier(premier, envoi.valeur);
       if (!modifie) return rep(404, { erreur: introuvable(route.donnee) });
       this.annoncerEcriture(route.donnee, donnee, modifie);
@@ -723,7 +769,7 @@ export class ServeurMemoire {
     if ('erreur' in envoi) return rep(400, { erreur: envoi.erreur });
     let recue = envoi.valeur;
     if (this.aCompleter(donnee)) {
-      const complete = await this.completer(donnee, recue);
+      const complete = await this.completer(donnee, recue, this.cercles(donnee, c.moi, groupe));
       if ('erreur' in complete) return rep(400, { erreur: complete.erreur });
       recue = complete.valeur;
     }
@@ -736,7 +782,7 @@ export class ServeurMemoire {
       if (groupe !== undefined && liee.par !== undefined) valeurs[camel(liee.par)] = groupe;
       let finale = valeurs;
       if (this.aCompleter(liee)) {
-        const complete = await this.completer(liee, valeurs);
+        const complete = await this.completer(liee, valeurs, this.cercles(liee, c.moi, groupe));
         if ('erreur' in complete) return rep(400, { erreur: complete.erreur });
         finale = complete.valeur;
       }
