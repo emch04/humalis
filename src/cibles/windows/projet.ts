@@ -5,6 +5,7 @@
  * macOS et Linux (`dotnet build`), et se publie en un seul fichier .exe.
  */
 import { HUMALIS_LIGNES_CS } from './lignes.js';
+import { aDesReperes } from '../lignes-humalis.js';
 import type { Diagnostic } from '../../analyse/erreurs.js';
 import { nomDeLaCopie, type InfoMedia } from '../../ri/medias.js';
 import type { Application, Ecran, ThemeRI } from '../../ri/types.js';
@@ -584,5 +585,33 @@ ${donnees.actif ? '        DonneesComptes.Demarrer(fenetre);\n' : ''}        ${f
   const cssPerdu = diagnostics.find((d) => d.message.includes('CSS-SUR-WINDOWS.md'));
   if (cssPerdu) fichiers.set('CSS-SUR-WINDOWS.md', `# Le CSS sur Windows\n\n${cssPerdu.message}\n\n## Les déclarations sans équivalent\n\n${cssIgnore.map((l) => `- \`${l}\``).join('\n')}\n`);
   fichiers.set('LISEZMOI.md', lisezmoi(options.nom, options, formes, avecEnregistrement, donnees));
+  // Le débogueur de Visual Studio (« Uniquement mon code ») ne s'arrête pas dans la bibliothèque produite.
+  for (const [chemin, contenu] of fichiers) if (estBibliotheque(chemin, contenu)) fichiers.set(chemin, horsCodeUtilisateur(contenu));
+  // Avec les lignes Humalis (compile), le C# sans ligne Humalis est caché au débogueur, comme le reste du code produit (lignes-humalis.ts).
+  if ([...fichiers.values()].some(aDesReperes)) {
+    for (const [chemin, contenu] of fichiers) if (chemin.endsWith('.cs') && !aDesReperes(contenu)) fichiers.set(chemin, `#line hidden\n${contenu}`);
+  }
   return { fichiers, diagnostics };
+}
+
+/** Les fichiers sous Humalis/ qui portent le code de l'auteur (fonctions, valeurs partagées, « quand une erreur arrive »). */
+const CODE_DE_L_AUTEUR = new Set(['Humalis/Fonctions.cs', 'Humalis/Partage.cs', 'Humalis/CaptureErreurs.cs']);
+
+/** Un fichier de la bibliothèque produite : sous Humalis/, sans aucune ligne Humalis. */
+const estBibliotheque = (chemin: string, contenu: string): boolean =>
+  chemin.startsWith('Humalis/') && chemin.endsWith('.cs') && !CODE_DE_L_AUTEUR.has(chemin) && !aDesReperes(contenu);
+
+const TYPE_DE_PREMIER_NIVEAU = /^(?:(?:public|internal|static|sealed|abstract|partial|readonly)\s+)*(?:class|struct|record)\s/;
+
+/**
+ * `[DebuggerNonUserCode]` devant chaque type de premier niveau : le pas à pas
+ * (F11) passe par-dessus, les points d'arrêt de l'auteur restent dans les
+ * fichiers .humalis. Les fichiers produits ont un espace de noms « fichier »
+ * (`namespace Humalis;`) : leurs types commencent à la colonne 0.
+ */
+export function horsCodeUtilisateur(cs: string): string {
+  return cs
+    .split('\n')
+    .map((ligne) => (TYPE_DE_PREMIER_NIVEAU.test(ligne) ? `[System.Diagnostics.DebuggerNonUserCode]\n${ligne}` : ligne))
+    .join('\n');
 }

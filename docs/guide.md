@@ -4293,4 +4293,10 @@ Dans `.vscode/launch.json`, `cible` choisit ce qui est débogué :
 - `"serveur"` : le serveur, lancé dans Node ;
 - `"apple"` : l’application Mac, construite par Xcode et lancée par lldb (avec `"equipe"` pour la signature).
 
-Android et Windows n’ont pas encore de débogueur dans VS Code : sur Windows, Visual Studio suit les lignes Humalis du projet produit ; sur Android, les erreurs nomment leur ligne Humalis, mais Android Studio ne s’arrête pas dans un fichier `.humalis`.
+Les variables portent leur nom Humalis : sur le serveur, la fiche d’une action s’appelle `commande`, comme dans ton fichier.
+
+Android et Windows n’ont pas encore de débogueur dans VS Code. Sur Android, les erreurs nomment leur ligne Humalis, mais Android Studio ne s’arrête pas dans un fichier `.humalis`.
+
+### Le débogueur de Visual Studio (Windows)
+
+Ouvre le projet produit par `humalis compile --cible windows` dans Visual Studio 2026 (le projet vise .NET 10). Pose le point d’arrêt dans ton fichier `.humalis`, puis lance avec F5. Le programme s’arrête sur ta ligne. F10 passe à la ligne Humalis suivante, F11 entre dans une fonction sur sa première ligne, et le C# produit n’apparaît jamais. Une variable de page montre sa valeur, avec le type « variable Humalis ».

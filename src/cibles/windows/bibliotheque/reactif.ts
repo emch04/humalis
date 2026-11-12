@@ -6,15 +6,26 @@
 export const REACTIF_CS = String.raw`// Produit par Humalis : les variables qui se suivent, et ce qui les lit.
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
 namespace Humalis;
 
 /// <summary>Une variable : la lire l'abonne à ce qui la lit ; la changer relance ce qui l'a lue.</summary>
+/// <remarks>Dans le débogueur, une variable montre sa valeur (et une liste ses éléments), pas sa mécanique.</remarks>
+[DebuggerDisplay("{valeur}", Type = "variable Humalis")]
+[DebuggerTypeProxy(typeof(Signal.Vue))]
 public sealed class Signal
 {
     private object? valeur;
     private readonly HashSet<Effet> abonnes = new();
+
+    /// <summary>Ce que le débogueur déplie : la valeur seule.</summary>
+    internal sealed class Vue(Signal signal)
+    {
+        [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
+        public object? Valeur => signal.valeur;
+    }
 
     public Signal(object? depart = null) { valeur = depart; }
 

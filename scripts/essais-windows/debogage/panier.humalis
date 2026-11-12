@@ -1,0 +1,22 @@
+# L'essai du débogueur de Visual Studio : un point d'arrêt posé ici est atteint,
+# le pas à pas va de ligne Humalis en ligne Humalis, les variables se lisent.
+site :
+    nom "Essai débogage"
+
+fonction remise avec prix et taux :
+    variable reduite = prix - prix * taux / 100
+    rendre reduite
+
+page "accueil" :
+    titre "Panier"
+    variable total = 12
+    variable articles = ["Cahier", "Stylo"]
+    texte "Total : {total}"
+    bouton "Ajouter"
+    quand la page se charge :
+        changer total par total + 30
+        changer total par total * 2
+        changer total par remise(total, 10)
+    quand l'utilisateur clique sur "Ajouter" :
+        ajouter "Gomme" dans articles
+        changer total par total + 1

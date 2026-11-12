@@ -14,6 +14,7 @@ import {
   lireReperes,
   plagesKotlin,
   repereLigne,
+  repereNom,
   situerLigne,
   tableDepuisCarte,
   versCSharp,
@@ -26,6 +27,7 @@ import { genererProjetApple } from '../src/cibles/apple/projet.js';
 import { genererProjetAndroid } from '../src/cibles/android/projet.js';
 import { genererProjetWindows } from '../src/cibles/windows/projet.js';
 import { inspecteurJs } from '../src/outils/inspecteur.js';
+import { horsCodeUtilisateur } from '../src/cibles/windows/projet.js';
 
 const R = (n: number) => `/*@humalis-ligne ${n}*/`;
 const PAGE = [
@@ -87,6 +89,24 @@ describe('les cartes de sources (JavaScript)', () => {
     expect(fichiers).toEqual(['site.humalis']);
   });
 
+  it('donnent aux variables produites leur nom Humalis (names), même hors de toute ligne', () => {
+    expect(repereNom('commande')).toBe('');
+    expect(avecReperes(() => repereNom('prix total', 4))).toBe('/*@humalis-nom prix total@4*/');
+    const lu = lireReperes([
+      `const /*@humalis-nom commande@6*/f_commande = trouver();`,
+      `${R(7)}for (const /*@humalis-nom ligne*/f_ligne of liste) {`,
+      '  rien();',
+      '}',
+      'const /*@humalis-nom perdu*/x = 1;',
+    ].join('\n'));
+    expect(lu.code.split('\n')[0]).toBe('const f_commande = trouver();');
+    const carte = carteDeSources('serveur.js', lu.segments, ['api.humalis'], (f) => f);
+    expect(carte.names).toEqual(['commande', 'ligne']);
+    const lue = new SourceMap(carte);
+    expect(lue.findEntry(0, 6)).toMatchObject({ originalLine: 5, name: 'commande' });
+    expect(lue.findEntry(1, 11)).toMatchObject({ originalLine: 6, name: 'ligne' });
+  });
+
   it('appliquerLignesHumalis écrit la carte à côté, retire les repères partout et pose les lieux de « noter »', () => {
     const fichiers = new Map([
       ['src/couches/accueil.js', `${R(7)}noter('@humalis-lieu:7', []);\n`],
@@ -112,10 +132,30 @@ describe('les lignes Humalis du code natif', () => {
     expect(swift.trimEnd().endsWith('#sourceLocation()')).toBe(true);
   });
 
-  it('C# : #line devant chaque ligne reliée, #line default après', () => {
-    const lu = lireReperes(['void F()', '{', `    ${R(8)}a();`, '    b();', '}'].join('\n'));
+  it('C# : #line devant chaque ligne reliée, tout le reste caché au débogueur', () => {
+    const lu = lireReperes(['void F()', '{', `    ${R(8)}a();`, '    b();', '}', 'void G() { }'].join('\n'));
     const cs = versCSharp(lu, ['app.humalis'], (f) => `..\\${f}`);
-    expect(cs).toContain('#line 8 "..\\\\app.humalis"\n    a();\n#line default\n    b();');
+    expect(cs).toBe('#line hidden\nvoid F()\n{\n#line 8 "..\\\\app.humalis"\n    a();\n#line hidden\n    b();\n}\nvoid G() { }\n#line default');
+  });
+
+  it('C# : rien n’est glissé dans une chaîne brute sur plusieurs lignes', () => {
+    const lu = lireReperes(['void F()', '{', `    ${R(8)}a();`, '    var t = """', '    texte', '    """;', '}'].join('\n'));
+    const cs = versCSharp(lu, ['app.humalis'], (f) => f);
+    expect(cs).toContain('#line hidden\n    var t = """\n    texte\n    """;\n}\n#line default');
+  });
+
+  it('C# : la bibliothèque produite est hors du code de l’auteur pour le pas à pas', () => {
+    expect(horsCodeUtilisateur('namespace Humalis;\n\npublic sealed class Signal\n{\n    private class Dedans { }\n}\ninternal static class Outils { }')).toBe(
+      'namespace Humalis;\n\n[System.Diagnostics.DebuggerNonUserCode]\npublic sealed class Signal\n{\n    private class Dedans { }\n}\n[System.Diagnostics.DebuggerNonUserCode]\ninternal static class Outils { }',
+    );
+    const { fichiers } = genererProjetWindows(application(PAGE), { nom: 'Essai', source: 'essai.humalis' });
+    expect(fichiers.get('Humalis/Reactif.cs')).toContain('[System.Diagnostics.DebuggerNonUserCode]\npublic sealed class Signal');
+    expect(fichiers.get('Humalis/Reactif.cs')).toContain('[DebuggerDisplay("{valeur}", Type = "variable Humalis")]');
+    // Sans les lignes Humalis (machine, tests), rien n'est caché ; avec (compile), tout le C# sans ligne Humalis l'est.
+    expect(fichiers.get('App.cs')!.startsWith('#line hidden')).toBe(false);
+    const compile = avecReperes(() => genererProjetWindows(application(PAGE), { nom: 'Essai', source: 'essai.humalis' })).fichiers;
+    expect(compile.get('App.cs')!.startsWith('#line hidden\n')).toBe(true);
+    expect(compile.get('Humalis/Reactif.cs')!.startsWith('#line hidden\n')).toBe(true);
   });
 
   it('Kotlin : une table de plages (ligne produite → ligne Humalis)', () => {
@@ -139,6 +179,24 @@ describe('« noter » sur chaque cible', () => {
     const fichiers = avecReperes(() => genererProjetServeur(app.serveurs[0]!, { nom: 'api', source: 'api.humalis' }));
     expect(fichiers.get('src/serveur.ts')).toContain(`noterHumalis("@humalis-lieu:7", [["commande.total", `);
     expect(fichiers.get('src/humalis/lignes.ts')).toContain("if (process.env.NODE_ENV === 'production') return;");
+  });
+
+  it('le serveur : la carte de sources nomme la fiche et la variable de la boucle', () => {
+    const source = ['serveur "api" :', '    donnee commande :', '        total : nombre', '    donnee article :', '        prix : nombre', '    route "commandes" :', '        seul admin peut lire commande', '        seul admin peut faire "doubler" sur commande :', '            pour chaque piece dans article :', '                noter piece.prix', '            changer commande.total par commande.total * 2', '', 'page "a" :', '    titre "A"'].join('\n');
+    const app = application(source);
+    const produits = avecReperes(() => genererProjetServeur(app.serveurs[0]!, { nom: 'api', source: 'api.humalis' }));
+    const sortie = appliquerLignesHumalis(produits, { fichiers: ['api.humalis'], versLesSources: '..' });
+    const code = sortie.get('src/serveur.ts')!;
+    expect(code).not.toContain('@humalis-nom');
+    const carte = JSON.parse(sortie.get('src/serveur.ts.map')!);
+    expect(carte.names).toEqual(expect.arrayContaining(['commande', 'piece']));
+    const lue = new SourceMap(carte);
+    const lignes = code.split('\n');
+    const ou = (motif: string) => { const l = lignes.findIndex((t) => t.includes(motif)); return [l, lignes[l]!.indexOf(motif.split(' ').at(-1)!)] as const; };
+    const [lf, cf] = ou('const f_commande');
+    expect(lue.findEntry(lf, cf)).toMatchObject({ name: 'commande', originalLine: 7 });
+    const [lb, cb] = ou('for (const f_piece');
+    expect(lue.findEntry(lb, cb)).toMatchObject({ name: 'piece', originalLine: 8 });
   });
 
   it('Apple : HumalisNotes, en Debug seulement (#if DEBUG et @autoclosure)', () => {

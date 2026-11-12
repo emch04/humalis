@@ -56,7 +56,7 @@ async function variables(arret: Arret, cadre: number): Promise<{ name: string; v
   return toutes;
 }
 
-async function essayer(cible: 'web' | 'serveur' | 'apple', fichier: string, ligne: number, config: Record<string, unknown>, declencher?: () => Promise<void>): Promise<void> {
+async function essayer(cible: 'web' | 'serveur' | 'apple', fichier: string, ligne: number, config: Record<string, unknown>, declencher?: () => Promise<void>, nomsAttendus: string[] = []): Promise<void> {
   const uri = vscode.Uri.file(path.join(dossier, fichier));
   await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(uri));
   vscode.debug.removeBreakpoints(vscode.debug.breakpoints);
@@ -72,6 +72,8 @@ async function essayer(cible: 'web' | 'serveur' | 'apple', fichier: string, lign
   assert.strictEqual(haut.ligne, ligne);
   const vues = await variables(arret, haut.id);
   console.log(`[${cible}] variables : ${vues.slice(0, 12).map((v) => `${v.name} = ${v.value}`).join(' ; ')}`);
+  // Les variables du code produit se montrent sous leur nom Humalis (carte de sources : names).
+  for (const nom of nomsAttendus) assert.ok(vues.some((v) => v.name === nom), `la variable « ${nom} » devait se montrer sous ce nom (vu : ${vues.map((v) => v.name).join(', ')})`);
   // Pas à pas : la ligne Humalis suivante.
   await arret.session.customRequest('next', { threadId: arret.threadId });
   const suivant = await prochainArret(60_000);
@@ -107,7 +109,7 @@ export async function run(): Promise<void> {
       const entetes = { 'content-type': 'application/json', authorization: `Bearer ${jeton}` };
       const cree = (await (await fetch(`${base}/api/commandes`, { method: 'POST', headers: entetes, body: JSON.stringify({ total: 21 }) })).json()) as { id?: string; data?: { id: string } };
       void fetch(`${base}/api/commandes/faire/doubler/${cree.id ?? cree.data?.id}`, { method: 'PATCH', headers: entetes, body: '{}' }).catch(() => {});
-    });
+    }, ['commande']);
   }
   if (cibles.includes('apple')) {
     await essayer('apple', 'application.humalis', 6, process.env.HUMALIS_CONSTRUCTION_APPLE ? { constructionApple: process.env.HUMALIS_CONSTRUCTION_APPLE } : {});

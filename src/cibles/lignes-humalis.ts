@@ -27,7 +27,13 @@ import { DECALAGE, ligneLocale } from '../fichiers.js';
 import { REPERE_SOURCES } from './commun/lignes-web.js';
 
 const DEBUT = '/*@humalis-ligne ';
-const MOTIF = /\/\*@humalis-ligne (\d+)\*\//g;
+const DEBUT_NOM = '/*@humalis-nom ';
+/**
+ * Un repère de ligne (`/*@humalis-ligne 12*\/`) ou de nom
+ * (`/*@humalis-nom commande*\/`, ou `/*@humalis-nom commande@12*\/` pour
+ * une déclaration hors de toute ligne Humalis).
+ */
+const MOTIF = /\/\*@humalis-(?:ligne (\d+)|nom ([^*@\n]+)(?:@(\d+))?)\*\//gu;
 
 /**
  * Les repères ne sont posés que sur demande : la commande `compile` les
@@ -56,7 +62,20 @@ export function repereLigne(ligne: number | undefined): string {
   return reperesActifs && ligne !== undefined && ligne > 0 ? `${DEBUT}${ligne}*/` : '';
 }
 
-/** Vrai si le code porte au moins un repère. */
+/**
+ * Le repère du nom Humalis d'une variable du code produit (`f_commande` pour
+ * « commande »), posé juste devant l'identifiant. La carte de sources
+ * l'écrit dans `names` : le débogueur de VS Code montre alors la variable
+ * sous son nom Humalis. `ligne` sert à une déclaration que rien ne couvre
+ * (la fiche lue avant le corps d'une action) : elle prend cette ligne.
+ * Rien si les repères ne sont pas demandés.
+ */
+export function repereNom(nom: string, ligne?: number): string {
+  if (!reperesActifs || !/^[^*@\n]+$/.test(nom)) return '';
+  return `${DEBUT_NOM}${nom}${ligne !== undefined && ligne > 0 ? `@${ligne}` : ''}*/`;
+}
+
+/** Vrai si le code porte au moins un repère de ligne. */
 export const aDesReperes = (code: string): boolean => code.includes(DEBUT);
 
 /** Retire les repères sans rien produire (pour un code où ils n'ont pas d'usage). */
@@ -68,6 +87,8 @@ export interface Segment {
   ligne: number;
   /** Vrai pour un repère écrit par le générateur (le début d'une action), faux pour une ligne de sa portée. */
   repere?: boolean;
+  /** Le nom Humalis de l'identifiant qui commence à cette colonne (carte de sources : `names`). */
+  nom?: string;
 }
 
 export interface CodeLu {
@@ -87,11 +108,13 @@ export function lireReperes(code: string): CodeLu {
   const sortie: string[] = [];
   for (const brute of lignes) {
     const reperes: Segment[] = [];
+    const noms: { colonne: number; nom: string; ligne?: number }[] = [];
     let nette = '';
     let dernier = 0;
     for (const trouve of brute.matchAll(MOTIF)) {
       nette += brute.slice(dernier, trouve.index);
-      reperes.push({ colonne: nette.length, ligne: Number(trouve[1]), repere: true });
+      if (trouve[1] !== undefined) reperes.push({ colonne: nette.length, ligne: Number(trouve[1]), repere: true });
+      else noms.push({ colonne: nette.length, nom: trouve[2]!, ...(trouve[3] !== undefined ? { ligne: Number(trouve[3]) } : {}) });
       dernier = trouve.index! + trouve[0].length;
     }
     nette += brute.slice(dernier);
@@ -118,9 +141,27 @@ export function lireReperes(code: string): CodeLu {
       // Des repères au milieu de la ligne (« { a; b } » écrit d'un trait) : chacun son morceau.
       for (const r of reperes) ici.push(r);
     }
-    segments.push(ici);
+    segments.push(ajouterNoms(ici, noms));
   }
   return { code: sortie.join('\n'), segments };
+}
+
+/**
+ * Les noms d'une ligne, glissés parmi ses segments à leur colonne, avec la
+ * ligne Humalis qui couvre cette colonne (à défaut, celle que le repère
+ * donne). Un nom hors de toute ligne Humalis est laissé de côté.
+ */
+function ajouterNoms(ici: Segment[], noms: { colonne: number; nom: string; ligne?: number }[]): Segment[] {
+  if (noms.length === 0) return ici;
+  const tous = [...ici];
+  for (const n of noms) {
+    const ligne = [...ici].reverse().find((s) => s.colonne <= n.colonne && s.ligne > 0)?.ligne ?? n.ligne;
+    if (ligne === undefined) continue;
+    tous.push({ colonne: n.colonne, ligne, nom: n.nom });
+  }
+  tous.sort((a, b) => a.colonne - b.colonne);
+  // Deux segments à la même colonne : le nommé seul.
+  return tous.filter((s, i) => !(s.nom === undefined && tous.some((t, j) => j !== i && t.colonne === s.colonne && t.nom !== undefined)));
 }
 
 /** « pages/panier.humalis », ligne 6 : la ligne fusionnée rendue à son fichier. */
@@ -187,6 +228,8 @@ export function carteDeSources(nom: string, segments: Segment[][], fichiers: rea
   const index = new Map<string, number>();
   const sources: string[] = [];
   const textes: (string | null)[] = [];
+  const names: string[] = [];
+  let nomPrecedent = 0;
   let precedent = { source: 0, ligne: 0 };
   const lignes: string[] = [];
   let avaitLien = false;
@@ -207,7 +250,14 @@ export function carteDeSources(nom: string, segments: Segment[][], fichiers: rea
         sources.push(chemins(situe.fichier));
         textes.push(contenus?.(situe.fichier) ?? null);
       }
-      codes.push(vlq(s.colonne - colonnePrecedente) + vlq(i - precedent.source) + vlq(situe.ligne - 1 - precedent.ligne) + vlq(0));
+      let code = vlq(s.colonne - colonnePrecedente) + vlq(i - precedent.source) + vlq(situe.ligne - 1 - precedent.ligne) + vlq(0);
+      if (s.nom !== undefined) {
+        let n = names.indexOf(s.nom);
+        if (n < 0) n = names.push(s.nom) - 1;
+        code += vlq(n - nomPrecedent);
+        nomPrecedent = n;
+      }
+      codes.push(code);
       colonnePrecedente = s.colonne;
       precedent = { source: i, ligne: situe.ligne - 1 };
     }
@@ -221,7 +271,7 @@ export function carteDeSources(nom: string, segments: Segment[][], fichiers: rea
     file: nom,
     sources,
     ...(textes.some((t) => t !== null) ? { sourcesContent: textes } : {}),
-    names: [],
+    names,
     mappings: lignes.join(';'),
   };
 }
@@ -327,28 +377,38 @@ export function versSwift(lu: CodeLu, fichiers: readonly string[], chemin: (fich
   return sortie.join('\n');
 }
 
-/** C# : `#line N "fichier"` devant chaque ligne reliée, `#line default` après. */
+/**
+ * C# : `#line N "fichier"` devant chaque ligne reliée, et tout le reste
+ * caché au débogueur (`#line hidden`) : le pas à pas va d'une ligne Humalis
+ * à la suivante, entre dans une fonction sur sa première ligne Humalis et
+ * en ressort sans jamais montrer le C# produit. Une pile d'erreur n'a de
+ * position que pour les lignes Humalis.
+ */
 export function versCSharp(lu: CodeLu, fichiers: readonly string[], chemin: (fichier: string) => string): string {
   const lignes = lu.code.split('\n');
   const couvertes = lignesCouvertes(lu.segments);
-  const sortie: string[] = [];
-  let active = 0;
+  const sortie: string[] = ['#line hidden'];
+  let relie = false;
+  let dansChaine = false;
   for (let i = 0; i < lignes.length; i++) {
     const texte = lignes[i]!;
     const voulue = couvertes[i]!;
-    // Une chaîne verbatim ou brute sur plusieurs lignes : on n'y glisse rien.
-    if (voulue > 0) {
-      const situe = situerLigne(voulue, fichiers);
-      // Chaque ligne reliée redit sa ligne : sinon C# compterait +1 à chaque ligne produite.
-      if (situe) sortie.push(`#line ${situe.ligne} ${guillemets(chemin(situe.fichier))}`);
-      active = situe ? voulue : 0;
-    } else if (active > 0) {
-      sortie.push('#line default');
-      active = 0;
+    const situe = voulue > 0 ? situerLigne(voulue, fichiers) : undefined;
+    // Dans une chaîne brute ou verbatim sur plusieurs lignes, on n'y glisse rien.
+    if (!dansChaine) {
+      if (situe) {
+        // Chaque ligne reliée redit sa ligne : sinon C# compterait +1 à chaque ligne produite.
+        sortie.push(`#line ${situe.ligne} ${guillemets(chemin(situe.fichier))}`);
+        relie = true;
+      } else if (relie && texte.trim() !== '') {
+        sortie.push('#line hidden');
+        relie = false;
+      }
     }
     sortie.push(texte);
+    if ((texte.match(/"""/g)?.length ?? 0) % 2 === 1) dansChaine = !dansChaine;
   }
-  if (active > 0) sortie.push('#line default');
+  sortie.push('#line default');
   return sortie.join('\n');
 }
 
@@ -439,7 +499,7 @@ export function appliquerLignesHumalis(fichiers: Map<string, string>, options: O
       return situe ? `${situe.fichier}:${situe.ligne}` : '';
     }) : avecSources;
     if (!aDesReperes(contenu)) {
-      resultat.set(chemin, contenu);
+      resultat.set(chemin, contenu.includes(DEBUT_NOM) ? sansReperes(contenu) : contenu);
       continue;
     }
     const langage = langageDe(chemin);
@@ -655,10 +715,10 @@ function coder(valeur) {
   return sortie;
 }
 
-/** Une carte décodée : par ligne, des segments [colonne, source, ligne, colonne source] (source -1 : sans lien). */
+/** Une carte décodée : par ligne, des segments [colonne, source, ligne, colonne source, nom] (source -1 : sans lien ; nom -1 : aucun). */
 function lire(carte) {
   const lignes = [];
-  let source = 0, ligne = 0, colonneSource = 0;
+  let source = 0, ligne = 0, colonneSource = 0, nom = 0;
   for (const texte of carte.mappings.split(';')) {
     const segments = [];
     let colonne = 0;
@@ -668,8 +728,9 @@ function lire(carte) {
       colonne += v[0] ?? 0;
       if (v.length >= 4) {
         source += v[1]; ligne += v[2]; colonneSource += v[3];
-        segments.push([colonne, source, ligne, colonneSource]);
-      } else segments.push([colonne, -1, 0, 0]);
+        if (v.length >= 5) nom += v[4];
+        segments.push([colonne, source, ligne, colonneSource, v.length >= 5 ? nom : -1]);
+      } else segments.push([colonne, -1, 0, 0, -1]);
     }
     lignes.push(segments);
   }
@@ -677,15 +738,16 @@ function lire(carte) {
 }
 
 function ecrireMappings(lignes) {
-  let source = 0, ligne = 0, colonneSource = 0;
+  let source = 0, ligne = 0, colonneSource = 0, nomPrecedent = 0;
   return lignes.map((segments) => {
     let colonne = 0;
-    return segments.map(([c, s, l, cs]) => {
+    return segments.map(([c, s, l, cs, n]) => {
       let code = coder(c - colonne);
       colonne = c;
       if (s >= 0) {
         code += coder(s - source) + coder(l - ligne) + coder(cs - colonneSource);
         source = s; ligne = l; colonneSource = cs;
+        if (n >= 0) { code += coder(n - nomPrecedent); nomPrecedent = n; }
       }
       return code;
     }).join(',');
@@ -721,25 +783,33 @@ for (const cheminCarte of fichiers(resolve(process.argv[2] ?? 'dist'))) {
   if (interieures.every((i) => i === undefined)) continue;
   const sources = [];
   const contenus = [];
+  const noms = [];
   const indexDe = (chemin, contenu) => {
     let i = sources.indexOf(chemin);
     if (i < 0) { i = sources.push(chemin) - 1; contenus.push(contenu ?? null); }
     return i;
   };
+  const nomDe = (nom) => {
+    let i = noms.indexOf(nom);
+    if (i < 0) i = noms.push(nom) - 1;
+    return i;
+  };
   const lignes = lire(exterieure).map((segments) => segments.map(([c, s, l, cs]) => {
-    if (s < 0) return [c, -1, 0, 0];
+    if (s < 0) return [c, -1, 0, 0, -1];
     const interieure = interieures[s];
     const cheminTs = resolve(ici, exterieure.sourceRoot ?? '', exterieure.sources[s]);
     if (interieure) {
       const segment = couvrant(interieure.lignes[l], cs);
       if (segment && segment[1] >= 0) {
         const humalis = resolve(interieure.dossier, interieure.carte.sources[segment[1]]);
-        return [c, indexDe(relative(ici, humalis).split(sep).join('/'), interieure.carte.sourcesContent?.[segment[1]]), segment[2], 0];
+        // Le nom Humalis d'une variable : seulement si le segment commence au même identifiant.
+        const nom = segment[4] >= 0 && segment[0] === cs ? nomDe(interieure.carte.names[segment[4]]) : -1;
+        return [c, indexDe(relative(ici, humalis).split(sep).join('/'), interieure.carte.sourcesContent?.[segment[1]]), segment[2], 0, nom];
       }
     }
-    return [c, indexDe(relative(ici, cheminTs).split(sep).join('/'), exterieure.sourcesContent?.[s]), l, cs];
+    return [c, indexDe(relative(ici, cheminTs).split(sep).join('/'), exterieure.sourcesContent?.[s]), l, cs, -1];
   }));
-  const composee = { version: 3, file: exterieure.file, sources, names: [], mappings: ecrireMappings(lignes) };
+  const composee = { version: 3, file: exterieure.file, sources, names: noms, mappings: ecrireMappings(lignes) };
   if (contenus.some((c) => c !== null)) composee.sourcesContent = contenus;
   writeFileSync(cheminCarte, JSON.stringify(composee));
   composees++;

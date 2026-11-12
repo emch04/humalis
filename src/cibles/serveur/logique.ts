@@ -1,4 +1,4 @@
-import { repereLigne } from '../lignes-humalis.js';
+import { repereLigne, repereNom } from '../lignes-humalis.js';
 import { lieuNote } from '../commun/noter.js';
 /**
  * « seul gerant peut faire … » et « tous les jours a 7 h : » : le code produit.
@@ -435,9 +435,9 @@ class Ecriture {
         return `${r}if (${test(i.test)}) {\n${this.lignes(i.alors, r + '  ')}\n${r}}${sinon}`;
       }
       case 'pourChaque':
-        return `${r}for (const ${fiche(i.variable)} of ${lecture('s', i.donnee, i.filtres, this.egalDuGroupe(i.donnee))}) {\n${this.lignes(i.corps, r + '  ')}\n${r}}`;
+        return `${r}for (const ${repereNom(i.variable)}${fiche(i.variable)} of ${lecture('s', i.donnee, i.filtres, this.egalDuGroupe(i.donnee))}) {\n${this.lignes(i.corps, r + '  ')}\n${r}}`;
       case 'calcul':
-        return `${r}const l_${camel(i.nom)} = agreger(${chaine(i.operation)}, ${lecture('s', i.donnee, i.filtres, this.egalDuGroupe(i.donnee))}${i.champ !== undefined ? `, ${chaine(camel(i.champ))}` : ''});`;
+        return `${r}const ${repereNom(i.nom)}l_${camel(i.nom)} = agreger(${chaine(i.operation)}, ${lecture('s', i.donnee, i.filtres, this.egalDuGroupe(i.donnee))}${i.champ !== undefined ? `, ${chaine(camel(i.champ))}` : ''});`;
       case 'changer':
         return `${r}Object.assign(${fiche(i.fiche)}, await s.${camel(i.donnee)}.modifier(${fiche(i.fiche)}.id, { ${chaine(camel(i.champ))}: ${valeur(i.valeur)} }));\n${r}noter(travail, ${chaine(i.donnee)}${this.groupeDe(i.donnee, fiche(i.fiche))});`;
       case 'supprimer':
@@ -497,10 +497,10 @@ ${donnee.par ? `          const portee = porteeDe(moiDe(req), separation${variab
             res.status(400).json({ erreur: entrees.erreur });
             return;
           }
-${action.parametres.map((p) => `          const l_${camel(p.nom)} = entrees.valeur[${chaine(camel(p.nom))}];`).join('\n')}
+${action.parametres.map((p) => `          const ${repereNom(p.nom, action.ligne)}l_${camel(p.nom)} = entrees.valeur[${chaine(camel(p.nom))}];`).join('\n')}
 ` : ''}          const travail = nouveauTravail();
           const resultat = await transaction(async (s) => {
-            const ${nomFiche} = await s.${camel(route.donnee)}.trouver(String(req.params.id), true);
+            const ${repereNom(route.donnee, action.ligne)}${nomFiche} = await s.${camel(route.donnee)}.trouver(String(req.params.id), true);
             if (!${nomFiche}${donnee.par ? ` || !dansPortee(${nomFiche}, portee)` : ''}) return null;
 ${new Ecriture(serveur, groupe).lignes(action.corps, '            ')}
             return ${nomFiche};
@@ -655,7 +655,7 @@ export function codeSurPaiement(serveur: ServeurRI): string {
     const nom = fiche(route.donnee);
     const donnee = serveur.donnees.find((d) => d.nom === route.donnee)!;
     return `        ${chaine(route.donnee)}: async (travail, s, id, champ, montant) => {
-          const ${nom} = await s.${camel(route.donnee)}.trouver(id, true);
+          const ${repereNom(route.donnee, route.ligneApresPaiement)}${nom} = await s.${camel(route.donnee)}.trouver(id, true);
           if (!${nom} || ${nom}.paye === true) return;
           if (Math.round(Number(${nom}[champ]) * 100) !== montant) {
             console.error('Paiement ignoré : le montant ne correspond plus à la fiche', id);

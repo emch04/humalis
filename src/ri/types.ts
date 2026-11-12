@@ -254,10 +254,13 @@ export interface ServeurRI {
     conditions?: Partial<Record<'lire' | 'creer' | 'modifier' | 'supprimer', ConditionRegleRI[]>>;
     /** « quand commande est payee : ». */
     apresPaiement?: InstructionServeurRI[];
+    /** La ligne de « après paiement de … » (débogueur : la fiche y prend son nom Humalis). */
+    ligneApresPaiement?: number;
     /** Les champs que « payer … pour c » demande : POST /payer/<champ>/:id. */
     payables?: string[];
     /** « seul gerant peut faire "rembourser" sur commande : ». */
-    actions?: { nom: string; qui: QuiPeut; corps: InstructionServeurRI[]; parametres?: { nom: string; type: TypeChamp }[] }[];
+    /** `ligne` : celle de « … peut faire "x" sur … », où la fiche est lue (débogueur : son nom Humalis). */
+    actions?: { nom: string; qui: QuiPeut; corps: InstructionServeurRI[]; parametres?: { nom: string; type: TypeChamp }[]; ligne?: number }[];
     /** « seul gerant peut lire "resume" de commande … : ». */
     resumes?: ResumeRI[];
     /** « quand commande est cree : envoyer notification … ». */
