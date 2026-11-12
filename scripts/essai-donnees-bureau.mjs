@@ -1,5 +1,5 @@
 // Vérifie en vrai, dans Electron : la base locale chiffrée, la synchronisation à travers le relais,
-// le code à six chiffres ; et que les clés d'accès y sont refusées à la compilation.
+// le code à six chiffres ; et que les clés d'accès s'y compilent avec leur module natif (Touch ID, Windows Hello).
 //
 // Lancer : npm run build && node scripts/essai-donnees-bureau.mjs [dossier-de-travail]
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
@@ -17,8 +17,8 @@ const verifier = (ok, message) => { if (!ok) problemes.push(message); console.lo
 const ADMIN = 'awa@exemple.fr', MOT = 'Essai-Solide-2026!';
 const source = 'essais/donnees-comptes/notes-bureau.humalis';
 
-const refus = spawnSync('node', ['dist/cli.js', 'compile', 'essais/donnees-comptes/notes.humalis', '--cible', 'desktop', '--sortie', join(travail, 'refuse')], { encoding: 'utf8' });
-verifier(refus.status !== 0 && /clés d.accès/.test(refus.stderr + refus.stdout), "les clés d'accès sont refusées clairement sur le bureau");
+const avecCles = spawnSync('node', ['dist/cli.js', 'compile', 'essais/donnees-comptes/notes.humalis', '--cible', 'desktop', '--sortie', join(travail, 'cles')], { encoding: 'utf8' });
+verifier(avecCles.status === 0 && existsSync(join(travail, 'cles', 'electron', 'cles.ts')), "les clés d'accès se compilent sur le bureau, avec leur module natif");
 
 const serveur = join(travail, 'serveur');
 execFileSync('node', ['dist/cli.js', 'compile', source, '--cible', 'serveur', '--sortie', serveur], { stdio: ['ignore', 'ignore', 'inherit'] });

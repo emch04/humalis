@@ -344,6 +344,9 @@ public abstract class BlocHumalis
 
     protected Task Recharger(string variable) => relances.TryGetValue(variable, out var relance) ? relance() : Task.CompletedTask;
 
+    /// <summary>Relit tout ce que la page a lu sur le serveur (au retour d'un paiement), sans rejouer ses autres actions.</summary>
+    public virtual Task RelireTout() => Task.WhenAll(relances.Values.Select(relance => relance()));
+
     private readonly Dictionary<string, int> jetons = new();
 
     /// <summary>Chaque requête reçoit un numéro : une réponse arrivée après une plus récente ne remplace rien.</summary>
@@ -461,6 +464,8 @@ public sealed class PageImbriquee : PageHumalis
     }
 
     public override bool Touche(string touches) => enfant.Touche(touches) || parente.Touche(touches);
+
+    public override Task RelireTout() => Task.WhenAll(parente.RelireTout(), enfant.RelireTout());
 
     public override async Task EnBas()
     {
@@ -714,6 +719,13 @@ public sealed class FenetrePrincipale : Window
         Content = racine;
 
         Routeur.Montrer += Afficher;
+        // De retour d'un paiement ouvert dans le navigateur : la page relit ses données (la fiche payée).
+        Activated += async (_, _) =>
+        {
+            if (!Serveur.RetourDePaiement() || Routeur.Page is not { } page) return;
+            try { await page.RelireTout(); }
+            catch (ErreurHumalis e) { Messages.Afficher(e.Message, "erreur"); }
+        };
         // Le bas de la page devient visible : la page peut charger la suite (« arrive en bas de »).
         var enBas = false;
         defilement.ScrollChanged += async (_, _) =>

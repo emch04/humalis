@@ -44,6 +44,14 @@ describe('ServeurLangage', () => {
     ouvrir(notifier, URI, 'page :\n');
     expect(demander('textDocument/formatting', { textDocument: { uri: URI }, options: {} }).result).toEqual([]);
   });
+  it('met en forme un document en fins de ligne Windows et les lui rend (Visual Studio)', () => {
+    const { demander, notifier } = demarrer();
+    demander('initialize', {});
+    ouvrir(notifier, URI, 'page "accueil" :\r\n    titre    "Panier"\r\n    variable total=12\r\n');
+    const [modif] = demander('textDocument/formatting', { textDocument: { uri: URI }, options: {} }).result;
+    expect(modif.newText).toBe('page "accueil" :\r\n    titre "Panier"\r\n    variable total = 12\r\n');
+    expect(modif.range).toEqual({ start: { line: 0, character: 0 }, end: { line: 3, character: 0 } });
+  });
   it('répond à initialize avec ses capacités', () => {
     const { demander } = demarrer();
     const { result } = demander('initialize', { processId: null, rootUri: null, capabilities: {} });
@@ -87,6 +95,21 @@ describe('ServeurLangage', () => {
     expect(result.contents.kind).toBe('markdown');
     expect(result.contents.value).toContain('**bouton**');
     expect(result.range).toEqual({ start: { line: 10, character: 8 }, end: { line: 10, character: 14 } });
+  });
+
+  it('Visual Studio (texte brut, symboles à plat) : survol sans Markdown, symboles avec leur parent', () => {
+    const { demander, notifier } = demarrer();
+    demander('initialize', { capabilities: { textDocument: { hover: { contentFormat: ['plaintext'] }, documentSymbol: { dynamicRegistration: true } } } });
+    ouvrir(notifier);
+    const survol = demander('textDocument/hover', { textDocument: { uri: URI }, position: { line: 10, character: 9 } }).result;
+    expect(survol.contents.kind).toBe('plaintext');
+    expect(survol.contents.value.startsWith('bouton · ')).toBe(true);
+    expect(survol.contents.value).not.toMatch(/\*\*|```|\|---/);
+    expect(survol.contents.value).toMatch(/^web : /m);
+    const symboles = demander('textDocument/documentSymbol', { textDocument: { uri: URI } }).result;
+    expect(symboles[0]).toMatchObject({ name: 'panier', kind: 13, location: { uri: URI } });
+    expect(symboles.some((s: any) => s.containerName === 'boutique')).toBe(true);
+    expect(symboles.every((s: any) => s.children === undefined)).toBe(true);
   });
 
   it('donne null pour un survol sans mot', () => {

@@ -3895,8 +3895,9 @@ the site's addresses: the first one sets the passkeys' domain.
 What passkeys need, target by target:
 
 - **Web**: a site on https (or `localhost` during development).
-- **Desktop (Electron)**: they are refused at compile time. The built-in browser does not accept the
-  app's own address. The six-digit code works there.
+- **Desktop (Electron)**: on a Mac, Touch ID (or the session password) unlocks a key kept in the
+  Mac's chip (Secure Enclave), which is not synced through iCloud; on Windows, Windows Hello. Not on
+  Linux yet. `WEBAUTHN_ALLOWED_ORIGINS` starts with the domain of the keys.
 - **Apple**: `--serveur https://…`, `--equipe`, and `WEBAUTHN_APPLE_APP` on the server, which publishes
   the domain association file.
 - **Android**: a domain on https, `WEBAUTHN_ANDROID_APP` on the server (the package name, then the
@@ -4007,8 +4008,8 @@ completion and hover help.
 ### In your editor
 
 Humalis works in almost every editor. Each one shows errors as you type,
-hover help, completion and go to declaration; all but Visual Studio also
-offer the file outline and formatting.
+hover help, completion, go to declaration, the file outline and
+formatting.
 They all rely on `humalis editeur --stdio`, the language server installed
 with Humalis (`npm install -g humalis`).
 
@@ -4148,7 +4149,9 @@ Mac or on Linux; only running it needs Windows 10 or 11.
 - What Humalis cannot do yet is written in C#: `utiliser composant "Carte" sur windows
   "./natif/Carte.cs"`, with its NuGet libraries (`paquet windows "…" version "…"`); see
   "A hand-written native view".
-- Not on Windows yet: payment, AI, signing in with Google or Apple, invitations,
+- `payer total pour r` opens the Stripe payment page in the browser; back in the app,
+  the page reads its data again, and the paid record shows up.
+- Not on Windows yet: AI, signing in with Google or Apple, invitations,
   notifications sent by the server. Compilation stops and says which line needs them.
 
 The app-specific forms work without an MSIX package: the app registers itself with Windows

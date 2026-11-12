@@ -340,6 +340,41 @@ page "espace" reservee a connecte sinon vers "connexion" :
     expect(fichiers.get('Humalis/Systeme.cs')).toContain('CryptProtectData');
   });
 
+  it('« payer total pour r » : le serveur prépare Stripe, la page s\'ouvre, la page relit ses lectures au retour', () => {
+    const f = projet(`serveur "commerce" :
+    paiements par stripe
+    donnee reservation :
+        nom : texte
+        total : nombre
+    donnee journal :
+        nom : texte
+    route "reservations" :
+        tout le monde peut lire reservation
+        seul admin peut modifier reservation
+        quand reservation est payee :
+            creer journal avec nom reservation.nom
+    route "journaux" :
+        seul admin peut lire journal
+        seul admin peut modifier journal
+
+page "accueil" :
+    variable reservations = []
+    quand la page se charge :
+        envoyer requete vers "reservations" dans reservations
+    pour chaque r dans reservations :
+        bouton "Payer"
+        quand l'utilisateur clique sur "Payer" :
+            payer total pour r
+`);
+    const page = f.get('Pages/PageAccueil.cs')!;
+    expect(page).toContain('await Serveur.Payer("/api/reservations/payer/total", Serveur.Identifiant(r));');
+    expect(page).toContain('relances.TryAdd("reservations", async () =>');
+    const serveur = f.get('Humalis/Serveur.cs')!;
+    expect(serveur).toContain('await Appel(adresse, "POST", V.FicheDe(("retour", "/")), id);');
+    expect(serveur).toContain('throw new ErreurHumalis("Le paiement n\'a pas pu s\'ouvrir.");');
+    expect(f.get('Humalis/Systeme.cs')).toContain('if (!Serveur.RetourDePaiement() || Routeur.Page is not { } page) return;');
+  });
+
   it('la connexion passe par la session ; un refus s\'affiche et arrête la suite', () => {
     const connexion = fichiers.get('Pages/PageConnexion.cs')!;
     expect(connexion).toContain('if (!await Session.AfficherSiRefus(() => Session.SeConnecter(V.T(champEmail.Lire()), V.T(champMotDePasse.Lire())))) return;');

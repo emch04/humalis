@@ -286,3 +286,59 @@ describe('cible desktop — ce qui est mémorisé (décision D6)', () => {
     expect(memoire).toContain('export function useMemoriseSecret<T>(');
   });
 });
+
+describe('cible desktop — les clés d’accès', () => {
+  const source = `serveur "boutique" :
+    connexion par cle d'acces
+    donnee note :
+        titre : texte
+    route "notes" :
+        connecte peut lire note
+
+page "compte" :
+    titre "Compte"
+    bouton "Clé"
+    quand l'utilisateur clique sur "Clé" :
+        se connecter par cle d'acces
+    bouton "Ajouter"
+    quand l'utilisateur clique sur "Ajouter" :
+        ajouter cle d'acces
+`;
+  const fichiers = desktop(source);
+
+  it('ne sont plus refusées : le module natif est produit (Touch ID, Windows Hello)', () => {
+    for (const f of ['electron/cles.ts', 'electron/natif/cles-mac.swift', 'electron/natif/cles-windows.ps1', 'electron/natif/construire.mjs']) expect(fichiers.has(f)).toBe(true);
+    expect(fichiers.get('electron/natif/cles-mac.swift')).toContain('SecureEnclave.P256.Signing.PrivateKey(accessControl:');
+    expect(fichiers.get('electron/natif/cles-windows.ps1')).toContain('WebAuthNAuthenticatorMakeCredential');
+  });
+
+  it('le processus principal les ouvre pour la page seule ; le pont expose creer et signer', () => {
+    const principal = fichiers.get('electron/principal.ts')!;
+    expect(principal).toContain("import { ouvrirLesCles } from './cles.js';");
+    expect(principal).toContain("ouvrirLesCles(NOM, (evenement) => dansLApplication(evenement.senderFrame?.url ?? ''));");
+    expect(principal).toContain("preload: join(ICI, 'pont.cjs')");
+    expect(fichiers.get('electron/pont.cts')).toContain("contextBridge.exposeInMainWorld('humalisCles'");
+    // clientDataJSON avec l'origine du domaine des clés, comme les applications natives.
+    expect(fichiers.get('electron/cles.ts')).toContain("origin: 'https://' + rpId");
+  });
+
+  it('npm run build compile le gardien Swift ; electron-builder l’emporte avec le script de Windows', () => {
+    const paquet = JSON.parse(fichiers.get('package.json')!);
+    expect(paquet.scripts.build.startsWith('node electron/natif/construire.mjs && ')).toBe(true);
+    expect(paquet.build.extraResources).toEqual([{ from: 'electron/natif', to: 'natif', filter: ['humalis-cles', 'cles-windows.ps1'] }]);
+    expect(fichiers.get('.gitignore')).toContain('electron/natif/humalis-cles');
+    expect(fichiers.get('LISEZMOI.md')).toContain('Secure Enclave');
+  });
+
+  it('la page préfère le module natif quand l’application le fournit', () => {
+    const securite = [...fichiers.entries()].find(([chemin]) => chemin.endsWith('compte-securise.js'))?.[1] ?? '';
+    expect(securite).toContain('const natif = () => globalThis.humalisCles;');
+    expect(securite).toContain('await natif().signer({ ...options, allowCredentials: [] })');
+  });
+
+  it('sans clé d’accès, rien de tout cela', () => {
+    const sans = exemple('boutique');
+    expect(sans.has('electron/cles.ts')).toBe(false);
+    expect(JSON.parse(sans.get('package.json')!).scripts.build.includes('construire.mjs')).toBe(false);
+  });
+});

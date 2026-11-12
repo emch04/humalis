@@ -18,6 +18,7 @@ import { completerSource, type GenreProposition } from '../langage/completion.js
 import { definir, type Lieu } from '../langage/definition.js';
 import { symbolesDuDocument, type GenreSymboleDocument, type SymboleDocument } from '../langage/symboles.js';
 import { encoderJetons, jetonsSemantiques, MODIFICATEURS_JETONS, TYPES_JETONS } from '../langage/semantique.js';
+import { markdownVersTexte } from './texte-brut.js';
 
 interface Message {
   jsonrpc?: string;
@@ -77,7 +78,23 @@ const plage = (ligne: number, debut: number, fin: number) => ({
 });
 
 export class ServeurLangage {
+  /** Les documents ouverts, en fins de ligne « \n » (les positions LSP ne comptent pas les fins de ligne). */
   private readonly documents = new Map<string, string>();
+  /** Les documents écrits en fins de ligne Windows (« \r\n ») : la mise en forme les leur rend. */
+  private readonly finsWindows = new Set<string>();
+  /**
+   * Ce que le client accepte, lu dans « initialize ». Seul un client qui le
+   * dit (Visual Studio) reçoit du texte brut au survol et des symboles à plat ;
+   * sans indication, Markdown et arbre de symboles.
+   */
+  private survolEnTexte = false;
+  private symbolesAPlat = false;
+
+  private garder(uri: string, texte: string): void {
+    if (texte.includes('\r\n')) this.finsWindows.add(uri);
+    else this.finsWindows.delete(uri);
+    this.documents.set(uri, texte.replace(/\r\n?/g, '\n'));
+  }
   private arretDemande = false;
 
   /**
@@ -122,7 +139,11 @@ export class ServeurLangage {
 
   private traiter(method: string, params: any): unknown {
     switch (method) {
-      case 'initialize':
+      case 'initialize': {
+        const capacites = params?.capabilities?.textDocument;
+        const formats: unknown = capacites?.hover?.contentFormat;
+        this.survolEnTexte = Array.isArray(formats) && formats.length > 0 && !formats.includes('markdown');
+        this.symbolesAPlat = capacites?.documentSymbol !== undefined && capacites.documentSymbol.hierarchicalDocumentSymbolSupport !== true;
         return {
           capabilities: {
             textDocumentSync: 1,
@@ -138,6 +159,7 @@ export class ServeurLangage {
           },
           serverInfo: { name: 'humalis', version: paquet.version },
         };
+      }
       case 'initialized':
       case '$/cancelRequest':
       case '$/setTrace':
@@ -150,12 +172,12 @@ export class ServeurLangage {
         this.quitter(this.arretDemande ? 0 : 1);
         return undefined;
       case 'textDocument/didOpen':
-        this.documents.set(params.textDocument.uri, params.textDocument.text);
+        this.garder(params.textDocument.uri, params.textDocument.text);
         this.publier(params.textDocument.uri);
         return undefined;
       case 'textDocument/didChange': {
         const changements = params.contentChanges as { text: string }[];
-        if (changements.length > 0) this.documents.set(params.textDocument.uri, changements[changements.length - 1].text);
+        if (changements.length > 0) this.garder(params.textDocument.uri, changements[changements.length - 1].text);
         this.publier(params.textDocument.uri);
         return undefined;
       }
@@ -163,6 +185,7 @@ export class ServeurLangage {
         return undefined;
       case 'textDocument/didClose':
         this.documents.delete(params.textDocument.uri);
+        this.finsWindows.delete(params.textDocument.uri);
         this.envoyer({ jsonrpc: '2.0', method: 'textDocument/publishDiagnostics', params: { uri: params.textDocument.uri, diagnostics: [] } });
         return undefined;
       case 'textDocument/hover':
@@ -174,7 +197,8 @@ export class ServeurLangage {
           const resultat = formaterSource(source);
           if (resultat === source) return [];
           const lignes = source.split('\n');
-          return [{ range: { start: { line: 0, character: 0 }, end: { line: lignes.length - 1, character: lignes.at(-1)!.length } }, newText: resultat }];
+          const texte = this.finsWindows.has(params.textDocument.uri) ? resultat.replace(/\n/g, '\r\n') : resultat;
+          return [{ range: { start: { line: 0, character: 0 }, end: { line: lignes.length - 1, character: lignes.at(-1)!.length } }, newText: texte }];
         } catch { return []; }
       }
       case 'textDocument/completion':
@@ -216,7 +240,8 @@ export class ServeurLangage {
     const index = this.index(uri);
     const s = index && survoler(index, position.line + 1, position.character + 1);
     if (!s) return null;
-    return { contents: { kind: 'markdown', value: s.markdown }, range: plage(s.plage.ligne, s.plage.colonne, s.plage.fin) };
+    const contents = this.survolEnTexte ? { kind: 'plaintext', value: markdownVersTexte(s.markdown) } : { kind: 'markdown', value: s.markdown };
+    return { contents, range: plage(s.plage.ligne, s.plage.colonne, s.plage.fin) };
   }
 
   private completion(uri: string, position: PositionLsp) {
@@ -261,7 +286,20 @@ export class ServeurLangage {
       selectionRange: plage(s.selection.ligne, s.selection.colonne, s.selection.fin),
       children: s.enfants.map(vers),
     });
-    return symbolesDuDocument(index).map(vers);
+    if (!this.symbolesAPlat) return symbolesDuDocument(index).map(vers);
+    // Liste à plat (SymbolInformation), chaque symbole avec le nom de son parent.
+    const plats: unknown[] = [];
+    const aplatir = (s: SymboleDocument, parent?: string): void => {
+      plats.push({
+        name: s.nom,
+        kind: GENRES_SYMBOLE[s.genre],
+        location: { uri, range: { start: { line: s.debut - 1, character: 0 }, end: { line: s.fin - 1, character: s.finColonne - 1 } } },
+        ...(parent !== undefined ? { containerName: parent } : {}),
+      });
+      for (const e of s.enfants) aplatir(e, s.nom);
+    };
+    for (const s of symbolesDuDocument(index)) aplatir(s);
+    return plats;
   }
 
   private semantique(uri: string) {
