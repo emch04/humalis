@@ -2,6 +2,7 @@
 import { mediasLocaux, type InfoMedia } from './ri/medias.js';
 import { dimensionsImage } from './image/entete.js';
 import { execFileSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { activerReperes, appliquerLignesHumalis } from './cibles/lignes-humalis.js';
@@ -46,7 +47,7 @@ const AIDE = `Utilisation :
   humalis developper [<fichier.humalis>] [--port <nombre>]
   humalis lancer [<fichier.humalis>] [--port <nombre>] [--ouvrir]
   humalis tester [<dossier-ou-fichier.test.humalis>] [--detail]
-  humalis verifier <fichier.humalis> [--exigeant] [--ri]
+  humalis verifier <fichier.humalis> [--exigeant] [--ri] [--cible <cible>]
   humalis compile <fichier.humalis> --cible web --sortie <dossier> [--adresse https://…] [--exigeant]
   humalis compile <fichier.humalis> --cible web --composants <dossier>
   humalis compile <fichier.humalis> --cible mobile --sortie <dossier>
@@ -70,8 +71,10 @@ lancer    fait tourner un fichier tout de suite, sans projet produit, sans
           simulés (la commande le dit au démarrage). Rien n'est écrit sur
           le disque. Pour un vrai projet avec npm, voir developper.
 verifier  affiche les erreurs et les avertissements avec leur ligne. Avec
-          --ri, affiche aussi la représentation intermédiaire (pour qui
-          travaille sur le compilateur).
+          --cible, dit aussi ce que cette cible refuserait ou ignorerait
+          (ce que « compile » dirait), sans rien écrire. Avec --ri, affiche
+          aussi la représentation intermédiaire (pour qui travaille sur le
+          compilateur).
 compile   produit un projet complet pour la cible choisie : web (un site
           prérendu, une page HTML par adresse), statique (HTML, CSS,
           JavaScript, sans construction), apple (SwiftUI natif, iPhone, iPad
@@ -150,6 +153,34 @@ function lire(chemin: string): string | undefined {
 function option(arguments_: string[], nom: string): string | undefined {
   const position = arguments_.indexOf(`--${nom}`);
   return position === -1 ? undefined : arguments_[position + 1];
+}
+
+/** Vrai pendant « verifier --cible » : rien ne s'écrit sur le disque. */
+let aBlanc = false;
+
+/**
+ * « humalis verifier fichier.humalis --cible apple » : tout ce que la compilation pour cette cible dirait
+ * (ce qu'elle refuse, ce qu'elle ignore), sans rien écrire. Le projet est produit en mémoire, puis oublié.
+ */
+async function verifierPourUneCible(chemin: string, cible: string, arguments_: string[]): Promise<number> {
+  const dire = console.error;
+  const lignes: string[] = [];
+  aBlanc = true;
+  console.error = (...morceaux: unknown[]) => void lignes.push(morceaux.map(String).join(' '));
+  let code: number;
+  try {
+    const gardees = arguments_.filter((a, i) => i > 0 && a !== '--ri' && a !== '--cible' && arguments_[i - 1] !== '--cible' && a !== chemin);
+    code = await compile([chemin, ...(cible === '' ? [] : ['--cible', cible]), '--sortie', join(tmpdir(), 'humalis-verification-jamais-ecrite'), ...gardees]);
+  } finally {
+    console.error = dire;
+    aBlanc = false;
+  }
+  // Ce qui ne se dit qu'après une écriture n'a pas sa place dans une vérification.
+  const utiles = lignes.filter((l) => !/ écrit(e|s|es)? dans « |^Pour l[ae] (lancer|construire)|^Pour le |^Les requêtes vers le serveur partent|rien n'a été écrit|^Les dépendances ont changé/.test(l.trim()) && l.trim() !== '');
+  for (const ligne of utiles) dire(ligne);
+  if (code === 0) dire(utiles.length === 0 ? `Aucune erreur pour la cible ${cible}.` : `Aucune erreur pour la cible ${cible} (voir ce qui précède).`);
+  else if (code === 1) dire(`\nLe programme ne peut pas être produit pour la cible ${cible}.`);
+  return code;
 }
 
 function compile(arguments_: string[]): number | Promise<number> {
@@ -342,6 +373,8 @@ function dossierLibre(sortie: string, marque: string): boolean {
  * une table (Kotlin) : voir cibles/lignes-humalis.ts.
  */
 function ecrire(sortie: string, produits: Map<string, string>): void {
+  // « verifier --cible » : le projet est produit pour entendre ce que la cible en dit, jamais écrit.
+  if (aBlanc) return;
   const dossierSource = cheminPrincipal ? dirname(resolve(cheminPrincipal)) : process.cwd();
   const fichiers = appliquerLignesHumalis(produits, {
     fichiers: fichiersDuProjet.length > 0 ? fichiersDuProjet : [cheminPrincipal ? basename(cheminPrincipal) : 'programme.humalis'],
@@ -906,6 +939,10 @@ function principal(arguments_: string[]): number | Promise<number> {
     console.error(AIDE);
     return 2;
   }
+
+  // « --cible apple » : la vérification va jusqu'à ce que cette cible refuserait.
+  const cibleVerifiee = option(arguments_, 'cible');
+  if (cibleVerifiee !== undefined || arguments_.includes('--cible')) return verifierPourUneCible(chemin, cibleVerifiee ?? '', arguments_);
 
   const source = lire(chemin);
   if (source === undefined) return 2;

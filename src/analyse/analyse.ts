@@ -2148,6 +2148,13 @@ class AnalysePage {
         return BOOLEEN;
       case 'Liste': {
         const types = expression.elements.map((e) => this.typeDe(e));
+        // Une liste garde un seul genre de valeur : « somme de », « trier » et l'affichage comptent dessus.
+        const genres = [...new Set(types.filter(estConnu).map((type) => type.genre))];
+        if (genres.length > 1) {
+          const premier = types.find(estConnu)!;
+          const autre = types.find((type) => estConnu(type) && type.genre !== premier.genre)!;
+          this.avertissement(`cette liste mélange ${decrireType(premier)} et ${decrireType(autre)} : une liste garde un seul genre de valeur, le calcul ou le tri d’une liste mêlée donne un résultat inattendu. Pour ranger des valeurs différentes ensemble, écrivez une fiche.`, expression.ligne);
+        }
         return listeDe(types[0] ?? INCONNU);
       }
       case 'Reference': {

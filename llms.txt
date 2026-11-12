@@ -931,6 +931,7 @@ serveur "boutique" :
 - Une boucle dont la condition ne change jamais : compare deux valeurs écrites
 - Une répétition démesurée : fige la page pendant la boucle
 - Un nombre entier trop grand : trop grand pour être gardé au chiffre près
+- Une liste qui mélange des genres de valeurs : cette liste mélange
 - Des mises à jour sans « depuis » : après « mises a jour », « depuis » puis l’adresse
 - Des mises à jour sans adresse : il manque l’adresse entre guillemets
 - Une adresse de mises à jour qui n’est pas sûre : ne convient pas pour des mises à jour

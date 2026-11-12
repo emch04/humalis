@@ -4007,6 +4007,7 @@ Les autres étapes : `remplir champ "email" avec "…"`, `aller vers "panier"`,
 | `humalis compile <fichier> --cible web --composants <dossier>` | produit des composants React à importer ailleurs |
 | `humalis verifier <fichier>` | affiche les erreurs et les avertissements |
 | `humalis verifier <fichier> --exigeant` | traite aussi les avertissements comme des erreurs |
+| `humalis verifier <fichier> --cible statique` | dit aussi ce que cette cible refuserait ou ignorerait, sans rien écrire |
 | `humalis formater <fichier>` | remet le fichier en forme |
 | `humalis tester` | lance les tests `*.test.humalis` |
 | `humalis packs` | dit si les packs Astratra ont des mises à jour |

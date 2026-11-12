@@ -156,6 +156,15 @@ describe('petits pièges du langage (revue L8, L9, L10, L12)', () => {
     expect(messages(['page "a" :', '    variable g = 9007199254740991', '    variable p = 0,1', '    titre "A {g} {p}"', ''].join('\n'), 'avertissement')).toEqual([]);
   });
 
+  it('une liste qui mélange des nombres et des textes est signalée ; une liste d’un seul genre ne l’est pas', () => {
+    const avec = (liste: string) => ['page "a" :', `    variable l = ${liste}`, '    titre "A"', '    texte "{l}"', ''].join('\n');
+    expect(messages(avec('[1, "a", vrai]'), 'avertissement').join(' ')).toMatch(/cette liste mélange un nombre et un texte/);
+    expect(messages(avec('[1, 2, 3]'), 'avertissement')).toEqual([]);
+    expect(messages(avec('["a", "b"]'), 'avertissement')).toEqual([]);
+    expect(messages(avec('[fiche avec nom "a" et prix 1, fiche avec nom "b" et prix 2]'), 'avertissement')).toEqual([]);
+    expect(messages(avec('[]'), 'avertissement')).toEqual([]);
+  });
+
   it('un nom écrit avec une autre majuscule ou sans son accent : le bon nom est proposé', () => {
     expect(messages(['page "a" :', '    variable Prix = 3', '    titre "A"', '    texte "{prix}"', ''].join('\n'), 'erreur')[0]).toMatch(/Peut-être « Prix » \? Un nom garde ses majuscules et ses accents/);
     expect(messages(['page "a" :', '    variable élève = "Awa"', '    titre "A"', '    texte eleve', ''].join('\n'), 'erreur')[0]).toMatch(/Peut-être « élève » \?/);

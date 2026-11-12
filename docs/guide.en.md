@@ -4077,6 +4077,7 @@ texte "…" est absent` (a text is not shown).
 | `humalis compile <file> --cible web --composants <folder>` | generates React components to import elsewhere |
 | `humalis verifier <file>` | shows errors and warnings |
 | `humalis verifier <file> --exigeant` | also treats warnings as errors |
+| `humalis verifier <file> --cible statique` | also says what this target would refuse or ignore, without writing anything |
 | `humalis formater <file>` | reformats the file |
 | `humalis tester` | runs the `*.test.humalis` tests |
 | `humalis packs` | says whether the Astratra packs have updates |
