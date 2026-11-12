@@ -25,7 +25,7 @@ import { CssAndroid, type Portee as PorteeCss } from './css.js';
 import { FORMATS_KT } from './formats.js';
 import { LANGUES_KT, traduireMessagesKotlin, INTERFACE_KT, MEMOIRE_KT, SERVEUR_KT, VALEURS_KT, kotlin } from './bibliotheque.js';
 import { EcrivainKotlin } from './ecrivain.js';
-import { AVANT_PLAN_ICONE, CONSTRUCTION_RACINE, ENVELOPPE_GRADLE, IGNORES_GIT, PROPRIETES_GRADLE, SECURITE_RESEAU, TABLE_DEBOGUEUR, THEME_XML, VERSIONS, constructionApp, couleurIcone, iconeAdaptative, manifeste, reglagesGradle } from './gradle.js';
+import { AVANT_PLAN_ICONE, CONSTRUCTION_RACINE, ENVELOPPE_GRADLE, IGNORES_GIT, PROPRIETES_GRADLE, EXTRACTION_DONNEES, SAUVEGARDE, SECURITE_RESEAU, TABLE_DEBOGUEUR, THEME_XML, VERSIONS, constructionApp, couleurIcone, iconeAdaptative, manifeste, reglagesGradle } from './gradle.js';
 import { iconesKotlin } from './icones.js';
 import { chaineKotlin, identifiantAndroid, nomApplication, nomComposant, nomKotlin, nomRoute } from './noms.js';
 import { GenerateurPage, type ContexteAndroid } from './page.js';
@@ -1095,6 +1095,8 @@ export function genererProjetAndroid(complete: Application, options: OptionsAndr
   }
   fichiers.set('app/src/main/res/values/themes.xml', THEME_XML);
   fichiers.set('app/src/main/res/xml/network_security_config.xml', SECURITE_RESEAU);
+  fichiers.set('app/src/main/res/xml/sauvegarde.xml', SAUVEGARDE);
+  fichiers.set('app/src/main/res/xml/extraction_donnees.xml', EXTRACTION_DONNEES);
   const logo = application.site?.logo;
   const octetsLogo = logo && /\.png$/i.test(logo) ? options.images?.get(logo) : undefined;
   if (octetsLogo !== undefined) fichiers.set('app/src/main/res/mipmap-xxxhdpi/ic_launcher.png', contenuBinaire(octetsLogo));

@@ -64,3 +64,16 @@ describe('la politique de contenu du site produit', () => {
     for (const script of scripts) expect(entetes).toContain(empreinte(script));
   });
 });
+
+describe('la sauvegarde du téléphone Android', () => {
+  it('le coffre, chiffré par une clé qui ne quitte pas l’appareil, n’est ni sauvegardé ni transféré', async () => {
+    const { genererProjetAndroid } = await import('../src/cibles/android/projet.js');
+    const { fichiers } = genererProjetAndroid(application(), { nom: 'essai', source: 'essai.humalis' } as never);
+    const manifeste = fichiers.get('app/src/main/AndroidManifest.xml')!;
+    expect(manifeste).toContain('android:fullBackupContent="@xml/sauvegarde"');
+    expect(manifeste).toContain('android:dataExtractionRules="@xml/extraction_donnees"');
+    expect(fichiers.get('app/src/main/res/xml/sauvegarde.xml')).toContain('<exclude domain="sharedpref" path="humalis.coffre.xml" />');
+    const extraction = fichiers.get('app/src/main/res/xml/extraction_donnees.xml')!;
+    expect(extraction.match(/<exclude domain="sharedpref" path="humalis.coffre.xml" \/>/g)).toHaveLength(2);
+  });
+});

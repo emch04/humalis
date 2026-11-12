@@ -184,6 +184,8 @@ export function manifeste(reseau: boolean, liens?: { schema: string; domaine?: s
 ${permissions.map((p) => `    <uses-permission android:name="${p}" />\n`).join('')}${besoins.photo || besoins.camera ? '    <uses-feature android:name="android.hardware.camera" android:required="false" />\n' : ''}${besoins.micro ? '    <uses-feature android:name="android.hardware.microphone" android:required="false" />\n' : ''}
     <application
         android:allowBackup="true"
+        android:fullBackupContent="@xml/sauvegarde"
+        android:dataExtractionRules="@xml/extraction_donnees"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
@@ -217,6 +219,31 @@ export const THEME_XML = `<?xml version="1.0" encoding="utf-8"?>
 `;
 
 /** http:// n'est permis que vers l'ordinateur de développement (10.0.2.2 depuis l'émulateur) : tout le reste passe en https. */
+/**
+ * Ce que la sauvegarde du téléphone n'emporte pas : le coffre. Ses valeurs sont chiffrées par une clé de
+ * l'Android Keystore, qui ne quitte jamais l'appareil : restaurées sur un autre téléphone, elles seraient
+ * illisibles, et la session d'un téléphone ne doit pas se retrouver sur un autre. Android 11 et avant.
+ */
+export const SAUVEGARDE = `<?xml version="1.0" encoding="utf-8"?>
+<!-- Produit par Humalis. -->
+<full-backup-content>
+    <exclude domain="sharedpref" path="humalis.coffre.xml" />
+</full-backup-content>
+`;
+
+/** La même règle pour Android 12 et après : la sauvegarde dans le nuage et le transfert d'un téléphone à l'autre. */
+export const EXTRACTION_DONNEES = `<?xml version="1.0" encoding="utf-8"?>
+<!-- Produit par Humalis. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="humalis.coffre.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="humalis.coffre.xml" />
+    </device-transfer>
+</data-extraction-rules>
+`;
+
 export const SECURITE_RESEAU = `<?xml version="1.0" encoding="utf-8"?>
 <!-- Produit par Humalis. -->
 <network-security-config>
