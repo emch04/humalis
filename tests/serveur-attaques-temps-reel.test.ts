@@ -1,0 +1,97 @@
+import { beforeAll, describe, expect, it } from 'vitest';
+import { execFileSync } from 'node:child_process';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { compiler } from '../src/compilateur.js';
+import { genererProjetServeur } from '../src/cibles/serveur/projet.js';
+
+/**
+ * Le temps réel sur un VRAI serveur produit (revue du 12 novembre 2026, S4 et S5) : chaque écriture passe la garde
+ * CSRF, une personne exclue d'une réunion n'obtient plus de jeton, et le nom affiché n'est jamais l'adresse e-mail.
+ * LiveKit est « réglé » vers une adresse injoignable : le jeton se signe sans lui, l'exclusion aussi.
+ */
+const SOURCE = readFileSync(new URL('./serveur-attaques-temps-reel.humalis', import.meta.url), 'utf8');
+
+const SCENARIO = `
+import { createMemoryUsersStore } from '@astratra/saas-kit';
+import { hashPassword } from '@astratra/security';
+import { creerServeur } from './dist/src/serveur.js';
+import { creerStockageMemoire } from './dist/src/humalis/stockage.js';
+
+process.env.LIVEKIT_URL = 'ws://127.0.0.1:9';
+process.env.LIVEKIT_API_KEY = 'cle-essai';
+process.env.LIVEKIT_API_SECRET = 'secret-essai-assez-long-pour-livekit-0123456789';
+const secret = 'Essai-Solide-2026!';
+const usersStore = createMemoryUsersStore();
+const passwordHash = await hashPassword(secret);
+await usersStore.create({ email: 'prof@essai.test', role: 'professeur', passwordHash });
+const e1 = await usersStore.create({ email: 'eleve.un@essai.test', role: 'eleve', passwordHash });
+await usersStore.create({ email: 'eleve.deux@essai.test', role: 'eleve', passwordHash });
+const s = () => creerStockageMemoire();
+const stockages = { conversationAide: s(), messageAide: s(), pieceAide: s(), lectureAide: s(), ecritureAide: s(), presenceVue: s() };
+const app = creerServeur({ jwtSecret: 'secret-de-test-assez-long-pour-les-sessions', usersStore, stockages });
+const ecoute = app.listen(0);
+await new Promise((pret) => ecoute.once('listening', pret));
+const base = 'http://127.0.0.1:' + ecoute.address().port;
+const json = { 'content-type': 'application/json' };
+const connexion = async (email) => fetch(base + '/auth/login', { method: 'POST', headers: json, body: JSON.stringify({ email, password: secret }) });
+const parJeton = async (email) => ({ ...json, authorization: 'Bearer ' + (await (await connexion(email)).json()).data.token });
+// Un navigateur : seulement les cookies de la session, sans l'en-tête x-csrf-token.
+const cookies = (await connexion('eleve.un@essai.test')).headers.getSetCookie().map((c) => c.split(';')[0]).join('; ');
+const parCookie = { ...json, cookie: cookies };
+const envoyer = async (chemin, entetes, corps) => {
+  const reponse = await fetch(base + chemin, { method: 'POST', headers: entetes, body: JSON.stringify(corps) });
+  return { statut: reponse.status, corps: await reponse.json().catch(() => null) };
+};
+const [prof, un, deux] = [await parJeton('prof@essai.test'), await parJeton('eleve.un@essai.test'), await parJeton('eleve.deux@essai.test')];
+const r = {
+  messageSansCsrf: await envoyer('/api/discussions_aide_messages', parCookie, { texte: 'bonjour' }),
+  jetonSansCsrf: await envoyer('/api/salles_jeton', parCookie, { salle: 'classe' }),
+  jetonAvant: await envoyer('/api/salles_jeton', un, { salle: 'classe' }),
+  exclusion: await envoyer('/api/salles_geste', prof, { salle: 'classe', participant: String(e1.id), geste: 'exclure' }),
+  jetonExclu: await envoyer('/api/salles_jeton', un, { salle: 'classe' }),
+  jetonAutre: await envoyer('/api/salles_jeton', deux, { salle: 'classe' }),
+  message: await envoyer('/api/discussions_aide_messages', un, { texte: 'bonjour' }),
+};
+const charge = r.jetonAutre.corps?.jeton ? JSON.parse(Buffer.from(r.jetonAutre.corps.jeton.split('.')[1], 'base64url').toString()) : {};
+r.nomDansLeJeton = { statut: 0, corps: { nom: charge.name ?? '', duree: (charge.exp ?? 0) - (charge.iat ?? charge.nbf ?? 0) } };
+ecoute.close();
+ecoute.closeAllConnections();
+console.log(JSON.stringify(r));
+`;
+
+type Reponse = { statut: number; corps: Record<string, unknown> };
+let r: Record<string, Reponse>;
+
+describe('le temps réel sur un vrai serveur produit', () => {
+  beforeAll(() => {
+    const { application, diagnostics } = compiler(SOURCE);
+    expect(diagnostics.filter((d) => d.gravite === 'erreur')).toEqual([]);
+    const dossier = join(tmpdir(), 'humalis-attaques-temps-reel');
+    rmSync(join(dossier, 'src'), { recursive: true, force: true });
+    rmSync(join(dossier, 'dist'), { recursive: true, force: true });
+    for (const [chemin, contenu] of genererProjetServeur(application!.serveurs[0]!, { nom: 'ecole', source: 'ecole.humalis' })) {
+      mkdirSync(dirname(join(dossier, chemin)), { recursive: true });
+      writeFileSync(join(dossier, chemin), contenu);
+    }
+    writeFileSync(join(dossier, 'scenario.mjs'), SCENARIO);
+    if (!existsSync(join(dossier, 'node_modules', 'typescript'))) execFileSync('npm', ['install', '--no-audit', '--no-fund'], { cwd: dossier, stdio: 'pipe' });
+    execFileSync('npx', ['tsc'], { cwd: dossier, stdio: 'pipe' });
+    r = JSON.parse(execFileSync('node', ['scenario.mjs'], { cwd: dossier, encoding: 'utf8' }).trim().split('\n').at(-1)!);
+  }, 300_000);
+
+  it('une écriture sans la garde CSRF est refusée (S4)', () => {
+    expect([r.messageSansCsrf!.statut, r.jetonSansCsrf!.statut]).toEqual([403, 403]);
+  });
+  it('une personne exclue n’obtient plus de jeton ; les autres, si (S5)', () => {
+    expect([r.jetonAvant!.statut, r.exclusion!.statut, r.jetonExclu!.statut, r.jetonAutre!.statut]).toEqual([201, 201, 403, 201]);
+  });
+  it('le jeton dure dix minutes, et le nom affiché n’est pas l’adresse e-mail', () => {
+    expect(r.nomDansLeJeton!.corps.nom).toBe('eleve.deux');
+    expect(r.nomDansLeJeton!.corps.duree).toBeLessThanOrEqual(600);
+  });
+  it('une écriture normale passe toujours', () => {
+    expect(r.message!.statut).toBe(201);
+  });
+});

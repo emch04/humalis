@@ -163,7 +163,7 @@ try {
   await allerA(chloe, 'conseil');
   for (const p of [awa, binta, chloe]) await p.getByRole('button', { name: 'Rejoindre' }).click();
   verifier(await videoVivante(awa, 3), 'réunion : trois images vivantes');
-  verifier(await voit(awa, 'Présent : binta@essai.test') && await voit(awa, 'Présent : chloe@essai.test'), 'réunion : la liste des participants se met à jour');
+  verifier(await voit(awa, 'Présent : binta') && await voit(awa, 'Présent : chloe'), 'réunion : la liste des participants se met à jour');
   await chloe.getByRole('button', { name: 'Lever la main' }).click();
   verifier(await voit(chloe, 'Main levée'), 'réunion : « main est levee »');
   verifier(await awa.getByText('Main', { exact: true }).first().waitFor({ timeout: 8000 }).then(() => true, () => false), 'réunion : les autres voient la main');
@@ -176,7 +176,7 @@ try {
     return (await fetch('/api/salles_geste', { method: 'POST', headers: { 'content-type': 'application/json', 'x-csrf-token': decodeURIComponent(csrf) }, body: JSON.stringify({ salle: 'conseil', participant: 'compte-awa', geste: 'exclure' }) })).status;
   });
   verifier(refus === 403, 'réunion : une personne qui n’anime pas ne peut pas exclure');
-  const boutonPourChloe = (nom) => binta.locator('text=Présent : chloe@essai.test').locator(`xpath=following::button[normalize-space()="${nom}"][1]`);
+  const boutonPourChloe = (nom) => binta.locator('text=Présent : chloe').locator(`xpath=following::button[normalize-space()="${nom}"][1]`);
   await boutonPourChloe('Couper').waitFor({ timeout: 5000 });
   await boutonPourChloe('Couper').click();
   await chloe.bringToFront();
@@ -185,7 +185,7 @@ try {
   verifier(microCoupe || await chloe.getByRole('button', { name: 'Activer le micro' }).waitFor({ timeout: 8000 }).then(() => true, () => false), 'réunion : l’animatrice coupe un micro, la personne le voit');
   await binta.bringToFront();
   await boutonPourChloe('Exclure').click();
-  verifier(await binta.getByText('Présent : chloe@essai.test').waitFor({ state: 'detached', timeout: 10000 }).then(() => true, () => false), 'réunion : l’animatrice exclut une personne');
+  verifier(await binta.getByText('Présent : chloe').waitFor({ state: 'detached', timeout: 10000 }).then(() => true, () => false), 'réunion : l’animatrice exclut une personne');
   verifier(await voit(chloe, 'Vous avez été retiré de la réunion.'), 'réunion : la personne exclue le lit');
   await awa.screenshot({ path: join(travail, 'reunion.png') });
 

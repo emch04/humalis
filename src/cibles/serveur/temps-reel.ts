@@ -48,7 +48,7 @@ export function codeMontageTempsReel(serveur: ServeurRI): string {
     .map((d) => d.nom);
   const pour = new Set([...tables, ...serveur.donnees.filter((d) => !d.reponseSeule && /^(lecture_|ecriture_|presence_vue$)/.test(d.nom)).map((d) => d.nom)]);
   const liste = [...pour].map((n) => `${JSON.stringify(n)}: stockages.${camel(n)}`).join(', ');
-  return `      monterTempsReel(app, { acces, usersStore, secret: jwtSecret, tables: { ${liste} }, reglages: ${reglages(serveur)} });\n`;
+  return `      monterTempsReel(app, { acces, csrf: csrfMiddleware, usersStore, secret: jwtSecret, tables: { ${liste} }, reglages: ${reglages(serveur)} });\n`;
 }
 
 export const IMPORT_TEMPS_REEL = "import { monterTempsReel } from './humalis/temps-reel.js';\n";
@@ -73,7 +73,7 @@ function monterSalles(): void {}
 const LIVEKIT = String.raw`
 /** Une salle du programme ou celle d'un appel, et ce que cette personne peut y faire. */
 function monterSalles(app: Application, o: Options, voir: (req: Request) => Moi, appels: Stockage | undefined): void {
-  const { acces, reglages } = o;
+  const { acces, reglages, csrf } = o;
   const adresse = () => process.env.LIVEKIT_URL ?? '';
   const service = () => new RoomServiceClient(adresse().replace(/^ws/, 'http'), process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET);
   const regle = () => Boolean(process.env.LIVEKIT_URL && process.env.LIVEKIT_API_KEY && process.env.LIVEKIT_API_SECRET);
@@ -81,6 +81,23 @@ function monterSalles(app: Application, o: Options, voir: (req: Request) => Moi,
   const salleDe = (nom: string) => reglages.salles.find((s) => s.nom === nom);
   const nomLiveKit = (nom: string) => (nom.startsWith('appel-') ? nom : 'salle-' + createHash('sha256').update(nom).digest('hex').slice(0, 32));
   const annoncer = () => direct.annonce('tr:salles');
+  // Une personne exclue d'une réunion n'y revient pas avant douze heures : le serveur ne lui redonne pas de jeton.
+  const EXCLUSION_MS = 12 * 60 * 60 * 1000;
+  const exclus = new Map<string, number>();
+  const estExclu = (nom: string, id: string) => {
+    const fin = exclus.get(nom + '\u0000' + id);
+    if (fin === undefined) return false;
+    if (fin > Date.now()) return true;
+    exclus.delete(nom + '\u0000' + id);
+    return false;
+  };
+  /** Anime-t-il cette salle ? Lu dans son compte, jamais dans ce que le participant écrit de lui-même. */
+  const anime = async (nom: string, id: string): Promise<boolean> => {
+    const salle = salleDe(nom);
+    if (!salle) return false;
+    const compte = (await Promise.resolve(o.usersStore.findById(id)).catch(() => null)) as Moi | null;
+    return compte !== null && (compte.role === 'admin' || salle.animateurs.includes(compte.role ?? ''));
+  };
 
   /** Rend le droit de cette personne sur la salle ; undefined : elle n'y entre pas. */
   async function droit(moi: Moi, nom: string, pourEntrer = false): Promise<{ animateur: boolean; video: boolean } | undefined> {
@@ -100,13 +117,17 @@ function monterSalles(app: Application, o: Options, voir: (req: Request) => Moi,
 
   const texteDe = (valeur: unknown): string => (typeof valeur === 'string' ? valeur : valeur && typeof valeur === 'object' && 'id' in valeur ? String((valeur as { id: unknown }).id) : '');
 
-  app.post('/api/salles_jeton', ...acces.connecte, async (req, res, next) => {
+  app.post('/api/salles_jeton', ...acces.connecte, csrf, async (req, res, next) => {
     try {
       const moi = voir(req);
       const nom = texteDe((req.body as { salle?: unknown }).salle);
       const permis = await droit(moi, nom, true);
       if (!permis) {
         res.status(403).json({ erreur: "Vous n'avez pas accès à cette réunion." });
+        return;
+      }
+      if (estExclu(nom, moi.id)) {
+        res.status(403).json({ erreur: 'Vous avez été exclu de cette réunion.' });
         return;
       }
       if (!regle()) {
@@ -117,7 +138,9 @@ function monterSalles(app: Application, o: Options, voir: (req: Request) => Moi,
         identity: moi.id,
         name: nomDe(moi),
         metadata: JSON.stringify({ animateur: permis.animateur }),
-        ttl: '4h',
+        // Un jeton court : LiveKit le renouvelle de lui-même pour qui reste dans la salle ; une personne exclue ne
+        // peut donc pas revenir avec l'ancien.
+        ttl: '10m',
       });
       jeton.addGrant({ roomJoin: true, room: nomLiveKit(nom), canPublish: true, canSubscribe: true, canPublishData: true, canUpdateOwnMetadata: true });
       res.status(201).json({ id: nom, adresse: adresse(), jeton: await jeton.toJwt(), video: permis.video });
@@ -163,16 +186,14 @@ function monterSalles(app: Application, o: Options, voir: (req: Request) => Moi,
         return;
       }
       const presents = await service().listParticipants(nomLiveKit(nom)).catch(() => []);
+      const animateurs = new Set((await Promise.all(presents.map(async (p) => ((await anime(nom, p.identity)) ? p.identity : '')))).filter(Boolean));
       const participants = presents.map((p) => {
         const piste = (source: number) => p.tracks.find((t) => t.source === source);
         const actif = (source: number) => {
           const t = piste(source);
           return t !== undefined && !t.muted;
         };
-        let animateur = false;
-        try {
-          animateur = (JSON.parse(p.metadata || '{}') as { animateur?: boolean }).animateur === true;
-        } catch { /* Des métadonnées illisibles : pas animateur. */ }
+        const animateur = animateurs.has(p.identity);
         return { id: p.identity, nom: p.name || p.identity, micro: actif(TrackSource.MICROPHONE), camera: actif(TrackSource.CAMERA), ecran: actif(TrackSource.SCREEN_SHARE), main: p.attributes?.main === '1', animateur };
       });
       // Un ordre stable : la liste ne saute pas d'une lecture à l'autre.
@@ -184,7 +205,7 @@ function monterSalles(app: Application, o: Options, voir: (req: Request) => Moi,
     }
   });
 
-  app.post('/api/salles_geste', ...acces.connecte, async (req, res, next) => {
+  app.post('/api/salles_geste', ...acces.connecte, csrf, async (req, res, next) => {
     try {
       const moi = voir(req);
       const corps = req.body as { salle?: unknown; participant?: unknown; geste?: unknown };
@@ -206,7 +227,11 @@ function monterSalles(app: Application, o: Options, voir: (req: Request) => Moi,
         }
         const cible = texteDe(corps.participant);
         const piece = nomLiveKit(nom);
-        if (geste === 'exclure') await service().removeParticipant(piece, cible);
+        if (geste === 'exclure') {
+          exclus.set(nom + '\u0000' + cible, Date.now() + EXCLUSION_MS);
+          // Déjà partie, la personne n'est plus dans la salle : l'exclusion compte quand même.
+          await service().removeParticipant(piece, cible).catch(() => undefined);
+        }
         else if (geste === 'couper_micro') {
           const personne = await service().getParticipant(piece, cible);
           const micro = personne.tracks.find((t) => t.source === TrackSource.MICROPHONE);
@@ -244,6 +269,8 @@ interface UsersLus { findById(id: string): unknown; findByEmail(email: string): 
 type Application = ReturnType<typeof express.Router>;
 interface Options {
   acces: { connecte: RequestHandler[] };
+  /** La garde CSRF du serveur : chaque écriture du temps réel la passe, comme les autres routes. */
+  csrf: RequestHandler;
   usersStore: UsersLus;
   secret: string;
   tables: Record<string, Stockage>;
@@ -257,7 +284,8 @@ const ECRITURE_MS = 6000;
 const SONNERIE_MS = 45000;
 const PRESENCE_MS = 60000;
 
-const nomDe = (p: Moi): string => (typeof p.nom === 'string' && p.nom !== '' ? p.nom : (p.email ?? 'Quelqu’un'));
+// Le nom affiché aux autres : celui du compte, sinon le début de son adresse, jamais l'adresse entière.
+const nomDe = (p: Moi): string => (typeof p.nom === 'string' && p.nom !== '' ? p.nom : typeof p.email === 'string' && p.email.includes('@') ? p.email.slice(0, p.email.indexOf('@')) : 'Quelqu’un');
 const maintenant = () => new Date().toISOString();
 
 /** Qui écoute, pour la présence : un compte reste présent tant qu'une de ses connexions vit. */
@@ -320,7 +348,7 @@ function lireMultipart(corps: Buffer, typeContenu: string): { nom: string; type:
 export function monterTempsReel(cible: { use(routes: RequestHandler): unknown }, o: Options): void {
   const app = express.Router();
   cible.use(app);
-  const { acces, usersStore, secret, tables, reglages } = o;
+  const { acces, csrf, usersStore, secret, tables, reglages } = o;
   const voir = (req: Request): Moi => (req as unknown as { user: Moi }).user;
   const texteDe = (valeur: unknown): string => (typeof valeur === 'string' ? valeur : valeur && typeof valeur === 'object' && 'id' in valeur ? String((valeur as { id: unknown }).id) : '');
   tablePresence = tables.presence_vue;
@@ -431,7 +459,7 @@ export function monterTempsReel(cible: { use(routes: RequestHandler): unknown },
     });
 
     // « ouvrir discussion "support" avec commande.client ».
-    app.post(base + '_conversations', ...acces.connecte, async (req, res, next) => {
+    app.post(base + '_conversations', ...acces.connecte, csrf, async (req, res, next) => {
       try {
         const moi = voir(req);
         if (!estMembre(moi)) {
@@ -518,7 +546,7 @@ export function monterTempsReel(cible: { use(routes: RequestHandler): unknown },
       }
     });
 
-    app.post(base + '_messages', ...acces.connecte, async (req, res, next) => {
+    app.post(base + '_messages', ...acces.connecte, csrf, async (req, res, next) => {
       try {
         const moi = voir(req);
         const corps = req.body as { conversation?: unknown; texte?: unknown; piece?: unknown };
@@ -558,7 +586,7 @@ export function monterTempsReel(cible: { use(routes: RequestHandler): unknown },
       }
     });
 
-    app.post(base + '_ecriture', ...acces.connecte, async (req, res, next) => {
+    app.post(base + '_ecriture', ...acces.connecte, csrf, async (req, res, next) => {
       try {
         const moi = voir(req);
         const conversation = estMembre(moi) ? await conversationDe(moi, texteDe((req.body as { conversation?: unknown }).conversation)) : undefined;
@@ -597,7 +625,7 @@ export function monterTempsReel(cible: { use(routes: RequestHandler): unknown },
       }
     });
 
-    app.post('/api/' + routePieces, ...acces.connecte, express.raw({ type: () => true, limit: PIECE_AU_PLUS + 65536 }), async (req, res, next) => {
+    app.post('/api/' + routePieces, ...acces.connecte, csrf, express.raw({ type: () => true, limit: PIECE_AU_PLUS + 65536 }), async (req, res, next) => {
       try {
         const moi = voir(req);
         if (!estMembre(moi)) {
@@ -672,7 +700,7 @@ export function monterTempsReel(cible: { use(routes: RequestHandler): unknown },
       ecouter(cleAppel(moi.id), req, res, moi);
     });
 
-    app.post('/api/appels', ...acces.connecte, async (req, res, next) => {
+    app.post('/api/appels', ...acces.connecte, csrf, async (req, res, next) => {
       try {
         const moi = voir(req);
         const corps = req.body as { appele?: unknown; video?: unknown };
@@ -723,7 +751,7 @@ export function monterTempsReel(cible: { use(routes: RequestHandler): unknown },
       }
     });
 
-    app.post('/api/appels_reponse', ...acces.connecte, async (req, res, next) => {
+    app.post('/api/appels_reponse', ...acces.connecte, csrf, async (req, res, next) => {
       try {
         const moi = voir(req);
         const corps = req.body as { appel?: unknown; reponse?: unknown };

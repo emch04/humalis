@@ -1,0 +1,9 @@
+serveur "ecole" :
+    roles eleve et professeur
+    salle "classe" pour eleve et professeur animee par professeur
+    discussion "aide" entre eleve et professeur
+
+page "a" :
+    titre "A"
+    reunion "classe"
+    discussion "aide"
