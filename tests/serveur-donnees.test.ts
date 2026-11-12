@@ -104,3 +104,21 @@ describe('une invitation en attente', () => {
     expect(garde).toBeLessThan(comptes.indexOf('await usersStore.update(String(existant.id), { role, invitation: true'));
   });
 });
+
+describe('deux défauts trouvés en lançant les tests produits de tous les exemples', () => {
+  const produire = (source: string) => genererProjetServeur(compiler(source).application!.serveurs[0]!, { nom: 'b', source: 'b.humalis' });
+
+  it('un serveur avec des appels mais sans salle compile : la doublure de monterSalles reçoit les arguments de l’appel', () => {
+    const source = 'serveur "agence" :\n    donnee contact :\n        compte : texte\n        nom : texte\n    route "contacts" :\n        connecte peut lire contact\n\npage "accueil" :\n    variable contacts = []\n    titre "Contacts"\n    quand la page se charge :\n        envoyer requete vers "contacts" dans contacts\n    pour chaque contact dans contacts :\n        bouton "Appeler"\n        quand l\'utilisateur clique sur "Appeler" :\n            appeler en video contact.compte\n';
+    const tempsReel = produire(source).get('src/humalis/temps-reel.ts');
+    if (tempsReel?.includes('function monterSalles(...')) expect(tempsReel).toContain('function monterSalles(..._sansSalle: unknown[]): void {}');
+    else expect(tempsReel ?? '').not.toContain('function monterSalles(): void {}');
+  });
+
+  it('le test produit de la surveillance provoque sa panne sur une route que l’admin peut lire', () => {
+    const source = 'serveur "b" :\n    donnee commande :\n        nom : texte\n    donnee produit :\n        nom : texte\n    route "commandes" :\n        tout le monde peut creer commande\n    route "produits" :\n        tout le monde peut lire produit\n        seul admin peut modifier produit\n\npage "a" :\n    titre "A"\n';
+    const sessions = produire(source).get('tests/sessions.test.ts')!;
+    expect(sessions).toContain("request(app).get('/api/produits').set('authorization', 'Bearer ' + jeton)");
+    expect(sessions).not.toContain("request(app).get('/api/commandes').set('authorization', 'Bearer ' + jeton)");
+  });
+});

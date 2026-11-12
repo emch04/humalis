@@ -65,6 +65,29 @@ page "accueil" :
     titre "Avis"
 ```
 
+### nombre entre 0 et 100, texte de 2 a 80 caracteres
+
+Après le type d’un champ, les limites que le serveur impose à la création et à la modification : « entre », « au moins », « au plus », « entier » pour un nombre ; une longueur, « au format email » (ou telephone, adresse web) et « parmi » pour un texte ; « de 5 elements au plus » pour une liste. Sans rien écrire, un texte est limité à 10 000 caractères et une liste à 1 000 éléments.
+
+```humalis
+serveur "boutique" :
+    donnee produit :
+        nom : texte de 2 a 80 caracteres
+        description : texte de 500 caracteres au plus
+        prix : nombre entre 0 et 10000
+        stock : nombre entier au moins 0
+        remise : nombre au plus 50
+        contact : texte au format email
+        statut : texte parmi "brouillon", "en_vente" et "epuise"
+        photos : liste de texte de 5 elements au plus
+    route "produits" :
+        tout le monde peut lire produit
+        seul admin peut modifier produit
+
+page "accueil" :
+    titre "Boutique"
+```
+
 ### donnees de depart pour …
 
 Les premières fiches, écrites au premier démarrage si la table est vide.
@@ -869,6 +892,13 @@ serveur "boutique" :
 - Deux règles pour la même action : seule la dernière compte
 - Tout le monde peut modifier ou supprimer : un visiteur sans compte peut
 - Un deuxième bloc « serveur » : est le deuxième bloc « serveur »
+- Une limite à moitié écrite : cette limite n’est pas complète
+- Une limite qui ne va pas avec le type du champ : limitent un nombre ; ce champ est
+- Une longueur qui n’est pas un nombre entier : est un entier, 1 ou plus
+- Une limite basse plus grande que la haute : dépasse la limite haute
+- La même valeur deux fois après « parmi » : cite deux fois
+- Une valeur de départ que la limite refuse : ne respecte pas sa limite
+- Une fiche de départ que la limite refuse : donnees de depart pour produit : « nom » doit avoir
 - Une durée oubliée : il manque une durée
 - Une durée sans unité : il manque l’unité de la durée
 - Une durée qui n’est pas un nombre : une durée est un nombre suivi de son unité

@@ -2657,6 +2657,46 @@ total modifié ainsi garde la valeur écrite, sans nouveau calcul. Les calculs r
 dès 50 $ » reste décidée par la page, donc un client qui trafique sa requête peut
 payer moins que prévu sur ce champ, jamais plus que le plafond.
 
+### Des limites sur les valeurs
+
+Sans rien écrire, le serveur refuse déjà un texte de plus de 10 000 caractères et une
+liste de plus de 1 000 éléments. Après le type d'un champ, tu poses tes propres limites :
+
+```humalis
+serveur "boutique" :
+    donnee produit :
+        nom : texte de 2 a 80 caracteres
+        description : texte de 500 caracteres au plus
+        prix : nombre entre 0 et 10000
+        stock : nombre entier au moins 0
+        remise : nombre au plus 50
+        contact : texte au format email
+        statut : texte parmi "brouillon", "en_vente" et "epuise"
+        photos : liste de texte de 5 elements au plus
+    route "produits" :
+        tout le monde peut lire produit
+        seul admin peut modifier produit
+```
+
+- `entre 0 et 10000`, `au moins 0`, `au plus 50` : un nombre hors de ces limites est refusé.
+  `entier` refuse un nombre à virgule. Sans limite, un prix négatif est accepté.
+- `de 2 a 80 caracteres`, `de 500 caracteres au plus`, `de 4 caracteres au moins` : la
+  longueur d'un texte. Un émoji compte pour un caractère.
+- `au format email`, `au format telephone`, `au format adresse web` : le texte doit en être un.
+- `parmi "brouillon", "en_vente" et "epuise"` : aucune autre valeur n'est acceptée. C'est la
+  bonne règle pour un statut que quelqu'un peut modifier.
+- `de 5 elements au plus` : le nombre d'éléments d'une liste.
+
+Ces limites valent à la création et à la modification, pour tout le monde, admin compris.
+Une valeur refusée reçoit une réponse 400 et une phrase qui dit pourquoi (« le champ « prix »
+doit être entre 0 et 10000 »), que la page affiche. Sur le web, en statique et dans l'application
+de bureau, la page vérifie ces mêmes limites avant d'envoyer et montre la même phrase sans attendre
+le serveur ; sur Apple, Android et Windows, c'est le refus du serveur qui s'affiche. Elles se combinent entre elles et avec
+`non vide`, `au depart` et `du site` : `statut : texte parmi "a" et "b" au depart "a"`.
+Humalis vérifie à la compilation qu'une valeur `au depart` et les `donnees de depart`
+respectent la limite. `au plus` suivi d'un champ garde son autre sens : le plafond lu dans une
+autre donnée (`au plus prix de zone par commune`).
+
 Derrière un relais sur la même machine, écris `HUMALIS_ECOUTE=127.0.0.1` dans
 l'environnement : le serveur n'est plus joignable que par lui.
 

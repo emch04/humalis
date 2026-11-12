@@ -1,4 +1,6 @@
 /** Le transport du moteur : le texte produit reste du JavaScript sans React. */
+import { camel } from '../web/noms.js';
+import { codeAvantEnvoi, limitesDesRoutes } from '../serveur/bornes.js';
 import type { Application } from '../../ri/types.js';
 import { variableDAdresse } from '../web/sources.js';
 import { avecLocalesSynchro, avecSecuriteWeb } from '../commun/donnees-comptes-web.js';
@@ -25,6 +27,7 @@ ${BASE}
 ${LECTURES}
 ${sources ? `const SOURCES = {\n${configuration}\n};\n${SOURCES}` : ''}
 ${sessionDuServeur ? RENOUVELLEMENT : ''}
+${codeAvantEnvoi(limitesDesRoutes(application.serveurs, camel))}
 ${serveurTexte(sources, sessionDuServeur)}
 ${session ? sessionTexte(baseSession, sourceSession !== undefined, sessionDuServeur, avecSecuriteWeb(application)) : ''}
 ${avecLocalesSynchro(application) ? reseauLocal(sessionDuServeur) : ''}
@@ -355,6 +358,9 @@ async function preparer(donnees) {
 }
 async function appeler(adresse, options, actuelle) {
   try {
+    // Une valeur hors de ses limites n'est pas envoyée : la raison s'affiche comme un refus du serveur.
+    const fauteLocale = fauteAvantEnvoi(adresse, options);
+    if (fauteLocale) throw new Error(fauteLocale);
     const entetes = new Headers(options.headers);
     if (options.method !== 'GET') ajouterCsrf(entetes);
     const lecture = options.method === 'GET';

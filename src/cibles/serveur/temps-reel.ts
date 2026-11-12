@@ -68,8 +68,9 @@ export function tempsReelTs(serveur: ServeurRI): string {
   return (avecLiveKit(serveur) ? "import { AccessToken, RoomServiceClient, TrackSource } from 'livekit-server-sdk';\n" : '') + CORPS.replace('/*LIVEKIT*/', avecLiveKit(serveur) ? LIVEKIT : LIVEKIT_ABSENT);
 }
 
+// Sans réunion ni appel, rien à monter : la doublure reçoit les mêmes arguments que la vraie fonction, pour que l'appel compile.
 const LIVEKIT_ABSENT = `
-function monterSalles(): void {}
+function monterSalles(..._sansSalle: unknown[]): void {}
 `;
 
 const LIVEKIT = String.raw`

@@ -3,6 +3,8 @@
  * un site en HTML, CSS et JavaScript écrit en clair, sans framework ni
  * construction, qu'on dépose tel quel chez un hébergeur.
  */
+import { camel } from '../web/noms.js';
+import { codeAvantEnvoi, limitesDesRoutes } from '../serveur/bornes.js';
 import { entetesDuSite, noteEntetes } from '../commun/entetes-site.js';
 import { adresseDuLienJs } from '../commun/liens-et-champs.js';
 import { copiesDesMedias } from '../../ri/medias.js';
@@ -173,7 +175,7 @@ ${fonctions.join('\n')}`,
   const scriptsDesPages = [...fichiers.entries()].filter(([nom]) => nom.endsWith('.js')).map(([, contenu]) => contenu);
   const emploie = (motif: RegExp) => scriptsDesPages.some((contenu) => motif.test(contenu));
   const interactions = { pressePapier: emploie(/\b(copier|partager|telechargerCsv)\(/), fenetres: emploie(/\bfenetre\(/), questions: emploie(/\bconfirmer\(/), bas: emploie(/\bonbas:/) };
-  fichiers.set('humalis/humalis.js', avecDureeDesErreurs(humalisJs(options.source, pagesFichiers, serveur, session, bascule ? modeTheme ?? '' : undefined, usage, application.langues, interactions), application));
+  fichiers.set('humalis/humalis.js', avecDureeDesErreurs(humalisJs(options.source, pagesFichiers, serveur, session, bascule ? modeTheme ?? '' : undefined, usage, application.langues, interactions, serveur ? codeAvantEnvoi(limitesDesRoutes(application.serveurs, camel)) : ''), application));
   // « menu repliable » : un seul écouteur pour tous les menus, ceux du HTML de départ comme ceux redessinés.
   if ([...fichiers.values()].some((contenu) => contenu.includes('humalis-menu-bouton'))) {
     fichiers.set('humalis/humalis.js', `${fichiers.get('humalis/humalis.js')!}\n${MENU_REPLIABLE_JS}`);
@@ -523,6 +525,8 @@ function humalisJs(
   elements?: UsageElements,
   langues?: LangueRI[],
   interactions = { pressePapier: false, fenetres: false, questions: false, bas: false },
+  /** La vérification des limites avant l'envoi (codeAvantEnvoi), quand la page parle à un serveur. */
+  avantEnvoi = '',
 ): string {
   const tablePages = [...pages].map(([nom, fichier]) => `    ${chaine(nom)}: ${chaine(fichier)},`).join('\n');
   const exportes = [
@@ -578,6 +582,7 @@ ${serveur || session ? `  /**
    */
   const ADRESSE_SERVEUR = '';
 
+${avantEnvoi}
 ` : ''}  /** Le fichier de chaque page (« rediriger vers » une page connue par son nom). */
   const PAGES = {
 ${tablePages}
@@ -1101,6 +1106,9 @@ export const SERVEUR_JS = `
 
   async function appeler(adresse, options, actuelle) {
     try {
+      // Une valeur hors de ses limites n'est pas envoyée : la raison s'affiche comme un refus du serveur.
+      const fauteLocale = typeof fauteAvantEnvoi === 'function' ? fauteAvantEnvoi(adresse, options) : undefined;
+      if (fauteLocale) throw new Error(fauteLocale);
       const reponse = await fetch(ADRESSE_SERVEUR + adresse, { ...options, credentials: 'same-origin' });
       if (!reponse.ok) {
         // Un refus du serveur (« le champ « prix » doit être un nombre ») : sa raison, pour « si erreur ».
@@ -1116,7 +1124,8 @@ export const SERVEUR_JS = `
       echecs += 1;
       // Jamais le texte anglais du navigateur (« Failed to fetch ») ni celui d'une réponse illisible.
       derniereRaison = erreur instanceof Error && !(erreur instanceof TypeError) && !(erreur instanceof SyntaxError) ? erreur.message : PAS_DE_REPONSE;
-      if (silence === 0) afficherMessage("Le serveur n'a pas répondu. Réessayez dans un instant.", 'erreur');
+      // Une raison précise (une limite dépassée, un refus du serveur) se lit telle quelle, comme sur le site web.
+      if (silence === 0) afficherMessage(derniereRaison === PAS_DE_REPONSE ? "Le serveur n'a pas répondu. Réessayez dans un instant." : derniereRaison, 'erreur');
       return actuelle;
     }
   }

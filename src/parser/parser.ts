@@ -1,3 +1,5 @@
+import { lireBornes } from './bornes.js';
+import type { BornesChamp } from './ast.js';
 import { proposerNom } from '../analyse/suggestions.js';
 import { formesConnues } from '../vocabulaire/recherche.js';
 import { analyserStyleHumalis, cssDuStyle, declarationsDuStyle, estStyleHumalis, type StyleHumalis } from './styleHumalis.js';
@@ -858,10 +860,25 @@ export function analyserDonnee(flux: FluxTokens, ouverte = false): Donnee {
     const champ = flux.attendreNom('le nom du champ');
     flux.attendre('PONCTUATION', ':', 'deux-points entre le nom du champ et son type');
     const type = analyserTypeChamp(flux, ouverte);
-    // « non vide » se place avant ou après une règle : « liste de texte du site non vide ».
-    const nonVideAvant = !ouverte && lireNonVide(flux);
-    const regle = ouverte ? undefined : analyserRegleChamp(flux);
-    const nonVide = nonVideAvant || (!ouverte && lireNonVide(flux));
+    // Après le type, dans l'ordre qu'on veut : « non vide », une limite (« entre 0 et 100 », « de 2 a 80 caracteres »…)
+    // et une règle (« au depart », « du site », « calcule », « au plus … de … par … »).
+    let nonVide = false;
+    let regle: RegleChamp | undefined;
+    let bornes: BornesChamp | undefined;
+    while (!ouverte) {
+      if (lireNonVide(flux)) {
+        nonVide = true;
+        continue;
+      }
+      const limite = lireBornes(flux);
+      if (limite) {
+        bornes = { ...bornes, ...limite };
+        continue;
+      }
+      const lue = regle ? undefined : analyserRegleChamp(flux);
+      if (!lue) break;
+      regle = lue;
+    }
     // « (avant "tel") » : le champ s'appelait ainsi ; les fiches déjà écrites gardent leur valeur.
     let avant: string | undefined;
     if (!ouverte && flux.verifier('PONCTUATION', '(') && estLeMot(flux.regarder(1), 'avant')) {
@@ -870,7 +887,7 @@ export function analyserDonnee(flux: FluxTokens, ouverte = false): Donnee {
       avant = flux.attendre('CHAINE', undefined, 'l\'ancien nom du champ entre guillemets : telephone : texte (avant "tel")').valeur;
       flux.attendre('PONCTUATION', ')', 'une parenthèse fermante après l\'ancien nom');
     }
-    champs.push({ nom: champ.nom, type, ...(regle ? { regle } : {}), ...(nonVide ? { nonVide } : {}), ...(avant !== undefined ? { avant } : {}), ligne: champ.ligne });
+    champs.push({ nom: champ.nom, type, ...(regle ? { regle } : {}), ...(nonVide ? { nonVide } : {}), ...(bornes ? { bornes } : {}), ...(avant !== undefined ? { avant } : {}), ligne: champ.ligne });
   });
   if (par !== undefined) champs.push({ nom: par, type: { genre: 'texte' }, regle: { genre: 'groupe' }, ligne: debut.ligne });
   return { type: 'Donnee', nom, ...(par !== undefined ? { par } : {}), champs, ligne: debut.ligne };

@@ -1,4 +1,4 @@
-import type { DonneeLocaleOptions } from '../parser/ast.js';
+import type { BornesChamp, DonneeLocaleOptions } from '../parser/ast.js';
 import type { IconeDessinee } from '../icones-svg.js';
 /**
  * La représentation intermédiaire (RI) : un arbre neutre, sans aucun mot
@@ -240,7 +240,7 @@ export interface ServeurRI {
   /** Les sources à jeton secret que ce serveur relaie (« /api/passerelle/<source> »). */
   passerelles?: PasserelleRI[];
   nom: string;
-  donnees: { nom: string; par?: string; reponseSeule?: boolean; champs: { nom: string; type: TypeChamp; regle?: RegleChampRI; nonVide?: boolean; avant?: string }[] }[];
+  donnees: { nom: string; par?: string; reponseSeule?: boolean; champs: { nom: string; type: TypeChamp; regle?: RegleChampRI; nonVide?: boolean; bornes?: BornesChamp; avant?: string }[] }[];
   /** « donnees de depart pour produit : » : écrites au premier démarrage, seulement si la table est vide. */
   departs?: { donnee: string; fiches: Record<string, string | number | boolean>[] }[];
   routes: {

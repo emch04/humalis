@@ -1,3 +1,4 @@
+import { BORNES_TS, exempleDansLesBornes } from './bornes.js';
 import { testsAttaques } from './attaques.js';
 import { LIGNES_SERVEUR_TS } from './lignes.js';
 import { COMPOSER_CARTES_JS } from '../lignes-humalis.js';
@@ -903,6 +904,7 @@ export async function plafondDe(stockage: { lister(filtres: Filtres): Promise<Re
   return fiche ? Number(fiche[champ]) || 0 : 0;
 }
 
+${BORNES_TS}
 /**
  * \`complet\` : à la création, chaque champ est obligatoire ; à la
  * modification, seuls les champs envoyés sont vérifiés.
@@ -911,7 +913,7 @@ export function verifierEnvoi(
   schema: Schema,
   corps: unknown,
   complet: boolean,
-  regles: { duServeur?: string[]; duSite?: string[]; nonVides?: string[]; fixes?: string[] } = {},
+  regles: { duServeur?: string[]; duSite?: string[]; nonVides?: string[]; fixes?: string[]; bornes?: Record<string, Bornes> } = {},
 ): { valeur: Record<string, unknown> } | { erreur: string } {
   if (typeof corps !== 'object' || corps === null || Array.isArray(corps)) {
     return { erreur: 'les données envoyées doivent être un objet JSON' };
@@ -936,6 +938,9 @@ export function verifierEnvoi(
       return { erreur: \`le champ « \${champ} » ne doit pas être vide\` };
     }
     if (regles.duSite?.includes(champ) && !estDuSite(recu)) return { erreur: \`le champ « \${champ} » doit être une adresse de ce site (/images/photo.jpg)\` };
+    // Les limites du champ (« entre 0 et 100 », « de 2 a 80 caracteres »…), et celles par défaut. Un chemin du site n'en a pas d'autre.
+    const faute = horsBornes(recu, regles.bornes?.[champ]);
+    if (faute && !chemin) return { erreur: \`le champ « \${champ} » \${faute}\` };
     valeur[champ] = recu;
   }
   return { valeur };
@@ -1667,7 +1672,7 @@ function testsRegles(serveur: ServeurRI): string {
         const lue = lueParSomme(c);
         return lue ? `[(await stockages.${camel(lue)}.creer(${ficheExemple(serveur, lue)})).id]` : "['exemple']";
       }
-      return exempleChamp(c.type);
+      return exempleDansLesBornes(c.type, c.bornes) ?? exempleChamp(c.type);
     };
     const duServeur = champsDuServeur(donnee, route);
     const exemple = `{ ${donnee.champs.map((c) => `${camel(c.nom)}: ${exempleDe(c)}`).join(', ')} }`;
@@ -1859,6 +1864,8 @@ ${blocs.join('\n\n')}
 
 /** Les tests produits de la session, du coffre et de la surveillance, avec les vrais packs et une horloge injectée. */
 function testsSessions(serveur: ServeurRI): string {
+  // La panne est provoquée par une lecture : il faut une route que l'admin peut lire (une route sans règle de lecture répond 403 avant de lire).
+  const routeLue = serveur.routes.find((r) => r.droits.lire !== null);
   const stockages = serveur.donnees.map((d) => `      ${camel(d.nom)}: creerStockageMemoire(),`).join('\n');
   return `// Produit par Humalis : la session glissante, sa borne de 30 jours, le coffre des clés et la surveillance.
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -2075,8 +2082,8 @@ describe('la surveillance', () => {
     const app = leServeur({ surveillance, stockages: enPanne });
     await request(app).post('/auth/login').set('content-type', 'application/json').send('{"email":"mot-de-passe-brut').expect(400);
     await request(app).get('/auth/me').expect(401);
-    const jeton = (await connecter(app)).body.data.token;${serveur.routes[0] ? `
-    const reponse = await request(app).get('${adresseApi(serveur.routes[0].adresse)}').set('authorization', 'Bearer ' + jeton);
+    const jeton = (await connecter(app)).body.data.token;${routeLue ? `
+    const reponse = await request(app).get('${adresseApi(routeLue.adresse)}').set('authorization', 'Bearer ' + jeton);
     expect(reponse.status).toBe(500);
     expect(panne).toHaveBeenCalled();
     await surveillance!.vider();
@@ -2531,7 +2538,7 @@ export function carteDeFidelite(fiches: number, { parFiche, objectif, recompense
 /** Une fiche d'exemple, avec les valeurs valides de chaque champ. */
 function ficheExemple(serveur: ServeurRI, nom: string): string {
   const donnee = serveur.donnees.find((d) => d.nom === nom)!;
-  return `{ ${donnee.champs.map((c) => `${camel(c.nom)}: ${exempleChamp(c.type)}`).join(', ')} }`;
+  return `{ ${donnee.champs.map((c) => `${camel(c.nom)}: ${exempleDansLesBornes(c.type, c.bornes) ?? exempleChamp(c.type)}`).join(', ')} }`;
 }
 
 const ENTETE_TESTS = (stockages: string) => `import { beforeAll, describe, expect, it } from 'vitest';

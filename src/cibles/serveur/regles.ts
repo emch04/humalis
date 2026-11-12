@@ -49,8 +49,11 @@ export function reglesEnvoi(donnee: Donnee, route: Route, modification = false):
   const codeFixes = modification && fixesHorsAdmin.length !== fixes.length
     ? `(req as unknown as { user?: { role?: unknown } }).user?.role === 'admin' ? ${JSON.stringify(fixesHorsAdmin)} : ${JSON.stringify(fixes)}`
     : JSON.stringify(fixes);
-  if (serveur.length === 0 && site.length === 0 && nonVides.length === 0) return '';
-  return `, { duServeur: ${JSON.stringify(serveur)}, duSite: ${JSON.stringify(site)}${nonVides.length > 0 ? `, nonVides: ${JSON.stringify(nonVides)}` : ''}${fixes.length > 0 ? `, fixes: ${codeFixes}` : ''} }`;
+  // Les limites écrites (« entre 0 et 100 », « de 2 a 80 caracteres »…) ; celles par défaut valent sans rien passer.
+  const bornes = Object.fromEntries(donnee.champs.flatMap((c) => (c.bornes ? [[camel(c.nom), c.bornes]] : [])));
+  const avecBornes = Object.keys(bornes).length > 0;
+  if (serveur.length === 0 && site.length === 0 && nonVides.length === 0 && !avecBornes) return '';
+  return `, { duServeur: ${JSON.stringify(serveur)}, duSite: ${JSON.stringify(site)}${nonVides.length > 0 ? `, nonVides: ${JSON.stringify(nonVides)}` : ''}${fixes.length > 0 ? `, fixes: ${codeFixes}` : ''}${avecBornes ? `, bornes: ${JSON.stringify(bornes)}` : ''} }`;
 }
 
 /**

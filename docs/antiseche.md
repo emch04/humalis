@@ -933,6 +933,16 @@ contenu : liste de texte non vide
 photos : liste de texte du site
 ```
 
+### Poser des limites sur les valeurs | Set limits on values
+```humalis donnee
+prix : nombre entre 0 et 10000
+stock : nombre entier au moins 0
+titre : texte de 2 a 80 caracteres
+contact : texte au format email
+statut : texte parmi "brouillon", "en_vente" et "epuise"
+photos : liste de texte de 5 elements au plus
+```
+
 ### Réagir à une création | React to a creation
 ```humalis commande
 quand commande est cree :

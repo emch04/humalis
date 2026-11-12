@@ -16,6 +16,14 @@ serveur "atelier" :
         frais : nombre au plus prix de produit par nom
     donnee journal :
         nom : texte
+    donnee article :
+        nom : texte de 2 a 20 caracteres
+        prix : nombre entre 0 et 1000
+        stock : nombre entier au moins 0
+        contact : texte au format email
+        statut : texte parmi "brouillon" et "en_vente"
+        photos : liste de texte de 2 elements au plus
+        note : texte
     route "produits" :
         tout le monde peut lire produit
         seul admin peut modifier produit
@@ -35,6 +43,10 @@ serveur "atelier" :
             creer journal avec nom "payée"
     route "journaux" :
         seul admin peut lire journal
+    route "articles" :
+        connecte peut lire article
+        connecte peut creer article
+        seul son auteur peut modifier article
 
 page "a" :
     titre "A"

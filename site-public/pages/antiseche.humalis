@@ -842,6 +842,15 @@ page "antiseche" a l'adresse "/antiseche" :
                         contenu : liste de texte non vide
                         photos : liste de texte du site
                 bloc avec style "aide-entree" :
+                    texte "Poser des limites sur les valeurs" en anglais "Set limits on values" avec style "aide-besoin"
+                    code humalis :
+                        prix : nombre entre 0 et 10000
+                        stock : nombre entier au moins 0
+                        titre : texte de 2 a 80 caracteres
+                        contact : texte au format email
+                        statut : texte parmi "brouillon", "en_vente" et "epuise"
+                        photos : liste de texte de 5 elements au plus
+                bloc avec style "aide-entree" :
                     texte "Réagir à une création" en anglais "React to a creation" avec style "aide-besoin"
                     code humalis :
                         quand commande est cree :

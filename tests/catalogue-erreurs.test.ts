@@ -46,6 +46,7 @@ describe('catalogue des erreurs', () => {
       compter(lire('src/lexer/lexer.ts'), /new ErreurLexicale\(/g) +
       compter(lire('src/parser/parser.ts'), /new ErreurSyntaxique\(/g) +
       compter(lire('src/parser/fluxTokens.ts'), /new ErreurSyntaxique\(/g) +
+      compter(lire('src/parser/bornes.ts'), /new ErreurSyntaxique\(/g) +
       compter(lire('src/analyse/analyse.ts'), /this\.(erreur|avertissement|horsEvenement)\(/g) +
       compter(lire('src/analyse/noms.ts'), /gravite: 'avertissement'/g) +
       compter(lire('src/analyse/serveur.ts'), /\b(erreur|avertissement)\(\s*`/g) +

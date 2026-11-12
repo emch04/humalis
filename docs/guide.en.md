@@ -2731,6 +2731,46 @@ keeps the written value, with no new calculation. Calculations stay simple: a ru
 page, so a client tampering with the request can pay less on that field, never more
 than the cap.
 
+### Limits on values
+
+With nothing written, the server already refuses a text longer than 10,000 characters and a
+list longer than 1,000 items. After a field's type, you set your own limits:
+
+```humalis
+serveur "boutique" :
+    donnee produit :
+        nom : texte de 2 a 80 caracteres
+        description : texte de 500 caracteres au plus
+        prix : nombre entre 0 et 10000
+        stock : nombre entier au moins 0
+        remise : nombre au plus 50
+        contact : texte au format email
+        statut : texte parmi "brouillon", "en_vente" et "epuise"
+        photos : liste de texte de 5 elements au plus
+    route "produits" :
+        tout le monde peut lire produit
+        seul admin peut modifier produit
+```
+
+- `entre 0 et 10000`, `au moins 0`, `au plus 50`: a number outside these limits is refused.
+  `entier` refuses a decimal number. Without a limit, a negative price is accepted.
+- `de 2 a 80 caracteres`, `de 500 caracteres au plus`, `de 4 caracteres au moins`: the length
+  of a text. An emoji counts as one character.
+- `au format email`, `au format telephone`, `au format adresse web`: the text must be one.
+- `parmi "brouillon", "en_vente" et "epuise"`: no other value is accepted. This is the right
+  rule for a status someone is allowed to change.
+- `de 5 elements au plus`: the number of items in a list.
+
+These limits apply on creation and on change, for everyone, admins included. A refused value
+gets a 400 answer and a sentence saying why, which the page shows. On the web, in static sites
+and in the desktop app, the page checks the same limits before sending and shows the same
+sentence without waiting for the server; on Apple, Android and Windows, the server's refusal
+is shown. They combine with each
+other and with `non vide`, `au depart` and `du site`: `statut : texte parmi "a" et "b" au
+depart "a"`. Humalis checks at compile time that an `au depart` value and the `donnees de
+depart` respect the limit. `au plus` followed by a field keeps its other meaning: the cap
+read from another record (`au plus prix de zone par commune`).
+
 Behind a relay on the same machine, set `HUMALIS_ECOUTE=127.0.0.1` in the environment:
 the server is then reachable only through it.
 

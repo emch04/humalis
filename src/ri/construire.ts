@@ -282,7 +282,7 @@ function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
     nom: serveur.nom,
     ...(serveur.discussions?.length ? { discussions: serveur.discussions } : {}),
     ...(serveur.salles?.length ? { salles: serveur.salles } : {}),
-    donnees: serveur.donnees.filter((d) => !d.comptes).map((d) => ({ nom: d.nom, ...(d.reponseSeule ? { reponseSeule: true } : {}), ...(d.par !== undefined ? { par: d.par } : {}), champs: d.champs.map((c) => ({ nom: c.nom, type: c.type, ...(c.regle ? { regle: reglePropre(c.regle, d.nom) } : {}), ...(c.nonVide ? { nonVide: true } : {}), ...(c.avant !== undefined ? { avant: c.avant } : {}) })) })),
+    donnees: serveur.donnees.filter((d) => !d.comptes).map((d) => ({ nom: d.nom, ...(d.reponseSeule ? { reponseSeule: true } : {}), ...(d.par !== undefined ? { par: d.par } : {}), champs: d.champs.map((c) => ({ nom: c.nom, type: c.type, ...(c.regle ? { regle: reglePropre(c.regle, d.nom) } : {}), ...(c.nonVide ? { nonVide: true } : {}), ...(c.bornes ? { bornes: c.bornes } : {}), ...(c.avant !== undefined ? { avant: c.avant } : {}) })) })),
     ...(serveur.departs?.length
       ? { departs: serveur.departs.map((d) => ({ donnee: d.donnee, fiches: d.fiches.map((f) => Object.fromEntries(f.champs.map((c) => [champDe(d.donnee, c.champ), c.valeur]))) })) }
       : {}),

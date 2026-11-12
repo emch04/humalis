@@ -29,7 +29,7 @@ await usersStore.create({ email: 'admin@essai.test', role: 'admin', passwordHash
 const awa = await usersStore.create({ email: 'awa@essai.test', role: 'user', passwordHash });
 const bob = await usersStore.create({ email: 'bob@essai.test', role: 'user', passwordHash });
 await usersStore.create({ email: 'gerant@essai.test', role: 'gerant', passwordHash });
-const stockages = { produit: creerStockageMemoire(), secret: creerStockageMemoire(), facture: creerStockageMemoire(), reservation: creerStockageMemoire(), journal: creerStockageMemoire() };
+const stockages = { produit: creerStockageMemoire(), secret: creerStockageMemoire(), facture: creerStockageMemoire(), reservation: creerStockageMemoire(), journal: creerStockageMemoire(), article: creerStockageMemoire() };
 // Une surveillance d'essai : elle ne fait que retenir ce qu'on lui signale.
 const signalees = [];
 const surveillance = { intergiciel: () => (_req, _res, next) => next(), gestionnaireErreurs: () => (erreur, _req, _res, next) => next(erreur), vider: async () => {}, signaler: (erreur) => signalees.push(String(erreur?.message ?? erreur)) };
@@ -66,6 +66,23 @@ const r = {
   champConstructeur: await envoyer('PATCH', '/api/secrets/' + secretAwa.corps.id, a, { hasOwnProperty: 1 }),
   jsonCasse: await (async () => { const reponse = await fetch(base + '/api/secrets', { method: 'POST', headers: a, body: '{"texte":' }); return { statut: reponse.status, corps: await reponse.json().catch(() => null) }; })(),
 };
+// Les limites sur les valeurs (S7) : à la création, à la modification, et celles par défaut.
+const bon = { nom: 'Stylo', prix: 3, stock: 10, contact: 'a@essai.test', statut: 'brouillon', photos: ['/a.png'], note: 'ok' };
+const article = await envoyer('POST', '/api/articles', a, bon);
+const refuse = async (changement) => (await envoyer('POST', '/api/articles', a, { ...bon, ...changement }));
+r.article = article;
+r.limitesALaCreation = { statut: 0, corps: {
+  prixNegatif: await refuse({ prix: -1 }), prixTropHaut: await refuse({ prix: 1001 }), stockAVirgule: await refuse({ stock: 1.5 }), stockNegatif: await refuse({ stock: -1 }),
+  nomCourt: await refuse({ nom: 'S' }), nomLong: await refuse({ nom: 'S'.repeat(21) }), contactFaux: await refuse({ contact: 'pas une adresse' }), statutInconnu: await refuse({ statut: 'vole' }),
+  tropDePhotos: await refuse({ photos: ['/a.png', '/b.png', '/c.png'] }), noteImmense: await refuse({ note: 'n'.repeat(10001) }),
+} };
+r.limitesExactes = { statut: 0, corps: { bas: (await refuse({ prix: 0, nom: 'St', stock: 0 })).statut, haut: (await refuse({ prix: 1000, nom: 'S'.repeat(20), note: 'n'.repeat(10000) })).statut } };
+r.limitesALaModification = { statut: 0, corps: {
+  prixNegatif: await envoyer('PATCH', '/api/articles/' + article.corps.id, a, { prix: -1 }),
+  statutInconnu: await envoyer('PATCH', '/api/articles/' + article.corps.id, a, { statut: 'vole' }),
+  noteImmense: await envoyer('PATCH', '/api/articles/' + article.corps.id, a, { note: 'n'.repeat(10001) }),
+  permis: await envoyer('PATCH', '/api/articles/' + article.corps.id, a, { prix: 4, statut: 'en_vente' }),
+} };
 // Un paiement confirmé par Stripe dont le montant n'est pas celui de la fiche : jamais passé sous silence.
 const { createHmac } = await import('node:crypto');
 const webhook = async (montant) => {
@@ -157,6 +174,27 @@ describe('des attaques sur un vrai serveur produit', () => {
     expect(signalees).toHaveLength(1);
     expect(signalees[0]).toContain('paiement de 5 reçu pour « reservation »');
     expect(signalees[0]).toContain('mais la fiche demande 7');
+  });
+  it('une valeur hors de ses limites est refusée à la création, avec une phrase qui dit pourquoi (S7)', () => {
+    const essais = r.limitesALaCreation!.corps as Record<string, Reponse>;
+    expect(r.article!.statut).toBe(201);
+    expect(Object.values(essais).map((e) => e.statut)).toEqual(Array(10).fill(400));
+    expect(essais.prixNegatif!.corps.erreur).toBe('le champ « prix » doit être entre 0 et 1000');
+    expect(essais.stockAVirgule!.corps.erreur).toBe('le champ « stock » doit être un nombre entier');
+    expect(essais.stockNegatif!.corps.erreur).toBe('le champ « stock » doit être au moins 0');
+    expect(essais.nomCourt!.corps.erreur).toBe('le champ « nom » doit avoir entre 2 et 20 caractères');
+    expect(essais.contactFaux!.corps.erreur).toBe('le champ « contact » doit être une adresse e-mail');
+    expect(essais.statutInconnu!.corps.erreur).toBe('le champ « statut » doit être l’une de ces valeurs : brouillon, en_vente');
+    expect(essais.tropDePhotos!.corps.erreur).toBe('le champ « photos » doit avoir au plus 2 éléments');
+    expect(essais.noteImmense!.corps.erreur).toBe('le champ « note » doit avoir au plus 10000 caractères');
+  });
+  it('les valeurs posées exactement sur les limites passent', () => {
+    expect(r.limitesExactes!.corps).toEqual({ bas: 201, haut: 201 });
+  });
+  it('les limites valent aussi dans une modification, et une modification permise passe', () => {
+    const essais = r.limitesALaModification!.corps as Record<string, Reponse>;
+    expect([essais.prixNegatif!.statut, essais.statutInconnu!.statut, essais.noteImmense!.statut, essais.permis!.statut]).toEqual([400, 400, 400, 200]);
+    expect(essais.permis!.corps).toMatchObject({ prix: 4, statut: 'en_vente', nom: 'Stylo' });
   });
   it('un « paye » ordinaire, sans Stripe, s’encaisse à la main', () => {
     expect(r.factureEncaissee!.statut).toBe(200);

@@ -288,6 +288,18 @@ export type RegleChamp =
   /** Ajouté par « seul son auteur peut … » : le compte qui a créé la fiche, rempli par le serveur seul. */
   | { genre: 'auteur' };
 
+/** Les limites écrites après le type d'un champ : « nombre entre 0 et 100 », « texte de 2 a 80 caracteres », « au format email », « parmi … », « de 5 elements au plus ». */
+export interface BornesChamp {
+  min?: number;
+  max?: number;
+  entier?: boolean;
+  longueurMin?: number;
+  longueurMax?: number;
+  format?: 'email' | 'telephone' | 'adresse_web';
+  parmi?: string[];
+  elementsMax?: number;
+}
+
 export interface Donnee {
   type: 'Donnee';
   /** Une réponse du temps réel : elle donne son type aux pages, sans table sur le serveur. */
@@ -298,7 +310,7 @@ export interface Donnee {
   /** Le nom sous lequel l'analyse la connaît (« boutique_produit » si une autre donnée porte déjà « produit »). */
   cle?: string;
   /** `avant` : « telephone : texte (avant "tel") » : l'ancien nom du champ ; les fiches déjà écrites gardent leur valeur. */
-  champs: { nom: string; type: TypeChamp; regle?: RegleChamp; nonVide?: boolean; avant?: string; ligne: number }[];
+  champs: { nom: string; type: TypeChamp; regle?: RegleChamp; nonVide?: boolean; bornes?: BornesChamp; avant?: string; ligne: number }[];
   /** Vrai pour « comptes », les comptes de la connexion : aucune table à créer, le serveur les lit dans ses packs. */
   comptes?: boolean;
   ligne: number;

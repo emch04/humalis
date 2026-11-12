@@ -464,6 +464,7 @@ export class ServeurMemoire {
       duServeur: this.champsDuServeur(donnee, route),
       duSite: donnee.champs.filter((c) => c.regle?.genre === 'site').map((c) => camel(c.nom)),
       nonVides: donnee.champs.filter((c) => c.nonVide).map((c) => camel(c.nom)),
+      bornes: Object.fromEntries(donnee.champs.flatMap((c) => (c.bornes ? [[camel(c.nom), c.bornes]] : []))),
       fixes: champsFiges(donnee, admin),
       adresseDuSite: this.options.adresse,
     };

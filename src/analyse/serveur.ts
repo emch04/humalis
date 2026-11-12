@@ -1,3 +1,4 @@
+import { horsBornes } from '../cibles/serveur/bornes.js';
 import type { Regle, Serveur, ActionDonnee, Route, Qui, Page, EnvoiEmail, CreationLiee, Donnee, TypeChamp, ValeurFixe } from '../parser/ast.js';
 import type { Diagnostic } from './erreurs.js';
 import { simplifier } from './elements.js';
@@ -65,6 +66,11 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[], pag
         }
         const attendu = lu.type.genre === 'nombre' ? 'number' : lu.type.genre === 'booleen' ? 'boolean' : lu.type.genre === 'texte' ? 'string' : undefined;
         if (attendu !== undefined && typeof valeur !== attendu) erreur(`« ${champ} » de « ${donnee.nom} » attend ${attendu === 'number' ? 'un nombre' : attendu === 'boolean' ? 'vrai ou faux' : 'un texte entre guillemets'}.`, ligne);
+        else {
+          // Une fiche de départ est écrite sans passer par la route : ses limites sont vérifiées ici.
+          const faute = horsBornes(valeur, lu.bornes);
+          if (faute) erreur(`donnees de depart pour ${donnee.nom} : « ${champ} » ${faute} (${JSON.stringify(valeur)}).`, ligne);
+        }
       }
       const manquants = donnee.champs.filter((c) => !c.regle && !fiche.champs.some((f) => simplifier(f.champ) === simplifier(c.nom)));
       if (manquants.length) erreur(`cette fiche de départ n'a pas ${manquants.map((c) => `« ${c.nom} »`).join(', ')} : chaque champ demandé à la création doit avoir une valeur.`, fiche.ligne);
@@ -267,6 +273,50 @@ function valeurVaDans(valeur: ValeurFixe, type: TypeChamp): boolean {
   return typeof valeur.valeur === attendu;
 }
 
+const TYPES_EN_CLAIR = { texte: 'un texte', nombre: 'un nombre', booleen: 'un booléen', date: 'une date', liste: 'une liste', donnee: 'une fiche' } as const;
+
+/** Les limites d'un champ : chacune sur le bon type, cohérentes entre elles, et respectées par la valeur de départ. */
+function verifierBornesChamp(champ: Donnee['champs'][number], erreur: (message: string, ligne: number) => void): void {
+  const { bornes, type, nom, ligne } = champ;
+  if (!bornes) return;
+  const genre = type.genre === 'texte' && type.image ? 'une image' : TYPES_EN_CLAIR[type.genre];
+  const pourNombre = bornes.min !== undefined || bornes.max !== undefined || bornes.entier !== undefined;
+  const pourTexte = bornes.longueurMin !== undefined || bornes.longueurMax !== undefined || bornes.format !== undefined || bornes.parmi !== undefined;
+  const pourListe = bornes.elementsMax !== undefined;
+  const malPlacee =
+    pourNombre && type.genre !== 'nombre'
+      ? '« entre », « au moins », « au plus » et « entier » limitent un nombre'
+      : pourTexte && !(type.genre === 'texte' && !type.image)
+        ? 'une longueur, un format et « parmi » limitent un texte'
+        : pourListe && type.genre !== 'liste'
+          ? 'un nombre d’éléments limite une liste'
+          : undefined;
+  if (malPlacee) {
+    erreur(`« ${nom} » : ${malPlacee} ; ce champ est ${genre}.`, ligne);
+    return;
+  }
+  const comptes = [bornes.longueurMax, bornes.elementsMax].filter((n) => n !== undefined);
+  if (comptes.some((n) => !Number.isInteger(n) || n < 1) || (bornes.longueurMin !== undefined && (!Number.isInteger(bornes.longueurMin) || bornes.longueurMin < 0))) {
+    erreur(`« ${nom} » : un nombre de caractères ou d’éléments est un entier, 1 ou plus.`, ligne);
+    return;
+  }
+  const [bas, haut] = pourNombre ? [bornes.min, bornes.max] : [bornes.longueurMin, bornes.longueurMax];
+  if (bas !== undefined && haut !== undefined && bas > haut) {
+    erreur(`« ${nom} » : la limite basse (${bas}) dépasse la limite haute (${haut}).`, ligne);
+    return;
+  }
+  const double = bornes.parmi?.find((valeur, i) => bornes.parmi!.indexOf(valeur) !== i);
+  if (double !== undefined) {
+    erreur(`« ${nom} » : « parmi » cite deux fois ${JSON.stringify(double)}.`, ligne);
+    return;
+  }
+  // « au depart "c" » avec « parmi "a" et "b" » : le serveur écrirait lui-même une valeur qu'il refuse.
+  if (champ.regle?.genre === 'depart' && champ.regle.valeur.genre === 'valeur') {
+    const faute = horsBornes(champ.regle.valeur.valeur, bornes);
+    if (faute) erreur(`« ${nom} » : sa valeur de départ ${JSON.stringify(champ.regle.valeur.valeur)} ne respecte pas sa limite, elle ${faute}.`, ligne);
+  }
+}
+
 /** « au depart », « du site », « calcule », « au plus » : chacun sur le bon type, et ce qu'ils lisent existe. */
 function verifierRegleChamp(champ: Donnee['champs'][number], donnee: Donnee, serveur: Serveur, erreur: (message: string, ligne: number) => void): void {
   const { regle, type, nom, ligne } = champ;
@@ -275,6 +325,7 @@ function verifierRegleChamp(champ: Donnee['champs'][number], donnee: Donnee, ser
   } else if (champ.nonVide && (regle?.genre === 'depart' || regle?.genre === 'nombreDe' || regle?.genre === 'somme')) {
     erreur(`« ${nom} » : le serveur donne déjà cette valeur, « non vide » ne sert à rien ici.`, ligne);
   }
+  verifierBornesChamp(champ, erreur);
   if (!regle || regle.genre === 'groupe' || regle.genre === 'auteur') return;
   const champDe = (d: Donnee | undefined, c: string) => d?.champs.find((x) => simplifier(x.nom) === simplifier(c));
   const prixDe = (donneeLue: string, prix: string) => {

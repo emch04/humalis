@@ -4,6 +4,7 @@
  * Rien ici ne touche au disque ni à Node : le même code tourne dans le navigateur.
  * Les règles sont celles du serveur produit par `humalis compile --cible serveur`.
  */
+import { horsBornes, type Bornes } from '../../cibles/serveur/bornes.js';
 import type { TypeChamp } from '../../ri/types.js';
 
 export interface Enregistrement {
@@ -131,6 +132,8 @@ export interface ReglesEnvoi {
   duSite?: string[];
   nonVides?: string[];
   fixes?: string[];
+  /** Les limites écrites sur les champs ; celles par défaut valent sans elles. */
+  bornes?: Record<string, Bornes>;
   adresseDuSite?: string;
 }
 
@@ -154,6 +157,8 @@ export function verifierEnvoi(schema: Schema, corps: unknown, complet: boolean, 
     if (!chemin && !conforme(schema[champ], recu)) return { erreur: `le champ « ${champ} » doit être ${decrire(schema[champ])}` };
     if (regles.nonVides?.includes(champ) && (Array.isArray(recu) ? recu.length === 0 : typeof recu === 'string' && recu.trim() === '')) return { erreur: `le champ « ${champ} » ne doit pas être vide` };
     if (regles.duSite?.includes(champ) && !estDuSite(recu, regles.adresseDuSite)) return { erreur: `le champ « ${champ} » doit être une adresse de ce site (/images/photo.jpg)` };
+    const faute = horsBornes(recu, regles.bornes?.[champ]);
+    if (faute && !chemin) return { erreur: `le champ « ${champ} » ${faute}` };
     valeur[champ] = recu;
   }
   return { valeur };
