@@ -4007,8 +4007,8 @@ completion and hover help.
 ### In your editor
 
 Humalis works in almost every editor. Each one shows errors as you type,
-hover help, completion and go to declaration; all but Visual Studio also
-offer the file outline and formatting.
+hover help, completion, go to declaration, the file outline and
+formatting.
 They all rely on `humalis editeur --stdio`, the language server installed
 with Humalis (`npm install -g humalis`).
 

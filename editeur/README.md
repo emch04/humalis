@@ -61,9 +61,21 @@ Pour un autre chemin, dans les réglages de Zed :
 Depuis *Extensions › Gérer les extensions*, « Humalis », ou en ouvrant le
 fichier `Humalis.VisualStudio.vsix` (double-clic ; Windows demande l'accord
 de l'administrateur). Essayée dans Visual Studio 2022 17.14 : erreurs en
-direct, survol, complétion et déclaration (F12) marchent ; la mise en forme
-et le plan ne répondent pas encore, et le survol n'affiche que l'exemple de
-la fiche.
+direct, survol (la fiche entière, en texte), complétion, déclaration (F12),
+mise en forme (Ctrl+K, Ctrl+D) et plan (barre de navigation, replis).
+Visual Studio n'accepte que du texte au survol et une liste de symboles à
+plat : le serveur les lui donne d'après ce qu'il déclare à l'ouverture.
+Un fichier `.humalis` ouvert au lancement même de Visual Studio (double-clic
+dans l'Explorateur) n'est pas toujours relié au serveur : le fermer et le
+rouvrir suffit.
+
+Pour voir ce qu'un éditeur demande au serveur : `HUMALIS_JOURNAL_LSP=<fichier>`
+avant de lancer l'éditeur ; chaque message reçu (←) et envoyé (→) y est ajouté.
+
+Signature : le `.vsix` n'est pas signé (Visual Studio l'indique à
+l'installation, la marketplace l'accepte tel quel). Le signer demanderait un
+certificat de signature de code Authenticode acheté à une autorité (OV ou
+EV), puis `dotnet sign` ou VsixSignTool sur le `.vsix`.
 
 ### Neovim
 
