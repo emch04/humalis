@@ -235,7 +235,16 @@ export function creerMagasinSecuritePostgres(pool: PoolPostgres): MagasinSecurit
     await preparerTables();
     return pool.query(texte, valeurs);
   };
+  // SQLite n'a ni « unnest » ni suppression dans un « WITH » : les mêmes gestes, dans une transaction de la base.
+  const sqlite = 'sqlite' in pool ? (pool as unknown as { transaction<T>(faire: () => Promise<T>): Promise<T> }) : null;
   const remplacerCodes = async (compte: string, empreintes: string[]) => {
+    if (sqlite) {
+      await preparerTables();
+      return sqlite.transaction(async () => {
+        await q('DELETE FROM humalis_double_auth_codes WHERE compte = $1', [compte]);
+        for (const empreinte of new Set(empreintes)) await q('INSERT INTO humalis_double_auth_codes (compte, empreinte) VALUES ($1, $2)', [compte, empreinte]);
+      });
+    }
     // Une seule requête : tout ou rien, sans transaction à porter.
     await q('WITH retires AS (DELETE FROM humalis_double_auth_codes WHERE compte = $1) INSERT INTO humalis_double_auth_codes (compte, empreinte) SELECT $1, unnest($2::text[])', [compte, empreintes]);
   };
@@ -254,6 +263,13 @@ export function creerMagasinSecuritePostgres(pool: PoolPostgres): MagasinSecurit
         await remplacerCodes(compte, empreintes);
       },
       async retirer(compte) {
+        if (sqlite) {
+          await preparerTables();
+          return sqlite.transaction(async () => {
+            await q('DELETE FROM humalis_double_auth_codes WHERE compte = $1', [compte]);
+            await q('DELETE FROM humalis_double_auth WHERE compte = $1', [compte]);
+          });
+        }
         await q('WITH codes AS (DELETE FROM humalis_double_auth_codes WHERE compte = $1) DELETE FROM humalis_double_auth WHERE compte = $1', [compte]);
       },
       async consommerPas(compte, pas) {
@@ -286,7 +302,8 @@ export function creerMagasinSecuritePostgres(pool: PoolPostgres): MagasinSecurit
         return ((await q('SELECT donnees FROM humalis_cles_acces WHERE id = $1', [id])).rows[0]?.donnees ?? null) as never;
       },
       async updateCredentialCounter(id, compteur) {
-        await q("UPDATE humalis_cles_acces SET donnees = donnees || jsonb_build_object('counter', $2::bigint, 'utiliseeLe', $3::bigint) WHERE id = $1", [id, compteur, Date.now()]);
+        if (sqlite) await q("UPDATE humalis_cles_acces SET donnees = json_set(donnees, '$.counter', $2, '$.utiliseeLe', $3) WHERE id = $1", [id, compteur, Date.now()]);
+        else await q("UPDATE humalis_cles_acces SET donnees = donnees || jsonb_build_object('counter', $2::bigint, 'utiliseeLe', $3::bigint) WHERE id = $1", [id, compteur, Date.now()]);
       },
       async saveChallenge(compte, defi, type, metadata) {
         // Le ménage des défis abandonnés, à chaque nouveau défi.

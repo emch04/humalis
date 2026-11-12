@@ -98,9 +98,10 @@ describe('une lecture ne rend que les champs de la donnée d’aujourd’hui', (
 
   it('au démarrage, chaque donnée du programme donne ses champs à son stockage, dans une transaction aussi ; les données du temps réel gardent tout', () => {
     const demarrer = fichiers.get('src/demarrer.ts')!;
-    expect(demarrer).toContain(`produit: pool ? creerStockagePostgres(pool, 'humalis_produit', ["nom","prix","photos","enVente"]) : creerStockageMemoire(),`);
-    expect(demarrer).toContain(`note: pool ? creerStockagePostgres(pool, 'humalis_note', ["texte","compte"]) : creerStockageMemoire(),`);
-    expect(demarrer).toContain(`messageSupport: pool ? creerStockagePostgres(pool, 'humalis_message_support') : creerStockageMemoire(),`);
+    // PostgreSQL et SQLite reçoivent la même liste de champs.
+    expect(demarrer).toContain(`produit: pool ? creerStockagePostgres(pool, 'humalis_produit', ["nom","prix","photos","enVente"]) : sqlite ? creerStockageSqlite(sqlite, 'humalis_produit', ["nom","prix","photos","enVente"]) : creerStockageMemoire(),`);
+    expect(demarrer).toContain(`note: pool ? creerStockagePostgres(pool, 'humalis_note', ["texte","compte"]) : sqlite ? creerStockageSqlite(sqlite, 'humalis_note', ["texte","compte"]) : creerStockageMemoire(),`);
+    expect(demarrer).toContain(`messageSupport: pool ? creerStockagePostgres(pool, 'humalis_message_support') : sqlite ? creerStockageSqlite(sqlite, 'humalis_message_support') : creerStockageMemoire(),`);
     expect(demarrer).toContain(`produit: creerStockagePostgres(client, 'humalis_produit', ["nom","prix","photos","enVente"])`);
   });
 });

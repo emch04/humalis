@@ -109,8 +109,9 @@ import pg from 'pg';
 const DONNEES = ${JSON.stringify(donnees)};
 
 const url = process.env.DATABASE_URL;
-if (!url) {
-  console.error('DATABASE_URL manque : sans base PostgreSQL, les données sont en mémoire et il n\\'y a rien à vérifier.');
+const fichierSqlite = process.env.HUMALIS_BASE?.trim();
+if (!url && !fichierSqlite) {
+  console.error('Ni DATABASE_URL (PostgreSQL) ni HUMALIS_BASE (SQLite) : les données sont en mémoire et il n\\'y a rien à vérifier.');
   process.exit(1);
 }
 if (!existsSync(fileURLToPath(new URL('../dist/src/humalis/verifier.js', import.meta.url)))) {
@@ -124,61 +125,127 @@ const detail = process.argv.includes('--detail');
 
 const TITRES = { type: 'du mauvais type', limite: 'hors de ses limites', absent: 'sans valeur', retire: 'retiré du programme, encore dans la base', renomme: 'renommé, repris au prochain démarrage du serveur' };
 const pluriel = (n, mot) => n + ' ' + mot + (n > 1 ? 's' : '');
-const client = new pg.Client({ connectionString: url });
-await client.connect();
 let fautes = 0;
 /** Les champs retirés trouvés dans chaque table. */
 const retires = new Map();
+
+/** Une donnée, fiche après fiche : ce qui ne suit plus la donnée d'aujourd'hui. */
+function ouvrirCompte(donnee) {
+  const compte = { total: 0, saines: 0, trouves: new Map() };
+  return {
+    voir(id, data) {
+      compte.total++;
+      const defauts = defautsDeLaFiche(schemas[donnee.schema], data ?? {}, donnee.regles);
+      if (defauts.length === 0) compte.saines++;
+      for (const defaut of defauts) {
+        const genre = defaut.genre === 'retire' && donnee.anciens.includes(defaut.champ) ? 'renomme' : defaut.genre;
+        const cle = JSON.stringify([genre, defaut.champ, genre === 'type' || genre === 'limite' ? defaut.detail : '']);
+        const entree = compte.trouves.get(cle) ?? { nombre: 0, ids: [] };
+        entree.nombre++;
+        if (entree.ids.length < 20) entree.ids.push(String(id));
+        compte.trouves.set(cle, entree);
+        if (genre === 'type' || genre === 'limite') fautes++;
+        if (genre === 'retire') retires.set(donnee.table, (retires.get(donnee.table) ?? new Set()).add(defaut.champ));
+      }
+    },
+    dire() {
+      const { total, saines, trouves } = compte;
+      console.log('« ' + donnee.nom + ' » : ' + pluriel(total, 'fiche') + ', ' + (saines === total ? 'toutes suivent la donnée.' : saines === 0 ? 'aucune ne suit la donnée.' : saines + (saines > 1 ? ' suivent' : ' suit') + ' la donnée.'));
+      for (const genre of ['type', 'limite', 'absent', 'renomme', 'retire']) {
+        for (const [cle, entree] of trouves) {
+          const [g, champ, precision] = JSON.parse(cle);
+          if (g !== genre) continue;
+          console.log('  - « ' + champ + ' » ' + TITRES[g] + (precision ? ' (' + precision + ')' : '') + ' : ' + pluriel(entree.nombre, 'fiche'));
+          if (detail) console.log('      ' + entree.ids.join(', ') + (entree.nombre > entree.ids.length ? ', …' : ''));
+        }
+      }
+    },
+  };
+}
+const pasDeTable = (donnee) => console.log('« ' + donnee.nom + ' » : pas encore de table (le serveur la crée à son premier démarrage).');
+const direEfface = (table, noms, combien) => console.log('\\n' + table + ' : ' + noms.map((n) => '« ' + n + ' »').join(', ') + ' effacé' + (noms.length > 1 ? 's' : '') + ' de ' + pluriel(combien, 'fiche') + '.');
+const conclure = () => {
+  if (retires.size > 0 && !nettoyer) console.log('\\nLes champs retirés ne sortent plus du serveur. Pour les effacer de la base : npm run sauvegarde, puis npm run verification -- --nettoyer');
+  if (nettoyer && retires.size === 0) console.log('\\nAucun champ retiré à effacer.');
+  if (fautes > 0) console.log('\\n' + pluriel(fautes, 'valeur') + " ne " + (fautes > 1 ? 'seraient' : 'serait') + ' plus acceptée' + (fautes > 1 ? 's' : '') + " aujourd'hui : corrige " + (fautes > 1 ? 'ces fiches' : 'cette fiche') + " (une modification par un admin), ou élargis la limite dans le programme.");
+};
+
+if (fichierSqlite) {
+  // SQLite : le fichier est lu sans être changé ; « --nettoyer » le rouvre pour écrire, dans une seule transaction.
+  const { DatabaseSync } = await import('node:sqlite');
+  if (!existsSync(fichierSqlite)) {
+    console.error('La base SQLite « ' + fichierSqlite + ' » n\\'existe pas encore : le serveur la crée à son premier démarrage.');
+    process.exit(1);
+  }
+  try {
+    const base = new DatabaseSync(fichierSqlite, { readOnly: true });
+    for (const donnee of DONNEES) {
+      if (!base.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(donnee.table)) {
+        pasDeTable(donnee);
+        continue;
+      }
+      const compte = ouvrirCompte(donnee);
+      for (const ligne of base.prepare('SELECT id, data FROM ' + donnee.table + ' ORDER BY ordre').iterate()) compte.voir(ligne.id, JSON.parse(String(ligne.data)));
+      compte.dire();
+    }
+    base.close();
+    if (nettoyer && retires.size > 0) {
+      const ecriture = new DatabaseSync(fichierSqlite);
+      ecriture.exec('PRAGMA busy_timeout = 5000; BEGIN IMMEDIATE');
+      try {
+        for (const [table, champs] of retires) {
+          const noms = [...champs];
+          const changer = ecriture.prepare('UPDATE ' + table + ' SET data = ? WHERE id = ?');
+          let combien = 0;
+          for (const ligne of ecriture.prepare('SELECT id, data FROM ' + table).all()) {
+            const fiche = JSON.parse(String(ligne.data));
+            if (!noms.some((n) => Object.hasOwn(fiche, n))) continue;
+            for (const n of noms) delete fiche[n];
+            changer.run(JSON.stringify(fiche), ligne.id);
+            combien++;
+          }
+          direEfface(table, noms, combien);
+        }
+        ecriture.exec('COMMIT');
+      } catch (erreur) {
+        ecriture.exec('ROLLBACK');
+        throw erreur;
+      } finally {
+        ecriture.close();
+      }
+    }
+    conclure();
+  } catch (erreur) {
+    console.error('La vérification a échoué : ' + (erreur instanceof Error ? erreur.message : String(erreur)));
+    process.exit(1);
+  }
+  process.exit(fautes > 0 ? 1 : 0);
+}
+
+const client = new pg.Client({ connectionString: url });
+await client.connect();
 try {
   // Toutes les tables au même instant, en lecture seule : le serveur peut continuer de tourner.
   await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
   for (const donnee of DONNEES) {
     const existe = (await client.query('SELECT to_regclass($1) AS t', [donnee.table])).rows[0].t !== null;
     if (!existe) {
-      console.log('« ' + donnee.nom + ' » : pas encore de table (le serveur la crée à son premier démarrage).');
+      pasDeTable(donnee);
       continue;
     }
     const curseur = 'verification_' + donnee.table;
     await client.query('DECLARE ' + curseur + ' NO SCROLL CURSOR FOR SELECT id, data FROM ' + donnee.table + ' ORDER BY cree_le, id');
-    let total = 0;
-    let saines = 0;
-    /** Un défaut (genre, champ, détail) → combien de fiches, et les premières. */
-    const trouves = new Map();
+    const compte = ouvrirCompte(donnee);
     for (;;) {
       const { rows } = await client.query('FETCH 500 FROM ' + curseur);
       if (rows.length === 0) break;
-      for (const ligne of rows) {
-        total++;
-        const defauts = defautsDeLaFiche(schemas[donnee.schema], ligne.data ?? {}, donnee.regles);
-        if (defauts.length === 0) saines++;
-        for (const defaut of defauts) {
-          const genre = defaut.genre === 'retire' && donnee.anciens.includes(defaut.champ) ? 'renomme' : defaut.genre;
-          const cle = JSON.stringify([genre, defaut.champ, genre === 'type' || genre === 'limite' ? defaut.detail : '']);
-          const entree = trouves.get(cle) ?? { nombre: 0, ids: [] };
-          entree.nombre++;
-          if (entree.ids.length < 20) entree.ids.push(String(ligne.id));
-          trouves.set(cle, entree);
-          if (genre === 'type' || genre === 'limite') fautes++;
-          if (genre === 'retire') retires.set(donnee.table, (retires.get(donnee.table) ?? new Set()).add(defaut.champ));
-        }
-      }
+      for (const ligne of rows) compte.voir(ligne.id, ligne.data);
     }
     await client.query('CLOSE ' + curseur);
-    console.log('« ' + donnee.nom + ' » : ' + pluriel(total, 'fiche') + ', ' + (saines === total ? 'toutes suivent la donnée.' : saines === 0 ? 'aucune ne suit la donnée.' : saines + (saines > 1 ? ' suivent' : ' suit') + ' la donnée.'));
-    for (const genre of ['type', 'limite', 'absent', 'renomme', 'retire']) {
-      for (const [cle, entree] of trouves) {
-        const [g, champ, precision] = JSON.parse(cle);
-        if (g !== genre) continue;
-        console.log('  - « ' + champ + ' » ' + TITRES[g] + (precision ? ' (' + precision + ')' : '') + ' : ' + pluriel(entree.nombre, 'fiche'));
-        if (detail) console.log('      ' + entree.ids.join(', ') + (entree.nombre > entree.ids.length ? ', …' : ''));
-      }
-    }
+    compte.dire();
   }
   await client.query('COMMIT');
 
-  if (retires.size > 0 && !nettoyer) {
-    console.log('\\nLes champs retirés ne sortent plus du serveur. Pour les effacer de la base : npm run sauvegarde, puis npm run verification -- --nettoyer');
-  }
   if (nettoyer && retires.size > 0) {
     // Tout ou rien : une table qui échoue, et aucune n'est changée.
     await client.query('BEGIN');
@@ -186,15 +253,15 @@ try {
       for (const [table, champs] of retires) {
         const noms = [...champs];
         const resultat = await client.query('UPDATE ' + table + ' SET data = data - $1::text[] WHERE data ?| $1::text[]', [noms]);
-        console.log('\\n' + table + ' : ' + noms.map((n) => '« ' + n + ' »').join(', ') + ' effacé' + (noms.length > 1 ? 's' : '') + ' de ' + pluriel(resultat.rowCount ?? 0, 'fiche') + '.');
+        direEfface(table, noms, resultat.rowCount ?? 0);
       }
       await client.query('COMMIT');
     } catch (erreur) {
       await client.query('ROLLBACK');
       throw erreur;
     }
-  } else if (nettoyer) console.log('\\nAucun champ retiré à effacer.');
-  if (fautes > 0) console.log('\\n' + pluriel(fautes, 'valeur') + " ne " + (fautes > 1 ? 'seraient' : 'serait') + ' plus acceptée' + (fautes > 1 ? 's' : '') + " aujourd'hui : corrige " + (fautes > 1 ? 'ces fiches' : 'cette fiche') + " (une modification par un admin), ou élargis la limite dans le programme.");
+  }
+  conclure();
 } catch (erreur) {
   console.error('La vérification a échoué : ' + (erreur instanceof Error ? erreur.message : String(erreur)));
   process.exitCode = 1;

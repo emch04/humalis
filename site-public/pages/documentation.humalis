@@ -3246,7 +3246,11 @@ page "documentation_21" dans "documentation" adresse "/documentation/serveur" :
             cp .env.exemple .env      # then fill in JWT_SECRET and the administrator
             npm test                  # checks every access rule
             npm run build && npm start
-        texte "Without `DATABASE_URL` in `.env`, data stays in memory (development). With it, data goes to PostgreSQL: one table per kind of data, created at start-up."
+        texte "Without a database in `.env`, data stays in memory (development). Two databases to choose from, one table per data, created at start:"
+        liste :
+            texte "`DATABASE_URL=postgres://…`: PostgreSQL, for a server that grows or several instances behind a proxy;"
+            texte "`HUMALIS_BASE=donnees/base.sqlite`: SQLite, a single file, nothing to install (Node 24 or later). One file serves a single instance of the server."
+        texte "The program does not change from one database to the other: data, accounts, sessions, sync and backups work the same way."
         soustitre "What the server decides"
         texte "A rule such as `tout le monde peut creer commande` accepts every declared field as the request sends it: anyone could write the status or total of their choice. These rules, after a field's type, give the decision to the server."
         code humalis :
@@ -3666,7 +3670,11 @@ page "documentation_21" dans "documentation" adresse "/documentation/serveur" :
             cp .env.exemple .env      # puis remplir JWT_SECRET et l'administrateur
             npm test                  # vérifie chaque règle d'accès
             npm run build && npm start
-        texte "Sans `DATABASE_URL` dans le `.env`, les données restent en mémoire (développement). Avec, elles vont dans PostgreSQL : une table par donnée, créée au démarrage."
+        texte "Sans base dans le `.env`, les données restent en mémoire (développement). Deux bases au choix, une table par donnée, créée au démarrage :"
+        liste :
+            texte "`DATABASE_URL=postgres://…` : PostgreSQL, pour un serveur qui grandit ou plusieurs exemplaires derrière un relais ;"
+            texte "`HUMALIS_BASE=donnees/base.sqlite` : SQLite, un seul fichier, rien à installer (Node 24 ou plus récent). Un fichier sert un seul exemplaire du serveur."
+        texte "Le programme ne change pas d'une base à l'autre : données, comptes, sessions, synchronisation et sauvegardes marchent de la même façon."
         soustitre "Ce que le serveur décide"
         texte "Une règle `tout le monde peut creer commande` accepte chaque champ déclaré, tel que la requête l'envoie : quelqu'un peut donc écrire un statut ou un total de son choix. Ces règles, après le type d'un champ, donnent la décision au serveur."
         code humalis :
@@ -5919,7 +5927,7 @@ page "documentation_37" dans "documentation" adresse "/documentation/mettre-en-p
         texte "`npm start` is enough to try things out. To open your app to real people, you need a server that restarts on its own, a backed-up database, HTTPS, and a way to update without losing anything. The produced server brings what is needed; this chapter says how to use it."
         soustitre "Before opening"
         liste :
-            texte "`DATABASE_URL` is set: without a PostgreSQL database, data stays in memory and is lost on stop."
+            texte "`DATABASE_URL` (PostgreSQL) or `HUMALIS_BASE` (SQLite) is set: without a database, data stays in memory and is lost on stop. SQLite suits a single server; for several instances, PostgreSQL. With SQLite, the backup is a copy of the file (`sauvegardes/….sqlite`)."
             texte "`JWT_SECRET` is at least 32 random characters, and is in no repository."
             texte "`HUMALIS_ADRESSE_SITE` is the site's public address, in `https://`."
             texte "`npm test` passes: the rule, session and attack tests (`tests/attaques.test.ts`) are written for your program."
@@ -5991,7 +5999,7 @@ page "documentation_37" dans "documentation" adresse "/documentation/mettre-en-p
         texte "`npm start` suffit pour essayer. Pour ouvrir ton application à de vraies personnes, il faut un serveur qui redémarre seul, une base sauvegardée, du HTTPS et un moyen de mettre à jour sans rien perdre. Le serveur produit apporte ce qu'il faut ; ce chapitre dit comment t'en servir."
         soustitre "Avant d'ouvrir"
         liste :
-            texte "`DATABASE_URL` est réglée : sans base PostgreSQL, les données restent en mémoire et sont perdues à l'arrêt."
+            texte "`DATABASE_URL` (PostgreSQL) ou `HUMALIS_BASE` (SQLite) est réglée : sans base, les données restent en mémoire et sont perdues à l'arrêt. SQLite convient à un serveur seul ; pour plusieurs exemplaires, PostgreSQL. Avec SQLite, la sauvegarde est une copie du fichier (`sauvegardes/….sqlite`)."
             texte "`JWT_SECRET` fait au moins 32 caractères au hasard, et n'est dans aucun dépôt."
             texte "`HUMALIS_ADRESSE_SITE` est l'adresse publique du site, en `https://`."
             texte "`npm test` passe : les tests de règles, de sessions et d'attaque (`tests/attaques.test.ts`) sont écrits pour ton programme."

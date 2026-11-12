@@ -1,0 +1,27 @@
+source "meteo" :
+    adresse "https://api.meteo.example"
+    jeton secret depuis l'environnement "METEO_CLE" dans le parametre "key"
+    donnee prevision :
+        jour : texte
+    route "previsions" :
+        tout le monde peut lire une liste de prevision dans "jours"
+
+serveur "tout" :
+    connexion par cle d'acces
+    double authentification
+    emails par brevo
+    invitations vers "a"
+    donnee note :
+        texte : texte
+    route "notes" :
+        connecte peut lire note
+        connecte peut creer note
+    toutes les heures :
+        creer note avec texte "tic"
+
+page "a" :
+    titre "A"
+    champ "Email"
+    bouton "Inviter"
+    quand l'utilisateur clique sur "Inviter" :
+        inviter champ "Email" comme admin

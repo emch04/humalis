@@ -1,4 +1,4 @@
-import { SQLITE } from './sqlite.js';
+import { SQLITE, SYNCHRO_SQLITE } from './sqlite.js';
 import { champsRendus, DEFAUTS_TS, LISEZMOI_EVOLUTION, verifierDonneesMjs } from './evolution.js';
 import { CODE_SANTE, CODE_SANTE_DEMARRAGE, codeArret, fichiersDeploiement, lisezmoiExploitation, restaurerMjs, sauvegarderMjs } from './exploitation.js';
 import { BORNES_TS, exempleDansLesBornes } from './bornes.js';
@@ -100,9 +100,19 @@ export function genererProjetServeur(complet: ServeurRI, options: OptionsServeur
   fichiers.set('src/donnees.ts', donneesTs(serveur));
   if (avecSynchro(serveur)) {
     fichiers.set('src/humalis/synchro.ts', SYNCHRO);
+    fichiers.set('src/humalis/synchro-sqlite.ts', SYNCHRO_SQLITE);
     const route = serveur.routes.find((r) => r.synchronisee)!;
     const exemple = serveur.donnees.find((d) => d.nom === route.donnee)!.champs.filter((c) => !champsDuServeur(serveur.donnees.find((d) => d.nom === route.donnee)!, route).includes(camel(c.nom))).map((c) => `${camel(c.nom)}: ${exempleChamp(c.type)}`).join(', ');
     fichiers.set('tests/synchro.test.ts', testsSynchro(serveur, serveur.donnees.map((d) => `    ${camel(d.nom)}: creerStockageMemoire(),`).join('\n'), route, `{ ${exemple} }`));
+    // Les mêmes essais sur SQLite : le journal y est écrit par le serveur, pas par des déclencheurs.
+    fichiers.set(
+      'tests/synchro-sqlite.test.ts',
+      testsSynchro(serveur, serveur.donnees.map((d) => `    ${camel(d.nom)}: creerStockageSqlite(base, '${nomTable(d.nom)}'),`).join('\n'), route, `{ ${exemple} }`)
+        .replace('// Produit par Humalis : la synchronisation, de bout en bout, sur le vrai serveur.', '// Produit par Humalis : la synchronisation, de bout en bout, sur le vrai serveur et une vraie base SQLite.')
+        .replace("import { creerStockageMemoire } from '../src/humalis/stockage.js';", "import { creerStockageSqlite, ouvrirSqlite } from '../src/humalis/sqlite.js';\nimport { creerJournalSqlite } from '../src/humalis/synchro-sqlite.js';")
+        .replace('  const stockages = {', "  const base = ouvrirSqlite(':memory:');\n  const stockages = {")
+        .replace('usersStore, stockages })', `usersStore, stockages, journalSynchro: creerJournalSqlite(base, ${tablesSynchro(serveur, nomTable)}) })`),
+    );
   }
   if (avecSecurite(serveur)) {
     fichiers.set('src/humalis/securite.ts', SECURITE);
@@ -288,8 +298,12 @@ JWT_SECRET=
 HUMALIS_ADMIN_EMAIL=
 HUMALIS_ADMIN_MOT_DE_PASSE=
 
-# La base PostgreSQL. Sans elle, les données restent en mémoire (développement).
+# La base, au choix. Sans l'une ni l'autre, les données restent en mémoire (développement).
+# PostgreSQL : pour un serveur qui grandit, ou plusieurs exemplaires derrière un relais.
 DATABASE_URL=
+# SQLite : un seul fichier, rien à installer (Node 24 ou plus récent). Un seul exemplaire du serveur par fichier.
+# Exemple : HUMALIS_BASE=donnees/base.sqlite
+HUMALIS_BASE=
 
 # La session : elle se renouvelle tant que la personne revient.
 # HUMALIS_SESSION : après ce temps sans venir, il faut se reconnecter (« 3d », « 12h » ; 3 jours par défaut).
@@ -1606,7 +1620,7 @@ function listeDesChamps(serveur: ServeurRI, donnee: ServeurRI['donnees'][number]
 function demarrerTs(serveur: ServeurRI): string {
   const comptes = avecComptes(serveur);
   const stockages = serveur.donnees
-    .map((d) => `  ${camel(d.nom)}: pool ? creerStockagePostgres(pool, '${nomTable(d.nom)}'${listeDesChamps(serveur, d)}) : creerStockageMemoire(),`)
+    .map((d) => `  ${camel(d.nom)}: pool ? creerStockagePostgres(pool, '${nomTable(d.nom)}'${listeDesChamps(serveur, d)}) : sqlite ? creerStockageSqlite(sqlite, '${nomTable(d.nom)}'${listeDesChamps(serveur, d)}) : creerStockageMemoire(),`)
     .join('\n');
   const premiere = serveur.routes[0] ? adresseApi(serveur.routes[0].adresse) : '/auth/me';
   return `// Produit par Humalis : lit l'environnement, crée le premier admin, démarre le serveur « ${serveur.nom} ».
@@ -1622,6 +1636,7 @@ import { ouvrirCoffre } from './humalis/coffre.js';${avecSynchro(serveur) ? "\ni
 import { creerMagasinMemoire, creerMagasinPostgres, creerRevocationsPostgres } from './humalis/renouvellements.js';
 import { reglagesDeSession, type ReglagesSession } from './humalis/sessions.js';
 import { creerStockageMemoire, creerStockagePostgres } from './humalis/stockage.js';
+import { creerStockageSqlite, ouvrirSqlite, preparerTableSqlite, transactionSqlite, type BaseSqlite } from './humalis/sqlite.js';${avecSynchro(serveur) ? "\nimport { creerJournalSqlite } from './humalis/synchro-sqlite.js';" : ''}
 
 function arreter(message: string): never {
   console.error(message);
@@ -1640,11 +1655,26 @@ const pool = process.env.DATABASE_URL ? new pg.Pool({ connectionString: process.
 // Quand la base redémarre, elle coupe les connexions au repos : sans cette écoute, l'erreur ferait tomber le serveur.
 // Le pool en rouvre une à la requête suivante ; pendant la coupure, /sante répond 503 et les requêtes, 500.
 pool?.on('error', (erreur) => console.error('La base a coupé une connexion au repos : le serveur continue.', erreur.message));
-if (!pool) {
-  console.warn('Sans DATABASE_URL, les données restent en mémoire et sont perdues à l\\'arrêt : développement seulement.');
+// HUMALIS_BASE : un fichier SQLite, pour un serveur seul (un fichier ne se partage pas entre plusieurs exemplaires).
+const fichierSqlite = process.env.HUMALIS_BASE?.trim() || null;
+if (pool && fichierSqlite) {
+  arreter('DATABASE_URL (PostgreSQL) et HUMALIS_BASE (SQLite) sont réglées toutes les deux : gardez-en une seule.');
 }
+let sqlite: BaseSqlite | null = null;
+try {
+  sqlite = fichierSqlite ? ouvrirSqlite(fichierSqlite) : null;
+} catch (erreur) {
+  arreter('La base SQLite « ' + fichierSqlite + ' » ne s\\'ouvre pas : ' + (erreur instanceof Error ? erreur.message : String(erreur)));
+}
+if (sqlite) console.log('Base SQLite : ' + fichierSqlite + ' (un seul exemplaire du serveur par fichier).');
+if (!pool && !sqlite) {
+  console.warn('Sans DATABASE_URL ni HUMALIS_BASE, les données restent en mémoire et sont perdues à l\\'arrêt : développement seulement.');
+}
+// Les magasins du serveur (comptes, sessions, envois, coffre…) écrivent leurs requêtes une fois ; SQLite les
+// reçoit par la même porte, et traduit les quelques tournures qui lui manquent (versSqlite).
+const sql = (pool ?? sqlite) as unknown as pg.Pool | null;
 
-${avecDirect(serveur) ? "if (pool) await direct.brancher(pool);\n" : ''}const usersStore = (pool ? createPostgresUsersStore({ pool }) : createMemoryUsersStore()) as UsersStore;
+${avecDirect(serveur) ? "if (pool) await direct.brancher(pool);\n" : ''}const usersStore = (sql ? createPostgresUsersStore({ pool: sql }) : createMemoryUsersStore()) as UsersStore;
 const stockages = {
 ${stockages}
 };
@@ -1673,17 +1703,17 @@ if (email && motDePasse && !(await usersStore.findByEmail(email))) {
 let session: ReglagesSession;
 try {
   // Dans PostgreSQL, un redémarrage ne déconnecte personne.
-  session = reglagesDeSession(process.env, pool ? creerMagasinPostgres(pool) : creerMagasinMemoire());
+  session = reglagesDeSession(process.env, sql ? creerMagasinPostgres(sql) : creerMagasinMemoire());
 } catch (erreur) {
   arreter(erreur instanceof Error ? erreur.message : String(erreur));
 }
 
 // Le coffre garde process.env à jour : les clés qu'il gère y sont relues à chaud.
-const coffre = await ouvrirCoffre(pool);
+const coffre = await ouvrirCoffre(sql);
 
 ${CODE_SANTE_DEMARRAGE}
 const port = Number(process.env.PORT ?? 3000);
-const app = creerServeur({ sante, ...(pool ? { envois: creerEnvoisPostgres(pool), revocations: creerRevocationsPostgres(pool)${avecSynchro(serveur) ? `, journalSynchro: creerJournalPostgres(pool, ${tablesSynchro(serveur, nomTable)})` : ''}${avecSecurite(serveur) ? ', magasinSecurite: creerMagasinSecuritePostgres(pool)' : ''} } : {}), jwtSecret, usersStore, stockages${avecLogique(serveur) ? `, ...(pool ? { transaction: transactionPostgres(pool, (client) => ({ ${serveur.donnees.map((d) => `${camel(d.nom)}: creerStockagePostgres(client, '${nomTable(d.nom)}'${listeDesChamps(serveur, d)})`).join(', ')} })) } : {})` : ''}${serveur.taches?.length ? ', reclamerTache: pool ? reclamerPostgres(pool) : reclamerMemoire()' : ''}${avecNotifications(serveur) ? ", ...(pool ? { appareils: creerStockagePostgres(pool, 'humalis_appareils') } : {})" : ''}${avecIa(serveur) ? ', ...(pool ? { compterIa: compterPostgres(pool) } : {})' : ''}${serveur.connexionGoogle ? ', googleClientId: () => process.env.GOOGLE_CLIENT_ID || undefined, googleClientIdApple: () => process.env.GOOGLE_CLIENT_ID_APPLE || undefined' : ''}${serveur.connexionApple ? ', identifiantsApple: () => ({ application: process.env.APPLE_APP_ID || undefined, site: process.env.APPLE_SERVICE_ID || undefined })' : ''}${comptes ? ', jetons: creerMagasinJetons(pool)' : ''}, session, surveillance, coffre }) as unknown as { listen(port: number, pret: () => void): unknown };
+const app = creerServeur({ sante, ...(sql ? { envois: creerEnvoisPostgres(sql), revocations: creerRevocationsPostgres(sql)${avecSecurite(serveur) ? ', magasinSecurite: creerMagasinSecuritePostgres(sql)' : ''} } : {})${avecSynchro(serveur) ? `, ...(pool ? { journalSynchro: creerJournalPostgres(pool, ${tablesSynchro(serveur, nomTable)}) } : sqlite ? { journalSynchro: creerJournalSqlite(sqlite, ${tablesSynchro(serveur, nomTable)}) } : {})` : ''}, jwtSecret, usersStore, stockages${avecLogique(serveur) ? `, ...(pool ? { transaction: transactionPostgres(pool, (client) => ({ ${serveur.donnees.map((d) => `${camel(d.nom)}: creerStockagePostgres(client, '${nomTable(d.nom)}'${listeDesChamps(serveur, d)})`).join(', ')} })) } : sqlite ? { transaction: transactionSqlite(sqlite, stockages) } : {})` : ''}${serveur.taches?.length ? ', reclamerTache: sql ? reclamerPostgres(sql) : reclamerMemoire()' : ''}${avecNotifications(serveur) ? ", ...(pool ? { appareils: creerStockagePostgres(pool, 'humalis_appareils') } : sqlite ? { appareils: creerStockageSqlite(sqlite, 'humalis_appareils') } : {})" : ''}${avecIa(serveur) ? ', ...(sql ? { compterIa: compterPostgres(sql) } : {})' : ''}${serveur.connexionGoogle ? ', googleClientId: () => process.env.GOOGLE_CLIENT_ID || undefined, googleClientIdApple: () => process.env.GOOGLE_CLIENT_ID_APPLE || undefined' : ''}${serveur.connexionApple ? ', identifiantsApple: () => ({ application: process.env.APPLE_APP_ID || undefined, site: process.env.APPLE_SERVICE_ID || undefined })' : ''}${comptes ? ', jetons: creerMagasinJetons(sql)' : ''}, session, surveillance, coffre }) as unknown as { listen(port: number, pret: () => void): unknown };
 // HUMALIS_ECOUTE : l'adresse d'écoute (127.0.0.1 derrière un relais) ; sans elle, toutes les adresses.
 const pret = () => console.log(\`Serveur « ${serveur.nom} » prêt : http://localhost:\${port}${premiere}\`);
 const ecoute = process.env.HUMALIS_ECOUTE?.trim();
@@ -2890,9 +2920,17 @@ function codeEvolutionEtDeparts(serveur: ServeurRI): string {
       ...renommes.map(([nouveau, ancien]) => `UPDATE ${table} SET data = (data - '${ancien}') || jsonb_build_object('${nouveau}', data->'${ancien}') WHERE data ? '${ancien}' AND NOT data ? '${nouveau}'`),
       ...defauts.map(([champ, valeur]) => `UPDATE ${table} SET data = data || '${JSON.stringify({ [champ]: valeur }).replace(/'/g, "''")}'::jsonb WHERE NOT data ? '${champ}'`),
     ];
+    const chemin = (champ: string) => `'$."${champ.replace(/["'\\]/g, '')}"'`;
+    const pourSqlite = [
+      ...renommes.map(([nouveau, ancien]) => `  await sqlite.query(${JSON.stringify(`UPDATE ${table} SET data = json_remove(json_set(data, ${chemin(nouveau)}, json(data -> ${chemin(ancien)})), ${chemin(ancien)}) WHERE json_type(data, ${chemin(ancien)}) IS NOT NULL AND json_type(data, ${chemin(nouveau)}) IS NULL`)});`),
+      ...defauts.map(([champ, valeur]) => `  await sqlite.query(${JSON.stringify(`UPDATE ${table} SET data = json_set(data, ${chemin(champ)}, json($1)) WHERE json_type(data, ${chemin(champ)}) IS NULL`)}, [${JSON.stringify(JSON.stringify(valeur))}]);`),
+    ];
     lignes.push(`// « ${d.nom} » : les fiches déjà écrites suivent la donnée d'aujourd'hui (champ renommé, champ ajouté).
 if (pool) {
 ${requetes.map((r) => `  await pool.query(${JSON.stringify(r)});`).join('\n')}
+} else if (sqlite) {
+  await preparerTableSqlite(sqlite, '${table}');
+${pourSqlite.join('\n')}
 }`);
   }
   for (const depart of serveur.departs ?? []) {

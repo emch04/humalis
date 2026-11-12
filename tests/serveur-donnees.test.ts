@@ -39,7 +39,7 @@ describe('les index et les révocations au démarrage', () => {
   });
 
   it('avec PostgreSQL, les jetons fermés sont gardés en base ; le serveur les donne toujours au pack', () => {
-    expect(demarrer).toContain('revocations: creerRevocationsPostgres(pool)');
+    expect(demarrer).toContain('revocations: creerRevocationsPostgres(sql)');
     const serveur = fichiers.get('src/serveur.ts')!;
     expect(serveur).toContain('revocations = createMemoryRevocationStore(), sante = async () => true }: OptionsDuServeur');
     expect(serveur).toContain('revocationStore: revocations,');

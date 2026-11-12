@@ -2701,8 +2701,16 @@ npm test                  # checks every access rule
 npm run build && npm start
 ```
 
-Without `DATABASE_URL` in `.env`, data stays in memory (development). With it,
-data goes to PostgreSQL: one table per kind of data, created at start-up.
+Without a database in `.env`, data stays in memory (development). Two databases
+to choose from, one table per data, created at start:
+
+- `DATABASE_URL=postgres://…`: PostgreSQL, for a server that grows or several
+  instances behind a proxy;
+- `HUMALIS_BASE=donnees/base.sqlite`: SQLite, a single file, nothing to install
+  (Node 24 or later). One file serves a single instance of the server.
+
+The program does not change from one database to the other: data, accounts,
+sessions, sync and backups work the same way.
 
 ### What the server decides
 
@@ -4483,7 +4491,7 @@ produced server brings what is needed; this chapter says how to use it.
 
 ### Before opening
 
-- `DATABASE_URL` is set: without a PostgreSQL database, data stays in memory and is lost on stop.
+- `DATABASE_URL` (PostgreSQL) or `HUMALIS_BASE` (SQLite) is set: without a database, data stays in memory and is lost on stop. SQLite suits a single server; for several instances, PostgreSQL. With SQLite, the backup is a copy of the file (`sauvegardes/….sqlite`).
 - `JWT_SECRET` is at least 32 random characters, and is in no repository.
 - `HUMALIS_ADRESSE_SITE` is the site's public address, in `https://`.
 - `npm test` passes: the rule, session and attack tests (`tests/attaques.test.ts`) are written for your program.
