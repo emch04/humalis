@@ -4497,10 +4497,32 @@ Les fiches sont gardées telles qu'elles ont été écrites. Quand la donnée ch
 - **un champ ajouté** avec `au depart` : les anciennes fiches reçoivent cette valeur au démarrage ;
   sans `au depart`, elles n'ont pas le champ ;
 - **un champ renommé** : écris `telephone : texte (avant "tel")`, et les fiches gardent leur valeur ;
-- **un champ retiré** : il reste dans les anciennes fiches et continue d'être renvoyé. Pour l'effacer,
-  une requête dans PostgreSQL : `UPDATE humalis_produit SET data = data - 'ancien_champ'` ;
-- **un type qui change**, ou une limite plus stricte : les anciennes valeurs ne sont pas converties
-  ni revérifiées ; seules les créations et les modifications suivantes le sont.
+- **un champ retiré** : il reste dans la base, mais le serveur ne le renvoie plus : une lecture ne
+  rend que les champs de la donnée d'aujourd'hui ;
+- **un type qui change**, ou une limite plus stricte : les anciennes valeurs ne sont pas converties ;
+  seules les créations et les modifications suivantes sont vérifiées.
+
+Pour savoir où en sont les fiches déjà enregistrées, après `npm run build` :
+
+```sh
+npm run verification
+```
+
+```
+« produit » : 3 fiches, aucune ne suit la donnée.
+  - « prix » hors de ses limites (doit être entre 0 et 100) : 1 fiche
+  - « stock » sans valeur : 3 fiches
+  - « coutAchat » retiré du programme, encore dans la base : 3 fiches
+```
+
+Rien n'est changé : le script lit, toutes les tables au même instant, serveur en marche ou non.
+`-- --detail` ajoute l'identifiant des fiches. Il rend 1 quand une valeur n'est plus du bon type ou
+sort de ses limites : un script de déploiement peut s'arrêter là. Lance-le avant de démarrer le
+nouveau serveur, puis après : un champ renommé y est annoncé « repris au prochain démarrage ».
+
+`npm run verification -- --nettoyer` efface de la base les champs retirés du programme, dans une
+seule transaction. C'est sans retour : fais une sauvegarde avant. Un champ renommé n'est jamais
+effacé.
 
 Fais une sauvegarde avant de déployer un programme qui change ses données.
 

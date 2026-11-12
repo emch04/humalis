@@ -154,14 +154,34 @@ export function porteeDe(moi: Moi | undefined, separation: Separation | null, re
 
 export const dansPortee = (fiche: Fiche, portee: Portee) => Object.entries(portee.egal).every(([champ, valeur]) => fiche[champ] === valeur) && (!portee.test || portee.test(fiche));
 
-/** La liste vue par cette personne : ses groupes d'abord, dans la base ; les conditions ensuite, avant la tranche demandée. */
+/** Une règle avec « si » se vérifie fiche par fiche : la table est lue par lots de cette taille, jamais d'un coup. */
+const LOT = 500;
+
+/**
+ * La liste vue par cette personne : ses groupes d'abord, dans la base ; les conditions ensuite, avant la tranche
+ * demandée. Avec une condition, la lecture avance par lots et s'arrête dès que la tranche est pleine : une grande
+ * table ne passe jamais entière dans la mémoire du serveur.
+ */
 export async function listerDans(stockage: Stockage, filtres: Filtres, portee: Portee): Promise<Enregistrement[]> {
   const base: Filtres = { ...filtres, egal: { ...filtres.egal, ...portee.egal } };
   if (!portee.test) return stockage.lister(base);
   const { limite, depuis, ...sansTranche } = base;
-  const vues = (await stockage.lister(sansTranche)).filter(portee.test);
   const debut = depuis ?? 0;
-  return limite === undefined ? vues.slice(debut) : vues.slice(debut, debut + limite);
+  const vues: Enregistrement[] = [];
+  let sautees = 0;
+  for (let position = 0; ; position += LOT) {
+    const lot = await stockage.lister({ ...sansTranche, limite: LOT, depuis: position });
+    for (const fiche of lot) {
+      if (!portee.test(fiche)) continue;
+      if (sautees < debut) {
+        sautees++;
+        continue;
+      }
+      vues.push(fiche);
+      if (limite !== undefined && vues.length >= limite) return vues;
+    }
+    if (lot.length < LOT) return vues;
+  }
 }
 
 /** Le groupe d'une fiche créée : celui de la personne. Seul un admin, qui n'en a pas forcément, peut le préciser. */

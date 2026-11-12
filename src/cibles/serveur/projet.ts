@@ -1,3 +1,4 @@
+import { champsRendus, DEFAUTS_TS, LISEZMOI_EVOLUTION, verifierDonneesMjs } from './evolution.js';
 import { CODE_SANTE, CODE_SANTE_DEMARRAGE, codeArret, fichiersDeploiement, lisezmoiExploitation, restaurerMjs, sauvegarderMjs } from './exploitation.js';
 import { BORNES_TS, exempleDansLesBornes } from './bornes.js';
 import { testsAttaques } from './attaques.js';
@@ -77,6 +78,7 @@ export function genererProjetServeur(complet: ServeurRI, options: OptionsServeur
   fichiers.set('.gitignore', 'node_modules\ndist\n.env\nsauvegardes\n');
   // L'exploitation : sauvegarde, restauration, exemples de déploiement.
   fichiers.set('scripts/sauvegarder.mjs', sauvegarderMjs(serveur));
+  fichiers.set('scripts/verifier-donnees.mjs', verifierDonneesMjs(serveur, { camel, table: nomTable, schema: (donnee) => `SCHEMA_${simplifier(donnee).toUpperCase()}` }));
   fichiers.set('scripts/restaurer.mjs', restaurerMjs(serveur));
   for (const [chemin, contenu] of fichiersDeploiement(serveur)) fichiers.set(chemin, contenu);
   fichiers.set('.env.exemple', envExemple(serveur));
@@ -194,6 +196,7 @@ function packageJson(nom: string, serveur: ServeurRI, livekit = false): string {
         start: 'node --enable-source-maps --env-file-if-exists=.env dist/src/demarrer.js',
         test: 'vitest run --dir tests',
         sauvegarde: 'node --env-file-if-exists=.env scripts/sauvegarder.mjs',
+        verification: 'node --env-file-if-exists=.env scripts/verifier-donnees.mjs',
         restauration: 'node --env-file-if-exists=.env scripts/restaurer.mjs',
         // Les failles connues des dépendances, et les secrets écrits en dur dans un journal ou une réponse.
         'audit:deps': 'astratra audit:deps',
@@ -913,6 +916,7 @@ export async function plafondDe(stockage: { lister(filtres: Filtres): Promise<Re
 }
 
 ${BORNES_TS}
+${DEFAUTS_TS}
 /**
  * \`complet\` : à la création, chaque champ est obligatoire ; à la
  * modification, seuls les champs envoyés sont vérifiés.
@@ -1188,7 +1192,11 @@ export interface PoolPostgres {
   query(texte: string, valeurs?: unknown[]): Promise<{ rows: Record<string, unknown>[]; rowCount?: number | null }>;
 }
 
-export function creerStockagePostgres(pool: PoolPostgres, table: string): Stockage {
+/**
+ * \`champs\` : les champs de la donnée d'aujourd'hui. Une fiche est rendue à cette forme : un champ retiré du
+ * programme reste dans la base, il n'en sort plus. Sans liste (les données du temps réel), la fiche revient telle quelle.
+ */
+export function creerStockagePostgres(pool: PoolPostgres, table: string, champs?: readonly string[]): Stockage {
   // Le nom de la table est fixé par le compilateur ; on le vérifie quand même.
   if (!/^[a-z_][a-z0-9_]*$/.test(table)) throw new Error(\`nom de table invalide : \${table}\`);
   let prete: Promise<unknown> | undefined;
@@ -1196,7 +1204,13 @@ export function creerStockagePostgres(pool: PoolPostgres, table: string): Stocka
     (prete ??= pool.query(
       \`CREATE TABLE IF NOT EXISTS \${table} (id TEXT PRIMARY KEY, data JSONB NOT NULL, cree_le TIMESTAMPTZ NOT NULL DEFAULT now())\`,
     ));
-  const lire = (ligne: Record<string, unknown>): Enregistrement => ({ ...(ligne.data as object), id: String(ligne.id) });
+  const lire = (ligne: Record<string, unknown>): Enregistrement => {
+    const donnees = (ligne.data ?? {}) as Record<string, unknown>;
+    if (!champs) return { ...donnees, id: String(ligne.id) };
+    const fiche: Enregistrement = { id: String(ligne.id) };
+    for (const champ of champs) if (champ !== 'id' && Object.hasOwn(donnees, champ)) fiche[champ] = donnees[champ];
+    return fiche;
+  };
 
   return {
     async lister(filtres) {
@@ -1581,10 +1595,16 @@ ${CODE_SANTE}${avecPaiements(serveur) ? "  avant.post('/paiements/webhook', ...p
 `;
 }
 
+/** « , ["nom","prix"] » : les champs qu'une lecture rend ; rien pour une donnée du temps réel. */
+function listeDesChamps(serveur: ServeurRI, donnee: ServeurRI['donnees'][number]): string {
+  const champs = champsRendus(serveur, donnee, camel);
+  return champs ? `, ${JSON.stringify(champs)}` : '';
+}
+
 function demarrerTs(serveur: ServeurRI): string {
   const comptes = avecComptes(serveur);
   const stockages = serveur.donnees
-    .map((d) => `  ${camel(d.nom)}: pool ? creerStockagePostgres(pool, '${nomTable(d.nom)}') : creerStockageMemoire(),`)
+    .map((d) => `  ${camel(d.nom)}: pool ? creerStockagePostgres(pool, '${nomTable(d.nom)}'${listeDesChamps(serveur, d)}) : creerStockageMemoire(),`)
     .join('\n');
   const premiere = serveur.routes[0] ? adresseApi(serveur.routes[0].adresse) : '/auth/me';
   return `// Produit par Humalis : lit l'environnement, crée le premier admin, démarre le serveur « ${serveur.nom} ».
@@ -1661,7 +1681,7 @@ const coffre = await ouvrirCoffre(pool);
 
 ${CODE_SANTE_DEMARRAGE}
 const port = Number(process.env.PORT ?? 3000);
-const app = creerServeur({ sante, ...(pool ? { envois: creerEnvoisPostgres(pool), revocations: creerRevocationsPostgres(pool)${avecSynchro(serveur) ? `, journalSynchro: creerJournalPostgres(pool, ${tablesSynchro(serveur, nomTable)})` : ''}${avecSecurite(serveur) ? ', magasinSecurite: creerMagasinSecuritePostgres(pool)' : ''} } : {}), jwtSecret, usersStore, stockages${avecLogique(serveur) ? `, ...(pool ? { transaction: transactionPostgres(pool, (client) => ({ ${serveur.donnees.map((d) => `${camel(d.nom)}: creerStockagePostgres(client, '${nomTable(d.nom)}')`).join(', ')} })) } : {})` : ''}${serveur.taches?.length ? ', reclamerTache: pool ? reclamerPostgres(pool) : reclamerMemoire()' : ''}${avecNotifications(serveur) ? ", ...(pool ? { appareils: creerStockagePostgres(pool, 'humalis_appareils') } : {})" : ''}${avecIa(serveur) ? ', ...(pool ? { compterIa: compterPostgres(pool) } : {})' : ''}${serveur.connexionGoogle ? ', googleClientId: () => process.env.GOOGLE_CLIENT_ID || undefined, googleClientIdApple: () => process.env.GOOGLE_CLIENT_ID_APPLE || undefined' : ''}${serveur.connexionApple ? ', identifiantsApple: () => ({ application: process.env.APPLE_APP_ID || undefined, site: process.env.APPLE_SERVICE_ID || undefined })' : ''}${comptes ? ', jetons: creerMagasinJetons(pool)' : ''}, session, surveillance, coffre }) as unknown as { listen(port: number, pret: () => void): unknown };
+const app = creerServeur({ sante, ...(pool ? { envois: creerEnvoisPostgres(pool), revocations: creerRevocationsPostgres(pool)${avecSynchro(serveur) ? `, journalSynchro: creerJournalPostgres(pool, ${tablesSynchro(serveur, nomTable)})` : ''}${avecSecurite(serveur) ? ', magasinSecurite: creerMagasinSecuritePostgres(pool)' : ''} } : {}), jwtSecret, usersStore, stockages${avecLogique(serveur) ? `, ...(pool ? { transaction: transactionPostgres(pool, (client) => ({ ${serveur.donnees.map((d) => `${camel(d.nom)}: creerStockagePostgres(client, '${nomTable(d.nom)}'${listeDesChamps(serveur, d)})`).join(', ')} })) } : {})` : ''}${serveur.taches?.length ? ', reclamerTache: pool ? reclamerPostgres(pool) : reclamerMemoire()' : ''}${avecNotifications(serveur) ? ", ...(pool ? { appareils: creerStockagePostgres(pool, 'humalis_appareils') } : {})" : ''}${avecIa(serveur) ? ', ...(pool ? { compterIa: compterPostgres(pool) } : {})' : ''}${serveur.connexionGoogle ? ', googleClientId: () => process.env.GOOGLE_CLIENT_ID || undefined, googleClientIdApple: () => process.env.GOOGLE_CLIENT_ID_APPLE || undefined' : ''}${serveur.connexionApple ? ', identifiantsApple: () => ({ application: process.env.APPLE_APP_ID || undefined, site: process.env.APPLE_SERVICE_ID || undefined })' : ''}${comptes ? ', jetons: creerMagasinJetons(pool)' : ''}, session, surveillance, coffre }) as unknown as { listen(port: number, pret: () => void): unknown };
 // HUMALIS_ECOUTE : l'adresse d'écoute (127.0.0.1 derrière un relais) ; sans elle, toutes les adresses.
 const pret = () => console.log(\`Serveur « ${serveur.nom} » prêt : http://localhost:\${port}${premiere}\`);
 const ecoute = process.env.HUMALIS_ECOUTE?.trim();
@@ -2170,7 +2190,7 @@ La liste se filtre par les champs de la donnée, comparés par égalité :
 lecture réservée ne l'est jamais (\`private, no-store\`). Les réponses de plus
 de 1 Ko partent compressées (brotli ou gzip).
 Se connecter : \`POST /auth/login\` avec \`{ "email", "password" }\`.
-${lisezmoiEnPlus(serveur)}${lisezmoiExploitation(serveur)}
+${lisezmoiEnPlus(serveur)}${lisezmoiExploitation(serveur)}${LISEZMOI_EVOLUTION}
 ## La sécurité et ses mises à jour
 
 Toute la sécurité vient des packs Astratra (\`@astratra/saas-kit\`,

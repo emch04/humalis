@@ -4541,10 +4541,31 @@ Records are kept as they were written. When the data changes in the program:
 - **a field added** with `au depart`: old records receive that value on start; without `au depart`,
   they do not have the field;
 - **a field renamed**: write `telephone : texte (avant "tel")`, and records keep their value;
-- **a field removed**: it stays in old records and keeps being returned. To erase it, a query in
-  PostgreSQL: `UPDATE humalis_produit SET data = data - 'old_field'`;
-- **a type that changes**, or a stricter limit: old values are neither converted nor re-checked;
-  only later creations and changes are.
+- **a field removed**: it stays in the database, but the server no longer returns it: a read only
+  gives the fields of today's data;
+- **a type that changes**, or a stricter limit: old values are not converted; only later creations
+  and changes are checked.
+
+To know where the stored records stand, after `npm run build`:
+
+```sh
+npm run verification
+```
+
+```
+« produit » : 3 fiches, aucune ne suit la donnée.
+  - « prix » hors de ses limites (doit être entre 0 et 100) : 1 fiche
+  - « stock » sans valeur : 3 fiches
+  - « coutAchat » retiré du programme, encore dans la base : 3 fiches
+```
+
+Nothing is changed: the script reads, all tables at the same instant, whether the server runs or
+not. `-- --detail` adds the identifiers of the records. It returns 1 when a value no longer has the
+right type or is outside its limits: a deployment script can stop there. Run it before starting the
+new server, then after: a renamed field is announced as taken over at the next start.
+
+`npm run verification -- --nettoyer` erases from the database the fields removed from the program,
+in a single transaction. There is no way back: take a backup first. A renamed field is never erased.
 
 Take a backup before deploying a program that changes its data.
 
