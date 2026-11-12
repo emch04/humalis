@@ -28,6 +28,7 @@ import { lireElementEcran, estFilAriane, GENRES_AVEC_TITRE } from './elements.js
 import { estChoixFichier, analyserChoixFichier, estEnvoiFichier, analyserEnvoiFichier } from './fichier.js';
 import { estGraphique, analyserGraphique, estSerieSeule, refuserSerieSeule } from './medias.js';
 import { estTheme, analyserTheme, estChangerTheme, analyserChangerTheme } from './theme.js';
+import { analyserAUneSuite, analyserPhraseMorceaux, apresInstruction, lireMorceau, requeteParMorceaux } from './morceaux.js';
 import { estInteraction, analyserInteraction, lireSuiteMessage, lireEvenementUtilisateur, estEvenementOrdre, lireEvenementOrdre, type OutilsParser } from './interactions.js';
 import type {
   Programme,
@@ -1507,9 +1508,13 @@ export function analyserBloc(flux: FluxTokens): Instruction[] {
   flux.sauterFinsDeLigne();
 
   while (!flux.verifier('DEDENT') && !flux.estFini()) {
-    const plusieurs = flux.verifier('MOT_CLE', 'quand') ? analyserEvenementTempsReel(flux) : analyserPhraseTempsReel(flux);
+    const plusieurs = flux.verifier('MOT_CLE', 'quand') ? analyserEvenementTempsReel(flux) : (analyserPhraseTempsReel(flux) ?? analyserPhraseMorceaux(flux));
     if (plusieurs) instructions.push(...plusieurs);
-    else instructions.push(analyserInstruction(flux));
+    else {
+      const instruction = analyserInstruction(flux);
+      // « envoyer requete … par 20 dans produits » : ce qui suit la lecture d'un premier morceau.
+      instructions.push(instruction, ...apresInstruction(instruction));
+    }
     flux.sauterFinsDeLigne();
   }
 
@@ -2538,6 +2543,8 @@ function analyserRequete(flux: FluxTokens, ligne: number): Requete {
   flux.attendre('MOT_CLE', 'vers', "« vers » suivi de l'adresse");
   const adresse = flux.attendre('CHAINE', undefined, "l'adresse entre guillemets").valeur;
   const clauses = analyserClausesRequete(flux);
+  // « par 20 » : la liste se lit par morceaux.
+  const morceau = lireMorceau(flux);
 
   const donnees: Expression[] = [];
   const cles: (string | undefined)[] = [];
@@ -2574,7 +2581,9 @@ function analyserRequete(flux: FluxTokens, ligne: number): Requete {
   }
   const enAttente = lireHorsLigne(flux);
 
-  return { type: 'Requete', adresse, ...clauses, donnees, ...(direct ? { direct } : {}), ...(enAttente ? { enAttente } : {}), ...(parId ? { parId } : {}), ...(cles.some((c) => c !== undefined) ? { cles } : {}), resultat, ligne };
+  const requete: Requete = { type: 'Requete', adresse, ...clauses, donnees, ...(direct ? { direct } : {}), ...(enAttente ? { enAttente } : {}), ...(parId ? { parId } : {}), ...(cles.some((c) => c !== undefined) ? { cles } : {}), resultat, ...(morceau !== undefined ? { morceau } : {}), ligne };
+  if (morceau !== undefined) requeteParMorceaux(requete);
+  return requete;
 }
 
 /** « … hors ligne » à la fin d'un envoi : il attendra le retour du réseau. */
@@ -2848,6 +2857,9 @@ function analyserComparaison(flux: FluxTokens): Comparaison {
   }
 
   const gauche = analyserOperande(flux);
+  // « produits a une suite » : il reste des fiches à lire sur le serveur.
+  const aUneSuite = analyserAUneSuite(flux, gauche);
+  if (aUneSuite) return aUneSuite;
   // « si actif : », « si p.actif et pret : » : une valeur seule vaut « est vrai ».
   if ((gauche.type === 'Reference' || gauche.type === 'AccesChamp') && finDeCondition(flux.actuel())) {
     return { type: 'Comparaison', gauche, operateur: 'vrai', seule: true, ligne: gauche.ligne };

@@ -431,6 +431,26 @@ page "accueil" :
         texte n.texte
 ```
 
+### Lire une longue liste par morceaux | Read a long list in chunks
+```humalis racine
+serveur "boutique" :
+    donnee produit :
+        nom : texte
+    route "produits" :
+        tout le monde peut lire produit
+
+page "accueil" :
+    variable produits = []
+    titre "Produits"
+    section avec nom "liste" :
+        pour chaque p dans produits :
+            texte p.nom
+    quand la page se charge :
+        envoyer requete vers "produits" par 20 dans produits
+    quand l'utilisateur arrive en bas de "liste" tant que produits a une suite avec bouton "Voir plus" :
+        charger la suite de produits
+```
+
 ### Une discussion entre clients et agents | A chat between clients and agents
 ```humalis racine
 serveur "boutique" :

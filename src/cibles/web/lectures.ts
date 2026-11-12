@@ -334,6 +334,14 @@ export function lecturesDuChargement(ecran: Ecran, publiques: Set<string> = new 
   return resultat;
 }
 
+/**
+ * « `/api/produits?limite=${encodeURIComponent(21)}&depuis=${encodeURIComponent(n)}` » : le morceau d'une
+ * liste lue « par 20 » sur le serveur du fichier.
+ */
+export function adresseAvecParametres(adresse: string, filtrant: { cle: string; valeur: Valeur }[], x: (valeur: Valeur) => string): string {
+  return `\`${adresse}?${filtrant.map((f) => `${encodeURIComponent(f.cle)}=\${encodeURIComponent(${x(f.valeur)})}`).join('&')}\``;
+}
+
 /** « `/api/photos?produit=${encodeURIComponent(id)}` ». */
 export function adresseFiltree(adresse: string, filtre: { champ: string; parametre: string }): string {
   return `\`${adresse}?${encodeURIComponent(filtre.champ)}=\${encodeURIComponent(${camel(filtre.parametre)})}\``;

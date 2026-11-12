@@ -22,7 +22,7 @@ import { premiereValeur, titreEtDescription } from '../web/ecran.js';
 import { ficheAvec } from '../web/valeurs.js';
 import { lieuNote } from '../commun/noter.js';
 import { lireCible } from '../../analyse/navigation.js';
-import { lecturesDuChargement } from '../web/lectures.js';
+import { adresseAvecParametres, lecturesDuChargement } from '../web/lectures.js';
 import { attributsFrappe } from '../commun/mouvement.js';
 import { colorerCodeHumalis } from '../commun/colorerCode.js';
 import { chercherIcone } from '../../vocabulaire/icones.js';
@@ -394,7 +394,9 @@ export class GenerateurMoteur extends GenerateurPage {
         }
         // « calcul … = photos dont produit est egal a id » : seulement les photos de ce produit.
         const filtre = action.mode === 'lire' && action.source === undefined && action.resultat !== undefined ? lecturesDuChargement(this.ecran).find((l) => l.variable === action.resultat)?.filtre : undefined;
-        const args = [filtre ? `\`${action.adresse}?${encodeURIComponent(filtre.champ)}=\${encodeURIComponent(${this.lu(filtre.parametre)})}\`` : chaine(action.adresse)];
+        // « par 20 » : le morceau demandé, dans l'adresse.
+        const morceau = action.source === undefined && action.filtrant?.length ? adresseAvecParametres(action.adresse, action.filtrant, x) : undefined;
+        const args = [morceau ?? (filtre ? `\`${action.adresse}?${encodeURIComponent(filtre.champ)}=\${encodeURIComponent(${this.lu(filtre.parametre)})}\`` : chaine(action.adresse))];
         if (action.mode === 'envoyer') args.push(this.donnees(action.donnees, action.cles));
         if (action.mode === 'lireUn') args.push(x(action.donnees[0]));
         if (action.resultat !== undefined) args.push(this.lu(action.resultat));

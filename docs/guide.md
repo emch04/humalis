@@ -1807,6 +1807,52 @@ page "catalogue" :
 Le bouton « Voir plus » reste disponible pour les personnes qui naviguent au
 clavier.
 
+### Lire une longue liste par morceaux
+
+Avec le serveur de ton fichier, une liste longue se lit par morceaux : `par 20`
+ne lit que les 20 premières fiches, `charger la suite de produits` lit les
+suivantes et les ajoute, et `produits a une suite` dit s'il en reste.
+
+```humalis
+serveur "boutique" :
+    donnee produit :
+        nom : texte
+        prix : nombre
+    route "produits" :
+        tout le monde peut lire produit
+        seul admin peut creer produit
+        seul admin peut modifier produit
+        seul admin peut supprimer produit
+
+page "catalogue" :
+    variable produits = []
+    titre "Catalogue"
+    section avec nom "liste" :
+        pour chaque p dans produits :
+            texte p.nom
+    si produits n'a pas de suite :
+        texte "Tu as tout vu."
+    quand la page se charge :
+        envoyer requete vers "produits" par 20 dans produits
+    quand l'utilisateur arrive en bas de "liste" tant que produits a une suite avec bouton "Voir plus" :
+        charger la suite de produits
+```
+
+- Un morceau compte de 1 à 500 fiches. Les fiches arrivent de la plus ancienne
+  à la plus récente, toujours dans le même ordre.
+- `charger la suite de produits` s'écrit dans n'importe quel événement de la
+  même page : le bas d'une liste, un bouton « Voir plus », une minuterie.
+- Deux demandes à la fois n'ajoutent pas deux fois les mêmes fiches. Si la
+  lecture échoue, rien n'est ajouté, la raison s'affiche, et la suite se
+  redemande.
+- Pour revenir au début (après une recherche, un tri), réécris la première
+  phrase dans l'événement : la liste reprend ses 20 premières fiches.
+- Chaque personne ne reçoit que les fiches qu'elle peut lire : le morceau est
+  découpé après les droits.
+- `par 20` ne va pas avec `en direct` : garde `en direct` pour une liste courte.
+  Une source (une API d'ailleurs) se lit avec ses propres paramètres,
+  `filtrant par …`, comme dans l'exemple du défilement infini.
+
 ---
 
 ## 18. Les formulaires

@@ -2426,6 +2426,38 @@ page "documentation_17" dans "documentation" adresse "/documentation/interaction
                     si more est vide :
                         changer some_left par faux
         texte "The \"See more\" button stays available for people who use the keyboard."
+        soustitre "Reading a long list in chunks"
+        texte "With the server of your file, a long list is read in chunks: `par 20` reads only the first 20 records, `charger la suite de products` reads the next ones and adds them, and `products a une suite` tells whether some are left."
+        code humalis :
+            serveur "shop" :
+                donnee product :
+                    name : texte
+                    price : nombre
+                route "products" :
+                    tout le monde peut lire product
+                    seul admin peut creer product
+                    seul admin peut modifier product
+                    seul admin peut supprimer product
+
+            page "catalogue" :
+                variable products = []
+                titre "Catalogue"
+                section avec nom "list" :
+                    pour chaque p dans products :
+                        texte p.name
+                si products n'a pas de suite :
+                    texte "You have seen everything."
+                quand la page se charge :
+                    envoyer requete vers "products" par 20 dans products
+                quand l'utilisateur arrive en bas de "list" tant que products a une suite avec bouton "See more" :
+                    charger la suite de products
+        liste :
+            texte "A chunk holds 1 to 500 records. Records come from the oldest to the newest, always in the same order."
+            texte "`charger la suite de products` can be written in any event of the same page: the bottom of a list, a \"See more\" button, a timer."
+            texte "Two requests at once never add the same records twice. If the read fails, nothing is added, the reason is shown, and the next chunk can be asked again."
+            texte "To go back to the start (after a search, a sort), write the first sentence again in the event: the list goes back to its first 20 records."
+            texte "Each person only receives the records they may read: the chunk is cut after the access rules."
+            texte "`par 20` does not go with `en direct`: keep `en direct` for a short list. A source (someone else's API) is read with its own parameters, `filtrant par …`, as in the infinite scroll example."
     sinon :
         soustitre "Copier et partager"
         code humalis :
@@ -2493,6 +2525,38 @@ page "documentation_17" dans "documentation" adresse "/documentation/interaction
                     si nouveaux est vide :
                         changer il_reste par faux
         texte "Le bouton « Voir plus » reste disponible pour les personnes qui naviguent au clavier."
+        soustitre "Lire une longue liste par morceaux"
+        texte "Avec le serveur de ton fichier, une liste longue se lit par morceaux : `par 20` ne lit que les 20 premières fiches, `charger la suite de produits` lit les suivantes et les ajoute, et `produits a une suite` dit s'il en reste."
+        code humalis :
+            serveur "boutique" :
+                donnee produit :
+                    nom : texte
+                    prix : nombre
+                route "produits" :
+                    tout le monde peut lire produit
+                    seul admin peut creer produit
+                    seul admin peut modifier produit
+                    seul admin peut supprimer produit
+
+            page "catalogue" :
+                variable produits = []
+                titre "Catalogue"
+                section avec nom "liste" :
+                    pour chaque p dans produits :
+                        texte p.nom
+                si produits n'a pas de suite :
+                    texte "Tu as tout vu."
+                quand la page se charge :
+                    envoyer requete vers "produits" par 20 dans produits
+                quand l'utilisateur arrive en bas de "liste" tant que produits a une suite avec bouton "Voir plus" :
+                    charger la suite de produits
+        liste :
+            texte "Un morceau compte de 1 à 500 fiches. Les fiches arrivent de la plus ancienne à la plus récente, toujours dans le même ordre."
+            texte "`charger la suite de produits` s'écrit dans n'importe quel événement de la même page : le bas d'une liste, un bouton « Voir plus », une minuterie."
+            texte "Deux demandes à la fois n'ajoutent pas deux fois les mêmes fiches. Si la lecture échoue, rien n'est ajouté, la raison s'affiche, et la suite se redemande."
+            texte "Pour revenir au début (après une recherche, un tri), réécris la première phrase dans l'événement : la liste reprend ses 20 premières fiches."
+            texte "Chaque personne ne reçoit que les fiches qu'elle peut lire : le morceau est découpé après les droits."
+            texte "`par 20` ne va pas avec `en direct` : garde `en direct` pour une liste courte. Une source (une API d'ailleurs) se lit avec ses propres paramètres, `filtrant par …`, comme dans l'exemple du défilement infini."
     ligne avec style "doc-suite" :
         lien "← 16. Les messages, les fenêtres et les questions" en anglais "← 16. Messages, dialogs and questions" vers "documentation_16"
         lien "18. Les formulaires →" en anglais "18. Forms →" vers "documentation_18"

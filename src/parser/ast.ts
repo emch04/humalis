@@ -1159,6 +1159,13 @@ export interface Requete {
   enAttente?: boolean;
   /** Le temps réel : ce qui se passe après chaque lecture réussie (un message arrivé, un appel). */
   suite?: Instruction[];
+  /** « par 20 » : la liste se lit par morceaux de cette taille ; « charger la suite de … » lit le morceau suivant. */
+  morceau?: number;
+  /**
+   * Le morceau demandé au serveur (« ?limite=21&depuis=40 ») : une fiche de plus que le morceau, pour savoir
+   * s'il y a une suite. Écrit par le lecteur (parser/morceaux.ts), jamais à la main.
+   */
+  tranche?: { limite: number; depuis?: Expression };
   ligne: number;
 }
 

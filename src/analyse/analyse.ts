@@ -2659,6 +2659,21 @@ class AnalysePage {
       this.erreur('« en direct » se met sur une lecture d’une route du serveur de ce fichier : envoyer requete vers "commandes" dans commandes en direct.', requete.ligne);
     }
     if (requete.direct) this.resultat.directs.add(adresseNormalisee(requete.adresse));
+    // « par 20 » : le serveur de ce fichier découpe la liste (« ?limite=…&depuis=… ») ; une autre adresse ne le promet pas.
+    if (requete.tranche) {
+      if (requete.tranche.depuis) this.typeDe(requete.tranche.depuis);
+      const adresse = adresseNormalisee(requete.adresse);
+      if (!this.liens.routes.has(adresse) || estRouteTempsReel(requete.adresse) || this.liens.resumes?.has(adresse)) {
+        const taille = requete.tranche.limite - 1;
+        this.erreur(
+          this.liens.routes.size === 0
+            ? `« par ${taille} » lit une route du serveur de ce fichier, et ce fichier n’a pas de serveur. Une source se lit page par page avec ses propres paramètres : filtrant par numero = suivant`
+            : `« par ${taille} » lit une route du serveur de ce fichier : « ${requete.adresse} » n’en est pas une liste de fiches.`,
+          requete.ligne,
+        );
+        return;
+      }
+    }
     const types = requete.donnees.map((d) => this.typeDe(d));
     const symbole = requete.resultat !== undefined ? this.variable(requete.resultat, requete.ligne) : undefined;
     if (requete.resultat !== undefined) (requete.source !== undefined ? this.ciblesSources : this.ciblesAutres).add(requete.resultat);

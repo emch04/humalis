@@ -1215,7 +1215,8 @@ export function creerStockagePostgres(pool: PoolPostgres, table: string): Stocka
       }
       let texte = \`SELECT id, data FROM \${table}\`;
       if (conditions.length > 0) texte += \` WHERE \${conditions.join(' AND ')}\`;
-      texte += ' ORDER BY cree_le';
+      // L'identifiant départage deux fiches créées au même instant : d'un morceau à l'autre, l'ordre ne bouge pas.
+      texte += ' ORDER BY cree_le, id';
       if (filtres?.limite !== undefined) {
         valeurs.push(filtres.limite);
         texte += \` LIMIT $\${valeurs.length}\`;

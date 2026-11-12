@@ -825,7 +825,10 @@ type ActionSeule =
       suite?: Action[];
       /** « de la source "boutique" » : l'API visée. */
       source?: string;
-      /** « filtrant par k = v » : les paramètres d'adresse d'une lecture. */
+      /**
+       * Les paramètres d'adresse d'une lecture : « filtrant par k = v » pour une source ; sans source,
+       * le morceau d'une liste du serveur du fichier (« par 20 » : limite, depuis).
+       */
       filtrant?: { cle: string; valeur: Valeur }[];
       /** Le chemin de la valeur utile dans la réponse de la source (« products »). */
       dans?: string;

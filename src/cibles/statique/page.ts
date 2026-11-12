@@ -24,6 +24,7 @@ import { Ecrivain } from '../web/ecrivain.js';
 import { pascal, camel, chaine } from '../web/noms.js';
 import { titreEtDescription } from '../web/ecran.js';
 import { ficheAvec, typeDe } from '../web/valeurs.js';
+import { adresseAvecParametres } from '../web/lectures.js';
 import { echapperTexte, attributs } from './html.js';
 import { decrireTouches } from '../web/interactions.js';
 import {
@@ -782,7 +783,8 @@ ${prise}${code}}
           e.ligne(`${nomJs(action.liste)} = retirerPremier(${nomJs(action.liste)}, ${x(action.valeur)});`);
           break;
         case 'requete': {
-          const args = [chaine(action.adresse)];
+          // « par 20 » : le morceau demandé, dans l'adresse.
+          const args = [action.source === undefined && action.filtrant?.length ? adresseAvecParametres(action.adresse, action.filtrant, x) : chaine(action.adresse)];
           if (action.mode === 'envoyer') args.push(this.donnees(action.donnees, action.cles));
           // « avec id » : l'identifiant de l'élément à lire.
           if (action.mode === 'lireUn') args.push(x(action.donnees[0]));

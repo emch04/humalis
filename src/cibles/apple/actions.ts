@@ -566,7 +566,12 @@ export class EcrivainActions {
     if (a.mode === 'envoyer') options.push(`envoi: ${this.donnees(a.donnees, a.cles, a.source === undefined)}`);
     if (a.mode === 'lireUn') options.push(`id: ${this.v.enTexte(a.donnees[0])}`);
     if (a.source !== undefined) options.push(`source: Sources.${nomSwift(a.source)}`);
-    if (a.filtrant?.length) options.push(`filtres: [${a.filtrant.map((f) => `(${chaineSwift(f.cle)}, ${this.v.enTexte(f.valeur)})`).join(', ')}]`);
+    // Un nombre part écrit pour une machine (« 1000 », pas « 1 000 ») : parametreDe.
+    const parametre = (v: Valeur) => {
+      const lue = this.v.expr(v);
+      return lue.type.genre === 'texte' && !lue.opt ? lue.code : `parametreDe(${lue.code})`;
+    };
+    if (a.filtrant?.length) options.push(`filtres: [${a.filtrant.map((f) => `(${chaineSwift(f.cle)}, ${parametre(f.valeur)})`).join(', ')}]`);
     if (a.dans !== undefined) options.push(`dans: ${chaineSwift(a.dans)}`);
     if (suivie) options.push(`suivi: { ${this.hote.nomEtatRequete(a.resultat!)} = $0 }`);
     const fin = options.length ? `, ${options.join(', ')}` : '';

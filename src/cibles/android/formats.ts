@@ -40,6 +40,17 @@ private fun nombres(langue: String, min: Int, max: Int): NumberFormat = NumberFo
     it.maximumFractionDigits = max
 }
 
+/**
+ * Une valeur dans les paramètres d'une adresse (« ?limite=21&depuis=1000 ») : un nombre s'y écrit pour une
+ * machine, sans espace ni virgule (1000 et 3.5, jamais « 1 000 » ni « 3,5 ») ; rien pour une valeur absente.
+ */
+fun parametre(valeur: Any?): String {
+    if (valeur !is Number) return texte(valeur)
+    val nombre = valeur.toDouble()
+    if (nombre.isNaN() || nombre.isInfinite()) return ""
+    return if (nombre == Math.rint(nombre) && Math.abs(nombre) < 1e15) nombre.toLong().toString() else nombre.toString()
+}
+
 /** 28000 → « 28 000 », 3.5 → « 3,5 » ; rien pour une valeur absente. */
 fun formaterNombre(valeur: Double?, langue: String = "fr"): String {
     if (valeur == null || valeur.isNaN() || valeur.isInfinite()) return ""

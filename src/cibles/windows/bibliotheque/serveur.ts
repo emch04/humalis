@@ -52,7 +52,10 @@ public static class Serveur
         // Une valeur absente n'est pas envoyée : un filtre vide ne fait pas « ?categorie= ».
         foreach (var (cle, valeur) in filtres ?? Enumerable.Empty<(string, object?)>())
         {
-            var texte = V.T(valeur);
+            // Un nombre s'écrit pour une machine, sans espace ni virgule : 1000 et 3.5, jamais « 1 000 » ni « 3,5 ».
+            var texte = valeur is double or float or int or long or decimal
+                ? Convert.ToDouble(valeur, System.Globalization.CultureInfo.InvariantCulture) is var nombre && double.IsFinite(nombre) ? nombre.ToString("0.###############", System.Globalization.CultureInfo.InvariantCulture) : ""
+                : V.T(valeur);
             if (texte.Length > 0) parametres.Add(Uri.EscapeDataString(cle) + "=" + Uri.EscapeDataString(texte));
         }
         if (source?.PlaceJeton is { } place && place.StartsWith("parametre:") && source.Jeton is { } jeton) parametres.Add(Uri.EscapeDataString(place[10..]) + "=" + Uri.EscapeDataString(jeton));

@@ -15,7 +15,7 @@ import type { CarteProduite } from './carte.js';
 import { baliseGraphique } from './graphique.js';
 import { type Contexte, typeTS, typeDe, expression, contenuJSX, condition, ficheAvec, adresseEncodee } from './valeurs.js';
 import { importsDesInteractions, decrireTouches } from './interactions.js';
-import { lecturesDuChargement, adresseFiltree, type LectureDuChargement } from './lectures.js';
+import { lecturesDuChargement, adresseFiltree, adresseAvecParametres, type LectureDuChargement } from './lectures.js';
 import { colorerCodeHumalis } from '../commun/colorerCode.js';
 import { attributsFrappe } from '../commun/mouvement.js';
 import { repereSource, attributSourceJsx, marquerBalise } from '../commun/reperes.js';
@@ -1427,7 +1427,9 @@ class GenerateurEcran {
           const methode = action.mode;
           // « calcul … = photos dont produit est egal a id » : seulement les photos de ce produit (« ?produit=… »).
           const filtre = action.mode === 'lire' && action.source === undefined && action.resultat !== undefined ? this.lectures.get(action.resultat)?.filtre : undefined;
-          const args = [filtre ? adresseFiltree(action.adresse, filtre) : chaine(action.adresse)];
+          // « par 20 » : le morceau demandé, dans l'adresse.
+          const morceau = action.source === undefined && action.filtrant?.length ? adresseAvecParametres(action.adresse, action.filtrant, x) : undefined;
+          const args = [morceau ?? (filtre ? adresseFiltree(action.adresse, filtre) : chaine(action.adresse))];
           if (action.mode === 'envoyer') args.push(this.donnees(action.donnees, action.cles, action.source === undefined));
           // « avec id » : l'identifiant de l'élément à lire.
           if (action.mode === 'lireUn') args.push(x(action.donnees[0]));

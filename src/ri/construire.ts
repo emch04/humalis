@@ -741,6 +741,15 @@ class Construction {
             ...(instruction.direct ? { direct: true } : {}),
             ...(instruction.suite ? { suite: this.actions(instruction.suite) } : {}),
             ...(instruction.enAttente ? { enAttente: true } : {}),
+            // « par 20 » : le morceau demandé, dans les paramètres de l'adresse (« ?limite=21&depuis=40 »).
+            ...(instruction.tranche
+              ? {
+                  filtrant: [
+                    { cle: 'limite', valeur: this.valeur({ type: 'Nombre', valeur: instruction.tranche.limite, ligne: instruction.ligne }) },
+                    ...(instruction.tranche.depuis ? [{ cle: 'depuis', valeur: this.valeur(instruction.tranche.depuis) }] : []),
+                  ],
+                }
+              : {}),
             ...(instruction.source !== undefined
               ? {
                   source: instruction.source,

@@ -393,6 +393,6 @@ describe('performance — 5. ne pas tout télécharger', () => {
     const requetes: [string, unknown[] | undefined][] = [];
     const pool = { query: async (texte: string, valeurs?: unknown[]) => (requetes.push([texte, valeurs]), { rows: [] }) };
     await creerStockagePostgres(pool, 'humalis_photo').lister({ egal: { produit: 'a' }, limite: 20, depuis: 40 });
-    expect(requetes.at(-1)).toEqual(['SELECT id, data FROM humalis_photo WHERE data @> $1::jsonb ORDER BY cree_le LIMIT $2 OFFSET $3', ['{"produit":"a"}', 20, 40]]);
+    expect(requetes.at(-1)).toEqual(['SELECT id, data FROM humalis_photo WHERE data @> $1::jsonb ORDER BY cree_le, id LIMIT $2 OFFSET $3', ['{"produit":"a"}', 20, 40]]);
   });
 });

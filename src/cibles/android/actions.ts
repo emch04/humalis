@@ -443,7 +443,8 @@ export class EcrivainActions {
     if (a.mode === 'lireUn') options.push(`id = identifiant(${this.v.x(a.donnees[0])})`);
     if (a.source !== undefined) options.push(`source = Sources.${nomKotlin(a.source)}`);
     if (a.resultat !== undefined && this.v.portee.horsLigne?.has(a.resultat)) options.push('horsLigne = true');
-    if (a.filtrant?.length) options.push(`filtres = listOf(${a.filtrant.map((f) => `${chaineKotlin(f.cle)} to ${this.v.t(f.valeur)}`).join(', ')})`);
+    // Un nombre part écrit pour une machine (« 1000 », pas « 1 000 ») : parametre.
+    if (a.filtrant?.length) options.push(`filtres = listOf(${a.filtrant.map((f) => `${chaineKotlin(f.cle)} to ${f.valeur.type === 'texte' ? this.v.t(f.valeur) : `parametre(${this.v.x(f.valeur)})`}`).join(', ')})`);
     if (a.dans !== undefined) options.push(`dans = ${chaineKotlin(a.dans)}`);
     if (suivie) options.push(`suivi = { ${nomEtatRequete(a.resultat!)} = it }`);
     const fin = options.length ? `, ${options.join(', ')}` : '';

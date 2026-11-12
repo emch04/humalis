@@ -14,6 +14,7 @@ import { ENTREES_ERREURS_COMPTES } from './erreurs-comptes';
 import { ENTREES_ERREURS_LANGUES } from './erreurs-langues';
 import { ENTREES_ERREURS_FORMES } from './erreurs-formes';
 import { ENTREES_ERREURS_TEMPS_REEL } from './erreurs-temps-reel';
+import { ENTREES_ERREURS_MORCEAUX } from './erreurs-morceaux';
 import { ENTREES_ERREURS_CAPTURE } from './erreurs-capture';
 
 export type GroupeErreur = 'ecriture' | 'grammaire' | 'sens' | 'avertissement';
@@ -5410,6 +5411,7 @@ page "carte" :
   ...ENTREES_ERREURS_LANGUES,
   ...ENTREES_ERREURS_FORMES,
   ...ENTREES_ERREURS_TEMPS_REEL,
+  ...ENTREES_ERREURS_MORCEAUX,
   ...ENTREES_ERREURS_CAPTURE,
   e('supposant-forme', 'grammaire', 'Écrire le bloc optimiste',
     'Le bloc annonce que la requête suivante pourrait échouer.',

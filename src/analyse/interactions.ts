@@ -147,7 +147,10 @@ export function parcourir(corps: Instruction[]): Instruction[] {
   const toutes: Instruction[] = [];
   for (const i of corps) {
     toutes.push(i);
-    if (i.type === 'Condition' || i.type === 'Confirmer') toutes.push(...parcourir(i.alors), ...parcourir(i.sinon));
+    if (i.type === 'Condition' || i.type === 'Confirmer' || i.type === 'VerificationIdentite') toutes.push(...parcourir(i.alors), ...parcourir(i.sinon));
+    // « essayer : … si erreur : … » et « en supposant que ça marche : » : ce qu'ils contiennent compte comme le reste.
+    else if (i.type === 'Essayer') toutes.push(...parcourir(i.corps), ...parcourir(i.siErreur));
+    else if (i.type === 'Supposant') toutes.push(...parcourir(i.corps));
     else if (i.type === 'Boucle' || i.type === 'TantQue' || i.type === 'Repeter' || i.type === 'Minuterie' || i.type === 'Bloc' || i.type === 'Formulaire' || i.type === 'Fenetre') {
       toutes.push(...parcourir(i.corps));
     }

@@ -1882,6 +1882,51 @@ page "catalogue" :
 
 The "See more" button stays available for people who use the keyboard.
 
+### Reading a long list in chunks
+
+With the server of your file, a long list is read in chunks: `par 20` reads
+only the first 20 records, `charger la suite de products` reads the next ones
+and adds them, and `products a une suite` tells whether some are left.
+
+```humalis
+serveur "shop" :
+    donnee product :
+        name : texte
+        price : nombre
+    route "products" :
+        tout le monde peut lire product
+        seul admin peut creer product
+        seul admin peut modifier product
+        seul admin peut supprimer product
+
+page "catalogue" :
+    variable products = []
+    titre "Catalogue"
+    section avec nom "list" :
+        pour chaque p dans products :
+            texte p.name
+    si products n'a pas de suite :
+        texte "You have seen everything."
+    quand la page se charge :
+        envoyer requete vers "products" par 20 dans products
+    quand l'utilisateur arrive en bas de "list" tant que products a une suite avec bouton "See more" :
+        charger la suite de products
+```
+
+- A chunk holds 1 to 500 records. Records come from the oldest to the newest,
+  always in the same order.
+- `charger la suite de products` can be written in any event of the same page:
+  the bottom of a list, a "See more" button, a timer.
+- Two requests at once never add the same records twice. If the read fails,
+  nothing is added, the reason is shown, and the next chunk can be asked again.
+- To go back to the start (after a search, a sort), write the first sentence
+  again in the event: the list goes back to its first 20 records.
+- Each person only receives the records they may read: the chunk is cut after
+  the access rules.
+- `par 20` does not go with `en direct`: keep `en direct` for a short list. A
+  source (someone else's API) is read with its own parameters, `filtrant par …`,
+  as in the infinite scroll example.
+
 ---
 
 ## 18. Forms

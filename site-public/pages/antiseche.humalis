@@ -393,6 +393,25 @@ page "antiseche" a l'adresse "/antiseche" :
                             pour chaque n dans notes :
                                 texte n.texte
                 bloc avec style "aide-entree" :
+                    texte "Lire une longue liste par morceaux" en anglais "Read a long list in chunks" avec style "aide-besoin"
+                    code humalis :
+                        serveur "boutique" :
+                            donnee produit :
+                                nom : texte
+                            route "produits" :
+                                tout le monde peut lire produit
+
+                        page "accueil" :
+                            variable produits = []
+                            titre "Produits"
+                            section avec nom "liste" :
+                                pour chaque p dans produits :
+                                    texte p.nom
+                            quand la page se charge :
+                                envoyer requete vers "produits" par 20 dans produits
+                            quand l'utilisateur arrive en bas de "liste" tant que produits a une suite avec bouton "Voir plus" :
+                                charger la suite de produits
+                bloc avec style "aide-entree" :
                     texte "Une discussion entre clients et agents" en anglais "A chat between clients and agents" avec style "aide-besoin"
                     code humalis :
                         serveur "boutique" :

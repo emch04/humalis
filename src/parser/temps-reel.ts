@@ -14,6 +14,7 @@ import type { FluxTokens } from './fluxTokens.js';
 import type { Action, Comparaison, DeclarationVariable, Donnee, Evenement, Expression, GesteReunion, Instruction, Page, Programme, Requete, Route, Serveur } from './ast.js';
 import { analyserBloc, analyserExpression, analyserSyntaxe, estLeMot } from './parser.js';
 import { estMot } from './miseEnPage.js';
+import { commencerMorceaux, finirMorceaux, oublierMorceaux } from './morceaux.js';
 
 /** Le nom des routes et des variables d'une discussion ou d'une salle : lettres, chiffres et « _ ». */
 export const slugTempsReel = (nom: string): string => simplifier(nom).replace(/[^a-z0-9_]/g, '_');
@@ -44,7 +45,7 @@ const etatVide = (profondeur: number): Etat => ({ profondeur, discussionsNommees
 let etat: Etat = etatVide(0);
 
 /** Quelques lignes Humalis, lues comme le corps d'une page. */
-function phrases(source: string, ligne: number): Instruction[] {
+export function phrases(source: string, ligne: number): Instruction[] {
   const decale = source.split('\n').map((l) => `    ${l}`).join('\n');
   return analyserSyntaxe(analyserLexique(`page "x" :\n${decale}\n`).map((t: Token) => ({ ...t, ligne }))).pages[0]!.corps;
 }
@@ -71,6 +72,7 @@ export function lireProgramme(lire: () => Programme): Programme {
     }
   }
   etat = etatVide(1);
+  oublierMorceaux();
   try {
     const programme = lire();
     etat.profondeur = 2; // Les phrases dépliées ci-dessous ne sont pas des programmes à finir.
@@ -279,6 +281,7 @@ export function analyserPhraseServeurTempsReel(flux: FluxTokens, serveur: { donn
 
 /** Au début d'une page ; rend l'état à remettre à la fin. */
 export function commencerPage(): Etat['page'] {
+  commencerMorceaux();
   const avant = etat.page;
   etat.page = { variables: new Map(), chargement: new Map(), appelEcoute: false };
   return avant;
@@ -286,6 +289,8 @@ export function commencerPage(): Etat['page'] {
 
 /** À la fin d'une page : ses variables cachées d'abord, ses lectures au début de son chargement. */
 export function finirPage(corps: Instruction[], nomPage: string, avant: Etat['page'], ligne: number): Instruction[] {
+  // Les lectures par morceaux se complètent une fois la page lue : « charger la suite » peut précéder la lecture.
+  finirMorceaux();
   const page = etat.page!;
   etat.page = avant;
   if (etat.profondeur > 1) return corps; // Une page « x » de phrases dépliées.
@@ -310,7 +315,8 @@ function besoinDePage(ligne: number, quoi: string): NonNullable<Etat['page']> {
   return etat.page;
 }
 
-function declarer(cle: string, source: string, ligne: number, quoi: string): void {
+/** Une variable cachée de la page en cours, déclarée une seule fois. */
+export function declarer(cle: string, source: string, ligne: number, quoi: string): void {
   const page = besoinDePage(ligne, quoi);
   if (!page.variables.has(cle)) page.variables.set(cle, phrases(source, ligne));
 }

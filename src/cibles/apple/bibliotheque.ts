@@ -241,6 +241,16 @@ private func regionDesDates(_ langue: String) -> Locale {
     Locale(identifier: ["en": "en_GB", "es": "es_ES", "pt": "pt_PT", "sw": "sw", "ln": "ln_CD"][langue] ?? "fr_FR")
 }
 
+/**
+ * Une valeur dans les paramètres d'une adresse (« ?limite=21&depuis=1000 ») : un nombre s'y écrit pour une
+ * machine, sans espace ni virgule (1000 et 3.5, jamais « 1 000 » ni « 3,5 ») ; rien pour une valeur absente.
+ */
+func parametreDe(_ valeur: Double?) -> String {
+    guard let valeur, valeur.isFinite else { return "" }
+    return valeur == valeur.rounded() && abs(valeur) < 1e15 ? String(Int64(valeur)) : String(valeur)
+}
+func parametreDe<T: AffichableHumalis>(_ valeur: T) -> String { texteDe(valeur) }
+
 /** 28000 → « 28 000 », 3.5 → « 3,5 » ; rien pour une valeur absente. */
 func formaterNombre(_ valeur: Double?, langue: String = "fr") -> String {
     guard let valeur, valeur.isFinite else { return "" }
