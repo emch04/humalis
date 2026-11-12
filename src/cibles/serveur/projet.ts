@@ -1,3 +1,4 @@
+import { SQLITE } from './sqlite.js';
 import { champsRendus, DEFAUTS_TS, LISEZMOI_EVOLUTION, verifierDonneesMjs } from './evolution.js';
 import { CODE_SANTE, CODE_SANTE_DEMARRAGE, codeArret, fichiersDeploiement, lisezmoiExploitation, restaurerMjs, sauvegarderMjs } from './exploitation.js';
 import { BORNES_TS, exempleDansLesBornes } from './bornes.js';
@@ -85,6 +86,7 @@ export function genererProjetServeur(complet: ServeurRI, options: OptionsServeur
   fichiers.set('LISEZMOI.md', lisezmoi(serveur, options));
   fichiers.set('src/humalis/verifier.ts', VERIFIER);
   fichiers.set('src/humalis/stockage.ts', STOCKAGE);
+  fichiers.set('src/humalis/sqlite.ts', SQLITE);
   fichiers.set('src/humalis/envois.ts', ENVOIS);
   fichiers.set('src/humalis/compresser.ts', COMPRESSER);
   fichiers.set('src/humalis/renouvellements.ts', RENOUVELLEMENTS);
@@ -1126,7 +1128,7 @@ function trancher<T>(liste: T[], filtres?: Filtres): T[] {
 
 /** La synchronisation : la fiche créée garde l'identifiant choisi par l'appareil, le temps d'un seul « creer ». */
 export const idImpose = new AsyncLocalStorage<{ id: string; pris: boolean }>();
-const nouvelId = () => {
+export const nouvelId = () => {
   const impose = idImpose.getStore();
   if (!impose || impose.pris) return randomUUID();
   impose.pris = true;

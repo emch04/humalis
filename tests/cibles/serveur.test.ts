@@ -13,7 +13,7 @@ describe('cible serveur — projet produit', () => {
       '.env.exemple', '.gitignore', '.humalis-projet', 'LISEZMOI.md',
       'deploiement/Caddyfile', 'deploiement/Dockerfile', 'deploiement/boutique-sauvegarde.service', 'deploiement/boutique-sauvegarde.timer', 'deploiement/boutique.service',
       'humalis-cartes.mjs', 'package.json', 'scripts/restaurer.mjs', 'scripts/sauvegarder.mjs', 'scripts/verifier-donnees.mjs',
-      'src/demarrer.ts', 'src/donnees.ts', 'src/humalis/centrale.ts', 'src/humalis/coffre.ts', 'src/humalis/compresser.ts', 'src/humalis/envois.ts', 'src/humalis/lignes.ts', 'src/humalis/renouvellements.ts', 'src/humalis/sessions.ts', 'src/humalis/stockage.ts', 'src/humalis/verifier.ts', 'src/serveur.ts',
+      'src/demarrer.ts', 'src/donnees.ts', 'src/humalis/centrale.ts', 'src/humalis/coffre.ts', 'src/humalis/compresser.ts', 'src/humalis/envois.ts', 'src/humalis/lignes.ts', 'src/humalis/renouvellements.ts', 'src/humalis/sessions.ts', 'src/humalis/sqlite.ts', 'src/humalis/stockage.ts', 'src/humalis/verifier.ts', 'src/serveur.ts',
       'tests/attaques.test.ts', 'tests/regles.test.ts', 'tests/sessions.test.ts', 'tsconfig.json',
     ]);
   });
