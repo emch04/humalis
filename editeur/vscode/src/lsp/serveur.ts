@@ -16,6 +16,7 @@ import { indexer, type Index } from '../langage/portees.js';
 import { survoler } from '../langage/survol.js';
 import { completerSource, type GenreProposition } from '../langage/completion.js';
 import { definir, type Lieu } from '../langage/definition.js';
+import { preparerRenommage, renommer, usages } from '../langage/references.js';
 import { symbolesDuDocument, type GenreSymboleDocument, type SymboleDocument } from '../langage/symboles.js';
 import { encoderJetons, jetonsSemantiques, MODIFICATEURS_JETONS, TYPES_JETONS } from '../langage/semantique.js';
 import { markdownVersTexte } from './texte-brut.js';
@@ -33,6 +34,8 @@ interface PositionLsp {
 }
 
 const ERREUR_METHODE_INCONNUE = -32601;
+/** « RequestFailed » du protocole : la demande est comprise, mais elle ne peut pas être faite. */
+const ERREUR_DEMANDE_REFUSEE = -32803;
 const ERREUR_INTERNE = -32603;
 const ERREUR_PARAMETRES = -32602;
 const ERREUR_ARRET = -32600;
@@ -145,6 +148,11 @@ export class ServeurLangage {
         else this.envoyer({ jsonrpc: '2.0', id, result: resultat ?? null });
       }
     } catch (erreur) {
+      // Un renommage refusé : l'éditeur montre la raison, ce n'est pas une panne.
+      if (erreur instanceof Refus) {
+        if (demande) this.repondreErreur(id, ERREUR_DEMANDE_REFUSEE, erreur.message.charAt(0).toUpperCase() + erreur.message.slice(1) + '.');
+        return;
+      }
       const detail = erreur instanceof Error ? erreur.message : String(erreur);
       if (demande) this.repondreErreur(id, ERREUR_INTERNE, `erreur interne du serveur Humalis, merci de la signaler : ${detail}`);
     }
@@ -166,6 +174,8 @@ export class ServeurLangage {
             textDocumentSync: 1,
             hoverProvider: true,
             definitionProvider: true,
+            referencesProvider: true,
+            renameProvider: { prepareProvider: true },
             documentSymbolProvider: true,
             documentFormattingProvider: true,
             completionProvider: { triggerCharacters: ['"', '.'] },
@@ -222,6 +232,32 @@ export class ServeurLangage {
         return this.completion(params.textDocument.uri, params.position);
       case 'textDocument/definition':
         return this.definition(params.textDocument.uri, params.position);
+      case 'textDocument/references': {
+        const index = this.index(params.textDocument.uri);
+        const trouves = index && usages(index, params.position.line + 1, params.position.character + 1, { sansDeclaration: params.context?.includeDeclaration === false });
+        return trouves ? trouves.lieux.map((l) => this.lieu(params.textDocument.uri, l)) : [];
+      }
+      case 'textDocument/prepareRename': {
+        const index = this.index(params.textDocument.uri);
+        if (!index) return null;
+        const pret = preparerRenommage(index, params.position.line + 1, params.position.character + 1);
+        if ('refus' in pret) throw new Refus(pret.refus);
+        return { range: plage(pret.lieu.ligne, pret.lieu.colonne, pret.lieu.fin), placeholder: pret.symbole.nom };
+      }
+      case 'textDocument/rename': {
+        const index = this.index(params.textDocument.uri);
+        if (!index) return null;
+        if (typeof params.newName !== 'string') throw new Refus('il manque le nouveau nom');
+        const resultat = renommer(index, params.position.line + 1, params.position.character + 1, params.newName);
+        if ('refus' in resultat) throw new Refus(resultat.refus);
+        // Chaque fichier du projet reçoit ses changements : rien n'est renommé à moitié.
+        const changes: Record<string, unknown[]> = {};
+        for (const l of resultat.lieux) {
+          const { uri, range } = this.lieu(params.textDocument.uri, l);
+          (changes[uri] ??= []).push({ range, newText: params.newName });
+        }
+        return { changes };
+      }
       case 'textDocument/documentSymbol':
         return this.symboles(params.textDocument.uri);
       case 'textDocument/semanticTokens/full':
@@ -327,3 +363,6 @@ export class ServeurLangage {
 
 /** Marque une méthode que le serveur ne connaît pas. */
 const INCONNUE = Symbol('méthode inconnue');
+
+/** Une demande comprise mais refusée, avec sa raison en clair (un renommage qui casserait le programme). */
+class Refus extends Error {}

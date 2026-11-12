@@ -12,8 +12,11 @@ describe('versDiagnostics', () => {
     expect(versDiagnostics(source)).toEqual([]);
   });
 
-  it('donne une liste vide pour un fichier vide', () => {
-    expect(versDiagnostics('')).toEqual([]);
+  it('un fichier vide reçoit un seul avertissement, qui dit par quoi commencer', () => {
+    const lus = versDiagnostics('');
+    expect(lus).toHaveLength(1);
+    expect(lus[0]).toMatchObject({ gravite: 'avertissement', ligne: 1 });
+    expect(lus[0]!.message).toMatch(/page "accueil"/);
   });
 
   it('signale un guillemet manquant à la bonne ligne et à la bonne colonne', () => {

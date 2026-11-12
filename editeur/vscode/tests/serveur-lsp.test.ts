@@ -177,7 +177,9 @@ describe('ServeurLangage', () => {
 
   it('refuse une méthode inconnue, et une demande sur un document fermé ne plante pas', () => {
     const { demander } = demarrer();
-    expect(demander('textDocument/inconnue', {}).error?.code).toBe(-32601);
+    expect(demander('textDocument/inconnue', { textDocument: { uri: URI } }).error?.code).toBe(-32601);
+    // Sans document nommé, ce sont les paramètres qui sont refusés.
+    expect(demander('textDocument/inconnue', {}).error?.code).toBe(-32602);
     expect(demander('textDocument/hover', { textDocument: { uri: URI }, position: { line: 0, character: 0 } }).result).toBeNull();
   });
 
