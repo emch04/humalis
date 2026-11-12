@@ -7,6 +7,7 @@ import { genererProjetMoteur, verifierPourLeMoteur, MARQUE_MOTEUR } from '../mot
 import { utiliseReunion } from '../moteur/temps-reel.js';
 import { formesDuBureau, applicationAvecFormes, brancherLesCouches, associationsDeFichiers, scriptNsis, codeFormesPrincipal, lisezmoiFormes, PONT_FORMES, type FormesBureau } from './formes.js';
 import { codeCaptureNode, requetesCapture } from '../capture-erreurs.js';
+import { CLES_MAC_SWIFT, CLES_PRINCIPAL_TS, CLES_WINDOWS_PS1, CONSTRUIRE_NATIF_MJS, LISEZMOI_CLES, PONT_CLES } from './cles.js';
 
 export interface OptionsDesktop {
   /** Le nom du projet, tiré du fichier Humalis (« boutique »). */
@@ -101,9 +102,17 @@ export function genererProjetDesktop(application: Application, options: OptionsD
   const secret = etats.some((e) => e.memorisee && e.secret);
   // « memorisee en secret », refusé sur le web, est gardé dans le coffre de l'ordinateur (décision D6).
   if (secret) fichiers.set('src/humalis/memoire.ts', memoireAvecCoffre());
-  // Le pont (preload) : le coffre, et le fichier reçu par une forme.
-  const pont = secret || formes.actions.length > 0;
-  if (pont) fichiers.set('electron/pont.cts', PONT_DEBUT + (secret ? PONT_COFFRE : '') + (formes.actions.length > 0 ? PONT_FORMES : ''));
+  // Les clés d'accès : Touch ID (Secure Enclave) sur Mac, Windows Hello sur Windows, par le processus principal (cles.ts).
+  const cles = /"quoi":"(connexionCle|ajoutCle)"/.test(JSON.stringify([application.ecrans, application.composants]));
+  if (cles) {
+    fichiers.set('electron/cles.ts', CLES_PRINCIPAL_TS);
+    fichiers.set('electron/natif/cles-mac.swift', CLES_MAC_SWIFT);
+    fichiers.set('electron/natif/cles-windows.ps1', CLES_WINDOWS_PS1);
+    fichiers.set('electron/natif/construire.mjs', CONSTRUIRE_NATIF_MJS);
+  }
+  // Le pont (preload) : le coffre, le fichier reçu par une forme, les clés d'accès.
+  const pont = secret || formes.actions.length > 0 || cles;
+  if (pont) fichiers.set('electron/pont.cts', PONT_DEBUT + (secret ? PONT_COFFRE : '') + (formes.actions.length > 0 ? PONT_FORMES : '') + (cles ? PONT_CLES : ''));
 
   const slug = simplifier(options.nom).replace(/_/g, '-') || 'application-humalis';
   const { relais, origines } = adressesDuServeur(application);
@@ -111,7 +120,7 @@ export function genererProjetDesktop(application: Application, options: OptionsD
   const actionsMedias = JSON.stringify([application.ecrans, application.composants]);
   const captureAudio = /"type":"enregistrerAudio"|"type":"enregistrerVideo"/.test(actionsMedias);
   const captureVideo = /"type":"enregistrerVideo"/.test(actionsMedias);
-  fichiers.set('package.json', packageJson(slug, options, misesAJour, moteur, formes, application.site?.adresse, captureAudio, captureVideo, utiliseReunion(application)));
+  fichiers.set('package.json', packageJson(slug, options, misesAJour, moteur, formes, application.site?.adresse, captureAudio, captureVideo, utiliseReunion(application), cles));
   const menusWindows = scriptNsis(formes, slug);
   if (menusWindows) fichiers.set('build/menus.nsh', menusWindows);
   // Les bibliothèques des éléments d'écran (icônes, code QR) : Vite les emballe, comme React.
@@ -128,8 +137,8 @@ export function genererProjetDesktop(application: Application, options: OptionsD
     fichiers.set('package.json', JSON.stringify(paquet, null, 2) + '\n');
   }
   fichiers.set('tsconfig.electron.json', TSCONFIG_ELECTRON);
-  fichiers.set('.gitignore', 'node_modules\ndist\nelectron/dist\npaquets\n');
-  fichiers.set('LISEZMOI.md', lisezmoi(options, slug, misesAJour) + lisezmoiFormes(formes));
+  fichiers.set('.gitignore', `node_modules\ndist\nelectron/dist\npaquets\n${cles ? 'electron/natif/humalis-cles\n' : ''}`);
+  fichiers.set('LISEZMOI.md', lisezmoi(options, slug, misesAJour) + lisezmoiFormes(formes) + (cles ? LISEZMOI_CLES : ''));
   fichiers.set(
     'electron/principal.ts',
     principal({
@@ -140,6 +149,7 @@ export function genererProjetDesktop(application: Application, options: OptionsD
       origines,
       secret,
       pont,
+      cles,
       formes,
       slug,
       misesAJour: misesAJour !== undefined,
@@ -197,7 +207,9 @@ export function adressesDuServeur(application: Application): { relais: string[];
   return { relais, origines };
 }
 
-function packageJson(slug: string, options: OptionsDesktop, misesAJour?: string, moteur = false, formes?: FormesBureau, adresseSite?: string, captureAudio = false, captureVideo = false, reunion = false): string {
+function packageJson(slug: string, options: OptionsDesktop, misesAJour?: string, moteur = false, formes?: FormesBureau, adresseSite?: string, captureAudio = false, captureVideo = false, reunion = false, cles = false): string {
+  // Les clés d'accès : le gardien Swift (Mac) est compilé avant l'application.
+  const natif = cles ? 'node electron/natif/construire.mjs && ' : '';
   const associations = formes ? associationsDeFichiers(formes) : [];
   const menus = formes?.actions.some((a) => a.sorte === 'menu') ?? false;
   // Un fichier ouvert ou un menu clic droit sur Linux : le paquet .deb inscrit l'application auprès du bureau.
@@ -217,7 +229,7 @@ function packageJson(slug: string, options: OptionsDesktop, misesAJour?: string,
         scripts: {
           dev: 'vite',
           // Le moteur Humalis : du JavaScript, rien à vérifier pour tsc côté pages.
-          build: moteur ? 'tsc -p tsconfig.electron.json && vite build' : 'tsc --noEmit && tsc -p tsconfig.electron.json && vite build',
+          build: natif + (moteur ? 'tsc -p tsconfig.electron.json && vite build' : 'tsc --noEmit && tsc -p tsconfig.electron.json && vite build'),
           start: 'npm run build && electron .',
           // Rien n'est envoyé nulle part : les installateurs restent dans paquets/.
           paquet: 'npm run build && electron-builder --publish never',
@@ -248,6 +260,8 @@ function packageJson(slug: string, options: OptionsDesktop, misesAJour?: string,
           appId: `com.humalis.${slug}`,
           productName: options.nom,
           files: ['dist/**/*', 'electron/dist/**/*'],
+          // Les clés d'accès : le gardien de la Secure Enclave (Mac) et le script de Windows Hello, à côté de l'application.
+          ...(cles ? { extraResources: [{ from: 'electron/natif', to: 'natif', filter: ['humalis-cles', 'cles-windows.ps1'] }] } : {}),
           directories: { output: 'paquets' },
           mac: { target: ['dmg', 'zip'], category: 'public.app-category.productivity', ...(captureAudio || captureVideo || reunion ? { extendInfo: { ...(captureAudio || reunion ? { NSMicrophoneUsageDescription: reunion ? 'Le micro sert pendant les réunions et les appels, et pour enregistrer à votre demande.' : 'Enregistrer un audio à votre demande.' } : {}), ...(captureVideo || reunion ? { NSCameraUsageDescription: reunion ? 'La caméra sert pendant les réunions et les appels, et pour filmer à votre demande.' : 'Enregistrer une vidéo à votre demande.' } : {}) } } : {}) },
           win: { target: [{ target: 'nsis', arch: ['x64'] }] },
@@ -305,8 +319,10 @@ interface OptionsPrincipal {
   relais: string[];
   origines: string[];
   secret: boolean;
-  /** Le preload electron/pont.cts : le coffre, le fichier reçu par une forme. */
+  /** Le preload electron/pont.cts : le coffre, le fichier reçu par une forme, les clés d'accès. */
   pont: boolean;
+  /** Les clés d'accès (electron/cles.ts). */
+  cles: boolean;
   /** Les formes spéciales du bureau. */
   formes: FormesBureau;
   slug: string;
@@ -348,7 +364,7 @@ function principal(o: OptionsPrincipal): string {
 // Il ouvre la fenêtre, pose le menu, sert les pages construites par Vite
 // et relaie leurs requêtes vers le serveur (voir LISEZMOI.md).
 import { ${electron.join(', ')}, ${types.join(', ')} } from 'electron';
-${o.misesAJour ? "import electronUpdater from 'electron-updater';\n" : ''}${o.secret ? "import { createHash } from 'node:crypto';\n" : ''}import { ${fs.join(', ')} } from 'node:fs';
+${o.misesAJour ? "import electronUpdater from 'electron-updater';\n" : ''}${o.cles ? "import { ouvrirLesCles } from './cles.js';\n" : ''}${o.secret ? "import { createHash } from 'node:crypto';\n" : ''}import { ${fs.join(', ')} } from 'node:fs';
 ${fsPromesses.length ? `import { ${fsPromesses.join(', ')} } from 'node:fs/promises';\n` : ''}${ecrit ? "import { homedir } from 'node:os';\n" : ''}import { ${chemins.join(', ')} } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -471,7 +487,7 @@ function creerFenetre(): BrowserWindow {
       nodeIntegration: false,
       sandbox: true,
       webSecurity: true,
-${o.pont ? `      // Le pont : ${[o.secret ? 'le coffre (lire et ecrire)' : '', fichiers ? 'le fichier reçu par une forme (recu)' : ''].filter(Boolean).join(', ')}, dans electron/pont.cts.\n      preload: join(ICI, 'pont.cjs'),\n` : ''}    },
+${o.pont ? `      // Le pont : ${[o.secret ? 'le coffre (lire et ecrire)' : '', fichiers ? 'le fichier reçu par une forme (recu)' : '', o.cles ? "les clés d'accès (creer et signer)" : ''].filter(Boolean).join(', ')}, dans electron/pont.cts.\n      preload: join(ICI, 'pont.cjs'),\n` : ''}    },
   });
   fenetre.once('ready-to-show', () => fenetre.show());
   fenetre.on('closed', () => {
@@ -625,7 +641,7 @@ ${o.captureAudio || o.captureVideo || o.reunion ? `    // Seules les captures d�
     session.defaultSession.setPermissionRequestHandler((_contenu, _permission, repondre) => repondre(false));
     session.defaultSession.setPermissionCheckHandler(() => false);`}
     protocol.handle(SCHEMA, servir);
-${o.secret ? '    ouvrirCoffre();\n' : ''}${fichiers ? '    ecouterLesFormes();\n' : ''}    Menu.setApplicationMenu(menu());
+${o.secret ? '    ouvrirCoffre();\n' : ''}${o.cles ? "    // Les clés d'accès : seulement pour la page de l'application.\n    ouvrirLesCles(NOM, (evenement) => dansLApplication(evenement.senderFrame?.url ?? ''));\n" : ''}${fichiers ? '    ecouterLesFormes();\n' : ''}    Menu.setApplicationMenu(menu());
 ${f.demarrage ? '    preparerDemarrage();\n' : ''}${tray ? '    void poserLesIcones();\n' : ''}${menusLinux ? '    poserLesMenusLinux();\n' : ''}${discret ? `    // « avec discret » : lancée par le démarrage de l'ordinateur, elle attend dans la barre du système, sans fenêtre.
     if (lanceeAuDemarrage() && !${fichiers ? 'process.argv.some((a) => a.startsWith(\'--humalis-forme=\') || formeDuFichier(a) !== undefined)' : 'false'}) {
       if (process.platform === 'darwin') app.dock?.hide();

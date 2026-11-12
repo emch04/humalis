@@ -167,9 +167,11 @@ for (const forme of ['enregistrerAudio', 'enregistrerVideo', 'recadrerPhoto'] as
 
 // Le web et le bureau (IndexedDB, WebCrypto, WebAuthn) : src/cibles/commun/donnees-comptes-web.ts.
 for (const forme of ['donneeLocale', 'cleAcces', 'doubleAuthentification'] as const) (ECRITES.web ??= new Set<Forme>()).add(forme);
-// Le bureau sert ses pages depuis humalis://application, une origine que WebAuthn refuse : les clés d'accès y restent refusées.
+// Le bureau sert ses pages depuis humalis://application, une origine que WebAuthn refuse : ses clés d'accès passent par le processus principal (plus bas).
 ECRITES.desktop!.add('donneeLocale');
 ECRITES.desktop!.add('doubleAuthentification');
+// Les clés d'accès du bureau : Touch ID (Secure Enclave) sur Mac, Windows Hello sur Windows (desktop/cles.ts).
+ECRITES.desktop!.add('cleAcces');
 
 // Apple (SQLite, CryptoKit, Keychain, ASAuthorization) : src/cibles/apple/donnees-comptes.ts.
 for (const forme of ['donneeLocale', 'cleAcces', 'doubleAuthentification'] as const) ECRITES.apple!.add(forme);

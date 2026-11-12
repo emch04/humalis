@@ -3824,8 +3824,9 @@ Sur le serveur, `ENCRYPTION_KEY` est obligatoire pour le code à six chiffres, e
 Ce que demandent les clés d'accès, cible par cible :
 
 - **Web** : un site en https (ou `localhost` pendant le développement).
-- **Bureau (Electron)** : elles sont refusées à la compilation. Le navigateur intégré n'accepte pas
-  l'adresse propre à l'application. Le code à six chiffres y fonctionne.
+- **Bureau (Electron)** : sur Mac, Touch ID (ou le mot de passe de la session) débloque une clé
+  gardée dans la puce du Mac (Secure Enclave), qui n'est pas synchronisée par iCloud ; sur Windows,
+  Windows Hello. Pas encore sur Linux. `WEBAUTHN_ALLOWED_ORIGINS` commence par le domaine des clés.
 - **Apple** : `--serveur https://…`, `--equipe`, et `WEBAUTHN_APPLE_APP` sur le serveur, qui publie
   le fichier d'association du domaine.
 - **Android** : un domaine en https, `WEBAUTHN_ANDROID_APP` sur le serveur (le nom du paquet puis

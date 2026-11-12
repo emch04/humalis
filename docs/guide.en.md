@@ -3895,8 +3895,9 @@ the site's addresses: the first one sets the passkeys' domain.
 What passkeys need, target by target:
 
 - **Web**: a site on https (or `localhost` during development).
-- **Desktop (Electron)**: they are refused at compile time. The built-in browser does not accept the
-  app's own address. The six-digit code works there.
+- **Desktop (Electron)**: on a Mac, Touch ID (or the session password) unlocks a key kept in the
+  Mac's chip (Secure Enclave), which is not synced through iCloud; on Windows, Windows Hello. Not on
+  Linux yet. `WEBAUTHN_ALLOWED_ORIGINS` starts with the domain of the keys.
 - **Apple**: `--serveur https://…`, `--equipe`, and `WEBAUTHN_APPLE_APP` on the server, which publishes
   the domain association file.
 - **Android**: a domain on https, `WEBAUTHN_ANDROID_APP` on the server (the package name, then the

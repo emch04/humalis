@@ -771,8 +771,11 @@ export function creerCompteSecurise(o) {
     authenticatorAttachment: identite.authenticatorAttachment ?? undefined,
   });
 
+  // L'application de bureau (Electron) : Touch ID ou Windows Hello par le processus principal, qui rend la réponse en JSON.
+  const natif = () => globalThis.humalisCles;
+
   async function ajouterCle(dansUnEssai = false) {
-    if (!globalThis.PublicKeyCredential) return refuser("Cet appareil ne gère pas les clés d'accès.", dansUnEssai);
+    if (!globalThis.PublicKeyCredential && !natif()) return refuser("Cet appareil ne gère pas les clés d'accès.", dansUnEssai);
     let reponse;
     try {
       reponse = await appeler('/auth/cle-acces/inscription/options', {});
@@ -785,16 +788,24 @@ export function creerCompteSecurise(o) {
     if (reponse.statut === 401) return refuser('Connectez-vous pour continuer.', dansUnEssai);
     if (!reponse.ok) return refuser(raisonDe(reponse, "La clé d'accès n'a pas pu être préparée."), dansUnEssai);
     const options = reponse.corps;
-    let identite;
-    try {
-      identite = await navigator.credentials.create({ publicKey: { ...options, challenge: enOctets(options.challenge), user: { ...options.user, id: enOctets(options.user.id) }, excludeCredentials: (options.excludeCredentials ?? []).map((c) => ({ ...c, id: enOctets(c.id) })) } });
-    } catch (erreur) {
-      return refuser(erreur?.name === 'InvalidStateError' ? "Cet appareil a déjà une clé d'accès pour ce compte." : "La création de la clé d'accès a été annulée.", dansUnEssai);
+    let cle;
+    if (natif()) {
+      const resultat = await natif().creer(options);
+      if (!resultat?.ok) return refuser(resultat?.raison ?? "La création de la clé d'accès a été annulée.", dansUnEssai);
+      cle = resultat.reponse;
+    } else {
+      let identite;
+      try {
+        identite = await navigator.credentials.create({ publicKey: { ...options, challenge: enOctets(options.challenge), user: { ...options.user, id: enOctets(options.user.id) }, excludeCredentials: (options.excludeCredentials ?? []).map((c) => ({ ...c, id: enOctets(c.id) })) } });
+      } catch (erreur) {
+        return refuser(erreur?.name === 'InvalidStateError' ? "Cet appareil a déjà une clé d'accès pour ce compte." : "La création de la clé d'accès a été annulée.", dansUnEssai);
+      }
+      const r = identite.response;
+      cle = { ...reponseClef(identite), response: { clientDataJSON: enTexte(r.clientDataJSON), attestationObject: enTexte(r.attestationObject), transports: r.getTransports?.() ?? [] } };
     }
-    const r = identite.response;
     try {
       const fin = await appeler('/auth/cle-acces/inscription/verifier', {
-        reponse: { ...reponseClef(identite), response: { clientDataJSON: enTexte(r.clientDataJSON), attestationObject: enTexte(r.attestationObject), transports: r.getTransports?.() ?? [] } },
+        reponse: cle,
         nom: navigator.userAgentData?.platform ?? navigator.platform ?? 'Appareil',
       });
       if (!fin.ok) return refuser(raisonDe(fin, "Cette clé d'accès n'a pas été acceptée."), dansUnEssai);
@@ -804,22 +815,30 @@ export function creerCompteSecurise(o) {
   }
 
   async function seConnecterParCle(dansUnEssai = false) {
-    if (!globalThis.PublicKeyCredential) return refuser("Cet appareil ne gère pas les clés d'accès.", dansUnEssai);
+    if (!globalThis.PublicKeyCredential && !natif()) return refuser("Cet appareil ne gère pas les clés d'accès.", dansUnEssai);
     let debut;
     try { debut = await appeler('/auth/cle-acces/connexion/options', {}); } catch { return refuser(sansReseau, dansUnEssai); }
     if (!debut.ok) return refuser(raisonDe(debut, "La connexion n'a pas pu commencer."), dansUnEssai);
     const options = debut.corps.options;
-    let identite;
-    try {
-      identite = await navigator.credentials.get({ publicKey: { ...options, challenge: enOctets(options.challenge), allowCredentials: [] } });
-    } catch {
-      return refuser("La connexion par clé d'accès a été annulée.", dansUnEssai);
+    let cle;
+    if (natif()) {
+      const resultat = await natif().signer({ ...options, allowCredentials: [] });
+      if (!resultat?.ok) return refuser(resultat?.raison ?? "La connexion par clé d'accès a été annulée.", dansUnEssai);
+      cle = resultat.reponse;
+    } else {
+      let identite;
+      try {
+        identite = await navigator.credentials.get({ publicKey: { ...options, challenge: enOctets(options.challenge), allowCredentials: [] } });
+      } catch {
+        return refuser("La connexion par clé d'accès a été annulée.", dansUnEssai);
+      }
+      const r = identite.response;
+      cle = { ...reponseClef(identite), response: { clientDataJSON: enTexte(r.clientDataJSON), authenticatorData: enTexte(r.authenticatorData), signature: enTexte(r.signature), ...(r.userHandle ? { userHandle: enTexte(r.userHandle) } : {}) } };
     }
-    const r = identite.response;
     try {
       const fin = await appeler('/auth/cle-acces/connexion/verifier', {
         ceremonie: debut.corps.ceremonie,
-        reponse: { ...reponseClef(identite), response: { clientDataJSON: enTexte(r.clientDataJSON), authenticatorData: enTexte(r.authenticatorData), signature: enTexte(r.signature), ...(r.userHandle ? { userHandle: enTexte(r.userHandle) } : {}) } },
+        reponse: cle,
       });
       if (!fin.ok) return refuser(raisonDe(fin, "Cette clé d'accès n'est pas reconnue."), dansUnEssai);
     } catch { return refuser(sansReseau, dansUnEssai); }
