@@ -1,0 +1,33 @@
+serveur "marche" :
+    roles client
+    paiements par stripe
+    donnee produit :
+        nom : texte
+        prix : nombre
+    donnee commande :
+        refs : liste de texte
+        total : nombre calcule somme prix de produit par refs
+    donnee journal :
+        nom : texte
+    donnee tarif par boutique :
+        prix : nombre
+    donnee panier par boutique :
+        refs : liste de texte
+        total : nombre calcule somme prix de tarif par refs
+    route "produits" :
+        tout le monde peut lire produit
+        seul admin peut modifier produit
+    route "commandes" :
+        connecte peut lire commande
+        connecte peut creer commande
+        seul son auteur peut modifier commande
+        quand commande est payee :
+            creer journal avec nom "payée"
+    route "journaux" :
+        seul admin peut lire journal
+    route "paniers" :
+        connecte peut creer panier
+        connecte peut lire panier
+
+page "a" :
+    titre "A"

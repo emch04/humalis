@@ -11,7 +11,7 @@ import { avecIa, ENV_IA, IA, routeIa } from './ia.js';
 import { ENVOIS } from './envois.js';
 import { MOTIF_SQL_DU_PACK, MOTIFS_SQL_CODE } from './pare-feu.js';
 import { codeResumes, avecPaiements, codePaiements, codeSurPaiement, PAIEMENTS, avecLogique, avecNotifications, codeActions, codeDocuments, codeNotificationsCreation, codeTaches, DOCUMENT, employe, LOGIQUE, NOTIFICATIONS, ROUTES_APPAREILS } from './logique.js';
-import { champsDuServeur, codeCalculsModification, codeCompleter, codeCreation, codePlafondsModification, noms as nomsVerifier, reglesEnvoi } from './regles.js';
+import { champsDuServeur, codeCalculsModification, codeCompleter, codeEcritureModification, codeCreation, codePlafondsModification, noms as nomsVerifier, reglesEnvoi } from './regles.js';
 import { avecSynchro, codeAvantSynchro, codeCreationSynchro, codeSynchroRoute, ENV_SYNCHRO, SYNCHRO, tablesSynchro, testsSynchro } from './synchro.js';
 import { avecSecurite, codeAvantSecurite, codeCreationSecurite, codeRoutesSecurite, envSecurite, SECURITE, testsSecurite } from './securite.js';
 import { ligneLocale } from '../../fichiers.js';
@@ -1392,7 +1392,7 @@ ${voir('modifier')}          const envoi = verifierEnvoi(${schema}, req.body, fa
             res.status(400).json({ erreur: envoi.erreur });
             return;
           }
-${codePlafondsModification(donneeRoute, serveur)}${codeCalculsModification(serveur, donneeRoute)}          const modifie = await stockages.${donnee}.modifier(req.params.id, envoi.valeur);
+${codePlafondsModification(donneeRoute, serveur)}${codeCalculsModification(serveur, donneeRoute)}${codeEcritureModification(donneeRoute, route, avecLogique(serveur))}
           if (modifie) res.json(modifie);
           else res.status(404).json({ erreur: introuvable('${route.donnee}') });
         } catch (erreur) {

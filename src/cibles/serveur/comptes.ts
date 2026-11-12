@@ -246,6 +246,8 @@ import { verifierEnvoi, type Schema } from './verifier.js';
  * n'envoie jamais à un serveur ; seule son empreinte est gardée, et le pack la consomme une fois.
  */
 const ROLE_RETIRE = 'retire';
+/** Les champs que le compte garde pour lui (en minuscules) : aucune route ne les rend ni ne les change. */
+const CHAMPS_INTERNES = new Set(['id', 'email', 'role', 'statut', 'password', 'passwordhash', 'invitation', 'googlesubject', 'applesubject', 'tokenversion', 'createdat', 'updatedat']);
 const ADRESSE = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
 const SEPT_JOURS = 7 * 24 * 60 * 60 * 1000;
 const DIX_MINUTES = 10 * 60 * 1000;
@@ -349,7 +351,7 @@ export function creerComptes({
   pageInvitation,
   rolesPermis,
   champsDeGroupe = [],
-  schemaCompte = {},
+  schemaCompte: schemaDeclare = {},
   pageOublie,
   surRetrait,
   env = process.env,
@@ -374,6 +376,8 @@ export function creerComptes({
   surRetrait?: (id: string) => Promise<void>;
   env?: Record<string, string | undefined>;
 }) {
+  // Jamais un champ interne du compte (l'empreinte du mot de passe…), même s'il avait été déclaré : ni lu, ni écrit.
+  const schemaCompte = Object.fromEntries(Object.entries(schemaDeclare).filter(([champ]) => !CHAMPS_INTERNES.has(champ.toLowerCase()))) as Schema;
   // L'adresse du site vient de l'environnement, jamais d'une requête : un en-tête Host choisi ne détourne aucun lien.
   const adresseDuSite = () => {
     const adresse = (env.HUMALIS_ADRESSE_SITE ?? '').trim().replace(/\\/+$/, '');

@@ -82,9 +82,11 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[], pag
   if (serveur.ia && !serveur.droitIa) erreur(`chaque question à l'IA coûte : dites qui peut la poser, par exemple « connecte peut demander a ia ».`, serveur.ia.ligne);
   if (serveur.droitIa && !serveur.ia) erreur(`« peut demander a ia » demande la ligne « ia par anthropic » dans le serveur "${serveur.nom}".`, serveur.droitIa.ligne);
   if (serveur.droitIa?.qui === 'tout_le_monde') erreur(`chaque question à l'IA coûte : réservez-la à des comptes connectés, par exemple « connecte peut demander a ia ».`, serveur.droitIa.ligne);
-  const RESERVES_COMPTE = new Set(['id', 'email', 'role', 'statut', 'password', 'passwordhash', 'invitation', 'googlesubject', 'applesubject', ...serveur.donnees.flatMap((d) => (d.par ? [simplifier(d.par)] : []))]);
+  // Comparés une fois écrits comme dans le serveur produit (« password_hash » devient passwordHash) : jamais un nom interne du compte.
+  const interne = (nom: string) => simplifier(nom).replace(/_/g, '');
+  const RESERVES_COMPTE = new Set(['id', 'email', 'role', 'statut', 'password', 'passwordhash', 'invitation', 'googlesubject', 'applesubject', 'tokenversion', 'createdat', 'updatedat', ...serveur.donnees.flatMap((d) => (d.par ? [interne(d.par)] : []))]);
   for (const champ of serveur.champsCompte ?? []) {
-    if (RESERVES_COMPTE.has(simplifier(champ.nom))) erreur(`« ${champ.nom} » existe déjà sur un compte : donnez un autre nom à ce champ.`, champ.ligne);
+    if (RESERVES_COMPTE.has(interne(champ.nom))) erreur(`« ${champ.nom} » existe déjà sur un compte : donnez un autre nom à ce champ.`, champ.ligne);
   }
   const nomsDocuments = new Map<string, number>();
   for (const document of serveur.documents ?? []) {

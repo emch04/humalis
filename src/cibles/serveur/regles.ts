@@ -141,7 +141,7 @@ function valeurLiee(valeur: ValeurLieeRI, parent: string): string {
  * Les fiches qu'une requête peut citer dans un calcul (« somme prix de produit par refs », « au plus prix de zone par … ») :
  * seulement celles que cette personne pourrait lire par la route de cette donnée, avec les mêmes règles (rôle, « par
  * boutique », « par compte », « seul son auteur », « si … »). Sinon, citer l'identifiant d'une fiche cachée révélait son
- * prix dans le total. Une donnée sans route reste lue par le serveur seul : rien à cacher à une requête.
+ * prix dans le total. Une donnée sans route garde sa séparation (« par boutique », « par compte »).
  * groupeExpr : le groupe de la fiche écrite ; une référence doit alors être du même groupe (même pour un admin).
  */
 export function codeCercles(serveur: ServeurRI, donnee: Donnee, groupeExpr?: string): string {
@@ -150,7 +150,15 @@ export function codeCercles(serveur: ServeurRI, donnee: Donnee, groupeExpr?: str
   const entrees = lues.flatMap((nom) => {
     const source = serveur.donnees.find((d) => d.nom === nom);
     const route = serveur.routes.find((r) => r.donnee === nom && r.interne === undefined);
-    if (!source || !route) return [];
+    if (!source) return [];
+    if (!route) {
+      // Sans route, la donnée reste séparée : « tarif par boutique » ne se lit que dans sa boutique (revue Codex).
+      if (source.par === undefined) return [];
+      if (source.par === 'compte') return [`${chaine(nom)}: (f: Record<string, unknown>) => { const u = ${moi}; return u?.role === 'admin' || (u?.id !== undefined && f["compte"] === u.id); }`];
+      const champ = chaine(camel(source.par));
+      const valeur = groupeExpr !== undefined && donnee.par === source.par ? `${groupeExpr} ?? u?.[${champ}]` : `u?.[${champ}]`;
+      return [`${chaine(nom)}: (f: Record<string, unknown>) => { const u = ${moi}; return ((g: unknown) => (typeof g === 'string' && g !== '' ? f[${champ}] === g : u?.role === 'admin'))(${valeur}); }`];
+    }
     const tests: string[] = [];
     const libre = route.droits.lire;
     const conditions = route.conditions?.lire ?? [];
@@ -177,6 +185,40 @@ export function codeCercles(serveur: ServeurRI, donnee: Donnee, groupeExpr?: str
  * sinon une réservation créée avec un article à 1 € gardait ce total après qu'on y a mis des articles à 1 000 €. Et
  * une fiche déjà payée ne change plus ce qui fait son montant (sauf par un admin).
  */
+/**
+ * Ce qui fait le montant d'une fiche payable : les champs payés (« payer total pour r »), les calculs et ce qu'ils lisent.
+ * Une fiche payée ne les change plus, sauf par un admin.
+ */
+export function champsDuMontant(donnee: Donnee, route: Route): string[] {
+  const calculs = donnee.champs.flatMap((c) => (c.regle?.genre === 'somme' ? [c.nom, c.regle.liste, ...(c.regle.plus !== undefined ? [c.regle.plus] : [])] : c.regle?.genre === 'nombreDe' ? [c.nom, c.regle.liste] : []));
+  return [...new Set([...(route.payables ?? []), ...calculs].map((n) => camel(n)))];
+}
+
+/**
+ * L'écriture d'une modification. Pour une fiche payable, elle se fait dans une transaction qui relit la fiche
+ * verrouillée, comme la confirmation du paiement : une modification lancée juste avant que le paiement arrive ne
+ * peut plus écrire un panier plus cher dans une fiche déjà marquée payée (revue Codex).
+ */
+export function codeEcritureModification(donnee: Donnee, route: Route, avecTransaction: boolean): string {
+  const nom = camel(donnee.nom);
+  const paye = donnee.champs.find((c) => c.regle?.genre === 'depart' && c.regle.paiement === true);
+  const montant = champsDuMontant(donnee, route);
+  if (!paye || !avecTransaction || montant.length === 0) return `          const modifie = await stockages.${nom}.modifier(req.params.id, envoi.valeur);
+`;
+  return `          const montantTouche = ${JSON.stringify(montant)}.some((c) => c in envoi.valeur);
+          const admin = (req as unknown as { user?: { role?: unknown } }).user?.role === 'admin';
+          const modifie = await transaction(async (s) => {
+            const actuelle = await s.${nom}.trouver(req.params.id, true);
+            if (actuelle?.[${chaine(camel(paye.nom))}] === true && montantTouche && !admin) return 'payee' as const;
+            return s.${nom}.modifier(req.params.id, envoi.valeur);
+          });
+          if (modifie === 'payee') {
+            res.status(409).json({ erreur: 'Cette fiche est payée : ce qui fait son montant ne change plus.' });
+            return;
+          }
+`;
+}
+
 export function codeCalculsModification(serveur: ServeurRI, donnee: Donnee): string {
   const calculs = donnee.champs.filter((c) => c.regle?.genre === 'somme' || c.regle?.genre === 'nombreDe');
   if (calculs.length === 0) return '';

@@ -489,7 +489,7 @@ export class ServeurMemoire {
   /**
    * Les fiches qu'un calcul peut citer pour cette personne, comme dans le serveur produit : celles qu'elle pourrait lire
    * par la route de cette donnée (rôle, groupe, « seul son auteur », « si … »). groupe : celui de la fiche écrite, qu'une
-   * référence doit partager. Sans personne (le serveur lui-même) ou sans route, tout se lit.
+   * référence doit partager. Sans personne (le serveur lui-même), tout se lit ; sans route, la séparation reste.
    */
   private cercles(donnee: Donnee, moi: Compte | undefined, groupe: unknown): Record<string, ((fiche: Record<string, unknown>) => boolean) | undefined> {
     if (!moi) return {};
@@ -499,7 +499,18 @@ export class ServeurMemoire {
       const nom = c.regle.donnee;
       const source = this.donnee(nom);
       const route = this.serveur.routes.find((r) => r.donnee === nom && r.interne === undefined);
-      if (!route) continue;
+      if (!route) {
+        // Sans route, la donnée reste séparée, comme dans le serveur produit.
+        if (source.par === undefined) continue;
+        if (source.par === 'compte') {
+          resultat[nom] = (fiche) => moi.role === 'admin' || fiche.compte === moi.id;
+          continue;
+        }
+        const champ = camel(source.par);
+        const g = (donnee.par === source.par && typeof groupe === 'string' && groupe !== '' ? groupe : undefined) ?? moi[champ];
+        resultat[nom] = (fiche) => (typeof g === 'string' && g !== '' ? fiche[champ] === g : moi.role === 'admin');
+        continue;
+      }
       const libre = route.droits.lire;
       const conditions = route.conditions?.lire ?? [];
       const admin = moi.role === 'admin';
