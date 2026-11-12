@@ -1275,7 +1275,7 @@ ${codeCreation(serveur, route, donneeRoute, schema, [route.envois?.length ? code
       });
       ${variable}.patch('/:id', ${garde('modifier')}${csrf('modifier')}, async (req, res, next) => {
         try {
-${voir('modifier')}          const envoi = verifierEnvoi(${schema}, req.body, false${reglesEnvoi(donneeRoute, route)});
+${voir('modifier')}          const envoi = verifierEnvoi(${schema}, req.body, false${reglesEnvoi(donneeRoute, route, true)});
           if ('erreur' in envoi) {
             res.status(400).json({ erreur: envoi.erreur });
             return;

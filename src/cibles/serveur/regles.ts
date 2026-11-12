@@ -21,18 +21,34 @@ export function champsDuServeur(donnee: Donnee, route?: Route): string[] {
   return donnee.champs.filter((c) => decide(c.regle) || dans.includes(c.nom)).map((c) => camel(c.nom));
 }
 
+/**
+ * Les champs que seul le serveur écrit, et que la requête ne peut changer ni à la création ni à la modification :
+ * « auteur », le champ de séparation (« par compte », « par boutique »), les calculs (« calcule … », qu'un admin
+ * peut corriger) et « paye »,
+ * écrit seulement quand Stripe confirme le paiement. Sinon un compte pourrait déplacer sa fiche chez un autre, se
+ * dire auteur à la place d'un autre, changer un total calculé ou marquer une fiche payée sans payer.
+ */
+export function champsFiges(donnee: Donnee, admin = false): string[] {
+  return donnee.champs
+    .filter((c) => c.regle?.genre === 'auteur' || c.regle?.genre === 'groupe' || (!admin && (c.regle?.genre === 'nombreDe' || c.regle?.genre === 'somme')) || (c.nom === 'paye' && c.regle?.genre === 'depart' && c.type.genre === 'booleen'))
+    .map((c) => camel(c.nom));
+}
+
 const champsDuSite = (donnee: Donnee) => donnee.champs.filter((c) => c.regle?.genre === 'site').map((c) => camel(c.nom));
 
 /** Le dernier argument de verifierEnvoi ; rien si la donnée n'a pas de règle, pour que le code produit ne change pas. */
-export function reglesEnvoi(donnee: Donnee, route: Route): string {
+export function reglesEnvoi(donnee: Donnee, route: Route, modification = false): string {
   const serveur = champsDuServeur(donnee, route);
   const site = champsDuSite(donnee);
   const nonVides = donnee.champs.filter((c) => c.nonVide).map((c) => camel(c.nom));
-  // « auteur » et le champ de séparation (« par compte », « par boutique ») ne changent jamais, même dans une
-  // modification : sinon un compte pourrait déplacer sa fiche dans l'espace d'un autre.
-  const fixes = donnee.champs.filter((c) => c.regle?.genre === 'auteur' || c.regle?.genre === 'groupe').map((c) => camel(c.nom));
+  const fixes = champsFiges(donnee);
+  const fixesHorsAdmin = champsFiges(donnee, true);
+  // Dans une modification, un admin peut corriger un calcul ; personne d'autre.
+  const codeFixes = modification && fixesHorsAdmin.length !== fixes.length
+    ? `(req as unknown as { user?: { role?: unknown } }).user?.role === 'admin' ? ${JSON.stringify(fixesHorsAdmin)} : ${JSON.stringify(fixes)}`
+    : JSON.stringify(fixes);
   if (serveur.length === 0 && site.length === 0 && nonVides.length === 0) return '';
-  return `, { duServeur: ${JSON.stringify(serveur)}, duSite: ${JSON.stringify(site)}${nonVides.length > 0 ? `, nonVides: ${JSON.stringify(nonVides)}` : ''}${fixes.length > 0 ? `, fixes: ${JSON.stringify(fixes)}` : ''} }`;
+  return `, { duServeur: ${JSON.stringify(serveur)}, duSite: ${JSON.stringify(site)}${nonVides.length > 0 ? `, nonVides: ${JSON.stringify(nonVides)}` : ''}${fixes.length > 0 ? `, fixes: ${codeFixes}` : ''} }`;
 }
 
 /** Vrai si la création de cette donnée passe par une fonction « completer… ». */

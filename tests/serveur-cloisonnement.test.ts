@@ -22,6 +22,19 @@ describe('le cloisonnement des données du serveur', () => {
     }
   });
 
+  it('« paye » et les calculs ne s’écrivent jamais par une requête, même dans une modification', () => {
+    const source = 'serveur "salon" :\n    paiements par stripe\n    donnee produit :\n        nom : texte\n        prix : nombre\n    donnee reservation :\n        refs : liste de texte\n        total : nombre calcule somme prix de produit par refs\n    route "produits" :\n        tout le monde peut lire produit\n    route "reservations" :\n        connecte peut lire reservation\n        connecte peut creer reservation\n        seul son auteur peut modifier reservation\n        quand reservation est payee :\n            creer journal avec nom "payée"\n    donnee journal :\n        nom : texte\n    route "journaux" :\n        seul admin peut lire journal\n\npage "a" :\n    titre "A"\n';
+    const { application, diagnostics } = compiler(source);
+    expect(diagnostics.filter((d) => d.gravite === 'erreur').map((d) => d.message)).toEqual([]);
+    const serveur = genererProjetServeur(application!.serveurs[0]!, { nom: 'b', source: 'b.humalis' }).get('src/serveur.ts')!;
+    const modification = serveur.split('\n').find((l) => l.includes('verifierEnvoi(SCHEMA_RESERVATION, req.body, false'))!;
+    // Un admin peut corriger le total calculé ; personne ne change « paye » ni « auteur ».
+    const [admin, autres] = modification.split("=== 'admin' ? ")[1]!.split(' : ');
+    for (const champ of ['paye', 'auteur']) expect(admin, champ).toContain(`"${champ}"`);
+    expect(admin).not.toContain('"total"');
+    for (const champ of ['paye', 'total', 'auteur']) expect(autres, champ).toContain(`"${champ}"`);
+  });
+
   it('un champ « auteur » déclaré à la main est refusé avec « seul son auteur peut … »', () => {
     const source = 'serveur "avis" :\n    donnee avis :\n        texte : texte\n        auteur : texte\n    route "avis" :\n        tout le monde peut lire avis\n        tout le monde peut creer avis\n        seul son auteur peut modifier avis\n\npage "a" :\n    titre "A"\n';
     expect(erreurs(source)[0]).toContain('le champ « auteur » de la donnée « avis » est rempli par le serveur');

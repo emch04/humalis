@@ -8,6 +8,7 @@
 import type { ConditionRegleRI, FiltreServeurRI, InstructionServeurRI, OperandeRI, QuiPeut, RegleChampRI, ServeurRI, TestServeurRI, ValeurLieeRI, ValeurServeurRI } from '../../ri/types.js';
 import { camel } from '../../cibles/web/noms.js';
 import { simplifier } from '../../analyse/elements.js';
+import { champsFiges } from '../../cibles/serveur/regles.js';
 import { Refus, Stockage, Transactions, agreger, contient, enTexte, estVide, lireFiltres, resumer, schemaDe, verifierEnvoi, type Enregistrement, type Filtres, type ReglesEnvoi, type Schema } from './base.js';
 import { Comptes, DUREES, MOT_DE_PASSE_FAIBLE, ROLE_RETIRE, jetonAleatoire, motDePasseDEssai, motDePasseSolide, verifierMotDePasse, hacher, type Compte, type SessionOuverte } from './comptes.js';
 import { limitesDuServeur, type Limite } from './limites.js';
@@ -458,12 +459,12 @@ export class ServeurMemoire {
     const dans = (route?.creations ?? []).flatMap((c) => (c.dans !== undefined ? [c.dans] : []));
     return donnee.champs.filter((c) => decide(c.regle) || dans.includes(c.nom)).map((c) => camel(c.nom));
   }
-  private reglesEnvoi(donnee: Donnee, route: Route): ReglesEnvoi {
+  private reglesEnvoi(donnee: Donnee, route: Route, admin = false): ReglesEnvoi {
     return {
       duServeur: this.champsDuServeur(donnee, route),
       duSite: donnee.champs.filter((c) => c.regle?.genre === 'site').map((c) => camel(c.nom)),
       nonVides: donnee.champs.filter((c) => c.nonVide).map((c) => camel(c.nom)),
-      fixes: donnee.champs.filter((c) => c.regle?.genre === 'auteur' || c.regle?.genre === 'groupe').map((c) => camel(c.nom)),
+      fixes: champsFiges(donnee, admin),
       adresseDuSite: this.options.adresse,
     };
   }
@@ -648,7 +649,7 @@ export class ServeurMemoire {
       if (refus) return refus;
       const v = visible('modifier', premier);
       if (!('fiche' in v)) return v;
-      const envoi = verifierEnvoi(schema, c.requete.corps, false, this.reglesEnvoi(donnee, route));
+      const envoi = verifierEnvoi(schema, c.requete.corps, false, this.reglesEnvoi(donnee, route, c.moi?.role === 'admin'));
       if ('erreur' in envoi) return rep(400, { erreur: envoi.erreur });
       const modifie = stock.modifier(premier, envoi.valeur);
       if (!modifie) return rep(404, { erreur: introuvable(route.donnee) });
