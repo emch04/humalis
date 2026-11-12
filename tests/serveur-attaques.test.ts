@@ -30,7 +30,10 @@ const awa = await usersStore.create({ email: 'awa@essai.test', role: 'user', pas
 const bob = await usersStore.create({ email: 'bob@essai.test', role: 'user', passwordHash });
 await usersStore.create({ email: 'gerant@essai.test', role: 'gerant', passwordHash });
 const stockages = { produit: creerStockageMemoire(), secret: creerStockageMemoire(), facture: creerStockageMemoire(), reservation: creerStockageMemoire(), journal: creerStockageMemoire() };
-const app = creerServeur({ jwtSecret: 'secret-de-test-assez-long-pour-les-sessions', usersStore, stockages });
+// Une surveillance d'essai : elle ne fait que retenir ce qu'on lui signale.
+const signalees = [];
+const surveillance = { intergiciel: () => (_req, _res, next) => next(), gestionnaireErreurs: () => (erreur, _req, _res, next) => next(erreur), vider: async () => {}, signaler: (erreur) => signalees.push(String(erreur?.message ?? erreur)) };
+const app = creerServeur({ jwtSecret: 'secret-de-test-assez-long-pour-les-sessions', usersStore, stockages, surveillance });
 const ecoute = app.listen(0);
 await new Promise((pret) => ecoute.once('listening', pret));
 const base = 'http://127.0.0.1:' + ecoute.address().port;
@@ -77,6 +80,7 @@ r.paiementBonMontant = await webhook(700);
 r.paiementRejoue = await webhook(700);
 console.error = silence;
 r.journalApresPaiement = { statut: 0, corps: { lignes: (await stockages.journal.lister()).length } };
+r.paiementSignale = { statut: 0, corps: { signalees } };
 ecoute.close();
 ecoute.closeAllConnections();
 console.log(JSON.stringify(r));
@@ -147,6 +151,12 @@ describe('des attaques sur un vrai serveur produit', () => {
     expect(r.paiementBonMontant!.corps.paye).toBe(true);
     expect(r.paiementRejoue!.statut).toBe(200);
     expect(r.journalApresPaiement!.corps.lignes).toBe(1);
+  });
+  it('ce paiement non enregistré est signalé à la surveillance, une fois, avec le montant reçu et le montant attendu', () => {
+    const signalees = r.paiementSignale!.corps.signalees as string[];
+    expect(signalees).toHaveLength(1);
+    expect(signalees[0]).toContain('paiement de 5 reçu pour « reservation »');
+    expect(signalees[0]).toContain('mais la fiche demande 7');
   });
   it('un « paye » ordinaire, sans Stripe, s’encaisse à la main', () => {
     expect(r.factureEncaissee!.statut).toBe(200);

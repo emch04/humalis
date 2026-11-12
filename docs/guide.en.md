@@ -2625,6 +2625,13 @@ server, never sent by the page. The record gets a `paye` field, written only whe
 confirms it through a signed webhook: send it to `/paiements/webhook`. It needs
 `STRIPE_CLE_SECRETE`, `STRIPE_SECRET_WEBHOOK` and `HUMALIS_ADRESSE_SITE`.
 
+Nobody can write `paye` through a request, not even an admin. If the amount Stripe confirms
+is no longer the record's amount (it changed during the payment), or if the record is gone,
+nothing is marked as paid: the server answers Stripe with an error, writes the cause to its
+log and reports it to monitoring when it is set up (`CENTRALE_ADRESSE`, `CENTRALE_CLE`).
+Stripe then retries this payment for about three days and shows it in its dashboard. Fix the
+record's amount and the next attempt records it; otherwise, refund the person from Stripe.
+
 #### Resending without duplicates
 
 If the connection drops during a send, a program can safely try again: it sends the

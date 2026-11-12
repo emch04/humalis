@@ -634,6 +634,8 @@ import type { ErrorRequestHandler, RequestHandler } from 'express';
 export interface Surveillance {
   intergiciel(): RequestHandler;
   gestionnaireErreurs(): ErrorRequestHandler;
+  /** Signale une panne qui n'arrive pas par une requête ordinaire (un paiement reçu que la fiche ne peut pas prendre). */
+  signaler(erreur: unknown): void;
   /** Envoie ce qui reste en file ; ne rejette jamais. */
   vider(): Promise<void>;
 }
@@ -679,6 +681,9 @@ export async function demarrerCentrale(env: Record<string, string | undefined> =
     const centrale = demarrer({ cle, adresse, environnement: demande ?? (env.NODE_ENV === 'production' ? 'production' : 'developpement'), strict: true }, transport);
     return {
       vider: () => centrale.vider(),
+      signaler: (erreur) => {
+        centrale.erreur(assainir(erreur));
+      },
       intergiciel: () => centrale.intergiciel() as unknown as RequestHandler,
       gestionnaireErreurs: () => {
         const signaler = centrale.gestionnaireErreurs() as unknown as ErrorRequestHandler;
@@ -1475,6 +1480,8 @@ ${serveur.captureErreurs ? '  brancherErreursProcessus();\n' : ''}
   const renouvellement = creerRenouvellement(session);
 ${comptes ? codeCreationComptes(serveur, chemins).replace('usersStore,', 'usersStore: tousLesComptes,') + '  // Pour les packs, un compte retiré n\'existe plus.\n  const usersStore = sansLesRetires(tousLesComptes);\n' : ''}${envoisDansRoutes || employe(serveur, (i) => i.type === 'email' && i.a.genre === 'admins') ? `  const adressesDesAdmins = async () => (await usersStore.list({ role: 'admin', limit: 100 })).map((compte) => String(compte.email)).filter(Boolean);\n` : ''}${avecNotifications(serveur) ? '  const notifications = creerNotifications({ usersStore, appareils });\n' : ''}${avecPaiements(serveur) ? `  let surPaiement: SurPaiement<ReturnType<typeof nouveauTravail>, OptionsDuServeur['stockages']> = {};
   const paiements = creerPaiements({
+    // Un paiement reçu mais non enregistré part aussi à la surveillance, pour que quelqu'un le voie.
+    surErreur: (erreur) => surveillance?.signaler(erreur),
     surConfirme: async (donnee, id, champ, montant) => {
       const travail = nouveauTravail();
       await transaction((s) => surPaiement[donnee]?.(travail, s, id, champ, montant) ?? Promise.resolve());

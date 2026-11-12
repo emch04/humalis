@@ -696,7 +696,7 @@ const adresseDuSite = () => {
   return /^https:\/\/[^/]|^http:\/\/localhost(:\d+)?$/.test(adresse) ? adresse : null;
 };
 
-export function creerPaiements<T, S>({ surConfirme }: { surConfirme: (donnee: string, id: string, champ: string, montant: number) => Promise<void> }) {
+export function creerPaiements<T, S>({ surConfirme, surErreur }: { surConfirme: (donnee: string, id: string, champ: string, montant: number) => Promise<void>; surErreur?: (erreur: unknown) => void }) {
   return {
     async creer({ donnee, champ, id, centimes, retour }: { donnee: string; champ: string; id: string; centimes: number; retour: unknown }): Promise<{ url: string } | { erreur: string; statut: number }> {
       const stripe = client();
@@ -748,6 +748,10 @@ export function creerPaiements<T, S>({ surConfirme }: { surConfirme: (donnee: st
             } catch (erreur) {
               // Une erreur ici : Stripe rappellera, et rien n'a été écrit.
               console.error('Un paiement n\'a pas été enregistré :', erreur instanceof Error ? erreur.message : erreur);
+              // La surveillance, si elle est réglée : le journal seul ne prévient personne.
+              try {
+                surErreur?.(erreur);
+              } catch { /* La surveillance ne doit jamais empêcher de répondre à Stripe. */ }
               res.status(500).end();
               return;
             }

@@ -2548,6 +2548,14 @@ seulement quand Stripe le confirme par un webhook signé : envoie-le vers
 `/paiements/webhook`. Il faut `STRIPE_CLE_SECRETE`, `STRIPE_SECRET_WEBHOOK` et
 `HUMALIS_ADRESSE_SITE`.
 
+Personne ne peut écrire `paye` par une requête, pas même un admin. Si le montant que Stripe
+confirme n'est plus celui de la fiche (elle a changé pendant le paiement), ou si la fiche a
+disparu, rien n'est marqué payé : le serveur répond une erreur à Stripe, écrit la cause dans
+son journal et la signale à la surveillance si elle est réglée (`CENTRALE_ADRESSE`,
+`CENTRALE_CLE`). Stripe représente alors ce paiement pendant trois jours environ et le montre
+dans son tableau de bord. Corrige le montant de la fiche et l'essai suivant l'enregistre ;
+sinon, rembourse la personne depuis Stripe.
+
 #### Renvoyer sans créer de doublon
 
 Si la connexion coupe en plein envoi, un programme peut recommencer sans risque : il envoie
