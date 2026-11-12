@@ -4079,7 +4079,9 @@ marche aussi sur un Mac ou sous Linux ; seul le lancement demande Windows 10 ou 
 - Ce que Humalis ne sait pas encore faire s'écrit en C# : `utiliser composant "Carte" sur
   windows "./natif/Carte.cs"`, avec ses bibliothèques NuGet (`paquet windows "…" version
   "…"`) ; voir « Une vue native écrite à la main ».
-- Pas encore sur Windows : paiement, IA, connexion avec Google ou Apple, invitations,
+- `payer total pour r` ouvre la page de paiement de Stripe dans le navigateur ; de retour
+  dans l'application, la page relit ses données, et la fiche payée apparaît.
+- Pas encore sur Windows : IA, connexion avec Google ou Apple, invitations,
   notifications envoyées par le serveur. La compilation s'arrête et dit quelle ligne en a besoin.
 
 Les formes propres aux applications marchent sans paquet MSIX : l'application s'inscrit

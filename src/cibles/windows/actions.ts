@@ -269,6 +269,14 @@ export class EcrivainActions {
       case 'suppression':
       case 'modification':
         return this.ecriture(e, a, c);
+      case 'paiement': {
+        if (!this.hote.dansUnePage) return this.hote.refuser('« payer » dans une fonction');
+        const appel = `${chaineCs(a.adresse)}, Serveur.Identifiant(${this.x.expr(a.objet)})`;
+        if (c.essai) e.ligne(`await Serveur.PayerOuEchouer(${appel});`);
+        else if (c.formulaire) e.ligne(`if (!await Serveur.Payer(${appel})) return;`);
+        else e.ligne(`await Serveur.Payer(${appel});`);
+        return;
+      }
       case 'optimiste':
         return this.optimiste(e, a, c);
       case 'envoiFichier':
@@ -409,6 +417,16 @@ export class EcrivainActions {
     e.ligne(`var (hOk${n}, hValeur${n}) = await Serveur.Lire(${adresse}${fin});`);
     if (c.formulaire && !lecture) e.ligne(`if (!hOk${n}) return;`);
     e.ligne(`if (hOk${n} && hValeur${n} is not null && EstDernier(${chaineCs(a.resultat!)}, hJeton${n})) ${ecrire(`hValeur${n}`)}`);
+    // La page sait aussi relire cette lecture : « recharger », et le retour d'un paiement (RelireTout).
+    if (lecture) {
+      e.ligne(`relances.TryAdd(${chaineCs(a.resultat!)}, async () =>`);
+      e.ligne('{');
+      e.indenter(() => {
+        e.ligne(`var (hOk, hRelue) = await Serveur.Lire(${adresse}${fin});`);
+        e.ligne(`if (hOk && hRelue is not null) ${ecrire('hRelue')}`);
+      });
+      e.ligne('});');
+    }
   }
 
   private ecriture(e: Ecrivain, a: Extract<Action, { type: 'suppression' | 'modification' }>, c: Cadre): void {
@@ -496,7 +514,6 @@ const NOMS_ACTIONS: Partial<Record<Action['type'], string>> = {
   connexionApple: 'se connecter avec apple',
   invitation: 'inviter',
   changementCompte: 'changer compte',
-  paiement: 'payer',
   demandeIa: 'demander a ia',
   activationNotifications: 'activer notifications',
   prisePhoto: 'photo dans',

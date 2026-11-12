@@ -238,6 +238,46 @@ public static class Serveur
 
     /// <summary>L'identifiant d'une donnée, pour la modifier ou la supprimer.</summary>
     public static string Identifiant(object? objet) => V.T(V.Champ(objet, "id"));
+
+    private static bool paiementOuvert;
+
+    /// <summary>
+    /// « payer total pour r » : le serveur prépare le paiement Stripe (le montant est relu chez lui),
+    /// sa page s'ouvre dans le navigateur. Au retour dans l'application, la page relit ses données
+    /// (voir RetourDePaiement) : la fiche payée apparaît quand le webhook de Stripe l'a confirmée.
+    /// </summary>
+    public static async Task PayerOuEchouer(string adresse, string id)
+    {
+        var reponse = await Appel(adresse, "POST", V.FicheDe(("retour", "/")), id);
+        var url = V.T(V.Champ(reponse, "url"));
+        // Seulement la page de Stripe en https (ou un serveur de cette machine pendant le développement).
+        if (!url.StartsWith("https://", StringComparison.Ordinal) && !url.StartsWith("http://localhost", StringComparison.Ordinal) && !url.StartsWith("http://127.0.0.1", StringComparison.Ordinal))
+            throw new ErreurHumalis("Le paiement n'a pas pu s'ouvrir.");
+        paiementOuvert = true;
+        await UI.OuvrirExterne(url);
+    }
+
+    public static async Task<bool> Payer(string adresse, string id)
+    {
+        try
+        {
+            await PayerOuEchouer(adresse, id);
+            return true;
+        }
+        catch (ErreurHumalis e)
+        {
+            Messages.Afficher(e.Message, "erreur");
+            return false;
+        }
+    }
+
+    /// <summary>Vrai une fois, au premier retour dans l'application après l'ouverture d'un paiement.</summary>
+    public static bool RetourDePaiement()
+    {
+        if (!paiementOuvert) return false;
+        paiementOuvert = false;
+        return true;
+    }
 }
 
 /// <summary>Qui est connecté : toujours lu sur /auth/me du serveur, jamais deviné par l'application.</summary>

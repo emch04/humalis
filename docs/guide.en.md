@@ -4148,7 +4148,9 @@ Mac or on Linux; only running it needs Windows 10 or 11.
 - What Humalis cannot do yet is written in C#: `utiliser composant "Carte" sur windows
   "./natif/Carte.cs"`, with its NuGet libraries (`paquet windows "…" version "…"`); see
   "A hand-written native view".
-- Not on Windows yet: payment, AI, signing in with Google or Apple, invitations,
+- `payer total pour r` opens the Stripe payment page in the browser; back in the app,
+  the page reads its data again, and the paid record shows up.
+- Not on Windows yet: AI, signing in with Google or Apple, invitations,
   notifications sent by the server. Compilation stops and says which line needs them.
 
 The app-specific forms work without an MSIX package: the app registers itself with Windows
