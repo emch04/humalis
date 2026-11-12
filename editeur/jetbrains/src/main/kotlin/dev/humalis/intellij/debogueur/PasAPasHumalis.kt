@@ -69,14 +69,15 @@ class PasAPasHumalis : ExtraSteppingFilter {
     companion object {
         /** Vrai pour le code d'une fonction inline recopié dans une classe produite par Humalis (strate KotlinDebug). */
         fun estRecopieInline(endroit: Location): Boolean = try {
-            val type = endroit.declaringType()
-            HumalisPositionManager.aLaStrate(type) && HumalisPositionManager.aLaStrateDebug(type) &&
-                endroit.lineNumber(HumalisPositionManager.STRATE_KOTLIN_DEBUG) > 0
+            SmapHumalis.estRecopie(endroit)
         } catch (_: Exception) {
             false
         }
 
-        fun aUneLigneHumalis(endroit: Location): Boolean =
-            HumalisPositionManager.aLaStrate(endroit.declaringType()) && endroit.lineNumber(STRATE_HUMALIS) > 0
+        fun aUneLigneHumalis(endroit: Location): Boolean = try {
+            SmapHumalis.situer(endroit) != null
+        } catch (_: Exception) {
+            false
+        }
     }
 }

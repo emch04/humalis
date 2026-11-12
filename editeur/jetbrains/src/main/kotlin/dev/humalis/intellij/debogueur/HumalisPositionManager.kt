@@ -10,7 +10,6 @@ import com.intellij.debugger.engine.DebugProcessListener
 import com.intellij.debugger.engine.PositionManagerWithMultipleStackFrames
 import com.intellij.debugger.engine.evaluation.EvaluationContext
 import com.intellij.debugger.jdi.StackFrameProxyImpl
-import com.intellij.debugger.jdi.VirtualMachineProxyImpl
 import com.intellij.debugger.requests.ClassPrepareRequestor
 import com.intellij.debugger.ui.impl.watch.StackFrameDescriptorImpl
 import com.intellij.openapi.application.ReadAction
@@ -23,12 +22,16 @@ import com.sun.jdi.AbsentInformationException
 import com.sun.jdi.Location
 import com.sun.jdi.ReferenceType
 import com.sun.jdi.request.ClassPrepareRequest
+import com.sun.jdi.request.EventRequest
+import java.util.concurrent.ConcurrentHashMap
 import dev.humalis.intellij.HumalisFileType
 
 /** Branche le gestionnaire de positions Humalis sur chaque session de débogage d'un projet qui a une table. */
 class HumalisPositionManagerFactory : PositionManagerFactory() {
     override fun createPositionManager(process: DebugProcess): PositionManager? {
-        if (TablesDuProjet.de(process.project).tables().isEmpty()) return null
+        val tables = TablesDuProjet.de(process.project).tables()
+        if (tables.isEmpty()) return null
+        SmapHumalis.connaitre(tables.flatMap { it.paquets })
         val gestionnaire = HumalisPositionManager(process)
         // Le dernier gestionnaire ajouté est consulté le premier : une fois tous les gestionnaires
         // branchés (Kotlin compris), celui de Humalis repasse en tête, pour qu'un endroit qui a une
@@ -36,6 +39,7 @@ class HumalisPositionManagerFactory : PositionManagerFactory() {
         process.addDebugProcessListener(object : DebugProcessListener {
             override fun processAttached(processus: DebugProcess) {
                 processus.appendPositionManager(gestionnaire)
+                gestionnaire.suivreLesClasses()
             }
         })
         return gestionnaire
@@ -67,14 +71,8 @@ class HumalisPositionManager(private val process: DebugProcess) : MultiRequestPo
     override fun getSourcePosition(location: Location?): SourcePosition {
         if (location == null) throw NoDataException.INSTANCE
         val type = location.declaringType()
-        if (!aLaStrate(type)) throw NoDataException.INSTANCE
-        val ligne = location.lineNumber(STRATE_HUMALIS)
-        if (ligne <= 0) throw NoDataException.INSTANCE
-        val chemin = try {
-            location.sourcePath(STRATE_HUMALIS)
-        } catch (_: AbsentInformationException) {
-            throw NoDataException.INSTANCE
-        }
+        // Seules les lignes que la strate Humalis couvre vraiment (pas le code recopié d'une fonction inline).
+        val (chemin, ligne) = SmapHumalis.situer(location) ?: throw NoDataException.INSTANCE
         val table = tables.pourClasse(type.name(), chemin) ?: throw NoDataException.INSTANCE
         val fichier = LocalFileSystem.getInstance().findFileByIoFile(table.fichierHumalis(chemin)) ?: throw NoDataException.INSTANCE
         return ReadAction.compute<SourcePosition?, RuntimeException> {
@@ -82,10 +80,36 @@ class HumalisPositionManager(private val process: DebugProcess) : MultiRequestPo
         } ?: throw NoDataException.INSTANCE
     }
 
+    /**
+     * Les classes du projet déjà préparées. Pas de `VirtualMachine.allClasses()` :
+     * sur Android, la liste compte des dizaines de milliers de classes, et les
+     * références qu'ART garde alors ralentissent chaque commande du débogueur au
+     * point de bloquer le démarrage (avec un point d'arrêt Kotlin dans une
+     * fonction inline, qui fait préparer beaucoup de classes). Les classes du
+     * projet sont suivies dès le branchement ; les classes principales des
+     * fichiers Kotlin sont aussi cherchées par leur nom (débogueur branché à une
+     * application déjà lancée).
+     */
     override fun getAllClasses(position: SourcePosition): List<ReferenceType> {
         val cibles = cibles(position)
-        val vm = process.virtualMachineProxy as VirtualMachineProxyImpl
-        return vm.allClasses().filter { type -> cibles.any { (table, chemin) -> table.contientClasse(type.name()) && porte(type, chemin) } }
+        val vm = process.virtualMachineProxy
+        val connues = LinkedHashSet<ReferenceType>(classesPreparees)
+        for ((table, _) in cibles) for (nom in table.classesPrincipales()) connues += vm.classesByName(nom)
+        return connues.filter { type -> type.isPrepared && cibles.any { (table, chemin) -> table.contientClasse(type.name()) && porte(type, chemin) } }
+    }
+
+    /** Les classes préparées des paquets du projet, suivies depuis le branchement. */
+    private val classesPreparees: MutableSet<ReferenceType> = ConcurrentHashMap.newKeySet()
+
+    /** Suit la préparation des classes des paquets du projet (sans arrêter l'application). */
+    fun suivreLesClasses() {
+        val gestionnaire = process.requestsManager
+        val suivi = ClassPrepareRequestor { _, type -> classesPreparees += type }
+        for (paquet in tables.tables().flatMap { it.paquets }.toSet()) {
+            val demande = gestionnaire.createClassPrepareRequest(suivi, if (paquet.isEmpty()) "*" else "$paquet.*") ?: continue
+            demande.setSuspendPolicy(EventRequest.SUSPEND_NONE)
+            gestionnaire.enableRequest(demande)
+        }
     }
 
     override fun locationsOfLine(type: ReferenceType, position: SourcePosition): List<Location> {
@@ -100,9 +124,10 @@ class HumalisPositionManager(private val process: DebugProcess) : MultiRequestPo
             } catch (_: AbsentInformationException) {
                 continue
             }
-            trouves += endroits.filter { cheminDe(it) == chemin }
+            // JDI peut rendre des endroits voisins : on garde ceux que la strate relie exactement à cette ligne.
+            trouves += endroits.filter { SmapHumalis.situer(it) == chemin to ligne }
         }
-        return EndroitsHumalis.garder(trouves, enLigne = { aLaStrateDebug(it.declaringType()) && it.lineNumber(STRATE_KOTLIN_DEBUG) > 0 })
+        return EndroitsHumalis.garder(trouves, enLigne = { SmapHumalis.estRecopie(it) })
     }
 
     override fun createPrepareRequests(requestor: ClassPrepareRequestor, position: SourcePosition): List<ClassPrepareRequest> {
@@ -132,7 +157,7 @@ class HumalisPositionManager(private val process: DebugProcess) : MultiRequestPo
         } catch (_: Exception) {
             null
         } ?: return null
-        if (!aLaStrate(location.declaringType()) || location.lineNumber(STRATE_HUMALIS) <= 0) return null
+        if (SmapHumalis.situer(location) == null) return null
         return listOf(CadreHumalis(descriptor))
     }
 
@@ -146,33 +171,9 @@ class HumalisPositionManager(private val process: DebugProcess) : MultiRequestPo
         return tables.pour(fichier).ifEmpty { throw NoDataException.INSTANCE }
     }
 
-    private fun cheminDe(endroit: Location): String? = try {
-        endroit.sourcePath(STRATE_HUMALIS)
-    } catch (_: AbsentInformationException) {
-        null
-    }
-
     companion object {
-        const val STRATE_KOTLIN_DEBUG = "KotlinDebug"
-
-        fun aLaStrate(type: ReferenceType): Boolean = try {
-            STRATE_HUMALIS in type.availableStrata()
-        } catch (_: Exception) {
-            false
-        }
-
-        fun aLaStrateDebug(type: ReferenceType): Boolean = try {
-            STRATE_KOTLIN_DEBUG in type.availableStrata()
-        } catch (_: Exception) {
-            false
-        }
-
         /** Vrai si la strate Humalis de la classe porte ce fichier. */
-        fun porte(type: ReferenceType, chemin: String): Boolean = try {
-            aLaStrate(type) && chemin in type.sourcePaths(STRATE_HUMALIS)
-        } catch (_: Exception) {
-            false
-        }
+        fun porte(type: ReferenceType, chemin: String): Boolean = SmapHumalis.de(type)?.chemins?.contains(chemin) == true
     }
 }
 
@@ -196,3 +197,4 @@ object EndroitsHumalis {
         return gardes.sortedWith(compareBy({ it.method().name() }, { it.codeIndex() }))
     }
 }
+

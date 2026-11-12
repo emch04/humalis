@@ -18,8 +18,21 @@ import java.util.concurrent.ConcurrentHashMap
 class TablesDuProjet(private val project: Project) {
     private val lues = ConcurrentHashMap<String, Pair<Long, TableDebogueur>>()
 
-    /** Les tables du projet, à jour. */
-    fun tables(): List<TableDebogueur> = candidats().mapNotNull { lire(it) }
+    @Volatile private var recentes: Pair<Long, List<TableDebogueur>>? = null
+
+    /**
+     * Les tables du projet, à jour à deux secondes près : le débogueur les
+     * demande pour chaque endroit qu'il situe, le disque n'est relu qu'une
+     * fois par intervalle (une nouvelle compilation est vue aussitôt après).
+     */
+    fun tables(): List<TableDebogueur> {
+        val maintenant = System.currentTimeMillis()
+        recentes?.let { (quand, liste) -> if (maintenant - quand < 2000) return liste }
+        val liste = candidats().mapNotNull { lire(it) }
+        recentes = maintenant to liste
+        liste.forEach { SmapHumalis.connaitre(it.paquets) }
+        return liste
+    }
 
     /** Les tables qui contiennent ce fichier Humalis, chacune avec le chemin du fichier tel qu'il est écrit dans les classes. */
     fun pour(fichier: VirtualFile): List<Pair<TableDebogueur, String>> {

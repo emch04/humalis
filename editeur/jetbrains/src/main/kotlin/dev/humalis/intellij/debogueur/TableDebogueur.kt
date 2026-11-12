@@ -27,6 +27,8 @@ class TableDebogueur(
     val chemins: List<String>,
     /** Les paquets Kotlin des classes produites. */
     val paquets: Set<String>,
+    /** Les fichiers Kotlin produits qui portent des lignes Humalis (« a/b/PageAccueil.kt »). */
+    val fichiersKotlin: List<String>,
     /** Pour chaque fichier Humalis (index dans [chemins]), les lignes qui produisent du code. */
     private val lignesDeCode: Map<Int, Set<Int>>,
 ) {
@@ -41,6 +43,18 @@ class TableDebogueur(
 
     /** Les lignes (à partir de 1) qui produisent du code dans ce fichier Humalis, ou null s'il n'est pas de ce projet. */
     fun lignesDeCode(chemin: String): Set<Int>? = chemins.indexOf(chemin).takeIf { it >= 0 }?.let { lignesDeCode[it] ?: emptySet() }
+
+    /**
+     * Les classes principales des fichiers Kotlin (« a.b.PageAccueilKt »,
+     * « a.b.ComposableSingletons$PageAccueilKt ») : les fonctions d'une page,
+     * ses événements et leurs fonctions locales y sont compilés.
+     */
+    fun classesPrincipales(): List<String> = fichiersKotlin.flatMap { chemin ->
+        val paquet = chemin.substringBeforeLast('/', "").replace('/', '.')
+        val nom = chemin.substringAfterLast('/').removeSuffix(".kt").replaceFirstChar { it.uppercaseChar() } + "Kt"
+        val prefixe = if (paquet.isEmpty()) "" else "$paquet."
+        listOf(prefixe + nom, "${prefixe}ComposableSingletons\$$nom")
+    }
 
     /** Vrai si la classe (nom JVM, « a.b.C$D ») est dans un paquet de la table. */
     fun contientClasse(nom: String): Boolean = nom.substringBeforeLast('.', "") in paquets
@@ -61,6 +75,7 @@ class TableDebogueur(
             var racine = fichier.absoluteFile.parentFile?.parentFile ?: fichier.absoluteFile.parentFile
             val chemins = ArrayList<String>()
             val paquets = HashSet<String>()
+            val fichiersKotlin = ArrayList<String>()
             val lignes = HashMap<Int, MutableSet<Int>>()
             var dansKotlin = false
             for (ligne in texte.lineSequence()) {
@@ -70,7 +85,9 @@ class TableDebogueur(
                     ligne.startsWith("fichier\t") -> chemins += ligne.substringAfter('\t')
                     ligne.startsWith("kotlin\t") -> {
                         dansKotlin = true
-                        paquets += ligne.substringAfter('\t').substringBeforeLast('/', "").replace('/', '.')
+                        val chemin = ligne.substringAfter('\t')
+                        fichiersKotlin += chemin
+                        paquets += chemin.substringBeforeLast('/', "").replace('/', '.')
                     }
                     dansKotlin -> {
                         val parties = ligne.trim().split(' ')
@@ -82,7 +99,7 @@ class TableDebogueur(
                     }
                 }
             }
-            return TableDebogueur(fichier, racine.canonicalFileOuNormal(), chemins, paquets, lignes)
+            return TableDebogueur(fichier, racine.canonicalFileOuNormal(), chemins, paquets, fichiersKotlin, lignes)
         }
     }
 }

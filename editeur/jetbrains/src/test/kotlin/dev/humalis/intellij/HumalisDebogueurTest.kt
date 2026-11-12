@@ -4,6 +4,7 @@ import com.sun.jdi.Location
 import com.sun.jdi.Method
 import dev.humalis.intellij.debogueur.EndroitsHumalis
 import dev.humalis.intellij.debogueur.LignesHumalis
+import dev.humalis.intellij.debogueur.SmapHumalis
 import dev.humalis.intellij.debogueur.TableDebogueur
 import dev.humalis.intellij.debogueur.VariablesHumalis
 import junit.framework.TestCase
@@ -44,6 +45,13 @@ class HumalisDebogueurTest : TestCase() {
             assertNull(table.lignesDeCode("../inconnu.humalis"))
             assertTrue(table.contientClasse("local.humalis.compteur.PageAccueilKt\$PageAccueil\$1"))
             assertFalse(table.contientClasse("androidx.compose.runtime.ComposerKt"))
+            assertEquals(
+                listOf(
+                    "local.humalis.compteur.PageAccueilKt", "local.humalis.compteur.ComposableSingletons\$PageAccueilKt",
+                    "local.humalis.compteur.pages.PagePanierKt", "local.humalis.compteur.pages.ComposableSingletons\$PagePanierKt",
+                ),
+                table.classesPrincipales(),
+            )
         } finally {
             dossier.deleteRecursively()
         }
@@ -51,6 +59,37 @@ class HumalisDebogueurTest : TestCase() {
 
     fun testUnFichierQuiNEstPasUneTableEstRefuse() {
         assertNull(TableDebogueur.lire(File("/x/app/humalis-lignes.txt"), "autre chose\n"))
+    }
+
+    /** Le SMAP d'une classe produite (strate Humalis devant celle de Kotlin, fonction inline « noter » recopiée en 116-119). */
+    private val smapFusionne = listOf(
+        "SMAP", "PageAccueil.kt", "Kotlin",
+        "*S Humalis", "*F", "+ 1 compteur.humalis", "../compteur.humalis", "*L",
+        "18#1:51", "19#1:52", "20#1:53", "21#1:54", "22#1:55", "21#1:56", "23#1:57",
+        "*S Kotlin", "*F", "+ 1 PageAccueil.kt", "local/humalis/compteur/PageAccueilKt",
+        "+ 7 HumalisLignes.kt", "local/humalis/compteur/HumalisNotes", "*L", "1#1,67:1", "13#7,4:116",
+        "*S KotlinDebug", "*F", "+ 1 PageAccueil.kt", "local/humalis/compteur/PageAccueilKt", "*L", "57#1:116,4",
+        "*E", "",
+    ).joinToString("\n")
+
+    fun testLaStrateHumalisNeCouvreQueSesLignesEtPasLeCodeInline() {
+        val smap = SmapHumalis.lire(smapFusionne)!!
+        assertEquals("../compteur.humalis" to 18, smap.situer(51))
+        assertEquals("../compteur.humalis" to 21, smap.situer(56))
+        assertEquals("../compteur.humalis" to 23, smap.situer(57))
+        // Le code recopié de « noter » (HumalisLignes.kt:13-16) n'est pas une ligne Humalis : un point d'arrêt Kotlin s'y arrête.
+        for (ligne in 116..119) {
+            assertNull(smap.situer(ligne))
+            assertTrue(smap.estRecopiee(ligne))
+        }
+        assertFalse(smap.estRecopiee(57))
+        assertNull(smap.situer(60))
+        assertEquals(setOf("../compteur.humalis"), smap.chemins)
+    }
+
+    fun testUnSmapSansStrateHumalisNEstPasLu() {
+        assertNull(SmapHumalis.lire("SMAP\nA.kt\nKotlin\n*S Kotlin\n*F\n+ 1 A.kt\na/AKt\n*L\n1#1,10:1\n*E\n"))
+        assertNull(SmapHumalis.lire(null))
     }
 
     fun testLesVariablesGardentLeurNomHumalis() {

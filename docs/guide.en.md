@@ -4352,7 +4352,7 @@ With the Humalis extension for JetBrains IDEs, Android Studio stops inside your 
 
 The app stops on the line. "Step Over" (F8) moves from one Humalis line to the next, "Step Into" (F7) enters a Humalis function called by the line, and a step after the last line of an event lets the app run until the next breakpoint: stepping never shows the generated Kotlin code. The Variables view shows the variables under their name (`compte = 3.0`, `panier`, `message = "Bonjour"`, the parameters of a function) and the call stack names the Humalis lines it went through ("quandCliqueAjouter — ligne 20 de boutique.humalis"). Breakpoint conditions work as usual.
 
-Lines that produce code (the body of events, functions, timers) take a breakpoint; an empty line or a comment does not. The project's "debug" build writes a "Humalis" stratum (JSR-45) into every class, from the `app/humalis-lignes.txt` table: that is what Android Studio reads. A Release build carries none.
+Lines that produce code (the body of events, functions, timers) take a breakpoint; an empty line or a comment does not. The project's "debug" build writes a "Humalis" stratum (JSR-45) into every class, from the `app/humalis-lignes.txt` table: that is what Android Studio reads. It sits next to Kotlin's own stratum without changing it: a breakpoint set in the generated Kotlin code, even inside an `inline` function, stops as usual, together with those of the `.humalis` file. A Release build carries none.
 
 ## French keywords at a glance
 
