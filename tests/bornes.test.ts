@@ -233,3 +233,37 @@ describe('la vérification dans la page, avant l’envoi', () => {
     }
   });
 });
+
+describe('la vérification dans les applications natives, avant l’envoi', () => {
+  // Les trois écritures sont compilées et comparées au serveur, cas par cas, par scripts/essai-limites-natives.mjs
+  // (Swift, Kotlin et C# : 51 cas sur 51). Ici : chaque projet porte son fichier, sa table et l'appel avant l'envoi.
+  const SOURCE = 'serveur "b" :\n    donnee produit :\n        nom : texte de 2 a 20 caracteres\n        prix : nombre entre 0 et 1000,5\n        statut : texte parmi "brouillon" et "en_vente"\n    route "produits" :\n        tout le monde peut lire produit\n        tout le monde peut creer produit\n        seul admin peut modifier produit\n        seul admin peut supprimer produit\n\npage "accueil" :\n    variable nom = "Stylo"\n    variable prix = 3\n    titre "Ajouter"\n    bouton "Envoyer"\n    quand l\'utilisateur clique sur "Envoyer" :\n        envoyer requete vers "produits" avec nom et prix et statut = "brouillon"\n';
+  const application = () => compiler(SOURCE).application!;
+
+  it('Apple : Limites.swift, et l’appel au serveur le consulte', async () => {
+    const { genererProjetApple } = await import('../src/cibles/apple/projet.js');
+    const { fichiers } = genererProjetApple(application(), { nom: 'essai', source: 'essai.humalis' } as never);
+    const limites = [...fichiers].find(([nom]) => nom.endsWith('Humalis/Limites.swift'))?.[1] as string;
+    expect(limites).toContain('"/api/produits": ["nom": BornesHumalis(longueurMin: 2, longueurMax: 20), "prix": BornesHumalis(min: 0.0, max: 1000.5), "statut": BornesHumalis(parmi: ["brouillon", "en_vente"])]');
+    const serveur = [...fichiers].find(([nom]) => nom.endsWith('Humalis/Serveur.swift'))?.[1] as string;
+    expect(serveur).toContain('if source == nil, let envoi, let faute = Limites.faute(adresse, verbe, id, envoi) { throw ErreurHumalis.refus(faute) }');
+  });
+
+  it('Android : Limites.kt dans le paquet de l’application, et l’appel au serveur le consulte', async () => {
+    const { genererProjetAndroid } = await import('../src/cibles/android/projet.js');
+    const { fichiers } = genererProjetAndroid(application(), { nom: 'essai', source: 'essai.humalis', identifiant: 'dev.exemple.essai' } as never);
+    const limites = [...fichiers].find(([nom]) => nom.endsWith('/Limites.kt'))?.[1] as string;
+    expect(limites).toContain('package dev.exemple.essai');
+    expect(limites).toContain('"/api/produits" to mapOf<String, BornesHumalis>("nom" to BornesHumalis(longueurMin = 2, longueurMax = 20), "prix" to BornesHumalis(min = 0.0, max = 1000.5), "statut" to BornesHumalis(parmi = listOf("brouillon", "en_vente")))');
+    const serveur = [...fichiers].find(([nom]) => nom.endsWith('/Serveur.kt'))?.[1] as string;
+    expect(serveur).toContain('if (source == null && envoi != null) Limites.faute(adresse, verbe, id, envoi)?.let { throw ErreurHumalis(it) }');
+  });
+
+  it('Windows : Limites.cs, et l’appel au serveur le consulte', async () => {
+    const { genererProjetWindows } = await import('../src/cibles/windows/projet.js');
+    const { fichiers } = genererProjetWindows(application(), { nom: 'essai', source: 'essai.humalis' } as never);
+    const limites = fichiers.get('Humalis/Limites.cs')!;
+    expect(limites).toContain('["/api/produits"] = new() { ["nom"] = new BornesHumalis(LongueurMin: 2, LongueurMax: 20), ["prix"] = new BornesHumalis(Min: 0.0, Max: 1000.5), ["statut"] = new BornesHumalis(Parmi: new[] { "brouillon", "en_vente" }) },');
+    expect(fichiers.get('Humalis/Serveur.cs')).toContain('if (source is null && envoi is not null && Limites.Faute(adresse, verbe, id, envoi) is string faute) throw new ErreurHumalis(faute);');
+  });
+});

@@ -2762,10 +2762,10 @@ serveur "boutique" :
 - `de 5 elements au plus`: the number of items in a list.
 
 These limits apply on creation and on change, for everyone, admins included. A refused value
-gets a 400 answer and a sentence saying why, which the page shows. On the web, in static sites
-and in the desktop app, the page checks the same limits before sending and shows the same
-sentence without waiting for the server; on Apple, Android and Windows, the server's refusal
-is shown. They combine with each
+gets a 400 answer and a sentence saying why, which the page shows. On every target (web,
+static, desktop, Apple, Android, Windows), the page checks the same limits before sending and
+shows the same sentence without waiting for the server, even offline; the server remains the
+only judge. They combine with each
 other and with `non vide`, `au depart` and `du site`: `statut : texte parmi "a" et "b" au
 depart "a"`. Humalis checks at compile time that an `au depart` value and the `donnees de
 depart` respect the limit. `au plus` followed by a field keeps its other meaning: the cap

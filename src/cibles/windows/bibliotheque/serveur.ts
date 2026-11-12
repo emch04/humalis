@@ -177,6 +177,8 @@ public static class Serveur
         try
         {
             var verbe = methode ?? (envoi is not null ? "POST" : "GET");
+            // Une valeur hors de ses limites n'est pas envoyée : la raison s'affiche comme un refus du serveur.
+            if (source is null && envoi is not null && Limites.Faute(adresse, verbe, id, envoi) is string faute) throw new ErreurHumalis(faute);
             var uri = Adresse(adresse, id, source, filtres);
             var (reponse, corps) = await Lancer(() => Requete(uri, verbe, envoi, source), source);
             var code = (int)reponse.StatusCode;

@@ -892,6 +892,8 @@ object Serveur {
         suivi?.invoke(EtatRequete("chargement"))
         try {
             val verbe = methode ?: if (envoi != null) "POST" else "GET"
+            // Une valeur hors de ses limites n'est pas envoyée : la raison s'affiche comme un refus du serveur.
+            if (source == null && envoi != null) Limites.faute(adresse, verbe, id, envoi)?.let { throw ErreurHumalis(it) }
             val r = envoyerRequete(adresseComplete(adresse, id, source, filtres), verbe, envoi?.let { versJson(it) }, source, cleEnvoi)
             // Le premier essai de cet envoi tourne encore sur le serveur : on réessaiera.
             if (r.code == 409 && cleEnvoi != null) throw ErreurHumalis(PAS_DE_REPONSE, sansReseau = true)

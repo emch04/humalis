@@ -4,6 +4,9 @@
  * Apple écrit du Swift lisible, celle-ci écrit du C# lisible, qui se compile aussi sur
  * macOS et Linux (`dotnet build`), et se publie en un seul fichier .exe.
  */
+import { camel as camelJson } from '../web/noms.js';
+import { limitesCsharp } from '../commun/limites-natives.js';
+import { limitesDesRoutes } from '../serveur/bornes.js';
 import { HUMALIS_LIGNES_CS } from './lignes.js';
 import { aDesReperes } from '../lignes-humalis.js';
 import type { Diagnostic } from '../../analyse/erreurs.js';
@@ -570,6 +573,8 @@ ${donnees.actif ? '        DonneesComptes.Demarrer(fenetre);\n' : ''}        ${f
   fichiers.set('Humalis/Interface.cs', INTERFACE_CS);
   fichiers.set('Humalis/Systeme.cs', SYSTEME_CS);
   fichiers.set('Humalis/Serveur.cs', SERVEUR_CS);
+  // Les limites des données, vérifiées avant l'envoi comme sur le serveur.
+  fichiers.set('Humalis/Limites.cs', limitesCsharp(limitesDesRoutes(application.serveurs, camelJson)));
   fichiers.set('Humalis/Direct.cs', DIRECT_CS);
   fichiers.set('Humalis/Svg.cs', SVG_CS);
   fichiers.set('Humalis/Graphique.cs', GRAPHIQUE_CS);

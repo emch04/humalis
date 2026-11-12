@@ -65,6 +65,7 @@
     "essai:apple:connexion": "node scripts/essai-serveur-apple.mjs",
     "essai:apple:natifs": "node scripts/essai-apple-natifs.mjs",
     "essai:android": "node scripts/essai-android.mjs",
+    "essai:limites-natives": "node scripts/essai-limites-natives.mjs",
     "essai:formulaire": "node scripts/essai-formulaire.mjs",
     "essai:vitrine": "node scripts/essai-vitrine.mjs",
     "site:doc": "node scripts/doc-site.mjs",

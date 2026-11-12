@@ -4,6 +4,9 @@
  * écrit du SwiftUI, celle-ci écrit du Kotlin lisible, sans navigateur embarqué
  * ni JavaScript.
  */
+import { camel as camelJson } from '../web/noms.js';
+import { limitesKotlin } from '../commun/limites-natives.js';
+import { limitesDesRoutes } from '../serveur/bornes.js';
 import { tableKotlin } from '../lignes-humalis.js';
 import type { Diagnostic } from '../../analyse/erreurs.js';
 import { MESSAGES, versionDe } from '../../i18n/messages.js';
@@ -932,6 +935,8 @@ export function genererProjetAndroid(complete: Application, options: OptionsAndr
   ecrireCode('Interface.kt', kotlin(paquet, INTERFACE_KT));
   ecrireCode('Memoire.kt', kotlin(paquet, MEMOIRE_KT));
   ecrireCode('Serveur.kt', kotlin(paquet, SERVEUR_KT));
+  // Les limites des données, vérifiées avant l'envoi comme sur le serveur.
+  ecrireCode('Limites.kt', kotlin(paquet, limitesKotlin(limitesDesRoutes(application.serveurs, camelJson))));
   ecrireCode('Icones.kt', iconesKotlin(paquet, icones));
   // Les données locales, le code à six chiffres et les clés d'accès : écrits avant de lire ce qu'il faut (le QR, par exemple).
   const donneesComptes = ecrireDonneesComptes({ application, paquet, ecrireCode, code: [...fichiers.values()].join('\n') });

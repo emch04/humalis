@@ -3,6 +3,9 @@
  * une seule application native pour iPhone, iPad et Mac, sans navigateur
  * embarqué. Comme la cible web écrit du React, celle-ci écrit du Swift lisible.
  */
+import { camel as camelJson } from '../web/noms.js';
+import { limitesSwift } from '../commun/limites-natives.js';
+import { limitesDesRoutes } from '../serveur/bornes.js';
 import { NOTES_SWIFT } from '../commun/noter.js';
 import { avecReunion, PAQUET_LIVEKIT, REUNION_SWIFT } from './temps-reel.js';
 import type { TypeValeur } from '../../ri/types.js';
@@ -1143,7 +1146,11 @@ export function genererProjetApple(application: Application, options: OptionsApp
   ecrire('Humalis/Memoire.swift', MEMOIRE_SWIFT);
   const reseau = /\b(Serveur\.commun|Session\.commun|GardeHumalis)\b/.test(pagesCode);
   // La session est lue par le serveur : les deux vont ensemble.
-  if (reseau || application.sources.length > 0) ecrire('Humalis/Serveur.swift', SERVEUR_SWIFT);
+  if (reseau || application.sources.length > 0) {
+    ecrire('Humalis/Serveur.swift', SERVEUR_SWIFT);
+    // Les limites des données, vérifiées avant l'envoi comme sur le serveur.
+    ecrire('Humalis/Limites.swift', limitesSwift(limitesDesRoutes(application.serveurs, camelJson)));
+  }
   // Une vue Swift écrite à la main peut aussi appeler la connexion Apple ou Google.
   const codeAvecNatifs = [pagesCode, ...[...(options.natifs ?? [])].map(([, natif]) => natif.contenu)].join('\n');
   if (/\bseConnecterAvec(Apple|Google)\(/.test(codeAvecNatifs)) ecrire('Humalis/Connexions.swift', CONNEXIONS_SWIFT);

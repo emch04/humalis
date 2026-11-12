@@ -612,6 +612,8 @@ struct SourceHumalis: Sendable {
         suivi?(EtatRequete(statut: .chargement))
         do {
             let verbe = methode ?? (envoi != nil ? "POST" : "GET")
+            // Une valeur hors de ses limites n'est pas envoyée : la raison s'affiche comme un refus du serveur.
+            if source == nil, let envoi, let faute = Limites.faute(adresse, verbe, id, envoi) { throw ErreurHumalis.refus(faute) }
             var r = try requete(adresse, methode: verbe, id: id, envoi: envoi, source: source, filtres: filtres)
             if let cleEnvoi { r.setValue(cleEnvoi, forHTTPHeaderField: "X-Humalis-Envoi") }
             let (donnees, reponse) = try await envoyerRequete(r, source: source)

@@ -2689,9 +2689,9 @@ serveur "boutique" :
 
 Ces limites valent à la création et à la modification, pour tout le monde, admin compris.
 Une valeur refusée reçoit une réponse 400 et une phrase qui dit pourquoi (« le champ « prix »
-doit être entre 0 et 10000 »), que la page affiche. Sur le web, en statique et dans l'application
-de bureau, la page vérifie ces mêmes limites avant d'envoyer et montre la même phrase sans attendre
-le serveur ; sur Apple, Android et Windows, c'est le refus du serveur qui s'affiche. Elles se combinent entre elles et avec
+doit être entre 0 et 10000 »), que la page affiche. Sur toutes les cibles (web, statique, bureau,
+Apple, Android, Windows), la page vérifie ces mêmes limites avant d'envoyer et montre la même
+phrase sans attendre le serveur, même sans réseau ; le serveur reste seul juge. Elles se combinent entre elles et avec
 `non vide`, `au depart` et `du site` : `statut : texte parmi "a" et "b" au depart "a"`.
 Humalis vérifie à la compilation qu'une valeur `au depart` et les `donnees de depart`
 respectent la limite. `au plus` suivi d'un champ garde son autre sens : le plafond lu dans une
