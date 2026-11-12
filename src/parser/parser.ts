@@ -2877,6 +2877,13 @@ function analyserComparaison(flux: FluxTokens): Comparaison {
   }
 
   const gauche = analyserOperande(flux);
+  // « tant que vrai : », « si faux : » : une valeur écrite ne change jamais, ce n'est pas une condition.
+  if (gauche.type === 'Booleen' && finDeCondition(flux.actuel())) {
+    throw new ErreurSyntaxique(
+      `« ${gauche.valeur ? 'vrai' : 'faux'} » seul n’est pas une condition : sa valeur ne change jamais (« tant que vrai » ne s’arrêterait pas). Comparez une variable, par exemple : compteur est inferieur a 10`,
+      gauche.ligne,
+    );
+  }
   // « produits a une suite » : il reste des fiches à lire sur le serveur.
   const aUneSuite = analyserAUneSuite(flux, gauche);
   if (aUneSuite) return aUneSuite;

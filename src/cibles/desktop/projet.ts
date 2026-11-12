@@ -354,7 +354,7 @@ function principal(o: OptionsPrincipal): string {
   const fichiers = f.actions.length > 0;
   const menusLinux = f.actions.some((a) => a.sorte === 'menu');
   const ecrit = f.demarrage !== undefined || menusLinux;
-  const electron = ['app', 'BrowserWindow', ...(o.reunion ? ['desktopCapturer'] : []), ...(o.reunion || o.captureAudio || o.captureVideo ? ['systemPreferences'] : []), ...(o.secret || fichiers ? ['ipcMain'] : []), 'Menu', ...(tray ? ['nativeImage'] : []), 'nativeTheme', 'net', 'protocol', ...(o.secret ? ['safeStorage'] : []), ...(tray ? ['screen'] : []), 'session', 'shell', ...(tray ? ['Tray'] : [])];
+  const electron = ['app', 'BrowserWindow', ...(o.reunion ? ['desktopCapturer', 'dialog'] : []), ...(o.reunion || o.captureAudio || o.captureVideo ? ['systemPreferences'] : []), ...(o.secret || fichiers ? ['ipcMain'] : []), 'Menu', ...(tray ? ['nativeImage'] : []), 'nativeTheme', 'net', 'protocol', ...(o.secret ? ['safeStorage'] : []), ...(tray ? ['screen'] : []), 'session', 'shell', ...(tray ? ['Tray'] : [])];
   const types = ['type MenuItemConstructorOptions', ...(o.secret ? ['type IpcMainInvokeEvent'] : []), ...(tray ? ['type NativeImage'] : [])];
   const fs = ['existsSync', ...(menusLinux ? ['chmodSync'] : []), ...(ecrit ? ['mkdirSync', 'rmSync'] : []), 'statSync', ...(ecrit ? ['writeFileSync'] : [])];
   const fsPromesses = [...(o.secret ? ['mkdir'] : []), ...(o.secret || fichiers ? ['readFile'] : []), ...(o.secret ? ['writeFile'] : [])];
@@ -377,8 +377,12 @@ const ICI = dirname(fileURLToPath(import.meta.url));
 /** Les pages construites par Vite (npm run build). */
 const SITE = join(ICI, '..', '..', 'dist');
 
-/** L'adresse du serveur : HUMALIS_SERVEUR au lancement, sinon celle écrite à la compilation. */
-const SERVEUR = (process.env.HUMALIS_SERVEUR ?? ${chaine(o.serveur)}).replace(/\\/$/, '');
+/**
+ * L'adresse du serveur : celle écrite à la compilation. HUMALIS_SERVEUR la remplace pendant le développement
+ * seulement : une application installée ne se laisse pas rediriger, cookies de session compris, par un
+ * programme qui règle son environnement.
+ */
+const SERVEUR = ((app.isPackaged ? undefined : process.env.HUMALIS_SERVEUR) ?? ${chaine(o.serveur)}).replace(/\\/$/, '');
 /** Les adresses que les pages appellent sur le serveur : ce processus les lui transmet. */
 const RELAIS = [${o.relais.map(chaine).join(', ')}];
 
@@ -438,7 +442,7 @@ async function relayer(requete: Request, url: URL): Promise<Response> {
     const sansCorps = [101, 204, 205, 304].includes(reponse.status);
     return new Response(sansCorps ? null : reponse.body, { status: reponse.status, statusText: reponse.statusText, headers: retour });
   } catch {
-    console.error(\`Le serveur \${SERVEUR} n'a pas répondu. Son adresse se règle avec HUMALIS_SERVEUR.\`);
+    console.error(\`Le serveur \${SERVEUR} n'a pas répondu.\${app.isPackaged ? '' : ' Son adresse se règle avec HUMALIS_SERVEUR.'}\`);
     return new Response('', { status: 502 });
   }
 }
@@ -469,7 +473,7 @@ ${o.pagesParAdresse ? `  else if (extname(url.pathname) === '') {
   if (fichier.endsWith('.html')) entetes.set('Content-Security-Policy', CSP);
   return new Response(reponse.body, { status: reponse.status, headers: entetes });
 }
-${o.secret ? COFFRE : ''}${o.misesAJour ? MISES_A_JOUR : ''}${codeFormesPrincipal(f, o.slug)}
+${o.secret ? COFFRE : ''}${o.reunion ? CHOIX_ECRAN : ''}${o.misesAJour ? MISES_A_JOUR : ''}${codeFormesPrincipal(f, o.slug)}
 /** La fenêtre de l'application (les fenêtres de la barre du système sont à part). */
 let fenetrePrincipale: BrowserWindow | undefined;
 
@@ -636,9 +640,11 @@ ${o.captureAudio || o.captureVideo || o.reunion ? `    // Seules les captures d�
       void Promise.all([systemPreferences.askForMediaAccess('camera'), systemPreferences.askForMediaAccess('microphone')]).then(([camera, micro]) => repondre(camera || micro));
     });
     session.defaultSession.setPermissionCheckHandler((contenu, permission, _origine, details) => permissionMedia(contenu, permission, details));${o.reunion ? `
+    // Partager son écran : la personne choisit ce qu'elle montre (un écran ou une fenêtre), ou renonce.
+    // Sur un Mac récent, le système montre son propre choix ; ailleurs, l'application le demande.
     session.defaultSession.setDisplayMediaRequestHandler((_demande, repondre) => {
-      void desktopCapturer.getSources({ types: ['screen'] }).then((sources) => repondre(sources[0] ? { video: sources[0] } : {}));
-    });` : ''}` : `    // Une application sans capture ne demande aucune permission du système.
+      void choisirCeQuiEstMontre().then((source) => repondre(source ? { video: source } : {}), () => repondre({}));
+    }, { useSystemPicker: true });` : ''}` : `    // Une application sans capture ne demande aucune permission du système.
     session.defaultSession.setPermissionRequestHandler((_contenu, _permission, repondre) => repondre(false));
     session.defaultSession.setPermissionCheckHandler(() => false);`}
     protocol.handle(SCHEMA, servir);
@@ -680,6 +686,23 @@ function verifierLesMisesAJour(): void {
   autoUpdater.checkForUpdatesAndNotify({ title: \`Mise à jour de \${NOM}\`, body: 'La nouvelle version sera installée à la fermeture.' }).catch(() => {
     // Déjà écrit par l'événement « error ».
   });
+}
+`;
+
+/** Le choix de ce qu'un partage d'écran montre : jamais le premier écran d'office. */
+const CHOIX_ECRAN = `
+/** Les écrans, puis les fenêtres ouvertes (huit au plus) : la personne en choisit un, ou annule. */
+async function choisirCeQuiEstMontre(): Promise<Electron.DesktopCapturerSource | undefined> {
+  const sources = await desktopCapturer.getSources({ types: ['screen', 'window'], thumbnailSize: { width: 0, height: 0 } });
+  const ecrans = sources.filter((s) => s.id.startsWith('screen:'));
+  const fenetres = sources.filter((s) => s.id.startsWith('window:') && s.name.trim() !== '').slice(0, 8);
+  const choix = [...ecrans, ...fenetres];
+  if (choix.length === 0) return undefined;
+  const noms = choix.map((s, i) => (i < ecrans.length ? (ecrans.length > 1 ? \`Écran \${i + 1}\` : 'Tout l\\'écran') : s.name.length > 40 ? s.name.slice(0, 39) + '…' : s.name));
+  const fenetre = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+  const options = { type: 'question' as const, title: NOM, message: 'Que voulez-vous montrer ?', detail: 'Les autres participants verront ce que vous choisissez, jusqu\\'à l\\'arrêt du partage.', buttons: [...noms, 'Annuler'], cancelId: noms.length, defaultId: noms.length };
+  const { response } = fenetre ? await dialog.showMessageBox(fenetre, options) : await dialog.showMessageBox(options);
+  return choix[response];
 }
 `;
 
@@ -882,8 +905,10 @@ cherche dans le dossier \`mises-a-jour/\` de cette adresse.`}
 
 Les pages appellent \`/api/…\` et \`/auth/…\` ; le processus principal
 (\`electron/principal.ts\`) transmet ces requêtes au serveur Humalis.
-Son adresse : la variable \`HUMALIS_SERVEUR\` au lancement, sinon celle
-écrite à la compilation (\`--serveur\`), sinon \`http://localhost:3000\`.
+Son adresse : celle écrite à la compilation (\`--serveur\`), sinon
+\`http://localhost:3000\`. Pendant le développement (\`npm start\`), la variable
+\`HUMALIS_SERVEUR\` la remplace ; l'application installée l'ignore, pour qu'aucun
+programme ne puisse la rediriger vers un autre serveur.
 
 \`\`\`sh
 HUMALIS_SERVEUR=https://mon-serveur.cd npm start

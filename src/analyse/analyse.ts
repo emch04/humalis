@@ -458,6 +458,10 @@ export function analyserSens(programme: Programme, classesCss?: Set<string>): Re
     }
   }
 
+  // Un fichier vide, ou qui ne déclare ni page, ni serveur, ni composant : rien ne serait produit.
+  if (programme.pages.length === 0 && programme.serveurs.length === 0 && programme.composants.length === 0 && (programme.sources ?? []).length === 0) {
+    resultat.diagnostics.push({ gravite: 'avertissement', ligne: 1, message: 'ce programme n’a aucune page : rien ne s’afficherait. Commencez par : page "accueil" :, puis, en dessous et décalé, titre "Bonjour".' });
+  }
   for (const serveur of programme.serveurs) analyserServeur(serveur, resultat.diagnostics, programme.pages);
   // « compile --cible serveur » n'en produit qu'un : autant le savoir dès la vérification.
   for (const autre of programme.serveurs.slice(1)) {
@@ -794,7 +798,15 @@ class AnalysePage {
           if (lues.length > 0 && !lues.some((n) => changees.has(n))) {
             this.avertissement(`cette boucle ne change jamais « ${lues[0]} » : elle risque de ne jamais s'arrêter.`, instruction.ligne);
           }
+          // « tant que 1 est egal a 1 » : aucune variable dans la condition, elle vaut toujours la même chose.
+          if (toutEcrit(instruction.test)) {
+            this.avertissement('la condition de cette boucle compare deux valeurs écrites : elle ne change jamais, la boucle ne s’arrêterait pas (ou ne commencerait pas).', instruction.ligne);
+          }
         } else {
+          // « repeter 999999999999 fois » : la page se figerait.
+          if (instruction.fois.type === 'Nombre' && instruction.fois.valeur > REPETITIONS_RAISONNABLES) {
+            this.avertissement(`« repeter ${instruction.fois.valeur} fois » fige la page pendant la boucle : au-delà de ${REPETITIONS_RAISONNABLES.toLocaleString('fr-FR')} tours, découpez le travail ou confiez-le au serveur.`, instruction.ligne);
+          }
           const type = this.typeDe(instruction.fois);
           if (estConnu(type) && type.genre !== 'nombre') {
             this.erreur(`« repeter » attend un nombre de fois ; ${decrire(instruction.fois)} est ${decrireType(type)}.`, instruction.ligne);
@@ -2127,6 +2139,10 @@ class AnalysePage {
         this.versionsLues(expression);
         return TEXTE;
       case 'Nombre':
+        // Au-delà de 9 007 199 254 740 991, un nombre entier n'est plus gardé au chiffre près.
+        if (Number.isInteger(expression.valeur) && !Number.isSafeInteger(expression.valeur)) {
+          this.avertissement('ce nombre est trop grand pour être gardé au chiffre près (au-delà de 9 007 199 254 740 991) : ses derniers chiffres seront arrondis. Pour un numéro, écrivez un texte entre guillemets.', expression.ligne);
+        }
         return NOMBRE;
       case 'Booleen':
         return BOOLEEN;
@@ -3244,6 +3260,16 @@ function actionInterditeDansUneFonction(instruction: Instruction): string | unde
 }
 
 /** Les variables lues par une comparaison (« n est inferieur a fin » : n, fin). */
+/** Au-delà, « repeter » fige la page. */
+const REPETITIONS_RAISONNABLES = 100000;
+
+/** « 1 est egal a 1 » : une comparaison entre deux valeurs écrites, sans variable ni lecture. */
+function toutEcrit(test: Test): boolean {
+  if (test.type === 'Combinaison') return toutEcrit(test.gauche) && toutEcrit(test.droite);
+  const ecrite = (e: Expression | undefined) => e !== undefined && (e.type === 'Nombre' || e.type === 'Booleen');
+  return ecrite(test.gauche) && ecrite(test.droite);
+}
+
 function nomsLus(test: Test): string[] {
   if (test.type === 'Combinaison') return [...nomsLus(test.gauche), ...nomsLus(test.droite)];
   const noms: string[] = [];

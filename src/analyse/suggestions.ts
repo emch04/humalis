@@ -36,6 +36,10 @@ export function nomProche(nom: string, connus: Iterable<string>): string | undef
 }
 
 export function proposerNom(nom: string, connus: Iterable<string>): string {
-  const proche = nomProche(nom, connus);
+  const liste = [...connus];
+  // « prix » pour « Prix », « eleve » pour « élève » : le même mot à une majuscule ou un accent près.
+  const jumeau = liste.find((connu) => connu !== nom && normaliserNom(connu) === normaliserNom(nom));
+  if (jumeau) return ` Peut-être « ${jumeau} » ? Un nom garde ses majuscules et ses accents : « ${nom} » et « ${jumeau} » sont deux noms différents.`;
+  const proche = nomProche(nom, liste);
   return proche ? ` Peut-être « ${proche} » ?` : '';
 }

@@ -198,7 +198,8 @@ describe('cible desktop — le relais vers le serveur (décision D5)', () => {
   const avis = exemple('avis').get('electron/principal.ts')!;
 
   it('relaie /api et /auth vers HUMALIS_SERVEUR, par défaut le port 3000', () => {
-    expect(avis).toContain("const SERVEUR = (process.env.HUMALIS_SERVEUR ?? 'http://localhost:3000').replace(/\\/$/, '');");
+    // L'application installée garde l'adresse de la compilation : HUMALIS_SERVEUR ne vaut qu'en développement (revue C6).
+    expect(avis).toContain("const SERVEUR = ((app.isPackaged ? undefined : process.env.HUMALIS_SERVEUR) ?? 'http://localhost:3000').replace(/\\/$/, '');");
     expect(avis).toContain("const RELAIS = ['/api', '/auth'];");
     expect(avis).toContain('net.fetch(SERVEUR + url.pathname + url.search');
     expect(avis).toContain("credentials: 'include',");
@@ -212,7 +213,7 @@ describe('cible desktop — le relais vers le serveur (décision D5)', () => {
 
   it('écrit l’adresse donnée par --serveur', () => {
     const principal = exemple('avis', 'https://avis.exemple.cd/').get('electron/principal.ts')!;
-    expect(principal).toContain("process.env.HUMALIS_SERVEUR ?? 'https://avis.exemple.cd'");
+    expect(principal).toContain("(app.isPackaged ? undefined : process.env.HUMALIS_SERVEUR) ?? 'https://avis.exemple.cd'");
   });
 
   it('relaie aussi les adresses des requêtes d’un programme sans serveur', () => {
@@ -340,5 +341,39 @@ page "compte" :
     const sans = exemple('boutique');
     expect(sans.has('electron/cles.ts')).toBe(false);
     expect(JSON.parse(sans.get('package.json')!).scripts.build.includes('construire.mjs')).toBe(false);
+  });
+});
+
+describe('cible desktop — le partage d’écran d’une réunion (revue C5)', () => {
+  const REUNION = ['serveur "ecole" :', '    roles eleve', '    salle "conseil" pour eleve', '', 'page "conseil" :', '    titre "Conseil"', '    reunion "conseil"', ''].join('\n');
+  const principal = () => {
+    const { application, diagnostics } = compiler(REUNION);
+    expect(diagnostics.filter((d) => d.gravite === 'erreur').map((d) => d.message)).toEqual([]);
+    return genererProjetDesktop(application!, { nom: 'essai', source: 'essai.humalis' }).get('electron/principal.ts')!;
+  };
+
+  it('la personne choisit ce qu’elle montre : plus jamais le premier écran d’office', () => {
+    const code = principal();
+    expect(code).not.toContain('sources[0]');
+    expect(code).toContain('void choisirCeQuiEstMontre().then((source) => repondre(source ? { video: source } : {}), () => repondre({}));');
+    // Le choix du système quand il existe (Mac récent), sinon celui de l'application.
+    expect(code).toContain('}, { useSystemPicker: true });');
+    expect(code).toContain("desktopCapturer.getSources({ types: ['screen', 'window']");
+    expect(code).toContain("message: 'Que voulez-vous montrer ?'");
+    expect(code).toContain("buttons: [...noms, 'Annuler'], cancelId: noms.length");
+    expect(code).toMatch(/import \{[^}]*\bdesktopCapturer, dialog\b[^}]*\} from 'electron';/);
+  });
+
+  it('le processus principal produit reste du TypeScript valide', async () => {
+    const { stripTypeScriptTypes } = await import('node:module');
+    const { Script } = await import('node:vm');
+    const js = stripTypeScriptTypes(principal()).replace(/^import .*$/gm, '').replace(/import\.meta\.\w+/g, '"x"');
+    expect(() => new Script(`(async () => {\n${js}\n})`)).not.toThrow();
+  });
+
+  it('une application sans réunion n’a ni choix d’écran ni fenêtre de dialogue en plus', () => {
+    const { application } = compiler('page "a" :\n    titre "A"\n');
+    const code = genererProjetDesktop(application!, { nom: 'essai', source: 'essai.humalis' }).get('electron/principal.ts')!;
+    expect(code).not.toContain('choisirCeQuiEstMontre');
   });
 });

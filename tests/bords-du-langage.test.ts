@@ -127,3 +127,44 @@ describe('les fautes de frappe et les messages', () => {
     expect(erreur('page "a" :\n    titre "x" 😀\n')).toContain('😀');
   });
 });
+
+describe('petits pièges du langage (revue L8, L9, L10, L12)', () => {
+  const diagnostics = (source: string) => compiler(source).diagnostics;
+  const messages = (source: string, gravite: 'erreur' | 'avertissement') => diagnostics(source).filter((d) => d.gravite === gravite).map((d) => d.message);
+  const clic = (...lignes: string[]) => ['page "a" :', '    variable n = 0', '    titre "A"', '    bouton "Go"', '    quand l\'utilisateur clique sur "Go" :', ...lignes.map((l) => `        ${l}`), ''].join('\n');
+
+  it('« tant que vrai » et « si faux » : le message dit que ce n’est pas une condition, sans accuser « est »', () => {
+    expect(messages(clic('tant que vrai :', '    changer n par n + 1'), 'erreur')[0]).toMatch(/« vrai » seul n’est pas une condition/);
+    expect(messages(clic('si faux :', '    changer n par 1'), 'erreur')[0]).toMatch(/« faux » seul n’est pas une condition/);
+    // Une variable seule reste une condition.
+    expect(messages(['page "a" :', '    variable actif = vrai', '    titre "A"', '    si actif :', '        texte "oui"', ''].join('\n'), 'erreur')).toEqual([]);
+  });
+
+  it('une boucle dont la condition compare deux valeurs écrites est signalée', () => {
+    expect(messages(clic('tant que 1 est egal a 1 :', '    changer n par n + 1'), 'avertissement').join(' ')).toMatch(/compare deux valeurs écrites/);
+    expect(messages(clic('tant que n est inferieur a 10 :', '    changer n par n + 1'), 'avertissement')).toEqual([]);
+  });
+
+  it('« repeter » un nombre démesuré de fois est signalé ; un nombre raisonnable ne l’est pas', () => {
+    expect(messages(clic('repeter 999999999999 fois :', '    changer n par n + 1'), 'avertissement').join(' ')).toMatch(/fige la page/);
+    expect(messages(clic('repeter 1000 fois :', '    changer n par n + 1'), 'avertissement')).toEqual([]);
+  });
+
+  it('un nombre entier trop grand pour être gardé au chiffre près est signalé', () => {
+    const source = ['page "a" :', '    variable g = 99999999999999999999999999', '    titre "A {g}"', ''].join('\n');
+    expect(messages(source, 'avertissement').join(' ')).toMatch(/trop grand pour être gardé au chiffre près/);
+    expect(messages(['page "a" :', '    variable g = 9007199254740991', '    variable p = 0,1', '    titre "A {g} {p}"', ''].join('\n'), 'avertissement')).toEqual([]);
+  });
+
+  it('un nom écrit avec une autre majuscule ou sans son accent : le bon nom est proposé', () => {
+    expect(messages(['page "a" :', '    variable Prix = 3', '    titre "A"', '    texte "{prix}"', ''].join('\n'), 'erreur')[0]).toMatch(/Peut-être « Prix » \? Un nom garde ses majuscules et ses accents/);
+    expect(messages(['page "a" :', '    variable élève = "Awa"', '    titre "A"', '    texte eleve', ''].join('\n'), 'erreur')[0]).toMatch(/Peut-être « élève » \?/);
+  });
+
+  it('un fichier vide, ou sans page ni serveur, avertit ; un serveur seul ou une page, non', () => {
+    expect(messages('', 'avertissement')[0]).toMatch(/aucune page/);
+    expect(messages('variable x = 1 avec partagee\n', 'avertissement')[0]).toMatch(/aucune page/);
+    expect(messages('page "a" :\n    titre "A"\n', 'avertissement')).toEqual([]);
+    expect(messages('serveur "s" :\n    donnee n :\n        t : texte\n    route "n" :\n        tout le monde peut lire n\n', 'avertissement').join(' ')).not.toMatch(/aucune page/);
+  });
+});

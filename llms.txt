@@ -927,6 +927,10 @@ serveur "boutique" :
 - Une fonction de l’appareil dans la page : « vibrer » ne s'utilise que dans un événement
 - Un début d’adresse réservé : « https » ne peut pas servir de début d’adresse
 - Deux fois les liens profonds : « liens profonds » ne s’écrit qu’une fois
+- « vrai » ou « faux » à la place d’une condition : seul n’est pas une condition
+- Une boucle dont la condition ne change jamais : compare deux valeurs écrites
+- Une répétition démesurée : fige la page pendant la boucle
+- Un nombre entier trop grand : trop grand pour être gardé au chiffre près
 - Des mises à jour sans « depuis » : après « mises a jour », « depuis » puis l’adresse
 - Des mises à jour sans adresse : il manque l’adresse entre guillemets
 - Une adresse de mises à jour qui n’est pas sûre : ne convient pas pour des mises à jour
