@@ -3,6 +3,7 @@
  * un site en HTML, CSS et JavaScript écrit en clair, sans framework ni
  * construction, qu'on dépose tel quel chez un hébergeur.
  */
+import { entetesDuSite, noteEntetes } from '../commun/entetes-site.js';
 import { adresseDuLienJs } from '../commun/liens-et-champs.js';
 import { copiesDesMedias } from '../../ri/medias.js';
 import { titreComplet, adresseImage, sansBarreFinale, robotsTxt, manifeste, fichiersDuSite, balisesIcone, estExterne, echapper } from '../publication.js';
@@ -198,6 +199,9 @@ ${fonctions.join('\n')}`,
   }
   // Plusieurs langues : les messages de Humalis (carrousel, compteur, erreurs du serveur…) passent par t().
   if (application.langues) messagesDuSiteStatique(fichiers, application.langues.map((l) => l.code));
+  // Les en-têtes de sécurité, pour Cloudflare Pages et Netlify ; ailleurs, le LISEZMOI dit de les recopier.
+  fichiers.set('LISEZMOI.md', `${fichiers.get('LISEZMOI.md') ?? ''}${noteEntetes('_headers')}`);
+  fichiers.set('_headers', entetesDuSite(fichiers));
   return fichiers;
 }
 
