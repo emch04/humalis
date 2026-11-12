@@ -155,8 +155,17 @@ export function transactionSqlite<S>(base: BaseSqlite, stockages: S): <T>(corps:
 export function creerStockageSqlite(base: BaseSqlite, table: string, champs?: readonly string[]): Stockage {
   // Le nom de la table est fixé par le compilateur ; on le vérifie quand même.
   if (!/^[a-z_][a-z0-9_]*$/.test(table)) throw new Error('nom de table invalide : ' + table);
-  let prete: Promise<unknown> | undefined;
-  const preparer = () => (prete ??= preparerTableSqlite(base, table));
+  // La table se prépare dès la création du stockage, au démarrage, hors de toute transaction : préparée dans une
+  // transaction ensuite annulée, elle aurait disparu avec elle alors que la promesse la disait prête (revue Codex).
+  const ouvrir = () => {
+    const promesse = preparerTableSqlite(base, table);
+    promesse.catch(() => {
+      if (prete === promesse) prete = undefined;
+    });
+    return promesse;
+  };
+  let prete: Promise<unknown> | undefined = ouvrir();
+  const preparer = () => (prete ??= ouvrir());
   const lire = (ligne: Record<string, unknown>): Enregistrement => {
     const donnees = JSON.parse(String(ligne.data)) as Record<string, unknown>;
     if (!champs) return { ...donnees, id: String(ligne.id) };

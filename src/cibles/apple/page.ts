@@ -511,11 +511,30 @@ export class GenerateurPage implements HotePage {
     return this.portee.variables.get(nom);
   }
 
+  /**
+   * La valeur de départ d'une variable, sans lire une autre variable de la page : Swift interdit qu'une propriété
+   * en initialise une autre (« variable taille = longueur de mot »). Chaque variable citée est remplacée par sa
+   * propre valeur de départ, jusqu'au bout (revue Codex).
+   */
+  private initialeAutonome(valeur: Valeur, vues: ReadonlySet<string> = new Set()): Valeur {
+    const etats = new Map(this.ecran.etat.map((x) => [x.nom, x]));
+    const remplacer = (noeud: unknown, deja: ReadonlySet<string>): unknown => {
+      if (Array.isArray(noeud)) return noeud.map((n) => remplacer(n, deja));
+      if (!noeud || typeof noeud !== 'object') return noeud;
+      const n = noeud as { type?: unknown; nom?: unknown };
+      if (n.type === 'variable' && typeof n.nom === 'string' && etats.has(n.nom) && !deja.has(n.nom)) {
+        return remplacer(etats.get(n.nom)!.initiale, new Set([...deja, n.nom]));
+      }
+      return Object.fromEntries(Object.entries(noeud).map(([cle, v]) => [cle, remplacer(v, deja)]));
+    };
+    return remplacer(valeur, vues) as Valeur;
+  }
+
   private ecrireEtat(e: Ecrivain, etat: Etat): void {
     const types = this.app.types;
     const opt = etat.facultatif ?? false;
     const type = types.swift(etat.type, opt);
-    const v = this.valeurs.expr(etat.initiale, etat.type);
+    const v = this.valeurs.expr(this.initialeAutonome(etat.initiale, new Set([etat.nom])), etat.type);
     const initiale = opt ? this.valeurs.versOpt(v, etat.type) : this.valeurs.vers(v, etat.type);
     const nom = nomSwift(etat.nom);
     if (etat.memorisee || etat.horsLigne) {

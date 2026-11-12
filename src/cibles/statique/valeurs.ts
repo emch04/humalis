@@ -415,7 +415,7 @@ export function evaluer(valeur: Valeur, env: Environnement): unknown {
         ? texte.toLocaleUpperCase('fr')
         : valeur.operation === 'minuscules'
           ? texte.toLocaleLowerCase('fr')
-          : texte.length;
+          : Array.from(texte).length;
     }
     case 'remplacement':
       return String(evaluer(valeur.dans, env) ?? '').replaceAll(String(evaluer(valeur.cherche, env)), String(evaluer(valeur.remplace, env)));

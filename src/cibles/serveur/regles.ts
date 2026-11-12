@@ -301,7 +301,8 @@ export function codeCreation(serveur: ServeurRI, route: Route, donnee: Donnee, s
     lignes.push(`          if (portee.test && !portee.test(recue)) {`, `            res.status(403).json({ erreur: REFUS_FICHES });`, `            return;`, `          }`);
   }
   // Les fiches liées déjà créées s'effacent si la suite échoue : jamais de fiche orpheline.
-  if (creations.length > 0) lignes.push(`          const annuler: (() => Promise<unknown>)[] = [];`, `          const toutAnnuler = async () => { for (const a of annuler.reverse()) await a().catch(() => undefined); };`);
+  // Toute erreur, à la création d'une fiche liée comme à celle de la fiche principale, efface ce qui était déjà créé.
+  if (creations.length > 0) lignes.push(`          const annuler: (() => Promise<unknown>)[] = [];`, `          const toutAnnuler = async () => { for (const a of annuler.reverse()) await a().catch(() => undefined); };`, `          let cree;`, `          try {`);
   creations.forEach((creation, i) => {
     const liee = serveur.donnees.find((d) => d.nom === creation.donnee)!;
     const valeurs = `{ ${[...creation.valeurs.map((v) => `${chaine(camel(v.champ))}: ${valeurLiee(v.valeur, 'recue')}`), ...(groupe && liee.par !== undefined ? [`${champGroupe}: groupe.valeur`] : [])].join(', ')} }`;
@@ -322,9 +323,7 @@ export function codeCreation(serveur: ServeurRI, route: Route, donnee: Donnee, s
   });
   if (creations.length > 0) {
     lignes.push(
-      `          let cree;`,
-      `          try {`,
-      `            cree = await stockages.${nom}.creer(recue);`,
+      `          cree = await stockages.${nom}.creer(recue);`,
       `          } catch (erreur) {`,
       `            await toutAnnuler();`,
       `            throw erreur;`,

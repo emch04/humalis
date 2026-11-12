@@ -370,7 +370,8 @@ export class Valeurs {
       }
       case 'operationTexte': {
         const texte = this.texte(valeur.valeur);
-        if (valeur.operation === 'longueur') return { code: `Double(${texte}.count)`, type: NOMBRE, opt: false };
+        // En caractères Unicode, comme les autres cibles et les limites « texte de … caracteres ».
+        if (valeur.operation === 'longueur') return { code: `Double(${texte}.unicodeScalars.count)`, type: NOMBRE, opt: false };
         if (valeur.operation === 'initiales') return { code: `initialesDe(${texte})`, type: TEXTE, opt: false };
         return { code: `${texte}.${valeur.operation === 'majuscules' ? 'uppercased' : 'lowercased'}(with: Locale(identifier: "fr_FR"))`, type: TEXTE, opt: false };
       }

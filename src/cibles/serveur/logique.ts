@@ -739,7 +739,13 @@ export function creerPaiements<T, S>({ surConfirme, surErreur }: { surConfirme: 
           res.status(400).json({ erreur: 'signature invalide' });
           return;
         }
-        if (evenement.type === 'checkout.session.completed') {
+        // Un moyen de paiement différé (virement, prélèvement) : la session se termine impayée, puis Stripe annonce
+        // le succès par « async_payment_succeeded ». Les deux passent par le même enregistrement, qui ne paie qu'une fois.
+        if (evenement.type === 'checkout.session.async_payment_failed') {
+          const { donnee, id } = evenement.data.object.metadata ?? {};
+          console.error('Un paiement différé a échoué pour « ' + String(donnee) + ' » ' + String(id) + ' : la fiche reste impayée.');
+        }
+        if (evenement.type === 'checkout.session.completed' || evenement.type === 'checkout.session.async_payment_succeeded') {
           const session = evenement.data.object;
           const { donnee, id, champ } = session.metadata ?? {};
           if (session.payment_status === 'paid' && donnee && id && champ && typeof session.amount_total === 'number') {
@@ -784,7 +790,7 @@ ${taches.join('\n')}
 
 /** src/humalis/logique.ts */
 export const LOGIQUE = String.raw`import type pg from 'pg';
-import type { Stockage } from './stockage.js';
+import { journalMemoire, type Stockage } from './stockage.js';
 
 /** Produit par Humalis : ce qui s'exécute sur le serveur, en transaction, et les tâches planifiées. */
 export class Refus extends Error {}
@@ -838,16 +844,19 @@ export const contient = (liste: unknown, valeur: unknown) => (Array.isArray(list
 
 export type Transaction<S> = <T>(corps: (s: S) => Promise<T>) => Promise<T>;
 
-/** Sans base : une transaction à la fois, et une photo des données pour revenir en arrière. */
+/**
+ * Sans base : une transaction à la fois. Annulée, elle défait seulement ses propres écritures (journalMemoire),
+ * jamais celles qu'une autre requête a faites pendant ce temps.
+ */
 export function transactionMemoire<S extends Record<string, Stockage>>(stockages: S): Transaction<S> {
   let file: Promise<unknown> = Promise.resolve();
   return <T>(corps: (s: S) => Promise<T>) => {
     const suite = file.then(async () => {
-      const retours = Object.values(stockages).map((s) => s.instantane?.());
+      const annulations: (() => void)[] = [];
       try {
-        return await corps(stockages);
+        return await journalMemoire.run(annulations, () => corps(stockages));
       } catch (erreur) {
-        for (const retour of retours) retour?.();
+        for (const annuler of annulations.reverse()) annuler();
         throw erreur;
       }
     });

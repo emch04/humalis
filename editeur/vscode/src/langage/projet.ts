@@ -62,16 +62,17 @@ const NIVEAUX_AU_DESSUS = 4;
  * même de loin), cherché dans son dossier puis dans les dossiers au-dessus ;
  * undefined si personne ne l'utilise : il est alors vérifié seul.
  */
-export function principalQuiUtilise(chemin: string, lire: Lecteur, lister: Lister): string | undefined {
+export function principalQuiUtilise(chemin: string, lire: Lecteur, lister: Lister, vus: ReadonlySet<string> = new Set([chemin])): string | undefined {
   let dossier = dirname(chemin);
   for (let niveau = 0; niveau <= NIVEAUX_AU_DESSUS; niveau++) {
     for (const nom of lister(dossier).sort()) {
       if (!nom.endsWith('.humalis') || nom.endsWith('.test.humalis')) continue;
       const candidat = join(dossier, nom);
-      if (candidat === chemin) continue;
+      // Deux fichiers qui s'utilisent l'un l'autre : on s'arrête au premier déjà vu (le compilateur signale le cycle).
+      if (candidat === chemin || vus.has(candidat)) continue;
       const texte = lire(candidat);
       if (texte === undefined) continue;
-      if (descendre(texte, candidat, lire).slice(1).some((f) => f.chemin === chemin)) return principalQuiUtilise(candidat, lire, lister) ?? candidat;
+      if (descendre(texte, candidat, lire).slice(1).some((f) => f.chemin === chemin)) return principalQuiUtilise(candidat, lire, lister, new Set([...vus, candidat])) ?? candidat;
     }
     const parent = dirname(dossier);
     if (parent === dossier) break;

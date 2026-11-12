@@ -796,25 +796,25 @@ export class ServeurMemoire {
     // Les fiches liées déjà créées s'effacent si la suite échoue : jamais de fiche orpheline.
     const creees: [string, string][] = [];
     const toutAnnuler = () => { for (const [d, id] of creees.reverse()) this.stock(d).supprimer(id); };
-    for (const creation of route.creations ?? []) {
-      const liee = this.donnee(creation.donnee);
-      const valeurs: Record<string, unknown> = Object.fromEntries(creation.valeurs.map((v) => [camel(v.champ), valeurLiee(v.valeur, recue)]));
-      if (groupe !== undefined && liee.par !== undefined) valeurs[camel(liee.par)] = groupe;
-      let finale = valeurs;
-      if (this.aCompleter(liee)) {
-        const complete = await this.completer(liee, valeurs, this.cercles(liee, c.moi, groupe));
-        if ('erreur' in complete) {
-          toutAnnuler();
-          return rep(400, { erreur: complete.erreur });
-        }
-        finale = complete.valeur;
-      }
-      const creee = this.stock(creation.donnee).creer(finale);
-      creees.push([creation.donnee, creee.id]);
-      if (creation.dans !== undefined) recue[camel(creation.dans)] = creee.id;
-    }
     let cree: Enregistrement;
     try {
+      for (const creation of route.creations ?? []) {
+        const liee = this.donnee(creation.donnee);
+        const valeurs: Record<string, unknown> = Object.fromEntries(creation.valeurs.map((v) => [camel(v.champ), valeurLiee(v.valeur, recue)]));
+        if (groupe !== undefined && liee.par !== undefined) valeurs[camel(liee.par)] = groupe;
+        let finale = valeurs;
+        if (this.aCompleter(liee)) {
+          const complete = await this.completer(liee, valeurs, this.cercles(liee, c.moi, groupe));
+          if ('erreur' in complete) {
+            toutAnnuler();
+            return rep(400, { erreur: complete.erreur });
+          }
+          finale = complete.valeur;
+        }
+        const creee = this.stock(creation.donnee).creer(finale);
+        creees.push([creation.donnee, creee.id]);
+        if (creation.dans !== undefined) recue[camel(creation.dans)] = creee.id;
+      }
       cree = stock.creer(recue);
     } catch (erreur) {
       toutAnnuler();

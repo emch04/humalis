@@ -76,7 +76,8 @@ describe('argent, pluriels et texte — ce que produit chaque cible', () => {
     expect(page).toContain("import { accorder, formaterArgent, formaterNombre } from '../humalis/outils';");
     expect(page).toContain("const cri = nom.toLocaleUpperCase('fr');");
     expect(page).toContain("const discret = nom.toLocaleLowerCase('fr');");
-    expect(page).toContain('const taille = nom.length;');
+    // En caractères Unicode, comme toutes les cibles : « 😀 » vaut 1.
+    expect(page).toContain('const taille = Array.from(nom).length;');
     expect(page).toContain("const poli = nom.replaceAll('Awa', 'Madame');");
     expect(page).toContain("nom.startsWith('Awa')");
     expect(page).toContain("nom.endsWith('Mbuyi')");

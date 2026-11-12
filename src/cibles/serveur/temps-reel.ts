@@ -48,7 +48,7 @@ export function codeMontageTempsReel(serveur: ServeurRI): string {
   const tables = serveur.donnees
     .filter((d) => !d.reponseSeule && serveur.routes.some((r) => r.interne !== undefined && r.donnee === d.nom))
     .map((d) => d.nom);
-  const pour = new Set([...tables, ...serveur.donnees.filter((d) => !d.reponseSeule && /^(lecture_|ecriture_|presence_vue$)/.test(d.nom)).map((d) => d.nom)]);
+  const pour = new Set([...tables, ...serveur.donnees.filter((d) => !d.reponseSeule && /^(lecture_|ecriture_|presence_vue$|exclusion_salle$)/.test(d.nom)).map((d) => d.nom)]);
   const liste = [...pour].map((n) => `${JSON.stringify(n)}: stockages.${camel(n)}`).join(', ');
   return `      monterTempsReel(app, { acces, csrf: csrfMiddleware, usersStore, secret: jwtSecret, tables: { ${liste} }, reglages: ${reglages(serveur)} });\n`;
 }
@@ -87,14 +87,32 @@ function monterSalles(app: Application, o: Options, voir: (req: Request) => Moi,
   const nomLiveKit = (nom: string) => (nom.startsWith('appel-') ? nom : 'salle-' + createHash('sha256').update(nom).digest('hex').slice(0, 32));
   const annoncer = () => direct.annonce('tr:salles');
   // Une personne exclue d'une réunion n'y revient pas avant douze heures : le serveur ne lui redonne pas de jeton.
+  // L'exclusion est gardée dans la base (exclusion_salle) : elle vaut sur chaque exemplaire du serveur et survit
+  // à un redémarrage (revue Codex). Sans cette table, elle reste en mémoire.
   const EXCLUSION_MS = 12 * 60 * 60 * 1000;
+  const tableExclusions = o.tables.exclusion_salle;
   const exclus = new Map<string, number>();
-  const estExclu = (nom: string, id: string) => {
-    const fin = exclus.get(nom + '\u0000' + id);
+  const empreinteDe = (piece: string) => createHash('sha256').update(piece).digest('hex');
+  const estExclu = async (piece: string, id: string): Promise<boolean> => {
+    if (tableExclusions) {
+      const lignes = await tableExclusions.lister({ egal: { piece: empreinteDe(piece), compte: id } });
+      return lignes.some((l) => String(l.jusqua) > new Date().toISOString());
+    }
+    const fin = exclus.get(piece + '\u0000' + id);
     if (fin === undefined) return false;
     if (fin > Date.now()) return true;
-    exclus.delete(nom + '\u0000' + id);
+    exclus.delete(piece + '\u0000' + id);
     return false;
+  };
+  const exclure = async (piece: string, id: string): Promise<void> => {
+    const jusqua = new Date(Date.now() + EXCLUSION_MS).toISOString();
+    if (!tableExclusions) {
+      exclus.set(piece + '\u0000' + id, Date.now() + EXCLUSION_MS);
+      return;
+    }
+    const [deja] = await tableExclusions.lister({ egal: { piece: empreinteDe(piece), compte: id } });
+    if (deja) await tableExclusions.modifier(String(deja.id), { jusqua });
+    else await tableExclusions.creer({ piece: empreinteDe(piece), compte: id, jusqua });
   };
   /** Anime-t-il cette salle ? Lu dans son compte, jamais dans ce que le participant écrit de lui-même. */
   const anime = async (nom: string, id: string): Promise<boolean> => {
@@ -137,7 +155,7 @@ function monterSalles(app: Application, o: Options, voir: (req: Request) => Moi,
         res.status(403).json({ erreur: "Vous n'avez pas accès à cette réunion." });
         return;
       }
-      if (estExclu(permis.piece, moi.id)) {
+      if (await estExclu(permis.piece, moi.id)) {
         res.status(403).json({ erreur: 'Vous avez été exclu de cette réunion.' });
         return;
       }
@@ -240,7 +258,7 @@ function monterSalles(app: Application, o: Options, voir: (req: Request) => Moi,
         const cible = texteDe(corps.participant);
         const piece = nomLiveKit(permis.piece);
         if (geste === 'exclure') {
-          exclus.set(permis.piece + '\u0000' + cible, Date.now() + EXCLUSION_MS);
+          await exclure(permis.piece, cible);
           // Déjà partie, la personne n'est plus dans la salle : l'exclusion compte quand même.
           await service().removeParticipant(piece, cible).catch(() => undefined);
         }

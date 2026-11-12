@@ -1,0 +1,32 @@
+serveur "ecole" :
+    roles eleve et professeur
+    paiements par stripe
+    donnee inscription :
+        nom : texte
+        total : nombre
+    donnee journal :
+        nom : texte
+    donnee suivi :
+        etape : texte
+    donnee envoi :
+        nom : texte
+    route "inscriptions" :
+        connecte peut lire inscription
+        connecte peut creer inscription
+        quand inscription est payee :
+            creer journal avec nom "payée"
+    route "journaux" :
+        seul admin peut lire journal
+    route "suivis" :
+        seul admin peut lire suivi
+    route "envois" :
+        connecte peut creer envoi
+        seul admin peut lire envoi
+        quand envoi est cree :
+            creer suivi avec etape "premier"
+            creer suivi avec etape "second"
+    salle "classe" pour eleve et professeur animee par professeur
+
+page "a" :
+    titre "A"
+    reunion "classe"

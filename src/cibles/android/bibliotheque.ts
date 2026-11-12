@@ -106,7 +106,8 @@ fun estVide(v: Any?): Boolean = when (v) {
 
 fun longueur(v: Any?): Double = when (v) {
     is List<*> -> v.size.toDouble()
-    is String -> v.length.toDouble()
+    // En caractères Unicode, comme les autres cibles : « 😀 » vaut 1 (et non 2 unités UTF-16).
+    is String -> v.codePointCount(0, v.length).toDouble()
     else -> 0.0
 }
 

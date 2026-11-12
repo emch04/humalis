@@ -6,6 +6,8 @@ import { SYNCHRO, tablesSynchro } from '../src/cibles/serveur/synchro.js';
 import { SYNCHRO_SQLITE } from '../src/cibles/serveur/sqlite.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
 import { genererProjetStatique } from '../src/cibles/statique/projet.js';
+import { genererProjetApple } from '../src/cibles/apple/projet.js';
+import { genererProjetServeur } from '../src/cibles/serveur/projet.js';
 
 /** La seconde passe de la revue Codex (12 novembre 2026) : les défauts de justesse 4, 5, 7 et 8. */
 describe('la revue Codex : justesse', () => {
@@ -43,4 +45,30 @@ describe('la revue Codex : justesse', () => {
     expect([arrondir(2.5), arrondir(-2.5), arrondir(-2.4), arrondir(0)]).toEqual([3, -3, -2, 0]);
     expect(genererProjetStatique(application!, { nom: 'a', source: 'a.humalis' }).get('index.html')).toContain('-3');
   });
+
+  it('troisième passe : « longueur » compte les caractères Unicode partout (« 😀 » vaut 1)', () => {
+    const source = 'page "a" :\n    variable mot = "😀é"\n    variable taille = longueur de mot\n    titre "A"\n    texte "{taille}"\n';
+    const { application } = compiler(source);
+    const web = [...genererProjetWeb(application!, { nom: 'a', adresse: 'https://a.cd', source: 'a.humalis' }).values()].join('\n');
+    expect(web).toContain('Array.from(');
+    expect(Array.from('😀é').length).toBe(2);
+    const apple = [...genererProjetApple(application!, { nom: 'a', source: 'a.humalis' }).fichiers.values()].join('\n');
+    expect(apple).toContain('.unicodeScalars.count');
+    expect(genererProjetStatique(application!, { nom: 'a', source: 'a.humalis' }).get('index.html')).toContain('>2<');
+  });
+
+  it('troisième passe : en Swift, une variable n’en initialise pas une autre', () => {
+    const source = 'page "a" :\n    variable mot = "😀"\n    variable taille = longueur de mot\n    titre "A"\n    texte "{taille}"\n';
+    const apple = [...genererProjetApple(compiler(source).application!, { nom: 'a', source: 'a.humalis' }).fichiers.values()].join('\n');
+    expect(apple).toContain('@State private var taille: Double = Double("😀".unicodeScalars.count)');
+    expect(apple).not.toMatch(/@State private var taille: Double = Double\(mot\./);
+  });
+
+  it('troisième passe : le service systemd peut écrire la base SQLite dans « donnees »', () => {
+    const source = 'serveur "s" :\n    donnee note :\n        texte : texte\n    route "notes" :\n        connecte peut lire note\n\npage "a" :\n    titre "A"\n';
+    const fichiers = genererProjetServeur(compiler(source).application!.serveurs[0]!, { nom: 's', source: 's.humalis' });
+    const service = [...fichiers.entries()].find(([chemin]) => /^deploiement\/[^/]+\.service$/.test(chemin) && !chemin.includes('sauvegarde'))?.[1] ?? '';
+    expect(service).toMatch(/ReadWritePaths=\S+\/sauvegardes \S+\/donnees/);
+  });
 });
+

@@ -190,6 +190,10 @@ donnee geste_salle :
     salle : texte
     participant : texte
     geste : texte
+donnee exclusion_salle :
+    piece : texte
+    compte : texte
+    jusqua : texte
 route "salles_vue" :
     connecte peut lire vue_salle
 route "salles_moi" :
@@ -197,7 +201,9 @@ route "salles_moi" :
 route "salles_jeton" :
     connecte peut creer jeton_salle
 route "salles_geste" :
-    connecte peut creer geste_salle`;
+    connecte peut creer geste_salle
+route "salles_exclusions" :
+    seul admin peut lire exclusion_salle`;
 
 const DONNEES_APPELS = `donnee appel_humalis :
     auteur : texte

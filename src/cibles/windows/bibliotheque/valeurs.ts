@@ -236,7 +236,8 @@ public static class V
 
     public static string Majuscules(object? v) => T(v).ToUpper(Fr);
     public static string Minuscules(object? v) => T(v).ToLower(Fr);
-    public static double Longueur(object? v) => v is Liste l ? l.Count : new StringInfo(T(v)).LengthInTextElements;
+    // En caractères Unicode, comme les autres cibles et les limites « texte de … caracteres ».
+    public static double Longueur(object? v) => v is Liste l ? l.Count : T(v).EnumerateRunes().Count();
     public static string Initiales(object? v) => string.Concat(T(v).Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(m => char.ToUpper(m[0], Fr)));
     public static string Remplacer(object? cherche, object? remplace, object? dans) => T(cherche).Length == 0 ? T(dans) : T(dans).Replace(T(cherche), T(remplace));
     public static string AvecMajuscule(string texte) => texte.Length == 0 ? texte : char.ToUpper(texte[0], Fr) + texte[1..];

@@ -463,8 +463,9 @@ export function operationDeTexte(
       return `${membre(valeur.valeur)}.toLocaleUpperCase('fr')`;
     case 'minuscules':
       return `${membre(valeur.valeur)}.toLocaleLowerCase('fr')`;
+    // En caractères Unicode, comme les limites « texte de 2 a 80 caracteres » et toutes les cibles : « 😀 » vaut 1.
     case 'longueur':
-      return `${membre(valeur.valeur)}.length`;
+      return `Array.from(${x(valeur.valeur)}).length`;
     case 'initiales':
       return `initialesDe(${x(valeur.valeur)})`;
   }

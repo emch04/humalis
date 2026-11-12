@@ -1141,6 +1141,12 @@ function trancher<T>(liste: T[], filtres?: Filtres): T[] {
   return filtres?.limite === undefined ? liste.slice(debut) : liste.slice(debut, debut + filtres.limite);
 }
 
+/**
+ * En mémoire, une transaction note de quoi défaire chacune de SES écritures (et seulement les siennes) : annulée,
+ * elle les défait une à une, sans toucher à ce qu'une autre requête a écrit pendant ce temps (revue Codex).
+ */
+export const journalMemoire = new AsyncLocalStorage<(() => void)[]>();
+
 /** La synchronisation : la fiche créée garde l'identifiant choisi par l'appareil, le temps d'un seul « creer ». */
 export const idImpose = new AsyncLocalStorage<{ id: string; pris: boolean }>();
 export const nouvelId = () => {
@@ -1186,6 +1192,7 @@ export function creerStockageMemoire(): Stockage {
     async creer(valeurs) {
       const enregistrement = { ...valeurs, id: nouvelId() };
       lignes.set(enregistrement.id, enregistrement);
+      journalMemoire.getStore()?.push(() => lignes.delete(enregistrement.id));
       return enregistrement;
     },
     async modifier(id, valeurs) {
@@ -1193,10 +1200,14 @@ export function creerStockageMemoire(): Stockage {
       if (!actuel) return null;
       const nouveau = { ...actuel, ...valeurs, id };
       lignes.set(id, nouveau);
+      journalMemoire.getStore()?.push(() => lignes.set(id, actuel));
       return nouveau;
     },
     async supprimer(id) {
-      return lignes.delete(id);
+      const actuel = lignes.get(id);
+      const fait = lignes.delete(id);
+      if (fait && actuel) journalMemoire.getStore()?.push(() => lignes.set(id, actuel));
+      return fait;
     },
   };
 }
