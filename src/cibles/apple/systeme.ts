@@ -230,10 +230,11 @@ enum Coffre {
 
     static func ecrire(_ cle: String, _ donnees: Data) {
         let q = requete(cle)
-        if SecItemUpdate(q as CFDictionary, [kSecValueData as String: donnees] as CFDictionary) == errSecItemNotFound {
+        // « ThisDeviceOnly » : la session et les secrets ne partent ni dans une sauvegarde ni vers un autre appareil.
+        if SecItemUpdate(q as CFDictionary, [kSecValueData as String: donnees, kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly] as CFDictionary) == errSecItemNotFound {
             var ajout = q
             ajout[kSecValueData as String] = donnees
-            ajout[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+            ajout[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
             SecItemAdd(ajout as CFDictionary, nil)
         }
     }

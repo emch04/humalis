@@ -331,6 +331,11 @@ function poser(el, nom, v) {
     if (el.hasAttribute(nom)) el.removeAttribute(nom);
     return;
   }
+  // Une adresse venue d'une variable ne lance jamais de code : « javascript: » et ses cousins n'ont pas d'adresse.
+  if (['src', 'href', 'poster', 'action', 'formaction'].includes(nom) && ['javascript:', 'vbscript:', 'data:text/html'].some((s) => String(v).split('').filter((c) => c > ' ').join('').toLowerCase().startsWith(s))) {
+    if (el.hasAttribute(nom)) el.removeAttribute(nom);
+    return;
+  }
   const lu = String(v);
   if (el.getAttribute(nom) !== lu) el.setAttribute(nom, lu);
 }

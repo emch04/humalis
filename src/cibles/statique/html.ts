@@ -16,9 +16,16 @@ export function echapperAttribut(texte: string): string {
 }
 
 /** `nom="valeur"` pour chaque attribut défini, dans l'ordre donné. */
+/** Une adresse qui lancerait du code (« javascript: », même écrite avec des espaces ou des majuscules) : elle n'est jamais écrite. */
+export function adresseDangereuse(nom: string, valeur: string): boolean {
+  if (!['src', 'href', 'poster', 'action', 'formaction'].includes(nom)) return false;
+  const serree = [...valeur].filter((c) => c > ' ').join('').toLowerCase();
+  return ['javascript:', 'vbscript:', 'data:text/html'].some((schema) => serree.startsWith(schema));
+}
+
 export function attributs(liste: [string, string | undefined][]): string {
   return liste
-    .filter((a): a is [string, string] => a[1] !== undefined)
+    .filter((a): a is [string, string] => a[1] !== undefined && !adresseDangereuse(a[0], a[1]))
     .map(([nom, valeur]) => ` ${nom}="${echapperAttribut(valeur)}"`)
     .join('');
 }

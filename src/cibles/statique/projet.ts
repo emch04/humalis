@@ -615,6 +615,8 @@ ${tablePages}
         });
       }
       else if (nom.startsWith('on')) element.addEventListener(nom.slice(2), () => executer(valeur));
+      // Une adresse venue d'une variable ne lance jamais de code : « javascript: » et ses cousins n'ont pas d'adresse.
+      else if (['src', 'href', 'poster', 'action', 'formaction'].includes(nom) && ['javascript:', 'vbscript:', 'data:text/html'].some((s) => String(valeur).split('').filter((c) => c > ' ').join('').toLowerCase().startsWith(s))) continue;
       else element.setAttribute(nom, String(valeur));
     }
     for (const enfant of enfants) element.append(enfant instanceof Node ? enfant : String(enfant));

@@ -77,3 +77,27 @@ describe('la sauvegarde du téléphone Android', () => {
     expect(extraction.match(/<exclude domain="sharedpref" path="humalis.coffre.xml" \/>/g)).toHaveLength(2);
   });
 });
+
+describe('une adresse venue d’une variable ne lance jamais de code', () => {
+  const PAGE_IMAGES = 'page "a" :\n    variable piege = "javascript:alert(1)"\n    variable tordu = "  JaVaScRiPt:alert(2)"\n    variable bonne = "https://exemple.fr/i.png"\n    titre "x"\n    image piege avec description "un"\n    image tordu avec description "deux"\n    image bonne avec description "trois"\n';
+
+  it('le HTML écrit à la compilation n’a pas de « src » dangereux, sur le web et en statique', () => {
+    const appli = compiler(PAGE_IMAGES).application!;
+    for (const fichiers of [genererProjetMoteur(appli, { nom: 'e', source: 'e.humalis' }), genererProjetStatique(appli, { nom: 'e', source: 'e.humalis' })]) {
+      const html = fichiers.get('index.html') as string;
+      expect(html.toLowerCase()).not.toContain('script:alert');
+      expect(html).toContain('src="https://exemple.fr/i.png"');
+      expect(html.match(/<img/g)).toHaveLength(3);
+    }
+  });
+
+  it('le code de la page refuse ces adresses quand la variable change, et ne contient aucun caractère nul', () => {
+    const appli = compiler(PAGE_IMAGES).application!;
+    const moteur = genererProjetMoteur(appli, { nom: 'e', source: 'e.humalis' }).get('src/humalis/moteur.js') as string;
+    const statique = genererProjetStatique(appli, { nom: 'e', source: 'e.humalis' }).get('humalis/humalis.js') as string;
+    for (const code of [moteur, statique]) {
+      expect(code).toContain("['javascript:', 'vbscript:', 'data:text/html']");
+      expect(code).not.toContain('\u0000');
+    }
+  });
+});
