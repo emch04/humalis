@@ -464,7 +464,9 @@ document.title = ${traduit('Page introuvable')};
 
 function partagesJs(application: Application, contexte: ContexteMoteur): string {
   const g = new GenerateurMoteur(ecranVide('partages'), contexte, '', []);
-  const gardees = application.partages.filter((p) => !p.lectureSeule && !p.locale);
+  // « memorisee en secret » : dans le coffre de l'ordinateur (bureau), jamais dans le stockage du navigateur.
+  const secretes = application.partages.filter((p) => p.memorisee && p.secret && !p.locale);
+  const gardees = application.partages.filter((p) => !p.lectureSeule && !p.locale && !secretes.includes(p));
   const locales = application.partages.filter((p) => p.locale);
   const synchro = avecLocalesSynchro(application);
   const lignes = application.partages.map((p) => `export const ${nomJs(p.nom)} = signal(${g.expression(p.initiale)});`);
@@ -472,7 +474,7 @@ function partagesJs(application: Application, contexte: ContexteMoteur): string 
   void expressionJs;
   return `// Produit par Humalis : les variables partagées entre les pages. Elles restent vivantes d'une page à l'autre.
 import { signal, effet, sansSuivi } from './moteur.js';
-import { lirePartage, garderPartage, lireMemoire, garderMemoire${locales.length ? ', afficherMessage' : ''} } from './outils.js';
+import { lirePartage, garderPartage, lireMemoire, garderMemoire${secretes.length ? ', memoriserSecret' : ''}${locales.length ? ', afficherMessage' : ''} } from './outils.js';
 ${locales.length ? "import { creerDonneeLocale } from './donnees-locales.js';\n" : ''}${synchro ? "import { reseauLocal, utilisateur } from './serveur.js';\n" : ''}
 ${lignes.join('\n')}
 ${locales.map((p) => `const locale${pascal(p.nom)} = creerDonneeLocale(${reglagesLocale(application, camel(p.nom), p.locale!, contexte.cle)}, { lire: () => ${nomJs(p.nom)}.x, ecrire: (liste) => { ${nomJs(p.nom)}.v = liste; }, dire: afficherMessage${synchro ? ', transport: reseauLocal' : ''} });`).join('\n')}
@@ -487,6 +489,7 @@ ${gardees.map((p) => `    ${nomJs(p.nom)}.v = ${p.memorisee ? 'lireMemoire' : 'l
   if (surveille) return;
   surveille = true;
 ${gardees.map((p) => `  effet(() => ${p.memorisee ? 'garderMemoire' : 'garderPartage'}(${cle(p.nom)}, ${nomJs(p.nom)}.v));`).join('\n')}
+${secretes.map((p) => `  memoriserSecret(${cle(p.nom)}, ${nomJs(p.nom)});`).join('\n')}
 ${locales.map((p) => `  effet(() => { const liste = ${nomJs(p.nom)}.v; sansSuivi(() => locale${pascal(p.nom)}.observer(liste)); });
   locale${pascal(p.nom)}.demarrer();
   ${p.locale!.synchronisee !== undefined ? `effet(() => { if (utilisateur.pret) { const id = utilisateur.personne?.id ?? null; sansSuivi(() => locale${pascal(p.nom)}.changerCompte(id)); } });` : `locale${pascal(p.nom)}.changerCompte(null);`}`).join('\n')}

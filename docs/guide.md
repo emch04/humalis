@@ -1955,8 +1955,8 @@ page "boutique" :
         changer visites par visites + 1
 ```
 
-Sur le mobile et le desktop, `memorisee en secret` range la valeur dans le
-coffre chiffré de l'appareil (le trousseau sur un Mac, par exemple).
+Sur les applications Apple, Android, Windows et de bureau, `memorisee en secret`
+range la valeur dans le coffre chiffré de l'appareil (le trousseau sur un Mac, par exemple).
 
 ---
 
@@ -4093,7 +4093,7 @@ chose de faux.
 | Raccourcis clavier | oui | oui | oui | oui | oui (clavier branché) | oui |
 | Vue native écrite à la main | non | non | non | oui (Swift, `sur apple`) | oui (Kotlin, `sur android`) | oui (C#, `sur windows`) |
 | Composants React (anciens projets) | oui | non | oui | non | non | non |
-| Le moteur Humalis (par défaut) | oui | non | oui (sauf composant React ou `memorisee en secret`) | non | non | non |
+| Le moteur Humalis (par défaut) | oui | non | oui (sauf composant React) | non | non | non |
 | Graphiques, cartes, audio, vidéo, fichiers | oui | oui | oui | oui | oui | oui |
 | Plusieurs langues | oui | oui | oui | oui | oui | oui |
 | Photo, scanner, Face ID, vibration, signature, hors ligne | oui (vibration : Android) | non | non | oui | oui | non |
@@ -4255,7 +4255,8 @@ dans `humalis.projet.json` : `"moteur": "react"` ; `humalis developper` et
 encore faire est produit en React : la compilation dit pourquoi.
 
 L'application de bureau prend aussi les pages du moteur, une par adresse. Elle
-passe en React pour un composant React ou une valeur `memorisee en secret`.
+passe en React seulement pour un composant React. Une valeur `memorisee en secret`
+est gardée dans le coffre de l'ordinateur par le moteur.
 
 Les modules (`utiliser module`), les composants (React, Vue, Svelte) et les Web
 Components marchent de la même façon : le fichier n'est chargé que par les pages qui s'en

@@ -158,7 +158,7 @@ export function verifierFormesBureau(application: Application, surLeMoteur: bool
     diagnostics.push({
       gravite: 'erreur',
       ligne: agissantes[0]!.ligne,
-      message: 'l’ouverture d’un fichier et le menu clic droit ne sont écrits qu’avec le moteur Humalis : ce programme est produit avec React (un composant React, « memorisee en secret » ou --moteur react).',
+      message: 'l’ouverture d’un fichier et le menu clic droit ne sont écrits qu’avec le moteur Humalis : ce programme est produit avec React (un composant React ou --moteur react).',
     });
   }
   return diagnostics;

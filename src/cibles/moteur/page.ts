@@ -671,8 +671,12 @@ export class GenerateurMoteur extends GenerateurPage {
     const cle = (etat: Etat) => chaine(`${etat.horsLigne ? 'humalis-hors-ligne:' : ''}${this.site.cle}:${simplifier(this.ecran.nom)}:${simplifier(etat.nom)}`);
     e.bloc('function relire() {', () => {
       for (const l of lectures) e.ligne(`${this.lu(l.variable)} = lectureGardee(${l.code}, ${nomJs(l.variable)}.x);`);
-      for (const etat of gardees) e.ligne(`${nomJs(etat.nom)}.v = lireMemoire(${cle(etat)}, ${nomJs(etat.nom)}.x);`);
-      for (const etat of gardees) e.ligne(`effet(() => garderMemoire(${cle(etat)}, ${nomJs(etat.nom)}.v));`);
+      // « memorisee en secret » : dans le coffre de l'ordinateur (bureau), jamais dans le stockage du navigateur.
+      const secretes = gardees.filter((etat) => etat.memorisee && etat.secret);
+      const ordinaires = gardees.filter((etat) => !secretes.includes(etat));
+      for (const etat of ordinaires) e.ligne(`${nomJs(etat.nom)}.v = lireMemoire(${cle(etat)}, ${nomJs(etat.nom)}.x);`);
+      for (const etat of ordinaires) e.ligne(`effet(() => garderMemoire(${cle(etat)}, ${nomJs(etat.nom)}.v));`);
+      for (const etat of secretes) e.ligne(`memoriserSecret(${cle(etat)}, ${nomJs(etat.nom)});`);
     });
     return ['relire'];
   }
@@ -1385,7 +1389,7 @@ export const NOMS_RESERVES = (): Set<string> => new Set(['appareil', 'reunion', 
 export const ADAPTATEURS = { module: 'monterModule', react: 'monterReact', vue: 'monterVue', svelte: 'monterSvelte', web: 'monterWeb' } as const;
 
 const NOMS_MOTEUR = ['animerListe', 'signal', 'calcul', 'lecture', 'effet', 'nettoyer', 'gabarit', 'texte', 'attribut', 'ecouter', 'soumettre', 'ecouterLaPause', 'modele', 'si', 'chaque', 'zone', 'contenu', 'executer'];
-const NOMS_OUTILS = ['formaterDateLongue', 'formaterEnLettres', 'avecMajuscule', 'initialesDe', 'creer', 'icone', 'avatar', 'etoiles', 'codeQr', 'carteLieux', 'fenetre', 'observerLeBas', 'titreDeLaPage', 'descriptionDeLaPage', 'activerCarrousel', 'activerMotDePasse', 'afficherMessage', 'planifier', 'planificateur', 'minuteriesDeCouche', 'ecouterRaccourcis', 'mouvementReduit', 'themeSombre', 'copier', 'partager', 'telechargerCsv', 'confirmer', 'noter', 'retirerPremier', 'grouper', 'formaterNombre', 'formaterDate', 'formaterArgent', 'accorder', 'formaterTaille', 'dateDuJour', 'maintenant', 'decalerDate', 'joursEntre', 'formaterDepuis', 'lireMemoire', 'garderMemoire', 'cliquer', 'focaliser', 't', 'langue', 'changerLangue', 'definirTheme'];
+const NOMS_OUTILS = ['formaterDateLongue', 'formaterEnLettres', 'avecMajuscule', 'initialesDe', 'creer', 'icone', 'avatar', 'etoiles', 'codeQr', 'carteLieux', 'fenetre', 'observerLeBas', 'titreDeLaPage', 'descriptionDeLaPage', 'activerCarrousel', 'activerMotDePasse', 'afficherMessage', 'planifier', 'planificateur', 'minuteriesDeCouche', 'ecouterRaccourcis', 'mouvementReduit', 'themeSombre', 'copier', 'partager', 'telechargerCsv', 'confirmer', 'noter', 'retirerPremier', 'grouper', 'formaterNombre', 'formaterDate', 'formaterArgent', 'accorder', 'formaterTaille', 'dateDuJour', 'maintenant', 'decalerDate', 'joursEntre', 'formaterDepuis', 'lireMemoire', 'garderMemoire', 'memoriserSecret', 'cliquer', 'focaliser', 't', 'langue', 'changerLangue', 'definirTheme'];
 const NOMS_NAV = ['naviguer', 'adresseDe', 'adresseDuLien', 'filtre', 'revenir', 'changerFiltre', 'apresLaGarde'];
 const NOMS_ADAPT = ['monterModule', 'monterReact', 'monterVue', 'monterSvelte', 'monterWeb'];
 const NOMS_SERVEUR = ['serveur', 'derniereRequete', 'utilisateur', 'televerser', 'REPOS', 'lectureGardee', 'directDeCouche'];

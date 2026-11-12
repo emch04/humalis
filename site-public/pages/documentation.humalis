@@ -2675,7 +2675,7 @@ page "documentation_19" dans "documentation" adresse "/documentation/partager-et
                 bouton "Count my visit"
                 quand l'utilisateur clique sur "Count my visit" :
                     changer visits par visits + 1
-        texte "On mobile and desktop, `memorisee en secret` stores the value in the device's encrypted vault (the Keychain on a Mac, for example)."
+        texte "In the Apple, Android, Windows and desktop apps, `memorisee en secret` stores the value in the device's encrypted vault (the Keychain on a Mac, for example)."
     sinon :
         soustitre "Une variable pour toutes les pages"
         texte "Une variable écrite en haut du fichier avec `partagee` est la même sur toutes les pages :"
@@ -2708,7 +2708,7 @@ page "documentation_19" dans "documentation" adresse "/documentation/partager-et
                 bouton "Compter ma visite"
                 quand l'utilisateur clique sur "Compter ma visite" :
                     changer visites par visites + 1
-        texte "Sur le mobile et le desktop, `memorisee en secret` range la valeur dans le coffre chiffré de l'appareil (le trousseau sur un Mac, par exemple)."
+        texte "Sur les applications Apple, Android, Windows et de bureau, `memorisee en secret` range la valeur dans le coffre chiffré de l'appareil (le trousseau sur un Mac, par exemple)."
     ligne avec style "doc-suite" :
         lien "← 18. Les formulaires" en anglais "← 18. Forms" vers "documentation_18"
         lien "20. La navigation →" en anglais "20. Navigation →" vers "documentation_20"
@@ -5546,7 +5546,7 @@ page "documentation_33" dans "documentation" adresse "/documentation/ce-que-chaq
             rangee "Keyboard shortcuts", "yes", "yes", "yes", "yes", "yes (keyboard attached)", "yes"
             rangee "Hand-written native view", "no", "no", "no", "yes (Swift, `sur apple`)", "yes (Kotlin, `sur android`)", "yes (C#, `sur windows`)"
             rangee "React components (older projects)", "yes", "no", "yes", "no", "no", "no"
-            rangee "The Humalis engine (the default)", "yes", "no", "yes (except a React component or `memorisee en secret`)", "no", "no", "no"
+            rangee "The Humalis engine (the default)", "yes", "no", "yes (except a React component)", "no", "no", "no"
             rangee "Charts, maps, audio, video, files", "yes", "yes", "yes", "yes", "yes", "yes"
             rangee "Several languages", "yes", "yes", "yes", "yes", "yes", "yes"
             rangee "Photo, scanner, Face ID, vibration, signature, offline", "yes (vibration: Android)", "no", "no", "yes", "yes", "no"
@@ -5610,7 +5610,7 @@ page "documentation_33" dans "documentation" adresse "/documentation/ce-que-chaq
         code terminal :
             humalis compile site.humalis --cible web --sortie site
         texte "Each page is an HTML file already written by the compiler, which a small script picks up without rebuilding it. When a variable changes, only what reads it changes. The site can also be produced with React: write `--moteur react`, or once for a project in `humalis.projet.json`: `"moteur": "react"`; `humalis developper` and `humalis tester` use it too. A program that uses what the engine cannot do yet is produced with React: the compiler says why."
-        texte "The desktop app also takes the engine's pages, one per address. It switches to React for a React component or a value `memorisee en secret`."
+        texte "The desktop app also takes the engine's pages, one per address. It switches to React only for a React component. A value `memorisee en secret` is kept in the computer's vault by the engine."
         texte "Modules (`utiliser module`), components (React, Vue, Svelte) and Web Components work the same way: the file is loaded only by the pages that use it. Anything shown after loading (data from the server, a component) is not in the initial HTML."
         texte "A click made before the page is ready is not lost: it is replayed as soon as the page is ready."
         texte "`pour chaque t dans taches avec animation :` makes rows slide when the list changes, and new rows fade in (unless the person asked for less motion). It works on the web: elsewhere the compiler says so and rows change without sliding."
@@ -5649,7 +5649,7 @@ page "documentation_33" dans "documentation" adresse "/documentation/ce-que-chaq
             rangee "Raccourcis clavier", "oui", "oui", "oui", "oui", "oui (clavier branché)", "oui"
             rangee "Vue native écrite à la main", "non", "non", "non", "oui (Swift, `sur apple`)", "oui (Kotlin, `sur android`)", "oui (C#, `sur windows`)"
             rangee "Composants React (anciens projets)", "oui", "non", "oui", "non", "non", "non"
-            rangee "Le moteur Humalis (par défaut)", "oui", "non", "oui (sauf composant React ou `memorisee en secret`)", "non", "non", "non"
+            rangee "Le moteur Humalis (par défaut)", "oui", "non", "oui (sauf composant React)", "non", "non", "non"
             rangee "Graphiques, cartes, audio, vidéo, fichiers", "oui", "oui", "oui", "oui", "oui", "oui"
             rangee "Plusieurs langues", "oui", "oui", "oui", "oui", "oui", "oui"
             rangee "Photo, scanner, Face ID, vibration, signature, hors ligne", "oui (vibration : Android)", "non", "non", "oui", "oui", "non"
@@ -5713,7 +5713,7 @@ page "documentation_33" dans "documentation" adresse "/documentation/ce-que-chaq
         code terminal :
             humalis compile site.humalis --cible web --sortie site
         texte "Chaque page est un fichier HTML déjà écrit par le compilateur, qu'un petit script reprend sans le reconstruire. Quand une variable change, seul ce qui la lit change. Le site peut aussi être produit en React : écris `--moteur react`, ou une fois pour un projet dans `humalis.projet.json` : `"moteur": "react"` ; `humalis developper` et `humalis tester` s'en servent aussi. Un programme qui emploie ce que le moteur ne sait pas encore faire est produit en React : la compilation dit pourquoi."
-        texte "L'application de bureau prend aussi les pages du moteur, une par adresse. Elle passe en React pour un composant React ou une valeur `memorisee en secret`."
+        texte "L'application de bureau prend aussi les pages du moteur, une par adresse. Elle passe en React seulement pour un composant React. Une valeur `memorisee en secret` est gardée dans le coffre de l'ordinateur par le moteur."
         texte "Les modules (`utiliser module`), les composants (React, Vue, Svelte) et les Web Components marchent de la même façon : le fichier n'est chargé que par les pages qui s'en servent. Tout ce qui s'affiche après le chargement (ce qui vient du serveur, un composant) n'est pas dans le HTML de départ."
         texte "Un clic fait avant que la page soit prête n'est pas perdu : il est rejoué dès qu'elle l'est."
         texte "`pour chaque t dans taches avec animation :` fait glisser les lignes quand la liste change, et apparaître en fondu celles qui arrivent (sauf si la personne a demandé moins d'animations). Cela marche sur le web : ailleurs, le compilateur le dit et les lignes changent sans glisser."

@@ -31,15 +31,16 @@ export interface OptionsDesktop {
 }
 
 /**
- * Les pages viennent du moteur Humalis (sans React) quand il sait tout faire : pas de
- * composant React, pas de « memorisee en secret » (gardé dans le coffre de React pour l'instant).
+ * Les pages viennent du moteur Humalis (sans React) quand il sait tout faire : pas de composant React.
+ * « memorisee en secret » est gardé dans le coffre de l'ordinateur par le moteur comme par React.
  */
 export function bureauSurLeMoteur(application: Application, options: OptionsDesktop): boolean {
   // La commande demande le moteur par défaut ; appelée directement, la fonction garde React.
   if (options.moteur !== 'humalis') return false;
   const etats: Etat[] = [...application.partages, ...application.ecrans.flatMap((e) => e.etat), ...application.composants.flatMap((c) => c.etat)];
-  if (etats.some((e) => e.memorisee && e.secret) || application.composantsReact.length > 0) return false;
-  return !verifierPourLeMoteur(application).some((d) => d.gravite === 'erreur');
+  if (application.composantsReact.length > 0) return false;
+  // Le seul refus du moteur sur le web, « memorisee en secret », n'en est pas un sur le bureau : il a un coffre.
+  return !verifierPourLeMoteur(application).some((d) => d.gravite === 'erreur' && !d.message.startsWith('« memorisee en secret »'));
 }
 
 /**
@@ -102,7 +103,7 @@ export function genererProjetDesktop(application: Application, options: OptionsD
   const etats: Etat[] = [...application.partages, ...application.ecrans.flatMap((e) => e.etat), ...application.composants.flatMap((c) => c.etat)];
   const secret = etats.some((e) => e.memorisee && e.secret);
   // « memorisee en secret », refusé sur le web, est gardé dans le coffre de l'ordinateur (décision D6).
-  if (secret) fichiers.set('src/humalis/memoire.ts', memoireAvecCoffre());
+  if (secret && !moteur) fichiers.set('src/humalis/memoire.ts', memoireAvecCoffre());
   // Les clés d'accès : Touch ID (Secure Enclave) sur Mac, Windows Hello sur Windows, par le processus principal (cles.ts).
   const cles = /"quoi":"(connexionCle|ajoutCle)"/.test(JSON.stringify([application.ecrans, application.composants]));
   if (cles) {

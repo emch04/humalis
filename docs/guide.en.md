@@ -2030,8 +2030,8 @@ page "shop" :
         changer visits par visits + 1
 ```
 
-On mobile and desktop, `memorisee en secret` stores the value in the device's
-encrypted vault (the Keychain on a Mac, for example).
+In the Apple, Android, Windows and desktop apps, `memorisee en secret` stores the value in the
+device's encrypted vault (the Keychain on a Mac, for example).
 
 ---
 
@@ -4162,7 +4162,7 @@ target, the compiler says so clearly instead of producing something wrong.
 | Keyboard shortcuts | yes | yes | yes | yes | yes (keyboard attached) | yes |
 | Hand-written native view | no | no | no | yes (Swift, `sur apple`) | yes (Kotlin, `sur android`) | yes (C#, `sur windows`) |
 | React components (older projects) | yes | no | yes | no | no | no |
-| The Humalis engine (the default) | yes | no | yes (except a React component or `memorisee en secret`) | no | no | no |
+| The Humalis engine (the default) | yes | no | yes (except a React component) | no | no | no |
 | Charts, maps, audio, video, files | yes | yes | yes | yes | yes | yes |
 | Several languages | yes | yes | yes | yes | yes | yes |
 | Photo, scanner, Face ID, vibration, signature, offline | yes (vibration: Android) | no | no | yes | yes | no |
@@ -4322,7 +4322,8 @@ changes. The site can also be produced with React: write `--moteur react`, or on
 produced with React: the compiler says why.
 
 The desktop app also takes the engine's pages, one per address. It switches to
-React for a React component or a value `memorisee en secret`.
+React only for a React component. A value `memorisee en secret` is kept in the
+computer's vault by the engine.
 
 Modules (`utiliser module`), components (React, Vue, Svelte) and Web Components
 work the same way: the file is loaded only by the pages that use it. Anything shown after

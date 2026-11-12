@@ -239,8 +239,17 @@ describe('l’application de bureau sur le moteur Humalis', () => {
     expect(f.has('panier/index.html')).toBe(true);
     expect(f.get('electron/principal.ts')).toContain("join(demande, 'index.html')");
   });
-  it('garde React pour un secret en mémoire', async () => {
-    const { bureauSurLeMoteur } = await import('../src/cibles/desktop/projet.js');
-    expect(bureauSurLeMoteur(sansErreur(programme('page "accueil" :', '>variable jeton = "" avec memorisee en secret', '>titre "a"')), { nom: 'b', source: 'b.humalis', moteur: 'humalis' })).toBe(false);
+  it('garde un secret dans le coffre de l’ordinateur sans passer par React', async () => {
+    const { bureauSurLeMoteur, genererProjetDesktop } = await import('../src/cibles/desktop/projet.js');
+    const application = sansErreur(programme('page "accueil" :', '>variable jeton = "" avec memorisee en secret', '>titre "a"'));
+    const options = { nom: 'b', source: 'b.humalis', moteur: 'humalis' as const };
+    expect(bureauSurLeMoteur(application, options)).toBe(true);
+    const f = genererProjetDesktop(application, options);
+    const pages = [...f.entries()].filter(([chemin]) => chemin.endsWith('.js')).map(([, code]) => code).join('\n');
+    expect(pages).toContain("memoriserSecret('");
+    // Jamais dans le stockage du navigateur.
+    expect(pages).not.toMatch(/garderMemoire\([^)]*jeton/);
+    expect(f.get('electron/pont.cts')).toContain('humalisCoffre');
+    expect(JSON.stringify(JSON.parse(f.get('package.json')!).devDependencies)).not.toContain('"react"');
   });
 });

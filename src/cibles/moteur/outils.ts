@@ -39,7 +39,7 @@ export function outilsJs(b: BesoinsOutils): string {
   const exportes = [
     'creer', 'afficherMessage', 'planifier', 'planificateur', 'arreterMinuteries', 'minuteriesDeCouche', 'ecouterRaccourcis', 'mouvementReduit', 'themeSombre', 'cliquer', 'focaliser', 'fenetre', 'observerLeBas', 'titreDeLaPage', 'descriptionDeLaPage',
     'retirerPremier', 'grouper', 'formaterNombre', 'formaterDate', 'formaterArgent', 'accorder', 'formaterTaille', 'dateDuJour', 'maintenant', 'decalerDate', 'joursEntre', 'formaterDepuis', ...NOMS_FORMES_TEXTE,
-    'lireMemoire', 'garderMemoire', 'lirePartage', 'garderPartage', 'copier', 'partager', 'telechargerCsv', 'confirmer', 'noter',
+    'lireMemoire', 'garderMemoire', 'memoriserSecret', 'lirePartage', 'garderPartage', 'copier', 'partager', 'telechargerCsv', 'confirmer', 'noter',
     ...exportsElements(usage),
     ...(usage.carrousel ? ['activerCarrousel'] : []),
     ...(usage.motDePasse ? ['activerMotDePasse'] : []),
@@ -269,7 +269,48 @@ ${langues ? FORMAT_JS_LANGUES : FORMAT_JS}
 ${TAILLE_JS}
 ${DATES_JS}
 ${FORMES_TEXTE_JS}
-${STOCKAGE_JS}${elementsMoteur(usage)}${PRESSE_PAPIER_JS}${NOTER_NAVIGATEUR_JS}${QUESTIONS_JS}${langues ? langueMoteur(langues, parAdresse) : ''}${theme !== undefined ? themeMoteur(theme) : ''}
+${STOCKAGE_JS}
+/**
+ * « memorisee en secret » (application de bureau) : la variable est gardée chiffrée dans le coffre de
+ * l'ordinateur (le trousseau sur Mac), par le processus principal, jamais dans le stockage du navigateur.
+ * Elle commence à sa valeur de départ, prend celle du coffre dès qu'il répond, puis chaque changement y
+ * est gardé. Une valeur changée avant la réponse du coffre l'emporte. Sans coffre, elle reste en mémoire.
+ */
+function memoriserSecret(cle, variable) {
+  const coffre = typeof window === 'undefined' ? undefined : window.humalisCoffre;
+  let connue = JSON.stringify(variable.x);
+  let lue = !coffre;
+  let changee = false;
+  const ecrire = (texte) => {
+    coffre?.ecrire(cle, texte).catch(() => {
+      // Le coffre refuse : la valeur reste en mémoire.
+    });
+  };
+  effet(() => {
+    const texte = JSON.stringify(variable.v);
+    // La valeur de départ, ou celle que le coffre vient de rendre : rien à garder.
+    if (texte === connue) return;
+    connue = texte;
+    changee = true;
+    if (lue) ecrire(texte);
+  });
+  if (!coffre) return;
+  coffre
+    .lire(cle)
+    .then((gardee) => {
+      if (gardee === null || changee) return;
+      connue = gardee;
+      variable.v = JSON.parse(gardee);
+    })
+    .catch(() => {
+      // Rien de gardé, ou illisible : la valeur de départ reste.
+    })
+    .finally(() => {
+      lue = true;
+      if (changee) ecrire(connue);
+    });
+}
+${elementsMoteur(usage)}${PRESSE_PAPIER_JS}${NOTER_NAVIGATEUR_JS}${QUESTIONS_JS}${langues ? langueMoteur(langues, parAdresse) : ''}${theme !== undefined ? themeMoteur(theme) : ''}
 export { ${[...new Set(exportes)].join(', ')} };
 `;
 }
