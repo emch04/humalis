@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetDesktop } from '../src/cibles/desktop/projet.js';
 import { LOGIQUE } from '../src/cibles/serveur/logique.js';
@@ -69,6 +70,20 @@ describe('la revue Codex : justesse', () => {
     const fichiers = genererProjetServeur(compiler(source).application!.serveurs[0]!, { nom: 's', source: 's.humalis' });
     const service = [...fichiers.entries()].find(([chemin]) => /^deploiement\/[^/]+\.service$/.test(chemin) && !chemin.includes('sauvegarde'))?.[1] ?? '';
     expect(service).toMatch(/ReadWritePaths=\S+\/sauvegardes \S+\/donnees/);
+  });
+
+  it('le test produit d’une somme lit une fiche que le compte qui essaie peut lire (« seul son auteur »)', () => {
+    const source = readFileSync('tests/serveur-attaques-codex.humalis', 'utf8');
+    const { application } = compiler(source);
+    const regles = genererProjetServeur(application!.serveurs[0]!, { nom: 'essai', source: 'essai.humalis' }).get('tests/regles.test.ts')!;
+    const essai = regles.slice(regles.indexOf('« total » est recalculé depuis « note »'));
+    // La note est réservée à son auteur : l'essai crée un compte, lui donne la note, et envoie avec son jeton.
+    expect(essai).toContain("const auteur = await nouveauCompte('utilisateur');");
+    expect(essai).toContain('prix: 7, auteur: auteur.id }');
+    expect(essai.slice(0, essai.indexOf('\n    });'))).toContain('Bearer ${auteur.jeton}');
+    // Une fiche lue par tout compte connecté garde l'essai ordinaire.
+    const produit = regles.slice(regles.indexOf('« total » est recalculé depuis « produit »'));
+    expect(produit.slice(0, produit.indexOf('\n    });'))).not.toContain('nouveauCompte');
   });
 });
 

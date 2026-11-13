@@ -72,6 +72,16 @@ node dist/cli.js verifier exemples/boutique.humalis --ri   # avec la représenta
 
 `verifier` affiche les erreurs et les avertissements avec leur ligne, puis la représentation intermédiaire en JSON. La commande sort avec le code 1 s'il y a une erreur.
 
+### Ce qui est vérifié à chaque envoi
+
+`.github/workflows/verification.yml` rejoue, à chaque envoi sur `main` et à chaque demande de fusion :
+
+- le compilateur, sous Linux et sous macOS : `npm ci`, `npm run typecheck`, `npm run build`, `npm test` ;
+- l'extension des éditeurs (`editeur/vscode`) : types, tests, construction ;
+- les serveurs produits : `npm run verifier:serveurs` produit le serveur de chaque programme du dépôt (exemples, guide, antisèche, programmes des tests), vérifie ses types et lance les tests que le compilateur a écrits pour lui.
+
+`npm run verifier:serveurs` se lance aussi ici, après `npm run build`. Il est lent (une installation de paquets, puis chaque serveur) : à refaire après tout changement du serveur produit. `-- --seul boutique` ne joue que les programmes dont le nom contient « boutique » ; `-- --garder` laisse les serveurs sur le disque, pour regarder un échec.
+
 ## Organisation
 
 | Dossier | Contenu |

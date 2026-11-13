@@ -1,62 +1,97 @@
-# Vérifie chaque envoi sur main et chaque demande de fusion : types, construction, tests du compilateur
-# (attaques sur de vrais serveurs produits comprises), puis l'extension VS Code.
+# Vérifie chaque envoi sur main et chaque demande de fusion : types, construction, tests du compilateur,
+# tests de l'extension des éditeurs, puis les serveurs produits pour tous les programmes du dépôt.
+# Rien n'est publié d'ici : ce fichier ne lit aucun secret et n'a que le droit de lire le dépôt.
 name: Vérification
 
 on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+# Un nouvel envoi sur la même branche arrête la vérification de l'envoi précédent.
 concurrency:
   group: verification-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   compilateur:
-    name: Compilateur
-    runs-on: ubuntu-latest
-    timeout-minutes: 40
+    name: Compilateur (${{ matrix.systeme }})
+    runs-on: ${{ matrix.systeme }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        systeme: [ubuntu-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           cache: npm
-      - name: Installer
+      - name: Installer les paquets
         run: npm ci
-      - name: Types
+      - name: Vérifier les types
         run: npm run typecheck
       - name: Construire
         run: npm run build
       # Les tests de vrais serveurs produits installent leurs paquets (packs Astratra, publics sur npm)
       # dans des dossiers temporaires : il leur faut le réseau, que GitHub fournit.
-      - name: Tests
+      - name: Lancer les tests
         run: npm test
 
-  extension:
-    name: Extension VS Code
+  editeurs:
+    name: Extension des éditeurs
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    defaults:
-      run:
-        working-directory: editeur/vscode
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           cache: npm
           cache-dependency-path: |
             package-lock.json
             editeur/vscode/package-lock.json
-      # Le serveur de langage importe le compilateur (../../src) : ses paquets aussi.
-      - name: Installer le compilateur
-        working-directory: .
+      # L'extension lit le compilateur dans src/ : ses paquets viennent de la racine.
+      - name: Installer les paquets du compilateur
         run: npm ci
-      - name: Installer l'extension
+      - name: Installer les paquets de l'extension
         run: npm ci
-      - name: Tests
+        working-directory: editeur/vscode
+      - name: Vérifier les types
+        run: npm run typecheck
+        working-directory: editeur/vscode
+      - name: Lancer les tests
         run: npm test
+        working-directory: editeur/vscode
+      - name: Construire l'extension
+        run: npm run build
+        working-directory: editeur/vscode
+
+  serveurs:
+    name: Serveurs produits
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - name: Installer les paquets
+        run: npm ci
+      - name: Construire
+        run: npm run build
+      # Chaque serveur produit : ses types, puis les tests que le compilateur a écrits pour lui.
+      - name: Vérifier les serveurs de tous les programmes du dépôt
+        run: npm run verifier:serveurs

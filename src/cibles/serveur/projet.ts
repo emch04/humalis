@@ -1880,10 +1880,17 @@ ${duServeur.map((c) => `      expect((await ${avec}.send({ ...${envoiExemple}, $
     const somme = donnee.champs.find((c) => c.regle?.genre === 'somme');
     if (createur && somme?.regle?.genre === 'somme') {
       const { donnee: lue, prix, liste } = somme.regle;
-      const avec = createur === 'visiteur' ? `visiteurAvecCsrf.post('${adresse}').set(csrf)` : `request(app).post('${adresse}').set('authorization', \`Bearer \${${createur}}\`)`;
+      // Le calcul ne lit qu'une fiche que la personne pourrait lire par sa route : si la fiche lue est
+      // réservée à son auteur, l'essai se fait avec un compte neuf, auteur de la fiche. Un visiteur
+      // n'est l'auteur de rien : il n'y a alors rien à essayer.
+      const champAuteur = serveur.donnees.find((d) => d.nom === lue)?.champs.find((c) => c.regle?.genre === 'auteur');
+      const reserveeASonAuteur = champAuteur !== undefined && serveur.routes.some((r) => r.donnee === lue && r.interne === undefined && r.droits.lire === null
+        && (r.conditions?.lire ?? []).some((c) => c.gauche.genre === 'fiche' && c.gauche.champ === champAuteur.nom && c.droite.genre === 'utilisateur' && c.droite.champ === 'id'));
+      const parSonAuteur = reserveeASonAuteur && createur !== 'visiteur';
+      const avec = createur === 'visiteur' ? `visiteurAvecCsrf.post('${adresse}').set(csrf)` : `request(app).post('${adresse}').set('authorization', \`Bearer \${${parSonAuteur ? 'auteur.jeton' : createur}}\`)`;
       const liees = (route.creations ?? []).filter((c) => c.dans !== undefined);
-      tests.push(`    it('« ${somme.nom} » est recalculé depuis « ${lue} », et une référence inconnue est refusée', async () => {
-      const fiche = await stockages.${camel(lue)}.creer({ ...${ficheExemple(serveur, lue)}, ${camel(prix)}: 7 });
+      if (!reserveeASonAuteur || parSonAuteur) tests.push(`    it('« ${somme.nom} » est recalculé depuis « ${lue} », et une référence inconnue est refusée', async () => {
+${parSonAuteur ? `      const auteur = await nouveauCompte('${createur === 'jetonAdmin' ? 'admin' : 'utilisateur'}');\n` : ''}      const fiche = await stockages.${camel(lue)}.creer({ ...${ficheExemple(serveur, lue)}, ${camel(prix)}: 7${parSonAuteur ? `, ${camel(champAuteur!.nom)}: auteur.id` : ''} });
       const reponse = await ${avec}.send({ ...${envoiExemple}, ${camel(liste)}: [fiche.id, fiche.id] }).expect(201);
       expect(reponse.body.${camel(somme.nom)}).toBe(14);
 ${liees.map((c) => `      expect(await stockages.${camel(c.donnee)}.trouver(reponse.body.${camel(c.dans!)})).not.toBeNull();`).join('\n')}
