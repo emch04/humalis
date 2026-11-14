@@ -495,6 +495,7 @@ public static class Session
     /// <summary>« supprimer mon compte » : le mot de passe s'il y en a un ; réussie, la session se ferme comme avec « se deconnecter ».</summary>
     public static async Task SupprimerMonCompte(string? motDePasse)
     {
+        var compte = personne.Lire() is Fiche f ? V.T(V.Champ(f, "id")) : null;
         var (reponse, corps) = await Envoyer("/auth/suppression-compte", motDePasse is null ? new Fiche() : V.FicheDe(("motDePasse", motDePasse)));
         if ((int)reponse.StatusCode == 429) throw new ErreurHumalis("Trop de tentatives. Réessayez dans quelques minutes.");
         if (!reponse.IsSuccessStatusCode)
@@ -503,9 +504,14 @@ public static class Session
             throw new ErreurHumalis(V.AvecMajuscule(raison.Length > 0 ? raison : "le compte n'a pas été supprimé") + ".");
         }
         Oublier();
+        // Ce que l'appareil gardait pour ce compte (ses données locales) s'en va aussi.
+        if (!string.IsNullOrEmpty(compte)) foreach (var oublierAussi in QuandCompteSupprime) await oublierAussi(compte);
         demande = Relire();
         await demande;
     }
+
+    /// <summary>Ce que « supprimer mon compte » efface en plus sur l'appareil : les données locales de ce compte.</summary>
+    public static readonly List<Func<string, Task>> QuandCompteSupprime = new();
 
     public static async Task SeDeconnecter()
     {

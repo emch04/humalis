@@ -1168,6 +1168,7 @@ object Session {
 
     /** « supprimer mon compte » : le mot de passe s'il y en a un ; réussie, la session se ferme comme avec « se deconnecter ». */
     suspend fun supprimerMonCompte(motDePasse: String?) {
+        val compte = compteGarde
         val r = brut("/auth/suppression-compte", "POST", if (motDePasse == null) fiche() else fiche("motDePasse" to motDePasse)) ?: throw ErreurHumalis(PAS_DE_REPONSE)
         if (r.first == 429) throw ErreurHumalis("Trop de tentatives. Réessayez dans quelques minutes.")
         if (r.first !in 200..299) {
@@ -1176,8 +1177,13 @@ object Session {
         }
         oublier()
         Coffre.effacer(CLE_COMPTE)
+        // Ce que l'appareil gardait pour ce compte (ses données locales) s'en va aussi.
+        compte?.let { quandCompteSupprime?.invoke(it) }
         relire()
     }
+
+    /** Ce que « supprimer mon compte » efface en plus sur l'appareil : les données locales de ce compte. */
+    var quandCompteSupprime: (suspend (String) -> Unit)? = null
 
     suspend fun seDeconnecter() {
         brut("/auth/logout", "POST", fiche())

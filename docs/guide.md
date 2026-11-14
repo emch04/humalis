@@ -2375,9 +2375,14 @@ qui la désignent et garde la fiche. Sans cette ligne :
   les messages des discussions ;
 - les autres données ne changent pas.
 
-Une fiche payée n'est jamais effacée : elle devient anonyme. Les fiches changent toutes ensemble,
-puis le compte est vidé : plus d'adresse, de mot de passe ni de champ, et toutes ses sessions se
-ferment. L'adresse peut ensuite servir à un nouveau compte, qui n'hérite d'aucune fiche.
+Une fiche payée n'est jamais effacée : elle devient anonyme. Une image part avec la fiche effacée ;
+une fiche anonyme garde la sienne, comme son texte. Dans les discussions, les pièces jointes de la
+personne sont effacées, et ses conversations s'appellent « Compte supprimé ».
+
+Les fiches changent toutes ensemble, puis le compte est vidé : plus d'adresse, de mot de passe ni de
+champ, et toutes ses sessions se ferment. Les autres appareils reçoivent ces changements à leur
+prochaine synchronisation ; celui de la personne oublie ses données locales. L'adresse peut ensuite
+servir à un nouveau compte, qui n'hérite d'aucune fiche.
 
 #### Changer le rôle d'un compte
 

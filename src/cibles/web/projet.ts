@@ -2286,7 +2286,8 @@ export function Session({ children }: { children: ReactNode }) {
       const raison = corps?.erreur ?? "le compte n'a pas été supprimé";
       return refuser(raison.charAt(0).toUpperCase() + raison.slice(1) + '.');
     }
-    // Le compte n'existe plus : la session se ferme comme avec « se deconnecter ».
+    // Le compte n'existe plus : ses données locales quittent l'appareil, puis la session se ferme comme avec « se deconnecter ».
+    window.dispatchEvent(new CustomEvent('humalis:compte-supprime', { detail: derniere.current?.id ?? null }));
     window.dispatchEvent(new CustomEvent('humalis:deconnexion'));
     await relire();
     return true;

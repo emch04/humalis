@@ -319,6 +319,10 @@ private enum CleBaseHumalis {
         return donnees
     }
 
+    static func effacer(_ nom: String) {
+        SecItemDelete(requete(nom) as CFDictionary)
+    }
+
     static func creer(_ nom: String, _ donnees: Data) throws {
         var ajout = requete(nom)
         ajout[kSecValueData as String] = donnees
@@ -353,6 +357,14 @@ private func ouvrirBaseHumalis(nom: String, chiffree: Bool) throws -> BaseSQLite
         try? dossier.setResourceValues(reglages)
     }
     return try BaseSQLiteHumalis(fichier: dossier.appendingPathComponent("base.sqlite"), cle: cle)
+}
+
+/** « supprimer mon compte » : la base d'un compte quitte l'appareil, avec sa clé du coffre. */
+private func effacerBaseHumalis(nom: String) {
+    guard let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return }
+    let empreinte = SHA256.hash(data: Data(nom.utf8)).map { String(format: "%02x", $0) }.joined()
+    try? FileManager.default.removeItem(at: support.appendingPathComponent("humalis/locales/\(empreinte)", isDirectory: true))
+    CleBaseHumalis.effacer(nom + ":cle")
 }
 
 /**
@@ -832,6 +844,14 @@ private func ouvrirBaseHumalis(nom: String, chiffree: Bool) throws -> BaseSQLite
         }
     }
 
+    /** « supprimer mon compte » : la page repasse à la base du visiteur, puis celle du compte quitte l'appareil. */
+    func oublierCompte(_ compte: String) async {
+        guard reglages.route != nil else { return }
+        changerCompte(nil)
+        await ouverture?.value
+        effacerBaseHumalis(nom: reglages.cle + ":locale:" + reglages.nom + ":" + compte + (reglages.chiffree ? ":chiffree" : ""))
+    }
+
     private func demarrer() {
         guard reglages.route != nil, veille == nil else { return }
         ReseauHumalis.commun.suivre { [weak self] in self?.planifier(0) }
@@ -864,6 +884,9 @@ private func ouvrirBaseHumalis(nom: String, chiffree: Bool) throws -> BaseSQLite
     static func demarrerToutes(_ donnees: [DonneeLocaleHumalis]) {
         for donnee in donnees { donnee.demarrer() }
         suivreLeCompte(donnees)
+        Session.commun.quandCompteSupprime.append { compte in
+            for donnee in donnees { await donnee.oublierCompte(compte) }
+        }
         Task { @MainActor in await Session.commun.attendre() }
     }
 

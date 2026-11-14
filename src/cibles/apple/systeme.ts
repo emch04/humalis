@@ -1135,9 +1135,15 @@ private final class SuiviEnvoi: NSObject, URLSessionTaskDelegate, Sendable {
             if raison.isEmpty { raison = "le compte n'a pas été supprimé" }
             throw ErreurHumalis.refus(raison.prefix(1).uppercased() + raison.dropFirst() + ".")
         }
+        let compte = compteGarde
         oublier()
+        // Ce que l'appareil gardait pour ce compte (ses données locales) s'en va aussi.
+        if let compte { for oublierAussi in quandCompteSupprime { await oublierAussi(compte) } }
         await relire()
     }
+
+    /** Ce que « supprimer mon compte » efface en plus sur l'appareil : les données locales de ce compte. */
+    var quandCompteSupprime: [@MainActor (String) async -> Void] = []
 
     func seDeconnecter() async {
         _ = try? await envoyer("/auth/logout", [:])

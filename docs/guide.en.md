@@ -2456,9 +2456,14 @@ Each piece of data says what becomes of the person's records, with
   the messages of discussions;
 - other data does not change.
 
-A paid record is never erased: it becomes anonymous. The records all change together, then the
-account is emptied: no more address, password or fields, and all its sessions end. The address can
-then be used by a new account, which inherits no records.
+A paid record is never erased: it becomes anonymous. An image goes with an erased record; an
+anonymous record keeps its own, like its text. In discussions, the person's attachments are erased,
+and their conversations are called « Compte supprimé ».
+
+The records all change together, then the account is emptied: no more address, password or fields,
+and all its sessions end. Other devices receive these changes at their next synchronization; the
+person's device forgets its local data. The address can then be used by a new account, which
+inherits no records.
 
 #### Changing an account's role
 

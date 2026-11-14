@@ -459,6 +459,14 @@ private class OuvreurSqlite(contexte: Context, chemin: String) : SQLiteOpenHelpe
     override fun onUpgrade(db: SQLiteDatabase, ancienne: Int, nouvelle: Int) {}
 }
 
+/** « supprimer mon compte » : la base d'un compte quitte l'appareil, avec sa clé du coffre d'Android. */
+private fun effacerBaseLocale(contexte: Context, nom: String, chiffree: Boolean) {
+    val code = empreinte(nom)
+    val dossier = if (chiffree) contexte.noBackupFilesDir else contexte.getDatabasePath("x").parentFile!!
+    SQLiteDatabase.deleteDatabase(File(dossier, "humalis-locale-#{code}.db"))
+    if (chiffree) runCatching { KeyStore.getInstance("AndroidKeyStore").apply { load(null) }.deleteEntry("humalis.locale.#{code}") }
+}
+
 /**
  * Une base SQLite par compte. Une base chiffrée reste hors des sauvegardes d'Android :
  * sa clé ne quitte pas cet appareil, elle serait illisible ailleurs.
@@ -688,6 +696,13 @@ class DonneeLocale(val reglages: ReglagesLocale, depart: Any?) : MutableState<An
     fun changerCompte(compte: String?) {
         portee.launch { basculer(compte) }
     }
+
+    /** « supprimer mon compte » : la page repasse à la base du visiteur, puis celle du compte quitte l'appareil. */
+    suspend fun oublierCompte(compte: String) {
+        if (reglages.route == null) return
+        basculer(null)
+        withContext(Dispatchers.IO) { effacerBaseLocale(Appli.contexte, reglages.nom + ":" + compte, reglages.chiffree) }
+    }
 }
 
 /** Toutes les données locales de l'application, et ce qui déclenche leur synchronisation. */
@@ -716,6 +731,7 @@ object DonneesLocales {
     fun demarrer() {
         if (demarre) return
         demarre = true
+        Session.quandCompteSupprime = { compte -> for (locale in toutes) locale.oublierCompte(compte) }
         for (locale in toutes) if (locale.reglages.route == null) locale.changerCompte(null)
         if (toutes.none { it.reglages.route != null }) return
         portee.launch { Session.attendre() }

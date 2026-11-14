@@ -476,8 +476,25 @@ export function creerDonneeLocale(reglages, lien) {
     canal?.postMessage(moi);
   }
 
+  const nomDe = (compte) => 'humalis:' + reglages.cle + ':locale:' + reglages.nom + ':' + (compte ?? 'visiteur');
+
+  // « supprimer mon compte » : la base de ce compte quitte l'appareil (sa clé est dedans), ce qui attendait d'être envoyé aussi.
+  globalThis.addEventListener?.('humalis:compte-supprime', (evenement) => {
+    const compte = evenement.detail;
+    if (!reglages.route || typeof compte !== 'string' || compte === '') return;
+    if (compteOuvert === compte) {
+      clearTimeout(minuteur);
+      baseOuverte?.fermer();
+      baseOuverte = null;
+      canal?.close();
+      canal = null;
+      compteOuvert = undefined;
+    }
+    try { globalThis.indexedDB?.deleteDatabase(nomDe(compte)); } catch (erreur) { console.error(erreur); }
+  });
+
   async function ouvrirCompte(compte) {
-    const nomBase = 'humalis:' + reglages.cle + ':locale:' + reglages.nom + ':' + (compte ?? 'visiteur');
+    const nomBase = nomDe(compte);
     let base;
     try {
       if (reglages.chiffree && !globalThis.crypto?.subtle) throw new Error('chiffrement indisponible');

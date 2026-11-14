@@ -628,6 +628,8 @@ async function supprimerMonCompte(motDePasse, dansUnEssai = false) {
     return refuser(raison.charAt(0).toUpperCase() + raison.slice(1) + '.', dansUnEssai);
   }
   SUPPRIME_TRACE
+  // Les données locales de ce compte quittent l'appareil, puis la session se ferme.
+  globalThis.dispatchEvent?.(new CustomEvent('humalis:compte-supprime', { detail: personne.v?.id ?? null }));
   globalThis.dispatchEvent?.(new CustomEvent('humalis:deconnexion'));
   await relireSession();
   return true;

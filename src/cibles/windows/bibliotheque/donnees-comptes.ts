@@ -708,6 +708,7 @@ public sealed class DonneeLocale : ITransportLocal
     {
         var donnee = new DonneeLocale(reglages, liste);
         donnee.Demarrer(fenetre);
+        Session.QuandCompteSupprime.Add(donnee.OublierCompte);
     }
 
     public async Task<ReponseLocale> Envoyer(string chemin, Fiche corps)
@@ -809,6 +810,21 @@ public sealed class DonneeLocale : ITransportLocal
         // Après Ouvrir : les écritures en attente sont passées, l'ancienne base peut se fermer.
         ancienne?.Dispose();
         Planifier(0);
+    }
+
+    /// <summary>« supprimer mon compte » : la page repasse à la base du visiteur, puis celle du compte quitte l'appareil.</summary>
+    private async Task OublierCompte(string compte)
+    {
+        if (reglages.Route is null) return;
+        ChangerCompte(null);
+        try { await comptes; } catch (Exception) { }
+        var chemin = CheminDe(reglages.Nom, compte);
+        foreach (var fichier in new[] { chemin, chemin + "-wal", chemin + "-shm" })
+        {
+            try { File.Delete(fichier); }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
     }
 
     /// <summary>Appelé quand on connaît le compte (null : personne) ; sans route, une seule base pour l'appareil.</summary>
