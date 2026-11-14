@@ -619,7 +619,7 @@ class GenerateurEcran {
     const lignePartage = utilises.length > 0 ? `  const { ${utilises.join(', ')} } = usePartage();\n` : '';
     this.besoins.partage = utilises.length > 0;
     // La session, quand la page la lit (« utilisateur est … ») ou la change.
-    this.besoins.session = /\butilisateur\.(connecte|admin|personne|seConnecter|seConnecterAvecGoogle|seConnecterAvecApple|changerMotDePasse|inviter|changerRole|changerCompte|activerNotifications|demanderIa|payer|demanderLienMotDePasse|choisirMotDePasse|seDeconnecter|supprimerMonCompte)\b/.test(code);
+    this.besoins.session = /\butilisateur\.(connecte|admin|personne|seConnecter|seConnecterAvecGoogle|seConnecterAvecApple|changerMotDePasse|inviter|changerRole|changerCompte|activerNotifications|demanderIa|payer|demanderLienMotDePasse|choisirMotDePasse|seDeconnecter|supprimerMonCompte|creerMonCompte|confirmerMonAdresse)\b/.test(code);
     const ligneSession = this.besoins.session ? '  const utilisateur = useUtilisateur();\n' : '';
     // La langue (« t({ fr, en }) », « si langue est anglais », « changer langue par … »).
     const langue = ['t', 'langue', 'changerLangue'].filter((n) => new RegExp(n === 't' ? '\\bt\\(\\{' : `\\b${n}\\b`).test(code));
@@ -1584,6 +1584,13 @@ class GenerateurEcran {
         case 'deconnexion':
           e.ligne('await utilisateur.seDeconnecter();');
           break;
+        case 'creationCompte':
+          // Refusée (mot de passe faible, adresse mal écrite) : un message s'affiche (ou « si erreur » le reçoit) et la suite ne s'exécute pas.
+          e.ligne(`if (!(await utilisateur.creerMonCompte(String(${x(action.email)}), String(${x(action.motDePasse)}), ${action.champs?.length ? `{ ${action.champs.map((c) => `${JSON.stringify(camel(c.champ))}: ${x(c.valeur)}`).join(', ')} }` : 'undefined'}${this.dansEssai ? ', true' : ''}))) return;`);
+          break;
+        case 'confirmationAdresse':
+          e.ligne(`if (!(await utilisateur.confirmerMonAdresse(${this.dansEssai ? 'true' : ''}))) return;`);
+          break;
         case 'suppressionCompte':
           // Refusée (mot de passe faux, dernier admin) : un message s'affiche (ou « si erreur » le reçoit) et la suite ne s'exécute pas.
           e.ligne(`if (!(await utilisateur.supprimerMonCompte(${action.motDePasse ? `String(${x(action.motDePasse)})` : 'undefined'}${this.dansEssai ? ', true' : ''}))) return;`);
@@ -2474,7 +2481,7 @@ function arrete(actions: Action[]): boolean {
   return actions.some((a) => a.type === 'arreter' || (!['repetition', 'tantQue', 'repeter', 'minuterie', 'message'].includes(a.type) && sousActions(a).some(arrete)));
 }
 
-const ATTENTES = new Set<Action['type']>(['gesteReunion', 'requete', 'recharger', 'suppression', 'modification', 'connexion', 'connexionGoogle', 'connexionApple', 'compteSecurise', 'invitation', 'changementRole', 'changementCompte', 'activationNotifications', 'demandeIa', 'paiement', 'prisePhoto', 'enregistrerAudio', 'enregistrerVideo', 'recadrerPhoto', 'scanCode', 'localisation', 'verificationIdentite', 'demandeLienMotDePasse', 'choixMotDePasse', 'changementMotDePasse', 'telechargementBon', 'deconnexion', 'suppressionCompte', 'envoiFichier', 'confirmation', 'copie', 'partage', 'telechargementCsv']);
+const ATTENTES = new Set<Action['type']>(['gesteReunion', 'requete', 'recharger', 'suppression', 'modification', 'connexion', 'connexionGoogle', 'connexionApple', 'compteSecurise', 'invitation', 'changementRole', 'changementCompte', 'activationNotifications', 'demandeIa', 'paiement', 'prisePhoto', 'enregistrerAudio', 'enregistrerVideo', 'recadrerPhoto', 'scanCode', 'localisation', 'verificationIdentite', 'demandeLienMotDePasse', 'choixMotDePasse', 'changementMotDePasse', 'telechargementBon', 'deconnexion', 'suppressionCompte', 'creationCompte', 'confirmationAdresse', 'envoiFichier', 'confirmation', 'copie', 'partage', 'telechargementCsv']);
 
 /** Les noms changés par des actions : affectations, ajouts, retraits, réponses. */
 function modifiees(actions: Action[], noms = new Set<string>()): Set<string> {

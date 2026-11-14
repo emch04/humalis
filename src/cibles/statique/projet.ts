@@ -1188,6 +1188,8 @@ export const SESSION_JS = `
     seConnecter,
     seDeconnecter,
     supprimerMonCompte,
+    creerMonCompte,
+    confirmerMonAdresse,
   };
 
   async function relireSession() {
@@ -1252,6 +1254,40 @@ export const SESSION_JS = `
     }
     await relireSession();
     return true;
+  }
+
+  /** Un appel aux routes des comptes : vrai si le serveur l'a pris, sinon son message (ou celui donné). */
+  async function envoyerAuCompte(chemin, donnees, lever, sansRaison) {
+    const refuser = (message) => {
+      if (lever) throw new Error(message);
+      afficherMessage(message, 'erreur');
+      return false;
+    };
+    let reponse;
+    try {
+      reponse = await fetch(ADRESSE_SERVEUR + chemin, { method: 'POST', headers: entetes(), credentials: 'same-origin', body: JSON.stringify(donnees) });
+    } catch {
+      return refuser("Le serveur n'a pas répondu. Réessayez dans un instant.");
+    }
+    if (reponse.status === 429) return refuser('Trop de tentatives. Réessayez dans quelques minutes.');
+    if (!reponse.ok) {
+      const corps = await reponse.json().catch(() => null);
+      return refuser(corps?.erreur ? corps.erreur.charAt(0).toUpperCase() + corps.erreur.slice(1) + '.' : sansRaison);
+    }
+    return true;
+  }
+
+  /** « creer mon compte » : un lien de confirmation part par e-mail ; la réponse est la même que l'adresse ait un compte ou non. */
+  async function creerMonCompte(email, motDePasse, champs, lever = false) {
+    return envoyerAuCompte('/auth/inscription', { email, motDePasse, champs }, lever, "Le compte n'a pas été créé.");
+  }
+
+  /** « confirmer mon adresse » : le jeton vient du lien reçu (#jeton=…) ; le navigateur ne l'envoie à aucun serveur. */
+  async function confirmerMonAdresse(lever = false) {
+    const jeton = new URLSearchParams(window.location.hash.slice(1)).get('jeton') ?? '';
+    const fait = await envoyerAuCompte('/auth/confirmation', { jeton }, lever, "Ce lien de confirmation n'est plus valable : inscrivez-vous de nouveau.");
+    if (fait) window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    return fait;
   }
 
   async function seDeconnecter() {

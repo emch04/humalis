@@ -465,7 +465,7 @@ export class GenerateurPage {
     if (this.chargements.length > 0) options.push('auChargement');
     if (this.minuteries.length > 0) options.push('minuteries');
     if (this.raccourcis.length > 0) options.push('raccourcis');
-    this.besoins.session = /\butilisateur\.(connecte|admin|personne|seConnecter|seDeconnecter|supprimerMonCompte)\b/.test(corps);
+    this.besoins.session = /\butilisateur\.(connecte|admin|personne|seConnecter|seDeconnecter|supprimerMonCompte|creerMonCompte|confirmerMonAdresse)\b/.test(corps);
     if (this.besoins.session) options.push('session: true');
 
     // Un écrivain vide rend une ligne vide : elle est laissée de côté.
@@ -882,6 +882,13 @@ ${prise}${code}}
         }
         case 'deconnexion':
           e.ligne('await utilisateur.seDeconnecter();');
+          break;
+        case 'creationCompte':
+          // Refusée (mot de passe faible, adresse mal écrite) : un message s'affiche (ou « si erreur » le reçoit) et la suite ne s'exécute pas.
+          e.ligne(`if (!(await utilisateur.creerMonCompte(String(${x(action.email)}), String(${x(action.motDePasse)}), ${action.champs?.length ? `{ ${action.champs.map((c) => `${JSON.stringify(camel(c.champ))}: ${x(c.valeur)}`).join(', ')} }` : 'undefined'}${this.dansUnEssai ? ', true' : ''}))) return;`);
+          break;
+        case 'confirmationAdresse':
+          e.ligne(`if (!(await utilisateur.confirmerMonAdresse(${this.dansUnEssai ? 'true' : ''}))) return;`);
           break;
         case 'suppressionCompte':
           // Refusée (mot de passe faux, dernier admin) : un message s'affiche (ou « si erreur » le reçoit) et la suite ne s'exécute pas.
@@ -1900,7 +1907,7 @@ export function contientRequete(actions: Action[]): boolean {
   );
 }
 
-const ATTENTES = new Set<Action['type']>(['gesteReunion', 'compteSecurise', 'prisePhoto', 'enregistrerAudio', 'enregistrerVideo', 'recadrerPhoto', 'scannerDocument', 'scanCode', 'localisation', 'verificationIdentite', 'changementCompte', 'paiement', 'demandeIa', 'changementRole', 'activationNotifications', 'requete', 'suppression', 'modification', 'connexion', 'deconnexion', 'suppressionCompte', 'confirmation', 'copie', 'partage', 'telechargementCsv', 'recharger', 'envoiFichier', 'telechargementBon', 'connexionGoogle', 'changementMotDePasse', 'invitation', 'demandeLienMotDePasse', 'choixMotDePasse', 'essayer']);
+const ATTENTES = new Set<Action['type']>(['gesteReunion', 'compteSecurise', 'prisePhoto', 'enregistrerAudio', 'enregistrerVideo', 'recadrerPhoto', 'scannerDocument', 'scanCode', 'localisation', 'verificationIdentite', 'changementCompte', 'paiement', 'demandeIa', 'changementRole', 'activationNotifications', 'requete', 'suppression', 'modification', 'connexion', 'deconnexion', 'suppressionCompte', 'creationCompte', 'confirmationAdresse', 'confirmation', 'copie', 'partage', 'telechargementCsv', 'recharger', 'envoiFichier', 'telechargementBon', 'connexionGoogle', 'changementMotDePasse', 'invitation', 'demandeLienMotDePasse', 'choixMotDePasse', 'essayer']);
 
 /** Vrai si le bloc d'une minuterie contient « arreter » pour elle (hors d'une boucle). */
 export function arrete(actions: Action[]): boolean {

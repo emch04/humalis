@@ -1151,6 +1151,20 @@ object Session {
         jetonDeLien = null
     }
 
+    /** « creer mon compte » : un lien de confirmation part par e-mail ; la réponse est la même que l'adresse ait un compte ou non. */
+    suspend fun creerMonCompte(email: String, motDePasse: String, champs: Map<String, Any?> = emptyMap()) {
+        val envoi = linkedMapOf<String, Any?>("email" to email, "motDePasse" to motDePasse)
+        if (champs.isNotEmpty()) envoi["champs"] = champs
+        Serveur.appel("/auth/inscription", "POST", envoi)
+    }
+
+    /** « confirmer mon adresse » : le jeton du lien de confirmation ouvert dans l'application (« #jeton=… »). */
+    suspend fun confirmerMonAdresse() {
+        val lien = jetonDeLien ?: throw ErreurHumalis("Ouvrez le lien reçu par e-mail pour confirmer votre adresse.")
+        Serveur.appel("/auth/confirmation", "POST", fiche("jeton" to lien))
+        jetonDeLien = null
+    }
+
     /** « inviter … comme … » : un lien part par e-mail ; le compte attend que la personne choisisse son mot de passe. */
     suspend fun inviter(email: String, role: String, groupes: Map<String, Any?> = emptyMap(), champs: Map<String, Any?> = emptyMap()) {
         val envoi = linkedMapOf<String, Any?>("email" to email, "role" to role)

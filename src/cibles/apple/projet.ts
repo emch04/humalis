@@ -105,6 +105,7 @@ function verifier(application: Application): Diagnostic[] {
   const apercu = application.ecrans.find((e) => e.apercu);
   if (apercu) avertir(apercu.ligne, "« apercu » est sans effet sur la cible Apple : une application n'a ni onglet, ni moteur de recherche, ni aperçu de partage.");
   if (JSON.stringify(application.ecrans).includes('"type":"choixMotDePasse"') && !application.liensProfonds?.domaine) avertir(1, "« choisir le mot de passe » : le lien reçu par e-mail ouvre le site. Pour qu'il ouvre l'application, ajoutez « liens profonds \"…\" et domaine \"…\" ».");
+  if (JSON.stringify(application.ecrans).includes('"type":"confirmationAdresse"') && !application.liensProfonds?.domaine) avertir(1, "« confirmer mon adresse » : le lien reçu par e-mail ouvre le site. Pour qu'il ouvre l'application, ajoutez « liens profonds \"…\" et domaine \"…\" ».");
   return d;
 }
 

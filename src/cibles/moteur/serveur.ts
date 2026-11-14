@@ -440,7 +440,7 @@ export const utilisateur = {
   get connecte() { return personne.v !== null; },
   get admin() { return personne.v?.role === 'admin'; },
   seConnecter, seConnecterAvecGoogle, seConnecterAvecApple, changerMotDePasse, inviter, changerRole, changerCompte, activerNotifications, demanderIa, payer,
-  demanderLienMotDePasse, choisirMotDePasse, seDeconnecter, supprimerMonCompte,
+  demanderLienMotDePasse, choisirMotDePasse, seDeconnecter, supprimerMonCompte, creerMonCompte, confirmerMonAdresse,
 };
 function entetesSession() { return ajouterCsrf(new Headers({ 'Content-Type': 'application/json' })); }
 function refuser(texte, dansUnEssai) {
@@ -603,6 +603,15 @@ function demanderLienMotDePasse(email, dansUnEssai = false) { return envoyerAuCo
 async function choisirMotDePasse(nouveau, dansUnEssai = false) {
   const jeton = new URLSearchParams(window.location.hash.slice(1)).get('jeton') ?? '';
   const fait = await envoyerAuCompte('/auth/reset-password', { token: jeton, password: nouveau }, dansUnEssai, "Ce lien n'est plus valable. Demandez-en un nouveau.");
+  if (fait) window.history.replaceState(null, '', window.location.pathname + window.location.search);
+  return fait;
+}
+// « creer mon compte » : un lien de confirmation part par e-mail ; la réponse est la même que l'adresse ait un compte ou non.
+function creerMonCompte(email, motDePasse, champs, dansUnEssai = false) { return envoyerAuCompte('/auth/inscription', { email, motDePasse, champs }, dansUnEssai, "Le compte n'a pas été créé."); }
+// « confirmer mon adresse » : le jeton vient de l'adresse du lien reçu (#jeton=…), puis il en disparaît.
+async function confirmerMonAdresse(dansUnEssai = false) {
+  const jeton = new URLSearchParams(window.location.hash.slice(1)).get('jeton') ?? '';
+  const fait = await envoyerAuCompte('/auth/confirmation', { jeton }, dansUnEssai, "Ce lien de confirmation n'est plus valable : inscrivez-vous de nouveau.");
   if (fait) window.history.replaceState(null, '', window.location.pathname + window.location.search);
   return fait;
 }

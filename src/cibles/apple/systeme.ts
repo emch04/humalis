@@ -1125,6 +1125,20 @@ private final class SuiviEnvoi: NSObject, URLSessionTaskDelegate, Sendable {
         jetonDeLien = nil
     }
 
+    /** « creer mon compte » : un lien de confirmation part par e-mail ; la réponse est la même que l'adresse ait un compte ou non. */
+    func creerMonCompte(email: String, motDePasse: String, champs: [String: ValeurHumalis] = [:]) async throws {
+        var envoi: [String: ValeurHumalis] = ["email": .texte(email), "motDePasse": .texte(motDePasse)]
+        if !champs.isEmpty { envoi["champs"] = .fiche(champs) }
+        try await Serveur.commun.appelSansReponse("/auth/inscription", methode: "POST", envoi: envoi)
+    }
+
+    /** « confirmer mon adresse » : le jeton du lien de confirmation ouvert dans l'application (#jeton=…). */
+    func confirmerMonAdresse() async throws {
+        guard let jeton = jetonDeLien else { throw ErreurHumalis.refus("Ouvrez le lien reçu par e-mail pour confirmer votre adresse.") }
+        try await Serveur.commun.appelSansReponse("/auth/confirmation", methode: "POST", envoi: ["jeton": .texte(jeton)])
+        jetonDeLien = nil
+    }
+
     /** « supprimer mon compte » : le mot de passe s'il y en a un ; réussie, la session se ferme comme avec « se deconnecter ». */
     func supprimerMonCompte(motDePasse: String?) async throws {
         let (donnees, http) = try await envoyer("/auth/suppression-compte", motDePasse.map { ["motDePasse": $0] } ?? [:])

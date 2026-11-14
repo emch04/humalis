@@ -274,6 +274,10 @@ export class EcrivainActions {
         return this.compte(e, c, `demanderLienMotDePasse(email: ${this.v.texte(a.email)})`);
       case 'choixMotDePasse':
         return this.compte(e, c, `choisirMotDePasse(nouveau: ${this.v.texte(a.nouveau)})`);
+      case 'creationCompte':
+        return this.compte(e, c, `creerMonCompte(email: ${this.v.texte(a.email)}, motDePasse: ${this.v.texte(a.motDePasse)}${a.champs?.length ? `, champs: [${a.champs.map((ch) => `${chaineSwift(cleJson(ch.champ))}: ValeurHumalis(${this.x(ch.valeur).code})`).join(', ')}]` : ''})`);
+      case 'confirmationAdresse':
+        return this.compte(e, c, 'confirmerMonAdresse()');
       case 'deconnexion':
         e.ligne('await Session.commun.seDeconnecter()');
         return;
@@ -377,9 +381,6 @@ export class EcrivainActions {
         e.ligne(`HumalisNotes.noter(${chaineSwift(lieuNote(a.ligne))}, [${valeurs.join(', ')}])`);
         return;
       }
-      case 'creationCompte':
-      case 'confirmationAdresse':
-        throw new Error('« creer mon compte » et « confirmer mon adresse » : cible écrite à la tâche 4');
       default: {
         // Une action ajoutée au langage doit être traitée ici : sinon le compilateur TypeScript s'arrête.
         const oubliee: never = a;
@@ -472,7 +473,7 @@ export class EcrivainActions {
 
   /** Vrai si le corps fait un appel qui peut échouer : on écrit donc « try ». */
   private dernierCorps(actions: Action[]): string {
-    return contient(actions, ['requete', 'suppression', 'modification', 'connexion', 'connexionGoogle', 'connexionApple', 'compteSecurise', 'changementMotDePasse', 'suppressionCompte', 'invitation', 'demandeLienMotDePasse', 'choixMotDePasse', 'envoiFichier', 'telechargementBon']) ? 'try await' : '';
+    return contient(actions, ['requete', 'suppression', 'modification', 'connexion', 'connexionGoogle', 'connexionApple', 'compteSecurise', 'changementMotDePasse', 'suppressionCompte', 'creationCompte', 'confirmationAdresse', 'invitation', 'demandeLienMotDePasse', 'choixMotDePasse', 'envoiFichier', 'telechargementBon']) ? 'try await' : '';
   }
 
   private message(e: Ecrivain, a: Extract<Action, { type: 'message' }>, c: Cadre): void {

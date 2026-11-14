@@ -561,6 +561,13 @@ export class GenerateurMoteur extends GenerateurPage {
       case 'deconnexion':
         e.ligne('await utilisateur.seDeconnecter();');
         return true;
+      case 'creationCompte':
+        // Refusée (mot de passe faible, adresse mal écrite) : un message s'affiche (ou « si erreur » le reçoit) et la suite ne s'exécute pas.
+        e.ligne(`if (!(await utilisateur.creerMonCompte(${lit(action.email)}, ${lit(action.motDePasse)}, ${action.champs?.length ? `{ ${action.champs.map((c) => `${JSON.stringify(camel(c.champ))}: ${x(c.valeur)}`).join(', ')} }` : 'undefined'}${this.dansEssai ? ', true' : ''}))) return;`);
+        return true;
+      case 'confirmationAdresse':
+        e.ligne(`if (!(await utilisateur.confirmerMonAdresse(${this.dansEssai ? 'true' : ''}))) return;`);
+        return true;
       case 'suppressionCompte':
         // Refusée (mot de passe faux, dernier admin) : un message s'affiche (ou « si erreur » le reçoit) et la suite ne s'exécute pas.
         e.ligne(`if (!(await utilisateur.supprimerMonCompte(${action.motDePasse ? lit(action.motDePasse) : 'undefined'}${this.dansEssai ? ', true' : ''}))) return;`);

@@ -315,6 +315,12 @@ export class EcrivainActions {
         return this.compte(e, c, 'seConnecterAvecApple()', '');
       case 'choixMotDePasse':
         return this.compte(e, c, `choisirMotDePasse(${this.v.t(a.nouveau)})`);
+      case 'creationCompte': {
+        const champs = a.champs?.length ? `, champs = fiche(${a.champs.map((ch) => `${chaineKotlin(cleJson(ch.champ))} to ${this.v.x(ch.valeur)}`).join(', ')})` : '';
+        return this.compte(e, c, `creerMonCompte(${this.v.t(a.email)}, ${this.v.t(a.motDePasse)}${champs})`);
+      }
+      case 'confirmationAdresse':
+        return this.compte(e, c, 'confirmerMonAdresse()');
       case 'invitation': {
         const groupes = a.groupe ? `, groupes = fiche(${chaineKotlin(cleJson(a.groupe.champ))} to ${this.v.t(a.groupe.valeur)})` : '';
         const champs = a.champs?.length ? `, champs = fiche(${a.champs.map((ch) => `${chaineKotlin(cleJson(ch.champ))} to ${this.v.x(ch.valeur)}`).join(', ')})` : '';
@@ -358,9 +364,6 @@ export class EcrivainActions {
       case 'note':
         e.ligne(`HumalisNotes.noter(${chaineKotlin(lieuNote(a.ligne))}) { listOf(${a.valeurs.map((v) => `Triple(${chaineKotlin(v.libelle)}, ${this.v.x(v.valeur)}, ${v.titre ? 'true' : 'false'})`).join(', ')}) }`);
         return;
-      case 'creationCompte':
-      case 'confirmationAdresse':
-        throw new Error('« creer mon compte » et « confirmer mon adresse » : cible écrite à la tâche 4');
       default: {
         // Une action ajoutée au langage doit être traitée ici : sinon le compilateur TypeScript s'arrête.
         const oubliee: never = a;

@@ -492,6 +492,24 @@ public static class Session
         Garder(corps);
     }
 
+    /// <summary>« creer mon compte » : un lien de confirmation part par e-mail ; la réponse est la même que l'adresse ait un compte ou non.</summary>
+    public static async Task CreerMonCompte(string email, string motDePasse, Fiche? champs = null)
+    {
+        var envoi = V.FicheDe(("email", email), ("motDePasse", motDePasse));
+        if (champs is { Count: > 0 }) envoi["champs"] = champs;
+        var (reponse, corps) = await Envoyer("/auth/inscription", envoi);
+        if ((int)reponse.StatusCode == 429) throw new ErreurHumalis("Trop de tentatives. Réessayez dans quelques minutes.");
+        if (!reponse.IsSuccessStatusCode)
+        {
+            var raison = V.T(V.Champ(corps, "erreur"));
+            throw new ErreurHumalis(V.AvecMajuscule(raison.Length > 0 ? raison : "le compte n'a pas été créé") + ".");
+        }
+    }
+
+    /// <summary>« confirmer mon adresse » : le lien reçu par e-mail s'ouvre dans le navigateur, sur le site, jamais dans l'application.</summary>
+    public static Task ConfirmerMonAdresse() =>
+        Task.FromException(new ErreurHumalis("Ouvrez le lien reçu par e-mail dans votre navigateur pour confirmer votre adresse."));
+
     /// <summary>« supprimer mon compte » : le mot de passe s'il y en a un ; réussie, la session se ferme comme avec « se deconnecter ».</summary>
     public static async Task SupprimerMonCompte(string? motDePasse)
     {

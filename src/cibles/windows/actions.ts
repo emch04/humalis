@@ -295,6 +295,11 @@ export class EcrivainActions {
       }
       case 'changementMotDePasse':
         return this.compte(e, c, `Session.ChangerMotDePasse(${this.x.enTexte(a.actuel)}, ${this.x.enTexte(a.nouveau)})`);
+      case 'creationCompte':
+        return this.compte(e, c, `Session.CreerMonCompte(${this.x.enTexte(a.email)}, ${this.x.enTexte(a.motDePasse)}${a.champs?.length ? `, V.FicheDe(${a.champs.map((ch) => `(${chaineCs(cleJson(ch.champ))}, ${this.x.expr(ch.valeur)})`).join(', ')})` : ''})`);
+      case 'confirmationAdresse':
+        // Le lien reçu par e-mail ouvre le site, pas l'application : le geste le dit, et « si erreur » le reçoit.
+        return this.compte(e, c, 'Session.ConfirmerMonAdresse()');
       case 'deconnexion':
         e.ligne('await Session.SeDeconnecter();');
         return;

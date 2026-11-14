@@ -1916,6 +1916,10 @@ interface Utilisateur {
   seDeconnecter(): Promise<void>;
   /** « supprimer mon compte [avec …] » : réussie, la session se ferme comme avec « se deconnecter ». */
   supprimerMonCompte(motDePasse?: string, dansUnEssai?: boolean): Promise<boolean>;
+  /** « creer mon compte avec … et … » : un lien de confirmation part par e-mail. */
+  creerMonCompte(email: string, motDePasse: string, champs?: Record<string, unknown>, dansUnEssai?: boolean): Promise<boolean>;
+  /** « confirmer mon adresse » : le jeton vient de l'adresse du lien reçu. */
+  confirmerMonAdresse(dansUnEssai?: boolean): Promise<boolean>;
   /** Demande /auth/me une seule fois, à la première page qui lit la session. */
   demander(): void;
 }
@@ -2237,6 +2241,20 @@ export function Session({ children }: { children: ReactNode }) {
     return fait;
   }
 
+  async function creerMonCompte(email: string, motDePasse: string, champs?: Record<string, unknown>, dansUnEssai = false): Promise<boolean> {
+    // La réponse est la même que l'adresse ait déjà un compte ou non : le lien part par e-mail.
+    return envoyerAuCompte('/auth/inscription', { email, motDePasse, champs }, dansUnEssai, "Le compte n'a pas été créé.");
+  }
+
+  async function confirmerMonAdresse(dansUnEssai = false): Promise<boolean> {
+    // Le jeton est dans le fragment de l'adresse : le navigateur ne l'envoie à aucun serveur.
+    const jeton = new URLSearchParams(window.location.hash.slice(1)).get('jeton') ?? '';
+    const fait = await envoyerAuCompte('/auth/confirmation', { jeton }, dansUnEssai, "Ce lien de confirmation n'est plus valable : inscrivez-vous de nouveau.");
+    // Le lien a servi : il ne reste pas dans l'adresse ni dans l'historique.
+    if (fait) window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    return fait;
+  }
+
   async function changerMotDePasse(actuel: string, nouveau: string, dansUnEssai = false): Promise<boolean> {
     const refuser = (texte: string): boolean => {
       if (dansUnEssai) throw new Error(texte);
@@ -2327,6 +2345,8 @@ export function Session({ children }: { children: ReactNode }) {
     choisirMotDePasse,
     seDeconnecter,
     supprimerMonCompte,
+    creerMonCompte,
+    confirmerMonAdresse,
     demander,
   };
   useEffect(() => {
