@@ -14,7 +14,7 @@ import { avecNotifications } from './logique.js';
 const chaine = (texte: string) => JSON.stringify(texte);
 
 /** Vrai si le serveur a besoin du module des comptes. */
-export const avecComptes = (serveur: ServeurRI) => Boolean(serveur.invitations || serveur.motDePasseOublie || serveur.routeComptes || serveur.routeMonCompte || serveur.changeDeRole || serveur.changeDeCompte);
+export const avecComptes = (serveur: ServeurRI) => Boolean(serveur.invitations || serveur.inscriptionLibre || serveur.motDePasseOublie || serveur.routeComptes || serveur.routeMonCompte || serveur.changeDeRole || serveur.changeDeCompte);
 
 /** Vrai si le serveur produit a son module d'e-mails : une liste de comptes seule en a besoin aussi, sans jamais rien envoyer. */
 export const avecEmails = (serveur: ServeurRI) => Boolean(serveur.emails) || avecComptes(serveur);
@@ -54,6 +54,7 @@ export function codeCreationComptes(serveur: ServeurRI, chemins?: Map<string, st
     nom: ${chaine(serveur.nom)},
     google: ${serveur.connexionGoogle ? 'true' : 'false'},
     pageInvitation: ${cheminDe(serveur.invitations, chemins)},
+    inscription: ${serveur.inscriptionLibre ? `{ role: ${chaine(serveur.inscriptionLibre.role === 'membre' ? 'user' : serveur.inscriptionLibre.role)}, page: ${cheminDe(serveur.inscriptionLibre.page, chemins)} }` : 'null'},
     rolesPermis: ${JSON.stringify(serveur.roles ?? [])},
     champsDeGroupe: ${JSON.stringify(champsDeGroupe(serveur))},
     schemaCompte: { ${(serveur.champsCompte ?? []).map((c) => `${chaine(camel(c.nom))}: ${schemaCompte(c.type)}`).join(', ')} },
@@ -75,6 +76,18 @@ export function codeRoutesComptes(serveur: ServeurRI, adresseApi: (adresse: stri
       const routeInvitations = express.Router();
       routeInvitations.post('/', createApiLimiter({ windowMs: 60 * 60 * 1000, max: 30 }) as unknown as RequestHandler, ...acces.${serveur.routeComptes?.droits.creer ? gardeInvitation(serveur.routeComptes.droits.creer) : 'seulAdmin'}, csrfMiddleware, comptes.inviter);
       app.use('/auth/invitations', routeInvitations);
+`);
+  }
+  if (serveur.inscriptionLibre) {
+    parties.push(`
+      // « inscription libre » : chacun crée son compte, dix fois par heure au plus depuis une même adresse IP.
+      // La confirmation compte les essais comme une connexion : on y devine un jeton.
+      const routeInscription = express.Router();
+      routeInscription.post('/', createApiLimiter({ windowMs: 60 * 60 * 1000, max: 10 }) as unknown as RequestHandler, ...acces.toutLeMonde, csrfMiddleware, comptes.inscrire);
+      app.use('/auth/inscription', routeInscription);
+      const routeConfirmation = express.Router();
+      routeConfirmation.post('/', createLoginLimiter() as unknown as RequestHandler, ...acces.toutLeMonde, csrfMiddleware, comptes.confirmer);
+      app.use('/auth/confirmation', routeConfirmation);
 `);
   }
   if (serveur.changeDeRole || serveur.changeDeCompte) {
@@ -244,7 +257,7 @@ export function creerEmails({
 /** src/humalis/comptes.ts */
 export const COMPTES = `import { createHash, randomBytes } from 'node:crypto';
 import { createMemoryPasswordResetStore, type PasswordResetStore, type SaasUser, type UsersStore } from '@astratra/saas-kit';
-import { isStrongPassword, verifyPasswordHash, type RefreshTokenService, type RevocationStore } from '@astratra/security';
+import { hashPassword, isStrongPassword, verifyPasswordHash, type RefreshTokenService, type RevocationStore } from '@astratra/security';
 import type { RequestHandler } from 'express';
 import type { Emails } from './emails.js';
 import type { PoolPostgres } from './stockage.js';
@@ -261,12 +274,19 @@ const ROLE_SUPPRIME = 'supprime';
 /** Un compte retiré ou supprimé n'existe plus pour personne. */
 const estFerme = (compte: { role?: unknown }) => compte.role === ROLE_RETIRE || compte.role === ROLE_SUPPRIME;
 /** Les champs que le compte garde pour lui (en minuscules) : aucune route ne les rend ni ne les change. */
-const CHAMPS_INTERNES = new Set(['id', 'email', 'role', 'statut', 'password', 'passwordhash', 'invitation', 'googlesubject', 'applesubject', 'tokenversion', 'createdat', 'updatedat']);
+const CHAMPS_INTERNES = new Set(['id', 'email', 'role', 'statut', 'password', 'passwordhash', 'invitation', 'inscription', 'googlesubject', 'applesubject', 'tokenversion', 'createdat', 'updatedat']);
 const ADRESSE = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
 const SEPT_JOURS = 7 * 24 * 60 * 60 * 1000;
+const UN_JOUR = 24 * 60 * 60 * 1000;
+const UNE_HEURE = 60 * 60 * 1000;
 const DIX_MINUTES = 10 * 60 * 1000;
+const FAIBLE = 'ce mot de passe est trop faible : au moins 8 caractères, avec une majuscule, une minuscule, un chiffre et un signe';
 
-type Compte = SaasUser & { invitation?: boolean; passwordHash?: unknown };
+/** « inscription » : le moment d'une inscription libre pas encore confirmée ; sans lui, une invitation d'un membre. */
+type Compte = SaasUser & { invitation?: boolean; inscription?: number | null; passwordHash?: unknown };
+
+/** Une inscription libre en attente de sa confirmation. */
+const enAttente = (compte: Compte | null): boolean => compte !== null && compte.invitation === true && typeof compte.inscription === 'number';
 
 const empreinte = (jeton: string) => createHash('sha256').update(jeton).digest('hex');
 const echapper = (texte: string) => texte.replace(/[&<>"']/g, (c) => \`&#\${c.charCodeAt(0)};\`);
@@ -332,7 +352,7 @@ export function creerMagasinJetons(pool: PoolPostgres | null): PasswordResetStor
 export const refuserMotDePasseFaible: RequestHandler = (req, res, next) => {
   const motDePasse = (req.body as { password?: unknown } | undefined)?.password;
   if (typeof motDePasse === 'string' && !isStrongPassword(motDePasse)) {
-    res.status(400).json({ erreur: 'ce mot de passe est trop faible : au moins 8 caractères, avec une majuscule, une minuscule, un chiffre et un signe' });
+    res.status(400).json({ erreur: FAIBLE });
     return;
   }
   next();
@@ -363,6 +383,7 @@ export function creerComptes({
   nom,
   google,
   pageInvitation,
+  inscription = null,
   rolesPermis,
   champsDeGroupe = [],
   schemaCompte: schemaDeclare = {},
@@ -380,6 +401,8 @@ export function creerComptes({
   nom: string;
   google: boolean;
   pageInvitation: string | null;
+  /** « inscription libre comme client vers "confirmation" » : le rôle du compte créé et la page du lien. */
+  inscription?: { role: string; page: string } | null;
   /** Les rôles déclarés : seuls ceux-là peuvent être donnés par une invitation. */
   rolesPermis: string[];
   /** Les groupes d'un compte (« donnee … par boutique ») : celui qui invite y fait entrer la personne. */
@@ -428,6 +451,55 @@ export function creerComptes({
     fileSuppressions = suite.catch(() => undefined);
     return suite;
   };
+  /**
+   * Vidé sur place : une adresse neutre, unique et invalide (« .invalid » ne reçoit jamais d'e-mail), plus aucun
+   * champ ni secret, ni lien, ni session. La ligne reste, pour qu'un nouveau compte n'hérite jamais de celui-ci.
+   */
+  const viderLeCompte = async (id: string) => {
+    const vides = Object.fromEntries([...Object.keys(schemaCompte), ...champsDeGroupe].map((champ) => [champ, null]));
+    await usersStore.update(id, { ...vides, email: \`supprime-\${id}@supprime.invalid\`, role: ROLE_SUPPRIME, invitation: false, inscription: null, passwordHash: null, googleSubject: null, appleSubject: null } as unknown as Compte);
+    await surRetrait?.(id);
+    await jetons.deleteForUser(id);
+    await renouvellement.revokeAllForUser(id);
+    await revocations.revokeAllForUser?.(id, Date.now());
+  };
+
+  // Le lien de confirmation garde son empreinte dans le magasin des liens, sous un autre nom que celui du mot de
+  // passe : il ne sert jamais à choisir un mot de passe, et un lien de mot de passe ne confirme rien.
+  const empreinteConfirmation = (jeton: string) => empreinte(\`confirmation:\${jeton}\`);
+  const perimee = (compte: Compte, maintenant: number) => enAttente(compte) && (compte.inscription as number) <= maintenant - SEPT_JOURS;
+
+  // Une inscription jamais confirmée est vidée au bout de sept jours : à la première inscription qui suit, puis
+  // à chaque passage du ménage (toutes les heures). Une invitation d'un admin n'est jamais touchée.
+  let dernierMenage = -Infinity;
+  const menageInscriptions = async (toujours = false) => {
+    if (!inscription) return;
+    const maintenant = Date.now();
+    if (!toujours && maintenant - dernierMenage < UNE_HEURE) return;
+    dernierMenage = maintenant;
+    const PAGE = 500;
+    const perimes: string[] = [];
+    const vus = new Set<string>();
+    for (let depuis = 0; depuis < 200_000; depuis += PAGE) {
+      const page = (await usersStore.list({ role: inscription.role, limit: PAGE, offset: depuis })) as Compte[];
+      const neufs = page.filter((compte) => !vus.has(String(compte.id)));
+      for (const compte of neufs) {
+        vus.add(String(compte.id));
+        if (perimee(compte, maintenant)) perimes.push(String(compte.id));
+      }
+      // Une page incomplète, ou un magasin qui ignore « offset » et redonne les mêmes : c'est fini.
+      if (page.length < PAGE || neufs.length === 0) break;
+    }
+    // Relu au moment de vider : une confirmation arrivée entre-temps garde le compte.
+    for (const id of perimes) {
+      await uneAUne(async () => {
+        const compte = (await usersStore.findById(id)) as Compte | null;
+        if (compte && perimee(compte, maintenant)) await viderLeCompte(id);
+      });
+    }
+  };
+  if (inscription) setInterval(() => void menageInscriptions(true).catch((erreur: unknown) => console.error('Le ménage des inscriptions a échoué :', erreur instanceof Error ? erreur.message : erreur)), UNE_HEURE).unref();
+
   /** Un autre admin, qui peut se connecter, que celui-ci : le serveur ne reste jamais sans admin. */
   const unAutreAdmin = async (id: string) => {
     const PAGE = 500;
@@ -513,6 +585,133 @@ export function creerComptes({
         next(erreur);
       }
     }) as RequestHandler,
+
+    /**
+     * POST /auth/inscription : la même réponse que l'adresse soit nouvelle, déjà inscrite ou en attente, pour qu'on ne
+     * devine pas qui a un compte. Le mot de passe est haché dans tous les cas : le temps de réponse ne le dit pas non
+     * plus. Le rôle est celui de la phrase, jamais celui de la requête ; la personne n'entre dans aucun groupe.
+     */
+    inscrire: (async (req, res, next) => {
+      try {
+        const corps = (req.body ?? {}) as { email?: unknown; motDePasse?: unknown; champs?: unknown };
+        const adresse = typeof corps.email === 'string' ? corps.email.trim().toLowerCase() : '';
+        if (!inscription) {
+          res.status(404).json({ erreur: "l'inscription n'est pas ouverte sur ce serveur" });
+          return;
+        }
+        if (!ADRESSE.test(adresse) || adresse.length > 254) {
+          res.status(400).json({ erreur: "cette adresse e-mail n'est pas valable" });
+          return;
+        }
+        if (typeof corps.motDePasse !== 'string' || corps.motDePasse.length > 200 || !isStrongPassword(corps.motDePasse)) {
+          res.status(400).json({ erreur: FAIBLE });
+          return;
+        }
+        const envoi = verifierEnvoi(schemaCompte, corps.champs ?? {}, false);
+        if ('erreur' in envoi) {
+          res.status(400).json({ erreur: envoi.erreur });
+          return;
+        }
+        if (!emails.pret() || !adresseDuSite()) {
+          res.status(503).json({ erreur: "les e-mails ne sont pas réglés sur ce serveur (BREVO_API_KEY, BREVO_EXPEDITEUR, HUMALIS_ADRESSE_SITE) : l'inscription n'est pas partie" });
+          return;
+        }
+        await menageInscriptions();
+        const passwordHash = await hashPassword(corps.motDePasse);
+        // Un seul e-mail toutes les dix minutes pour une même adresse : rien ne change entre-temps.
+        if (tropTot(adresse)) {
+          res.json({ envoye: true });
+          return;
+        }
+        const suite = await uneAUne(async (): Promise<{ jeton: string } | 'existant' | 'rien'> => {
+          const existant = (await usersStore.findByEmail(adresse)) as Compte | null;
+          if (existant && !enAttente(existant)) return estFerme(existant) || existant.invitation === true ? 'rien' : 'existant';
+          const valeurs = { role: inscription.role, invitation: true, inscription: Date.now(), passwordHash, ...envoi.valeur };
+          const compte = existant ? await usersStore.update(String(existant.id), valeurs as unknown as Compte) : await usersStore.create({ email: adresse, ...valeurs } as unknown as Compte);
+          const id = String(compte?.id);
+          // Une nouvelle inscription remplace la précédente : l'ancien lien ne sert plus.
+          await jetons.deleteForUser(id);
+          const jeton = randomBytes(32).toString('hex');
+          await jetons.save({ hash: empreinteConfirmation(jeton), userId: id, expiresAt: Date.now() + UN_JOUR });
+          return { jeton };
+        });
+        let parti = true;
+        if (suite === 'existant') {
+          const phrase = \`Quelqu'un a voulu créer un compte chez \${nom} avec votre adresse, mais vous avez déjà un compte : rien n'a changé. Pour vous connecter, ouvrez le site\${pageOublie !== null ? ' ; si vous avez oublié votre mot de passe, choisissez « mot de passe oublié »' : ''} :\`;
+          const fin = "Si ce n'est pas vous, ignorez ce message.";
+          const site = adresseDuSite() ?? '';
+          parti = await emails.envoyer({ a: adresse, sujet: \`Votre compte \${nom}\`, texte: \`Bonjour,\\n\\n\${phrase}\\n\${site}\\n\\n\${fin}\\n\`, html: corpsHtml(phrase, site, fin) });
+        } else if (suite !== 'rien') {
+          const phrase = \`Vous venez de créer un compte chez \${nom}. Ouvrez ce lien pour confirmer votre adresse :\`;
+          const fin = "Ce lien est valable 24 heures et ne sert qu'une fois. Si vous n'avez pas créé ce compte, ignorez ce message : il sera effacé.";
+          const url = lien(inscription.page, suite.jeton);
+          parti = await emails.envoyer({ a: adresse, sujet: \`Confirmez votre adresse : \${nom}\`, texte: \`Bonjour,\\n\\n\${phrase}\\n\${url}\\n\\n\${fin}\\n\`, html: corpsHtml(phrase, url, fin) });
+        }
+        if (!parti) {
+          derniersLiens.delete(adresse);
+          res.status(502).json({ erreur: "l'e-mail n'est pas parti : réessayez dans un instant" });
+          return;
+        }
+        res.json({ envoye: true });
+      } catch (erreur) {
+        next(erreur);
+      }
+    }) as RequestHandler,
+
+    /** POST /auth/confirmation : le jeton du lien, une seule fois et pendant 24 heures ; le compte peut alors se connecter. */
+    confirmer: (async (req, res, next) => {
+      try {
+        const jeton = (req.body as { jeton?: unknown } | undefined)?.jeton;
+        const refus = () => res.status(400).json({ erreur: "ce lien de confirmation n'est plus valable : inscrivez-vous de nouveau" });
+        if (!inscription || typeof jeton !== 'string' || !/^[0-9a-f]{64}$/.test(jeton)) {
+          refus();
+          return;
+        }
+        // Consommer supprime : un second essai avec le même lien ne trouve rien, même à deux en même temps.
+        const lu = await jetons.consume(empreinteConfirmation(jeton));
+        if (!lu || lu.expiresAt <= Date.now()) {
+          refus();
+          return;
+        }
+        const ouvert = await uneAUne(async () => {
+          const compte = (await usersStore.findById(String(lu.userId))) as Compte | null;
+          if (!compte || estFerme(compte)) return false;
+          if (enAttente(compte)) await usersStore.update(String(compte.id), { invitation: false, inscription: null } as unknown as Compte);
+          return true;
+        });
+        if (!ouvert) {
+          refus();
+          return;
+        }
+        res.json({ confirme: true });
+      } catch (erreur) {
+        next(erreur);
+      }
+    }) as RequestHandler,
+
+    /**
+     * « connexion google » ou « connexion apple » avec l'inscription libre : une adresse inconnue, que le fournisseur
+     * confirme, crée un compte au rôle de la phrase, déjà confirmé. Un compte retiré ne se rouvre pas.
+     */
+    async compteParFournisseur(adresse: string, lien: 'googleSubject' | 'appleSubject', sujet: string): Promise<SaasUser | null> {
+      if (!inscription) return null;
+      const role = inscription.role;
+      return uneAUne(async () => {
+        if (await usersStore.findByEmail(adresse)) return null;
+        return usersStore.create({ email: adresse, role, invitation: false, [lien]: sujet } as unknown as Compte);
+      });
+    },
+
+    /**
+     * Le fournisseur confirme l'adresse d'une inscription en attente : le compte s'ouvre, et le mot de passe choisi à
+     * l'inscription ne sert plus (quelqu'un d'autre a pu inscrire cette adresse avec le sien).
+     */
+    async ouvrirParFournisseur(compte: SaasUser): Promise<SaasUser> {
+      if (!enAttente(compte as Compte)) return compte;
+      const id = String(compte.id);
+      await jetons.deleteForUser(id);
+      return (await usersStore.update(id, { invitation: false, inscription: null, passwordHash: null } as unknown as Compte)) ?? compte;
+    },
 
     /** « changer role de c en … » : jamais son propre rôle, pour qu'un admin ne s'enferme pas dehors. */
     changerRole: (async (req, res, next) => {
@@ -619,14 +818,7 @@ export function creerComptes({
           }
           if (compte.role === 'admin' && !(await unAutreAdmin(id))) return [409, { erreur: 'le dernier admin ne peut pas supprimer son compte' }];
           await effacerLesDonnees?.(id);
-          // Vidé sur place : une adresse neutre, unique et invalide (« .invalid » ne reçoit jamais d'e-mail), plus aucun
-          // champ ni secret. La ligne reste, pour qu'un nouveau compte n'hérite jamais des fiches de celui-ci.
-          const vides = Object.fromEntries([...Object.keys(schemaCompte), ...champsDeGroupe].map((champ) => [champ, null]));
-          await usersStore.update(id, { ...vides, email: \`supprime-\${id}@supprime.invalid\`, role: ROLE_SUPPRIME, invitation: false, passwordHash: null, googleSubject: null, appleSubject: null } as unknown as Compte);
-          await surRetrait?.(id);
-          await jetons.deleteForUser(id);
-          await renouvellement.revokeAllForUser(id);
-          await revocations.revokeAllForUser?.(id, Date.now());
+          await viderLeCompte(id);
           return [200, { supprime: true }];
         });
         res.status(reponse[0]).json(reponse[1]);
@@ -707,6 +899,49 @@ export function testsComptes(serveur: ServeurRI, stockages: string): string {
     expect(reponse.body.erreur).toContain('BREVO_API_KEY');
   });`);
   }
+  if (serveur.inscriptionLibre) {
+    const role = serveur.inscriptionLibre.role === 'membre' ? 'user' : serveur.inscriptionLibre.role;
+    blocs.push(`  it('inscription libre : jamais le rôle admin, même envoyé ; aucune connexion avant la confirmation', async () => {
+    const { app, boite } = await preparer();
+    const entree = await visiteur(app);
+    const reponse = await request(app).post('/auth/inscription').set(entree).send({ email: 'neuf@exemple.cd', motDePasse: MOT_DE_PASSE, role: 'admin' }).expect(200);
+    expect(reponse.body).toEqual({ envoye: true });
+    await request(app).post('/auth/login').send({ email: 'neuf@exemple.cd', password: MOT_DE_PASSE }).expect(401);
+    await request(app).post('/auth/confirmation').set(entree).send({ jeton: jetonDuLien(boite[0]) }).expect(200);
+    const connexion = await request(app).post('/auth/login').send({ email: 'neuf@exemple.cd', password: MOT_DE_PASSE }).expect(200);
+    expect(connexion.body.data.user.role).toBe(${chaine(role)});
+  });
+
+  it('inscription libre : la même réponse pour une adresse qui a déjà un compte, qui ne change pas', async () => {
+    const { app, boite } = await preparer();
+    const entree = await visiteur(app);
+    const neuve = await request(app).post('/auth/inscription').set(entree).send({ email: 'neuf@exemple.cd', motDePasse: MOT_DE_PASSE });
+    const connue = await request(app).post('/auth/inscription').set(entree).send({ email: 'awa@exemple.cd', motDePasse: 'Autre-Solide-2026!' });
+    expect([connue.status, connue.body]).toEqual([neuve.status, neuve.body]);
+    expect(boite).toHaveLength(2);
+    expect(/#jeton=/.test(boite[1].textContent)).toBe(false);
+    await request(app).post('/auth/login').send({ email: 'awa@exemple.cd', password: MOT_DE_PASSE }).expect(200);
+    await request(app).post('/auth/login').send({ email: 'awa@exemple.cd', password: 'Autre-Solide-2026!' }).expect(401);
+  });
+
+  it('inscription libre : un lien de confirmation usé ou périmé est refusé', async () => {
+    const { app, boite, jetons } = await preparer();
+    const entree = await visiteur(app);
+    await request(app).post('/auth/inscription').set(entree).send({ email: 'neuf@exemple.cd', motDePasse: MOT_DE_PASSE }).expect(200);
+    const jeton = jetonDuLien(boite[0]);
+    // Le lien de confirmation ne sert pas à choisir un mot de passe.
+    await request(app).post('/auth/reset-password').send({ token: jeton, password: 'Autre-Solide-2026!' }).expect(400);
+    await request(app).post('/auth/confirmation').set(entree).send({ jeton }).expect(200);
+    await request(app).post('/auth/confirmation').set(entree).send({ jeton }).expect(400);
+    await request(app).post('/auth/inscription').set(entree).send({ email: 'tard@exemple.cd', motDePasse: MOT_DE_PASSE }).expect(200);
+    const tard = jetonDuLien(boite[1]);
+    const empreinte = createHash('sha256').update('confirmation:' + tard).digest('hex');
+    const lien = await jetons.consume(empreinte);
+    await jetons.save({ ...lien!, expiresAt: Date.now() - 1000 });
+    await request(app).post('/auth/confirmation').set(entree).send({ jeton: tard }).expect(400);
+    await request(app).post('/auth/login').send({ email: 'tard@exemple.cd', password: MOT_DE_PASSE }).expect(401);
+  });`);
+  }
   const qui = serveur.routeComptes?.droits.creer;
   const [groupe] = champsDeGroupe(serveur);
   if (serveur.invitations && groupe && qui?.startsWith('role:')) {
@@ -766,7 +1001,7 @@ export function testsComptes(serveur: ServeurRI, stockages: string): string {
     }
   }
   return `// Produit par Humalis : les invitations, le mot de passe oublié et la liste des comptes, avec un faux Brevo.
-import { describe, expect, it } from 'vitest';
+${serveur.inscriptionLibre ? "import { createHash } from 'node:crypto';\n" : ''}import { describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { createMemoryPasswordResetStore, createMemoryUsersStore, type UsersStore } from '@astratra/saas-kit';
 import { hashPassword } from '@astratra/security';
@@ -778,7 +1013,14 @@ const MOT_DE_PASSE = 'Essai-Solide-2026!';
 process.env.HUMALIS_ADRESSE_SITE = 'https://site.exemple.cd';
 
 const jetonDuLien = (corps: { textContent: string }) => /#jeton=([0-9a-f]{64})/.exec(corps.textContent)![1];
-
+${serveur.inscriptionLibre ? `
+/** Un visiteur, comme un navigateur : le cookie CSRF reçu à la première visite, renvoyé dans l'en-tête. */
+async function visiteur(app: never) {
+  const cookies = ([] as string[]).concat((await request(app).get('/auth/me')).headers['set-cookie'] ?? []);
+  const csrf = /astratra_csrf=([^;]+)/.exec(cookies.join(';'))![1];
+  return { cookie: \`astratra_csrf=\${csrf}\`, 'x-csrf-token': csrf };
+}
+` : ''}
 async function preparer({ cles = true } = {}) {
   const usersStore = createMemoryUsersStore() as UsersStore;
   const passwordHash = await hashPassword(MOT_DE_PASSE);

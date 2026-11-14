@@ -121,7 +121,7 @@ export function genererProjetServeur(complet: ServeurRI, options: OptionsServeur
   }
   if (avecEmails(serveur)) fichiers.set('src/humalis/emails.ts', EMAILS);
   if (avecComptes(serveur)) fichiers.set('src/humalis/comptes.ts', COMPTES);
-  if (serveur.invitations || serveur.motDePasseOublie || serveur.routeComptes) {
+  if (serveur.invitations || serveur.inscriptionLibre || serveur.motDePasseOublie || serveur.routeComptes) {
     fichiers.set('tests/comptes.test.ts', testsComptes(serveur, serveur.donnees.map((d) => `    ${camel(d.nom)}: creerStockageMemoire(),`).join('\n')));
   }
   fichiers.set('src/serveur.ts', serveurTs(serveur, options.chemins, avecTempsReel(complet) ? codeMontageTempsReel(complet) : ''));
@@ -345,7 +345,7 @@ function envExemple(serveur: ServeurRI): string {
     ...(avecIa(serveur) ? [ENV_IA] : []),
     ...((serveur as { tempsReel?: boolean }).tempsReel ? [ENV_TEMPS_REEL] : []),
     ...(avecPaiements(serveur) ? [`# Les paiements (« paiements par stripe ») : une clé de test d'abord (sk_test_…), et le secret du webhook vers /paiements/webhook.\nSTRIPE_CLE_SECRETE=\nSTRIPE_SECRET_WEBHOOK=\nHUMALIS_PAIEMENT_DEVISE=eur\n`] : []),
-    ...(serveur.invitations || serveur.motDePasseOublie || serveur.donnees.some((d) => d.champs.some((c) => c.regle?.genre === 'site')) ? [ENV_LIENS] : []),
+    ...(serveur.invitations || serveur.inscriptionLibre || serveur.motDePasseOublie || serveur.donnees.some((d) => d.champs.some((c) => c.regle?.genre === 'site')) ? [ENV_LIENS] : []),
     // Les secrets des sources : seulement leur nom ; la valeur se met ici, sur le serveur, jamais dans le fichier Humalis.
     ...(serveur.passerelles ?? []).map((p) => `# Le secret de la source « ${p.source} » (jeton secret depuis l'environnement).\n${p.variable}=\n`),
   ];
@@ -1427,7 +1427,7 @@ ${codePaiements(route, variable, garde('lire'), voir('lire'), separee, donnee)}$
     })
     .join('\n\n');
   const schemas = [...new Set(serveur.routes.map((r) => `SCHEMA_${simplifier(r.donnee).toUpperCase()}`))].join(', ');
-  const google = (serveur.connexionGoogle ? ROUTE_GOOGLE : '') + (serveur.connexionApple ? ROUTE_APPLE : '') + ROUTE_MOT_DE_PASSE;
+  const google = avecInscriptionParFournisseur(serveur, (serveur.connexionGoogle ? ROUTE_GOOGLE : '') + (serveur.connexionApple ? ROUTE_APPLE : '')) + ROUTE_MOT_DE_PASSE;
   const boutique = JSON.stringify(serveur.nom);
   const fidelite = serveur.fidelite ? routeFidelite(serveur.fidelite) : '';
   const avecBon = serveur.routes.some((r) => r.bon);
@@ -1436,7 +1436,7 @@ ${codePaiements(route, variable, garde('lire'), voir('lire'), separee, donnee)}$
 
   return `// Produit par Humalis : le serveur « ${serveur.nom} », assemblé avec les packs Astratra.
 import { createSaasApp, ${comptes ? 'createMemoryPasswordResetStore, type PasswordResetStore, ' : ''}type UsersStore } from '@astratra/saas-kit';
-import { ${[...(serveur.connexionGoogle ? ['createGoogleIdTokenVerifier'] : []), ...(serveur.connexionApple ? ['createAppleIdTokenVerifier'] : []), ...(serveur.connexionGoogle || serveur.connexionApple ? ['IdTokenError'] : []), ...(serveur.invitations ? ['createApiLimiter'] : []), ].map((n) => n + ', ').join('')}createMemoryRevocationStore, type RevocationStore, createLoginLimiter, hashPassword, isStrongPassword, verifyPasswordHash, WAF_PATTERNS } from '@astratra/security';
+import { ${[...(serveur.connexionGoogle ? ['createGoogleIdTokenVerifier'] : []), ...(serveur.connexionApple ? ['createAppleIdTokenVerifier'] : []), ...(serveur.connexionGoogle || serveur.connexionApple ? ['IdTokenError'] : []), ...(serveur.invitations || serveur.inscriptionLibre ? ['createApiLimiter'] : []), ].map((n) => n + ', ').join('')}createMemoryRevocationStore, type RevocationStore, createLoginLimiter, hashPassword, isStrongPassword, verifyPasswordHash, WAF_PATTERNS } from '@astratra/security';
 import express, { type RequestHandler, type Response } from 'express';
 ${montageTempsReel ? IMPORT_TEMPS_REEL : ''}import { journaliserErreur, noterHumalis } from './humalis/lignes.js';
 ${serveur.captureErreurs ? "import { brancherErreursProcessus, rapporterErreur } from './humalis/capture-erreurs.js';\n" : ''}
@@ -1640,8 +1640,9 @@ ${comptes ? codeCreationComptes(serveur, chemins).replace('usersStore,', 'usersS
     refreshTokens: { enabled: true, service: renouvellement },
     usersStore,
     roles: { adminRoles: ['admin'], ownerRoles: ['admin'] },
+    // Un compte invité, ou une inscription pas encore confirmée, n'ouvre aucune session par mot de passe.
     verifyPassword: async (utilisateur, motDePasse) =>
-      typeof utilisateur.passwordHash === 'string' && verifyPasswordHash(motDePasse, utilisateur.passwordHash),
+      typeof utilisateur.passwordHash === 'string' && (utilisateur as { invitation?: unknown }).invitation !== true && verifyPasswordHash(motDePasse, utilisateur.passwordHash),
     notify: async () => {},
     // Un jeton fermé (déconnexion, compte retiré) le reste sur tous les exemplaires du serveur, et après un redémarrage.
     revocationStore: revocations,${comptes ? `
@@ -2271,7 +2272,10 @@ function lisezmoiEnPlus(serveur: ServeurRI): string {
       ? [`\nLa carte de fidélité d'un client, calculée sur les fiches, réservée à l'admin et sans écriture : \`GET /api/fidelite/<${serveur.fidelite.champ}>\` rend \`{ tampons, objectif, restant, recompenses, recompense }\`. Les récompenses données ne sont pas enregistrées : \`recompenses\` compte celles qui ont été gagnées.`]
       : []),
   ];
-  if (serveur.invitations || serveur.motDePasseOublie) {
+  if (serveur.inscriptionLibre) {
+    lignes.push(`\nL'inscription libre : \`POST /auth/inscription\` (\`{ email, motDePasse, champs }\`, dix par heure et par adresse IP) crée un compte au rôle « ${serveur.inscriptionLibre.role} », qui ne se connecte qu'après \`POST /auth/confirmation\` (\`{ jeton }\`, le jeton du lien, valable 24 heures). La réponse est la même que l'adresse ait déjà un compte ou non ; une inscription jamais confirmée est vidée au bout de sept jours.`);
+  }
+  if (serveur.invitations || serveur.inscriptionLibre || serveur.motDePasseOublie) {
     lignes.push(`\nLes liens envoyés par e-mail ont besoin de \`BREVO_API_KEY\`, \`BREVO_EXPEDITEUR\` et \`HUMALIS_ADRESSE_SITE\`. Le jeton est dans le fragment de l'adresse, le serveur n'en garde que l'empreinte, et il ne sert qu'une fois (\`src/humalis/comptes.ts\`).`);
   } else if (serveur.emails) {
     lignes.push(`\nLes e-mails partent par Brevo, avec \`BREVO_API_KEY\` et \`BREVO_EXPEDITEUR\` (\`src/humalis/emails.ts\`).`);
@@ -2884,6 +2888,21 @@ const ROUTE_APPLE = `
       });
       app.use('/auth/apple', routeApple);
 `;
+
+/**
+ * « inscription libre » avec « connexion google » ou « connexion apple » : une adresse inconnue que le fournisseur
+ * confirme crée un compte au rôle de la phrase ; une inscription en attente s'ouvre, sans le mot de passe choisi.
+ */
+function avecInscriptionParFournisseur(serveur: ServeurRI, code: string): string {
+  if (!serveur.inscriptionLibre || !code) return code;
+  let resultat = code;
+  for (const [fournisseur, lien] of [['Google', 'googleSubject'], ['Apple', 'appleSubject']] as const) {
+    const lecture = `          const compte = await usersStore.findByEmail(profil.email);\n          if (!compte) {\n            res.status(403).json({ erreur: ${fournisseur === 'Google' ? '"ce compte Google' : 'profil.relayEmail'}`;
+    if (!resultat.includes(lecture)) continue;
+    resultat = resultat.replace(lecture, lecture.replace('const compte = await usersStore.findByEmail(profil.email);', `const trouve = (await usersStore.findByEmail(profil.email)) ?? (await comptes.compteParFournisseur(profil.email, '${lien}', profil.subject));\n          const compte = trouve ? await comptes.ouvrirParFournisseur(trouve) : null;`));
+  }
+  return resultat;
+}
 
 const ROUTE_GOOGLE = `
       // « connexion google » : un compte déjà connu du serveur, dont Google confirme l'adresse, ouvre sa session.

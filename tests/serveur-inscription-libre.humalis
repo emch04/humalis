@@ -1,0 +1,44 @@
+serveur "boutique" :
+    roles client et vendeur
+    emails par brevo
+    connexion google
+    compte :
+        nom : texte
+    inscription libre comme client vers "confirmation"
+    mot de passe oublie vers "nouveau-mot-de-passe"
+    donnee commande par compte :
+        total : nombre
+    route "commandes" :
+        connecte peut lire et creer commande
+    route "moi" :
+        connecte peut lire son compte
+
+page "inscription" :
+    titre "Créer un compte"
+    formulaire "compte" :
+        champ "Nom" avec obligatoire
+        champ email "Email" avec obligatoire
+        champ mot de passe "Mot de passe" avec obligatoire
+        bouton "Créer mon compte"
+    quand le formulaire "compte" est soumis :
+        essayer :
+            creer mon compte avec champ "Email" et champ "Mot de passe" avec nom = champ "Nom"
+            afficher "Un lien de confirmation vous a été envoyé."
+        si erreur :
+            afficher erreur "{raison}"
+
+page "confirmation" :
+    titre "Confirmation"
+    quand la page se charge :
+        essayer :
+            confirmer mon adresse
+            afficher "Votre adresse est confirmée : vous pouvez vous connecter."
+        si erreur :
+            afficher erreur "{raison}"
+
+page "nouveau-mot-de-passe" :
+    titre "Nouveau mot de passe"
+    champ mot de passe "Nouveau"
+    bouton "Valider"
+    quand l'utilisateur clique sur "Valider" :
+        choisir le mot de passe avec champ "Nouveau"
