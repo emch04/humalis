@@ -17,7 +17,8 @@ const fiche = (nom: string) => `f_${camel(nom)}`;
 
 export const avecPaiements = (serveur: ServeurRI) => serveur.routes.some((r) => r.apresPaiement !== undefined);
 /** Vrai si le serveur écrit tout ou rien quelque part (actions, paiements, tâches, documents, ou des calculs à tenir justes). */
-export const avecLogique = (serveur: ServeurRI) => serveur.routes.some((r) => r.apresPaiement !== undefined || r.resumes?.length) || Boolean(serveur.taches?.length) || Boolean(serveur.documents?.length) || serveur.routes.some((r) => r.actions?.length) || serveur.donnees.some((d) => d.champs.some((c) => c.regle?.genre === 'somme' || c.regle?.genre === 'nombreDe'));
+// « connecte peut supprimer son compte » : les fiches de la personne changent toutes ensemble, dans une transaction.
+export const avecLogique = (serveur: ServeurRI) => Boolean(serveur.routeMonCompte?.supprimer) || serveur.routes.some((r) => r.apresPaiement !== undefined || r.resumes?.length) || Boolean(serveur.taches?.length) || Boolean(serveur.documents?.length) || serveur.routes.some((r) => r.actions?.length) || serveur.donnees.some((d) => d.champs.some((c) => c.regle?.genre === 'somme' || c.regle?.genre === 'nombreDe'));
 const parcourir = (liste: InstructionServeurRI[], voir: (i: InstructionServeurRI) => void): void => {
   for (const i of liste) {
     voir(i);

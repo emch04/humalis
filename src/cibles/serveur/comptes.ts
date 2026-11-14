@@ -56,7 +56,7 @@ export function codeCreationComptes(serveur: ServeurRI, chemins?: Map<string, st
     rolesPermis: ${JSON.stringify(serveur.roles ?? [])},
     champsDeGroupe: ${JSON.stringify(champsDeGroupe(serveur))},
     schemaCompte: { ${(serveur.champsCompte ?? []).map((c) => `${chaine(camel(c.nom))}: ${schemaCompte(c.type)}`).join(', ')} },
-    pageOublie: ${cheminDe(serveur.motDePasseOublie, chemins)},${serveur.connexionCleAcces || serveur.doubleAuthentification ? '\n    surRetrait: (id) => oublierCompte(magasinSecurite, id),' : ''}
+    pageOublie: ${cheminDe(serveur.motDePasseOublie, chemins)},${serveur.connexionCleAcces || serveur.doubleAuthentification ? '\n    surRetrait: (id) => oublierCompte(magasinSecurite, id),' : ''}${serveur.routeMonCompte?.supprimer ? '\n    effacerLesDonnees: (id) => effacerLesDonnees(id, transaction),' : ''}
   });
 `;
 }
@@ -83,7 +83,16 @@ export function codeRoutesComptes(serveur: ServeurRI, adresseApi: (adresse: stri
 ${serveur.changeDeRole ? "      routeRoles.post('/:id/role', ...acces.seulAdmin, csrfMiddleware, comptes.changerRole);\n" : ''}${serveur.changeDeCompte ? `      routeRoles.post('/:id/champs', ...acces.${gardeInvitation(serveur.routeComptes?.droits.modifier ?? 'admin')}, csrfMiddleware, comptes.changerChamps);\n` : ''}      app.use('/auth/comptes', routeRoles);
 `);
   }
-  if (serveur.routeMonCompte) {
+  if (serveur.routeMonCompte?.supprimer) {
+    parties.push(`
+      // « connecte peut supprimer son compte » : son propre compte seulement, avec son mot de passe s'il en a un.
+      // Le limiteur compte les essais comme pour la connexion : on devine un secret.
+      const routeSuppressionCompte = express.Router();
+      routeSuppressionCompte.post('/', createLoginLimiter() as unknown as RequestHandler, ...acces.connecte, csrfMiddleware, comptes.supprimerMonCompte);
+      app.use('/auth/suppression-compte', routeSuppressionCompte);
+`);
+  }
+  if (serveur.routeMonCompte?.lire) {
     const nom = variable(serveur.routeMonCompte.adresse);
     parties.push(`
       // « ${serveur.routeMonCompte.adresse} » : la personne connectée lit son propre compte, sans aucun secret.
@@ -234,7 +243,7 @@ export function creerEmails({
 /** src/humalis/comptes.ts */
 export const COMPTES = `import { createHash, randomBytes } from 'node:crypto';
 import { createMemoryPasswordResetStore, type PasswordResetStore, type SaasUser, type UsersStore } from '@astratra/saas-kit';
-import { isStrongPassword, type RefreshTokenService, type RevocationStore } from '@astratra/security';
+import { isStrongPassword, verifyPasswordHash, type RefreshTokenService, type RevocationStore } from '@astratra/security';
 import type { RequestHandler } from 'express';
 import type { Emails } from './emails.js';
 import type { PoolPostgres } from './stockage.js';
@@ -246,6 +255,10 @@ import { verifierEnvoi, type Schema } from './verifier.js';
  * n'envoie jamais à un serveur ; seule son empreinte est gardée, et le pack la consomme une fois.
  */
 const ROLE_RETIRE = 'retire';
+/** « supprimer mon compte » : la personne a supprimé son compte, vidé sur place ; il ne se rouvre jamais. */
+const ROLE_SUPPRIME = 'supprime';
+/** Un compte retiré ou supprimé n'existe plus pour personne. */
+const estFerme = (compte: { role?: unknown }) => compte.role === ROLE_RETIRE || compte.role === ROLE_SUPPRIME;
 /** Les champs que le compte garde pour lui (en minuscules) : aucune route ne les rend ni ne les change. */
 const CHAMPS_INTERNES = new Set(['id', 'email', 'role', 'statut', 'password', 'passwordhash', 'invitation', 'googlesubject', 'applesubject', 'tokenversion', 'createdat', 'updatedat']);
 const ADRESSE = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
@@ -263,12 +276,12 @@ const echapper = (texte: string) => texte.replace(/[&<>"']/g, (c) => \`&#\${c.ch
  * mot de passe ou lier un compte Google, c'est accepter l'invitation.
  */
 export function sansLesRetires(store: UsersStore): UsersStore {
-  const visible = (compte: SaasUser | null) => (compte && compte.role !== ROLE_RETIRE ? compte : null);
+  const visible = (compte: SaasUser | null) => (compte && !estFerme(compte) ? compte : null);
   return {
     findByEmail: async (email) => visible(await store.findByEmail(email)),
     findById: async (id) => visible(await store.findById(id)),
     create: (compte) => store.create(compte),
-    list: async (options) => (await store.list(options)).filter((compte) => compte.role !== ROLE_RETIRE),
+    list: async (options) => (await store.list(options)).filter((compte) => !estFerme(compte)),
     ...(store.count ? { count: (options) => store.count!(options) } : {}),
     ...(store.countByRole ? { countByRole: () => store.countByRole!() } : {}),
     update: (id, modifs) => {
@@ -354,6 +367,7 @@ export function creerComptes({
   schemaCompte: schemaDeclare = {},
   pageOublie,
   surRetrait,
+  effacerLesDonnees,
   env = process.env,
 }: {
   /** Tous les comptes, retirés compris : une nouvelle invitation peut en rouvrir un. */
@@ -374,6 +388,8 @@ export function creerComptes({
   pageOublie: string | null;
   /** Ce qui disparaît en plus avec un compte retiré : ses clés d'accès et son code à six chiffres. */
   surRetrait?: (id: string) => Promise<void>;
+  /** « connecte peut supprimer son compte » : les fiches de la personne, effacées ou rendues anonymes, toutes ou aucune. */
+  effacerLesDonnees?: (id: string) => Promise<void>;
   env?: Record<string, string | undefined>;
 }) {
   // Jamais un champ interne du compte (l'empreinte du mot de passe…), même s'il avait été déclaré : ni lu, ni écrit.
@@ -402,6 +418,25 @@ export function creerComptes({
   const portee = (moi: Record<string, unknown>, compte: Record<string, unknown>) =>
     moi.role === 'admin' || (compte.role !== 'admin' && champsDeGroupe.every((champ) => typeof moi[champ] === 'string' && moi[champ] !== '' && moi[champ] === compte[champ]));
   const moiDe = (req: unknown) => (req as { user?: Record<string, unknown> }).user ?? {};
+
+  // Les suppressions de compte passent une à une : deux demandes du même compte, ou deux derniers admins en même
+  // temps, ne se croisent jamais. La seconde trouve le compte déjà vidé.
+  let fileSuppressions: Promise<unknown> = Promise.resolve();
+  const uneAUne = <T>(travail: () => Promise<T>): Promise<T> => {
+    const suite = fileSuppressions.then(travail);
+    fileSuppressions = suite.catch(() => undefined);
+    return suite;
+  };
+  /** Un autre admin, qui peut se connecter, que celui-ci : le serveur ne reste jamais sans admin. */
+  const unAutreAdmin = async (id: string) => {
+    const PAGE = 500;
+    for (let depuis = 0; depuis < 200_000; depuis += PAGE) {
+      const page = (await usersStore.list({ role: 'admin', limit: PAGE, offset: depuis })) as Compte[];
+      if (page.some((compte) => String(compte.id) !== id && compte.role === 'admin' && compte.invitation !== true)) return true;
+      if (page.length < PAGE) return false;
+    }
+    return false;
+  };
 
   return {
     /** Le « send » du mot de passe oublié du pack : il a déjà créé le jeton et gardé son empreinte. */
@@ -494,7 +529,7 @@ export function creerComptes({
           return;
         }
         const compte = await usersStore.findById(id);
-        if (!compte || compte.role === ROLE_RETIRE) {
+        if (!compte || estFerme(compte)) {
           res.status(404).json({ erreur: "ce compte n'existe pas" });
           return;
         }
@@ -515,7 +550,7 @@ export function creerComptes({
           return;
         }
         const compte = await usersStore.findById(id);
-        if (!compte || compte.role === ROLE_RETIRE || !portee(moiDe(req), compte)) {
+        if (!compte || estFerme(compte) || !portee(moiDe(req), compte)) {
           res.status(404).json({ erreur: "ce compte n'existe pas" });
           return;
         }
@@ -532,7 +567,7 @@ export function creerComptes({
         const moi = moiDe(req);
         // Lu par son identifiant : la liste des comptes n'a pas à être parcourue, quel que soit leur nombre.
         const lu = (await usersStore.findById(String(moi.id))) as Compte | null;
-        const compte = lu && lu.role !== ROLE_RETIRE ? lu : undefined;
+        const compte = lu && !estFerme(lu) ? lu : undefined;
         res.json(compte ? [{
           id: String(compte.id),
           email: String(compte.email ?? ''),
@@ -550,7 +585,7 @@ export function creerComptes({
       try {
         const tous = await tousLesComptes(usersStore);
         const moi = moiDe(req);
-        const presents = tous.filter((compte) => compte.role !== ROLE_RETIRE && portee(moi, compte));
+        const presents = tous.filter((compte) => !estFerme(compte) && portee(moi, compte));
         presents.sort((a, b) => String(a.email).localeCompare(String(b.email)));
         res.json(
           presents.map((compte) => ({
@@ -561,6 +596,39 @@ export function creerComptes({
             ...Object.fromEntries(Object.keys(schemaCompte).map((champ) => [champ, (compte as Record<string, unknown>)[champ] ?? null])),
           })),
         );
+      } catch (erreur) {
+        next(erreur);
+      }
+    }) as RequestHandler,
+
+    /**
+     * POST /auth/suppression-compte : la personne connectée supprime son propre compte, et aucun autre.
+     * Le mot de passe est redemandé si le compte en a un. Ses fiches changent d'abord, toutes ensemble ou aucune ;
+     * le compte est vidé ensuite : refaire la même demande après une panne ne casse rien.
+     */
+    supprimerMonCompte: (async (req, res, next) => {
+      try {
+        const id = String(moiDe(req).id ?? '');
+        const motDePasse = (req.body as { motDePasse?: unknown } | undefined)?.motDePasse;
+        const reponse = await uneAUne(async (): Promise<[number, object]> => {
+          const compte = id ? ((await usersStore.findById(id)) as Compte | null) : null;
+          if (!compte || estFerme(compte)) return [401, { erreur: 'connecte-toi de nouveau' }];
+          if (typeof compte.passwordHash === 'string' && !(typeof motDePasse === 'string' && (await verifyPasswordHash(motDePasse, compte.passwordHash)))) {
+            return [403, { erreur: 'le mot de passe est incorrect' }];
+          }
+          if (compte.role === 'admin' && !(await unAutreAdmin(id))) return [409, { erreur: 'le dernier admin ne peut pas supprimer son compte' }];
+          await effacerLesDonnees?.(id);
+          // Vidé sur place : une adresse neutre, unique et invalide (« .invalid » ne reçoit jamais d'e-mail), plus aucun
+          // champ ni secret. La ligne reste, pour qu'un nouveau compte n'hérite jamais des fiches de celui-ci.
+          const vides = Object.fromEntries([...Object.keys(schemaCompte), ...champsDeGroupe].map((champ) => [champ, null]));
+          await usersStore.update(id, { ...vides, email: \`supprime-\${id}@supprime.invalid\`, role: ROLE_SUPPRIME, invitation: false, passwordHash: null, googleSubject: null, appleSubject: null } as unknown as Compte);
+          await surRetrait?.(id);
+          await jetons.deleteForUser(id);
+          await renouvellement.revokeAllForUser(id);
+          await revocations.revokeAllForUser?.(id, Date.now());
+          return [200, { supprime: true }];
+        });
+        res.status(reponse[0]).json(reponse[1]);
       } catch (erreur) {
         next(erreur);
       }
@@ -579,7 +647,7 @@ export function creerComptes({
           return;
         }
         const compte = await usersStore.findById(id);
-        if (!compte || compte.role === ROLE_RETIRE || !portee(moiDe(req), compte)) {
+        if (!compte || estFerme(compte) || !portee(moiDe(req), compte)) {
           res.status(404).json({ erreur: "ce compte n'existe pas" });
           return;
         }

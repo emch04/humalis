@@ -5,6 +5,7 @@ import { BORNES_TS, exempleDansLesBornes } from './bornes.js';
 import { testsAttaques } from './attaques.js';
 import { LIGNES_SERVEUR_TS } from './lignes.js';
 import { COMPOSER_CARTES_JS } from '../lignes-humalis.js';
+import { codeEffacerLesDonnees } from './suppression.js';
 import { avecComptes, avecEmails, CLES_BREVO, codeCreationComptes, codeEnvois, codeRoutesComptes, COMPTES, EMAILS, ENV_EMAILS, ENV_LIENS, testsComptes } from './comptes.js';
 import { codeFicheVisible, codePortee, compteRelu, conditionsDe, constantesSeparation, estSeparee, SEPARATION, testsSeparee } from './separation.js';
 import { avecIa, ENV_IA, IA, routeIa } from './ia.js';
@@ -606,7 +607,7 @@ export function creerRenouvellement({ magasin, dureeMs, maximumMs, horloge }: Re
   return service;
 }
 
-const CHEMINS = new Set(['/auth/login', '/auth/refresh', '/auth/logout', '/auth/google', '/auth/apple', '/auth/mot-de-passe', '/auth/double/verifier', '/auth/cle-acces/connexion/verifier']);
+const CHEMINS = new Set(['/auth/login', '/auth/refresh', '/auth/logout', '/auth/suppression-compte', '/auth/google', '/auth/apple', '/auth/mot-de-passe', '/auth/double/verifier', '/auth/cle-acces/connexion/verifier']);
 
 /**
  * Autour des routes de session du pack : le jeton de renouvellement part dans le cookie HttpOnly et
@@ -623,7 +624,8 @@ export function renouvellementEnCookie(dureeMs: number): RequestHandler {
     const recu = parseCookieHeader(req.headers.cookie)[COOKIE.name];
     // Lus tout de suite : plus loin, les routeurs du pack raccourcissent req.path.
     const renouveler = req.path === '/auth/refresh';
-    const sortie = req.path === '/auth/logout';
+    // Déconnecté, ou compte supprimé : la session s'en va de la même façon.
+    const sortie = req.path === '/auth/logout' || req.path === '/auth/suppression-compte';
     if (renouveler && recu) {
       req.body = { refreshToken: recu };
       (req as unknown as { _body: boolean })._body = true;
@@ -1593,7 +1595,7 @@ const MOTIFS_SQL: RegExp[] = ${MOTIFS_SQL_CODE};
 /** Une erreur ou un « introuvable » ne se garde pas, même sur une route publique. */
 const sansCache = (res: Response) => res.set('Cache-Control', 'no-store');
 
-/**
+${serveur.routeMonCompte?.supprimer ? codeEffacerLesDonnees(serveur) : ''}/**
  * La connexion (/auth/login), les sessions, les rôles, le CSRF, les
  * limites et les en-têtes de sécurité viennent de createSaasApp. Les
  * routes des données s'ajoutent par extendRoutes, avec les gardes du pack.

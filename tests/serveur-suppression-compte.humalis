@@ -1,0 +1,49 @@
+serveur "carnet" :
+    roles client et vendeur
+    paiements par stripe
+    compte :
+        nom : texte
+    discussion "aide" entre client et vendeur
+    donnee note par compte :
+        texte : texte
+    donnee avis :
+        texte : texte
+    donnee brouillon :
+        texte : texte
+        a la suppression du compte : effacer
+    donnee commande :
+        total : nombre
+        a la suppression du compte : effacer
+    donnee journal :
+        texte : texte
+        a la suppression du compte : garder
+    route "notes" :
+        connecte peut lire et creer note
+    route "avis" :
+        tout le monde peut lire avis
+        connecte peut creer avis
+        seul son auteur peut modifier avis
+    route "brouillons" :
+        connecte peut creer brouillon
+        seul son auteur peut modifier brouillon
+    route "commandes" :
+        connecte peut creer commande
+        seul son auteur peut modifier commande
+        quand commande est payee :
+            creer journal avec texte "payée"
+    route "journaux" :
+        connecte peut creer journal
+        seul son auteur peut modifier journal
+    route "moi" :
+        connecte peut supprimer son compte
+
+page "reglages" :
+    titre "Réglages"
+    formulaire "fermeture" :
+        champ mot de passe "Mot de passe" avec obligatoire
+        bouton "Supprimer mon compte"
+    quand le formulaire "fermeture" est soumis :
+        essayer :
+            supprimer mon compte avec champ "Mot de passe"
+        si erreur :
+            afficher erreur "{raison}"

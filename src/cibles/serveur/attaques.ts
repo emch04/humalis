@@ -60,7 +60,7 @@ export function testsAttaques(serveur: ServeurRI): string {
   const groupes = [...new Set(serveur.donnees.flatMap((d) => (d.par && d.par !== 'compte' ? [camel(d.par)] : [])))];
   const dans = (groupe: string) => (groupes.length > 0 ? `, { ${groupes.map((g) => `${chaine(g)}: '${groupe}'`).join(', ')} }` : '');
 
-  const blocs = serveur.routes.map((route) => blocRoute(serveur, route, roles)).filter((bloc) => bloc !== '');
+  const blocs = [...serveur.routes.map((route) => blocRoute(serveur, route, roles)), serveur.routeMonCompte?.supprimer ? BLOC_SUPPRESSION_COMPTE : ''].filter((bloc) => bloc !== '');
   if (blocs.length === 0) return '';
 
   return `// Produit par Humalis : des attaques rejouées sur le serveur « ${serveur.nom} ». Chaque essai doit être refusé, et la fiche rester intacte.
@@ -78,6 +78,7 @@ ${stockages}
 };
 type Compte = { id: string; jeton: string };
 let app: Parameters<typeof request>[0];
+let usersStore: UsersStore;
 let admin: Compte;
 /** Un compte connecté sans rôle déclaré, et un compte par rôle déclaré, dans le groupe « groupe-a » puis « groupe-b ». */
 let simple: Compte;
@@ -100,7 +101,7 @@ const avec = <T extends { set(nom: string, valeur: string): T }>(requete: T, jet
 const refuse = (statut: number) => statut >= 400 && statut < 500;
 
 beforeAll(async () => {
-  const usersStore = createMemoryUsersStore() as UsersStore;
+  usersStore = createMemoryUsersStore() as UsersStore;
   const passwordHash = await hashPassword(MOT_DE_PASSE);
   // Chaque compte d'essai se connecte une fois : la limite des connexions par adresse ne doit pas arrêter l'essai.
   process.env.HUMALIS_LIMITE_CONNEXION = '1000';
@@ -269,3 +270,38 @@ ${essais.join('\n')}
 ${tests.join('\n\n')}
   });`;
 }
+
+/** « connecte peut supprimer son compte » : son propre compte seulement, avec le bon mot de passe, jamais le dernier admin. */
+const BLOC_SUPPRESSION_COMPTE = `  describe('supprimer son compte', () => {
+    const supprimer = (jeton: string, corps: object, adresse = '/auth/suppression-compte') => avec(request(app).post(adresse), jeton).send(corps);
+    const entrer = async (email: string): Promise<Compte> => {
+      const cree = await usersStore.create({ email, role: 'utilisateur', passwordHash: await hashPassword(MOT_DE_PASSE) });
+      const reponse = await request(app).post('/auth/login').send({ email, password: MOT_DE_PASSE }).expect(200);
+      return { id: String(cree.id), jeton: reponse.body.data.token };
+    };
+    const seConnecte = async (email: string) => (await request(app).post('/auth/login').send({ email, password: MOT_DE_PASSE })).status === 200;
+
+    it('sans session, ou avec un jeton fabriqué : refusé', async () => {
+      for (const [, jeton] of FAUX_JETONS) expect((await supprimer(jeton, { motDePasse: MOT_DE_PASSE })).status).toBe(401);
+    });
+
+    it('sans le bon mot de passe : refusé, et le compte reste', async () => {
+      const moi = await entrer('distrait@exemple.cd');
+      expect((await supprimer(moi.jeton, { motDePasse: 'Un-Autre-Mot-2026!' })).status).toBe(403);
+      expect((await supprimer(moi.jeton, {})).status).toBe(403);
+      expect(await seConnecte('distrait@exemple.cd')).toBe(true);
+    });
+
+    it('on ne supprime que son propre compte, quel que soit l\\'identifiant envoyé', async () => {
+      const moi = await entrer('partant@exemple.cd');
+      const autre = await entrer('reste@exemple.cd');
+      expect((await supprimer(moi.jeton, { motDePasse: MOT_DE_PASSE, id: autre.id, email: 'reste@exemple.cd' }, \`/auth/suppression-compte?id=\${autre.id}\`)).status).toBe(200);
+      expect(await seConnecte('reste@exemple.cd')).toBe(true);
+      expect(await seConnecte('partant@exemple.cd')).toBe(false);
+    });
+
+    it('le dernier admin ne peut pas supprimer son compte', async () => {
+      expect((await supprimer(admin.jeton, { motDePasse: MOT_DE_PASSE })).status).toBe(409);
+      expect(await seConnecte('admin@exemple.cd')).toBe(true);
+    });
+  });`;
