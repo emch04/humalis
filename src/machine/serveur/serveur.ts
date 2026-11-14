@@ -12,7 +12,7 @@ import { champsFiges } from '../../cibles/serveur/regles.js';
 import { COMPTE_SUPPRIME } from '../../cibles/serveur/suppression.js';
 import { slugTempsReel } from '../../parser/temps-reel.js';
 import { Refus, Stockage, Transactions, agreger, contient, enTexte, estVide, lireFiltres, resumer, schemaDe, verifierEnvoi, type Enregistrement, type Filtres, type ReglesEnvoi, type Schema } from './base.js';
-import { Comptes, DUREES, MOT_DE_PASSE_FAIBLE, ROLE_RETIRE, ROLE_SUPPRIME, estFerme, jetonAleatoire, motDePasseDEssai, motDePasseSolide, verifierMotDePasse, hacher, type Compte, type SessionOuverte } from './comptes.js';
+import { Comptes, DUREES, MOT_DE_PASSE_FAIBLE, ROLE_RETIRE, ROLE_SUPPRIME, enAttente, estFerme, jetonAleatoire, motDePasseDEssai, motDePasseSolide, verifierMotDePasse, hacher, type Compte, type SessionOuverte } from './comptes.js';
 import { limitesDuServeur, type Limite } from './limites.js';
 
 export interface Requete {
@@ -144,6 +144,8 @@ export class ServeurMemoire {
   private numeroEnvoi = 0;
   /** Les comptes en train d'être supprimés : une seconde demande en même temps est refusée. */
   private readonly enSuppression = new Set<string>();
+  /** Le dernier e-mail d'inscription de chaque adresse : un toutes les dix minutes au plus. */
+  private readonly derniersLiens = new Map<string, number>();
 
   constructor(readonly serveur: ServeurRI, private readonly options: OptionsServeur) {
     this.maintenant = options.maintenant ?? Date.now;
@@ -964,6 +966,12 @@ export class ServeurMemoire {
     }
     if (chemin === '/suppression-compte' && methode === 'POST' && this.serveur.routeMonCompte?.supprimer) return this.supprimerMonCompte(c, entree);
     if (chemin === '/invitations' && methode === 'POST' && this.serveur.invitations !== undefined) return this.inviter(c, entree);
+    if (chemin === '/inscription' && methode === 'POST' && this.serveur.inscriptionLibre) return this.inscrire(entree);
+    if (chemin === '/confirmation' && methode === 'POST' && this.serveur.inscriptionLibre) {
+      const jeton = entree.jeton;
+      const compte = typeof jeton === 'string' && /^[0-9a-f]{64}$/.test(jeton) ? this.comptes.confirmer(jeton) : undefined;
+      return compte ? rep(200, { confirme: true }) : rep(400, { erreur: "ce lien de confirmation n'est plus valable : inscrivez-vous de nouveau" });
+    }
     const comptes = /^\/comptes\/([^/]+)\/(role|champs)$/.exec(chemin);
     if (comptes && methode === 'POST') return this.changerCompte(c, comptes[1], comptes[2] as 'role' | 'champs', entree);
     if ((chemin === '/google' && this.serveur.connexionGoogle) || (chemin === '/apple' && this.serveur.connexionApple)) {
@@ -974,6 +982,49 @@ export class ServeurMemoire {
     if (chemin === '/appareils' || chemin === '/activites') return rep(501, { erreur: "la machine ne pousse pas de notifications : cet appareil n'a pas été inscrit" });
     if (chemin.startsWith('/cles')) return rep(503, { erreur: "le coffre des clés n'est pas ouvert dans la machine" });
     return rep(404, { erreur: "cette adresse n'existe pas sur ce serveur" });
+  }
+
+  /**
+   * « inscription libre » : comme le serveur produit. La même réponse que l'adresse soit nouvelle, inscrite ou en
+   * attente ; le rôle est celui de la phrase ; un e-mail toutes les dix minutes au plus pour une adresse ; une
+   * inscription jamais confirmée est vidée au bout de sept jours. L'e-mail est capté dans la boîte de la machine.
+   */
+  private async inscrire(corps: Record<string, unknown>): Promise<Reponse> {
+    const inscription = this.serveur.inscriptionLibre!;
+    const adresse = typeof corps.email === 'string' ? corps.email.trim().toLowerCase() : '';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(adresse) || adresse.length > 254) return rep(400, { erreur: "cette adresse e-mail n'est pas valable" });
+    if (!motDePasseSolide(corps.motDePasse) || corps.motDePasse.length > 200) return rep(400, { erreur: MOT_DE_PASSE_FAIBLE });
+    const envoi = verifierEnvoi(this.schemaCompte(), corps.champs ?? {}, false);
+    if ('erreur' in envoi) return rep(400, { erreur: envoi.erreur });
+    const maintenant = this.maintenant();
+    for (const compte of [...this.comptes.comptes.values()]) {
+      if (enAttente(compte) && (compte.inscription as number) <= maintenant - 7 * 24 * 60 * 60_000) this.viderLeCompte(compte.id);
+    }
+    const passwordHash = await hacher(corps.motDePasse);
+    for (const [cle, moment] of this.derniersLiens) if (moment <= maintenant - 10 * 60_000) this.derniersLiens.delete(cle);
+    if (this.derniersLiens.has(adresse)) return rep(200, { envoye: true });
+    this.derniersLiens.set(adresse, maintenant);
+    const existant = this.comptes.parEmail(adresse);
+    if (existant && !enAttente(existant)) {
+      if (!estFerme(existant) && existant.invitation !== true) {
+        this.captee({ genre: 'email', a: adresse, sujet: `Votre compte ${this.serveur.nom}`, texte: "Quelqu'un a voulu créer un compte avec cette adresse, qui a déjà un compte : rien n'a changé." });
+      }
+      return rep(200, { envoye: true });
+    }
+    const role = inscription.role === 'membre' ? 'user' : inscription.role;
+    const valeurs = { role, invitation: true, inscription: maintenant, passwordHash, ...envoi.valeur };
+    const compte = this.comptes.modifier(existant?.id ?? (await this.comptes.creer(adresse, role, null)).id, valeurs)!;
+    const lien = this.lien(inscription.page, this.comptes.creerLien(compte.id, 'confirmation'));
+    this.captee({ genre: 'email', a: adresse, sujet: `Confirmez votre adresse : ${this.serveur.nom}`, texte: 'Ouvrez ce lien pour confirmer votre adresse (valable 24 heures, usage unique).', lien });
+    return rep(200, { envoye: true });
+  }
+
+  /** Vidé sur place, comme « supprimer mon compte » : plus d'adresse, de mot de passe, de champ, de lien ni de session. */
+  private viderLeCompte(id: string): void {
+    const vides = Object.fromEntries([...(this.serveur.champsCompte ?? []).map((x) => camel(x.nom)), ...this.champsDeGroupe()].map((champ) => [champ, null]));
+    this.comptes.modifier(id, { ...vides, email: `supprime-${id}@supprime.invalid`, role: ROLE_SUPPRIME, invitation: false, inscription: null, passwordHash: null, googleSubject: null, appleSubject: null });
+    this.comptes.fermerTout(id);
+    this.comptes.oublierLiens(id);
   }
 
   private async inviter(c: ContexteRequete, corps: Record<string, unknown>): Promise<Reponse> {
@@ -1090,10 +1141,7 @@ export class ServeurMemoire {
           }
         }
       });
-      const vides = Object.fromEntries([...(this.serveur.champsCompte ?? []).map((x) => camel(x.nom)), ...this.champsDeGroupe()].map((champ) => [champ, null]));
-      this.comptes.modifier(moi.id, { ...vides, email: `supprime-${moi.id}@supprime.invalid`, role: ROLE_SUPPRIME, invitation: false, passwordHash: null, googleSubject: null, appleSubject: null });
-      this.comptes.fermerTout(moi.id);
-      this.comptes.oublierLiens(moi.id);
+      this.viderLeCompte(moi.id);
     } finally {
       this.enSuppression.delete(moi.id);
     }

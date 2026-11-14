@@ -11,6 +11,10 @@ export const ROLE_RETIRE = 'retire';
 export const ROLE_SUPPRIME = 'supprime';
 /** Un compte retiré ou supprimé n'existe plus pour personne. */
 export const estFerme = (compte: { role?: unknown }): boolean => compte.role === ROLE_RETIRE || compte.role === ROLE_SUPPRIME;
+/** Une inscription libre en attente de sa confirmation. */
+export const enAttente = (compte: Compte | undefined): boolean => compte !== undefined && compte.invitation === true && typeof compte.inscription === 'number';
+type GenreLien = 'invitation' | 'oubli' | 'confirmation';
+const DUREE_LIEN: Record<GenreLien, number> = { invitation: 7 * 24 * 60 * 60_000, oubli: 60 * 60_000, confirmation: 24 * 60 * 60_000 };
 const MINUTE = 60_000;
 export const DUREES = { acces: 15 * MINUTE, renouvellement: 3 * 24 * 60 * MINUTE, maximum: 30 * 24 * 60 * MINUTE, grace: 10_000 };
 
@@ -20,6 +24,8 @@ export interface Compte {
   role: string;
   passwordHash: string | null;
   invitation?: boolean;
+  /** Le moment d'une inscription libre pas encore confirmée ; sans lui, une invitation d'un admin. */
+  inscription?: number | null;
   [champ: string]: unknown;
 }
 
@@ -73,8 +79,8 @@ interface Renouvellement {
 
 export class Comptes {
   comptes = new Map<string, Compte>();
-  /** Les liens envoyés (invitation, mot de passe oublié) : le jeton et ce qu'il ouvre. */
-  liens = new Map<string, { compte: string; expire: number; genre: 'invitation' | 'oubli' }>();
+  /** Les liens envoyés (invitation, mot de passe oublié, confirmation d'une inscription) : le jeton et ce qu'il ouvre. */
+  liens = new Map<string, { compte: string; expire: number; genre: GenreLien }>();
   private acces = new Map<string, { compte: string; expire: number }>();
   private renouvellements = new Map<string, Renouvellement>();
   private echecs = new Map<string, number[]>();
@@ -114,7 +120,8 @@ export class Comptes {
   }
   async connecter(email: string, motDePasse: string): Promise<SessionOuverte | undefined> {
     const compte = this.parEmail(email);
-    const bon = compte && !estFerme(compte) && (await verifierMotDePasse(motDePasse, compte.passwordHash));
+    // Un compte invité, ou une inscription pas encore confirmée, n'ouvre aucune session par mot de passe.
+    const bon = compte && !estFerme(compte) && compte.invitation !== true && (await verifierMotDePasse(motDePasse, compte.passwordHash));
     if (!compte || !bon) {
       const cle = email.trim().toLowerCase();
       this.echecs.set(cle, [...(this.echecs.get(cle) ?? []), this.maintenant()]);
@@ -184,20 +191,30 @@ export class Comptes {
     for (const [jeton, l] of this.liens) if (l.compte === compte) this.liens.delete(jeton);
   }
 
-  /** Un lien à usage unique, valable une heure (mot de passe oublié) ou sept jours (invitation). */
-  creerLien(compte: string, genre: 'invitation' | 'oubli'): string {
+  /** Un lien à usage unique, valable une heure (mot de passe oublié), un jour (confirmation) ou sept jours (invitation). */
+  creerLien(compte: string, genre: GenreLien): string {
     for (const [jeton, l] of this.liens) if (l.compte === compte) this.liens.delete(jeton);
     const jeton = jetonAleatoire();
-    this.liens.set(jeton, { compte, genre, expire: this.maintenant() + (genre === 'invitation' ? 7 * 24 * 60 * MINUTE : 60 * MINUTE) });
+    this.liens.set(jeton, { compte, genre, expire: this.maintenant() + DUREE_LIEN[genre] });
     return jeton;
+  }
+  /** Le lien de confirmation, une seule fois : le compte en attente peut alors se connecter. */
+  confirmer(jeton: string): Compte | undefined {
+    const lien = this.liens.get(jeton);
+    if (!lien || lien.genre !== 'confirmation') return undefined;
+    this.liens.delete(jeton);
+    const compte = this.actif(lien.compte);
+    if (lien.expire <= this.maintenant() || !compte) return undefined;
+    return enAttente(compte) ? this.modifier(compte.id, { invitation: false, inscription: null }) : compte;
   }
   async consommerLien(jeton: string, motDePasse: string): Promise<Compte | undefined> {
     const lien = this.liens.get(jeton);
-    if (!lien || lien.expire <= this.maintenant()) return undefined;
+    // Un lien de confirmation ne sert jamais à choisir un mot de passe.
+    if (!lien || lien.genre === 'confirmation' || lien.expire <= this.maintenant()) return undefined;
     const compte = this.actif(lien.compte);
     if (!compte) return undefined;
     this.liens.delete(jeton);
-    const modifie = this.modifier(compte.id, { passwordHash: await hacher(motDePasse), invitation: false });
+    const modifie = this.modifier(compte.id, { passwordHash: await hacher(motDePasse), invitation: false, inscription: null });
     this.fermerTout(compte.id);
     return modifie;
   }

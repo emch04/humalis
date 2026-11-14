@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { BASES } from './aide-sqlite.js';
 import { jouer, type Reponse } from './aide-serveur-produit.js';
+import { Machine } from '../src/machine/machine.js';
 
 /**
  * « inscription libre comme client vers "confirmation" » sur un vrai serveur produit, en mémoire et dans SQLite :
@@ -316,5 +317,84 @@ describe('sans « inscription libre » sur un vrai serveur produit', () => {
     expect(r.google!.corps.erreur).toBe("ce compte Google n'a pas accès à l'application");
     expect(r.inscription!.statut).toBe(404);
     expect(r.confirmation!.statut).toBe(404);
+  });
+});
+
+describe('l’inscription libre dans « humalis lancer »', () => {
+  it('mêmes règles que le serveur produit, avec le faux e-mail lisible dans la boîte de la machine', async () => {
+    const machine = new Machine({ adresse: () => 'http://localhost:5173' });
+    const charge = await machine.charger(SOURCE);
+    expect(charge.ok, machine.erreurs).toBe(true);
+    const serveur = machine.serveur!;
+    const mdp = serveur.comptesDEssai[0]!.motDePasse;
+    await serveur.creerCompteDEssai('awa@x.fr', 'client', mdp, { nom: 'Awa' });
+    const JOUR = 24 * 60 * 60 * 1000;
+    const vieux = await serveur.comptes.creer('vieux@x.fr', 'client', mdp, { invitation: true, inscription: Date.now() - 8 * JOUR });
+    const hier = await serveur.comptes.creer('hier@x.fr', 'client', mdp, { invitation: true, inscription: Date.now() - JOUR });
+    const visiteur = async () => {
+      const cookies = new Map<string, string>();
+      const appeler = async (methode: string, chemin: string, corps?: unknown) => {
+        const jeton = cookies.get('astratra_csrf');
+        const reponse = await machine.traiter({ methode, chemin, requete: new URLSearchParams(), entetes: { cookie: [...cookies].map(([k, v]) => `${k}=${v}`).join('; '), ...(jeton && methode !== 'GET' ? { 'x-csrf-token': jeton } : {}) }, corps });
+        for (const ligne of ([] as string[]).concat(reponse.entetes['set-cookie'] ?? [])) {
+          const paire = ligne.split('; ')[0]!;
+          cookies.set(paire.slice(0, paire.indexOf('=')), paire.slice(paire.indexOf('=') + 1));
+        }
+        const texte = typeof reponse.corps === 'string' ? reponse.corps : '';
+        return { statut: reponse.statut, json: (texte ? JSON.parse(texte) : undefined) as Record<string, unknown> };
+      };
+      await appeler('GET', '/auth/me');
+      return appeler;
+    };
+    const V = await visiteur();
+    const jetonDe = (lien: string | undefined) => /#jeton=([0-9a-f]{64})$/.exec(lien ?? '')?.[1];
+    const dernier = (a: string) => [...serveur.boite].reverse().find((e) => e.a === a);
+
+    expect((await V('POST', '/auth/inscription', { email: 'neuf@x.fr', motDePasse: 'faible' })).statut).toBe(400);
+    expect((await V('POST', '/auth/inscription', { email: 'pas une adresse', motDePasse: mdp })).statut).toBe(400);
+    expect((await V('POST', '/auth/inscription', { email: 'neuf@x.fr', motDePasse: mdp, champs: { age: 3 } })).statut).toBe(400);
+    const neuf = await V('POST', '/auth/inscription', { email: ' Neuf@X.fr ', motDePasse: mdp, role: 'admin', champs: { nom: 'Neuf' } });
+    expect([neuf.statut, neuf.json]).toEqual([200, { envoye: true }]);
+    expect(serveur.comptes.parEmail('neuf@x.fr')).toMatchObject({ role: 'client', invitation: true, nom: 'Neuf' });
+    const lien = dernier('neuf@x.fr')!;
+    expect(lien.sujet).toBe('Confirmez votre adresse : boutique');
+    expect(lien.lien).toMatch(/^http:\/\/localhost:5173\/confirmation#jeton=[0-9a-f]{64}$/);
+    const jeton = jetonDe(lien.lien)!;
+    expect((await (await visiteur())('POST', '/auth/login', { email: 'neuf@x.fr', password: mdp })).statut).toBe(401);
+    // Le lien de confirmation ne choisit pas de mot de passe.
+    expect((await V('POST', '/auth/reset-password', { token: jeton, password: 'Autre-Solide-2026!' })).statut).toBe(400);
+
+    // Le ménage : l'inscription de huit jours est vidée ; celle d'hier reste.
+    expect(serveur.comptes.comptes.get(vieux.id)).toMatchObject({ role: 'supprime', passwordHash: null });
+    expect(serveur.comptes.parEmail('vieux@x.fr')).toBeUndefined();
+    expect(serveur.comptes.comptes.get(hier.id)!.email).toBe('hier@x.fr');
+
+    // Une adresse déjà inscrite : la même réponse, un e-mail sans lien, rien ne change.
+    const existant = await V('POST', '/auth/inscription', { email: 'awa@x.fr', motDePasse: 'Autre-Solide-2026!' });
+    expect([existant.statut, existant.json]).toEqual([neuf.statut, neuf.json]);
+    expect(dernier('awa@x.fr')).toMatchObject({ sujet: 'Votre compte boutique' });
+    expect(dernier('awa@x.fr')!.lien).toBeUndefined();
+    expect((await (await visiteur())('POST', '/auth/login', { email: 'awa@x.fr', password: mdp })).statut).toBe(200);
+    // La même adresse avant dix minutes : aucun nouvel e-mail.
+    const avant = serveur.boite.length;
+    expect((await V('POST', '/auth/inscription', { email: 'neuf@x.fr', motDePasse: 'Encore-Solide-2026!' })).json).toEqual({ envoye: true });
+    expect(serveur.boite.length).toBe(avant);
+
+    expect((await V('POST', '/auth/confirmation', { jeton: 'a'.repeat(64) })).statut).toBe(400);
+    expect((await V('POST', '/auth/confirmation', { jeton })).json).toEqual({ confirme: true });
+    expect((await V('POST', '/auth/confirmation', { jeton })).statut).toBe(400);
+    const connexion = await (await visiteur())('POST', '/auth/login', { email: 'neuf@x.fr', password: mdp });
+    expect(connexion.statut).toBe(200);
+    expect(serveur.comptes.parEmail('neuf@x.fr')).toMatchObject({ invitation: false, inscription: null });
+
+    // Un lien de plus de 24 heures est refusé.
+    await V('POST', '/auth/inscription', { email: 'tard@x.fr', motDePasse: mdp });
+    const tard = jetonDe(dernier('tard@x.fr')!.lien)!;
+    serveur.comptes.liens.get(tard)!.expire = Date.now() - 1000;
+    expect((await V('POST', '/auth/confirmation', { jeton: tard })).statut).toBe(400);
+    expect((await (await visiteur())('POST', '/auth/login', { email: 'tard@x.fr', password: mdp })).statut).toBe(401);
+
+    // Le panneau dit que les e-mails sont captés.
+    expect(serveur.limites.map((l) => l.fonction).join('\n')).toContain('e-mails');
   });
 });

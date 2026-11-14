@@ -34,8 +34,8 @@ export function instructionsDuServeur(serveur: ServeurRI): InstructionServeurRI[
 export function limitesDuServeur(serveur: ServeurRI): Limite[] {
   const limites: Limite[] = [];
   const instructions = instructionsDuServeur(serveur);
-  const emails = serveur.routes.some((r) => r.envois?.length) || instructions.some((i) => i.type === 'email') || serveur.invitations !== undefined || serveur.motDePasseOublie !== undefined || serveur.emails !== undefined;
-  if (emails) limites.push({ fonction: 'e-mails (envoyer, inviter, mot de passe oublié)', traitement: 'capte', explication: "Aucun e-mail ne part : chacun est gardé dans la boîte de la machine, avec son lien, à ouvrir depuis le panneau /__machine." });
+  const emails = serveur.routes.some((r) => r.envois?.length) || instructions.some((i) => i.type === 'email') || serveur.invitations !== undefined || serveur.inscriptionLibre !== undefined || serveur.motDePasseOublie !== undefined || serveur.emails !== undefined;
+  if (emails) limites.push({ fonction: 'e-mails (envoyer, inviter, inscription, mot de passe oublié)', traitement: 'capte', explication: "Aucun e-mail ne part : chacun est gardé dans la boîte de la machine, avec son lien, à ouvrir depuis le panneau /__machine." });
   const notifications = serveur.activeNotifications || serveur.routes.some((r) => r.notifications?.length) || instructions.some((i) => i.type === 'notification' || i.type === 'activite');
   if (notifications) limites.push({ fonction: 'notifications et activités en direct', traitement: 'capte', explication: "Aucune notification n'est poussée (pas d'appareil réel, pas de clés VAPID, APNs ni Firebase) : chacune est gardée dans la boîte de la machine." });
   if (serveur.routes.some((r) => r.apresPaiement !== undefined || r.payables?.length) || serveur.paiements) limites.push({ fonction: 'paiement (payer … pour …)', traitement: 'refuse', explication: "Pas de paiement réel : la route de paiement répond 501. Le panneau /__machine permet de marquer une fiche « payée » à la main, ce qui lance ce que le programme fait après un paiement." });
