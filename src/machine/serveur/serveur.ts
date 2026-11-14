@@ -10,7 +10,7 @@ import { camel } from '../../cibles/web/noms.js';
 import { simplifier } from '../../analyse/elements.js';
 import { champsFiges } from '../../cibles/serveur/regles.js';
 import { Refus, Stockage, Transactions, agreger, contient, enTexte, estVide, lireFiltres, resumer, schemaDe, verifierEnvoi, type Enregistrement, type Filtres, type ReglesEnvoi, type Schema } from './base.js';
-import { Comptes, DUREES, MOT_DE_PASSE_FAIBLE, ROLE_RETIRE, jetonAleatoire, motDePasseDEssai, motDePasseSolide, verifierMotDePasse, hacher, type Compte, type SessionOuverte } from './comptes.js';
+import { Comptes, DUREES, MOT_DE_PASSE_FAIBLE, ROLE_RETIRE, ROLE_SUPPRIME, estFerme, jetonAleatoire, motDePasseDEssai, motDePasseSolide, verifierMotDePasse, hacher, type Compte, type SessionOuverte } from './comptes.js';
 import { limitesDuServeur, type Limite } from './limites.js';
 
 export interface Requete {
@@ -140,6 +140,8 @@ export class ServeurMemoire {
   private minuteurTaches: ReturnType<typeof setInterval> | undefined;
   private derniereTache = new Map<string, string>();
   private numeroEnvoi = 0;
+  /** Les comptes en train d'être supprimés : une seconde demande en même temps est refusée. */
+  private readonly enSuppression = new Set<string>();
 
   constructor(readonly serveur: ServeurRI, private readonly options: OptionsServeur) {
     this.maintenant = options.maintenant ?? Date.now;
@@ -204,7 +206,7 @@ export class ServeurMemoire {
   etat(): Etat {
     return {
       donnees: this.serveur.donnees.map((d) => ({ nom: d.nom, fiches: this.stock(d.nom).lister() })),
-      comptes: [...this.comptes.comptes.values()].filter((c) => c.role !== ROLE_RETIRE).map((c) => ({ id: c.id, email: c.email, role: c.role, invitation: c.invitation === true })),
+      comptes: [...this.comptes.comptes.values()].filter((c) => !estFerme(c)).map((c) => ({ id: c.id, email: c.email, role: c.role, invitation: c.invitation === true })),
       boite: [...this.boite],
       limites: this.limites,
       taches: (this.serveur.taches ?? []).map((t) => t.nom),
@@ -621,7 +623,7 @@ export class ServeurMemoire {
       const base = `/api/${route.adresse.replace(/^\/+/, '')}`;
       if (chemin === base || chemin.startsWith(`${base}/`)) return this.route(c, route, chemin.slice(base.length).split('/').filter(Boolean));
     }
-    if (this.serveur.routeMonCompte && chemin === `/api/${this.serveur.routeMonCompte.adresse.replace(/^\/+/, '')}`) return this.monCompte(c);
+    if (this.serveur.routeMonCompte?.lire && chemin === `/api/${this.serveur.routeMonCompte.adresse.replace(/^\/+/, '')}`) return this.monCompte(c);
     const comptes = this.serveur.routeComptes;
     if (comptes) {
       const base = `/api/${comptes.adresse.replace(/^\/+/, '')}`;
@@ -947,7 +949,7 @@ export class ServeurMemoire {
     }
     if (chemin === '/forgot-password' && methode === 'POST') {
       const compte = typeof entree.email === 'string' ? this.comptes.parEmail(entree.email) : undefined;
-      if (compte && compte.role !== ROLE_RETIRE && this.serveur.motDePasseOublie !== undefined) {
+      if (compte && !estFerme(compte) && this.serveur.motDePasseOublie !== undefined) {
         const lien = this.lien(this.serveur.motDePasseOublie, this.comptes.creerLien(compte.id, 'oubli'));
         this.captee({ genre: 'email', a: compte.email, sujet: `Votre mot de passe ${this.serveur.nom}`, texte: 'Ouvrez ce lien pour choisir un nouveau mot de passe (valable une heure, usage unique).', lien });
       }
@@ -958,6 +960,7 @@ export class ServeurMemoire {
       const compte = typeof entree.token === 'string' ? await this.comptes.consommerLien(entree.token, entree.password) : undefined;
       return compte ? rep(200, { data: { change: true } }) : rep(400, { erreur: "ce lien n'est plus valable" });
     }
+    if (chemin === '/suppression-compte' && methode === 'POST' && this.serveur.routeMonCompte?.supprimer) return this.supprimerMonCompte(c, entree);
     if (chemin === '/invitations' && methode === 'POST' && this.serveur.invitations !== undefined) return this.inviter(c, entree);
     const comptes = /^\/comptes\/([^/]+)\/(role|champs)$/.exec(chemin);
     if (comptes && methode === 'POST') return this.changerCompte(c, comptes[1], comptes[2] as 'role' | 'champs', entree);
@@ -1022,6 +1025,51 @@ export class ServeurMemoire {
     return rep(404, { erreur: "cette adresse n'existe pas sur ce serveur" });
   }
 
+  /**
+   * « connecte peut supprimer son compte », comme le serveur produit : son propre compte seulement, le mot de passe
+   * redemandé s'il existe, jamais le dernier admin. Les fiches changent toutes ensemble, puis le compte est vidé.
+   */
+  private async supprimerMonCompte(c: ContexteRequete, entree: Record<string, unknown>): Promise<Reponse> {
+    const moi = c.moi;
+    if (!moi || this.enSuppression.has(moi.id)) return rep(401, { erreur: 'connecte-toi de nouveau' });
+    const cle = `suppression:${moi.id}`;
+    if (this.comptes.tropDEssais(cle)) return rep(429, { erreur: 'trop de tentatives : réessayez dans quelques minutes' });
+    if (typeof moi.passwordHash === 'string' && !(typeof entree.motDePasse === 'string' && (await verifierMotDePasse(entree.motDePasse, moi.passwordHash)))) {
+      this.comptes.echec(cle);
+      return rep(403, { erreur: 'le mot de passe est incorrect' });
+    }
+    // Relu après l'attente : une autre demande a pu le supprimer pendant ce temps.
+    if (!this.comptes.actif(moi.id) || this.enSuppression.has(moi.id)) return rep(401, { erreur: 'connecte-toi de nouveau' });
+    if (moi.role === 'admin' && ![...this.comptes.comptes.values()].some((x) => x.id !== moi.id && x.role === 'admin' && x.invitation !== true)) {
+      return rep(409, { erreur: 'le dernier admin ne peut pas supprimer son compte' });
+    }
+    this.enSuppression.add(moi.id);
+    try {
+      await this.transactions.executer(() => {
+        for (const donnee of this.serveur.donnees) {
+          const champs = donnee.champsDeLaPersonne ?? [];
+          if (!donnee.suppressionCompte || donnee.suppressionCompte === 'garder' || champs.length === 0) continue;
+          const stock = this.stock(donnee.nom);
+          const payee = donnee.champs.find((x) => x.regle?.genre === 'depart' && x.regle.paiement === true);
+          const anonyme = Object.fromEntries(champs.map((champ) => [camel(champ), '']));
+          for (const champ of champs.filter((x) => x !== 'auteur_nom')) {
+            for (const fiche of stock.lister({ egal: { [camel(champ)]: moi.id } })) {
+              if (donnee.suppressionCompte === 'effacer' && !(payee && fiche[camel(payee.nom)] === true)) stock.supprimer(fiche.id);
+              else stock.modifier(fiche.id, anonyme);
+            }
+          }
+        }
+      });
+      const vides = Object.fromEntries([...(this.serveur.champsCompte ?? []).map((x) => camel(x.nom)), ...this.champsDeGroupe()].map((champ) => [champ, null]));
+      this.comptes.modifier(moi.id, { ...vides, email: `supprime-${moi.id}@supprime.invalid`, role: ROLE_SUPPRIME, invitation: false, passwordHash: null, googleSubject: null, appleSubject: null });
+      this.comptes.fermerTout(moi.id);
+      this.comptes.oublierLiens(moi.id);
+    } finally {
+      this.enSuppression.delete(moi.id);
+    }
+    return rep(200, { supprime: true }, { 'set-cookie': this.cookiesEfface() });
+  }
+
   private monCompte(c: ContexteRequete): Reponse {
     const refus = this.garde('connecte', c);
     return refus ?? rep(200, c.moi ? [this.liste(c.moi)] : [], { 'cache-control': 'private, no-store' });
@@ -1033,7 +1081,7 @@ export class ServeurMemoire {
     if (methode === 'GET' && reste.length === 0) {
       const refus = this.garde(droits.lire, c);
       if (refus) return refus;
-      const presents = [...this.comptes.comptes.values()].filter((x) => x.role !== ROLE_RETIRE && this.dansLeGroupe(c.moi!, x)).sort((a, b) => a.email.localeCompare(b.email));
+      const presents = [...this.comptes.comptes.values()].filter((x) => !estFerme(x) && this.dansLeGroupe(c.moi!, x)).sort((a, b) => a.email.localeCompare(b.email));
       return rep(200, presents.map((x) => this.liste(x)), { 'cache-control': 'private, no-store' });
     }
     if (methode === 'DELETE' && reste.length === 1) {

@@ -7,6 +7,10 @@
 import { identifiant } from './base.js';
 
 export const ROLE_RETIRE = 'retire';
+/** « supprimer mon compte » : le compte est vidé sur place et ne se rouvre jamais. */
+export const ROLE_SUPPRIME = 'supprime';
+/** Un compte retiré ou supprimé n'existe plus pour personne. */
+export const estFerme = (compte: { role?: unknown }): boolean => compte.role === ROLE_RETIRE || compte.role === ROLE_SUPPRIME;
 const MINUTE = 60_000;
 export const DUREES = { acces: 15 * MINUTE, renouvellement: 3 * 24 * 60 * MINUTE, maximum: 30 * 24 * 60 * MINUTE, grace: 10_000 };
 
@@ -83,7 +87,7 @@ export class Comptes {
   }
   actif(id: string): Compte | undefined {
     const compte = this.comptes.get(id);
-    return compte && compte.role !== ROLE_RETIRE ? compte : undefined;
+    return compte && !estFerme(compte) ? compte : undefined;
   }
 
   async creer(email: string, role: string, motDePasse: string | null, champs: Record<string, unknown> = {}): Promise<Compte> {
@@ -99,6 +103,10 @@ export class Comptes {
     return nouveau;
   }
 
+  /** Un essai raté sur cette clé (une adresse, ou la suppression d'un compte). */
+  echec(cle: string): void {
+    this.echecs.set(cle, [...(this.echecs.get(cle) ?? []), this.maintenant()]);
+  }
   /** Trop d'essais ratés pour cette adresse : dix en quinze minutes. */
   tropDEssais(email: string): boolean {
     const depuis = this.maintenant() - 15 * MINUTE;
@@ -106,7 +114,7 @@ export class Comptes {
   }
   async connecter(email: string, motDePasse: string): Promise<SessionOuverte | undefined> {
     const compte = this.parEmail(email);
-    const bon = compte && compte.role !== ROLE_RETIRE && (await verifierMotDePasse(motDePasse, compte.passwordHash));
+    const bon = compte && !estFerme(compte) && (await verifierMotDePasse(motDePasse, compte.passwordHash));
     if (!compte || !bon) {
       const cle = email.trim().toLowerCase();
       this.echecs.set(cle, [...(this.echecs.get(cle) ?? []), this.maintenant()]);
@@ -169,6 +177,11 @@ export class Comptes {
   }
   familleDe(renouvellement: string | undefined): string | undefined {
     return renouvellement ? this.renouvellements.get(renouvellement)?.famille : undefined;
+  }
+
+  /** Les liens d'un compte ne servent plus (compte supprimé). */
+  oublierLiens(compte: string): void {
+    for (const [jeton, l] of this.liens) if (l.compte === compte) this.liens.delete(jeton);
   }
 
   /** Un lien à usage unique, valable une heure (mot de passe oublié) ou sept jours (invitation). */

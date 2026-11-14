@@ -7,6 +7,7 @@ import { compiler } from '../src/compilateur.js';
 import { genererProjetServeur } from '../src/cibles/serveur/projet.js';
 import { camel } from '../src/cibles/web/noms.js';
 import { BASES, surSqlite } from './aide-sqlite.js';
+import { Machine } from '../src/machine/machine.js';
 
 /**
  * « connecte peut supprimer son compte » sur un vrai serveur produit (Apple et le RGPD l'exigent) : le mot de passe est
@@ -214,3 +215,84 @@ describe.each(BASES)('supprimer son compte sur un vrai serveur produit, %s', (_b
   });
 });
 
+describe('supprimer son compte dans « humalis lancer »', () => {
+  it('mêmes règles que le serveur produit', async () => {
+    const machine = new Machine({ adresse: () => 'http://localhost:5173' });
+    const charge = await machine.charger(SOURCE);
+    expect(charge.ok, machine.erreurs).toBe(true);
+    const serveur = machine.serveur!;
+    const mdp = serveur.comptesDEssai[0]!.motDePasse;
+    const awa = await serveur.creerCompteDEssai('awa@x.fr', 'client', mdp, { nom: 'Awa' });
+    const bob = await serveur.creerCompteDEssai('bob@x.fr', 'client', mdp, { nom: 'Bob' });
+    const google = await serveur.creerCompteDEssai('google@x.fr', 'client', mdp);
+    const client = async (email: string, csrf = true) => {
+      const cookies = new Map<string, string>();
+      const appeler = async (methode: string, chemin: string, corps?: unknown) => {
+        const jeton = cookies.get('astratra_csrf');
+        const reponse = await machine.traiter({ methode, chemin, requete: new URLSearchParams(), entetes: { cookie: [...cookies].map(([k, v]) => `${k}=${v}`).join('; '), ...(csrf && jeton && methode !== 'GET' ? { 'x-csrf-token': jeton } : {}) }, corps });
+        for (const ligne of ([] as string[]).concat(reponse.entetes['set-cookie'] ?? [])) {
+          const paire = ligne.split('; ')[0]!;
+          cookies.set(paire.slice(0, paire.indexOf('=')), paire.slice(paire.indexOf('=') + 1));
+        }
+        const texte = typeof reponse.corps === 'string' ? reponse.corps : '';
+        return { statut: reponse.statut, json: (texte ? JSON.parse(texte) : undefined) as Record<string, unknown> };
+      };
+      await appeler('GET', '/auth/me');
+      if (email) await appeler('POST', '/auth/login', { email, password: mdp });
+      return appeler;
+    };
+    const supprimer = '/auth/suppression-compte';
+    const [A, B, admin, visiteur, sansCsrf] = [await client('awa@x.fr'), await client('bob@x.fr'), await client('admin@machine.humalis'), await client(''), await client('awa@x.fr', false)];
+    const avisA = (await A('POST', '/api/avis', { texte: 'super' })).json.id as string;
+    const avisB = (await B('POST', '/api/avis', { texte: 'bof' })).json.id as string;
+    const brouillon = (await A('POST', '/api/brouillons', { texte: 'secret' })).json.id as string;
+    const payee = (await A('POST', '/api/commandes', { total: 30 })).json.id as string;
+    const nonPayee = (await A('POST', '/api/commandes', { total: 10 })).json.id as string;
+    const journal = (await A('POST', '/api/journaux', { texte: 'trace' })).json.id as string;
+    const stock = (nom: string) => serveur.stockages.get(nom)!;
+    for (let i = 0; i < 3; i++) stock('note').creer({ texte: `note ${i}`, compte: awa.id });
+    stock('note').creer({ texte: 'de Bob', compte: bob.id });
+    stock('commande').modifier(payee, { paye: true });
+    stock('message_aide').creer({ conversation: 'c1', auteur: awa.id, auteurNom: 'Awa', texte: 'bonjour' });
+    stock('message_aide').creer({ conversation: 'c1', auteur: bob.id, auteurNom: 'Bob', texte: 'salut' });
+
+    expect((await visiteur('POST', supprimer, { motDePasse: mdp })).statut).toBe(401);
+    expect((await sansCsrf('POST', supprimer, { motDePasse: mdp })).statut).toBe(403);
+    const mauvais = await A('POST', supprimer, { motDePasse: 'Faux-Mot-2026!' });
+    expect([mauvais.statut, mauvais.json.erreur]).toEqual([403, 'le mot de passe est incorrect']);
+    expect((await A('POST', supprimer, {})).statut).toBe(403);
+    const dernier = await admin('POST', supprimer, { motDePasse: mdp });
+    expect([dernier.statut, dernier.json.erreur]).toEqual([409, 'le dernier admin ne peut pas supprimer son compte']);
+
+    const ensemble = await Promise.all([A('POST', supprimer, { motDePasse: mdp }), A('POST', supprimer, { motDePasse: mdp })]);
+    expect(ensemble.map((e) => e.statut).sort()).toEqual([200, 401]);
+    expect(ensemble.find((e) => e.statut === 200)!.json).toEqual({ supprime: true });
+    expect((await A('GET', '/auth/me')).statut).toBe(401);
+
+    expect(stock('note').lister({ egal: { compte: awa.id } })).toHaveLength(0);
+    expect(stock('note').lister()).toHaveLength(1);
+    expect(stock('avis').trouver(avisA)).toMatchObject({ texte: 'super', auteur: '' });
+    expect(stock('avis').trouver(avisB)!.auteur).toBe(bob.id);
+    expect(stock('brouillon').trouver(brouillon)).toBeNull();
+    expect(stock('commande').trouver(nonPayee)).toBeNull();
+    expect(stock('commande').trouver(payee)).toMatchObject({ total: 30, paye: true, auteur: '' });
+    expect(stock('journal').trouver(journal)!.auteur).toBe(awa.id);
+    expect(stock('message_aide').lister().map((m) => [m.auteur, m.auteurNom, m.texte]).sort()).toEqual([['', '', 'bonjour'], [bob.id, 'Bob', 'salut']]);
+
+    const vide = serveur.comptes.comptes.get(awa.id)!;
+    expect(vide).toMatchObject({ role: 'supprime', passwordHash: null, nom: null });
+    expect(vide.email).toMatch(/^supprime-.+@supprime\.invalid$/);
+    expect(serveur.comptes.parEmail('awa@x.fr')).toBeUndefined();
+    expect((await (await client(''))('POST', '/auth/login', { email: 'awa@x.fr', password: mdp })).statut).toBe(401);
+    // L'adresse est libre : un nouveau compte s'y crée, et n'hérite d'aucune fiche.
+    await serveur.creerCompteDEssai('awa@x.fr', 'client', mdp);
+    expect((await (await client('awa@x.fr'))('GET', '/api/notes')).json).toEqual([]);
+
+    // Un compte sans mot de passe se supprime sans ; avec un second admin, le premier peut partir.
+    const G = await client('google@x.fr');
+    serveur.comptes.modifier(google.id, { passwordHash: null });
+    expect((await G('POST', supprimer, {})).statut).toBe(200);
+    await serveur.creerCompteDEssai('admin2@x.fr', 'admin', mdp);
+    expect((await admin('POST', supprimer, { motDePasse: mdp })).statut).toBe(200);
+  });
+});
