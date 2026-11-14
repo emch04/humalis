@@ -3038,7 +3038,8 @@ fingerprint of its certificate); the server keeps the Web client ID.
 
 ### Inviting people and recovering a password
 
-The first account comes from the environment. The next ones arrive by invitation:
+The first account comes from the environment. The next ones arrive by invitation,
+or through open sign-up (next section). By invitation:
 an admin gives an address, the person receives a link, then chooses a password.
 With `connexion google`, they can also come in with Google, since their account
 is now known.
@@ -3119,6 +3120,69 @@ verified with Brevo), in its environment or key vault, and `HUMALIS_ADRESSE_SITE
 (`https://my-shop.com`) in its environment to write the links. Without them,
 `inviter` shows an error that says so. Web and desktop targets; the mobile app
 shows a message pointing to the site, and the static target refuses these phrases.
+
+### Letting anyone create an account
+
+A public shop lets a customer create their own account. In the server,
+`inscription libre comme client vers "confirmation"` opens sign-up: each account
+created gets the `client` role, and the confirmation link opens the
+`confirmation` page.
+
+```humalis
+serveur "boutique" :
+    roles client
+    emails par brevo
+    compte :
+        nom : texte
+    inscription libre comme client vers "confirmation"
+
+page "inscription" :
+    titre "Créer un compte"
+    formulaire "compte" :
+        champ "Nom" avec obligatoire
+        champ email "Email" avec obligatoire
+        champ mot de passe "Mot de passe" avec obligatoire
+        bouton "Créer mon compte"
+    quand le formulaire "compte" est soumis :
+        essayer :
+            creer mon compte avec champ "Email" et champ "Mot de passe" avec nom = champ "Nom"
+            afficher "Un lien de confirmation vous a été envoyé."
+        si erreur :
+            afficher erreur "{raison}"
+
+page "confirmation" :
+    titre "Confirmation"
+    quand la page se charge :
+        essayer :
+            confirmer mon adresse
+            afficher "Votre adresse est confirmée : vous pouvez vous connecter."
+        si erreur :
+            afficher erreur "{raison}"
+```
+
+- `creer mon compte avec … et …` gives the address, then the password.
+  `avec nom = champ "Nom"` fills the fields declared in `compte :`, and no others.
+- The person receives a link by e-mail. Until they open it, the account cannot
+  sign in. On the link's page, `confirmer mon adresse` reads the token from the
+  address and opens the account; they then sign in with their password.
+- The link lasts 24 hours and works once. The server keeps only its fingerprint.
+  A sign-up never confirmed is erased after seven days.
+- The answer is the same whether the address is new or already has an account:
+  nobody can guess who is registered. An address that already has an account
+  receives an e-mail saying so, and that account does not change.
+- The password must be strong: at least 8 characters, with an uppercase letter, a
+  lowercase letter, a digit and a symbol. One IP address creates at most ten
+  accounts per hour; one e-mail address receives at most one link every ten
+  minutes.
+- The role always comes from the sentence, never from the page, and `admin` is
+  refused. The person joins no group.
+- With `connexion google` or `connexion apple`, an unknown address that Google or
+  Apple confirms also creates an account with this role, already confirmed.
+
+It needs the same settings as invitations: `BREVO_API_KEY`, `BREVO_EXPEDITEUR` and
+`HUMALIS_ADRESSE_SITE`. In `humalis lancer`, the e-mail is kept in the panel's
+mailbox, with its link. On Apple and Android, the link opens the app when it has
+`liens profonds "…" et domaine "…"`; on Windows, it opens in the browser.
 
 ### Sending an email from the server
 

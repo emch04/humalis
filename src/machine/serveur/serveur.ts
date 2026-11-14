@@ -120,7 +120,8 @@ const regleDeCondition = (c: ConditionRegleRI): RegleAcces => ({
 
 export interface Etat {
   donnees: { nom: string; fiches: Enregistrement[] }[];
-  comptes: { id: string; email: string; role: string; invitation: boolean }[];
+  /** `inscription` : une inscription libre pas encore confirmée. */
+  comptes: { id: string; email: string; role: string; invitation: boolean; inscription: boolean }[];
   boite: Envoi[];
   limites: Limite[];
   taches: string[];
@@ -210,7 +211,7 @@ export class ServeurMemoire {
   etat(): Etat {
     return {
       donnees: this.serveur.donnees.map((d) => ({ nom: d.nom, fiches: this.stock(d.nom).lister() })),
-      comptes: [...this.comptes.comptes.values()].filter((c) => !estFerme(c)).map((c) => ({ id: c.id, email: c.email, role: c.role, invitation: c.invitation === true })),
+      comptes: [...this.comptes.comptes.values()].filter((c) => !estFerme(c)).map((c) => ({ id: c.id, email: c.email, role: c.role, invitation: c.invitation === true, inscription: enAttente(c) })),
       boite: [...this.boite],
       limites: this.limites,
       taches: (this.serveur.taches ?? []).map((t) => t.nom),

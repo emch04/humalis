@@ -2965,7 +2965,8 @@ et l'empreinte SHA-1 de son certificat) ; le serveur garde l'ID client Web.
 
 ### Inviter des personnes et retrouver un mot de passe
 
-Le premier compte vient de l'environnement. Les suivants arrivent sur invitation :
+Le premier compte vient de l'environnement. Les suivants arrivent sur invitation,
+ou par l'inscription libre (section suivante). Sur invitation :
 un admin donne une adresse, la personne reçoit un lien, puis choisit son mot de
 passe. Avec `connexion google`, elle peut aussi entrer avec Google, puisque son
 compte est maintenant connu.
@@ -3047,6 +3048,69 @@ l'environnement, `HUMALIS_ADRESSE_SITE` (`https://ma-boutique.com`) pour écrire
 les liens. Sans elles, `inviter` affiche une erreur qui le dit. Cible web et
 bureau ; l'application mobile affiche un message qui renvoie vers le site, et le
 site statique refuse ces phrases.
+
+### Laisser chacun créer son compte
+
+Une boutique publique laisse un client créer son compte lui-même. Dans le serveur,
+`inscription libre comme client vers "confirmation"` ouvre l'inscription : chaque
+compte créé reçoit le rôle `client`, et le lien de confirmation ouvre la page
+`confirmation`.
+
+```humalis
+serveur "boutique" :
+    roles client
+    emails par brevo
+    compte :
+        nom : texte
+    inscription libre comme client vers "confirmation"
+
+page "inscription" :
+    titre "Créer un compte"
+    formulaire "compte" :
+        champ "Nom" avec obligatoire
+        champ email "Email" avec obligatoire
+        champ mot de passe "Mot de passe" avec obligatoire
+        bouton "Créer mon compte"
+    quand le formulaire "compte" est soumis :
+        essayer :
+            creer mon compte avec champ "Email" et champ "Mot de passe" avec nom = champ "Nom"
+            afficher "Un lien de confirmation vous a été envoyé."
+        si erreur :
+            afficher erreur "{raison}"
+
+page "confirmation" :
+    titre "Confirmation"
+    quand la page se charge :
+        essayer :
+            confirmer mon adresse
+            afficher "Votre adresse est confirmée : vous pouvez vous connecter."
+        si erreur :
+            afficher erreur "{raison}"
+```
+
+- `creer mon compte avec … et …` donne l'adresse, puis le mot de passe.
+  `avec nom = champ "Nom"` remplit les champs déclarés dans `compte :`, et aucun autre.
+- La personne reçoit un lien par e-mail. Tant qu'elle ne l'a pas ouvert, son compte
+  ne se connecte pas. Sur la page du lien, `confirmer mon adresse` lit le jeton dans
+  l'adresse et ouvre le compte ; elle se connecte ensuite avec son mot de passe.
+- Le lien vaut 24 heures et ne sert qu'une fois. Le serveur garde seulement son
+  empreinte. Une inscription jamais confirmée est effacée au bout de sept jours.
+- La réponse est la même que l'adresse soit nouvelle ou ait déjà un compte :
+  personne ne devine qui est inscrit. Une adresse déjà inscrite reçoit un e-mail qui
+  le dit, et son compte ne change pas.
+- Le mot de passe doit être solide : au moins 8 caractères, avec une majuscule, une
+  minuscule, un chiffre et un signe. Une même adresse IP crée dix comptes par heure
+  au plus ; une même adresse e-mail reçoit un lien toutes les dix minutes au plus.
+- Le rôle vient toujours de la phrase, jamais de la page, et `admin` est refusé. La
+  personne n'entre dans aucun groupe.
+- Avec `connexion google` ou `connexion apple`, une adresse inconnue que Google ou
+  Apple confirme crée aussi un compte de ce rôle, déjà confirmé.
+
+Il faut les mêmes réglages que pour les invitations : `BREVO_API_KEY`,
+`BREVO_EXPEDITEUR` et `HUMALIS_ADRESSE_SITE`. Dans `humalis lancer`, l'e-mail est
+gardé dans la boîte du panneau, avec son lien. Sur Apple et Android, le lien ouvre
+l'application quand elle a `liens profonds "…" et domaine "…"` ; sur Windows, il
+s'ouvre dans le navigateur.
 
 ### Envoyer un e-mail depuis le serveur
 

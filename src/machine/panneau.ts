@@ -75,8 +75,8 @@ export const PANNEAU_HTML = String.raw`<!doctype html>
     var t = document.getElementById('comptes'); vider(t);
     var tete = el('tr'); ['E-mail', 'Rôle', 'Mot de passe d’essai'].forEach(function (h) { tete.appendChild(el('th', h)); }); t.appendChild(tete);
     etat.comptes.forEach(function (c) {
-      var l = el('tr'); l.appendChild(el('td', c.email + (c.invitation ? ' (invité)' : ''))); l.appendChild(el('td', c.role));
-      l.appendChild(el('td', motsDePasse[c.email] || (c.invitation ? 'pas encore choisi' : '—')));
+      var l = el('tr'); l.appendChild(el('td', c.email + (c.inscription ? ' (inscription à confirmer)' : c.invitation ? ' (invité)' : ''))); l.appendChild(el('td', c.role));
+      l.appendChild(el('td', motsDePasse[c.email] || (c.inscription ? 'choisi à l’inscription' : c.invitation ? 'pas encore choisi' : '—')));
       t.appendChild(l);
     });
     var b = document.getElementById('boite'); vider(b);

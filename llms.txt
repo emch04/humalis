@@ -268,6 +268,42 @@ page "accueil" :
         charger la suite de produits
 ```
 
+### inscription libre comme client vers "confirmation"
+
+Dans le serveur : chacun crée son compte, au rôle donné (jamais admin), et le lien de confirmation envoyé par e-mail ouvre la page donnée. Dans les pages : « creer mon compte avec … et … » (adresse, puis mot de passe ; « avec nom = … » pour les champs de « compte : ») et « confirmer mon adresse » sur la page du lien. Demande « emails par brevo ».
+
+```humalis
+serveur "boutique" :
+    roles client
+    emails par brevo
+    compte :
+        nom : texte
+    inscription libre comme client vers "confirmation"
+
+page "inscription" :
+    titre "Créer un compte"
+    formulaire "compte" :
+        champ "Nom" avec obligatoire
+        champ email "Email" avec obligatoire
+        champ mot de passe "Mot de passe" avec obligatoire
+        bouton "Créer mon compte"
+    quand le formulaire "compte" est soumis :
+        essayer :
+            creer mon compte avec champ "Email" et champ "Mot de passe" avec nom = champ "Nom"
+            afficher "Un lien de confirmation vous a été envoyé."
+        si erreur :
+            afficher erreur "{raison}"
+
+page "confirmation" :
+    titre "Confirmation"
+    quand la page se charge :
+        essayer :
+            confirmer mon adresse
+            afficher "Votre adresse est confirmée : vous pouvez vous connecter."
+        si erreur :
+            afficher erreur "{raison}"
+```
+
 ### mises a jour depuis "https://…"
 
 En haut du fichier : où l’application de bureau installée cherche ses nouvelles versions (https seulement).

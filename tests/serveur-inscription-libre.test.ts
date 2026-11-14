@@ -360,6 +360,9 @@ describe('l’inscription libre dans « humalis lancer »', () => {
     expect(lien.sujet).toBe('Confirmez votre adresse : boutique');
     expect(lien.lien).toMatch(/^http:\/\/localhost:5173\/confirmation#jeton=[0-9a-f]{64}$/);
     const jeton = jetonDe(lien.lien)!;
+    // Le panneau distingue une inscription à confirmer d'une invitation.
+    expect(serveur.etat().comptes.find((c) => c.email === 'neuf@x.fr')).toMatchObject({ invitation: true, inscription: true });
+    expect(serveur.etat().comptes.find((c) => c.email === 'awa@x.fr')).toMatchObject({ invitation: false, inscription: false });
     expect((await (await visiteur())('POST', '/auth/login', { email: 'neuf@x.fr', password: mdp })).statut).toBe(401);
     // Le lien de confirmation ne choisit pas de mot de passe.
     expect((await V('POST', '/auth/reset-password', { token: jeton, password: 'Autre-Solide-2026!' })).statut).toBe(400);
