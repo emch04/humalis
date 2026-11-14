@@ -396,14 +396,16 @@ enum GroupeHumalis {
     }
 }
 `);
-  // Les activités en direct.
+  // Les activités en direct. Sans activité déclarée, ActivityKit n'est pas importé et ActiviteHumalis
+  // n'existe pas : les corps ne sont pas compilés (un widget seul écrit aussi cette énumération).
+  const siActivites = activites.length ? 'os(iOS) && canImport(ActivityKit) && !HUMALIS_AUTRE_CIBLE' : 'false';
   ligne(`/** « commencer activite », « terminer activite » : ActivityKit, sur l'écran verrouillé et dans l'îlot dynamique. */
 @MainActor enum ActivitesHumalis {${c.jetonActivite ? `
     /** Le dernier jeton de chaque activité, pour que le serveur l'oublie à la fin. */
     private static var jetons: [String: String] = [:]
 ` : ''}
     static func commencer(_ nom: String) async {
-        #if os(iOS) && canImport(ActivityKit) && !HUMALIS_AUTRE_CIBLE
+        #if ${siActivites}
         guard ActivityAuthorizationInfo().areActivitiesEnabled else {
             Messages.commun.afficher("Les activités en direct sont désactivées dans les réglages de l'appareil.", .avertissement)
             return
@@ -426,7 +428,7 @@ enum GroupeHumalis {
     }
 
     static func terminer(_ nom: String) async {
-        #if os(iOS) && canImport(ActivityKit) && !HUMALIS_AUTRE_CIBLE
+        #if ${siActivites}
         for activite in Activity<ActiviteHumalis>.activities where activite.attributes.nom == nom {
             await activite.end(nil, dismissalPolicy: .immediate)
         }${c.jetonActivite ? `
@@ -438,7 +440,7 @@ enum GroupeHumalis {
 
     /** Les valeurs ont changé : chaque activité se redessine avec elles. */
     static func actualiser() {
-        #if os(iOS) && canImport(ActivityKit) && !HUMALIS_AUTRE_CIBLE
+        #if ${siActivites}
         let maj = Date().timeIntervalSince1970
         Task {
             for activite in Activity<ActiviteHumalis>.activities {

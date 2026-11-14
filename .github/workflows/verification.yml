@@ -1,5 +1,6 @@
 # Vérifie chaque envoi sur main et chaque demande de fusion : types, construction, tests du compilateur,
-# tests de l'extension des éditeurs, puis les serveurs produits pour tous les programmes du dépôt.
+# tests de l'extension des éditeurs, puis les serveurs produits et les applications natives (Apple,
+# Android, Windows) pour tous les programmes du dépôt.
 # Rien n'est publié d'ici : ce fichier ne lit aucun secret et n'a que le droit de lire le dépôt.
 name: Vérification
 
@@ -95,3 +96,88 @@ jobs:
       # Chaque serveur produit : ses types, puis les tests que le compilateur a écrits pour lui.
       - name: Vérifier les serveurs de tous les programmes du dépôt
         run: npm run verifier:serveurs
+
+  # Les applications natives : chaque programme du dépôt est produit pour la cible, puis compilé par les
+  # outils de la plateforme. Un refus voulu du compilateur (un composant React n'a pas de vue native) est
+  # écrit dans scripts/verifier-natifs.mjs ; tout autre refus, et toute erreur de compilation, échoue.
+  apple:
+    name: Applications Apple (${{ matrix.configuration }})
+    runs-on: macos-latest
+    timeout-minutes: 75
+    # Debug et Release en parallèle : chacune construit chaque programme pour iPhone et pour Mac.
+    strategy:
+      fail-fast: false
+      matrix:
+        configuration: [Debug, Release]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - name: Installer les paquets
+        run: npm ci
+      - name: Construire
+        run: npm run build
+      - name: Afficher la version de Xcode
+        run: xcodebuild -version
+      # xcodebuild pour iPhone (simulateur) et pour Mac. Sans signature : rien n'est lancé ni publié,
+      # et ce fichier n'a aucun certificat.
+      - name: Compiler les applications Apple de tous les programmes du dépôt
+        run: npm run verifier:natifs -- --cible apple --configuration ${{ matrix.configuration }}
+
+  android:
+    name: Applications Android
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: 17
+      # Le projet produit n'a pas de gradlew : Gradle vient d'ici, à la version du wrapper que le
+      # compilateur écrit (src/cibles/android/gradle.ts). Le cache est celui, libre, de GitHub Actions.
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          gradle-version: 9.3.1
+          cache-provider: basic
+          add-job-summary: on-failure
+      - name: Installer les paquets
+        run: npm ci
+      - name: Construire
+        run: npm run build
+      # Le SDK Android est déjà sur la machine de GitHub (ANDROID_HOME).
+      - name: Compiler les applications Android de tous les programmes du dépôt
+        run: npm run verifier:natifs -- --cible android
+
+  windows:
+    name: Applications Windows
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          dotnet-version: 10.0.x
+      - name: Installer les paquets
+        run: npm ci
+      - name: Construire
+        run: npm run build
+      # WPF se compile aussi sous Linux (EnableWindowsTargeting) : seul le lancement demande Windows.
+      - name: Compiler les applications Windows de tous les programmes du dépôt
+        run: npm run verifier:natifs -- --cible windows

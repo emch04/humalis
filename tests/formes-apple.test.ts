@@ -110,6 +110,15 @@ describe('les formes d’application sur Apple', () => {
     expect(p.lire('Essai.xcodeproj/project.pbxproj')).toContain('platformFilter = ios;');
   });
 
+  it('widget sans activité : le code des activités en direct n’est pas compilé, faute d’ActivityKit et d’ActiviteHumalis', () => {
+    const f = formes(apple(`widget "accueil" :\n    titre "Accueil"\n${P}`));
+    expect(f).not.toContain('import ActivityKit');
+    expect(f).not.toContain('struct ActiviteHumalis');
+    expect(f).not.toContain('#if os(iOS) && canImport(ActivityKit) && !HUMALIS_AUTRE_CIBLE');
+    // Les trois corps qui nomment Activity<ActiviteHumalis> restent sous « #if false ».
+    expect(f.match(/#if false\n/g)).toHaveLength(3);
+  });
+
   it('activité en direct : ActivityKit, l’îlot dynamique, commencer et terminer', () => {
     const p = apple(`activite en direct "livraison" :\n    titre "En route"\n${P}    bouton "Suivre"\n    bouton "Fin"\n    quand l'utilisateur clique sur "Suivre" :\n        commencer activite "livraison"\n    quand l'utilisateur clique sur "Fin" :\n        terminer activite "livraison"\n`);
     const page = p.lire('Essai/Pages/PageAccueil.swift');
@@ -117,6 +126,8 @@ describe('les formes d’application sur Apple', () => {
     expect(page).toContain('await ActivitesHumalis.terminer("livraison")');
     const f = formes(p);
     expect(f).toContain('struct ActiviteHumalis: ActivityAttributes');
+    expect(f).toContain('import ActivityKit');
+    expect(f.match(/#if os\(iOS\) && canImport\(ActivityKit\) && !HUMALIS_AUTRE_CIBLE\n/g)).toHaveLength(3);
     expect(f).toContain('case "livraison": return "En route"');
     expect(f).not.toContain('pushType: .token');
     const w = p.lire('EssaiWidgets/Widgets.swift');

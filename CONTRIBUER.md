@@ -78,9 +78,21 @@ node dist/cli.js verifier exemples/boutique.humalis --ri   # avec la représenta
 
 - le compilateur, sous Linux et sous macOS : `npm ci`, `npm run typecheck`, `npm run build`, `npm test` ;
 - l'extension des éditeurs (`editeur/vscode`) : types, tests, construction ;
-- les serveurs produits : `npm run verifier:serveurs` produit le serveur de chaque programme du dépôt (exemples, guide, antisèche, programmes des tests), vérifie ses types et lance les tests que le compilateur a écrits pour lui.
+- les serveurs produits : `npm run verifier:serveurs` produit le serveur de chaque programme du dépôt (exemples, guide, antisèche, programmes des tests), vérifie ses types et lance les tests que le compilateur a écrits pour lui ;
+- les applications natives : `npm run verifier:natifs -- --cible apple|android|windows` produit l'application de chaque programme d'exemple (`exemples/`, `scripts/essais-<cible>/`, `tests/formes/toutes.humalis`), puis la fait compiler par les outils de la plateforme :
+  - Apple, sur macOS : `xcodebuild` en Debug et en Release (deux travaux en parallèle), pour iPhone (simulateur) et pour Mac, sans signature ;
+  - Android, sous Linux : Gradle `compileDebugKotlin`, avec le JDK 17 et le SDK Android ;
+  - Windows, sous Linux : `dotnet build` (.NET 10 ; WPF se compile hors de Windows, seul le lancement le demande).
 
 `npm run verifier:serveurs` se lance aussi ici, après `npm run build`. Il est lent (une installation de paquets, puis chaque serveur) : à refaire après tout changement du serveur produit. `-- --seul boutique` ne joue que les programmes dont le nom contient « boutique » ; `-- --garder` laisse les serveurs sur le disque, pour regarder un échec.
+
+`npm run verifier:natifs` se lance de même, après `npm run build`, à refaire après tout changement d'une cible native. Il prend les mêmes `--seul` et `--garder` (et, pour Apple, `--configuration Debug` ou `Release`, sinon les deux), et cherche ses outils ainsi :
+
+- Apple : Xcode (`xcodebuild`), donc un Mac ;
+- Android : le SDK dans `ANDROID_HOME`, et Gradle dans `GRADLE`, sinon dans le `PATH`, sinon le plus récent du cache de Gradle (`$GRADLE_USER_HOME/wrapper/dists`, celui qu'Android Studio télécharge) ;
+- Windows : le SDK .NET 10 dans `DOTNET`, sinon dans le `PATH`, sinon `~/.dotnet/dotnet`.
+
+Un outil absent arrête le script avec le code 2 : rien n'a été vérifié. Pour chaque programme, il dit s'il est compilé, sans page (rien à compiler), refusé exprès ou en échec. Les refus voulus du compilateur (un composant React n'a pas de vue native, une action qui n'existe pas sur une plateforme) sont écrits dans `REFUS_EXPRES`, en tête de `scripts/verifier-natifs.mjs`, avec leur raison : tout autre refus est un échec. Les avertissements des compilateurs Swift, Kotlin et C# sont affichés sans faire échouer.
 
 ## Organisation
 
