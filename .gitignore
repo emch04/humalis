@@ -24,3 +24,6 @@ __pycache__/
 
 # Les consignes locales de Claude restent sur la machine
 CLAUDE.md
+
+# Dossier de l'outil Serena (réglages, cache et notes de la machine)
+.serena/
