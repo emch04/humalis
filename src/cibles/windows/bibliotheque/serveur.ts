@@ -492,6 +492,21 @@ public static class Session
         Garder(corps);
     }
 
+    /// <summary>« supprimer mon compte » : le mot de passe s'il y en a un ; réussie, la session se ferme comme avec « se deconnecter ».</summary>
+    public static async Task SupprimerMonCompte(string? motDePasse)
+    {
+        var (reponse, corps) = await Envoyer("/auth/suppression-compte", motDePasse is null ? new Fiche() : V.FicheDe(("motDePasse", motDePasse)));
+        if ((int)reponse.StatusCode == 429) throw new ErreurHumalis("Trop de tentatives. Réessayez dans quelques minutes.");
+        if (!reponse.IsSuccessStatusCode)
+        {
+            var raison = V.T(V.Champ(corps, "erreur"));
+            throw new ErreurHumalis(V.AvecMajuscule(raison.Length > 0 ? raison : "le compte n'a pas été supprimé") + ".");
+        }
+        Oublier();
+        demande = Relire();
+        await demande;
+    }
+
     public static async Task SeDeconnecter()
     {
         try { await Envoyer("/auth/logout", new Fiche()); } catch (ErreurHumalis) { }

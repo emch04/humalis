@@ -277,6 +277,9 @@ export class EcrivainActions {
       case 'deconnexion':
         e.ligne('await Session.commun.seDeconnecter()');
         return;
+      case 'suppressionCompte':
+        // Réussie, la session se ferme comme avec « se deconnecter » ; refusée, le message du serveur.
+        return this.compte(e, c, `supprimerMonCompte(motDePasse: ${a.motDePasse ? this.v.texte(a.motDePasse) : 'nil'})`);
       case 'paiement': {
         const appel = `Serveur.commun.payer(${chaineSwift(a.adresse)}, id: ${this.identifiant(a.objet)})`;
         e.ligne(c.essai ? `try await ${appel.replace('payer(', 'payerOuEchouer(')}` : `await ${appel}`);
@@ -374,8 +377,6 @@ export class EcrivainActions {
         e.ligne(`HumalisNotes.noter(${chaineSwift(lieuNote(a.ligne))}, [${valeurs.join(', ')}])`);
         return;
       }
-      case 'suppressionCompte':
-        throw new Error('« supprimer mon compte » : cible écrite à la tâche 4');
       default: {
         // Une action ajoutée au langage doit être traitée ici : sinon le compilateur TypeScript s'arrête.
         const oubliee: never = a;
@@ -468,7 +469,7 @@ export class EcrivainActions {
 
   /** Vrai si le corps fait un appel qui peut échouer : on écrit donc « try ». */
   private dernierCorps(actions: Action[]): string {
-    return contient(actions, ['requete', 'suppression', 'modification', 'connexion', 'connexionGoogle', 'connexionApple', 'compteSecurise', 'changementMotDePasse', 'invitation', 'demandeLienMotDePasse', 'choixMotDePasse', 'envoiFichier', 'telechargementBon']) ? 'try await' : '';
+    return contient(actions, ['requete', 'suppression', 'modification', 'connexion', 'connexionGoogle', 'connexionApple', 'compteSecurise', 'changementMotDePasse', 'suppressionCompte', 'invitation', 'demandeLienMotDePasse', 'choixMotDePasse', 'envoiFichier', 'telechargementBon']) ? 'try await' : '';
   }
 
   private message(e: Ecrivain, a: Extract<Action, { type: 'message' }>, c: Cadre): void {

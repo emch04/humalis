@@ -1187,6 +1187,7 @@ export const SESSION_JS = `
     },
     seConnecter,
     seDeconnecter,
+    supprimerMonCompte,
   };
 
   async function relireSession() {
@@ -1221,6 +1222,34 @@ export const SESSION_JS = `
     // Jamais lequel des deux est faux : on ne dit pas si un compte existe.
     if (!reponse.ok) return refuser('Email ou mot de passe incorrect.');
     // La réponse contient aussi un jeton : il n'est pas gardé, le cookie du pack suffit.
+    await relireSession();
+    return true;
+  }
+
+  /** « supprimer mon compte » : réussie, la session se ferme comme avec « se deconnecter ». */
+  async function supprimerMonCompte(motDePasse, lever = false) {
+    const refuser = (message) => {
+      if (lever) throw new Error(message);
+      afficherMessage(message, 'erreur');
+      return false;
+    };
+    let reponse;
+    try {
+      reponse = await fetch(ADRESSE_SERVEUR + '/auth/suppression-compte', {
+        method: 'POST',
+        headers: entetes(),
+        credentials: 'same-origin',
+        body: JSON.stringify(motDePasse === undefined ? {} : { motDePasse }),
+      });
+    } catch {
+      return refuser("Le serveur n'a pas répondu. Réessayez dans un instant.");
+    }
+    if (reponse.status === 429) return refuser('Trop de tentatives. Réessayez dans quelques minutes.');
+    if (!reponse.ok) {
+      const corps = await reponse.json().catch(() => null);
+      const raison = corps?.erreur ?? "le compte n'a pas été supprimé";
+      return refuser(raison.charAt(0).toUpperCase() + raison.slice(1) + '.');
+    }
     await relireSession();
     return true;
   }

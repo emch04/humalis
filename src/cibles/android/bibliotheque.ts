@@ -1166,6 +1166,19 @@ object Session {
         relire()
     }
 
+    /** « supprimer mon compte » : le mot de passe s'il y en a un ; réussie, la session se ferme comme avec « se deconnecter ». */
+    suspend fun supprimerMonCompte(motDePasse: String?) {
+        val r = brut("/auth/suppression-compte", "POST", if (motDePasse == null) fiche() else fiche("motDePasse" to motDePasse)) ?: throw ErreurHumalis(PAS_DE_REPONSE)
+        if (r.first == 429) throw ErreurHumalis("Trop de tentatives. Réessayez dans quelques minutes.")
+        if (r.first !in 200..299) {
+            val raison = texte(champ(r.second, "erreur")).ifEmpty { "le compte n'a pas été supprimé" }
+            throw ErreurHumalis(raison.substring(0, 1).uppercase() + raison.substring(1).removeSuffix(".") + ".")
+        }
+        oublier()
+        Coffre.effacer(CLE_COMPTE)
+        relire()
+    }
+
     suspend fun seDeconnecter() {
         brut("/auth/logout", "POST", fiche())
         oublier()

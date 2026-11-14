@@ -561,6 +561,10 @@ export class GenerateurMoteur extends GenerateurPage {
       case 'deconnexion':
         e.ligne('await utilisateur.seDeconnecter();');
         return true;
+      case 'suppressionCompte':
+        // Refusée (mot de passe faux, dernier admin) : un message s'affiche (ou « si erreur » le reçoit) et la suite ne s'exécute pas.
+        e.ligne(`if (!(await utilisateur.supprimerMonCompte(${action.motDePasse ? lit(action.motDePasse) : 'undefined'}${this.dansEssai ? ', true' : ''}))) return;`);
+        return true;
       case 'filtre':
         e.ligne(`changerFiltre(${chaine(action.nom)}, ${x(action.valeur)});`);
         return true;

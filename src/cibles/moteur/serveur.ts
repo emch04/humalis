@@ -46,7 +46,10 @@ function sessionTexte(base: string, source: boolean, renouveler: boolean, securi
     .replace('ERREUR_CHANGER', renouveler ? 'erreur instanceof SessionFinie ? erreur.message : REESSAYER()' : 'REESSAYER()')
     .replace('SORTIE_TRACE', renouveler ? 'tracer(false);' : '')
     .replace('SORTIE_SESSION', renouveler ? 'avecSession(lancer)' : 'lancer()')
-    .replace('ERREUR_SORTIE', renouveler ? '!(erreur instanceof SessionFinie)' : 'true');
+    .replace('ERREUR_SORTIE', renouveler ? '!(erreur instanceof SessionFinie)' : 'true')
+    .replace('SUPPRIMER_SESSION', renouveler ? 'avecSession(lancer)' : 'lancer()')
+    .replace('ERREUR_SUPPRIMER', renouveler ? 'erreur instanceof SessionFinie ? erreur.message : REESSAYER()' : 'REESSAYER()')
+    .replace('SUPPRIME_TRACE', renouveler ? 'tracer(false);' : '');
 }
 
 const BASE = String.raw`const BASE = import.meta.env.VITE_HUMALIS_SERVEUR ?? '';
@@ -437,7 +440,7 @@ export const utilisateur = {
   get connecte() { return personne.v !== null; },
   get admin() { return personne.v?.role === 'admin'; },
   seConnecter, seConnecterAvecGoogle, seConnecterAvecApple, changerMotDePasse, inviter, changerRole, changerCompte, activerNotifications, demanderIa, payer,
-  demanderLienMotDePasse, choisirMotDePasse, seDeconnecter,
+  demanderLienMotDePasse, choisirMotDePasse, seDeconnecter, supprimerMonCompte,
 };
 function entetesSession() { return ajouterCsrf(new Headers({ 'Content-Type': 'application/json' })); }
 function refuser(texte, dansUnEssai) {
@@ -612,6 +615,21 @@ async function changerMotDePasse(actuel, nouveau, dansUnEssai = false) {
     const corps = await reponse.json().catch(() => null), raison = corps?.erreur ?? "le mot de passe n'a pas été changé";
     return refuser(raison.charAt(0).toUpperCase() + raison.slice(1) + '.', dansUnEssai);
   }
+  return true;
+}
+// « supprimer mon compte » : réussie, la session se ferme comme avec « se deconnecter ».
+async function supprimerMonCompte(motDePasse, dansUnEssai = false) {
+  let reponse;
+  try { const lancer = () => fetch(BASE_AUTH + '/auth/suppression-compte', { method: 'POST', headers: entetesSession(), credentials: CREDENTIALS_AUTH, body: JSON.stringify(motDePasse === undefined ? {} : { motDePasse }) }); reponse = await SUPPRIMER_SESSION; }
+  catch (erreur) { return refuser(ERREUR_SUPPRIMER, dansUnEssai); }
+  if (reponse.status === 429) return refuser('Trop de tentatives. Réessayez dans quelques minutes.', dansUnEssai);
+  if (!reponse.ok) {
+    const corps = await reponse.json().catch(() => null), raison = corps?.erreur ?? "le compte n'a pas été supprimé";
+    return refuser(raison.charAt(0).toUpperCase() + raison.slice(1) + '.', dansUnEssai);
+  }
+  SUPPRIME_TRACE
+  globalThis.dispatchEvent?.(new CustomEvent('humalis:deconnexion'));
+  await relireSession();
   return true;
 }
 async function seDeconnecter() {

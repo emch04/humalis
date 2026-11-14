@@ -1914,6 +1914,8 @@ interface Utilisateur {
   /** « choisir le mot de passe avec … » : le jeton vient de l'adresse du lien reçu. */
   choisirMotDePasse(nouveau: string, dansUnEssai?: boolean): Promise<boolean>;
   seDeconnecter(): Promise<void>;
+  /** « supprimer mon compte [avec …] » : réussie, la session se ferme comme avec « se deconnecter ». */
+  supprimerMonCompte(motDePasse?: string, dansUnEssai?: boolean): Promise<boolean>;
   /** Demande /auth/me une seule fois, à la première page qui lit la session. */
   demander(): void;
 }
@@ -2261,6 +2263,35 @@ export function Session({ children }: { children: ReactNode }) {
     return true;
   }
 
+  async function supprimerMonCompte(motDePasse?: string, dansUnEssai = false): Promise<boolean> {
+    const refuser = (texte: string): boolean => {
+      if (dansUnEssai) throw new Error(texte);
+      afficherMessage(texte, 'erreur');
+      return false;
+    };
+    let reponse: Response;
+    try {
+      reponse = await fetch(BASE + '/auth/suppression-compte', {
+        method: 'POST',
+        headers: entetes(),
+        credentials: 'same-origin',
+        body: JSON.stringify(motDePasse === undefined ? {} : { motDePasse }),
+      });
+    } catch {
+      return refuser("Le serveur n'a pas répondu. Réessayez dans un instant.");
+    }
+    if (reponse.status === 429) return refuser('Trop de tentatives. Réessayez dans quelques minutes.');
+    if (!reponse.ok) {
+      const corps = (await reponse.json().catch(() => null)) as { erreur?: string } | null;
+      const raison = corps?.erreur ?? "le compte n'a pas été supprimé";
+      return refuser(raison.charAt(0).toUpperCase() + raison.slice(1) + '.');
+    }
+    // Le compte n'existe plus : la session se ferme comme avec « se deconnecter ».
+    window.dispatchEvent(new CustomEvent('humalis:deconnexion'));
+    await relire();
+    return true;
+  }
+
   async function seDeconnecter(): Promise<void> {
     window.dispatchEvent(new CustomEvent('humalis:deconnexion'));
     try {
@@ -2294,6 +2325,7 @@ export function Session({ children }: { children: ReactNode }) {
     demanderLienMotDePasse,
     choisirMotDePasse,
     seDeconnecter,
+    supprimerMonCompte,
     demander,
   };
   useEffect(() => {

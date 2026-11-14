@@ -1125,6 +1125,20 @@ private final class SuiviEnvoi: NSObject, URLSessionTaskDelegate, Sendable {
         jetonDeLien = nil
     }
 
+    /** « supprimer mon compte » : le mot de passe s'il y en a un ; réussie, la session se ferme comme avec « se deconnecter ». */
+    func supprimerMonCompte(motDePasse: String?) async throws {
+        let (donnees, http) = try await envoyer("/auth/suppression-compte", motDePasse.map { ["motDePasse": $0] } ?? [:])
+        if http.statusCode == 429 { throw ErreurHumalis.refus("Trop de tentatives. Réessayez dans quelques minutes.") }
+        guard (200..<300).contains(http.statusCode) else {
+            let corps = try? JSONDecoder().decode(ValeurHumalis.self, from: donnees)
+            var raison = corps?["erreur"].enTexte ?? ""
+            if raison.isEmpty { raison = "le compte n'a pas été supprimé" }
+            throw ErreurHumalis.refus(raison.prefix(1).uppercased() + raison.dropFirst() + ".")
+        }
+        oublier()
+        await relire()
+    }
+
     func seDeconnecter() async {
         _ = try? await envoyer("/auth/logout", [:])
         oublier()

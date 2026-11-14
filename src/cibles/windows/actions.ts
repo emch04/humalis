@@ -298,6 +298,9 @@ export class EcrivainActions {
       case 'deconnexion':
         e.ligne('await Session.SeDeconnecter();');
         return;
+      case 'suppressionCompte':
+        // Réussie, la session se ferme comme avec « se deconnecter » ; refusée, le message du serveur.
+        return this.compte(e, c, `Session.SupprimerMonCompte(${a.motDePasse ? this.x.enTexte(a.motDePasse) : 'null'})`);
       case 'langue':
         e.ligne(`Langues.Changer(${chaineCs(a.code)});`);
         return;
