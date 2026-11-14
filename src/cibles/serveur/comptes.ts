@@ -9,6 +9,7 @@ import type { MorceauEmail, ServeurRI } from '../../ri/types.js';
 import { simplifier } from '../../analyse/elements.js';
 import { camel } from '../web/noms.js';
 import { champsDeGroupe } from './separation.js';
+import { avecNotifications } from './logique.js';
 
 const chaine = (texte: string) => JSON.stringify(texte);
 
@@ -56,7 +57,7 @@ export function codeCreationComptes(serveur: ServeurRI, chemins?: Map<string, st
     rolesPermis: ${JSON.stringify(serveur.roles ?? [])},
     champsDeGroupe: ${JSON.stringify(champsDeGroupe(serveur))},
     schemaCompte: { ${(serveur.champsCompte ?? []).map((c) => `${chaine(camel(c.nom))}: ${schemaCompte(c.type)}`).join(', ')} },
-    pageOublie: ${cheminDe(serveur.motDePasseOublie, chemins)},${serveur.connexionCleAcces || serveur.doubleAuthentification ? '\n    surRetrait: (id) => oublierCompte(magasinSecurite, id),' : ''}${serveur.routeMonCompte?.supprimer ? '\n    effacerLesDonnees: (id) => effacerLesDonnees(id, transaction),' : ''}
+    pageOublie: ${cheminDe(serveur.motDePasseOublie, chemins)},${serveur.connexionCleAcces || serveur.doubleAuthentification ? '\n    surRetrait: (id) => oublierCompte(magasinSecurite, id),' : ''}${serveur.routeMonCompte?.supprimer ? (avecNotifications(serveur) ? "\n    // Ses fiches, puis ses appareils inscrits aux notifications : plus rien ne part vers ce compte.\n    effacerLesDonnees: async (id) => {\n      await effacerLesDonnees(id, transaction);\n      for (const appareil of await appareils.lister({ egal: { compte: id } })) await appareils.supprimer(appareil.id);\n    }," : '\n    effacerLesDonnees: (id) => effacerLesDonnees(id, transaction),') : ''}
   });
 `;
 }

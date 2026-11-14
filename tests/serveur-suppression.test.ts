@@ -86,6 +86,13 @@ describe('codeEffacerLesDonnees', () => {
     expect(texte).toContain('await fichesDeLaPersonne(s.commande, id, ["auteur"], ["auteur"], true, "paye");');
   });
 
+  it('le reste du temps réel : ses appels, sa présence et ses exclusions', () => {
+    const texte = code('>roles client et vendeur', '>salle "classe" pour client et vendeur animee par vendeur', '>discussion "aide" entre client et vendeur');
+    expect(texte).toContain('await fichesDeLaPersonne(s.presenceVue, id, ["compte"], [], true, null);');
+    expect(texte).toContain('await fichesDeLaPersonne(s.exclusionSalle, id, ["compte"], [], true, null);');
+    expect(texte).not.toContain('appelFini');
+  });
+
   it('une discussion : ses pièces et ses lectures effacées, ses messages anonymes et sans pièce, ses conversations sans son nom', () => {
     const texte = code('>roles client et vendeur', '>discussion "aide" entre client et vendeur');
     expect(texte).toContain('await fichesDeLaPersonne(s.pieceAide, id, ["auteur"], [], true, null);');

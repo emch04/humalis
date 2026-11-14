@@ -62,3 +62,12 @@ page "reglages" :
             supprimer mon compte avec champ "Mot de passe"
         si erreur :
             afficher erreur "{raison}"
+
+page "appel" :
+    titre "Appel"
+    bouton "Appeler"
+    quand l'utilisateur clique sur "Appeler" :
+        appeler en video "vera@essai.test"
+    bouton "Recevoir les notifications"
+    quand l'utilisateur clique sur "Recevoir les notifications" :
+        activer notifications

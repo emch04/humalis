@@ -2377,7 +2377,10 @@ qui la désignent et garde la fiche. Sans cette ligne :
 
 Une fiche payée n'est jamais effacée : elle devient anonyme. Une image part avec la fiche effacée ;
 une fiche anonyme garde la sienne, comme son texte. Dans les discussions, les pièces jointes de la
-personne sont effacées, et ses conversations s'appellent « Compte supprimé ».
+personne sont effacées, et ses conversations s'appellent « Compte supprimé ». Dans un appel,
+l'autre personne garde sa trace, avec « Compte supprimé » à la place ; un appel en cours s'arrête.
+Sa présence en ligne, ses exclusions de réunion et ses appareils inscrits aux notifications
+disparaissent.
 
 Les fiches changent toutes ensemble, puis le compte est vidé : plus d'adresse, de mot de passe ni de
 champ, et toutes ses sessions se ferment. Les autres appareils reçoivent ces changements à leur

@@ -29,6 +29,19 @@ export function codeEffacerLesDonnees(serveur: ServeurRI): string {
       `    await fichesDeLaPersonne(${table('conversation')}, id, ["personne"], ["personne"], false, null, { titre: ${chaine(COMPTE_SUPPRIME)} });`,
     ];
   });
+  // Le reste du temps réel : ses appels (l'autre personne garde sa trace, avec « Compte supprimé »), sa présence, ses exclusions.
+  const tableDe = (nom: string) => serveur.donnees.some((d) => d.nom === nom && !d.reponseSeule);
+  const lignesTempsReel = [
+    ...(tableDe('appel_humalis')
+      ? [
+          '    // Ses appels : son identifiant vidé, son nom remplacé ; un appel qui sonne ou en cours s’arrête.',
+          `    await fichesDeLaPersonne(s.appelHumalis, id, ["auteur"], ["auteur"], false, null, { auteurNom: ${chaine(COMPTE_SUPPRIME)} }, appelFini);`,
+          '    await fichesDeLaPersonne(s.appelHumalis, id, ["appele"], ["appele"], false, null, {}, appelFini);',
+        ]
+      : []),
+    ...(tableDe('presence_vue') ? ['    // Sa présence en ligne.', '    await fichesDeLaPersonne(s.presenceVue, id, ["compte"], [], true, null);'] : []),
+    ...(tableDe('exclusion_salle') ? ['    // Ses exclusions des réunions.', '    await fichesDeLaPersonne(s.exclusionSalle, id, ["compte"], [], true, null);'] : []),
+  ];
   const traitees = new Set(discussions.map((d) => `message_${d.cle}`));
   const lignesDonnees = serveur.donnees.flatMap((donnee) => {
     if (traitees.has(donnee.nom)) return [];
@@ -42,7 +55,8 @@ export function codeEffacerLesDonnees(serveur: ServeurRI): string {
       `    await fichesDeLaPersonne(s.${camel(donnee.nom)}, id, ${JSON.stringify(cherches(champs).map(camel))}, ${JSON.stringify(champs.map(camel))}, ${effacer}, ${payee ? chaine(camel(payee.nom)) : 'null'});`,
     ];
   });
-  const lignes = [...lignesDiscussions, ...lignesDonnees];
+  const lignes = [...lignesDiscussions, ...lignesTempsReel, ...lignesDonnees];
+  const fin = tableDe('appel_humalis') ? "\n/** Un appel qui sonne ou en cours, dont la personne a supprimé son compte : il s'arrête. */\nconst appelFini = (fiche: Record<string, unknown>) => (fiche.etat === 'sonne' || fiche.etat === 'en_cours' ? { etat: 'fini' } : {});\n" : '';
   if (lignes.length === 0) {
     return `
 /** « connecte peut supprimer son compte » : aucune donnée de ce serveur ne retient qui l'a écrite. */
@@ -67,7 +81,7 @@ ${lignes.join('\n')}
  * synchronisation suit ces écritures comme les autres : les appareils les reçoivent au prochain échange.
  * Une image gardée dans une fiche part avec elle ; une fiche anonyme garde la sienne, comme son texte.
  */
-async function fichesDeLaPersonne(stockage: Stockage, id: string, cherches: string[], vides: string[], effacer: boolean, payee: string | null, neutres: Record<string, string> = {}): Promise<void> {
+async function fichesDeLaPersonne(stockage: Stockage, id: string, cherches: string[], vides: string[], effacer: boolean, payee: string | null, neutres: Record<string, string> = {}, selon: (fiche: Record<string, unknown>) => Record<string, unknown> = () => ({})): Promise<void> {
   const anonyme = { ...Object.fromEntries(vides.map((champ) => [champ, ''])), ...neutres };
   for (const champ of cherches) {
     const vues = new Set<string>();
@@ -79,10 +93,10 @@ async function fichesDeLaPersonne(stockage: Stockage, id: string, cherches: stri
         if (vues.has(fiche.id)) throw new Error('une fiche garde le compte supprimé : rien n’est changé');
         vues.add(fiche.id);
         if (effacer && !(payee !== null && fiche[payee] === true)) await stockage.supprimer(fiche.id);
-        else await stockage.modifier(fiche.id, anonyme);
+        else await stockage.modifier(fiche.id, { ...anonyme, ...selon(fiche) });
       }
     }
   }
 }
-`;
+${fin}`;
 }

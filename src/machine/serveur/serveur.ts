@@ -1066,6 +1066,15 @@ export class ServeurMemoire {
           traiter(`message_${cle}`, 'auteur', ['auteur', 'auteurNom', 'piece', 'pieceNom', 'pieceType', 'pieceAdresse'], false);
           traiter(`conversation_${cle}`, 'personne', ['personne'], false, { titre: COMPTE_SUPPRIME });
         }
+        // Ses appels (l'autre personne garde sa trace, avec « Compte supprimé » ; un appel en cours s'arrête), sa présence, ses exclusions.
+        const appels = this.stockages.get('appel_humalis');
+        for (const [cherche, neutres] of [['auteur', { auteur: '', auteurNom: COMPTE_SUPPRIME }], ['appele', { appele: '' }]] as const) {
+          for (const fiche of appels?.lister({ egal: { [cherche]: moi.id } }) ?? []) {
+            appels!.modifier(fiche.id, { ...neutres, ...(fiche.etat === 'sonne' || fiche.etat === 'en_cours' ? { etat: 'fini' } : {}) });
+          }
+        }
+        traiter('presence_vue', 'compte', [], true);
+        traiter('exclusion_salle', 'compte', [], true);
         for (const donnee of this.serveur.donnees) {
           if (discussions.some((cle) => donnee.nom === `message_${cle}`)) continue;
           const champs = donnee.champsDeLaPersonne ?? [];

@@ -2458,7 +2458,9 @@ Each piece of data says what becomes of the person's records, with
 
 A paid record is never erased: it becomes anonymous. An image goes with an erased record; an
 anonymous record keeps its own, like its text. In discussions, the person's attachments are erased,
-and their conversations are called « Compte supprimé ».
+and their conversations are called « Compte supprimé ». In a call, the other person keeps their
+record of it, with « Compte supprimé » instead; an ongoing call stops. Their online presence, their
+meeting exclusions and their devices registered for notifications disappear.
 
 The records all change together, then the account is emptied: no more address, password or fields,
 and all its sessions end. Other devices receive these changes at their next synchronization; the

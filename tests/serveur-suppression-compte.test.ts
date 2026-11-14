@@ -25,6 +25,9 @@ import { creerStockageMemoire } from './dist/src/humalis/stockage.js';
 process.env.STRIPE_CLE_SECRETE ??= 'sk_test_essai';
 process.env.STRIPE_SECRET_WEBHOOK ??= 'whsec_essai';
 process.env.HUMALIS_LIMITE_CONNEXION = '1000';
+process.env.LIVEKIT_URL ??= 'wss://livekit.essai.test';
+process.env.LIVEKIT_API_KEY ??= 'cle-essai';
+process.env.LIVEKIT_API_SECRET ??= 'secret-essai-assez-long-pour-livekit-0123456789';
 const secret = 'Essai-Solide-2026!';
 const usersStore = createMemoryUsersStore();
 const passwordHash = await hashPassword(secret);
@@ -35,7 +38,8 @@ const google = await usersStore.create({ email: 'google@essai.test', role: 'clie
 await usersStore.create({ email: 'vera@essai.test', role: 'vendeur', passwordHash, nom: 'Vera' });
 const s = () => creerStockageMemoire();
 const stockages = { ${stockages.map((n) => `${n}: s()`).join(', ')} };
-const app = creerServeur({ jwtSecret: 'secret-de-test-assez-long-pour-les-sessions', usersStore, stockages });
+const appareils = s();
+const app = creerServeur({ jwtSecret: 'secret-de-test-assez-long-pour-les-sessions', usersStore, stockages, appareils });
 const ecoute = app.listen(0);
 await new Promise((pret) => ecoute.once('listening', pret));
 const base = 'http://127.0.0.1:' + ecoute.address().port;
@@ -76,6 +80,16 @@ await appel('POST', '/api/discussions_aide_messages', A, { texte: 'bonjour', pie
 await appel('POST', '/api/discussions_aide_messages', B, { texte: 'salut', piece: pieceB });
 const annonceA = (await appel('POST', '/api/annonces', A, { texte: 'à vendre' })).corps.id;
 const annonceB = (await appel('POST', '/api/annonces', B, { texte: 'à donner' })).corps.id;
+// Le temps réel : des appels dans les deux sens, la présence, une exclusion d'une réunion, un appareil inscrit.
+const appelParAwa = (await appel('POST', '/api/appels', A, { appele: 'vera@essai.test', video: true })).corps.id;
+const appelVersAwa = (await appel('POST', '/api/appels', vendeur, { appele: 'awa@essai.test', video: false })).corps.id;
+const appelDeBob = (await appel('POST', '/api/appels', B, { appele: 'vera@essai.test', video: false })).corps.id;
+const dansUneHeure = new Date(Date.now() + 3600000).toISOString();
+for (const compte of [idA, idB]) {
+  await stockages.presenceVue.creer({ compte, vuLe: new Date().toISOString() });
+  await stockages.exclusionSalle.creer({ piece: 'empreinte-de-la-salle', compte, jusqua: dansUneHeure });
+  await appareils.creer({ genre: 'web', compte, cle: 'abonnement-' + compte });
+}
 // Les appareils de Bob ont tout reçu jusqu'ici : ils reprendront à ce curseur.
 const curseurAvis = (await appel('GET', '/api/avis/synchro?depuis=0', B)).corps.curseur;
 const curseurAnnonces = (await appel('GET', '/api/annonces/synchro?depuis=0', B)).corps.curseur;
@@ -112,6 +126,14 @@ r.apres = { statut: 0, corps: {
   bob: await usersStore.findById(idB),
 } };
 r.conversations = { statut: 0, corps: { liste: (await appel('GET', '/api/discussions_aide_conversations', vendeur)).corps.map((c) => ({ titre: c.titre, personne: c.personne })).sort((a, b) => a.titre.localeCompare(b.titre)) } };
+r.appelParAwa = await appel('GET', '/api/appels/' + appelParAwa, vendeur);
+r.appelVersAwa = await appel('GET', '/api/appels/' + appelVersAwa, vendeur);
+r.appelDeBob = await appel('GET', '/api/appels/' + appelDeBob, B);
+r.tempsReel = { statut: 0, corps: {
+  presence: (await stockages.presenceVue.lister()).map((l) => l.compte),
+  exclusions: (await stockages.exclusionSalle.lister()).map((l) => l.compte),
+  appareils: (await appareils.lister()).map((l) => l.compte),
+} };
 r.synchroAvis = await appel('GET', '/api/avis/synchro?depuis=' + curseurAvis, B);
 r.synchroAnnonces = await appel('GET', '/api/annonces/synchro?depuis=' + curseurAnnonces, B);
 r.ids = { statut: 0, corps: { avisA, annonceA, idB } };
@@ -151,7 +173,13 @@ export function jouer(source: string, nom: string, texte: (stockages: string[]) 
   }
   const code = texte(serveur.donnees.map((d) => camel(d.nom)));
   writeFileSync(join(dossier, 'scenario.mjs'), sqlite ? surSqlite(code) : code);
-  if (!existsSync(join(dossier, 'node_modules', 'typescript'))) execFileSync('npm', ['install', '--no-audit', '--no-fund'], { cwd: dossier, stdio: 'pipe' });
+  // Réinstallé quand les paquets du serveur produit changent (un programme d'essai qui gagne les appels, les notifications…).
+  const paquets = readFileSync(join(dossier, 'package.json'), 'utf8');
+  const installes = join(dossier, 'node_modules', '.paquets-humalis.json');
+  if (!existsSync(installes) || readFileSync(installes, 'utf8') !== paquets) {
+    execFileSync('npm', ['install', '--no-audit', '--no-fund'], { cwd: dossier, stdio: 'pipe' });
+    writeFileSync(installes, paquets);
+  }
   execFileSync('npx', ['tsc'], { cwd: dossier, stdio: 'pipe' });
   return JSON.parse(execFileSync('node', ['scenario.mjs'], { cwd: dossier, encoding: 'utf8' }).trim().split('\n').at(-1)!);
 }
@@ -228,6 +256,20 @@ describe.each(BASES)('supprimer son compte sur un vrai serveur produit, %s', (_b
     expect(r.apres!.corps.pieceA).toBeNull();
     expect(r.apres!.corps.pieceB).not.toBeNull();
     expect(r.apres!.corps.lecturesAwa).toBe(0);
+  });
+
+  it('un appel ne la nomme plus ; l’autre personne garde sa trace, avec « Compte supprimé » ; un appel en cours s’arrête', () => {
+    const { idB } = r.ids!.corps as Record<string, string>;
+    expect(r.appelParAwa!.statut).toBe(200);
+    expect(r.appelParAwa!.corps).toMatchObject({ auteur: '', auteurNom: 'Compte supprimé', etat: 'fini' });
+    expect(r.appelVersAwa!.statut).toBe(200);
+    expect(r.appelVersAwa!.corps).toMatchObject({ appele: '', auteurNom: 'Vera', etat: 'fini' });
+    expect(r.appelDeBob!.corps).toMatchObject({ auteur: idB, auteurNom: 'Bob', etat: 'sonne' });
+  });
+
+  it('sa présence, ses exclusions de réunion et ses appareils inscrits aux notifications disparaissent ; ceux des autres restent', () => {
+    const { idB } = r.ids!.corps as Record<string, string>;
+    expect(r.tempsReel!.corps).toEqual({ presence: [idB], exclusions: [idB], appareils: [idB] });
   });
 
   it('les autres appareils reçoivent chaque effacement et chaque anonymisation au prochain échange', () => {
@@ -307,6 +349,14 @@ describe('supprimer son compte dans « humalis lancer »', () => {
     const convA = stock('conversation_aide').creer({ titre: 'Awa', personne: awa.id, dernier: 'bonjour', dernierLe: '', nonLus: 0, enLigne: false }).id;
     const convB = stock('conversation_aide').creer({ titre: 'Bob', personne: bob.id, dernier: 'salut', dernierLe: '', nonLus: 0, enLigne: false }).id;
     stock('lecture_aide').creer({ conversation: 'c1', compte: awa.id, luLe: '' });
+    const vera = await serveur.creerCompteDEssai('vera@x.fr', 'vendeur', mdp, { nom: 'Vera' });
+    const appelParAwa = stock('appel_humalis').creer({ auteur: awa.id, auteurNom: 'Awa', appele: vera.id, salle: 'appel-1', video: true, etat: 'en_cours', appeleLe: '' }).id;
+    const appelVersAwa = stock('appel_humalis').creer({ auteur: vera.id, auteurNom: 'Vera', appele: awa.id, salle: 'appel-2', video: false, etat: 'fini', appeleLe: '' }).id;
+    const appelDeBob = stock('appel_humalis').creer({ auteur: bob.id, auteurNom: 'Bob', appele: vera.id, salle: 'appel-3', video: false, etat: 'sonne', appeleLe: '' }).id;
+    for (const compte of [awa.id, bob.id]) {
+      stock('presence_vue').creer({ compte, vuLe: '' });
+      stock('exclusion_salle').creer({ piece: 'x', compte, jusqua: '' });
+    }
 
     expect((await visiteur('POST', supprimer, { motDePasse: mdp })).statut).toBe(401);
     expect((await sansCsrf('POST', supprimer, { motDePasse: mdp })).statut).toBe(403);
@@ -335,6 +385,11 @@ describe('supprimer son compte dans « humalis lancer »', () => {
     expect(stock('conversation_aide').trouver(convA)).toMatchObject({ titre: 'Compte supprimé', personne: '' });
     expect(stock('conversation_aide').trouver(convB)).toMatchObject({ titre: 'Bob', personne: bob.id });
     expect(stock('lecture_aide').lister({ egal: { compte: awa.id } })).toHaveLength(0);
+    expect(stock('appel_humalis').trouver(appelParAwa)).toMatchObject({ auteur: '', auteurNom: 'Compte supprimé', appele: vera.id, etat: 'fini' });
+    expect(stock('appel_humalis').trouver(appelVersAwa)).toMatchObject({ auteur: vera.id, auteurNom: 'Vera', appele: '', etat: 'fini' });
+    expect(stock('appel_humalis').trouver(appelDeBob)).toMatchObject({ auteur: bob.id, etat: 'sonne' });
+    expect(stock('presence_vue').lister().map((l) => l.compte)).toEqual([bob.id]);
+    expect(stock('exclusion_salle').lister().map((l) => l.compte)).toEqual([bob.id]);
 
     const vide = serveur.comptes.comptes.get(awa.id)!;
     expect(vide).toMatchObject({ role: 'supprime', passwordHash: null, nom: null });
