@@ -87,6 +87,8 @@ function texteJs(parties: PartiesTexte, contexte: ContexteJs, langue?: string): 
     }
     if (formater) return `\${${formater(chemin(p.variable, contexte))}}`;
     const type = contexte.types.get(p.variable);
+    // Un vrai ou faux s'écrit en français, comme sur les autres cibles.
+    if (type?.genre === 'booleen') return `\${${chemin(p.variable, contexte)} ? 'vrai' : 'faux'}`;
     return type?.genre === 'liste' ? `\${${chemin(p.variable, contexte)}.join(', ')}` : `\${${chemin(p.variable, contexte)}}`;
   });
   return `\`${morceaux.join('')}\``;
@@ -194,7 +196,7 @@ export function contenuJs(valeur: Valeur, contexte: ContexteJs): string {
   const x = expressionJs(valeur, contexte);
   const type = typeDe(valeur, contexteTypes(contexte));
   if (type.genre === 'liste') return `${x}.join(', ')`;
-  if (type.genre === 'booleen') return `String(${x})`;
+  if (type.genre === 'booleen') return `(${x} ? 'vrai' : 'faux')`;
   return x;
 }
 
@@ -334,6 +336,8 @@ export function evaluer(valeur: Valeur, env: Environnement): unknown {
           // Le champ d'une variable « = rien » encore vide : `?? ''` dans le script, rien ici non plus.
           if (p.expression) return v === null || v === undefined ? '' : String(v);
           if (p.variable.includes('.') && env.lire(p.variable.split('.')[0]) === null) return '';
+          // Un vrai ou faux en français, comme le script (même type lu).
+          if (env.types.get(p.variable)?.genre === 'booleen' && typeof v === 'boolean') return v ? 'vrai' : 'faux';
           return env.types.get(p.variable)?.genre === 'liste' && Array.isArray(v) ? v.join(', ') : String(v);
         })
         .join('');
@@ -373,6 +377,8 @@ export function evaluer(valeur: Valeur, env: Environnement): unknown {
     }
     case 'agregat': {
       const liste = (evaluer(valeur.liste, env) as number[]) ?? [];
+      // Une liste vide vaut 0, comme sur les autres cibles.
+      if (liste.length === 0) return 0;
       if (valeur.operation === 'minimum') return Math.min(...liste);
       if (valeur.operation === 'maximum') return Math.max(...liste);
       const somme = liste.reduce((s, n) => s + n, 0);
@@ -463,6 +469,7 @@ export function texteDe(valeur: Valeur, env: Environnement, champs: Map<string, 
   const v = evaluer(valeur, env);
   const type = typeDe(valeur, { types: env.types, champs });
   if (type.genre === 'liste' && Array.isArray(v)) return v.join(', ');
+  if (typeof v === 'boolean') return v ? 'vrai' : 'faux';
   return String(v);
 }
 

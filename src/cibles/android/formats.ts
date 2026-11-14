@@ -45,6 +45,8 @@ private fun nombres(langue: String, min: Int, max: Int): NumberFormat = NumberFo
  * machine, sans espace ni virgule (1000 et 3.5, jamais « 1 000 » ni « 3,5 ») ; rien pour une valeur absente.
  */
 fun parametre(valeur: Any?): String {
+    // Un vrai ou faux part pour une machine (true, false), même s'il s'affiche « vrai » ou « faux ».
+    if (valeur is Boolean) return valeur.toString()
     if (valeur !is Number) return texte(valeur)
     val nombre = valeur.toDouble()
     if (nombre.isNaN() || nombre.isInfinite()) return ""

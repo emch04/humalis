@@ -135,16 +135,16 @@ public static class V
     public static bool Contient(object? dans, object? cherche)
     {
         if (dans is Liste l) return l.Any(e => Egal(e, cherche));
-        // Une recherche vide trouve tout, comme sur le web.
+        // Une recherche vide trouve tout, comme sur le web ; majuscules et minuscules comptent, comme sur les autres cibles.
         var texte = T(cherche);
-        return texte.Length == 0 || T(dans).Contains(texte, StringComparison.CurrentCultureIgnoreCase);
+        return texte.Length == 0 || T(dans).Contains(texte, StringComparison.Ordinal);
     }
 
     /// <summary>Vrai si le texte suit le modèle (une expression régulière).</summary>
     public static bool Correspond(object? v, string motif) => System.Text.RegularExpressions.Regex.IsMatch(T(v).Trim(), motif);
 
-    public static bool CommencePar(object? texte, object? debut) => T(texte).StartsWith(T(debut), StringComparison.CurrentCultureIgnoreCase);
-    public static bool FinitPar(object? texte, object? fin) => T(texte).EndsWith(T(fin), StringComparison.CurrentCultureIgnoreCase);
+    public static bool CommencePar(object? texte, object? debut) => T(texte).StartsWith(T(debut), StringComparison.Ordinal);
+    public static bool FinitPar(object? texte, object? fin) => T(texte).EndsWith(T(fin), StringComparison.Ordinal);
 
     // ─── Fiches ──────────────────────────────────────────────────────────
 
@@ -466,16 +466,24 @@ public static class V
         }
     }
 
-    /// <summary>Une liste de fiches en CSV (séparateur « ; », comme l'attend un tableur français).</summary>
+    /// <summary>
+    /// Une liste de fiches en CSV (séparateur « ; », comme l'attend un tableur français), avec les mêmes règles que
+    /// le web : un texte qui commence par = + - ou @ reçoit une apostrophe (le tableur ne le lira pas comme une formule).
+    /// </summary>
     public static string EnCsv(object? liste)
     {
-        var lignes = L(liste).OfType<Fiche>().ToList();
+        var lignes = L(liste).Select(e => e as Fiche ?? new Fiche { ["valeur"] = e }).ToList();
         if (lignes.Count == 0) return "";
         var colonnes = lignes.SelectMany(f => f.Keys).Distinct().ToList();
-        string Cellule(string t) => t.Contains(';') || t.Contains('"') || t.Contains('\n') ? "\"" + t.Replace("\"", "\"\"") + "\"" : t;
+        string Cellule(object? v)
+        {
+            var t = T(v);
+            if (v is string && t.Length > 0 && "=+-@\t\r".Contains(t[0]) && !System.Text.RegularExpressions.Regex.IsMatch(t, @"^[+-]?[\d\s().-]+$")) t = "'" + t;
+            return t.Contains(';') || t.Contains('"') || t.Contains('\n') || t.Contains('\r') ? "\"" + t.Replace("\"", "\"\"") + "\"" : t;
+        }
         var sb = new StringBuilder();
-        sb.AppendLine(string.Join(";", colonnes.Select(Cellule)));
-        foreach (var f in lignes) sb.AppendLine(string.Join(";", colonnes.Select(c => Cellule(T(f.GetValueOrDefault(c))))));
+        sb.AppendLine(string.Join(";", colonnes.Select(c => Cellule(c))));
+        foreach (var f in lignes) sb.AppendLine(string.Join(";", colonnes.Select(c => Cellule(f.GetValueOrDefault(c)))));
         return sb.ToString();
     }
 }

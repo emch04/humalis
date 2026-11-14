@@ -363,7 +363,7 @@ function texteCsv(liste: unknown[]): string {
   const lignes = liste.map((e) => (e !== null && typeof e === 'object' && !Array.isArray(e) ? (e as Record<string, unknown>) : { valeur: e }));
   const champs = [...new Set(lignes.flatMap((l) => Object.keys(l)))];
   const cellule = (v: unknown): string => {
-    const lu = v === null || v === undefined ? '' : Array.isArray(v) ? v.join(', ') : typeof v === 'object' ? JSON.stringify(v) : String(v);
+    const lu = v === null || v === undefined ? '' : Array.isArray(v) ? v.join(', ') : typeof v === 'boolean' ? (v ? 'vrai' : 'faux') : typeof v === 'object' ? JSON.stringify(v) : String(v);
     const sur = typeof v === 'string' && /^[=+\\-@\\t\\r]/.test(lu) && !/^[+-]?[\\d\\s().-]+$/.test(lu) ? \`'\${lu}\` : lu;
     return /[;"\\n\\r]/.test(sur) ? \`"\${sur.replace(/"/g, '""')}"\` : sur;
   };

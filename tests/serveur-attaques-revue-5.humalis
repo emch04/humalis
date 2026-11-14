@@ -1,0 +1,14 @@
+serveur "commerce" :
+    roles gerant et client
+    compte :
+        telephone : texte
+    donnee facture par boutique :
+        montant : nombre
+    route "factures" :
+        seul gerant peut lire facture
+    route "equipe" :
+        seul gerant peut lire comptes
+        seul gerant peut supprimer comptes
+
+page "a" :
+    titre "A"

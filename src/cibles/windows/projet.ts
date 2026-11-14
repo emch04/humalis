@@ -356,7 +356,8 @@ rien d'autre à installer sur le PC. Sans signature de code, Windows affiche un 
 ## Le serveur
 
 L'application appelle \`${options.serveur ?? 'http://localhost:3000'}\`. Pour essayer avec un autre
-serveur sans recompiler : variable d'environnement \`HUMALIS_SERVEUR\`.
+serveur sans recompiler : variable d'environnement \`HUMALIS_SERVEUR\`, dans une construction Debug
+seulement (jamais dans l'application publiée).
 
 ## Ce qui est gardé sur le PC
 

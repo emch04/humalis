@@ -458,7 +458,7 @@ export interface OptionsLignes {
   lire?: (fichier: string) => string | undefined;
   /** Faux : les cartes ne portent pas le texte des fichiers Humalis (un site publié tel quel). */
   contenus?: boolean;
-  /** Le chemin absolu du dossier des fichiers Humalis : Swift l'écrit dans `#sourceLocation`, pour le débogueur. */
+  /** Le chemin absolu du dossier des fichiers Humalis (n'est plus écrit dans les fichiers produits). */
   dossierAbsolu?: string;
 }
 
@@ -522,8 +522,10 @@ export function appliquerLignesHumalis(fichiers: Map<string, string>, options: O
       resultat.set(chemin, lu.code);
       resultat.set(`${chemin}.map`, JSON.stringify(carteDeSources(nom, lu.segments, options.fichiers, (f) => depuis(dossier, versSource(f)), options.contenus === false ? undefined : options.lire)));
     } else if (langage === 'swift') {
-      const absolu = (f: string) => (options.dossierAbsolu ? `${options.dossierAbsolu.replace(/\/+$/, '')}/${f}` : f);
-      resultat.set(chemin, versSwift(lu, options.fichiers, absolu, suivreSwift));
+      // Un chemin relatif au dossier du projet Xcode (là où Xcode compile) : le chemin du disque de l'auteur (son nom,
+      // ses dossiers) ne part plus dans les fichiers Swift, ni donc dans un dépôt public (revue).
+      const relatif = (f: string) => depuis('', versSource(f));
+      resultat.set(chemin, versSwift(lu, options.fichiers, relatif, suivreSwift));
     } else if (langage === 'csharp') {
       // Un chemin relatif au fichier C# : le compilateur le résout, et le projet peut être construit ailleurs (Windows).
       const dossier = dossierDe(chemin);

@@ -61,8 +61,27 @@ export async function developper(fichier: string, port: number): Promise<number>
     console.error(`Dépendances absentes. Exécutez : cd ${sortie} && npm install, puis relancez humalis developper.`);
     return 1;
   }
+  // Le panneau ne répond qu'au site en développement : pas à une autre page ouverte dans le navigateur, qui
+  // lirait sinon les erreurs et le chemin du projet (revue). L'hôte est vérifié contre un nom qui pointerait ici.
+  const sites = new Set([`http://localhost:${port}`, `http://127.0.0.1:${port}`]);
+  const hotes = new Set([`localhost:${port + 1}`, `127.0.0.1:${port + 1}`]);
   serveur = createServer((requete, reponse) => {
-    reponse.setHeader('Access-Control-Allow-Origin', '*');
+    if (!hotes.has(String(requete.headers.host ?? ''))) {
+      reponse.statusCode = 403;
+      reponse.end();
+      return;
+    }
+    // Une page d'un autre site qui charge « inspecteur.js » par une balise script : le navigateur le dit (cross-site).
+    const origine = String(requete.headers.origin ?? '');
+    if ((origine && !sites.has(origine)) || requete.headers['sec-fetch-site'] === 'cross-site') {
+      reponse.statusCode = 403;
+      reponse.end();
+      return;
+    }
+    if (origine) {
+      reponse.setHeader('Access-Control-Allow-Origin', origine);
+      reponse.setHeader('Vary', 'Origin');
+    }
     if (requete.url === '/inspecteur.js') {
       // L'inspecteur : variables, requêtes, droits refusés, notes et erreurs, avec leurs lignes Humalis.
       reponse.setHeader('Content-Type', 'text/javascript');
@@ -76,7 +95,10 @@ export async function developper(fichier: string, port: number): Promise<number>
   });
   try { await new Promise<void>((ok, echec) => serveur!.once('error', echec).listen(port + 1, '127.0.0.1', ok)); }
   catch (e) { console.error(`Panneau indisponible : ${(e as Error).message}`); return 1; }
-  vite = spawn('npm', ['run', 'dev', '--', '--port', String(port), '--strictPort'], { cwd: sortie, stdio: 'inherit' });
+  // Sous Windows, npm est « npm.cmd », qui demande l'interpréteur de commandes (les arguments sont fixes).
+  const windows = process.platform === 'win32';
+  vite = spawn(windows ? 'npm.cmd' : 'npm', ['run', 'dev', '--', '--port', String(port), '--strictPort'], { cwd: sortie, stdio: 'inherit', shell: windows });
+  vite.once('error', (e) => console.error(`Le site n'a pas pu démarrer : ${e.message}`));
   minuteur = setInterval(actualiser, 350);
   return await new Promise<number>((fin) => {
     const arreter = () => { if (minuteur) clearInterval(minuteur); serveur?.close(); vite?.kill('SIGTERM'); };

@@ -391,8 +391,9 @@ export class EcrivainActions {
   private navigation(e: EcrivainKotlin, a: Extract<Action, { type: 'navigation' }>): void {
     const ecrite = a.ecran.type === 'texte' && !a.ecran.versions && a.ecran.parties.every((p) => 'texte' in p) ? a.ecran.parties.map((p) => ('texte' in p ? p.texte : '')).join('') : undefined;
     if (ecrite === undefined) {
-      // « rediriger vers adresse » : une adresse reçue ; seule une adresse externe sûre s'ouvre.
-      e.ligne(`ouvrirExterne(${this.v.t(a.ecran)})`);
+      // « rediriger vers adresse » : une adresse sûre (https, http, mailto, tel) s'ouvre dehors ; sinon une page de
+      // l'application, par son adresse ou son nom, comme sur le web.
+      e.ligne(a.continuer ? `continuerVers(nav, depuisChemin(${this.v.t(a.ecran)}) ?: PAGES_PAR_NOM[${this.v.t(a.ecran)}.trim('/')] ?: ${this.v.t(a.ecran)})` : `ouvrirLien(nav, ${this.v.t(a.ecran)})`);
       return;
     }
     const lue = lireCible(ecrite);

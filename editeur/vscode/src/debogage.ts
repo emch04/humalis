@@ -152,6 +152,21 @@ export function configurationApple(config: ConfigurationHumalis, programme: stri
 /** HUMALIS_JOURNAL_DEBOGAGE : la préparation recopiée dans la console de l'hôte des extensions (essais). */
 const journal = process.env.HUMALIS_JOURNAL_DEBOGAGE ? (texte: string) => console.log(`[humalis débogage] ${texte.trimEnd()}`) : () => {};
 
+/**
+ * Lance une commande. Sous Windows, « npm.cmd » ou « humalis.cmd » demandent l'interpréteur de commandes : chaque
+ * morceau y est mis entre guillemets, sinon un dossier « C:\Users\Jean Dupont » se coupait à l'espace et un nom
+ * comme « a & calc » lançait une autre commande (revue).
+ */
+export function lancerProcessus(commande: string, args: string[], cwd: string): ChildProcess {
+  if (process.platform !== 'win32') return spawn(commande, args, { cwd, env: process.env });
+  return spawn([commande, ...args].map(pourCmd).join(' '), [], { cwd, shell: true, env: process.env, windowsVerbatimArguments: true });
+}
+
+/** Un morceau de commande pour cmd.exe : entre guillemets dès qu'il contient autre chose que des caractères sûrs. */
+export function pourCmd(morceau: string): string {
+  return /^[\w\-.:\\/=@]+$/.test(morceau) ? morceau : `"${morceau.replace(/"/g, '""')}"`;
+}
+
 class Etapes {
   constructor(private readonly canal: vscode.OutputChannel) {}
 
@@ -163,9 +178,9 @@ class Etapes {
   executer(commande: string, args: string[], cwd: string, jeton?: vscode.CancellationToken): Promise<void> {
     this.sortie.appendLine(`$ ${[commande, ...args].join(' ')}`);
     return new Promise((ok, echec) => {
-      const processus = spawn(commande, args, { cwd, shell: process.platform === 'win32', env: process.env });
-      processus.stdout.on('data', (d: Buffer) => this.sortie.append(d.toString()));
-      processus.stderr.on('data', (d: Buffer) => this.sortie.append(d.toString()));
+      const processus = lancerProcessus(commande, args, cwd);
+      processus.stdout?.on('data', (d: Buffer) => this.sortie.append(d.toString()));
+      processus.stderr?.on('data', (d: Buffer) => this.sortie.append(d.toString()));
       jeton?.onCancellationRequested(() => processus.kill());
       processus.on('error', (erreur) => echec(erreur));
       processus.on('close', (code) => (code === 0 ? ok() : echec(new Error(`« ${basename(commande)} ${args.slice(0, 2).join(' ')} » s'est arrêté (code ${code}). Le détail est dans la sortie « Humalis : débogage ».`))));
@@ -174,7 +189,7 @@ class Etapes {
 
   lancer(commande: string, args: string[], cwd: string): ChildProcess {
     this.sortie.appendLine(`$ ${[commande, ...args].join(' ')}`);
-    const processus = spawn(commande, args, { cwd, shell: process.platform === 'win32', env: process.env });
+    const processus = lancerProcessus(commande, args, cwd);
     processus.stdout?.on('data', (d: Buffer) => this.sortie.append(d.toString()));
     processus.stderr?.on('data', (d: Buffer) => this.sortie.append(d.toString()));
     return processus;
@@ -235,6 +250,11 @@ export class FournisseurHumalis implements vscode.DebugConfigurationProvider {
     const sortie = sortieDe(config, programme);
     const projet = dossier?.uri.fsPath ?? dirname(programme);
     const [commande, debut] = commandeHumalis(config, projet);
+    // Sans « humalis » dans le projet, le débogueur ne télécharge rien sans le demander.
+    if (debut[0] === '--yes') {
+      const choix = await vscode.window.showWarningMessage('Humalis : le compilateur n\'est pas installé dans ce projet. Le télécharger depuis npm (paquet « humalis ») et le lancer ?', { modal: true }, 'Télécharger et lancer');
+      if (choix !== 'Télécharger et lancer') return undefined;
+    }
     const etapes = new Etapes(this.sortie);
     this.sortie.show(true);
     try {

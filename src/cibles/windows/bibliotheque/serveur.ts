@@ -23,8 +23,15 @@ public static class Serveur
 
     private static readonly HttpClient http = new(new HttpClientHandler { UseCookies = false, AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(30) };
 
-    /// <summary>L'adresse du serveur : celle de la compilation, ou HUMALIS_SERVEUR pour essayer.</summary>
+    /// <summary>
+    /// L'adresse du serveur : celle de la compilation. HUMALIS_SERVEUR la remplace seulement dans une construction de
+    /// mise au point (Debug) : une application publiée n'envoie jamais ses jetons à une autre adresse.
+    /// </summary>
+#if DEBUG
     public static string Base => (Environment.GetEnvironmentVariable("HUMALIS_SERVEUR") ?? Configuration.Serveur).TrimEnd('/');
+#else
+    public static string Base => Configuration.Serveur.TrimEnd('/');
+#endif
 
     private static string? jetonCsrf;
 

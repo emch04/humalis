@@ -227,6 +227,8 @@ function texteTS(parties: PartiesTexte, contexte: Contexte, langue?: string): st
     if (formater) return `\${${formater(chemin)}}`;
     const type = contexte.types.get(p.variable);
     if (type?.genre === 'liste') return `\${${chemin}.join(', ')}`;
+    // Un vrai ou faux s'écrit en français, comme sur les autres cibles.
+    if (type?.genre === 'booleen') return `\${${chemin} ? 'vrai' : 'faux'}`;
     // Une valeur peut-être absente (« reglage?.boutique », une variable « = rien ») : rien, plutôt que « undefined ».
     return chemin.includes('?.') || contexte.facultatives?.has(premier) ? `\${${chemin} ?? ''}` : `\${${chemin}}`;
   });
@@ -280,7 +282,7 @@ export function contenuJSX(valeur: Valeur, contexte: Contexte): string {
   }
   const type = typeDe(valeur, contexte);
   if (type.genre === 'liste') return `{${expression(valeur, contexte)}.join(', ')}`;
-  if (type.genre === 'booleen') return `{String(${expression(valeur, contexte)})}`;
+  if (type.genre === 'booleen') return `{${expression(valeur, contexte)} ? 'vrai' : 'faux'}`;
   return `{${expression(valeur, contexte)}}`;
 }
 
@@ -369,12 +371,13 @@ export function calculDeListe(
       switch (valeur.operation) {
         case 'somme':
           return `${liste}.reduce((somme, n) => somme + n, 0)`;
+        // Une liste vide vaut 0, comme sur Apple, Android et Windows (pas « NaN » ni « ∞ »).
         case 'moyenne':
-          return `${liste}.reduce((somme, n) => somme + n, 0) / ${liste}.length`;
+          return `((l) => (l.length ? l.reduce((somme, n) => somme + n, 0) / l.length : 0))(${x(valeur.liste)})`;
         case 'minimum':
-          return `Math.min(...${liste})`;
+          return `((l) => (l.length ? Math.min(...l) : 0))(${x(valeur.liste)})`;
         case 'maximum':
-          return `Math.max(...${liste})`;
+          return `((l) => (l.length ? Math.max(...l) : 0))(${x(valeur.liste)})`;
       }
       break;
     }

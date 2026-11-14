@@ -24,7 +24,7 @@ extension FicheHumalis {
 
 extension String: AffichableHumalis { var enTexteHumalis: String { self } }
 extension Double: AffichableHumalis { var enTexteHumalis: String { formaterNombre(self) } }
-extension Bool: AffichableHumalis { var enTexteHumalis: String { self ? "true" : "false" } }
+extension Bool: AffichableHumalis { var enTexteHumalis: String { self ? "vrai" : "faux" } }
 extension Array: AffichableHumalis where Element: AffichableHumalis {
     var enTexteHumalis: String { map(\.enTexteHumalis).joined(separator: ", ") }
 }
@@ -103,7 +103,7 @@ enum ValeurHumalis: Codable, Hashable, Sendable, AffichableHumalis {
         switch self {
         case .texte(let v): return v
         case .nombre(let v): return formaterNombre(v)
-        case .booleen(let v): return v ? "true" : "false"
+        case .booleen(let v): return v ? "vrai" : "faux"
         case .liste(let v): return v.map(\.enTexte).joined(separator: ", ")
         default: return ""
         }
@@ -250,6 +250,8 @@ func parametreDe(_ valeur: Double?) -> String {
     return valeur == valeur.rounded() && abs(valeur) < 1e15 ? String(Int64(valeur)) : String(valeur)
 }
 func parametreDe<T: AffichableHumalis>(_ valeur: T) -> String { texteDe(valeur) }
+/** Un vrai ou faux part pour une machine (true, false), même s'il s'affiche « vrai » ou « faux ». */
+func parametreDe(_ valeur: Bool) -> String { valeur ? "true" : "false" }
 
 /** 28000 → « 28 000 », 3.5 → « 3,5 » ; rien pour une valeur absente. */
 func formaterNombre(_ valeur: Double?, langue: String = "fr") -> String {

@@ -4625,7 +4625,9 @@ instance: rate limits, and the attachment volume per hour.
   content policy: Cloudflare Pages and Netlify read it on their own; elsewhere, copy its lines into
   the response headers.
 - Apple, Android and Windows apps go through their stores: see `docs/publier-sur-les-stores.md`.
-- The desktop app (Electron) does not update itself yet: a new version is reinstalled.
+- The desktop app (Electron) updates itself from the address of the `site` block or of
+  `mises a jour depuis "…"`: put what `npm run paquet` prepares in its `mises-a-jour/` folder. On a
+  Mac, the application must be signed.
 
 ### What Humalis does not do for you
 

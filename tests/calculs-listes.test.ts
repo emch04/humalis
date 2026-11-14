@@ -44,9 +44,10 @@ describe('calculs — l’analyse', () => {
 describe('calculs — ce que produit chaque cible', () => {
   it('web : des fonctions de Math et des tableaux, lisibles', () => {
     const page = genererProjetWeb(compiler(NOTES).application!, { nom: 'a', adresse: 'https://a.cd', source: 'a.humalis' }).get('src/pages/Notes.tsx')!;
-    expect(page).toContain('notes.reduce((somme, n) => somme + n, 0) / notes.length');
-    expect(page).toContain('Math.max(...notes)');
-    expect(page).toContain('Math.min(...notes)');
+    // Une liste vide vaut 0, comme sur les autres cibles (revue 5).
+    expect(page).toContain('((l) => (l.length ? l.reduce((somme, n) => somme + n, 0) / l.length : 0))(notes)');
+    expect(page).toContain('((l) => (l.length ? Math.max(...l) : 0))(notes)');
+    expect(page).toContain('((l) => (l.length ? Math.min(...l) : 0))(notes)');
     expect(page).toContain('panier.map((element) => element.prix).reduce((somme, n) => somme + n, 0)');
     // La moitié s'éloigne de zéro sur toutes les cibles (-2,5 → -3), comme Swift, Kotlin et C#.
     expect(page).toContain('((n) => Math.sign(n) * Math.round(Math.abs(n) * 10) / 10)(moyenneNotes)');

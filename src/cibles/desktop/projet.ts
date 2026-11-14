@@ -345,7 +345,7 @@ interface OptionsPrincipal {
 /** Ce que la politique de contenu doit laisser passer en plus, d'après ce que les pages emploient (plan des médias). */
 function mediasDuProgramme(application: Application): { apercu: boolean; media: boolean; reunion: boolean } {
   const code = JSON.stringify([...application.ecrans, ...application.composants].map((e) => e.vue));
-  return { apercu: /"familles":\[[^]*?"apercu":true\}/.test(code), media: /"genre":"audio"/.test(code), reunion: utiliseReunion(application) };
+  return { apercu: /"familles":\[[^]*?"apercu":true\}/.test(code), media: /"genre":"(audio|video)"/.test(code), reunion: utiliseReunion(application) };
 }
 
 /** Le processus principal : la fenêtre, le menu, le protocole, le relais et, s'il le faut, le coffre. */

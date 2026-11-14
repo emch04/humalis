@@ -343,17 +343,25 @@ import UIKit
     #endif
 }
 
-/** « telecharger commandes en csv » : le fichier se fait sur l'appareil, puis se partage. */
+/**
+ * « telecharger commandes en csv » : le fichier se fait sur l'appareil, puis se partage. Les mêmes règles que le
+ * web : toutes les colonnes de toutes les fiches, le point-virgule et la marque UTF-8 pour Excel en français, et une
+ * apostrophe devant un texte qui commence par = + - ou @ (le tableur ne le lira pas comme une formule).
+ */
 @MainActor func telechargerCsv<T: Encodable>(_ liste: [T], fichier: String) async {
-    let lignes = liste.map { ValeurHumalis($0) }
-    guard case .fiche(let premiere)? = lignes.first else {
+    let lignes: [[String: ValeurHumalis]] = liste.map {
+        let v = ValeurHumalis($0)
+        if case .fiche(let f) = v { return f }
+        return ["valeur": v]
+    }
+    if lignes.isEmpty {
         Messages.commun.afficher("Il n'y a rien à télécharger.", .info)
         return
     }
-    let colonnes = premiere.keys.sorted()
-    func cellule(_ v: ValeurHumalis) -> String { "\"\(v.enTexte.replacingOccurrences(of: "\"", with: "\"\""))\"" }
-    let corps = lignes.map { ligne in colonnes.map { cellule(ligne[$0]) }.joined(separator: ";") }
-    let texte = ([colonnes.joined(separator: ";")] + corps).joined(separator: "\r\n")
+    var colonnes: [String] = []
+    for ligne in lignes { for cle in ligne.keys.sorted() where !colonnes.contains(cle) { colonnes.append(cle) } }
+    let corps = lignes.map { ligne in colonnes.map { celluleCsv(ligne[$0] ?? .rien) }.joined(separator: ";") }
+    let texte = "\u{FEFF}" + ([colonnes.map { celluleCsv(.texte($0)) }.joined(separator: ";")] + corps).joined(separator: "\r\n")
     let url = FileManager.default.temporaryDirectory.appendingPathComponent(fichier)
     do {
         try texte.write(to: url, atomically: true, encoding: .utf8)
@@ -361,6 +369,14 @@ import UIKit
     } catch {
         Messages.commun.afficher("Le fichier n'a pas pu être écrit.", .erreur)
     }
+}
+
+/** Une cellule du CSV : neutralisée si c'est une formule, entre guillemets si elle contient ; " ou un saut de ligne. */
+func celluleCsv(_ v: ValeurHumalis) -> String {
+    let lu = v.enTexte
+    var sur = lu
+    if case .texte = v, let premier = lu.first, "=+-@\t\r".contains(premier), lu.range(of: "^[+-]?[0-9\\s().-]+$", options: .regularExpression) == nil { sur = "'" + lu }
+    return sur.contains(where: { ";\"\n\r".contains($0) }) ? "\"" + sur.replacingOccurrences(of: "\"", with: "\"\"") + "\"" : sur
 }
 
 /** Montre un fichier : la feuille de partage sur iPhone et iPad, le Finder sur Mac. */
@@ -476,9 +492,17 @@ struct SourceHumalis: Sendable {
         return URLSession(configuration: reglages)
     }()
 
-    /** L'adresse du serveur : celle de la compilation, ou HUMALIS_SERVEUR pour essayer. */
+    /**
+     * L'adresse du serveur : celle de la compilation. HUMALIS_SERVEUR la remplace seulement dans une construction de
+     * mise au point (Debug) : une application publiée n'envoie jamais ses jetons à une autre adresse.
+     */
     static var base: String {
-        (ProcessInfo.processInfo.environment["HUMALIS_SERVEUR"] ?? Configuration.serveur).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        #if DEBUG
+        let adresse = ProcessInfo.processInfo.environment["HUMALIS_SERVEUR"] ?? Configuration.serveur
+        #else
+        let adresse = Configuration.serveur
+        #endif
+        return adresse.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
     }
 
     /** Le jeton CSRF posé par le serveur : un visiteur sans connexion le renvoie avec ses envois. */

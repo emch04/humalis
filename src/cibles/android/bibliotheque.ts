@@ -44,7 +44,7 @@ fun texte(v: Any?): String = when (v) {
     null -> ""
     is String -> v
     is Number -> formaterNombre(v.toDouble())
-    is Boolean -> if (v) "true" else "false"
+    is Boolean -> if (v) "vrai" else "faux"
     is List<*> -> v.joinToString(", ") { texte(it) }
     else -> ""
 }

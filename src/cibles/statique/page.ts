@@ -752,7 +752,9 @@ ${prise}${code}}
         case 'navigation': {
           const page = texteLitteral(action.ecran);
           const vers = action.arguments && page !== undefined ? this.adresseAvec(page, action.arguments) : this.adresse(action.ecran);
-          e.ligne(`location.assign(${vers});`);
+          // Une adresse variable peut être refusée (javascript:…) : adresseDe rend alors undefined, rien ne s'ouvre.
+          if (vers === 'undefined') e.ligne('// Adresse refusée : seuls https, http, mailto et tel quittent le site.');
+          else e.ligne(vers.startsWith('adresseDe(') ? `{ const vers = ${vers}; if (vers) location.assign(vers); }` : `location.assign(${vers});`);
           break;
         }
         case 'changerTexte':
@@ -977,8 +979,8 @@ ${prise}${code}}
   /** L'adresse d'une page : son fichier, écrit en clair quand on le connaît. */
   protected adresse(ecran: Valeur): string {
     const nom = texteLitteral(ecran);
-    // « rediriger vers "https://…" » quitte le site : ce n'est pas le nom d'une page.
-    if (nom !== undefined && /^https?:\/\//.test(nom)) return chaine(nom);
+    // « rediriger vers "https://…" » quitte le site : ce n'est pas le nom d'une page. Un autre schéma n'a pas d'adresse.
+    if (nom !== undefined && /^[a-z][a-z0-9+.-]*:/i.test(nom.trim())) return /^(https?|mailto|tel):/i.test(nom.trim()) ? chaine(nom.trim()) : 'undefined';
     if (nom !== undefined) return chaine(this.fichier(nom));
     return `adresseDe(${expressionJs(ecran, this.contexte)})`;
   }

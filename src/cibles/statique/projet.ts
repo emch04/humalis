@@ -829,9 +829,19 @@ ${interactions.fenetres ? '    // Une fenêtre fermée rend le focus à ce qui l
     }
   }
 
-  /** L'adresse d'une page, à partir de son nom. */
+  /**
+   * « rediriger vers variable » : une adresse https, http, mailto ou tel telle quelle ; un autre schéma
+   * (javascript:…) est refusé ; le reste est une page du site, comme sur le web.
+   */
   function adresseDe(nom) {
-    return PAGES[nom] ?? \`\${nom}.html\`;
+    const texte = String(nom).trim();
+    const schema = /^([a-z][a-z0-9+.-]*):/i.exec(texte)?.[1]?.toLowerCase();
+    if (schema !== undefined) {
+      if (['http', 'https', 'mailto', 'tel'].includes(schema)) return texte;
+      console.error('Adresse refusée : ' + schema);
+      return undefined;
+    }
+    return PAGES[texte] ?? \`\${texte.replace(/^\\/+/, '')}.html\`;
   }
 
   /**
@@ -918,7 +928,7 @@ export const PRESSE_PAPIER_JS = `
     const lignes = liste.map((e) => (e !== null && typeof e === 'object' && !Array.isArray(e) ? e : { valeur: e }));
     const champs = [...new Set(lignes.flatMap((l) => Object.keys(l)))];
     const cellule = (v) => {
-      const lu = v === null || v === undefined ? '' : Array.isArray(v) ? v.join(', ') : typeof v === 'object' ? JSON.stringify(v) : String(v);
+      const lu = v === null || v === undefined ? '' : Array.isArray(v) ? v.join(', ') : typeof v === 'boolean' ? (v ? 'vrai' : 'faux') : typeof v === 'object' ? JSON.stringify(v) : String(v);
       const sur = typeof v === 'string' && /^[=+\\-@\\t\\r]/.test(lu) && !/^[+-]?[\\d\\s().-]+$/.test(lu) ? \`'\${lu}\` : lu;
       return /[;"\\n\\r]/.test(sur) ? \`"\${sur.replace(/"/g, '""')}"\` : sur;
     };

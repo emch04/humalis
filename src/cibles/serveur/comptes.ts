@@ -397,9 +397,10 @@ export function creerComptes({
     return false;
   };
 
-  // Un membre ne voit et ne touche que les comptes de son groupe, jamais un admin.
+  // Un membre ne voit et ne touche que les comptes de son groupe, jamais un admin. Un membre sans groupe n'en a
+  // aucun : « pas de boutique » n'est pas une boutique partagée avec les autres comptes sans boutique (revue).
   const portee = (moi: Record<string, unknown>, compte: Record<string, unknown>) =>
-    moi.role === 'admin' || (compte.role !== 'admin' && champsDeGroupe.every((champ) => moi[champ] === compte[champ]));
+    moi.role === 'admin' || (compte.role !== 'admin' && champsDeGroupe.every((champ) => typeof moi[champ] === 'string' && moi[champ] !== '' && moi[champ] === compte[champ]));
   const moiDe = (req: unknown) => (req as { user?: Record<string, unknown> }).user ?? {};
 
   return {

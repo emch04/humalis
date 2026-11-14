@@ -19,6 +19,7 @@ import {
   FICHIERS_SAUTES_SERVEUR,
   FICHIERS_SAUTES_WEB,
   FournisseurHumalis,
+  pourCmd,
   sortieDe,
   TYPE_APPLE,
   TYPE_HUMALIS,
@@ -112,5 +113,14 @@ describe('le débogueur Humalis', () => {
     expect(decrire.call({ x: null, o: new Set(), ver: 0 }, 'Boite')).toBe('rien');
     expect(decrire.call({ x: true, o: new Set(), ver: 0 }, 'Boite')).toBe('vrai');
     expect(decrire.call({ autre: 1 }, 'Objet')).toBe('Objet');
+  });
+});
+
+describe('le lancement sous Windows (revue 5)', () => {
+  it('met entre guillemets ce que cmd.exe couperait ou exécuterait', () => {
+    expect(pourCmd('compile')).toBe('compile');
+    expect(pourCmd('C:\\Users\\Jean Dupont\\app.humalis')).toBe('"C:\\Users\\Jean Dupont\\app.humalis"');
+    expect(pourCmd('a & calc')).toBe('"a & calc"');
+    expect(pourCmd('un "mot"')).toBe('"un ""mot"""');
   });
 });

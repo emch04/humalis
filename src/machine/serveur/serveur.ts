@@ -908,7 +908,8 @@ export class ServeurMemoire {
     return [...new Set(this.serveur.donnees.flatMap((d) => (d.par && d.par !== 'compte' ? [camel(d.par)] : [])))];
   }
   private dansLeGroupe(moi: Compte, compte: Compte): boolean {
-    return moi.role === 'admin' || (compte.role !== 'admin' && this.champsDeGroupe().every((champ) => moi[champ] === compte[champ]));
+    // Un membre sans groupe n'en a aucun : il ne voit pas les autres comptes sans groupe.
+    return moi.role === 'admin' || (compte.role !== 'admin' && this.champsDeGroupe().every((champ) => typeof moi[champ] === 'string' && moi[champ] !== '' && moi[champ] === compte[champ]));
   }
 
   private async auth(c: ContexteRequete, chemin: string): Promise<Reponse> {

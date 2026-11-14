@@ -236,10 +236,15 @@ fun continuerVers(nav: NavHostController, sinon: String) {
     nav.navigate(route) { popUpTo(nav.graph.id) { inclusive = true } }
 }
 
-/** Une adresse lue dans une variable : externe (https, mailto, tel), ou une page de l'application (« /produit/3 »). */
+/**
+ * Une adresse lue dans une variable : externe (https, mailto, tel), une page de l'application par son adresse
+ * (« /produit/3 ») ou par son nom (« panier »), comme sur le web. Une page inconnue le dit.
+ */
 fun ouvrirLien(nav: NavHostController, adresse: String) {
     if (Regex("^[a-z][a-z0-9+.-]*:", RegexOption.IGNORE_CASE).containsMatchIn(adresse.trim())) return ouvrirExterne(adresse)
-    depuisChemin(adresse)?.let { allerVers(nav, it) }
+    val route = depuisChemin(adresse) ?: PAGES_PAR_NOM[adresse.trim().trim('/')]
+    if (route != null) allerVers(nav, route)
+    else Messages.afficher("La page « " + adresse + " » n'existe pas.", "erreur")
 }
 
 /** « /produit/3 » → « produit/3 », d'après les adresses des pages du site. */
@@ -388,6 +393,8 @@ function applicationKotlin(paquet: string, application: Application, routes: Map
   e.ligne('/** Les adresses des pages du site et leur route dans l\'application (pour « lien … vers variable »). */');
   const chemins = cheminsDesPages(application);
   e.ligne(`val CHEMINS = listOf(${[...routes.entries()].map(([nom, r]) => `${chaineKotlin(chemins.get(nom) ?? '/')} to ${chaineKotlin(r.motif)}`).join(', ')})`);
+  e.ligne('/** Les pages sans paramètre, par leur nom (« rediriger vers variable » qui vaut un nom de page). */');
+  e.ligne(`val PAGES_PAR_NOM = mapOf<String, String>(${[...routes.entries()].filter(([, r]) => !r.motif.includes('{')).map(([nom, r]) => `${chaineKotlin(nom)} to ${chaineKotlin(r.motif)}`).join(', ')})`);
   e.ligne();
   e.ligne('@Composable');
   e.bloc('fun ApplicationHumalis() {', () => {

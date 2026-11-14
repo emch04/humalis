@@ -133,6 +133,14 @@ describe('les lignes Humalis du code natif', () => {
     expect(swift.trimEnd().endsWith('#sourceLocation()')).toBe(true);
   });
 
+  it('Swift : le chemin écrit est relatif au projet, jamais celui du disque de l’auteur (revue 5)', () => {
+    const swift = ['func f() {', `    ${R(4)}a()`, '}'].join('\n');
+    const sortie = appliquerLignesHumalis(new Map([['App/Vue.swift', swift]]), { fichiers: ['app.humalis'], versLesSources: '..', dossierAbsolu: '/Users/quelquun/projets/boutique' });
+    const code = sortie.get('App/Vue.swift')!;
+    expect(code).toContain('#sourceLocation(file: "../app.humalis", line: 4)');
+    expect(code).not.toContain('/Users/');
+  });
+
   it('C# : #line devant chaque ligne reliée, tout le reste caché au débogueur', () => {
     const lu = lireReperes(['void F()', '{', `    ${R(8)}a();`, '    b();', '}', 'void G() { }'].join('\n'));
     const cs = versCSharp(lu, ['app.humalis'], (f) => `..\\${f}`);

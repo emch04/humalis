@@ -4585,8 +4585,9 @@ heure.
   recopie ses lignes dans les en-têtes de réponse.
 - Les applications Apple, Android et Windows passent par leurs magasins : voir
   `docs/publier-sur-les-stores.md`.
-- L'application de bureau (Electron) ne se met pas encore à jour seule : une nouvelle version se
-  réinstalle.
+- L'application de bureau (Electron) se met à jour seule depuis l'adresse du bloc `site` ou de
+  `mises a jour depuis "…"` : dépose dans son dossier `mises-a-jour/` ce que `npm run paquet`
+  prépare. Sur Mac, il faut une application signée.
 
 ### Ce que Humalis ne fait pas à ta place
 

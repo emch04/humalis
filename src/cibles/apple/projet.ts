@@ -910,7 +910,7 @@ xcodebuild -project ${nom}.xcodeproj -scheme ${nom} -destination 'platform=macOS
 
 Il faut Xcode 16 ou plus récent ; l'application tourne à partir d'iOS 17 et de macOS 14.
 
-${options.serveur ? `L'application appelle le serveur \`${options.serveur}\`. ` : ''}La variable d'environnement \`HUMALIS_SERVEUR\` remplace l'adresse du serveur au lancement, pour essayer.
+${options.serveur ? `L'application appelle le serveur \`${options.serveur}\`. ` : ''}La variable d'environnement \`HUMALIS_SERVEUR\` remplace l'adresse du serveur au lancement, pour essayer, dans une construction Debug seulement (jamais dans l'application publiée).
 
 ## Signer et publier
 

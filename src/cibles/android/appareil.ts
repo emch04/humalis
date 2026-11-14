@@ -335,16 +335,26 @@ fun montrerFichier(fichier: File, mime: String) {
     }
 }
 
-/** « telecharger commandes en csv » : le fichier se fait sur l'appareil, puis se partage. */
+/** Une cellule du CSV : neutralisée si c'est une formule, entre guillemets si elle contient ; " ou un saut de ligne. */
+fun celluleCsv(v: Any?): String {
+    val lu = texte(v)
+    val sur = if (v is String && lu.isNotEmpty() && lu[0] in "=+-@\t\r" && !Regex("^[+-]?[0-9\\s().-]+$").matches(lu)) "'" + lu else lu
+    return if (sur.any { it in ";\"\n\r" }) "\"" + sur.replace("\"", "\"\"") + "\"" else sur
+}
+
+/**
+ * « telecharger commandes en csv » : le fichier se fait sur l'appareil, puis se partage. Les mêmes règles que le
+ * web : toutes les colonnes de toutes les fiches, le point-virgule et la marque UTF-8 pour Excel en français, et une
+ * apostrophe devant un texte qui commence par = + - ou @ (le tableur ne le lira pas comme une formule).
+ */
 suspend fun telechargerCsv(liste: Any?, fichier: String) {
-    val lignes = liste(liste).filterIsInstance<Map<*, *>>()
+    val lignes: List<Map<*, *>> = liste(liste).map { if (it is Map<*, *>) it else mapOf("valeur" to it) }
     if (lignes.isEmpty()) {
         Messages.afficher("Il n'y a rien à télécharger.", "info")
         return
     }
-    val colonnes = lignes.first().keys.map { it.toString() }.sorted()
-    fun cellule(v: Any?) = "\"" + texte(v).replace("\"", "\"\"") + "\""
-    val texte = (listOf(colonnes.joinToString(";")) + lignes.map { l -> colonnes.joinToString(";") { cellule(l[it]) } }).joinToString("\r\n")
+    val colonnes = LinkedHashSet<String>().apply { lignes.forEach { l -> l.keys.map { it.toString() }.sorted().forEach { add(it) } } }.toList()
+    val texte = "\uFEFF" + (listOf(colonnes.joinToString(";") { celluleCsv(it) }) + lignes.map { l -> colonnes.joinToString(";") { celluleCsv(l[it]) } }).joinToString("\r\n")
     val sortie = withContext(Dispatchers.IO) {
         File(File(Appli.contexte.cacheDir, "humalis").apply { mkdirs() }, fichier).also { it.writeText(texte, Charsets.UTF_8) }
     }

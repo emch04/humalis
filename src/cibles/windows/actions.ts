@@ -4,6 +4,7 @@
  * et ce qui la lit se redessine seul.
  */
 import { lieuNote } from '../commun/noter.js';
+import { lireCible } from '../../analyse/navigation.js';
 import type { Action, ArgumentsPage, Valeur } from '../../ri/types.js';
 import { Ecrivain } from '../web/ecrivain.js';
 import { chaineCs, cleJson, nomCs, commentaireCs } from './noms.js';
@@ -323,6 +324,12 @@ export class EcrivainActions {
   private navigation(e: Ecrivain, ecran: Valeur, args?: ArgumentsPage, continuer?: boolean): void {
     const fixe = ecran.type === 'texte' && !ecran.versions && ecran.parties.every((p) => 'texte' in p) ? ecran.parties.map((p) => ('texte' in p ? p.texte : '')).join('') : undefined;
     const page = fixe !== undefined ? chaineCs(fixe) : this.x.enTexte(ecran);
+    // Une adresse (https, http, mailto, tel) s'ouvre dehors ; une variable peut valoir une adresse ou une page :
+    // la même règle que le web (AllerAdresse).
+    if (!continuer && !args?.length && (fixe === undefined || lireCible(fixe).externe)) {
+      e.ligne(`_ = Routeur.AllerAdresse(${page});`);
+      return;
+    }
     e.ligne(`Routeur.${continuer ? 'Continuer' : 'Aller'}(${page}${this.arguments(args)});`);
   }
 
