@@ -17,6 +17,9 @@ serveur "carnet" :
     donnee journal :
         texte : texte
         a la suppression du compte : garder
+    donnee annonce :
+        texte : texte
+        a la suppression du compte : effacer
     route "notes" :
         connecte peut lire et creer note
     route "avis" :
@@ -34,8 +37,20 @@ serveur "carnet" :
     route "journaux" :
         connecte peut creer journal
         seul son auteur peut modifier journal
+    route "annonces" :
+        connecte peut lire annonce
+        connecte peut creer annonce
+        seul son auteur peut modifier annonce
     route "moi" :
         connecte peut supprimer son compte
+
+donnee locale avis_locaux :
+    texte : texte
+    synchronisee avec "avis"
+
+donnee locale annonces_locales :
+    texte : texte
+    synchronisee avec "annonces"
 
 page "reglages" :
     titre "Réglages"

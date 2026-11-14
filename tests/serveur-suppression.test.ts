@@ -86,7 +86,14 @@ describe('codeEffacerLesDonnees', () => {
     expect(texte).toContain('await fichesDeLaPersonne(s.commande, id, ["auteur"], ["auteur"], true, "paye");');
   });
 
-  it('les messages d’une discussion : retrouvés par leur auteur, son nom vidé aussi', () => {
-    expect(code('>roles client et vendeur', '>discussion "aide" entre client et vendeur')).toContain('await fichesDeLaPersonne(s.messageAide, id, ["auteur"], ["auteur","auteurNom"], false, null);');
+  it('une discussion : ses pièces et ses lectures effacées, ses messages anonymes et sans pièce, ses conversations sans son nom', () => {
+    const texte = code('>roles client et vendeur', '>discussion "aide" entre client et vendeur');
+    expect(texte).toContain('await fichesDeLaPersonne(s.pieceAide, id, ["auteur"], [], true, null);');
+    expect(texte).toContain('await fichesDeLaPersonne(s.lectureAide, id, ["compte"], [], true, null);');
+    expect(texte).toContain('await fichesDeLaPersonne(s.ecritureAide, id, ["compte"], [], true, null);');
+    expect(texte).toContain('await fichesDeLaPersonne(s.messageAide, id, ["auteur"], ["auteur","auteurNom","piece","pieceNom","pieceType","pieceAdresse"], false, null);');
+    expect(texte).toContain('await fichesDeLaPersonne(s.conversationAide, id, ["personne"], ["personne"], false, null, { titre: "Compte supprimé" });');
+    // Les messages ne sont traités qu'une fois.
+    expect(texte.match(/s\.messageAide/g)).toHaveLength(1);
   });
 });

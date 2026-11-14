@@ -9,6 +9,8 @@ import type { ConditionRegleRI, FiltreServeurRI, InstructionServeurRI, OperandeR
 import { camel } from '../../cibles/web/noms.js';
 import { simplifier } from '../../analyse/elements.js';
 import { champsFiges } from '../../cibles/serveur/regles.js';
+import { COMPTE_SUPPRIME } from '../../cibles/serveur/suppression.js';
+import { slugTempsReel } from '../../parser/temps-reel.js';
 import { Refus, Stockage, Transactions, agreger, contient, enTexte, estVide, lireFiltres, resumer, schemaDe, verifierEnvoi, type Enregistrement, type Filtres, type ReglesEnvoi, type Schema } from './base.js';
 import { Comptes, DUREES, MOT_DE_PASSE_FAIBLE, ROLE_RETIRE, ROLE_SUPPRIME, estFerme, jetonAleatoire, motDePasseDEssai, motDePasseSolide, verifierMotDePasse, hacher, type Compte, type SessionOuverte } from './comptes.js';
 import { limitesDuServeur, type Limite } from './limites.js';
@@ -1046,7 +1048,26 @@ export class ServeurMemoire {
     this.enSuppression.add(moi.id);
     try {
       await this.transactions.executer(() => {
+        // Les discussions d'abord, comme le serveur produit : pièces jointes et lectures effacées, messages anonymes et
+        // sans pièce, conversations sans son nom.
+        const traiter = (nom: string, cherche: string, vides: string[], effacer: boolean, neutres: Record<string, string> = {}) => {
+          const stock = this.stockages.get(nom);
+          if (!stock) return;
+          for (const fiche of stock.lister({ egal: { [cherche]: moi.id } })) {
+            if (effacer) stock.supprimer(fiche.id);
+            else stock.modifier(fiche.id, { ...Object.fromEntries(vides.map((champ) => [champ, ''])), ...neutres });
+          }
+        };
+        const discussions = (this.serveur.discussions ?? []).map((d) => slugTempsReel(d.nom));
+        for (const cle of discussions) {
+          traiter(`piece_${cle}`, 'auteur', [], true);
+          traiter(`lecture_${cle}`, 'compte', [], true);
+          traiter(`ecriture_${cle}`, 'compte', [], true);
+          traiter(`message_${cle}`, 'auteur', ['auteur', 'auteurNom', 'piece', 'pieceNom', 'pieceType', 'pieceAdresse'], false);
+          traiter(`conversation_${cle}`, 'personne', ['personne'], false, { titre: COMPTE_SUPPRIME });
+        }
         for (const donnee of this.serveur.donnees) {
+          if (discussions.some((cle) => donnee.nom === `message_${cle}`)) continue;
           const champs = donnee.champsDeLaPersonne ?? [];
           if (!donnee.suppressionCompte || donnee.suppressionCompte === 'garder' || champs.length === 0) continue;
           const stock = this.stock(donnee.nom);

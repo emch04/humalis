@@ -4,15 +4,34 @@
  */
 import type { ServeurRI } from '../../ri/types.js';
 import { camel } from '../web/noms.js';
+import { slugTempsReel } from '../../parser/temps-reel.js';
 
 const chaine = (texte: string) => JSON.stringify(texte);
+
+/** Le titre d'une conversation dont la personne a supprimé son compte. */
+export const COMPTE_SUPPRIME = 'Compte supprimé';
 
 /** Les champs qui retrouvent les fiches de la personne : « auteur_nom » la nomme sans la désigner. */
 const cherches = (champs: string[]) => champs.filter((c) => c !== 'auteur_nom');
 
 /** Les deux fonctions de serveur.ts : effacerLesDonnees, dans une seule transaction, et le travail d'une donnée. */
 export function codeEffacerLesDonnees(serveur: ServeurRI): string {
-  const lignes = serveur.donnees.flatMap((donnee) => {
+  const discussions = (serveur.discussions ?? []).map((d) => ({ nom: d.nom, cle: slugTempsReel(d.nom) }));
+  // Les discussions d'abord : ses pièces jointes, ses lectures, ses messages et ses conversations.
+  const lignesDiscussions = discussions.flatMap(({ nom, cle }) => {
+    const table = (genre: string) => `s.${camel(`${genre}_${cle}`)}`;
+    return [
+      `    // « discussion "${nom.replace(/[\\\`$]/g, '')}" » : ses pièces jointes et ses traces de lecture effacées, ses messages anonymes et sans pièce, ses conversations sans son nom.`,
+      `    await fichesDeLaPersonne(${table('piece')}, id, ["auteur"], [], true, null);`,
+      `    await fichesDeLaPersonne(${table('lecture')}, id, ["compte"], [], true, null);`,
+      `    await fichesDeLaPersonne(${table('ecriture')}, id, ["compte"], [], true, null);`,
+      `    await fichesDeLaPersonne(${table('message')}, id, ["auteur"], ["auteur","auteurNom","piece","pieceNom","pieceType","pieceAdresse"], false, null);`,
+      `    await fichesDeLaPersonne(${table('conversation')}, id, ["personne"], ["personne"], false, null, { titre: ${chaine(COMPTE_SUPPRIME)} });`,
+    ];
+  });
+  const traitees = new Set(discussions.map((d) => `message_${d.cle}`));
+  const lignesDonnees = serveur.donnees.flatMap((donnee) => {
+    if (traitees.has(donnee.nom)) return [];
     const champs = donnee.champsDeLaPersonne ?? [];
     if (!donnee.suppressionCompte || donnee.suppressionCompte === 'garder' || champs.length === 0) return [];
     // Une fiche payée reste pour la comptabilité : elle devient anonyme, jamais effacée.
@@ -23,6 +42,7 @@ export function codeEffacerLesDonnees(serveur: ServeurRI): string {
       `    await fichesDeLaPersonne(s.${camel(donnee.nom)}, id, ${JSON.stringify(cherches(champs).map(camel))}, ${JSON.stringify(champs.map(camel))}, ${effacer}, ${payee ? chaine(camel(payee.nom)) : 'null'});`,
     ];
   });
+  const lignes = [...lignesDiscussions, ...lignesDonnees];
   if (lignes.length === 0) {
     return `
 /** « connecte peut supprimer son compte » : aucune donnée de ce serveur ne retient qui l'a écrite. */
@@ -42,11 +62,13 @@ ${lignes.join('\n')}
 
 /**
  * Les fiches où ce compte est nommé, par lots de 500, quel que soit leur nombre : effacées, ou rendues anonymes
- * (les champs qui désignent la personne sont vidés). Une fiche traitée ne porte plus ce compte : chaque lot se relit
- * depuis le début, jusqu'à ce qu'il n'en reste aucune.
+ * (les champs qui désignent la personne sont vidés, d'autres prennent une valeur neutre). Une fiche traitée ne porte
+ * plus ce compte : chaque lot se relit depuis le début, jusqu'à ce qu'il n'en reste aucune. Le journal de la
+ * synchronisation suit ces écritures comme les autres : les appareils les reçoivent au prochain échange.
+ * Une image gardée dans une fiche part avec elle ; une fiche anonyme garde la sienne, comme son texte.
  */
-async function fichesDeLaPersonne(stockage: Stockage, id: string, cherches: string[], vides: string[], effacer: boolean, payee: string | null): Promise<void> {
-  const anonyme = Object.fromEntries(vides.map((champ) => [champ, '']));
+async function fichesDeLaPersonne(stockage: Stockage, id: string, cherches: string[], vides: string[], effacer: boolean, payee: string | null, neutres: Record<string, string> = {}): Promise<void> {
+  const anonyme = { ...Object.fromEntries(vides.map((champ) => [champ, ''])), ...neutres };
   for (const champ of cherches) {
     const vues = new Set<string>();
     for (;;) {

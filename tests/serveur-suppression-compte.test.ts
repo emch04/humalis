@@ -32,6 +32,7 @@ const awa = await usersStore.create({ email: 'awa@essai.test', role: 'client', p
 const bob = await usersStore.create({ email: 'bob@essai.test', role: 'client', passwordHash, nom: 'Bob' });
 await usersStore.create({ email: 'admin@essai.test', role: 'admin', passwordHash });
 const google = await usersStore.create({ email: 'google@essai.test', role: 'client', passwordHash });
+await usersStore.create({ email: 'vera@essai.test', role: 'vendeur', passwordHash, nom: 'Vera' });
 const s = () => creerStockageMemoire();
 const stockages = { ${stockages.map((n) => `${n}: s()`).join(', ')} };
 const app = creerServeur({ jwtSecret: 'secret-de-test-assez-long-pour-les-sessions', usersStore, stockages });
@@ -46,7 +47,13 @@ const appel = async (methode, chemin, entetes, corps) => {
   return { statut: reponse.status, corps: await reponse.json().catch(() => null) };
 };
 const supprimer = (entetes, corps = {}) => appel('POST', '/auth/suppression-compte', entetes, corps);
-const [A, B, admin] = [await jeton('awa@essai.test'), await jeton('bob@essai.test'), await jeton('admin@essai.test')];
+const [A, B, admin, vendeur] = [await jeton('awa@essai.test'), await jeton('bob@essai.test'), await jeton('admin@essai.test'), await jeton('vera@essai.test')];
+const deposer = async (entetes, texte) => {
+  const formulaire = new FormData();
+  formulaire.append('fichier', new Blob([texte]), 'piece.txt');
+  const { 'content-type': _json, ...sans } = entetes;
+  return (await (await fetch(base + '/api/discussions_aide_pieces', { method: 'POST', headers: sans, body: formulaire })).json()).id;
+};
 // Un navigateur : seulement les cookies de la session, sans l'en-tête x-csrf-token.
 const parCookie = { ...json, cookie: (await connexion('awa@essai.test')).headers.getSetCookie().map((c) => c.split(';')[0]).join('; ') };
 const idA = String(awa.id);
@@ -62,8 +69,16 @@ const nonPayee = (await appel('POST', '/api/commandes', A, { total: 10 })).corps
 const commandeB = (await appel('POST', '/api/commandes', B, { total: 5 })).corps.id;
 await stockages.commande.modifier(payee, { paye: true });
 const journal = (await appel('POST', '/api/journaux', A, { texte: 'trace' })).corps.id;
-await stockages.messageAide.creer({ conversation: 'c1', auteur: idA, auteurNom: 'Awa', texte: 'bonjour' });
-await stockages.messageAide.creer({ conversation: 'c1', auteur: idB, auteurNom: 'Bob', texte: 'salut' });
+// Une vraie discussion : chacun écrit au vendeur, Awa avec une pièce jointe.
+const pieceA = await deposer(A, 'le fichier d’Awa');
+const pieceB = await deposer(B, 'le fichier de Bob');
+await appel('POST', '/api/discussions_aide_messages', A, { texte: 'bonjour', piece: pieceA });
+await appel('POST', '/api/discussions_aide_messages', B, { texte: 'salut', piece: pieceB });
+const annonceA = (await appel('POST', '/api/annonces', A, { texte: 'à vendre' })).corps.id;
+const annonceB = (await appel('POST', '/api/annonces', B, { texte: 'à donner' })).corps.id;
+// Les appareils de Bob ont tout reçu jusqu'ici : ils reprendront à ce curseur.
+const curseurAvis = (await appel('GET', '/api/avis/synchro?depuis=0', B)).corps.curseur;
+const curseurAnnonces = (await appel('GET', '/api/annonces/synchro?depuis=0', B)).corps.curseur;
 
 const r = {};
 r.visiteur = await supprimer(json, { motDePasse: secret });
@@ -86,11 +101,20 @@ r.apres = { statut: 0, corps: {
   nonPayee: await trouver(stockages.commande, nonPayee),
   commandeB: await trouver(stockages.commande, commandeB),
   journal: await trouver(stockages.journal, journal),
-  messages: (await stockages.messageAide.lister()).map((m) => ({ auteur: m.auteur, auteurNom: m.auteurNom, texte: m.texte })).sort((a, b) => a.texte.localeCompare(b.texte)),
+  messages: (await stockages.messageAide.lister()).map((m) => ({ auteur: m.auteur, auteurNom: m.auteurNom, texte: m.texte, piece: m.piece, pieceNom: m.pieceNom })).sort((a, b) => a.texte.localeCompare(b.texte)),
+  pieceA: await trouver(stockages.pieceAide, pieceA),
+  pieceB: (await trouver(stockages.pieceAide, pieceB))?.contenu ?? null,
+  lecturesAwa: (await stockages.lectureAide.lister({ egal: { compte: idA } })).length,
+  annonceA: await trouver(stockages.annonce, annonceA),
+  annonceB: await trouver(stockages.annonce, annonceB),
   parAdresse: await usersStore.findByEmail('awa@essai.test'),
   compte: await usersStore.findById(idA),
   bob: await usersStore.findById(idB),
 } };
+r.conversations = { statut: 0, corps: { liste: (await appel('GET', '/api/discussions_aide_conversations', vendeur)).corps.map((c) => ({ titre: c.titre, personne: c.personne })).sort((a, b) => a.titre.localeCompare(b.titre)) } };
+r.synchroAvis = await appel('GET', '/api/avis/synchro?depuis=' + curseurAvis, B);
+r.synchroAnnonces = await appel('GET', '/api/annonces/synchro?depuis=' + curseurAnnonces, B);
+r.ids = { statut: 0, corps: { avisA, annonceA, idB } };
 r.connexionApres = { statut: (await connexion('awa@essai.test')).status };
 r.sessionApres = await appel('GET', '/auth/me', A);
 r.secondeFois = await supprimer(A, { motDePasse: secret });
@@ -186,11 +210,34 @@ describe.each(BASES)('supprimer son compte sur un vrai serveur produit, %s', (_b
     expect(journal!.texte).toBe('trace');
   });
 
-  it('ses messages des discussions deviennent anonymes', () => {
+  it('ses messages des discussions deviennent anonymes, et perdent leur pièce jointe', () => {
     expect(r.apres!.corps.messages).toEqual([
-      { auteur: '', auteurNom: '', texte: 'bonjour' },
-      { auteur: expect.not.stringMatching(/^$/), auteurNom: 'Bob', texte: 'salut' },
+      { auteur: '', auteurNom: '', texte: 'bonjour', piece: '', pieceNom: '' },
+      { auteur: expect.not.stringMatching(/^$/), auteurNom: 'Bob', texte: 'salut', piece: expect.not.stringMatching(/^$/), pieceNom: 'piece.txt' },
     ]);
+  });
+
+  it('ses conversations ne la nomment plus ; celles des autres ne changent pas', () => {
+    expect(r.conversations!.corps.liste).toEqual([
+      { titre: 'Bob', personne: (r.ids!.corps as Record<string, unknown>).idB },
+      { titre: 'Compte supprimé', personne: '' },
+    ]);
+  });
+
+  it('ses pièces jointes sont effacées du stockage ; celles des autres restent', () => {
+    expect(r.apres!.corps.pieceA).toBeNull();
+    expect(r.apres!.corps.pieceB).not.toBeNull();
+    expect(r.apres!.corps.lecturesAwa).toBe(0);
+  });
+
+  it('les autres appareils reçoivent chaque effacement et chaque anonymisation au prochain échange', () => {
+    const { avisA, annonceA } = r.ids!.corps as Record<string, string>;
+    const avis = (r.synchroAvis!.corps.changements as { id: string; supprime: boolean; valeurs?: Record<string, unknown> }[]).find((c) => c.id === avisA);
+    expect(avis).toMatchObject({ supprime: false, valeurs: { texte: 'super', auteur: '' } });
+    const annonce = (r.synchroAnnonces!.corps.changements as { id: string; supprime: boolean }[]).find((c) => c.id === annonceA);
+    expect(annonce).toMatchObject({ supprime: true });
+    expect(r.apres!.corps.annonceA).toBeNull();
+    expect(r.apres!.corps.annonceB).not.toBeNull();
   });
 
   it('le compte est vidé : plus d’adresse, de mot de passe ni de champ, et plus aucune session', () => {
@@ -253,8 +300,13 @@ describe('supprimer son compte dans « humalis lancer »', () => {
     for (let i = 0; i < 3; i++) stock('note').creer({ texte: `note ${i}`, compte: awa.id });
     stock('note').creer({ texte: 'de Bob', compte: bob.id });
     stock('commande').modifier(payee, { paye: true });
-    stock('message_aide').creer({ conversation: 'c1', auteur: awa.id, auteurNom: 'Awa', texte: 'bonjour' });
-    stock('message_aide').creer({ conversation: 'c1', auteur: bob.id, auteurNom: 'Bob', texte: 'salut' });
+    stock('message_aide').creer({ conversation: 'c1', auteur: awa.id, auteurNom: 'Awa', texte: 'bonjour', piece: 'p1', pieceNom: 'a.txt', pieceType: 'text/plain', pieceAdresse: '' });
+    stock('message_aide').creer({ conversation: 'c2', auteur: bob.id, auteurNom: 'Bob', texte: 'salut', piece: 'p2', pieceNom: 'b.txt', pieceType: 'text/plain', pieceAdresse: '' });
+    const pieceA = stock('piece_aide').creer({ conversation: 'c1', auteur: awa.id, nom: 'a.txt', genre: 'text/plain', contenu: 'QQ==' }).id;
+    const pieceB = stock('piece_aide').creer({ conversation: 'c2', auteur: bob.id, nom: 'b.txt', genre: 'text/plain', contenu: 'Qg==' }).id;
+    const convA = stock('conversation_aide').creer({ titre: 'Awa', personne: awa.id, dernier: 'bonjour', dernierLe: '', nonLus: 0, enLigne: false }).id;
+    const convB = stock('conversation_aide').creer({ titre: 'Bob', personne: bob.id, dernier: 'salut', dernierLe: '', nonLus: 0, enLigne: false }).id;
+    stock('lecture_aide').creer({ conversation: 'c1', compte: awa.id, luLe: '' });
 
     expect((await visiteur('POST', supprimer, { motDePasse: mdp })).statut).toBe(401);
     expect((await sansCsrf('POST', supprimer, { motDePasse: mdp })).statut).toBe(403);
@@ -277,7 +329,12 @@ describe('supprimer son compte dans « humalis lancer »', () => {
     expect(stock('commande').trouver(nonPayee)).toBeNull();
     expect(stock('commande').trouver(payee)).toMatchObject({ total: 30, paye: true, auteur: '' });
     expect(stock('journal').trouver(journal)!.auteur).toBe(awa.id);
-    expect(stock('message_aide').lister().map((m) => [m.auteur, m.auteurNom, m.texte]).sort()).toEqual([['', '', 'bonjour'], [bob.id, 'Bob', 'salut']]);
+    expect(stock('message_aide').lister().map((m) => [m.auteur, m.auteurNom, m.texte, m.piece]).sort()).toEqual([['', '', 'bonjour', ''], [bob.id, 'Bob', 'salut', 'p2']]);
+    expect(stock('piece_aide').trouver(pieceA)).toBeNull();
+    expect(stock('piece_aide').trouver(pieceB)).not.toBeNull();
+    expect(stock('conversation_aide').trouver(convA)).toMatchObject({ titre: 'Compte supprimé', personne: '' });
+    expect(stock('conversation_aide').trouver(convB)).toMatchObject({ titre: 'Bob', personne: bob.id });
+    expect(stock('lecture_aide').lister({ egal: { compte: awa.id } })).toHaveLength(0);
 
     const vide = serveur.comptes.comptes.get(awa.id)!;
     expect(vide).toMatchObject({ role: 'supprime', passwordHash: null, nom: null });
