@@ -377,6 +377,9 @@ export class EcrivainActions {
         e.ligne(`HumalisNotes.noter(${chaineSwift(lieuNote(a.ligne))}, [${valeurs.join(', ')}])`);
         return;
       }
+      case 'creationCompte':
+      case 'confirmationAdresse':
+        throw new Error('« creer mon compte » et « confirmer mon adresse » : cible écrite à la tâche 4');
       default: {
         // Une action ajoutée au langage doit être traitée ici : sinon le compilateur TypeScript s'arrête.
         const oubliee: never = a;

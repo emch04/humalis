@@ -228,9 +228,13 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[], pag
   for (const lien of [
     { nom: 'invitations', ...serveur.invitations },
     { nom: 'mot de passe oublie', ...serveur.motDePasseOublie },
+    { nom: 'inscription libre', ...serveur.inscriptionLibre },
   ]) {
     if (lien.page === undefined || lien.ligne === undefined) continue;
-    if (!serveur.emails) erreur(`« ${lien.nom} » envoie un lien par e-mail : ajoutez la ligne « emails par brevo » dans le serveur "${serveur.nom}".`, lien.ligne);
+    if (lien.nom === 'inscription libre') {
+      if (serveur.inscriptionLibre?.role === 'admin') erreur(`l’inscription libre ne donne jamais le rôle admin : écrivez un rôle déclaré dans « roles », par exemple « inscription libre comme client vers "${lien.page}" ».`, lien.ligne);
+      if (!serveur.emails) erreur(`l’inscription libre envoie un lien de confirmation : ajoutez « emails par brevo » dans le serveur "${serveur.nom}".`, lien.ligne);
+    } else if (!serveur.emails) erreur(`« ${lien.nom} » envoie un lien par e-mail : ajoutez la ligne « emails par brevo » dans le serveur "${serveur.nom}".`, lien.ligne);
     const page = pages.find((p) => p.nom === lien.page);
     if (!page) {
       erreur(`« ${lien.nom} vers "${lien.page}" » : cette page n'existe pas.${proposerNom(lien.page, pages.map((p) => p.nom))}`, lien.ligne);

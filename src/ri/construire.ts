@@ -316,6 +316,7 @@ function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
     ...(routeMonCompte ? { routeMonCompte: { adresse: routeMonCompte.adresse, ligne: routeMonCompte.ligne, lire: actionsSurSoi.has('lire'), supprimer: actionsSurSoi.has('supprimer') } } : {}),
     ...(serveur.emails ? { emails: { service: serveur.emails.service } } : {}),
     ...(serveur.invitations ? { invitations: serveur.invitations.page } : {}),
+    ...(serveur.inscriptionLibre ? { inscriptionLibre: serveur.inscriptionLibre } : {}),
     ...(serveur.motDePasseOublie ? { motDePasseOublie: serveur.motDePasseOublie.page } : {}),
     ...(serveur.connexionGoogle !== undefined ? { connexionGoogle: true } : {}),
     ...(serveur.connexionApple !== undefined ? { connexionApple: true } : {}),
@@ -918,6 +919,12 @@ class Construction {
 
         case 'Deconnexion':
           actions.push({ type: 'deconnexion' });
+          break;
+        case 'CreationCompte':
+          actions.push({ type: 'creationCompte', email: this.valeur(instruction.email), motDePasse: this.valeur(instruction.motDePasse), ...(instruction.champs ? { champs: instruction.champs.map((c) => ({ champ: c.champ, valeur: this.valeur(c.valeur) })) } : {}) });
+          break;
+        case 'ConfirmationAdresse':
+          actions.push({ type: 'confirmationAdresse' });
           break;
         case 'SuppressionCompte':
           actions.push(instruction.motDePasse ? { type: 'suppressionCompte', motDePasse: this.valeur(instruction.motDePasse) } : { type: 'suppressionCompte' });

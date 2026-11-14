@@ -74,7 +74,7 @@ import type {
   Boucle,
   Evenement,
   GenreEvenement,
-  Connexion, ConnexionGoogle, ConnexionApple, ChangementMotDePasse, Invitation, ChangementRole, ChangementCompte, ResumeServeur, DroitIa, DemandeIa, Paiement, ApresPaiement, FaireAction, TelechargementDocument, DocumentServeur, ActionServeur, TachePlanifiee, EnvoiNotification, ConditionRegle, OperandeRegle, DemandeLienMotDePasse, ChoixMotDePasse, ApresCreation, EnvoiEmail, CreationLiee, RegleChamp, ValeurFixe, TelechargementBon, TelechargementCsv, Fidelite, Suppression, SuppressionCompte, Modification, EnvoiFichier, ArgumentPage } from './ast.js';
+  Connexion, ConnexionGoogle, ConnexionApple, ChangementMotDePasse, Invitation, ChangementRole, ChangementCompte, ResumeServeur, DroitIa, DemandeIa, Paiement, ApresPaiement, FaireAction, TelechargementDocument, DocumentServeur, ActionServeur, TachePlanifiee, EnvoiNotification, ConditionRegle, OperandeRegle, DemandeLienMotDePasse, ChoixMotDePasse, ApresCreation, EnvoiEmail, CreationLiee, RegleChamp, ValeurFixe, TelechargementBon, TelechargementCsv, Fidelite, Suppression, SuppressionCompte, CreationCompte, ConfirmationAdresse, Modification, EnvoiFichier, ArgumentPage } from './ast.js';
 
 /**
  * Les fautes trouvées dans des instructions pendant la lecture d'un fichier. Après une faute, la lecture
@@ -667,6 +667,7 @@ function analyserServeur(flux: FluxTokens): Serveur {
   let emails: Serveur['emails'];
   let invitations: Serveur['invitations'];
   let motDePasseOublie: Serveur['motDePasseOublie'];
+  let inscriptionLibre: Serveur['inscriptionLibre'];
   let fidelite: Fidelite | undefined;
   const taches: TachePlanifiee[] = [];
   const documents: DocumentServeur[] = [];
@@ -791,6 +792,9 @@ function analyserServeur(flux: FluxTokens): Serveur {
       flux.avancer();
       flux.avancer();
       motDePasseOublie = { page: pageDuLien(flux, 'mot de passe oublie'), ligne: token.ligne };
+    } else if (estLeMot(token, 'inscription') && estLeMot(flux.regarder(1), 'libre')) {
+      if (inscriptionLibre) throw new ErreurSyntaxique(`« inscription libre » est déjà écrite ligne ${inscriptionLibre.ligne}.`, token.ligne);
+      inscriptionLibre = analyserInscriptionLibre(flux);
     } else if (estLeMot(token, 'fidelite')) {
       if (fidelite) throw new ErreurSyntaxique(`un serveur n'a qu'une seule « fidelite » : elle est déjà écrite ligne ${fidelite.ligne}.`, token.ligne);
       fidelite = analyserFidelite(flux);
@@ -846,9 +850,28 @@ function analyserServeur(flux: FluxTokens): Serveur {
     ...(emails ? { emails } : {}),
     ...(invitations ? { invitations } : {}),
     ...(motDePasseOublie ? { motDePasseOublie } : {}),
+    ...(inscriptionLibre ? { inscriptionLibre } : {}),
     ...(fidelite ? { fidelite } : {}),
     ligne: debut.ligne,
   };
+}
+
+/** « inscription libre comme client vers "confirmation" » : le rôle du nouveau compte, puis la page du lien de confirmation. */
+function analyserInscriptionLibre(flux: FluxTokens): NonNullable<Serveur['inscriptionLibre']> {
+  const debut = flux.avancer();
+  flux.avancer();
+  const comme = flux.actuel();
+  const role = flux.regarder(1);
+  const vers = flux.regarder(2);
+  const page = flux.regarder(3);
+  if (!estLeMot(comme, 'comme') || (role.type !== 'IDENTIFIANT' && role.type !== 'MOT_CLE') || !estLeMot(vers, 'vers') || page.type !== 'CHAINE') {
+    throw new ErreurSyntaxique('on écrit : inscription libre comme client vers "confirmation"', debut.ligne);
+  }
+  flux.avancer();
+  flux.avancer();
+  flux.avancer();
+  flux.avancer();
+  return { role: motDe(role), page: page.valeur, ligne: debut.ligne };
 }
 
 /** « vers "bienvenue" » : la page qu'ouvre le lien d'un e-mail. */
@@ -1795,6 +1818,15 @@ export function analyserInstruction(flux: FluxTokens): Instruction {
 
   if (flux.verifier('MOT_CLE', 'pour')) {
     return analyserBoucle(flux);
+  }
+
+  // « creer mon compte avec champ "Email" et champ "Mot de passe" » et « confirmer mon adresse » : l'inscription libre.
+  if (estLeMot(flux.actuel(), 'creer') && estLeMot(flux.regarder(1), 'mon') && estLeMot(flux.regarder(2), 'compte')) return analyserCreationCompte(flux);
+  if (estLeMot(flux.actuel(), 'confirmer') && estLeMot(flux.regarder(1), 'mon') && estLeMot(flux.regarder(2), 'adresse') && flux.regarder(3).type === 'FIN_LIGNE') {
+    const debut = flux.avancer();
+    flux.avancer();
+    flux.avancer();
+    return { type: 'ConfirmationAdresse', ligne: debut.ligne } satisfies ConfirmationAdresse;
   }
 
   // Les interactions : « apres 3 secondes : », « toutes les … : », « copier … »,
@@ -2795,6 +2827,20 @@ function analyserDemandeLien(flux: FluxTokens): DemandeLienMotDePasse {
   flux.avancer();
   flux.avancer();
   return { type: 'DemandeLienMotDePasse', email: analyserOperande(flux), ligne: debut.ligne };
+}
+
+/** « creer mon compte avec champ "Email" et champ "Mot de passe" », puis « avec nom = champ "Nom" » facultatif. */
+function analyserCreationCompte(flux: FluxTokens): CreationCompte {
+  const debut = flux.avancer();
+  flux.avancer();
+  flux.avancer();
+  const forme = 'on écrit : creer mon compte avec champ "Email" et champ "Mot de passe"';
+  if (!flux.accepter('MOT_CLE', 'avec') || flux.verifier('FIN_LIGNE')) throw new ErreurSyntaxique(forme, debut.ligne);
+  const email = analyserOperande(flux);
+  if (!flux.accepter('MOT_CLE', 'et') || flux.verifier('FIN_LIGNE')) throw new ErreurSyntaxique(forme, debut.ligne);
+  const motDePasse = analyserOperande(flux);
+  const champs = estLeMot(flux.actuel(), 'avec') ? lireAvec(flux) : undefined;
+  return { type: 'CreationCompte', email, motDePasse, ...(champs ? { champs } : {}), ligne: debut.ligne };
 }
 
 /** « choisir le mot de passe avec champ "Nouveau" ». */

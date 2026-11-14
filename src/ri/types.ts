@@ -295,6 +295,11 @@ export interface ServeurRI {
   emails?: { service: string };
   /** « invitations vers "bienvenue" » : la page qu'ouvre le lien. */
   invitations?: string;
+  /**
+   * « inscription libre comme client vers "confirmation" » : chacun crée son compte (POST /auth/inscription), au rôle
+   * donné ; le lien de confirmation (POST /auth/confirmation) ouvre la page. Jamais « admin ».
+   */
+  inscriptionLibre?: { role: string; page: string; ligne: number };
   /** « mot de passe oublie vers "bienvenue" » : la page qu'ouvre le lien. */
   motDePasseOublie?: string;
   /** « connexion google » : un compte déjà connu du serveur peut se connecter avec Google. */
@@ -928,6 +933,10 @@ type ActionSeule =
   | { type: 'deconnexion' }
   /** « supprimer mon compte avec champ "Mot de passe" » : sans `motDePasse` pour un compte qui n'en a pas. */
   | { type: 'suppressionCompte'; motDePasse?: Valeur }
+  /** « creer mon compte avec champ "Email" et champ "Mot de passe" [avec nom = champ "Nom"] » : POST /auth/inscription. */
+  | { type: 'creationCompte'; email: Valeur; motDePasse: Valeur; champs?: { champ: string; valeur: Valeur }[] }
+  /** « confirmer mon adresse » : POST /auth/confirmation avec le jeton lu dans l'adresse (#jeton=…). */
+  | { type: 'confirmationAdresse' }
   | {
       type: 'repetition';
       variable: string;

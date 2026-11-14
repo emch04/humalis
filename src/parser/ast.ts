@@ -189,6 +189,8 @@ export interface Serveur {
   invitations?: { page: string; ligne: number };
   /** « mot de passe oublie vers "bienvenue" » : le lien reçu par e-mail ouvre cette page. */
   motDePasseOublie?: { page: string; ligne: number };
+  /** « inscription libre comme client vers "confirmation" » : chacun crée son compte ; le lien de confirmation ouvre cette page. */
+  inscriptionLibre?: { role: string; page: string; ligne: number };
   /** « fidelite par telephone de commande : » : une carte à tampons calculée sur les fiches. */
   fidelite?: Fidelite;
   ligne: number;
@@ -651,6 +653,8 @@ export type Instruction =
   | TelechargementCsv
   | Deconnexion
   | SuppressionCompte
+  | CreationCompte
+  | ConfirmationAdresse
   | Suppression
   | Modification
   | EnvoiFichier
@@ -1093,6 +1097,22 @@ export interface Deconnexion {
 export interface SuppressionCompte {
   type: 'SuppressionCompte';
   motDePasse?: Expression;
+  ligne: number;
+}
+
+/** « creer mon compte avec champ "Email" et champ "Mot de passe" [avec nom = champ "Nom"] » : l'inscription libre. */
+export interface CreationCompte {
+  type: 'CreationCompte';
+  email: Expression;
+  motDePasse: Expression;
+  /** « avec nom = champ "Nom" » : les champs déclarés dans « compte : ». */
+  champs?: { champ: string; valeur: Expression }[];
+  ligne: number;
+}
+
+/** « confirmer mon adresse » : sur la page ouverte par le lien de confirmation (#jeton=…). */
+export interface ConfirmationAdresse {
+  type: 'ConfirmationAdresse';
   ligne: number;
 }
 

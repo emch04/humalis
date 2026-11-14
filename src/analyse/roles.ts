@@ -35,6 +35,8 @@ export function verifierRoles(programme: Programme, diagnostics: Diagnostic[]): 
     for (const role of rolesDe(n.qui)) verifier(role, ligne);
     if (n.type === 'EtatUtilisateur') for (const role of rolesDe(n.etat)) verifier(role, ligne);
     if (n.type === 'Invitation' && n.role !== undefined && n.role !== 'admin' && n.role !== 'membre') verifier(n.role, ligne);
+    const inscription = n.type === 'Serveur' ? (noeud as { inscriptionLibre?: { role: string; ligne: number } }).inscriptionLibre : undefined;
+    if (inscription && inscription.role !== 'admin' && inscription.role !== 'membre') verifier(inscription.role, inscription.ligne);
     if (n.type === 'ChangementRole') {
       const role = (noeud as { role?: { type?: string; valeur?: string } }).role;
       if (role?.type === 'Chaine' && role.valeur !== undefined && role.valeur !== 'admin' && role.valeur !== 'membre') verifier(role.valeur, ligne);
