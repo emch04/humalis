@@ -2316,6 +2316,69 @@ page "connexion" :
 
 Une condition dans la page ne protège rien : c'est la règle de la route qui protège.
 
+#### Supprimer son compte
+
+`connecte peut supprimer son compte` permet à la personne connectée de supprimer son propre
+compte, et aucun autre. Dans la page, `supprimer mon compte avec champ "Mot de passe"` le fait ;
+`supprimer mon compte` seul sert aux comptes sans mot de passe (Google, Apple). La session se
+ferme ensuite, comme avec `se deconnecter`.
+
+```humalis
+serveur "carnet" :
+    compte :
+        nom : texte
+    donnee note par compte :
+        texte : texte
+    donnee avis :
+        texte : texte
+    donnee brouillon :
+        texte : texte
+        a la suppression du compte : effacer
+    route "notes" :
+        connecte peut lire et creer note
+        connecte peut modifier et supprimer note
+    route "avis" :
+        tout le monde peut lire avis
+        connecte peut creer avis
+        seul son auteur peut modifier avis
+    route "brouillons" :
+        connecte peut creer brouillon
+        seul son auteur peut lire et modifier brouillon
+    route "moi" :
+        connecte peut lire et supprimer son compte
+
+page "reglages" reservee a connecte sinon vers "accueil" :
+    titre "Réglages"
+    formulaire "fermeture" :
+        champ mot de passe "Mot de passe" avec obligatoire
+        bouton "Supprimer mon compte"
+    quand le formulaire "fermeture" est soumis :
+        essayer :
+            supprimer mon compte avec champ "Mot de passe"
+            rediriger vers "accueil"
+        si erreur :
+            afficher erreur "{raison}"
+
+page "accueil" :
+    titre "Accueil"
+```
+
+Le serveur redemande le mot de passe : sans le bon, rien ne change. Le dernier admin ne peut pas
+supprimer son compte.
+
+Chaque donnée dit ce que deviennent les fiches de la personne, avec
+`a la suppression du compte : effacer`, `anonymiser` ou `garder`. `anonymiser` vide les champs
+qui la désignent et garde la fiche. Sans cette ligne :
+
+- une donnée `par compte` est effacée (les notes ci-dessus) ;
+- une donnée qui retient son auteur (`seul son auteur peut …`) devient anonyme (les avis), comme
+  les messages des discussions ;
+- les autres données ne changent pas.
+
+Une fiche payée n'est jamais effacée : elle devient anonyme. Les fiches changent toutes ensemble,
+puis le compte est vidé : plus d'adresse, de mot de passe ni de champ, et toutes ses sessions se
+ferment. L'adresse peut ensuite servir à un nouveau compte, qui n'hérite d'aucune fiche.
+
 #### Changer le rôle d'un compte
 
 `changer role de c en "vendeur"`, après un geste dans une page, compte tout de suite :

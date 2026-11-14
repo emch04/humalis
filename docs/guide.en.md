@@ -2397,6 +2397,69 @@ page "login" :
 
 A condition in the page protects nothing: the route's rule is what protects.
 
+#### Deleting your own account
+
+`connecte peut supprimer son compte` lets the logged-in person delete their own account, and no
+other. In the page, `supprimer mon compte avec champ "Mot de passe"` does it;
+`supprimer mon compte` alone is for accounts without a password (Google, Apple). The session then
+ends, as with `se deconnecter`.
+
+```humalis
+serveur "notebook" :
+    compte :
+        name : texte
+    donnee note par compte :
+        text : texte
+    donnee review :
+        text : texte
+    donnee draft :
+        text : texte
+        a la suppression du compte : effacer
+    route "notes" :
+        connecte peut lire et creer note
+        connecte peut modifier et supprimer note
+    route "reviews" :
+        tout le monde peut lire review
+        connecte peut creer review
+        seul son auteur peut modifier review
+    route "drafts" :
+        connecte peut creer draft
+        seul son auteur peut lire et modifier draft
+    route "me" :
+        connecte peut lire et supprimer son compte
+
+page "settings" reservee a connecte sinon vers "home" :
+    titre "Settings"
+    formulaire "closing" :
+        champ mot de passe "Password" avec obligatoire
+        bouton "Delete my account"
+    quand le formulaire "closing" est soumis :
+        essayer :
+            supprimer mon compte avec champ "Password"
+            rediriger vers "home"
+        si erreur :
+            afficher erreur "{raison}"
+
+page "home" :
+    titre "Home"
+```
+
+The server asks for the password again: without the right one, nothing changes. The last admin
+cannot delete their account.
+
+Each piece of data says what becomes of the person's records, with
+`a la suppression du compte : effacer` (erase), `anonymiser` (anonymize) or `garder` (keep).
+`anonymiser` empties the fields that point to the person and keeps the record. Without this line:
+
+- data `par compte` is erased (the notes above);
+- data that remembers its author (`seul son auteur peut …`) becomes anonymous (the reviews), like
+  the messages of discussions;
+- other data does not change.
+
+A paid record is never erased: it becomes anonymous. The records all change together, then the
+account is emptied: no more address, password or fields, and all its sessions end. The address can
+then be used by a new account, which inherits no records.
+
 #### Changing an account's role
 
 `changer role de c en "vendeur"`, after a gesture in a page, takes effect at once: as soon as
