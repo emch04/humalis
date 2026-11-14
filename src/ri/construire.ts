@@ -20,6 +20,7 @@ import type { ResultatAnalyse } from '../analyse/analyse.js';
 import { INCONNU, NOMBRE, BOOLEEN, type TypeValeur } from '../analyse/types.js';
 import { optionCanonique } from '../analyse/styles.js';
 import { adresseNormalisee, conditionsDeRoute, droitsDeRoute } from '../analyse/serveur.js';
+import { champsDeLaPersonne, choixSuppressionCompte } from '../analyse/suppression-compte.js';
 import { traduireAction, traduireApresPaiement, traduireCaptureErreurs, traduireDocument, traduireNotification, traduireResume, traduireTache } from '../analyse/logique.js';
 import { encreSur } from '../analyse/couleurs.js';
 import { lireCible } from '../analyse/navigation.js';
@@ -241,6 +242,7 @@ function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
   const donneesComptes = new Set(serveur.donnees.filter((d) => d.comptes).map((d) => d.nom));
   const routeComptes = serveur.routes.find((r) => donneesComptes.has(r.regles[0]?.donnee ?? '') && !r.regles[0].soi);
   const routeMonCompte = serveur.routes.find((r) => r.regles[0]?.soi);
+  const actionsSurSoi = new Set(routeMonCompte?.regles.filter((r) => r.soi).flatMap((r) => r.actions) ?? []);
   const champDe = (donnee: string, champ: string) => serveur.donnees.find((d) => d.nom === donnee)?.champs.find((c) => simplifier(c.nom) === simplifier(champ))?.nom ?? champ;
   const morceaux = (parties: PartieChaine[], donnee: string): MorceauEmail[] =>
     parties.map((p) => (p.type === 'variable' ? { champ: champDe(donnee, p.valeur.split('.')[1] ?? '') } : { texte: p.valeur }));
@@ -283,7 +285,7 @@ function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
     nom: serveur.nom,
     ...(serveur.discussions?.length ? { discussions: serveur.discussions } : {}),
     ...(serveur.salles?.length ? { salles: serveur.salles } : {}),
-    donnees: serveur.donnees.filter((d) => !d.comptes).map((d) => ({ nom: d.nom, ...(d.reponseSeule ? { reponseSeule: true } : {}), ...(d.par !== undefined ? { par: d.par } : {}), champs: d.champs.map((c) => ({ nom: c.nom, type: c.type, ...(c.regle ? { regle: reglePropre(c.regle, d.nom) } : {}), ...(c.nonVide ? { nonVide: true } : {}), ...(c.bornes ? { bornes: c.bornes } : {}), ...(c.avant !== undefined ? { avant: c.avant } : {}) })) })),
+    donnees: serveur.donnees.filter((d) => !d.comptes).map((d) => ({ nom: d.nom, ...(d.reponseSeule ? { reponseSeule: true } : {}), ...(d.par !== undefined ? { par: d.par } : {}), ...suppressionCompteRI(d, serveur), champs: d.champs.map((c) => ({ nom: c.nom, type: c.type, ...(c.regle ? { regle: reglePropre(c.regle, d.nom) } : {}), ...(c.nonVide ? { nonVide: true } : {}), ...(c.bornes ? { bornes: c.bornes } : {}), ...(c.avant !== undefined ? { avant: c.avant } : {}) })) })),
     ...(serveur.departs?.length
       ? { departs: serveur.departs.map((d) => ({ donnee: d.donnee, fiches: d.fiches.map((f) => Object.fromEntries(f.champs.map((c) => [champDe(d.donnee, c.champ), c.valeur]))) })) }
       : {}),
@@ -311,7 +313,7 @@ function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
         };
       }),
     ...(routeComptes ? { routeComptes: { adresse: routeComptes.adresse, droits: droitsDeRoute(routeComptes), ligne: routeComptes.ligne } } : {}),
-    ...(routeMonCompte ? { routeMonCompte: { adresse: routeMonCompte.adresse, ligne: routeMonCompte.ligne } } : {}),
+    ...(routeMonCompte ? { routeMonCompte: { adresse: routeMonCompte.adresse, ligne: routeMonCompte.ligne, lire: actionsSurSoi.has('lire'), supprimer: actionsSurSoi.has('supprimer') } } : {}),
     ...(serveur.emails ? { emails: { service: serveur.emails.service } } : {}),
     ...(serveur.invitations ? { invitations: serveur.invitations.page } : {}),
     ...(serveur.motDePasseOublie ? { motDePasseOublie: serveur.motDePasseOublie.page } : {}),
@@ -917,6 +919,9 @@ class Construction {
         case 'Deconnexion':
           actions.push({ type: 'deconnexion' });
           break;
+        case 'SuppressionCompte':
+          actions.push(instruction.motDePasse ? { type: 'suppressionCompte', motDePasse: this.valeur(instruction.motDePasse) } : { type: 'suppressionCompte' });
+          break;
 
         case 'Condition':
           actions.push({
@@ -1373,4 +1378,10 @@ function versionsDe(chaine: LitteralChaine, analyse: ResultatAnalyse): { code: s
  */
 function depuisLaRacine(adresse: string): string {
   return /^[a-z][a-z0-9+.-]*:\/\//i.test(adresse) || adresse.startsWith('/') ? adresse : `/${adresse}`;
+}
+
+/** « a la suppression du compte : … », ou la règle par défaut : rien quand la donnée ne retient pas qui l'a écrite. */
+function suppressionCompteRI(donnee: Serveur['donnees'][number], serveur: Serveur): Pick<ServeurRI['donnees'][number], 'suppressionCompte' | 'champsDeLaPersonne'> {
+  const choix = choixSuppressionCompte(donnee, serveur);
+  return choix ? { suppressionCompte: choix, champsDeLaPersonne: champsDeLaPersonne(donnee, serveur) } : {};
 }

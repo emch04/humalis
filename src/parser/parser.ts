@@ -74,7 +74,7 @@ import type {
   Boucle,
   Evenement,
   GenreEvenement,
-  Connexion, ConnexionGoogle, ConnexionApple, ChangementMotDePasse, Invitation, ChangementRole, ChangementCompte, ResumeServeur, DroitIa, DemandeIa, Paiement, ApresPaiement, FaireAction, TelechargementDocument, DocumentServeur, ActionServeur, TachePlanifiee, EnvoiNotification, ConditionRegle, OperandeRegle, DemandeLienMotDePasse, ChoixMotDePasse, ApresCreation, EnvoiEmail, CreationLiee, RegleChamp, ValeurFixe, TelechargementBon, TelechargementCsv, Fidelite, Suppression, Modification, EnvoiFichier, ArgumentPage } from './ast.js';
+  Connexion, ConnexionGoogle, ConnexionApple, ChangementMotDePasse, Invitation, ChangementRole, ChangementCompte, ResumeServeur, DroitIa, DemandeIa, Paiement, ApresPaiement, FaireAction, TelechargementDocument, DocumentServeur, ActionServeur, TachePlanifiee, EnvoiNotification, ConditionRegle, OperandeRegle, DemandeLienMotDePasse, ChoixMotDePasse, ApresCreation, EnvoiEmail, CreationLiee, RegleChamp, ValeurFixe, TelechargementBon, TelechargementCsv, Fidelite, Suppression, SuppressionCompte, Modification, EnvoiFichier, ArgumentPage } from './ast.js';
 
 /**
  * Les fautes trouvées dans des instructions pendant la lecture d'un fichier. Après une faute, la lecture
@@ -924,7 +924,21 @@ export function analyserDonnee(flux: FluxTokens, ouverte = false): Donnee {
   }
   flux.attendre('PONCTUATION', ':', 'deux-points après le nom de la donnée');
   const champs: Donnee['champs'] = [];
+  let suppressionCompte: Donnee['suppressionCompte'];
   chaqueLigne(flux, () => {
+    // « a la suppression du compte : effacer » (« a », « la » et « du » sont déjà sautés) ; « suppression : date » reste un champ.
+    if (!ouverte && estLeMot(flux.actuel(), 'suppression') && estLeMot(flux.regarder(1), 'compte') && flux.regarder(2).valeur === ':') {
+      const ligne = flux.avancer().ligne;
+      flux.avancer();
+      flux.avancer();
+      const mot = flux.actuel();
+      const choix = motDe(mot);
+      if (choix !== 'effacer' && choix !== 'anonymiser' && choix !== 'garder') throw new ErreurSyntaxique('après « a la suppression du compte : », écrivez effacer, anonymiser ou garder', ligne);
+      if (suppressionCompte) throw new ErreurSyntaxique(`« a la suppression du compte » est déjà écrite pour « ${nom} », ligne ${suppressionCompte.ligne}.`, ligne);
+      flux.avancer();
+      suppressionCompte = { choix, ligne };
+      return;
+    }
     const champ = flux.attendreNom('le nom du champ');
     flux.attendre('PONCTUATION', ':', 'deux-points entre le nom du champ et son type');
     const type = analyserTypeChamp(flux, ouverte);
@@ -958,7 +972,7 @@ export function analyserDonnee(flux: FluxTokens, ouverte = false): Donnee {
     champs.push({ nom: champ.nom, type, ...(regle ? { regle } : {}), ...(nonVide ? { nonVide } : {}), ...(bornes ? { bornes } : {}), ...(avant !== undefined ? { avant } : {}), ligne: champ.ligne });
   });
   if (par !== undefined) champs.push({ nom: par, type: { genre: 'texte' }, regle: { genre: 'groupe' }, ligne: debut.ligne });
-  return { type: 'Donnee', nom, ...(par !== undefined ? { par } : {}), champs, ligne: debut.ligne };
+  return { type: 'Donnee', nom, ...(par !== undefined ? { par } : {}), champs, ...(suppressionCompte ? { suppressionCompte } : {}), ligne: debut.ligne };
 }
 
 /** « non vide » après le type d'un champ. */
@@ -1289,8 +1303,9 @@ function analyserRegle(flux: FluxTokens, avecRoles = false): Regle | ActionServe
   } while (flux.accepter('MOT_CLE', 'et'));
 
   // « connecte peut lire son compte » : une liste d'une seule fiche, celle de la personne.
+  // « connecte peut supprimer son compte » : la personne supprime son propre compte, et aucun autre.
   if (estLeMot(flux.actuel(), 'son') && estLeMot(flux.regarder(1), 'compte')) {
-    if (actions.some((a) => a !== 'lire')) throw new ErreurSyntaxique('« son compte » ne se lit que : connecte peut lire son compte', debut.ligne);
+    if (actions.some((a) => a !== 'lire' && a !== 'supprimer')) throw new ErreurSyntaxique('« son compte » se lit ou se supprime : connecte peut lire son compte, connecte peut supprimer son compte', debut.ligne);
     flux.avancer();
     flux.avancer();
     return { type: 'Regle', qui, actions, donnee: 'comptes', soi: true, ligne: debut.ligne };
@@ -1813,6 +1828,14 @@ export function analyserInstruction(flux: FluxTokens): Instruction {
   }
   if (estLeMot(flux.actuel(), 'deconnecter')) {
     return { type: 'Deconnexion', ligne: flux.avancer().ligne };
+  }
+  // « supprimer mon compte avec champ "Mot de passe" » ; « supprimer note de "notes" » reste la suppression d'une fiche.
+  if (estLeMot(flux.actuel(), 'supprimer') && estLeMot(flux.regarder(1), 'mon') && estLeMot(flux.regarder(2), 'compte')) {
+    const debut = flux.avancer();
+    flux.avancer();
+    flux.avancer();
+    if (!flux.accepter('MOT_CLE', 'avec')) return { type: 'SuppressionCompte', ligne: debut.ligne } satisfies SuppressionCompte;
+    return { type: 'SuppressionCompte', motDePasse: analyserOperande(flux), ligne: debut.ligne } satisfies SuppressionCompte;
   }
 
   // « inviter champ "Adresse" comme admin » ; « inviter(…) » reste l'appel d'une fonction de ce nom.

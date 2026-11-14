@@ -3,6 +3,7 @@ import type { Regle, Serveur, ActionDonnee, Route, Qui, Page, EnvoiEmail, Creati
 import type { Diagnostic } from './erreurs.js';
 import { simplifier } from './elements.js';
 import { proposerNom } from './suggestions.js';
+import { champsDeLaPersonne } from './suppression-compte.js';
 import { traduireAction, traduireApresPaiement, traduireCaptureErreurs, traduireDocument, traduireNotification, traduireResume, traduireTache } from './logique.js';
 
 const ACTIONS: ActionDonnee[] = ['lire', 'creer', 'modifier', 'supprimer'];
@@ -37,6 +38,13 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[], pag
   }
 
   for (const donnee of serveur.donnees) for (const champ of donnee.champs) verifierRegleChamp(champ, donnee, serveur, erreur);
+
+  // « a la suppression du compte : … » ne vaut que pour une donnée qui retient qui a écrit chaque fiche.
+  for (const donnee of serveur.donnees) {
+    if (donnee.suppressionCompte && champsDeLaPersonne(donnee, serveur).length === 0) {
+      avertissement(`la donnée « ${donnee.nom} » ne garde pas qui l’a écrite : « a la suppression du compte » n’y change rien. Elle le garde avec « par compte » ou « seul son auteur peut … ».`, donnee.suppressionCompte.ligne);
+    }
+  }
 
   // « seul son auteur peut … » : le champ « auteur » est rempli par le serveur avec le compte connecté. Déclaré à la
   // main, la requête pourrait le choisir et se faire passer pour un autre compte.
@@ -139,7 +147,9 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[], pag
       if (serveur.donnees.find((d) => d.nom === regle.donnee)?.comptes) {
         // Les comptes de la connexion : qui s'y trouve ne regarde que l'administration, et ils naissent d'une invitation.
         if (regle.soi) {
-          if (regle.qui === 'tout_le_monde') erreur('un visiteur n’a pas de compte : écrivez « connecte peut lire son compte ».', regle.ligne);
+          const exemple = regle.actions.includes('supprimer') ? 'connecte peut supprimer son compte' : 'connecte peut lire son compte';
+          if (regle.qui === 'tout_le_monde') erreur(`un visiteur n’a pas de compte : écrivez « ${exemple} ».`, regle.ligne);
+          else if (regle.qui !== 'connecte' && regle.actions.includes('supprimer')) erreur(`chaque personne connectée peut supprimer son propre compte : écrivez « ${exemple} ».`, regle.ligne);
         } else if (regle.qui === 'tout_le_monde' || regle.qui === 'connecte') erreur(`les comptes se réservent à un rôle : écrivez par exemple « seul gerant peut ${regle.actions.join(' et ')} comptes ».`, regle.ligne);
       }
     }

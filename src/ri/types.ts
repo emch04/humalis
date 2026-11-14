@@ -242,7 +242,12 @@ export interface ServeurRI {
   /** Les sources à jeton secret que ce serveur relaie (« /api/passerelle/<source> »). */
   passerelles?: PasserelleRI[];
   nom: string;
-  donnees: { nom: string; par?: string; reponseSeule?: boolean; champs: { nom: string; type: TypeChamp; regle?: RegleChampRI; nonVide?: boolean; bornes?: BornesChamp; avant?: string }[] }[];
+  /**
+   * `suppressionCompte` : ce que deviennent les fiches d'une personne qui supprime son compte (la ligne écrite, sinon la
+   * règle par défaut) ; absent si la donnée ne retient pas qui l'a écrite. `champsDeLaPersonne` : les champs qui la
+   * désignent, ceux qui retrouvent ses fiches et ceux qu'« anonymiser » vide.
+   */
+  donnees: { nom: string; par?: string; reponseSeule?: boolean; suppressionCompte?: 'effacer' | 'anonymiser' | 'garder'; champsDeLaPersonne?: string[]; champs: { nom: string; type: TypeChamp; regle?: RegleChampRI; nonVide?: boolean; bornes?: BornesChamp; avant?: string }[] }[];
   /** « donnees de depart pour produit : » : écrites au premier démarrage, seulement si la table est vide. */
   departs?: { donnee: string; fiches: Record<string, string | number | boolean>[] }[];
   routes: {
@@ -281,8 +286,11 @@ export interface ServeurRI {
   }[];
   /** « seul admin peut lire comptes » : la route des comptes de la connexion, servie par les packs et non par une table. */
   routeComptes?: { adresse: string; droits: Record<'lire' | 'creer' | 'modifier' | 'supprimer', QuiPeut | null>; ligne: number };
-  /** « connecte peut lire son compte » : une liste d'une seule fiche, celle de la personne connectée. */
-  routeMonCompte?: { adresse: string; ligne: number };
+  /**
+   * « connecte peut lire son compte » : une liste d'une seule fiche, celle de la personne connectée (`lire`).
+   * « connecte peut supprimer son compte » : la personne supprime son propre compte (`supprimer`).
+   */
+  routeMonCompte?: { adresse: string; ligne: number; lire: boolean; supprimer: boolean };
   /** « emails par brevo ». */
   emails?: { service: string };
   /** « invitations vers "bienvenue" » : la page qu'ouvre le lien. */
@@ -918,6 +926,8 @@ type ActionSeule =
   /** « telecharger commandes en csv » : le fichier se fait dans l'appareil. */
   | { type: 'telechargementCsv'; liste: Valeur; fichier: string }
   | { type: 'deconnexion' }
+  /** « supprimer mon compte avec champ "Mot de passe" » : sans `motDePasse` pour un compte qui n'en a pas. */
+  | { type: 'suppressionCompte'; motDePasse?: Valeur }
   | {
       type: 'repetition';
       variable: string;

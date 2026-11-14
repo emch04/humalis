@@ -355,6 +355,8 @@ export class EcrivainActions {
       case 'note':
         e.ligne(`HumalisNotes.noter(${chaineKotlin(lieuNote(a.ligne))}) { listOf(${a.valeurs.map((v) => `Triple(${chaineKotlin(v.libelle)}, ${this.v.x(v.valeur)}, ${v.titre ? 'true' : 'false'})`).join(', ')}) }`);
         return;
+      case 'suppressionCompte':
+        throw new Error('« supprimer mon compte » : cible écrite à la tâche 4');
       default: {
         // Une action ajoutée au langage doit être traitée ici : sinon le compilateur TypeScript s'arrête.
         const oubliee: never = a;

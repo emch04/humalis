@@ -315,8 +315,13 @@ export interface Donnee {
   champs: { nom: string; type: TypeChamp; regle?: RegleChamp; nonVide?: boolean; bornes?: BornesChamp; avant?: string; ligne: number }[];
   /** Vrai pour « comptes », les comptes de la connexion : aucune table à créer, le serveur les lit dans ses packs. */
   comptes?: boolean;
+  /** « a la suppression du compte : effacer » : ce que deviennent les fiches d'une personne qui supprime son compte. */
+  suppressionCompte?: { choix: ChoixSuppressionCompte; ligne: number };
   ligne: number;
 }
+
+/** Ce que devient une fiche quand la personne qui l'a écrite supprime son compte. */
+export type ChoixSuppressionCompte = 'effacer' | 'anonymiser' | 'garder';
 
 /** « role:directeur,parent » : les rôles déclarés dans le serveur ; un admin passe toujours. */
 export type Qui = 'tout_le_monde' | 'connecte' | 'admin' | `role:${string}`;
@@ -371,7 +376,7 @@ export interface Regle {
   donnee: string;
   /** « tout le monde peut lire suivi par identifiant » : une fiche à la fois, jamais la liste. */
   parIdentifiant?: boolean;
-  /** « connecte peut lire son compte » : la personne lit seulement son propre compte. */
+  /** « connecte peut lire son compte », « connecte peut supprimer son compte » : sur son propre compte seulement. */
   soi?: boolean;
   /** « … si facture.compte est dans utilisateur.comptes_lies » : la règle ne vaut que pour ces fiches. */
   si?: ConditionRegle;
@@ -645,6 +650,7 @@ export type Instruction =
   | TelechargementBon
   | TelechargementCsv
   | Deconnexion
+  | SuppressionCompte
   | Suppression
   | Modification
   | EnvoiFichier
@@ -1080,6 +1086,13 @@ export interface TelechargementBon {
 /** « se deconnecter ». */
 export interface Deconnexion {
   type: 'Deconnexion';
+  ligne: number;
+}
+
+/** « supprimer mon compte avec champ "Mot de passe" », ou « supprimer mon compte » pour un compte sans mot de passe. */
+export interface SuppressionCompte {
+  type: 'SuppressionCompte';
+  motDePasse?: Expression;
   ligne: number;
 }
 

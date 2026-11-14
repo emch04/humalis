@@ -36,9 +36,9 @@ describe('« connecte peut lire son compte »', () => {
     expect(erreurs.map((d) => d.message).join('\n')).toMatch(/visiteur n’a pas de compte/);
   });
 
-  it('seule la lecture est permise', () => {
+  it('seules la lecture et la suppression sont permises', () => {
     expect(() => compiler(source('>>connecte peut modifier son compte'))).not.toThrow();
-    expect(compiler(source('>>connecte peut modifier son compte')).diagnostics.map((d) => d.message).join('\n')).toMatch(/ne se lit que/);
+    expect(compiler(source('>>connecte peut modifier son compte')).diagnostics.map((d) => d.message).join('\n')).toMatch(/se lit ou se supprime/);
   });
 });
 
