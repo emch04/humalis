@@ -98,9 +98,19 @@ describe('les défauts graves de la revue Codex, sur un vrai serveur produit', (
   }, 300_000);
 
   it('1) une modification pendant le paiement ne gonfle pas une commande payée', () => {
-    expect(r.webhook!.statut).toBe(200);
-    expect(r.modification!.statut).toBe(409);
-    expect(r.commandeFinale!.corps).toMatchObject({ paye: true, total: 1 });
+    // La modification et le paiement se suivent, jamais mêlés. Depuis la quatrième revue, la modification prend le
+    // verrou la première (elle relit la fiche dans sa transaction) : le panier passe à 100 €, puis le paiement de
+    // 1 € est refusé (500, Stripe le renverra, le journal dit de rembourser) sans marquer la commande payée.
+    // Dans l'autre ordre, le paiement passerait et la modification recevrait 409. Jamais une commande payée à 1 €
+    // avec 100 € de produits.
+    const finale = r.commandeFinale!.corps;
+    if (finale.paye === true) {
+      expect([r.webhook!.statut, r.modification!.statut]).toEqual([200, 409]);
+      expect(finale.total).toBe(1);
+    } else {
+      expect([r.webhook!.statut, r.modification!.statut]).toEqual([500, 200]);
+      expect(finale.total).toBe(100);
+    }
   });
   it('2) un champ de compte nommé comme un champ interne est refusé', () => {
     const source = 'serveur "s" :\n    roles gerant\n    compte :\n        password_hash : texte\n    route "equipe" :\n        seul gerant peut lire comptes\n\npage "a" :\n    titre "A"\n';

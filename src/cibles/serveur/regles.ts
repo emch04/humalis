@@ -181,11 +181,6 @@ export function codeCercles(serveur: ServeurRI, donnee: Donnee, groupeExpr?: str
 }
 
 /**
- * Une modification recalcule ce que le serveur calcule (« nombre de », « somme … ») quand elle change la liste lue :
- * sinon une réservation créée avec un article à 1 € gardait ce total après qu'on y a mis des articles à 1 000 €. Et
- * une fiche déjà payée ne change plus ce qui fait son montant (sauf par un admin).
- */
-/**
  * Ce qui fait le montant d'une fiche payable : les champs payés (« payer total pour r »), les calculs et ce qu'ils lisent.
  * Une fiche payée ne les change plus, sauf par un admin.
  */
@@ -195,60 +190,69 @@ export function champsDuMontant(donnee: Donnee, route: Route): string[] {
 }
 
 /**
- * L'écriture d'une modification. Pour une fiche payable, elle se fait dans une transaction qui relit la fiche
- * verrouillée, comme la confirmation du paiement : une modification lancée juste avant que le paiement arrive ne
- * peut plus écrire un panier plus cher dans une fiche déjà marquée payée (revue Codex).
+ * Les fiches qu'un calcul peut citer quand personne n'a lancé l'écriture (après un paiement, dans une tâche) : celles
+ * du groupe de la fiche créée, pour chaque donnée lue séparée de la même façon. Rien n'est limité sinon.
  */
-export function codeEcritureModification(donnee: Donnee, route: Route, avecTransaction: boolean): string {
+export function codeCerclesDuGroupe(serveur: ServeurRI, donnee: Donnee, groupeExpr?: string): string {
+  if (groupeExpr === undefined || donnee.par === undefined || donnee.par === 'compte') return '{}';
+  const lues = [...new Set(donnee.champs.flatMap((c) => (c.regle?.genre === 'somme' || c.regle?.genre === 'auPlus' ? [c.regle.donnee] : [])))];
+  const champ = chaine(camel(donnee.par));
+  const entrees = lues.filter((nom) => serveur.donnees.find((d) => d.nom === nom)?.par === donnee.par).map((nom) => `${chaine(nom)}: (f: Record<string, unknown>) => ((g: unknown) => typeof g !== 'string' || g === '' || f[${champ}] === g)(${groupeExpr})`);
+  return `{ ${entrees.join(', ')} }`;
+}
+
+/**
+ * L'écriture d'une modification. Quand la donnée a des calculs (« somme … », « nombre de ») ou un montant payable,
+ * tout se fait dans une transaction qui relit la fiche verrouillée : la vérification « déjà payée », le recalcul
+ * et l'écriture. Sinon une modification lancée juste avant le paiement écrivait un panier plus cher dans une fiche
+ * déjà payée, et deux modifications parties ensemble laissaient un panier de 100 € avec le total de 1 € calculé
+ * sur l'ancienne liste (revue Codex). Une modification qui change la liste lue recalcule (« nombre de », « somme »),
+ * sinon un panier créé avec un article à 1 € gardait ce total après qu'on y a mis des articles à 1 000 €.
+ */
+export function codeEcritureModification(donnee: Donnee, route: Route, avecTransaction: boolean, serveur?: ServeurRI): string {
   const nom = camel(donnee.nom);
   const paye = donnee.champs.find((c) => c.regle?.genre === 'depart' && c.regle.paiement === true);
-  const montant = champsDuMontant(donnee, route);
-  if (!paye || !avecTransaction || montant.length === 0) return `          const modifie = await stockages.${nom}.modifier(req.params.id, envoi.valeur);
+  const montant = paye ? champsDuMontant(donnee, route) : [];
+  const calculs = donnee.champs.filter((c) => c.regle?.genre === 'somme' || c.regle?.genre === 'nombreDe');
+  if (!avecTransaction || (montant.length === 0 && calculs.length === 0)) return `          const modifie = await stockages.${nom}.modifier(req.params.id, envoi.valeur);
 `;
-  return `          const montantTouche = ${JSON.stringify(montant)}.some((c) => c in envoi.valeur);
-          const admin = (req as unknown as { user?: { role?: unknown } }).user?.role === 'admin';
-          const modifie = await transaction(async (s) => {
-            const actuelle = await s.${nom}.trouver(req.params.id, true);
-            if (actuelle?.[${chaine(camel(paye.nom))}] === true && montantTouche && !admin) return 'payee' as const;
-            return s.${nom}.modifier(req.params.id, envoi.valeur);
+  const entrees = [...new Set(calculs.flatMap((c) => (c.regle?.genre === 'somme' ? [c.regle.liste, ...(c.regle.plus !== undefined ? [c.regle.plus] : [])] : c.regle?.genre === 'nombreDe' ? [c.regle.liste] : [])))].map((n) => chaine(camel(n)));
+  const groupe = donnee.par !== undefined && donnee.par !== 'compte' ? `avant?.[${chaine(camel(donnee.par))}] as string | undefined` : undefined;
+  const admin = `(req as unknown as { user?: { role?: unknown } }).user?.role === 'admin'`;
+  const recalcul = calculs.map(({ nom: champ, regle }) => {
+    if (regle?.genre === 'nombreDe') return `              valeurs[${chaine(camel(champ))}] = Array.isArray(fusion[${chaine(camel(regle.liste))}]) ? (fusion[${chaine(camel(regle.liste))}] as unknown[]).length : 0;`;
+    if (regle?.genre !== 'somme') return '';
+    return `              {
+                const somme = await sommeDesPrix(s.${camel(regle.donnee)}, fusion[${chaine(camel(regle.liste))}], ${chaine(camel(regle.prix))}, cercles[${chaine(regle.donnee)}]);
+                if (typeof somme === 'string') return { erreur: \`le champ « ${camel(regle.liste)} » : \${somme}\` };
+                valeurs[${chaine(camel(champ))}] = somme${regle.plus !== undefined ? ` + Number(fusion[${chaine(camel(regle.plus))}])` : ''};
+              }`;
+  });
+  const blocCalculs = calculs.length === 0 ? '' : `            // Les calculs suivent la liste modifiée, relue ici, verrouillée.
+            if ([${entrees.join(', ')}].some((c) => c in valeurs)) {
+              const fusion: Record<string, unknown> = { ...avant, ...valeurs };
+              const cercles: Record<string, ((fiche: Record<string, unknown>) => boolean) | undefined> = ${serveur ? codeCercles(serveur, donnee, groupe) : '{}'};
+${recalcul.join('\n')}
+            }
+`;
+  const touche = [...new Set([...montant, ...entrees.map((e) => JSON.parse(e) as string)])];
+  return `          const modifie = await transaction(async (s) => {
+            const avant = await s.${nom}.trouver(req.params.id, true);
+            if (!avant) return null;
+            const valeurs: Record<string, unknown> = { ...envoi.valeur };
+${paye ? `            // Une fiche payée ne change plus ce qui fait son montant, sauf par un admin.
+            if (avant[${chaine(camel(paye.nom))}] === true && ${JSON.stringify(touche)}.some((c) => c in valeurs) && !(${admin})) return 'payee' as const;
+` : ''}${blocCalculs}            return s.${nom}.modifier(req.params.id, valeurs);
           });
-          if (modifie === 'payee') {
+${paye ? `          if (modifie === 'payee') {
             res.status(409).json({ erreur: 'Cette fiche est payée : ce qui fait son montant ne change plus.' });
             return;
           }
-`;
-}
-
-export function codeCalculsModification(serveur: ServeurRI, donnee: Donnee): string {
-  const calculs = donnee.champs.filter((c) => c.regle?.genre === 'somme' || c.regle?.genre === 'nombreDe');
-  if (calculs.length === 0) return '';
-  const entrees = [...new Set(calculs.flatMap((c) => (c.regle?.genre === 'somme' ? [c.regle.liste, ...(c.regle.plus !== undefined ? [c.regle.plus] : [])] : c.regle?.genre === 'nombreDe' ? [c.regle.liste] : [])))].map((n) => chaine(camel(n)));
-  const paye = donnee.champs.find((c) => c.regle?.genre === 'depart' && c.regle.paiement === true);
-  const groupe = donnee.par !== undefined && donnee.par !== 'compte' ? `avant?.[${chaine(camel(donnee.par))}] as string | undefined` : undefined;
-  const lignes = calculs.map(({ nom, regle }) => {
-    if (regle?.genre === 'nombreDe') return `            envoi.valeur[${chaine(camel(nom))}] = Array.isArray(fusion[${chaine(camel(regle.liste))}]) ? (fusion[${chaine(camel(regle.liste))}] as unknown[]).length : 0;`;
-    if (regle?.genre !== 'somme') return '';
-    return `            {
-              const somme = await sommeDesPrix(stockages.${camel(regle.donnee)}, fusion[${chaine(camel(regle.liste))}], ${chaine(camel(regle.prix))}, cercles[${chaine(regle.donnee)}]);
-              if (typeof somme === 'string') {
-                res.status(400).json({ erreur: \`le champ « ${camel(regle.liste)} » : \${somme}\` });
-                return;
-              }
-              envoi.valeur[${chaine(camel(nom))}] = somme${regle.plus !== undefined ? ` + Number(fusion[${chaine(camel(regle.plus))}])` : ''};
-            }`;
-  });
-  return `          // Les calculs suivent la liste modifiée ; une fiche payée garde ce qui fait son montant.
-          if ([${entrees.join(', ')}].some((c) => c in envoi.valeur)) {
-            const avant = await stockages.${camel(donnee.nom)}.trouver(req.params.id);
-${paye ? `            if (avant?.[${chaine(camel(paye.nom))}] === true && (req as unknown as { user?: { role?: unknown } }).user?.role !== 'admin') {
-              res.status(409).json({ erreur: 'Cette fiche est payée : ce qui fait son montant ne change plus.' });
-              return;
-            }
-` : ''}            const fusion: Record<string, unknown> = { ...(avant ?? {}), ...envoi.valeur };
-            const cercles: Record<string, ((fiche: Record<string, unknown>) => boolean) | undefined> = ${codeCercles(serveur, donnee, groupe)};
-${lignes.join('\n')}
+` : ''}${calculs.some((c) => c.regle?.genre === 'somme') ? `          if (modifie && !('id' in modifie)) {
+            res.status(400).json({ erreur: modifie.erreur });
+            return;
           }
-`;
+` : ''}`;
 }
 
 export function codeCreation(serveur: ServeurRI, route: Route, donnee: Donnee, schema: string, emails: string, separee?: string): string {

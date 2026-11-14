@@ -1,0 +1,38 @@
+serveur "boutiques" :
+    roles client
+    donnee tarif par boutique :
+        prix : nombre
+    donnee devis par boutique :
+        refs : liste de texte
+        total : nombre calcule somme prix de tarif par refs
+    donnee demande par boutique :
+        refs : liste de texte
+    donnee produit :
+        prix : nombre
+    donnee commande :
+        refs : liste de texte
+        livraison : nombre
+        total : nombre calcule somme prix de produit par refs plus livraison
+    donnee essai :
+        total : nombre
+    route "demandes" :
+        seul client peut lire demande
+        seul client peut creer demande
+        seul client peut faire "chiffrer" sur demande :
+            creer devis avec refs demande.refs
+    route "devis" :
+        connecte peut lire devis
+    route "produits" :
+        tout le monde peut lire produit
+    route "commandes" :
+        connecte peut lire commande
+        connecte peut creer commande
+        seul son auteur peut modifier commande
+    route "essais" :
+        seul client peut lire essai
+        seul client peut faire "annuler" sur essai :
+            changer essai.total par 0
+            refuser "annulation"
+
+page "a" :
+    titre "A"

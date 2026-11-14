@@ -11,7 +11,7 @@ import { avecIa, ENV_IA, IA, routeIa } from './ia.js';
 import { ENVOIS } from './envois.js';
 import { MOTIF_SQL_DU_PACK, MOTIFS_SQL_CODE } from './pare-feu.js';
 import { codeResumes, avecPaiements, codePaiements, codeSurPaiement, PAIEMENTS, avecLogique, avecNotifications, codeActions, codeDocuments, codeNotificationsCreation, codeTaches, DOCUMENT, employe, LOGIQUE, NOTIFICATIONS, ROUTES_APPAREILS } from './logique.js';
-import { champsDuServeur, codeCalculsModification, codeCompleter, codeEcritureModification, codeCreation, codePlafondsModification, noms as nomsVerifier, reglesEnvoi } from './regles.js';
+import { champsDuServeur, codeCompleter, codeEcritureModification, codeCreation, codePlafondsModification, noms as nomsVerifier, reglesEnvoi } from './regles.js';
 import { avecSynchro, codeAvantSynchro, codeCreationSynchro, codeSynchroRoute, ENV_SYNCHRO, SYNCHRO, tablesSynchro, testsSynchro } from './synchro.js';
 import { avecSecurite, codeAvantSecurite, codeCreationSecurite, codeRoutesSecurite, envSecurite, SECURITE, testsSecurite } from './securite.js';
 import { ligneLocale } from '../../fichiers.js';
@@ -1177,10 +1177,13 @@ export function creerStockageMemoire(): Stockage {
       return trancher(
         [...lignes.values()].filter((ligne) => egal.every(([champ, valeur]) => ligne[champ] === valeur) && (!numero || sansSeparateurs(ligne[numero.champ]) === numero.valeur)),
         filtres,
-      );
+      ).map((ligne) => ({ ...ligne }));
     },
+    // Une copie, jamais la fiche gardée : « changer » sur la fiche lue ne touchait sinon à ce qu'une transaction
+    // annulée remet en place (revue Codex).
     async trouver(id) {
-      return lignes.get(id) ?? null;
+      const ligne = lignes.get(id);
+      return ligne ? { ...ligne } : null;
     },
     instantane() {
       const photo = new Map([...lignes].map(([id, ligne]) => [id, { ...ligne }]));
@@ -1193,7 +1196,7 @@ export function creerStockageMemoire(): Stockage {
       const enregistrement = { ...valeurs, id: nouvelId() };
       lignes.set(enregistrement.id, enregistrement);
       journalMemoire.getStore()?.push(() => lignes.delete(enregistrement.id));
-      return enregistrement;
+      return { ...enregistrement };
     },
     async modifier(id, valeurs) {
       const actuel = lignes.get(id);
@@ -1201,7 +1204,7 @@ export function creerStockageMemoire(): Stockage {
       const nouveau = { ...actuel, ...valeurs, id };
       lignes.set(id, nouveau);
       journalMemoire.getStore()?.push(() => lignes.set(id, actuel));
-      return nouveau;
+      return { ...nouveau };
     },
     async supprimer(id) {
       const actuel = lignes.get(id);
@@ -1403,7 +1406,7 @@ ${voir('modifier')}          const envoi = verifierEnvoi(${schema}, req.body, fa
             res.status(400).json({ erreur: envoi.erreur });
             return;
           }
-${codePlafondsModification(donneeRoute, serveur)}${codeCalculsModification(serveur, donneeRoute)}${codeEcritureModification(donneeRoute, route, avecLogique(serveur))}
+${codePlafondsModification(donneeRoute, serveur)}${codeEcritureModification(donneeRoute, route, avecLogique(serveur), serveur)}
           if (modifie) res.json(modifie);
           else res.status(404).json({ erreur: introuvable('${route.donnee}') });
         } catch (erreur) {

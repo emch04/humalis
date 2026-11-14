@@ -8,7 +8,7 @@ import { lieuNote } from '../commun/noter.js';
 import type { FiltreServeurRI, InstructionServeurRI, ServeurRI, TestServeurRI, TypeChamp, ValeurServeurRI } from '../../ri/types.js';
 import { simplifier } from '../../analyse/elements.js';
 import { camel, pascal } from '../web/noms.js';
-import { aCompleter } from './regles.js';
+import { aCompleter, codeCercles, codeCerclesDuGroupe } from './regles.js';
 import { gardeAction } from './separation.js';
 
 type Route = ServeurRI['routes'][number];
@@ -16,7 +16,8 @@ const chaine = (t: string) => JSON.stringify(t);
 const fiche = (nom: string) => `f_${camel(nom)}`;
 
 export const avecPaiements = (serveur: ServeurRI) => serveur.routes.some((r) => r.apresPaiement !== undefined);
-export const avecLogique = (serveur: ServeurRI) => serveur.routes.some((r) => r.apresPaiement !== undefined || r.resumes?.length) || Boolean(serveur.taches?.length) || Boolean(serveur.documents?.length) || serveur.routes.some((r) => r.actions?.length);
+/** Vrai si le serveur écrit tout ou rien quelque part (actions, paiements, tâches, documents, ou des calculs à tenir justes). */
+export const avecLogique = (serveur: ServeurRI) => serveur.routes.some((r) => r.apresPaiement !== undefined || r.resumes?.length) || Boolean(serveur.taches?.length) || Boolean(serveur.documents?.length) || serveur.routes.some((r) => r.actions?.length) || serveur.donnees.some((d) => d.champs.some((c) => c.regle?.genre === 'somme' || c.regle?.genre === 'nombreDe'));
 const parcourir = (liste: InstructionServeurRI[], voir: (i: InstructionServeurRI) => void): void => {
   for (const i of liste) {
     voir(i);
@@ -400,7 +401,11 @@ self.addEventListener('notificationclick', (evenement) => {
 `;
 
 class Ecriture {
-  constructor(private readonly serveur: ServeurRI, private readonly groupeImpose?: { champ: string; variable: string }) {}
+  /**
+   * personne : vrai dans une action lancée par quelqu'un (« req » existe) ; ses calculs ne lisent alors que ce
+   * qu'elle pourrait lire. Sans personne (paiement, tâche), ils restent dans le groupe de la fiche créée.
+   */
+  constructor(private readonly serveur: ServeurRI, private readonly groupeImpose?: { champ: string; variable: string }, private readonly personne = false) {}
 
   private groupeDe(donnee: string, variable: string): string {
     const par = this.serveur.donnees.find((d) => d.nom === donnee)?.par;
@@ -453,7 +458,12 @@ class Ecriture {
         const valeurs = `{ ${[...i.valeurs.map((v) => `${chaine(camel(v.champ))}: ${valeur(v.valeur)}`), ...groupe].join(', ')} }`;
         const noterCree = `noter(travail, ${chaine(i.donnee)}${liee.par ? `, (${valeurs} as Record<string, unknown>)[${chaine(camel(liee.par))}]` : ''});`;
         if (!aCompleter(liee)) return `${r}await s.${camel(i.donnee)}.creer(${valeurs});\n${r}${noterCree}`;
-        return `${r}{\n${r}  const complete = await completer${pascal(i.donnee)}(${valeurs});\n${r}  if ('erreur' in complete) throw new Refus(complete.erreur);\n${r}  await s.${camel(i.donnee)}.creer(complete.valeur);\n${r}  ${noterCree}\n${r}}`;
+        // Les calculs de la fiche créée (« somme prix de tarif par refs ») ne citent que des fiches permises : celles
+        // que la personne pourrait lire, du groupe de la fiche créée (revue Codex : un devis de la boutique A
+        // était calculé avec le tarif d'une boutique B).
+        const groupeCree = liee.par !== undefined && liee.par !== 'compte' ? `valeurs[${chaine(camel(liee.par))}] as string | undefined` : undefined;
+        const cercles = this.personne ? codeCercles(this.serveur, liee, groupeCree) : codeCerclesDuGroupe(this.serveur, liee, groupeCree);
+        return `${r}{\n${r}  const valeurs: Record<string, unknown> = ${valeurs};\n${r}  const complete = await completer${pascal(i.donnee)}(valeurs, ${cercles});\n${r}  if ('erreur' in complete) throw new Refus(complete.erreur);\n${r}  await s.${camel(i.donnee)}.creer(complete.valeur);\n${r}  ${noterCree}\n${r}}`;
       }
       case 'email': {
         const a = i.a.genre === 'admins' ? 'await adressesDesAdmins()' : `enTexte(${valeur(i.a.valeur)})`;
@@ -502,7 +512,7 @@ ${action.parametres.map((p) => `          const ${repereNom(p.nom, action.ligne)
           const resultat = await transaction(async (s) => {
             const ${repereNom(route.donnee, action.ligne)}${nomFiche} = await s.${camel(route.donnee)}.trouver(String(req.params.id), true);
             if (!${nomFiche}${donnee.par ? ` || !dansPortee(${nomFiche}, portee)` : ''}) return null;
-${new Ecriture(serveur, groupe).lignes(action.corps, '            ')}
+${new Ecriture(serveur, groupe, true).lignes(action.corps, '            ')}
             return ${nomFiche};
           });
           if (!resultat) {

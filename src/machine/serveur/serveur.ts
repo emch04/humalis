@@ -416,7 +416,10 @@ export class ServeurMemoire {
         const liee = this.donnee(i.donnee);
         const groupe = liee.par && i.groupeDe ? { [camel(liee.par)]: e.fiches.get(i.groupeDe)?.[camel(liee.par)] } : {};
         const valeurs = { ...Object.fromEntries(i.valeurs.map((v) => [camel(v.champ), this.valeur(v.valeur, e)])), ...groupe };
-        const complete = this.aCompleter(liee) ? await this.completer(liee, valeurs) : { valeur: valeurs };
+        // Les calculs de la fiche créée ne citent que des fiches permises (revue Codex : un devis de la boutique A
+        // était calculé avec le tarif d'une boutique B).
+        const cercles = this.cercles(liee, e.moi, liee.par !== undefined && liee.par !== 'compte' ? valeurs[camel(liee.par)] : undefined);
+        const complete = this.aCompleter(liee) ? await this.completer(liee, valeurs, cercles) : { valeur: valeurs };
         if ('erreur' in complete) throw new Refus(complete.erreur);
         this.stock(i.donnee).creer(complete.valeur);
         noter(e.travail, i.donnee, liee.par ? complete.valeur[camel(liee.par)] : undefined);
@@ -489,10 +492,17 @@ export class ServeurMemoire {
   /**
    * Les fiches qu'un calcul peut citer pour cette personne, comme dans le serveur produit : celles qu'elle pourrait lire
    * par la route de cette donnée (rôle, groupe, « seul son auteur », « si … »). groupe : celui de la fiche écrite, qu'une
-   * référence doit partager. Sans personne (le serveur lui-même), tout se lit ; sans route, la séparation reste.
+   * référence doit partager. Sans personne (le serveur lui-même, après un paiement), seulement le groupe de la fiche
+   * écrite ; sans route, la séparation reste.
    */
   private cercles(donnee: Donnee, moi: Compte | undefined, groupe: unknown): Record<string, ((fiche: Record<string, unknown>) => boolean) | undefined> {
-    if (!moi) return {};
+    if (!moi) {
+      if (donnee.par === undefined || donnee.par === 'compte' || typeof groupe !== 'string' || groupe === '') return {};
+      const champ = camel(donnee.par);
+      const resultat: Record<string, ((fiche: Record<string, unknown>) => boolean) | undefined> = {};
+      for (const c of donnee.champs) if ((c.regle?.genre === 'somme' || c.regle?.genre === 'auPlus') && this.donnee(c.regle.donnee).par === donnee.par) resultat[c.regle.donnee] = (fiche) => fiche[champ] === groupe;
+      return resultat;
+    }
     const resultat: Record<string, ((fiche: Record<string, unknown>) => boolean) | undefined> = {};
     for (const c of donnee.champs) {
       if (c.regle?.genre !== 'somme' && c.regle?.genre !== 'auPlus') continue;
