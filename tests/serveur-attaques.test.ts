@@ -146,7 +146,8 @@ describe.each(BASES)('des attaques sur un vrai serveur produit, %s', (_base, sql
     r = JSON.parse(execFileSync('node', ['scenario.mjs'], { cwd: dossier, encoding: 'utf8' }).trim().split('\n').at(-1)!);
     // Les tests que le compilateur écrit dans le serveur (règles, sessions, attaques) : lancés pour de vrai.
     try {
-      produits = execFileSync('npx', ['vitest', 'run', '--dir', 'tests'], { cwd: dossier, encoding: 'utf8', stdio: 'pipe' });
+      // Dans l'intégration continue, la sortie est en couleurs : on les retire avant de la relire.
+      produits = execFileSync('npx', ['vitest', 'run', '--dir', 'tests'], { cwd: dossier, encoding: 'utf8', stdio: 'pipe' }).replace(/\u001b\[[0-9;]*m/g, '');
     } catch (erreur) {
       produits = String((erreur as { stdout?: unknown }).stdout ?? erreur);
     }

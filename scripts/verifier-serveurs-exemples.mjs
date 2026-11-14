@@ -88,7 +88,9 @@ console.log(`${serveurs.length} serveurs produits ; installation de leurs paquet
 execFileSync('npm', ['install', '--no-audit', '--no-fund'], { cwd: commun, stdio: 'pipe' });
 
 // 3. Pour chaque serveur : les types, puis ses tests.
-const sortie = (erreur) => `${erreur.stdout ?? ''}${erreur.stderr ?? ''}`;
+// Dans l'intégration continue, la sortie est en couleurs : on les retire avant de la relire.
+const sansCouleurs = (texte) => String(texte).replace(/\u001b\[[0-9;]*m/g, '');
+const sortie = (erreur) => sansCouleurs(`${erreur.stdout ?? ''}${erreur.stderr ?? ''}`);
 const echecs = [];
 let tests = 0;
 let fichiers = 0;
@@ -102,7 +104,7 @@ for (const { nom, dossier } of serveurs) {
   }
   if (!existsSync(join(dossier, 'tests'))) continue;
   try {
-    const rendu = execFileSync('npx', ['vitest', 'run', '--dir', 'tests'], { cwd: dossier, encoding: 'utf8', stdio: 'pipe', env: { ...process.env, NO_COLOR: '1' } });
+    const rendu = sansCouleurs(execFileSync('npx', ['vitest', 'run', '--dir', 'tests'], { cwd: dossier, encoding: 'utf8', stdio: 'pipe' }));
     tests += Number(/Tests\s+(\d+) passed/.exec(rendu)?.[1] ?? 0);
     fichiers += Number(/Test Files\s+(\d+) passed/.exec(rendu)?.[1] ?? 0);
   } catch (erreur) {
