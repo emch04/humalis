@@ -282,6 +282,7 @@ function compile(arguments_: string[]): number | Promise<number> {
       console.error(`Note : ce programme utilise ce que le moteur Humalis ne sait pas encore faire ; il est produit avec React.\n${refusMoteur.map((d) => `  - ${d.message}`).join('\n')}`);
     } else moteur = 'humalis';
   }
+  if (moteur === 'react') console.error(AVERTISSEMENT_REACT);
   // « --composants » écrit des composants React pour un projet React : le moteur n'a pas de sens ici.
   if (moteur === 'humalis' && composants === undefined) return compileMoteur(application, chemin, sortie, option(arguments_, 'adresse'), option(arguments_, 'diagnostics-port'), option(arguments_, 'lire-serveur'));
 
@@ -558,6 +559,7 @@ function compileDesktop(application: Application, chemin: string, sortie: string
     return 1;
   }
   if (!surLeMoteur && moteurDemande !== 'react') console.error('Note : ce programme emploie ce que le moteur Humalis ne sait pas encore faire (un composant React, « memorisee en secret »…) : l\'application de bureau est produite avec React.');
+  if (!surLeMoteur) console.error(AVERTISSEMENT_REACT);
   const fichiers = genererProjetDesktop(application, options);
   ecrire(sortie, fichiers);
   console.error(`Projet desktop (Electron) écrit dans « ${sortie} » avec ${surLeMoteur ? 'le moteur Humalis' : 'React'} (${fichiers.size} fichiers).`);
@@ -876,6 +878,9 @@ function packs(arguments_: string[]): number {
   }
   return 0;
 }
+
+/** Dit qu'un projet produit avec React devra passer au moteur Humalis : React sera retiré d'une prochaine version. */
+const AVERTISSEMENT_REACT = 'Avertissement : React sera retiré dans une prochaine version de Humalis ; le moteur Humalis est le défaut.';
 
 function principal(arguments_: string[]): number | Promise<number> {
   const [commande, chemin] = arguments_;
