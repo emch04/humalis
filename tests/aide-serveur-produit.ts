@@ -6,13 +6,13 @@ import { dirname, join } from 'node:path';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetServeur } from '../src/cibles/serveur/projet.js';
 import { camel } from '../src/cibles/web/noms.js';
-import { surSqlite } from './aide-sqlite.js';
+import { type Base, surBase } from './aide-bases.js';
 
 /** Une réponse rendue par un scénario : son statut HTTP (0 pour un relevé), et son corps. */
 export type Reponse = { statut: number; corps: Record<string, unknown> };
 
 /** Produit le serveur du programme, le construit, et joue le scénario ; rend la dernière ligne qu'il écrit. */
-export function jouer(source: string, nom: string, texte: (stockages: string[]) => string, sqlite: boolean, apresSqlite: (code: string) => string = (code) => code): Record<string, Reponse> {
+export function jouer(source: string, nom: string, texte: (stockages: string[]) => string, base: Base, apresBase: (code: string) => string = (code) => code): Record<string, Reponse> {
   const { application, diagnostics } = compiler(source);
   expect(diagnostics.filter((d) => d.gravite === 'erreur')).toEqual([]);
   const serveur = application!.serveurs[0]!;
@@ -24,7 +24,7 @@ export function jouer(source: string, nom: string, texte: (stockages: string[]) 
     writeFileSync(join(dossier, chemin), contenu);
   }
   const code = texte(serveur.donnees.map((d) => camel(d.nom)));
-  writeFileSync(join(dossier, 'scenario.mjs'), sqlite ? apresSqlite(surSqlite(code)) : code);
+  writeFileSync(join(dossier, 'scenario.mjs'), base === 'memoire' ? code : apresBase(surBase(code, base)));
   // Réinstallé quand les paquets du serveur produit changent (un programme d'essai qui gagne les appels, les notifications…).
   const paquets = readFileSync(join(dossier, 'package.json'), 'utf8');
   const installes = join(dossier, 'node_modules', '.paquets-humalis.json');

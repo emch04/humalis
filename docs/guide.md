@@ -4638,8 +4638,8 @@ npm run restauration -- sauvegardes/2026-11-12-03-15-00.jsonl.gz
 npm run restauration -- sauvegardes/2026-11-12-03-15-00.jsonl.gz --remplacer
 ```
 
-Arrête le serveur avant. Sur une base neuve, démarre-le une fois pour créer les tables, puis
-arrête-le. La restauration refuse une table qui contient déjà des lignes ; `--remplacer` les vide
+Arrête le serveur avant. Sur une base neuve, les tables sont créées d'après la sauvegarde : rien
+à préparer. La restauration refuse une table qui contient déjà des lignes ; `--remplacer` les vide
 d'abord. Elle est tout ou rien : un fichier coupé, une table manquante ou une ligne refusée, et
 rien n'est changé.
 

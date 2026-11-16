@@ -78,6 +78,7 @@ node dist/cli.js verifier exemples/boutique.humalis --ri   # avec la représenta
 
 - le compilateur, sous Linux et sous macOS : `npm ci`, `npm run typecheck`, `npm run build`, `npm test` ;
 - l'extension des éditeurs (`editeur/vscode`) : types, tests, construction ;
+- les serveurs produits sur un vrai PostgreSQL 16 : `npm run test:postgres` rejoue les attaques, les comptes, la suppression de compte, l'inscription libre, la sauvegarde et la restauration, comme en mémoire et dans SQLite ;
 - les serveurs produits : `npm run verifier:serveurs` produit le serveur de chaque programme du dépôt (exemples, guide, antisèche, programmes des tests), vérifie ses types et lance les tests que le compilateur a écrits pour lui ;
 - les applications natives : `npm run verifier:natifs -- --cible apple|android|windows` produit l'application de chaque programme d'exemple (`exemples/`, `scripts/essais-<cible>/`, `tests/formes/toutes.humalis`), puis la fait compiler par les outils de la plateforme :
   - Apple, sur macOS : `xcodebuild` en Debug et en Release (deux travaux en parallèle), pour iPhone (simulateur) et pour Mac, sans signature ;
@@ -85,6 +86,8 @@ node dist/cli.js verifier exemples/boutique.humalis --ri   # avec la représenta
   - Windows, sous Linux : `dotnet build` (.NET 10 ; WPF se compile hors de Windows, seul le lancement le demande).
 
 `npm run verifier:serveurs` se lance aussi ici, après `npm run build`. Il est lent (une installation de paquets, puis chaque serveur) : à refaire après tout changement du serveur produit. `-- --seul boutique` ne joue que les programmes dont le nom contient « boutique » ; `-- --garder` laisse les serveurs sur le disque, pour regarder un échec.
+
+Les essais sur PostgreSQL tournent ici quand `HUMALIS_ESSAI_POSTGRES` donne un serveur où l'on peut créer des bases, par exemple `HUMALIS_ESSAI_POSTGRES=postgres://localhost:5432/postgres npm run test:postgres` (ou `npm test`, qui les ajoute alors aux autres). Chaque essai crée sa propre base, au nom commençant par `humalis_essai_`, et l'efface à la fin. Sans cette variable, ils sont sautés.
 
 `npm run verifier:natifs` se lance de même, après `npm run build`, à refaire après tout changement d'une cible native. Il prend les mêmes `--seul` et `--garder` (et, pour Apple, `--configuration Debug` ou `Release`, sinon les deux), et cherche ses outils ainsi :
 

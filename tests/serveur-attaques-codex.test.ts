@@ -5,7 +5,6 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetServeur } from '../src/cibles/serveur/projet.js';
-import { BASES, surSqlite } from './aide-sqlite.js';
 
 /**
  * Les défauts signalés par la revue Codex du 12 novembre 2026 (seconde passe), rejoués sur un VRAI serveur produit :

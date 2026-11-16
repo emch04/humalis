@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { BASES } from './aide-sqlite.js';
+import { BASES } from './aide-bases.js';
 import { jouer, type Reponse } from './aide-serveur-produit.js';
 import { Machine } from '../src/machine/machine.js';
 
@@ -185,13 +185,13 @@ ecoute.closeAllConnections();
 console.log(JSON.stringify(r));
 `;
 
-const SUR_SQLITE = (code: string) => code.replace('creerMagasinJetons(null)', 'creerMagasinJetons(BASE_SQLITE)');
+const SUR_BASE = (code: string) => code.replace('creerMagasinJetons(null)', 'creerMagasinJetons(BASE_ESSAI)');
 
 let r: Record<string, Reponse>;
 
-describe.each(BASES)('l’inscription libre sur un vrai serveur produit, %s', (_base, sqlite) => {
+describe.each(BASES)('l’inscription libre sur un vrai serveur produit, %s', (_nom, base) => {
   beforeAll(() => {
-    r = jouer(SOURCE, 'inscription-libre', (s) => AVEC_JOURNAL(scenario(s)), sqlite, SUR_SQLITE);
+    r = jouer(SOURCE, 'inscription-libre', (s) => AVEC_JOURNAL(scenario(s)), base, SUR_BASE);
   }, 300_000);
 
   it('un mot de passe faible, une adresse mal écrite ou un champ inconnu sont refusés, sans e-mail', () => {
@@ -309,7 +309,7 @@ describe.each(BASES)('l’inscription libre sur un vrai serveur produit, %s', (_
 
 describe('sans « inscription libre » sur un vrai serveur produit', () => {
   beforeAll(() => {
-    r = jouer(SANS_INSCRIPTION, 'inscription-libre', scenarioFerme, false);
+    r = jouer(SANS_INSCRIPTION, 'inscription-libre', scenarioFerme, 'memoire');
   }, 300_000);
 
   it('Google refuse une adresse inconnue, et les routes de l’inscription n’existent pas', () => {

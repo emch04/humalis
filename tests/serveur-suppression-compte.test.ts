@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { BASES } from './aide-sqlite.js';
+import { BASES } from './aide-bases.js';
 import { jouer, type Reponse } from './aide-serveur-produit.js';
 import { Machine } from '../src/machine/machine.js';
 
@@ -153,9 +153,9 @@ console.log(JSON.stringify(r));
 
 let r: Record<string, Reponse>;
 
-describe.each(BASES)('supprimer son compte sur un vrai serveur produit, %s', (_base, sqlite) => {
+describe.each(BASES)('supprimer son compte sur un vrai serveur produit, %s', (_nom, base) => {
   beforeAll(() => {
-    r = jouer(SOURCE, 'suppression-compte', scenario, sqlite);
+    r = jouer(SOURCE, 'suppression-compte', scenario, base);
   }, 300_000);
 
   it('un visiteur n’a rien à supprimer ; une session par cookie sans le jeton CSRF est refusée', () => {

@@ -5,7 +5,6 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetServeur } from '../src/cibles/serveur/projet.js';
-import { BASES, surSqlite } from './aide-sqlite.js';
 
 /**
  * Les défauts moyens de la troisième revue Codex (12 novembre 2026), rejoués sur un VRAI serveur produit :

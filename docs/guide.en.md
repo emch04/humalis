@@ -4681,8 +4681,8 @@ npm run restauration -- sauvegardes/2026-11-12-03-15-00.jsonl.gz
 npm run restauration -- sauvegardes/2026-11-12-03-15-00.jsonl.gz --remplacer
 ```
 
-Stop the server first. On a fresh database, start it once to create the tables, then stop it. The
-restore refuses a table that already holds rows; `--remplacer` empties them first. It is all or
+Stop the server first. On a fresh database, the tables are created from the backup: nothing to
+prepare. The restore refuses a table that already holds rows; `--remplacer` empties them first. It is all or
 nothing: a cut file, a missing table or a refused row, and nothing is changed.
 
 ### Changing the program without losing data

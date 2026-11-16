@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetServeur } from '../src/cibles/serveur/projet.js';
-import { BASES, surSqlite } from './aide-sqlite.js';
+import { BASES, surBase } from './aide-bases.js';
 
 /**
  * « par boutique » sur un VRAI serveur produit (revue du 12 novembre 2026, S6) : un vendeur ne lit ni n'écrit dans la
@@ -78,7 +78,7 @@ console.log(JSON.stringify(r));
 type Reponse = { statut: number; corps: Record<string, unknown> };
 let r: Record<string, Reponse>;
 
-describe.each(BASES)('« par boutique » sur un vrai serveur produit, %s', (_base, sqlite) => {
+describe.each(BASES)('« par boutique » sur un vrai serveur produit, %s', (_nom, base) => {
   beforeAll(() => {
     const { application, diagnostics } = compiler(SOURCE);
     expect(diagnostics.filter((d) => d.gravite === 'erreur')).toEqual([]);
@@ -90,7 +90,7 @@ describe.each(BASES)('« par boutique » sur un vrai serveur produit, %s', (_bas
       writeFileSync(join(dossier, chemin), contenu);
     }
     // Les mêmes attaques sur les deux bases : en mémoire, puis dans SQLite.
-    writeFileSync(join(dossier, 'scenario.mjs'), sqlite ? surSqlite(SCENARIO) : SCENARIO);
+    writeFileSync(join(dossier, 'scenario.mjs'), surBase(SCENARIO, base));
     if (!existsSync(join(dossier, 'node_modules', 'typescript'))) execFileSync('npm', ['install', '--no-audit', '--no-fund'], { cwd: dossier, stdio: 'pipe' });
     execFileSync('npx', ['tsc'], { cwd: dossier, stdio: 'pipe' });
     r = JSON.parse(execFileSync('node', ['scenario.mjs'], { cwd: dossier, encoding: 'utf8' }).trim().split('\n').at(-1)!);

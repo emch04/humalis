@@ -1,5 +1,5 @@
 # Vérifie chaque envoi sur main et chaque demande de fusion : types, construction, tests du compilateur,
-# tests de l'extension des éditeurs, puis les serveurs produits et les applications natives (Apple,
+# tests de l'extension des éditeurs, les serveurs produits sur un vrai PostgreSQL, puis les serveurs produits et les applications natives (Apple,
 # Android, Windows) pour tous les programmes du dépôt.
 # Rien n'est publié d'ici : ce fichier ne lit aucun secret et n'a que le droit de lire le dépôt.
 name: Vérification
@@ -45,6 +45,41 @@ jobs:
       # dans des dossiers temporaires : il leur faut le réseau, que GitHub fournit.
       - name: Lancer les tests
         run: npm test
+
+  postgresql:
+    name: Serveurs produits sur PostgreSQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Un vrai PostgreSQL 16, local au travail et jeté à la fin : les attaques, les comptes, la suppression de
+    # compte, l'inscription libre, la sauvegarde et la restauration y sont rejoués comme en mémoire et dans SQLite.
+    services:
+      postgres:
+        image: postgres:16-alpine@sha256:81e77a4833487b8132fe4b00bedd39dc3f74b8641e387f19312a48f7de218c2e
+        env:
+          POSTGRES_USER: essai
+          POSTGRES_PASSWORD: essai-local-seulement
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U essai"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      HUMALIS_ESSAI_POSTGRES: postgres://essai:essai-local-seulement@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - name: Installer les paquets
+        run: npm ci
+      - name: Lancer les tests sur PostgreSQL
+        run: npm run test:postgres
 
   editeurs:
     name: Extension des éditeurs
