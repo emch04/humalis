@@ -37,7 +37,7 @@ page "accueil" :
                         ligne avec style "pane-top" :
                             texte "Aperçu web" en anglais "Web preview"
                         colonne avec style "preview-body" et animation montee au defilement et en cascade :
-                            texte "Ma boutique" en anglais "My shop" avec style "preview-caption"
+                            texte "boutique" sans traduction avec style "preview-caption"
                             texte "Nos produits" en anglais "Our products" avec style "preview-title"
                             texte "Livre" en anglais "Book" avec style "preview-item show"
                             texte "Stylo" en anglais "Pen" avec style "preview-item show"
