@@ -33,22 +33,22 @@ export interface OptionsServeur {
 
 /** Versions épinglées des dépendances du serveur produit. */
 export const VERSIONS_SERVEUR = {
-  notify: '1.1.0',
-  saasKit: '2.0.1',
-  security: '1.13.0',
-  storePostgres: '1.1.0',
-  centrale: '1.10.0',
-  credentials: '1.1.0',
-  tooling: '1.6.2',
-  pdf: '1.0.0',
+  notify: '1.2.0',
+  saasKit: '2.1.0',
+  security: '1.15.0',
+  storePostgres: '1.2.0',
+  centrale: '1.12.0',
+  credentials: '1.2.0',
+  tooling: '1.7.0',
+  pdf: '1.1.0',
   pdfkit: '0.18.0',
   typesPdfkit: '0.17.7',
-  loyalty: '1.0.1',
-  express: '4.22.3',
+  loyalty: '1.1.0',
+  express: '5.3.0',
   pg: '8.23.1',
   typescript: '7.0.2',
   typesNode: '26.2.0',
-  typesExpress: '4.17.25',
+  typesExpress: '5.0.6',
   typesPg: '8.23.1',
   supertest: '7.3.1',
   typesSupertest: '7.2.1',
@@ -203,6 +203,8 @@ function packageJson(nom: string, serveur: ServeurRI, livekit = false): string {
       version: '1.0.0',
       private: true,
       type: 'module',
+      // Les packs Astratra demandent Node 22 ; --env-file-if-exists (scripts plus bas) existe depuis Node 22.9.
+      engines: { node: '>=22.9' },
       scripts: {
         // Après tsc, les cartes de sources sont reliées aux fichiers Humalis : les piles d'erreurs nomment leurs lignes.
         build: 'tsc && node humalis-cartes.mjs',
@@ -1386,7 +1388,7 @@ ${separee ? codePortee(variable, 'lire') : ''}          // « ?produit=… » : 
       });
       ${variable}.get('/:id', ${route.droits.lireUn ? `lecturePrivee, ...acces.${gardeDe(route.droits.lireUn)}` : `${cache}, ${garde('lire')}`}, async (req, res, next) => {
         try {
-${voir('lire')}          const trouve = ${separee ? 'visible' : `await stockages.${donnee}.trouver(req.params.id)`};
+${voir('lire')}          const trouve = ${separee ? 'visible' : `await stockages.${donnee}.trouver(String(req.params.id))`};
           if (trouve) res.json(trouve);
           else sansCache(res).status(404).json({ erreur: introuvable('${route.donnee}') });
         } catch (erreur) {
@@ -1417,7 +1419,7 @@ ${codePlafondsModification(donneeRoute, serveur)}${codeEcritureModification(donn
       });
       ${variable}.delete('/:id', ${garde('supprimer')}${csrf('supprimer')}, async (req, res, next) => {
         try {
-${voir('supprimer')}          if (await stockages.${donnee}.supprimer(req.params.id)) res.status(204).end();
+${voir('supprimer')}          if (await stockages.${donnee}.supprimer(String(req.params.id))) res.status(204).end();
           else res.status(404).json({ erreur: introuvable('${route.donnee}') });
         } catch (erreur) {
           next(erreur);
@@ -2557,7 +2559,7 @@ function routeBon(variable: string, route: ServeurRI['routes'][number], garde: s
   const fichier = simplifier(route.donnee).replace(/_/g, '-');
   return `      ${variable}.get('/:id/bon', lecturePrivee, ${garde}, async (req, res, next) => {
         try {
-${separee ? codeFicheVisible(variable, donnee, route.donnee, 'lire') : ''}          const trouve = ${separee ? 'visible' : `await stockages.${donnee}.trouver(req.params.id)`};
+${separee ? codeFicheVisible(variable, donnee, route.donnee, 'lire') : ''}          const trouve = ${separee ? 'visible' : `await stockages.${donnee}.trouver(String(req.params.id))`};
           if (!trouve) {
             res.status(404).json({ erreur: introuvable('${route.donnee}') });
             return;
@@ -2585,7 +2587,7 @@ function routeFidelite(fidelite: NonNullable<ServeurRI['fidelite']>): string {
       const routeFidelite = express.Router();
       routeFidelite.get('/:valeur', lecturePrivee, ...acces.seulAdmin, async (req, res, next) => {
         try {
-          const numero = sansSeparateurs(req.params.valeur);
+          const numero = sansSeparateurs(String(req.params.valeur));
           if (numero === '') {
             res.status(400).json({ erreur: 'la valeur « ${fidelite.champ} » est vide' });
             return;

@@ -13,6 +13,8 @@ export const PACKS: readonly { nom: string; version: string; cible: string }[] =
   { nom: '@astratra/centrale', version: VERSIONS_SERVEUR.centrale, cible: 'serveur' },
   { nom: '@astratra/credentials', version: VERSIONS_SERVEUR.credentials, cible: 'serveur' },
   { nom: '@astratra/tooling', version: VERSIONS_SERVEUR.tooling, cible: 'serveur' },
+  // Seulement dans le serveur d'un programme qui envoie des e-mails (invitations, mot de passe oublié, confirmation).
+  { nom: '@astratra/notify', version: VERSIONS_SERVEUR.notify, cible: 'serveur' },
   // Seulement dans le serveur d'un programme qui écrit « telecharger bon de … » (pdf et pdfkit, sa dépendance) ou « fidelite … ».
   { nom: '@astratra/pdf', version: VERSIONS_SERVEUR.pdf, cible: 'serveur' },
   { nom: 'pdfkit', version: VERSIONS_SERVEUR.pdfkit, cible: 'serveur' },

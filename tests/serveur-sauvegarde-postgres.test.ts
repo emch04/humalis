@@ -1,11 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { execFileSync, spawn } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { gunzipSync, gzipSync } from 'node:zlib';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetServeur } from '../src/cibles/serveur/projet.js';
+import { installerSiBesoin } from './aide-installation.js';
 
 /**
  * La sauvegarde et la restauration sur un vrai PostgreSQL (16 novembre 2026). Défaut trouvé en essayant un serveur
@@ -53,7 +54,7 @@ describe.skipIf(!ADMIN)('la sauvegarde et la restauration sur un vrai PostgreSQL
       mkdirSync(dirname(join(dossier, chemin)), { recursive: true });
       writeFileSync(join(dossier, chemin), contenu);
     }
-    if (!existsSync(join(dossier, 'node_modules', 'typescript'))) execFileSync('npm', ['install', '--no-audit', '--no-fund'], { cwd: dossier, stdio: 'pipe' });
+    installerSiBesoin(dossier);
     execFileSync('npx', ['tsc'], { cwd: dossier, stdio: 'pipe' });
     for (const base of Object.values(bases)) psql('postgres', `CREATE DATABASE ${base}`);
 

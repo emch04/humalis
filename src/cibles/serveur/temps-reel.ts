@@ -148,7 +148,7 @@ function monterSalles(app: Application, o: Options, voir: (req: Request) => Moi,
   app.post('/api/salles_jeton', ...acces.connecte, csrf, async (req, res, next) => {
     try {
       const moi = voir(req);
-      const corps = req.body as { salle?: unknown; cercle?: unknown };
+      const corps = (req.body ?? {}) as { salle?: unknown; cercle?: unknown };
       const nom = texteDe(corps.salle);
       const permis = await droit(moi, nom, true, texteDe(corps.cercle));
       if (!permis) {
@@ -238,7 +238,7 @@ function monterSalles(app: Application, o: Options, voir: (req: Request) => Moi,
   app.post('/api/salles_geste', ...acces.connecte, csrf, async (req, res, next) => {
     try {
       const moi = voir(req);
-      const corps = req.body as { salle?: unknown; participant?: unknown; geste?: unknown; cercle?: unknown };
+      const corps = (req.body ?? {}) as { salle?: unknown; participant?: unknown; geste?: unknown; cercle?: unknown };
       const nom = texteDe(corps.salle);
       const geste = texteDe(corps.geste);
       const permis = await droit(moi, nom, false, texteDe(corps.cercle));
@@ -617,7 +617,7 @@ export function monterTempsReel(cible: { use(routes: RequestHandler): unknown },
     app.post(base + '_messages', ...acces.connecte, csrf, async (req, res, next) => {
       try {
         const moi = voir(req);
-        const corps = req.body as { conversation?: unknown; texte?: unknown; piece?: unknown };
+        const corps = (req.body ?? {}) as { conversation?: unknown; texte?: unknown; piece?: unknown };
         const conversation = estMembre(moi) ? await conversationDe(moi, texteDe(corps.conversation)) : undefined;
         if (!conversation) {
           refus(res);
@@ -791,7 +791,7 @@ export function monterTempsReel(cible: { use(routes: RequestHandler): unknown },
     app.post('/api/appels', ...acces.connecte, csrf, async (req, res, next) => {
       try {
         const moi = voir(req);
-        const corps = req.body as { appele?: unknown; video?: unknown };
+        const corps = (req.body ?? {}) as { appele?: unknown; video?: unknown };
         const contact = await compteDe(texteDe(corps.appele));
         if (!contact?.id) {
           res.status(404).json({ erreur: 'Cette personne est introuvable.' });
@@ -842,7 +842,7 @@ export function monterTempsReel(cible: { use(routes: RequestHandler): unknown },
     app.post('/api/appels_reponse', ...acces.connecte, csrf, async (req, res, next) => {
       try {
         const moi = voir(req);
-        const corps = req.body as { appel?: unknown; reponse?: unknown };
+        const corps = (req.body ?? {}) as { appel?: unknown; reponse?: unknown };
         const appel = await appels.trouver(texteDe(corps.appel));
         if (!appel || (appel.auteur !== moi.id && appel.appele !== moi.id)) {
           res.status(404).json({ erreur: 'Cet appel est introuvable.' });

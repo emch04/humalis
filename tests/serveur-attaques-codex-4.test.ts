@@ -1,11 +1,12 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetServeur } from '../src/cibles/serveur/projet.js';
 import { Machine } from '../src/machine/machine.js';
+import { installerSiBesoin } from './aide-installation.js';
 
 /**
  * Les défauts de la quatrième revue Codex (14 novembre 2026), rejoués sur un VRAI serveur produit :
@@ -93,7 +94,7 @@ describe('les défauts de la quatrième revue Codex, sur un vrai serveur produit
       writeFileSync(join(dossier, chemin), contenu);
     }
     writeFileSync(join(dossier, 'scenario.mjs'), SCENARIO);
-    if (!existsSync(join(dossier, 'node_modules', 'typescript'))) execFileSync('npm', ['install', '--no-audit', '--no-fund'], { cwd: dossier, stdio: 'pipe' });
+    installerSiBesoin(dossier);
     execFileSync('npx', ['tsc'], { cwd: dossier, stdio: 'pipe' });
     r = JSON.parse(execFileSync('node', ['scenario.mjs'], { cwd: dossier, encoding: 'utf8' }).trim().split('\n').at(-1)!);
   }, 300_000);

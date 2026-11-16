@@ -1,12 +1,13 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetServeur } from '../src/cibles/serveur/projet.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
 import { programme } from './analyse/aide.js';
+import { installerSiBesoin } from './aide-installation.js';
 
 const SERVEUR = [
   'serveur "boutique" :',
@@ -87,7 +88,7 @@ function construire(nom: string, fichiers: Map<string, string>, enPlus: Record<s
     mkdirSync(dirname(join(dossier, chemin)), { recursive: true });
     writeFileSync(join(dossier, chemin), contenu);
   }
-  if (!existsSync(join(dossier, 'node_modules', 'typescript'))) execFileSync('npm', ['install', '--no-audit', '--no-fund'], { cwd: dossier, stdio: 'pipe' });
+  installerSiBesoin(dossier);
   try {
     execFileSync('npx', ['tsc'].concat(nom === 'site' ? ['--noEmit'] : []), { cwd: dossier, encoding: 'utf8', stdio: 'pipe' });
     return { dossier, erreurs: '' };

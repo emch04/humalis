@@ -78,7 +78,7 @@ export function codePlafondsModification(donnee: Donnee, serveur?: ServeurRI): s
   });
   return `          // « au plus » : la fiche modifiée reste dans ses bornes.
           {
-            const avant = await stockages.${camel(donnee.nom)}.trouver(req.params.id);
+            const avant = await stockages.${camel(donnee.nom)}.trouver(String(req.params.id));
             const fusion: Record<string, unknown> = { ...(avant ?? {}), ...envoi.valeur };
             const cercles: Record<string, ((fiche: Record<string, unknown>) => boolean) | undefined> = ${serveur ? codeCercles(serveur, donnee, donnee.par !== undefined && donnee.par !== 'compte' ? `avant?.[${chaine(camel(donnee.par))}] as string | undefined` : undefined) : '{}'};
 ${lignes.join('\n')}
@@ -214,7 +214,7 @@ export function codeEcritureModification(donnee: Donnee, route: Route, avecTrans
   const paye = donnee.champs.find((c) => c.regle?.genre === 'depart' && c.regle.paiement === true);
   const montant = paye ? champsDuMontant(donnee, route) : [];
   const calculs = donnee.champs.filter((c) => c.regle?.genre === 'somme' || c.regle?.genre === 'nombreDe');
-  if (!avecTransaction || (montant.length === 0 && calculs.length === 0)) return `          const modifie = await stockages.${nom}.modifier(req.params.id, envoi.valeur);
+  if (!avecTransaction || (montant.length === 0 && calculs.length === 0)) return `          const modifie = await stockages.${nom}.modifier(String(req.params.id), envoi.valeur);
 `;
   const entrees = [...new Set(calculs.flatMap((c) => (c.regle?.genre === 'somme' ? [c.regle.liste, ...(c.regle.plus !== undefined ? [c.regle.plus] : [])] : c.regle?.genre === 'nombreDe' ? [c.regle.liste] : [])))].map((n) => chaine(camel(n)));
   const groupe = donnee.par !== undefined && donnee.par !== 'compte' ? `avant?.[${chaine(camel(donnee.par))}] as string | undefined` : undefined;
@@ -237,12 +237,12 @@ ${recalcul.join('\n')}
 `;
   const touche = [...new Set([...montant, ...entrees.map((e) => JSON.parse(e) as string)])];
   return `          const modifie = await transaction(async (s) => {
-            const avant = await s.${nom}.trouver(req.params.id, true);
+            const avant = await s.${nom}.trouver(String(req.params.id), true);
             if (!avant) return null;
             const valeurs: Record<string, unknown> = { ...envoi.valeur };
 ${paye ? `            // Une fiche payée ne change plus ce qui fait son montant, sauf par un admin.
             if (avant[${chaine(camel(paye.nom))}] === true && ${JSON.stringify(touche)}.some((c) => c in valeurs) && !(${admin})) return 'payee' as const;
-` : ''}${blocCalculs}            return s.${nom}.modifier(req.params.id, valeurs);
+` : ''}${blocCalculs}            return s.${nom}.modifier(String(req.params.id), valeurs);
           });
 ${paye ? `          if (modifie === 'payee') {
             res.status(409).json({ erreur: 'Cette fiche est payée : ce qui fait son montant ne change plus.' });

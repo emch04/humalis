@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetWeb } from '../src/cibles/web/projet.js';
+import { installerSiBesoin } from './aide-installation.js';
 
 /** Le premier exemple de cette section du guide : celui qu'une personne recopie. */
 function exempleDuGuide(guide: string, titre: string): string {
@@ -37,7 +38,7 @@ describe('les comptes dans les pages : le code produit passe tsc', () => {
         mkdirSync(dirname(join(dossier, chemin)), { recursive: true });
         writeFileSync(join(dossier, chemin), contenu);
       }
-      if (!existsSync(join(dossier, 'node_modules', 'typescript'))) execFileSync('npm', ['install', '--no-audit', '--no-fund'], { cwd: dossier, encoding: 'utf8', stdio: 'pipe' });
+      installerSiBesoin(dossier);
       // tsc écrit ses erreurs sur la sortie standard et sort en erreur : le test montre ces lignes.
       try {
         execFileSync('npx', ['tsc', '--noEmit'], { cwd: dossier, encoding: 'utf8', stdio: 'pipe' });

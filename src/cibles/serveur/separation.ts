@@ -61,7 +61,7 @@ export function codePortee(variable: string, action: ActionSeparee): string {
 
 /** Une fiche hors de portée est « introuvable » : on ne révèle pas qu'elle existe ailleurs. */
 export function codeFicheVisible(variable: string, donnee: string, nomDonnee: string, action: ActionSeparee, champGroupe?: string): string {
-  return `${codePortee(variable, action)}          const visible = await stockages.${donnee}.trouver(req.params.id);
+  return `${codePortee(variable, action)}          const visible = await stockages.${donnee}.trouver(String(req.params.id));
           if (!visible || !dansPortee(visible, portee)) {
             sansCache(res).status(404).json({ erreur: introuvable('${nomDonnee}') });
             return;

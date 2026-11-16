@@ -12,6 +12,7 @@ describe('les packs Astratra du compilateur', () => {
       '@astratra/centrale',
       '@astratra/credentials',
       '@astratra/tooling',
+      '@astratra/notify',
       '@astratra/pdf',
       'pdfkit',
       '@astratra/loyalty',
@@ -40,9 +41,13 @@ describe('genreDeChangement', () => {
 
 describe('etatDesPacks', () => {
   it('donne pour chaque pack la dernière version et le conseil à suivre', () => {
+    // Calculées depuis les versions épinglées : le test ne retarde pas d'une mise à jour des packs.
+    const version = (nom: string) => PACKS.find((p) => p.nom === nom)!.version.split('.').map(Number);
+    const [sa, sb, sc] = version('@astratra/saas-kit');
+    const [ma] = version('@astratra/security');
     const dernieres: Record<string, string> = {
-      '@astratra/saas-kit': '2.0.2',
-      '@astratra/security': '2.0.0',
+      '@astratra/saas-kit': `${sa}.${sb}.${sc! + 1}`,
+      '@astratra/security': `${ma! + 1}.0.0`,
     };
     const etat = etatDesPacks((nom) => dernieres[nom] ?? PACKS.find((p) => p.nom === nom)!.version);
     const saas = etat.find((l) => l.nom === '@astratra/saas-kit')!;

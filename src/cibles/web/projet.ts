@@ -86,9 +86,9 @@ export const VERSIONS = {
   typescript: '7.0.2',
   typesReact: '19.3.0',
   typesReactDom: '19.3.0',
-  prerender: '1.0.1',
-  centrale: '1.10.0',
-  client: '1.1.0',
+  prerender: '1.1.0',
+  centrale: '1.12.0',
+  client: '1.2.0',
   playwright: '1.63.0',
 };
 

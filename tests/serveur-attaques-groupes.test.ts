@@ -1,11 +1,12 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetServeur } from '../src/cibles/serveur/projet.js';
 import { BASES, surBase } from './aide-bases.js';
+import { installerSiBesoin } from './aide-installation.js';
 
 /**
  * « par boutique » sur un VRAI serveur produit (revue du 12 novembre 2026, S6) : un vendeur ne lit ni n'écrit dans la
@@ -91,7 +92,7 @@ describe.each(BASES)('« par boutique » sur un vrai serveur produit, %s', (_nom
     }
     // Les mêmes attaques sur les deux bases : en mémoire, puis dans SQLite.
     writeFileSync(join(dossier, 'scenario.mjs'), surBase(SCENARIO, base));
-    if (!existsSync(join(dossier, 'node_modules', 'typescript'))) execFileSync('npm', ['install', '--no-audit', '--no-fund'], { cwd: dossier, stdio: 'pipe' });
+    installerSiBesoin(dossier);
     execFileSync('npx', ['tsc'], { cwd: dossier, stdio: 'pipe' });
     r = JSON.parse(execFileSync('node', ['scenario.mjs'], { cwd: dossier, encoding: 'utf8' }).trim().split('\n').at(-1)!);
   }, 300_000);
