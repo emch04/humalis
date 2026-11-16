@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://www.npmjs.com/package/humalis"><img src="https://img.shields.io/npm/v/humalis" alt="npm"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Humalis%201.1-c1e928" alt="Licence"></a>
-  <a href="https://github.com/emch04/framework"><img src="https://img.shields.io/badge/server-Astratra-6f42c1" alt="Astratra"></a>
+  <a href="https://github.com/emch04/astratra"><img src="https://img.shields.io/badge/server-Astratra-6f42c1" alt="Astratra"></a>
   <a href="https://hub.xerj.org/contributors/emch04"><img src="https://hub.xerj.org/contributors/emch04/badge.svg" alt="XERJ Corpus Hub contributor"></a>
 </p>
 
@@ -70,7 +70,7 @@ humalis compile my-project.humalis --cible serveur --sortie my-project-server   
 |---|---|
 | `web` | a light site, prerendered (one HTML page per address) |
 | `statique` | static HTML, CSS and JavaScript pages, no build step |
-| `serveur` | a Node server with the [Astratra](https://github.com/emch04/framework) packs (login, permissions, sessions) |
+| `serveur` | a Node server with the [Astratra](https://github.com/emch04/astratra) packs (login, permissions, sessions) |
 | `android` | a native Kotlin and Jetpack Compose app |
 | `windows` | a native C# and WPF app (Windows 10 and 11) |
 | `desktop` | an Electron app: the Linux target |
