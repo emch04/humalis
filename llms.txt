@@ -24,6 +24,17 @@ Les listes de mots ci-dessous disent ce que le langage reconnaît, pas comment l
 - Pour essayer un fichier sans projet : `humalis lancer mon-fichier.humalis`.
 - La 3D s’écrit dans un module JavaScript, utilisé avec `utiliser module "Scene3D" depuis "./modules/Scene3D"`. Ses paquets (`three`, `gsap`…) sont ajoutés seuls au projet.
 
+## Installer et compiler
+
+- Installer : `npm install -g humalis` (Node.js 24 ou plus récent). `humalis --version` donne la version installée.
+- Créer un projet : `humalis nouveau mon-projet`, puis `cd mon-projet` et `humalis developper`, qui lance le site en local et le recompile à chaque enregistrement.
+- Essayer un fichier seul, sans projet ni installation : `humalis lancer mon-fichier.humalis` ; son bloc `serveur` tourne aussi, en mémoire.
+- Vérifier sans rien écrire : `humalis verifier mon-fichier.humalis` ; avec `--cible apple` (ou une autre cible), il dit aussi ce que cette cible refuserait.
+- Compiler : `humalis compile mon-fichier.humalis --cible <cible> --sortie <dossier>`. Les cibles : `web` (site prérendu), `statique` (HTML, CSS et JavaScript sans construction), `apple` (SwiftUI : iPhone, iPad et Mac), `android` (Kotlin et Jetpack Compose), `windows` (C# et WPF, Windows 10 et 11), `desktop` (application de bureau) et `serveur` (Node et TypeScript).
+- Une application qui parle à son serveur reçoit son adresse avec `--serveur https://…` (desktop, apple, android, windows) ; un site public, la sienne avec `--adresse https://…` (web, statique).
+- Le serveur produit demande Node.js 22.9 ou plus récent ; PostgreSQL avec `DATABASE_URL`, ou un seul fichier SQLite avec `HUMALIS_BASE=donnees/base.sqlite`. `npm run sauvegarde` et `npm run restauration` gardent et rendent ses données.
+- Mettre en forme : `humalis formater mon-fichier.humalis`. Lancer les tests Humalis d’un projet : `humalis tester`.
+
 ## Exemple complet vérifié
 
 ```humalis
