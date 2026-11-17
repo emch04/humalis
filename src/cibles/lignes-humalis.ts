@@ -221,12 +221,39 @@ export interface CarteDeSources {
 }
 
 /**
+ * Le texte d'un fichier Humalis tel qu'il part dans une carte publiée avec les pages : seuls les blocs (une ligne sans
+ * retrait et ses lignes en retrait) dont une ligne est reliée au code de la carte restent ; les autres deviennent des
+ * lignes vides, aux mêmes numéros. Un bloc « serveur » (rôles, règles, actions, services, variables du .env) n'est
+ * jamais relié au code d'une page : il ne part pas dans le navigateur (revue de sécurité de la 3.0.0).
+ */
+export function blocsRelies(texte: string, reliees: ReadonlySet<number>): string {
+  const lignes = texte.split('\n');
+  const gardees = new Array<boolean>(lignes.length).fill(false);
+  let debut = 0;
+  const fermer = (fin: number) => {
+    let relie = false;
+    for (let l = debut; l < fin && !relie; l++) relie = reliees.has(l + 1);
+    for (let l = debut; l < fin; l++) gardees[l] = relie;
+  };
+  for (let l = 0; l < lignes.length; l++) {
+    const ligne = lignes[l]!;
+    if (l > debut && ligne.trim() !== '' && !/^\s/.test(ligne)) {
+      fermer(l);
+      debut = l;
+    }
+  }
+  fermer(lignes.length);
+  return lignes.map((ligne, l) => (gardees[l] ? ligne : '')).join('\n');
+}
+
+/**
  * La carte d'un fichier produit. `chemins` donne, pour chaque fichier
  * Humalis du projet, le chemin écrit dans la carte (relatif à la carte) ;
  * `contenus` son texte, pour que l'outil n'ait pas à le chercher.
  */
-export function carteDeSources(nom: string, segments: Segment[][], fichiers: readonly string[], chemins: (fichier: string) => string, contenus?: (fichier: string) => string | undefined): CarteDeSources {
+export function carteDeSources(nom: string, segments: Segment[][], fichiers: readonly string[], chemins: (fichier: string) => string, contenus?: (fichier: string) => string | undefined, seulementLesBlocsRelies = false): CarteDeSources {
   const index = new Map<string, number>();
+  const reliees = new Map<number, Set<number>>();
   const sources: string[] = [];
   const textes: (string | null)[] = [];
   const names: string[] = [];
@@ -261,17 +288,19 @@ export function carteDeSources(nom: string, segments: Segment[][], fichiers: rea
       codes.push(code);
       colonnePrecedente = s.colonne;
       precedent = { source: i, ligne: situe.ligne - 1 };
+      (reliees.get(i) ?? reliees.set(i, new Set()).get(i)!).add(situe.ligne);
     }
     // Une ligne sans lien après une ligne reliée : un segment vide, pour que rien ne déborde.
     if (codes.length === 0 && avaitLien) codes.push(vlq(0));
     avaitLien = morceaux.length > 0;
     lignes.push(codes.join(','));
   }
+  const ecrits = seulementLesBlocsRelies ? textes.map((t, i) => (t === null ? null : blocsRelies(t, reliees.get(i) ?? new Set()))) : textes;
   return {
     version: 3,
     file: nom,
     sources,
-    ...(textes.some((t) => t !== null) ? { sourcesContent: textes } : {}),
+    ...(ecrits.some((t) => t !== null) ? { sourcesContent: ecrits } : {}),
     names,
     mappings: lignes.join(';'),
   };
@@ -512,7 +541,8 @@ export function appliquerLignesHumalis(fichiers: Map<string, string>, options: O
     if (langage === 'js') {
       const nom = nomDe(chemin);
       const dossier = dossierDe(chemin);
-      const carte = carteDeSources(nom, lu.segments, options.fichiers, (f) => depuis(dossier, versSource(f)), options.contenus === false ? undefined : options.lire);
+      // Une carte JavaScript part avec les pages : elle ne porte que les blocs reliés à leur code.
+      const carte = carteDeSources(nom, lu.segments, options.fichiers, (f) => depuis(dossier, versSource(f)), options.contenus === false ? undefined : options.lire, true);
       resultat.set(chemin, `${lu.code.replace(/\n?$/, '\n')}//# sourceMappingURL=${nom}.map\n`);
       resultat.set(`${chemin}.map`, JSON.stringify(carte));
     } else if (langage === 'ts') {

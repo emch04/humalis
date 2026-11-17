@@ -9,6 +9,7 @@ import { compiler } from '../src/compilateur.js';
 import {
   appliquerLignesHumalis,
   avecReperes,
+  blocsRelies,
   carteDeSources,
   decoderVlq,
   lireReperes,
@@ -120,6 +121,45 @@ describe('les cartes de sources (JavaScript)', () => {
     expect(JSON.parse(sortie.get('src/couches/accueil.js.map')!).sources).toEqual(['../../../../boutique.humalis']);
     expect(sortie.get('index.html')).toBe('<p>x</p>');
     expect(sortie.get('humalis-vite.js')).toBe('const SOURCES = "../..";');
+  });
+});
+
+describe('les cartes publiées avec les pages (revue de sécurité de la 3.0.0)', () => {
+  it('ne gardent que les blocs reliés au code : un bloc serveur devient des lignes vides, aux mêmes numéros', () => {
+    const texte = ['# Le site', 'serveur "api" :', '    roles gerant', '    donnee note :', '        texte : texte', '', 'page "a" :', '    titre "A"', '', 'page "b" :', '    titre "B"'].join('\n');
+    const garde = blocsRelies(texte, new Set([8]));
+    expect(garde.split('\n')).toHaveLength(11);
+    expect(garde).toBe(['', '', '', '', '', '', 'page "a" :', '    titre "A"', '', '', ''].join('\n'));
+    expect(blocsRelies(texte, new Set())).toBe('\n'.repeat(10));
+  });
+
+  it('le projet web d’un programme avec un serveur : la carte de la page ne porte ni le serveur, ni ses rôles, ni ses variables du .env', () => {
+    const source = [
+      'quand une erreur arrive :',
+      '    jeton secret depuis l\'environnement "SUIVI_CLE" dans l\'entete "X-Cle"',
+      '    envoyer requete vers l\'environnement "SUIVI_ADRESSE" avec message = erreur.message',
+      '',
+      'serveur "api" :',
+      '    roles gerant',
+      '    donnee note :',
+      '        texte : texte',
+      '    route "notes" :',
+      '        seul gerant peut lire note',
+      '        connecte peut faire "archiver-en-secret" sur note :',
+      '            changer note.texte par "archivee"',
+      '',
+      PAGE,
+    ].join('\n');
+    const produits = avecReperes(() => genererProjetMoteur(application(source), { nom: 'essai', source: 'essai.humalis', sources: ['essai.humalis'] }));
+    const sortie = appliquerLignesHumalis(produits, { fichiers: ['essai.humalis'], versLesSources: '..', lire: () => source });
+    const cartes = [...sortie].filter(([chemin]) => chemin.endsWith('.js.map')).map(([, contenu]) => JSON.parse(contenu) as { sourcesContent?: (string | null)[] });
+    const textes = cartes.flatMap((c) => c.sourcesContent ?? []).filter((t): t is string => typeof t === 'string');
+    expect(textes.length).toBeGreaterThan(0);
+    for (const t of textes) {
+      expect(t.split('\n')).toHaveLength(source.split('\n').length);
+      for (const secret of ['serveur "api"', 'roles gerant', 'archiver-en-secret', 'SUIVI_CLE', 'SUIVI_ADRESSE']) expect(t, secret).not.toContain(secret);
+    }
+    expect(textes.some((t) => t.includes('noter panier et total'))).toBe(true);
   });
 });
 
