@@ -52,6 +52,9 @@ await ADMIN_ESSAI.query('CREATE DATABASE ' + NOM_BASE_ESSAI);
 const adresseEssai = new URL(process.env.HUMALIS_ESSAI_POSTGRES);
 adresseEssai.pathname = '/' + NOM_BASE_ESSAI;
 const BASE_ESSAI = new pg.Pool({ connectionString: adresseEssai.href });
+// La base d'essai est supprimée à la fin : une connexion au repos coupée à ce moment ne fait pas tomber l'essai.
+ADMIN_ESSAI.on('error', () => {});
+BASE_ESSAI.on('error', () => {});
 // Le branchement de src/demarrer.ts, relu dans le serveur construit : les mêmes tables, les mêmes champs, le même
 // journal de synchronisation (des déclencheurs dans la base) et la même transaction qu'en production.
 const DEMARRER = readFileSync(new URL('./dist/src/demarrer.js', import.meta.url), 'utf8');

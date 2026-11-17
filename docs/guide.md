@@ -2764,6 +2764,12 @@ Pour MySQL et MariaDB, `VERIFY_CA` vérifie le certificat sans vérifier le nom 
 `DISABLED` se connecte en clair (une base sur la même machine). `PREFERRED`, qui se connecterait en
 clair sans le dire si la base ne chiffre pas, est refusé au démarrage, comme une valeur inconnue.
 
+Pour PostgreSQL, `&channel_binding=require` lie en plus la connexion au canal chiffré. Un PostgreSQL
+hébergé propose souvent deux adresses : l'adresse directe, et celle d'un relais de connexions (un nom
+en `-pooler`, ou le port 6543). En mode transaction, ce relais coupe les annonces en direct entre
+exemplaires du serveur et les verrous : donne l'adresse directe. Le serveur le vérifie au démarrage,
+et prévient s'il passe par un tel relais.
+
 #### Une base de documents
 
 Une base de documents range chaque fiche comme un document, sans tables ni colonnes. Humalis s'en

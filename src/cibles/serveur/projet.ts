@@ -25,6 +25,7 @@ import type { ServeurRI, TypeChamp, QuiPeut } from '../../ri/types.js';
 import { simplifier } from '../../analyse/elements.js';
 import { pascal, camel } from '../web/noms.js';
 import { codeCaptureErreurs, codeRelaisErreurs, variablesCapture } from './capture-erreurs.js';
+import { codeReglagesPostgres } from './connexion-postgres.js';
 
 export interface OptionsServeur {
   /** Le nom du projet, tiré du fichier Humalis. */
@@ -97,6 +98,7 @@ export function genererProjetServeur(complet: ServeurRI, options: OptionsServeur
   fichiers.set('src/humalis/stockage.ts', STOCKAGE);
   fichiers.set('src/humalis/sqlite.ts', SQLITE);
   fichiers.set('src/humalis/mysql.ts', MYSQL);
+  fichiers.set('src/humalis/postgres.ts', codeReglagesPostgres(true));
   if (serveur.projet) fichiers.set('src/humalis/services.ts', servicesTs(serveur));
   fichiers.set('src/humalis/documents.ts', documentsTs({ securite: avecSecurite(serveur), comptes: avecComptes(serveur), taches: Boolean(serveur.taches?.length), ia: avecIa(serveur) }));
   fichiers.set('src/humalis/envois.ts', ENVOIS);
@@ -363,7 +365,9 @@ HUMALIS_ADMIN_MOT_DE_PASSE=
 #   mysql://utilisateur:mot-de-passe@hote:3306/base        MySQL (mariadb://… pour MariaDB)
 #   mongodb://hote:27017/base?replicaSet=nom               une base de documents, avec transactions (jeu de répliques)
 # Une base sur une autre machine se chiffre (TLS), le certificat du serveur vérifié :
-#   PostgreSQL : ?sslmode=require (ou verify-full), et &sslrootcert=/chemin/ca.pem pour l'autorité de l'hébergeur
+#   PostgreSQL : ?sslmode=require (ou verify-full), et &sslrootcert=/chemin/ca.pem pour l'autorité de l'hébergeur ;
+#     &channel_binding=require lie la connexion au canal chiffré. Donnez l'adresse directe, pas celle d'un relais
+#     de connexions (« -pooler », port 6543) : il couperait les annonces en direct et les verrous
 #   MySQL, MariaDB : ?ssl-mode=REQUIRED (ou VERIFY_IDENTITY), et &ssl-ca=/chemin/ca.pem ; VERIFY_CA ne vérifie pas le nom
 #   documents : ?tls=true, ou une adresse mongodb+srv://… (chiffrée d'office), et &tlsCAFile=/chemin/ca.pem
 DATABASE_URL=
@@ -1890,7 +1894,8 @@ import { createServer, type RequestListener } from 'node:http';
 import { createMemoryUsersStore, type UsersStore } from '@astratra/saas-kit';
 import { hashPassword, isStrongPassword } from '@astratra/security';
 import { createPostgresUsersStore } from '@astratra/store-postgres';
-import pg from 'pg';${serveur.projet ? "\nimport { createPrivateKey, createPublicKey } from 'node:crypto';\nimport { adressesDesServices } from './humalis/services.js';" : ''}
+import pg from 'pg';
+import { reglagesPostgres, relaisDeConnexions } from './humalis/postgres.js';${serveur.projet ? "\nimport { createPrivateKey, createPublicKey } from 'node:crypto';\nimport { adressesDesServices } from './humalis/services.js';" : ''}
 import { creerServeur } from './serveur.js';
 ${avecDirect(serveur) ? "import { direct } from './humalis/direct.js';\n" : ''}${avecIa(serveur) ? "import { compterPostgres } from './humalis/ia.js';\n" : ''}${avecLogique(serveur) ? `import { transactionPostgres${serveur.taches?.length ? ', reclamerMemoire, reclamerPostgres' : ''} } from './humalis/logique.js';\n` : ''}import { creerEnvoisPostgres } from './humalis/envois.js';
 import { ouvrirCoffre } from './humalis/coffre.js';${avecSynchro(serveur) ? "\nimport { creerJournalPostgres } from './humalis/synchro.js';" : ''}${avecSecurite(serveur) ? "\nimport { creerMagasinSecuritePostgres } from './humalis/securite.js';" : ''}${comptes ? "\nimport { creerMagasinJetons } from './humalis/comptes.js';" : ''}
@@ -1918,7 +1923,18 @@ const genreBase = adresseBase === null ? null : /^postgres(ql)?:\\/\\//i.test(ad
 if (adresseBase !== null && genreBase === null) {
   arreter('DATABASE_URL doit commencer par postgres://, mysql://, mariadb:// ou mongodb:// (ici : « ' + adresseBase.split(':')[0] + ' »).');
 }
-const pool = genreBase === 'postgres' ? new pg.Pool({ connectionString: adresseBase! }) : null;
+let reglagesBase: ReturnType<typeof reglagesPostgres> | null = null;
+if (genreBase === 'postgres') {
+  try {
+    reglagesBase = reglagesPostgres(adresseBase!);
+  } catch (erreur) {
+    arreter('DATABASE_URL : ' + (erreur instanceof Error ? erreur.message : String(erreur)));
+  }
+  if (relaisDeConnexions(adresseBase!)) {
+    console.warn("DATABASE_URL passe par un relais de connexions (« -pooler » ou port 6543) : en mode transaction, il coupe les annonces en direct entre exemplaires et les verrous. Donnez l'adresse directe de la base.");
+  }
+}
+const pool = reglagesBase ? new pg.Pool(reglagesBase) : null;
 // Quand la base redémarre, elle coupe les connexions au repos : sans cette écoute, l'erreur ferait tomber le serveur.
 // Le pool en rouvre une à la requête suivante ; pendant la coupure, /sante répond 503 et les requêtes, 500.
 pool?.on('error', (erreur) => console.error('La base a coupé une connexion au repos : le serveur continue.', erreur.message));
@@ -2593,7 +2609,8 @@ function clesAnnoncees(serveur: ServeurRI, route: ServeurRI['routes'][number]): 
 }
 
 /** humalis/direct.ts : un seul serveur en mémoire, plusieurs serveurs par PostgreSQL. */
-const DIRECT = String.raw`import type { Request, RequestHandler, Response } from 'express';
+const DIRECT = String.raw`import { randomUUID } from 'node:crypto';
+import type { Request, RequestHandler, Response } from 'express';
 import type pg from 'pg';
 
 /**
@@ -2697,10 +2714,12 @@ export const direct = {
   async brancher(base: pg.Pool): Promise<void> {
     pool = base;
     let dejaBranche = false;
+    let essai: { jeton: string; recu: () => void } | null = null;
     const ecouterBase = async (): Promise<void> => {
       try {
         const client = await base.connect();
         client.on('notification', (message) => {
+          if (essai !== null && message.payload === essai.jeton) return essai.recu();
           if (message.payload) diffuser(message.payload);
         });
         client.once('error', () => {
@@ -2715,6 +2734,20 @@ export const direct = {
       }
     };
     await ecouterBase();
+    // Une annonce d'essai, sans retarder le démarrage : un relais de connexions en mode transaction l'avale sans
+    // rien dire, et les autres exemplaires ne verraient jamais les changements.
+    void (async () => {
+      const jeton = 'humalis-essai-' + randomUUID();
+      const revenue = await new Promise<boolean>((resoudre) => {
+        const delai = setTimeout(() => resoudre(false), 5000);
+        essai = { jeton, recu: () => { clearTimeout(delai); resoudre(true); } };
+        base.query('SELECT pg_notify($1, $2)', [CANAL, jeton]).catch(() => { clearTimeout(delai); resoudre(false); });
+      });
+      essai = null;
+      if (!revenue) {
+        console.warn("Les annonces en direct ne reviennent pas de PostgreSQL : DATABASE_URL passe sans doute par un relais de connexions en mode transaction. Les autres exemplaires du serveur ne verront pas les changements en direct : donnez l'adresse directe de la base.");
+      }
+    })();
   },
 
   /** Plusieurs exemplaires sur une base sans écoute : chaque seconde, les annonces récentes sont relues. */

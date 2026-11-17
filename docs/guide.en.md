@@ -2841,6 +2841,12 @@ For MySQL and MariaDB, `VERIFY_CA` checks the certificate without checking the s
 in clear text without saying so if the database does not encrypt, is refused at startup, like an
 unknown value.
 
+For PostgreSQL, `&channel_binding=require` also binds the connection to the encrypted channel. A hosted
+PostgreSQL often offers two addresses: the direct address, and a connection pooler's (a name ending in
+`-pooler`, or port 6543). In transaction mode, that pooler cuts live announcements between server
+instances and locks: give the direct address. The server checks it at startup, and warns if it goes
+through such a pooler.
+
 #### A document database
 
 A document database stores each record as a document, without tables or columns. Humalis uses it

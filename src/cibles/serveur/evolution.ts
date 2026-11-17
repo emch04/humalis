@@ -10,6 +10,7 @@
  *   « --nettoyer » efface de la base les champs retirés.
  */
 import type { ServeurRI } from '../../ri/types.js';
+import { codeReglagesPostgres } from './connexion-postgres.js';
 
 type Donnee = ServeurRI['donnees'][number];
 
@@ -105,6 +106,8 @@ export function verifierDonneesMjs(serveur: ServeurRI, noms: Noms): string {
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
+
+${codeReglagesPostgres(false)}
 
 const DONNEES = ${JSON.stringify(donnees)};
 
@@ -235,7 +238,7 @@ if (/^(mysql|mariadb|mongodb(\\+srv)?):\\/\\//i.test(url)) {
   process.exit(fautes > 0 ? 1 : 0);
 }
 
-const client = new pg.Client({ connectionString: url });
+const client = new pg.Client(reglagesPostgres(url));
 await client.connect();
 try {
   // Toutes les tables au même instant, en lecture seule : le serveur peut continuer de tourner.
