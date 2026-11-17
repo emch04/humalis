@@ -1,3 +1,4 @@
+import { noterRapprochement } from './corrections.js';
 /** Compare deux noms sans tenir compte de la casse ni des accents. */
 const normaliserNom = (nom: string): string => nom.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
@@ -39,7 +40,11 @@ export function proposerNom(nom: string, connus: Iterable<string>): string {
   const liste = [...connus];
   // « prix » pour « Prix », « eleve » pour « élève » : le même mot à une majuscule ou un accent près.
   const jumeau = liste.find((connu) => connu !== nom && normaliserNom(connu) === normaliserNom(nom));
-  if (jumeau) return ` Peut-être « ${jumeau} » ? Un nom garde ses majuscules et ses accents : « ${nom} » et « ${jumeau} » sont deux noms différents.`;
+  if (jumeau) {
+    noterRapprochement(nom, jumeau);
+    return ` Peut-être « ${jumeau} » ? Un nom garde ses majuscules et ses accents : « ${nom} » et « ${jumeau} » sont deux noms différents.`;
+  }
   const proche = nomProche(nom, liste);
+  if (proche) noterRapprochement(nom, proche);
   return proche ? ` Peut-être « ${proche} » ?` : '';
 }

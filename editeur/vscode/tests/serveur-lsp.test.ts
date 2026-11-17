@@ -81,6 +81,7 @@ describe('ServeurLangage', () => {
         range: { start: { line: 1, character: 10 }, end: { line: 1, character: 18 } },
         severity: 1,
         source: 'Humalis',
+        code: expect.stringMatching(/^HUM-\d{4}$/),
         message: expect.stringContaining('guillemet manquant'),
       },
     ]);

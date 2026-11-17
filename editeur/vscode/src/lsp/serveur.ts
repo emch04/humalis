@@ -10,6 +10,7 @@
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import paquet from '../../package.json';
 import { formaterSource } from '../../../../src/outils/formatage.js';
+import { codeDuMessage } from '../../../../src/analyse/codes.js';
 import { lireSurLeDisque, listerSurLeDisque, verifierAvec, versDiagnostics } from '../diagnostics.js';
 import { lireProjet, type Lecteur } from '../langage/projet.js';
 import { indexer, type Index } from '../langage/portees.js';
@@ -279,10 +280,13 @@ export class ServeurLangage {
       const index = Math.max(0, Math.min(d.ligne - 1, lignes.length - 1));
       const ligne = lignes[index] ?? '';
       const debut = d.colonne !== undefined ? Math.min(d.colonne - 1, ligne.length) : ligne.length - ligne.trimStart().length;
+      // Le code stable du message (« HUM-0142 »), comme « humalis verifier --json » : un outil ou un agent s'y retrouve.
+      const code = codeDuMessage(d.message);
       return {
         range: { start: { line: index, character: debut }, end: { line: index, character: ligne.length } },
         severity: d.gravite === 'erreur' ? 1 : 2,
         source: 'Humalis',
+        ...(code ? { code } : {}),
         message: d.message,
       };
     });

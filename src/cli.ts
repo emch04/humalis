@@ -14,6 +14,7 @@ import { cheminsDesPages, genererProjetWeb, genererComposantsWeb, verifierPourLe
 import { genererProjetServeur, MARQUE_SERVEUR } from './cibles/serveur/projet.js';
 import { fichiersEntree } from './cibles/serveur/entree.js';
 import { simplifier } from './analyse/elements.js';
+import { rapportJson } from './analyse/json.js';
 import { verifierSourcesPourLaCible, verifierNavigationPourLaCible, verifierFichiersPourLaCible, verifierNomsPourLeWeb, verifierAdresseParLangue } from './cibles/sources.js';
 import { genererProjetMoteur, verifierPourLeMoteur, MARQUE_MOTEUR } from './cibles/moteur/projet.js';
 import { lecturesPermises, lireLesDonnees, type ReglageLecture } from './cibles/moteur/lecture-construction.js';
@@ -47,7 +48,7 @@ const AIDE = `Utilisation :
   humalis developper [<fichier.humalis>] [--port <nombre>]
   humalis lancer [<fichier.humalis>] [--port <nombre>] [--ouvrir]
   humalis tester [<dossier-ou-fichier.test.humalis>] [--detail]
-  humalis verifier <fichier.humalis> [--exigeant] [--ri] [--cible <cible>]
+  humalis verifier <fichier.humalis> [--exigeant] [--ri] [--cible <cible>] [--json]
   humalis compile <fichier.humalis> --cible web --sortie <dossier> [--adresse https://…] [--exigeant]
   humalis compile <fichier.humalis> --cible web --composants <dossier>
   humalis compile <fichier.humalis> --cible desktop --sortie <dossier> [--serveur https://…]
@@ -93,7 +94,14 @@ editeur   le serveur de langage Humalis (LSP), sur l'entrée et la sortie
 /** Les fichiers du projet compilé, pour situer les diagnostics des cibles (« panier.humalis, ligne 6 »). */
 let fichiersDuProjet: string[] = [];
 
+/** « --json » : les diagnostics sont gardés, puis écrits en une fois sur la sortie standard, à la fin de la commande. */
+let diagnosticsJson: Diagnostic[] | undefined;
+
 function afficherDiagnostics(diagnostics: Diagnostic[]): void {
+  if (diagnosticsJson) {
+    diagnosticsJson.push(...diagnostics.map((brut) => situer(brut, fichiersDuProjet)));
+    return;
+  }
   for (const brut of diagnostics) {
     const d = situer(brut, fichiersDuProjet);
     const genre = d.gravite === 'erreur' ? 'Erreur' : 'Avertissement';
@@ -970,7 +978,20 @@ function packs(arguments_: string[]): number {
 /** Dit qu'un projet produit avec React devra passer au moteur Humalis : React sera retiré d'une prochaine version. */
 const AVERTISSEMENT_REACT = 'Avertissement : React sera retiré dans une prochaine version de Humalis ; le moteur Humalis est le défaut.';
 
-function principal(arguments_: string[]): number | Promise<number> {
+function principal(tous: string[]): number | Promise<number> {
+  // « --json » (verifier et compile) : la sortie standard ne porte que le rapport ; le code de sortie ne change pas.
+  if ((tous[0] === 'verifier' || tous[0] === 'compile') && tous.includes('--json')) {
+    const sans = tous.filter((a) => a !== '--json');
+    diagnosticsJson = [];
+    const ecrire = (code: number): number => {
+      console.log(JSON.stringify(rapportJson(diagnosticsJson ?? [], basename(sans[1] ?? '')), null, 2));
+      diagnosticsJson = undefined;
+      return code;
+    };
+    const resultat = principal(sans);
+    return resultat instanceof Promise ? resultat.then(ecrire) : ecrire(resultat);
+  }
+  const arguments_ = tous;
   const [commande, chemin] = arguments_;
 
   if (commande === 'nouveau') {
