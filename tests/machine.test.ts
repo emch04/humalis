@@ -108,9 +108,6 @@ describe('la machine : compilation en mémoire', () => {
     expect(serveur.corps).not.toContain('import.meta.env');
     const moteur = await machine.traiter({ methode: 'GET', chemin: '/src/humalis/moteur.js', requete: new URLSearchParams(), entetes: {} });
     expect(moteur.corps).toContain('globalThis.__machine?.boite(this)');
-    const centrale = await machine.traiter({ methode: 'GET', chemin: '/src/humalis/centrale.ts', requete: new URLSearchParams(), entetes: {} });
-    expect(centrale.entetes['content-type']).toContain('javascript');
-    expect(centrale.corps).not.toContain('import(');
   });
 
   it('une adresse inconnue donne la page « introuvable » en 404', async () => {

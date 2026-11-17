@@ -41,7 +41,6 @@ export const VERSIONS_SERVEUR = {
   saasKit: '2.1.0',
   security: '1.15.0',
   storePostgres: '1.2.0',
-  centrale: '1.12.0',
   credentials: '1.2.0',
   tooling: '1.7.0',
   pdf: '1.1.0',
@@ -104,7 +103,6 @@ export function genererProjetServeur(complet: ServeurRI, options: OptionsServeur
   fichiers.set('src/humalis/compresser.ts', COMPRESSER);
   fichiers.set('src/humalis/renouvellements.ts', RENOUVELLEMENTS);
   fichiers.set('src/humalis/sessions.ts', SESSIONS);
-  fichiers.set('src/humalis/centrale.ts', CENTRALE);
   if (serveur.captureErreurs) fichiers.set('src/humalis/capture-erreurs.ts', codeCaptureErreurs(serveur));
   // Les lignes Humalis : les erreurs du journal et de la capture nomment le fichier .humalis et sa ligne.
   fichiers.set('src/humalis/lignes.ts', LIGNES_SERVEUR_TS);
@@ -275,7 +273,6 @@ function packageJson(nom: string, serveur: ServeurRI, livekit = false): string {
         'audit:secrets': 'astratra audit:secrets',
       },
       dependencies: {
-        '@astratra/centrale': v.centrale,
         '@astratra/credentials': v.credentials,
         ...(serveur.fidelite ? { '@astratra/loyalty': v.loyalty } : {}),
         ...(avecEmails(serveur) ? { '@astratra/notify': v.notify, nodemailer: '10.3.1' } : {}),
@@ -379,13 +376,6 @@ HUMALIS_SESSION_MAX=
 HUMALIS_RELAIS=
 # L'adresse d'écoute. Derrière un relais sur la même machine : 127.0.0.1, le serveur n'est alors joignable que par lui. Sans elle, toutes les adresses.
 HUMALIS_ECOUTE=
-
-# La surveillance (@astratra/centrale) : erreurs et requêtes, masquées avant l'envoi.
-# Sans ces deux variables, rien n'est chargé et rien ne part. La clé est publique (clj_pub_…).
-CENTRALE_ADRESSE=
-CENTRALE_CLE=
-# production, preproduction ou developpement ; sinon, déduit de NODE_ENV.
-CENTRALE_ENVIRONNEMENT=
 
 # Le coffre des clés de service, chiffrées en base et modifiables sans redémarrer (/auth/cles, réservé à l'admin).
 # 32 octets au hasard : openssl rand -base64 32. Sans elle, le coffre reste fermé et le .env sert seul.
@@ -738,84 +728,6 @@ function sansJeton(corps: unknown, poser: (jeton: string) => void): unknown {
     return reste;
   }
   return 'data' in reste ? { ...reste, data: sansJeton(reste.data, poser) } : corps;
-}
-`;
-
-/** La surveillance : rien n'est chargé sans ses deux variables. */
-const CENTRALE = `import type { RequeteTransport, ReponseTransport } from '@astratra/centrale';
-import type { ErrorRequestHandler, RequestHandler } from 'express';
-
-/** Produit par Humalis : ce que le serveur monte quand la surveillance est allumée. */
-export interface Surveillance {
-  intergiciel(): RequestHandler;
-  gestionnaireErreurs(): ErrorRequestHandler;
-  /** Signale une panne qui n'arrive pas par une requête ordinaire (un paiement reçu que la fiche ne peut pas prendre). */
-  signaler(erreur: unknown): void;
-  /** Envoie ce qui reste en file ; ne rejette jamais. */
-  vider(): Promise<void>;
-}
-
-const ENVIRONNEMENTS = ['production', 'preproduction', 'developpement'] as const;
-const IDENTIFIANTS = /\\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\b/gi;
-
-/**
- * Ce qui part à la place d'une panne. Le paquet masque déjà e-mails, téléphones, cartes, clés et
- * jetons, mais PostgreSQL cite les valeurs refusées : son erreur ne garde que son code, et les
- * identifiants quittent les autres messages.
- */
-export function assainir(erreur: unknown): unknown {
-  if (typeof erreur !== 'object' || erreur === null) return erreur;
-  const e = erreur as Error & { severity?: unknown; code?: unknown; sqlState?: unknown; errno?: unknown };
-  const copie = (message: string) => {
-    const nouvelle = new Error(message);
-    nouvelle.name = e.name;
-    nouvelle.stack = [e.name + ': ' + message, ...String(e.stack ?? '').split('\\n').filter((l) => /^\\s+at /.test(l))].join('\\n');
-    return nouvelle;
-  };
-  if (typeof e.severity === 'string') return copie('Erreur PostgreSQL ' + String(e.code ?? ''));
-  // MySQL emporte la requête entière et cite la valeur en double ; une base de documents cite la clé : seul le code part.
-  if (typeof e.sqlState === 'string') return copie('Erreur MySQL ' + String(e.errno ?? e.code ?? ''));
-  if (/^Mongo/.test(String(e.name ?? ''))) return copie('Erreur de la base de documents ' + String(e.code ?? ''));
-  const message = String(e.message ?? '');
-  const propre = message.replace(IDENTIFIANTS, ':id');
-  return propre === message ? erreur : copie(propre);
-}
-
-/** Le statut que rendra la réponse, comme le fait le gestionnaire du paquet. */
-function statutDe(erreur: unknown, code: number): number {
-  const declare = Number((erreur as { status?: unknown; statusCode?: unknown } | null)?.status ?? (erreur as { statusCode?: unknown } | null)?.statusCode);
-  return Number.isInteger(declare) && declare >= 400 && declare < 600 ? declare : code >= 400 ? code : 500;
-}
-
-/** Sans CENTRALE_ADRESSE et CENTRALE_CLE : le paquet n'est pas chargé, aucun écouteur, aucune minuterie, aucun réseau. */
-export async function demarrerCentrale(env: Record<string, string | undefined> = process.env, transport?: (requete: RequeteTransport) => Promise<ReponseTransport>): Promise<Surveillance | null> {
-  const adresse = env.CENTRALE_ADRESSE?.trim();
-  const cle = env.CENTRALE_CLE?.trim();
-  if (!adresse || !cle) return null;
-  try {
-    const { demarrer } = await import('@astratra/centrale/node');
-    const demande = ENVIRONNEMENTS.find((e) => e === env.CENTRALE_ENVIRONNEMENT?.trim());
-    // Strict : ni utilisateur, ni appareil précis. Jamais de corps, d'en-tête ni de cookie.
-    const centrale = demarrer({ cle, adresse, environnement: demande ?? (env.NODE_ENV === 'production' ? 'production' : 'developpement'), strict: true }, transport);
-    return {
-      vider: () => centrale.vider(),
-      signaler: (erreur) => {
-        centrale.erreur(assainir(erreur));
-      },
-      intergiciel: () => centrale.intergiciel() as unknown as RequestHandler,
-      gestionnaireErreurs: () => {
-        const signaler = centrale.gestionnaireErreurs() as unknown as ErrorRequestHandler;
-        return (erreur, req, res, next) => {
-          // Un refus ordinaire (400, 401…) n'est pas une panne, et son message peut citer le corps reçu.
-          if (statutDe(erreur, res.statusCode) < 500) next(erreur);
-          else signaler(assainir(erreur), req, res, () => next(erreur));
-        };
-      },
-    };
-  } catch {
-    console.warn('La surveillance n\\'a pas démarré : le serveur continue sans elle.');
-    return null;
-  }
 }
 `;
 
@@ -1667,7 +1579,6 @@ import express, { type RequestHandler, type Response } from 'express';
 ${montageTempsReel ? IMPORT_TEMPS_REEL : ''}import { journaliserErreur, noterHumalis } from './humalis/lignes.js';
 ${serveur.captureErreurs ? "import { brancherErreursProcessus, rapporterErreur } from './humalis/capture-erreurs.js';\n" : ''}
 ${serveur.routes.some((r) => r.direct) ? "import { direct } from './humalis/direct.js';\n" : ''}import { ${schemas} } from './donnees.js';
-import type { Surveillance } from './humalis/centrale.js';
 import type { Coffre } from './humalis/coffre.js';
 ${comptes ? "import { creerComptes, refuserMotDePasseFaible, sansLesRetires } from './humalis/comptes.js';\n" : ''}${avecEmails(serveur) ? `import { creerEmails, ${envoisDansRoutes ? 'enTexte, ' : ''}type Emails } from './humalis/emails.js';\n` : ''}import { compresser } from './humalis/compresser.js';
 import { creerEnvoisMemoire, creerUnSeulEnvoi, type MagasinEnvois } from './humalis/envois.js';${avecSynchro(serveur) ? "\nimport { creerJournalMemoire, creerSynchro, type JournalSynchro } from './humalis/synchro.js';" : ''}${avecSecurite(serveur) ? "\nimport { creerMagasinSecuriteMemoire, creerSecurite, oublierCompte, type MagasinSecurite } from './humalis/securite.js';" : ''}${avecPaiements(serveur) ? "\nimport { creerPaiements, type SurPaiement } from './humalis/paiements.js';" : ''}${avecIa(serveur) ? "\nimport { compterMemoire, creerIa, type Compter } from './humalis/ia.js';" : ''}${avecNotifications(serveur) ? "\nimport { creerNotifications } from './humalis/notifications.js';" : ''}${serveur.documents?.length ? "\nimport { creerDocument } from './humalis/document.js';" : ''}${avecBon ? "\nimport { creerBon } from './humalis/bon.js';" : ''}${serveur.fidelite ? "\nimport { carteDeFidelite } from './humalis/fidelite.js';" : ''}
@@ -1708,8 +1619,7 @@ ${avecLogique(serveur) ? `  /** Comment écrire tout ou rien ; par défaut, en m
   emails?: Emails;` : ''}${comptes ? `
   /** Les empreintes des liens envoyés par e-mail ; par défaut, en mémoire. */
   jetons?: PasswordResetStore;` : ''}
-  /** La surveillance, si CENTRALE_ADRESSE et CENTRALE_CLE sont réglées. */
-  surveillance?: Surveillance | null;${serveur.projet ? `
+${serveur.projet ? `
   /** Les autres services du projet : le secret partagé (HUMALIS_SERVICES_SECRET) et leurs adresses. */
   services?: { secret: string; adresses?: Record<string, string | undefined>; horloge?: () => number };
   /** La clé des jetons d'accès (ES256) : privée dans le service des comptes, publique ailleurs ; sans elle, jwtSecret (HS256). */
@@ -1830,7 +1740,7 @@ ${serveur.routeMonCompte?.supprimer ? codeEffacerLesDonnees(serveur) : ''}/**
  * limites et les en-têtes de sécurité viennent de createSaasApp. Les
  * routes des données s'ajoutent par extendRoutes, avec les gardes du pack.
  */
-export function creerServeur({ ${avecSynchro(serveur) ? 'journalSynchro = creerJournalMemoire(), ' : ''}${avecSecurite(serveur) ? 'magasinSecurite = creerMagasinSecuriteMemoire(), horlogeSecurite = Date.now, ' : ''}envois = creerEnvoisMemoire(), jwtSecret, usersStore${comptes ? ': tousLesComptes' : ''}, stockages${avecLogique(serveur) ? ', transaction = transactionMemoire(stockages)' : ''}${serveur.taches?.length ? ', reclamerTache' : ''}${avecNotifications(serveur) ? ', appareils = creerStockageMemoire()' : ''}${avecIa(serveur) ? ', compterIa = compterMemoire()' : ''}${serveur.connexionGoogle ? ', googleClientId, googleClientIdApple = () => undefined' : ''}${serveur.connexionApple ? ', identifiantsApple = () => ({})' : ''}, session = reglagesDeSession(process.env), surveillance, coffre${avecEmails(serveur) ? `, emails = creerEmails({ nom: ${boutique} })` : ''}${comptes ? ', jetons = createMemoryPasswordResetStore()' : ''}${serveur.projet ? ', revocations: revocationsLocales = createMemoryRevocationStore(), services: reglagesServices, cleDesJetons' : ', revocations = createMemoryRevocationStore()'}, sante = async () => true }: OptionsDuServeur) {
+export function creerServeur({ ${avecSynchro(serveur) ? 'journalSynchro = creerJournalMemoire(), ' : ''}${avecSecurite(serveur) ? 'magasinSecurite = creerMagasinSecuriteMemoire(), horlogeSecurite = Date.now, ' : ''}envois = creerEnvoisMemoire(), jwtSecret, usersStore${comptes ? ': tousLesComptes' : ''}, stockages${avecLogique(serveur) ? ', transaction = transactionMemoire(stockages)' : ''}${serveur.taches?.length ? ', reclamerTache' : ''}${avecNotifications(serveur) ? ', appareils = creerStockageMemoire()' : ''}${avecIa(serveur) ? ', compterIa = compterMemoire()' : ''}${serveur.connexionGoogle ? ', googleClientId, googleClientIdApple = () => undefined' : ''}${serveur.connexionApple ? ', identifiantsApple = () => ({})' : ''}, session = reglagesDeSession(process.env), coffre${avecEmails(serveur) ? `, emails = creerEmails({ nom: ${boutique} })` : ''}${comptes ? ', jetons = createMemoryPasswordResetStore()' : ''}${serveur.projet ? ', revocations: revocationsLocales = createMemoryRevocationStore(), services: reglagesServices, cleDesJetons' : ', revocations = createMemoryRevocationStore()'}, sante = async () => true }: OptionsDuServeur) {
 ${serveur.projet ? codeCreationServices(serveur) : ''}
 ${serveur.captureErreurs ? '  brancherErreursProcessus();\n' : ''}
   const renouvellement = creerRenouvellement(session);
@@ -1840,8 +1750,8 @@ ${serveur.captureErreurs ? '  brancherErreursProcessus();\n' : ''}
   const corpsLibre = reglagePareFeu === 'adresses';
 ${comptes ? codeCreationComptes(serveur, chemins).replace('usersStore,', 'usersStore: tousLesComptes,') + '  // Pour les packs, un compte retiré n\'existe plus.\n  const usersStore = sansLesRetires(tousLesComptes);\n' : ''}${envoisDansRoutes || employe(serveur, (i) => i.type === 'email' && i.a.genre === 'admins') ? `  const adressesDesAdmins = async () => (await usersStore.list({ role: 'admin', limit: 100 })).map((compte) => String(compte.email)).filter(Boolean);\n` : ''}${avecNotifications(serveur) ? '  const notifications = creerNotifications({ usersStore, appareils });\n' : ''}${avecPaiements(serveur) ? `  let surPaiement: SurPaiement<ReturnType<typeof nouveauTravail>, OptionsDuServeur['stockages']> = {};
   const paiements = creerPaiements({
-    // Un paiement reçu mais non enregistré part aussi à la surveillance, pour que quelqu'un le voie.
-    surErreur: (erreur) => surveillance?.signaler(erreur),
+${serveur.captureErreurs ? `    // Un paiement reçu mais non enregistré part aussi à « quand une erreur arrive », pour que quelqu'un le voie.
+    surErreur: (erreur) => void rapporterErreur(erreur, '/paiements/webhook'),` : ''}
     surConfirme: async (donnee, id, champ, montant) => {
       const travail = nouveauTravail();
       await transaction((s) => surPaiement[donnee]?.(travail, s, id, champ, montant) ?? Promise.resolve());
@@ -1928,7 +1838,6 @@ ${avecIa(serveur) ? routeIa(serveur) : ''}${avecNotifications(serveur) ? ROUTES_
 ${fidelite}${avecPaiements(serveur) ? codeSurPaiement(serveur) : ''}${codeTaches(serveur)}${montageTempsReel}      // Une erreur venue d'une ligne Humalis est écrite avec cette ligne dans le journal.
       app.use((erreur: unknown, req: express.Request, _res: express.Response, next: express.NextFunction) => { journaliserErreur(erreur, \`\${req.method} \${req.path}\`); next(erreur); });
 ${serveur.captureErreurs ? "      app.use((erreur: unknown, req: express.Request, _res: express.Response, next: express.NextFunction) => { void rapporterErreur(erreur, req.path); next(erreur); });\n" : ''}      // Le dernier avant la réponse d'erreur.
-      if (surveillance) app.use(surveillance.gestionnaireErreurs());
       // La réponse d'erreur, écrite ici plutôt que par le pack : jamais la pile ni le message interne
       // d'une erreur 500, même hors production (chemins du disque, requêtes SQL). Le détail reste
       // dans le journal du serveur.
@@ -1945,9 +1854,9 @@ ${serveur.captureErreurs ? "      app.use((erreur: unknown, req: express.Request
   });
   // Express s'annonce par défaut : l'application du pack ne le fait plus.
   (serveur as unknown as express.Application).disable('x-powered-by');
-  // En tête de tout : la surveillance voit chaque requête, et le jeton de renouvellement passe par son cookie.
+  // En tête de tout : le jeton de renouvellement passe par son cookie.
   const avant = express().disable('x-powered-by');
-${CODE_SANTE}${avecPaiements(serveur) ? "  avant.post('/paiements/webhook', ...paiements.webhook);\n" : ''}  if (surveillance) avant.use(surveillance.intergiciel());${serveur.projet ? codeAvantServices(serveur) : ''}${codeAvantSecurite(serveur)}${codeAvantSynchro(serveur, adresseApi)}${comptes ? "\n  avant.post('/auth/reset-password', express.json({ limit: '16kb' }), refuserMotDePasseFaible);" : ''}
+${CODE_SANTE}${avecPaiements(serveur) ? "  avant.post('/paiements/webhook', ...paiements.webhook);\n" : ''}${serveur.projet ? codeAvantServices(serveur) : ''}${codeAvantSecurite(serveur)}${codeAvantSynchro(serveur, adresseApi)}${comptes ? "\n  avant.post('/auth/reset-password', express.json({ limit: '16kb' }), refuserMotDePasseFaible);" : ''}
   return avant.use(renouvellementEnCookie(session.dureeMs)).use(serveur as unknown as express.Application);
 }
 `;
@@ -1972,8 +1881,7 @@ import { hashPassword, isStrongPassword } from '@astratra/security';
 import { createPostgresUsersStore } from '@astratra/store-postgres';
 import pg from 'pg';${serveur.projet ? "\nimport { createPrivateKey, createPublicKey } from 'node:crypto';\nimport { adressesDesServices } from './humalis/services.js';" : ''}
 import { creerServeur } from './serveur.js';
-${avecDirect(serveur) ? "import { direct } from './humalis/direct.js';\n" : ''}import { demarrerCentrale } from './humalis/centrale.js';
-${avecIa(serveur) ? "import { compterPostgres } from './humalis/ia.js';\n" : ''}${avecLogique(serveur) ? `import { transactionPostgres${serveur.taches?.length ? ', reclamerMemoire, reclamerPostgres' : ''} } from './humalis/logique.js';\n` : ''}import { creerEnvoisPostgres } from './humalis/envois.js';
+${avecDirect(serveur) ? "import { direct } from './humalis/direct.js';\n" : ''}${avecIa(serveur) ? "import { compterPostgres } from './humalis/ia.js';\n" : ''}${avecLogique(serveur) ? `import { transactionPostgres${serveur.taches?.length ? ', reclamerMemoire, reclamerPostgres' : ''} } from './humalis/logique.js';\n` : ''}import { creerEnvoisPostgres } from './humalis/envois.js';
 import { ouvrirCoffre } from './humalis/coffre.js';${avecSynchro(serveur) ? "\nimport { creerJournalPostgres } from './humalis/synchro.js';" : ''}${avecSecurite(serveur) ? "\nimport { creerMagasinSecuritePostgres } from './humalis/securite.js';" : ''}${comptes ? "\nimport { creerMagasinJetons } from './humalis/comptes.js';" : ''}
 import { creerMagasinMemoire, creerMagasinPostgres, creerRevocationsPostgres } from './humalis/renouvellements.js';
 import { reglagesDeSession, type ReglagesSession } from './humalis/sessions.js';
@@ -1987,8 +1895,6 @@ function arreter(message: string): never {
   process.exit(1);
 }
 
-// La surveillance d'abord, pour voir aussi une panne du démarrage.
-const surveillance = await demarrerCentrale();
 
 ${serveur.projet ? codeSecretsServices(serveur) : `const jwtSecret = process.env.JWT_SECRET ?? '';
 if (jwtSecret.length < 32) {
@@ -2081,14 +1987,14 @@ const coffre = await ouvrirCoffre(sql, process.env, documents ? creerClesDocumen
 
 ${CODE_SANTE_DEMARRAGE}
 const port = Number(process.env.PORT ?? 3000);
-const app = creerServeur({ sante, ...(documents ? { envois: creerEnvoisDocuments(documents), revocations: creerRevocationsDocuments(documents)${avecSecurite(serveur) ? ', magasinSecurite: creerSecuriteDocuments(documents)' : ''} } : sql ? { envois: creerEnvoisPostgres(sql), revocations: creerRevocationsPostgres(sql)${avecSecurite(serveur) ? ', magasinSecurite: creerMagasinSecuritePostgres(sql)' : ''} } : {})${avecSynchro(serveur) ? `, ...(pool ? { journalSynchro: creerJournalPostgres(pool, ${tablesSynchro(serveur, nomTable)}) } : sqlite ? { journalSynchro: creerJournalSqlite(sqlite, ${tablesSynchro(serveur, nomTable)}) } : mysql ? { journalSynchro: creerJournalMysql(mysql, ${tablesSynchro(serveur, nomTable)}) } : documents ? { journalSynchro: creerJournalDocuments(documents, ${tablesSynchro(serveur, nomTable)}) } : {})` : ''}, jwtSecret, usersStore, stockages${avecLogique(serveur) ? `, ...(pool ? { transaction: transactionPostgres(pool, (client) => ({ ${[...serveur.donnees.map((d) => `${camel(d.nom)}: creerStockagePostgres(client, '${nomTable(d.nom)}'${listeDesChamps(serveur, d)})`), ...(serveur.projet ? ["humalisBoite: creerStockagePostgres(client, 'humalis_boite_envoi')", "humalisRecus: creerStockagePostgres(client, 'humalis_messages_recus')"] : [])].join(', ')} })) } : sqlite ? { transaction: transactionSqlite(sqlite, stockages) } : mysql ? { transaction: transactionMysql(mysql, stockages) } : documents ? { transaction: transactionDocuments(documents, stockages) } : {})` : ''}${serveur.taches?.length ? ', reclamerTache: documents ? reclamerDocuments(documents) : sql ? reclamerPostgres(sql) : reclamerMemoire()' : ''}${avecNotifications(serveur) ? ", ...(pool ? { appareils: creerStockagePostgres(pool, 'humalis_appareils') } : sqlite ? { appareils: creerStockageSqlite(sqlite, 'humalis_appareils') } : mysql ? { appareils: creerStockageMysql(mysql, 'humalis_appareils') } : documents ? { appareils: creerStockageDocuments(documents, 'humalis_appareils') } : {})" : ''}${avecIa(serveur) ? ', ...(documents ? { compterIa: compterDocuments(documents) } : sql ? { compterIa: compterPostgres(sql) } : {})' : ''}${serveur.connexionGoogle ? ', googleClientId: () => process.env.GOOGLE_CLIENT_ID || undefined, googleClientIdApple: () => process.env.GOOGLE_CLIENT_ID_APPLE || undefined' : ''}${serveur.connexionApple ? ', identifiantsApple: () => ({ application: process.env.APPLE_APP_ID || undefined, site: process.env.APPLE_SERVICE_ID || undefined })' : ''}${comptes ? ', jetons: documents ? creerJetonsDocuments(documents) : creerMagasinJetons(sql)' : ''}, session, surveillance, coffre${serveur.projet ? ', services: { secret: secretDesServices }, cleDesJetons' : ''} }) as unknown as { listen(port: number, pret: () => void): unknown };
+const app = creerServeur({ sante, ...(documents ? { envois: creerEnvoisDocuments(documents), revocations: creerRevocationsDocuments(documents)${avecSecurite(serveur) ? ', magasinSecurite: creerSecuriteDocuments(documents)' : ''} } : sql ? { envois: creerEnvoisPostgres(sql), revocations: creerRevocationsPostgres(sql)${avecSecurite(serveur) ? ', magasinSecurite: creerMagasinSecuritePostgres(sql)' : ''} } : {})${avecSynchro(serveur) ? `, ...(pool ? { journalSynchro: creerJournalPostgres(pool, ${tablesSynchro(serveur, nomTable)}) } : sqlite ? { journalSynchro: creerJournalSqlite(sqlite, ${tablesSynchro(serveur, nomTable)}) } : mysql ? { journalSynchro: creerJournalMysql(mysql, ${tablesSynchro(serveur, nomTable)}) } : documents ? { journalSynchro: creerJournalDocuments(documents, ${tablesSynchro(serveur, nomTable)}) } : {})` : ''}, jwtSecret, usersStore, stockages${avecLogique(serveur) ? `, ...(pool ? { transaction: transactionPostgres(pool, (client) => ({ ${[...serveur.donnees.map((d) => `${camel(d.nom)}: creerStockagePostgres(client, '${nomTable(d.nom)}'${listeDesChamps(serveur, d)})`), ...(serveur.projet ? ["humalisBoite: creerStockagePostgres(client, 'humalis_boite_envoi')", "humalisRecus: creerStockagePostgres(client, 'humalis_messages_recus')"] : [])].join(', ')} })) } : sqlite ? { transaction: transactionSqlite(sqlite, stockages) } : mysql ? { transaction: transactionMysql(mysql, stockages) } : documents ? { transaction: transactionDocuments(documents, stockages) } : {})` : ''}${serveur.taches?.length ? ', reclamerTache: documents ? reclamerDocuments(documents) : sql ? reclamerPostgres(sql) : reclamerMemoire()' : ''}${avecNotifications(serveur) ? ", ...(pool ? { appareils: creerStockagePostgres(pool, 'humalis_appareils') } : sqlite ? { appareils: creerStockageSqlite(sqlite, 'humalis_appareils') } : mysql ? { appareils: creerStockageMysql(mysql, 'humalis_appareils') } : documents ? { appareils: creerStockageDocuments(documents, 'humalis_appareils') } : {})" : ''}${avecIa(serveur) ? ', ...(documents ? { compterIa: compterDocuments(documents) } : sql ? { compterIa: compterPostgres(sql) } : {})' : ''}${serveur.connexionGoogle ? ', googleClientId: () => process.env.GOOGLE_CLIENT_ID || undefined, googleClientIdApple: () => process.env.GOOGLE_CLIENT_ID_APPLE || undefined' : ''}${serveur.connexionApple ? ', identifiantsApple: () => ({ application: process.env.APPLE_APP_ID || undefined, site: process.env.APPLE_SERVICE_ID || undefined })' : ''}${comptes ? ', jetons: documents ? creerJetonsDocuments(documents) : creerMagasinJetons(sql)' : ''}, session, coffre${serveur.projet ? ', services: { secret: secretDesServices }, cleDesJetons' : ''} }) as unknown as { listen(port: number, pret: () => void): unknown };
 // HUMALIS_ECOUTE : l'adresse d'écoute (127.0.0.1 derrière un relais) ; sans elle, toutes les adresses.
 const pret = () => console.log(\`Serveur « ${serveur.nom} » prêt : http://localhost:\${port}${premiere}\`);
 const ecoute = process.env.HUMALIS_ECOUTE?.trim();
 const auditeur = createServer(app as unknown as RequestListener);
 if (ecoute) auditeur.listen(port, ecoute, pret);
 else auditeur.listen(port, pret);
-${codeArret(true)}`;
+${codeArret()}`;
 }
 
 function testsRegles(serveur: ServeurRI): string {
@@ -2304,18 +2210,17 @@ ${blocs.join('\n\n')}
 `;
 }
 
-/** Les tests produits de la session, du coffre et de la surveillance, avec les vrais packs et une horloge injectée. */
+/** Les tests produits de la session et du coffre, avec les vrais packs et une horloge injectée. */
 function testsSessions(serveur: ServeurRI): string {
   // La panne est provoquée par une lecture : il faut une route que l'admin peut lire (une route sans règle de lecture répond 403 avant de lire).
   const routeLue = serveur.routes.find((r) => r.droits.lire !== null);
   const stockages = serveur.donnees.map((d) => `      ${camel(d.nom)}: creerStockageMemoire(),`).join('\n');
-  return `// Produit par Humalis : la session glissante, sa borne de 30 jours, le coffre des clés et la surveillance.
+  return `// Produit par Humalis : la session glissante, sa borne de 30 jours et le coffre des clés.
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
 import { createMemoryUsersStore, type UsersStore } from '@astratra/saas-kit';
 import { hashPassword } from '@astratra/security';
 import { creerServeur } from '../src/serveur.js';
-import { assainir, demarrerCentrale } from '../src/humalis/centrale.js';
 import { creerMagasinMemoire } from '../src/humalis/renouvellements.js';
 import { lireDuree, type ReglagesSession } from '../src/humalis/sessions.js';
 import { creerStockageMemoire } from '../src/humalis/stockage.js';
@@ -2496,51 +2401,6 @@ describe('le coffre des clés', () => {
   });` : ''}
 });
 
-describe('la surveillance', () => {
-  it('sans ses variables, elle ne démarre pas', async () => {
-    expect(await demarrerCentrale({})).toBeNull();
-    expect(await demarrerCentrale({ CENTRALE_ADRESSE: 'https://centrale.exemple.fr' })).toBeNull();
-  });
-
-  it('une erreur de la base ne garde que son code ; les identifiants quittent les autres messages', () => {
-    const base = Object.assign(new Error('la valeur « secret@exemple.cd » est refusée'), { severity: 'ERROR', code: '23505' });
-    expect((assainir(base) as Error).message).toBe('Erreur PostgreSQL 23505');
-    const mysql = Object.assign(new Error("Duplicate entry 'secret@exemple.cd' for key 'email'"), { sqlState: '23000', errno: 1062, sql: "INSERT INTO t VALUES ('secret@exemple.cd')" });
-    expect((assainir(mysql) as Error).message).toBe('Erreur MySQL 1062');
-    const documents = Object.assign(new Error('E11000 duplicate key error dup key: { email: "secret@exemple.cd" }'), { name: 'MongoServerError', code: 11000 });
-    expect((assainir(documents) as Error).message).toBe('Erreur de la base de documents 11000');
-    expect((assainir(new Error('commande 7f0c6a52-58cb-4dc4-9a0a-1b1e0a4f1d11 introuvable')) as Error).message).toBe('commande :id introuvable');
-  });
-
-  it('une panne part, un refus ordinaire non ; la réponse reste celle du pack', async () => {
-    let envoye = '';
-    const transport = async (requete: { corps: string }) => {
-      envoye += requete.corps;
-      return { statut: 202 };
-    };
-    const surveillance = await demarrerCentrale({ CENTRALE_ADRESSE: 'https://centrale.exemple.fr', CENTRALE_CLE: 'clj_pub_essai' }, transport);
-    expect(surveillance).not.toBeNull();
-    const panne = vi.fn(async () => {
-      throw Object.assign(new Error('colonne « mot-de-passe-secret » absente'), { severity: 'ERROR', code: '42703' });
-    });
-    const enPanne = stockages();
-    for (const stockage of Object.values(enPanne)) (stockage as { lister: unknown }).lister = panne;
-    const app = leServeur({ surveillance, stockages: enPanne });
-    await request(app).post('/auth/login').set('content-type', 'application/json').send('{"email":"mot-de-passe-brut').expect(400);
-    await request(app).get('/auth/me').expect(401);
-    const jeton = (await connecter(app)).body.data.token;${routeLue ? `
-    const reponse = await request(app).get('${adresseApi(routeLue.adresse)}').set('authorization', 'Bearer ' + jeton);
-    expect(reponse.status).toBe(500);
-    expect(panne).toHaveBeenCalled();
-    await surveillance!.vider();
-    expect(envoye).toContain('Erreur PostgreSQL 42703');` : `
-    void jeton;
-    await surveillance!.vider();`}
-    expect(envoye).not.toContain('mot-de-passe-secret');
-    expect(envoye).not.toContain('mot-de-passe-brut');
-    expect(envoye).not.toContain(MOT_DE_PASSE);
-  });
-});
 `;
 }
 
@@ -2629,14 +2489,10 @@ déconnexion ou un changement de mot de passe ferment la session. Le navigateur 
 reçoit dans un cookie HttpOnly limité à \`/auth\` ; la table
 \`sessions_renouvellement\` n'en garde que l'empreinte.
 
-## Facultatif : surveillance et coffre des clés
+## Facultatif : le coffre des clés
 
-Sans ces variables, rien n'est chargé et le serveur marche pareil (\`.env.exemple\`).
+Sans cette variable, rien n'est chargé et le serveur marche pareil (\`.env.exemple\`).
 
-- \`CENTRALE_ADRESSE\` et \`CENTRALE_CLE\` : les pannes (statut 500 et plus), les
-  exceptions et les requêtes (gabarit de route, statut, durée) partent à Centrale,
-  masquées. Jamais de corps, d'en-tête ni de cookie. Mode strict : ni utilisateur,
-  ni appareil précis.
 - \`ENCRYPTION_KEY\` : les clés de service se rangent chiffrées dans la table
   \`coffre_cles\` (en mémoire sans \`DATABASE_URL\`) et se modifient sans redémarrer.
   Routes réservées à l'admin, avec le jeton CSRF : \`GET /auth/cles\` (jamais une valeur

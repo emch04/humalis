@@ -2709,7 +2709,7 @@ est refusée.
 Personne ne peut écrire `paye` par une requête, pas même un admin. Si le montant confirmé
 n'est plus celui de la fiche (elle a changé pendant le paiement), ou si la fiche a disparu,
 rien n'est marqué payé : le serveur répond 500 au relais, écrit la cause dans son journal et
-la signale à la surveillance si elle est réglée (`CENTRALE_ADRESSE`, `CENTRALE_CLE`). Corrige
+la passe à `quand une erreur arrive` s'il est écrit dans le serveur. Corrige
 le montant de la fiche et le rappel suivant l'enregistre ; sinon, rembourse la personne.
 
 #### Renvoyer sans créer de doublon
@@ -4919,7 +4919,8 @@ heure.
 
 - Le journal du serveur (la sortie du service) dit chaque erreur 500 avec son numéro de requête,
   et sa ligne Humalis quand elle vient de ton programme.
-- `CENTRALE_ADRESSE` et `CENTRALE_CLE` envoient les pannes à la surveillance, masquées avant de partir.
+- Humalis n'impose aucun système de surveillance : `quand une erreur arrive`, dans le serveur et en haut du
+  fichier pour les pages, envoie chaque erreur au système de ton choix (chapitre 34).
 - `GET /sante` suffit à une sonde extérieure.
 
 ### Les secrets

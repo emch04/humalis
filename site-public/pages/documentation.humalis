@@ -3299,7 +3299,7 @@ page "documentation_21" dans "documentation" adresse "/documentation/serveur" :
         liste :
             texte "To start a payment, the server sends `POST` to the relay's address: `{ "reference": "…", "montant": 4500, "devise": "eur", "libelle": "reservation", "retour": "https://my-shop.com/…" }`. The amount is in cents. The relay answers `{ "url": "https://…" }`, the payment page, which sends the person back to `retour` once done."
             texte "When the money arrives, the relay sends `POST /paiements/webhook` to the server: `{ "evenement": "paye", "reference": "…", "montant": 4500, "devise": "eur" }`, with the reference it received, unchanged. `"echoue"` reports a deferred payment that failed. The server answers 200 once it is recorded; any other answer means: call again later."
-        texte "Nobody can write `paye` through a request, not even an admin. If the confirmed amount is no longer the record's amount (it changed during the payment), or if the record is gone, nothing is marked as paid: the server answers the relay with 500, writes the cause to its log and reports it to monitoring when it is set up (`CENTRALE_ADRESSE`, `CENTRALE_CLE`). Fix the record's amount and the next call records it; otherwise, refund the person."
+        texte "Nobody can write `paye` through a request, not even an admin. If the confirmed amount is no longer the record's amount (it changed during the payment), or if the record is gone, nothing is marked as paid: the server answers the relay with 500, writes the cause to its log and passes it to `quand une erreur arrive` when the server has one. Fix the record's amount and the next call records it; otherwise, refund the person."
         texte "#### Resending without duplicates"
         texte "If the connection drops during a send, a program can safely try again: it sends the `X-Humalis-Envoi` header with a random id, the same one on every attempt. The server does the work once, even across several copies, then returns the same answer. It answers 409 while the first attempt is still running. The id is kept for 30 days, as long as a request can wait on the device."
         texte "#### Many people behind one address"
@@ -3851,7 +3851,7 @@ page "documentation_21" dans "documentation" adresse "/documentation/serveur" :
         liste :
             texte "Pour commencer un paiement, le serveur envoie `POST` à l'adresse du relais : `{ "reference": "…", "montant": 4500, "devise": "eur", "libelle": "reservation", "retour": "https://ma-boutique.com/…" }`. Le montant est en centimes. Le relais répond `{ "url": "https://…" }`, la page de paiement, qui renvoie la personne vers `retour` une fois fini."
             texte "Quand l'argent est reçu, le relais envoie `POST /paiements/webhook` au serveur : `{ "evenement": "paye", "reference": "…", "montant": 4500, "devise": "eur" }`, avec la référence reçue, telle quelle. `"echoue"` signale un paiement différé qui a échoué. Le serveur répond 200 quand c'est enregistré ; toute autre réponse veut dire : rappelle plus tard."
-        texte "Personne ne peut écrire `paye` par une requête, pas même un admin. Si le montant confirmé n'est plus celui de la fiche (elle a changé pendant le paiement), ou si la fiche a disparu, rien n'est marqué payé : le serveur répond 500 au relais, écrit la cause dans son journal et la signale à la surveillance si elle est réglée (`CENTRALE_ADRESSE`, `CENTRALE_CLE`). Corrige le montant de la fiche et le rappel suivant l'enregistre ; sinon, rembourse la personne."
+        texte "Personne ne peut écrire `paye` par une requête, pas même un admin. Si le montant confirmé n'est plus celui de la fiche (elle a changé pendant le paiement), ou si la fiche a disparu, rien n'est marqué payé : le serveur répond 500 au relais, écrit la cause dans son journal et la passe à `quand une erreur arrive` s'il est écrit dans le serveur. Corrige le montant de la fiche et le rappel suivant l'enregistre ; sinon, rembourse la personne."
         texte "#### Renvoyer sans créer de doublon"
         texte "Si la connexion coupe en plein envoi, un programme peut recommencer sans risque : il envoie l'en-tête `X-Humalis-Envoi` avec un identifiant au hasard, le même à chaque essai. Le serveur fait le travail une fois, même avec plusieurs exemplaires, puis redonne la même réponse. Il répond 409 tant que le premier essai tourne. L'identifiant est gardé 30 jours, aussi longtemps qu'un envoi peut attendre sur l'appareil."
         texte "#### Beaucoup de monde derrière une même adresse"
@@ -6382,7 +6382,7 @@ page "documentation_37" dans "documentation" adresse "/documentation/mettre-en-p
         soustitre "Monitoring"
         liste :
             texte "The server log (the service output) reports each 500 error with its request number, and its Humalis line when it comes from your program."
-            texte "`CENTRALE_ADRESSE` and `CENTRALE_CLE` send failures to monitoring, masked before leaving."
+            texte "Humalis imposes no monitoring system: `quand une erreur arrive`, in the server and at the top of the file for pages, sends each error to the system of your choice (chapter 34)."
             texte "`GET /sante` is enough for an outside probe."
         soustitre "Secrets"
         liste :
@@ -6463,7 +6463,7 @@ page "documentation_37" dans "documentation" adresse "/documentation/mettre-en-p
         soustitre "Surveiller"
         liste :
             texte "Le journal du serveur (la sortie du service) dit chaque erreur 500 avec son numéro de requête, et sa ligne Humalis quand elle vient de ton programme."
-            texte "`CENTRALE_ADRESSE` et `CENTRALE_CLE` envoient les pannes à la surveillance, masquées avant de partir."
+            texte "Humalis n'impose aucun système de surveillance : `quand une erreur arrive`, dans le serveur et en haut du fichier pour les pages, envoie chaque erreur au système de ton choix (chapitre 34)."
             texte "`GET /sante` suffit à une sonde extérieure."
         soustitre "Les secrets"
         liste :

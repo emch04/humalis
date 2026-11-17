@@ -32,10 +32,9 @@ const awa = await usersStore.create({ email: 'awa@essai.test', role: 'user', pas
 const bob = await usersStore.create({ email: 'bob@essai.test', role: 'user', passwordHash });
 await usersStore.create({ email: 'gerant@essai.test', role: 'gerant', passwordHash });
 const stockages = { produit: creerStockageMemoire(), secret: creerStockageMemoire(), facture: creerStockageMemoire(), reservation: creerStockageMemoire(), journal: creerStockageMemoire(), article: creerStockageMemoire() };
-// Une surveillance d'essai : elle ne fait que retenir ce qu'on lui signale.
+// Ce que le serveur écrit dans son journal (un paiement reçu mais non enregistré y est dit).
 const signalees = [];
-const surveillance = { intergiciel: () => (_req, _res, next) => next(), gestionnaireErreurs: () => (erreur, _req, _res, next) => next(erreur), vider: async () => {}, signaler: (erreur) => signalees.push(String(erreur?.message ?? erreur)) };
-const app = creerServeur({ jwtSecret: 'secret-de-test-assez-long-pour-les-sessions', usersStore, stockages, surveillance });
+const app = creerServeur({ jwtSecret: 'secret-de-test-assez-long-pour-les-sessions', usersStore, stockages });
 const ecoute = app.listen(0);
 await new Promise((pret) => ecoute.once('listening', pret));
 const base = 'http://127.0.0.1:' + ecoute.address().port;
@@ -74,7 +73,7 @@ r.gabaritRefuse = await envoyer('POST', '/api/secrets', a, { texte: 'prix : \${7
 r.adresseRefusee = await envoyer('GET', '/api/secrets?x=../../../../etc/passwd', a);
 r.sqlRefuse = await envoyer('POST', '/api/secrets', a, { texte: "x' UNION SELECT password FROM users" });
 process.env.HUMALIS_PARE_FEU = 'adresses';
-const ecouteLibre = creerServeur({ jwtSecret: 'secret-de-test-assez-long-pour-les-sessions', usersStore, stockages, surveillance }).listen(0);
+const ecouteLibre = creerServeur({ jwtSecret: 'secret-de-test-assez-long-pour-les-sessions', usersStore, stockages }).listen(0);
 await new Promise((pret) => ecouteLibre.once('listening', pret));
 delete process.env.HUMALIS_PARE_FEU;
 const versLibre = async (methode, chemin, corps) => {
@@ -113,7 +112,7 @@ const webhook = async (montant) => {
   const reponse = await fetch(base + '/paiements/webhook', { method: 'POST', headers: { ...json, 'x-humalis-signature': 't=' + t + ',v1=' + createHmac('sha256', process.env.HUMALIS_PAIEMENT_SECRET).update(t + '.' + corps).digest('hex') }, body: corps });
   return { statut: reponse.status, corps: { ...(await stockages.reservation.trouver(resa.corps.id)) } };
 };
-const silence = console.error; console.error = () => {};
+const silence = console.error; console.error = (...morceaux) => { const ligne = morceaux.map(String).join(' '); if (ligne.includes('paiement de')) signalees.push(ligne); };
 r.paiementMauvaisMontant = await webhook(500);
 r.paiementBonMontant = await webhook(700);
 r.paiementRejoue = await webhook(700);
@@ -211,7 +210,7 @@ describe.each(BASES)('des attaques sur un vrai serveur produit, %s', (_nom, base
     expect(r.paiementRejoue!.statut).toBe(200);
     expect(r.journalApresPaiement!.corps.lignes).toBe(1);
   });
-  it('ce paiement non enregistré est signalé à la surveillance, une fois, avec le montant reçu et le montant attendu', () => {
+  it('ce paiement non enregistré est écrit au journal du serveur, une fois, avec le montant reçu et le montant attendu', () => {
     const signalees = r.paiementSignale!.corps.signalees as string[];
     expect(signalees).toHaveLength(1);
     expect(signalees[0]).toContain('paiement de 5 reçu pour « reservation »');

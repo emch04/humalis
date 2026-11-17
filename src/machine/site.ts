@@ -1,9 +1,8 @@
 /**
  * Le site de la machine : les fichiers du moteur de rendu, servis depuis la mémoire comme le ferait
- * Vite (une page par adresse, la page « introuvable », les fichiers publics), avec trois retouches
- * faites au moment de servir et jamais écrites : l'objet `import.meta.env` que Vite fournit, la
- * surveillance (@astratra/centrale) que la machine n'a pas, et un crochet sur les variables du
- * moteur pour garder leur état d'un rechargement à l'autre.
+ * Vite (une page par adresse, la page « introuvable », les fichiers publics), avec deux retouches
+ * faites au moment de servir et jamais écrites : l'objet `import.meta.env` que Vite fournit, et un
+ * crochet sur les variables du moteur pour garder leur état d'un rechargement à l'autre.
  */
 import { BINAIRE, octetsAEcrire } from '../cibles/binaire.js';
 
@@ -52,7 +51,6 @@ export class SiteVirtuel {
     let fini: string | Uint8Array;
     if (brut.startsWith(BINAIRE)) fini = octetsAEcrire(brut) as Uint8Array;
     else if (nom.endsWith('.html')) fini = brut.replace('<head>', `<head>\n    ${this.tete}`);
-    else if (nom === 'src/humalis/centrale.ts') fini = '// La surveillance n\'existe pas dans la machine.\nexport {};\n';
     else if (nom.endsWith('.js') || nom.endsWith('.ts')) {
       let texte = brut.replaceAll('import.meta.env', ENV);
       if (nom === 'src/humalis/moteur.js') texte = texte.replace(CONSTRUCTEUR, AVEC_CROCHET);

@@ -10,7 +10,6 @@ export const PACKS: readonly { nom: string; version: string; cible: string }[] =
   { nom: '@astratra/saas-kit', version: VERSIONS_SERVEUR.saasKit, cible: 'serveur' },
   { nom: '@astratra/security', version: VERSIONS_SERVEUR.security, cible: 'serveur' },
   { nom: '@astratra/store-postgres', version: VERSIONS_SERVEUR.storePostgres, cible: 'serveur' },
-  { nom: '@astratra/centrale', version: VERSIONS_SERVEUR.centrale, cible: 'serveur' },
   { nom: '@astratra/credentials', version: VERSIONS_SERVEUR.credentials, cible: 'serveur' },
   { nom: '@astratra/tooling', version: VERSIONS_SERVEUR.tooling, cible: 'serveur' },
   // Seulement dans le serveur d'un programme qui envoie des e-mails (invitations, mot de passe oublié, confirmation).

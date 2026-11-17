@@ -23,7 +23,7 @@ export const verifier = (condition, message) => {
 
 if (!existsSync(join(travail, 'node_modules/vite'))) {
   writeFileSync(join(travail, 'package.json'), '{"private":true}');
-  execFileSync('npm', ['i', 'vite@8.3.4', '@astratra/client@1.2.0', '@astratra/centrale@1.12.0', '@vitejs/plugin-react@6.1.2', 'react@19.3.1', 'react-dom@19.3.1', 'three@0.187.0', '--no-audit', '--no-fund', '--silent'], { cwd: travail, stdio: 'inherit' });
+  execFileSync('npm', ['i', 'vite@8.3.4', '@astratra/client@1.2.0', '@vitejs/plugin-react@6.1.2', 'react@19.3.1', 'react-dom@19.3.1', 'three@0.187.0', '--no-audit', '--no-fund', '--silent'], { cwd: travail, stdio: 'inherit' });
 }
 
 function compiler(fichier, nom) {

@@ -18,7 +18,7 @@ import { GRAPHIQUE_JS } from '../statique/graphique.js';
 import { connaitreFonctions, nomJs, expressionJs, reserverNoms } from '../statique/valeurs.js';
 import { choixFichierEnLangues, messageEnCode, messageEnLangues, messagesDuSiteStatique, traduireMessages } from '../../i18n/messages.js';
 import { echapperAttribut, echapperTexte } from '../statique/html.js';
-import { cheminsDesPages, styles, nomsDesStyles, VERSIONS, verifierPourLeWeb, CENTRALE_WEB, PAGE_RETOUR_GOOGLE } from '../web/projet.js';
+import { cheminsDesPages, styles, nomsDesStyles, VERSIONS, verifierPourLeWeb, PAGE_RETOUR_GOOGLE } from '../web/projet.js';
 import { cssEcran } from '../web/css-ecran.js';
 import { cssElements, cssSautsDeLigne } from '../web/css-elements.js';
 import { cssInteractions } from '../web/interactions.js';
@@ -330,8 +330,6 @@ document.title = ${traduit('Page introuvable')};
   if (parleAuServeur || session) fichiers.set('src/humalis/serveur.js', serveurJs({ application, session, sessionDuServeur }));
   if ([...fichiers.values()].some((c) => /\blisteDeplacable\(/.test(c))) fichiers.set('src/humalis/deplacement.js', DEPLACEMENT_JS);
   if ([...fichiers.values()].some((c) => /\bchoixFichier\(/.test(c))) fichiers.set('src/humalis/fichier.js', CHOIX_FICHIER_JS);
-  const surveillee = application.serveurs.length > 0;
-  if (surveillee) fichiers.set('src/humalis/centrale.ts', CENTRALE_WEB);
 
   // Les outils, écrits quand on sait ce que les pages emploient.
   const textes = [...fichiers.entries()].filter(([n]) => /\.(js|html)$/.test(n)).map(([, c]) => c);
@@ -364,7 +362,7 @@ document.title = ${traduit('Page introuvable')};
   fichiers.set('src/humalis/outils.js', avecDureeDesErreurs(outilsJs({ usage, langues: application.langues, ...(languesAdresse.length ? { parAdresse: true } : {}), ...(bascule ? { theme: modeTheme ?? '' } : {}) }), application));
   fichiers.set(
     'src/humalis/navigation.js',
-    `${surveillee ? "import './centrale.ts';\n" : ''}${site.length ? "import './site.js';\n" : ''}${navigationJs(routesDeBase, { partages: application.partages.length > 0, session, langues: application.langues !== undefined, pages: pagesTable, ...besoinsNavigation, ...(languesAdresse.length ? { languesAdresse } : {}) })}`,
+    `${site.length ? "import './site.js';\n" : ''}${navigationJs(routesDeBase, { partages: application.partages.length > 0, session, langues: application.langues !== undefined, pages: pagesTable, ...besoinsNavigation, ...(languesAdresse.length ? { languesAdresse } : {}) })}`,
   );
   if (site.length) fichiers.set('src/humalis/site.js', `// Produit par Humalis : ce qui vaut pour tout le site.\n${site.join('\n')}\n`);
   if (application.composantsReact.length > 0) fichiers.set('src/humalis/adaptateurs.js', adaptateursJs(externes));
@@ -433,7 +431,6 @@ document.title = ${traduit('Page introuvable')};
   const paquets = paquetsDesExternes(lus, sortes);
   const dependances = {
     ...paquets.dependances,
-    ...(surveillee ? { '@astratra/centrale': VERSIONS.centrale } : {}),
     ...(utiliseReunion(application) ? { 'livekit-client': VERSION_LIVEKIT_WEB } : {}),
     ...(sessionDuServeur ? { '@astratra/client': VERSIONS.client } : {}),
   };

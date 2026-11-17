@@ -74,7 +74,8 @@ describe('le serveur produit, sans variable', () => {
 
   it('épingle les packs à leur version exacte', () => {
     const paquet = JSON.parse(fichiers.get('package.json')!);
-    expect(paquet.dependencies['@astratra/centrale']).toBe(VERSIONS_SERVEUR.centrale);
+    // Aucune surveillance intégrée (décision du mainteneur, 17 novembre 2026) : « quand une erreur arrive » branche celle de son choix.
+    expect(paquet.dependencies['@astratra/centrale']).toBeUndefined();
     expect(paquet.dependencies['@astratra/credentials']).toBe(VERSIONS_SERVEUR.credentials);
     expect(paquet.devDependencies['@astratra/tooling']).toBe(VERSIONS_SERVEUR.tooling);
     expect(paquet.scripts['audit:deps']).toBe('astratra audit:deps');
@@ -86,15 +87,16 @@ describe('le serveur produit, sans variable', () => {
 
   it('.env.exemple dit chaque variable, sans aucune valeur', () => {
     const env = fichiers.get('.env.exemple')!;
-    for (const nom of ['HUMALIS_SESSION', 'HUMALIS_SESSION_MAX', 'CENTRALE_ADRESSE', 'CENTRALE_CLE', 'ENCRYPTION_KEY', 'GOOGLE_CLIENT_ID']) {
+    expect(env).not.toContain('CENTRALE');
+    for (const nom of ['HUMALIS_SESSION', 'HUMALIS_SESSION_MAX', 'ENCRYPTION_KEY', 'GOOGLE_CLIENT_ID']) {
       expect(env).toContain(`\n${nom}=\n`);
     }
   });
 
   it('ne charge les packs facultatifs qu’à la demande', () => {
-    expect(fichiers.get('src/humalis/centrale.ts')).toContain("await import('@astratra/centrale/node')");
+    expect(fichiers.has('src/humalis/centrale.ts')).toBe(false);
     expect(fichiers.get('src/humalis/coffre.ts')).toContain("await import('@astratra/credentials')");
-    for (const nom of ['src/humalis/centrale.ts', 'src/humalis/coffre.ts']) {
+    for (const nom of ['src/humalis/coffre.ts']) {
       expect(fichiers.get(nom)).not.toMatch(/^import \{.*from '@astratra/m);
     }
   });
@@ -210,36 +212,12 @@ describe('la borne absolue de la session', () => {
   });
 });
 
-describe('la surveillance côté serveur', () => {
-  it('sans ses deux variables, rien : pas de paquet chargé', async () => {
-    const { demarrerCentrale } = await executer<{ demarrerCentrale: (env: object) => Promise<unknown> }>(serveurDe(ADMIN).get('src/humalis/centrale.ts')!);
-    expect(await demarrerCentrale({})).toBeNull();
-    expect(await demarrerCentrale({ CENTRALE_CLE: 'clj_pub_essai' })).toBeNull();
-    expect(await demarrerCentrale({ CENTRALE_ADRESSE: 'https://exemple.fr', CENTRALE_CLE: '  ' })).toBeNull();
-  });
-
-  it('ne laisse partir d’une erreur de base que son code', async () => {
-    const { assainir } = await executer<{ assainir: (e: unknown) => Error }>(serveurDe(ADMIN).get('src/humalis/centrale.ts')!);
-    const erreur = Object.assign(new Error('la valeur a@exemple.fr est refusée'), { severity: 'ERROR', code: '23505' });
-    expect(assainir(erreur).message).toBe('Erreur PostgreSQL 23505');
-    expect(assainir(erreur).stack).not.toContain('a@exemple.fr');
-  });
-
-  it('refuse d’envoyer un refus ordinaire : seulement les pannes', () => {
-    expect(serveurDe(ADMIN).get('src/humalis/centrale.ts')).toContain('if (statutDe(erreur, res.statusCode) < 500) next(erreur);');
-  });
-});
-
 describe('le site produit', () => {
-  it('une application avec serveur a sa surveillance, chargée seulement si les variables sont réglées', () => {
+  it('une application avec serveur n’a pas de surveillance intégrée', () => {
     const fichiers = webDe(VITRINE);
-    expect(JSON.parse(fichiers.get('package.json')!).dependencies['@astratra/centrale']).toBe(VERSIONS.centrale);
-    const centrale = fichiers.get('src/humalis/centrale.ts')!;
-    expect(centrale).toContain('if (adresse && cle) {');
-    expect(centrale).toContain("import('@astratra/centrale/navigateur')");
-    expect(centrale).not.toContain('robots');
-    expect(fichiers.get('src/main.tsx')).toContain("import './humalis/centrale';");
-    expect(fichiers.get('LISEZMOI.md')).toContain('VITE_CENTRALE_ADRESSE');
+    expect(JSON.parse(fichiers.get('package.json')!).dependencies['@astratra/centrale']).toBeUndefined();
+    expect(fichiers.has('src/humalis/centrale.ts')).toBe(false);
+    expect(fichiers.get('src/main.tsx')).not.toContain('centrale');
   });
 
   it('un site statique n’a ni surveillance ni renouvellement : aucune dépendance en plus', () => {

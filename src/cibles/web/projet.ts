@@ -87,7 +87,6 @@ export const VERSIONS = {
   typesReact: '19.3.0',
   typesReactDom: '19.3.0',
   prerender: '1.1.0',
-  centrale: '1.12.0',
   client: '1.2.0',
   playwright: '1.63.0',
 };
@@ -250,18 +249,11 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
   }
   // La session d'un serveur Humalis se renouvelle ; celle d'une source reste à la charge de son API.
   const sessionDuServeur = session && application.serveurs.length > 0 && !application.sources.some((x) => x.session);
-  // La surveillance (@astratra/centrale) n'a de sens que pour une application qui a un serveur.
-  const surveillee = application.serveurs.length > 0;
-  if (sessionDuServeur || surveillee) {
+  if (sessionDuServeur) {
     const paquet = JSON.parse(fichiers.get('package.json')!);
-    paquet.dependencies = {
-      ...paquet.dependencies,
-      ...(surveillee ? { '@astratra/centrale': VERSIONS.centrale } : {}),
-      ...(sessionDuServeur ? { '@astratra/client': VERSIONS.client } : {}),
-    };
+    paquet.dependencies = { ...paquet.dependencies, '@astratra/client': VERSIONS.client };
     fichiers.set('package.json', JSON.stringify(paquet, null, 2) + '\n');
   }
-  if (surveillee) fichiers.set('src/humalis/centrale.ts', CENTRALE_WEB);
   if (sessionDuServeur) fichiers.set('src/humalis/renouveler.ts', RENOUVELER);
   const modeleServeur = sessionDuServeur ? serveurRenouvele(SERVEUR) : SERVEUR;
   const codes = [...fichiers.values(), ...pages.map(({ page }) => page.code)];
@@ -352,7 +344,6 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
       utiliseDefilement,
       defilementAnime,
       enteteSuivie,
-      application.serveurs.length > 0,
       // Les lectures publiques de chaque page, que le survol d'un lien prépare.
       fichiers.has('src/humalis/prechargement.ts')
         ? new Map(pages.map(({ ecran, page }) => [page.composant, lecturesDuChargement(ecran, publiques).filter((l) => l.publique).map((l) => l.modele)]))
@@ -726,7 +717,6 @@ function mainTsx(
   defilement = false,
   mouvement = false,
   entete = false,
-  surveillee = false,
   lectures?: Map<string, string[]>,
 ): string {
   // Chaque page dans son propre fichier, chargé à sa première visite ; celle de l'adresse ouverte
@@ -775,7 +765,7 @@ connaitreLesPages(adresses.map(([nom, chemin, parent]) => ({ chemin, parent, cha
   return `import { ${routes.length === 0 ? '' : 'lazy, '}StrictMode, Suspense${routes.length === 0 ? '' : ', type ComponentType'} } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Route, Routes${routes.length === 0 ? '' : ', matchPath'} } from 'react-router';
-${surveillee ? "import './humalis/centrale';\n" : ''}import { Messages } from './humalis/messages';${defilement ? "\nimport { Defilement } from './humalis/navigation';" : ''}${lectures && routes.length > 0 ? "\nimport { connaitreLesPages } from './humalis/prechargement';" : ''}
+import { Messages } from './humalis/messages';${defilement ? "\nimport { Defilement } from './humalis/navigation';" : ''}${lectures && routes.length > 0 ? "\nimport { connaitreLesPages } from './humalis/prechargement';" : ''}
 ${session ? "import { Session } from './humalis/session';\n" : ''}${partage ? "import { Partage } from './humalis/partage';\n" : ''}${routes.some((r) => r.reservee) ? "import { Reservee } from './humalis/reservee';\n" : ''}${introuvable ? `import ${introuvable} from './pages/${introuvable}';` : "import Introuvable from './Introuvable';"}
 ${dispositions.entete || dispositions.pied ? "import Disposition from './Disposition';\n" : ''}import './humalis/styles.css';
 ${mouvement ? "import { observerLeDefilement } from './humalis/mouvement';\n" : ''}${entete ? "import { suivreLaHauteurDeLEntete } from './humalis/entete';\n" : ''}${feuilles.map((f) => `import './styles/${f}';\n`).join('')}
@@ -1637,21 +1627,6 @@ export function useMemorise<T>(cle: string, initiale: T): [T, (valeur: T) => voi
   );
 
   return [valeur, changer];
-}
-`;
-
-/**
- * La surveillance du site : son code n'arrive dans le navigateur que si les deux variables sont réglées
- * au build. Dans un navigateur piloté (prérendu, tests), le paquet se tait de lui-même.
- */
-export const CENTRALE_WEB = `const adresse = import.meta.env.VITE_CENTRALE_ADRESSE as string | undefined;
-const cle = import.meta.env.VITE_CENTRALE_CLE as string | undefined;
-
-if (adresse && cle) {
-  // Strict : ni utilisateur, ni appareil précis. Une surveillance qui ne se charge pas ne gêne jamais le site.
-  void import('@astratra/centrale/navigateur')
-    .then(({ demarrer }) => demarrer({ cle, adresse, environnement: import.meta.env.PROD ? 'production' : 'developpement', strict: true }))
-    .catch(() => {});
 }
 `;
 
@@ -2525,12 +2500,7 @@ Le prérendu (\`@astratra/prerender\`) ouvre le site dans un navigateur sans
 \`npm run build:sans-prerendu\`.
 
 L'adresse du serveur des requêtes se règle avec \`VITE_HUMALIS_SERVEUR\`.
-${serveur ? `
-La surveillance (@astratra/centrale) est facultative : avec \`VITE_CENTRALE_ADRESSE\` et
-\`VITE_CENTRALE_CLE\` (la clé publique, clj_pub_…) au moment du build, le site envoie ses erreurs et
-ses pages vues (en gabarit, masquées, sans cookie). Sans elles, rien n'est chargé. Le prérendu et les
-tests automatisés n'envoient jamais rien : le paquet se tait dans un navigateur piloté.
-` : ''}
+
 Ce dossier est réécrit à chaque compilation Humalis. Pour le reprendre à
 la main, supprimez le fichier \`${MARQUE}\` : Humalis refusera alors de
 l'écraser.

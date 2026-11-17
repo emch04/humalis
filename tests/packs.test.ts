@@ -9,7 +9,6 @@ describe('les packs Astratra du compilateur', () => {
       '@astratra/saas-kit',
       '@astratra/security',
       '@astratra/store-postgres',
-      '@astratra/centrale',
       '@astratra/credentials',
       '@astratra/tooling',
       '@astratra/notify',

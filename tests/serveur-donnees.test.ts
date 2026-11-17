@@ -115,10 +115,5 @@ describe('deux défauts trouvés en lançant les tests produits de tous les exem
     else expect(tempsReel ?? '').not.toContain('function monterSalles(): void {}');
   });
 
-  it('le test produit de la surveillance provoque sa panne sur une route que l’admin peut lire', () => {
-    const source = 'serveur "b" :\n    donnee commande :\n        nom : texte\n    donnee produit :\n        nom : texte\n    route "commandes" :\n        tout le monde peut creer commande\n    route "produits" :\n        tout le monde peut lire produit\n        seul admin peut modifier produit\n\npage "a" :\n    titre "A"\n';
-    const sessions = produire(source).get('tests/sessions.test.ts')!;
-    expect(sessions).toContain("request(app).get('/api/produits').set('authorization', 'Bearer ' + jeton)");
-    expect(sessions).not.toContain("request(app).get('/api/commandes').set('authorization', 'Bearer ' + jeton)");
-  });
+
 });

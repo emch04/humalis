@@ -2786,7 +2786,7 @@ is refused.
 Nobody can write `paye` through a request, not even an admin. If the confirmed amount is no
 longer the record's amount (it changed during the payment), or if the record is gone,
 nothing is marked as paid: the server answers the relay with 500, writes the cause to its
-log and reports it to monitoring when it is set up (`CENTRALE_ADRESSE`, `CENTRALE_CLE`). Fix
+log and passes it to `quand une erreur arrive` when the server has one. Fix
 the record's amount and the next call records it; otherwise, refund the person.
 
 #### Resending without duplicates
@@ -4959,7 +4959,8 @@ instance: rate limits, and the attachment volume per hour.
 
 - The server log (the service output) reports each 500 error with its request number, and its
   Humalis line when it comes from your program.
-- `CENTRALE_ADRESSE` and `CENTRALE_CLE` send failures to monitoring, masked before leaving.
+- Humalis imposes no monitoring system: `quand une erreur arrive`, in the server and at the top of the file for
+  pages, sends each error to the system of your choice (chapter 34).
 - `GET /sante` is enough for an outside probe.
 
 ### Secrets

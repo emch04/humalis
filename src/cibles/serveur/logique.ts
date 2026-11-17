@@ -852,10 +852,10 @@ export function creerPaiements<T, S>({ surConfirme, surErreur, env = process.env
           } catch (erreur) {
             // Une erreur ici : rien n'a été écrit, et le relais doit rappeler.
             console.error('Un paiement n\'a pas été enregistré :', erreur instanceof Error ? erreur.message : erreur);
-            // La surveillance, si elle est réglée : le journal seul ne prévient personne.
+            // « quand une erreur arrive », s'il est écrit dans le serveur : le journal seul ne prévient personne.
             try {
               surErreur?.(erreur);
-            } catch { /* La surveillance ne doit jamais empêcher de répondre au relais. */ }
+            } catch { /* Ce rapport ne doit jamais empêcher de répondre au relais. */ }
             res.status(500).end();
             return;
           }
