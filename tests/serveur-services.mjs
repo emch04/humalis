@@ -8,6 +8,8 @@ import assert from 'node:assert/strict';
 const racine = process.argv[2];
 const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'P-256', privateKeyEncoding: { type: 'pkcs8', format: 'pem' }, publicKeyEncoding: { type: 'spki', format: 'pem' } });
 const b64 = (t) => Buffer.from(t).toString('base64');
+const paire = () => generateKeyPairSync('ec', { namedCurve: 'P-256', privateKeyEncoding: { type: 'pkcs8', format: 'pem' }, publicKeyEncoding: { type: 'spki', format: 'pem' } });
+const clesDesServices = { comptes: paire(), catalogue: paire(), commandes: paire() };
 const depart = Number(process.argv[3] ?? 4611);
 const ports = { comptes: depart, catalogue: depart + 1, commandes: depart + 2 };
 const portEntree = depart + 3;
@@ -25,7 +27,8 @@ const suivi = createServer({ key: readFileSync(tls + '/cle.pem'), cert: readFile
   });
 }).listen(depart + 4, '127.0.0.1');
 const commun = {
-  HUMALIS_SERVICES_SECRET: 's'.repeat(40),
+  // Chaque service a sa paire de clés : sa clé privée dans son .env, sa clé publique chez les autres.
+  ...Object.fromEntries(Object.entries(clesDesServices).map(([nom, cle]) => ['HUMALIS_SERVICE_' + nom.toUpperCase() + '_CLE', b64(cle.publicKey)])),
   HUMALIS_SERVICE_COMPTES: 'http://127.0.0.1:' + ports.comptes,
   HUMALIS_SERVICE_CATALOGUE: 'http://127.0.0.1:' + ports.catalogue,
   HUMALIS_SERVICE_COMMANDES: 'http://127.0.0.1:' + ports.commandes,
@@ -39,7 +42,7 @@ const env = {
 const enfants = [];
 const journaux = {};
 for (const nom of Object.keys(ports)) {
-  const e = spawn('node', ['dist/src/demarrer.js'], { cwd: racine + '/' + nom, env: { ...process.env, ...commun, ...env[nom], PORT: String(ports[nom]), ...(process.env.BASE?.startsWith('/') ? { HUMALIS_BASE: process.env.BASE + '/' + nom + '.sqlite' } : process.env.BASE ? { DATABASE_URL: process.env.BASE.replace('{nom}', 'services_' + nom) } : {}) } });
+  const e = spawn('node', ['dist/src/demarrer.js'], { cwd: racine + '/' + nom, env: { ...process.env, ...commun, ...env[nom], HUMALIS_SERVICE_CLE_PRIVEE: b64(clesDesServices[nom].privateKey), PORT: String(ports[nom]), ...(process.env.BASE?.startsWith('/') ? { HUMALIS_BASE: process.env.BASE + '/' + nom + '.sqlite' } : process.env.BASE ? { DATABASE_URL: process.env.BASE.replace('{nom}', 'services_' + nom) } : {}) } });
   journaux[nom] = '';
   e.stdout.on('data', (d) => (journaux[nom] += d));
   e.stderr.on('data', (d) => (journaux[nom] += d));
@@ -108,9 +111,13 @@ try {
   assert.equal(faux.status, 401);
   ok('une signature de service fausse est refusée');
   // Sans personne, un service n'a que ses droits : « commandes » peut faire « reserver », pas créer un produit.
-  const { createServiceSigner } = await import(racine + '/commandes/node_modules/@astratra/security/src/index.js');
-  const signer = createServiceSigner({ secret: 's'.repeat(40), maxAgeMs: 300000 });
-  const signe = (methode, chemin, corps) => ({ ...signer.headers({ de: 'commandes', methode, chemin, ...(corps ? { corps } : {}), numero: String(Math.random()) }, { payload: 'x-humalis-charge', signature: 'x-humalis-signature' }), 'content-type': 'application/json' });
+  // Signé comme « commandes » le fait : la charge en base64url, signée en ES256 avec sa clé privée.
+  const { sign } = await import('node:crypto');
+  const signe = (methode, chemin, corps) => {
+    const payload = Buffer.from(JSON.stringify({ de: 'commandes', vers: 'catalogue', methode, chemin, ...(corps ? { corps } : {}), numero: String(Math.random()), quand: Date.now() })).toString('base64url');
+    const signature = sign('sha256', Buffer.from(payload), { key: clesDesServices.commandes.privateKey, dsaEncoding: 'ieee-p1363' }).toString('base64url');
+    return { 'x-humalis-charge': payload, 'x-humalis-signature': signature, 'content-type': 'application/json' };
+  };
   assert.equal((await fetch(url('catalogue', '/api/produits'), { method: 'POST', headers: signe('POST', '/api/produits', { nom: 'x', stock: 1 }), body: '{}' })).status, 403);
   const reserve = await fetch(url('catalogue', '/api/produits/faire/reserver/' + tasse.id), { method: 'PATCH', headers: signe('PATCH', '/api/produits/faire/reserver/' + tasse.id, { quantite: 1 }), body: '{}' });
   assert.equal(reserve.status, 200, await reserve.clone().text());

@@ -10,12 +10,14 @@ const racine = process.argv[2];
 const depart = Number(process.argv[3] ?? 4711);
 const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'P-256', privateKeyEncoding: { type: 'pkcs8', format: 'pem' }, publicKeyEncoding: { type: 'spki', format: 'pem' } });
 const b64 = (t) => Buffer.from(t).toString('base64');
+const paire = () => generateKeyPairSync('ec', { namedCurve: 'P-256', privateKeyEncoding: { type: 'pkcs8', format: 'pem' }, publicKeyEncoding: { type: 'spki', format: 'pem' } });
+const clesDesServices = { comptes: paire(), catalogue: paire(), commandes: paire() };
 const ports = { comptes: depart, catalogue: depart + 1, commandes: depart + 2, catalogueLimite: depart + 3, comptesLimite: depart + 4 };
 const portEntree = depart + 5;
-const SECRET = 's'.repeat(40);
 const MOT_DE_PASSE = 'Essai-Solide-2026!';
 const commun = {
-  HUMALIS_SERVICES_SECRET: SECRET,
+  // Chaque service a sa paire de clés : sa clé privée dans son .env, sa clé publique chez les autres.
+  ...Object.fromEntries(Object.entries(clesDesServices).map(([nom, cle]) => ['HUMALIS_SERVICE_' + nom.toUpperCase() + '_CLE', b64(cle.publicKey)])),
   HUMALIS_SERVICE_COMPTES: 'http://127.0.0.1:' + ports.comptes,
   HUMALIS_SERVICE_CATALOGUE: 'http://127.0.0.1:' + ports.catalogue,
   HUMALIS_SERVICE_COMMANDES: 'http://127.0.0.1:' + ports.commandes,
@@ -56,7 +58,7 @@ const journaux = {};
 // Comme « npm start » : NODE_ENV n'est pas réglé (vitest le règle à « test »).
 const { NODE_ENV: _sansNodeEnv, ...environnement } = process.env;
 for (const nom of Object.keys(ports)) {
-  const e = spawn('node', ['dist/src/demarrer.js'], { cwd: dossierDe(nom), env: { ...environnement, ...commun, ...env[nom], ...baseDe(nom), PORT: String(ports[nom]) } });
+  const e = spawn('node', ['dist/src/demarrer.js'], { cwd: dossierDe(nom), env: { ...environnement, ...commun, ...env[nom], HUMALIS_SERVICE_CLE_PRIVEE: b64(clesDesServices[nom.replace(/Limite$/, '')].privateKey), ...baseDe(nom), PORT: String(ports[nom]) } });
   journaux[nom] = '';
   e.stdout.on('data', (d) => (journaux[nom] += d));
   e.stderr.on('data', (d) => (journaux[nom] += d));
@@ -88,11 +90,15 @@ try {
   const produit = async (stock) => (await (await fetch(url('catalogue', '/api/produits'), { method: 'POST', headers: A, body: JSON.stringify({ nom: 'Tasse', stock }) })).json()).id;
   const stockDe = async (id) => (await (await fetch(url('catalogue', '/api/produits/' + id))).json()).stock;
 
-  // Une requête signée, comme un service du projet en envoie (src/humalis/services.ts).
-  const { createServiceSigner } = await import(racine + '/comptes/node_modules/@astratra/security/src/index.js');
-  const signer = createServiceSigner({ secret: SECRET, maxAgeMs: 300000 });
-  const signe = (de, methode, chemin, corps) => ({ ...signer.headers({ de, methode, chemin, ...(corps ? { corps } : {}), numero: crypto.randomUUID() }, { payload: 'x-humalis-charge', signature: 'x-humalis-signature' }), 'content-type': 'application/json' });
-  const appelSigne = async (de, methode, chemin, corps) => (await fetch(url('catalogue', chemin), { method: methode, headers: signe(de, methode, chemin, corps), body: '{}' })).status;
+  // Une requête signée, comme un service du projet en envoie (src/humalis/services.ts) : la charge en base64url, signée
+  // en ES256 avec la clé privée d'un service. « avecLaCleDe » : la clé que l'on a vraiment (celle de son propre .env).
+  const { sign } = await import('node:crypto');
+  const signe = (de, methode, chemin, corps, avecLaCleDe = de) => {
+    const payload = Buffer.from(JSON.stringify({ de, vers: 'catalogue', methode, chemin, ...(corps ? { corps } : {}), numero: crypto.randomUUID(), quand: Date.now() })).toString('base64url');
+    const signature = sign('sha256', Buffer.from(payload), { key: clesDesServices[avecLaCleDe].privateKey, dsaEncoding: 'ieee-p1363' }).toString('base64url');
+    return { 'x-humalis-charge': payload, 'x-humalis-signature': signature, 'content-type': 'application/json' };
+  };
+  const appelSigne = async (de, methode, chemin, corps, avecLaCleDe) => (await fetch(url('catalogue', chemin), { method: methode, headers: signe(de, methode, chemin, corps, avecLaCleDe), body: '{}' })).status;
 
   // 1. « le serveur "commandes" peut modifier produit » ne donne pas l'action « solder » (réservée au gérant).
   {
@@ -102,11 +108,11 @@ try {
     r.stockApresSolder = await stockDe(id);
   }
 
-  // 2. Le service des comptes n'a aucun droit sur les produits ; son .env porte pourtant le secret partagé : il signe « de: commandes ».
+  // 2. Le service des comptes n'a aucun droit sur les produits ; avec ce que porte son .env (sa propre clé), il signe « de: commandes ».
   {
     const id = await produit(5);
     r.reserverParComptes = await appelSigne('comptes', 'PATCH', '/api/produits/faire/reserver/' + id, { quantite: 1 });
-    r.reserverAuNomDeCommandes = await appelSigne('commandes', 'PATCH', '/api/produits/faire/reserver/' + id, { quantite: 1 });
+    r.reserverAuNomDeCommandes = await appelSigne('commandes', 'PATCH', '/api/produits/faire/reserver/' + id, { quantite: 1 }, 'comptes');
     r.stockApresReserver = await stockDe(id);
   }
 

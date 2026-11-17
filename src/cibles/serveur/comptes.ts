@@ -264,8 +264,22 @@ export const transportSmtp: TransportEmails = async (reglages, envoi) => {
 /** Une valeur d'une fiche dans un texte : une valeur absente ne s'écrit pas. */
 export const enTexte = (valeur: unknown) => (valeur === null || valeur === undefined ? '' : String(valeur));
 
-/** Les réglages du .env, ou ce qui manque. */
-export function reglagesSmtp(env: Record<string, string | undefined> = process.env): ReglagesSmtp | { manque: string } {
+/** L'hôte, le port et le mot de passe tels que le .env les donnait au démarrage, avant tout changement dans le coffre. */
+export type OrigineSmtp = { hote: string; port: string; motDePasse: string };
+export const origineSmtp = (env: Record<string, string | undefined>): OrigineSmtp => ({
+  hote: (env.HUMALIS_EMAILS_HOTE ?? '').trim(),
+  port: (env.HUMALIS_EMAILS_PORT ?? '').trim(),
+  motDePasse: (env.HUMALIS_EMAILS_MOT_DE_PASSE ?? '').trim(),
+});
+/** Pris au chargement de ce module : après le .env (lu par Node au lancement), avant que le coffre y écrive ses valeurs. */
+const ORIGINE_DU_ENV = origineSmtp(process.env);
+
+/**
+ * Les réglages du .env (et du coffre), ou ce qui manque. Le mot de passe suit l'hôte : un hôte ou un port changé dans
+ * le coffre ne reçoit jamais le mot de passe du .env, il faut le redonner avec lui (revue de sécurité du 17 novembre
+ * 2026 : un admin de l'application obtenait ainsi le mot de passe SMTP).
+ */
+export function reglagesSmtp(env: Record<string, string | undefined> = process.env, origine?: OrigineSmtp): ReglagesSmtp | { manque: string } {
   const lire = (cle: string) => (env[cle] ?? '').trim();
   const hote = lire('HUMALIS_EMAILS_HOTE');
   const port = Number(lire('HUMALIS_EMAILS_PORT'));
@@ -279,6 +293,9 @@ export function reglagesSmtp(env: Record<string, string | undefined> = process.e
   ].filter(Boolean);
   if (manque.length) return { manque: 'les e-mails ne sont pas réglés : renseignez ' + manque.join(', ') + ' dans le .env' };
   if (Boolean(utilisateur) !== Boolean(motDePasse)) return { manque: 'les e-mails ne sont pas réglés : HUMALIS_EMAILS_UTILISATEUR et HUMALIS_EMAILS_MOT_DE_PASSE vont ensemble' };
+  if (origine && motDePasse && motDePasse === origine.motDePasse && (hote !== origine.hote || String(port) !== origine.port)) {
+    return { manque: "l'hôte ou le port SMTP a changé dans le coffre : redonnez-y aussi le mot de passe SMTP, qui ne part jamais vers un autre hôte que celui du .env" };
+  }
   return { hote, port, utilisateur, motDePasse, expediteur };
 }
 
@@ -294,10 +311,11 @@ export function creerEmails({
   horloge?: () => number;
 }): Emails {
   const envois: number[] = [];
+  const origine = env === process.env ? ORIGINE_DU_ENV : origineSmtp(env);
   return {
-    pret: () => !('manque' in reglagesSmtp(env)),
+    pret: () => !('manque' in reglagesSmtp(env, origine)),
     async envoyer({ a, sujet, texte, html }) {
-      const reglages = reglagesSmtp(env);
+      const reglages = reglagesSmtp(env, origine);
       if ('manque' in reglages) {
         console.warn('E-mail non envoyé : ' + reglages.manque + '.');
         return false;

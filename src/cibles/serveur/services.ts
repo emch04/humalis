@@ -3,8 +3,11 @@
  *
  * - Un appel d'un service à un autre (« envoyer requete vers "produits" du serveur "catalogue" … », « faire "reserver"
  *   sur produit du serveur "catalogue" … ») est une requête HTTP signée : la méthode, l'adresse, le corps, l'heure et
- *   un numéro à usage unique sont signés ensemble (HMAC, par @astratra/security) avec HUMALIS_SERVICES_SECRET. Le
- *   service appelé vérifie la signature, refuse un rejeu, puis traite la requête comme les autres : au nom de la
+ *   un numéro à usage unique, avec le service qui appelle et celui qui est appelé, sont signés ensemble avec la clé
+ *   privée du service qui appelle (ES256, HUMALIS_SERVICE_CLE_PRIVEE) ; chaque service connaît la clé publique des
+ *   autres (HUMALIS_SERVICE_<NOM>_CLE). Un service ne peut donc ni signer au nom d'un autre, ni faire rejouer chez un
+ *   troisième un appel qui ne lui était pas destiné (revue de sécurité du 17 novembre 2026, qui a remplacé le secret
+ *   partagé). Le service appelé vérifie la signature, refuse un rejeu, puis traite la requête comme les autres : au nom de la
  *   personne quand il y en a une (son jeton voyage dans la partie signée), sinon au nom du service, seulement pour ce
  *   que « le serveur "x" peut … » lui donne.
  * - Un message (« signaler "commande-validee" avec commande ») est écrit dans la boîte d'envoi, dans la même
@@ -29,13 +32,14 @@ export const variableDuService = (nom: string): string =>
 export const servicesTs = (serveur: ServeurRI): string => {
   const projet = serveur.projet!;
   const adresses = projet.joints.map((j) => `    ${JSON.stringify(j)}: process.env.${variableDuService(j)}?.trim() || undefined,`).join('\n');
-  return String.raw`import { randomUUID } from 'node:crypto';
+  return String.raw`import { createPrivateKey, createPublicKey, randomUUID, sign, verify, type KeyObject } from 'node:crypto';
 import type { Request, RequestHandler } from 'express';
-import { createServiceSigner } from '@astratra/security';
 import { idImpose, type Stockage } from './stockage.js';
 
 /** Produit par Humalis : ce service, « ${serveur.nom.replace(/[`\\$]/g, '')} », parle aux autres services du projet. */
 export const NOM_DU_SERVICE = ${JSON.stringify(serveur.nom)};
+/** Le service qui garde les comptes : lui seul annonce un jeton ou un compte fermé. */
+export const SERVICE_DES_COMPTES = ${JSON.stringify(projet.comptes)};
 
 /** Les adresses des services que celui-ci joint, lues dans le .env. */
 export const adressesDesServices = (): Record<string, string | undefined> => ({
@@ -75,7 +79,10 @@ export interface Services {
 }
 
 export interface ReglagesServices {
-  secret: string;
+  /** La clé privée de ce service (PEM) : il signe ses appels et ses messages. */
+  clePrivee: string;
+  /** La clé publique (PEM) de chaque autre service du projet : ses appels et ses messages se vérifient avec elle. */
+  clesPubliques: Record<string, string | undefined>;
   /** Pour refuser une requête signée rejouée, même sur un autre exemplaire du serveur. */
   envois: { reserver(cle: string, empreinte: string): Promise<unknown> };
   boite: Stockage;
@@ -98,12 +105,56 @@ const CINQ_MINUTES = 5 * 60 * 1000;
 const SEPT_JOURS = 7 * 24 * 60 * 60 * 1000;
 const TRENTE_JOURS = 30 * 24 * 60 * 60 * 1000;
 
+type Verdict = { valid: true; value: Record<string, unknown> } | { valid: false };
+
+/**
+ * La signature d'un service : sa charge (JSON, en base64url) et sa signature ES256 (P-256, IEEE P1363), sur la charge
+ * elle-même. La charge dit qui appelle (« de »), qui est appelé (« vers ») et quand ; elle vaut cinq minutes.
+ */
+function creerSignataire(reglages: ReglagesServices) {
+  const privee = createPrivateKey(reglages.clePrivee);
+  const publiques = new Map<string, KeyObject>();
+  for (const [nom, pem] of Object.entries(reglages.clesPubliques)) if (pem) publiques.set(nom, createPublicKey(pem));
+  const maintenant = reglages.horloge ?? Date.now;
+  const signer = (charge: Record<string, unknown>) => {
+    const payload = Buffer.from(JSON.stringify({ ...charge, quand: maintenant() })).toString('base64url');
+    const signature = sign('sha256', Buffer.from(payload), { key: privee, dsaEncoding: 'ieee-p1363' }).toString('base64url');
+    return { payload, signature };
+  };
+  const verifier = (payload: string, signature: string): Verdict => {
+    let charge: Record<string, unknown>;
+    try {
+      charge = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as Record<string, unknown>;
+    } catch {
+      return { valid: false };
+    }
+    if (!charge || typeof charge !== 'object' || typeof charge.de !== 'string') return { valid: false };
+    const cle = publiques.get(charge.de);
+    if (!cle || charge.vers !== NOM_DU_SERVICE || typeof charge.quand !== 'number' || Math.abs(maintenant() - charge.quand) > CINQ_MINUTES) return { valid: false };
+    let bonne = false;
+    try {
+      bonne = verify('sha256', Buffer.from(payload), { key: cle, dsaEncoding: 'ieee-p1363' }, Buffer.from(signature, 'base64url'));
+    } catch {
+      bonne = false;
+    }
+    return bonne ? { valid: true, value: charge } : { valid: false };
+  };
+  return {
+    sign: signer,
+    headers: (charge: Record<string, unknown>, noms: { payload: string; signature: string }) => {
+      const { payload, signature } = signer(charge);
+      return { [noms.payload]: payload, [noms.signature]: signature };
+    },
+    verify: verifier,
+    verifyHeaders: (entetes: Record<string, string>, noms: { payload: string; signature: string }) => verifier(String(entetes[noms.payload] ?? ''), String(entetes[noms.signature] ?? '')),
+  };
+}
+
 /** L'attente avant de réessayer : 2 s, 4 s, 8 s… jusqu'à une heure. */
 const attente = (essais: number) => Math.min(3_600_000, 2000 * 2 ** Math.min(essais, 20));
 
 export function creerServices(reglages: ReglagesServices): Services {
-  if (reglages.secret.length < 32) throw new Error('HUMALIS_SERVICES_SECRET doit contenir au moins 32 caractères au hasard, les mêmes dans tous les services du projet.');
-  const signataire = createServiceSigner({ secret: reglages.secret, maxAgeMs: CINQ_MINUTES, ...(reglages.horloge ? { now: reglages.horloge } : {}) });
+  const signataire = creerSignataire(reglages);
   const maintenant = reglages.horloge ?? Date.now;
   const adresses = reglages.adresses ?? adressesDesServices();
   const adresseDe = (service: string): string => {
@@ -114,7 +165,7 @@ export function creerServices(reglages: ReglagesServices): Services {
 
   /** Une requête signée vers un autre service. Un refus (4xx) devient un RefusDuService, avec le message de l'autre service. */
   async function appeler(service: string, methode: string, chemin: string, corps: Record<string, unknown> | undefined, appel: Appel): Promise<Record<string, unknown>> {
-    const charge = { de: NOM_DU_SERVICE, methode, chemin, ...(corps ? { corps } : {}), ...(appel.jeton ? { jeton: appel.jeton } : {}), numero: randomUUID() };
+    const charge = { de: NOM_DU_SERVICE, vers: service, methode, chemin, ...(corps ? { corps } : {}), ...(appel.jeton ? { jeton: appel.jeton } : {}), numero: randomUUID() };
     const entetes = signataire.headers(charge, { payload: ENTETE_CHARGE, signature: ENTETE_SIGNATURE });
     const reponse = await fetch(adresseDe(service) + chemin, {
       method: methode,
@@ -148,7 +199,16 @@ export function creerServices(reglages: ReglagesServices): Services {
     if (enCours || arrete) return;
     enCours = true;
     try {
-      const lot = await reglages.boite.lister({ egal: {}, limite: 100 });
+      // Service par service, et page après page : des messages en attente pour un service en panne (ou toujours
+      // refusés) ne retiennent jamais ceux des autres, ni les messages plus récents du même service.
+      const lot: Awaited<ReturnType<Stockage['lister']>> = [];
+      for (const vers of reglages.autres) {
+        for (let depuis = 0; depuis < 5000; depuis += 200) {
+          const page = await reglages.boite.lister({ egal: { vers }, limite: 200, depuis });
+          lot.push(...page.filter((m) => Number(m.prochain) <= maintenant()));
+          if (page.length < 200) break;
+        }
+      }
       for (const message of lot) {
         const heure = maintenant();
         if (Number(message.prochain) > heure) continue;
@@ -160,7 +220,7 @@ export function creerServices(reglages: ReglagesServices): Services {
         });
         if (!pris) continue;
         try {
-          const charge = { de: NOM_DU_SERVICE, methode: 'POST', chemin: '/humalis/messages', id: pris.id, message: pris.message, corps: pris.corps };
+          const charge = { de: NOM_DU_SERVICE, vers: String(pris.vers), methode: 'POST', chemin: '/humalis/messages', id: pris.id, message: pris.message, corps: pris.corps };
           const { payload, signature } = signataire.sign(charge);
           const reponse = await fetch(adresseDe(String(pris.vers)) + '/humalis/messages', {
             method: 'POST',
@@ -260,6 +320,11 @@ export function creerServices(reglages: ReglagesServices): Services {
         }
         const corps = (charge.corps && typeof charge.corps === 'object' ? charge.corps : {}) as Record<string, unknown>;
         const propre = reglages.messagesHumalis?.[charge.message];
+        // Un jeton ou un compte fermé ne s'annonce que par le service des comptes.
+        if (propre && charge.de !== SERVICE_DES_COMPTES) {
+          res.status(403).json({ erreur: 'seul le service des comptes annonce « ' + charge.message + ' »' });
+          return;
+        }
         const receveur = reglages.receveurs[charge.de + '|' + charge.message];
         if (!propre && !receveur) {
           // Un service déployé avant l'autre : le message repartira plus tard.
@@ -306,8 +371,16 @@ export async function noterRecu(recus: Stockage, id: string, de: string, message
  */
 export function droitDuService(droits: { serveur: string; actions: string[]; faire?: string }[] | undefined, service: string, methode: string, chemin: string): boolean {
   const permis = (droits ?? []).filter((d) => d.serveur === service);
-  const faire = /^\/faire\/([^/]+)\//.exec(chemin)?.[1];
-  if (methode === 'PATCH' && faire !== undefined) return permis.some((d) => d.faire === faire);
+  // Comme le routeur : sans tenir compte des majuscules, ni des doubles barres, et le chemin décodé (« /FAIRE/ »,
+  // « /f%61ire/ » mènent à la même action).
+  let lu = chemin;
+  try {
+    lu = decodeURIComponent(chemin);
+  } catch {
+    return false;
+  }
+  const faire = /^\/+faire\/+([^/]+)\/*/i.exec(lu)?.[1]?.toLowerCase();
+  if (methode === 'PATCH' && faire !== undefined) return permis.some((d) => d.faire?.toLowerCase() === faire);
   const action = methode === 'GET' ? 'lire' : methode === 'POST' ? 'creer' : methode === 'PATCH' ? 'modifier' : methode === 'DELETE' ? 'supprimer' : '';
   return permis.some((d) => d.actions.includes(action));
 }

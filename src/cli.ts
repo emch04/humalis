@@ -949,7 +949,7 @@ openssl rand -base64 48                                   # HUMALIS_SERVICES_SEC
 ## 2. Chaque service
 
 Dans chaque dossier : \`cp .env.exemple .env\`, puis la base (\`DATABASE_URL\` ou \`HUMALIS_BASE\`), \`HUMALIS_SERVICES_SECRET\`,
-la clé des jetons, les adresses des services qu'il joint, et \`HUMALIS_RELAIS=1\` derrière le relais.
+la clé des jetons, les adresses des services qu'il joint, et \`HUMALIS_RELAIS=1\` derrière le relais ; chaque service n'écoute que le relais (\`HUMALIS_ECOUTE=127.0.0.1\`, ou un réseau privé).
 
 | Service | Dossier | Port proposé |
 | --- | --- | --- |

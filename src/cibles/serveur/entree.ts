@@ -60,6 +60,8 @@ for (const [nom, adresse] of Object.entries(ADRESSES)) {
   }
 }
 
+const DERRIERE_UN_RELAIS = Number(process.env.HUMALIS_RELAIS) > 0;
+
 const destination = (chemin) => {
   const ligne = TABLE.find((l) => chemin === l.chemin || chemin.startsWith(l.chemin + '/') || chemin.startsWith(l.chemin + '?'));
   if (ligne) return new URL(ADRESSES[ligne.service]);
@@ -73,18 +75,25 @@ const entetes = (req, cible) => {
   for (const [nom, valeur] of Object.entries(req.headers)) if (!PROPRES_A_LA_CONNEXION.has(nom)) sortie[nom] = valeur;
   const adresse = req.socket.remoteAddress ?? '';
   sortie['x-forwarded-for'] = req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'] + ', ' + adresse : adresse;
-  sortie['x-forwarded-proto'] = req.headers['x-forwarded-proto'] ?? (req.socket.encrypted ? 'https' : 'http');
-  sortie['x-forwarded-host'] = req.headers['x-forwarded-host'] ?? req.headers.host ?? '';
+  // Le protocole et l'hôte d'origine : écrits par ce relais ; repris de la requête seulement derrière un relais
+  // déclaré (HUMALIS_RELAIS), le seul à pouvoir les dire.
+  sortie['x-forwarded-proto'] = (DERRIERE_UN_RELAIS && req.headers['x-forwarded-proto']) || (req.socket.encrypted ? 'https' : 'http');
+  sortie['x-forwarded-host'] = (DERRIERE_UN_RELAIS && req.headers['x-forwarded-host']) || req.headers.host || '';
   sortie.host = cible.host;
   return sortie;
 };
+
+let sante = null;
 
 const serveur = createServer((req, res) => {
   const chemin = (req.url ?? '/').split('?')[0];
   // GET /sante : prêt quand chaque service répond prêt.
   if (chemin === '/sante' && req.method === 'GET') {
-    void Promise.all(Object.values(ADRESSES).map((a) => fetch(new URL('/sante', a), { signal: AbortSignal.timeout(2000) }).then((r) => r.ok, () => false))).then((etats) => {
-      const pret = etats.every(Boolean);
+    // Une seule tournée des services par seconde, quel que soit le nombre d'appels.
+    if (!sante || Date.now() - sante.quand > 1000) {
+      sante = { quand: Date.now(), etat: Promise.all(Object.values(ADRESSES).map((a) => fetch(new URL('/sante', a), { signal: AbortSignal.timeout(2000) }).then((r) => r.ok, () => false))).then((etats) => etats.every(Boolean)) };
+    }
+    void sante.etat.then((pret) => {
       res.writeHead(pret ? 200 : 503, { 'content-type': 'application/json', 'cache-control': 'no-store' }).end(JSON.stringify({ etat: pret ? 'pret' : 'indisponible' }));
     });
     return;
@@ -109,10 +118,14 @@ const serveur = createServer((req, res) => {
   req.pipe(envoi);
 });
 
-// Une connexion qui change de protocole (WebSocket) passe telle quelle au service.
+// Seul un vrai WebSocket (GET, « Upgrade: websocket ») passe au service, avec les en-têtes d'une requête ordinaire :
+// l'adresse du visiteur ajoutée par ce relais. Une autre demande de changement de protocole recevait les en-têtes du
+// client tels quels (une adresse d'origine inventée contournait les limites) : elle est refusée (426).
 serveur.on('upgrade', (req, socket, tete) => {
   const cible = destination((req.url ?? '/').split('?')[0]);
-  if (!cible) {
+  const websocket = req.method === 'GET' && String(req.headers.upgrade ?? '').toLowerCase() === 'websocket';
+  if (!cible || !websocket) {
+    socket.end('HTTP/1.1 ' + (cible ? '426 Upgrade Required' : '404 Not Found') + '\r\nConnection: close\r\nContent-Length: 0\r\n\r\n');
     socket.destroy();
     return;
   }
@@ -120,7 +133,7 @@ serveur.on('upgrade', (req, socket, tete) => {
   const vers = cible.protocol === 'https:' ? connecterChiffre({ host: cible.hostname, port, servername: cible.hostname }) : connect(port, cible.hostname);
   vers.on('connect', () => undefined);
   vers.once(cible.protocol === 'https:' ? 'secureConnect' : 'connect', () => {
-    const lignes = [req.method + ' ' + req.url + ' HTTP/1.1', ...Object.entries({ ...req.headers, host: cible.host }).map(([n, v]) => n + ': ' + v), '', ''];
+    const lignes = [req.method + ' ' + req.url + ' HTTP/1.1', ...Object.entries({ ...entetes(req, cible), connection: 'Upgrade', upgrade: 'websocket' }).map(([n, v]) => n + ': ' + v), '', ''];
     vers.write(lignes.join('\r\n'));
     if (tete?.length) vers.write(tete);
     vers.pipe(socket).pipe(vers);
@@ -162,7 +175,7 @@ cp .env.exemple .env      # puis l'adresse de chaque service
 npm start                 # http://localhost:8080
 \`\`\`
 
-Derrière ce relais, règle \`HUMALIS_RELAIS=1\` dans chaque service : leurs limites comptent alors chaque visiteur, pas le relais.
+Derrière ce relais, règle \`HUMALIS_RELAIS=1\` dans chaque service : leurs limites comptent alors chaque visiteur, pas le relais. Et ferme les services au reste du monde (\`HUMALIS_ECOUTE=127.0.0.1\`, ou un réseau privé) : un service joignable directement croirait l'adresse d'origine écrite par n'importe qui. Si un autre relais (nginx) est placé devant celui-ci, règle aussi \`HUMALIS_RELAIS=1\` ici.
 
 ## La table des chemins
 
