@@ -77,6 +77,29 @@ describe('le rapport JSON', () => {
   });
 });
 
+describe('les messages de la commande et la publication', () => {
+  it('un fichier introuvable : un diagnostic du rapport, avec sa ligne et son code ; le texte ne change pas', () => {
+    const chemin = fichier('style.humalis', 'utiliser style "./absent.css"\n\npage "accueil" :\n    titre "Accueil"\n');
+    const r = humalis('compile', chemin, '--cible', 'web', '--sortie', join(dossier, 'web'), '--json');
+    expect(r.status).toBe(1);
+    const d = JSON.parse(r.stdout).diagnostics.find((x: { message: string }) => x.message.includes('absent.css'));
+    expect(d).toMatchObject({ fichier: 'style.humalis', ligne: 1, gravite: 'erreur', code: 'HUM-0764' });
+    const texte = humalis('compile', chemin, '--cible', 'web', '--sortie', join(dossier, 'web'));
+    expect(texte.stdout).toBe('');
+    expect(texte.stderr).toContain('Erreur, ligne 1 : le fichier de style « ./absent.css » est introuvable');
+  });
+
+  it('un avertissement de publication devient une erreur avec --exigeant', () => {
+    const site = fichier('site.humalis', 'site :\n    nom "Le Fleuve"\n    logo "./logo.svg"\n\npage "accueil" :\n    titre "Le Fleuve"\n    texte "Court."\n');
+    const doux = JSON.parse(humalis('verifier', site, '--json').stdout);
+    expect(doux.ok).toBe(true);
+    expect(doux.diagnostics[0]).toMatchObject({ gravite: 'avertissement', code: expect.stringMatching(/^HUM-/) });
+    const r = humalis('verifier', site, '--exigeant', '--json');
+    expect(r.status).toBe(1);
+    expect(JSON.parse(r.stdout).diagnostics[0].gravite).toBe('erreur');
+  });
+});
+
 describe('les corrections : seulement quand elles sont sûres', () => {
   it('l’indentation : un espace de trop ou de moins ; à deux espaces près, rien', () => {
     expect(correctionDe('indentation incohérente : 3 espaces trouvés, un multiple de 4 est attendu')).toEqual({ remplace: '   ', par: '    ' });

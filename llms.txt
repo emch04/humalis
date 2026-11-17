@@ -742,6 +742,8 @@ serveur "boutique" :
 - HUM-0277 Une page sans description : n'a pas de description
 - HUM-0278 Un aperçu de partage calculé : dépend de données
 - HUM-0279 Deux pages avec le même titre : ont le même titre
+- HUM-0759 Deux pages avec la même description : ont la même description
+- HUM-0760 Un aperçu sur une page jamais indexée : son bloc « apercu » ne sert à rien
 - HUM-0280 Une animation sans nom : il manque le nom de l’animation
 - HUM-0281 « duree » ou « delai » sans animation : donne l’attente d’une animation
 - HUM-0282 « au defilement » sans animation : « au defilement » suit le nom d’une animation
@@ -1241,6 +1243,30 @@ serveur "boutique" :
 - HUM-0732 Un droit de service sur une autre donnée : sert « produit », pas « commande »
 - HUM-0733 Un droit sur une action que la route n’a pas : n'a pas d'action « vendre ». Actions
 - HUM-0734 Un message que personne n’écoute : personne n'écoute « commande-validee »
+- HUM-0761 « avec animation » sur une cible qui ne l’anime pas : les lignes changent sans glisser
+- HUM-0762 « en direct » sur le site statique : ici, la liste est lue une fois
+- HUM-0763 Un site compilé sans son adresse : sans --adresse, le prérendu
+- HUM-0764 Un fichier de style introuvable : le fichier de style
+- HUM-0765 Une image introuvable : l'image «
+- HUM-0766 Une vidéo introuvable : la vidéo «
+- HUM-0767 Un son introuvable : le son «
+- HUM-0768 Un son lourd : c'est lourd à télécharger, surtout sur un téléphone.
+- HUM-0769 Une vidéo lourde : Une adresse vers un service vidéo peut convenir mieux
+- HUM-0770 Le logo du site introuvable : (logo du bloc « site ») est introuvable
+- HUM-0771 L’image de partage introuvable : (image du bloc « site ») est introuvable
+- HUM-0772 Un logo trop petit ou pas carré : une icône nette demande un carré
+- HUM-0773 Une image de partage trop petite : les réseaux sociaux la montrent mal
+- HUM-0774 Une image du site trop lourde : les aperçus de partage risquent de l
+- HUM-0775 Un fichier de police introuvable : le fichier de police
+- HUM-0776 Une adresse http:// dans l’application de bureau : une adresse http:// est bloquée
+- HUM-0777 « partager » dans l’application de bureau : n'a pas de feuille de partage
+- HUM-0778 Une adresse de lecture refusée à la construction : https seulement, sans mot de passe
+- HUM-0779 Une source avec clé, non lue à la construction : envoie une clé ou des en-têtes
+- HUM-0780 Une source en http, non lue à la construction : n'est pas en https : elle n'est pas lue
+- HUM-0781 Une lecture qui échoue à la construction : n'a pas pu être lu à la construction
+- HUM-0782 Le fichier Swift d’un composant introuvable : le fichier Swift du composant
+- HUM-0783 Le fichier Kotlin d’un composant introuvable : le fichier Kotlin du composant
+- HUM-0784 Le fichier C# d’un composant introuvable : le fichier C# du composant
 - HUM-0735 Écrire le bloc optimiste : en supposant que ça marche
 - HUM-0736 Fermer la phrase du bloc optimiste : deux-points après
 - HUM-0737 Placer le bloc dans un événement : ne sert que dans un événement

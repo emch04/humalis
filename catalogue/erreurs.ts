@@ -17,6 +17,7 @@ import { ENTREES_ERREURS_TEMPS_REEL } from './erreurs-temps-reel';
 import { ENTREES_ERREURS_MORCEAUX } from './erreurs-morceaux';
 import { ENTREES_ERREURS_CAPTURE } from './erreurs-capture';
 import { ENTREES_ERREURS_SERVICES } from './erreurs-services';
+import { ENTREES_ERREURS_COMMANDE } from './erreurs-commande';
 
 export type GroupeErreur = 'ecriture' | 'grammaire' | 'sens' | 'avertissement';
 
@@ -56,6 +57,8 @@ export interface EntreeErreur {
   sites: number;
   /** Faux si aucun programme ne peut produire ce message (code de sécurité du compilateur). */
   atteignable: boolean;
+  /** Un message de la commande (fichier cherché à côté du programme…) : le message tel qu'elle l'écrit, qui lui vaut son code. */
+  exemple?: string;
 }
 
 const e = (
@@ -5402,6 +5405,80 @@ page "carte" :
     texte "La carte du restaurant : poissons grillés, pondu, chikwangue et jus frais."
 `),
     'ont le même titre', { gravite: 'avertissement' }),
+  e('descriptions-identiques', 'avertissement', 'Deux pages avec la même description',
+    'Deux pages à la même description se confondent dans les résultats de recherche.',
+    'Dis en une phrase ce qu’on trouve sur chaque page.',
+    p(`
+site :
+    nom "Le Fleuve"
+    logo "./logo.svg"
+
+page "accueil" :
+    titre "Le Fleuve"
+    texte "Un restaurant au bord du fleuve, ouvert du mardi au dimanche, midi et soir."
+
+page "carte" :
+    titre "La carte"
+    texte "Un restaurant au bord du fleuve, ouvert du mardi au dimanche, midi et soir."
+`),
+    p(`
+site :
+    nom "Le Fleuve"
+    logo "./logo.svg"
+
+page "accueil" :
+    titre "Le Fleuve"
+    texte "Un restaurant au bord du fleuve, ouvert du mardi au dimanche, midi et soir."
+
+page "carte" :
+    titre "La carte"
+    texte "La carte du restaurant : poissons grillés, légumes du marché et jus frais."
+`),
+    'ont la même description', { gravite: 'avertissement' }),
+  e('apercu-page-reservee', 'avertissement', 'Un aperçu sur une page jamais indexée',
+    'Une page réservée, comme la page des adresses inconnues, n’est jamais indexée ni montrée en aperçu de partage : son bloc « apercu » ne sert à rien.',
+    'Retire le bloc « apercu » de cette page.',
+    p(`
+site :
+    nom "Le Fleuve"
+    logo "./logo.svg"
+
+serveur "fleuve" :
+    donnee avis :
+        texte : texte
+    route "avis" :
+        tout le monde peut lire avis
+        seul admin peut modifier avis
+
+page "accueil" :
+    titre "Le Fleuve"
+    texte "Un restaurant au bord du fleuve, ouvert du mardi au dimanche, midi et soir."
+
+page "compte" reservee a connecte sinon vers "accueil" :
+    apercu :
+        titre "Mon compte"
+    titre "Mon compte"
+`),
+    p(`
+site :
+    nom "Le Fleuve"
+    logo "./logo.svg"
+
+serveur "fleuve" :
+    donnee avis :
+        texte : texte
+    route "avis" :
+        tout le monde peut lire avis
+        seul admin peut modifier avis
+
+page "accueil" :
+    titre "Le Fleuve"
+    texte "Un restaurant au bord du fleuve, ouvert du mardi au dimanche, midi et soir."
+
+page "compte" reservee a connecte sinon vers "accueil" :
+    titre "Mon compte"
+`),
+    'son bloc « apercu » ne sert à rien', { gravite: 'avertissement' }),
 
   // --- Graphiques, médias et mouvement (erreurs-medias.ts) ---
   ...ENTREES_ERREURS_MEDIAS,
@@ -5415,6 +5492,7 @@ page "carte" :
   ...ENTREES_ERREURS_MORCEAUX,
   ...ENTREES_ERREURS_CAPTURE,
   ...ENTREES_ERREURS_SERVICES,
+  ...ENTREES_ERREURS_COMMANDE,
   e('supposant-forme', 'grammaire', 'Écrire le bloc optimiste',
     'Le bloc annonce que la requête suivante pourrait échouer.',
     'Écris « en supposant que ça marche : ».',

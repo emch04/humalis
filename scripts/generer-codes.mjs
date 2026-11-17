@@ -11,6 +11,11 @@ import { gabaritDuMessage } from '../src/analyse/codes.ts';
 export function messagesDuCatalogue() {
   const messages = new Map();
   for (const e of ENTREES_ERREURS) {
+    // Un message de la commande : celui qu'elle écrit.
+    if (e.exemple !== undefined) {
+      messages.set(e.id, e.exemple);
+      continue;
+    }
     if (!e.atteignable) continue;
     const d = diagnostiquer(e.fautif).filter((x) => (e.id.startsWith('accessibilite-') ? x.categorie === 'accessibilite' : x.categorie !== 'accessibilite'));
     const m = d.find((x) => x.message.includes(e.motif));

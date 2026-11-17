@@ -97,6 +97,22 @@ let fichiersDuProjet: string[] = [];
 /** « --json » : les diagnostics sont gardés, puis écrits en une fois sur la sortie standard, à la fin de la commande. */
 let diagnosticsJson: Diagnostic[] | undefined;
 
+/**
+ * Un message de la commande elle-même (un fichier introuvable, une image trop petite, une adresse bloquée) : sans
+ * « --json », le même texte qu'avant ; avec, un diagnostic du rapport. « ligne » : celle du programme qui le cause,
+ * 0 quand il concerne tout le fichier ou la commande.
+ */
+function direCommande(texte: string, gravite: Diagnostic['gravite'], message: string, ligne = 0, categorie?: Diagnostic['categorie']): void {
+  // « --exigeant » : un avertissement de publication de la commande devient une erreur, comme ceux du programme.
+  const durci = categorie !== undefined && gravite === 'avertissement' && exigeantCommande;
+  if (durci) refusExigeant = true;
+  const vraie = durci ? 'erreur' : gravite;
+  if (diagnosticsJson) diagnosticsJson.push(situer({ gravite: vraie, message, ligne, ...(categorie ? { categorie } : {}) }, fichiersDuProjet));
+  else console.error(durci ? texte.replace(/^Avertissement/, 'Erreur') : texte);
+}
+let exigeantCommande = false;
+let refusExigeant = false;
+
 function afficherDiagnostics(diagnostics: Diagnostic[]): void {
   if (diagnosticsJson) {
     diagnosticsJson.push(...diagnostics.map((brut) => situer(brut, fichiersDuProjet)));
@@ -216,6 +232,8 @@ function compile(arguments_: string[]): number | Promise<number> {
   if (source === undefined) return 2;
   // Le code produit porte ses lignes Humalis : ecrire() en fait des cartes de sources ou des directives.
   activerReperes(true);
+  exigeantCommande = arguments_.includes('--exigeant');
+  refusExigeant = false;
 
   const resultat = compilerLeFichier(chemin, source);
   const application = resultat.application ? pourLaCible(resultat.application, cible) : undefined;
@@ -231,10 +249,12 @@ function compile(arguments_: string[]): number | Promise<number> {
   // « avec animation » n'existe que sur le web et Apple et Android ; « en direct » partout sauf les pages statiques : dit plutôt que perdu en silence.
   const programme = JSON.stringify(application.ecrans);
   if (programme.includes('"animation":true') && cible !== 'web' && cible !== 'serveur' && cible !== 'apple' && cible !== 'android') {
-    console.error('Avertissement : « avec animation » n\'a d\'effet que sur le web : ici, les lignes changent sans glisser.');
+    const message = '« avec animation » n\'a d\'effet que sur le web : ici, les lignes changent sans glisser.';
+    direCommande('Avertissement : ' + message, 'avertissement', message);
   }
   if (programme.includes('"direct":true') && cible === 'statique') {
-    console.error(`Avertissement : « en direct » n'a pas d'effet sur la cible ${cible} : ici, la liste est lue une fois.`);
+    const message = `« en direct » n'a pas d'effet sur la cible ${cible} : ici, la liste est lue une fois.`;
+    direCommande('Avertissement : ' + message, 'avertissement', message);
   }
 
   // Les tuiles d'une carte viennent d'un fournisseur qui reçoit l'adresse IP des visiteurs : dit une fois.
@@ -309,7 +329,12 @@ function compile(arguments_: string[]): number | Promise<number> {
   let adresse = option(arguments_, 'adresse') ?? application.site?.adresse;
   if (adresse === undefined && composants === undefined) {
     adresse = 'http://localhost';
-    console.error('Avertissement : sans --adresse, le prérendu et le plan du site utilisent http://localhost.');
+    const message = 'sans --adresse, le prérendu et le plan du site utilisent http://localhost.';
+    direCommande('Avertissement : ' + message, 'avertissement', message, 0, 'publication');
+    if (refusExigeant) {
+      console.error('\nLe programme a des erreurs : rien n\'a été écrit.');
+      return 1;
+    }
   }
 
   // Les fichiers de « utiliser style "…" », cherchés à côté du fichier Humalis.
@@ -418,7 +443,8 @@ function lireFichiersStyle(application: Application, chemin: string): Map<string
     try {
       fichiersStyle.set(style.chemin, readFileSync(join(dirname(chemin), style.chemin), 'utf8'));
     } catch {
-      console.error(`Erreur, ${position(style.ligne)} : le fichier de style « ${style.chemin} » est introuvable (il est cherché à côté de ${basename(chemin)}).`);
+      const message = `le fichier de style « ${style.chemin} » est introuvable (il est cherché à côté de ${basename(chemin)}).`;
+      direCommande(`Erreur, ${position(style.ligne)} : ${message}`, 'erreur', message, style.ligne);
       return undefined;
     }
   }
@@ -437,14 +463,17 @@ function lireMedias(application: Application, chemin: string): Map<string, InfoM
       octets = readFileSync(join(dirname(chemin), media.chemin));
     } catch {
       const quoi = media.genre === 'audio' ? 'le son' : media.genre === 'video' ? 'la vidéo' : "l'image";
-      console.error(`Erreur, ${position(media.ligne)} : ${quoi} « ${media.chemin} » est introuvable (${media.genre === 'audio' ? 'il est cherché' : 'elle est cherchée'} à côté de ${basename(chemin)}).`);
+      const message = `${quoi} « ${media.chemin} » est introuvable (${media.genre === 'audio' ? 'il est cherché' : 'elle est cherchée'} à côté de ${basename(chemin)}).`;
+      direCommande(`Erreur, ${position(media.ligne)} : ${message}`, 'erreur', message, media.ligne);
       return undefined;
     }
     if (media.genre === 'audio' && octets.length > 10 * 1024 * 1024) {
-      console.error(`Avertissement, ${position(media.ligne)} : le son « ${media.chemin} » pèse ${Math.round(octets.length / (1024 * 1024))} Mo : c'est lourd à télécharger, surtout sur un téléphone.`);
+      const message = `le son « ${media.chemin} » pèse ${Math.round(octets.length / (1024 * 1024))} Mo : c'est lourd à télécharger, surtout sur un téléphone.`;
+      direCommande(`Avertissement, ${position(media.ligne)} : ${message}`, 'avertissement', message, media.ligne);
     }
     if (media.genre === 'video' && octets.length > 50 * 1024 * 1024) {
-      console.error(`Avertissement, ${position(media.ligne)} : la vidéo « ${media.chemin} » pèse ${Math.round(octets.length / (1024 * 1024))} Mo : c'est lourd à télécharger, surtout sur un téléphone. Une adresse vers un service vidéo peut convenir mieux.`);
+      const message = `la vidéo « ${media.chemin} » pèse ${Math.round(octets.length / (1024 * 1024))} Mo : c'est lourd à télécharger, surtout sur un téléphone. Une adresse vers un service vidéo peut convenir mieux.`;
+      direCommande(`Avertissement, ${position(media.ligne)} : ${message}`, 'avertissement', message, media.ligne);
     }
     const dimensions = media.genre === 'image' ? dimensionsImage(octets) : undefined;
     medias.set(media.chemin, { octets: octets.length, genre: media.genre, ...(dimensions ? { largeur: dimensions.largeur, hauteur: dimensions.hauteur } : {}), contenu: octets.toString('base64') });
@@ -466,18 +495,28 @@ function lireImagesDuSite(application: Application, chemin: string): Map<string,
     try {
       octets = readFileSync(join(dirname(chemin), fichier));
     } catch {
-      console.error(`Erreur, ${position(site.ligne)} : le fichier « ${fichier} » (${role} du bloc « site ») est introuvable (il est cherché à côté de ${basename(chemin)}).`);
+      const message = `le fichier « ${fichier} » (${role} du bloc « site ») est introuvable (il est cherché à côté de ${basename(chemin)}).`;
+      direCommande(`Erreur, ${position(site.ligne)} : ${message}`, 'erreur', message, site.ligne);
       return undefined;
     }
     images.set(fichier, octets.toString('base64'));
     const dimensions = dimensionsImage(octets);
     if (role === 'logo' && dimensions && (dimensions.largeur !== dimensions.hauteur || dimensions.largeur < 512)) {
-      console.error(`Avertissement : le logo « ${fichier} » fait ${dimensions.largeur}×${dimensions.hauteur} : une icône nette demande un carré de 512×512 au moins.`);
+      const message = `le logo « ${fichier} » fait ${dimensions.largeur}×${dimensions.hauteur} : une icône nette demande un carré de 512×512 au moins.`;
+      direCommande('Avertissement : ' + message, 'avertissement', message, site.ligne, 'publication');
     }
     if (role === 'image' && dimensions && (dimensions.largeur < 600 || dimensions.hauteur < 315)) {
-      console.error(`Avertissement : l'image de partage « ${fichier} » fait ${dimensions.largeur}×${dimensions.hauteur} : les réseaux sociaux la montrent mal en dessous de 600×315 (1200×630 conseillé).`);
+      const message = `l'image de partage « ${fichier} » fait ${dimensions.largeur}×${dimensions.hauteur} : les réseaux sociaux la montrent mal en dessous de 600×315 (1200×630 conseillé).`;
+      direCommande('Avertissement : ' + message, 'avertissement', message, site.ligne, 'publication');
     }
-    if (octets.length > 5 * 1024 * 1024) console.error(`Avertissement : « ${fichier} » pèse plus de 5 Mo : les aperçus de partage risquent de l'ignorer.`);
+    if (octets.length > 5 * 1024 * 1024) {
+      const message = `« ${fichier} » pèse plus de 5 Mo : les aperçus de partage risquent de l'ignorer.`;
+      direCommande('Avertissement : ' + message, 'avertissement', message, site.ligne, 'publication');
+    }
+  }
+  if (refusExigeant) {
+    console.error('\nLe programme a des erreurs : rien n\'a été écrit.');
+    return undefined;
   }
   return images;
 }
@@ -490,7 +529,8 @@ function lirePolices(application: Application, chemin: string): Map<string, stri
     try {
       polices.set(police.fichier, readFileSync(join(dirname(chemin), police.fichier)).toString('base64'));
     } catch {
-      console.error(`Erreur : le fichier de police « ${police.fichier} » est introuvable (il est cherché à côté de ${basename(chemin)}).`);
+      const message = `le fichier de police « ${police.fichier} » est introuvable (il est cherché à côté de ${basename(chemin)}).`;
+      direCommande('Erreur : ' + message, 'erreur', message);
       return undefined;
     }
   }
@@ -533,12 +573,14 @@ function compileDesktop(application: Application, chemin: string, sortie: string
     .flatMap((e) => adressesDeRequetes(e))
     .filter((a) => /^http:\/\//i.test(a) && !/^http:\/\/(localhost|127\.0\.0\.1)([:/]|$)/i.test(a));
   for (const adresse of new Set(enClair)) {
-    console.error(`Avertissement : l'application de bureau ne peut pas appeler « ${adresse} » : une adresse http:// est bloquée par Electron. Utilisez https://.`);
+    const message = `l'application de bureau ne peut pas appeler « ${adresse} » : une adresse http:// est bloquée par Electron. Utilisez https://.`;
+    direCommande('Avertissement : ' + message, 'avertissement', message);
   }
   // Electron n'a pas de feuille de partage du système : « partager » copie le lien.
   const partage = gestionnairesDuProgramme(application).find((g) => contientAction(g.actions, (a) => a.type === 'partage'));
   if (partage) {
-    console.error(`Avertissement (ligne ${partage.ligne}) : sur l'application de bureau, « partager » copie le lien (ou le texte) et le dit : Electron n'a pas de feuille de partage.`);
+    const message = `sur l'application de bureau, « partager » copie le lien (ou le texte) et le dit : Electron n'a pas de feuille de partage.`;
+    direCommande(`Avertissement (ligne ${partage.ligne}) : ${message}`, 'avertissement', message, partage.ligne);
   }
   // Les fichiers de « utiliser style "…" », cherchés à côté du fichier Humalis.
   const fichiersStyle = lireFichiersStyle(application, chemin);
@@ -637,9 +679,9 @@ async function compileMoteur(application: Application, chemin: string, sortie: s
   const reglage = portDiagnostics === undefined ? reglageDeLecture(chemin, lireServeur) : undefined;
   if (reglage) {
     const { lectures, refus } = lecturesPermises(application, reglage);
-    for (const raison of refus) console.error(`Avertissement : ${raison}`);
+    for (const raison of refus) direCommande(`Avertissement : ${raison}`, 'avertissement', raison);
     const lu = await lireLesDonnees(lectures);
-    for (const raison of lu.avertissements) console.error(`Avertissement : ${raison}`);
+    for (const raison of lu.avertissements) direCommande(`Avertissement : ${raison}`, 'avertissement', raison);
     donnees = lu.donnees;
     console.error(`Lu à la construction : ${donnees.size} sur ${lectures.length}.`);
   }
@@ -679,7 +721,8 @@ function compileApple(application: Application, chemin: string, sortie: string, 
     if (c.apple === undefined) continue;
     const fichier = join(dirname(chemin), c.apple);
     if (!existsSync(fichier) || statSync(fichier).isDirectory()) {
-      console.error(`Erreur, ${position(c.ligne)} : le fichier Swift du composant « ${c.nom} » est introuvable (${c.apple}, cherché à côté de ${basename(chemin)}).`);
+      const message = `le fichier Swift du composant « ${c.nom} » est introuvable (${c.apple}, cherché à côté de ${basename(chemin)}).`;
+      direCommande(`Erreur, ${position(c.ligne)} : ${message}`, 'erreur', message, c.ligne);
       return 1;
     }
     natifs.set(c.nom, { nom: basename(fichier), contenu: readFileSync(fichier, 'utf8') });
@@ -710,7 +753,8 @@ function lireNatifs(application: Application, chemin: string, plateforme: 'apple
     if (relatif === undefined) continue;
     const fichier = join(dirname(chemin), relatif);
     if (!existsSync(fichier) || statSync(fichier).isDirectory()) {
-      console.error(`Erreur, ${position(c.ligne)} : le fichier ${langue} du composant « ${c.nom} » est introuvable (${relatif}, cherché à côté de ${basename(chemin)}).`);
+      const message = `le fichier ${langue} du composant « ${c.nom} » est introuvable (${relatif}, cherché à côté de ${basename(chemin)}).`;
+      direCommande(`Erreur, ${position(c.ligne)} : ${message}`, 'erreur', message, c.ligne);
       return undefined;
     }
     natifs.set(c.nom, { nom: basename(fichier), contenu: readFileSync(fichier, 'utf8') });

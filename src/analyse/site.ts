@@ -55,7 +55,8 @@ export function apercuDeLaPage(page: Page, langueDeBase?: string): { titre?: Exp
 export function analyserPublication(programme: Programme, diagnostics: Diagnostic[]): void {
   const site = programme.site;
   if (!site) return;
-  const avertir = (message: string, ligne: number) => diagnostics.push({ gravite: 'avertissement', message, ligne });
+  // Les avertissements de publication : « --exigeant » en fait des erreurs, avant une mise en ligne.
+  const avertir = (message: string, ligne: number) => diagnostics.push({ gravite: 'avertissement', categorie: 'publication', message, ligne });
 
   if (site.adresse !== undefined && !/^https:\/\/[^/]/.test(site.adresse) && !/^http:\/\/localhost(:\d+)?(\/|$)/.test(site.adresse)) {
     diagnostics.push({
@@ -78,10 +79,15 @@ export function analyserPublication(programme: Programme, diagnostics: Diagnosti
   }
 
   const titres = new Map<string, string>();
+  const descriptions = new Map<string, string>();
   const premiereLangue = programme.langues?.langues[0];
   const langueDeBase = premiereLangue ? langueDuMot(premiereLangue.mot)?.code : undefined;
   for (const page of programme.pages) {
-    if (page.nom === 'introuvable') continue;
+    // Une page réservée et la page « introuvable » ne sont jamais indexées : leur aperçu ne servirait à rien.
+    if ((page.nom === 'introuvable' || page.reservee) && page.apercu) {
+      avertir(`la page « ${page.nom} » n'est jamais indexée ni montrée en aperçu de partage (${page.reservee ? 'elle est réservée' : "c'est la page des adresses inconnues"}) : son bloc « apercu » ne sert à rien.`, page.apercu.ligne);
+    }
+    if (page.nom === 'introuvable' || page.reservee) continue;
     const { titre, description } = apercuDeLaPage(page, langueDeBase);
     const ligneApercu = page.apercu?.ligne ?? page.ligne;
     const titreLu = texteLitteral(titre);
@@ -104,6 +110,11 @@ export function analyserPublication(programme: Programme, diagnostics: Diagnosti
         `l'aperçu de partage de « ${page.nom} » dépend de données : l'onglet le montre, mais les réseaux sociaux, qui ne lisent pas le JavaScript, montreront celui du site.`,
         ligneApercu,
       );
+    }
+    if (descriptionLue !== undefined) {
+      const deja = descriptions.get(descriptionLue);
+      if (deja) avertir(`les pages « ${deja} » et « ${page.nom} » ont la même description : les moteurs de recherche les confondront. Dites en une phrase ce qu'on trouve sur chacune.`, page.ligne);
+      else descriptions.set(descriptionLue, page.nom);
     }
     if (titreLu !== undefined) {
       const deja = titres.get(titreLu);

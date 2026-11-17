@@ -4302,7 +4302,7 @@ Les autres étapes : `remplir champ "email" avec "…"`, `aller vers "panier"`,
 | `humalis compile <fichier> --cible web --composants <dossier>` | produit des composants React à importer ailleurs |
 | `humalis compile <fichier> --cible serveur --sortie <dossier> --service <nom>` | dans un projet en services, ne produit que ce service |
 | `humalis verifier <fichier>` | affiche les erreurs et les avertissements |
-| `humalis verifier <fichier> --exigeant` | traite aussi les avertissements comme des erreurs |
+| `humalis verifier <fichier> --exigeant` | traite les avertissements d'accessibilité, de traduction et de publication comme des erreurs (avant une mise en ligne) |
 | `humalis verifier <fichier> --cible statique` | dit aussi ce que cette cible refuserait ou ignorerait, sans rien écrire |
 | `humalis verifier <fichier> --json` | les mêmes messages en JSON, avec un code stable, pour les agents d'IA |
 | `humalis formater <fichier>` | remet le fichier en forme |
@@ -4382,7 +4382,10 @@ sortie standard, et rien d'autre ; le code de sortie ne change pas, et sans `--j
   fois qu'il paraît sur la ligne. Seulement pour un nom mal écrit proche d'un nom connu, l'indentation (une
   tabulation, ou un espace de trop ou de moins) et une ancienne forme (`ia par anthropic` → `ia`). Ailleurs,
   pas de correction.
-- `ok` est vrai quand il n'y a aucune erreur ; il suit le code de sortie.
+- `ok` est vrai quand il n'y a aucune erreur ; il suit le code de sortie. Avec `--exigeant`, les avertissements
+  d'accessibilité, de traduction et de publication y sont des erreurs.
+- Les messages de la commande elle-même (un fichier introuvable, une image de partage trop petite) sont aussi
+  dans le rapport ; `ligne` vaut 0 quand le message concerne tout le fichier.
 
 Le serveur de langage (`humalis editeur --stdio`) donne le même code à chaque diagnostic.
 

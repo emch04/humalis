@@ -4372,7 +4372,7 @@ texte "…" est absent` (a text is not shown).
 | `humalis compile <file> --cible web --composants <folder>` | generates React components to import elsewhere |
 | `humalis compile <file> --cible serveur --sortie <folder> --service <name>` | in a project in services, produces only that service |
 | `humalis verifier <file>` | shows errors and warnings |
-| `humalis verifier <file> --exigeant` | also treats warnings as errors |
+| `humalis verifier <file> --exigeant` | treats accessibility, translation and publication warnings as errors (before going live) |
 | `humalis verifier <file> --cible statique` | also says what this target would refuse or ignore, without writing anything |
 | `humalis verifier <file> --json` | the same messages as JSON, with a stable code, for AI agents |
 | `humalis formater <file>` | reformats the file |
@@ -4451,7 +4451,10 @@ output, and nothing else; the exit code does not change, and without `--json` no
 - `correction` is there only when Humalis knows it for certain: replace `remplace` with `par`, the first time it
   appears on the line. Only for a misspelt name close to a known one, indentation (a tab, or one space too many or
   too few) and an old form (`ia par anthropic` → `ia`). Elsewhere, no correction.
-- `ok` is true when there is no error; it follows the exit code.
+- `ok` is true when there is no error; it follows the exit code. With `--exigeant`, accessibility, translation and
+  publication warnings are errors there.
+- Messages from the command itself (a file not found, a share image too small) are in the report too; `ligne` is 0
+  when the message concerns the whole file.
 
 The language server (`humalis editeur --stdio`) gives the same code to each diagnostic.
 
