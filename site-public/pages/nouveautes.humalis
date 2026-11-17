@@ -14,8 +14,38 @@ page "nouveautes" a l'adresse "/nouveautes" :
             colonne avec style "frise" et animation montee au defilement et en cascade :
                 bloc avec style "version version-recente" :
                     ligne avec style "version-tete" :
-                        texte "2.0.0" sans traduction avec style "version-numero"
+                        texte "3.0.0" sans traduction avec style "version-numero"
                         texte "Dernière version" en anglais "Latest" avec style "pastille pastille-vive"
+                        texte "17 novembre 2026" en anglais "November 17, 2026" avec style "version-date"
+                    soustitre "Ce qui change pour toi" en anglais "What changes for you"
+                    liste :
+                        texte "Le serveur produit ne branche plus aucun service à ta place : `ia`, `emails` et `paiements` disent seulement ce dont le programme a besoin, et celui qui déploie choisit le service dans le `.env`, sans rien par défaut. Les anciennes clés propres à un fournisseur ne sont plus lues : un serveur déjà en ligne reçoit les nouvelles variables avant d’être recompilé." en anglais "The produced server no longer plugs in any service for you: `ia`, `emails` and `paiements` only say what the program needs, and whoever deploys chooses the service in the `.env`, with nothing by default. The former provider-specific keys are no longer read: a server already online gets the new variables before being recompiled."
+                        texte "L’IA se règle avec `HUMALIS_IA_ADRESSE`, `HUMALIS_IA_MODELE` et `HUMALIS_IA_CLE` (facultative), pour tout service qui parle le format de discussion compatible OpenAI, modèles sur ta propre machine compris ; un second service, facultatif, prend le relais avec les mêmes noms suivis de `_2`." en anglais "AI is set with `HUMALIS_IA_ADRESSE`, `HUMALIS_IA_MODELE` and `HUMALIS_IA_CLE` (optional), for any service that speaks the OpenAI-compatible chat format, models on your own machine included; an optional second service takes over with the same names followed by `_2`."
+                        texte "Les e-mails partent par SMTP : `HUMALIS_EMAILS_HOTE`, `HUMALIS_EMAILS_PORT`, `HUMALIS_EMAILS_EXPEDITEUR`, et `HUMALIS_EMAILS_UTILISATEUR` avec `HUMALIS_EMAILS_MOT_DE_PASSE`." en anglais "E-mails go out over SMTP: `HUMALIS_EMAILS_HOTE`, `HUMALIS_EMAILS_PORT`, `HUMALIS_EMAILS_EXPEDITEUR`, and `HUMALIS_EMAILS_UTILISATEUR` with `HUMALIS_EMAILS_MOT_DE_PASSE`."
+                        texte "Les paiements passent par le relais de ton choix (`HUMALIS_PAIEMENT_ADRESSE`, `HUMALIS_PAIEMENT_SECRET`), avec un contrat signé dans les deux sens, que le guide décrit." en anglais "Payments go through the relay of your choice (`HUMALIS_PAIEMENT_ADRESSE`, `HUMALIS_PAIEMENT_SECRET`), with a contract signed both ways, described in the guide."
+                        texte "Les réunions se règlent avec `HUMALIS_REUNIONS_ADRESSE`, `HUMALIS_REUNIONS_CLE` et `HUMALIS_REUNIONS_SECRET` ; les anciens noms servent encore." en anglais "Meetings are set with `HUMALIS_REUNIONS_ADRESSE`, `HUMALIS_REUNIONS_CLE` and `HUMALIS_REUNIONS_SECRET`; the former names still work."
+                        texte "Plus aucun envoi d’erreurs intégré : `quand une erreur arrive :` branche le système de suivi que tu veux." en anglais "No more built-in error reporting: `quand une erreur arrive :` plugs in the tracking system you want."
+                        texte "Les anciennes formes qui nomment un service compilent encore, avec un avertissement qui dit quoi écrire." en anglais "The former forms that name a service still compile, with a warning that says what to write."
+                    soustitre "Les bases de données" en anglais "Databases"
+                    liste :
+                        texte "Le serveur produit marche aussi avec MySQL et MariaDB (`DATABASE_URL=mysql://…` ou `mariadb://…`) et avec une base de documents (`DATABASE_URL=mongodb://…`). Le programme ne change pas d’une base à l’autre : données, comptes, sessions, synchronisation, sauvegarde, restauration et vérification marchent de la même façon." en anglais "The produced server also works with MySQL and MariaDB (`DATABASE_URL=mysql://…` or `mariadb://…`) and with a document database (`DATABASE_URL=mongodb://…`). The program does not change from one database to another: data, accounts, sessions, sync, backup, restore and verification work the same way."
+                    soustitre "Des services" en anglais "Services"
+                    liste :
+                        texte "Plusieurs blocs `serveur` forment un projet en services dès que l’un écrit `comptes du serveur …` : `humalis compile --cible serveur` écrit un dossier par service et le relais `entree`, et `--service` n’en produit qu’un." en anglais "Several `serveur` blocks form a services project as soon as one writes `comptes du serveur …`: `humalis compile --cible serveur` writes one folder per service and the `entree` relay, and `--service` produces only one."
+                        texte "Les services se parlent avec `envoyer requete vers … du serveur …`, `faire "…" sur … du serveur … avec …`, `signaler "…" avec …` et `quand le serveur "…" signale "…" avec … :`. Les appels sont signés au nom de la personne ou du service, un refus remonte tel quel, et un message n’est jamais traité deux fois." en anglais "Services talk with `envoyer requete vers … du serveur …`, `faire "…" sur … du serveur … avec …`, `signaler "…" avec …` and `quand le serveur "…" signale "…" avec … :`. Calls are signed on behalf of the person or the service, a refusal comes back as is, and a message is never handled twice."
+                    soustitre "Suivi des erreurs" en anglais "Error tracking"
+                    liste :
+                        texte "Dans `quand une erreur arrive :`, `jeton secret depuis l'environnement "ERREURS_CLE"` et `envoyer requete vers l'environnement "ERREURS_ADRESSE"` branchent un système de suivi qui demande une clé. Les pages et les applications ne gardent jamais la clé : leur rapport passe par le serveur, qui l’ajoute." en anglais "In `quand une erreur arrive :`, `jeton secret depuis l'environnement "ERREURS_CLE"` and `envoyer requete vers l'environnement "ERREURS_ADRESSE"` plug in a tracking system that asks for a key. Pages and apps never keep the key: their report goes through the server, which adds it."
+                    soustitre "Pour les agents d’IA" en anglais "For AI agents"
+                    liste :
+                        texte "`humalis verifier --json` et `humalis compile --json` écrivent les messages en JSON, chacun avec un code stable (`HUM-0001`…) et, quand elle est sûre, la correction à faire." en anglais "`humalis verifier --json` and `humalis compile --json` write the messages as JSON, each with a stable code (`HUM-0001`…) and, when it is safe, the fix to make."
+                        texte "Les avertissements du bloc `site` forment la famille « publication », que `--exigeant` durcit ; deux pages avec la même description avertissent." en anglais "Warnings of the `site` block form the “publication” family, which `--exigeant` hardens; two pages with the same description give a warning."
+                    soustitre "Humalis dans tes éditeurs" en anglais "Humalis in your editors"
+                    liste :
+                        texte "L’extension pour les IDE JetBrains demande 2025.3 ou plus récent." en anglais "The JetBrains IDE extension needs 2025.3 or newer."
+                bloc avec style "version" :
+                    ligne avec style "version-tete" :
+                        texte "2.0.0" sans traduction avec style "version-numero"
                         texte "16 novembre 2026" en anglais "November 16, 2026" avec style "version-date"
                     soustitre "Ce qui change pour toi" en anglais "What changes for you"
                     liste :
@@ -293,7 +323,7 @@ page "nouveautes" a l'adresse "/nouveautes" :
         colonne avec style "nouveautes-aside" et animation montee au defilement et en cascade :
             bloc avec style "aside-carte aside-vive" :
                 texte "Version actuelle" en anglais "Current version" avec style "aside-etiquette"
-                texte "2.0.0" sans traduction avec style "aside-version"
+                texte "3.0.0" sans traduction avec style "aside-version"
                 texte "Pour mettre à jour Humalis sur ta machine :" en anglais "To update Humalis on your machine:"
                 ligne avec style "install-command" :
                     texte "npm install -g humalis" sans traduction avec style "install-code"
@@ -304,7 +334,7 @@ page "nouveautes" a l'adresse "/nouveautes" :
                 texte "En bref" en anglais "At a glance" avec style "aside-etiquette"
                 ligne avec style "aside-chiffres" :
                     colonne avec style "aside-chiffre" :
-                        texte "22" sans traduction avec style "aside-nombre"
+                        texte "23" sans traduction avec style "aside-nombre"
                         texte "versions" sans traduction
                     colonne avec style "aside-chiffre" :
                         texte "6" sans traduction avec style "aside-nombre"
