@@ -24,7 +24,7 @@ import { avecLiveKit, avecTempsReel, codeMontageTempsReel, ENV_TEMPS_REEL, IMPOR
 import type { ServeurRI, TypeChamp, QuiPeut } from '../../ri/types.js';
 import { simplifier } from '../../analyse/elements.js';
 import { pascal, camel } from '../web/noms.js';
-import { codeCaptureErreurs } from './capture-erreurs.js';
+import { codeCaptureErreurs, codeRelaisErreurs, variablesCapture } from './capture-erreurs.js';
 
 export interface OptionsServeur {
   /** Le nom du projet, tiré du fichier Humalis. */
@@ -104,6 +104,7 @@ export function genererProjetServeur(complet: ServeurRI, options: OptionsServeur
   fichiers.set('src/humalis/renouvellements.ts', RENOUVELLEMENTS);
   fichiers.set('src/humalis/sessions.ts', SESSIONS);
   if (serveur.captureErreurs) fichiers.set('src/humalis/capture-erreurs.ts', codeCaptureErreurs(serveur));
+  if (serveur.relaisErreurs?.length) fichiers.set('src/humalis/relais-erreurs.ts', codeRelaisErreurs(serveur.relaisErreurs));
   // Les lignes Humalis : les erreurs du journal et de la capture nomment le fichier .humalis et sa ligne.
   fichiers.set('src/humalis/lignes.ts', LIGNES_SERVEUR_TS);
   fichiers.set('humalis-cartes.mjs', COMPOSER_CARTES_JS);
@@ -401,6 +402,12 @@ function envExemple(serveur: ServeurRI): string {
     ...(serveur.invitations || serveur.inscriptionLibre || serveur.motDePasseOublie || serveur.donnees.some((d) => d.champs.some((c) => c.regle?.genre === 'site')) ? [ENV_LIENS] : []),
     // Les secrets des sources : seulement leur nom ; la valeur se met ici, sur le serveur, jamais dans le fichier Humalis.
     ...(serveur.passerelles ?? []).map((p) => `# Le secret de la source « ${p.source} » (jeton secret depuis l'environnement).\n${p.variable}=\n`),
+    // « quand une erreur arrive » : l'adresse et la clé du système de suivi choisi. Sans elles, rien ne part.
+    ...(() => {
+      const requetes = (serveur.captureErreurs ?? []).flatMap((i) => (i.type === 'requete' ? [{ adresse: i.adresse, ...(i.adresseEnvironnement ? { adresseEnvironnement: i.adresseEnvironnement } : {}), ...(serveur.jetonErreurs ? { jeton: serveur.jetonErreurs } : {}) }] : []));
+      const variables = variablesCapture([...requetes, ...(serveur.relaisErreurs ?? [])]);
+      return variables.length ? [`# « quand une erreur arrive » : l'adresse et la clé du système de suivi des erreurs choisi. Sans elles, aucun rapport ne part.\n${variables.map((v) => `${v}=`).join('\n')}\n`] : [];
+    })(),
   ];
   const exemple = ENV_EXEMPLE.replace('\nPORT=3000', [...enPlus, ...(serveur.projet ? [envServices(serveur)] : [])].join('\n') + '\nPORT=3000');
   // Un service sans comptes : ni secret des sessions ni administrateur ici, ils sont au service des comptes.
@@ -1577,7 +1584,7 @@ import { createSaasApp, ${comptes ? 'createMemoryPasswordResetStore, type Passwo
 import { ${[...(serveur.connexionGoogle ? ['createGoogleIdTokenVerifier'] : []), ...(serveur.connexionApple ? ['createAppleIdTokenVerifier'] : []), ...(serveur.connexionGoogle || serveur.connexionApple ? ['IdTokenError'] : []), ...(serveur.invitations || serveur.inscriptionLibre ? ['createApiLimiter'] : []), ].map((n) => n + ', ').join('')}createMemoryRevocationStore, type RevocationStore, createLoginLimiter, hashPassword, isStrongPassword, verifyPasswordHash, WAF_PATTERNS } from '@astratra/security';
 import express, { type RequestHandler, type Response } from 'express';
 ${montageTempsReel ? IMPORT_TEMPS_REEL : ''}import { journaliserErreur, noterHumalis } from './humalis/lignes.js';
-${serveur.captureErreurs ? "import { brancherErreursProcessus, rapporterErreur } from './humalis/capture-erreurs.js';\n" : ''}
+${serveur.captureErreurs ? "import { brancherErreursProcessus, rapporterErreur } from './humalis/capture-erreurs.js';\n" : ''}${serveur.relaisErreurs?.length ? "import { relaisErreurs } from './humalis/relais-erreurs.js';\n" : ''}
 ${serveur.routes.some((r) => r.direct) ? "import { direct } from './humalis/direct.js';\n" : ''}import { ${schemas} } from './donnees.js';
 import type { Coffre } from './humalis/coffre.js';
 ${comptes ? "import { creerComptes, refuserMotDePasseFaible, sansLesRetires } from './humalis/comptes.js';\n" : ''}${avecEmails(serveur) ? `import { creerEmails, ${envoisDansRoutes ? 'enTexte, ' : ''}type Emails } from './humalis/emails.js';\n` : ''}import { compresser } from './humalis/compresser.js';
@@ -1856,7 +1863,7 @@ ${serveur.captureErreurs ? "      app.use((erreur: unknown, req: express.Request
   (serveur as unknown as express.Application).disable('x-powered-by');
   // En tête de tout : le jeton de renouvellement passe par son cookie.
   const avant = express().disable('x-powered-by');
-${CODE_SANTE}${avecPaiements(serveur) ? "  avant.post('/paiements/webhook', ...paiements.webhook);\n" : ''}${serveur.projet ? codeAvantServices(serveur) : ''}${codeAvantSecurite(serveur)}${codeAvantSynchro(serveur, adresseApi)}${comptes ? "\n  avant.post('/auth/reset-password', express.json({ limit: '16kb' }), refuserMotDePasseFaible);" : ''}
+${CODE_SANTE}${avecPaiements(serveur) ? "  avant.post('/paiements/webhook', ...paiements.webhook);\n" : ''}${serveur.relaisErreurs?.length ? "  // Les rapports d'erreur des pages et des applications : ce serveur y ajoute la clé et l'adresse du .env.\n  avant.post('/humalis/erreurs', ...relaisErreurs);\n" : ''}${serveur.projet ? codeAvantServices(serveur) : ''}${codeAvantSecurite(serveur)}${codeAvantSynchro(serveur, adresseApi)}${comptes ? "\n  avant.post('/auth/reset-password', express.json({ limit: '16kb' }), refuserMotDePasseFaible);" : ''}
   return avant.use(renouvellementEnCookie(session.dureeMs)).use(serveur as unknown as express.Application);
 }
 `;

@@ -26,7 +26,7 @@ import { FORMAT_JS, FORMAT_JS_LANGUES, TAILLE_JS, DATES_JS, FORMES_TEXTE_JS } fr
 import { CLE_LANGUE } from '../web/langue.js';
 import { messagesDuSiteStatique } from '../../i18n/messages.js';
 import type { Application, Gestionnaire, NoeudVue, LangueRI } from '../../ri/types.js';
-import { codeCaptureNavigateur, requetesCapture } from '../capture-erreurs.js';
+import { captureClient, codeCaptureNavigateur } from '../capture-erreurs.js';
 import type { Diagnostic } from '../../analyse/erreurs.js';
 import { nomsDesStyles } from '../web/projet.js';
 import { simplifier } from '../../analyse/elements.js';
@@ -82,7 +82,7 @@ export function fichiersDesPages(application: Application): Map<string, string> 
 /** Les fichiers du site statique, prêts à déposer chez un hébergeur. */
 export function genererProjetStatique(application: Application, options: OptionsStatique): Map<string, string> {
   const fichiers = new Map<string, string>();
-  const captureErreurs = application.formes?.erreurArrive ? codeCaptureNavigateur(requetesCapture(application.formes).requetes) : undefined;
+  const captureErreurs = application.formes?.erreurArrive ? codeCaptureNavigateur(captureClient(application.formes)) : undefined;
   if (captureErreurs) fichiers.set('humalis/capture-erreurs.js', captureErreurs);
   const pagesFichiers = fichiersDesPages(application);
   const site: ContexteSite = {

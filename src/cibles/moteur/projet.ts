@@ -6,7 +6,7 @@ import { entetesDuSite, noteEntetes } from '../commun/entetes-site.js';
 import { avecLangueDeRendu } from '../statique/valeurs.js';
 import { TRAVAILLEUR_NOTIFICATIONS } from '../serveur/logique.js';
 import type { Application, ComposantHumalis, DispositionRI, Ecran, NoeudVue } from '../../ri/types.js';
-import { codeCaptureNavigateur, requetesCapture } from '../capture-erreurs.js';
+import { captureClient, codeCaptureNavigateur } from '../capture-erreurs.js';
 import { copiesDesMedias, type InfoMedia } from '../../ri/medias.js';
 import { simplifier } from '../../analyse/elements.js';
 import { MENU_REPLIABLE_JS, enTetePublication, planDuSite } from '../statique/projet.js';
@@ -350,7 +350,8 @@ document.title = ${traduit('Page introuvable')};
   };
   fichiers.set('public/humalis/reprise.js', `${REPRISE_DES_CLICS}\n`);
   if (application.serveurs.some((s) => s.activeNotifications)) fichiers.set('public/humalis/notifications.js', TRAVAILLEUR_NOTIFICATIONS);
-  fichiers.set('src/humalis/moteur.js', MOTEUR_JS);
+  // « quand une erreur arrive » avec un secret : le script de capture envoie ses rapports au serveur, à cette adresse.
+  fichiers.set('src/humalis/moteur.js', captureClient(application.formes).relais ? `${MOTEUR_JS}\n// L'adresse du serveur Humalis, pour les rapports d'erreur qu'il complète avec sa clé.\nwindow.humalisServeur ??= import.meta.env.VITE_HUMALIS_SERVEUR ?? '';\n` : MOTEUR_JS);
   if (utiliseReunion(application)) {
     fichiers.set('src/humalis/reunion.js', REUNION_JS);
     fichiers.set('src/humalis/reunion.css', REUNION_CSS);
@@ -450,7 +451,7 @@ document.title = ${traduit('Page introuvable')};
   for (const [nom, contenu] of fichiers) if (nom.endsWith('.html')) fichiers.set(nom, contenu.replace('</head>', '<script src="/humalis/lignes.js"></script></head>'));
   fichiers.set('LISEZMOI.md', `# ${options.nom}\n\nSite produit par Humalis depuis \`${options.source}\`, avec son moteur de rendu, sans React.\n\n\`\`\`sh\nnpm install\nnpm run dev\nnpm run build\nnpm run preview\n\`\`\`\n\nChaque page est un fichier HTML déjà écrit ; un petit script la reprend.\n`);
   if (application.formes?.erreurArrive) {
-    fichiers.set('public/humalis/capture-erreurs.js', codeCaptureNavigateur(requetesCapture(application.formes).requetes));
+    fichiers.set('public/humalis/capture-erreurs.js', codeCaptureNavigateur(captureClient(application.formes), '1.0.0', "(window.humalisServeur ?? '')"));
     for (const [nom, contenu] of fichiers) if (nom.endsWith('.html')) fichiers.set(nom, contenu.replace('</head>', '<script src="/humalis/capture-erreurs.js"></script></head>'));
   }
   // Les en-têtes de sécurité, pour Cloudflare Pages et Netlify ; ailleurs, le LISEZMOI dit de les recopier.

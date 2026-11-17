@@ -173,12 +173,33 @@ export function analyserDocument(flux: FluxTokens): DocumentServeur {
 }
 
 /** Le bloc d'instructions d'une action ou d'une tâche. */
-export function analyserCorpsServeur(flux: FluxTokens): InstructionServeur[] {
+export function analyserCorpsServeur(flux: FluxTokens, intercepter?: (flux: FluxTokens) => boolean): InstructionServeur[] {
   const corps: InstructionServeur[] = [];
   chaqueLigne(flux, () => {
+    if (intercepter?.(flux)) return;
     corps.push(analyserInstructionServeur(flux));
   });
   return corps;
+}
+
+/** « avec message = erreur.message et pile = erreur.pile » : les champs d'une requête du serveur. */
+function champsRequeteServeur(flux: FluxTokens, ligne: number): { nom: string; valeur: Expression }[] {
+  if (!estLeMot(flux.actuel(), 'avec')) throw new ErreurSyntaxique('une requête du serveur demande des champs : avec message = erreur.message', ligne);
+  flux.avancer();
+  const champs: { nom: string; valeur: Expression }[] = [];
+  do {
+    // Avant « = », un mot du langage reste un nom : « page = erreur.page ».
+    const jeton = flux.actuel();
+    const nom = estMot(jeton) ? (flux.avancer(), jeton.original ?? jeton.valeur) : flux.attendreNom('le nom du champ envoyé').nom;
+    flux.attendre('PONCTUATION', '=', '« = » après le nom du champ envoyé');
+    champs.push({ nom, valeur: analyserExpression(flux) });
+  } while (estLeMot(flux.actuel(), 'et') && flux.avancer());
+  return champs;
+}
+
+/** « jeton public "…" » ou « jeton secret … » en tête de ligne, dans « quand une erreur arrive ». */
+export function estJetonCapture(flux: FluxTokens): boolean {
+  return estLeMot(flux.actuel(), 'jeton') && (estLeMot(flux.regarder(1), 'secret') || estLeMot(flux.regarder(1), 'public'));
 }
 
 function analyserInstructionServeur(flux: FluxTokens): InstructionServeur {
@@ -188,6 +209,12 @@ function analyserInstructionServeur(flux: FluxTokens): InstructionServeur {
     flux.avancer(); flux.avancer();
     if (!estLeMot(flux.actuel(), 'vers')) throw new ErreurSyntaxique('on écrit : envoyer requete vers "https://…" avec message = erreur.message', ligne);
     flux.avancer();
+    // « vers l'environnement "ERREURS_ADRESSE" » : l'adresse est lue dans le .env, au démarrage.
+    if (estLeMot(flux.actuel(), 'environnement')) {
+      flux.avancer();
+      const adresseEnvironnement = flux.attendre('CHAINE', undefined, "le nom de la variable d'environnement entre guillemets").valeur;
+      return { type: 'RequeteServeur', adresse: '', adresseEnvironnement, champs: champsRequeteServeur(flux, ligne), ligne };
+    }
     const adresse = flux.attendre('CHAINE', undefined, 'l’adresse HTTPS de la requête entre guillemets').valeur;
     // « envoyer requete vers "produits" du serveur "catalogue" avec id commande.produit dans produit » : un autre service du projet.
     if (estLeMot(flux.actuel(), 'serveur') && flux.regarder(1).type === 'CHAINE') {
@@ -205,17 +232,7 @@ function analyserInstructionServeur(flux: FluxTokens): InstructionServeur {
       return { type: 'AppelService', serveur, route: adresse, id, variable, ligne };
     }
     if (!/^https:\/\/[^\s/?#]+(?:[/?#][^\s]*)?$/i.test(adresse)) throw new ErreurSyntaxique('une requête du serveur exige une adresse HTTPS complète.', ligne);
-    if (!estLeMot(flux.actuel(), 'avec')) throw new ErreurSyntaxique('une requête du serveur demande des champs : avec message = erreur.message', ligne);
-    flux.avancer();
-    const champs: { nom: string; valeur: Expression }[] = [];
-    do {
-      // Avant « = », un mot du langage reste un nom : « page = erreur.page ».
-      const jeton = flux.actuel();
-      const nom = estMot(jeton) ? (flux.avancer(), jeton.original ?? jeton.valeur) : flux.attendreNom('le nom du champ envoyé').nom;
-      flux.attendre('PONCTUATION', '=', '« = » après le nom du champ envoyé');
-      champs.push({ nom, valeur: analyserExpression(flux) });
-    } while (estLeMot(flux.actuel(), 'et') && flux.avancer());
-    return { type: 'RequeteServeur', adresse, champs, ligne };
+    return { type: 'RequeteServeur', adresse, champs: champsRequeteServeur(flux, ligne), ligne };
   }
   // « faire "reserver" sur produit du serveur "catalogue" avec quantite = 2 » : une action d'un autre service du projet.
   if (estLeMot(debut, 'faire') && flux.regarder(1).type === 'CHAINE') {

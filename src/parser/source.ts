@@ -108,7 +108,7 @@ function analyserDuree(flux: FluxTokens, exemple: string): number {
 }
 
 /** « jeton public "…" » ou « jeton secret depuis l'environnement "NOM" », puis où le mettre. */
-function analyserJeton(flux: FluxTokens): JetonSource {
+export function analyserJeton(flux: FluxTokens): JetonSource {
   const debut = flux.avancer();
   const genreToken = flux.actuel();
   const genre = mot(genreToken);

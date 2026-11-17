@@ -13,7 +13,9 @@ import type { Test as TestAst,
   Serveur,
   Source,
   Style,
+  JetonSource,
 } from '../parser/ast.js';
+import { estRelayee, requetesCapture } from '../cibles/capture-erreurs.js';
 import { normaliser } from '../lexer/motsCles.js';
 import { chercherIcone } from '../vocabulaire/icones.js';
 import type { ResultatAnalyse } from '../analyse/analyse.js';
@@ -24,7 +26,7 @@ import { champsDeLaPersonne, choixSuppressionCompte } from '../analyse/suppressi
 import { avecServices, traduireAction, traduireApresPaiement, traduireCaptureErreurs, traduireDocument, traduireNotification, traduireReceveur, traduireResume, traduireTache } from '../analyse/logique.js';
 import { enServices, serviceDesComptes } from '../analyse/services.js';
 import type { ProjetServicesRI } from './types.js';
-import type { InstructionServeurRI } from './types.js';
+import type { InstructionServeurRI, JetonRI } from './types.js';
 
 /** Ce qu'un service sait des autres : qui garde les comptes, qui il joint, ce qu'il reçoit, et la table des routes. */
 function projetServices(serveur: Serveur, serveurs: Serveur[]): ProjetServicesRI {
@@ -189,14 +191,20 @@ export function construireRepresentation(
   // Les espaces insécables du français dans les textes affichés : la langue de base est la première du bloc « langues ».
   const codes = analyse.langues.langues.map((l) => l.code);
   espacerLesTextes(application, codes[0] ?? 'fr', codes);
+  // Les requêtes de capture des pages qui portent un secret ou une adresse du .env : le service des comptes les refait.
+  const relais = requetesCapture(application.formes).requetes.filter(estRelayee);
+  const relaisDans = application.serveurs.find((s) => s.nom === (serviceDesComptes(programme.serveurs)?.nom ?? programme.serveurs[0]?.nom));
+  if (relais.length > 0 && relaisDans) relaisDans.relaisErreurs = relais;
   return application;
 }
+
+const jetonRI = (j: JetonSource): JetonRI => ({ genre: j.genre, valeur: j.valeur, place: j.place });
 
 /** Les formes : chaque corps passe par la page qui l'a représenté pendant l'analyse. */
 function formesRI(formes: NonNullable<Programme['formes']>, analyse: ResultatAnalyse): FormesRI {
   const ecran = (forme: object): Ecran => new Construction(analyse.pagesFormes.get(forme)!, analyse).ecran();
   return {
-    ...(formes.erreurArrive ? { erreurArrive: { ecran: ecran(formes.erreurArrive), ligne: formes.erreurArrive.ligne } } : {}),
+    ...(formes.erreurArrive ? { erreurArrive: { ecran: ecran(formes.erreurArrive), ...(formes.erreurArrive.jeton ? { jeton: jetonRI(formes.erreurArrive.jeton) } : {}), ligne: formes.erreurArrive.ligne } } : {}),
     widgets: formes.widgets.map(({ corps: _c, ...w }) => ({ ...w, ecran: ecran(formes.widgets.find((x) => x.nom === w.nom)!) })),
     activites: formes.activites.map((a) => ({ nom: a.nom, ecran: ecran(a), ligne: a.ligne })),
     raccourcisIcone: formes.raccourcisIcone,
@@ -321,6 +329,7 @@ function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
   };
   return {
     ...(captureErreurs ? { captureErreurs } : {}),
+    ...(serveur.captureErreurs?.jeton ? { jetonErreurs: jetonRI(serveur.captureErreurs.jeton) } : {}),
     nom: serveur.nom,
     ...(serveur.discussions?.length ? { discussions: serveur.discussions } : {}),
     ...(serveur.salles?.length ? { salles: serveur.salles } : {}),
@@ -777,7 +786,8 @@ class Construction {
           actions.push({
             type: 'requete',
             // L'adresse réelle quand la requête vise une route du serveur du fichier.
-            adresse: this.analyse.adressesRequetes.get(instruction) ?? depuisLaRacine(instruction.adresse),
+            adresse: instruction.adresseEnvironnement !== undefined ? '' : this.analyse.adressesRequetes.get(instruction) ?? depuisLaRacine(instruction.adresse),
+            ...(instruction.adresseEnvironnement !== undefined ? { adresseEnvironnement: instruction.adresseEnvironnement } : {}),
             mode: this.analyse.lecturesUn.has(instruction) ? 'lireUn' : instruction.donnees.length > 0 ? 'envoyer' : 'lire',
             donnees: instruction.donnees.map((d) => this.valeur(d)),
             ...(instruction.cles ? { cles: instruction.cles } : {}),

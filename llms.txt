@@ -12,7 +12,7 @@ Les listes de mots ci-dessous disent ce que le langage reconnaît, pas comment l
 - Les événements pris en charge : quand, utilisateur, clique, sur, survole, charge, soumis, ecrit, arrête d’écrire, appuie, arrive en bas de, l’ordre de … change, appel. Écris l’événement sous l’élément visé, puis l’action dans son bloc.
 - Les actions prises en charge : afficher, erreur, montrer, cacher, changer, rediriger, ajouter, retirer, envoyer, requête, signaler, connecter, déconnecter, supprimer mon compte avec …, créer mon compte avec … et …, confirmer mon adresse, connecter avec apple, connecter avec google, inviter … comme admin, demander un lien de mot de passe pour …, choisir le mot de passe avec …, csv, télécharger bon, recharger, charger la suite de, vider champ, basculer thème, continuer vers, revenir, requête, enregistrer, recadrer, réussite, avertissement, pendant, disparaître, action, après, toutes, noter, copier, partager, confirmer, faire, refuser, notification, document, verifier, hors, position, mises à jour depuis, liens, profonds, apple, ios, macos, android, windows, montre, tele, application, site, reglages, recherche, glissant, actualiser, tirant, options, etat, outils, groupe, table, domaine, arriere, plan, scanner, vibrer, identité, signature, paquet, swift, produit, activer, ia, payer, rôle, cle, acces, double, authentification, locale, chiffree, synchronisee, on, widget, activite, raccourcis, commande, vocale, dire, lancer, demarrage, discret, systeme, tuile, mini, voiture, clic, droit, fichiers, clavier, touche, partage, ouvre, boutons, commencer, terminer, barre, minutes, mettre, jour, discussion, ouvrir, salle, réunion, rejoindre, quitter, exclure, appeler, décrocher, raccrocher.
 - Les mots de liaison (ignorés dans une phrase mais interdits comme nom de variable) : le, la, les, un, une, des, de, du, à, au, aux, se, l', d', s', n', c', j', m', t'.
-- Les options d’un élément (après « avec », séparées par « et ») : et, minimum, maximum, avec, nom, partagée, mémorisée, secret, sans traduction, repliable, vertical, en cascade, indice, obligatoire, ancre, nouvel onglet, désactivé, accepte, latitude, longitude, zoom, tuiles, attribution, adresse, étiquette, étiquettes, valeur, message, annonce, raccourci, oui, h, jours, heures, regroupe, compte, rôles, seuls, peuvent, direct, déplacement, pièces, jointes, animée, en.
+- Les options d’un élément (après « avec », séparées par « et ») : et, minimum, maximum, avec, nom, partagée, mémorisée, secret, sans traduction, repliable, vertical, en cascade, indice, obligatoire, ancre, nouvel onglet, désactivé, accepte, latitude, longitude, zoom, tuiles, attribution, adresse, étiquette, étiquettes, valeur, public, message, annonce, raccourci, oui, h, jours, heures, regroupe, compte, rôles, seuls, peuvent, direct, déplacement, pièces, jointes, animée, en.
 - Les droits d’une route du serveur : peut, lire, créer, modifier, supprimer, connecté, admin, seul, tout, monde, remplacement, auteur.
 
 ## Pièges fréquents
@@ -1198,6 +1198,11 @@ serveur "boutique" :
 - HUM-0690 Une valeur non sûre dans le rapport : n’envoie que erreur.message
 - HUM-0691 Une requête hors capture : s’écrit seulement dans
 - HUM-0692 Une action non disponible dans la capture : seules les requêtes HTTP
+- HUM-0785 Un jeton déjà écrit dans la capture : le jeton de « quand une erreur arrive » est déjà écrit
+- HUM-0786 Une clé secrète sans serveur : une clé secrète ne peut pas être dans l
+- HUM-0787 Une adresse du .env sans serveur : une adresse lue dans le .env l
+- HUM-0788 Une adresse du .env hors capture : s'écrit seulement dans « quand une erreur arrive » : ailleurs
+- HUM-0789 Un nom de variable d’environnement mal formé : n'est pas un nom de variable d'environnement
 - HUM-0641 « comptes du serveur » écrit deux fois : « comptes du serveur » est déjà écrit
 - HUM-0693 Un message reçu sans « signale » : on écrit : quand le serveur
 - HUM-0694 Un message reçu sans le nom de sa fiche : « avec » et le nom de la fiche reçue

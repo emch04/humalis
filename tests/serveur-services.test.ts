@@ -66,6 +66,7 @@ describe('trois services qui se parlent, pour de vrai', () => {
     'une signature de service fausse est refusée',
     'sans personne, un service n’a que ses droits ; une requête rejouée est refusée',
     'une déconnexion ferme le jeton dans les autres services',
+    'un rapport d’erreur des pages part, avec la clé du .env, vers le système de suivi',
   ])('%s', (etape) => {
     expect(direct, direct).toContain('✓ ' + etape);
     expect(parEntree, parEntree).toContain('✓ ' + etape);

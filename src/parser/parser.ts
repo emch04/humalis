@@ -1,5 +1,5 @@
 import { lireBornes } from './bornes.js';
-import type { BornesChamp } from './ast.js';
+import type { BornesChamp, JetonSource } from './ast.js';
 import { proposerNom } from '../analyse/suggestions.js';
 import { formesConnues } from '../vocabulaire/recherche.js';
 import { analyserStyleHumalis, cssDuStyle, declarationsDuStyle, estStyleHumalis, type StyleHumalis } from './styleHumalis.js';
@@ -10,8 +10,8 @@ import { OPTIONS } from '../analyse/styles.js';
 import type { Token, PartieChaine } from '../lexer/types.js';
 import { analyser as analyserLexique } from '../lexer/lexer.js';
 import { FluxTokens } from './fluxTokens.js';
-import { analyserResume, analyserActionServeur, analyserCorpsServeur, analyserDocument, analyserTache, estTache } from './logique.js';
-import { analyserSource, analyserClausesRequete, analyserSourceSeule } from './source.js';
+import { analyserResume, analyserActionServeur, analyserCorpsServeur, analyserDocument, analyserTache, estJetonCapture, estTache } from './logique.js';
+import { analyserSource, analyserClausesRequete, analyserJeton, analyserSourceSeule } from './source.js';
 import { analyserEntetePage, analyserAvecPage } from './navigation.js';
 import { ErreurSyntaxique } from './erreurs.js';
 import { estUnTest, analyserTest } from './test.js';
@@ -718,7 +718,14 @@ function analyserServeur(flux: FluxTokens): Serveur {
       flux.avancer(); flux.avancer(); flux.avancer();
       flux.attendre('PONCTUATION', ':', 'deux-points après « quand une erreur arrive »');
       if (captureErreurs) throw new ErreurSyntaxique(`« quand une erreur arrive » est déjà écrit ligne ${captureErreurs.ligne}.`, token.ligne);
-      captureErreurs = { corps: analyserCorpsServeur(flux), ligne: token.ligne };
+      let jeton: JetonSource | undefined;
+      const corps = analyserCorpsServeur(flux, (f) => {
+        if (!estJetonCapture(f)) return false;
+        if (jeton) throw new ErreurSyntaxique(`le jeton de « quand une erreur arrive » est déjà écrit ligne ${jeton.ligne}.`, f.actuel().ligne);
+        jeton = analyserJeton(f);
+        return true;
+      });
+      captureErreurs = { corps, ...(jeton ? { jeton } : {}), ligne: token.ligne };
       return;
     }
     // « donnees de depart pour produit : » puis une fiche par ligne : « nom "Café", prix 3 ».
@@ -1661,7 +1668,8 @@ function analyserComposantNatif(flux: FluxTokens): Instruction | undefined {
   return undefined;
 }
 
-export function analyserBloc(flux: FluxTokens): Instruction[] {
+/** `intercepter` lit lui-même une ligne qui n'est pas une instruction (« jeton … » dans une capture) ; il rend vrai s'il l'a lue. */
+export function analyserBloc(flux: FluxTokens, intercepter?: (flux: FluxTokens) => boolean): Instruction[] {
   const instructions: Instruction[] = [];
   flux.sauterFinsDeLigne();
 
@@ -1674,6 +1682,10 @@ export function analyserBloc(flux: FluxTokens): Instruction[] {
 
   while (!flux.verifier('DEDENT') && !flux.estFini()) {
     try {
+      if (intercepter?.(flux)) {
+        flux.sauterFinsDeLigne();
+        continue;
+      }
       const plusieurs = flux.verifier('MOT_CLE', 'quand') ? analyserEvenementTempsReel(flux) : (analyserPhraseTempsReel(flux) ?? analyserPhraseMorceaux(flux));
       if (plusieurs) instructions.push(...plusieurs);
       else {
@@ -2730,7 +2742,9 @@ function analyserAction(
 function analyserRequete(flux: FluxTokens, ligne: number): Requete {
   flux.attendre('MOT_CLE', 'requete', '« requete » après « envoyer »');
   flux.attendre('MOT_CLE', 'vers', "« vers » suivi de l'adresse");
-  const adresse = flux.attendre('CHAINE', undefined, "l'adresse entre guillemets").valeur;
+  // « vers l'environnement "ERREURS_ADRESSE" » : l'adresse est lue dans le .env du serveur (capture des erreurs).
+  const adresseEnvironnement = estLeMot(flux.actuel(), 'environnement') ? (flux.avancer(), flux.attendre('CHAINE', undefined, "le nom de la variable d'environnement entre guillemets").valeur) : undefined;
+  const adresse = adresseEnvironnement !== undefined ? '' : flux.attendre('CHAINE', undefined, "l'adresse entre guillemets").valeur;
   const clauses = analyserClausesRequete(flux);
   // « par 20 » : la liste se lit par morceaux.
   const morceau = lireMorceau(flux);
@@ -2770,7 +2784,7 @@ function analyserRequete(flux: FluxTokens, ligne: number): Requete {
   }
   const enAttente = lireHorsLigne(flux);
 
-  const requete: Requete = { type: 'Requete', adresse, ...clauses, donnees, ...(direct ? { direct } : {}), ...(enAttente ? { enAttente } : {}), ...(parId ? { parId } : {}), ...(cles.some((c) => c !== undefined) ? { cles } : {}), resultat, ...(morceau !== undefined ? { morceau } : {}), ligne };
+  const requete: Requete = { type: 'Requete', adresse, ...(adresseEnvironnement !== undefined ? { adresseEnvironnement } : {}), ...clauses, donnees, ...(direct ? { direct } : {}), ...(enAttente ? { enAttente } : {}), ...(parId ? { parId } : {}), ...(cles.some((c) => c !== undefined) ? { cles } : {}), resultat, ...(morceau !== undefined ? { morceau } : {}), ligne };
   if (morceau !== undefined) requeteParMorceaux(requete);
   return requete;
 }

@@ -1,3 +1,8 @@
+# Les rapports d'erreur des pages passent par le service des comptes, qui ajoute la clé du .env.
+quand une erreur arrive :
+    jeton secret depuis l'environnement "ERREURS_CLE" dans l'entete "X-Cle"
+    envoyer requete vers l'environnement "ERREURS_ADRESSE" avec message = erreur.message et page = erreur.page et origine = "pages"
+
 serveur "comptes" :
     roles gerant et client
     donnee annonce :

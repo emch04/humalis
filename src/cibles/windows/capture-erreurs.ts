@@ -1,11 +1,13 @@
 /** Capture des exceptions WPF et .NET, écrite seulement quand la forme est présente. */
-import type { RequeteCapture } from '../capture-erreurs.js';
+import { CHEMIN_RELAIS_ERREURS, envoisCible, type CaptureClient } from '../capture-erreurs.js';
 import { chaineCs } from './noms.js';
 
-export function captureErreursCs(requetes: RequeteCapture[]): string {
-  const envois = requetes.map((r) => `            try {
+/** Un rapport qui porte un secret part vers le serveur Humalis (Configuration.Serveur), qui ajoute la clé. */
+export function captureErreursCs(capture: CaptureClient): string {
+  const envois = envoisCible(capture, chaineCs, `Configuration.Serveur.TrimEnd('/') + ${chaineCs(CHEMIN_RELAIS_ERREURS)}`).map((r) => `            try {
                 using var corps = new StringContent(JsonSerializer.Serialize(new Dictionary<string, string> { ${r.champs.map((c) => `[${chaineCs(c.nom)}] = ${typeof c.valeur === 'string' ? `rapport.${c.valeur}` : chaineCs(c.valeur.texte)}`).join(', ')} }), Encoding.UTF8, "application/json");
-                _ = Client.PostAsync(${chaineCs(r.adresse)}, corps).GetAwaiter().GetResult();
+                using var demande = new HttpRequestMessage(HttpMethod.Post, ${r.adresse}) { Content = corps };
+${r.entetes.map(([n, v]) => `                demande.Headers.TryAddWithoutValidation(${chaineCs(n)}, ${chaineCs(v)});\n`).join('')}                _ = Client.SendAsync(demande).GetAwaiter().GetResult();
             } catch { /* L'envoi ne doit pas déclencher une nouvelle exception. */ }`).join('\n');
   return `// Produit par Humalis : capture des exceptions de Windows, sans lire les formulaires.
 using System;

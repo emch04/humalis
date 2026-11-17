@@ -34,7 +34,7 @@ import { langueDuStyle, stylesSwiftDu } from '../commun/styles-natifs.js';
 import { CONNEXIONS_SWIFT, ENVOIS_SWIFT, LANGUES_SWIFT, MEMOIRE_SWIFT, MESSAGES_SWIFT, MINUTERIES_SWIFT, NOTIFICATIONS_SWIFT, SERVEUR_SWIFT, SYSTEME_SWIFT } from './systeme.js';
 import { Types, Valeurs, plusPrecis, type Portee } from './valeurs.js';
 import { genererFormesApple, aDesFormes, type FormesProduites } from './formes.js';
-import { requetesCapture } from '../capture-erreurs.js';
+import { captureClient } from '../capture-erreurs.js';
 import { captureErreursSwift } from './capture-erreurs.js';
 import { avecClesAcces, avecCompteSecurise, avecDonneesLocales, COMPTE_SECURISE_SWIFT, domaineDesCles, DONNEES_LOCALES_SWIFT, identifierFichesLocales, lisezmoiDonneesComptes, localesDuProgramme } from './donnees-comptes.js';
 import { CONFIDENTIALITE, assets, associationSite, infoSupplementaire, type PaquetSwift, droits, projetXcode, schemaXcode } from './xcode.js';
@@ -1112,7 +1112,7 @@ export function genererProjetApple(application: Application, options: OptionsApp
   const policesCopiees = (application.theme?.polices ?? []).flatMap((p) => (p.fichier && /\.(ttf|otf|woff2?)$/i.test(p.fichier) && options.polices?.has(p.fichier) ? [{ fichier: p.fichier, nom: p.nom }] : []));
   let codeApplication = applicationSwift(nom, application.site?.nom ?? options.nom, entree, disposition, policesCopiees.map((p) => ({ fichier: nomFichierPlat(p.fichier), nom: p.nom })), application.theme?.polices.find((p) => p.role === 'texte')?.nom, notifications, { ...(dessinPrincipal ? { dessin: { ...dessinPrincipal, barre: application.disposition?.barre !== undefined, ...(barreVisible ? { barreVisible } : {}) } } : {}), barreLaterale: application.barreLaterale, liens: application.liensProfonds !== undefined, domaine: application.liensProfonds?.domaine !== undefined, envois: avecEnvois, arrierePlan: avecArrierePlan, locales: avecDonneesLocales(application), compteSecurise: avecCompteSecurise(application), ...(ongletsSwift ? { onglets: ongletsSwift } : {}), ...(commandesEcrites.menus.length ? { menus: commandesEcrites.menus } : {}), ...(pageReglages ? { reglages: `Route${routeSimple(pageReglages.nom, app)}` } : {}), ...(formes ? { formes: formes.app } : {}) });
   if (application.formes?.erreurArrive) {
-    ecrire('Humalis/CaptureErreurs.swift', captureErreursSwift(requetesCapture(application.formes).requetes));
+    ecrire('Humalis/CaptureErreurs.swift', captureErreursSwift(captureClient(application.formes)));
     // La page en cours, pour « erreur.page ».
     for (const [chemin, code] of fichiers) {
       if (code.includes('var chemin: [Route] = []')) fichiers.set(chemin, code.replace('var chemin: [Route] = []', 'var chemin: [Route] = [] { didSet { CaptureErreurs.page = chemin.last.map { String(describing: $0) } ?? "" } }'));
@@ -1145,7 +1145,8 @@ export function genererProjetApple(application: Application, options: OptionsApp
   if (avecReunion(application)) ecrire('Humalis/Reunion.swift', REUNION_SWIFT);
   ecrire('Humalis/Minuteries.swift', MINUTERIES_SWIFT);
   ecrire('Humalis/Memoire.swift', MEMOIRE_SWIFT);
-  const reseau = /\b(Serveur\.commun|Session\.commun|GardeHumalis)\b/.test(pagesCode);
+  // « quand une erreur arrive » avec un secret : les rapports partent vers le serveur (Serveur.base), qui ajoute la clé.
+  const reseau = /\b(Serveur\.commun|Session\.commun|GardeHumalis)\b/.test(pagesCode) || captureClient(application.formes).relais;
   // La session est lue par le serveur : les deux vont ensemble.
   if (reseau || application.sources.length > 0) {
     ecrire('Humalis/Serveur.swift', SERVEUR_SWIFT);

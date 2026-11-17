@@ -21,6 +21,7 @@ export function tableDesChemins(serveurs: ServeurRI[]): { chemin: string; servic
     if (s.paiements) lignes.push({ chemin: '/paiements', service: s.nom });
     if (s.fidelite) lignes.push({ chemin: '/api/fidelite', service: s.nom });
     if (s.passerelles?.length) lignes.push({ chemin: '/api/passerelle', service: s.nom });
+    if (s.relaisErreurs?.length) lignes.push({ chemin: '/humalis/erreurs', service: s.nom });
   }
   lignes.push({ chemin: '/auth', service: comptes }, { chemin: '/users', service: comptes }, { chemin: '/settings', service: comptes });
   // Le plus long d'abord : /auth/ia passe avant /auth.

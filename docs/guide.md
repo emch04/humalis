@@ -4657,6 +4657,30 @@ quand une erreur arrive :
 
 La capture écoute les erreurs natives de chaque cible. Les erreurs fatales Apple et Android sont enregistrées puis envoyées au lancement suivant. Le serveur accepte la même forme dans `serveur "api" :`. Les envois HTTPS expirent après trois secondes, leurs échecs sont absorbés et une même erreur est limitée à trois rapports par minute. Les mots de passe, les secrets, les paramètres d’URL et le contenu des formulaires ne sont pas envoyés.
 
+### Un système qui demande une clé
+
+La plupart des systèmes de suivi demandent une clé. Elle se lit dans le `.env` du serveur, comme celle d’une source ; l’adresse peut s’y lire aussi :
+
+```humalis
+quand une erreur arrive :
+    jeton secret depuis l'environnement "ERREURS_CLE"
+    envoyer requete vers l'environnement "ERREURS_ADRESSE" avec message = erreur.message et pile = erreur.pile
+
+serveur "api" :
+    quand une erreur arrive :
+        jeton secret depuis l'environnement "ERREURS_CLE"
+        envoyer requete vers l'environnement "ERREURS_ADRESSE" avec message = erreur.message et pile = erreur.pile
+```
+
+- La clé part dans l’en-tête `Authorization` (`Bearer …`). `dans l'entete "X-Cle"` la met dans un autre en-tête, `dans le parametre "key"` dans l’adresse. Elle vaut pour chaque requête du bloc.
+- Changer de système, c’est changer le `.env`, sans recompiler. Sans adresse ou sans clé, rien ne part, et le serveur le dit au démarrage.
+- Les pages et les applications ne gardent jamais la clé : elles envoient leur rapport à leur serveur (`POST /humalis/erreurs`), qui ajoute la clé et refait la requête écrite. Il ne reçoit que les champs de l’erreur, jamais une adresse ni un en-tête : il ne relaie rien d’autre. Un rapport pèse au plus 16 ko ; une même adresse en envoie au plus 30 par minute.
+- Dans un projet en services, c’est le service des comptes qui reçoit ces rapports.
+- Sans serveur dans le projet, une clé secrète ou une adresse du `.env` est refusée à la compilation.
+- `jeton public "…"` reste possible pour une clé faite pour être vue : elle part de l’application elle-même.
+
+Les deux variables se déclarent dans le `.env` du serveur (`.env.exemple` les liste).
+
 ## 35. Enregistrer et recadrer des médias
 
 Dans un événement, déclarez une variable de fichier avec `rien`, puis utilisez :
@@ -4920,7 +4944,8 @@ heure.
 - Le journal du serveur (la sortie du service) dit chaque erreur 500 avec son numéro de requête,
   et sa ligne Humalis quand elle vient de ton programme.
 - Humalis n'impose aucun système de surveillance : `quand une erreur arrive`, dans le serveur et en haut du
-  fichier pour les pages, envoie chaque erreur au système de ton choix (chapitre 34).
+  fichier pour les pages, envoie chaque erreur au système de ton choix (chapitre 34). Son adresse et sa clé
+  se mettent dans le `.env` du serveur.
 - `GET /sante` suffit à une sonde extérieure.
 
 ### Les secrets

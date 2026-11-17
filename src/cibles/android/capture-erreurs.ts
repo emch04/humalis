@@ -1,18 +1,20 @@
 /** Rapport différé après un arrêt fatal Android. */
-import type { RequeteCapture } from '../capture-erreurs.js';
+import { CHEMIN_RELAIS_ERREURS, envoisCible, type CaptureClient } from '../capture-erreurs.js';
 
-const q = (texte: string) => JSON.stringify(texte);
+/** Une chaîne Kotlin : « $ » ne doit pas devenir un gabarit. */
+const q = (texte: string) => JSON.stringify(texte).replace(/\$/g, '\\$');
 
-export function captureErreursKotlin(requetes: RequeteCapture[]): string {
-  const envois = requetes.map((r) => `        try {
+/** Un rapport qui porte un secret part vers le serveur Humalis (Configuration.SERVEUR), qui ajoute la clé. */
+export function captureErreursKotlin(capture: CaptureClient): string {
+  const envois = envoisCible(capture, q, `Configuration.SERVEUR + ${q(CHEMIN_RELAIS_ERREURS)}`).map((r) => `        try {
             val corps = JSONObject().apply { ${r.champs.map((c) => `put(${q(c.nom)}, ${typeof c.valeur === 'string' ? `rapport.optString(${q(c.valeur)})` : q(c.valeur.texte)})`).join('; ')} }.toString()
-            val connexion = URL(${q(r.adresse)}).openConnection() as HttpURLConnection
+            val connexion = URL(${r.adresse}).openConnection() as HttpURLConnection
             connexion.requestMethod = "POST"
             connexion.connectTimeout = 3000
             connexion.readTimeout = 3000
             connexion.doOutput = true
             connexion.setRequestProperty("Content-Type", "application/json")
-            connexion.outputStream.use { it.write(corps.toByteArray(Charsets.UTF_8)) }
+${r.entetes.map(([n, v]) => `            connexion.setRequestProperty(${q(n)}, ${q(v)})\n`).join('')}            connexion.outputStream.use { it.write(corps.toByteArray(Charsets.UTF_8)) }
             val reponse = connexion.responseCode
             connexion.disconnect()
             if (reponse !in 200..299) return@thread

@@ -1,14 +1,17 @@
 /** Capture native Apple : l'exception et les signaux fatals sont transmis au prochain lancement. */
-import type { RequeteCapture } from '../capture-erreurs.js';
+import { CHEMIN_RELAIS_ERREURS, envoisCible, type CaptureClient } from '../capture-erreurs.js';
 
 const q = (valeur: string) => JSON.stringify(valeur);
-export function captureErreursSwift(requetes: RequeteCapture[]): string {
-  const envois = requetes.map((r) => `        do {
-            var demande = URLRequest(url: URL(string: ${q(r.adresse)})!)
+/** Un rapport qui porte un secret part vers le serveur Humalis (Serveur.base), qui ajoute la clé. */
+export function captureErreursSwift(capture: CaptureClient): string {
+  const envois = envoisCible(capture, q, `adresseServeur + ${q(CHEMIN_RELAIS_ERREURS)}`).map((r) => `        do {
+            guard let adresse = URL(string: ${r.adresse}) else { return }
+            var demande = URLRequest(url: adresse)
             demande.httpMethod = "POST"
             demande.timeoutInterval = 3
             demande.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            demande.httpBody = try JSONSerialization.data(withJSONObject: [${r.champs.map((c) => `${q(c.nom)}: ${typeof c.valeur === 'string' ? `rapport[${q(c.valeur)}] ?? ""` : q(c.valeur.texte)}`).join(', ')}])
+${r.entetes.map(([n, v]) => `            demande.setValue(${q(v)}, forHTTPHeaderField: ${q(n)})
+`).join('')}            demande.httpBody = try JSONSerialization.data(withJSONObject: [${r.champs.map((c) => `${q(c.nom)}: ${typeof c.valeur === 'string' ? `rapport[${q(c.valeur)}] ?? ""` : q(c.valeur.texte)}`).join(', ')}])
             let (_, reponse) = try await URLSession.shared.data(for: demande)
             if let http = reponse as? HTTPURLResponse, !(200...299).contains(http.statusCode) { return }
         } catch { return /* Le rapport reste en attente après un échec. */ }`).join('\n');
@@ -79,8 +82,9 @@ enum CaptureErreurs {
     /** La page affichée, tenue à jour par le routeur. */
     nonisolated(unsafe) static var page = ""
 
-    static func installer() {
-        try? FileManager.default.createDirectory(at: fichierCapture.deletingLastPathComponent(), withIntermediateDirectories: true)
+    /** Appelée au lancement, sur le fil principal (là où se lit l'adresse du serveur). */
+    @MainActor static func installer() {
+${capture.relais ? '        // Le rapport qui porte un secret part vers le serveur Humalis, qui ajoute la clé.\n        let adresseServeur = Serveur.base\n' : ''}        try? FileManager.default.createDirectory(at: fichierCapture.deletingLastPathComponent(), withIntermediateDirectories: true)
         cheminSignal = strdup(fichierCapture.path)
         debutSignal = strdup("{\\"message\\":\\"Signal fatal\\",\\"pile\\":\\"\\",\\"page\\":\\"\\",\\"version\\":\\"\\",\\"ligneBrute\\":\\"")
         NSSetUncaughtExceptionHandler(exceptionFatale)

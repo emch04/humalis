@@ -1,0 +1,25 @@
+# Les erreurs partent vers le système de suivi qu'on choisit. Son adresse et sa clé sont dans le .env du serveur,
+# jamais dans le fichier ni dans l'application : les pages envoient leur rapport au serveur, qui ajoute la clé.
+quand une erreur arrive :
+    jeton secret depuis l'environnement "ERREURS_CLE"
+    envoyer requete vers l'environnement "ERREURS_ADRESSE" avec message = erreur.message et pile = erreur.pile et ligne = erreur.ligne et page = erreur.page
+
+serveur "notes" :
+    quand une erreur arrive :
+        jeton secret depuis l'environnement "ERREURS_CLE"
+        envoyer requete vers l'environnement "ERREURS_ADRESSE" avec message = erreur.message et pile = erreur.pile et ligne = erreur.ligne
+    donnee note :
+        titre : texte
+    route "notes" :
+        tout le monde peut lire note
+        tout le monde peut creer note
+        seul admin peut modifier note
+        seul admin peut supprimer note
+
+page "notes" :
+    variable notes = []
+    titre "Les notes"
+    quand la page se charge :
+        envoyer requete vers "notes" dans notes
+    pour chaque note dans notes :
+        texte note.titre

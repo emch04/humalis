@@ -46,6 +46,16 @@ export const ENTREES_INTERACTIONS: EntreeVocabulaire[] = [
     exemple: 'quand une erreur arrive :\n    envoyer requete vers "https://erreurs.exemple.fr/v1/envoi" avec message = erreur.message\n' + PAGE('    titre "Accueil"'),
   }),
   mot({
+    mot: 'public',
+    categorie: 'option',
+    concept: 'jeton.public',
+    contextes: ['source', 'interaction'],
+    cibles: ecran('la clé écrite, envoyée par la page elle-même', 'la clé écrite, envoyée par la page elle-même'),
+    couvre: [],
+    description: '« jeton public "pk_…" » : une clé faite pour être vue, écrite dans le fichier (une source, « quand une erreur arrive »). Une clé secrète se lit dans le .env du serveur : « jeton secret depuis l\'environnement "ERREURS_CLE" ».',
+    exemple: 'quand une erreur arrive :\n    jeton public "pk_essai"\n    envoyer requete vers "https://erreurs.exemple.fr/v1/envoi" avec message = erreur.message\n' + PAGE('    titre "Accueil"'),
+  }),
+  mot({
     mot: 'enregistrer', categorie: 'action', concept: 'action.enregistrerMedia',
     cibles: ecran('MediaRecorder et getUserMedia', null), couvre: [],
     description: '« enregistrer audio dans note » ou « enregistrer video dans clip » : capture un fichier après validation.',

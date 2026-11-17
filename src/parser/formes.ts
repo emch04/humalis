@@ -7,7 +7,9 @@
  */
 import { ErreurSyntaxique } from './erreurs.js';
 import type { FluxTokens } from './fluxTokens.js';
-import type { DeclarationVariable, Formes, Instruction, TypeChamp } from './ast.js';
+import type { DeclarationVariable, Formes, Instruction, JetonSource, TypeChamp } from './ast.js';
+import { analyserJeton } from './source.js';
+import { estJetonCapture } from './logique.js';
 import { analyserBloc, analyserExpression, analyserInstruction, analyserTypeChamp, chaqueLigne, estLeMot } from './parser.js';
 import { FluxTokens as Flux } from './fluxTokens.js';
 import { analyser } from '../lexer/lexer.js';
@@ -162,7 +164,14 @@ export function analyserForme(flux: FluxTokens, formes: Formes): void {
     flux.avancer(); flux.avancer(); flux.avancer();
     deuxPoints(flux, 'quand une erreur arrive');
     if (formes.erreurArrive) throw new ErreurSyntaxique(`« quand une erreur arrive » est déjà écrit ligne ${formes.erreurArrive.ligne}.`, ligne);
-    formes.erreurArrive = { corps: analyserBloc(flux), ligne };
+    let jeton: JetonSource | undefined;
+    const corps = analyserBloc(flux, (f) => {
+      if (!estJetonCapture(f)) return false;
+      if (jeton) throw new ErreurSyntaxique(`le jeton de « quand une erreur arrive » est déjà écrit ligne ${jeton.ligne}.`, f.actuel().ligne);
+      jeton = analyserJeton(f);
+      return true;
+    });
+    formes.erreurArrive = { corps, ...(jeton ? { jeton } : {}), ligne };
     return;
   }
 

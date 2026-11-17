@@ -156,7 +156,7 @@ export interface Serveur {
   /** « salle "conseil" pour membre animee par direction ». */
   salles?: { nom: string; pour: string[]; par?: string; animateurs?: string[]; ligne: number }[];
   /** Capture des erreurs du processus et d'Express. */
-  captureErreurs?: { corps: InstructionServeur[]; ligne: number };
+  captureErreurs?: { corps: InstructionServeur[]; /** « jeton secret depuis l'environnement "ERREURS_CLE" » : la clé ajoutée à chaque requête. */ jeton?: JetonSource; ligne: number };
   /** « comptes du serveur "comptes" » : ce service reconnaît les comptes d'un autre service du projet, sans en garder. */
   comptesDu?: { serveur: string; ligne: number };
   /** « quand le serveur "commandes" signale "commande-validee" avec c : » : un message d'un autre service. */
@@ -514,7 +514,7 @@ export interface EnvoiNotification {
 type MorceauTexte = EnvoiEmail['sujet'][number];
 
 export type InstructionServeur =
-  | { type: 'RequeteServeur'; adresse: string; champs: { nom: string; valeur: Expression }[]; ligne: number }
+  | { type: 'RequeteServeur'; adresse: string; /** « vers l'environnement "NOM" » : l'adresse lue dans le .env ; `adresse` est alors vide. */ adresseEnvironnement?: string; champs: { nom: string; valeur: Expression }[]; ligne: number }
   /** « envoyer requete vers "produits" du serveur "catalogue" avec id commande.produit dans produit » : une fiche d'un autre service. */
   | { type: 'AppelService'; serveur: string; route: string; id: Expression; variable: string; ligne: number }
   /** « faire "reserver" sur produit du serveur "catalogue" avec quantite = 2 » : une action d'un autre service. */
@@ -1210,6 +1210,8 @@ export interface ModificationListe {
 export interface Requete {
   type: 'Requete';
   adresse: string;
+  /** « vers l'environnement "ERREURS_ADRESSE" » (seulement dans « quand une erreur arrive ») : l'adresse lue dans le .env du serveur ; `adresse` est alors vide. */
+  adresseEnvironnement?: string;
   /** « de la source "boutique" » : l'API visée, au lieu du serveur du fichier. */
   source?: string;
   /** « du serveur "catalogue" » : facultatif, le service du projet qui a la route. */
@@ -1962,7 +1964,7 @@ export interface CorpsForme {
 
 export interface Formes {
   /** « quand une erreur arrive : » : actions exécutées avec la fiche erreur. */
-  erreurArrive?: CorpsForme & { ligne: number };
+  erreurArrive?: CorpsForme & { /** « jeton secret depuis l'environnement "ERREURS_CLE" » : un secret passe par le serveur, qui l'ajoute. */ jeton?: JetonSource; ligne: number };
   /** « widget "solde" avec taille petite vers "compte" : » ; « actualiser toutes les 30 minutes ». */
   widgets: (CorpsForme & { nom: string; taille?: 'petite' | 'moyenne' | 'grande'; vers?: string; actualiser?: { nombre: number; unite: 'minutes' | 'heures' }; ligne: number })[];
   /** « activite en direct "livraison" : » (titre, texte, progression). */

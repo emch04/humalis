@@ -85,7 +85,7 @@ import { DEVISES } from '../cibles/format.js';
 import { COULEURS_CSS } from '../cibles/web/styles.js';
 import { analyserServeur, droitsDeRoute, adresseNormalisee, type Droits } from './serveur.js';
 import { analyserServices, serviceDesComptes } from './services.js';
-import { avecServices } from './logique.js';
+import { avecServices, verifierNomEnvironnement } from './logique.js';
 import { simplifier } from './elements.js';
 import { analyserNavigation, lireCible } from './navigation.js';
 import { verifierRoles } from './roles.js';
@@ -2715,6 +2715,13 @@ class AnalysePage {
    * la requête à un visiteur.
    */
   private requete(requete: Requete): void {
+    // « vers l'environnement "ERREURS_ADRESSE" » : seulement dans « quand une erreur arrive », où le serveur lit l'adresse.
+    if (requete.adresseEnvironnement !== undefined) {
+      if (!this.page.captureErreurs) this.erreur('« vers l\'environnement "…" » s\'écrit seulement dans « quand une erreur arrive » : ailleurs, l\'adresse s\'écrit entre guillemets.', requete.ligne);
+      else verifierNomEnvironnement(requete.adresseEnvironnement, requete.ligne, this.erreur.bind(this));
+      requete.donnees.forEach((d) => this.typeDe(d));
+      return;
+    }
     // « du serveur "catalogue" » : facultatif ; s'il est écrit, la route doit être celle de ce service.
     if (requete.serveur !== undefined) {
       const service = this.liens.servicesDesRoutes?.get(adresseNormalisee(requete.adresse));

@@ -30,7 +30,7 @@ import { QR_CS } from './bibliotheque/qr.js';
 import { MEDIAS_CS } from './bibliotheque/medias.js';
 import { FORMES_CS, TOASTS_CS, ZONE_CS } from './bibliotheque/formes.js';
 import { captureErreursCs } from './capture-erreurs.js';
-import { requetesCapture } from '../capture-erreurs.js';
+import { captureClient } from '../capture-erreurs.js';
 import { formesWindows, type FormesWindows } from './formes.js';
 import { donneesComptesWindows, lisezmoiDonneesComptes, VERSION_SQLITE, type DonneesComptesWindows } from './donnees-comptes.js';
 import { chaineCs, commentaireCs, nomApplication, nomCs, nomMethode } from './noms.js';
@@ -555,7 +555,7 @@ ${donnees.actif ? '        DonneesComptes.Demarrer(fenetre);\n' : ''}        ${f
   const avecReunion = /\bReunion\.(Vue|Rejoindre|Quitter)\(/.test(codePages);
   if (avecReunion) fichiers.set('Humalis/Reunion.cs', REUNION_CS);
   fichiers.set(`${app}.csproj`, csproj(options.nom, application, aDesRessources, formes, avecEnregistrement || avecReunion, donnees, avecReunion));
-  if (application.formes?.erreurArrive) fichiers.set('Humalis/CaptureErreurs.cs', captureErreursCs(requetesCapture(application.formes).requetes));
+  if (application.formes?.erreurArrive) fichiers.set('Humalis/CaptureErreurs.cs', captureErreursCs(captureClient(application.formes)));
   fichiers.set('Humalis/HumalisLignes.cs', HUMALIS_LIGNES_CS);
   // Les dictionnaires de styles XAML : compilés avec le projet (une erreur XAML arrête dotnet build).
   for (const d of dictionnaires) fichiers.set(`Styles/${d.nom}`, d.contenu);

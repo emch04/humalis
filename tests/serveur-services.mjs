@@ -1,7 +1,9 @@
 // Trois services produits, lancés pour de vrai, qui se parlent : node serveur-services.mjs <dossier du projet produit> [port de départ].
 // ENTREE=1 : tout passe par le relais « entree », une seule adresse.
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { generateKeyPairSync } from 'node:crypto';
+import { mkdirSync, readFileSync } from 'node:fs';
+import { createServer } from 'node:https';
 import assert from 'node:assert/strict';
 const racine = process.argv[2];
 const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'P-256', privateKeyEncoding: { type: 'pkcs8', format: 'pem' }, publicKeyEncoding: { type: 'spki', format: 'pem' } });
@@ -9,6 +11,19 @@ const b64 = (t) => Buffer.from(t).toString('base64');
 const depart = Number(process.argv[3] ?? 4611);
 const ports = { comptes: depart, catalogue: depart + 1, commandes: depart + 2 };
 const portEntree = depart + 3;
+// Un faux système de suivi des erreurs, en HTTPS, avec un certificat fait pour l'essai (que le service des comptes accepte).
+const tls = racine + '/tls';
+mkdirSync(tls, { recursive: true });
+execFileSync('openssl', ['req', '-x509', '-newkey', 'ec', '-pkeyopt', 'ec_paramgen_curve:prime256v1', '-nodes', '-keyout', tls + '/cle.pem', '-out', tls + '/certificat.pem', '-days', '1', '-subj', '/CN=127.0.0.1', '-addext', 'subjectAltName=IP:127.0.0.1'], { stdio: 'pipe' });
+const rapports = [];
+const suivi = createServer({ key: readFileSync(tls + '/cle.pem'), cert: readFileSync(tls + '/certificat.pem') }, (req, res) => {
+  let corps = '';
+  req.on('data', (d) => (corps += d));
+  req.on('end', () => {
+    rapports.push({ chemin: req.url, entetes: req.headers, corps });
+    res.end('{}');
+  });
+}).listen(depart + 4, '127.0.0.1');
 const commun = {
   HUMALIS_SERVICES_SECRET: 's'.repeat(40),
   HUMALIS_SERVICE_COMPTES: 'http://127.0.0.1:' + ports.comptes,
@@ -17,7 +32,7 @@ const commun = {
   HUMALIS_COMPTES_CLE_PUBLIQUE: b64(publicKey),
 };
 const env = {
-  comptes: { JWT_SECRET: 'j'.repeat(40), HUMALIS_COMPTES_CLE_PRIVEE: b64(privateKey), HUMALIS_ADMIN_EMAIL: 'admin@essai.test', HUMALIS_ADMIN_MOT_DE_PASSE: 'Essai-Solide-2026!' },
+  comptes: { JWT_SECRET: 'j'.repeat(40), HUMALIS_COMPTES_CLE_PRIVEE: b64(privateKey), HUMALIS_ADMIN_EMAIL: 'admin@essai.test', HUMALIS_ADMIN_MOT_DE_PASSE: 'Essai-Solide-2026!', ERREURS_ADRESSE: 'https://127.0.0.1:' + (depart + 4) + '/envoi', ERREURS_CLE: 'cle-de-suivi', NODE_EXTRA_CA_CERTS: tls + '/certificat.pem' },
   catalogue: {},
   commandes: {},
 };
@@ -114,6 +129,17 @@ try {
   }
   assert.equal(statut, 401);
   ok('une déconnexion ferme le jeton dans les autres services');
+  // Le rapport d'erreur d'une page : le service des comptes ajoute la clé et l'adresse de son .env, et n'envoie que les champs écrits.
+  const rapport = await fetch(url('comptes', '/humalis/erreurs'), { method: 'POST', headers: { 'content-type': 'text/plain' }, body: JSON.stringify({ message: 'Panne de page', page: '/accueil', adresse: 'https://ailleurs.exemple.fr' }) });
+  assert.equal(rapport.status, 204, await rapport.text() + journaux.comptes);
+  for (let i = 0; i < 40 && rapports.length === 0; i++) await new Promise((p) => setTimeout(p, 100));
+  assert.equal(rapports.length, 1, journaux.comptes);
+  assert.equal(rapports[0].chemin, '/envoi');
+  assert.equal(rapports[0].entetes['x-cle'], 'cle-de-suivi');
+  assert.deepEqual(JSON.parse(rapports[0].corps), { message: 'Panne de page', page: '/accueil', origine: 'pages' });
+  assert.equal((await fetch(url('comptes', '/humalis/erreurs'), { method: 'POST', body: 'pas du JSON' })).status, 400);
+  assert.equal((await fetch('http://127.0.0.1:' + ports.catalogue + '/humalis/erreurs', { method: 'POST', body: '{"message":"x"}' })).status, 404);
+  ok('un rapport d’erreur des pages part, avec la clé du .env, vers le système de suivi');
   console.log('Les services se parlent.');
 } catch (erreur) {
   console.error(erreur);
@@ -121,4 +147,5 @@ try {
   process.exitCode = 1;
 } finally {
   for (const e of enfants) e.kill('SIGTERM');
+  suivi.close();
 }

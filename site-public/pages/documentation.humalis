@@ -3321,11 +3321,12 @@ page "documentation_21" dans "documentation" adresse "/documentation/serveur" :
         texte "#### A document database"
         texte "A document database stores each record as a document, without tables or columns. Humalis uses it through the MongoDB protocol. What works less well than with a relational database:"
         liste :
-            texte "**Transactions.** An action stays all or nothing only if the database has real ones: it needs a replica set, even of a single member. At start, the server tries a cancelled write; if it stays written, the server refuses to start rather than pretend."
-            texte "**Two writes at the same time** on the same record: the second transaction is replayed."
-            texte "**Joins.** Sync reads the journal, then the records: two reads instead of one."
-            texte "**Locks** (a task that runs only once, an installation) go through a collection that expires."
-            texte "**Backup** reads everything at one instant; for a very large database, also use the database's own backup tool."
+            texte "{accent "Transactions."} An action stays \"all or nothing\" only if the database has real ones: it needs a replica set, even of a single member. At start, the server tries a cancelled write; if it stays written, the server refuses to start rather than pretend. A compatible database that accepts transactions without keeping them is therefore refused."
+            texte "{accent "Two writes at the same time"} on the same record: the second transaction is replayed."
+            texte "{accent "Joins."} Sync reads the journal, then the records: two reads instead of one."
+            texte "{accent "Locks"} (a task that runs only once, an installation) go through a collection that expires."
+            texte "{accent "Backup"} reads everything at one instant; for a very large database, also use the database's own backup tool."
+        texte "Summaries (`somme`, `regroupe par`) and separation by group work as elsewhere."
         soustitre "What the server decides"
         texte "A rule such as `tout le monde peut creer commande` accepts every declared field as the request sends it: anyone could write the status or total of their choice. These rules, after a field's type, give the decision to the server."
         code humalis :
@@ -3400,7 +3401,7 @@ page "documentation_21" dans "documentation" adresse "/documentation/serveur" :
         texte "These limits apply on creation and on change, for everyone, admins included. A refused value gets a 400 answer and a sentence saying why, which the page shows. On every target (web, static, desktop, Apple, Android, Windows), the page checks the same limits before sending and shows the same sentence without waiting for the server, even offline; the server remains the only judge. They combine with each other and with `non vide`, `au depart` and `du site`: `statut : texte parmi "a" et "b" au depart "a"`. Humalis checks at compile time that an `au depart` value and the `donnees de depart` respect the limit. `au plus` followed by a field keeps its other meaning: the cap read from another record (`au plus prix de zone par commune`)."
         texte "Behind a relay on the same machine, set `HUMALIS_ECOUTE=127.0.0.1` in the environment: the server is then reachable only through it."
         soustitre "Several services"
-        texte "A single server is enough for most applications, and it does not change. When you want separate services, write several `serveur` blocks, in one file or in several. The project is in services as soon as one of them writes `comptes du serveur \"…\"`."
+        texte "A single server is enough for most applications, and it does not change. When you want separate services, write several `serveur` blocks, in one file or in several. The project is \"in services\" as soon as one of them writes `comptes du serveur "…"`."
         code humalis :
             serveur "comptes" :
                 roles gerant et client
@@ -3440,18 +3441,26 @@ page "documentation_21" dans "documentation" adresse "/documentation/serveur" :
                         faire "reserver" sur produit du serveur "catalogue" avec quantite = commande.quantite
                         changer commande.statut par "validee"
                         signaler "commande-validee" avec commande
+
+            page "accueil" :
+                variable produits = []
+                titre "Boutique"
+                quand la page se charge :
+                    envoyer requete vers "produits" dans produits
+                pour chaque p dans produits :
+                    texte p.nom
         liste :
-            texte "Each route and each data belongs to a single service. Pages write nothing more: `envoyer requete vers \"produits\"` goes to the service that has the route. `du serveur \"catalogue\"` is optional in a page; when written, Humalis checks it is the right one."
-            texte "**Accounts.** A single service keeps them: sign-in, sign-up, roles, two-factor authentication, emails to admins, notifications, real time. The others write `comptes du serveur \"…\"` and accept its tokens: the accounts service signs them with its private key (ES256), the others only have the public key. A sign-out or a closed account is announced to the other services as soon as it happens; a role change counts elsewhere at the next token, fifteen minutes at most."
-            texte "**Reading a record of another service**: `envoyer requete vers \"produits\" du serveur \"catalogue\" avec id … dans produit`. **Asking it for an action**: `faire \"reserver\" sur produit du serveur \"catalogue\" avec quantite = 2`. The call is made on behalf of the person who started the action; its refusal comes back as is."
-            texte "**With nobody signed in** (a scheduled task, a received message), the service acts in its own name, and only for what the other service grants it: `le serveur \"commandes\" peut faire \"reserver\" sur produit`."
-            texte "**Messages.** `signaler \"commande-validee\" avec commande` sends the record to the services that write `quand le serveur \"commandes\" signale \"commande-validee\" avec c :`. It leaves only if the whole action succeeded; it is delivered at least once and handled only once. The order of two messages is not guaranteed."
-            texte "**Good to know.** An action stays all or nothing within its own service: what it already did at another service before refusing stays done. To change another service, prefer `signaler`."
+            texte "Each route and each data belongs to a single service. Pages write nothing more: `envoyer requete vers "produits"` goes to the service that has the route. `du serveur "catalogue"` is optional in a page; when written, Humalis checks it is the right one."
+            texte "{accent "Accounts."} A single service keeps them: sign-in, sign-up, roles, two-factor authentication, emails to admins, notifications, real time. The others write `comptes du serveur "…"` and accept its tokens: the accounts service signs them with its private key (ES256), the others only have the public key and cannot make any. A sign-out or a closed account is announced to the other services as soon as it happens; a role change counts elsewhere at the next token, fifteen minutes at most."
+            texte "{accent "Reading a record of another service"}: `envoyer requete vers "produits" du serveur "catalogue" avec id … dans produit`. {accent "Asking it for an action"}: `faire "reserver" sur produit du serveur "catalogue" avec quantite = 2`. The call is made on behalf of the person who started the action: the other service checks its own rules. Its refusal comes back as is, and the action stops."
+            texte "{accent "With nobody signed in"} (a scheduled task, a received message), the service acts in its own name, and only for what the other service grants it: `le serveur "commandes" peut faire "reserver" sur produit`, or `le serveur "commandes" peut lire produit`."
+            texte "{accent "Messages."} `signaler "commande-validee" avec commande` sends the record to the services that write `quand le serveur "commandes" signale "commande-validee" avec c :`. The message leaves only if the whole action succeeded; it is delivered at least once and handled only once. The order of two messages is not guaranteed. The received record is read; it is not changed here."
+            texte "{accent "Good to know."} An action stays \"all or nothing\" within its own service. If it already made an action at another service and then refuses, what was done there stays done. To change another service, prefer `signaler`, which leaves only if everything succeeded."
         texte "No tool is imposed: no message queue, no broker. Calls and messages go over signed HTTP with a shared secret (`HUMALIS_SERVICES_SECRET`), and the outbox lives in each service's database."
         code terminal :
             humalis compile boutique.humalis --cible serveur --sortie boutique-services
             humalis compile boutique.humalis --cible serveur --sortie boutique-services --service catalogue
-        texte "The first writes one folder per service (each a complete server), the `entree` relay and a `LISEZMOI.md` saying what to set. The second produces only the catalogue service, to deploy it on its own."
+        texte "The first writes one folder per service (each a complete server, with its database, tests, backups and `/sante`), the `entree` relay and a `LISEZMOI.md` saying what to set. The second produces only the \"catalogue\" service, to deploy it on its own. The chapter Going to production says how to run them."
     sinon :
         texte "Un bloc `serveur` décrit les données de l'application et {accent "qui a le droit de faire quoi"}. Humalis en produit un vrai serveur Node, avec la connexion, les sessions et la sécurité des packs Astratra."
         code humalis :
@@ -3873,11 +3882,12 @@ page "documentation_21" dans "documentation" adresse "/documentation/serveur" :
         texte "#### Une base de documents"
         texte "Une base de documents range chaque fiche comme un document, sans tables ni colonnes. Humalis s'en sert par le protocole MongoDB. Ce qui marche moins bien qu'avec une base relationnelle :"
         liste :
-            texte "**Les transactions.** Une action reste tout ou rien seulement si la base en a de vraies : il faut un jeu de répliques, même d'un seul membre. Au démarrage, le serveur essaie une écriture annulée ; si elle reste écrite, il refuse de démarrer plutôt que de faire semblant."
-            texte "**Deux écritures en même temps** sur la même fiche : la seconde transaction est rejouée."
-            texte "**Les jointures.** La synchronisation lit le journal, puis les fiches : deux lectures au lieu d'une."
-            texte "**Les verrous** (une tâche qui ne tourne qu'une fois, une installation) passent par une collection qui expire."
-            texte "**La sauvegarde** lit tout au même instant ; pour une très grosse base, prends aussi l'outil de sauvegarde de la base."
+            texte "{accent "Les transactions."} Une action reste « tout ou rien » seulement si la base en a de vraies : il faut un jeu de répliques, même d'un seul membre. Au démarrage, le serveur essaie une écriture annulée ; si elle reste écrite, il refuse de démarrer plutôt que de faire semblant. Une base compatible qui accepte les transactions sans les tenir est donc refusée."
+            texte "{accent "Deux écritures en même temps"} sur la même fiche : la seconde transaction est rejouée."
+            texte "{accent "Les jointures."} La synchronisation lit le journal, puis les fiches : deux lectures au lieu d'une."
+            texte "{accent "Les verrous"} (une tâche qui ne tourne qu'une fois, une installation) passent par une collection qui expire."
+            texte "{accent "La sauvegarde"} lit tout au même instant ; pour une très grosse base, prends aussi l'outil de sauvegarde de la base."
+        texte "Les résumés (`somme`, `regroupe par`) et la séparation par groupe marchent comme ailleurs."
         soustitre "Ce que le serveur décide"
         texte "Une règle `tout le monde peut creer commande` accepte chaque champ déclaré, tel que la requête l'envoie : quelqu'un peut donc écrire un statut ou un total de son choix. Ces règles, après le type d'un champ, donnent la décision au serveur."
         code humalis :
@@ -3952,7 +3962,7 @@ page "documentation_21" dans "documentation" adresse "/documentation/serveur" :
         texte "Ces limites valent à la création et à la modification, pour tout le monde, admin compris. Une valeur refusée reçoit une réponse 400 et une phrase qui dit pourquoi (« le champ « prix » doit être entre 0 et 10000 »), que la page affiche. Sur toutes les cibles (web, statique, bureau, Apple, Android, Windows), la page vérifie ces mêmes limites avant d'envoyer et montre la même phrase sans attendre le serveur, même sans réseau ; le serveur reste seul juge. Elles se combinent entre elles et avec `non vide`, `au depart` et `du site` : `statut : texte parmi "a" et "b" au depart "a"`. Humalis vérifie à la compilation qu'une valeur `au depart` et les `donnees de depart` respectent la limite. `au plus` suivi d'un champ garde son autre sens : le plafond lu dans une autre donnée (`au plus prix de zone par commune`)."
         texte "Derrière un relais sur la même machine, écris `HUMALIS_ECOUTE=127.0.0.1` dans l'environnement : le serveur n'est plus joignable que par lui."
         soustitre "Plusieurs services"
-        texte "Un serveur unique suffit à la plupart des applications, et il ne change pas. Quand tu veux des services séparés, écris plusieurs blocs `serveur`, dans un fichier ou dans plusieurs. Le projet est en services dès que l'un d'eux écrit `comptes du serveur \"…\"`."
+        texte "Un serveur unique suffit à la plupart des applications, et il ne change pas. Quand tu veux des services séparés, écris plusieurs blocs `serveur`, dans un fichier ou dans plusieurs. Le projet est « en services » dès que l'un d'eux écrit `comptes du serveur "…"`."
         code humalis :
             serveur "comptes" :
                 roles gerant et client
@@ -3992,18 +4002,26 @@ page "documentation_21" dans "documentation" adresse "/documentation/serveur" :
                         faire "reserver" sur produit du serveur "catalogue" avec quantite = commande.quantite
                         changer commande.statut par "validee"
                         signaler "commande-validee" avec commande
+
+            page "accueil" :
+                variable produits = []
+                titre "Boutique"
+                quand la page se charge :
+                    envoyer requete vers "produits" dans produits
+                pour chaque p dans produits :
+                    texte p.nom
         liste :
-            texte "Chaque route et chaque donnée appartiennent à un seul service. Les pages n'écrivent rien de plus : `envoyer requete vers \"produits\"` va au service qui a la route. `du serveur \"catalogue\"` est facultatif dans une page ; s'il est écrit, Humalis vérifie que c'est le bon."
-            texte "**Les comptes.** Un seul service les garde : connexion, inscription, rôles, double authentification, e-mails aux admins, notifications, temps réel. Les autres écrivent `comptes du serveur \"…\"` et reconnaissent ses jetons : le service des comptes les signe avec sa clé privée (ES256), les autres n'ont que la clé publique. Une déconnexion ou un compte fermé est annoncé aux autres services dès qu'il arrive ; un changement de rôle compte ailleurs au prochain jeton, quinze minutes au plus."
-            texte "**Lire une fiche d'un autre service** : `envoyer requete vers \"produits\" du serveur \"catalogue\" avec id … dans produit`. **Lui demander une action** : `faire \"reserver\" sur produit du serveur \"catalogue\" avec quantite = 2`. L'appel se fait au nom de la personne qui a lancé l'action ; son refus revient tel quel."
-            texte "**Sans personne connectée** (une tâche planifiée, un message reçu), le service agit en son propre nom, et seulement pour ce que l'autre service lui donne : `le serveur \"commandes\" peut faire \"reserver\" sur produit`."
-            texte "**Les messages.** `signaler \"commande-validee\" avec commande` envoie la fiche aux services qui écrivent `quand le serveur \"commandes\" signale \"commande-validee\" avec c :`. Il part seulement si toute l'action a réussi ; il est livré au moins une fois et traité une seule fois. L'ordre de deux messages n'est pas garanti."
-            texte "**Ce qu'il faut savoir.** Une action reste tout ou rien dans son service : ce qu'elle a déjà fait chez un autre service avant de refuser reste fait. Pour changer un autre service, préfère `signaler`."
+            texte "Chaque route et chaque donnée appartiennent à un seul service. Les pages n'écrivent rien de plus : `envoyer requete vers "produits"` va au service qui a la route. `du serveur "catalogue"` est facultatif dans une page ; s'il est écrit, Humalis vérifie que c'est le bon."
+            texte "{accent "Les comptes."} Un seul service les garde : connexion, inscription, rôles, double authentification, e-mails aux admins, notifications, temps réel. Les autres écrivent `comptes du serveur "…"` et reconnaissent ses jetons : le service des comptes les signe avec sa clé privée (ES256), les autres n'ont que la clé publique et ne peuvent pas en fabriquer. Une déconnexion ou un compte fermé est annoncé aux autres services dès qu'il arrive ; un changement de rôle compte ailleurs au prochain jeton, quinze minutes au plus."
+            texte "{accent "Lire une fiche d'un autre service"} : `envoyer requete vers "produits" du serveur "catalogue" avec id … dans produit`. {accent "Lui demander une action"} : `faire "reserver" sur produit du serveur "catalogue" avec quantite = 2`. L'appel se fait au nom de la personne qui a lancé l'action : l'autre service vérifie ses propres règles. Son refus revient tel quel, et l'action s'arrête."
+            texte "{accent "Sans personne connectée"} (une tâche planifiée, un message reçu), le service agit en son propre nom, et seulement pour ce que l'autre service lui donne : `le serveur "commandes" peut faire "reserver" sur produit`, ou `le serveur "commandes" peut lire produit`."
+            texte "{accent "Les messages."} `signaler "commande-validee" avec commande` envoie la fiche aux services qui écrivent `quand le serveur "commandes" signale "commande-validee" avec c :`. Le message part seulement si toute l'action a réussi ; il est livré au moins une fois et traité une seule fois. L'ordre de deux messages n'est pas garanti. La fiche reçue se lit ; elle ne se change pas ici."
+            texte "{accent "Ce qu'il faut savoir."} Une action reste « tout ou rien » dans son service. Si elle a déjà fait une action chez un autre service puis refuse, ce qui a été fait là-bas reste fait. Pour changer un autre service, préfère `signaler`, qui ne part que si tout a réussi."
         texte "Aucun outil n'est imposé : ni file de messages, ni courtier. Les appels et les messages passent en HTTP signé avec un secret partagé (`HUMALIS_SERVICES_SECRET`), et la boîte d'envoi est dans la base de chaque service."
         code terminal :
             humalis compile boutique.humalis --cible serveur --sortie boutique-services
             humalis compile boutique.humalis --cible serveur --sortie boutique-services --service catalogue
-        texte "Le premier écrit un dossier par service (chacun un serveur complet), le relais `entree` et un `LISEZMOI.md` qui dit quoi régler. Le second ne produit que le service catalogue, pour le déployer à part."
+        texte "Le premier écrit un dossier par service (chacun un serveur complet, avec sa base, ses tests, ses sauvegardes et son `/sante`), le relais `entree` et un `LISEZMOI.md` qui dit quoi régler. Le second ne produit que le service « catalogue », pour le déployer à part. Le chapitre Mettre en production dit comment les lancer."
     ligne avec style "doc-suite" :
         lien "← 20. La navigation" en anglais "← 20. Navigation" vers "documentation_20"
         lien "22. Relier les pages au serveur →" en anglais "22. Connecting pages to the server →" vers "documentation_22"
@@ -5800,6 +5818,7 @@ page "documentation_32" dans "documentation" adresse "/documentation/commandes" 
             rangee "`humalis lancer <file>`", "runs a file right away, in memory, with its server, installing nothing"
             rangee "`humalis compile <file> --cible <target> --sortie <folder>`", "generates a target's project"
             rangee "`humalis compile <file> --cible web --composants <folder>`", "generates React components to import elsewhere"
+            rangee "`humalis compile <file> --cible serveur --sortie <folder> --service <name>`", "in a project in services, produces only that service"
             rangee "`humalis verifier <file>`", "shows errors and warnings"
             rangee "`humalis verifier <file> --exigeant`", "treats accessibility, translation and publication warnings as errors (before going live)"
             rangee "`humalis verifier <file> --cible statique`", "also says what this target would refuse or ignore, without writing anything"
@@ -5819,9 +5838,9 @@ page "documentation_32" dans "documentation" adresse "/documentation/commandes" 
             Erreur, ligne 3 : le texte utilise {totl}, mais la variable « totl » n'est pas déclarée. Peut-être « total » ?
         texte "(Error, line 3: the text uses `{`totl`}`, but the variable \"totl\" is not declared. Perhaps \"total\"?)"
         texte "The \"Humalis\" VS Code extension shows them as you type, with highlighting, completion and hover help."
-        soustitre "For AI agents: --json"
+        soustitre "For AI agents: `--json`"
         texte "`humalis verifier boutique.humalis --json` (and `humalis compile … --json`) writes the messages as JSON on standard output, and nothing else; the exit code does not change, and without `--json` nothing changes."
-        code json :
+        code texte :
             {
               "version": 1,
               "fichier": "boutique.humalis",
@@ -5841,8 +5860,9 @@ page "documentation_32" dans "documentation" adresse "/documentation/commandes" 
         liste :
             texte "`code`: a stable code per message (`HUM-0065`), the same from one version to the next. Two different messages never share a code; a retired code is never given again."
             texte "`colonne` (column) is `null` when Humalis does not know it."
-            texte "`correction` is there only when Humalis knows it for certain: a misspelt name close to a known one, indentation, or an old form (`ia par anthropic` → `ia`). Elsewhere, no correction."
-            texte "`ok` is true when there is no error; it follows the exit code."
+            texte "`correction` is there only when Humalis knows it for certain: replace `remplace` with `par`, the first time it appears on the line. Only for a misspelt name close to a known one, indentation (a tab, or one space too many or too few) and an old form (`ia par anthropic` → `ia`). Elsewhere, no correction."
+            texte "`ok` is true when there is no error; it follows the exit code. With `--exigeant`, accessibility, translation and publication warnings are errors there."
+            texte "Messages from the command itself (a file not found, a share image too small) are in the report too; `ligne` is 0 when the message concerns the whole file."
         texte "The language server (`humalis editeur --stdio`) gives the same code to each diagnostic."
         soustitre "In your editor"
         texte "Humalis works in almost every editor. Each one shows errors as you type, hover help, completion, go to declaration, the file outline and formatting. They all rely on `humalis editeur --stdio`, the language server installed with Humalis (`npm install -g humalis`)."
@@ -5862,6 +5882,7 @@ page "documentation_32" dans "documentation" adresse "/documentation/commandes" 
             rangee "`humalis lancer <fichier>`", "fait tourner un fichier tout de suite, en mémoire, avec son serveur, sans rien installer"
             rangee "`humalis compile <fichier> --cible <cible> --sortie <dossier>`", "produit le projet d'une cible"
             rangee "`humalis compile <fichier> --cible web --composants <dossier>`", "produit des composants React à importer ailleurs"
+            rangee "`humalis compile <fichier> --cible serveur --sortie <dossier> --service <nom>`", "dans un projet en services, ne produit que ce service"
             rangee "`humalis verifier <fichier>`", "affiche les erreurs et les avertissements"
             rangee "`humalis verifier <fichier> --exigeant`", "traite les avertissements d'accessibilité, de traduction et de publication comme des erreurs (avant une mise en ligne)"
             rangee "`humalis verifier <fichier> --cible statique`", "dit aussi ce que cette cible refuserait ou ignorerait, sans rien écrire"
@@ -5881,9 +5902,9 @@ page "documentation_32" dans "documentation" adresse "/documentation/commandes" 
             Erreur, ligne 3 : le texte utilise {totl}, mais la variable « totl » n'est pas déclarée. Peut-être « total » ?
         texte "Une erreur montre aussi la ligne de code en cause, avec un trait sous le mot fautif."
         texte "L'extension VS Code « Humalis » les affiche pendant que tu écris, avec la coloration, la complétion et le survol des mots."
-        soustitre "Pour les agents d'IA : --json"
+        soustitre "Pour les agents d'IA : `--json`"
         texte "`humalis verifier boutique.humalis --json` (et `humalis compile … --json`) écrit les messages en JSON sur la sortie standard, et rien d'autre ; le code de sortie ne change pas, et sans `--json` rien ne change."
-        code json :
+        code texte :
             {
               "version": 1,
               "fichier": "boutique.humalis",
@@ -5903,8 +5924,9 @@ page "documentation_32" dans "documentation" adresse "/documentation/commandes" 
         liste :
             texte "`code` : un code stable par message (`HUM-0065`), le même d'une version à l'autre. Deux messages différents n'ont jamais le même code ; un code retiré n'est jamais redonné."
             texte "`colonne` vaut `null` quand Humalis ne la connaît pas."
-            texte "`correction` n'est là que quand Humalis la connaît avec certitude : un nom mal écrit proche d'un nom connu, l'indentation, ou une ancienne forme (`ia par anthropic` → `ia`). Ailleurs, pas de correction."
-            texte "`ok` est vrai quand il n'y a aucune erreur ; il suit le code de sortie."
+            texte "`correction` n'est là que quand Humalis la connaît avec certitude : remplacer `remplace` par `par`, la première fois qu'il paraît sur la ligne. Seulement pour un nom mal écrit proche d'un nom connu, l'indentation (une tabulation, ou un espace de trop ou de moins) et une ancienne forme (`ia par anthropic` → `ia`). Ailleurs, pas de correction."
+            texte "`ok` est vrai quand il n'y a aucune erreur ; il suit le code de sortie. Avec `--exigeant`, les avertissements d'accessibilité, de traduction et de publication y sont des erreurs."
+            texte "Les messages de la commande elle-même (un fichier introuvable, une image de partage trop petite) sont aussi dans le rapport ; `ligne` vaut 0 quand le message concerne tout le fichier."
         texte "Le serveur de langage (`humalis editeur --stdio`) donne le même code à chaque diagnostic."
         soustitre "Dans ton éditeur"
         texte "Humalis s'écrit dans presque tous les éditeurs. Chacun montre les erreurs pendant que tu écris, le survol des mots, la complétion et le saut à la déclaration, le plan du fichier et la mise en forme. Tous s'appuient sur `humalis editeur --stdio`, le serveur de langage installé avec Humalis (`npm install -g humalis`)."
@@ -6143,12 +6165,50 @@ page "documentation_34" dans "documentation" adresse "/documentation/capturer-le
             quand une erreur arrive :
                 envoyer requete vers "https://erreurs.exemple.fr/v1/envoi" avec message = erreur.message et pile = erreur.pile
         texte "The capture uses each target's native error hooks. Fatal Apple and Android errors are saved and sent on the next launch. The same form can appear inside `serveur "api" :`. HTTPS requests time out after three seconds; sending failures are swallowed, and the same error is limited to three reports per minute. Passwords, secrets, URL parameters, and form contents are not sent."
+        soustitre "A system that requires a key"
+        texte "Most error-tracking systems require a key. It is read from the server's `.env`, like a source's key; the address can be read there too:"
+        code humalis :
+            quand une erreur arrive :
+                jeton secret depuis l'environnement "ERREURS_CLE"
+                envoyer requete vers l'environnement "ERREURS_ADRESSE" avec message = erreur.message et pile = erreur.pile
+
+            serveur "api" :
+                quand une erreur arrive :
+                    jeton secret depuis l'environnement "ERREURS_CLE"
+                    envoyer requete vers l'environnement "ERREURS_ADRESSE" avec message = erreur.message et pile = erreur.pile
+        liste :
+            texte "The key goes in the `Authorization` header (`Bearer …`). `dans l'entete "X-Cle"` puts it in another header, `dans le parametre "key"` in the address. It applies to every request of the block."
+            texte "Switching systems means changing the `.env`, with no recompiling. Without an address or a key, nothing is sent, and the server says so at startup."
+            texte "Pages and applications never hold the key: they send their report to their server (`POST /humalis/erreurs`), which adds the key and makes the written request itself. It receives only the error fields, never an address or a header, so it relays nothing else. A report weighs at most 16 KB; one address sends at most 30 per minute."
+            texte "In a project split into services, the accounts service receives these reports."
+            texte "Without a server in the project, a secret key or a `.env` address is rejected at compile time."
+            texte "`jeton public "…"` still works for a key meant to be seen: it is sent by the application itself."
+        texte "Both variables go in the server's `.env` (`.env.exemple` lists them)."
     sinon :
         texte "Placez cette forme en haut du fichier. Le bloc reçoit `erreur.message`, `erreur.pile`, `erreur.ligne` (la ligne Humalis, `boutique.humalis:12`), `erreur.page` et `erreur.version`."
         code humalis :
             quand une erreur arrive :
                 envoyer requete vers "https://erreurs.exemple.fr/v1/envoi" avec message = erreur.message et pile = erreur.pile
         texte "La capture écoute les erreurs natives de chaque cible. Les erreurs fatales Apple et Android sont enregistrées puis envoyées au lancement suivant. Le serveur accepte la même forme dans `serveur "api" :`. Les envois HTTPS expirent après trois secondes, leurs échecs sont absorbés et une même erreur est limitée à trois rapports par minute. Les mots de passe, les secrets, les paramètres d’URL et le contenu des formulaires ne sont pas envoyés."
+        soustitre "Un système qui demande une clé"
+        texte "La plupart des systèmes de suivi demandent une clé. Elle se lit dans le `.env` du serveur, comme celle d’une source ; l’adresse peut s’y lire aussi :"
+        code humalis :
+            quand une erreur arrive :
+                jeton secret depuis l'environnement "ERREURS_CLE"
+                envoyer requete vers l'environnement "ERREURS_ADRESSE" avec message = erreur.message et pile = erreur.pile
+
+            serveur "api" :
+                quand une erreur arrive :
+                    jeton secret depuis l'environnement "ERREURS_CLE"
+                    envoyer requete vers l'environnement "ERREURS_ADRESSE" avec message = erreur.message et pile = erreur.pile
+        liste :
+            texte "La clé part dans l’en-tête `Authorization` (`Bearer …`). `dans l'entete "X-Cle"` la met dans un autre en-tête, `dans le parametre "key"` dans l’adresse. Elle vaut pour chaque requête du bloc."
+            texte "Changer de système, c’est changer le `.env`, sans recompiler. Sans adresse ou sans clé, rien ne part, et le serveur le dit au démarrage."
+            texte "Les pages et les applications ne gardent jamais la clé : elles envoient leur rapport à leur serveur (`POST /humalis/erreurs`), qui ajoute la clé et refait la requête écrite. Il ne reçoit que les champs de l’erreur, jamais une adresse ni un en-tête : il ne relaie rien d’autre. Un rapport pèse au plus 16 ko ; une même adresse en envoie au plus 30 par minute."
+            texte "Dans un projet en services, c’est le service des comptes qui reçoit ces rapports."
+            texte "Sans serveur dans le projet, une clé secrète ou une adresse du `.env` est refusée à la compilation."
+            texte "`jeton public "…"` reste possible pour une clé faite pour être vue : elle part de l’application elle-même."
+        texte "Les deux variables se déclarent dans le `.env` du serveur (`.env.exemple` les liste)."
     ligne avec style "doc-suite" :
         lien "← 33. Ce que chaque cible sait faire" en anglais "← 33. What each target can do" vers "documentation_33"
         lien "35. Enregistrer et recadrer des médias →" en anglais "35. Recording and cropping media →" vers "documentation_35"
@@ -6349,11 +6409,11 @@ page "documentation_37" dans "documentation" adresse "/documentation/mettre-en-p
         texte "Stop the server first. On a fresh database, the tables are created from the backup: nothing to prepare. The restore refuses a table that already holds rows; `--remplacer` empties them first. It is all or nothing: a cut file, a missing table or a refused row, and nothing is changed."
         soustitre "A project in services"
         texte "`humalis compile … --cible serveur` writes one folder per service and the `entree` relay. In order:"
-        liste :
+        liste numerotee :
             texte "In the accounts service, `npm run cles` writes the private key (for it) and the public key (for the others). Also choose a shared secret: `openssl rand -base64 48`."
-            texte "In each service: `cp .env.exemple .env`, then its database, `HUMALIS_SERVICES_SECRET` (the same everywhere), the token key, the address of the services it calls or notifies, and `HUMALIS_RELAIS=1`. Each service has its own database, backups, `/sante` and clean stop; it is deployed and updated on its own."
-            texte "The `entree` relay gives a single public address: it sends `/api/produits` to the catalogue, `/auth` to the accounts service, and so on. Pages, the web and the apps (`--serveur`) talk only to it. You can use the relay of your choice: the path table is in `entree/LISEZMOI.md`."
-        texte "A message that could not leave waits in the outbox and leaves again, up to once an hour: it is never lost. In development, `humalis developper` targets the relay (port 8080, or `HUMALIS_SERVEUR`)."
+            texte "In each service: `cp .env.exemple .env`, then its database, `HUMALIS_SERVICES_SECRET` (the same everywhere), the token key, the address of the services it calls or notifies (`HUMALIS_SERVICE_CATALOGUE=http://127.0.0.1:3002`…) and `HUMALIS_RELAIS=1`. Each service has its own database, backups, `/sante` and clean stop; it is deployed and updated on its own."
+            texte "The `entree` relay (`cd entree && cp .env.exemple .env && npm start`) gives a single public address: it sends `/api/produits` to the catalogue, `/auth` to the accounts service, and so on. Pages, the web and the apps (`--serveur`) talk only to it: one address, one cookie, no CORS. You can use the relay of your choice: the path table is in `entree/LISEZMOI.md`. Its `/sante` answers 200 when every service answers ready."
+        texte "A message that could not leave waits in the outbox and leaves again (2 s, 4 s, 8 s… up to an hour): it is never lost. After seven days of failures, each new failure is an error in the log. In development, `humalis developper` targets the relay (port 8080, or `HUMALIS_SERVEUR`)."
         soustitre "Changing the program without losing data"
         texte "Records are kept as they were written. When the data changes in the program:"
         liste :
@@ -6382,7 +6442,7 @@ page "documentation_37" dans "documentation" adresse "/documentation/mettre-en-p
         soustitre "Monitoring"
         liste :
             texte "The server log (the service output) reports each 500 error with its request number, and its Humalis line when it comes from your program."
-            texte "Humalis imposes no monitoring system: `quand une erreur arrive`, in the server and at the top of the file for pages, sends each error to the system of your choice (chapter 34)."
+            texte "Humalis imposes no monitoring system: `quand une erreur arrive`, in the server and at the top of the file for pages, sends each error to the system of your choice (chapter 34). Its address and key go in the server's `.env`."
             texte "`GET /sante` is enough for an outside probe."
         soustitre "Secrets"
         liste :
@@ -6430,11 +6490,11 @@ page "documentation_37" dans "documentation" adresse "/documentation/mettre-en-p
         texte "Arrête le serveur avant. Sur une base neuve, les tables sont créées d'après la sauvegarde : rien à préparer. La restauration refuse une table qui contient déjà des lignes ; `--remplacer` les vide d'abord. Elle est tout ou rien : un fichier coupé, une table manquante ou une ligne refusée, et rien n'est changé."
         soustitre "Un projet en services"
         texte "`humalis compile … --cible serveur` écrit un dossier par service et le relais `entree`. Dans l'ordre :"
-        liste :
+        liste numerotee :
             texte "Dans le service des comptes, `npm run cles` écrit la clé privée (pour lui) et la clé publique (pour les autres). Choisis aussi un secret partagé : `openssl rand -base64 48`."
-            texte "Dans chaque service : `cp .env.exemple .env`, puis sa base, `HUMALIS_SERVICES_SECRET` (le même partout), la clé des jetons, l'adresse des services qu'il appelle ou prévient, et `HUMALIS_RELAIS=1`. Chaque service a sa base, ses sauvegardes, son `/sante` et son arrêt propre ; il se déploie et se met à jour seul."
-            texte "Le relais `entree` donne une seule adresse publique : il envoie `/api/produits` au catalogue, `/auth` au service des comptes, et ainsi de suite. Les pages, le web et les applications (`--serveur`) ne parlent qu'à lui. Tu peux prendre le relais de ton choix : la table des chemins est dans `entree/LISEZMOI.md`."
-        texte "Un message qui n'a pas pu partir attend dans la boîte d'envoi et repart, jusqu'à une fois par heure : il n'est jamais perdu. En développement, `humalis developper` vise le relais (port 8080, ou `HUMALIS_SERVEUR`)."
+            texte "Dans chaque service : `cp .env.exemple .env`, puis sa base, `HUMALIS_SERVICES_SECRET` (le même partout), la clé des jetons, l'adresse des services qu'il appelle ou prévient (`HUMALIS_SERVICE_CATALOGUE=http://127.0.0.1:3002`…) et `HUMALIS_RELAIS=1`. Chaque service a sa base, ses sauvegardes, son `/sante` et son arrêt propre ; il se déploie et se met à jour seul."
+            texte "Le relais `entree` (`cd entree && cp .env.exemple .env && npm start`) donne une seule adresse publique : il envoie `/api/produits` au catalogue, `/auth` au service des comptes, et ainsi de suite. Les pages, le web et les applications (`--serveur`) ne parlent qu'à lui : une adresse, un cookie, pas de CORS. Tu peux prendre le relais de ton choix : la table des chemins est dans `entree/LISEZMOI.md`. Son `/sante` répond 200 quand chaque service répond prêt."
+        texte "Un message qui n'a pas pu partir attend dans la boîte d'envoi et repart (2 s, 4 s, 8 s… jusqu'à une heure) : il n'est jamais perdu. Après sept jours d'échecs, chaque nouvel échec est une erreur du journal. En développement, `humalis developper` vise le relais (port 8080, ou `HUMALIS_SERVEUR`)."
         soustitre "Changer le programme sans perdre de données"
         texte "Les fiches sont gardées telles qu'elles ont été écrites. Quand la donnée change dans le programme :"
         liste :
@@ -6463,7 +6523,7 @@ page "documentation_37" dans "documentation" adresse "/documentation/mettre-en-p
         soustitre "Surveiller"
         liste :
             texte "Le journal du serveur (la sortie du service) dit chaque erreur 500 avec son numéro de requête, et sa ligne Humalis quand elle vient de ton programme."
-            texte "Humalis n'impose aucun système de surveillance : `quand une erreur arrive`, dans le serveur et en haut du fichier pour les pages, envoie chaque erreur au système de ton choix (chapitre 34)."
+            texte "Humalis n'impose aucun système de surveillance : `quand une erreur arrive`, dans le serveur et en haut du fichier pour les pages, envoie chaque erreur au système de ton choix (chapitre 34). Son adresse et sa clé se mettent dans le `.env` du serveur."
             texte "`GET /sante` suffit à une sonde extérieure."
         soustitre "Les secrets"
         liste :

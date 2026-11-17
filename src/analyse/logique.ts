@@ -278,7 +278,7 @@ class Traduction {
         const champs = i.champs.map((c) => ({ nom: c.nom, valeur: this.valeur(c.valeur, portee) }));
         const sure = (v: ValeurServeurRI): boolean => v.genre === 'erreur' || (v.genre === 'valeur' && v.valeur === '') || (v.genre === 'texte' && v.parties.every((p) => 'texte' in p || sure(p.valeur)));
         if (this.avecErreur && champs.some((c) => !sure(c.valeur))) this.erreur('la capture du serveur n’envoie que erreur.message, erreur.pile, erreur.ligne, erreur.page, erreur.version ou un texte fixe.', i.ligne);
-        return { type: 'requete', adresse: i.adresse, champs };
+        return { type: 'requete', adresse: i.adresse, ...(i.adresseEnvironnement !== undefined ? { adresseEnvironnement: i.adresseEnvironnement } : {}), champs };
       }
       case 'SiServeur':
         return { type: 'si', test: this.test(i.test, portee), alors: this.corps(i.alors, portee), sinon: this.corps(i.sinon, portee) };
@@ -496,8 +496,17 @@ export function traduireReceveur(receveur: NonNullable<Serveur['receveurs']>[num
   return { donnee: donnee.nom, corps: new Traduction(serveur, erreur, false).corps(receveur.corps, new Map([[receveur.variable, donnee]])) };
 }
 
+/** Un nom de variable d'environnement : des majuscules, des chiffres et « _ » (ERREURS_CLE). */
+export function verifierNomEnvironnement(nom: string, ligne: number, erreur: Erreur): void {
+  if (!/^[A-Z_][A-Z0-9_]*$/.test(nom)) erreur(`« ${nom} » n'est pas un nom de variable d'environnement : des majuscules, des chiffres et « _ », comme "ERREURS_CLE".`, ligne);
+}
+
 /** Le corps de capture voit seulement les quatre informations sûres de l'erreur. */
 export function traduireCaptureErreurs(capture: NonNullable<Serveur['captureErreurs']>, serveur: Serveur, erreur: Erreur): InstructionServeurRI[] {
-  for (const instruction of capture.corps) if (instruction.type !== 'RequeteServeur') erreur('dans la capture du serveur, seules les requêtes HTTP sont disponibles.', instruction.ligne);
+  for (const instruction of capture.corps) {
+    if (instruction.type !== 'RequeteServeur') erreur('dans la capture du serveur, seules les requêtes HTTP sont disponibles.', instruction.ligne);
+    else if (instruction.adresseEnvironnement !== undefined) verifierNomEnvironnement(instruction.adresseEnvironnement, instruction.ligne, erreur);
+  }
+  if (capture.jeton?.genre === 'secret') verifierNomEnvironnement(capture.jeton.valeur, capture.jeton.ligne, erreur);
   return new Traduction(serveur, erreur, false, new Set(), true).corps(capture.corps, new Map());
 }

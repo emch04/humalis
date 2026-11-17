@@ -36,7 +36,7 @@ import { Valeurs, type Portee } from './valeurs.js';
 import { dansLePaquet, lireVueNatifKt, stylesKotlinNommes, type VueNatifKt } from './natifs.js';
 import { ecrireFormes, lisezmoiFormes, VERSIONS_FORMES } from './formes.js';
 import { captureErreursKotlin } from './capture-erreurs.js';
-import { requetesCapture } from '../capture-erreurs.js';
+import { captureClient } from '../capture-erreurs.js';
 import { ecrireDonneesComptes, nomLocale, reglagesLocaleKotlin } from './donnees-comptes.js';
 
 export const MARQUE_ANDROID = '.humalis-projet';
@@ -921,7 +921,7 @@ export function genererProjetAndroid(complete: Application, options: OptionsAndr
   const cheminActiviteLignes = `${dossierCode}/MainActivity.kt`;
   fichiers.set(cheminActiviteLignes, fichiers.get(cheminActiviteLignes)!.replace('        setContent { ApplicationHumalis() }', '        HumalisLignes.installer(applicationContext)\n        setContent { ApplicationHumalis() }'));
   if (application.formes?.erreurArrive) {
-    ecrireCode('CaptureErreurs.kt', kotlin(paquet, captureErreursKotlin(requetesCapture(application.formes).requetes)));
+    ecrireCode('CaptureErreurs.kt', kotlin(paquet, captureErreursKotlin(captureClient(application.formes))));
     // La page en cours, pour « erreur.page ».
     for (const [chemin, code] of fichiers) {
       if (code.includes('val nav = rememberNavController()')) fichiers.set(chemin, code.replace(/^(\s*)val nav = rememberNavController\(\)$/m, (ligne, marge: string) => `${ligne}\n${marge}androidx.compose.runtime.DisposableEffect(nav) {\n${marge}    val suivi = androidx.navigation.NavController.OnDestinationChangedListener { _, destination, _ -> CaptureErreurs.page = destination.route ?: "" }\n${marge}    nav.addOnDestinationChangedListener(suivi)\n${marge}    onDispose { nav.removeOnDestinationChangedListener(suivi) }\n${marge}}`));

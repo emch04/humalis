@@ -6,7 +6,7 @@ import { genererProjetWeb, adressesDeRequetes, MEMOIRE, MARQUE, VERSIONS } from 
 import { genererProjetMoteur, verifierPourLeMoteur, MARQUE_MOTEUR } from '../moteur/projet.js';
 import { utiliseReunion } from '../moteur/temps-reel.js';
 import { formesDuBureau, applicationAvecFormes, brancherLesCouches, associationsDeFichiers, scriptNsis, codeFormesPrincipal, lisezmoiFormes, PONT_FORMES, type FormesBureau } from './formes.js';
-import { codeCaptureNode, requetesCapture } from '../capture-erreurs.js';
+import { CHEMIN_RELAIS_ERREURS, captureClient, codeCaptureNode, estRelayee, requetesCapture } from '../capture-erreurs.js';
 import { CLES_MAC_SWIFT, CLES_PRINCIPAL_TS, CLES_WINDOWS_PS1, CONSTRUIRE_NATIF_MJS, LISEZMOI_CLES, PONT_CLES } from './cles.js';
 
 export interface OptionsDesktop {
@@ -162,7 +162,11 @@ export function genererProjetDesktop(application: Application, options: OptionsD
     }),
   );
   if (application.formes?.erreurArrive) {
-    fichiers.set('electron/capture-erreurs.ts', codeCaptureNode(requetesCapture(application.formes).requetes));
+    // Un rapport qui porte un secret part vers le serveur Humalis, à la même adresse que le reste de l'application.
+    const capture = captureClient(application.formes);
+    const serveur = `((app.isPackaged ? undefined : process.env.HUMALIS_SERVEUR) ?? ${JSON.stringify((options.serveur ?? SERVEUR_PAR_DEFAUT).replace(/\/$/, ''))}).replace(/\\/$/, '')`;
+    const code = codeCaptureNode(capture, '1.0.0', serveur);
+    fichiers.set('electron/capture-erreurs.ts', capture.relais ? code.replace('// @ts-nocheck\n', "// @ts-nocheck\nimport { app } from 'electron';\n") : code);
     const principal = fichiers.get('electron/principal.ts')!;
     fichiers.set('electron/principal.ts', `import { rapporterErreur } from './capture-erreurs.js';\n${principal.replace("fenetre.once('ready-to-show', () => fenetre.show());", "fenetre.once('ready-to-show', () => fenetre.show());\n  fenetre.webContents.on('render-process-gone', (_evenement, details) => { void rapporterErreur(new Error('Fenêtre interrompue : ' + details.reason), fenetre.webContents.getURL().split('?')[0]); });")}`);
   }
@@ -203,6 +207,11 @@ export function adressesDuServeur(application: Application): { relais: string[];
   }
   // La capture des erreurs envoie ses rapports depuis les fenêtres : la politique de contenu doit le permettre.
   for (const r of requetesCapture(application.formes).requetes) {
+    // Un rapport qui porte un secret passe par le serveur : son chemin est relayé.
+    if (estRelayee(r)) {
+      if (!relais.includes(CHEMIN_RELAIS_ERREURS)) relais.push(CHEMIN_RELAIS_ERREURS);
+      continue;
+    }
     const origine = new URL(r.adresse).origin;
     if (!origines.includes(origine)) origines.push(origine);
   }

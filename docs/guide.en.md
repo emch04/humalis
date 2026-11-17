@@ -4723,6 +4723,30 @@ quand une erreur arrive :
 
 The capture uses each target's native error hooks. Fatal Apple and Android errors are saved and sent on the next launch. The same form can appear inside `serveur "api" :`. HTTPS requests time out after three seconds; sending failures are swallowed, and the same error is limited to three reports per minute. Passwords, secrets, URL parameters, and form contents are not sent.
 
+### A system that requires a key
+
+Most error-tracking systems require a key. It is read from the server's `.env`, like a source's key; the address can be read there too:
+
+```humalis
+quand une erreur arrive :
+    jeton secret depuis l'environnement "ERREURS_CLE"
+    envoyer requete vers l'environnement "ERREURS_ADRESSE" avec message = erreur.message et pile = erreur.pile
+
+serveur "api" :
+    quand une erreur arrive :
+        jeton secret depuis l'environnement "ERREURS_CLE"
+        envoyer requete vers l'environnement "ERREURS_ADRESSE" avec message = erreur.message et pile = erreur.pile
+```
+
+- The key goes in the `Authorization` header (`Bearer …`). `dans l'entete "X-Cle"` puts it in another header, `dans le parametre "key"` in the address. It applies to every request of the block.
+- Switching systems means changing the `.env`, with no recompiling. Without an address or a key, nothing is sent, and the server says so at startup.
+- Pages and applications never hold the key: they send their report to their server (`POST /humalis/erreurs`), which adds the key and makes the written request itself. It receives only the error fields, never an address or a header, so it relays nothing else. A report weighs at most 16 KB; one address sends at most 30 per minute.
+- In a project split into services, the accounts service receives these reports.
+- Without a server in the project, a secret key or a `.env` address is rejected at compile time.
+- `jeton public "…"` still works for a key meant to be seen: it is sent by the application itself.
+
+Both variables go in the server's `.env` (`.env.exemple` lists them).
+
 ## 35. Recording and cropping media
 
 Inside an event, declare a file variable with `rien`, then use `enregistrer audio dans note`, `enregistrer video dans clip`, `scanner document dans facture`, or `recadrer photo`. These are French language keywords. The result is a file, like `photo dans photo`, which can be displayed or sent to a server. Canceling keeps the previous value. Recording and cropping are available on the web, desktop, Apple, Android, and Windows targets. Document scanning exists on Apple and Android; other targets reject it at compile time.
@@ -4960,7 +4984,7 @@ instance: rate limits, and the attachment volume per hour.
 - The server log (the service output) reports each 500 error with its request number, and its
   Humalis line when it comes from your program.
 - Humalis imposes no monitoring system: `quand une erreur arrive`, in the server and at the top of the file for
-  pages, sends each error to the system of your choice (chapter 34).
+  pages, sends each error to the system of your choice (chapter 34). Its address and key go in the server's `.env`.
 - `GET /sante` is enough for an outside probe.
 
 ### Secrets

@@ -198,11 +198,30 @@ export type TestServeurRI =
   | { genre: 'comparaison'; operateur: string; gauche: ValeurServeurRI; droite?: ValeurServeurRI; negation?: boolean }
   | { genre: 'combinaison'; operateur: 'et' | 'ou'; gauche: TestServeurRI; droite: TestServeurRI };
 
+/** « jeton public "…" » ou « jeton secret depuis l'environnement "NOM" » (alors `valeur` est le nom de la variable). */
+export interface JetonRI {
+  genre: 'public' | 'secret';
+  valeur: string;
+  place: { genre: 'autorisation' } | { genre: 'entete' | 'parametre'; nom: string };
+}
+
+/** `ligne` : « boutique.humalis:12 », la première ligne Humalis de la pile (vide si aucune). */
+export type ChampErreurRI = 'message' | 'pile' | 'page' | 'version' | 'ligne';
+
+/** Une requête de « quand une erreur arrive » des pages et des applications, lue de façon sûre. */
+export interface RequeteCaptureRI {
+  /** Vide quand l'adresse est lue dans le .env (`adresseEnvironnement`). */
+  adresse: string;
+  adresseEnvironnement?: string;
+  champs: { nom: string; valeur: ChampErreurRI | { texte: string } }[];
+  jeton?: JetonRI;
+}
+
 /** Une instruction du serveur, avec sa ligne Humalis (ligne fusionnée du projet). */
 export type InstructionServeurRI = InstructionServeurSeule & { ligne?: number };
 
 type InstructionServeurSeule =
-  | { type: 'requete'; adresse: string; champs: { nom: string; valeur: ValeurServeurRI }[] }
+  | { type: 'requete'; adresse: string; /** L'adresse lue dans le .env au démarrage (`adresse` est alors vide). */ adresseEnvironnement?: string; champs: { nom: string; valeur: ValeurServeurRI }[] }
   | { type: 'si'; test: TestServeurRI; alors: InstructionServeurRI[]; sinon: InstructionServeurRI[] }
   | { type: 'pourChaque'; variable: string; donnee: string; filtres: FiltreServeurRI[]; corps: InstructionServeurRI[] }
   | { type: 'calcul'; nom: string; operation: string; donnee: string; champ?: string; filtres: FiltreServeurRI[] }
@@ -261,6 +280,13 @@ export interface ServeurRI {
   /** « salle "conseil" pour membre animee par direction ». */
   salles?: { nom: string; pour: string[]; par?: string; animateurs?: string[]; ligne: number }[];
   captureErreurs?: InstructionServeurRI[];
+  /** « jeton … » dans « quand une erreur arrive » du serveur : ajouté à chaque requête de la capture. */
+  jetonErreurs?: JetonRI;
+  /**
+   * Les requêtes de « quand une erreur arrive » des pages et des applications qui passent par ce serveur (un secret,
+   * une adresse du .env) : il les refait lui-même, sur « POST /humalis/erreurs », avec les seuls champs de l'erreur.
+   */
+  relaisErreurs?: RequeteCaptureRI[];
   /** Les sources à jeton secret que ce serveur relaie (« /api/passerelle/<source> »). */
   passerelles?: PasserelleRI[];
   nom: string;
@@ -848,6 +874,8 @@ type ActionSeule =
   | {
       type: 'requete';
       adresse: string;
+      /** « vers l'environnement "NOM" » (capture des erreurs) : l'adresse lue dans le .env du serveur ; `adresse` est vide. */
+      adresseEnvironnement?: string;
       /** « … hors ligne » : sans réseau, l'envoi attend le retour de la connexion. */
       enAttente?: boolean;
       /** Avec des données, la requête envoie ; sans données, elle lit. */
@@ -1086,7 +1114,7 @@ export interface Option {
  * le gestionnaire « chargement » porte les actions, avec ses variables locales (partage, fichier, {produit}).
  */
 export interface FormesRI {
-  erreurArrive?: { ecran: Ecran; ligne: number };
+  erreurArrive?: { ecran: Ecran; jeton?: JetonRI; ligne: number };
   widgets: { nom: string; taille?: 'petite' | 'moyenne' | 'grande'; vers?: string; actualiser?: { nombre: number; unite: 'minutes' | 'heures' }; ecran: Ecran; ligne: number }[];
   activites: { nom: string; ecran: Ecran; ligne: number }[];
   raccourcisIcone: { titre: string; page: string; icone?: string; ligne: number }[];

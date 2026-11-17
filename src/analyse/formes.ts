@@ -9,6 +9,7 @@ import { analyserSyntaxe } from '../parser/parser.js';
 import type { Diagnostic } from './erreurs.js';
 import { proposerNom } from './suggestions.js';
 import { simplifier } from './elements.js';
+import { verifierNomEnvironnement } from './logique.js';
 
 /** Une déclaration écrite en Humalis (« variable partage = fiche avec texte "" … »), lue par le vrai parser. */
 function declaration(ligne: string): Instruction {
@@ -38,6 +39,20 @@ function verifierChampsSynchronises(programme: Programme, d: NonNullable<Program
       if (!c.regle && !locaux.has(simplifier(c.nom))) erreur(`la donnée locale « ${d.nom} » n'a pas le champ « ${c.nom} » de la donnée « ${donnee.nom} » du serveur : sans lui, le serveur refuserait chaque nouvelle fiche.`, d.ligne);
     }
   }
+}
+
+/**
+ * Une clé secrète, ou une adresse du .env, dans « quand une erreur arrive » des pages : le serveur du projet les ajoute.
+ * Sans serveur, rien ne peut les garder hors de l'application.
+ */
+function verifierCleCapture(capture: NonNullable<NonNullable<Programme['formes']>['erreurArrive']>, programme: Programme, erreur: (message: string, ligne: number) => void): void {
+  const jeton = capture.jeton;
+  if (jeton?.genre === 'secret') verifierNomEnvironnement(jeton.valeur, jeton.ligne, erreur);
+  if (programme.serveurs.length > 0) return;
+  if (jeton?.genre === 'secret') erreur('une clé secrète ne peut pas être dans l\'application : ajoutez un serveur (serveur "api" :), qui l\'ajoutera à chaque rapport.', jeton.ligne);
+  const parAdresse = (corps: Instruction[]): Instruction | undefined => corps.find((i) => i.type === 'Requete' && i.adresseEnvironnement !== undefined);
+  const requete = parAdresse(capture.corps);
+  if (requete) erreur('une adresse lue dans le .env l\'est par le serveur : ajoutez un serveur (serveur "api" :), qui fera suivre chaque rapport.', requete.ligne);
 }
 
 /**
@@ -112,7 +127,10 @@ export function analyserFormes(programme: Programme, analyserCommePage: (page: P
     }
     for (const m of formes.menusClicDroit) commePage(m, `menu clic droit « ${m.titre} »`, m.corps, m.ligne, 'actions', [FICHIER]);
     if (formes.partageRecu) commePage(formes.partageRecu, 'partage reçu', formes.partageRecu.corps, formes.partageRecu.ligne, 'actions', [PARTAGE]);
-    if (formes.erreurArrive) commePage(formes.erreurArrive, 'erreur arrivée', formes.erreurArrive.corps, formes.erreurArrive.ligne, 'actions', [ERREUR]);
+    if (formes.erreurArrive) {
+      commePage(formes.erreurArrive, 'erreur arrivée', formes.erreurArrive.corps, formes.erreurArrive.ligne, 'actions', [ERREUR]);
+      verifierCleCapture(formes.erreurArrive, programme, erreur);
+    }
     for (const f of formes.fichiersOuverts) commePage(f, `fichier ouvert (${f.extensions.join(', ')})`, f.corps, f.ligne, 'actions', [FICHIER]);
     // « synchronisee avec "notes" » : une route du serveur qui lit et modifie cette donnée.
     const routes = new Set(programme.serveurs.flatMap((s) => s.routes.map((r) => r.adresse.replace(/^\//, ''))));
