@@ -8,7 +8,10 @@
         <debugger.positionManagerFactory implementation="dev.humalis.intellij.debogueur.HumalisPositionManagerFactory" order="last"/>
         <!-- Le pas à pas ne montre pas le code produit appelé par une ligne Humalis. -->
         <debugger.extraSteppingFilter implementation="dev.humalis.intellij.debogueur.PasAPasHumalis"/>
-        <debugger.steppingListener implementation="dev.humalis.intellij.debogueur.DebutPasHumalis"/>
         <projectService serviceImplementation="dev.humalis.intellij.debogueur.TablesDuProjet"/>
     </extensions>
+    <projectListeners>
+        <!-- Chaque session de débogage : retenir si le programme est arrêté sur une ligne Humalis. -->
+        <listener class="dev.humalis.intellij.debogueur.DebutPasHumalis" topic="com.intellij.debugger.impl.DebuggerManagerListener"/>
+    </projectListeners>
 </idea-plugin>

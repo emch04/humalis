@@ -1,27 +1,37 @@
 package dev.humalis.intellij.debogueur
 
+import com.intellij.debugger.engine.DebugProcessListener
 import com.intellij.debugger.engine.ExtraSteppingFilter
-import com.intellij.debugger.engine.SteppingAction
-import com.intellij.debugger.engine.SteppingListener
 import com.intellij.debugger.engine.SuspendContext
 import com.intellij.debugger.engine.SuspendContextImpl
+import com.intellij.debugger.impl.DebuggerManagerListener
+import com.intellij.debugger.impl.DebuggerSession
 import com.intellij.debugger.jdi.StackFrameProxyImpl
 import com.intellij.openapi.util.Key
 import com.sun.jdi.Location
 import com.sun.jdi.request.StepRequest
 
-/** Vrai quand le pas à pas en cours est parti d'une ligne Humalis. */
+/** Vrai quand le programme s'est arrêté, la dernière fois, sur une ligne Humalis : le pas en cours part de là. */
 private val PAS_DEPUIS_HUMALIS = Key.create<Boolean>("humalis.pasDepuisHumalis")
 
-/** Retient, au début de chaque pas, s'il part d'une ligne Humalis. */
-class DebutPasHumalis : SteppingListener {
-    override fun beforeSteppingStarted(suspendContext: SuspendContextImpl, steppingAction: SteppingAction) {
-        val depuisHumalis = try {
-            suspendContext.frameProxy?.let { PasAPasHumalis.aUneLigneHumalis(it.location()) } ?: false
-        } catch (_: Exception) {
-            false
-        }
-        suspendContext.debugProcess.putUserData(PAS_DEPUIS_HUMALIS, depuisHumalis)
+/**
+ * Retient, à chaque arrêt du programme, s'il est arrêté sur une ligne Humalis : le pas suivant part toujours de
+ * l'endroit de ce dernier arrêt. (Seulement des interfaces publiques du débogueur : la Marketplace refuse les autres.)
+ */
+class DebutPasHumalis : DebuggerManagerListener {
+    override fun sessionAttached(session: DebuggerSession) {
+        val processus = session.process
+        processus.addDebugProcessListener(object : DebugProcessListener {
+            override fun paused(suspendContext: SuspendContext) {
+                val contexte = suspendContext as? SuspendContextImpl ?: return
+                val surHumalis = try {
+                    contexte.frameProxy?.let { PasAPasHumalis.aUneLigneHumalis(it.location()) } ?: false
+                } catch (_: Exception) {
+                    false
+                }
+                processus.putUserData(PAS_DEPUIS_HUMALIS, surHumalis)
+            }
+        })
     }
 }
 
