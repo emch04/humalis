@@ -1,0 +1,29 @@
+serveur "salle" :
+    roles adherent
+    emails
+    mot de passe oublie vers "nouveau-mot-de-passe"
+    donnee evenement :
+        nom : texte
+        places : nombre
+    donnee inscription :
+        evenement : texte
+    route "evenements" :
+        connecte peut lire evenement
+        seul admin peut creer evenement
+        connecte peut faire "participer" sur evenement :
+            calcul pris = nombre de inscription ou evenement est evenement.id
+            si pris est superieur ou egal a evenement.places :
+                refuser "Complet"
+            creer inscription avec evenement evenement.id
+    route "inscriptions" :
+        seul admin peut lire inscription
+
+page "accueil" :
+    titre "Salle"
+
+page "nouveau-mot-de-passe" :
+    titre "Nouveau mot de passe"
+    champ mot de passe "Nouveau"
+    bouton "Valider"
+    quand l'utilisateur clique sur "Valider" :
+        choisir le mot de passe avec champ "Nouveau"
