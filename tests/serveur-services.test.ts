@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { stripVTControlCharacters } from 'node:util';
@@ -51,7 +51,11 @@ describe('trois services qui se parlent, pour de vrai', () => {
     }
     // Les trois services ont les mêmes paquets : une installation, partagée.
     installerSiBesoin(join(dossier, 'comptes'));
-    for (const s of ['catalogue', 'commandes']) if (!existsSync(join(dossier, s, 'node_modules'))) symlinkSync(join(dossier, 'comptes', 'node_modules'), join(dossier, s, 'node_modules'));
+    // Le lien est refait à chaque fois : un ancien lien pouvait viser une installation périmée.
+    for (const s of ['catalogue', 'commandes']) {
+      rmSync(join(dossier, s, 'node_modules'), { recursive: true, force: true });
+      symlinkSync(join(dossier, 'comptes', 'node_modules'), join(dossier, s, 'node_modules'));
+    }
     for (const s of serveurs) execFileSync('npx', ['tsc'], { cwd: join(dossier, s.nom), stdio: 'pipe' });
     const depart = 5200 + (process.pid % 300) * 2;
     direct = lancer({}, depart);

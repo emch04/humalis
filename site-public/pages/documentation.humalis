@@ -3302,8 +3302,27 @@ page "documentation_21" dans "documentation" adresse "/documentation/serveur" :
         texte "Nobody can write `paye` through a request, not even an admin. If the confirmed amount is no longer the record's amount (it changed during the payment), or if the record is gone, nothing is marked as paid: the server answers the relay with 500, writes the cause to its log and passes it to `quand une erreur arrive` when the server has one. Fix the record's amount and the next call records it; otherwise, refund the person."
         texte "#### Resending without duplicates"
         texte "If the connection drops during a send, a program can safely try again: it sends the `X-Humalis-Envoi` header with a random id, the same one on every attempt. The server does the work once, even across several copies, then returns the same answer. It answers 409 while the first attempt is still running. The id is kept for 30 days, as long as a request can wait on the device."
+        texte "#### Keeping reads in cache"
+        texte "A list read very often that changes little (a catalogue, articles) does not need to read the database every time:"
+        code humalis :
+            serveur "librairie" :
+                donnee livre :
+                    titre : texte
+                    prix : nombre
+                route "livres" :
+                    tout le monde peut lire livre
+                    seul admin peut modifier livre
+                    en cache pendant 5 minutes
+        liste :
+            texte "The route's reads (the list, a record, the summaries) are kept for that long."
+            texte "Any write to the data (create, change, delete, an action, a task) empties the cache before answering, on every instance of the server: a page never reads a record from before the change."
+            texte "The permission guard runs before the cache. When the answer depends on the person (data `par compte` or `par boutique`, a rule with `si` or `seul son auteur`), everyone gets their own copy: nobody receives someone else's."
+            texte "The duration goes from a second to a year: `pendant 30 secondes`, `pendant 10 heures`, `pendant 3 jours`, `pendant 1 semaine`, `pendant 6 mois`, `pendant 1 an`, `pendant 2 ans`."
+            texte "A `par identifiant` read, accounts and errors are never kept."
+        texte "When the data changes elsewhere (another application writes to the database), an action or a task empties the cache by hand: `vider le cache de "livres"` (a route) or `vider le cache de "meteo"` (a source)."
+        texte "With no setting, the cache lives in each server's memory (5,000 answers at most, `HUMALIS_CACHE_MAX` changes it). `HUMALIS_CACHE_ADRESSE=redis://host:6379` (or `rediss://…`, encrypted) keeps it in Redis, Valkey or a compatible server: shared by every instance, it also carries the `en direct` announcements and the request limits. For a host's own authority, `NODE_EXTRA_CA_CERTS=/path/ca.pem`. Redis only keeps copies: if it goes down, the server carries on reading the database, then uses it again as soon as it is back. Each server start drops the earlier copies."
         texte "#### Many people behind one address"
-        texte "By default, one address gets 300 requests per 15 minutes and 10 login attempts. A whole organisation can share one address: raise `HUMALIS_LIMITE_API` and `HUMALIS_LIMITE_CONNEXION`. Behind a proxy, also set `HUMALIS_RELAIS`."
+        texte "By default, one address gets 300 requests per 15 minutes and 10 login attempts. A whole organisation can share one address: raise `HUMALIS_LIMITE_API` and `HUMALIS_LIMITE_CONNEXION`. Behind a proxy, also set `HUMALIS_RELAIS`. With `HUMALIS_CACHE_ADRESSE`, these limits are counted in Redis, the same for every instance of the server."
         texte "To generate and run it:"
         code terminal :
             humalis compile my-project.humalis --cible serveur --sortie my-project-server
@@ -3871,8 +3890,27 @@ page "documentation_21" dans "documentation" adresse "/documentation/serveur" :
         texte "Personne ne peut écrire `paye` par une requête, pas même un admin. Si le montant confirmé n'est plus celui de la fiche (elle a changé pendant le paiement), ou si la fiche a disparu, rien n'est marqué payé : le serveur répond 500 au relais, écrit la cause dans son journal et la passe à `quand une erreur arrive` s'il est écrit dans le serveur. Corrige le montant de la fiche et le rappel suivant l'enregistre ; sinon, rembourse la personne."
         texte "#### Renvoyer sans créer de doublon"
         texte "Si la connexion coupe en plein envoi, un programme peut recommencer sans risque : il envoie l'en-tête `X-Humalis-Envoi` avec un identifiant au hasard, le même à chaque essai. Le serveur fait le travail une fois, même avec plusieurs exemplaires, puis redonne la même réponse. Il répond 409 tant que le premier essai tourne. L'identifiant est gardé 30 jours, aussi longtemps qu'un envoi peut attendre sur l'appareil."
+        texte "#### Garder des lectures en cache"
+        texte "Une liste lue très souvent, qui change peu (un catalogue, des articles), n'a pas besoin de relire la base à chaque fois :"
+        code humalis :
+            serveur "librairie" :
+                donnee livre :
+                    titre : texte
+                    prix : nombre
+                route "livres" :
+                    tout le monde peut lire livre
+                    seul admin peut modifier livre
+                    en cache pendant 5 minutes
+        liste :
+            texte "Les lectures de la route (la liste, une fiche, les résumés) se gardent pendant ce temps."
+            texte "Toute écriture sur la donnée (créer, modifier, supprimer, une action, une tâche) vide le cache avant de répondre, sur tous les exemplaires du serveur : une page ne relit jamais une fiche d'avant le changement."
+            texte "La garde des droits passe avant le cache. Quand la réponse dépend de la personne (une donnée `par compte` ou `par boutique`, une règle avec `si` ou `seul son auteur`), chacun a sa copie : personne ne reçoit celle d'un autre."
+            texte "La durée s'écrit de la seconde à l'année : `pendant 30 secondes`, `pendant 10 heures`, `pendant 3 jours`, `pendant 1 semaine`, `pendant 6 mois`, `pendant 1 an`, `pendant 2 ans`."
+            texte "Une lecture `par identifiant`, les comptes et les erreurs ne se gardent jamais."
+        texte "Quand les données changent ailleurs (une autre application écrit dans la base), une action ou une tâche vide le cache à la main : `vider le cache de "livres"` (une route) ou `vider le cache de "meteo"` (une source)."
+        texte "Sans réglage, le cache vit dans la mémoire de chaque serveur (5 000 réponses au plus, `HUMALIS_CACHE_MAX` le change). `HUMALIS_CACHE_ADRESSE=redis://hote:6379` (ou `rediss://…`, chiffré) le range dans Redis, Valkey ou un serveur compatible : partagé par tous les exemplaires, il porte aussi les annonces `en direct` et les limites de requêtes. Pour l'autorité d'un hébergeur, `NODE_EXTRA_CA_CERTS=/chemin/ca.pem`. Redis ne garde que des copies : s'il tombe, le serveur continue et relit la base, puis le reprend dès qu'il revient. Chaque démarrage du serveur abandonne les copies d'avant."
         texte "#### Beaucoup de monde derrière une même adresse"
-        texte "Par défaut, une adresse a droit à 300 requêtes par 15 minutes et 10 tentatives de connexion. Un établissement entier peut sortir par une seule adresse : monte alors `HUMALIS_LIMITE_API` et `HUMALIS_LIMITE_CONNEXION`. Derrière un relais, règle aussi `HUMALIS_RELAIS`."
+        texte "Par défaut, une adresse a droit à 300 requêtes par 15 minutes et 10 tentatives de connexion. Un établissement entier peut sortir par une seule adresse : monte alors `HUMALIS_LIMITE_API` et `HUMALIS_LIMITE_CONNEXION`. Derrière un relais, règle aussi `HUMALIS_RELAIS`. Avec `HUMALIS_CACHE_ADRESSE`, ces limites se comptent dans Redis, les mêmes pour tous les exemplaires du serveur."
         texte "Pour le produire et le lancer :"
         code terminal :
             humalis compile mon-projet.humalis --cible serveur --sortie mon-projet-serveur
@@ -4918,6 +4956,7 @@ page "documentation_23" dans "documentation" adresse "/documentation/utiliser-un
             texte "Each route of the source says who can call it: `tout le monde peut …`, `connecte peut …` or `seul admin peut …`. An action without a rule is refused."
             texte "The key travels in the `Authorization` header by default. `dans le parametre "key"` puts it in the address; `dans l'entete "X-Key"` in another header."
             texte "The value goes in the server's `.env` file. Its name is added to `.env.exemple`."
+            texte "`en cache pendant 30 minutes`, in the source: the server keeps each answer, per route and per parameters, for everyone. The API is called only once in that time (a limited or paid API costs less). `cache 5 minutes`, for its part, keeps the answer in each person's page."
     sinon :
         texte "Un bloc `source` décrit une API écrite ailleurs (en Node, PHP, Python…). Les pages s'en servent comme d'un serveur Humalis, avec les mêmes vérifications."
         code humalis :
@@ -4992,6 +5031,7 @@ page "documentation_23" dans "documentation" adresse "/documentation/utiliser-un
             texte "Chaque route de la source dit qui peut l'appeler : `tout le monde peut …`, `connecte peut …` ou `seul admin peut …`. Une action sans règle est refusée."
             texte "La clé voyage dans l'en-tête `Authorization` par défaut. `dans le parametre "key"` la met dans l'adresse ; `dans l'entete "X-Cle"` dans un autre en-tête."
             texte "La valeur se met dans le fichier `.env` du serveur. Son nom est ajouté à `.env.exemple`."
+            texte "`en cache pendant 30 minutes`, dans la source : le serveur garde chaque réponse, par route et par paramètres, pour tout le monde. L'API n'est appelée qu'une fois pendant ce temps (une API limitée ou payante coûte moins). `cache 5 minutes`, lui, garde la réponse dans la page de chaque personne."
     ligne avec style "doc-suite" :
         lien "← 22. Relier les pages au serveur" en anglais "← 22. Connecting pages to the server" vers "documentation_22"
         lien "24. Les données d'un fichier →" en anglais "24. Data from a file →" vers "documentation_24"

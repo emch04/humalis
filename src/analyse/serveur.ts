@@ -229,10 +229,19 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[], pag
         couvertes.add('creer');
         couvertes.add('supprimer');
       }
-      const refusees = ACTIONS.filter((a) => !couvertes.has(a));
+      // Une route « en cache » que personne ne lit a déjà son erreur, plus bas : la lecture n'est pas redite ici.
+      const refusees = ACTIONS.filter((a) => !couvertes.has(a) && !(a === 'lire' && route.cache));
       if (refusees.length > 0 && !route.interne) {
         avertissement(`personne ne peut ${refusees.join(', ')} « ${servie} » : ces actions seront refusées.`, route.ligne);
       }
+    }
+    // « en cache pendant … » garde des lectures : il en faut une.
+    const lisible = permises.has('lire') || (route.resumes ?? []).length > 0 || (route.droitsServices ?? []).some((d) => d.actions.includes('lire'));
+    if (route.cache && !lisible) {
+      erreur(`« en cache pendant » garde les lectures de la route « ${route.adresse} », mais personne ne peut la lire : ajoutez une règle comme « tout le monde peut lire ${servie ?? 'livre'} ».`, route.cache.ligne);
+    }
+    if (route.cache && (serveur.donnees.find((d) => d.nom === servie)?.comptes)) {
+      erreur(`les comptes ne se gardent pas en cache : retirez « en cache pendant » de la route « ${route.adresse} ».`, route.cache.ligne);
     }
   }
 

@@ -15,7 +15,7 @@ import { codeFicheVisible, codePortee, compteRelu, conditionsDe, constantesSepar
 import { avecIa, ENV_IA, IA, routeIa } from './ia.js';
 import { ENVOIS } from './envois.js';
 import { MOTIF_SQL_DU_PACK, MOTIFS_SQL_CODE } from './pare-feu.js';
-import { codeResumes, avecPaiements, codePaiements, codeSurPaiement, ENV_PAIEMENTS, PAIEMENTS, avecLogique, avecNotifications, codeActions, codeDocuments, codeNotificationsCreation, codeReceveurs, codeTaches, DOCUMENT, employe, LOGIQUE, NOTIFICATIONS, ROUTES_APPAREILS } from './logique.js';
+import { codeResumes, avecPaiements, codePaiements, codeSurPaiement, ENV_PAIEMENTS, PAIEMENTS, avecLogique, avecNotifications, codeActions, codeDocuments, codeNotificationsCreation, codeReceveurs, codeTaches, DOCUMENT, employe, LOGIQUE, avecAnnonces, NOTIFICATIONS, ROUTES_APPAREILS } from './logique.js';
 import { champsDuServeur, codeCompleter, codeEcritureModification, codeCreation, codePlafondsModification, noms as nomsVerifier, reglesEnvoi } from './regles.js';
 import { avecSynchro, codeAvantSynchro, codeCreationSynchro, codeSynchroRoute, ENV_SYNCHRO, SYNCHRO, tablesSynchro, testsSynchro } from './synchro.js';
 import { avecSecurite, codeAvantSecurite, codeCreationSecurite, codeRoutesSecurite, envSecurite, SECURITE, testsSecurite } from './securite.js';
@@ -26,6 +26,7 @@ import { simplifier } from '../../analyse/elements.js';
 import { pascal, camel } from '../web/noms.js';
 import { codeCaptureErreurs, codeRelaisErreurs, variablesCapture } from './capture-erreurs.js';
 import { codeReglagesPostgres } from './connexion-postgres.js';
+import { CACHE } from './cache.js';
 
 export interface OptionsServeur {
   /** Le nom du projet, tiré du fichier Humalis. */
@@ -52,6 +53,7 @@ export const VERSIONS_SERVEUR = {
   pg: '8.23.1',
   mysql2: '3.24.6',
   mongodb: '7.8.0',
+  redis: '6.3.1',
   typescript: '7.0.2',
   typesNode: '26.2.0',
   typesExpress: '5.0.6',
@@ -73,7 +75,11 @@ const ACTIONS: Action[] = ['lire', 'creer', 'modifier', 'supprimer'];
  * les données et vérifier la forme des envois.
  */
 /** Le canal « en direct » sert aussi au temps réel. */
-const avecDirect = (serveur: ServeurRI & { tempsReel?: boolean }): boolean => serveur.tempsReel === true || serveur.routes.some((r) => r.direct);
+const avecDirect = (serveur: ServeurRI & { tempsReel?: boolean }): boolean => serveur.tempsReel === true || avecAnnonces(serveur);
+/** « en cache pendant … » dans une route ou une source relayée : le module du cache, et les annonces qui le vident partout. */
+const avecCache = (serveur: ServeurRI): boolean => serveur.routes.some((r) => r.cache !== undefined) || (serveur.passerelles ?? []).some((p) => p.cache !== undefined);
+/** Le module du cache sert aussi de relais Redis aux annonces en direct. */
+const avecModuleCache = (_serveur: ServeurRI): boolean => true;
 
 export function genererProjetServeur(complet: ServeurRI, options: OptionsServeur): Map<string, string> {
   // Les routes du temps réel sont servies à part : le reste du générateur ne les voit pas.
@@ -147,6 +153,7 @@ export function genererProjetServeur(complet: ServeurRI, options: OptionsServeur
   if (attaques) fichiers.set('tests/attaques.test.ts', attaques);
   fichiers.set('tests/sessions.test.ts', testsSessions(serveur));
   if (avecDirect(serveur)) fichiers.set('src/humalis/direct.ts', DIRECT);
+  if (avecModuleCache(serveur)) fichiers.set('src/humalis/cache.ts', CACHE);
   if (compteRelu(serveur) || serveur.routes.some((r) => r.actions?.length && serveur.donnees.find((d) => d.nom === r.donnee)?.par)) fichiers.set('src/humalis/separation.ts', SEPARATION);
   if (avecLogique(serveur)) fichiers.set('src/humalis/logique.ts', LOGIQUE);
   if (serveur.documents?.length) fichiers.set('src/humalis/document.ts', DOCUMENT);
@@ -290,6 +297,8 @@ function packageJson(nom: string, serveur: ServeurRI, livekit = false): string {
         mongodb: v.mongodb,
         mysql2: v.mysql2,
         pg: v.pg,
+        // HUMALIS_CACHE_ADRESSE : le cache, les annonces et les limites de requêtes partagés par tous les exemplaires.
+        redis: v.redis,
       },
       devDependencies: {
         '@astratra/tooling': v.tooling,
@@ -374,6 +383,12 @@ DATABASE_URL=
 # SQLite : un seul fichier, rien à installer (Node 24 ou plus récent). Un seul exemplaire du serveur par fichier.
 # Exemple : HUMALIS_BASE=donnees/base.sqlite
 HUMALIS_BASE=
+
+# Le cache (facultatif) : Redis, Valkey ou un serveur compatible. redis://hote:6379, ou rediss://… (chiffré, certificat
+# vérifié ; NODE_EXTRA_CA_CERTS=/chemin/ca.pem pour l'autorité d'un hébergeur). Il garde les lectures « en cache »,
+# porte les annonces en direct et compte les limites de requêtes pour tous les exemplaires. Sans lui : la mémoire de
+# chaque serveur. La base reste la seule mémoire de référence.
+HUMALIS_CACHE_ADRESSE=
 
 # La session : elle se renouvelle tant que la personne revient.
 # HUMALIS_SESSION : après ce temps sans venir, il faut se reconnecter (« 3d », « 12h » ; 3 jours par défaut).
@@ -1524,10 +1539,16 @@ function serveurTs(serveur: ServeurRI, chemins?: Map<string, string>, montageTem
       const voir = (a: Action) => (separee ? codeFicheVisible(variable, donnee, route.donnee, a, donneeRoute.par) : '');
       // Ce que tout le monde peut lire se garde un peu (navigateur, relais) ; une lecture réservée, jamais.
       const cache = route.droits.lire === 'tout_le_monde' ? 'lecturePublique' : 'lecturePrivee';
+      // « en cache pendant … » : après la garde des droits ; une copie par compte quand la réponse dépend de la personne.
+      const parPersonne = separee || conditionsDe(route, 'lire').length > 0 || route.droits.lire === null;
+      const enCache = route.cache !== undefined ? `, cacheHumalis.lecture(${JSON.stringify(route.donnee)}, ${route.cache}${parPersonne ? ', personneDuCache' : ''})` : '';
+      // Une écriture réussie vide, avant de répondre, les copies des données qu'elle change.
+      const videes = [...new Set([route.donnee, ...(route.creations ?? []).map((c) => c.donnee)])].filter((d) => donneesEnCache(serveur).has(d));
       return `      // « ${route.adresse} » (ligne ${ligneLocale(route.ligne)}) — ${decrireDroits(route.droits)}.
       const ${variable} = express.Router();
 ${clesAnnoncees(serveur, route).length ? `      ${variable}.use(direct.apres(${JSON.stringify(clesAnnoncees(serveur, route))}));
-` : ''}${separee ? constantesSeparation(variable, donneeRoute, route) : ''}${route.synchronisee ? codeSynchroRoute(route, donneeRoute, variable, garde, separee ? codePortee(variable, 'lire') : '') : ''}${codeResumes(route, variable, separee)}${route.direct ? routeDirect(variable, garde('lire'), route.donnee, separee ? { separation: `separation${variable}`, regles: `regles${variable}.lire` } : undefined) : ''}      ${variable}.get('/', ${cache}, ${garde('lire')}, async (req, res, next) => {
+` : ''}${videes.length ? `      ${variable}.use(cacheHumalis.ecriture(${JSON.stringify(videes)}));
+` : ''}${separee ? constantesSeparation(variable, donneeRoute, route) : ''}${route.synchronisee ? codeSynchroRoute(route, donneeRoute, variable, garde, separee ? codePortee(variable, 'lire') : '') : ''}${codeResumes(route, variable, separee, enCache)}${route.direct ? routeDirect(variable, garde('lire'), route.donnee, separee ? { separation: `separation${variable}`, regles: `regles${variable}.lire` } : undefined) : ''}      ${variable}.get('/', ${cache}, ${garde('lire')}${enCache}, async (req, res, next) => {
         try {
 ${separee ? codePortee(variable, 'lire') : ''}          // « ?produit=… » : seulement ce qui est demandé, pas toute la liste.
           const filtres = lireFiltres(${schema}, req.query as Record<string, unknown>);
@@ -1537,7 +1558,7 @@ ${separee ? codePortee(variable, 'lire') : ''}          // « ?produit=… » : 
           next(erreur);
         }
       });
-      ${variable}.get('/:id', ${route.droits.lireUn ? `lecturePrivee, ...acces.${gardeDe(route.droits.lireUn)}` : `${cache}, ${garde('lire')}`}, async (req, res, next) => {
+      ${variable}.get('/:id', ${route.droits.lireUn ? `lecturePrivee, ...acces.${gardeDe(route.droits.lireUn)}` : `${cache}, ${garde('lire')}${enCache}`}, async (req, res, next) => {
         try {
 ${voir('lire')}          const trouve = ${separee ? 'visible' : `await stockages.${donnee}.trouver(String(req.params.id))`};
           if (trouve) res.json(trouve);
@@ -1591,9 +1612,15 @@ ${codePaiements(route, variable, garde('lire'), voir('lire'), separee, donnee)}$
 import { createSaasApp, ${comptes ? 'createMemoryPasswordResetStore, type PasswordResetStore, ' : ''}type UsersStore } from '@astratra/saas-kit';
 import { ${[...(serveur.connexionGoogle ? ['createGoogleIdTokenVerifier'] : []), ...(serveur.connexionApple ? ['createAppleIdTokenVerifier'] : []), ...(serveur.connexionGoogle || serveur.connexionApple ? ['IdTokenError'] : []), ...(serveur.invitations || serveur.inscriptionLibre ? ['createApiLimiter'] : []), ].map((n) => n + ', ').join('')}createMemoryRevocationStore, type RevocationStore, createLoginLimiter, hashPassword, isStrongPassword, verifyPasswordHash, WAF_PATTERNS } from '@astratra/security';
 import express, { type RequestHandler, type Response } from 'express';
+import { cacheHumalis } from './humalis/cache.js';
 ${montageTempsReel ? IMPORT_TEMPS_REEL : ''}import { journaliserErreur, noterHumalis } from './humalis/lignes.js';
 ${serveur.captureErreurs ? "import { brancherErreursProcessus, rapporterErreur } from './humalis/capture-erreurs.js';\n" : ''}${serveur.relaisErreurs?.length ? "import { relaisErreurs } from './humalis/relais-erreurs.js';\n" : ''}
-${serveur.routes.some((r) => r.direct) ? "import { direct } from './humalis/direct.js';\n" : ''}import { ${schemas} } from './donnees.js';
+${avecAnnonces(serveur) ? "import { direct } from './humalis/direct.js';\n" : ''}import { ${schemas} } from './donnees.js';${avecCache(serveur) ? `
+
+// Le cache suit les annonces : une écriture faite ici (action, tâche) le vide partout, une annonce reçue le vide ici.
+direct.suivre(cacheHumalis.annonceLocale, cacheHumalis.annonceDistante);
+/** Ce qui sépare les copies d'une lecture qui dépend de la personne : son compte, ou le service qui appelle. */
+const personneDuCache = (req: unknown): string => String((req as { user?: { id?: unknown } }).user?.id ?? (req as { humalisService?: unknown }).humalisService ?? '');` : ''}
 import type { Coffre } from './humalis/coffre.js';
 ${comptes ? "import { creerComptes, refuserMotDePasseFaible, sansLesRetires } from './humalis/comptes.js';\n" : ''}${avecEmails(serveur) ? `import { creerEmails, ${envoisDansRoutes ? 'enTexte, ' : ''}type Emails } from './humalis/emails.js';\n` : ''}import { compresser } from './humalis/compresser.js';
 import { creerEnvoisMemoire, creerUnSeulEnvoi, type MagasinEnvois } from './humalis/envois.js';${avecSynchro(serveur) ? "\nimport { creerJournalMemoire, creerSynchro, type JournalSynchro } from './humalis/synchro.js';" : ''}${avecSecurite(serveur) ? "\nimport { creerMagasinSecuriteMemoire, creerSecurite, oublierCompte, type MagasinSecurite } from './humalis/securite.js';" : ''}${avecPaiements(serveur) ? "\nimport { creerPaiements, type SurPaiement } from './humalis/paiements.js';" : ''}${avecIa(serveur) ? "\nimport { compterMemoire, creerIa, type Compter } from './humalis/ia.js';" : ''}${avecNotifications(serveur) ? "\nimport { creerNotifications } from './humalis/notifications.js';" : ''}${serveur.documents?.length ? "\nimport { creerDocument } from './humalis/document.js';" : ''}${avecBon ? "\nimport { creerBon } from './humalis/bon.js';" : ''}${serveur.fidelite ? "\nimport { carteDeFidelite } from './humalis/fidelite.js';" : ''}
@@ -1770,7 +1797,7 @@ ${serveur.captureErreurs ? `    // Un paiement reçu mais non enregistré part a
     surConfirme: async (donnee, id, champ, montant) => {
       const travail = nouveauTravail();
       await transaction((s) => surPaiement[donnee]?.(travail, s, id, champ, montant) ?? Promise.resolve());
-      terminer(travail${serveur.routes.some((r) => r.direct) ? ', direct.annonce' : ''});
+      terminer(travail${avecAnnonces(serveur) ? ', direct.annonce' : ''});
     },
   });
 ` : ''}${avecSynchro(serveur) ? codeCreationSynchro(serveur) : ''}${avecSecurite(serveur) ? codeCreationSecurite(serveur).replace('jwtSecret,', 'jwtSecret,\n    horloge: horlogeSecurite,') : ''}  const serveur = createSaasApp({
@@ -1790,9 +1817,17 @@ ${serveur.captureErreurs ? `    // Un paiement reçu mais non enregistré part a
 ${serveur.projet ? `    // Une requête signée par un autre service du projet ne compte pas dans les limites : elle vient d'une seule adresse.
     apiRateLimit: {
       ...(process.env.HUMALIS_LIMITE_API ? { max: Number(process.env.HUMALIS_LIMITE_API) } : {}),
+      store: cacheHumalis.limites('api'),
       skip: (req: { ip?: string }) => Boolean((req as unknown as { humalisService?: string }).humalisService) || (process.env.NODE_ENV !== 'production' && ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.ip ?? '')),
-    },` : `    ...(process.env.HUMALIS_LIMITE_API ? { apiRateLimit: { max: Number(process.env.HUMALIS_LIMITE_API) } } : {}),`}
-    ...(process.env.HUMALIS_LIMITE_CONNEXION ? { loginRateLimit: { max: Number(process.env.HUMALIS_LIMITE_CONNEXION) } } : {}),
+    },` : `    // Avec HUMALIS_CACHE_ADRESSE, les limites se comptent dans Redis : les mêmes pour tous les exemplaires.
+    apiRateLimit: {
+      ...(process.env.HUMALIS_LIMITE_API ? { max: Number(process.env.HUMALIS_LIMITE_API) } : {}),
+      store: cacheHumalis.limites('api'),
+    },`}
+    loginRateLimit: {
+      ...(process.env.HUMALIS_LIMITE_CONNEXION ? { max: Number(process.env.HUMALIS_LIMITE_CONNEXION) } : {}),
+      store: cacheHumalis.limites('connexion'),
+    },
     // Derrière un relais (nginx) : son nombre, pour que les limites comptent chaque visiteur et non le relais.
     ...(process.env.HUMALIS_RELAIS ? { trustProxy: Number(process.env.HUMALIS_RELAIS) } : {}),
     // Un jeton d'accès court, renouvelé tant que la personne revient : voir src/humalis/sessions.ts.
@@ -1897,7 +1932,7 @@ import { createPostgresUsersStore } from '@astratra/store-postgres';
 import pg from 'pg';
 import { reglagesPostgres, relaisDeConnexions } from './humalis/postgres.js';${serveur.projet ? "\nimport { createPrivateKey, createPublicKey } from 'node:crypto';\nimport { adressesDesServices } from './humalis/services.js';" : ''}
 import { creerServeur } from './serveur.js';
-${avecDirect(serveur) ? "import { direct } from './humalis/direct.js';\n" : ''}${avecIa(serveur) ? "import { compterPostgres } from './humalis/ia.js';\n" : ''}${avecLogique(serveur) ? `import { transactionPostgres${serveur.taches?.length ? ', reclamerMemoire, reclamerPostgres' : ''} } from './humalis/logique.js';\n` : ''}import { creerEnvoisPostgres } from './humalis/envois.js';
+${avecDirect(serveur) ? "import { direct } from './humalis/direct.js';\n" : ''}${avecModuleCache(serveur) ? "import { cacheHumalis } from './humalis/cache.js';\n" : ''}${avecIa(serveur) ? "import { compterPostgres } from './humalis/ia.js';\n" : ''}${avecLogique(serveur) ? `import { transactionPostgres${serveur.taches?.length ? ', reclamerMemoire, reclamerPostgres' : ''} } from './humalis/logique.js';\n` : ''}import { creerEnvoisPostgres } from './humalis/envois.js';
 import { ouvrirCoffre } from './humalis/coffre.js';${avecSynchro(serveur) ? "\nimport { creerJournalPostgres } from './humalis/synchro.js';" : ''}${avecSecurite(serveur) ? "\nimport { creerMagasinSecuritePostgres } from './humalis/securite.js';" : ''}${comptes ? "\nimport { creerMagasinJetons } from './humalis/comptes.js';" : ''}
 import { creerMagasinMemoire, creerMagasinPostgres, creerRevocationsPostgres } from './humalis/renouvellements.js';
 import { reglagesDeSession, type ReglagesSession } from './humalis/sessions.js';
@@ -1981,7 +2016,15 @@ if (!pool && !sqlite && !mysql && !documents) {
 // reçoit par la même porte, et traduit les quelques tournures qui lui manquent (versSqlite).
 const sql = (pool ?? sqlite ?? mysql) as unknown as pg.Pool | null;
 
-${avecDirect(serveur) ? "if (pool) await direct.brancher(pool);\nelse if (mysql) direct.sonder(canalMysql(mysql));\nelse if (documents) direct.sonder(canalDocuments(documents));\n" : ''}const usersStore = (${serveur.projet && serveur.projet.comptes !== serveur.nom ? "createMemoryUsersStore()" : "documents ? creerComptesDocuments(documents) : sql ? createPostgresUsersStore({ pool: sql }) : createMemoryUsersStore()"}) as UsersStore;
+${avecModuleCache(serveur) ? `// HUMALIS_CACHE_ADRESSE : Redis (ou Valkey) garde le cache et porte les annonces de tous les exemplaires.
+try {
+  const genreCache = await cacheHumalis.brancher(process.env.HUMALIS_CACHE_ADRESSE?.trim() || undefined, ${JSON.stringify(simplifier(serveur.nom))}, process.env.DATABASE_URL ?? process.env.HUMALIS_BASE ?? '');
+  if (genreCache === 'memoire') console.log('Cache : en mémoire de ce serveur (HUMALIS_CACHE_ADRESSE pour le partager).');
+  else if (cacheHumalis.pret()) console.log('Cache : Redis, partagé par tous les exemplaires.');
+} catch (erreur) {
+  arreter('HUMALIS_CACHE_ADRESSE : ' + (erreur instanceof Error ? erreur.message : String(erreur)));
+}
+` : ''}${avecDirect(serveur) ? "if (pool) await direct.brancher(pool);\nelse if (mysql) direct.sonder(canalMysql(mysql));\nelse if (documents) direct.sonder(canalDocuments(documents));\ndirect.relayer(cacheHumalis);\n" : ''}const usersStore = (${serveur.projet && serveur.projet.comptes !== serveur.nom ? "createMemoryUsersStore()" : "documents ? creerComptesDocuments(documents) : sql ? createPostgresUsersStore({ pool: sql }) : createMemoryUsersStore()"}) as UsersStore;
 const stockages = {
 ${stockages}
 };
@@ -2602,9 +2645,12 @@ function routeDirect(variable: string, garde: string, cle: string, separee?: { s
 `;
 }
 
+/** Les données dont une route est « en cache » : leurs écritures vident les copies. */
+const donneesEnCache = (serveur: ServeurRI): Set<string> => new Set(serveur.routes.filter((r) => r.cache !== undefined).map((r) => r.donnee));
+
 /** Ce qu'un envoi réussi sur cette route doit annoncer : sa donnée, et celles qu'elle crée au passage. */
 function clesAnnoncees(serveur: ServeurRI, route: ServeurRI['routes'][number]): string[] {
-  const ecoutees = new Set(serveur.routes.filter((r) => r.direct).map((r) => r.donnee));
+  const ecoutees = new Set(serveur.routes.filter((r) => r.direct || r.cache !== undefined).map((r) => r.donnee));
   return [...new Set([route.donnee, ...(route.creations ?? []).map((c) => c.donnee)])].filter((d) => ecoutees.has(d));
 }
 
@@ -2635,16 +2681,24 @@ function ecrire(res: Response, texte: string): void {
   else res.write(texte);
 }
 
+/** Ce qui suit les annonces : le cache se vide (ici tout de suite, puis à la réception chez chacun). */
+const suiveurs: { local: (cle: string) => void; distant: (cle: string) => void }[] = [];
+
 function diffuser(cle: string): void {
+  for (const suiveur of suiveurs) suiveur.distant(cle);
   for (const res of ecoutes.get(cle) ?? []) ecrire(res, 'data: change\n\n');
 }
+
+/** HUMALIS_CACHE_ADRESSE : Redis porte les annonces à tous les exemplaires ; s'il manque, la base reprend. */
+let relais: { pret(): boolean; publier(canal: string, message: string): Promise<void> } | null = null;
 
 function publier(): void {
   minuteur = undefined;
   const cles = [...enAttente];
   enAttente.clear();
   for (const cle of cles) {
-    if (pool) pool.query('SELECT pg_notify($1, $2)', [CANAL, cle]).catch(() => diffuser(cle));
+    if (relais?.pret()) relais.publier(CANAL, cle).catch(() => (pool ? pool.query('SELECT pg_notify($1, $2)', [CANAL, cle]).catch(() => diffuser(cle)) : diffuser(cle)));
+    else if (pool) pool.query('SELECT pg_notify($1, $2)', [CANAL, cle]).catch(() => diffuser(cle));
     else if (sonde) {
       // Ici tout de suite ; les autres exemplaires l'apprennent par la base, à leur prochain coup d'œil.
       diffuser(cle);
@@ -2663,6 +2717,7 @@ let sonde: CanalSonde | null = null;
 
 /** Plusieurs envois rapprochés ne font qu'une annonce. */
 function annoncer(cle: string): void {
+  for (const suiveur of suiveurs) suiveur.local(cle);
   enAttente.add(cle);
   minuteur ??= setTimeout(publier, 100);
 }
@@ -2675,6 +2730,17 @@ setInterval(() => {
 export const direct = {
   /** Une écriture faite ailleurs qu'une route (action, tâche). */
   annonce: annoncer,
+
+  /** Le cache suit les annonces : « local » pour celles faites ici, « distant » pour toutes celles reçues. */
+  suivre(local: (cle: string) => void, distant: (cle: string) => void): void {
+    suiveurs.push({ local, distant });
+  },
+
+  /** Redis (HUMALIS_CACHE_ADRESSE) : les annonces passent par lui, et celles qu'il apporte sont diffusées ici. */
+  relayer(par: { pret(): boolean; publier(canal: string, message: string): Promise<void>; abonner(canal: string, faire: (message: string) => void): void }): void {
+    relais = par;
+    par.abonner(CANAL, diffuser);
+  },
 
   ecouter(cle: string, req: Request, res: Response): void {
     if (total >= MAXIMUM) {
@@ -3208,15 +3274,22 @@ function codePasserelles(serveur: ServeurRI): string {
     });
     return `      // La passerelle de la source « ${p.source} » : le secret ${p.variable} reste sur le serveur.
       const ${variable} = express.Router();
-      const ${relais} = relayerVersSource({ base: ${base}, variable: ${JSON.stringify(p.variable)}, place: ${JSON.stringify(p.place)}, entetes: ${JSON.stringify(Object.fromEntries(p.entetes.map((e) => [e.nom, e.valeur])))} });
+      const ${relais} = relayerVersSource({ base: ${base}, variable: ${JSON.stringify(p.variable)}, place: ${JSON.stringify(p.place)}, entetes: ${JSON.stringify(Object.fromEntries(p.entetes.map((e) => [e.nom, e.valeur])))}${p.cache !== undefined ? `, cache: { espace: ${JSON.stringify('source:' + p.source)}, secondes: ${p.cache} }` : ''} });
 ${lignes.join('\n')}
       app.use(${JSON.stringify(`/api/passerelle/${encodeURIComponent(p.source)}`)}, ${variable});`;
   });
   return `
       // Relaie un appel vers une API, avec le secret lu dans l'environnement du serveur.
-      function relayerVersSource(config: { base: string; variable: string; place: { genre: 'autorisation' } | { genre: 'entete' | 'parametre'; nom: string }; entetes: Record<string, string> }): RequestHandler {
+      function relayerVersSource(config: { base: string; variable: string; place: { genre: 'autorisation' } | { genre: 'entete' | 'parametre'; nom: string }; entetes: Record<string, string>${passerelles.some((p) => p.cache !== undefined) ? '; cache?: { espace: string; secondes: number }' : ''} }): RequestHandler {
         return async (req, res, next) => {
-          try {
+          try {${passerelles.some((p) => p.cache !== undefined) ? `
+            // « en cache pendant … » : une lecture déjà faite pour quelqu'un sert à tout le monde ; l'API n'est pas rappelée.
+            const lecture = config.cache && req.method === 'GET' ? await cacheHumalis.relire(config.cache.espace, req.originalUrl) : undefined;
+            if (lecture?.copie !== undefined) {
+              const copie = JSON.parse(lecture.copie) as { type: string; corps: string };
+              res.status(200).set('X-Humalis-Cache', 'garde').type(copie.type).send(copie.corps);
+              return;
+            }` : ''}
             const secret = process.env[config.variable];
             if (!secret) {
               res.status(503).json({ erreur: "Ce service n'est pas encore réglé sur le serveur." });
@@ -3231,7 +3304,10 @@ ${lignes.join('\n')}
             const avecCorps = !['GET', 'HEAD', 'DELETE'].includes(req.method);
             if (avecCorps) entetes.set('content-type', 'application/json');
             const reponse = await fetch(url, { method: req.method, headers: entetes, body: avecCorps ? JSON.stringify(req.body ?? {}) : undefined, redirect: 'follow', signal: AbortSignal.timeout(15000) });
-            const texte = await reponse.text();
+            const texte = await reponse.text();${passerelles.some((p) => p.cache !== undefined) ? `
+            if (config.cache && lecture?.lue && reponse.status === 200) void cacheHumalis.garder(config.cache.espace, req.originalUrl, JSON.stringify({ type: reponse.headers.get('content-type') ?? 'application/json', corps: texte }), config.cache.secondes, lecture.lue);
+            // Une écriture réussie par la passerelle : les lectures gardées de la source ne servent plus.
+            if (config.cache && req.method !== 'GET' && reponse.ok) await cacheHumalis.vider(config.cache.espace);` : ''}
             res.status(reponse.status).type(reponse.headers.get('content-type') ?? 'application/json').send(texte);
           } catch (erreur) {
             next(erreur);

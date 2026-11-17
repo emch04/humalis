@@ -11,7 +11,7 @@ import type { Token, PartieChaine } from '../lexer/types.js';
 import { analyser as analyserLexique } from '../lexer/lexer.js';
 import { FluxTokens } from './fluxTokens.js';
 import { analyserResume, analyserActionServeur, analyserCorpsServeur, analyserDocument, analyserTache, estJetonCapture, estTache } from './logique.js';
-import { analyserSource, analyserClausesRequete, analyserJeton, analyserSourceSeule } from './source.js';
+import { analyserSource, analyserClausesRequete, analyserJeton, analyserSourceSeule, lireEnCache } from './source.js';
 import { analyserEntetePage, analyserAvecPage } from './navigation.js';
 import { ErreurSyntaxique } from './erreurs.js';
 import { estUnTest, analyserTest } from './test.js';
@@ -1132,8 +1132,14 @@ function analyserRoute(flux: FluxTokens, avecRoles = false): Route {
   let apresCreation: ApresCreation | undefined;
   let apresPaiement: ApresPaiement | undefined;
   const droitsServices: DroitService[] = [];
+  let cache: Route['cache'];
   chaqueLigne(flux, () => {
-    if ((flux.verifier('MOT_CLE', 'quand') || estLeMot(flux.actuel(), 'quand')) && estLeMot(flux.regarder(3), 'payee')) {
+    if (estLeMot(flux.actuel(), 'en') && estLeMot(flux.regarder(1), 'cache')) {
+      // « en cache pendant 5 minutes » : les lectures de la route se gardent ; une écriture les efface.
+      const ligne = flux.actuel().ligne;
+      if (cache) throw new ErreurSyntaxique(`« en cache pendant » est déjà écrit pour cette route, ligne ${cache.ligne}.`, ligne);
+      cache = { secondes: lireEnCache(flux, 'en cache pendant 5 minutes'), ligne };
+    } else if ((flux.verifier('MOT_CLE', 'quand') || estLeMot(flux.actuel(), 'quand')) && estLeMot(flux.regarder(3), 'payee')) {
       const debutQuand = flux.avancer();
       const { nom: donnee } = flux.attendreNom('le nom de la donnée');
       flux.avancer();
@@ -1154,7 +1160,7 @@ function analyserRoute(flux: FluxTokens, avecRoles = false): Route {
       else throw new ErreurSyntaxique('« … peut demander a ia » s’écrit directement dans le serveur, pas dans une route.', lue.ligne);
     }
   });
-  return { type: 'Route', adresse, regles, ...(actions.length ? { actions } : {}), ...(resumes.length ? { resumes } : {}), ...(apresCreation ? { apresCreation } : {}), ...(apresPaiement ? { apresPaiement } : {}), ...(droitsServices.length ? { droitsServices } : {}), ligne: debut.ligne };
+  return { type: 'Route', adresse, regles, ...(actions.length ? { actions } : {}), ...(resumes.length ? { resumes } : {}), ...(apresCreation ? { apresCreation } : {}), ...(apresPaiement ? { apresPaiement } : {}), ...(droitsServices.length ? { droitsServices } : {}), ...(cache ? { cache } : {}), ligne: debut.ligne };
 }
 
 /** « le serveur "commandes" peut lire produit » ; « le serveur "commandes" peut faire "reserver" sur produit » (sans corps : l'action existe déjà). */

@@ -3,7 +3,7 @@
  * les doublons, la session, les jetons (un secret ne part jamais dans le
  * navigateur), les données et les routes.
  */
-import type { ActionDonnee, Donnee, RegleSource, Requete, RouteSource, Serveur, Source } from '../parser/ast.js';
+import type { ActionDonnee, Donnee, InstructionServeur, RegleSource, Requete, RouteSource, Serveur, Source } from '../parser/ast.js';
 import { listeDe, type TypeValeur } from './types.js';
 import type { Diagnostic } from './erreurs.js';
 import { proposerNom } from './suggestions.js';
@@ -103,6 +103,14 @@ export function analyserSources(sources: Source[], serveurs: Serveur[], diagnost
       }
     }
 
+    // « en cache pendant … » : la passerelle du serveur garde les réponses ; seule une source à jeton secret y passe.
+    if (source.cacheServeur !== undefined && jeton?.genre !== 'secret') {
+      erreur(
+        `« en cache pendant » garde les réponses dans la passerelle du serveur, mais la source « ${source.nom} » est appelée par la page elle-même. Pour garder ses réponses dans la page, écrivez « cache 5 minutes » ; pour passer par le serveur, donnez-lui un jeton secret.`,
+        source.ligne,
+      );
+    }
+
     // Les routes.
     const adresses = new Map<string, RouteSource>();
     for (const route of source.routes) {
@@ -144,6 +152,31 @@ export function analyserSources(sources: Source[], serveurs: Serveur[], diagnost
     if (source.jeton?.genre === 'public' && source.adresse?.startsWith('http://') && !/^http:\/\/(localhost|127\.0\.0\.1|\[::1\])/.test(source.adresse)) {
       avertissement(`la source « ${source.nom} » envoie un jeton en clair (adresse en http://) : utilisez https://.`, source.ligne);
     }
+  }
+
+  // « vider le cache de "x" » : une route de son serveur (vérifiée avec elle), sinon une source en cache.
+  const parNom = new Map(sources.map((s) => [s.nom, s]));
+  const parcourir = (corps: InstructionServeur[], routes: Set<string>): void => {
+    for (const i of corps) {
+      if (i.type === 'SiServeur') {
+        parcourir(i.alors, routes);
+        parcourir(i.sinon, routes);
+      } else if (i.type === 'PourChaqueServeur') parcourir(i.corps, routes);
+      else if (i.type === 'ViderCache' && !routes.has(i.cible.replace(/^\/+/, ''))) {
+        const source = parNom.get(i.cible);
+        if (!source) erreur(`« vider le cache de "${i.cible}" » : aucune route ni source ne s'appelle « ${i.cible} ».${proposerNom(i.cible, [...routes, ...parNom.keys()])}`, i.ligne);
+        else if (source.cacheServeur === undefined) erreur(`la source « ${i.cible} » n'est pas en cache : écrivez « en cache pendant 30 minutes » dans la source, ou retirez « vider le cache ».`, i.ligne);
+      }
+    }
+  };
+  for (const serveur of serveurs) {
+    const routes = new Set(serveur.routes.map((r) => r.adresse.replace(/^\/+/, '')));
+    for (const route of serveur.routes) {
+      for (const action of route.actions ?? []) parcourir(action.corps, routes);
+      if (route.apresPaiement) parcourir(route.apresPaiement.corps, routes);
+    }
+    for (const tache of serveur.taches ?? []) parcourir(tache.corps, routes);
+    for (const receveur of serveur.receveurs ?? []) parcourir(receveur.corps, routes);
   }
 }
 

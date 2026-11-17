@@ -256,6 +256,7 @@ function passerelleDe(source: Source): PasserelleRI[] {
       for (const r of route.regles) if (r.qui !== undefined) droits[r.action] = r.qui as QuiPeut;
       return { adresse: route.adresse, droits, remplacement: route.regles.some((r) => r.action === 'modifier' && r.remplacement) };
     }),
+    ...(source.cacheServeur !== undefined ? { cache: source.cacheServeur } : {}),
   }];
 }
 
@@ -358,6 +359,7 @@ function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
           ...(route.apresCreation?.envois.length ? { envois: envoisRI(route.apresCreation) } : {}),
           ...(route.apresCreation?.creations.length ? { creations: creationsRI(route.apresCreation) } : {}),
           ...(route.droitsServices?.length ? { droitsServices: route.droitsServices.map((d) => ({ serveur: d.serveur, actions: d.actions, ...(d.faire !== undefined ? { faire: simplifier(d.faire).replace(/_/g, '-') } : {}) })) } : {}),
+          ...(route.cache ? { cache: route.cache.secondes } : {}),
           ligne: route.ligne,
         };
       }),

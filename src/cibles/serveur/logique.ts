@@ -491,6 +491,9 @@ class Ecriture {
         return i.vers.length === 0
           ? `${r}// « ${i.message.replace(/\*\//g, '')} » : personne ne l'écoute dans le projet.`
           : `${r}for (const vers of ${JSON.stringify(i.vers)}) await s.humalisBoite!.creer({ vers, message: ${chaine(i.message)}, corps: JSON.parse(JSON.stringify(${fiche(i.fiche)})), essais: 0, prochain: 0, cree: Date.now() });\n${r}travail.apres.push(async () => services?.reveiller());`;
+      // « vider le cache de "livres" » : après la transaction, sur tous les exemplaires.
+      case 'viderCache':
+        return `${r}travail.apres.push(async () => cacheHumalis.vider(${chaine(i.espace)}));`;
     }
   }
 
@@ -510,7 +513,7 @@ export function codeReceveurs(serveur: ServeurRI): string {
         const ${repereNom(r.variable, r.ligne)}${fiche(r.variable)} = corps;
 ${new Ecriture(serveur).lignes(r.corps, '        ')}
       });
-      terminer(travail${serveur.routes.some((x) => x.direct) ? ', direct.annonce' : ''});
+      terminer(travail${avecAnnonces(serveur) ? ', direct.annonce' : ''});
     },
 `)
     .join('');
@@ -551,7 +554,7 @@ ${new Ecriture(serveur, groupe, true).lignes(action.corps, '            ')}
             res.status(404).json({ erreur: introuvable('${route.donnee}') });
             return;
           }
-          terminer(travail${serveur.routes.some((r) => r.direct) ? ', direct.annonce' : ''});
+          terminer(travail${avecAnnonces(serveur) ? ', direct.annonce' : ''});
           res.json(resultat);
         } catch (erreur) {
           if (erreur instanceof Refus) res.status(400).json({ erreur: erreur.message });
@@ -563,9 +566,12 @@ ${new Ecriture(serveur, groupe, true).lignes(action.corps, '            ')}
 }
 
 /** Les résumés d'une route : GET /<nom>, avant « /:id ». */
-export function codeResumes(route: Route, variable: string, separee: boolean): string {
+/** Une page lit « en direct », ou une route est « en cache » : les écritures s'annoncent (et vident le cache partout). */
+export const avecAnnonces = (serveur: ServeurRI): boolean => serveur.routes.some((r) => r.direct || r.cache !== undefined);
+
+export function codeResumes(route: Route, variable: string, separee: boolean, enCache = ''): string {
   return (route.resumes ?? [])
-    .map((resume) => `      ${variable}.get('/${slug(resume.nom)}', lecturePrivee, ${gardeAction(resume.qui)}, async (req, res, next) => {
+    .map((resume) => `      ${variable}.get('/${slug(resume.nom)}', lecturePrivee, ${gardeAction(resume.qui)}${enCache}, async (req, res, next) => {
         try {
 ${separee ? `          const portee = porteeDe(moiDe(req), separation${variable}, undefined);
           if (!portee) {
@@ -883,7 +889,7 @@ ${new Ecriture(serveur).lignes(t.corps, '            ')}
   return `      if (reclamerTache) {
         lancerTaches<typeof stockages>([
 ${taches.join('\n')}
-        ], reclamerTache, transaction${serveur.routes.some((r) => r.direct) ? ', direct.annonce' : ''});
+        ], reclamerTache, transaction${avecAnnonces(serveur) ? ', direct.annonce' : ''});
       }
 `;
 }

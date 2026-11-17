@@ -205,6 +205,16 @@ export function estJetonCapture(flux: FluxTokens): boolean {
 function analyserInstructionServeur(flux: FluxTokens): InstructionServeur {
   const debut = flux.actuel();
   const { ligne } = debut;
+  // « vider le cache de "livres" » : une route ou une source en cache, quand ses données ont changé ailleurs.
+  if (estLeMot(debut, 'vider')) {
+    const exemple = 'vider le cache de "livres"';
+    flux.avancer();
+    // « le » et « de » sont des liaisons : le flux les passe.
+    if (!estLeMot(flux.actuel(), 'cache')) throw new ErreurSyntaxique(`on écrit : ${exemple}`, ligne);
+    flux.avancer();
+    const cible = flux.attendre('CHAINE', undefined, `l'adresse de la route, ou le nom de la source, entre guillemets : ${exemple}`).valeur;
+    return { type: 'ViderCache', cible, ligne };
+  }
   if (estLeMot(debut, 'envoyer') && estLeMot(flux.regarder(1), 'requete')) {
     flux.avancer(); flux.avancer();
     if (!estLeMot(flux.actuel(), 'vers')) throw new ErreurSyntaxique('on écrit : envoyer requete vers "https://…" avec message = erreur.message', ligne);

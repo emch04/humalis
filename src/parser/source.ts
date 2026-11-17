@@ -13,7 +13,7 @@ import type { ActionDonnee, Expression, JetonSource, PlaceJeton, Qui, RegleSourc
 const mot = (token: Token) => normaliser(token.original ?? token.valeur);
 const ecrit = (token: Token) => token.original ?? token.valeur;
 
-const LIGNES = 'adresse, session, enveloppe, erreur, entete, jeton, cache, essais, delai, donnee, route';
+const LIGNES = 'adresse, session, enveloppe, erreur, entete, jeton, cache, en cache pendant, essais, delai, donnee, route';
 
 /** « source "boutique" : », en haut du fichier. */
 export function analyserSource(flux: FluxTokens): Source {
@@ -63,6 +63,12 @@ export function analyserSource(flux: FluxTokens): Source {
         flux.avancer();
         source.cache = analyserDuree(flux, 'cache 5 minutes');
         break;
+      case 'en':
+        // « en cache pendant 30 minutes » : la passerelle du serveur garde les réponses, pour tout le monde.
+        if (!estLeMot(flux.regarder(1), 'cache')) throw new ErreurSyntaxique(`« ${ecrit(token)} » n'est pas une ligne d'une source. Lignes possibles : ${LIGNES}.`, token.ligne);
+        if (source.cacheServeur !== undefined) throw new ErreurSyntaxique('« en cache pendant » est déjà écrit pour cette source.', token.ligne);
+        source.cacheServeur = lireEnCache(flux, 'en cache pendant 30 minutes');
+        break;
       case 'delai':
         flux.avancer();
         source.delai = analyserDuree(flux, 'delai 10 secondes');
@@ -94,17 +100,33 @@ function entier(flux: FluxTokens, exemple: string): number {
   return n;
 }
 
-/** « 5 minutes », « 30 secondes », « 2 heures » : en secondes. */
+/** Les unités d'une durée, en secondes : un mois compte 30 jours, une année 365. */
+const SECONDES: Record<string, number> = {
+  seconde: 1, secondes: 1, minute: 60, minutes: 60, heure: 3600, heures: 3600, jour: 86_400, jours: 86_400,
+  semaine: 604_800, semaines: 604_800, mois: 2_592_000, an: 31_536_000, ans: 31_536_000, annee: 31_536_000, annees: 31_536_000,
+};
+
+/** « 5 minutes », « 30 secondes », « 2 heures », « 3 jours », « 1 an » : en secondes. */
 function analyserDuree(flux: FluxTokens, exemple: string): number {
   const n = entier(flux, exemple);
   const unite = flux.actuel();
-  const facteur: Record<string, number> = { seconde: 1, secondes: 1, minute: 60, minutes: 60, heure: 3600, heures: 3600 };
-  const f = facteur[mot(unite)];
+  const f = SECONDES[mot(unite)];
   if (f === undefined) {
-    throw new ErreurSyntaxique(`une durée s'écrit avec un nombre entier et une unité : ${exemple} (secondes, minutes ou heures)`, unite.ligne);
+    throw new ErreurSyntaxique(`une durée s'écrit avec un nombre entier et une unité : ${exemple} (secondes, minutes, heures, jours, semaines, mois ou ans)`, unite.ligne);
   }
   flux.avancer();
   return n * f;
+}
+
+/** « en cache pendant 5 minutes » (le flux est sur « en ») : la durée en secondes, au moins une seconde. */
+export function lireEnCache(flux: FluxTokens, exemple: string): number {
+  const debut = flux.avancer();
+  flux.avancer();
+  if (!estLeMot(flux.actuel(), 'pendant')) throw new ErreurSyntaxique(`on écrit la durée après « pendant » : ${exemple}`, debut.ligne);
+  flux.avancer();
+  const secondes = analyserDuree(flux, exemple);
+  if (secondes <= 0) throw new ErreurSyntaxique(`une réponse se garde au moins une seconde : ${exemple}`, debut.ligne);
+  return secondes;
 }
 
 /** « jeton public "…" » ou « jeton secret depuis l'environnement "NOM" », puis où le mettre. */

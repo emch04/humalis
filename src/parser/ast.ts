@@ -262,7 +262,10 @@ export interface Source {
   erreurDans?: string;
   entetes: { nom: string; valeur: string; ligne: number }[];
   jeton?: JetonSource;
+  /** « cache 5 minutes » : la page garde les réponses, en secondes. */
   cache?: number;
+  /** « en cache pendant 30 minutes » : la passerelle du serveur garde les réponses, pour tout le monde, en secondes. */
+  cacheServeur?: number;
   essais?: number;
   delai?: number;
   donnees: Donnee[];
@@ -348,6 +351,8 @@ export interface Route {
   resumes?: ResumeServeur[];
   /** « le serveur "commandes" peut … » : les droits des autres services du projet. */
   droitsServices?: DroitService[];
+  /** « en cache pendant 5 minutes » : le serveur garde les lectures de la route, en secondes ; une écriture les efface. */
+  cache?: { secondes: number; ligne: number };
   ligne: number;
 }
 
@@ -533,6 +538,8 @@ export type InstructionServeur =
   | { type: 'EmailServeur'; envoi: EnvoiEmail; ligne: number }
   /** « mettre a jour activite "livraison" pour commande.client » : l'activité en direct, application fermée. */
   | { type: 'MiseAJourActivite'; nom: string; pour: EnvoiNotification['destinataire']; ligne: number }
+  /** « vider le cache de "livres" » : une route ou une source en cache, quand ses données ont changé ailleurs. */
+  | { type: 'ViderCache'; cible: string; ligne: number }
   | { type: 'NotificationServeur'; envoi: EnvoiNotification; ligne: number };
 
 export interface ComposantReact {

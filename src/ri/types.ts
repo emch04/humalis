@@ -240,7 +240,9 @@ type InstructionServeurSeule =
   /** « faire "reserver" sur produit du serveur "catalogue" avec quantite = 2 » : PATCH /api/<route>/faire/<action>/<id>. */
   | { type: 'faireService'; serveur: string; route: string; action: string; fiche: string; valeurs: { nom: string; valeur: ValeurServeurRI }[] }
   /** « signaler "commande-validee" avec commande » : un message à chaque service de « vers », après la transaction. */
-  | { type: 'signaler'; message: string; fiche: string; vers: string[] };
+  | { type: 'signaler'; message: string; fiche: string; vers: string[] }
+  /** « vider le cache de "livres" » : `espace` est la donnée de la route (« livre »), ou « source:<nom> » pour une source. */
+  | { type: 'viderCache'; cible: string; espace: string };
 
 export type FrequenceRI = { genre: 'heure' } | { genre: 'jour'; heure: number; minute: number } | { genre: 'semaine'; jour: number; heure: number; minute: number };
 
@@ -256,6 +258,8 @@ export interface PasserelleRI {
   entetes: { nom: string; valeur: string }[];
   /** Chaque route de la source et qui peut faire chaque action par la passerelle ; null : personne. */
   routes: { adresse: string; droits: Record<'lire' | 'creer' | 'modifier' | 'supprimer', QuiPeut | null>; remplacement: boolean }[];
+  /** « en cache pendant 30 minutes » : la passerelle garde les réponses des lectures, en secondes. */
+  cache?: number;
 }
 
 /** Un projet à plusieurs services : ce que ce service sait des autres. */
@@ -332,6 +336,8 @@ export interface ServeurRI {
     envois?: EnvoiEmailRI[];
     /** « le serveur "commandes" peut … » : ce qu'un autre service fait ici en son propre nom (action : le nom simplifié). */
     droitsServices?: { serveur: string; actions: ('lire' | 'creer' | 'modifier' | 'supprimer')[]; faire?: string }[];
+    /** « en cache pendant 5 minutes » : les lectures se gardent ce nombre de secondes ; une écriture sur la donnée les efface. */
+    cache?: number;
     ligne: number;
   }[];
   /** « seul admin peut lire comptes » : la route des comptes de la connexion, servie par les packs et non par une table. */

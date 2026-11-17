@@ -16,6 +16,7 @@ import { ENTREES_ERREURS_FORMES } from './erreurs-formes';
 import { ENTREES_ERREURS_TEMPS_REEL } from './erreurs-temps-reel';
 import { ENTREES_ERREURS_MORCEAUX } from './erreurs-morceaux';
 import { ENTREES_ERREURS_CAPTURE } from './erreurs-capture';
+import { ENTREES_ERREURS_CACHE } from './erreurs-cache';
 import { ENTREES_ERREURS_SERVICES } from './erreurs-services';
 import { ENTREES_ERREURS_COMMANDE } from './erreurs-commande';
 
@@ -5491,6 +5492,7 @@ page "compte" reservee a connecte sinon vers "accueil" :
   ...ENTREES_ERREURS_TEMPS_REEL,
   ...ENTREES_ERREURS_MORCEAUX,
   ...ENTREES_ERREURS_CAPTURE,
+  ...ENTREES_ERREURS_CACHE,
   ...ENTREES_ERREURS_SERVICES,
   ...ENTREES_ERREURS_COMMANDE,
   e('supposant-forme', 'grammaire', 'Écrire le bloc optimiste',

@@ -2796,11 +2796,50 @@ If the connection drops during a send, a program can safely try again: it sends 
 work once, even across several copies, then returns the same answer. It answers 409 while the
 first attempt is still running. The id is kept for 30 days, as long as a request can wait on the device.
 
+#### Keeping reads in cache
+
+A list read very often that changes little (a catalogue, articles) does not need to read the
+database every time:
+
+```humalis
+serveur "librairie" :
+    donnee livre :
+        titre : texte
+        prix : nombre
+    route "livres" :
+        tout le monde peut lire livre
+        seul admin peut modifier livre
+        en cache pendant 5 minutes
+```
+
+- The route's reads (the list, a record, the summaries) are kept for that long.
+- Any write to the data (create, change, delete, an action, a task) empties the cache before
+  answering, on every instance of the server: a page never reads a record from before the change.
+- The permission guard runs before the cache. When the answer depends on the person (data
+  `par compte` or `par boutique`, a rule with `si` or `seul son auteur`), everyone gets their own
+  copy: nobody receives someone else's.
+- The duration goes from a second to a year: `pendant 30 secondes`, `pendant 10 heures`,
+  `pendant 3 jours`, `pendant 1 semaine`, `pendant 6 mois`, `pendant 1 an`, `pendant 2 ans`.
+- A `par identifiant` read, accounts and errors are never kept.
+
+When the data changes elsewhere (another application writes to the database), an action or a
+task empties the cache by hand: `vider le cache de "livres"` (a route) or
+`vider le cache de "meteo"` (a source).
+
+With no setting, the cache lives in each server's memory (5,000 answers at most,
+`HUMALIS_CACHE_MAX` changes it). `HUMALIS_CACHE_ADRESSE=redis://host:6379` (or `rediss://…`,
+encrypted) keeps it in Redis, Valkey or a compatible server: shared by every instance, it also
+carries the `en direct` announcements and the request limits. For a host's own authority,
+`NODE_EXTRA_CA_CERTS=/path/ca.pem`. Redis only keeps copies: if it goes down, the server carries
+on reading the database, then uses it again as soon as it is back. Each server start drops the
+earlier copies.
+
 #### Many people behind one address
 
 By default, one address gets 300 requests per 15 minutes and 10 login attempts. A whole
 organisation can share one address: raise `HUMALIS_LIMITE_API` and `HUMALIS_LIMITE_CONNEXION`.
-Behind a proxy, also set `HUMALIS_RELAIS`.
+Behind a proxy, also set `HUMALIS_RELAIS`. With `HUMALIS_CACHE_ADRESSE`, these limits are counted
+in Redis, the same for every instance of the server.
 
 To generate and run it:
 
@@ -3744,6 +3783,9 @@ calls the API.
   "key"` puts it in the address; `dans l'entete "X-Key"` in another header.
 - The value goes in the server's `.env` file. Its name is added to
   `.env.exemple`.
+- `en cache pendant 30 minutes`, in the source: the server keeps each answer, per route and
+  per parameters, for everyone. The API is called only once in that time (a limited or paid API
+  costs less). `cache 5 minutes`, for its part, keeps the answer in each person's page.
 
 ---
 

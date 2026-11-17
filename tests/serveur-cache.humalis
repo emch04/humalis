@@ -1,0 +1,37 @@
+serveur "librairie" :
+    roles gerant et lecteur
+    donnee livre :
+        titre : texte
+        prix : nombre
+    donnee note par compte :
+        texte : texte
+    route "livres" :
+        tout le monde peut lire livre
+        seul gerant peut modifier livre
+        seul gerant peut lire "resume" de livre :
+            calcul total = somme de prix
+        seul gerant peut faire "solder" sur livre :
+            changer livre.prix par 1
+        en cache pendant 5 minutes
+    route "notes" :
+        connecte peut lire note
+        connecte peut creer note
+        en cache pendant 2 ans
+    tous les jours a 7 h :
+        vider le cache de "livres"
+        vider le cache de "meteo"
+
+source "meteo" :
+    adresse "https://api.meteo.example"
+    jeton secret depuis l'environnement "METEO_CLE" dans le parametre "key"
+    en cache pendant 30 minutes
+    donnee prevision :
+        jour : texte
+    route "previsions" :
+        tout le monde peut lire une liste de prevision dans "jours"
+
+page "accueil" :
+    variable livres = []
+    titre "Livres"
+    quand la page se charge :
+        envoyer requete vers "livres" dans livres en direct

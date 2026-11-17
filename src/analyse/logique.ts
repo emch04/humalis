@@ -264,6 +264,13 @@ class Traduction {
 
   private instructionSansLigne(i: InstructionServeur, portee: Portee): InstructionServeurRI {
     switch (i.type) {
+      case 'ViderCache': {
+        // Une route de ce serveur : sa donnée. Sinon, une source : la vérification des sources se fait avec le programme entier.
+        const route = this.serveur.routes.find((r) => r.adresse.replace(/^\/+/, '') === i.cible.replace(/^\/+/, ''));
+        if (route && !route.cache) this.erreur(`la route « ${i.cible} » n'est pas en cache : écrivez « en cache pendant 5 minutes » dans la route, ou retirez « vider le cache ».`, i.ligne);
+        const donnee = route?.regles[0]?.donnee;
+        return { type: 'viderCache', cible: i.cible, espace: route ? (donnee ?? i.cible) : 'source:' + i.cible };
+      }
       case 'RequeteServeur': {
         if (!this.avecErreur) {
           this.erreur('« envoyer requete » s’écrit seulement dans « quand une erreur arrive » du serveur.', i.ligne);

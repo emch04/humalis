@@ -2719,12 +2719,52 @@ l'en-tête `X-Humalis-Envoi` avec un identifiant au hasard, le même à chaque e
 fait le travail une fois, même avec plusieurs exemplaires, puis redonne la même réponse.
 Il répond 409 tant que le premier essai tourne. L'identifiant est gardé 30 jours, aussi longtemps qu'un envoi peut attendre sur l'appareil.
 
+#### Garder des lectures en cache
+
+Une liste lue très souvent, qui change peu (un catalogue, des articles), n'a pas besoin de
+relire la base à chaque fois :
+
+```humalis
+serveur "librairie" :
+    donnee livre :
+        titre : texte
+        prix : nombre
+    route "livres" :
+        tout le monde peut lire livre
+        seul admin peut modifier livre
+        en cache pendant 5 minutes
+```
+
+- Les lectures de la route (la liste, une fiche, les résumés) se gardent pendant ce temps.
+- Toute écriture sur la donnée (créer, modifier, supprimer, une action, une tâche) vide le
+  cache avant de répondre, sur tous les exemplaires du serveur : une page ne relit jamais
+  une fiche d'avant le changement.
+- La garde des droits passe avant le cache. Quand la réponse dépend de la personne (une
+  donnée `par compte` ou `par boutique`, une règle avec `si` ou `seul son auteur`), chacun
+  a sa copie : personne ne reçoit celle d'un autre.
+- La durée s'écrit de la seconde à l'année : `pendant 30 secondes`, `pendant 10 heures`,
+  `pendant 3 jours`, `pendant 1 semaine`, `pendant 6 mois`, `pendant 1 an`, `pendant 2 ans`.
+- Une lecture `par identifiant`, les comptes et les erreurs ne se gardent jamais.
+
+Quand les données changent ailleurs (une autre application écrit dans la base), une action ou
+une tâche vide le cache à la main : `vider le cache de "livres"` (une route) ou
+`vider le cache de "meteo"` (une source).
+
+Sans réglage, le cache vit dans la mémoire de chaque serveur (5 000 réponses au plus,
+`HUMALIS_CACHE_MAX` le change). `HUMALIS_CACHE_ADRESSE=redis://hote:6379` (ou `rediss://…`,
+chiffré) le range dans Redis, Valkey ou un serveur compatible : partagé par tous les exemplaires,
+il porte aussi les annonces `en direct` et les limites de requêtes. Pour l'autorité d'un
+hébergeur, `NODE_EXTRA_CA_CERTS=/chemin/ca.pem`. Redis ne garde que des copies : s'il tombe, le
+serveur continue et relit la base, puis le reprend dès qu'il revient. Chaque démarrage du
+serveur abandonne les copies d'avant.
+
 #### Beaucoup de monde derrière une même adresse
 
 Par défaut, une adresse a droit à 300 requêtes par 15 minutes et 10 tentatives de connexion.
 Un établissement entier peut sortir par une seule adresse : monte alors
 `HUMALIS_LIMITE_API` et `HUMALIS_LIMITE_CONNEXION`. Derrière un relais, règle aussi
-`HUMALIS_RELAIS`.
+`HUMALIS_RELAIS`. Avec `HUMALIS_CACHE_ADRESSE`, ces limites se comptent dans Redis, les mêmes pour
+tous les exemplaires du serveur.
 
 Pour le produire et le lancer :
 
@@ -3674,6 +3714,10 @@ appelle l'API.
   "key"` la met dans l'adresse ; `dans l'entete "X-Cle"` dans un autre en-tête.
 - La valeur se met dans le fichier `.env` du serveur. Son nom est ajouté à
   `.env.exemple`.
+- `en cache pendant 30 minutes`, dans la source : le serveur garde chaque réponse, par
+  route et par paramètres, pour tout le monde. L'API n'est appelée qu'une fois pendant ce
+  temps (une API limitée ou payante coûte moins). `cache 5 minutes`, lui, garde la réponse
+  dans la page de chaque personne.
 
 ---
 
