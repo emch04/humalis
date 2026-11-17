@@ -25,6 +25,7 @@
     "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc && rolldown dist/navigateur.js --format esm --minify --file dist/navigateur.js && node scripts/construire-editeur.mjs",
     "test": "vitest run",
     "test:postgres": "vitest run tests/serveur-attaques.test.ts tests/serveur-attaques-calculs.test.ts tests/serveur-attaques-groupes.test.ts tests/serveur-attaques-temps-reel.test.ts tests/serveur-inscription-libre.test.ts tests/serveur-suppression-compte.test.ts tests/serveur-sauvegarde-postgres.test.ts",
+    "test:bases": "vitest run tests/serveur-bases.test.ts",
     "typecheck": "tsc --noEmit",
     "essai:web": "node scripts/essai-web.mjs",
     "essai:editeur": "node scripts/essai-editeur.mjs",

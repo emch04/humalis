@@ -313,8 +313,11 @@ JWT_SECRET=
 HUMALIS_ADMIN_EMAIL=
 HUMALIS_ADMIN_MOT_DE_PASSE=
 
-# La base, au choix. Sans l'une ni l'autre, les données restent en mémoire (développement).
-# PostgreSQL : pour un serveur qui grandit, ou plusieurs exemplaires derrière un relais.
+# La base, au choix : rien n'est choisi d'avance. Sans base, les données restent en mémoire (développement).
+# DATABASE_URL : la base se reconnaît au début de l'adresse. Plusieurs exemplaires du serveur peuvent la partager.
+#   postgres://utilisateur:mot-de-passe@hote:5432/base     PostgreSQL
+#   mysql://utilisateur:mot-de-passe@hote:3306/base        MySQL (mariadb://… pour MariaDB)
+#   mongodb://hote:27017/base?replicaSet=nom               une base de documents, avec transactions (jeu de répliques)
 DATABASE_URL=
 # SQLite : un seul fichier, rien à installer (Node 24 ou plus récent). Un seul exemplaire du serveur par fichier.
 # Exemple : HUMALIS_BASE=donnees/base.sqlite
@@ -694,7 +697,7 @@ const IDENTIFIANTS = /\\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
  */
 export function assainir(erreur: unknown): unknown {
   if (typeof erreur !== 'object' || erreur === null) return erreur;
-  const e = erreur as Error & { severity?: unknown; code?: unknown };
+  const e = erreur as Error & { severity?: unknown; code?: unknown; sqlState?: unknown; errno?: unknown };
   const copie = (message: string) => {
     const nouvelle = new Error(message);
     nouvelle.name = e.name;
@@ -702,6 +705,9 @@ export function assainir(erreur: unknown): unknown {
     return nouvelle;
   };
   if (typeof e.severity === 'string') return copie('Erreur PostgreSQL ' + String(e.code ?? ''));
+  // MySQL emporte la requête entière et cite la valeur en double ; une base de documents cite la clé : seul le code part.
+  if (typeof e.sqlState === 'string') return copie('Erreur MySQL ' + String(e.errno ?? e.code ?? ''));
+  if (/^Mongo/.test(String(e.name ?? ''))) return copie('Erreur de la base de documents ' + String(e.code ?? ''));
   const message = String(e.message ?? '');
   const propre = message.replace(IDENTIFIANTS, ':id');
   return propre === message ? erreur : copie(propre);
@@ -2265,9 +2271,13 @@ describe('la surveillance', () => {
     expect(await demarrerCentrale({ CENTRALE_ADRESSE: 'https://centrale.exemple.fr' })).toBeNull();
   });
 
-  it('une erreur de PostgreSQL ne garde que son code ; les identifiants quittent les autres messages', () => {
+  it('une erreur de la base ne garde que son code ; les identifiants quittent les autres messages', () => {
     const base = Object.assign(new Error('la valeur « secret@exemple.cd » est refusée'), { severity: 'ERROR', code: '23505' });
     expect((assainir(base) as Error).message).toBe('Erreur PostgreSQL 23505');
+    const mysql = Object.assign(new Error("Duplicate entry 'secret@exemple.cd' for key 'email'"), { sqlState: '23000', errno: 1062, sql: "INSERT INTO t VALUES ('secret@exemple.cd')" });
+    expect((assainir(mysql) as Error).message).toBe('Erreur MySQL 1062');
+    const documents = Object.assign(new Error('E11000 duplicate key error dup key: { email: "secret@exemple.cd" }'), { name: 'MongoServerError', code: 11000 });
+    expect((assainir(documents) as Error).message).toBe('Erreur de la base de documents 11000');
     expect((assainir(new Error('commande 7f0c6a52-58cb-4dc4-9a0a-1b1e0a4f1d11 introuvable')) as Error).message).toBe('commande :id introuvable');
   });
 
@@ -2345,7 +2355,7 @@ npm run build && npm start
 \`\`\`
 
 Sans \`DATABASE_URL\`, les données restent en mémoire (développement). Avec,
-chaque donnée a sa table PostgreSQL (\`${serveur.donnees.map((d) => nomTable(d.nom)).join('`, `')}\`).
+chaque donnée a sa table, ou sa collection dans une base de documents (\`${serveur.donnees.map((d) => nomTable(d.nom)).join('`, `')}\`).
 
 ## Les routes
 
