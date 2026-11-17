@@ -215,7 +215,13 @@ type InstructionServeurSeule =
   | { type: 'email'; a: { genre: 'admins' } | { genre: 'valeur'; valeur: ValeurServeurRI }; sujet: ValeurServeurRI; texte: ValeurServeurRI }
   | { type: 'notification'; a: { genre: 'roles'; roles: string[]; groupe?: { champ: string; fiche: string } } | { genre: 'compte'; valeur: ValeurServeurRI }; titre: ValeurServeurRI; texte: ValeurServeurRI; /** « et boutons "Accepter" et "Refuser" ». */ boutons?: string[] }
   /** « mettre a jour activite "livraison" pour commande.client » : l'activité en direct de ces comptes. */
-  | { type: 'activite'; nom: string; a: Extract<InstructionServeurSeule, { type: 'notification' }>['a'] };
+  | { type: 'activite'; nom: string; a: Extract<InstructionServeurSeule, { type: 'notification' }>['a'] }
+  /** « envoyer requete vers "produits" du serveur "catalogue" avec id … dans produit » : GET /api/<route>/<id> d'un autre service. */
+  | { type: 'appelService'; serveur: string; route: string; id: ValeurServeurRI; variable: string }
+  /** « faire "reserver" sur produit du serveur "catalogue" avec quantite = 2 » : PATCH /api/<route>/faire/<action>/<id>. */
+  | { type: 'faireService'; serveur: string; route: string; action: string; fiche: string; valeurs: { nom: string; valeur: ValeurServeurRI }[] }
+  /** « signaler "commande-validee" avec commande » : un message à chaque service de « vers », après la transaction. */
+  | { type: 'signaler'; message: string; fiche: string; vers: string[] };
 
 export type FrequenceRI = { genre: 'heure' } | { genre: 'jour'; heure: number; minute: number } | { genre: 'semaine'; jour: number; heure: number; minute: number };
 
@@ -233,7 +239,23 @@ export interface PasserelleRI {
   routes: { adresse: string; droits: Record<'lire' | 'creer' | 'modifier' | 'supprimer', QuiPeut | null>; remplacement: boolean }[];
 }
 
+/** Un projet à plusieurs services : ce que ce service sait des autres. */
+export interface ProjetServicesRI {
+  /** Tous les services du projet, dans l'ordre du fichier. */
+  services: string[];
+  /** Le service qui garde les comptes (les autres reconnaissent ses jetons). */
+  comptes: string;
+  /** Les services que celui-ci appelle ou à qui il signale un message : leurs adresses vont dans le .env. */
+  joints: string[];
+  /** Les messages reçus : « quand le serveur "x" signale "m" avec c : ». */
+  receveurs: { serveur: string; message: string; variable: string; donnee: string; corps: InstructionServeurRI[]; ligne: number }[];
+  /** Chaque route de tout le projet et son service : le relais « entree » s'en sert. */
+  routes: { adresse: string; service: string }[];
+}
+
 export interface ServeurRI {
+  /** Plusieurs services dans le projet : ce service en est un. */
+  projet?: ProjetServicesRI;
   /** « discussion "support" entre client et agent ». */
   discussions?: { nom: string; entre: string[]; par?: string; ligne: number }[];
   /** « salle "conseil" pour membre animee par direction ». */
@@ -282,6 +304,8 @@ export interface ServeurRI {
     synchronisee?: boolean;
     /** « quand message est cree : » : les e-mails que la création fait partir. */
     envois?: EnvoiEmailRI[];
+    /** « le serveur "commandes" peut … » : ce qu'un autre service fait ici en son propre nom (action : le nom simplifié). */
+    droitsServices?: { serveur: string; actions: ('lire' | 'creer' | 'modifier' | 'supprimer')[]; faire?: string }[];
     ligne: number;
   }[];
   /** « seul admin peut lire comptes » : la route des comptes de la connexion, servie par les packs et non par une table. */

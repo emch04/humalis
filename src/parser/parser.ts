@@ -32,6 +32,7 @@ import { analyserAUneSuite, analyserPhraseMorceaux, apresInstruction, lireMorcea
 import { estInteraction, analyserInteraction, lireSuiteMessage, lireEvenementUtilisateur, estEvenementOrdre, lireEvenementOrdre, type OutilsParser } from './interactions.js';
 import type {
   Programme,
+  DroitService,
   Apercu,
   Test,
   Page,
@@ -680,9 +681,35 @@ function analyserServeur(flux: FluxTokens): Serveur {
 
   const discussions: NonNullable<Serveur['discussions']> = [];
   const salles: NonNullable<Serveur['salles']> = [];
+  let comptesDu: Serveur['comptesDu'];
+  const receveurs: NonNullable<Serveur['receveurs']> = [];
 
   chaqueLigne(flux, () => {
     const token = flux.actuel();
+    // « comptes du serveur "comptes" » : les comptes d'un autre service du projet (les articles sont ignorés).
+    if (estLeMot(token, 'comptes') && estLeMot(flux.regarder(1), 'serveur') && flux.regarder(2).type === 'CHAINE') {
+      flux.avancer();
+      flux.avancer();
+      if (comptesDu) throw new ErreurSyntaxique(`« comptes du serveur » est déjà écrit ligne ${comptesDu.ligne}.`, token.ligne);
+      comptesDu = { serveur: flux.avancer().valeur, ligne: token.ligne };
+      return;
+    }
+    // « quand le serveur "commandes" signale "commande-validee" avec c : » : un message d'un autre service.
+    if (estLeMot(token, 'quand') && estLeMot(flux.regarder(1), 'serveur') && flux.regarder(2).type === 'CHAINE') {
+      const exemple = 'quand le serveur "commandes" signale "commande-validee" avec c :';
+      flux.avancer();
+      flux.avancer();
+      const serveurSource = flux.avancer().valeur;
+      if (!estLeMot(flux.actuel(), 'signale')) throw new ErreurSyntaxique(`on écrit : ${exemple}`, token.ligne);
+      flux.avancer();
+      const message = flux.attendre('CHAINE', undefined, `le nom du message entre guillemets : ${exemple}`).valeur;
+      if (!estLeMot(flux.actuel(), 'avec')) throw new ErreurSyntaxique(`« avec » et le nom de la fiche reçue : ${exemple}`, token.ligne);
+      flux.avancer();
+      const variable = flux.attendreNom(`le nom de la fiche reçue : ${exemple}`).nom;
+      flux.attendre('PONCTUATION', ':', 'deux-points à la fin de la ligne');
+      receveurs.push({ serveur: serveurSource, message, variable, corps: analyserCorpsServeur(flux), ligne: token.ligne });
+      return;
+    }
     if (estPhraseServeurTempsReel(flux)) {
       analyserPhraseServeurTempsReel(flux, { donnees, routes, discussions, salles });
       return;
@@ -739,7 +766,7 @@ function analyserServeur(flux: FluxTokens): Serveur {
     } else if (estLeMot(token, 'donnee')) {
       donnees.push(analyserDonnee(flux));
     } else if (estLeMot(token, 'route')) {
-      routes.push(analyserRoute(flux, roles !== undefined));
+      routes.push(analyserRoute(flux, roles !== undefined || comptesDu !== undefined));
     } else if (estLeMot(token, 'double') && estLeMot(flux.regarder(1), 'authentification')) {
       // « double authentification » : un code à six chiffres après le mot de passe.
       flux.avancer();
@@ -818,6 +845,8 @@ function analyserServeur(flux: FluxTokens): Serveur {
     donnees,
     routes,
     ...(captureErreurs ? { captureErreurs } : {}),
+    ...(comptesDu ? { comptesDu } : {}),
+    ...(receveurs.length ? { receveurs } : {}),
     ...(departs.length ? { departs } : {}),
     ...(discussions.length ? { discussions } : {}),
     ...(salles.length ? { salles } : {}),
@@ -1095,6 +1124,7 @@ function analyserRoute(flux: FluxTokens, avecRoles = false): Route {
   const resumes: ResumeServeur[] = [];
   let apresCreation: ApresCreation | undefined;
   let apresPaiement: ApresPaiement | undefined;
+  const droitsServices: DroitService[] = [];
   chaqueLigne(flux, () => {
     if ((flux.verifier('MOT_CLE', 'quand') || estLeMot(flux.actuel(), 'quand')) && estLeMot(flux.regarder(3), 'payee')) {
       const debutQuand = flux.avancer();
@@ -1107,6 +1137,8 @@ function analyserRoute(flux: FluxTokens, avecRoles = false): Route {
     } else if (flux.verifier('MOT_CLE', 'quand') || estLeMot(flux.actuel(), 'quand')) {
       if (apresCreation) throw new ErreurSyntaxique(`une route n'a qu'un seul « quand … est cree » : il est déjà écrit ligne ${apresCreation.ligne}.`, flux.actuel().ligne);
       apresCreation = analyserApresCreation(flux);
+    } else if (estLeMot(flux.actuel(), 'serveur') && flux.regarder(1).type === 'CHAINE') {
+      droitsServices.push(analyserDroitService(flux));
     } else {
       const lue = analyserRegle(flux, avecRoles);
       if (lue.type === 'Regle') regles.push(lue);
@@ -1115,7 +1147,34 @@ function analyserRoute(flux: FluxTokens, avecRoles = false): Route {
       else throw new ErreurSyntaxique('« … peut demander a ia » s’écrit directement dans le serveur, pas dans une route.', lue.ligne);
     }
   });
-  return { type: 'Route', adresse, regles, ...(actions.length ? { actions } : {}), ...(resumes.length ? { resumes } : {}), ...(apresCreation ? { apresCreation } : {}), ...(apresPaiement ? { apresPaiement } : {}), ligne: debut.ligne };
+  return { type: 'Route', adresse, regles, ...(actions.length ? { actions } : {}), ...(resumes.length ? { resumes } : {}), ...(apresCreation ? { apresCreation } : {}), ...(apresPaiement ? { apresPaiement } : {}), ...(droitsServices.length ? { droitsServices } : {}), ligne: debut.ligne };
+}
+
+/** « le serveur "commandes" peut lire produit » ; « le serveur "commandes" peut faire "reserver" sur produit » (sans corps : l'action existe déjà). */
+function analyserDroitService(flux: FluxTokens): DroitService {
+  const debut = flux.avancer();
+  const exemple = 'le serveur "commandes" peut lire produit, ou : le serveur "commandes" peut faire "reserver" sur produit';
+  const serveur = flux.avancer().valeur;
+  if (!estLeMot(flux.actuel(), 'peut')) throw new ErreurSyntaxique(`on écrit : ${exemple}`, debut.ligne);
+  flux.avancer();
+  if (estLeMot(flux.actuel(), 'faire')) {
+    flux.avancer();
+    const faire = flux.attendre('CHAINE', undefined, `le nom de l’action entre guillemets : ${exemple}`).valeur;
+    if (!estLeMot(flux.actuel(), 'sur')) throw new ErreurSyntaxique(`on écrit : le serveur "${serveur}" peut faire "${faire}" sur produit`, debut.ligne);
+    flux.avancer();
+    const donnee = flux.attendreNom('la donnée de l’action').nom;
+    if (flux.verifier('PONCTUATION', ':')) throw new ErreurSyntaxique(`ce droit donne une action déjà écrite dans la route, sans deux-points ni corps : le serveur "${serveur}" peut faire "${faire}" sur ${donnee}`, debut.ligne);
+    return { type: 'DroitService', serveur, actions: [], faire, donnee, ligne: debut.ligne };
+  }
+  const actions: ActionDonnee[] = [];
+  do {
+    const token = flux.avancer();
+    const action = motDe(token) as ActionDonnee;
+    if (!ACTIONS_DONNEE.includes(action)) throw new ErreurSyntaxique(`« ${token.original ?? token.valeur} » n'est pas une action. Actions possibles : ${ACTIONS_DONNEE.join(', ')}, ou faire "…" sur …`, token.ligne);
+    actions.push(action);
+  } while (flux.accepter('MOT_CLE', 'et'));
+  const donnee = flux.attendreNom('la donnée concernée').nom;
+  return { type: 'DroitService', serveur, actions, donnee, ligne: debut.ligne };
 }
 
 /** « quand message est cree : » puis, décalés, les « envoyer email … ». */

@@ -10,6 +10,71 @@ import { proposerNom } from './suggestions.js';
 type Portee = Map<string, Donnee>;
 type Erreur = (message: string, ligne: number) => void;
 
+/**
+ * Les services du projet, le temps d'une analyse ou d'une construction : une action peut lire une fiche d'un autre
+ * service, lui demander une action, ou lui signaler un message. Un seul serveur : rien ne change.
+ */
+let projet: Serveur[] = [];
+export function avecServices<T>(serveurs: Serveur[], faire: () => T): T {
+  const avant = projet;
+  projet = serveurs;
+  try {
+    return faire();
+  } finally {
+    projet = avant;
+  }
+}
+
+const routeNormalisee = (adresse: string) => adresse.replace(/^\/+|\/+$/g, '');
+
+/** Les services qui écoutent ce message de ce service. */
+export const ecoutantsDe = (serveur: string, message: string): string[] => projet.filter((s) => (s.receveurs ?? []).some((r) => r.serveur === serveur && r.message === message)).map((s) => s.nom);
+
+/** Le service écrit-il « signaler "message" » quelque part ? */
+function signaleLeMessage(serveur: Serveur, message: string): boolean {
+  return JSON.stringify([serveur.routes, serveur.taches ?? [], serveur.receveurs ?? []]).includes('"type":"Signaler","message":' + JSON.stringify(message));
+}
+
+/** La donnée d'une fiche signalée : lue dans les instructions du service qui signale. */
+export function donneeDuMessage(serveur: Serveur, message: string): Donnee | undefined {
+  let trouvee: Donnee | undefined;
+  const parcourir = (liste: InstructionServeur[], portee: Portee) => {
+    const ici = new Map(portee);
+    for (const i of liste) {
+      if (i.type === 'Signaler' && i.message === message && !trouvee) trouvee = ici.get(i.fiche);
+      else if (i.type === 'PourChaqueServeur') {
+        const d = serveur.donnees.find((x) => x.nom === i.donnee);
+        parcourir(i.corps, d ? new Map(ici).set(i.variable, d) : ici);
+      } else if (i.type === 'SiServeur') {
+        parcourir(i.alors, ici);
+        parcourir(i.sinon, ici);
+      } else if (i.type === 'AppelService') {
+        const autre = projet.find((x) => x.nom === i.serveur);
+        const route = autre?.routes.find((r) => routeNormalisee(r.adresse) === routeNormalisee(i.route));
+        const d = autre?.donnees.find((x) => x.nom === route?.regles[0]?.donnee);
+        if (d) ici.set(i.variable, d);
+      }
+    }
+  };
+  for (const route of serveur.routes) {
+    for (const action of route.actions ?? []) {
+      const d = serveur.donnees.find((x) => x.nom === action.donnee);
+      parcourir(action.corps, d ? new Map([[d.nom, d]]) : new Map());
+    }
+    if (route.apresPaiement) {
+      const d = serveur.donnees.find((x) => x.nom === route.apresPaiement!.donnee);
+      parcourir(route.apresPaiement.corps, d ? new Map([[d.nom, d]]) : new Map());
+    }
+  }
+  for (const tache of serveur.taches ?? []) parcourir(tache.corps, new Map());
+  for (const receveur of serveur.receveurs ?? []) {
+    const emetteur = projet.find((x) => x.nom === receveur.serveur);
+    const d = emetteur && emetteur !== serveur ? donneeDuMessage(emetteur, receveur.message) : undefined;
+    parcourir(receveur.corps, d ? new Map([[receveur.variable, d]]) : new Map());
+  }
+  return trouvee;
+}
+
 const champDe = (d: Donnee, c: string) => d.champs.find((x) => simplifier(x.nom) === simplifier(c));
 const vide: ValeurServeurRI = { genre: 'valeur', valeur: '' };
 
@@ -21,6 +86,9 @@ class Traduction {
     private locaux = new Set<string>(),
     private readonly avecErreur = false,
   ) {}
+
+  /** Une fiche qu'une lecture fautive n'a pas pu nommer : déjà signalée, elle ne l'est pas une seconde fois plus bas. */
+  private readonly sansDonnee = new Set<string>();
 
   /** « statut est "ouverte" et total est superieur a 100 » : les champs existent. */
   filtres(liste: FiltreServeur[], donnee: Donnee, portee: Portee, ligne: number): FiltreServeurRI[] {
@@ -44,7 +112,7 @@ class Traduction {
     }
     const donnee = portee.get(nom);
     if (!donnee) {
-      this.erreur(`« ${nom} » n'existe pas ici. Valeurs connues : ${[...portee.keys()].join(', ') || 'aucune'}.${proposerNom(nom, [...portee.keys()])}`, ligne);
+      if (!this.sansDonnee.has(nom)) this.erreur(`« ${nom} » n'existe pas ici. Valeurs connues : ${[...portee.keys()].join(', ') || 'aucune'}.${proposerNom(nom, [...portee.keys()])}`, ligne);
       return vide;
     }
     if (simplifier(champ) === 'id') return { genre: 'champ', fiche: nom, champ: 'id' };
@@ -123,6 +191,40 @@ class Traduction {
     const traduites = liste.map((i) => this.instruction(i, portee));
     this.locaux = avant;
     return traduites;
+  }
+
+  private distante(nom: string, donnee: Donnee): string {
+    const proprietaire = projet.find((x) => x.donnees.includes(donnee));
+    return `« ${nom} » est une fiche du serveur « ${proprietaire?.nom ?? '?'} » : elle ne se change pas ici. Demandez-le à ce service (faire "…" sur ${nom} du serveur "${proprietaire?.nom ?? '…'}"), ou signalez un message.`;
+  }
+
+  /** Un autre service du projet, nommé. */
+  private serviceDistant(nom: string, ligne: number): Serveur | undefined {
+    const autre = projet.find((x) => x.nom === nom);
+    if (!autre) {
+      const noms = projet.filter((x) => x !== this.serveur).map((x) => x.nom);
+      this.erreur(`le serveur « ${nom} » n'existe pas dans le projet. Serveurs : ${noms.join(', ') || 'aucun autre'}.${proposerNom(nom, noms)}`, ligne);
+      return undefined;
+    }
+    if (autre === this.serveur) {
+      this.erreur(`« du serveur "${nom}" » vise un autre service : ici, on lit et on change les fiches de « ${nom} » directement.`, ligne);
+      return undefined;
+    }
+    return autre;
+  }
+
+  /** Une route d'un autre service, et sa donnée. */
+  private routeDistante(serveur: string, adresse: string, ligne: number): { route: Serveur['routes'][number]; donnee: Donnee } | undefined {
+    const autre = this.serviceDistant(serveur, ligne);
+    if (!autre) return undefined;
+    const route = autre.routes.find((r) => routeNormalisee(r.adresse) === routeNormalisee(adresse) && !r.interne);
+    const donnee = autre.donnees.find((d) => d.nom === route?.regles[0]?.donnee);
+    if (!route || !donnee) {
+      const routes = autre.routes.filter((r) => !r.interne).map((r) => r.adresse);
+      this.erreur(`le serveur « ${serveur} » n'a pas de route « ${adresse} ». Routes : ${routes.join(', ') || 'aucune'}.${proposerNom(adresse, routes)}`, ligne);
+      return undefined;
+    }
+    return { route, donnee };
   }
 
   /** La donnée nommée, sinon un message. */
@@ -206,15 +308,65 @@ class Traduction {
       case 'ChangerChamp': {
         const donnee = portee.get(i.cible);
         const champ = donnee ? champDe(donnee, i.champ) : undefined;
-        if (!donnee) this.erreur(`« ${i.cible} » n'existe pas ici. Valeurs connues : ${[...portee.keys()].join(', ')}.`, i.ligne);
+        if (donnee && !this.serveur.donnees.includes(donnee)) this.erreur(this.distante(i.cible, donnee), i.ligne);
+        else if (!donnee) this.erreur(`« ${i.cible} » n'existe pas ici. Valeurs connues : ${[...portee.keys()].join(', ')}.`, i.ligne);
         else if (!champ) this.erreur(`la donnée « ${donnee.nom} » n'a pas de champ « ${i.champ} ». Champs : ${donnee.champs.map((c) => c.nom).join(', ')}.`, i.ligne);
         else if (champ.regle?.genre === 'groupe') this.erreur(`« ${champ.nom} » désigne le groupe de la fiche : on ne le change pas.`, i.ligne);
         return { type: 'changer', fiche: i.cible, donnee: donnee?.nom ?? '', champ: champ?.nom ?? i.champ, valeur: this.valeur(i.valeur, portee) };
       }
       case 'SupprimerFiche': {
         const donnee = portee.get(i.cible);
-        if (!donnee) this.erreur(`« ${i.cible} » n'existe pas ici. Valeurs connues : ${[...portee.keys()].join(', ')}.`, i.ligne);
+        if (donnee && !this.serveur.donnees.includes(donnee)) this.erreur(this.distante(i.cible, donnee), i.ligne);
+        else if (!donnee) this.erreur(`« ${i.cible} » n'existe pas ici. Valeurs connues : ${[...portee.keys()].join(', ')}.`, i.ligne);
         return { type: 'supprimer', fiche: i.cible, donnee: donnee?.nom ?? '' };
+      }
+      case 'AppelService': {
+        const lue = this.routeDistante(i.serveur, i.route, i.ligne);
+        const id = this.valeur(i.id, portee);
+        if (!lue) {
+          this.sansDonnee.add(i.variable);
+          return { type: 'appelService', serveur: i.serveur, route: i.route, id, variable: i.variable };
+        }
+        if (!this.avecUtilisateur && !(lue.route.droitsServices ?? []).some((d) => d.serveur === this.serveur.nom && d.actions.includes('lire'))) {
+          this.erreur(`ici, personne n'est connecté : le serveur « ${this.serveur.nom} » lit « ${lue.route.adresse} » en son propre nom. Donnez-lui ce droit dans la route du serveur « ${i.serveur} » : le serveur "${this.serveur.nom}" peut lire ${lue.donnee.nom}`, i.ligne);
+        }
+        portee.set(i.variable, lue.donnee);
+        return { type: 'appelService', serveur: i.serveur, route: routeNormalisee(lue.route.adresse), id, variable: i.variable };
+      }
+      case 'FaireService': {
+        const donnee = portee.get(i.cible);
+        const valeurs = i.valeurs.map((v) => ({ nom: v.nom, valeur: this.valeur(v.valeur, portee) }));
+        const autre = this.serviceDistant(i.serveur, i.ligne);
+        if (!donnee) {
+          if (!this.sansDonnee.has(i.cible)) this.erreur(`« ${i.cible} » n'existe pas ici. Valeurs connues : ${[...portee.keys()].join(', ') || 'aucune'}.`, i.ligne);
+          return { type: 'faireService', serveur: i.serveur, route: '', action: i.action, fiche: i.cible, valeurs };
+        }
+        if (!autre) return { type: 'faireService', serveur: i.serveur, route: '', action: i.action, fiche: i.cible, valeurs };
+        if (!autre.donnees.includes(donnee)) {
+          this.erreur(`« ${i.cible} » est une fiche « ${donnee.nom} », qui n'est pas au serveur « ${i.serveur} ». Lisez-la d'abord : envoyer requete vers "…" du serveur "${i.serveur}" avec id … dans ${i.cible}`, i.ligne);
+          return { type: 'faireService', serveur: i.serveur, route: '', action: i.action, fiche: i.cible, valeurs };
+        }
+        const route = autre.routes.find((r) => (r.actions ?? []).some((a) => a.nom === i.action && a.donnee === donnee.nom));
+        const action = route?.actions?.find((a) => a.nom === i.action);
+        if (!route || !action) {
+          const connues = autre.routes.flatMap((r) => (r.actions ?? []).filter((a) => a.donnee === donnee.nom).map((a) => a.nom));
+          this.erreur(`le serveur « ${i.serveur} » n'a pas d'action « ${i.action} » sur « ${donnee.nom} ». Actions : ${connues.join(', ') || 'aucune'}.${proposerNom(i.action, connues)}`, i.ligne);
+          return { type: 'faireService', serveur: i.serveur, route: '', action: i.action, fiche: i.cible, valeurs };
+        }
+        const attendus = (action.parametres ?? []).map((p) => p.nom);
+        for (const v of i.valeurs) if (!attendus.includes(v.nom)) this.erreur(`l'action « ${i.action} » n'attend pas « ${v.nom} ». Valeurs attendues : ${attendus.join(', ') || 'aucune'}.`, i.ligne);
+        for (const nom of attendus) if (!i.valeurs.some((v) => v.nom === nom)) this.erreur(`l'action « ${i.action} » attend « ${nom} » : ajoutez « ${nom} = … » après « avec ».`, i.ligne);
+        if (!this.avecUtilisateur && !(route.droitsServices ?? []).some((d) => d.serveur === this.serveur.nom && d.faire === i.action)) {
+          this.erreur(`ici, personne n'est connecté : le serveur « ${this.serveur.nom} » fait « ${i.action} » en son propre nom. Donnez-lui ce droit dans la route du serveur « ${i.serveur} » : le serveur "${this.serveur.nom}" peut faire "${i.action}" sur ${donnee.nom}`, i.ligne);
+        }
+        return { type: 'faireService', serveur: i.serveur, route: routeNormalisee(route.adresse), action: simplifier(i.action).replace(/_/g, '-'), fiche: i.cible, valeurs };
+      }
+      case 'Signaler': {
+        const donnee = portee.get(i.fiche);
+        if (!donnee) this.erreur(`« ${i.fiche} » n'existe pas ici : on signale une fiche. Valeurs connues : ${[...portee.keys()].join(', ') || 'aucune'}.`, i.ligne);
+        const vers = ecoutantsDe(this.serveur.nom, i.message);
+        if (projet.length < 2) this.erreur(`« signaler » parle aux autres services du projet, et il n'y a qu'un serveur.`, i.ligne);
+        return { type: 'signaler', message: i.message, fiche: i.fiche, vers };
       }
       case 'Refuser':
         return { type: 'refuser', message: this.valeur(i.message, portee) };
@@ -322,6 +474,26 @@ export function traduireResume(resume: ResumeServeur, serveur: Serveur, erreur: 
 
 export function traduireTache(tache: TachePlanifiee, serveur: Serveur, erreur: Erreur): InstructionServeurRI[] {
   return new Traduction(serveur, erreur, false).corps(tache.corps, new Map());
+}
+
+/** « quand le serveur "commandes" signale "commande-validee" avec c : » : la fiche reçue a la donnée signalée. */
+export function traduireReceveur(receveur: NonNullable<Serveur['receveurs']>[number], serveur: Serveur, erreur: Erreur): { donnee: string; corps: InstructionServeurRI[] } {
+  // Un seul serveur : l'analyse du projet le dit déjà.
+  if (projet.length < 2) return { donnee: '', corps: [] };
+  const emetteur = projet.find((x) => x.nom === receveur.serveur);
+  if (!emetteur || emetteur === serveur) {
+    const noms = projet.filter((x) => x !== serveur).map((x) => x.nom);
+    erreur(emetteur ? `un service ne s'écoute pas lui-même : « quand le serveur » nomme un autre service.` : `le serveur « ${receveur.serveur} » n'existe pas dans le projet. Serveurs : ${noms.join(', ') || 'aucun autre'}.${proposerNom(receveur.serveur, noms)}`, receveur.ligne);
+    return { donnee: '', corps: [] };
+  }
+  const donnee = donneeDuMessage(emetteur, receveur.message);
+  // Le message est signalé, mais sa fiche est fautive : l'erreur est déjà dans l'autre service.
+  if (!donnee && signaleLeMessage(emetteur, receveur.message)) return { donnee: '', corps: [] };
+  if (!donnee) {
+    erreur(`le serveur « ${receveur.serveur} » ne signale jamais « ${receveur.message} » : écrivez-y « signaler "${receveur.message}" avec … » dans une action, une tâche ou un message reçu.`, receveur.ligne);
+    return { donnee: '', corps: [] };
+  }
+  return { donnee: donnee.nom, corps: new Traduction(serveur, erreur, false).corps(receveur.corps, new Map([[receveur.variable, donnee]])) };
 }
 
 /** Le corps de capture voit seulement les quatre informations sûres de l'erreur. */

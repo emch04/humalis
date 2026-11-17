@@ -1,0 +1,52 @@
+serveur "comptes" :
+    roles gerant et client
+    donnee annonce :
+        texte : texte
+    route "annonces" :
+        tout le monde peut lire annonce
+        seul gerant peut creer annonce
+
+serveur "catalogue" :
+    comptes du serveur "comptes"
+    donnee produit :
+        nom : texte
+        stock : nombre
+    donnee mouvement :
+        produit : texte
+        quantite : nombre
+    route "produits" :
+        tout le monde peut lire produit
+        seul gerant peut creer produit
+        seul gerant peut modifier produit
+        connecte peut faire "reserver" sur produit avec quantite : nombre :
+            si quantite est superieur a produit.stock :
+                refuser "Plus assez de stock"
+            changer produit.stock par produit.stock - quantite
+        le serveur "commandes" peut faire "reserver" sur produit
+    route "mouvements" :
+        seul gerant peut lire mouvement
+    quand le serveur "commandes" signale "commande-validee" avec c :
+        creer mouvement avec produit c.produit et quantite c.quantite
+
+serveur "commandes" :
+    comptes du serveur "comptes"
+    donnee commande :
+        produit : texte
+        quantite : nombre
+        statut : texte au depart "ouverte"
+    route "commandes" :
+        connecte peut lire commande
+        connecte peut creer commande
+        connecte peut faire "valider" sur commande :
+            envoyer requete vers "produits" du serveur "catalogue" avec id commande.produit dans produit
+            faire "reserver" sur produit du serveur "catalogue" avec quantite = commande.quantite
+            changer commande.statut par "validee"
+            signaler "commande-validee" avec commande
+
+page "accueil" :
+    variable produits = []
+    titre "Boutique"
+    quand la page se charge :
+        envoyer requete vers "produits" dans produits
+    pour chaque p dans produits :
+        texte p.nom

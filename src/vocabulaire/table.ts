@@ -43,6 +43,8 @@ function partout(produit: string): Readonly<Record<Cible, Traduction | null>> {
 }
 
 /** Un mot du serveur : seule la cible serveur le traduit (Node + packs Astratra). */
+const PROJET_SERVICES = 'serveur "comptes" :\n    donnee annonce :\n        texte : texte\n    route "annonces" :\n        tout le monde peut lire annonce\n        seul admin peut modifier annonce\n\nserveur "catalogue" :\n    comptes du serveur "comptes"\n    donnee produit :\n        nom : texte\n        stock : nombre\n    route "produits" :\n        tout le monde peut lire produit\n        seul admin peut modifier produit\n        connecte peut faire "reserver" sur produit avec quantite : nombre :\n            changer produit.stock par produit.stock - quantite\n    quand le serveur "commandes" signale "commande-validee" avec c :\n        noter c.quantite\n\nserveur "commandes" :\n    comptes du serveur "comptes"\n    donnee commande :\n        produit : texte\n        quantite : nombre\n    route "commandes" :\n        tout le monde peut lire commande\n        seul admin peut modifier commande\n        connecte peut faire "valider" sur commande :\n            envoyer requete vers "produits" du serveur "catalogue" avec id commande.produit dans produit\n            faire "reserver" sur produit du serveur "catalogue" avec quantite = commande.quantite\n            signaler "commande-validee" avec commande\n\npage "accueil" :\n    titre "Accueil"';
+
 function serveurSeul(produit: string, note?: string): Readonly<Record<Cible, Traduction | null>> {
   return { web: null, desktop: null, serveur: t(produit, note), statique: null };
 }
@@ -1961,6 +1963,34 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     statut: 'supporte',
     etape: 3,
     note: 'Une route ne sert qu’une donnée. En tête de ligne dans un bloc « serveur » seulement : ailleurs, « route » reste un nom libre.',
+  },
+  {
+    mot: 'signaler',
+    variantes: [],
+    categorie: 'action',
+    concept: 'serveur.signaler',
+    contextes: ['serveur'],
+    cibles: serveurSeul('une ligne de la boîte d’envoi, écrite dans la transaction, puis livrée en HTTP signé', 'src/humalis/services.ts : au moins une fois, sans doublon chez le service qui reçoit'),
+    couvre: [],
+    description: 'Dans une action, une tâche ou un message reçu, quand le projet a plusieurs services : « signaler "commande-validee" avec commande » envoie la fiche aux services qui écrivent « quand le serveur "…" signale "commande-validee" avec c : ». Le message part seulement si toute l’action a réussi ; il est livré au moins une fois, traité une seule fois ; l’ordre de deux messages n’est pas garanti.',
+    exemple: PROJET_SERVICES,
+    statut: 'supporte',
+    etape: 9,
+    note: 'Sans outil externe : la boîte d’envoi est dans la base du service, la livraison en HTTP signé (HUMALIS_SERVICES_SECRET).',
+  },
+  {
+    mot: 'signale',
+    variantes: [],
+    categorie: 'structure',
+    concept: 'serveur.receveur',
+    contextes: ['serveur'],
+    cibles: serveurSeul('POST /humalis/messages, signé, et le corps dans une transaction', 'l’identifiant du message est gardé trente jours : un message livré deux fois n’est traité qu’une fois'),
+    couvre: [],
+    description: 'Dans un bloc « serveur » : « quand le serveur "commandes" signale "commande-validee" avec c : », puis, décalées, les instructions d’une action. « c » est la fiche que l’autre service a signalée, avec ses champs.',
+    exemple: PROJET_SERVICES,
+    statut: 'supporte',
+    etape: 9,
+    note: 'La fiche reçue se lit, elle ne se change pas : elle appartient à l’autre service.',
   },
   {
     mot: 'source',

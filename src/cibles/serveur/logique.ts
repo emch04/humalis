@@ -18,7 +18,7 @@ const fiche = (nom: string) => `f_${camel(nom)}`;
 export const avecPaiements = (serveur: ServeurRI) => serveur.routes.some((r) => r.apresPaiement !== undefined);
 /** Vrai si le serveur écrit tout ou rien quelque part (actions, paiements, tâches, documents, ou des calculs à tenir justes). */
 // « connecte peut supprimer son compte » : les fiches de la personne changent toutes ensemble, dans une transaction.
-export const avecLogique = (serveur: ServeurRI) => Boolean(serveur.routeMonCompte?.supprimer) || serveur.routes.some((r) => r.apresPaiement !== undefined || r.resumes?.length) || Boolean(serveur.taches?.length) || Boolean(serveur.documents?.length) || serveur.routes.some((r) => r.actions?.length) || serveur.donnees.some((d) => d.champs.some((c) => c.regle?.genre === 'somme' || c.regle?.genre === 'nombreDe'));
+export const avecLogique = (serveur: ServeurRI) => Boolean(serveur.projet) || Boolean(serveur.routeMonCompte?.supprimer) || serveur.routes.some((r) => r.apresPaiement !== undefined || r.resumes?.length) || Boolean(serveur.taches?.length) || Boolean(serveur.documents?.length) || serveur.routes.some((r) => r.actions?.length) || serveur.donnees.some((d) => d.champs.some((c) => c.regle?.genre === 'somme' || c.regle?.genre === 'nombreDe'));
 const parcourir = (liste: InstructionServeurRI[], voir: (i: InstructionServeurRI) => void): void => {
   for (const i of liste) {
     voir(i);
@@ -481,8 +481,39 @@ class Ecriture {
       case 'notification': {
         return `${r}{\n${r}  const envoi = ${contenuNotification(i)};\n${r}  ${destinataires(i)}\n${r}  travail.apres.push(() => notifier(envoi));\n${r}}`;
       }
+      // Un autre service du projet : au nom de la personne quand il y en a une, sinon au nom de ce service.
+      case 'appelService':
+        return `${r}const ${repereNom(i.variable)}${fiche(i.variable)}: Record<string, unknown> = await services!.lire(${chaine(i.serveur)}, ${chaine('/api/' + i.route)}, enTexte(${valeur(i.id)}), ${this.appel()}).catch(refusDistant);`;
+      case 'faireService':
+        return `${r}Object.assign(${fiche(i.fiche)}, await services!.faire(${chaine(i.serveur)}, ${chaine('/api/' + i.route + '/faire/' + i.action + '/')} + encodeURIComponent(enTexte(${fiche(i.fiche)}.id)), { ${i.valeurs.map((v) => `${chaine(camel(v.nom))}: ${valeur(v.valeur)}`).join(', ')} }, ${this.appel()}).catch(refusDistant));`;
+      // Le message s'écrit dans la boîte d'envoi, dans la transaction : il part seulement si tout a réussi.
+      case 'signaler':
+        return i.vers.length === 0
+          ? `${r}// « ${i.message.replace(/\*\//g, '')} » : personne ne l'écoute dans le projet.`
+          : `${r}for (const vers of ${JSON.stringify(i.vers)}) await s.humalisBoite!.creer({ vers, message: ${chaine(i.message)}, corps: JSON.parse(JSON.stringify(${fiche(i.fiche)})), essais: 0, prochain: 0, cree: Date.now() });\n${r}travail.apres.push(async () => services?.reveiller());`;
     }
   }
+
+  /** Qui appelle : la personne de la requête, ou personne (une tâche, un message reçu, un paiement). */
+  private appel(): string {
+    return this.personne ? 'services!.appelDe(req)' : '{}';
+  }
+}
+
+/** Les messages reçus d'autres services : chacun dans une transaction, avec son identifiant pour ne jamais le traiter deux fois. */
+export function codeReceveurs(serveur: ServeurRI): string {
+  return (serveur.projet?.receveurs ?? [])
+    .map((r) => `    ${chaine(r.serveur + '|' + r.message)}: async (corps, id) => {
+      const travail = nouveauTravail();
+      await transaction(async (s) => {
+        await noterRecu(s.humalisRecus!, id, ${chaine(r.serveur)}, ${chaine(r.message)});
+        const ${repereNom(r.variable, r.ligne)}${fiche(r.variable)} = corps;
+${new Ecriture(serveur).lignes(r.corps, '        ')}
+      });
+      terminer(travail${serveur.routes.some((x) => x.direct) ? ', direct.annonce' : ''});
+    },
+`)
+    .join('');
 }
 
 const slug = (nom: string) => simplifier(nom).replace(/_/g, '-');

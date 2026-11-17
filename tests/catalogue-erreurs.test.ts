@@ -75,7 +75,8 @@ describe('catalogue des erreurs', () => {
       compter(lire('src/parser/temps-reel.ts'), /new ErreurSyntaxique\(/g) +
       compter(lire('src/parser/morceaux.ts'), /new ErreurSyntaxique\(/g) +
       compter(lire('src/analyse/temps-reel.ts'), /gravite: 'erreur'/g) +
-      compter(lire('src/analyse/formes.ts'), /\berreur\(\s*[`'"]|gravite: 'avertissement'/g);
+      compter(lire('src/analyse/formes.ts'), /\berreur\(\s*[`'"]|gravite: 'avertissement'/g) +
+      compter(lire('src/analyse/services.ts'), /\b(erreur|avertissement)\(\s*[`'"]/g);
     const sitesQualite = compter(lire('src/analyse/accessibilite.ts'), /\bsignaler\('(?:erreur|avertissement)'/g);
     const expliques = ENTREES_ERREURS.reduce((n, x) => n + x.sites, 0);
     // Si le compilateur gagne ou perd un message, ce test échoue : ajoute ou retire une entrée.

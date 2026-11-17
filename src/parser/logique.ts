@@ -189,6 +189,21 @@ function analyserInstructionServeur(flux: FluxTokens): InstructionServeur {
     if (!estLeMot(flux.actuel(), 'vers')) throw new ErreurSyntaxique('on écrit : envoyer requete vers "https://…" avec message = erreur.message', ligne);
     flux.avancer();
     const adresse = flux.attendre('CHAINE', undefined, 'l’adresse HTTPS de la requête entre guillemets').valeur;
+    // « envoyer requete vers "produits" du serveur "catalogue" avec id commande.produit dans produit » : un autre service du projet.
+    if (estLeMot(flux.actuel(), 'serveur') && flux.regarder(1).type === 'CHAINE') {
+      const exemple = `envoyer requete vers "${adresse}" du serveur "catalogue" avec id commande.produit dans produit`;
+      flux.avancer();
+      const serveur = flux.avancer().valeur;
+      const suivant = flux.regarder(1);
+      if (!estLeMot(flux.actuel(), 'avec') || (suivant.original ?? suivant.valeur).toLowerCase() !== 'id') throw new ErreurSyntaxique(`un serveur lit une fiche d'un autre service par son identifiant : ${exemple}`, ligne);
+      flux.avancer();
+      flux.avancer();
+      const id = analyserOperande(flux);
+      if (!estLeMot(flux.actuel(), 'dans')) throw new ErreurSyntaxique(`« dans » et le nom de la fiche lue : ${exemple}`, ligne);
+      flux.avancer();
+      const variable = flux.attendreNom(`le nom de la fiche lue : ${exemple}`).nom;
+      return { type: 'AppelService', serveur, route: adresse, id, variable, ligne };
+    }
     if (!/^https:\/\/[^\s/?#]+(?:[/?#][^\s]*)?$/i.test(adresse)) throw new ErreurSyntaxique('une requête du serveur exige une adresse HTTPS complète.', ligne);
     if (!estLeMot(flux.actuel(), 'avec')) throw new ErreurSyntaxique('une requête du serveur demande des champs : avec message = erreur.message', ligne);
     flux.avancer();
@@ -201,6 +216,38 @@ function analyserInstructionServeur(flux: FluxTokens): InstructionServeur {
       champs.push({ nom, valeur: analyserExpression(flux) });
     } while (estLeMot(flux.actuel(), 'et') && flux.avancer());
     return { type: 'RequeteServeur', adresse, champs, ligne };
+  }
+  // « faire "reserver" sur produit du serveur "catalogue" avec quantite = 2 » : une action d'un autre service du projet.
+  if (estLeMot(debut, 'faire') && flux.regarder(1).type === 'CHAINE') {
+    flux.avancer();
+    const action = flux.avancer().valeur;
+    const exemple = `faire "${action}" sur produit du serveur "catalogue" avec quantite = 2`;
+    if (!estLeMot(flux.actuel(), 'sur')) throw new ErreurSyntaxique(`on écrit : ${exemple}`, ligne);
+    flux.avancer();
+    const cible = flux.attendreNom(`la fiche visée : ${exemple}`).nom;
+    if (!estLeMot(flux.actuel(), 'serveur') || flux.regarder(1).type !== 'CHAINE') throw new ErreurSyntaxique(`sur le serveur, « faire » vise une action d'un autre service : ${exemple}`, ligne);
+    flux.avancer();
+    const serveur = flux.avancer().valeur;
+    const valeurs: { nom: string; valeur: Expression }[] = [];
+    if (estLeMot(flux.actuel(), 'avec')) {
+      flux.avancer();
+      do {
+        const nom = flux.attendreNom('le nom de la valeur envoyée').nom;
+        flux.attendre('PONCTUATION', '=', '« = » après le nom de la valeur (quantite = 2)');
+        valeurs.push({ nom, valeur: analyserExpression(flux) });
+      } while (flux.accepter('MOT_CLE', 'et'));
+    }
+    return { type: 'FaireService', serveur, action, cible, valeurs, ligne };
+  }
+  // « signaler "commande-validee" avec commande » : un message aux services qui l'écoutent.
+  if (estLeMot(debut, 'signaler')) {
+    const exemple = 'signaler "commande-validee" avec commande';
+    flux.avancer();
+    const message = flux.attendre('CHAINE', undefined, `le nom du message entre guillemets : ${exemple}`).valeur;
+    if (!estLeMot(flux.actuel(), 'avec')) throw new ErreurSyntaxique(`« avec » et la fiche envoyée : ${exemple}`, ligne);
+    flux.avancer();
+    const fiche = flux.attendreNom(`la fiche envoyée : ${exemple}`).nom;
+    return { type: 'Signaler', message, fiche, ligne };
   }
   if (estLeMot(debut, 'si')) {
     flux.avancer();
@@ -285,5 +332,5 @@ function analyserInstructionServeur(flux: FluxTokens): InstructionServeur {
     return { type: 'MiseAJourActivite', nom, pour, ligne };
   }
   if (estLeMot(debut, 'envoyer')) return { type: 'EmailServeur', envoi: analyserEnvoiEmail(flux), ligne };
-  throw new ErreurSyntaxique(`sur le serveur, on écrit « si », « pour chaque », « calcul », « changer … par », « creer », « supprimer », « refuser », « noter » ou « envoyer … », mais « ${debut.original ?? debut.valeur} » a été trouvé`, ligne);
+  throw new ErreurSyntaxique(`sur le serveur, on écrit « si », « pour chaque », « calcul », « changer … par », « creer », « supprimer », « refuser », « noter », « signaler », « faire … du serveur … » ou « envoyer … », mais « ${debut.original ?? debut.valeur} » a été trouvé`, ligne);
 }

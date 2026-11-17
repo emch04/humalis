@@ -84,6 +84,8 @@ import { verifierMouvement, verifierDefilementsDeLaPage, verifierImage, verifier
 import { DEVISES } from '../cibles/format.js';
 import { COULEURS_CSS } from '../cibles/web/styles.js';
 import { analyserServeur, droitsDeRoute, adresseNormalisee, type Droits } from './serveur.js';
+import { analyserServices, serviceDesComptes } from './services.js';
+import { avecServices } from './logique.js';
 import { simplifier } from './elements.js';
 import { analyserNavigation, lireCible } from './navigation.js';
 import { verifierRoles } from './roles.js';
@@ -225,6 +227,9 @@ interface Liens {
   /** « fidelite par … de … : » dans le serveur du fichier. */
   fidelite?: Fidelite;
   routes: Map<string, { adresse: string; donnee: Donnee; droits: Droits }>;
+  /** Plusieurs services : le service de chaque route, et leurs noms. */
+  servicesDesRoutes?: Map<string, string>;
+  services?: string[];
   donnees: Map<string, Donnee>;
   /** Le nom de chaque « … peut faire "x" », et l'adresse de sa route. */
   actions?: Map<string, string>;
@@ -379,7 +384,11 @@ export function analyserSens(programme: Programme, classesCss?: Set<string>): Re
   );
   const partages = globale.declarerPartages(programme.partages);
 
-  const liens: Liens = { actionsParametres: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, (a.parametres ?? []).map((p) => p.nom)] as [string, string[]])))), resumes: new Set(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.resumes ?? []).map((x) => `${adresseNormalisee(r.adresse)}/${simplifier(x.nom).replace(/_/g, '-')}`)))), champsCompte: programme.serveurs.flatMap((s) => (s.champsCompte ?? []).map((c) => c.nom)), payees: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.apresPaiement ? [[r.apresPaiement.donnee, r.adresse] as [string, string]] : [])))), ia: programme.serveurs.some((s) => s.ia), actionsDonnees: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, a.donnee] as [string, string])))), documentsDonnees: new Map(programme.serveurs.flatMap((s) => (s.documents ?? []).map((d) => [d.nom, d.donnee] as [string, string]))), documents: new Map(programme.serveurs.flatMap((s) => (s.documents ?? []).flatMap((d) => { const route = s.routes.find((r) => r.regles.some((x) => x.donnee === d.donnee && x.actions.includes('lire'))); return route ? [[d.nom, route.adresse] as [string, string]] : []; }))), actions: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, r.adresse] as [string, string])))), sources: new Map(), serveur: programme.serveurs[0]?.nom, connexionGoogle: programme.serveurs[0]?.connexionGoogle !== undefined, connexionApple: programme.serveurs[0]?.connexionApple !== undefined, connexionCleAcces: programme.serveurs[0]?.connexionCleAcces !== undefined, doubleAuthentification: programme.serveurs[0]?.doubleAuthentification !== undefined, suppressionCompte: (programme.serveurs[0]?.routes ?? []).some((r) => r.regles.some((x) => x.soi && x.actions.includes('supprimer'))), comptes: { invitations: programme.serveurs[0]?.invitations !== undefined, oublie: programme.serveurs[0]?.motDePasseOublie !== undefined, inscription: programme.serveurs[0]?.inscriptionLibre !== undefined }, fidelite: programme.serveurs[0]?.fidelite, routes: new Map(), donnees: new Map() };
+  // Les comptes : ceux du service qui les garde (le seul serveur, ou celui sans « comptes du serveur »).
+  const comptesDuProjet = serviceDesComptes(programme.serveurs) ?? programme.serveurs[0];
+  const liens: Liens = { actionsParametres: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, (a.parametres ?? []).map((p) => p.nom)] as [string, string[]])))), resumes: new Set(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.resumes ?? []).map((x) => `${adresseNormalisee(r.adresse)}/${simplifier(x.nom).replace(/_/g, '-')}`)))), champsCompte: programme.serveurs.flatMap((s) => (s.champsCompte ?? []).map((c) => c.nom)), payees: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.apresPaiement ? [[r.apresPaiement.donnee, r.adresse] as [string, string]] : [])))), ia: programme.serveurs.some((s) => s.ia), actionsDonnees: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, a.donnee] as [string, string])))), documentsDonnees: new Map(programme.serveurs.flatMap((s) => (s.documents ?? []).map((d) => [d.nom, d.donnee] as [string, string]))), documents: new Map(programme.serveurs.flatMap((s) => (s.documents ?? []).flatMap((d) => { const route = s.routes.find((r) => r.regles.some((x) => x.donnee === d.donnee && x.actions.includes('lire'))); return route ? [[d.nom, route.adresse] as [string, string]] : []; }))), actions: new Map(programme.serveurs.flatMap((s) => s.routes.flatMap((r) => (r.actions ?? []).map((a) => [a.nom, r.adresse] as [string, string])))), sources: new Map(), serveur: programme.serveurs[0]?.nom, connexionGoogle: comptesDuProjet?.connexionGoogle !== undefined, connexionApple: comptesDuProjet?.connexionApple !== undefined, connexionCleAcces: comptesDuProjet?.connexionCleAcces !== undefined, doubleAuthentification: comptesDuProjet?.doubleAuthentification !== undefined, suppressionCompte: (comptesDuProjet?.routes ?? []).some((r) => r.regles.some((x) => x.soi && x.actions.includes('supprimer'))), comptes: { invitations: comptesDuProjet?.invitations !== undefined, oublie: comptesDuProjet?.motDePasseOublie !== undefined, inscription: comptesDuProjet?.inscriptionLibre !== undefined }, fidelite: programme.serveurs[0]?.fidelite, routes: new Map(), donnees: new Map() };
+  liens.services = programme.serveurs.map((s) => s.nom);
+  liens.servicesDesRoutes = new Map(programme.serveurs.flatMap((s) => s.routes.map((r) => [adresseNormalisee(r.adresse), s.nom] as [string, string])));
   for (const serveur of programme.serveurs) {
     for (const donnee of serveur.donnees) liens.donnees.set(donnee.nom, donnee);
     for (const route of serveur.routes) {
@@ -464,11 +473,11 @@ export function analyserSens(programme: Programme, classesCss?: Set<string>): Re
   if (programme.pages.length === 0 && programme.serveurs.length === 0 && programme.composants.length === 0 && (programme.sources ?? []).length === 0) {
     resultat.diagnostics.push({ gravite: 'avertissement', ligne: 1, message: 'ce programme n’a aucune page : rien ne s’afficherait. Commencez par : page "accueil" :, puis, en dessous et décalé, titre "Bonjour".' });
   }
-  for (const serveur of programme.serveurs) analyserServeur(serveur, resultat.diagnostics, programme.pages);
-  // « compile --cible serveur » n'en produit qu'un : autant le savoir dès la vérification.
-  for (const autre of programme.serveurs.slice(1)) {
-    resultat.diagnostics.push({ gravite: 'avertissement', ligne: autre.ligne, message: `le serveur « ${autre.nom} » est le deuxième bloc « serveur » de l’application (le premier est ligne ${programme.serveurs[0].ligne}) : la cible serveur n’en produit qu’un pour l’instant.` });
-  }
+  // Plusieurs blocs « serveur » : autant de services, qui se connaissent les uns les autres.
+  avecServices(programme.serveurs, () => {
+    for (const serveur of programme.serveurs) analyserServeur(serveur, resultat.diagnostics, programme.pages);
+  });
+  analyserServices(programme.serveurs, resultat.diagnostics);
   verifierRoles(programme, resultat.diagnostics);
   analyserSources(programme.sources, programme.serveurs, resultat.diagnostics);
   analyserNavigation(programme, resultat.diagnostics);
@@ -2706,6 +2715,12 @@ class AnalysePage {
    * la requête à un visiteur.
    */
   private requete(requete: Requete): void {
+    // « du serveur "catalogue" » : facultatif ; s'il est écrit, la route doit être celle de ce service.
+    if (requete.serveur !== undefined) {
+      const service = this.liens.servicesDesRoutes?.get(adresseNormalisee(requete.adresse));
+      if (!(this.liens.services ?? []).includes(requete.serveur)) this.erreur(`le serveur « ${requete.serveur} » n'existe pas dans le projet. Serveurs : ${(this.liens.services ?? []).join(', ') || 'aucun'}.${proposerNom(requete.serveur, this.liens.services ?? [])}`, requete.ligne);
+      else if (service !== undefined && service !== requete.serveur) this.erreur(`la route « ${requete.adresse} » est celle du serveur « ${service} », pas de « ${requete.serveur} ».`, requete.ligne);
+    }
     if (requete.enAttente && (requete.source !== undefined || requete.donnees.length === 0 || requete.resultat !== undefined)) {
       this.erreur('« hors ligne » se met sur un envoi vers une route du serveur de ce fichier, sans « dans » : la réponse n’arrivera que plus tard.', requete.ligne);
     }

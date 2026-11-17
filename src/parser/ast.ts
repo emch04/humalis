@@ -157,6 +157,10 @@ export interface Serveur {
   salles?: { nom: string; pour: string[]; par?: string; animateurs?: string[]; ligne: number }[];
   /** Capture des erreurs du processus et d'Express. */
   captureErreurs?: { corps: InstructionServeur[]; ligne: number };
+  /** « comptes du serveur "comptes" » : ce service reconnaît les comptes d'un autre service du projet, sans en garder. */
+  comptesDu?: { serveur: string; ligne: number };
+  /** « quand le serveur "commandes" signale "commande-validee" avec c : » : un message d'un autre service. */
+  receveurs?: ReceveurMessage[];
   /** « donnees de depart pour produit : » : les fiches écrites au premier démarrage, si la table est vide. */
   departs?: { donnee: string; fiches: { champs: { champ: string; valeur: string | number | boolean; ligne: number }[]; ligne: number }[]; ligne: number }[];
   nom: string;
@@ -342,6 +346,28 @@ export interface Route {
   actions?: ActionServeur[];
   apresPaiement?: ApresPaiement;
   resumes?: ResumeServeur[];
+  /** « le serveur "commandes" peut … » : les droits des autres services du projet. */
+  droitsServices?: DroitService[];
+  ligne: number;
+}
+
+/** « quand le serveur "commandes" signale "commande-validee" avec c : » puis les instructions, comme dans une action. */
+export interface ReceveurMessage {
+  serveur: string;
+  message: string;
+  variable: string;
+  corps: InstructionServeur[];
+  ligne: number;
+}
+
+/** « le serveur "commandes" peut lire produit », « le serveur "commandes" peut faire "reserver" sur produit » : ce qu'un autre service peut faire sans personne connectée. */
+export interface DroitService {
+  type: 'DroitService';
+  serveur: string;
+  actions: ActionDonnee[];
+  /** « faire "reserver" » : une action de la route. */
+  faire?: string;
+  donnee: string;
   ligne: number;
 }
 
@@ -489,6 +515,12 @@ type MorceauTexte = EnvoiEmail['sujet'][number];
 
 export type InstructionServeur =
   | { type: 'RequeteServeur'; adresse: string; champs: { nom: string; valeur: Expression }[]; ligne: number }
+  /** « envoyer requete vers "produits" du serveur "catalogue" avec id commande.produit dans produit » : une fiche d'un autre service. */
+  | { type: 'AppelService'; serveur: string; route: string; id: Expression; variable: string; ligne: number }
+  /** « faire "reserver" sur produit du serveur "catalogue" avec quantite = 2 » : une action d'un autre service. */
+  | { type: 'FaireService'; serveur: string; action: string; cible: string; valeurs: { nom: string; valeur: Expression }[]; ligne: number }
+  /** « signaler "commande-validee" avec commande » : un message aux services qui l'écoutent, parti seulement si tout a réussi. */
+  | { type: 'Signaler'; message: string; fiche: string; ligne: number }
   /** « noter commande.total et montant » : le terminal du serveur, jamais en production. */
   | { type: 'NoterServeur'; valeurs: { expression: Expression; libelle: string }[]; ligne: number }
   | { type: 'SiServeur'; test: Test; alors: InstructionServeur[]; sinon: InstructionServeur[]; ligne: number }
@@ -1180,6 +1212,8 @@ export interface Requete {
   adresse: string;
   /** « de la source "boutique" » : l'API visée, au lieu du serveur du fichier. */
   source?: string;
+  /** « du serveur "catalogue" » : facultatif, le service du projet qui a la route. */
+  serveur?: string;
   /** « filtrant par categorie = "robes" » : les paramètres d'adresse d'une lecture. */
   filtrant?: { cle: string; valeur: Expression }[];
   donnees: Expression[];

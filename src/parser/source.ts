@@ -218,11 +218,15 @@ export function analyserSourceSeule(flux: FluxTokens): string | undefined {
   return undefined;
 }
 
-export function analyserClausesRequete(flux: FluxTokens): { source?: string; filtrant?: { cle: string; valeur: Expression }[] } {
-  const clauses: { source?: string; filtrant?: { cle: string; valeur: Expression }[] } = {};
+export function analyserClausesRequete(flux: FluxTokens): { source?: string; serveur?: string; filtrant?: { cle: string; valeur: Expression }[] } {
+  const clauses: { source?: string; serveur?: string; filtrant?: { cle: string; valeur: Expression }[] } = {};
   if (estLeMot(flux.actuel(), 'source') && flux.regarder(1).type === 'CHAINE') {
     flux.avancer();
     clauses.source = flux.avancer().valeur;
+  } else if (estLeMot(flux.actuel(), 'serveur') && flux.regarder(1).type === 'CHAINE') {
+    // « du serveur "catalogue" » : facultatif, le service qui a la route (vérifié à la compilation).
+    flux.avancer();
+    clauses.serveur = flux.avancer().valeur;
   }
   if (estLeMot(flux.actuel(), 'filtrant')) {
     flux.avancer();

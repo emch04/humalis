@@ -2,6 +2,7 @@ import { SQLITE, SYNCHRO_SQLITE } from './sqlite.js';
 import { MYSQL, SYNCHRO_MYSQL } from './mysql.js';
 import { EXPLOITATION_DOCUMENTS, EXPLOITATION_MYSQL } from './exploitation-bases.js';
 import { documentsTs, SYNCHRO_DOCUMENTS } from './documents.js';
+import { servicesTs, variableDuService } from './services.js';
 import { champsRendus, DEFAUTS_TS, LISEZMOI_EVOLUTION, verifierDonneesMjs } from './evolution.js';
 import { CODE_SANTE, CODE_SANTE_DEMARRAGE, codeArret, fichiersDeploiement, lisezmoiExploitation, restaurerMjs, sauvegarderMjs } from './exploitation.js';
 import { BORNES_TS, exempleDansLesBornes } from './bornes.js';
@@ -14,7 +15,7 @@ import { codeFicheVisible, codePortee, compteRelu, conditionsDe, constantesSepar
 import { avecIa, ENV_IA, IA, routeIa } from './ia.js';
 import { ENVOIS } from './envois.js';
 import { MOTIF_SQL_DU_PACK, MOTIFS_SQL_CODE } from './pare-feu.js';
-import { codeResumes, avecPaiements, codePaiements, codeSurPaiement, ENV_PAIEMENTS, PAIEMENTS, avecLogique, avecNotifications, codeActions, codeDocuments, codeNotificationsCreation, codeTaches, DOCUMENT, employe, LOGIQUE, NOTIFICATIONS, ROUTES_APPAREILS } from './logique.js';
+import { codeResumes, avecPaiements, codePaiements, codeSurPaiement, ENV_PAIEMENTS, PAIEMENTS, avecLogique, avecNotifications, codeActions, codeDocuments, codeNotificationsCreation, codeReceveurs, codeTaches, DOCUMENT, employe, LOGIQUE, NOTIFICATIONS, ROUTES_APPAREILS } from './logique.js';
 import { champsDuServeur, codeCompleter, codeEcritureModification, codeCreation, codePlafondsModification, noms as nomsVerifier, reglesEnvoi } from './regles.js';
 import { avecSynchro, codeAvantSynchro, codeCreationSynchro, codeSynchroRoute, ENV_SYNCHRO, SYNCHRO, tablesSynchro, testsSynchro } from './synchro.js';
 import { avecSecurite, codeAvantSecurite, codeCreationSecurite, codeRoutesSecurite, envSecurite, SECURITE, testsSecurite } from './securite.js';
@@ -96,6 +97,7 @@ export function genererProjetServeur(complet: ServeurRI, options: OptionsServeur
   fichiers.set('src/humalis/stockage.ts', STOCKAGE);
   fichiers.set('src/humalis/sqlite.ts', SQLITE);
   fichiers.set('src/humalis/mysql.ts', MYSQL);
+  if (serveur.projet) fichiers.set('src/humalis/services.ts', servicesTs(serveur));
   fichiers.set('src/humalis/documents.ts', documentsTs({ securite: avecSecurite(serveur), comptes: avecComptes(serveur), taches: Boolean(serveur.taches?.length), ia: avecIa(serveur) }));
   fichiers.set('src/humalis/envois.ts', ENVOIS);
   fichiers.set('src/humalis/compresser.ts', COMPRESSER);
@@ -1360,6 +1362,129 @@ const COMPTE_RELU = `      const compteRelu: RequestHandler = async (req, res, n
       };
 `;
 
+/** Dans creerServeur : les autres services du projet (appels, boîte d'envoi, messages reçus, jetons fermés). */
+function codeCreationServices(serveur: ServeurRI): string {
+  const projet = serveur.projet!;
+  const gardien = projet.comptes === serveur.nom;
+  const autres = projet.services.filter((n) => n !== serveur.nom);
+  const droits = Object.fromEntries(serveur.routes.filter((r) => r.droitsServices?.length).map((r) => [adresseApi(r.adresse), r.droitsServices!]));
+  return `  // Plusieurs services : appels signés, boîte d'envoi et messages reçus (voir src/humalis/services.ts).
+  stockages.humalisBoite ??= creerStockageMemoire();
+  stockages.humalisRecus ??= creerStockageMemoire();
+  const receveurs: Record<string, (corps: Record<string, unknown>, id: string) => Promise<void>> = {
+${codeReceveurs(serveur)}  };
+  const services: Services | undefined = reglagesServices
+    ? creerServices({
+        ...reglagesServices,
+        envois,
+        boite: stockages.humalisBoite,
+        recus: stockages.humalisRecus,
+        transaction: transaction as unknown as Parameters<typeof creerServices>[0]['transaction'],
+        receveurs,
+        autres: ${JSON.stringify(autres)},${gardien ? '' : `
+        // Le service des comptes annonce chaque jeton et chaque compte fermés : ils le sont aussi ici.
+        messagesHumalis: {
+          'humalis:jeton-ferme': async (corps) => {
+            await revocationsLocales.revoke(String(corps.jti), Number(corps.expire));
+          },
+          'humalis:compte-ferme': async (corps) => {
+            await revocationsLocales.revokeAllForUser?.(String(corps.utilisateur), Number(corps.avant));
+          },
+        },`}
+      })
+    : undefined;
+${gardien ? `  // Un jeton ou un compte fermé ici l'est aussi dans les autres services, dès que l'annonce leur arrive.
+  const revocations: RevocationStore = services
+    ? {
+        revoke: async (jti, fin) => {
+          await revocationsLocales.revoke(jti, fin);
+          await services.prevenirTous('humalis:jeton-ferme', { jti, expire: fin });
+        },
+        isRevoked: (jti) => revocationsLocales.isRevoked(jti),
+        revokeAllForUser: async (utilisateur, avant) => {
+          await revocationsLocales.revokeAllForUser?.(utilisateur, avant);
+          await services.prevenirTous('humalis:compte-ferme', { utilisateur, avant });
+        },
+        isRevokedForUser: async (utilisateur, emis) => (await revocationsLocales.isRevokedForUser?.(utilisateur, emis)) ?? false,
+      }
+    : revocationsLocales;
+` : '  const revocations = revocationsLocales;\n'}  /** Un refus de l'autre service (400, 403, 404) devient un refus ici, avec son message ; une panne reste une panne. */
+  const refusDistant = (erreur: unknown): never => {
+    throw erreur instanceof RefusDuService ? new Refus(erreur.message) : erreur;
+  };
+  void refusDistant;
+  /** Les droits des autres services, route par route (« le serveur "x" peut … »). */
+  const DROITS_DES_SERVICES: Record<string, { serveur: string; actions: string[]; faire?: string }[]> = ${JSON.stringify(droits)};
+  void DROITS_DES_SERVICES;
+`;
+}
+
+/** Dans demarrer.ts : la clé des jetons (privée ici si ce service garde les comptes, publique sinon) et le secret des services. */
+function codeSecretsServices(serveur: ServeurRI): string {
+  const projet = serveur.projet!;
+  const gardien = projet.comptes === serveur.nom;
+  return `/**
+ * Une clé lue dans le .env : le texte PEM (les retours à la ligne écrits \\n), ou ce texte en base64 sur une ligne.
+ * \`npm run cles\` dans le service des comptes écrit les deux lignes à recopier.
+ */
+function cleDuService(nom: string, genre: 'privee' | 'publique'): string {
+  const brute = process.env[nom]?.trim();
+  if (!brute) arreter(nom + ' manque (voir .env.exemple : ' + (genre === 'privee' ? 'npm run cles' : 'la clé publique donnée par npm run cles dans le service des comptes') + ').');
+  const pem = brute.includes('-----BEGIN') ? brute.replace(/\\\\n/g, '\\n') : Buffer.from(brute, 'base64').toString('utf8');
+  try {
+    const cle = genre === 'privee' ? createPrivateKey(pem) : createPublicKey(pem);
+    if (cle.asymmetricKeyType !== 'ec') throw new Error('une clé EC P-256 est attendue');
+  } catch (erreur) {
+    arreter(nom + " n'est pas une clé " + (genre === 'privee' ? 'privée' : 'publique') + ' lisible : ' + (erreur instanceof Error ? erreur.message : String(erreur)));
+  }
+  return pem;
+}
+${gardien ? `const jwtSecret = process.env.JWT_SECRET ?? '';
+if (jwtSecret.length < 32) {
+  arreter('JWT_SECRET doit contenir au moins 32 caractères au hasard (voir .env.exemple).');
+}
+// Ce service garde les comptes du projet : il signe les jetons d'accès avec sa clé privée (ES256).
+const cleDesJetons = cleDuService('HUMALIS_COMPTES_CLE_PRIVEE', 'privee');` : `// Ce service prend ses comptes chez le serveur « ${projet.comptes.replace(/[\\'\`$]/g, '')} » : il vérifie ses jetons avec la clé publique, sans pouvoir en fabriquer.
+const cleDesJetons = cleDuService('HUMALIS_COMPTES_CLE_PUBLIQUE', 'publique');
+const jwtSecret = cleDesJetons;`}
+// Les services du projet se reconnaissent par ce secret partagé : chaque appel et chaque message est signé avec lui.
+const secretDesServices = process.env.HUMALIS_SERVICES_SECRET?.trim() ?? '';
+if (secretDesServices.length < 32) {
+  arreter('HUMALIS_SERVICES_SECRET doit contenir au moins 32 caractères au hasard, les mêmes dans tous les services du projet (voir .env.exemple).');
+}
+for (const [service, adresse] of Object.entries(adressesDesServices())) {
+  if (!adresse) console.warn("L'adresse du serveur « " + service + " » n'est pas réglée (" + ${JSON.stringify('HUMALIS_SERVICE_')} + service.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]+/g, '_') + ') : ses appels et ses messages attendront.');
+}`;
+}
+
+/** Dans « avant » : une requête signée par un autre service, les messages reçus, et les comptes tenus ailleurs. */
+function codeAvantServices(serveur: ServeurRI): string {
+  const projet = serveur.projet!;
+  const gardien = projet.comptes === serveur.nom;
+  return `
+  // Une requête signée par un autre service du projet est vérifiée avant tout (signature, rejeu), puis traitée comme les autres.
+  if (services) {
+    avant.use(services.verifier);
+    avant.post('/humalis/messages', express.json({ limit: '1mb' }), services.recevoir);
+  }${gardien ? '' : `
+  // Les comptes sont tenus par le serveur « ${projet.comptes.replace(/[\\'\`$]/g, '')} » : ni connexion ni comptes ici (le coffre des clés reste).
+  avant.use('/auth', (req, res, next) => {
+    if (req.path.startsWith('/cles')) next();
+    else res.status(404).json({ erreur: ${JSON.stringify(`les comptes sont tenus par le serveur « ${projet.comptes} »`)} });
+  });
+  avant.use(['/users', '/settings'], (_req, res) => {
+    res.status(404).json({ erreur: ${JSON.stringify(`les comptes sont tenus par le serveur « ${projet.comptes} »`)} });
+  });`}`;
+}
+
+/**
+ * Un service qui ne garde pas les comptes : le jeton, signé par le service des comptes, dit qui est la personne et son
+ * rôle. Un changement de rôle compte à son prochain jeton (quinze minutes au plus) ; un jeton ou un compte fermé est
+ * annoncé par le service des comptes, et refusé ici dès que l'annonce arrive.
+ */
+const COMPTE_RELU_DISTANT = `      const compteRelu: RequestHandler = (_req, _res, next) => next();
+`;
+
 const GARDES: Record<'tout_le_monde' | 'connecte' | 'admin', string> = {
   tout_le_monde: 'toutLeMonde',
   connecte: 'connecte',
@@ -1377,7 +1502,7 @@ function decrireDroits(droits: Record<Action, QuiPeut | null>, conditions?: Reco
 }
 
 function serveurTs(serveur: ServeurRI, chemins?: Map<string, string>, montageTempsReel = ''): string {
-  const stockages = serveur.donnees.map((d) => `    ${camel(d.nom)}: Stockage;`).join('\n');
+  const stockages = serveur.donnees.map((d) => `    ${camel(d.nom)}: Stockage;`).join('\n') + (serveur.projet ? `\n    /** La boîte d'envoi des messages aux autres services, et les messages reçus (par défaut, en mémoire). */\n    humalisBoite?: Stockage;\n    humalisRecus?: Stockage;` : '');
   const routes = serveur.routes
     .map((route) => {
       const donnee = camel(route.donnee);
@@ -1386,8 +1511,10 @@ function serveurTs(serveur: ServeurRI, chemins?: Map<string, string>, montageTem
       const donneeRoute = serveur.donnees.find((d) => d.nom === route.donnee)!;
       const separee = estSeparee(donneeRoute, route);
       // Une règle avec « si » regarde qui est connecté : la porte s'ouvre aux comptes, la fiche décide ensuite.
-      const garde = (a: Action) => (route.droits[a] === null ? (conditionsDe(route, a).length ? '...acces.connecte' : 'refuse') : `...acces.${conditionsDe(route, a).length && route.droits[a] !== 'tout_le_monde' ? 'connecte' : gardeDe(route.droits[a]!)}`);
-      const csrf = (a: Action) => (route.droits[a] === null && !conditionsDe(route, a).length ? '' : ', csrfMiddleware');
+      // « le serveur "x" peut lire produit » sur une action fermée aux personnes : seul ce service passe.
+      const pourServices = (a: Action) => (route.droitsServices ?? []).some((d) => d.actions.includes(a));
+      const garde = (a: Action) => (route.droits[a] === null ? (conditionsDe(route, a).length ? '...acces.connecte' : pourServices(a) ? '...acces.seulServices' : 'refuse') : `...acces.${conditionsDe(route, a).length && route.droits[a] !== 'tout_le_monde' ? 'connecte' : gardeDe(route.droits[a]!)}`);
+      const csrf = (a: Action) => (route.droits[a] === null && !conditionsDe(route, a).length && !pourServices(a) ? '' : ', csrfMiddleware');
       const voir = (a: Action) => (separee ? codeFicheVisible(variable, donnee, route.donnee, a, donneeRoute.par) : '');
       // Ce que tout le monde peut lire se garde un peu (navigateur, relais) ; une lecture réservée, jamais.
       const cache = route.droits.lire === 'tout_le_monde' ? 'lecturePublique' : 'lecturePrivee';
@@ -1466,7 +1593,7 @@ import type { Coffre } from './humalis/coffre.js';
 ${comptes ? "import { creerComptes, refuserMotDePasseFaible, sansLesRetires } from './humalis/comptes.js';\n" : ''}${avecEmails(serveur) ? `import { creerEmails, ${envoisDansRoutes ? 'enTexte, ' : ''}type Emails } from './humalis/emails.js';\n` : ''}import { compresser } from './humalis/compresser.js';
 import { creerEnvoisMemoire, creerUnSeulEnvoi, type MagasinEnvois } from './humalis/envois.js';${avecSynchro(serveur) ? "\nimport { creerJournalMemoire, creerSynchro, type JournalSynchro } from './humalis/synchro.js';" : ''}${avecSecurite(serveur) ? "\nimport { creerMagasinSecuriteMemoire, creerSecurite, oublierCompte, type MagasinSecurite } from './humalis/securite.js';" : ''}${avecPaiements(serveur) ? "\nimport { creerPaiements, type SurPaiement } from './humalis/paiements.js';" : ''}${avecIa(serveur) ? "\nimport { compterMemoire, creerIa, type Compter } from './humalis/ia.js';" : ''}${avecNotifications(serveur) ? "\nimport { creerNotifications } from './humalis/notifications.js';" : ''}${serveur.documents?.length ? "\nimport { creerDocument } from './humalis/document.js';" : ''}${avecBon ? "\nimport { creerBon } from './humalis/bon.js';" : ''}${serveur.fidelite ? "\nimport { carteDeFidelite } from './humalis/fidelite.js';" : ''}
 ${avecLogique(serveur) ? `import { ${['Refus', 'agreger', 'resumer', 'enTexte', 'estVide', 'contient', 'noter', 'nouveauTravail', 'terminer', 'transactionMemoire', ...(serveur.taches?.length ? ['lancerTaches', 'type Reclamer'] : []), 'type Transaction'].join(', ')} } from './humalis/logique.js';\n` : ''}import { creerRenouvellement, reglagesDeSession, renouvellementEnCookie, type ReglagesSession } from './humalis/sessions.js';
-import { ${avecNotifications(serveur) ? 'creerStockageMemoire, ' : ''}${serveur.fidelite ? 'sansSeparateurs, ' : ''}type Stockage } from './humalis/stockage.js';
+import { ${avecNotifications(serveur) || serveur.projet ? 'creerStockageMemoire, ' : ''}${serveur.fidelite ? 'sansSeparateurs, ' : ''}type Stockage } from './humalis/stockage.js';${serveur.projet ? "\nimport { creerServices, droitDuService, noterRecu, RefusDuService, type Services } from './humalis/services.js';" : ''}
 ${compteRelu(serveur) ? (serveur.routes.some((r) => estSeparee(serveur.donnees.find((d) => d.nom === r.donnee)!, r)) ? "import { dansPortee, groupeACreer, listerDans, moiDe, porteeDe, REFUS_FICHES, type RegleAcces, type Separation } from './humalis/separation.js';\n" : '') : ''}import { lireFiltres, ${nomsVerifier(serveur).map((n) => n + ', ').join('')}verifierEnvoi } from './humalis/verifier.js';
 
 export interface OptionsDuServeur {
@@ -1503,7 +1630,11 @@ ${avecLogique(serveur) ? `  /** Comment écrire tout ou rien ; par défaut, en m
   /** Les empreintes des liens envoyés par e-mail ; par défaut, en mémoire. */
   jetons?: PasswordResetStore;` : ''}
   /** La surveillance, si CENTRALE_ADRESSE et CENTRALE_CLE sont réglées. */
-  surveillance?: Surveillance | null;
+  surveillance?: Surveillance | null;${serveur.projet ? `
+  /** Les autres services du projet : le secret partagé (HUMALIS_SERVICES_SECRET) et leurs adresses. */
+  services?: { secret: string; adresses?: Record<string, string | undefined>; horloge?: () => number };
+  /** La clé des jetons d'accès (ES256) : privée dans le service des comptes, publique ailleurs ; sans elle, jwtSecret (HS256). */
+  cleDesJetons?: string;` : ''}
   /** Le coffre des clés de service, si ENCRYPTION_KEY est réglée. */
   coffre?: Coffre | null;
 }
@@ -1620,7 +1751,8 @@ ${serveur.routeMonCompte?.supprimer ? codeEffacerLesDonnees(serveur) : ''}/**
  * limites et les en-têtes de sécurité viennent de createSaasApp. Les
  * routes des données s'ajoutent par extendRoutes, avec les gardes du pack.
  */
-export function creerServeur({ ${avecSynchro(serveur) ? 'journalSynchro = creerJournalMemoire(), ' : ''}${avecSecurite(serveur) ? 'magasinSecurite = creerMagasinSecuriteMemoire(), horlogeSecurite = Date.now, ' : ''}envois = creerEnvoisMemoire(), jwtSecret, usersStore${comptes ? ': tousLesComptes' : ''}, stockages${avecLogique(serveur) ? ', transaction = transactionMemoire(stockages)' : ''}${serveur.taches?.length ? ', reclamerTache' : ''}${avecNotifications(serveur) ? ', appareils = creerStockageMemoire()' : ''}${avecIa(serveur) ? ', compterIa = compterMemoire()' : ''}${serveur.connexionGoogle ? ', googleClientId, googleClientIdApple = () => undefined' : ''}${serveur.connexionApple ? ', identifiantsApple = () => ({})' : ''}, session = reglagesDeSession(process.env), surveillance, coffre${avecEmails(serveur) ? `, emails = creerEmails({ nom: ${boutique} })` : ''}${comptes ? ', jetons = createMemoryPasswordResetStore()' : ''}, revocations = createMemoryRevocationStore(), sante = async () => true }: OptionsDuServeur) {
+export function creerServeur({ ${avecSynchro(serveur) ? 'journalSynchro = creerJournalMemoire(), ' : ''}${avecSecurite(serveur) ? 'magasinSecurite = creerMagasinSecuriteMemoire(), horlogeSecurite = Date.now, ' : ''}envois = creerEnvoisMemoire(), jwtSecret, usersStore${comptes ? ': tousLesComptes' : ''}, stockages${avecLogique(serveur) ? ', transaction = transactionMemoire(stockages)' : ''}${serveur.taches?.length ? ', reclamerTache' : ''}${avecNotifications(serveur) ? ', appareils = creerStockageMemoire()' : ''}${avecIa(serveur) ? ', compterIa = compterMemoire()' : ''}${serveur.connexionGoogle ? ', googleClientId, googleClientIdApple = () => undefined' : ''}${serveur.connexionApple ? ', identifiantsApple = () => ({})' : ''}, session = reglagesDeSession(process.env), surveillance, coffre${avecEmails(serveur) ? `, emails = creerEmails({ nom: ${boutique} })` : ''}${comptes ? ', jetons = createMemoryPasswordResetStore()' : ''}${serveur.projet ? ', revocations: revocationsLocales = createMemoryRevocationStore(), services: reglagesServices, cleDesJetons' : ', revocations = createMemoryRevocationStore()'}, sante = async () => true }: OptionsDuServeur) {
+${serveur.projet ? codeCreationServices(serveur) : ''}
 ${serveur.captureErreurs ? '  brancherErreursProcessus();\n' : ''}
   const renouvellement = creerRenouvellement(session);
   // Le pare-feu : « strict » (par défaut) lit aussi les textes envoyés ; « adresses » ne lit que l'adresse pour les motifs d'affichage.
@@ -1638,7 +1770,7 @@ ${comptes ? codeCreationComptes(serveur, chemins).replace('usersStore,', 'usersS
     },
   });
 ` : ''}${avecSynchro(serveur) ? codeCreationSynchro(serveur) : ''}${avecSecurite(serveur) ? codeCreationSecurite(serveur).replace('jwtSecret,', 'jwtSecret,\n    horloge: horlogeSecurite,') : ''}  const serveur = createSaasApp({
-    jwtSecret,
+    jwtSecret${serveur.projet ? ": cleDesJetons ?? jwtSecret,\n    // Plusieurs services : le service des comptes signe les jetons avec sa clé privée, les autres les vérifient avec la publique.\n    ...(cleDesJetons ? { jwtAlgorithms: ['ES256'] } : {})" : ''},
     // Le pare-feu du pack, sans son motif des commentaires SQL : le stockage passe par des requêtes paramétrées,
     // et « avenue #12 » ou « appeler -- après 18h » sont de vrais textes. Son motif « select … from » est remplacé
     // par MOTIFS_SQL : une phrase anglaise passe, une injection non. Les autres motifs restent.
@@ -1651,7 +1783,11 @@ ${comptes ? codeCreationComptes(serveur, chemins).replace('usersStore,', 'usersS
       ],
     },
     // Les limites par adresse : un établissement entier peut sortir par une seule adresse.
-    ...(process.env.HUMALIS_LIMITE_API ? { apiRateLimit: { max: Number(process.env.HUMALIS_LIMITE_API) } } : {}),
+${serveur.projet ? `    // Une requête signée par un autre service du projet ne compte pas dans les limites : elle vient d'une seule adresse.
+    apiRateLimit: {
+      ...(process.env.HUMALIS_LIMITE_API ? { max: Number(process.env.HUMALIS_LIMITE_API) } : {}),
+      skip: (req: { ip?: string }) => Boolean((req as unknown as { humalisService?: string }).humalisService) || (process.env.NODE_ENV !== 'production' && ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.ip ?? '')),
+    },` : `    ...(process.env.HUMALIS_LIMITE_API ? { apiRateLimit: { max: Number(process.env.HUMALIS_LIMITE_API) } } : {}),`}
     ...(process.env.HUMALIS_LIMITE_CONNEXION ? { loginRateLimit: { max: Number(process.env.HUMALIS_LIMITE_CONNEXION) } } : {}),
     // Derrière un relais (nginx) : son nombre, pour que les limites comptent chaque visiteur et non le relais.
     ...(process.env.HUMALIS_RELAIS ? { trustProxy: Number(process.env.HUMALIS_RELAIS) } : {}),
@@ -1671,18 +1807,34 @@ ${comptes ? codeCreationComptes(serveur, chemins).replace('usersStore,', 'usersS
     passwordReset: { send: comptes.envoyerLienOublie, store: jetons },` : ''}
     extendRoutes: (app, contexte) => {
       // Les gardes du pack, telles quelles.
-      const authMiddleware = contexte.authMiddleware as unknown as RequestHandler;
+${serveur.projet ? `      const authDuPack = contexte.authMiddleware as unknown as RequestHandler;
+      // Un autre service du projet, sans personne connectée : seulement ce que « le serveur "x" peut … » lui donne ici.
+      const authMiddleware: RequestHandler = (req, res, next) => {
+        const r = req as unknown as { humalisService?: string; humalisSansPersonne?: boolean; user?: Record<string, unknown> };
+        if (!r.humalisSansPersonne) {
+          authDuPack(req, res, next);
+          return;
+        }
+        if (!droitDuService(DROITS_DES_SERVICES[req.baseUrl], r.humalisService!, req.method, req.path)) {
+          res.status(403).json({ erreur: 'le serveur « ' + r.humalisService + ' » n\\'a pas ce droit ici' });
+          return;
+        }
+        r.user = { id: 'service:' + r.humalisService, role: 'admin', email: '' };
+        next();
+      };` : '      const authMiddleware = contexte.authMiddleware as unknown as RequestHandler;'}
       const authorizeAdmin = contexte.authorizeAdmin as unknown as RequestHandler;
       const authorizeRoles = contexte.authorizeRoles as unknown as (...roles: string[]) => RequestHandler;
       const csrfMiddleware = contexte.csrfMiddleware as unknown as RequestHandler;
       const issueSession = (contexte as unknown as { issueSession: (res: unknown, compte: unknown) => Promise<object> }).issueSession;
-${compteRelu(serveur) ? COMPTE_RELU : ''}      const unSeulEnvoi = creerUnSeulEnvoi(envois);
+${compteRelu(serveur) ? (serveur.projet && serveur.projet.comptes !== serveur.nom ? COMPTE_RELU_DISTANT : serveur.projet ? COMPTE_RELU.replace('        try {\n', "        try {\n          // Un autre service du projet, sans personne : il n'a pas de compte à relire.\n          if (String((req as unknown as { user?: Record<string, unknown> }).user?.id ?? '').startsWith('service:')) {\n            next();\n            return;\n          }\n") : COMPTE_RELU) : ''}      const unSeulEnvoi = creerUnSeulEnvoi(envois);
       const acces = {
         toutLeMonde: [unSeulEnvoi] as RequestHandler[],
         connecte: [authMiddleware${compteRelu(serveur) ? ', compteRelu' : ''}, unSeulEnvoi],
         seulAdmin: [authMiddleware${compteRelu(serveur) ? ', compteRelu' : ''}, authorizeAdmin, unSeulEnvoi],
         // « seul directeur peut … » : le rôle vient de la session, vérifié par le pack de sécurité. Un admin passe toujours.
-        roles: (permis: string[]): RequestHandler[] => [authMiddleware${compteRelu(serveur) ? ', compteRelu' : ''}, authorizeRoles('admin', ...permis), unSeulEnvoi],
+        roles: (permis: string[]): RequestHandler[] => [authMiddleware${compteRelu(serveur) ? ', compteRelu' : ''}, authorizeRoles('admin', ...permis), unSeulEnvoi],${serveur.projet ? `
+        // « le serveur "x" peut … » sur une action fermée aux personnes : seul un service, avec ce droit.
+        seulServices: [(req, res, next) => ((req as unknown as { humalisSansPersonne?: boolean }).humalisSansPersonne ? authMiddleware(req, res, next) : refuse(req, res, next)), unSeulEnvoi] as RequestHandler[],` : ''}
       };
       // Les réponses des routes ci-dessous partent compressées (brotli ou gzip) quand le navigateur l'accepte.
       app.use(compresser);
@@ -1716,7 +1868,7 @@ ${serveur.captureErreurs ? "      app.use((erreur: unknown, req: express.Request
   (serveur as unknown as express.Application).disable('x-powered-by');
   // En tête de tout : la surveillance voit chaque requête, et le jeton de renouvellement passe par son cookie.
   const avant = express().disable('x-powered-by');
-${CODE_SANTE}${avecPaiements(serveur) ? "  avant.post('/paiements/webhook', ...paiements.webhook);\n" : ''}  if (surveillance) avant.use(surveillance.intergiciel());${codeAvantSecurite(serveur)}${codeAvantSynchro(serveur, adresseApi)}${comptes ? "\n  avant.post('/auth/reset-password', express.json({ limit: '16kb' }), refuserMotDePasseFaible);" : ''}
+${CODE_SANTE}${avecPaiements(serveur) ? "  avant.post('/paiements/webhook', ...paiements.webhook);\n" : ''}  if (surveillance) avant.use(surveillance.intergiciel());${serveur.projet ? codeAvantServices(serveur) : ''}${codeAvantSecurite(serveur)}${codeAvantSynchro(serveur, adresseApi)}${comptes ? "\n  avant.post('/auth/reset-password', express.json({ limit: '16kb' }), refuserMotDePasseFaible);" : ''}
   return avant.use(renouvellementEnCookie(session.dureeMs)).use(serveur as unknown as express.Application);
 }
 `;
@@ -1732,14 +1884,14 @@ function demarrerTs(serveur: ServeurRI): string {
   const comptes = avecComptes(serveur);
   const stockages = serveur.donnees
     .map((d) => `  ${camel(d.nom)}: pool ? creerStockagePostgres(pool, '${nomTable(d.nom)}'${listeDesChamps(serveur, d)}) : sqlite ? creerStockageSqlite(sqlite, '${nomTable(d.nom)}'${listeDesChamps(serveur, d)}) : mysql ? creerStockageMysql(mysql, '${nomTable(d.nom)}'${listeDesChamps(serveur, d)}) : documents ? creerStockageDocuments(documents, '${nomTable(d.nom)}'${listeDesChamps(serveur, d)}) : creerStockageMemoire(),`)
-    .join('\n');
+    .join('\n') + (serveur.projet ? '\n' + ([['humalisBoite', 'humalis_boite_envoi'], ['humalisRecus', 'humalis_messages_recus']] as const).map(([nom, table]) => `  ${nom}: pool ? creerStockagePostgres(pool, '${table}') : sqlite ? creerStockageSqlite(sqlite, '${table}') : mysql ? creerStockageMysql(mysql, '${table}') : documents ? creerStockageDocuments(documents, '${table}') : creerStockageMemoire(),`).join('\n') : '');
   const premiere = serveur.routes[0] ? adresseApi(serveur.routes[0].adresse) : '/auth/me';
   return `// Produit par Humalis : lit l'environnement, crée le premier admin, démarre le serveur « ${serveur.nom} ».
 import { createServer, type RequestListener } from 'node:http';
 import { createMemoryUsersStore, type UsersStore } from '@astratra/saas-kit';
 import { hashPassword, isStrongPassword } from '@astratra/security';
 import { createPostgresUsersStore } from '@astratra/store-postgres';
-import pg from 'pg';
+import pg from 'pg';${serveur.projet ? "\nimport { createPrivateKey, createPublicKey } from 'node:crypto';\nimport { adressesDesServices } from './humalis/services.js';" : ''}
 import { creerServeur } from './serveur.js';
 ${avecDirect(serveur) ? "import { direct } from './humalis/direct.js';\n" : ''}import { demarrerCentrale } from './humalis/centrale.js';
 ${avecIa(serveur) ? "import { compterPostgres } from './humalis/ia.js';\n" : ''}${avecLogique(serveur) ? `import { transactionPostgres${serveur.taches?.length ? ', reclamerMemoire, reclamerPostgres' : ''} } from './humalis/logique.js';\n` : ''}import { creerEnvoisPostgres } from './humalis/envois.js';
@@ -1759,10 +1911,10 @@ function arreter(message: string): never {
 // La surveillance d'abord, pour voir aussi une panne du démarrage.
 const surveillance = await demarrerCentrale();
 
-const jwtSecret = process.env.JWT_SECRET ?? '';
+${serveur.projet ? codeSecretsServices(serveur) : `const jwtSecret = process.env.JWT_SECRET ?? '';
 if (jwtSecret.length < 32) {
   arreter('JWT_SECRET doit contenir au moins 32 caractères au hasard (voir .env.exemple).');
-}
+}`}
 
 // DATABASE_URL : la base choisie par celui qui déploie, d'après le début de l'adresse. Le programme n'en nomme aucune.
 const adresseBase = process.env.DATABASE_URL?.trim() || null;
@@ -1850,7 +2002,7 @@ const coffre = await ouvrirCoffre(sql, process.env, documents ? creerClesDocumen
 
 ${CODE_SANTE_DEMARRAGE}
 const port = Number(process.env.PORT ?? 3000);
-const app = creerServeur({ sante, ...(documents ? { envois: creerEnvoisDocuments(documents), revocations: creerRevocationsDocuments(documents)${avecSecurite(serveur) ? ', magasinSecurite: creerSecuriteDocuments(documents)' : ''} } : sql ? { envois: creerEnvoisPostgres(sql), revocations: creerRevocationsPostgres(sql)${avecSecurite(serveur) ? ', magasinSecurite: creerMagasinSecuritePostgres(sql)' : ''} } : {})${avecSynchro(serveur) ? `, ...(pool ? { journalSynchro: creerJournalPostgres(pool, ${tablesSynchro(serveur, nomTable)}) } : sqlite ? { journalSynchro: creerJournalSqlite(sqlite, ${tablesSynchro(serveur, nomTable)}) } : mysql ? { journalSynchro: creerJournalMysql(mysql, ${tablesSynchro(serveur, nomTable)}) } : documents ? { journalSynchro: creerJournalDocuments(documents, ${tablesSynchro(serveur, nomTable)}) } : {})` : ''}, jwtSecret, usersStore, stockages${avecLogique(serveur) ? `, ...(pool ? { transaction: transactionPostgres(pool, (client) => ({ ${serveur.donnees.map((d) => `${camel(d.nom)}: creerStockagePostgres(client, '${nomTable(d.nom)}'${listeDesChamps(serveur, d)})`).join(', ')} })) } : sqlite ? { transaction: transactionSqlite(sqlite, stockages) } : mysql ? { transaction: transactionMysql(mysql, stockages) } : documents ? { transaction: transactionDocuments(documents, stockages) } : {})` : ''}${serveur.taches?.length ? ', reclamerTache: documents ? reclamerDocuments(documents) : sql ? reclamerPostgres(sql) : reclamerMemoire()' : ''}${avecNotifications(serveur) ? ", ...(pool ? { appareils: creerStockagePostgres(pool, 'humalis_appareils') } : sqlite ? { appareils: creerStockageSqlite(sqlite, 'humalis_appareils') } : mysql ? { appareils: creerStockageMysql(mysql, 'humalis_appareils') } : documents ? { appareils: creerStockageDocuments(documents, 'humalis_appareils') } : {})" : ''}${avecIa(serveur) ? ', ...(documents ? { compterIa: compterDocuments(documents) } : sql ? { compterIa: compterPostgres(sql) } : {})' : ''}${serveur.connexionGoogle ? ', googleClientId: () => process.env.GOOGLE_CLIENT_ID || undefined, googleClientIdApple: () => process.env.GOOGLE_CLIENT_ID_APPLE || undefined' : ''}${serveur.connexionApple ? ', identifiantsApple: () => ({ application: process.env.APPLE_APP_ID || undefined, site: process.env.APPLE_SERVICE_ID || undefined })' : ''}${comptes ? ', jetons: documents ? creerJetonsDocuments(documents) : creerMagasinJetons(sql)' : ''}, session, surveillance, coffre }) as unknown as { listen(port: number, pret: () => void): unknown };
+const app = creerServeur({ sante, ...(documents ? { envois: creerEnvoisDocuments(documents), revocations: creerRevocationsDocuments(documents)${avecSecurite(serveur) ? ', magasinSecurite: creerSecuriteDocuments(documents)' : ''} } : sql ? { envois: creerEnvoisPostgres(sql), revocations: creerRevocationsPostgres(sql)${avecSecurite(serveur) ? ', magasinSecurite: creerMagasinSecuritePostgres(sql)' : ''} } : {})${avecSynchro(serveur) ? `, ...(pool ? { journalSynchro: creerJournalPostgres(pool, ${tablesSynchro(serveur, nomTable)}) } : sqlite ? { journalSynchro: creerJournalSqlite(sqlite, ${tablesSynchro(serveur, nomTable)}) } : mysql ? { journalSynchro: creerJournalMysql(mysql, ${tablesSynchro(serveur, nomTable)}) } : documents ? { journalSynchro: creerJournalDocuments(documents, ${tablesSynchro(serveur, nomTable)}) } : {})` : ''}, jwtSecret, usersStore, stockages${avecLogique(serveur) ? `, ...(pool ? { transaction: transactionPostgres(pool, (client) => ({ ${[...serveur.donnees.map((d) => `${camel(d.nom)}: creerStockagePostgres(client, '${nomTable(d.nom)}'${listeDesChamps(serveur, d)})`), ...(serveur.projet ? ["humalisBoite: creerStockagePostgres(client, 'humalis_boite_envoi')", "humalisRecus: creerStockagePostgres(client, 'humalis_messages_recus')"] : [])].join(', ')} })) } : sqlite ? { transaction: transactionSqlite(sqlite, stockages) } : mysql ? { transaction: transactionMysql(mysql, stockages) } : documents ? { transaction: transactionDocuments(documents, stockages) } : {})` : ''}${serveur.taches?.length ? ', reclamerTache: documents ? reclamerDocuments(documents) : sql ? reclamerPostgres(sql) : reclamerMemoire()' : ''}${avecNotifications(serveur) ? ", ...(pool ? { appareils: creerStockagePostgres(pool, 'humalis_appareils') } : sqlite ? { appareils: creerStockageSqlite(sqlite, 'humalis_appareils') } : mysql ? { appareils: creerStockageMysql(mysql, 'humalis_appareils') } : documents ? { appareils: creerStockageDocuments(documents, 'humalis_appareils') } : {})" : ''}${avecIa(serveur) ? ', ...(documents ? { compterIa: compterDocuments(documents) } : sql ? { compterIa: compterPostgres(sql) } : {})' : ''}${serveur.connexionGoogle ? ', googleClientId: () => process.env.GOOGLE_CLIENT_ID || undefined, googleClientIdApple: () => process.env.GOOGLE_CLIENT_ID_APPLE || undefined' : ''}${serveur.connexionApple ? ', identifiantsApple: () => ({ application: process.env.APPLE_APP_ID || undefined, site: process.env.APPLE_SERVICE_ID || undefined })' : ''}${comptes ? ', jetons: documents ? creerJetonsDocuments(documents) : creerMagasinJetons(sql)' : ''}, session, surveillance, coffre${serveur.projet ? ', services: { secret: secretDesServices }, cleDesJetons' : ''} }) as unknown as { listen(port: number, pret: () => void): unknown };
 // HUMALIS_ECOUTE : l'adresse d'écoute (127.0.0.1 derrière un relais) ; sans elle, toutes les adresses.
 const pret = () => console.log(\`Serveur « ${serveur.nom} » prêt : http://localhost:\${port}${premiere}\`);
 const ecoute = process.env.HUMALIS_ECOUTE?.trim();

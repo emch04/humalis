@@ -66,7 +66,7 @@ describe('les noms qui finissent dans le code produit', () => {
 describe('ce que « verifier » dit avant « compile »', () => {
   it('deux blocs « serveur » : un avertissement nomme la ligne du premier', () => {
     const source = 'serveur "a1" :\n    donnee x :\n        nom : texte\n    route "xs" :\n        tout le monde peut lire x\n        seul admin peut modifier x\nserveur "b1" :\n    donnee y :\n        nom : texte\n    route "ys" :\n        tout le monde peut lire y\n        seul admin peut modifier y\n\npage "a" :\n    titre "x"\n';
-    expect(avertissements(source)).toEqual(['le serveur « b1 » est le deuxième bloc « serveur » de l’application (le premier est ligne 1) : la cible serveur n’en produit qu’un pour l’instant.']);
+    expect(avertissements(source)).toEqual(['les serveurs « a1 » (ligne 1) et « b1 » gardent chacun leurs comptes : un seul service garde les comptes. Écrivez dans « b1 » : comptes du serveur "a1"']);
   });
 });
 

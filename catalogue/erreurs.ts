@@ -16,6 +16,7 @@ import { ENTREES_ERREURS_FORMES } from './erreurs-formes';
 import { ENTREES_ERREURS_TEMPS_REEL } from './erreurs-temps-reel';
 import { ENTREES_ERREURS_MORCEAUX } from './erreurs-morceaux';
 import { ENTREES_ERREURS_CAPTURE } from './erreurs-capture';
+import { ENTREES_ERREURS_SERVICES } from './erreurs-services';
 
 export type GroupeErreur = 'ecriture' | 'grammaire' | 'sens' | 'avertissement';
 
@@ -5413,6 +5414,7 @@ page "carte" :
   ...ENTREES_ERREURS_TEMPS_REEL,
   ...ENTREES_ERREURS_MORCEAUX,
   ...ENTREES_ERREURS_CAPTURE,
+  ...ENTREES_ERREURS_SERVICES,
   e('supposant-forme', 'grammaire', 'Écrire le bloc optimiste',
     'Le bloc annonce que la requête suivante pourrait échouer.',
     'Écris « en supposant que ça marche : ».',

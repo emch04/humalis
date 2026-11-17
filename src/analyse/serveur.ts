@@ -4,7 +4,7 @@ import type { Diagnostic } from './erreurs.js';
 import { simplifier } from './elements.js';
 import { proposerNom } from './suggestions.js';
 import { champsDeLaPersonne } from './suppression-compte.js';
-import { traduireAction, traduireApresPaiement, traduireCaptureErreurs, traduireDocument, traduireNotification, traduireResume, traduireTache } from './logique.js';
+import { traduireAction, traduireApresPaiement, traduireCaptureErreurs, traduireDocument, traduireNotification, traduireReceveur, traduireResume, traduireTache } from './logique.js';
 
 const ACTIONS: ActionDonnee[] = ['lire', 'creer', 'modifier', 'supprimer'];
 
@@ -86,6 +86,8 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[], pag
   }
 
   for (const tache of serveur.taches ?? []) traduireTache(tache, serveur, erreur);
+  // « quand le serveur "x" signale "m" avec c : » : la fiche reçue a la donnée que l'autre service signale.
+  for (const receveur of serveur.receveurs ?? []) traduireReceveur(receveur, serveur, erreur);
   if (serveur.captureErreurs) traduireCaptureErreurs(serveur.captureErreurs, serveur, erreur);
   // Les anciennes formes (« ia par … ») compilent encore, pour ne casser aucun projet ; le service se choisit maintenant dans le .env.
   const besoins = [

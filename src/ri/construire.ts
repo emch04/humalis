@@ -21,7 +21,46 @@ import { INCONNU, NOMBRE, BOOLEEN, type TypeValeur } from '../analyse/types.js';
 import { optionCanonique } from '../analyse/styles.js';
 import { adresseNormalisee, conditionsDeRoute, droitsDeRoute } from '../analyse/serveur.js';
 import { champsDeLaPersonne, choixSuppressionCompte } from '../analyse/suppression-compte.js';
-import { traduireAction, traduireApresPaiement, traduireCaptureErreurs, traduireDocument, traduireNotification, traduireResume, traduireTache } from '../analyse/logique.js';
+import { avecServices, traduireAction, traduireApresPaiement, traduireCaptureErreurs, traduireDocument, traduireNotification, traduireReceveur, traduireResume, traduireTache } from '../analyse/logique.js';
+import { enServices, serviceDesComptes } from '../analyse/services.js';
+import type { ProjetServicesRI } from './types.js';
+import type { InstructionServeurRI } from './types.js';
+
+/** Ce qu'un service sait des autres : qui garde les comptes, qui il joint, ce qu'il reçoit, et la table des routes. */
+function projetServices(serveur: Serveur, serveurs: Serveur[]): ProjetServicesRI {
+  const receveurs = (serveur.receveurs ?? []).map((r) => ({ serveur: r.serveur, message: r.message, variable: r.variable, ligne: r.ligne, ...traduireReceveur(r, serveur, () => undefined) }));
+  // Les services joints : ceux qu'une action appelle, et ceux qui écoutent un message signalé ici.
+  const joints = new Set<string>();
+  const parcourir = (liste: InstructionServeurRI[]): void => {
+    for (const i of liste) {
+      if (i.type === 'appelService' || i.type === 'faireService') joints.add(i.serveur);
+      if (i.type === 'signaler') for (const v of i.vers) joints.add(v);
+      if (i.type === 'si') {
+        parcourir(i.alors);
+        parcourir(i.sinon);
+      }
+      if (i.type === 'pourChaque') parcourir(i.corps);
+    }
+  };
+  for (const route of serveur.routes) {
+    for (const action of route.actions ?? []) parcourir(traduireAction(action, serveur, () => undefined));
+    const payee = route.apresPaiement ? serveur.donnees.find((d) => d.nom === route.apresPaiement!.donnee) : undefined;
+    if (route.apresPaiement && payee) parcourir(traduireApresPaiement(route.apresPaiement, payee, serveur, () => undefined));
+  }
+  for (const tache of serveur.taches ?? []) parcourir(traduireTache(tache, serveur, () => undefined));
+  for (const r of receveurs) parcourir(r.corps);
+  const comptes = serviceDesComptes(serveurs)?.nom ?? serveurs[0]!.nom;
+  // Le service des comptes prévient les autres quand un jeton ou un compte est fermé : il les joint tous.
+  if (serveur.nom === comptes) for (const s of serveurs) if (s !== serveur) joints.add(s.nom);
+  joints.delete(serveur.nom);
+  return {
+    services: serveurs.map((s) => s.nom),
+    comptes,
+    joints: [...joints],
+    receveurs,
+    routes: serveurs.flatMap((s) => s.routes.filter((r) => !r.interne).map((r) => ({ adresse: r.adresse.replace(/^\/+|\/+$/g, ''), service: s.nom }))),
+  };
+}
 import { encreSur } from '../analyse/couleurs.js';
 import { lireCible } from '../analyse/navigation.js';
 import { imageDe, REGLAGES_IMAGE, choixFichierDe } from './medias.js';
@@ -82,14 +121,14 @@ export function construireRepresentation(
     fichiersStyle: programme.fichiersStyle.map((f) => ({ chemin: f.chemin, ligne: f.ligne, ...(f.plateforme ? { plateforme: f.plateforme } : {}) })),
     partages: programme.partages.map((d) => etatDe(d, analyse)),
     // Une source à jeton secret passe par le premier serveur du programme : lui seul lit le secret.
-    serveurs: programme.serveurs.map((serveur, i) => {
-      const ri = serveurRI(serveur, analyse);
+    serveurs: avecServices(programme.serveurs, () => programme.serveurs.map((serveur, i) => {
+      const ri = { ...serveurRI(serveur, analyse), ...(enServices(programme.serveurs) ? { projet: projetServices(serveur, programme.serveurs) } : {}) };
       // « synchronisee avec "notes" » : cette route sert aussi les changements et les envois par lot.
       const synchronisees = new Set((programme.formes?.donneesLocales ?? []).flatMap((d) => (d.synchronisee !== undefined ? [d.synchronisee.replace(/^\//, '')] : [])));
       for (const route of ri.routes) if (synchronisees.has(route.adresse.replace(/^\//, ''))) route.synchronisee = true;
       const passerelles = i === 0 ? programme.sources.flatMap(passerelleDe) : [];
       return passerelles.length ? { ...ri, passerelles } : ri;
-    }),
+    })),
     sources: programme.sources.map(sourceRI),
     ...(programme.theme ? { theme: themeRI(programme.theme) } : {}),
     ...(analyse.langues.langues.length > 1 ? { langues: analyse.langues.langues.map((l) => ({ code: l.code, nom: l.nomPropre })) } : {}),
@@ -309,6 +348,7 @@ function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
           ...(direct ? { direct } : {}),
           ...(route.apresCreation?.envois.length ? { envois: envoisRI(route.apresCreation) } : {}),
           ...(route.apresCreation?.creations.length ? { creations: creationsRI(route.apresCreation) } : {}),
+          ...(route.droitsServices?.length ? { droitsServices: route.droitsServices.map((d) => ({ serveur: d.serveur, actions: d.actions, ...(d.faire !== undefined ? { faire: simplifier(d.faire).replace(/_/g, '-') } : {}) })) } : {}),
           ligne: route.ligne,
         };
       }),
