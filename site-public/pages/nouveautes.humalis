@@ -26,6 +26,8 @@ page "nouveautes" a l'adresse "/nouveautes" :
                         texte "Les réunions se règlent avec `HUMALIS_REUNIONS_ADRESSE`, `HUMALIS_REUNIONS_CLE` et `HUMALIS_REUNIONS_SECRET` ; les anciens noms servent encore." en anglais "Meetings are set with `HUMALIS_REUNIONS_ADRESSE`, `HUMALIS_REUNIONS_CLE` and `HUMALIS_REUNIONS_SECRET`; the former names still work."
                         texte "Plus aucun envoi d’erreurs intégré : `quand une erreur arrive :` branche le système de suivi que tu veux." en anglais "No more built-in error reporting: `quand une erreur arrive :` plugs in the tracking system you want."
                         texte "Les anciennes formes qui nomment un service compilent encore, avec un avertissement qui dit quoi écrire." en anglais "The former forms that name a service still compile, with a warning that says what to write."
+                        texte "L’ancienne cible `mobile` est retirée : les applications iPhone, iPad et Mac se produisent avec `--cible apple`, et Android avec `--cible android`. `--cible mobile` refuse de compiler et dit quelle cible prendre." en anglais "The former `mobile` target is removed: iPhone, iPad and Mac apps are produced with `--cible apple`, and Android with `--cible android`. `--cible mobile` refuses to compile and says which target to use."
+                        texte "Le serveur produit demande Node 22.9 ou plus récent, et passe à Express 5." en anglais "The produced server needs Node 22.9 or newer, and moves to Express 5."
                     soustitre "Les bases de données" en anglais "Databases"
                     liste :
                         texte "Le serveur produit marche aussi avec MySQL et MariaDB (`DATABASE_URL=mysql://…` ou `mariadb://…`) et avec une base de documents (`DATABASE_URL=mongodb://…`). Le programme ne change pas d’une base à l’autre : données, comptes, sessions, synchronisation, sauvegarde, restauration et vérification marchent de la même façon." en anglais "The produced server also works with MySQL and MariaDB (`DATABASE_URL=mysql://…` or `mariadb://…`) and with a document database (`DATABASE_URL=mongodb://…`). The program does not change from one database to another: data, accounts, sessions, sync, backup, restore and verification work the same way."
@@ -40,17 +42,6 @@ page "nouveautes" a l'adresse "/nouveautes" :
                     liste :
                         texte "`humalis verifier --json` et `humalis compile --json` écrivent les messages en JSON, chacun avec un code stable (`HUM-0001`…) et, quand elle est sûre, la correction à faire." en anglais "`humalis verifier --json` and `humalis compile --json` write the messages as JSON, each with a stable code (`HUM-0001`…) and, when it is safe, the fix to make."
                         texte "Les avertissements du bloc `site` forment la famille « publication », que `--exigeant` durcit ; deux pages avec la même description avertissent." en anglais "Warnings of the `site` block form the “publication” family, which `--exigeant` hardens; two pages with the same description give a warning."
-                    soustitre "Humalis dans tes éditeurs" en anglais "Humalis in your editors"
-                    liste :
-                        texte "L’extension « Humalis » est sur la marketplace JetBrains, pour IntelliJ IDEA, Android Studio, WebStorm, Rider et PyCharm 2025.3 ou plus récents ; Cursor, VSCodium et Windsurf la trouvent sur Open VSX." en anglais "The “Humalis” extension is on the JetBrains Marketplace, for IntelliJ IDEA, Android Studio, WebStorm, Rider and PyCharm 2025.3 or newer; Cursor, VSCodium and Windsurf find it on Open VSX."
-                bloc avec style "version" :
-                    ligne avec style "version-tete" :
-                        texte "2.0.0" sans traduction avec style "version-numero"
-                        texte "16 novembre 2026" en anglais "November 16, 2026" avec style "version-date"
-                    soustitre "Ce qui change pour toi" en anglais "What changes for you"
-                    liste :
-                        texte "L’ancienne cible `mobile` est retirée : les applications iPhone, iPad et Mac se produisent avec `--cible apple`, et Android avec `--cible android`. `--cible mobile` refuse de compiler et dit quelle cible prendre." en anglais "The former `mobile` target is removed: iPhone, iPad and Mac apps are produced with `--cible apple`, and Android with `--cible android`. `--cible mobile` refuses to compile and says which target to use."
-                        texte "Le serveur produit demande Node 22.9 ou plus récent, et passe à Express 5." en anglais "The produced server needs Node 22.9 or newer, and moves to Express 5."
                     soustitre "Les comptes" en anglais "Accounts"
                     liste :
                         texte "`inscription libre comme client vers "confirmation"` laisse chacun créer son compte : `creer mon compte avec champ "Email" et champ "Mot de passe"` envoie un lien de confirmation, et `confirmer mon adresse` ouvre le compte. Avant la confirmation, la connexion est refusée." en anglais "`inscription libre comme client vers "confirmation"` lets anyone create an account: `creer mon compte avec champ "Email" et champ "Mot de passe"` sends a confirmation link, and `confirmer mon adresse` opens the account. Until it is confirmed, signing in is refused."
@@ -70,6 +61,7 @@ page "nouveautes" a l'adresse "/nouveautes" :
                         texte "Des extensions pour les IDE JetBrains (IntelliJ IDEA, Android Studio, WebStorm, Rider), Zed et Visual Studio, et des réglages pour Neovim, Helix, Emacs et Sublime Text." en anglais "Extensions for JetBrains IDEs (IntelliJ IDEA, Android Studio, WebStorm, Rider), Zed and Visual Studio, and settings for Neovim, Helix, Emacs and Sublime Text."
                         texte "Dans Visual Studio : la mise en forme, le plan du fichier et le survol complet." en anglais "In Visual Studio: formatting, document outline and full hover."
                         texte "L’extension VS Code passe en 1.4.0, avec le débogueur et des extraits pour les discussions, les réunions, les widgets, les données sur l’appareil, les clés d’accès et les médias." en anglais "The VS Code extension moves to 1.4.0, with the debugger and snippets for chats, meetings, widgets, on-device data, passkeys and media."
+                        texte "L’extension « Humalis » est sur la marketplace JetBrains, pour IntelliJ IDEA, Android Studio, WebStorm, Rider et PyCharm 2025.3 ou plus récents ; Cursor, VSCodium et Windsurf la trouvent sur Open VSX." en anglais "The “Humalis” extension is on the JetBrains Marketplace, for IntelliJ IDEA, Android Studio, WebStorm, Rider and PyCharm 2025.3 or newer; Cursor, VSCodium and Windsurf find it on Open VSX."
                     soustitre "Windows et le bureau" en anglais "Windows and desktop"
                     liste :
                         texte "`payer total pour r` marche sur Windows : la page de paiement s’ouvre, et la fiche payée se relit au retour dans l’application." en anglais "`payer total pour r` works on Windows: the payment page opens, and the paid record is read again when you come back to the app."
@@ -334,7 +326,7 @@ page "nouveautes" a l'adresse "/nouveautes" :
                 texte "En bref" en anglais "At a glance" avec style "aside-etiquette"
                 ligne avec style "aside-chiffres" :
                     colonne avec style "aside-chiffre" :
-                        texte "23" sans traduction avec style "aside-nombre"
+                        texte "22" sans traduction avec style "aside-nombre"
                         texte "versions" sans traduction
                     colonne avec style "aside-chiffre" :
                         texte "6" sans traduction avec style "aside-nombre"
