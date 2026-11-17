@@ -13,13 +13,11 @@ import com.intellij.debugger.ui.impl.watch.ValueDescriptorImpl
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiExpression
 import com.intellij.xdebugger.frame.XNamedValue
-import com.intellij.xdebugger.frame.XStackFrameUiPresentationContainer
+import com.intellij.xdebugger.frame.XStackFrame
 import com.intellij.xdebugger.frame.XValueChildrenList
 import com.sun.jdi.ClassType
 import com.sun.jdi.ObjectReference
 import com.sun.jdi.Value
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
 
 /**
  * Un cadre de la pile qui vient d'un fichier .humalis. Les variables y sont
@@ -44,11 +42,16 @@ class CadreHumalis(descriptor: StackFrameDescriptorImpl) : JavaStackFrame(descri
         component.setIcon(AllIcons.Debugger.Frame)
     }
 
-    /** La même présentation pour la liste des cadres (qui la demande sous forme de flux). */
-    override fun customizePresentation(): Flow<XStackFrameUiPresentationContainer> {
-        val conteneur = XStackFrameUiPresentationContainer()
-        customizePresentation(conteneur)
-        return flowOf(conteneur)
+    /**
+     * La même présentation pour la liste des cadres, qui la demande sous forme
+     * de flux. JavaStackFrame y met la sienne (méthode et classe Kotlin) : on
+     * rend celle d'un cadre ordinaire de la plateforme, qui se construit par la
+     * présentation ci-dessus (sans toucher au conteneur, interface en essai).
+     */
+    override fun customizePresentation() = presentationOrdinaire.customizePresentation()
+
+    private val presentationOrdinaire = object : XStackFrame() {
+        override fun customizePresentation(component: ColoredTextContainer) = this@CadreHumalis.customizePresentation(component)
     }
 
     override fun createThisNode(evaluationContext: EvaluationContextImpl): XNamedValue? = null

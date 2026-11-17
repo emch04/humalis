@@ -17,7 +17,7 @@ tirée du vocabulaire du compilateur (`src/lexer/motsCles.ts`).
 | Dossier | Éditeurs | Coloration des mots |
 |---|---|---|
 | `vscode` | VS Code, Cursor, VSCodium, Windsurf | grammaire TextMate (`syntaxes/humalis.tmLanguage.json`) |
-| `jetbrains` | IntelliJ IDEA, Android Studio, WebStorm, Rider, PyCharm… (2025.2 et plus récent) | analyseur Kotlin de l'extension |
+| `jetbrains` | IntelliJ IDEA, Android Studio, WebStorm, Rider, PyCharm… (2025.3 et plus récent) | analyseur Kotlin de l'extension |
 | `zed` | Zed | grammaire tree-sitter |
 | `visual-studio` | Visual Studio 2022 (17.14) et 2026 | jetons sémantiques du serveur (les noms seulement) |
 | `neovim` | Neovim 0.11 et plus récent | grammaire tree-sitter (facultative) |

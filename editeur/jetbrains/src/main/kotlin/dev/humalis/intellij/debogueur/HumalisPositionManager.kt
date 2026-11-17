@@ -12,8 +12,9 @@ import com.intellij.debugger.engine.evaluation.EvaluationContext
 import com.intellij.debugger.jdi.StackFrameProxyImpl
 import com.intellij.debugger.requests.ClassPrepareRequestor
 import com.intellij.debugger.ui.impl.watch.StackFrameDescriptorImpl
-import com.intellij.openapi.application.ReadAction
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.fileTypes.FileType
+import com.intellij.openapi.util.Computable
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.psi.PsiManager
 import com.intellij.util.ThreeState
@@ -62,10 +63,9 @@ class HumalisPositionManager(private val process: DebugProcess) : MultiRequestPo
      * demandée qu'aux gestionnaires qui acceptent le type de son fichier
      * produit (PageAccueil.kt, du Kotlin). Un endroit sans strate Humalis,
      * ou une position hors d'un fichier .humalis, est aussitôt laissé aux
-     * autres (NoDataException).
+     * autres (NoDataException). (Les IDE qui lisent encore la liste des
+     * types acceptés reçoivent sa valeur par défaut, null : tous les types.)
      */
-    override fun getAcceptedFileTypes(): Set<FileType>? = null
-
     override fun isAcceptedFileType(fileType: FileType): Boolean = true
 
     override fun getSourcePosition(location: Location?): SourcePosition {
@@ -75,9 +75,9 @@ class HumalisPositionManager(private val process: DebugProcess) : MultiRequestPo
         val (chemin, ligne) = SmapHumalis.situer(location) ?: throw NoDataException.INSTANCE
         val table = tables.pourClasse(type.name(), chemin) ?: throw NoDataException.INSTANCE
         val fichier = LocalFileSystem.getInstance().findFileByIoFile(table.fichierHumalis(chemin)) ?: throw NoDataException.INSTANCE
-        return ReadAction.compute<SourcePosition?, RuntimeException> {
+        return ApplicationManager.getApplication().runReadAction(Computable {
             PsiManager.getInstance(process.project).findFile(fichier)?.let { SourcePosition.createFromLine(it, ligne - 1) }
-        } ?: throw NoDataException.INSTANCE
+        }) ?: throw NoDataException.INSTANCE
     }
 
     /**
@@ -150,7 +150,12 @@ class HumalisPositionManager(private val process: DebugProcess) : MultiRequestPo
     /** Les conditions des points d'arrêt sont évaluées comme d'habitude. */
     override fun evaluateCondition(context: EvaluationContext, frame: StackFrameProxyImpl, location: Location, expression: String): ThreeState = ThreeState.UNSURE
 
-    override fun createStackFrames(descriptor: StackFrameDescriptorImpl): List<XStackFrame>? {
+    /**
+     * Un cadre Humalis pour chaque endroit qui a une ligne Humalis. Tous les
+     * cadres sont demandés ainsi : le premier aussi, par la version bloquante
+     * (createStackFrames), qui appelle celle-ci.
+     */
+    override suspend fun createStackFramesAsync(descriptor: StackFrameDescriptorImpl): List<XStackFrame>? {
         // L'endroit d'un cadre qui n'est pas en haut de la pile n'est pas toujours déjà calculé par le descripteur.
         val location = descriptor.location ?: try {
             descriptor.frameProxy.location()
@@ -160,9 +165,6 @@ class HumalisPositionManager(private val process: DebugProcess) : MultiRequestPo
         if (SmapHumalis.situer(location) == null) return null
         return listOf(CadreHumalis(descriptor))
     }
-
-    /** Les cadres sous le premier sont demandés ainsi (la version par défaut ne rend rien). */
-    override suspend fun createStackFramesAsync(descriptor: StackFrameDescriptorImpl): List<XStackFrame>? = createStackFrames(descriptor)
 
     /** Les tables qui contiennent le fichier de la position (un fichier .humalis), sinon : pas pour nous. */
     private fun cibles(position: SourcePosition): List<Pair<TableDebogueur, String>> {

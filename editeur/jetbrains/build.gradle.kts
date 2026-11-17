@@ -1,4 +1,5 @@
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+import org.jetbrains.kotlin.gradle.dsl.JvmDefaultMode
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
@@ -12,7 +13,12 @@ group = "dev.humalis"
 version = providers.gradleProperty("version").get()
 
 // Du code pour Java 21, quel que soit le Java qui construit (celui d'IntelliJ convient).
-tasks.withType<KotlinCompile>().configureEach { compilerOptions.jvmTarget.set(JvmTarget.JVM_21) }
+// Sans ponts de compatibilité vers les méthodes par défaut des interfaces : Kotlin n'ajoute pas dans nos classes
+// des méthodes que nous n'écrivons pas (ni, avec elles, des appels à des méthodes dépréciées de la plateforme).
+tasks.withType<KotlinCompile>().configureEach {
+    compilerOptions.jvmTarget.set(JvmTarget.JVM_21)
+    compilerOptions.jvmDefault.set(JvmDefaultMode.NO_COMPATIBILITY)
+}
 tasks.withType<JavaCompile>().configureEach { options.release = 21 }
 java { sourceCompatibility = JavaVersion.VERSION_21; targetCompatibility = JavaVersion.VERSION_21 }
 
@@ -46,6 +52,11 @@ intellijPlatform {
         id = "dev.humalis"
         name = "Humalis"
         version = project.version.toString()
+        changeNotes = """
+            <p>Le débogueur n'utilise plus que des interfaces stables de la plateforme
+            (ni interface interne, ni interface dépréciée, ni interface en essai).</p>
+            <p>IDE JetBrains 2025.3 et plus récents.</p>
+        """.trimIndent()
         ideaVersion {
             sinceBuild = providers.gradleProperty("plateformeMinimale")
             untilBuild = provider { null }
