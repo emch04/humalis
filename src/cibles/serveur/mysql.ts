@@ -459,6 +459,12 @@ export function transactionMysql<S>(base: BaseMysql, stockages: S): <T>(corps: (
   return (corps) => base.transaction(() => corps(stockages));
 }
 
+/**
+ * La comparaison des textes de MySQL et MariaDB ignore les espaces de fin (« abc » et « abc  » sont égaux) : un
+ * identifiant qui finit par une espace ne désigne aucune fiche, comme sur les autres bases.
+ */
+const idExact = (id: string): boolean => !id.endsWith(' ');
+
 /** La fiche telle que la base la rend : un objet (MySQL), ou un texte JSON. */
 const lireJson = (valeur: unknown): Record<string, unknown> => (typeof valeur === 'string' ? (JSON.parse(valeur) as Record<string, unknown>) : ((valeur ?? {}) as Record<string, unknown>));
 
@@ -498,21 +504,23 @@ export function creerStockageMysql(base: BaseMysql, table: string, champs?: read
       let texte = 'SELECT id, data FROM ' + table;
       if (conditions.length > 0) texte += ' WHERE ' + conditions.join(' AND ');
       texte += ' ORDER BY ordre';
+      const retenue = filtres?.retenir ? ' FOR UPDATE' : '';
       const numero = filtres?.numero;
       if (!numero) {
         if (filtres?.limite !== undefined || filtres?.depuis !== undefined) {
           // MySQL n'a pas d'OFFSET sans LIMIT : « toutes » s'écrit avec le plus grand nombre possible.
           texte += ' LIMIT ' + (filtres?.limite !== undefined ? Math.max(0, Math.floor(filtres.limite)) : '18446744073709551615') + ' OFFSET ' + Math.max(0, Math.floor(filtres?.depuis ?? 0));
         }
-        return (await base.natif(texte, valeurs)).rows.map(lire);
+        return (await base.natif(texte + retenue, valeurs)).rows.map(lire);
       }
       // Un numéro se compare sans ses séparateurs : la même règle que le stockage en mémoire, fiche par fiche.
       const debut = filtres?.depuis ?? 0;
-      const fiches = (await base.natif(texte, valeurs)).rows.map(lire).filter((fiche) => sansSeparateurs(fiche[numero.champ]) === numero.valeur);
+      const fiches = (await base.natif(texte + retenue, valeurs)).rows.map(lire).filter((fiche) => sansSeparateurs(fiche[numero.champ]) === numero.valeur);
       return filtres?.limite === undefined ? fiches.slice(debut) : fiches.slice(debut, debut + filtres.limite);
     },
     async trouver(id, pourEcrire) {
       await preparer();
+      if (!idExact(id)) return null;
       const { rows } = await base.natif('SELECT id, data FROM ' + table + ' WHERE id = ?' + (pourEcrire ? ' FOR UPDATE' : ''), [id]);
       return rows[0] ? lire(rows[0]) : null;
     },
@@ -525,6 +533,7 @@ export function creerStockageMysql(base: BaseMysql, table: string, champs?: read
     async modifier(id, valeurs) {
       await preparer();
       // JSON_MERGE_PATCH retirerait un champ mis à « rien » : la fiche est relue (retenue), complétée, puis réécrite.
+      if (!idExact(id)) return null;
       return base.transaction(async () => {
         const { rows } = await base.natif('SELECT id, data FROM ' + table + ' WHERE id = ? FOR UPDATE', [id]);
         if (!rows[0]) return null;
@@ -535,6 +544,7 @@ export function creerStockageMysql(base: BaseMysql, table: string, champs?: read
     },
     async supprimer(id) {
       await preparer();
+      if (!idExact(id)) return false;
       return (await base.natif('DELETE FROM ' + table + ' WHERE id = ?', [id])).rowCount > 0;
     },
   };

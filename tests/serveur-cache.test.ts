@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
+import { execFileSync, spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -141,6 +141,7 @@ function produire(dossier: string): void {
 
 const dossier = join(tmpdir(), 'humalis-cache');
 type Reponse = { statut: number; garde: boolean; corps: unknown };
+let journal = '';
 let r: Record<string, Reponse> & { appelsApresDeux: number; appelsApresTrois: number; appelsApresEcho: number; cleRecue: string; idAuteur: string; interne: string };
 
 describe('« en cache pendant » sur un vrai serveur produit, en mémoire', () => {
@@ -148,8 +149,15 @@ describe('« en cache pendant » sur un vrai serveur produit, en mémoire', () =
     mkdirSync(dossier, { recursive: true });
     produire(dossier);
     writeFileSync(join(dossier, 'scenario.mjs'), SCENARIO);
-    r = JSON.parse(execFileSync('node', ['scenario.mjs'], { cwd: dossier, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim().split('\n').pop()!);
+    const joue = spawnSync('node', ['scenario.mjs'], { cwd: dossier, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    if (joue.status !== 0) throw new Error(joue.stderr);
+    journal = joue.stderr;
+    r = JSON.parse(joue.stdout.trim().split('\n').pop()!);
   }, 300_000);
+
+  it('une connexion compte une fois dans chaque limite : express-rate-limit ne voit aucun « compté deux fois »', () => {
+    expect(journal).not.toContain('ERR_ERL_DOUBLE_COUNT');
+  });
 
   it('une lecture gardée est resservie sans repasser par la base', () => {
     expect(r.livres1).toMatchObject({ statut: 200, garde: false, corps: [] });

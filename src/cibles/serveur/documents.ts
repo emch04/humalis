@@ -174,6 +174,8 @@ interface DocumentFiche {
   ordre: unknown;
   data: Record<string, unknown>;
   cree_le: Date;
+  /** La marque écrite par une transaction qui retient la fiche. */
+  verrou?: unknown;
 }
 
 /** La collection d'une donnée : chaque fiche y garde ses champs dans « data », l'ordre de création dans « ordre ». */
@@ -197,10 +199,19 @@ export function creerStockageDocuments(base: BaseDocuments, nom: string, champs?
     for (const champ of champs) if (champ !== 'id' && Object.hasOwn(donnees, champ)) fiche[champ] = donnees[champ];
     return fiche;
   };
-  const trouver = async (id: string): Promise<Enregistrement | null> => {
+  const enTransaction = () => base.o().session !== undefined;
+  /**
+   * « pourEcrire », dans une transaction : la fiche est écrite (une marque) avant d'être rendue. Une seconde
+   * transaction qui la veut reçoit le conflit tout de suite, avant d'avoir rien fait, et la base la rejoue après la
+   * première : deux actions sur la même fiche passent l'une après l'autre, comme avec FOR UPDATE.
+   */
+  const trouver = async (id: string, pourEcrire?: boolean): Promise<Enregistrement | null> => {
     await preparer();
-    // Dans une transaction, une fiche lue puis changée par une autre en même temps fait rejouer la transaction :
-    // rien n'est perdu, sans verrou à poser.
+    if (pourEcrire && enTransaction()) {
+      const { ObjectId } = await import('mongodb');
+      const d = await collection.findOneAndUpdate({ _id: String(id) }, { $set: { verrou: new ObjectId() } }, base.o({ returnDocument: 'after' as const }));
+      return d ? lire(d as DocumentFiche) : null;
+    }
     const d = await collection.findOne({ _id: String(id) }, base.o());
     return d ? lire(d) : null;
   };
@@ -215,6 +226,11 @@ export function creerStockageDocuments(base: BaseDocuments, nom: string, champs?
         conditions.push({ ['data.' + champ]: { $eq: valeur } }, { ['data.' + champ]: { $not: { $type: 'array' } } });
       }
       const filtre = conditions.length > 0 ? { $and: conditions } : {};
+      // Les fiches lues pour être changées (« pour chaque … changer ») : marquées d'abord, retenues comme une seule.
+      if (filtres?.retenir && enTransaction()) {
+        const { ObjectId } = await import('mongodb');
+        await collection.updateMany(filtre, { $set: { verrou: new ObjectId() } }, base.o());
+      }
       const numero = filtres?.numero;
       if (!numero) {
         let curseur = collection.find(filtre, base.o()).sort({ ordre: 1 });
@@ -230,7 +246,7 @@ export function creerStockageDocuments(base: BaseDocuments, nom: string, champs?
       const fiches = (await collection.find(filtre, base.o()).sort({ ordre: 1 }).toArray()).map(lire).filter((fiche) => sansSeparateurs(fiche[numero.champ]) === numero.valeur);
       return filtres?.limite === undefined ? fiches.slice(debut) : fiches.slice(debut, debut + filtres.limite);
     },
-    trouver: (id) => trouver(id),
+    trouver: (id, pourEcrire) => trouver(id, pourEcrire),
     async creer(valeurs) {
       await preparer();
       const { ObjectId } = await import('mongodb');

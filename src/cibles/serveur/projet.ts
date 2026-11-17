@@ -971,6 +971,14 @@ export async function plafondDe(stockage: { lister(filtres: Filtres): Promise<Re
 
 ${BORNES_TS}
 ${DEFAUTS_TS}
+/** Un texte qui n'est pas de l'Unicode bien formé (un demi-caractère, seul), où qu'il soit dans ce qui est envoyé. */
+export function texteMalForme(valeur: unknown, profondeur = 0): boolean {
+  if (typeof valeur === 'string') return /\\p{Surrogate}/u.test(valeur);
+  if (profondeur > 32 || valeur === null || typeof valeur !== 'object') return false;
+  for (const [cle, element] of Object.entries(valeur)) if (texteMalForme(cle, profondeur + 1) || texteMalForme(element, profondeur + 1)) return true;
+  return false;
+}
+
 /**
  * \`complet\` : à la création, chaque champ est obligatoire ; à la
  * modification, seuls les champs envoyés sont vérifiés.
@@ -1167,6 +1175,8 @@ export interface Filtres {
   depuis?: number;
   /** Ce champ, sans espaces, tirets ni « + », vaut cette valeur : « +243 848 » et « 243848 » désignent le même numéro. */
   numero?: { champ: string; valeur: string };
+  /** Dans une transaction, les fiches lues restent à celui qui les lit jusqu'à la fin (« pour chaque … changer »). */
+  retenir?: boolean;
 }
 
 /** Un numéro sans ses séparateurs, pour comparer deux écritures du même numéro. */
@@ -1307,6 +1317,7 @@ export function creerStockagePostgres(pool: PoolPostgres, table: string, champs?
         valeurs.push(filtres.depuis);
         texte += \` OFFSET $\${valeurs.length}\`;
       }
+      if (filtres?.retenir) texte += ' FOR UPDATE';
       return (await pool.query(texte, valeurs)).rows.map(lire);
     },
     async trouver(id, pourEcrire) {
@@ -1638,7 +1649,7 @@ import { createSaasApp, ${comptes ? 'createMemoryPasswordResetStore, type Passwo
 import { ${[...(serveur.connexionGoogle ? ['createGoogleIdTokenVerifier'] : []), ...(serveur.connexionApple ? ['createAppleIdTokenVerifier'] : []), ...(serveur.connexionGoogle || serveur.connexionApple ? ['IdTokenError'] : []), ...(serveur.invitations || serveur.inscriptionLibre ? ['createApiLimiter'] : []), ].map((n) => n + ', ').join('')}createMemoryRevocationStore, type RevocationStore, createLoginLimiter, hashPassword, isStrongPassword, verifyPasswordHash, WAF_PATTERNS } from '@astratra/security';
 import express, { type RequestHandler, type Response } from 'express';
 import { cacheHumalis } from './humalis/cache.js';
-${montageTempsReel ? IMPORT_TEMPS_REEL : ''}import { journaliserErreur, noterHumalis } from './humalis/lignes.js';
+${montageTempsReel ? IMPORT_TEMPS_REEL : ''}import { erreurDuJournal, journaliserErreur, noterHumalis } from './humalis/lignes.js';
 ${serveur.captureErreurs ? "import { brancherErreursProcessus, rapporterErreur } from './humalis/capture-erreurs.js';\n" : ''}${serveur.relaisErreurs?.length ? "import { relaisErreurs } from './humalis/relais-erreurs.js';\n" : ''}
 ${avecAnnonces(serveur) ? "import { direct } from './humalis/direct.js';\n" : ''}import { ${schemas} } from './donnees.js';${avecCache(serveur) ? `
 
@@ -1657,9 +1668,9 @@ const personneDuCache = (req: unknown): string => {
 import type { Coffre } from './humalis/coffre.js';
 ${comptes ? "import { creerComptes, refuserMotDePasseFaible, sansLesRetires } from './humalis/comptes.js';\n" : ''}${avecEmails(serveur) ? `import { creerEmails, ${envoisDansRoutes ? 'enTexte, ' : ''}type Emails } from './humalis/emails.js';\n` : ''}import { compresser } from './humalis/compresser.js';
 import { creerEnvoisMemoire, creerUnSeulEnvoi, type MagasinEnvois } from './humalis/envois.js';${avecSynchro(serveur) ? "\nimport { creerJournalMemoire, creerSynchro, type JournalSynchro } from './humalis/synchro.js';" : ''}${avecSecurite(serveur) ? "\nimport { creerMagasinSecuriteMemoire, creerSecurite, oublierCompte, type MagasinSecurite } from './humalis/securite.js';" : ''}${avecPaiements(serveur) ? "\nimport { creerPaiements, type SurPaiement } from './humalis/paiements.js';" : ''}${avecIa(serveur) ? "\nimport { compterMemoire, creerIa, type Compter } from './humalis/ia.js';" : ''}${avecNotifications(serveur) ? "\nimport { creerNotifications } from './humalis/notifications.js';" : ''}${serveur.documents?.length ? "\nimport { creerDocument } from './humalis/document.js';" : ''}${avecBon ? "\nimport { creerBon } from './humalis/bon.js';" : ''}${serveur.fidelite ? "\nimport { carteDeFidelite } from './humalis/fidelite.js';" : ''}
-${avecLogique(serveur) ? `import { ${['Refus', 'agreger', 'resumer', 'enTexte', 'estVide', 'contient', 'noter', 'nouveauTravail', 'terminer', 'transactionMemoire', ...(serveur.taches?.length ? ['lancerTaches', 'type Reclamer'] : []), 'type Transaction'].join(', ')} } from './humalis/logique.js';\n` : ''}import { creerRenouvellement, reglagesDeSession, renouvellementEnCookie, type ReglagesSession } from './humalis/sessions.js';
+${avecLogique(serveur) ? `import { ${['Refus', 'agreger', 'resumer', 'enTexte', 'estVide', 'contient', 'noter', 'nouveauTravail', 'recommencer', 'terminer', 'transactionMemoire', ...(serveur.taches?.length ? ['lancerTaches', 'type Reclamer'] : []), 'type Transaction'].join(', ')} } from './humalis/logique.js';\n` : ''}import { creerRenouvellement, reglagesDeSession, renouvellementEnCookie, type ReglagesSession } from './humalis/sessions.js';
 import { ${avecNotifications(serveur) || serveur.projet ? 'creerStockageMemoire, ' : ''}${serveur.fidelite ? 'sansSeparateurs, ' : ''}type Stockage } from './humalis/stockage.js';${serveur.projet ? "\nimport { creerServices, droitDuService, noterRecu, RefusDuService, type Services } from './humalis/services.js';" : ''}
-${compteRelu(serveur) ? (serveur.routes.some((r) => estSeparee(serveur.donnees.find((d) => d.nom === r.donnee)!, r)) ? "import { dansPortee, groupeACreer, listerDans, moiDe, porteeDe, REFUS_FICHES, type RegleAcces, type Separation } from './humalis/separation.js';\n" : '') : ''}import { lireFiltres, ${nomsVerifier(serveur).map((n) => n + ', ').join('')}verifierEnvoi } from './humalis/verifier.js';
+${compteRelu(serveur) ? (serveur.routes.some((r) => estSeparee(serveur.donnees.find((d) => d.nom === r.donnee)!, r)) ? "import { dansPortee, groupeACreer, listerDans, moiDe, porteeDe, REFUS_FICHES, type RegleAcces, type Separation } from './humalis/separation.js';\n" : '') : ''}import { lireFiltres, ${nomsVerifier(serveur).map((n) => n + ', ').join('')}texteMalForme, verifierEnvoi } from './humalis/verifier.js';
 
 export interface OptionsDuServeur {
   /** Le secret des sessions (au moins 32 caractères). */
@@ -1829,7 +1840,10 @@ ${serveur.captureErreurs ? `    // Un paiement reçu mais non enregistré part a
     surErreur: (erreur) => void rapporterErreur(erreur, '/paiements/webhook'),` : ''}
     surConfirme: async (donnee, id, champ, montant) => {
       const travail = nouveauTravail();
-      await transaction((s) => surPaiement[donnee]?.(travail, s, id, champ, montant) ?? Promise.resolve());
+      await transaction((s) => {
+        recommencer(travail);
+        return surPaiement[donnee]?.(travail, s, id, champ, montant) ?? Promise.resolve();
+      });
       terminer(travail${avecAnnonces(serveur) ? ', direct.annonce' : ''});
     },
   });
@@ -1899,6 +1913,14 @@ ${serveur.projet ? `      const authDuPack = contexte.authMiddleware as unknown 
       const authorizeRoles = contexte.authorizeRoles as unknown as (...roles: string[]) => RequestHandler;
       const csrfMiddleware = contexte.csrfMiddleware as unknown as RequestHandler;
       const issueSession = (contexte as unknown as { issueSession: (res: unknown, compte: unknown) => Promise<object> }).issueSession;
+      // Un demi-caractère Unicode, seul, est refusé à l'entrée : MySQL le refuserait (erreur 500), d'autres bases l'écriraient autrement.
+      app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
+        if (texteMalForme(req.body)) {
+          res.status(400).json({ erreur: 'un texte envoyé est mal formé (un caractère Unicode coupé en deux)' });
+          return;
+        }
+        next();
+      });
 ${compteRelu(serveur) ? (serveur.projet && serveur.projet.comptes !== serveur.nom ? COMPTE_RELU_DISTANT : serveur.projet ? COMPTE_RELU.replace('        try {\n', "        try {\n          // Un autre service du projet, sans personne : il n'a pas de compte à relire.\n          if (String((req as unknown as { user?: Record<string, unknown> }).user?.id ?? '').startsWith('service:')) {\n            next();\n            return;\n          }\n") : COMPTE_RELU) : ''}      const unSeulEnvoi = creerUnSeulEnvoi(envois);
       const acces = {
         toutLeMonde: [unSeulEnvoi] as RequestHandler[],
@@ -1930,7 +1952,7 @@ ${serveur.captureErreurs ? "      app.use((erreur: unknown, req: express.Request
         const e = (erreur ?? {}) as { statusCode?: unknown; status?: unknown; message?: unknown };
         const brut = Number(e.statusCode ?? e.status);
         const statut = Number.isInteger(brut) && brut >= 400 && brut < 600 ? brut : 500;
-        if (statut >= 500) console.error(\`[requestId=\${(req as { requestId?: string }).requestId ?? 'n/a'}]\`, erreur);
+        if (statut >= 500) console.error(\`[requestId=\${(req as { requestId?: string }).requestId ?? 'n/a'}]\`, erreurDuJournal(erreur));
         const message = statut >= 500 ? 'Erreur interne du serveur.' : typeof e.message === 'string' && e.message ? e.message : 'Requête refusée.';
         res.status(statut).json({ success: false, message, data: null, timestamp: new Date().toISOString(), error: message });
       });

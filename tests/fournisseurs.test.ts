@@ -122,6 +122,22 @@ describe('le code IA produit, contre de faux services compatibles OpenAI', () =>
     expect((await demander({ HUMALIS_IA_ADRESSE: adresse + '/bon/v1', HUMALIS_IA_MODELE: 'm', HUMALIS_IA_CLE_2: 'k' })).statut).toBe(503);
   });
 
+  it('la clé ne part jamais en clair hors de la machine : http:// avec une clé, seulement vers localhost', async () => {
+    const avant = recus.length;
+    for (const hote of ['http://ia.exemple.fr/v1', 'http://10.0.0.5:11434/v1', 'http://127.0.0.1.exemple.fr/v1']) {
+      const r = await demander({ HUMALIS_IA_ADRESSE: hote, HUMALIS_IA_MODELE: 'm', HUMALIS_IA_CLE: 'cle-secrete' });
+      expect(r.statut, hote).toBe(503);
+      expect((r.json as { erreur: string }).erreur, hote).toContain('doit commencer par https:// pour recevoir la clé');
+    }
+    // Le secours aussi.
+    expect((await demander({ HUMALIS_IA_ADRESSE: adresse + '/bon/v1', HUMALIS_IA_MODELE: 'm', HUMALIS_IA_ADRESSE_2: 'http://ia.exemple.fr/v1', HUMALIS_IA_MODELE_2: 'm', HUMALIS_IA_CLE_2: 'k' })).statut).toBe(503);
+    expect(recus.length).toBe(avant);
+    // Sans clé, un modèle du réseau local reste possible ; avec une clé, localhost et 127.0.0.1 aussi.
+    expect(ia.servicesIa({ HUMALIS_IA_ADRESSE: 'http://ollama:11434/v1', HUMALIS_IA_MODELE: 'm' })).toHaveProperty('services');
+    expect(ia.servicesIa({ HUMALIS_IA_ADRESSE: 'http://localhost:11434/v1', HUMALIS_IA_MODELE: 'm', HUMALIS_IA_CLE: 'k' })).toHaveProperty('services');
+    expect(ia.servicesIa({ HUMALIS_IA_ADRESSE: 'https://ia.exemple.fr/v1', HUMALIS_IA_MODELE: 'm', HUMALIS_IA_CLE: 'k' })).toHaveProperty('services');
+  });
+
   it('la réponse part au fil de l’eau, sans la réflexion du modèle ; sans clé, aucun en-tête d’autorisation', async () => {
     const r = await demander({ HUMALIS_IA_ADRESSE: adresse + '/bon/v1/', HUMALIS_IA_MODELE: 'modele-local' });
     expect(r.statut).toBe(200);

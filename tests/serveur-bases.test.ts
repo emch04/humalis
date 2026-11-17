@@ -113,7 +113,7 @@ for (const { genre, admin } of BASES) {
   describe(`${genre} pour de vrai`, () => {
     const dossierMagasins = join(tmpdir(), `humalis-bases-magasins-${genre}`);
     const dossier = join(tmpdir(), `humalis-bases-serveur-${genre}`);
-    const noms = { magasins: `humalis_magasins_${suffixe}`, source: `humalis_source_${suffixe}`, neuve: `humalis_neuve_${suffixe}`, piegee: `humalis_piegee_${suffixe}` };
+    const noms = { magasins: `humalis_magasins_${suffixe}`, source: `humalis_source_${suffixe}`, neuve: `humalis_neuve_${suffixe}`, piegee: `humalis_piegee_${suffixe}`, longue: `humalis_longue_${suffixe}` };
     let sortieMagasins = '';
     let urlSource = '';
     let sauvegarde = '';
@@ -207,6 +207,32 @@ for (const { genre, admin } of BASES) {
       let ecrites: unknown[] = [];
       try {
         ecrites = fiches(dossier, urlPiegee, 'humalis_produit');
+      } catch {
+        ecrites = [];
+      }
+      expect(ecrites).toEqual([]);
+    });
+
+    it('une ligne démesurée (un fichier piégé, petit une fois compressé) est refusée sans être gardée en mémoire', () => {
+      const lignes = gunzipSync(readFileSync(sauvegarde)).toString('utf8').split('\n');
+      // Une seule ligne de 3 Mo, juste après l'en-tête : avec un plafond de 1 Mo, la lecture s'arrête avant sa fin.
+      lignes.splice(1, 0, JSON.stringify({ table: 'humalis_produit', ligne: { id: 'x', data: { nom: 'a'.repeat(3 * 1024 * 1024) } } }));
+      const piege = join(dossier, 'sauvegardes', `longue-${suffixe}.jsonl.gz`);
+      writeFileSync(piege, gzipSync(lignes.join('\n')));
+      expect(readFileSync(piege).length).toBeLessThan(64 * 1024);
+      const urlLongue = creerBase(dossier, admin!, noms.longue);
+      process.env.HUMALIS_SAUVEGARDE_LIGNE_MAX = String(1024 * 1024);
+      let restauree: { ok: boolean; sortie: string };
+      try {
+        restauree = npm(dossier, urlLongue, 'restauration', '--', piege);
+      } finally {
+        delete process.env.HUMALIS_SAUVEGARDE_LIGNE_MAX;
+      }
+      expect(restauree.ok).toBe(false);
+      expect(restauree.sortie).toContain('une ligne de la sauvegarde dépasse 1048576 octets');
+      let ecrites: unknown[] = [];
+      try {
+        ecrites = fiches(dossier, urlLongue, 'humalis_produit');
       } catch {
         ecrites = [];
       }

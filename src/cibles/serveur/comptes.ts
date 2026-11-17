@@ -833,6 +833,9 @@ export function creerComptes({
           return;
         }
         await usersStore.update(id, { role } as Compte);
+        // Les jetons déjà émis portent l'ancien rôle : ils sont fermés ici et, annoncés, dans les autres services du
+        // projet. La session reste : le prochain renouvellement donne un jeton au nouveau rôle, sans attendre 15 minutes.
+        if (compte.role !== role) await revocations.revokeAllForUser?.(id, Date.now());
         res.json({ id, role: demande });
       } catch (erreur) {
         next(erreur);
@@ -1098,6 +1101,25 @@ export function testsComptes(serveur: ServeurRI, stockages: string): string {
     expect(boite).toHaveLength(0);
   });`);
     }
+  }
+  if (serveur.changeDeRole) {
+    blocs.push(`  it('changer un rôle ferme les jetons déjà émis : l\\'ancien rôle ne sert plus, même ailleurs', async () => {
+    const { app, entreeAdmin, entreeMembre, entree, idDe } = await preparer();
+    const awa = await idDe('awa@exemple.cd');
+    await request(app).post(\`/auth/comptes/\${awa}/role\`).set(entreeMembre).send({ role: 'admin' }).expect(403);
+    await request(app).get('/auth/me').set(entreeMembre).expect(200);
+    await request(app).post(\`/auth/comptes/\${awa}/role\`).set(entreeAdmin).send({ role: 'admin' }).expect(200);
+    // Le jeton émis avant le changement est fermé (ici, et annoncé aux autres services d'un projet).
+    await request(app).get('/auth/me').set(entreeMembre).expect(401);
+    // Les jetons sont datés à la seconde : un jeton de la même seconde que le changement est fermé lui aussi.
+    await new Promise((fin) => setTimeout(fin, 1100));
+    const nouveau = await request(app).get('/auth/me').set(await entree('awa@exemple.cd')).expect(200);
+    expect(JSON.stringify(nouveau.body)).toContain('admin');
+    // Un rôle inchangé ne ferme rien.
+    const encore = await entree('awa@exemple.cd');
+    await request(app).post(\`/auth/comptes/\${awa}/role\`).set(entreeAdmin).send({ role: 'admin' }).expect(200);
+    await request(app).get('/auth/me').set(encore).expect(200);
+  });`);
   }
   return `// Produit par Humalis : les invitations, le mot de passe oublié et la liste des comptes, avec un faux serveur d'envoi.
 ${serveur.inscriptionLibre ? "import { createHash } from 'node:crypto';\n" : ''}import { describe, expect, it } from 'vitest';

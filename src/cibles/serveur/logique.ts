@@ -48,12 +48,21 @@ function valeur(v: ValeurServeurRI): string {
 
 const COMPARAISONS = { superieur: '>', inferieur: '<' } as const;
 
+/** Les instructions changent ou suppriment la fiche nommée, à n'importe quelle profondeur. */
+function ecritSur(liste: InstructionServeurRI[], variable: string): boolean {
+  return liste.some((i) =>
+    ((i.type === 'changer' || i.type === 'supprimer') && i.fiche === variable) ||
+    (i.type === 'si' && (ecritSur(i.alors, variable) || ecritSur(i.sinon, variable))) ||
+    (i.type === 'pourChaque' && i.variable !== variable && ecritSur(i.corps, variable)),
+  );
+}
+
 /** La lecture filtrée : les égalités sont faites par la base, le reste ensuite. L'identifiant n'est pas dans le JSON de la base. */
-function lecture(source: string, donnee: string, filtres: FiltreServeurRI[], egalEnPlus: string[]): string {
+function lecture(source: string, donnee: string, filtres: FiltreServeurRI[], egalEnPlus: string[], retenir = false): string {
   const parBase = filtres.filter((f) => f.operateur === 'egal' && f.champ !== 'id');
   const apres = filtres.filter((f) => !parBase.includes(f));
   const egal = [...parBase.map((f) => `${chaine(camel(f.champ))}: ${valeur(f.valeur)}`), ...egalEnPlus];
-  const base = `(await ${source}.${camel(donnee)}.lister({ egal: { ${egal.join(', ')} } as Record<string, string | number | boolean> }))`;
+  const base = `(await ${source}.${camel(donnee)}.lister({ egal: { ${egal.join(', ')} } as Record<string, string | number | boolean>${retenir ? ', retenir: true' : ''} }))`;
   if (apres.length === 0) return base;
   const conditions = apres.map((f) => {
     const a = `ligne[${chaine(f.champ === 'id' ? 'id' : camel(f.champ))}]`;
@@ -440,8 +449,10 @@ class Ecriture {
         const sinon = i.sinon.length ? ` else {\n${this.lignes(i.sinon, r + '  ')}\n${r}}` : '';
         return `${r}if (${test(i.test)}) {\n${this.lignes(i.alors, r + '  ')}\n${r}}${sinon}`;
       }
+      // Un « pour chaque » qui change ou supprime ses fiches les retient en les lisant (FOR UPDATE) : deux requêtes en
+      // même temps ne calculent jamais sur la même valeur, aucune mise à jour n'est perdue.
       case 'pourChaque':
-        return `${r}for (const ${repereNom(i.variable)}${fiche(i.variable)} of ${lecture('s', i.donnee, i.filtres, this.egalDuGroupe(i.donnee))}) {\n${this.lignes(i.corps, r + '  ')}\n${r}}`;
+        return `${r}for (const ${repereNom(i.variable)}${fiche(i.variable)} of ${lecture('s', i.donnee, i.filtres, this.egalDuGroupe(i.donnee), ecritSur(i.corps, i.variable))}) {\n${this.lignes(i.corps, r + '  ')}\n${r}}`;
       case 'calcul':
         return `${r}const ${repereNom(i.nom)}l_${camel(i.nom)} = agreger(${chaine(i.operation)}, ${lecture('s', i.donnee, i.filtres, this.egalDuGroupe(i.donnee))}${i.champ !== undefined ? `, ${chaine(camel(i.champ))}` : ''});`;
       case 'changer':
@@ -509,6 +520,7 @@ export function codeReceveurs(serveur: ServeurRI): string {
     .map((r) => `    ${chaine(r.serveur + '|' + r.message)}: async (corps, id) => {
       const travail = nouveauTravail();
       await transaction(async (s) => {
+        recommencer(travail);
         await noterRecu(s.humalisRecus!, id, ${chaine(r.serveur)}, ${chaine(r.message)});
         const ${repereNom(r.variable, r.ligne)}${fiche(r.variable)} = corps;
 ${new Ecriture(serveur).lignes(r.corps, '        ')}
@@ -545,6 +557,7 @@ ${donnee.par ? `          const portee = porteeDe(moiDe(req), separation${variab
 ${action.parametres.map((p) => `          const ${repereNom(p.nom, action.ligne)}l_${camel(p.nom)} = entrees.valeur[${chaine(camel(p.nom))}];`).join('\n')}
 ` : ''}          const travail = nouveauTravail();
           const resultat = await transaction(async (s) => {
+            recommencer(travail);
             const ${repereNom(route.donnee, action.ligne)}${nomFiche} = await s.${camel(route.donnee)}.trouver(String(req.params.id), true);
             if (!${nomFiche}${donnee.par ? ` || !dansPortee(${nomFiche}, portee)` : ''}) return null;
 ${new Ecriture(serveur, groupe, true).lignes(action.corps, '            ')}
@@ -907,6 +920,15 @@ export interface Travail {
 }
 export const nouveauTravail = (): Travail => ({ ecrites: new Map(), apres: [] });
 
+/**
+ * Au début de chaque essai d'une transaction : la base en rejoue une sur un conflit (base de documents, interblocage
+ * MySQL), et rien de ce que l'essai abandonné avait prévu (e-mails, notifications, annonces) ne doit partir.
+ */
+export function recommencer(travail: Travail): void {
+  travail.ecrites.clear();
+  travail.apres.length = 0;
+}
+
 export function noter(travail: Travail, donnee: string, groupe?: unknown): void {
   const groupes = travail.ecrites.get(donnee) ?? new Set<string>();
   if (typeof groupe === 'string') groupes.add(groupe);
@@ -1048,7 +1070,10 @@ export function lancerTaches<S>(taches: Tache<S>[], reclamer: Reclamer, transact
         if (periode === null || !(await reclamer(tache.nom, periode))) continue;
         prise = periode;
         const travail = nouveauTravail();
-        await transaction((s) => tache.travail(travail, s));
+        await transaction((s) => {
+          recommencer(travail);
+          return tache.travail(travail, s);
+        });
         terminer(travail, annoncer);
       } catch (erreur) {
         console.error('La tâche « ' + tache.nom + ' » a échoué' + (prise !== null ? ' : elle sera retentée dans une minute' : '') + ' :', erreur instanceof Error ? erreur.message : erreur);

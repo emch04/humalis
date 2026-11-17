@@ -37,8 +37,26 @@ export function ligneHumalis(erreur: unknown): string {
   return trouve ? \`\${nomDe(trouve[1]!)}:\${trouve[2]}\` : '';
 }
 
+/**
+ * L'erreur telle qu'elle va au journal : une erreur de MySQL ou de MariaDB porte la requête entière, valeurs comprises
+ * (le contenu d'une fiche, l'empreinte d'un mot de passe), et une base de documents cite la clé en double. Seuls leur
+ * code et leur pile restent.
+ */
+export function erreurDuJournal(erreur: unknown): unknown {
+  if (!(erreur instanceof Error)) return erreur;
+  const e = erreur as Error & { sqlState?: unknown; errno?: unknown; code?: unknown };
+  let message: string | undefined;
+  if (typeof e.sqlState === 'string') message = 'Erreur MySQL ' + String(e.errno ?? '') + ' ' + String(e.code ?? '');
+  else if (/^Mongo/.test(e.name)) message = 'Erreur de la base de documents ' + String(e.code ?? '');
+  if (message === undefined) return erreur;
+  const reduite = new Error(message.trim());
+  reduite.stack = reduite.message + '\\n' + String(e.stack ?? '').split('\\n').filter((l) => /^\\s+at /.test(l)).join('\\n');
+  return reduite;
+}
+
 /** Écrit l'erreur dans le journal avec sa ligne Humalis, quand elle en vient. */
-export function journaliserErreur(erreur: unknown, ou = ''): void {
+export function journaliserErreur(brute: unknown, ou = ''): void {
+  const erreur = erreurDuJournal(brute);
   const ligne = ligneHumalis(erreur);
   if (!ligne || !(erreur instanceof Error)) return;
   const i = ligne.lastIndexOf(':');

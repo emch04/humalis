@@ -70,7 +70,7 @@ export function codeCaptureErreurs(serveur: ServeurRI): string {
     return "''";
   };
   return `// Produit par Humalis : capture sûre des erreurs du processus et d'Express.
-import { ligneHumalis, pileHumalis } from './lignes.js';
+import { erreurDuJournal, ligneHumalis, pileHumalis } from './lignes.js';
 
 type Rapport = { message: string; pile: string; ligne: string; page: string; version: string };
 const enCours = new Set<string>();
@@ -80,7 +80,8 @@ let dansLaCapture = false;
 ${codeEnvoi(envois)}
 export async function rapporterErreur(inconnue: unknown, page = ''): Promise<void> {
   if (dansLaCapture) return;
-  const brute = inconnue instanceof Error ? inconnue : new Error('Erreur inconnue');
+  const reduite = erreurDuJournal(inconnue);
+  const brute = reduite instanceof Error ? reduite : new Error('Erreur inconnue');
   const erreur: Rapport = { message: nettoyer(brute.message), pile: nettoyer(pileHumalis(String(brute.stack ?? ''))), ligne: nettoyer(ligneHumalis(brute)), page: nettoyer(page), version: ${q('1.0.0')} };
   const cle = erreur.message + '|' + erreur.pile.split('\\n')[1];
   const maintenant = Date.now();

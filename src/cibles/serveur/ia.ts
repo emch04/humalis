@@ -42,6 +42,17 @@ const DELAI_PREMIERE_REPONSE = 60_000;
 
 export interface ServiceIa { adresse: string; modele: string; cle: string }
 
+/** L'adresse désigne cette machine : localhost (et ses sous-noms), 127.x.x.x ou ::1. */
+export function surLaMachine(adresse: string): boolean {
+  let hote: string;
+  try {
+    hote = new URL(adresse).hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+  return hote === 'localhost' || hote.endsWith('.localhost') || /^127(\.\d{1,3}){3}$/.test(hote) || hote === '[::1]';
+}
+
 /** Le service du .env, puis son secours facultatif (_2). Sinon, ce qui manque, dit exactement. */
 export function servicesIa(env: Record<string, string | undefined> = process.env): { services: ServiceIa[] } | { manque: string } {
   const lire = (suffixe: string): ServiceIa => ({
@@ -56,6 +67,8 @@ export function servicesIa(env: Record<string, string | undefined> = process.env
     const manque = [!service.adresse && 'HUMALIS_IA_ADRESSE' + suffixe, !service.modele && 'HUMALIS_IA_MODELE' + suffixe].filter(Boolean);
     if (manque.length) return { manque: "l'IA n'est pas réglée sur ce serveur : renseignez " + manque.join(' et ') + ' dans le .env' };
     if (!/^https?:\/\/[^/\s]+/.test(service.adresse)) return { manque: "l'IA n'est pas réglée sur ce serveur : HUMALIS_IA_ADRESSE" + suffixe + ' doit commencer par https:// ou http://' };
+    // La clé ne part jamais en clair hors de la machine : http:// avec une clé, seulement vers un modèle local.
+    if (service.cle && /^http:/i.test(service.adresse) && !surLaMachine(service.adresse)) return { manque: "l'IA n'est pas réglée sur ce serveur : HUMALIS_IA_ADRESSE" + suffixe + ' doit commencer par https:// pour recevoir la clé (http:// seulement vers cette machine : localhost, 127.0.0.1)' };
     services.push(service);
   }
   return { services };

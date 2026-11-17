@@ -363,6 +363,9 @@ export const cacheHumalis = {
     const cleRedis = (cle: string) => PREFIXE + 'limite:' + nom + ':' + cle;
     return {
       localKeys: false,
+      // Chaque magasin a son préfixe : express-rate-limit distingue alors celui des requêtes et celui des connexions,
+      // qui comptent tous deux une connexion (« compté deux fois » n'était qu'une confusion entre les deux).
+      prefix: 'humalis:limite:' + nom + ':',
       init(options: { windowMs: number }) {
         duree = options.windowMs;
       },
