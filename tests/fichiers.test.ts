@@ -135,15 +135,19 @@ describe('plusieurs fichiers — « utiliser fichier "…" »', () => {
     expect(messages(r)).toEqual(['b.humalis:1 erreur : la page « accueil » est déjà déclarée (ligne 3 de a.humalis).']);
   });
 
-  it('refuse deux serveurs dans la même application (G5)', () => {
-    const serveur = (nom: string) => programme(`serveur "${nom}" :`, '>donnee note :', '>>valeur : nombre', '>route "notes" :', '>>tout le monde peut lire note', '>>seul admin peut modifier note');
-    const r = compilerProjet(
+  it('deux serveurs dans deux fichiers : deux services, un nom chacun (17 novembre 2026)', () => {
+    const serveur = (nom: string, donnee: string, ...lignes: string[]) => programme(`serveur "${nom}" :`, ...lignes, `>donnee ${donnee} :`, '>>valeur : nombre', `>route "${donnee}s" :`, `>>tout le monde peut lire ${donnee}`, `>>seul admin peut modifier ${donnee}`);
+    const services = compilerProjet(
       'a.humalis',
-      disque({ 'a.humalis': 'utiliser fichier "./b.humalis"\n\n' + serveur('un'), 'b.humalis': serveur('deux') }),
+      disque({ 'a.humalis': 'utiliser fichier "./b.humalis"\n\n' + serveur('un', 'note'), 'b.humalis': serveur('deux', 'tache', '>comptes du serveur "un"') }),
     );
-    expect(messages(r)).toEqual([
-      'b.humalis:1 erreur : un seul serveur par application : le serveur « un » est déjà déclaré (ligne 3 de a.humalis). Mets ses données et ses routes dans ce même bloc.',
-    ]);
+    expect(messages(services)).toEqual([]);
+    expect(services.application?.serveurs.map((s) => [s.nom, s.projet?.comptes])).toEqual([['un', 'un'], ['deux', 'un']]);
+    const memeNom = compilerProjet(
+      'a.humalis',
+      disque({ 'a.humalis': 'utiliser fichier "./b.humalis"\n\n' + serveur('un', 'note'), 'b.humalis': serveur('un', 'tache') }),
+    );
+    expect(messages(memeNom)).toEqual(['b.humalis:1 erreur : le serveur « un » est déjà déclaré (ligne 3 de a.humalis) : chaque service a son nom. Mets ses données et ses routes dans ce même bloc.']);
   });
 
   it('sans disque (compiler seul), un « utiliser fichier » est introuvable', () => {

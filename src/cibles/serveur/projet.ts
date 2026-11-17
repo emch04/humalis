@@ -89,6 +89,7 @@ export function genererProjetServeur(complet: ServeurRI, options: OptionsServeur
   fichiers.set('scripts/verifier-donnees.mjs', verifierDonneesMjs(serveur, { camel, table: nomTable, schema: (donnee) => `SCHEMA_${simplifier(donnee).toUpperCase()}` }));
   fichiers.set('scripts/restaurer.mjs', restaurerMjs(serveur));
   fichiers.set('scripts/bases/mysql.mjs', EXPLOITATION_MYSQL);
+  if (serveur.projet && serveur.projet.comptes === serveur.nom) fichiers.set('scripts/cles-comptes.mjs', CLES_COMPTES);
   fichiers.set('scripts/bases/documents.mjs', EXPLOITATION_DOCUMENTS);
   for (const [chemin, contenu] of fichiersDeploiement(serveur)) fichiers.set(chemin, contenu);
   fichiers.set('.env.exemple', envExemple(serveur));
@@ -159,7 +160,49 @@ export function genererProjetServeur(complet: ServeurRI, options: OptionsServeur
     fichiers.set('src/humalis/fidelite.ts', FIDELITE);
     fichiers.set('tests/fidelite.test.ts', testsFidelite(serveur));
   }
+  // Un service qui prend ses comptes ailleurs : ni connexion ni session ici. Ses essais fabriquent les jetons comme le
+  // service des comptes (ES256, une clé d'essai), et les essais de la session restent à ce service-là.
+  if (serveur.projet && serveur.projet.comptes !== serveur.nom) {
+    fichiers.delete('tests/sessions.test.ts');
+    for (const [chemin, contenu] of fichiers) if (chemin.startsWith('tests/') && chemin.endsWith('.ts')) fichiers.set(chemin, essaisSansComptes(contenu));
+  }
   return fichiers;
+}
+
+/** Les essais d'un service sans comptes : le jeton de chaque compte d'essai est signé ici, avec une clé d'essai. */
+function essaisSansComptes(texte: string): string {
+  if (!texte.includes("post('/auth/login')")) return texte;
+  const corps = texte
+    .replaceAll("request(app).post('/auth/login').send({ email, password: MOT_DE_PASSE }).expect(200)", '(async () => ({ body: { data: { token: await jetonDuTest(email) } } }))()')
+    .replaceAll("creerServeur({ jwtSecret: 'secret-de-test-assez-long-pour-les-sessions', usersStore,", 'creerServeur({ jwtSecret: CLES_DU_TEST.publicKey, cleDesJetons: CLES_DU_TEST.publicKey, usersStore: (comptesDuTest.store = usersStore),')
+    .replaceAll(".get('/auth/me')", ".get('/humalis-amorce')");
+  const [premiere, ...reste] = corps.split('\n');
+  return [
+    premiere,
+    "import { generateKeyPairSync, randomUUID, sign as signerJeton } from 'node:crypto';",
+    ...reste,
+    `
+// Ce service prend ses comptes chez un autre : le jeton est fabriqué comme le service des comptes le fait (ES256).
+const CLES_DU_TEST = generateKeyPairSync('ec', { namedCurve: 'P-256', privateKeyEncoding: { type: 'pkcs8', format: 'pem' }, publicKeyEncoding: { type: 'spki', format: 'pem' } });
+const comptesDuTest: { store?: { findByEmail(email: string): unknown } } = {};
+const jetonsSignes = new Map<string, string>();
+async function jetonDeCompte(email: string): Promise<string> {
+  const compte = (await comptesDuTest.store!.findByEmail(email)) as Record<string, unknown>;
+  const { passwordHash: _cache, ...publique } = compte;
+  void _cache;
+  const b64 = (valeur: unknown) => Buffer.from(JSON.stringify(valeur)).toString('base64url');
+  const maintenant = Math.floor(Date.now() / 1000);
+  const debut = b64({ alg: 'ES256', typ: 'JWT' }) + '.' + b64({ ...publique, jti: randomUUID(), iat: maintenant, exp: maintenant + 900 });
+  return debut + '.' + signerJeton('sha256', Buffer.from(debut), { key: CLES_DU_TEST.privateKey, dsaEncoding: 'ieee-p1363' }).toString('base64url');
+}
+function jetonDuTest(email: string): Promise<string> {
+  return jetonDeCompte(email).then((jeton) => {
+    jetonsSignes.set(email, jeton);
+    return jeton;
+  });
+}
+`,
+  ].join('\n');
 }
 
 /** « produit » → « humalis_produit » : un nom de table sûr, fixé à la compilation. */
@@ -226,6 +269,7 @@ function packageJson(nom: string, serveur: ServeurRI, livekit = false): string {
         sauvegarde: 'node --env-file-if-exists=.env scripts/sauvegarder.mjs',
         verification: 'node --env-file-if-exists=.env scripts/verifier-donnees.mjs',
         restauration: 'node --env-file-if-exists=.env scripts/restaurer.mjs',
+        ...(serveur.projet && serveur.projet.comptes === serveur.nom ? { cles: 'node scripts/cles-comptes.mjs' } : {}),
         // Les failles connues des dépendances, et les secrets écrits en dur dans un journal ou une réponse.
         'audit:deps': 'astratra audit:deps',
         'audit:secrets': 'astratra audit:secrets',
@@ -368,7 +412,29 @@ function envExemple(serveur: ServeurRI): string {
     // Les secrets des sources : seulement leur nom ; la valeur se met ici, sur le serveur, jamais dans le fichier Humalis.
     ...(serveur.passerelles ?? []).map((p) => `# Le secret de la source « ${p.source} » (jeton secret depuis l'environnement).\n${p.variable}=\n`),
   ];
-  return ENV_EXEMPLE.replace('\nPORT=3000', enPlus.join('\n') + '\nPORT=3000');
+  const exemple = ENV_EXEMPLE.replace('\nPORT=3000', [...enPlus, ...(serveur.projet ? [envServices(serveur)] : [])].join('\n') + '\nPORT=3000');
+  // Un service sans comptes : ni secret des sessions ni administrateur ici, ils sont au service des comptes.
+  return serveur.projet && serveur.projet.comptes !== serveur.nom
+    ? exemple.replace(/# Le secret des sessions[\s\S]*?HUMALIS_ADMIN_MOT_DE_PASSE=\n\n/, '')
+    : exemple;
+}
+
+/** Le .env d'un service du projet : le secret partagé, les adresses des services joints, la clé des jetons. */
+function envServices(serveur: ServeurRI): string {
+  const projet = serveur.projet!;
+  const gardien = projet.comptes === serveur.nom;
+  return `# Les services du projet (${projet.services.map((n) => `« ${n} »`).join(', ')}).
+# HUMALIS_SERVICES_SECRET : au moins 32 caractères au hasard, les mêmes dans tous les services (openssl rand -base64 48).
+HUMALIS_SERVICES_SECRET=
+${projet.joints.length ? `# L'adresse de chaque service que celui-ci appelle ou prévient, sans / à la fin (par exemple http://127.0.0.1:3002).
+${projet.joints.map((j) => `${variableDuService(j)}=`).join('\n')}
+` : ''}${gardien ? `# Ce service garde les comptes du projet et signe leurs jetons : sa clé privée. « npm run cles » écrit
+# cette ligne, et la clé publique à donner aux autres services.
+HUMALIS_COMPTES_CLE_PRIVEE=` : `# Ce service prend ses comptes chez « ${projet.comptes} » : la clé publique de ses jetons
+# (« npm run cles » dans le service « ${projet.comptes} » la donne).
+HUMALIS_COMPTES_CLE_PUBLIQUE=`}
+# Derrière le relais « entree » : HUMALIS_RELAIS=1, pour que les limites comptent chaque visiteur.
+`;
 }
 
 /**
@@ -1419,6 +1485,19 @@ ${gardien ? `  // Un jeton ou un compte fermé ici l'est aussi dans les autres s
 `;
 }
 
+/** scripts/cles-comptes.mjs : « npm run cles » écrit la paire de clés des jetons du projet. */
+const CLES_COMPTES = `// Produit par Humalis : la paire de clés des jetons d'accès du projet (ES256, courbe P-256).
+// La clé privée reste dans ce service, qui garde les comptes ; la clé publique va dans les autres services.
+import { generateKeyPairSync } from 'node:crypto';
+const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'P-256', privateKeyEncoding: { type: 'pkcs8', format: 'pem' }, publicKeyEncoding: { type: 'spki', format: 'pem' } });
+const ligne = (texte) => Buffer.from(texte).toString('base64');
+console.log('# Dans le .env de ce service (ne la donne à personne) :');
+console.log('HUMALIS_COMPTES_CLE_PRIVEE=' + ligne(privateKey));
+console.log('');
+console.log('# Dans le .env de chaque autre service du projet :');
+console.log('HUMALIS_COMPTES_CLE_PUBLIQUE=' + ligne(publicKey));
+`;
+
 /** Dans demarrer.ts : la clé des jetons (privée ici si ce service garde les comptes, publique sinon) et le secret des services. */
 function codeSecretsServices(serveur: ServeurRI): string {
   const projet = serveur.projet!;
@@ -1467,9 +1546,9 @@ function codeAvantServices(serveur: ServeurRI): string {
     avant.use(services.verifier);
     avant.post('/humalis/messages', express.json({ limit: '1mb' }), services.recevoir);
   }${gardien ? '' : `
-  // Les comptes sont tenus par le serveur « ${projet.comptes.replace(/[\\'\`$]/g, '')} » : ni connexion ni comptes ici (le coffre des clés reste).
+  // Les comptes sont tenus par le serveur « ${projet.comptes.replace(/[\\'\`$]/g, '')} » : ni connexion ni comptes ici (le coffre des clés et l'IA restent).
   avant.use('/auth', (req, res, next) => {
-    if (req.path.startsWith('/cles')) next();
+    if (req.path.startsWith('/cles') || req.path.startsWith('/ia')) next();
     else res.status(404).json({ erreur: ${JSON.stringify(`les comptes sont tenus par le serveur « ${projet.comptes} »`)} });
   });
   avant.use(['/users', '/settings'], (_req, res) => {
@@ -1963,7 +2042,7 @@ if (!pool && !sqlite && !mysql && !documents) {
 // reçoit par la même porte, et traduit les quelques tournures qui lui manquent (versSqlite).
 const sql = (pool ?? sqlite ?? mysql) as unknown as pg.Pool | null;
 
-${avecDirect(serveur) ? "if (pool) await direct.brancher(pool);\nelse if (mysql) direct.sonder(canalMysql(mysql));\nelse if (documents) direct.sonder(canalDocuments(documents));\n" : ''}const usersStore = (documents ? creerComptesDocuments(documents) : sql ? createPostgresUsersStore({ pool: sql }) : createMemoryUsersStore()) as UsersStore;
+${avecDirect(serveur) ? "if (pool) await direct.brancher(pool);\nelse if (mysql) direct.sonder(canalMysql(mysql));\nelse if (documents) direct.sonder(canalDocuments(documents));\n" : ''}const usersStore = (${serveur.projet && serveur.projet.comptes !== serveur.nom ? "createMemoryUsersStore()" : "documents ? creerComptesDocuments(documents) : sql ? createPostgresUsersStore({ pool: sql }) : createMemoryUsersStore()"}) as UsersStore;
 const stockages = {
 ${stockages}
 };
@@ -1979,8 +2058,8 @@ if (pool) {
 ${codeEvolutionEtDeparts(serveur)}
 // Le premier administrateur vient de l'environnement : aucun mot de passe
 // n'est écrit dans le code.
-const email = process.env.HUMALIS_ADMIN_EMAIL;
-const motDePasse = process.env.HUMALIS_ADMIN_MOT_DE_PASSE;
+${serveur.projet && serveur.projet.comptes !== serveur.nom ? '// Les comptes sont tenus par le serveur « ' + serveur.projet.comptes.replace(/[\\'`$]/g, '') + ' » : aucun administrateur ici.\nconst email: string | undefined = undefined;\nconst motDePasse: string | undefined = undefined;' : `const email = process.env.HUMALIS_ADMIN_EMAIL;
+const motDePasse = process.env.HUMALIS_ADMIN_MOT_DE_PASSE;`}
 if (email && motDePasse && !(await usersStore.findByEmail(email))) {
   if (!isStrongPassword(motDePasse)) {
     arreter('HUMALIS_ADMIN_MOT_DE_PASSE est trop faible : 8 caractères minimum, avec majuscule, minuscule, chiffre et caractère spécial.');

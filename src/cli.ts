@@ -12,6 +12,8 @@ import { appliquerExigence, resumerQualite } from './analyse/diagnosticsQualite.
 import { prevenirDesTuiles } from './analyse/carte.js';
 import { cheminsDesPages, genererProjetWeb, genererComposantsWeb, verifierPourLeWeb, adressesDeRequetes, MARQUE } from './cibles/web/projet.js';
 import { genererProjetServeur, MARQUE_SERVEUR } from './cibles/serveur/projet.js';
+import { fichiersEntree } from './cibles/serveur/entree.js';
+import { simplifier } from './analyse/elements.js';
 import { verifierSourcesPourLaCible, verifierNavigationPourLaCible, verifierFichiersPourLaCible, verifierNomsPourLeWeb, verifierAdresseParLangue } from './cibles/sources.js';
 import { genererProjetMoteur, verifierPourLeMoteur, MARQUE_MOTEUR } from './cibles/moteur/projet.js';
 import { lecturesPermises, lireLesDonnees, type ReglageLecture } from './cibles/moteur/lecture-construction.js';
@@ -52,7 +54,7 @@ const AIDE = `Utilisation :
   humalis compile <fichier.humalis> --cible apple --sortie <dossier> [--serveur https://…] [--identifiant com.exemple.app] [--equipe ABCDE12345]
   humalis compile <fichier.humalis> --cible android --sortie <dossier> [--serveur https://…] [--identifiant com.exemple.app] [--empreinte AA:BB:…] [--firebase google-services.json]
   humalis compile <fichier.humalis> --cible windows --sortie <dossier> [--serveur https://…] [--identifiant dev.exemple.app]
-  humalis compile <fichier.humalis> --cible serveur --sortie <dossier>
+  humalis compile <fichier.humalis> --cible serveur --sortie <dossier> [--service <nom>]
   humalis compile <fichier.humalis> --cible web [--moteur humalis|react] --sortie <dossier> [--adresse https://…] [--lire-serveur https://…]
   humalis compile <fichier.humalis> --cible statique --sortie <dossier> [--adresse https://…]
   humalis packs [--verifier <dossier>]
@@ -247,7 +249,7 @@ function compile(arguments_: string[]): number | Promise<number> {
     }
   }
 
-  if (cible === 'serveur') return compileServeur(application, chemin, sortie);
+  if (cible === 'serveur') return compileServeur(application, chemin, sortie, option(arguments_, 'service'));
   if (cible === 'statique') return compileStatique(application, chemin, sortie, option(arguments_, 'adresse'));
   if (cible === 'desktop') return compileDesktop(application, chemin, sortie, option(arguments_, 'serveur'), option(arguments_, 'moteur') ?? moteurDuProjet(chemin));
   if (cible === 'apple') return compileApple(application, chemin, sortie, arguments_);
@@ -819,13 +821,14 @@ function compileStatique(application: Application, chemin: string, sortie: strin
   return 0;
 }
 
-function compileServeur(application: Application, chemin: string, sortie: string): number {
+function compileServeur(application: Application, chemin: string, sortie: string, service?: string): number {
   if (application.serveurs.length === 0) {
     console.error(`Le fichier ${basename(chemin)} ne contient aucun bloc « serveur "…" : ».`);
     return 1;
   }
-  if (application.serveurs.length > 1) {
-    console.error('Un seul serveur par fichier pour l\'instant : rien n\'a été écrit.');
+  if (application.serveurs.length > 1) return compileServices(application, chemin, sortie, service);
+  if (service !== undefined && service !== application.serveurs[0].nom) {
+    console.error(`Le projet n'a pas de serveur « ${service} » : son seul serveur est « ${application.serveurs[0].nom} ».`);
     return 1;
   }
   if (!dossierLibre(sortie, MARQUE_SERVEUR)) return 1;
@@ -838,6 +841,91 @@ function compileServeur(application: Application, chemin: string, sortie: string
   console.error(`Serveur écrit dans « ${sortie} » (${fichiers.size} fichiers).`);
   console.error(`Pour le lancer : cd ${sortie} && npm install && npm test && npm run build && npm start (voir LISEZMOI.md)`);
   return 0;
+}
+
+/**
+ * Un projet en services : un dossier par service (chacun un projet Node complet et autonome), le relais « entree »
+ * et un LISEZMOI qui dit quoi régler. « --service catalogue » ne produit que ce service, pour le déployer à part.
+ */
+function compileServices(application: Application, chemin: string, sortie: string, service?: string): number {
+  const serveurs = application.serveurs;
+  if (!serveurs.every((s) => s.projet)) {
+    console.error(`Le fichier ${basename(chemin)} a ${serveurs.length} blocs « serveur », qui gardent chacun leurs comptes : pour en faire des services, écrivez dans chacun sauf un « comptes du serveur "${serveurs[0].nom}" ». Rien n'a été écrit.`);
+    return 1;
+  }
+  const choisis = service === undefined ? serveurs : serveurs.filter((s) => s.nom === service);
+  if (choisis.length === 0) {
+    console.error(`Le projet n'a pas de serveur « ${service} ». Services : ${serveurs.map((s) => s.nom).join(', ')}.`);
+    return 1;
+  }
+  const dossierDe = (nom: string) => join(sortie, simplifier(nom).replace(/_/g, '-') || 'serveur');
+  for (const s of choisis) if (!dossierLibre(dossierDe(s.nom), MARQUE_SERVEUR)) return 1;
+  if (service === undefined && !dossierLibre(join(sortie, 'entree'), MARQUE_SERVEUR)) return 1;
+  for (const s of choisis) {
+    const fichiers = genererProjetServeur(s, { nom: s.nom, source: basename(chemin), chemins: cheminsDesPages(application) });
+    ecrire(dossierDe(s.nom), fichiers);
+    console.error(`Service « ${s.nom} » écrit dans « ${dossierDe(s.nom)} » (${fichiers.size} fichiers).`);
+  }
+  if (service === undefined) {
+    const entree = fichiersEntree(serveurs);
+    entree.set(MARQUE_SERVEUR, 'Produit par Humalis.\n');
+    ecrire(join(sortie, 'entree'), entree);
+    ecrire(sortie, new Map([['LISEZMOI.md', lisezmoiServices(serveurs, sortie)]]));
+    console.error(`Relais « entree » écrit dans « ${join(sortie, 'entree')} ».`);
+    console.error(`Pour les lancer : voir ${join(sortie, 'LISEZMOI.md')} (une clé des jetons, un secret partagé, l'adresse de chaque service).`);
+  }
+  return 0;
+}
+
+/** Le LISEZMOI d'un projet en services : ce qu'il faut régler, dans l'ordre. */
+function lisezmoiServices(serveurs: Application['serveurs'], sortie: string): string {
+  const comptes = serveurs[0].projet!.comptes;
+  const dossier = (nom: string) => simplifier(nom).replace(/_/g, '-') || 'serveur';
+  const port = (i: number) => 3001 + i;
+  return `# Les services du projet
+
+Produit par Humalis : ${serveurs.length} services (${serveurs.map((s) => `« ${s.nom} »`).join(', ')}), chacun dans son dossier, et le
+relais « entree », une seule adresse publique devant eux. « ${comptes} » garde les comptes ; les autres reconnaissent ses jetons.
+
+## 1. Les secrets, une fois pour tout le projet
+
+\`\`\`sh
+cd ${dossier(comptes)} && npm install && npm run cles    # la clé privée (ce service) et la clé publique (les autres)
+openssl rand -base64 48                                   # HUMALIS_SERVICES_SECRET, le même partout
+\`\`\`
+
+## 2. Chaque service
+
+Dans chaque dossier : \`cp .env.exemple .env\`, puis la base (\`DATABASE_URL\` ou \`HUMALIS_BASE\`), \`HUMALIS_SERVICES_SECRET\`,
+la clé des jetons, les adresses des services qu'il joint, et \`HUMALIS_RELAIS=1\` derrière le relais.
+
+| Service | Dossier | Port proposé |
+| --- | --- | --- |
+${serveurs.map((s, i) => `| ${s.nom} | \`${dossier(s.nom)}/\` | ${port(i)} |`).join('\n')}
+
+\`\`\`sh
+${serveurs.map((s, i) => `cd ${dossier(s.nom)} && npm install && npm test && npm run build && PORT=${port(i)} npm start`).join('\n')}
+\`\`\`
+
+Chaque service a sa base, ses sauvegardes, son \`/sante\` et son arrêt propre ; il se déploie et se met à jour seul :
+\`humalis compile … --cible serveur --sortie ${sortie} --service <nom>\`.
+
+## 3. Le relais « entree »
+
+\`\`\`sh
+cd entree && cp .env.exemple .env && npm start     # http://localhost:8080
+\`\`\`
+
+Les pages, le web (\`VITE_HUMALIS_SERVEUR\`) et les applications (\`--serveur\`) parlent à cette seule adresse.
+
+## Ce qu'il faut savoir
+
+- Une action reste « tout ou rien » dans son service. Si elle a déjà fait une action chez un autre service puis refuse,
+  ce qui a été fait là-bas reste fait : pour changer un autre service, préfère « signaler », qui ne part que si tout a réussi.
+- Un message est livré au moins une fois, et traité une seule fois ; l'ordre de deux messages n'est pas garanti.
+- Une déconnexion ou un compte fermé est annoncé aux autres services dès qu'il arrive ; un changement de rôle compte
+  ailleurs au prochain jeton (quinze minutes au plus).
+`;
 }
 
 /** La dernière version publiée d'un paquet, lue par npm ; undefined sans réponse. */

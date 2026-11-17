@@ -265,12 +265,13 @@ function reunir(programmes: Programme[], fichiers: string[], diagnostics: Diagno
         diagnostics.push({ gravite: 'erreur', message: `la page « ${page.nom} » est déjà déclarée (ligne ${deja.ligne}).`, ligne: page.ligne });
       } else tout.pages.push(page);
     }
+    // Plusieurs serveurs : autant de services (« comptes du serveur … » dans tous sauf un). Un nom ne sert qu'une fois.
     for (const serveur of p.serveurs) {
-      const deja = tout.serveurs[0];
+      const deja = tout.serveurs.find((x) => x.nom === serveur.nom);
       if (deja) {
         diagnostics.push({
           gravite: 'erreur',
-          message: `un seul serveur par application : le serveur « ${deja.nom} » est déjà déclaré (ligne ${deja.ligne}). Mets ses données et ses routes dans ce même bloc.`,
+          message: `le serveur « ${deja.nom} » est déjà déclaré (ligne ${deja.ligne}) : chaque service a son nom. Mets ses données et ses routes dans ce même bloc.`,
           ligne: serveur.ligne,
         });
       } else tout.serveurs.push(serveur);

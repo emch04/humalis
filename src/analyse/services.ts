@@ -133,6 +133,17 @@ export function analyserServices(serveurs: Serveur[], diagnostics: Diagnostic[])
     for (const r of s.receveurs ?? []) parcourir(r.corps);
   }
 
+  // Ce qui a une seule adresse dans le projet (/auth/ia, /paiements/webhook, /api/fidelite) va dans un seul service.
+  const uniques: [string, (s: Serveur) => number | undefined][] = [
+    ['ia', (s) => (s.ia ? s.ligne : undefined)],
+    ['paiements', (s) => (s.paiements ? s.ligne : undefined)],
+    ['fidelite', (s) => s.fidelite?.ligne],
+  ];
+  for (const [quoi, ligneDe] of uniques) {
+    const avec = serveurs.filter((s) => ligneDe(s) !== undefined);
+    for (const s of avec.slice(1)) erreur(`« ${quoi} » s'écrit dans un seul service du projet : il est déjà dans « ${avec[0]!.nom} ».`, ligneDe(s)!);
+  }
+
   // « le serveur "x" peut … » : un autre service, et une action ou une donnée de cette route.
   for (const s of serveurs) {
     for (const route of s.routes) {
