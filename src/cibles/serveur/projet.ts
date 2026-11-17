@@ -362,6 +362,10 @@ HUMALIS_ADMIN_MOT_DE_PASSE=
 #   postgres://utilisateur:mot-de-passe@hote:5432/base     PostgreSQL
 #   mysql://utilisateur:mot-de-passe@hote:3306/base        MySQL (mariadb://… pour MariaDB)
 #   mongodb://hote:27017/base?replicaSet=nom               une base de documents, avec transactions (jeu de répliques)
+# Une base sur une autre machine se chiffre (TLS), le certificat du serveur vérifié :
+#   PostgreSQL : ?sslmode=require (ou verify-full), et &sslrootcert=/chemin/ca.pem pour l'autorité de l'hébergeur
+#   MySQL, MariaDB : ?ssl-mode=REQUIRED (ou VERIFY_IDENTITY), et &ssl-ca=/chemin/ca.pem ; VERIFY_CA ne vérifie pas le nom
+#   documents : ?tls=true, ou une adresse mongodb+srv://… (chiffrée d'office), et &tlsCAFile=/chemin/ca.pem
 DATABASE_URL=
 # SQLite : un seul fichier, rien à installer (Node 24 ou plus récent). Un seul exemplaire du serveur par fichier.
 # Exemple : HUMALIS_BASE=donnees/base.sqlite
@@ -1894,7 +1898,7 @@ import { creerMagasinMemoire, creerMagasinPostgres, creerRevocationsPostgres } f
 import { reglagesDeSession, type ReglagesSession } from './humalis/sessions.js';
 import { creerStockageMemoire, creerStockagePostgres } from './humalis/stockage.js';
 import { creerStockageSqlite, ouvrirSqlite, preparerTableSqlite, transactionSqlite, type BaseSqlite } from './humalis/sqlite.js';${avecSynchro(serveur) ? "\nimport { creerJournalSqlite } from './humalis/synchro-sqlite.js';\nimport { creerJournalMysql } from './humalis/synchro-mysql.js';" : ''}
-import { canalMysql, cheminJson, creerStockageMysql, ouvrirMysql, preparerTableMysql, transactionMysql, type BaseMysql } from './humalis/mysql.js';
+import { canalMysql, cheminJson, connexionMysql, creerStockageMysql, ouvrirMysql, preparerTableMysql, transactionMysql, type BaseMysql } from './humalis/mysql.js';
 import { canalDocuments, creerClesDocuments, creerComptesDocuments, creerEnvoisDocuments, creerRevocationsDocuments, creerSessionsDocuments, creerStockageDocuments, ouvrirDocuments, preparerCollection, transactionDocuments, type BaseDocuments${avecSecurite(serveur) ? ', creerSecuriteDocuments' : ''}${comptes ? ', creerJetonsDocuments' : ''}${serveur.taches?.length ? ', reclamerDocuments' : ''}${avecIa(serveur) ? ', compterDocuments' : ''} } from './humalis/documents.js';${avecSynchro(serveur) ? "\nimport { creerJournalDocuments } from './humalis/synchro-documents.js';" : ''}
 
 function arreter(message: string): never {
@@ -1925,6 +1929,12 @@ if (adresseBase && fichierSqlite) {
 }
 let mysql: BaseMysql | null = null;
 if (genreBase === 'mysql') {
+  // Un chiffrement mal écrit arrête ici, avant toute connexion : jamais de repli en clair.
+  try {
+    connexionMysql(adresseBase!);
+  } catch (erreur) {
+    arreter('DATABASE_URL : ' + (erreur instanceof Error ? erreur.message : String(erreur)));
+  }
   try {
     mysql = await ouvrirMysql(adresseBase!);
   } catch (erreur) {

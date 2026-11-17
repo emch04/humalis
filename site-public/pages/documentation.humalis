@@ -3318,6 +3318,13 @@ page "documentation_21" dans "documentation" adresse "/documentation/serveur" :
             texte "`mongodb://host:27017/base?replicaSet=…`: a document database;"
             texte "or `HUMALIS_BASE=donnees/base.sqlite`: SQLite, a single file, nothing to install (Node 24 or later). One file serves a single instance of the server."
         texte "With PostgreSQL, MySQL, MariaDB or a document database, several instances of the server can share the database behind a proxy. The program does not change from one database to another: data, accounts, sessions, sends, key vault, tasks, sync, backup and restore work the same way. A backup is restored into a database of the same kind."
+        texte "A database on another machine is encrypted (TLS): the address asks for it, and the server's certificate is checked."
+        tableau "Database, Encrypt, The host's authority" :
+            colonnes "Database", "Encrypt", "The host's authority"
+            rangee "PostgreSQL", "`?sslmode=require` (or `verify-full`)", "`&sslrootcert=/path/ca.pem`"
+            rangee "MySQL, MariaDB", "`?ssl-mode=REQUIRED` (or `VERIFY_IDENTITY`, `sslmode=require`)", "`&ssl-ca=/path/ca.pem`"
+            rangee "documents", "`?tls=true`, or a `mongodb+srv://…` address, encrypted by default", "`&tlsCAFile=/path/ca.pem`"
+        texte "For MySQL and MariaDB, `VERIFY_CA` checks the certificate without checking the server's name, and `DISABLED` connects in clear text (a database on the same machine). `PREFERRED`, which would connect in clear text without saying so if the database does not encrypt, is refused at startup, like an unknown value."
         texte "#### A document database"
         texte "A document database stores each record as a document, without tables or columns. Humalis uses it through the MongoDB protocol. What works less well than with a relational database:"
         liste :
@@ -3879,6 +3886,13 @@ page "documentation_21" dans "documentation" adresse "/documentation/serveur" :
             texte "`mongodb://hote:27017/base?replicaSet=…` : une base de documents ;"
             texte "ou `HUMALIS_BASE=donnees/base.sqlite` : SQLite, un seul fichier, rien à installer (Node 24 ou plus récent). Un fichier sert un seul exemplaire du serveur."
         texte "Avec PostgreSQL, MySQL, MariaDB ou une base de documents, plusieurs exemplaires du serveur peuvent partager la base derrière un relais. Le programme ne change pas d'une base à l'autre : données, comptes, sessions, envois, coffre, tâches, synchronisation, sauvegarde et restauration marchent de la même façon. Une sauvegarde se relit dans une base de la même sorte."
+        texte "Une base sur une autre machine se chiffre (TLS) : l'adresse le demande, et le certificat du serveur est vérifié."
+        tableau "Base, Chiffrer, Autorité de l'hébergeur" :
+            colonnes "Base", "Chiffrer", "Autorité de l'hébergeur"
+            rangee "PostgreSQL", "`?sslmode=require` (ou `verify-full`)", "`&sslrootcert=/chemin/ca.pem`"
+            rangee "MySQL, MariaDB", "`?ssl-mode=REQUIRED` (ou `VERIFY_IDENTITY`, `sslmode=require`)", "`&ssl-ca=/chemin/ca.pem`"
+            rangee "documents", "`?tls=true`, ou une adresse `mongodb+srv://…`, chiffrée d'office", "`&tlsCAFile=/chemin/ca.pem`"
+        texte "Pour MySQL et MariaDB, `VERIFY_CA` vérifie le certificat sans vérifier le nom du serveur, et `DISABLED` se connecte en clair (une base sur la même machine). `PREFERRED`, qui se connecterait en clair sans le dire si la base ne chiffre pas, est refusé au démarrage, comme une valeur inconnue."
         texte "#### Une base de documents"
         texte "Une base de documents range chaque fiche comme un document, sans tables ni colonnes. Humalis s'en sert par le protocole MongoDB. Ce qui marche moins bien qu'avec une base relationnelle :"
         liste :

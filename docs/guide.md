@@ -2751,6 +2751,19 @@ partager la base derrière un relais. Le programme ne change pas d'une base à l
 comptes, sessions, envois, coffre, tâches, synchronisation, sauvegarde et restauration marchent de
 la même façon. Une sauvegarde se relit dans une base de la même sorte.
 
+Une base sur une autre machine se chiffre (TLS) : l'adresse le demande, et le certificat du serveur
+est vérifié.
+
+| Base | Chiffrer | Autorité de l'hébergeur |
+|---|---|---|
+| PostgreSQL | `?sslmode=require` (ou `verify-full`) | `&sslrootcert=/chemin/ca.pem` |
+| MySQL, MariaDB | `?ssl-mode=REQUIRED` (ou `VERIFY_IDENTITY`, `sslmode=require`) | `&ssl-ca=/chemin/ca.pem` |
+| documents | `?tls=true`, ou une adresse `mongodb+srv://…`, chiffrée d'office | `&tlsCAFile=/chemin/ca.pem` |
+
+Pour MySQL et MariaDB, `VERIFY_CA` vérifie le certificat sans vérifier le nom du serveur, et
+`DISABLED` se connecte en clair (une base sur la même machine). `PREFERRED`, qui se connecterait en
+clair sans le dire si la base ne chiffre pas, est refusé au démarrage, comme une valeur inconnue.
+
 #### Une base de documents
 
 Une base de documents range chaque fiche comme un document, sans tables ni colonnes. Humalis s'en

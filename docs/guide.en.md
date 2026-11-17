@@ -2827,6 +2827,20 @@ the database behind a proxy. The program does not change from one database to an
 accounts, sessions, sends, key vault, tasks, sync, backup and restore work the same way. A backup is
 restored into a database of the same kind.
 
+A database on another machine is encrypted (TLS): the address asks for it, and the server's
+certificate is checked.
+
+| Database | Encrypt | The host's authority |
+|---|---|---|
+| PostgreSQL | `?sslmode=require` (or `verify-full`) | `&sslrootcert=/path/ca.pem` |
+| MySQL, MariaDB | `?ssl-mode=REQUIRED` (or `VERIFY_IDENTITY`, `sslmode=require`) | `&ssl-ca=/path/ca.pem` |
+| documents | `?tls=true`, or a `mongodb+srv://…` address, encrypted by default | `&tlsCAFile=/path/ca.pem` |
+
+For MySQL and MariaDB, `VERIFY_CA` checks the certificate without checking the server's name, and
+`DISABLED` connects in clear text (a database on the same machine). `PREFERRED`, which would connect
+in clear text without saying so if the database does not encrypt, is refused at startup, like an
+unknown value.
+
 #### A document database
 
 A document database stores each record as a document, without tables or columns. Humalis uses it

@@ -13,11 +13,15 @@
  * Ce fichier produit `src/humalis/mysql.ts`.
  */
 
+import { codeConnexionMysql } from './chiffrement-mysql.js';
+
 /** src/humalis/mysql.ts */
 export const MYSQL = String.raw`import { AsyncLocalStorage } from 'node:async_hooks';
+import { readFileSync } from 'node:fs';
 import type { Pool, PoolConnection } from 'mysql2/promise';
 import { nouvelId, sansSeparateurs, type Enregistrement, type Stockage } from './stockage.js';
 
+${codeConnexionMysql(true)}
 type Ligne = Record<string, unknown>;
 type Resultat = { rows: Ligne[]; rowCount: number };
 
@@ -212,11 +216,11 @@ export function tableMysql(texte: string): string {
   return 'CREATE TABLE ' + (forme[1] ? 'IF NOT EXISTS ' : '') + forme[2] + ' (' + colonnes.join(', ') + ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin';
 }
 
-/** Ouvre la base. L'adresse : mysql://utilisateur:mot-de-passe@hote:3306/base (ou mariadb://…). */
+/** Ouvre la base. L'adresse : mysql://utilisateur:mot-de-passe@hote:3306/base (ou mariadb://…), et son chiffrement. */
 export async function ouvrirMysql(adresse: string): Promise<BaseMysql> {
   const mysql = (await import('mysql2/promise')).default;
   const pool: Pool = mysql.createPool({
-    uri: adresse.replace(/^mariadb:/, 'mysql:'),
+    ...connexionMysql(adresse),
     // Le texte au caractère près, les dates en temps universel, et le nombre de lignes vraiment changées.
     charset: 'UTF8MB4_BIN',
     timezone: 'Z',
