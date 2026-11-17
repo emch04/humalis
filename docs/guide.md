@@ -2737,16 +2737,37 @@ npm run build && npm start
 ```
 
 Sans base dans le `.env`, les données restent en mémoire (développement).
-Deux bases au choix, une table par donnée, créée au démarrage :
+La base se choisit dans le `.env`, et rien n'est choisi d'avance : le programme ne la nomme jamais.
+`DATABASE_URL` se reconnaît au début de l'adresse :
 
-- `DATABASE_URL=postgres://…` : PostgreSQL, pour un serveur qui grandit ou
-  plusieurs exemplaires derrière un relais ;
-- `HUMALIS_BASE=donnees/base.sqlite` : SQLite, un seul fichier, rien à
-  installer (Node 24 ou plus récent). Un fichier sert un seul exemplaire du
-  serveur.
+- `postgres://…` : PostgreSQL ;
+- `mysql://…` ou `mariadb://…` : MySQL ou MariaDB ;
+- `mongodb://hote:27017/base?replicaSet=…` : une base de documents ;
+- ou `HUMALIS_BASE=donnees/base.sqlite` : SQLite, un seul fichier, rien à installer
+  (Node 24 ou plus récent). Un fichier sert un seul exemplaire du serveur.
 
-Le programme ne change pas d'une base à l'autre : données, comptes, sessions,
-synchronisation et sauvegardes marchent de la même façon.
+Avec PostgreSQL, MySQL, MariaDB ou une base de documents, plusieurs exemplaires du serveur peuvent
+partager la base derrière un relais. Le programme ne change pas d'une base à l'autre : données,
+comptes, sessions, envois, coffre, tâches, synchronisation, sauvegarde et restauration marchent de
+la même façon. Une sauvegarde se relit dans une base de la même sorte.
+
+#### Une base de documents
+
+Une base de documents range chaque fiche comme un document, sans tables ni colonnes. Humalis s'en
+sert par le protocole MongoDB. Ce qui marche moins bien qu'avec une base relationnelle :
+
+- **Les transactions.** Une action reste « tout ou rien » seulement si la base en a de vraies : il
+  faut un jeu de répliques, même d'un seul membre. Au démarrage, le serveur essaie une écriture
+  annulée ; si elle reste écrite, il refuse de démarrer plutôt que de faire semblant. Une base
+  compatible qui accepte les transactions sans les tenir est donc refusée.
+- **Deux écritures en même temps** sur la même fiche : la seconde transaction est rejouée.
+- **Les jointures.** La synchronisation lit le journal, puis les fiches : deux lectures au lieu d'une.
+- **Les verrous** (une tâche qui ne tourne qu'une fois, une installation) passent par une collection
+  qui expire.
+- **La sauvegarde** lit tout au même instant ; pour une très grosse base, prends aussi l'outil de
+  sauvegarde de la base.
+
+Les résumés (`somme`, `regroupe par`) et la séparation par groupe marchent comme ailleurs.
 
 ### Ce que le serveur décide
 
@@ -2863,6 +2884,99 @@ autre donnée (`au plus prix de zone par commune`).
 
 Derrière un relais sur la même machine, écris `HUMALIS_ECOUTE=127.0.0.1` dans
 l'environnement : le serveur n'est plus joignable que par lui.
+
+### Plusieurs services
+
+Un serveur unique suffit à la plupart des applications, et il ne change pas. Quand tu veux des
+services séparés, écris plusieurs blocs `serveur`, dans un fichier ou dans plusieurs. Le projet
+est « en services » dès que l'un d'eux écrit `comptes du serveur "…"`.
+
+```humalis
+serveur "comptes" :
+    roles gerant et client
+    donnee annonce :
+        texte : texte
+    route "annonces" :
+        tout le monde peut lire annonce
+        seul gerant peut modifier annonce
+
+serveur "catalogue" :
+    comptes du serveur "comptes"
+    donnee produit :
+        nom : texte
+        stock : nombre
+    route "produits" :
+        tout le monde peut lire produit
+        seul gerant peut modifier produit
+        connecte peut faire "reserver" sur produit avec quantite : nombre :
+            si quantite est superieur a produit.stock :
+                refuser "Plus assez de stock"
+            changer produit.stock par produit.stock - quantite
+    quand le serveur "commandes" signale "commande-validee" avec c :
+        noter c.quantite
+
+serveur "commandes" :
+    comptes du serveur "comptes"
+    donnee commande :
+        produit : texte
+        quantite : nombre
+        statut : texte au depart "ouverte"
+    route "commandes" :
+        connecte peut lire commande
+        connecte peut creer commande
+        seul gerant peut modifier commande
+        connecte peut faire "valider" sur commande :
+            envoyer requete vers "produits" du serveur "catalogue" avec id commande.produit dans produit
+            faire "reserver" sur produit du serveur "catalogue" avec quantite = commande.quantite
+            changer commande.statut par "validee"
+            signaler "commande-validee" avec commande
+
+page "accueil" :
+    variable produits = []
+    titre "Boutique"
+    quand la page se charge :
+        envoyer requete vers "produits" dans produits
+    pour chaque p dans produits :
+        texte p.nom
+```
+
+- Chaque route et chaque donnée appartiennent à un seul service. Les pages n'écrivent rien de plus :
+  `envoyer requete vers "produits"` va au service qui a la route. `du serveur "catalogue"` est
+  facultatif dans une page ; s'il est écrit, Humalis vérifie que c'est le bon.
+- **Les comptes.** Un seul service les garde : connexion, inscription, rôles, double authentification,
+  e-mails aux admins, notifications, temps réel. Les autres écrivent `comptes du serveur "…"` et
+  reconnaissent ses jetons : le service des comptes les signe avec sa clé privée (ES256), les autres
+  n'ont que la clé publique et ne peuvent pas en fabriquer. Une déconnexion ou un compte fermé est
+  annoncé aux autres services dès qu'il arrive ; un changement de rôle compte ailleurs au prochain
+  jeton, quinze minutes au plus.
+- **Lire une fiche d'un autre service** : `envoyer requete vers "produits" du serveur "catalogue" avec
+  id … dans produit`. **Lui demander une action** : `faire "reserver" sur produit du serveur
+  "catalogue" avec quantite = 2`. L'appel se fait au nom de la personne qui a lancé l'action : l'autre
+  service vérifie ses propres règles. Son refus revient tel quel, et l'action s'arrête.
+- **Sans personne connectée** (une tâche planifiée, un message reçu), le service agit en son propre
+  nom, et seulement pour ce que l'autre service lui donne :
+  `le serveur "commandes" peut faire "reserver" sur produit`, ou `le serveur "commandes" peut lire produit`.
+- **Les messages.** `signaler "commande-validee" avec commande` envoie la fiche aux services qui
+  écrivent `quand le serveur "commandes" signale "commande-validee" avec c :`. Le message part
+  seulement si toute l'action a réussi ; il est livré au moins une fois et traité une seule fois.
+  L'ordre de deux messages n'est pas garanti. La fiche reçue se lit ; elle ne se change pas ici.
+- **Ce qu'il faut savoir.** Une action reste « tout ou rien » dans son service. Si elle a déjà fait
+  une action chez un autre service puis refuse, ce qui a été fait là-bas reste fait. Pour changer un
+  autre service, préfère `signaler`, qui ne part que si tout a réussi.
+
+Aucun outil n'est imposé : ni file de messages, ni courtier. Les appels et les messages passent en
+HTTP signé avec un secret partagé (`HUMALIS_SERVICES_SECRET`), et la boîte d'envoi est dans la base
+de chaque service.
+
+```sh
+humalis compile boutique.humalis --cible serveur --sortie boutique-services
+humalis compile boutique.humalis --cible serveur --sortie boutique-services --service catalogue
+```
+
+Le premier écrit un dossier par service (chacun un serveur complet, avec sa base, ses tests, ses
+sauvegardes et son `/sante`), le relais `entree` et un `LISEZMOI.md` qui dit quoi régler. Le second
+ne produit que le service « catalogue », pour le déployer à part. Le chapitre
+[Mettre en production](#37-mettre-en-production) dit comment les lancer.
 
 ---
 
@@ -4186,6 +4300,7 @@ Les autres étapes : `remplir champ "email" avec "…"`, `aller vers "panier"`,
 | `humalis lancer <fichier>` | fait tourner un fichier tout de suite, en mémoire, avec son serveur, sans rien installer |
 | `humalis compile <fichier> --cible <cible> --sortie <dossier>` | produit le projet d'une cible |
 | `humalis compile <fichier> --cible web --composants <dossier>` | produit des composants React à importer ailleurs |
+| `humalis compile <fichier> --cible serveur --sortie <dossier> --service <nom>` | dans un projet en services, ne produit que ce service |
 | `humalis verifier <fichier>` | affiche les erreurs et les avertissements |
 | `humalis verifier <fichier> --exigeant` | traite aussi les avertissements comme des erreurs |
 | `humalis verifier <fichier> --cible statique` | dit aussi ce que cette cible refuserait ou ignorerait, sans rien écrire |
@@ -4632,7 +4747,7 @@ perdre. Le serveur produit apporte ce qu'il faut ; ce chapitre dit comment t'en 
 Ce que le serveur répond à chaque adresse (connexion, données, synchronisation, erreurs) est décrit
 dans [le protocole du serveur produit](protocole.md), pour qui veut y brancher un autre client.
 
-- `DATABASE_URL` (PostgreSQL) ou `HUMALIS_BASE` (SQLite) est réglée : sans base, les données restent en mémoire et sont perdues à l'arrêt. SQLite convient à un serveur seul ; pour plusieurs exemplaires, PostgreSQL. Avec SQLite, la sauvegarde est une copie du fichier (`sauvegardes/….sqlite`).
+- La base est réglée : `DATABASE_URL` (PostgreSQL, MySQL, MariaDB ou une base de documents) ou `HUMALIS_BASE` (SQLite). Sans base, les données restent en mémoire et sont perdues à l'arrêt. SQLite convient à un serveur seul ; pour plusieurs exemplaires, une des autres. Avec SQLite, la sauvegarde est une copie du fichier (`sauvegardes/….sqlite`).
 - `JWT_SECRET` fait au moins 32 caractères au hasard, et n'est dans aucun dépôt.
 - Le pare-feu refuse par défaut un texte envoyé qui contient une balise de script, `javascript:`, `${…}`, `../../../` ou `eval(` ; le refus nomme le champ. Pour un cours d'informatique, un forum technique ou un support où l'on colle du code, règle `HUMALIS_PARE_FEU=adresses` : ces textes s'enregistrent, les injections SQL et les adresses piégées restent refusées.
 - `HUMALIS_ADRESSE_SITE` est l'adresse publique du site, en `https://`.
@@ -4670,7 +4785,7 @@ Toutes les tables sont lues au même instant, serveur en marche. Le fichier cont
 leurs mots de passe hachés : copie-le hors du serveur, et chiffré. `deploiement/` donne le service
 et la minuterie systemd d'une sauvegarde chaque nuit, qui garde les quatorze dernières.
 
-Pour une très grande base, `pg_dump` de PostgreSQL reste l'outil de référence ; les deux se valent
+Pour une très grande base, l'outil de sauvegarde de ta base reste la référence ; les deux se valent
 tant que la base tient en quelques gigaoctets.
 
 ### Restaurer
@@ -4684,6 +4799,26 @@ Arrête le serveur avant. Sur une base neuve, les tables sont créées d'après 
 à préparer. La restauration refuse une table qui contient déjà des lignes ; `--remplacer` les vide
 d'abord. Elle est tout ou rien : un fichier coupé, une table manquante ou une ligne refusée, et
 rien n'est changé.
+
+### Un projet en services
+
+`humalis compile … --cible serveur` écrit un dossier par service et le relais `entree`. Dans l'ordre :
+
+1. Dans le service des comptes, `npm run cles` écrit la clé privée (pour lui) et la clé publique
+   (pour les autres). Choisis aussi un secret partagé : `openssl rand -base64 48`.
+2. Dans chaque service : `cp .env.exemple .env`, puis sa base, `HUMALIS_SERVICES_SECRET` (le même
+   partout), la clé des jetons, l'adresse des services qu'il appelle ou prévient
+   (`HUMALIS_SERVICE_CATALOGUE=http://127.0.0.1:3002`…) et `HUMALIS_RELAIS=1`. Chaque service a sa
+   base, ses sauvegardes, son `/sante` et son arrêt propre ; il se déploie et se met à jour seul.
+3. Le relais `entree` (`cd entree && cp .env.exemple .env && npm start`) donne une seule adresse
+   publique : il envoie `/api/produits` au catalogue, `/auth` au service des comptes, et ainsi de suite.
+   Les pages, le web et les applications (`--serveur`) ne parlent qu'à lui : une adresse, un cookie,
+   pas de CORS. Tu peux prendre le relais de ton choix : la table des chemins est dans
+   `entree/LISEZMOI.md`. Son `/sante` répond 200 quand chaque service répond prêt.
+
+Un message qui n'a pas pu partir attend dans la boîte d'envoi et repart (2 s, 4 s, 8 s… jusqu'à une
+heure) : il n'est jamais perdu. Après sept jours d'échecs, chaque nouvel échec est une erreur du
+journal. En développement, `humalis developper` vise le relais (port 8080, ou `HUMALIS_SERVEUR`).
 
 ### Changer le programme sans perdre de données
 

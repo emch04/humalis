@@ -2812,16 +2812,37 @@ npm test                  # checks every access rule
 npm run build && npm start
 ```
 
-Without a database in `.env`, data stays in memory (development). Two databases
-to choose from, one table per data, created at start:
+Without a database in `.env`, data stays in memory (development). The database is chosen in
+`.env`, and nothing is chosen in advance: the program never names it. `DATABASE_URL` is recognised
+by the start of the address:
 
-- `DATABASE_URL=postgres://…`: PostgreSQL, for a server that grows or several
-  instances behind a proxy;
-- `HUMALIS_BASE=donnees/base.sqlite`: SQLite, a single file, nothing to install
+- `postgres://…`: PostgreSQL;
+- `mysql://…` or `mariadb://…`: MySQL or MariaDB;
+- `mongodb://host:27017/base?replicaSet=…`: a document database;
+- or `HUMALIS_BASE=donnees/base.sqlite`: SQLite, a single file, nothing to install
   (Node 24 or later). One file serves a single instance of the server.
 
-The program does not change from one database to the other: data, accounts,
-sessions, sync and backups work the same way.
+With PostgreSQL, MySQL, MariaDB or a document database, several instances of the server can share
+the database behind a proxy. The program does not change from one database to another: data,
+accounts, sessions, sends, key vault, tasks, sync, backup and restore work the same way. A backup is
+restored into a database of the same kind.
+
+#### A document database
+
+A document database stores each record as a document, without tables or columns. Humalis uses it
+through the MongoDB protocol. What works less well than with a relational database:
+
+- **Transactions.** An action stays "all or nothing" only if the database has real ones: it needs a
+  replica set, even of a single member. At start, the server tries a cancelled write; if it stays
+  written, the server refuses to start rather than pretend. A compatible database that accepts
+  transactions without keeping them is therefore refused.
+- **Two writes at the same time** on the same record: the second transaction is replayed.
+- **Joins.** Sync reads the journal, then the records: two reads instead of one.
+- **Locks** (a task that runs only once, an installation) go through a collection that expires.
+- **Backup** reads everything at one instant; for a very large database, also use the database's
+  own backup tool.
+
+Summaries (`somme`, `regroupe par`) and separation by group work as elsewhere.
 
 ### What the server decides
 
@@ -2938,6 +2959,97 @@ read from another record (`au plus prix de zone par commune`).
 
 Behind a relay on the same machine, set `HUMALIS_ECOUTE=127.0.0.1` in the environment:
 the server is then reachable only through it.
+
+### Several services
+
+A single server is enough for most applications, and it does not change. When you want separate
+services, write several `serveur` blocks, in one file or in several. The project is "in services"
+as soon as one of them writes `comptes du serveur "…"`.
+
+```humalis
+serveur "comptes" :
+    roles gerant et client
+    donnee annonce :
+        texte : texte
+    route "annonces" :
+        tout le monde peut lire annonce
+        seul gerant peut modifier annonce
+
+serveur "catalogue" :
+    comptes du serveur "comptes"
+    donnee produit :
+        nom : texte
+        stock : nombre
+    route "produits" :
+        tout le monde peut lire produit
+        seul gerant peut modifier produit
+        connecte peut faire "reserver" sur produit avec quantite : nombre :
+            si quantite est superieur a produit.stock :
+                refuser "Plus assez de stock"
+            changer produit.stock par produit.stock - quantite
+    quand le serveur "commandes" signale "commande-validee" avec c :
+        noter c.quantite
+
+serveur "commandes" :
+    comptes du serveur "comptes"
+    donnee commande :
+        produit : texte
+        quantite : nombre
+        statut : texte au depart "ouverte"
+    route "commandes" :
+        connecte peut lire commande
+        connecte peut creer commande
+        seul gerant peut modifier commande
+        connecte peut faire "valider" sur commande :
+            envoyer requete vers "produits" du serveur "catalogue" avec id commande.produit dans produit
+            faire "reserver" sur produit du serveur "catalogue" avec quantite = commande.quantite
+            changer commande.statut par "validee"
+            signaler "commande-validee" avec commande
+
+page "accueil" :
+    variable produits = []
+    titre "Boutique"
+    quand la page se charge :
+        envoyer requete vers "produits" dans produits
+    pour chaque p dans produits :
+        texte p.nom
+```
+
+- Each route and each data belongs to a single service. Pages write nothing more:
+  `envoyer requete vers "produits"` goes to the service that has the route. `du serveur "catalogue"`
+  is optional in a page; when written, Humalis checks it is the right one.
+- **Accounts.** A single service keeps them: sign-in, sign-up, roles, two-factor authentication,
+  emails to admins, notifications, real time. The others write `comptes du serveur "…"` and accept
+  its tokens: the accounts service signs them with its private key (ES256), the others only have the
+  public key and cannot make any. A sign-out or a closed account is announced to the other services
+  as soon as it happens; a role change counts elsewhere at the next token, fifteen minutes at most.
+- **Reading a record of another service**: `envoyer requete vers "produits" du serveur "catalogue"
+  avec id … dans produit`. **Asking it for an action**: `faire "reserver" sur produit du serveur
+  "catalogue" avec quantite = 2`. The call is made on behalf of the person who started the action:
+  the other service checks its own rules. Its refusal comes back as is, and the action stops.
+- **With nobody signed in** (a scheduled task, a received message), the service acts in its own name,
+  and only for what the other service grants it:
+  `le serveur "commandes" peut faire "reserver" sur produit`, or `le serveur "commandes" peut lire produit`.
+- **Messages.** `signaler "commande-validee" avec commande` sends the record to the services that write
+  `quand le serveur "commandes" signale "commande-validee" avec c :`. The message leaves only if the
+  whole action succeeded; it is delivered at least once and handled only once. The order of two
+  messages is not guaranteed. The received record is read; it is not changed here.
+- **Good to know.** An action stays "all or nothing" within its own service. If it already made an
+  action at another service and then refuses, what was done there stays done. To change another
+  service, prefer `signaler`, which leaves only if everything succeeded.
+
+No tool is imposed: no message queue, no broker. Calls and messages go over signed HTTP with a shared
+secret (`HUMALIS_SERVICES_SECRET`), and the outbox lives in each service's database.
+
+```sh
+humalis compile boutique.humalis --cible serveur --sortie boutique-services
+humalis compile boutique.humalis --cible serveur --sortie boutique-services --service catalogue
+```
+
+The first writes one folder per service (each a complete server, with its database, tests, backups
+and `/sante`), the `entree` relay and a `LISEZMOI.md` saying what to set. The second produces only the
+"catalogue" service, to deploy it on its own. The chapter [Going to production](#37-going-to-production)
+says how to run them.
 
 ---
 
@@ -4258,6 +4370,7 @@ texte "…" est absent` (a text is not shown).
 | `humalis lancer <file>` | runs a file right away, in memory, with its server, installing nothing |
 | `humalis compile <file> --cible <target> --sortie <folder>` | generates a target's project |
 | `humalis compile <file> --cible web --composants <folder>` | generates React components to import elsewhere |
+| `humalis compile <file> --cible serveur --sortie <folder> --service <name>` | in a project in services, produces only that service |
 | `humalis verifier <file>` | shows errors and warnings |
 | `humalis verifier <file> --exigeant` | also treats warnings as errors |
 | `humalis verifier <file> --cible statique` | also says what this target would refuse or ignore, without writing anything |
@@ -4678,7 +4791,7 @@ produced server brings what is needed; this chapter says how to use it.
 What the server answers at each address (sign-in, data, sync, errors) is described in
 [the protocol of the produced server](protocole.md) (in French), for anyone who wants to plug another client into it.
 
-- `DATABASE_URL` (PostgreSQL) or `HUMALIS_BASE` (SQLite) is set: without a database, data stays in memory and is lost on stop. SQLite suits a single server; for several instances, PostgreSQL. With SQLite, the backup is a copy of the file (`sauvegardes/….sqlite`).
+- The database is set: `DATABASE_URL` (PostgreSQL, MySQL, MariaDB or a document database) or `HUMALIS_BASE` (SQLite). Without a database, data stays in memory and is lost on stop. SQLite suits a single server; for several instances, one of the others. With SQLite, the backup is a copy of the file (`sauvegardes/….sqlite`).
 - `JWT_SECRET` is at least 32 random characters, and is in no repository.
 - By default the firewall refuses a sent text that contains a script tag, `javascript:`, `${…}`, `../../../` or `eval(`; the refusal names the field. For a programming course, a technical forum or a support desk where people paste code, set `HUMALIS_PARE_FEU=adresses`: these texts are stored, SQL injections and trapped addresses are still refused.
 - `HUMALIS_ADRESSE_SITE` is the site's public address, in `https://`.
@@ -4716,7 +4829,7 @@ All tables are read at the same instant, with the server running. The file holds
 their hashed passwords: copy it off the server, encrypted. `deploiement/` gives the systemd service
 and timer for a nightly backup that keeps the last fourteen.
 
-For a very large database, PostgreSQL's `pg_dump` remains the reference tool; both are equivalent
+For a very large database, your database's own backup tool remains the reference; both are equivalent
 as long as the database fits in a few gigabytes.
 
 ### Restoring
@@ -4729,6 +4842,26 @@ npm run restauration -- sauvegardes/2026-11-12-03-15-00.jsonl.gz --remplacer
 Stop the server first. On a fresh database, the tables are created from the backup: nothing to
 prepare. The restore refuses a table that already holds rows; `--remplacer` empties them first. It is all or
 nothing: a cut file, a missing table or a refused row, and nothing is changed.
+
+### A project in services
+
+`humalis compile … --cible serveur` writes one folder per service and the `entree` relay. In order:
+
+1. In the accounts service, `npm run cles` writes the private key (for it) and the public key (for the
+   others). Also choose a shared secret: `openssl rand -base64 48`.
+2. In each service: `cp .env.exemple .env`, then its database, `HUMALIS_SERVICES_SECRET` (the same
+   everywhere), the token key, the address of the services it calls or notifies
+   (`HUMALIS_SERVICE_CATALOGUE=http://127.0.0.1:3002`…) and `HUMALIS_RELAIS=1`. Each service has its own
+   database, backups, `/sante` and clean stop; it is deployed and updated on its own.
+3. The `entree` relay (`cd entree && cp .env.exemple .env && npm start`) gives a single public address:
+   it sends `/api/produits` to the catalogue, `/auth` to the accounts service, and so on. Pages, the web
+   and the apps (`--serveur`) talk only to it: one address, one cookie, no CORS. You can use the relay
+   of your choice: the path table is in `entree/LISEZMOI.md`. Its `/sante` answers 200 when every
+   service answers ready.
+
+A message that could not leave waits in the outbox and leaves again (2 s, 4 s, 8 s… up to an hour):
+it is never lost. After seven days of failures, each new failure is an error in the log. In
+development, `humalis developper` targets the relay (port 8080, or `HUMALIS_SERVEUR`).
 
 ### Changing the program without losing data
 
