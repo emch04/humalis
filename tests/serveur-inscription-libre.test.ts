@@ -185,12 +185,14 @@ console.log(JSON.stringify(r));
 `;
 
 const SUR_BASE = (code: string) => code.replace('creerMagasinJetons(null)', 'creerMagasinJetons(BASE_ESSAI)');
+// Une base de documents a son propre magasin des liens.
+const SUR_DOCUMENTS = (code: string) => code.replace('creerMagasinJetons(null)', "(await import('./dist/src/humalis/documents.js')).creerJetonsDocuments(BASE_ESSAI)");
 
 let r: Record<string, Reponse>;
 
 describe.each(BASES)('l’inscription libre sur un vrai serveur produit, %s', (_nom, base) => {
   beforeAll(() => {
-    r = jouer(SOURCE, 'inscription-libre', (s) => AVEC_JOURNAL(scenario(s)), base, SUR_BASE);
+    r = jouer(SOURCE, 'inscription-libre', (s) => AVEC_JOURNAL(scenario(s)), base, base === 'documents' ? SUR_DOCUMENTS : SUR_BASE);
   }, 300_000);
 
   it('un mot de passe faible, une adresse mal écrite ou un champ inconnu sont refusés, sans e-mail', () => {

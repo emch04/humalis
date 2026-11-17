@@ -1,0 +1,54 @@
+# Les rapports d'erreur des pages passent par le service des comptes, qui ajoute la clé du .env.
+quand une erreur arrive :
+    jeton secret depuis l'environnement "ERREURS_CLE" dans l'entete "X-Cle"
+    envoyer requete vers l'environnement "ERREURS_ADRESSE" avec message = erreur.message et page = erreur.page
+
+serveur "comptes" :
+    roles gerant et client
+    donnee annonce :
+        texte : texte
+    route "annonces" :
+        tout le monde peut lire annonce
+        seul gerant peut creer annonce
+
+serveur "catalogue" :
+    comptes du serveur "comptes"
+    donnee produit :
+        nom : texte
+        stock : nombre
+    route "produits" :
+        tout le monde peut lire produit
+        seul gerant peut creer produit
+        seul gerant peut modifier produit
+        connecte peut faire "reserver" sur produit avec quantite : nombre :
+            si quantite est superieur a produit.stock :
+                refuser "Plus assez de stock"
+            changer produit.stock par produit.stock - quantite
+        seul gerant peut faire "solder" sur produit :
+            changer produit.stock par 0
+        le serveur "commandes" peut faire "reserver" sur produit
+        le serveur "commandes" peut modifier produit
+
+serveur "commandes" :
+    comptes du serveur "comptes"
+    donnee commande :
+        produit : texte
+        quantite : nombre
+        statut : texte au depart "ouverte"
+    route "commandes" :
+        connecte peut lire commande
+        connecte peut creer commande
+        connecte peut faire "valider" sur commande :
+            si commande.statut est different de "ouverte" :
+                refuser "Cette commande est déjà validée"
+            envoyer requete vers "produits" du serveur "catalogue" avec id commande.produit dans produit
+            faire "reserver" sur produit du serveur "catalogue" avec quantite = commande.quantite
+            changer commande.statut par "validee"
+
+page "accueil" :
+    variable produits = []
+    titre "Boutique"
+    quand la page se charge :
+        envoyer requete vers "produits" dans produits
+    pour chaque p dans produits :
+        texte p.nom
