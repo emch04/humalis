@@ -942,14 +942,17 @@ relais « entree », une seule adresse publique devant eux. « ${comptes} » gar
 ## 1. Les secrets, une fois pour tout le projet
 
 \`\`\`sh
-cd ${dossier(comptes)} && npm install && npm run cles    # la clé privée (ce service) et la clé publique (les autres)
-openssl rand -base64 48                                   # HUMALIS_SERVICES_SECRET, le même partout
+cd ${dossier(comptes)} && npm install && npm run cles    # la clé des jetons : privée (ce service), publique (les autres)
 \`\`\`
+
+Puis, dans chaque service, \`npm install && npm run cle-service\` : la clé avec laquelle il signe ses appels et ses
+messages. Sa clé privée (\`HUMALIS_SERVICE_CLE_PRIVEE\`) reste dans son .env ; sa clé publique va dans le .env de chacun
+des autres (\`HUMALIS_SERVICE_<NOM>_CLE\`). Aucun secret n'est partagé : un service ne peut pas signer au nom d'un autre.
 
 ## 2. Chaque service
 
-Dans chaque dossier : \`cp .env.exemple .env\`, puis la base (\`DATABASE_URL\` ou \`HUMALIS_BASE\`), \`HUMALIS_SERVICES_SECRET\`,
-la clé des jetons, les adresses des services qu'il joint, et \`HUMALIS_RELAIS=1\` derrière le relais ; chaque service n'écoute que le relais (\`HUMALIS_ECOUTE=127.0.0.1\`, ou un réseau privé).
+Dans chaque dossier : \`cp .env.exemple .env\`, puis la base (\`DATABASE_URL\` ou \`HUMALIS_BASE\`), sa clé privée et la clé
+publique des autres services, la clé des jetons, les adresses des services qu'il joint, et \`HUMALIS_RELAIS=1\` derrière le relais ; chaque service n'écoute que le relais (\`HUMALIS_ECOUTE=127.0.0.1\`, ou un réseau privé).
 
 | Service | Dossier | Port proposé |
 | --- | --- | --- |

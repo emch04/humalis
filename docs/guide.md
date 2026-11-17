@@ -2646,7 +2646,8 @@ HUMALIS_IA_CLE=…
 ```
 
 Humalis ajoute `/chat/completions` à l'adresse. La clé est facultative (un modèle sur ta
-machine n'en demande pas) et reste sur le serveur. `HUMALIS_IA_ADRESSE_2`,
+machine n'en demande pas) et reste sur le serveur. Elle ne part jamais en clair : avec une clé,
+l'adresse commence par `https://`, sauf vers ta propre machine (`http://localhost`, `http://127.0.0.1`). `HUMALIS_IA_ADRESSE_2`,
 `HUMALIS_IA_MODELE_2` et `HUMALIS_IA_CLE_2` règlent un second service, facultatif, qui
 reprend la question si le premier refuse avant d'avoir écrit un mot. Sans adresse ou sans
 modèle, le serveur refuse chaque question en disant ce qui manque.
@@ -3030,8 +3031,9 @@ page "accueil" :
   autre service, préfère `signaler`, qui ne part que si tout a réussi.
 
 Aucun outil n'est imposé : ni file de messages, ni courtier. Les appels et les messages passent en
-HTTP signé avec un secret partagé (`HUMALIS_SERVICES_SECRET`), et la boîte d'envoi est dans la base
-de chaque service.
+HTTP signé, et la boîte d'envoi est dans la base de chaque service. Chaque service signe avec sa
+propre clé (ES256) : un service ne peut pas signer au nom d'un autre, et un message dit pour qui il
+est et quand il est parti (refusé après cinq minutes, ou s'il revient une seconde fois).
 
 ```sh
 humalis compile boutique.humalis --cible serveur --sortie boutique-services
@@ -3264,7 +3266,8 @@ l'environnement du serveur ou son coffre de clés, `HUMALIS_EMAILS_HOTE`,
 `HUMALIS_EMAILS_PORT` et `HUMALIS_EMAILS_EXPEDITEUR`, avec `HUMALIS_EMAILS_UTILISATEUR`
 et `HUMALIS_EMAILS_MOT_DE_PASSE` si le serveur d'envoi en demande. Le port 465 est
 chiffré dès la connexion ; sur un autre port, STARTTLS est exigé, sauf vers ta propre
-machine. Il faut aussi, dans l'environnement, `HUMALIS_ADRESSE_SITE`
+machine. Le mot de passe du `.env` ne part que vers l'hôte et le port du `.env` : si un admin change
+l'hôte ou le port dans le coffre, il y redonne aussi le mot de passe, sinon rien ne part. Il faut aussi, dans l'environnement, `HUMALIS_ADRESSE_SITE`
 (`https://ma-boutique.com`) pour écrire les liens. Sans eux, `inviter` affiche une erreur qui le dit. Cible web et
 bureau ; l'application mobile affiche un message qui renvoie vers le site, et le
 site statique refuse ces phrases.
@@ -4930,16 +4933,22 @@ npm run restauration -- sauvegardes/2026-11-12-03-15-00.jsonl.gz --remplacer
 Arrête le serveur avant. Sur une base neuve, les tables sont créées d'après la sauvegarde : rien
 à préparer. La restauration refuse une table qui contient déjà des lignes ; `--remplacer` les vide
 d'abord. Elle est tout ou rien : un fichier coupé, une table manquante ou une ligne refusée, et
-rien n'est changé.
+rien n'est changé. Une ligne de plus de 64 Mo arrête la lecture (`HUMALIS_SAUVEGARDE_LIGNE_MAX`, en
+octets, pour un autre plafond) ; sur une base de documents, seuls les index que le serveur crée
+lui-même sont repris. La sauvegarde prend toutes les tables de la base : donne au serveur une base
+à lui seul.
 
 ### Un projet en services
 
 `humalis compile … --cible serveur` écrit un dossier par service et le relais `entree`. Dans l'ordre :
 
-1. Dans le service des comptes, `npm run cles` écrit la clé privée (pour lui) et la clé publique
-   (pour les autres). Choisis aussi un secret partagé : `openssl rand -base64 48`.
-2. Dans chaque service : `cp .env.exemple .env`, puis sa base, `HUMALIS_SERVICES_SECRET` (le même
-   partout), la clé des jetons, l'adresse des services qu'il appelle ou prévient
+1. Dans le service des comptes, `npm run cles` écrit la clé des jetons : privée (pour lui) et
+   publique (pour les autres). Puis, dans chaque service, `npm run cle-service` écrit la paire avec
+   laquelle il signe ses appels et ses messages : sa clé privée (`HUMALIS_SERVICE_CLE_PRIVEE`) reste
+   dans son `.env`, sa clé publique va dans le `.env` de chacun des autres
+   (`HUMALIS_SERVICE_CATALOGUE_CLE=…`). Une clé publique manquante est signalée au démarrage : les
+   messages de ce service sont alors refusés.
+2. Dans chaque service : `cp .env.exemple .env`, puis sa base, ses clés, la clé des jetons, l'adresse des services qu'il appelle ou prévient
    (`HUMALIS_SERVICE_CATALOGUE=http://127.0.0.1:3002`…) et `HUMALIS_RELAIS=1`. Chaque service a sa
    base, ses sauvegardes, son `/sante` et son arrêt propre ; il se déploie et se met à jour seul.
 3. Le relais `entree` (`cd entree && cp .env.exemple .env && npm start`) donne une seule adresse

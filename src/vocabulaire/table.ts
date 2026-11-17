@@ -1976,7 +1976,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     exemple: PROJET_SERVICES,
     statut: 'supporte',
     etape: 9,
-    note: 'Sans outil externe : la boîte d’envoi est dans la base du service, la livraison en HTTP signé (HUMALIS_SERVICES_SECRET).',
+    note: 'Sans outil externe : la boîte d’envoi est dans la base du service, la livraison en HTTP signé, chaque service avec sa propre clé (npm run cle-service).',
   },
   {
     mot: 'signale',

@@ -2723,7 +2723,8 @@ HUMALIS_IA_CLE=…
 ```
 
 Humalis adds `/chat/completions` to the address. The key is optional (a model on your
-machine does not ask for one) and stays on the server. `HUMALIS_IA_ADRESSE_2`,
+machine does not ask for one) and stays on the server. It never travels in clear: with a key,
+the address starts with `https://`, except towards your own machine (`http://localhost`, `http://127.0.0.1`). `HUMALIS_IA_ADRESSE_2`,
 `HUMALIS_IA_MODELE_2` and `HUMALIS_IA_CLE_2` set an optional second service, which takes
 the question over if the first one refuses before writing a word. Without an address or a
 model, the server refuses every question and says what is missing.
@@ -3102,8 +3103,10 @@ page "accueil" :
   action at another service and then refuses, what was done there stays done. To change another
   service, prefer `signaler`, which leaves only if everything succeeded.
 
-No tool is imposed: no message queue, no broker. Calls and messages go over signed HTTP with a shared
-secret (`HUMALIS_SERVICES_SECRET`), and the outbox lives in each service's database.
+No tool is imposed: no message queue, no broker. Calls and messages go over signed HTTP, and the outbox
+lives in each service's database. Each service signs with its own key (ES256): a service cannot sign on
+behalf of another, and a message says who it is for and when it left (refused after five minutes, or if
+it comes back a second time).
 
 ```sh
 humalis compile boutique.humalis --cible serveur --sortie boutique-services
@@ -3337,7 +3340,8 @@ its environment or key vault, `HUMALIS_EMAILS_HOTE`, `HUMALIS_EMAILS_PORT` and
 `HUMALIS_EMAILS_EXPEDITEUR`, with `HUMALIS_EMAILS_UTILISATEUR` and
 `HUMALIS_EMAILS_MOT_DE_PASSE` when the sending server asks for them. Port 465 is
 encrypted from the start; on another port, STARTTLS is required, except towards your own
-machine. It also needs `HUMALIS_ADRESSE_SITE` (`https://my-shop.com`) in its environment
+machine. The password from the `.env` only goes to the host and port from the `.env`: if an admin
+changes the host or port in the vault, they give the password there too, otherwise nothing leaves. It also needs `HUMALIS_ADRESSE_SITE` (`https://my-shop.com`) in its environment
 to write the links. Without them,
 `inviter` shows an error that says so. Web and desktop targets; the mobile app
 shows a message pointing to the site, and the static target refuses these phrases.
@@ -4970,16 +4974,21 @@ npm run restauration -- sauvegardes/2026-11-12-03-15-00.jsonl.gz --remplacer
 
 Stop the server first. On a fresh database, the tables are created from the backup: nothing to
 prepare. The restore refuses a table that already holds rows; `--remplacer` empties them first. It is all or
-nothing: a cut file, a missing table or a refused row, and nothing is changed.
+nothing: a cut file, a missing table or a refused row, and nothing is changed. A line longer than
+64 MB stops the reading (`HUMALIS_SAUVEGARDE_LIGNE_MAX`, in bytes, for another cap); on a document
+database, only the indexes the server creates itself are taken back. The backup takes every table of
+the database: give the server a database of its own.
 
 ### A project in services
 
 `humalis compile … --cible serveur` writes one folder per service and the `entree` relay. In order:
 
-1. In the accounts service, `npm run cles` writes the private key (for it) and the public key (for the
-   others). Also choose a shared secret: `openssl rand -base64 48`.
-2. In each service: `cp .env.exemple .env`, then its database, `HUMALIS_SERVICES_SECRET` (the same
-   everywhere), the token key, the address of the services it calls or notifies
+1. In the accounts service, `npm run cles` writes the token key: private (for it) and public (for the
+   others). Then, in each service, `npm run cle-service` writes the pair it signs its calls and messages
+   with: its private key (`HUMALIS_SERVICE_CLE_PRIVEE`) stays in its `.env`, its public key goes into the
+   `.env` of each of the others (`HUMALIS_SERVICE_CATALOGUE_CLE=…`). A missing public key is reported at
+   startup: that service's messages are then refused.
+2. In each service: `cp .env.exemple .env`, then its database, its keys, the token key, the address of the services it calls or notifies
    (`HUMALIS_SERVICE_CATALOGUE=http://127.0.0.1:3002`…) and `HUMALIS_RELAIS=1`. Each service has its own
    database, backups, `/sante` and clean stop; it is deployed and updated on its own.
 3. The `entree` relay (`cd entree && cp .env.exemple .env && npm start`) gives a single public address:

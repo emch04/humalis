@@ -1706,7 +1706,7 @@ ${avecLogique(serveur) ? `  /** Comment écrire tout ou rien ; par défaut, en m
   /** Les empreintes des liens envoyés par e-mail ; par défaut, en mémoire. */
   jetons?: PasswordResetStore;` : ''}
 ${serveur.projet ? `
-  /** Les autres services du projet : le secret partagé (HUMALIS_SERVICES_SECRET) et leurs adresses. */
+  /** Les autres services du projet : la clé privée de ce service, la clé publique de chacun des autres, leurs adresses. */
   services?: { clePrivee: string; clesPubliques: Record<string, string | undefined>; adresses?: Record<string, string | undefined>; horloge?: () => number };
   /** La clé des jetons d'accès (ES256) : privée dans le service des comptes, publique ailleurs ; sans elle, jwtSecret (HS256). */
   cleDesJetons?: string;` : ''}
