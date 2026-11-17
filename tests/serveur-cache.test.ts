@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { execFileSync, spawn, spawnSync, type ChildProcess } from 'node:child_process';
-import { mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { compiler } from '../src/compilateur.js';
@@ -342,5 +342,131 @@ describe.runIf(POSTGRES && REDIS)('avec Redis : deux exemplaires partagent le ca
       await admin.query('DROP DATABASE IF EXISTS ' + nom + ' WITH (FORCE)').catch(() => undefined);
       await admin.end();
     }
+  }, 300_000);
+});
+
+/**
+ * Deux pannes de Redis, sur un vrai Redis lancé dans un conteneur (revue Codex du cache, n°5 et n°16) :
+ *   HUMALIS_ESSAI_POSTGRES=…  HUMALIS_ESSAI_REDIS=redis://127.0.0.1:6379  HUMALIS_ESSAI_REDIS_CONTENEUR=<nom du conteneur>
+ * - Redis se tait sans couper la connexion (docker pause) : chaque requête répond à temps, depuis la base ;
+ * - Redis reste connecté mais refuse d'écrire (REPLICAOF : lecture seule) : un vidage échoue, et aucun exemplaire ne
+ *   ressert une copie d'avant l'écriture. Revenu, Redis garde de nouveau les réponses, et aucune n'est ancienne.
+ */
+const CONTENEUR = process.env.HUMALIS_ESSAI_REDIS_CONTENEUR;
+
+describe.runIf(POSTGRES && REDIS && CONTENEUR)('avec Redis : deux pannes, sur un vrai Redis', () => {
+  const docker = (...args: string[]) => execFileSync('docker', args, { encoding: 'utf8', stdio: 'pipe' });
+  const redisCli = (...args: string[]) => docker('exec', CONTENEUR!, 'redis-cli', ...args).trim();
+  const pause = (ms: number) => new Promise((suite) => setTimeout(suite, ms));
+
+  async function deuxExemplaires(nom: string, faire: (a: string, b: string, jeton: string) => Promise<void>): Promise<void> {
+    mkdirSync(dossier, { recursive: true });
+    if (!existsSync(join(dossier, 'dist', 'src', 'demarrer.js'))) produire(dossier);
+    const pg = await import(join(dossier, 'node_modules', 'pg', 'lib', 'index.js'));
+    const admin = new pg.default.Pool({ connectionString: POSTGRES, max: 1 });
+    admin.on('error', () => undefined);
+    await admin.query('DROP DATABASE IF EXISTS ' + nom);
+    await admin.query('CREATE DATABASE ' + nom);
+    const url = new URL(POSTGRES!);
+    url.pathname = '/' + nom;
+    const lances: ChildProcess[] = [];
+    const port = (i: number) => 4900 + (process.pid % 40) * 2 + i;
+    const lancer = async (i: number) => {
+      const enfant = spawn('node', ['dist/src/demarrer.js'], {
+        cwd: dossier,
+        env: { ...process.env, NODE_ENV: 'production', DATABASE_URL: url.href, HUMALIS_CACHE_ADRESSE: REDIS, PORT: String(port(i)), JWT_SECRET: 'x'.repeat(40), HUMALIS_ADMIN_EMAIL: 'admin@essai.test', HUMALIS_ADMIN_MOT_DE_PASSE: 'Essai-Solide-2026!', HUMALIS_ADRESSE_SITE: 'http://127.0.0.1' },
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      lances.push(enfant);
+      let sortie = '';
+      enfant.stdout!.on('data', (d) => (sortie += d));
+      enfant.stderr!.on('data', (d) => (sortie += d));
+      const base = 'http://127.0.0.1:' + port(i);
+      for (let essai = 0; essai < 100; essai++) {
+        if (await fetch(base + '/sante').then((x) => x.ok, () => false)) return base;
+        await pause(200);
+      }
+      throw new Error('le serveur ' + i + ' ne démarre pas :\n' + sortie);
+    };
+    try {
+      const [a, b] = [await lancer(0), await lancer(1)];
+      await pause(1000);
+      const jeton = (await (await fetch(a + '/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'admin@essai.test', password: 'Essai-Solide-2026!' }) })).json()).data.token;
+      await faire(a, b, jeton);
+    } finally {
+      for (const enfant of lances) enfant.kill();
+      await pause(500);
+      await admin.query('DROP DATABASE IF EXISTS ' + nom + ' WITH (FORCE)').catch(() => undefined);
+      await admin.end();
+    }
+  }
+
+  /** Une lecture, chronométrée : son statut, si elle vient du cache, les titres lus, sa durée. */
+  const lire = async (base: string) => {
+    const debut = Date.now();
+    const reponse = await fetch(base + '/api/livres', { signal: AbortSignal.timeout(10_000) });
+    const corps = (await reponse.json().catch(() => [])) as { titre: string }[];
+    return { statut: reponse.status, garde: reponse.headers.get('x-humalis-cache') === 'garde', titres: corps.map((l) => l.titre).sort(), duree: Date.now() - debut };
+  };
+  const creer = async (base: string, jeton: string, titre: string) => {
+    const debut = Date.now();
+    const reponse = await fetch(base + '/api/livres', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + jeton }, body: JSON.stringify({ titre, prix: 5 }), signal: AbortSignal.timeout(10_000) });
+    return { statut: reponse.status, duree: Date.now() - debut };
+  };
+
+  it('Redis se tait sans couper la connexion : chaque requête répond à temps, et rien d’ancien ne revient après', async () => {
+    await deuxExemplaires('humalis_cache_pause_' + process.pid, async (a, b, jeton) => {
+      expect((await creer(a, jeton, 'Avant')).statut).toBe(201);
+      await lire(a);
+      expect((await lire(b)).garde).toBe(true);
+      docker('pause', CONTENEUR!);
+      try {
+        // Seul A travaille pendant la panne ; B attend, sans avoir rien demandé à Redis.
+        const pendant = [await lire(a), await creer(a, jeton, 'Pendant'), await lire(a)];
+        for (const r of pendant) expect(r.duree, JSON.stringify(pendant)).toBeLessThan(3000);
+        expect(pendant.map((r) => r.statut)).toEqual([200, 201, 200]);
+        expect((pendant[2] as { titres: string[] }).titres).toEqual(['Avant', 'Pendant']);
+        expect((await fetch(a + '/sante', { signal: AbortSignal.timeout(3000) })).status).toBeLessThan(600);
+      } finally {
+        docker('unpause', CONTENEUR!);
+      }
+      // Revenu : B lit tout de suite, puis les deux, plusieurs secondes ; jamais une copie d'avant « Pendant ».
+      const vus: { titres: string[]; garde: boolean }[] = [];
+      for (let i = 0; i < 18; i++) {
+        vus.push(await lire(i % 3 === 2 ? a : b));
+        await pause(i < 4 ? 50 : 500);
+      }
+      for (const v of vus) expect(v.titres, JSON.stringify(vus)).toEqual(['Avant', 'Pendant']);
+      // Et le cache sert de nouveau.
+      expect(vus.slice(-6).some((v) => v.garde), JSON.stringify(vus)).toBe(true);
+    });
+  }, 300_000);
+
+  it('Redis reste connecté mais refuse d’écrire : un vidage échoue, et aucun exemplaire ne ressert une copie d’avant l’écriture', async () => {
+    await deuxExemplaires('humalis_cache_lecture_seule_' + process.pid, async (a, b, jeton) => {
+      expect((await creer(a, jeton, 'Avant')).statut).toBe(201);
+      await lire(a);
+      expect((await lire(b)).garde).toBe(true);
+      // Lecture seule : Redis devient la copie d'un maître qui n'existe pas ; il garde ses clés et les sert, mais refuse d'écrire.
+      redisCli('REPLICAOF', '127.0.0.1', '1');
+      try {
+        expect(redisCli('SET', 'humalis:essai', '1')).toContain('READONLY');
+        expect((await creer(a, jeton, 'Refusé par Redis')).statut).toBe(201);
+        const apres = [await lire(b), await lire(a), await lire(b)];
+        for (const r of apres) expect(r.titres, JSON.stringify(apres)).toEqual(['Avant', 'Refusé par Redis']);
+        // Une écriture sur l'autre exemplaire aussi.
+        expect((await creer(b, jeton, 'Encore')).statut).toBe(201);
+        for (const r of [await lire(a), await lire(b)]) expect(r.titres).toEqual(['Avant', 'Encore', 'Refusé par Redis']);
+      } finally {
+        redisCli('REPLICAOF', 'NO', 'ONE');
+      }
+      const vus: { titres: string[]; garde: boolean }[] = [];
+      for (let i = 0; i < 12; i++) {
+        vus.push(await lire(i % 2 ? a : b));
+        await pause(500);
+      }
+      for (const v of vus) expect(v.titres, JSON.stringify(vus)).toEqual(['Avant', 'Encore', 'Refusé par Redis']);
+      expect(vus.slice(-4).some((v) => v.garde), JSON.stringify(vus)).toBe(true);
+    });
   }, 300_000);
 });
