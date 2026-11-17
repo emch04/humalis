@@ -72,7 +72,7 @@ export function compilerPourLaMachine(entree: EntreeMachine): ResultatMachine {
   for (const c of application.composantsReact) {
     refus.push(erreur(`le composant « ${c.nom} » vient d'un fichier externe (npm) : la machine ne lance que du Humalis, sans installation. Utilisez « humalis developper » pour ce projet.`, c.ligne));
   }
-  if (application.serveurs.length > 1) refus.push(erreur("un seul serveur par fichier pour l'instant."));
+  if (application.serveurs.length > 1) refus.push(erreur("la machine lance un seul serveur : un projet en services se produit avec « humalis compile … --cible serveur » (un dossier par service et le relais « entree »), et ses pages avec « humalis developper »."));
   if (application.ecrans.length === 0 && application.serveurs.length === 0) refus.push(erreur('le fichier ne contient ni page ni serveur : il n\'y a rien à lancer.'));
   const tous = [...diagnostics, ...situes(refus)];
   if (tous.some((d) => d.gravite === 'erreur')) return { ok: false, diagnostics: tous, fichiersProjet };

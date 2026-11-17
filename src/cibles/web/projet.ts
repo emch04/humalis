@@ -177,7 +177,7 @@ export function genererProjetWeb(application: Application, options: OptionsWeb):
     for (const [chemin, contenu] of fichiersDuSite(application.site, options.images, 'public/')) fichiers.set(chemin, contenu);
   }
   if (bascule) fichiers.set('src/humalis/theme.ts', themeTs(modeParDefaut(application.theme)));
-  fichiers.set('vite.config.ts', application.serveurs.length > 0 ? VITE_CONFIG_SERVEUR : VITE_CONFIG);
+  fichiers.set('vite.config.ts', application.serveurs.length > 0 ? (application.serveurs.some((x) => x.projet) ? VITE_CONFIG_SERVEUR.replace("le port 3000.\nconst cible = process.env.HUMALIS_SERVEUR ?? 'http://localhost:3000';", "le relais « entree » des services (port 8080).\nconst cible = process.env.HUMALIS_SERVEUR ?? 'http://localhost:8080';") : VITE_CONFIG_SERVEUR) : VITE_CONFIG);
   fichiers.set('tsconfig.json', TSCONFIG);
   fichiers.set('.gitignore', 'node_modules\ndist\n');
   // Une page à paramètre n'est pas prérendue : son adresse dépend des données.

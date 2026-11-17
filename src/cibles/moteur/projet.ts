@@ -446,7 +446,7 @@ document.title = ${traduit('Page introuvable')};
     ...(Object.keys(dependances).length ? { dependencies: dependances } : {}),
     devDependencies: { vite: VERSIONS.vite, ...paquets.dependancesDev },
   }, null, 2) + '\n');
-  fichiers.set('vite.config.js', viteConfig(entrees, routes.filter((r) => r.chemin !== '/'), application.serveurs.length > 0, sortes));
+  fichiers.set('vite.config.js', viteConfig(entrees, routes.filter((r) => r.chemin !== '/'), application.serveurs.length > 0, sortes, application.serveurs.some((x) => x.projet)));
   // Les lignes Humalis : les cartes de sources pour Vite, la table du site construit, et le script qui rend les piles d'erreurs.
   fichiers.set('humalis-vite.js', lignesViteJs());
   fichiers.set('public/humalis/lignes.js', LIGNES_NAVIGATEUR_JS);
@@ -524,7 +524,7 @@ ${balises.map((b) => `    ${b}\n`).join('')}${feuilles.map((f) => `    <link rel
 `;
 }
 
-function viteConfig(entrees: [string, string][], adresses: { chemin: string; fichier: string }[], serveur: boolean, sortes: Set<string>): string {
+function viteConfig(entrees: [string, string][], adresses: { chemin: string; fichier: string }[], serveur: boolean, sortes: Set<string>, enServices = false): string {
   const react = sortes.has('react');
   const reecritures = adresses.map((r) => `  [/^${r.chemin.replace(/\//g, '\\/').replace(/:[A-Za-z0-9_]+/g, '[^/]+')}\\/?$/, ${chaine(`${r.fichier}index.html`)}],`);
   return `import { defineConfig } from 'vite';
@@ -551,7 +551,7 @@ const reecrire = (requete, _reponse, suite) => {
   if (!/\\.[a-z0-9]+$/i.test(chemin) && !/^\\/(@|src\\/|assets\\/|node_modules\\/|api(\\/|$)|auth(\\/|$))/.test(chemin) && chemin !== '/') requete.url = '/404.html';
   suite();
 };
-${serveur ? "\nconst cible = process.env.HUMALIS_SERVEUR ?? 'http://localhost:3000';\nconst proxy = { '/api': cible, '/auth': cible };\n" : ''}
+${serveur ? `\n// L'adresse du serveur Humalis : HUMALIS_SERVEUR, sinon ${enServices ? 'le relais « entree » des services (port 8080)' : 'le port 3000'}.\nconst cible = process.env.HUMALIS_SERVEUR ?? '${enServices ? 'http://localhost:8080' : 'http://localhost:3000'}';\nconst proxy = { '/api': cible, '/auth': cible };\n` : ''}
 export default defineConfig({
   appType: 'mpa',
   plugins: [${['humalisLignes()', react ? 'react()' : '', sortes.has('vue') ? 'vue()' : '', sortes.has('svelte') ? 'svelte()' : ''].filter(Boolean).concat("{ name: 'humalis-adresses', configureServer: (s) => void s.middlewares.use(reecrire), configurePreviewServer: (s) => void s.middlewares.use(reecrire) }").join(', ')}],
