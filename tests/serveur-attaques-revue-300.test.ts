@@ -112,6 +112,20 @@ describe('la revue de sécurité de la 3.0.0, sur trois services produits', () =
     expect(r.stockApresReserver).toBe(5);
   });
 
+  it('une signature de service falsifiée (destinataire, heure, méthode, chemin, corps, encodage, service) est refusée, sans erreur 500', () => {
+    const statuts = r.signaturesFalsifiees as Record<string, number>;
+    for (const [cas, statut] of Object.entries(statuts)) expect(statut, cas).toBe(401);
+    expect(Object.keys(statuts)).toHaveLength(14);
+    expect(r.stockApresFalsifications).toBe(5);
+    expect(r.stockAutreApresFalsifications).toBe(5);
+  });
+
+  it('une annonce « compte fermé » ne vient que du service des comptes, signée par lui, pour ce service, à l’heure', () => {
+    const statuts = r.messagesFalsifies as Record<string, number>;
+    expect(statuts.compteFermeParCommandes).toBe(403);
+    for (const cas of ['compteFermeAuNomDesComptes', 'compteFermePerime', 'compteFermePourUnAutre', 'enveloppeVide']) expect(statuts[cas], cas).toBe(401);
+  });
+
   it('derrière un relais, le relais des rapports d’erreur compte chaque visiteur', () => {
     expect(r.rapportsDuPremier).toEqual([30, 1]);
     expect(r.rapportDunAutreVisiteur).toBe(204);
@@ -173,6 +187,10 @@ describe('la revue de sécurité de la 3.0.0, sur un serveur seul', () => {
     const releve = JSON.parse(execFileSync('node', [new URL('./serveur-attaques-revue-300-sauvegarde.mjs', import.meta.url).pathname, dossier, DOCUMENTS!], { encoding: 'utf8', stdio: 'pipe' }).trim().split('\n').at(-1)!) as Releve;
     expect(releve.restauration).not.toBe('acceptée');
     expect(releve.fichesPlusTard).toBe(releve.fichesApresRestauration);
+    // Un index unique ou partiel ajouté, une expiration sur les comptes : refusés, rien d'écrit ; le fichier intact passe.
+    const variantes = releve.variantes as Record<string, { refusee: boolean; fiches: number }>;
+    for (const nom of ['uniqueSurUneDonnee', 'uniqueSurLeRole', 'partielDetourne', 'expirationSurLesComptes']) expect(variantes[nom], nom).toEqual({ refusee: true, fiches: 0 });
+    expect(variantes.temoin).toEqual({ refusee: false, fiches: 3 });
   }, 300_000);
 
   it('le témoin : un serveur seul limite les requêtes venues de sa machine', () => {

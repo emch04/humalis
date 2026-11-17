@@ -116,6 +116,50 @@ try {
     r.stockApresReserver = await stockDe(id);
   }
 
+  // 8. Des signatures de service falsifiées, une à une : toutes refusées (401), jamais une erreur 500, le stock intact.
+  {
+    const id = await produit(5);
+    const chemin = '/api/produits/faire/reserver/' + id;
+    const brute = (charge, cle = 'commandes', encodage = 'ieee-p1363') => {
+      const payload = Buffer.from(typeof charge === 'string' ? charge : JSON.stringify(charge)).toString('base64url');
+      return { payload, signature: sign('sha256', Buffer.from(payload), { key: clesDesServices[cle].privateKey, dsaEncoding: encodage }).toString('base64url') };
+    };
+    const envoyer = async ({ payload, signature }, cheminEnvoye = chemin, methode = 'PATCH') =>
+      (await fetch(url('catalogue', cheminEnvoye), { method: methode, headers: { 'x-humalis-charge': payload, 'x-humalis-signature': signature, 'content-type': 'application/json' }, body: '{}' })).status;
+    const charge = (plus = {}) => ({ de: 'commandes', vers: 'catalogue', methode: 'PATCH', chemin, corps: { quantite: 1 }, numero: crypto.randomUUID(), quand: Date.now(), ...plus });
+    const autreProduit = await produit(5);
+    const modifiee = brute(charge());
+    const corpsChange = Buffer.from(JSON.stringify({ ...JSON.parse(Buffer.from(modifiee.payload, 'base64url').toString()), corps: { quantite: 5 } })).toString('base64url');
+    r.signaturesFalsifiees = {
+      autreDestinataire: await envoyer(brute(charge({ vers: 'commandes' }))),
+      sansDestinataire: await envoyer(brute(charge({ vers: undefined }))),
+      perimee: await envoyer(brute(charge({ quand: Date.now() - 6 * 60_000 }))),
+      venueDuFutur: await envoyer(brute(charge({ quand: Date.now() + 6 * 60_000 }))),
+      sansHeure: await envoyer(brute(charge({ quand: undefined }))),
+      heureEnTexte: await envoyer(brute(charge({ quand: String(Date.now()) }))),
+      autreMethode: await envoyer(brute(charge({ methode: 'GET' }))),
+      autreChemin: await envoyer(brute(charge()), '/api/produits/faire/reserver/' + autreProduit),
+      corpsChangeApresSignature: await envoyer({ payload: corpsChange, signature: modifiee.signature }),
+      signatureDer: await envoyer(brute(charge(), 'commandes', 'der')),
+      serviceInconnu: await envoyer(brute(charge({ de: 'inconnu' }), 'commandes')),
+      chargeIllisible: await envoyer({ payload: 'pas-du-base64-%%%', signature: 'x' }),
+      chargePasJson: await envoyer(brute('ceci n’est pas du JSON')),
+      signatureVide: await envoyer({ payload: brute(charge()).payload, signature: '' }),
+    };
+    r.stockApresFalsifications = await stockDe(id);
+    r.stockAutreApresFalsifications = await stockDe(autreProduit);
+    // Un message « humalis:compte-ferme » n'est annoncé que par le service des comptes : signé par « commandes », 403.
+    const message = (de, cle, plus = {}) => brute({ de, vers: 'catalogue', chemin: '/humalis/messages', id: crypto.randomUUID(), message: 'humalis:compte-ferme', corps: { utilisateur: 'x', avant: Date.now() }, quand: Date.now(), ...plus }, cle);
+    const poster = async (enveloppe) => (await fetch(url('catalogue', '/humalis/messages'), { method: 'POST', headers: json, body: JSON.stringify(enveloppe) })).status;
+    r.messagesFalsifies = {
+      compteFermeParCommandes: await poster(message('commandes', 'commandes')),
+      compteFermeAuNomDesComptes: await poster(message('comptes', 'commandes')),
+      compteFermePerime: await poster(message('comptes', 'comptes', { quand: Date.now() - 6 * 60_000 })),
+      compteFermePourUnAutre: await poster(message('comptes', 'comptes', { vers: 'commandes' })),
+      enveloppeVide: await poster({}),
+    };
+  }
+
   // 3. Deux « valider » en même temps sur la même commande : le produit n'est réservé qu'une fois.
   {
     const id = await produit(10);

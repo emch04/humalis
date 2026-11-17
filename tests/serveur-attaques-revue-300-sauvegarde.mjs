@@ -33,6 +33,29 @@ const compter = () => c.db().collection('humalis_evenement').countDocuments();
 const r = { restauration: sortie.includes('Restauration faite') ? 'acceptée' : sortie.slice(-300), fichesApresRestauration: await compter() };
 for (let i = 0; i < 30 && (await compter()) > 0; i++) await new Promise((p) => setTimeout(p, 5000));
 r.fichesPlusTard = await compter();
+// D'autres index piégés, chacun dans une base neuve : refusés, et rien n'est écrit. Le témoin, le fichier tel quel, passe.
+const variantes = {
+  uniqueSurUneDonnee: (e) => e.formes.humalis_evenement.index.push({ nom: 'un_seul', cles: { 'data.places': 1 }, unique: true }),
+  uniqueSurLeRole: (e) => e.formes.astratra_users.index.push({ nom: 'un_admin', cles: { role: 1 }, unique: true }),
+  partielDetourne: (e) => e.formes.astratra_users.index.push({ nom: 'partiel', cles: { role: 1 }, unique: true, partialFilterExpression: { role: { $type: 'string' } } }),
+  expirationSurLesComptes: (e) => e.formes.astratra_users.index.push({ nom: 'menage', cles: { email: -1 }, expireAfterSeconds: 1 }),
+  temoin: () => undefined,
+};
+r.variantes = {};
+for (const [nom, changer] of Object.entries(variantes)) {
+  const e = JSON.parse(gunzipSync(readFileSync(fichier)).toString('utf8').split('\n')[0]);
+  changer(e);
+  const autres = gunzipSync(readFileSync(fichier)).toString('utf8').split('\n');
+  autres[0] = JSON.stringify(e);
+  const f = fichier.replace('revue300-', 'revue300-' + nom + '-');
+  writeFileSync(f, gzipSync(autres.join('\n')));
+  const cible = adresse('revue300_' + nom.toLowerCase() + '_' + suffixe);
+  const dite = npm(cible, 'restauration', '--', f);
+  const d = new MongoClient(cible); await d.connect();
+  r.variantes[nom] = { refusee: dite.includes('ne crée pas') || dite.includes('inattendue'), fiches: await d.db().collection('humalis_evenement').countDocuments() };
+  await d.db().dropDatabase(); await d.close();
+  rmSync(f, { force: true });
+}
 await c.db().dropDatabase(); await c.db('revue300_source_' + suffixe).dropDatabase(); await c.close();
 rmSync(fichier, { force: true }); rmSync(piege, { force: true });
 console.log(JSON.stringify(r));

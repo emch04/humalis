@@ -87,7 +87,32 @@ r.modifierAvecEspace = await appel('PATCH', '/api/notes/' + noteA + '%20', A, { 
   const reponse = await fetch(base + '/api/billets', { method: 'POST', headers: A, body: '{"nom":"\\\\ud800 contenu-prive-de-la-fiche"}' });
   await new Promise((p) => setTimeout(p, 300));
   r.demiCaractere = { statut: reponse.status, corps: { auJournal: journal.some((ligne) => ligne.includes('contenu-prive-de-la-fiche')) } };
+  // Les autres formes : une modification, un demi-caractère bas, une paire à l'envers, dans une liste ou une clé ; et le
+  // témoin, un vrai caractère hors du plan de base (😀), accepté tel quel.
+  // Le statut, si le refus dit bien « mal formé » (et pas un autre refus, comme un champ inconnu) ; sinon son opposé.
+  const brut = async (methode, chemin, texte) => {
+    const reponse = await fetch(base + chemin, { method: methode, headers: A, body: texte });
+    const corps = await reponse.json().catch(() => ({}));
+    return String(corps.erreur ?? '').includes('mal formé') ? reponse.status : -reponse.status;
+  };
+  const emoji = await fetch(base + '/api/billets', { method: 'POST', headers: A, body: '{"nom":"\\\\ud83d\\\\ude00 billet"}' });
+  const fiche = await emoji.json();
+  r.demiCaractereAutres = { statut: 0, corps: {
+    modification: await brut('PATCH', '/api/notes/' + noteA, '{"texte":"\\\\udfff"}'),
+    basSeul: await brut('POST', '/api/billets', '{"nom":"a\\\\udc00b"}'),
+    pairesALEnvers: await brut('POST', '/api/billets', '{"nom":"\\\\ude00\\\\ud83d"}'),
+    dansUneCle: await brut('POST', '/api/billets', '{"no\\\\ud800m":"x"}'),
+    dansUneListe: await brut('POST', '/api/billets', '{"nom":["ok","\\\\ud800"]}'),
+    emojiStatut: emoji.status,
+    emojiRelu: (await appel('GET', '/api/billets/' + fiche.id, A)).corps.nom === '\u{1F600} billet',
+  } };
 }
+// 2 bis. Une tabulation ou un retour à la ligne de fin ne désignent pas non plus la fiche ; une suppression par un
+// identifiant suivi d'une espace ne supprime rien.
+r.idAvecTabulation = await appel('GET', '/api/notes/' + noteA + '%09', A);
+r.idAvecRetour = await appel('GET', '/api/notes/' + noteA + '%0A', A);
+r.supprimerAvecEspace = await appel('DELETE', '/api/notes/' + noteA + '%20', A);
+r.noteToujoursLa = await appel('GET', '/api/notes/' + noteA, A);
 
 // 3. Six billets confirmés en même temps : six e-mails aux admins, un par confirmation.
 await stockages.compteur.creer({ n: 0 });
@@ -141,6 +166,24 @@ describe.each(BASES)('la revue de sécurité de la 3.0.0, sur chaque base, %s', 
   it('un texte mal formé ne provoque pas d’erreur 500, et le contenu de la fiche ne va pas au journal', () => {
     expect(r.demiCaractere!.corps).toEqual({ auJournal: false });
     expect(r.demiCaractere!.statut).toBeLessThan(500);
+  });
+
+  it('un demi-caractère est refusé (400) partout : modification, caractère bas seul, paire à l’envers, clé, liste ; un vrai emoji passe tel quel', () => {
+    const c = r.demiCaractereAutres!.corps;
+    expect(c.modification).toBe(400);
+    expect(c.basSeul).toBe(400);
+    expect(c.pairesALEnvers).toBe(400);
+    expect(c.dansUneCle).toBe(400);
+    expect(c.dansUneListe).toBe(400);
+    expect(c.emojiStatut).toBe(201);
+    expect(c.emojiRelu).toBe(true);
+  });
+
+  it('une tabulation ou un retour à la ligne de fin ne désignent pas la fiche ; supprimer par un identifiant suivi d’une espace ne supprime rien', () => {
+    expect(r.idAvecTabulation!.statut).toBe(404);
+    expect(r.idAvecRetour!.statut).toBe(404);
+    expect(r.supprimerAvecEspace!.statut).toBe(404);
+    expect(r.noteToujoursLa!.statut).toBe(200);
   });
 
   it('six confirmations en même temps envoient six e-mails, pas un de plus', () => {
