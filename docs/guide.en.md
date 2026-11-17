@@ -4374,6 +4374,7 @@ texte "…" est absent` (a text is not shown).
 | `humalis verifier <file>` | shows errors and warnings |
 | `humalis verifier <file> --exigeant` | also treats warnings as errors |
 | `humalis verifier <file> --cible statique` | also says what this target would refuse or ignore, without writing anything |
+| `humalis verifier <file> --json` | the same messages as JSON, with a stable code, for AI agents |
 | `humalis formater <file>` | reformats the file |
 | `humalis tester` | runs the `*.test.humalis` tests |
 | `humalis packs` | says whether the Astratra packs have updates |
@@ -4419,6 +4420,40 @@ declared. Perhaps "total"?)
 
 The "Humalis" VS Code extension shows them as you type, with highlighting,
 completion and hover help.
+
+### For AI agents: `--json`
+
+`humalis verifier boutique.humalis --json` (and `humalis compile … --json`) writes the messages as JSON on standard
+output, and nothing else; the exit code does not change, and without `--json` nothing changes.
+
+```json
+{
+  "version": 1,
+  "fichier": "boutique.humalis",
+  "ok": false,
+  "diagnostics": [
+    {
+      "fichier": "boutique.humalis",
+      "ligne": 3,
+      "colonne": null,
+      "gravite": "erreur",
+      "code": "HUM-0065",
+      "message": "le texte utilise {totl}, mais la variable « totl » n'est pas déclarée. Peut-être « total » ?",
+      "correction": { "remplace": "totl", "par": "total" }
+    }
+  ]
+}
+```
+
+- `code`: a stable code per message (`HUM-0065`), the same from one version to the next. Two different messages
+  never share a code; a retired code is never given again.
+- `colonne` (column) is `null` when Humalis does not know it.
+- `correction` is there only when Humalis knows it for certain: replace `remplace` with `par`, the first time it
+  appears on the line. Only for a misspelt name close to a known one, indentation (a tab, or one space too many or
+  too few) and an old form (`ia par anthropic` → `ia`). Elsewhere, no correction.
+- `ok` is true when there is no error; it follows the exit code.
+
+The language server (`humalis editeur --stdio`) gives the same code to each diagnostic.
 
 ### In your editor
 

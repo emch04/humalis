@@ -34,6 +34,7 @@ Les listes de mots ci-dessous disent ce que le langage reconnaît, pas comment l
 - Une application qui parle à son serveur reçoit son adresse avec `--serveur https://…` (desktop, apple, android, windows) ; un site public, la sienne avec `--adresse https://…` (web, statique).
 - Le serveur produit demande Node.js 22.9 ou plus récent. La base se choisit dans le .env, rien n’est choisi d’avance : `DATABASE_URL` commençant par `postgres://` (PostgreSQL), `mysql://` ou `mariadb://` (MySQL, MariaDB), `mongodb://` (une base de documents, avec un jeu de répliques pour les transactions), ou un seul fichier SQLite avec `HUMALIS_BASE=donnees/base.sqlite`. `npm run sauvegarde` et `npm run restauration` gardent et rendent ses données.
 - Plusieurs services : plusieurs blocs `serveur`, dont tous sauf un écrivent `comptes du serveur "comptes"`. Une action lit une fiche d’un autre service (`envoyer requete vers "produits" du serveur "catalogue" avec id commande.produit dans produit`), lui demande une action (`faire "reserver" sur produit du serveur "catalogue" avec quantite = 2`), ou lui signale un message (`signaler "commande-validee" avec commande`, reçu par `quand le serveur "commandes" signale "commande-validee" avec c :`). Sans personne connectée, l’autre service doit le permettre : `le serveur "commandes" peut faire "reserver" sur produit`. `--cible serveur` écrit un dossier par service et le relais `entree` ; `--service <nom>` n’en produit qu’un.
+- Pour un agent : `humalis verifier mon-fichier.humalis --json` écrit un rapport JSON sur la sortie standard (`version`, `fichier`, `ok`, `diagnostics` : `fichier`, `ligne`, `colonne` ou null, `gravite`, `code` stable comme `HUM-0065`, `message`, et `correction` `{ remplace, par }` seulement quand elle est sûre : appliquer sur la ligne, la première fois). Code de sortie inchangé. Même option pour `humalis compile`.
 - Mettre en forme : `humalis formater mon-fichier.humalis`. Lancer les tests Humalis d’un projet : `humalis tester`.
 
 ## Exemple complet vérifié
@@ -449,820 +450,820 @@ serveur "boutique" :
 
 ## Messages d’erreur
 
-- Code dans une phrase sans guillemets : code attend un texte entre guillemets
-- Une ligne inconnue dans un tableau : un tableau contient « colonnes » et « rangee »
-- Deux-points après un tableau : deux-points après la légende du tableau
-- Bloc de code dans un événement : un bloc de code se place dans une page
-- Tableau sans légende : un tableau attend une légende
-- Tableau sans colonnes : un tableau attend une ligne « colonnes »
-- Rangée de mauvaise largeur : la rangée a 1 cellules
-- Texte accentué sans guillemets : accent attend un texte entre guillemets
-- Accent hors d’un texte de page : accent s’emploie seulement
-- Un élément sans texte : n'a pas de texte
-- Un libellé sans lettre : ne contient aucune lettre
-- Deux champs de même nom : deux champs du même formulaire
-- Une description vague : ne dit rien
-- Une icône seule sans nom : cette icône seule
-- Des étoiles sans explication : ces étoiles
-- Un lien vague : n'explique pas sa destination
-- Plusieurs titres principaux : plusieurs titres principaux
-- Une action seulement au survol : ce survol
-- Une page sans titre : n'a pas de titre principal
-- Un contraste trop faible : le contraste du texte
-- Un niveau de sous-titre invalide : niveau d’un sous-titre
-- Un sous-titre avant le titre : apparaît avant le titre
-- Un saut de niveau de titre : saut de niveau
-- Une tabulation au début d’une ligne : tabulation interdite
-- Une indentation qui n’est pas un multiple de 4 : un multiple de 4 est attendu
-- Un bloc qui descend de deux niveaux d’un coup : un seul niveau à la fois
-- Un niveau qui ne ferme aucun bloc : ce niveau ne correspond à aucun bloc ouvert
-- Un guillemet oublié : guillemet manquant
-- Une accolade oubliée dans un texte : accolade non fermée
-- Deux pages avec le même nom : est déjà déclarée
-- Une instruction que Humalis ne connaît pas : instruction inconnue
-- Un mot prévu, pas encore disponible : n’est pas encore disponible
-- Une option sans nom après « avec » : un nom de propriété de style est attendu
-- Des données de départ sans « pour » : donnees de depart pour produit
-- Un champ de départ sans valeur : une valeur : un texte entre guillemets
-- Des données de départ pour une donnée absente : n'existe pas dans ce serveur
-- Un champ de départ qui n’existe pas : n'a pas de champ
-- Une valeur de départ du mauvais type : attend un nombre
-- Une fiche de départ incomplète : cette fiche de départ n'a pas
-- « seul son auteur » avec une condition : dit déjà quelles fiches
-- Un nom de style mal écrit : ne peut pas nommer un style
-- Un style vide : est vide
-- Une propriété de style inconnue : n'est pas une propriété de style
-- Une couleur de style inconnue : n'est pas une couleur connue
-- Une mesure de style sans nombre : attend un nombre
-- Une valeur de style inconnue : attend douce, forte ou aucune
-- « desactive » ailleurs que sur un bouton ou un champ : s'applique à un bouton ou à un champ
-- Un bouton à icône seule sans nom : a besoin d'un nom
-- Une option sans valeur : une valeur est attendue pour le style
-- Une comparaison inconnue : comparaison inconnue
-- Une comparaison incomplète : après « est plus »
-- Une égalité manquante : après « plus grand ou »
-- Le mot « que » manque : après « plus grand »
-- Une action de l’utilisateur inconnue : action utilisateur inconnue
-- Un événement inconnu : événement inconnu
-- Une valeur qui manque : une valeur est attendue, mais
-- Un mot ou un signe qui manque : il manque
-- Un mot réservé comme nom de variable : est un mot réservé
-- Un mot réservé à la place d’une valeur : est un mot réservé du langage : il ne peut pas servir de nom de variable
-- Un petit mot ignoré pris comme nom : est un petit mot ignoré par Humalis
-- Un petit mot ignoré à la place d’une valeur : une valeur est attendue. « des »
-- Une variable jamais déclarée : n'est pas déclarée
-- Une variable utilisée avant d’être déclarée : avant d'être déclarée
-- Une variable déclarée deux fois : existe déjà
-- Une variable de boucle utilisée après la boucle : n'existe que dans la boucle
-- Une variable inconnue dans un texte : n'est pas déclarée
-- Une valeur d’un autre type : on ne peut pas lui donner
-- Deux valeurs de types différents : on ne peut pas comparer
-- Comparer autre chose que des nombres : compare des nombres
-- « est vide » sur un nombre : « est vide » s'applique
-- « est vrai » sur autre chose qu’un booléen : attend vrai ou faux
-- Une valeur seule comme condition, qui n’est pas vrai ou faux : une valeur seule comme condition
-- Une boucle sur autre chose qu’une liste : attend une liste
-- Un champ qui n’existe pas : aucun champ
-- Un élément qui n’existe pas : aucun élément
-- Deux éléments qui s’appellent pareil : s'appellent
-- Un nom d’élément calculé : écrivez le nom de l'élément entre guillemets
-- Une action placée dans la page, hors d’un événement : ne s'utilise que dans un événement
-- Un élément créé dans un événement : un élément ne peut pas être créé dans un événement
-- Un événement dans un autre événement : ne se place pas dans un autre événement
-- Une option ou une valeur de style inconnue : n'est pas une valeur possible
-- Un calcul avec autre chose que des nombres : calcule avec des nombres
-- Une division par zéro : division par zéro
-- Changer une variable qui est un calcul : est un calcul
-- « nombre de » sur autre chose qu’une liste : compte les éléments d
-- Ajouter ou retirer dans autre chose qu’une liste : on ne peut ajouter ou retirer que dans une liste
-- Ajouter une valeur d’un autre type : on ne peut pas y ajouter
-- Un événement qui vise un élément hors de sa boucle : n’est pas dans cette boucle
-- Un événement sur un formulaire qui n’existe pas : Formulaires de la page : message
-- Un événement de formulaire dans une page sans formulaire : créez-le avec formulaire
-- Un événement de formulaire qui vise un formulaire hors de sa boucle : vise un formulaire de la même boucle
-- Deux événements pour le même formulaire : a déjà son événement « est soumis »
-- Deux formulaires du même nom : existe déjà dans cette page
-- Un formulaire créé dans un événement : un formulaire ne peut pas être créé dans un événement
-- Un bloc créé dans un événement : un bloc ne peut pas être créé dans un événement
-- Un champ qui n’existe pas dans une fiche : n'existe pas dans cette fiche
-- Un champ donné deux fois dans une fiche : est donné deux fois dans cette fiche
-- Une fonction qui n’existe pas : n'existe pas. Fonctions
-- Une fonction appelée avec trop ou trop peu de valeurs : attend 2 valeurs
-- « rendre » en dehors d’une fonction : ne s'écrit que dans une fonction
-- Une action dans une fonction : pas dans une fonction
-- Une boucle ou un choix écrit dans la page : s'écrit dans un événement ou une fonction
-- Une boucle qui risque de ne jamais s’arrêter : risque de ne jamais s'arrêter
-- « repeter » sans nombre : attend un nombre de fois
-- « arreter » ou « passer au suivant » hors d’une boucle : s'écrit dans une boucle
-- « repeter » sans « fois » : il manque « fois »
-- Une ligne inattendue dans « selon » : chaque ligne commence par « cas
-- Une moyenne ou une somme sur autre chose qu’une liste de nombres : calcule sur une liste de nombres
-- « arrondi de » ou « hasard entre » sans nombre : attend un nombre
-- « contient » sur autre chose qu’un texte ou une liste : s'applique à un texte ou à une liste
-- Trier, filtrer ou couper autre chose qu’une liste : s'applique à une liste
-- Un champ que les éléments de la liste n’ont pas : n'est pas un champ des éléments
-- « dont » sur une liste simple : filtre une liste de fiches
-- Une devise inconnue : n'est pas une devise connue
-- Un montant ou un pluriel sur autre chose qu’un nombre : s'écrit après un nombre
-- Une opération sur le texte avec autre chose qu’un texte : attend un texte
-- Un réglage sur un élément qui ne le comprend pas : se règle seulement sur
-- Un thème qui n’existe pas : prend clair, sombre ou automatique
-- Deux blocs theme : un seul bloc « theme » par application
-- Deux en-têtes (ou deux pieds de page) : un seul « entete » par application
-- « en lettres » ou « en date longue » sur la mauvaise valeur : s'écrit après un nombre
-- La taille d’un dessin sans « par » : après la largeur, il faut « par »
-- Une page sans en-tête, dans une application qui n’en a pas : se passe d'un en-tête, mais l'application n'en a pas
-- Un texte de couleur trop pâle : se voit mal sur le fond de la page
-- Un formulaire dans un formulaire : un formulaire ne peut pas contenir un autre formulaire
-- Un choix sans ses valeurs : il manque « parmi »
-- Des valeurs qui ne sont pas des textes : il faut une liste de textes
-- Une option de champ sur un autre élément : pas à un bouton
-- Un minimum sur un champ qui n’est pas un nombre : s’applique à un champ nombre
-- Un minimum plus grand que le maximum : est plus grand que le maximum
-- Un indice sur une case à cocher ou un choix : ne s’applique pas à une case à cocher
-- Une variable qui porte le nom d’un mot du langage : porte le nom d'un mot du langage
-- Un formulaire qui n’envoie rien : n’envoie rien
-- Un champ obligatoire hors d’un formulaire : sont vérifiés à l’envoi d’un formulaire
-- Un nom de classe CSS sans guillemets : il manque le nom de la classe CSS entre guillemets
-- « utiliser » sans « style » : il manque « style » après « utiliser »
-- Un chemin de fichier CSS sans guillemets : il manque le chemin du fichier CSS entre guillemets
-- Un style CSS introuvable : n'est défini dans aucun CSS du projet
-- Une règle CSS écrase un style Humalis : le CSS écrase « humalis-page »
-- Une option de variable inconnue : n'est pas une option de variable
-- Un mot après « memorisee en » qui n’est pas « secret » : est attendu après « memorisee en »
-- Une variable en haut du fichier sans « avec partagee » : ajoutez « avec partagee »
-- Une variable partagée déclarée dans une page : se déclare en haut du fichier
-- Un composant qui n’est déclaré nulle part : n'est pas déclaré. Ajoutez en haut du fichier
-- Un composant créé dans un événement : un composant ne peut pas être créé dans un événement
-- Une propriété qui n’est pas un paramètre du composant : n'est pas un paramètre du composant
-- « parametre » en dehors d’un composant : ne s'utilise qu'au début d'un composant
-- Un paramètre de composant oublié : n'est pas donné
-- Une ligne inconnue dans un serveur : dans un serveur, on écrit
-- Une connexion sans fournisseur : écrivez le fournisseur : connexion google
-- Se connecter avec Google sans le permettre au serveur : demande la ligne « connexion google »
-- Se connecter avec Apple sans le permettre au serveur : demande la ligne « connexion apple »
-- Changer le mot de passe en dehors d’un événement : « changer le mot de passe » ne s'utilise que dans un événement
-- Un champ image qui reçoit autre chose qu’une image : doit accepter seulement des images
-- Deux cartes de fidélité : un serveur n'a qu'une seule « fidelite »
-- Une carte sans récompense écrite : écrivez la récompense
-- Une ligne inconnue dans une carte de fidélité : dans « fidelite », on écrit
-- Un nombre sans le mot « tampon » : écrivez « tampon » ou « tampons »
-- Une route qui prend l’adresse de la carte : le bloc « fidelite » sert déjà
-- Une carte sur une donnée qui n’existe pas : la donnée « vente » n
-- Une carte sur un champ absent : doit avoir un champ « numero » de type texte
-- Une carte sans ligne de tampons : il manque la ligne qui donne les tampons
-- Un nombre de tampons qui n’est pas un entier positif : le nombre de tampons doit être un entier positif
-- Des tampons comptés sur une autre donnée : les tampons se comptent sur la donnée de l'en-tête
-- Des tampons sans champ « statut » : doit avoir un champ « statut » de type texte
-- Une carte sans ligne de récompense : il manque la ligne de la récompense
-- Un objectif qui n’est pas un entier positif : « apres 2.5 tampons » : le nombre de tampons doit être un entier positif
-- Lire une carte sans bloc fidelite : la route « fidelite » n'existe pas
-- Lire la carte sans dire de quel client : on ne lit qu'une carte à la fois
-- « avec id » sans « dans » : lit un seul élément : dites où le ranger
-- « avec id » qui n’est pas un texte : « avec id » attend un texte
-- Un bon téléchargé hors d’un événement : telecharger bon
-- Un bon sans serveur : « telecharger bon » demande un serveur
-- Un bon d’une donnée qu’aucune route ne lit : aucune route ne permet de lire la donnée « client »
-- Un bon d’autre chose qu’une fiche de cette donnée : attend un « commande » lu sur sa route
-- Un type de champ inconnu : n'est pas un type de champ
-- Une règle qui ne dit pas qui peut agir : qui peut agir
-- Une action inconnue dans une règle : n'est pas une action
-- Une donnée déclarée deux fois : est déjà déclarée (ligne
-- Un champ déclaré deux fois : le champ « nom » est déjà déclaré
-- Deux routes à la même adresse : la route « produits » est déjà déclarée
-- Une règle sur une donnée qui n’existe pas : n'existe pas dans le serveur
-- Une route qui sert deux données : une route ne sert qu'une donnée
-- Une action que personne ne peut faire : ces actions seront refusées
-- Une donnée sans route : aucune route ne donne accès
-- Un champ qui n’existe pas dans la donnée : n'existe pas dans la donnée
-- Lire un champ sur autre chose qu’une donnée : on ne lit un champ
-- Une requête vers une route qui n’existe pas : aucune route
-- Un champ envoyé que la donnée ne connaît pas : n'a pas de champ
-- Un champ envoyé du mauvais type : attend un nombre
-- Une requête réservée aux utilisateurs connectés : il faut être connecté
-- Une requête réservée à l’admin : seul un admin peut
-- Une page cible qui n’existe pas : n'existe pas dans ce fichier
-- Se connecter sans serveur : demande un serveur dans le même fichier
-- Se connecter sans deux champs : attend deux champs de la page
-- Le même champ deux fois : attend deux champs différents
-- Se connecter en dehors d’un événement : ne s'utilise que dans un événement
-- Une variable qui s’appelle « utilisateur » : le nom « utilisateur » est pris par la session
-- Supprimer sans serveur : demande un serveur dans le même fichier : ajoutez
-- Supprimer autre chose qu’une donnée : attend un « produit » lu sur cette route
-- Supprimer en dehors d’un événement : « supprimer » ne s'utilise que dans un événement
-- Un lien qui oublie le paramètre de la page : attend le paramètre
-- Un paramètre que la page ne connaît pas : n'a pas de paramètre
-- Un paramètre de page qui porte le nom d’une option : ne peut pas nommer un paramètre de page
-- Des paramètres vers une page calculée : demande le nom de la page entre guillemets
-- Une ligne qui n’existe pas dans une source : n'est pas une ligne d'une source
-- Une session qui n’est pas celle des packs Astratra : « session » est suivi de « astratra »
-- Une durée sans unité, ou un nombre qui n’en est pas un : une durée s'écrit avec un nombre entier et une unité
-- Un jeton secret écrit dans le fichier : ne s'écrit jamais dans le fichier
-- Un jeton ni public ni secret : après « jeton », écrivez
-- Une règle de route qui n’en est pas une : n'est pas une action
-- Une source sans adresse : n'a pas d'adresse
-- Un nom pris deux fois dans les sources : est déjà déclarée
-- Un en-tête d’identification écrit dans le fichier : voyagerait jusqu'au navigateur
-- Une valeur qui ressemble à un secret : ressemble à un secret
-- Un jeton secret sans serveur pour le garder : ne peut pas partir dans le navigateur
-- Une route qui parle d’une donnée absente : n'existe pas dans la source
-- « Qui peut » dans une source qui n’en a pas besoin : n'a de sens que pour une source à jeton secret
-- Deux sources, ou une source et un serveur, qui donnent la session : une seule source peut donner la session
-- Un jeton envoyé sans chiffrement : envoie un jeton en clair
-- « filtrant par » sans source : demande la source visée
-- Une source qui n’existe pas : aucune source « boutik »
-- Lire et envoyer dans la même requête : ne lit et n'envoie pas à la fois
-- Une route que la source ne connaît pas : dans la source « boutique ». Routes
-- Une action que la route ne permet pas : ne dit pas
-- Supprimer ou modifier autre chose qu’une donnée de la route : attend un « membre » lu sur cette route
-- Recharger en dehors d’un événement : « recharger » ne s'utilise que dans un événement
-- L’état d’une variable qui ne reçoit pas de requête : ne reçoit aucune requête vers une source
-- Un champ qui parle d’une donnée absente : n'est ni un type (texte, nombre, booleen, date) ni une donnée de la source
-- Une page réservée à personne : n'est pas déclaré
-- Une adresse de page qui ne commence pas par / : doit commencer par /
-- Deux pages à la même adresse : est déjà celle de la page
-- Une page 404 avec une adresse, un paramètre ou une réservation : est la page 404
-- Une page réservée sans session : demande une session
-- Une page réservée qui ne sait pas où renvoyer les visiteurs : dites où envoyer les visiteurs
-- Un en-tête de page dans le désordre : n'est pas à sa place
-- Une sous-page dans une page qui n’existe pas : qui n'existe pas. Pages : commandes
-- Une page dans elle-même : dans elle-même
-- Des sous-pages qui tournent en rond : tournent pas en rond
-- La page 404 comme sous-page : ne peut pas être une sous-page
-- Un parent qui a un paramètre : le parent d'une sous-page n'a pas de paramètre
-- Une adresse qui sort de celle du parent : ne commence pas par celle de son parent
-- Une sous-page moins protégée que son parent : jamais moins
-- Un parent sans « sous page » : pas d'endroit pour les montrer
-- Un « sous page » dans une page sans sous-page : qui n'a aucune sous-page
-- Deux « sous page » dans une page : fois dans la page
-- Deux sous-pages d’index : sous-page d'index
-- « sous page » dans un événement : est un endroit de la page, pas une action
-- Un nom d’ancre qui n’est pas valable : n'est pas valable
-- Deux ancres de même nom : est déjà utilisée dans la page
-- Un lien vers une ancre qui n’existe pas : n'existe pas dans la page « carte »
-- Un lien de l’en-tête ou du pied vers une ancre qui n’existe nulle part : n'existe dans aucune page
-- Une page et un composant qui auraient le même nom : auraient le même nom dans le code produit
-- Une adresse qui peut exécuter du code : est refusée
-- Des paramètres de page sur une adresse externe : n'a pas de paramètres de page
-- Des {…} dans le lien vers une page : ne s'écrivent que dans une adresse externe
-- « nouvel onglet » sur autre chose qu’un lien : s'applique à un lien
-- Une adresse lue dans une variable, ailleurs que sur un lien : (une adresse lue dans une variable) s'applique à un lien
-- Un lien vers une variable qui n’est pas une adresse : un lien vers une variable attend une adresse en texte
-- « avec valeur » sur un champ répété par « pour chaque » : ne s’écrit pas pour un champ placé dans « pour chaque »
-- Une case à cocher qui part d’un texte : la valeur de départ d’une case à cocher est vrai ou faux
-- Un champ qui part d’une liste ou d’une fiche : la valeur de départ d’un champ est un texte ou un nombre
-- Des paramètres donnés à une adresse externe : demande une page
-- « revenir vers » une page calculée : demande le nom de la page entre guillemets : revenir vers
-- « revenir vers » une page qui n’existe pas : la page n'existe pas. Pages
-- Un filtre qui porte le nom d’une option : ne peut pas nommer un filtre
-- Un nom à la fois paramètre et filtre : à la fois un paramètre et un filtre
-- « changer » sur un paramètre de page : un paramètre vient du chemin
-- Un champ lu sur un filtre : il n'a pas de champs
-- Une valeur du mauvais type pour un filtre : le filtre « tri » est un nombre
-- Deux blocs site : un seul bloc « site »
-- Le bloc site écrit après une page : avant les pages
-- Deux blocs apercu dans une page : un seul bloc « apercu » par page
-- Un bloc apercu dans un bloc ou un événement : « apercu » décrit toute la page
-- Une ligne de site ou d’apercu qui ne commence pas par un mot : une ligne de ce bloc commence par
-- « indexation » sans « non » ni « oui » : est suivi de « non »
-- Une ligne inconnue dans le bloc site : n'est pas une ligne du bloc « site »
-- Une ligne donnée deux fois dans le bloc site : est déjà donné dans le bloc « site »
-- Une ligne inconnue dans le bloc apercu : n'est pas une ligne du bloc « apercu »
-- Une ligne donnée deux fois dans le bloc apercu : est déjà donné dans le bloc « apercu »
-- Une adresse de site sans https:// : doit commencer par https://
-- « erreurs » sans sa durée dans le bloc site : « erreurs » est suivi de sa durée
-- « erreurs » donné deux fois dans le bloc site : « erreurs » est déjà donné
-- Une durée d’erreur hors de 1 à 60 secondes : une erreur reste affichée de 1 à 60 secondes
-- Un site sans icône : le site n'a pas d'icône
-- Une image de partage prise sur un autre site : est sur un autre site
-- Un titre de page trop long : fait plus de 60 caractères
-- Une description de page trop courte : fait moins de 50 caractères
-- Une description de page trop longue : fait plus de 160 caractères
-- Une page sans description : n'a pas de description
-- Un aperçu de partage calculé : dépend de données
-- Deux pages avec le même titre : ont le même titre
-- Une animation sans nom : il manque le nom de l’animation
-- « duree » ou « delai » sans animation : donne l’attente d’une animation
-- « au defilement » sans animation : « au defilement » suit le nom d’une animation
-- « en cascade » sur un simple élément : il s’écrit sur un bloc
-- Un texte traduit et « sans traduction » : gardez l’un ou l’autre
-- Une animation sur un champ : pas d’animation sur un champ
-- Trop d’éléments animés au défilement : trop de mouvement
-- Une image sans description : décrivez l’image pour les personnes
-- Une image à la fois décrite et décorative : soit une description, soit « decoratif »
-- Une description d’image vide : la description de l’image est vide
-- Des proportions mal écrites : les proportions s’écrivent « largeur sur hauteur »
-- Des proportions nulles : sont deux nombres entiers positifs
-- Un format d’image que les navigateurs n’affichent pas : n’est pas une image que les navigateurs savent afficher
-- Trop d’images prioritaires : au-delà de 2
-- Une vidéo sans description : décrivez la vidéo pour les personnes qui ne la voient pas
-- Une vidéo sans commandes : ajoutez « avec commandes »
-- Un fichier vidéo d’un format inconnu : n’est pas une vidéo que les navigateurs savent jouer
-- Un son sans description : décrivez le son pour les personnes qui ne le voient pas
-- Une description de son vide : la description du son est vide
-- Un son qui démarre tout seul : Humalis ne lance jamais un son tout seul
-- Un fichier son d’un format inconnu : n’est pas un son que les navigateurs savent jouer
-- De la parole sans transcription : ce son ressemble à de la parole
-- Un choix de fichier sans type après « accepte » : il manque ce que le fichier peut être
-- Une taille maximale sans unité : la taille maximale a une unité
-- Un réglage qui n’existe pas pour un choix de fichier : ne se règle pas sur un choix de fichier
-- Un choix de fichier sans libellé : le libellé du choix de fichier est vide
-- Accepter un fichier SVG : le SVG n'est pas accepté
-- Un type de fichier inconnu : n'est pas un type de fichier connu
-- Une taille maximale nulle : la taille maximale est positive
-- Un choix de fichier sans type : sans « accepte », tout fichier peut être choisi
-- Un fichier choisi qu’on voudrait garder : un fichier choisi ne se garde pas
-- Une variable qui ne peut pas recevoir un fichier : elle reçoit un fichier choisi
-- L’aperçu d’un PDF : n'a pas d'aperçu
-- Envoyer un fichier sans action de la personne : ne s'utilise que dans un événement
-- Envoyer ce qui n’est pas un fichier choisi : n'est pas un fichier choisi
-- Un corps brut avec un nom de champ : envoie le fichier seul, sans formulaire
-- Envoyer un fichier au serveur du même fichier : ne reçoit pas de fichier
-- Envoyer un fichier vers une source qui n’existe pas : aucune source « boutik »
-- Envoyer un fichier vers une source à jeton secret : a un jeton secret
-- Une route d’envoi qui n’est pas vérifiée : ne décrit pas ses routes
-- Envoyer un fichier vers une route qui n’existe pas : aucune route « images »
-- Envoyer un fichier vers une route qui ne l’accepte pas : ne dit pas « creer … »
-- Une progression qui n’est pas un nombre : la progression est un nombre
-- Un réglage inconnu sur une carte : ne se règle pas sur une carte
-- Un réglage de carte sans valeur : il manque la valeur après « latitude »
-- Un réglage inconnu sur un marqueur : ne se règle pas sur un marqueur
-- Un réglage de marqueur sans valeur : il manque la valeur après « latitude »
-- Une carte sans nom : le nom de la carte est vide
-- Un marqueur sans nom : le nom du marqueur est vide
-- Une position avec la latitude ou la longitude seule : une position s’écrit avec latitude et longitude ensemble
-- Une latitude hors des bornes : la latitude 95 est hors des bornes
-- Une longitude hors des bornes : la longitude 190 est hors des bornes
-- Un zoom hors des bornes : le zoom 25 est hors des bornes
-- Un zoom qui n’est pas un entier : le zoom est un nombre entier
-- Une coordonnée qui n’est pas un nombre : la latitude est un nombre
-- Une adresse de tuiles mal écrite : l’adresse des tuiles commence par https:// et contient {z}, {x} et {y}
-- Des tuiles sans attribution : demandent son attribution
-- Une attribution sans tuiles : l’attribution accompagne des tuiles
-- Autre chose qu’un marqueur dans une carte : une carte ne contient que des marqueurs
-- Une carte sans position ni marqueur : une carte sans position ni marqueur n’affiche rien
-- Trop de marqueurs écrits à la main : marqueurs écrits dans cette carte
-- Un marqueur hors d’une carte : un marqueur se place dans une carte
-- Un marqueur sans position : le marqueur a besoin de sa position
-- Les tuiles d’une carte viennent d’un fournisseur : cette carte appelle un fournisseur de tuiles
-- Un graphique sans genre : il manque le genre du graphique
-- Une série hors d’un graphique : « serie » se place dans un graphique en bloc
-- Une option de graphique inconnue : n’est pas une option de graphique
-- Autre chose qu’une série dans un graphique : chaque ligne est une série
-- Un réglage de série inconnu : ne se règle pas sur une série
-- Un graphique dans un événement : un graphique se place dans la page, pas dans un événement
-- Un graphique sans liste : un graphique se fait à partir d’une liste
-- Un graphique sans description : décrivez ce que montre le graphique
-- Une description de graphique vide : la description du graphique est vide
-- Une valeur sur la ligne et des séries : pas les deux
-- Un camembert de plusieurs séries : un camembert montre une seule série
-- Une couleur sur un camembert : les parts d’un camembert prennent chacune leur couleur
-- Une couleur de série qui se voit mal : se voit mal sur le fond de la page
-- Une devise inconnue : n’est pas une devise connue
-- Des séries dans des unités différentes : dans la même unité
-- Des proportions de graphique impossibles : deux nombres entiers positifs : « proportions 2 sur 1 »
-- Des champs dans une liste de nombres : la liste ne contient que des nombres
-- Des étiquettes qui ne sont pas des textes : « etiquettes » attend une liste de textes
-- Pas autant d’étiquettes que de nombres : il en faut autant
-- Un champ inconnu dans un graphique : n’est pas un champ des éléments de la liste
-- « etiquettes » sur une liste de fiches : « etiquettes » sert à une liste de nombres
-- Un graphique sans libellés : il manque le champ des libellés
-- Un graphique sans valeurs : il manque le champ des valeurs
-- Une série sans valeur : n’a pas de valeur
-- Une valeur qui n’est pas un nombre : un graphique dessine des nombres
-- Une part négative dans un camembert : un camembert ne montre pas de valeur négative
-- Un camembert de trop de parts : au-delà de 8
-- Trop de barres : au-delà de 40
-- Une courbe d’un seul point : une courbe d’un seul point
-- Des champs de graphique non vérifiés : ne sont connus qu’à l’exécution
-- Une capture doit remplir une variable de fichier : elle reçoit un fichier
-- Un service d’e-mails nommé dans le programme : « emails » s’écrit seul
-- Une invitation ou un mot de passe oublié sans sa page : est suivi de la page qu'ouvre le lien
-- Un lien par e-mail sans service d’e-mails : envoie un lien par e-mail
-- Le lien ouvre une page qui n’existe pas : cette page n'existe pas
-- Le lien ouvre une page qui attend une valeur : attend une valeur dans son adresse
-- Les comptes ouverts à tout le monde : les comptes se réservent à un rôle
-- Inviter ou modifier des comptes sans rôle : les comptes se réservent à un rôle
-- « changer compte » sans « avec » : on écrit : changer compte de c avec telephone
-- « changer compte » dans la page : « changer compte » ne s'utilise que dans un événement
-- Un champ qui n’est pas sur le compte : n'est pas un champ du compte
-- Un champ du compte qui existe déjà : existe déjà sur un compte
-- Une valeur que l’action n’attend pas : n'attend pas « raison »
-- Une valeur que l’action attend : il manque « montant »
-- Un calcul qui n’en est pas un : un calcul est une somme, une moyenne
-- Un calcul sans champ : quel champ ?
-- Un calcul sur un champ qui n’est pas un nombre : doit être un champ nombre
-- Une ligne de résumé mal écrite : dans un résumé, on écrit
-- Un résumé sans calcul : est vide
-- Un résumé regroupé par un champ inconnu : n'a pas de champ « oups »
-- Un résumé sur une donnée inconnue : n'existe pas. Données
-- Un résumé sur la donnée d’une autre route : ne peut pas lire « produit »
-- Un résumé public sur une donnée séparée par groupe : est séparée par groupe : réservez ce résumé
-- Un tableau de document mal écrit : on écrit : tableau de ligne
-- Un tableau de document sur une donnée inconnue : n'existe pas. Données
-- Une colonne qui n’existe pas : n'a pas de champ « oups »
-- Un tableau entre fiches séparées différemment : Les deux doivent l'être de la même façon
-- Deux « quand … est cree » dans une route : une route n'a qu'un seul « quand
-- Un « quand » de route mal écrit : dans une route, on écrit
-- La création d’une autre donnée : elle ne voit pas la création de
-- « envoyer email » sans service d’e-mails : « envoyer email » demande la ligne
-- Autre chose qu’un e-mail sous « quand … est cree » : sous « quand … est cree : », on écrit
-- Un e-mail sans destinataire : à qui part cet e-mail
-- Un e-mail sans sujet ou sans texte : dans cet e-mail
-- Une adresse e-mail mal écrite : n'est pas une adresse e-mail
-- Un destinataire qui n’est pas un champ de la fiche : le destinataire est un champ de
-- Un visiteur choisit où part l’e-mail : vers l'adresse de son choix
-- Un e-mail qui montre autre chose que la fiche : un e-mail montre les champs de la fiche créée
-- Un rôle inconnu après « comme » : n'est pas déclaré
-- Une demande de lien mal écrite : on écrit : demander un lien de mot de passe
-- Une phrase des comptes sans sa ligne dans le serveur : demande la ligne « invitations vers
-- Une règle de champ mal écrite : on écrit par exemple :
-- « au depart » sans valeur : est suivi de la valeur que le serveur donne
-- « par identifiant » sur autre chose que la lecture : ne vaut que pour la lecture
-- « son compte » sur autre chose que la lecture ou la suppression : se lit ou se supprime
-- « son compte » pour un visiteur : un visiteur n’a pas de compte
-- La suppression de son compte réservée à un rôle : chaque personne connectée peut supprimer son propre compte
-- « a la suppression du compte » suivi d’un autre mot : écrivez effacer, anonymiser ou garder
-- « a la suppression du compte » écrite deux fois : est déjà écrite pour
-- « a la suppression du compte » sur une donnée sans auteur : ne garde pas qui l’a écrite
-- « supprimer mon compte » sans la route qui le permet : demande une route du serveur avec : connecte peut supprimer son compte
-- « supprimer mon compte » hors d’un événement : « supprimer mon compte » ne s'utilise que dans un événement
-- « inscription libre » mal écrite : on écrit : inscription libre comme client vers
-- « inscription libre » écrite deux fois : « inscription libre » est déjà écrite
-- L’inscription libre qui donnerait le rôle admin : ne donne jamais le rôle admin
-- L’inscription libre sans service d’e-mails : envoie un lien de confirmation
-- « creer mon compte » mal écrit : on écrit : creer mon compte avec
-- « creer mon compte » ou « confirmer mon adresse » sans l’inscription libre : demande la ligne « inscription libre
-- « creer mon compte » ou « confirmer mon adresse » hors d’un événement : ne s'utilise que dans un événement
-- Un calcul qui lit une donnée inconnue : qui n'existe pas. Données
-- Un calcul qui lit autre chose qu’un nombre : ce doit être un champ nombre.
-- Une valeur « au depart » du mauvais type : ne convient pas à son type
-- « du site » sur un champ sans adresse : vaut pour un texte, une image
-- Un calcul dans un champ qui n’est pas un nombre : le champ doit être de type nombre
-- Un plafond sans champ commun : doivent toutes deux avoir ce champ
-- Un calcul sur autre chose qu’une liste : ce doit être un champ « liste de … »
-- Une somme qui ajoute un champ impossible : qui n'est pas lui-même une somme
-- Une fiche liée d’une donnée inconnue : cette donnée n'existe pas
-- Une fiche liée avec un champ inconnu : n'a pas de champ
-- Une fiche liée qui impose une valeur déjà décidée : le serveur donne déjà
-- Une fiche liée qui lit une autre fiche : une fiche liée lit les champs de la fiche créée
-- Une fiche liée incomplète : il manque
-- L’identifiant va dans un mauvais champ : l'identifiant va dans un champ texte
-- Une page envoie ce que le serveur décide : le serveur décide lui-même du champ
-- Lire toute la liste d’une donnée lue par identifiant : ne se lit que par identifiant
-- « non vide » sur un champ qui ne peut pas l’être : vaut pour un texte ou une liste
-- « non vide » sur une valeur du serveur : non vide » ne sert à rien ici
-- Ajouter à une liste une variable qui peut être rien : peut encore être rien ici
-- Une condition sans « est » : après la première valeur
-- Une condition mal écrite : on écrit par exemple : si facture.compte
-- Un changement de rôle mal écrit : on écrit : changer role de c en
-- Un changement de rôle dans la page : changer role
-- Un visiteur qui écrirait dans une donnée séparée : un visiteur n'y appartient pas
-- Une donnée séparée que tout le monde lit : sont publiques
-- Une condition sur une autre donnée : cette règle parle de
-- Une condition sur un champ inconnu : n'a pas de champ
-- « est dans » sur autre chose qu’une liste : liste de
-- Une fiche liée séparée autrement : Les deux doivent
-- Un « faire » sans sa fiche : on écrit : faire
-- Un « faire » dans la page : faire
-- Une action qui n’existe pas : aucune action « oups »
-- Deux actions du même nom : est déjà écrite
-- Une action sur la donnée d’une autre route : ne peut pas agir sur
-- Une action ouverte à tout le monde : réservez-la à des comptes connectés
-- Une condition sur un champ de compte que rien n’écrit : restera fausse
-- Une notification sans destinataire : à qui part cette notification
-- Une notification sans titre ou sans texte : dans cette notification
-- Deux documents du même nom : est déjà écrit
-- Un document vide : est vide
-- Un téléchargement de document dans la page : telecharger document
-- Un document qui n’existe pas : aucun document « oups »
-- Un « faire » sur autre chose qu’une fiche : attend une fiche
-- Activer les notifications dans la page : activer notifications
-- Un service d’IA nommé dans le programme : « ia » s’écrit seul
-- Une ancienne forme qui nomme un service : s'écrit maintenant « ia »
-- Le droit de l’IA écrit dans une route : directement dans le serveur
-- Un droit mal écrit après « demander » : on écrit : connecte peut demander a ia
-- Une question sans sa variable : on écrit : demander a ia
-- Une IA que personne n’a le droit d’interroger : dites qui peut la poser
-- Un droit sur une IA non réglée : demande la ligne « ia »
-- Une IA ouverte à tout le monde : réservez-la à des comptes connectés
-- Une question à l’IA dans la page : demander a ia
-- Une question sans IA dans le serveur : demande la ligne « ia »
-- Un service de paiement nommé dans le programme : « paiements » s’écrit seul
-- Deux « quand … est payee » dans une route : qu'un seul « quand … est payee »
-- Un paiement sans service : demande la ligne « paiements »
-- Un paiement sur la donnée d’une autre route : elle ne voit pas le paiement
-- Un paiement lancé dans la page : payer
-- « payer » sur autre chose qu’une fiche payable : attend une fiche
-- « payer » un champ qui n’est pas un nombre : ce doit être un champ nombre
-- Une action mal écrite : on écrit : seul gerant peut faire
-- Une tâche planifiée mal écrite : on écrit : tous les jours a 7 h
-- Une tâche sans heure : à quelle heure ?
-- Une heure qui n’existe pas : n'est pas une heure
-- Une heure sans « h » : écrivez « h »
-- Des minutes qui n’existent pas : n'est pas un nombre de minutes
-- Un compte dans une tâche planifiée : une tâche planifiée tourne sans personne connectée
-- Une ligne de document mal écrite : dans un document, on écrit
-- Un « pour chaque » mal écrit sur le serveur : on écrit : pour chaque c dans commande
-- Un « changer » mal écrit : on écrit : changer commande.statut par
-- Une instruction inconnue sur le serveur : sur le serveur, on écrit « si »
-- Un nom inconnu dans une valeur du serveur : « oups » n'existe pas ici
-- Un champ inconnu dans une valeur du serveur : n'a pas de champ « oups »
-- Une accolade sans champ sur le serveur : on montre le champ d'une fiche
-- Une valeur que le serveur ne comprend pas : une valeur est un texte, un nombre
-- Une notification pour un rôle non déclaré : n'est pas déclaré
-- Un « pour chaque » sur une donnée inconnue : n'existe pas. Données
-- Un filtre sur un champ inconnu : n'a pas de champ « oups »
-- Une fiche que l’action ne connaît pas : « oups » n'existe pas ici
-- Changer le groupe d’une fiche : on ne le change pas
-- Créer une fiche d’une donnée inconnue : cette donnée n'existe pas
-- Créer une fiche avec un champ inconnu : la donnée n'a pas de champ « oups »
-- Créer une fiche sans tous ses champs : il manque « total »
-- Créer une fiche séparée sans savoir pour quel groupe : aucune fiche ici n'indique lequel
-- Un e-mail sans service d’e-mails : demande la ligne « emails »
-- Une action sur une donnée inconnue : n'existe pas dans le serveur
-- Un document sur une donnée inconnue : n'existe pas. Données
-- Un « refuser » après un paiement : le paiement est déjà fait
-- Un champ « auteur » écrit à la main : est rempli par le serveur avec le compte qui crée la fiche
-- Un nom de champ réservé : ce nom est réservé par le serveur
-- Une route dont le nom n’est pas une adresse : ne peut pas servir d’adresse à une route
-- Un serveur dont le nom contient un signe interdit : ne peut pas nommer un serveur
-- Deux règles pour la même action : seule la dernière compte
-- Tout le monde peut modifier ou supprimer : un visiteur sans compte peut
-- Deux services qui gardent chacun leurs comptes : gardent chacun leurs comptes
-- Une limite à moitié écrite : cette limite n’est pas complète
-- Une limite qui ne va pas avec le type du champ : limitent un nombre ; ce champ est
-- Une longueur qui n’est pas un nombre entier : est un entier, 1 ou plus
-- Une limite basse plus grande que la haute : dépasse la limite haute
-- La même valeur deux fois après « parmi » : cite deux fois
-- Une valeur de départ que la limite refuse : ne respecte pas sa limite
-- Une fiche de départ que la limite refuse : donnees de depart pour produit : « nom » doit avoir
-- Une durée oubliée : il manque une durée
-- Une durée sans unité : il manque l’unité de la durée
-- Une durée qui n’est pas un nombre : une durée est un nombre suivi de son unité
-- Une durée de zéro : une durée doit être plus grande que zéro
-- Un message de réussite dans la page : s’affiche dans un événement (quand …)
-- Un message trop court ou trop long : un message reste affiché de 1 à 60 secondes
-- Une erreur trop vite effacée : c’est trop court pour lire une erreur
-- « pendant » et « sans disparaitre » ensemble : se contredisent
-- Le bouton d’un message qui ne fait rien : du message ne fait rien
-- Le bouton d’un message sans texte : le bouton d’un message a besoin d’un texte
-- Un message à bouton dans une minuterie : un message avec un bouton, dans une minuterie
-- Une minuterie de page cachée dans un bloc : une minuterie de la page s’écrit au premier niveau
-- Une minuterie trop rapide : plus de quatre fois par seconde
-- Une minuterie de moins d’une seconde : moins d’une seconde
-- « tant que » après « apres » : ne passe qu’une fois
-- Une minuterie qui ne fait rien : cette minuterie ne fait rien
-- Une minuterie au survol : repart à chaque passage du pointeur
-- Une page qui change toute seule, sans pause : cette page se met à jour toute seule
-- « copier » ou « partager » dans la page : demande un geste de la personne
-- « copier » ou « partager » sans geste : personne n’a rien demandé, et le navigateur le refuserait
-- « copier » après une attente : après une attente
-- « noter » directement dans la page : s’écrit dans un événement, une fonction ou une action
-- Copier une liste : « copier » attend un texte ou un nombre
-- Un message de copie vide : le message de « copier » est vide
-- Une option inconnue de « partager » : après « partager … avec », on écrit
-- Une fonction de l’appareil dans la page : « vibrer » ne s'utilise que dans un événement
-- Un début d’adresse réservé : « https » ne peut pas servir de début d’adresse
-- Deux fois les liens profonds : « liens profonds » ne s’écrit qu’une fois
-- « vrai » ou « faux » à la place d’une condition : seul n’est pas une condition
-- Une boucle dont la condition ne change jamais : compare deux valeurs écrites
-- Une répétition démesurée : fige la page pendant la boucle
-- Un nombre entier trop grand : trop grand pour être gardé au chiffre près
-- Une liste qui mélange des genres de valeurs : cette liste mélange
-- Des mises à jour sans « depuis » : après « mises a jour », « depuis » puis l’adresse
-- Des mises à jour sans adresse : il manque l’adresse entre guillemets
-- Une adresse de mises à jour qui n’est pas sûre : ne convient pas pour des mises à jour
-- Deux adresses de mises à jour : « mises a jour depuis » ne s’écrit qu’une fois
-- Des onglets sans onglet : attend au moins un onglet
-- Une ligne inattendue sous un composant : on écrit ici
-- Un menu sans page : demande au moins une page
-- Une table sans colonne lisible : attend des colonnes
-- Un domaine mal écrit : n’est pas un domaine
-- La position dans une tâche en arrière-plan : demande la personne devant l’écran
-- Une tâche en arrière-plan dans une boucle : s’écrit directement dans la page
-- Une position rangée dans un nombre : elle reçoit une position
-- « hors ligne » sur une lecture : « hors ligne » se met sur un envoi
-- « hors ligne » vers une API externe : ne marche qu’avec une route du serveur
-- Une photo rangée dans un nombre : elle reçoit une photo
-- Un code ou une signature rangés dans un nombre : qui est un texte
-- « confirmer » dans la page : pose une question à la personne
-- « confirmer » sans geste : personne n’a rien demandé à ce moment-là
-- Une question dans le bouton d’un message : pas de « confirmer » dans le bouton d’un message
-- Un bouton de question sans texte : de la question n’a pas de texte
-- Deux boutons pareils : les deux boutons de la question s’appellent
-- Une question sans suite : sans rien à faire si la personne répond oui
-- Trois questions de suite : trois questions de suite
-- Une option inconnue de « confirmer » : après « confirmer … avec », on nomme les boutons
-- Une fenêtre créée dans un événement : une fenêtre ne se crée pas dans un événement
-- Une fenêtre dans une fenêtre : une fenêtre dans une fenêtre
-- Une fenêtre sans titre : une fenêtre a besoin d’un titre
-- Une fenêtre qui ne s’ouvre jamais : ne s’ouvre jamais
-- Une fenêtre obligatoire sans issue : est obligatoire, et rien ne la ferme
-- Deux fenêtres du même nom : deux fenêtres s’appellent
-- Une option inconnue de fenêtre : n’est pas une option de fenêtre
-- Une touche qui n’existe pas : n’existe pas dans « ctrl+k »
-- Une touche gardée par le navigateur : est souvent gardé par le navigateur
-- Un raccourci d’une seule lettre : un raccourci d’une seule lettre
-- Un raccourci déjà pris : est déjà pris dans cette page
-- Un raccourci sur un texte : s’applique à un bouton, un lien ou un champ
-- Suivre la frappe d’un champ répété : suit un seul champ
-- Suivre la frappe d’une case à cocher : on ne tape pas dans
-- Une pause de frappe dans une variable : la pause d’une frappe s’écrit en chiffres
-- Une pause de frappe trop courte ou trop longue : la pause d’une frappe va de 100 millisecondes à 5 secondes
-- Un mot de passe envoyé à chaque touche : ne doit pas partir sur le réseau à chaque touche
-- Une requête à chaque touche : envoie une requête à chaque touche
-- Suivre un champ qui n’existe pas : aucun champ « rechercher »
-- Le bas atteint, mais rien ne grandit : rien ne grandit quand le bas est atteint
-- Une condition que rien ne change : il ne s’arrêtera pas tout seul
-- Un défilement infini sans bouton : sans bouton « Voir plus »
-- Deux blocs du même nom : est déjà donné à un bloc
-- Le bas d’un bloc qui n’existe pas : aucun bloc nommé « catalogue »
-- Deux « arrive en bas de » pour un bloc : a déjà son « arrive en bas de »
-- « avec deplacement » dans un événement : pas dans un événement
-- Déplacer les éléments d’un calcul : on ne peut déplacer que les éléments d’une liste écrite dans une variable
-- Deux boucles déplaçables pour une liste : a déjà une boucle avec deplacement
-- Un champ dans une liste déplaçable : un champ dans une liste qu’on déplace
-- Un ordre que personne ne change : personne ne déplace rien dans
-- Une vue écrite à la main pour une plateforme inconnue : une vue écrite à la main se donne pour
-- Le fichier natif n’est pas dans la bonne langue : la vue s'écrit en
-- La même plateforme donnée deux fois : est donné deux fois
-- Un paquet Android mal nommé : n'est pas un paquet Gradle
-- Un paquet Windows mal nommé : n'est pas un nom de paquet NuGet
-- Un numéro de version illisible : n'est pas un numéro de version
-- Un style natif sans sa plateforme : est un style écrit en
-- Deux blocs « langues » : un seul bloc « langues »
-- Le bloc « langues » après les pages : le bloc « langues » s'écrit en haut du fichier
-- Une langue entre guillemets : une ligne du bloc « langues » est le nom d'une langue
-- Une langue entre guillemets sur la ligne « langues : » : après « langues : », on attend le nom d'une langue
-- Deux langues sans virgule : séparez les langues par des virgules
-- Une virgule en fin de ligne des langues : après la virgule, il manque le nom d'une langue
-- Des langues sur la ligne et en dessous : soit sur la ligne, soit en dessous
-- Une langue que Humalis ne connaît pas : n'est pas une langue connue de Humalis
-- Une langue pas encore disponible : n'est pas encore disponible
-- Une adresse par langue mal écrite : avec adresse par langue
-- Une langue écrite deux fois : est déjà dans le bloc « langues »
-- Un bloc « langues » vide : le bloc « langues » est vide
-- Une version sans bloc « langues » : mais le fichier ne déclare pas ses langues
-- Une version dans une langue non déclarée : n'est pas dans le bloc « langues »
-- Une version dans la langue des textes : la version à ajouter est celle d'une autre langue
-- Deux versions de la même langue : pour le même texte
-- Une version qui oublie une valeur : n'utilise pas {total}
-- Une version dans les valeurs d’un choix : la valeur d'un choix est envoyée au serveur
-- Un texte sans version : n'a pas de version anglaise
-- Un bloc « traductions » sans bloc « langues » : le bloc « traductions » demande d'abord un bloc « langues : »
-- Une traduction donnée deux fois : a déjà une version anglaise dans ce bloc
-- Une traduction qui ne sert à rien : cette traduction ne sert à rien
-- « selecteur de langue » sans bloc « langues » : « selecteur de langue » demande un bloc « langues : »
-- « changer langue par » une langue non déclarée : attend une langue du bloc « langues »
-- Une variable qui s’appelle « langue » : « langue » est la langue choisie par la personne (« si langue est anglais »
-- « langue » sans bloc « langues » : déclarez d'abord les langues en haut du fichier
-- Une variable dans un texte qui n’en accepte pas : n'accepte pas de « {variable} »
-- Une extension sans son point : n’est pas une extension de fichier
-- Une liste sans son titre : il manque « titre » et le champ à montrer
-- Un widget actualisé en secondes : un widget s’actualise en minutes ou en heures
-- Un widget actualisé trop souvent : au plus toutes les 15 minutes
-- Une taille de widget inconnue : n’est pas une taille de widget
-- Une ligne qui n’est pas un raccourci : chaque ligne est un raccourci
-- Un raccourci qui n’ouvre rien : un raccourci ouvre une page
-- Le lancement au démarrage mal écrit : lancer au demarrage de l’ordinateur
-- Un résultat de recherche qui n’ouvre rien : un résultat de recherche ouvre une page
-- Une mini-application à deux pages : une mini-application montre une seule page
-- Une mini-application vide : une mini-application montre une page
-- Une voiture sans sa liste : l’écran de voiture montre une liste :
-- Une voiture vide : liste livraisons avec titre adresse et texte client
-- Un menu clic droit sans ses fichiers : il manque « les fichiers »
-- Une ligne qui n’est pas une touche : chaque ligne est une touche
-- Une touche qui n’écrit rien : il manque « ecrit "…" »
-- Un clavier sans touche : un clavier a au moins une touche
-- Le partage reçu mal écrit : on écrit : quand on partage vers l’application
-- Le partage reçu écrit deux fois : est déjà écrit ligne
-- Le fichier ouvert mal écrit : on écrit : quand on ouvre un fichier
-- Le bouton de notification mal écrit : dans une notification :
-- Une forme qui ouvre une page inconnue : la page « compte » n'existe pas
-- Deux formes du même nom : est déjà écrit ligne 1 : donnez-lui un autre nom
-- Une liste qui n’existe pas hors d’une page : n'est ni une variable partagée ni une source
-- Trop de raccourcis sur l’icône : au plus quatre raccourcis
-- Une activité en direct non déclarée : n'est pas déclarée : écrivez en haut du fichier « activite en direct
-- Un bouton de notification que personne n’envoie : aucune notification du serveur n'a de bouton
-- Une activité commencée hors d’un événement : « commencer activite » ne s'utilise que dans un événement
-- « dire » hors d’un événement : « dire » ne s'utilise que dans un événement
-- Trop de boutons sur une notification : une notification a au plus trois boutons
-- Une donnée locale sans champ : une donnée locale a au moins un champ
-- Une synchronisation vers une route inconnue : n'existe pas dans le serveur : une donnée locale se synchronise
-- Un champ local absent du serveur : la synchronisation l'y enverrait pour rien
-- Un champ local d’un autre type : n'a pas le même type que dans la donnée
-- Un champ du serveur absent de la donnée locale : le serveur refuserait chaque nouvelle fiche
-- Une clé d’accès que le serveur n’ouvre pas : demande la ligne « connexion par cle d'acces »
-- Une clé d’accès hors d’un événement : « se connecter par cle d'acces » ne s'utilise que dans un événement
-- Une discussion sans ses rôles : il manque « entre » et les rôles
-- Un rôle oublié : il manque le nom d’un rôle
-- Trop de rôles dans une discussion : une discussion se fait entre un rôle ou deux
-- Deux discussions du même nom : est déjà écrite : donnez-lui un autre nom
-- Une salle sans ses rôles : il manque « pour » et les rôles
-- « animee » sans « par » : il manque « par »
-- Deux salles du même nom : est déjà écrite : donnez-lui un autre nom
-- Une discussion dans un composant : s’écrit dans une page, pas dans un composant
-- Ouvrir une discussion sans dire avec qui : il manque « avec » et la personne
-- Une discussion non déclarée : n’est pas déclarée : écrivez dans le serveur discussion
-- Une salle non déclarée : n’est pas déclarée : écrivez dans le serveur salle
-- Un appel sans serveur : passent par le serveur
-- Ouvrir une discussion qu’aucune page ne montre : aucune page ne montre la discussion
-- Un geste de réunion hors d’un événement : ne s'utilise que dans un événement
-- Un rôle non déclaré : qui n'est pas déclaré
-- « par » sans le groupe : il manque le nom du groupe après « par »
-- Un groupe qu’aucune donnée n’utilise : mais aucune donnée n'est rangée par
-- Une discussion « par compte » : ne se sépare pas « par compte »
-- Un « par » sans la taille du morceau : après « par », le nombre de fiches
-- Un morceau trop petit, trop grand, ou pas entier : un morceau compte de 1 à 500 fiches
-- « par 20 » sur une source : Une source se lit page par page
-- Une lecture par morceaux qui envoie : une lecture par morceaux lit une liste
-- Une lecture par morceaux sans liste pour la recevoir : il manque « dans » et la liste
-- « par 20 » avec « en direct » : il ne va pas avec « par
-- La même liste lue par morceaux de deux façons : de deux façons dans cette page
-- Une suite demandée pour une liste lue d’un coup : demande une liste lue par morceaux dans cette page
-- « charger la suite » sans dire de quelle liste : il manque le nom de la liste
-- Une lecture par morceaux hors d’une page : s’écrit dans une page, pas dans un composant
-- « par 20 » vers une adresse qui n’est pas une route du serveur : lit une route du serveur de ce fichier
-- Une capture déjà écrite dans l’application : est déjà écrit ligne
-- Une capture déjà écrite dans le serveur : est déjà écrit ligne
-- La destination de la requête manque : on écrit : envoyer requete vers
-- La requête exige HTTPS : adresse HTTPS complète
-- Les champs de la requête manquent : demande des champs
-- Un champ d’erreur inconnu : la capture ne connaît pas
-- Un champ envoyé deux fois : est envoyé deux fois
-- Un champ sensible envoyé : ne peut pas être envoyé
-- Une valeur non sûre dans le rapport : n’envoie que erreur.message
-- Une requête hors capture : s’écrit seulement dans
-- Une action non disponible dans la capture : seules les requêtes HTTP
-- « comptes du serveur » écrit deux fois : « comptes du serveur » est déjà écrit
-- Un message reçu sans « signale » : on écrit : quand le serveur
-- Un message reçu sans le nom de sa fiche : « avec » et le nom de la fiche reçue
-- Un droit de service sans « peut » : on écrit : le serveur "commandes" peut lire produit
-- Un droit d’action sans « sur » : peut faire "reserver" sur produit
-- Un droit d’action avec un corps : sans deux-points ni corps
-- Un droit de service sur une action qui n’existe pas : n'est pas une action. Actions possibles
-- Une fiche d’un autre service lue sans identifiant : par son identifiant
-- Une fiche d’un autre service lue sans nom : « dans » et le nom de la fiche lue
-- Une action d’un autre service sans « sur » : on écrit : faire "reserver" sur produit du serveur
-- Une action sans le service qui la fait : vise une action d'un autre service
-- Un message sans fiche : « avec » et la fiche envoyée
-- Un service qui n’existe pas dans le projet : n'existe pas dans le projet
-- Un service qui s’appelle lui-même : vise un autre service
-- Une route qu’un autre service n’a pas : n'a pas de route « articles »
-- Une lecture sans personne et sans droit : personne n'est connecté : le serveur « commandes » lit
-- Une action sur une fiche inconnue : « article » n'existe pas ici
-- Une action sur une fiche d’un autre service : qui n'est pas au serveur « catalogue »
-- Une action qu’un autre service n’a pas : n'a pas d'action « vendre »
-- Une valeur que l’action n’attend pas : n'attend pas « remise »
-- Une valeur attendue qui manque : attend « quantite »
-- Une action sans personne et sans droit : personne n'est connecté : le serveur « commandes » fait
-- Un message avec une fiche inconnue : on signale une fiche
-- Un message dans un projet à un seul serveur : il n'y a qu'un serveur
-- Une fiche d’un autre service changée ici : elle ne se change pas ici
-- Un service qui s’écoute lui-même : ne s'écoute pas lui-même
-- Un message que l’autre service ne signale jamais : ne signale jamais « commande-payee »
-- Une route nommée avec le mauvais service : est celle du serveur « catalogue »
-- « comptes du serveur » avec un seul serveur : le projet n'a qu'un serveur, qui garde lui-même ses comptes
-- Un message reçu avec un seul serveur : signale … » : le projet n'a qu'un serveur
-- Un droit de service avec un seul serveur : peut … » : le projet n'a qu'un serveur
-- Deux services du même nom : est déjà déclaré (ligne
-- Une route dans deux services : est déjà celle du serveur « comptes »
-- Une donnée dans deux services : est déjà celle du serveur « comptes » : une donnée appartient
-- Aucun service ne garde les comptes : l'un d'eux doit garder les comptes
-- Deux services qui gardent leurs comptes : gardent chacun leurs comptes : un seul service
-- Un service qui prend ses comptes chez lui-même : ne prend pas ses comptes chez lui-même
-- Des comptes pris chez un service qui ne les garde pas : ne garde pas de comptes : il les prend chez
-- Des comptes pris chez un autre que le gardien : les comptes sont gardés par
-- Un réglage des comptes hors du service des comptes : s'écrit dans le serveur qui garde les comptes
-- L’IA, les paiements ou la fidélité dans deux services : il est déjà dans « comptes »
-- Un service qui se donne un droit à lui-même : a déjà tous les droits sur ses propres données
-- Un droit de service sur une autre donnée : sert « produit », pas « commande »
-- Un droit sur une action que la route n’a pas : n'a pas d'action « vendre ». Actions
-- Un message que personne n’écoute : personne n'écoute « commande-validee »
-- Écrire le bloc optimiste : en supposant que ça marche
-- Fermer la phrase du bloc optimiste : deux-points après
-- Placer le bloc dans un événement : ne sert que dans un événement
-- Modifier seulement des variables locales : un élément ne se défait pas
-- Faire suivre le bloc par une requête : demande une requête juste après
-- Changer une donnée issue d’un fichier : vient d'un fichier
-- Ajouter ou retirer dans un fichier lu : vient d'un fichier
-- « est dans » sans liste : « est dans » cherche dans une liste
-- « est dans » avec une liste d’un autre type : on ne peut pas chercher
-- Une constante qu’on essaie de changer : est une constante
-- « grouper » sur une liste simple : range une liste de fiches
-- Une fonction d’actions qui s’appelle elle-même : s'appelle elle-même
-- Une fonction d’actions appelée avec trop ou trop peu de valeurs : attend 1 valeur
-- Une fonction de calcul écrite dans une page : s'écrit en haut du fichier
-- Une fonction d’actions employée comme une valeur : fait des actions sans rendre de valeur
-- Une fonction de calcul appelée seule sur une ligne : rend une valeur : emploie-la
-- « essayer » écrit dans la page : « essayer » s'écrit dans un événement
-- Une date attendue : une date s'écrit comme
-- Un décalage de date sans nombre : attend un nombre ;
-- « depuis » après autre chose qu’une date : « depuis » s'écrit après une date
-- Un calcul partagé écrit après les pages : un calcul partagé s'écrit en haut du fichier
-- Un calcul illisible entre accolades : que Humalis ne sait pas lire
-- « en csv » sur autre chose qu’une liste : « telecharger … en csv » attend une liste
-- « en csv » directement dans la page : telecharger … en csv
-- « en direct » sur autre chose qu’une lecture : « en direct » se met sur une lecture
-- Une lecture réservée à un rôle, depuis une page ouverte : seuls certains rôles peuvent
+- HUM-0001 Code dans une phrase sans guillemets : code attend un texte entre guillemets
+- HUM-0002 Une ligne inconnue dans un tableau : un tableau contient « colonnes » et « rangee »
+- HUM-0003 Deux-points après un tableau : deux-points après la légende du tableau
+- HUM-0004 Bloc de code dans un événement : un bloc de code se place dans une page
+- HUM-0005 Tableau sans légende : un tableau attend une légende
+- HUM-0006 Tableau sans colonnes : un tableau attend une ligne « colonnes »
+- HUM-0007 Rangée de mauvaise largeur : la rangée a 1 cellules
+- HUM-0008 Texte accentué sans guillemets : accent attend un texte entre guillemets
+- HUM-0009 Accent hors d’un texte de page : accent s’emploie seulement
+- HUM-0010 Un élément sans texte : n'a pas de texte
+- HUM-0011 Un libellé sans lettre : ne contient aucune lettre
+- HUM-0012 Deux champs de même nom : deux champs du même formulaire
+- HUM-0013 Une description vague : ne dit rien
+- HUM-0014 Une icône seule sans nom : cette icône seule
+- HUM-0015 Des étoiles sans explication : ces étoiles
+- HUM-0016 Un lien vague : n'explique pas sa destination
+- HUM-0017 Plusieurs titres principaux : plusieurs titres principaux
+- HUM-0018 Une action seulement au survol : ce survol
+- HUM-0019 Une page sans titre : n'a pas de titre principal
+- HUM-0020 Un contraste trop faible : le contraste du texte
+- HUM-0021 Un niveau de sous-titre invalide : niveau d’un sous-titre
+- HUM-0022 Un sous-titre avant le titre : apparaît avant le titre
+- HUM-0023 Un saut de niveau de titre : saut de niveau
+- HUM-0024 Une tabulation au début d’une ligne : tabulation interdite
+- HUM-0025 Une indentation qui n’est pas un multiple de 4 : un multiple de 4 est attendu
+- HUM-0026 Un bloc qui descend de deux niveaux d’un coup : un seul niveau à la fois
+- HUM-0027 Un niveau qui ne ferme aucun bloc : ce niveau ne correspond à aucun bloc ouvert
+- HUM-0028 Un guillemet oublié : guillemet manquant
+- HUM-0029 Une accolade oubliée dans un texte : accolade non fermée
+- HUM-0030 Deux pages avec le même nom : est déjà déclarée
+- HUM-0031 Une instruction que Humalis ne connaît pas : instruction inconnue
+- HUM-0032 Un mot prévu, pas encore disponible : n’est pas encore disponible
+- HUM-0033 Une option sans nom après « avec » : un nom de propriété de style est attendu
+- HUM-0034 Des données de départ sans « pour » : donnees de depart pour produit
+- HUM-0035 Un champ de départ sans valeur : une valeur : un texte entre guillemets
+- HUM-0036 Des données de départ pour une donnée absente : n'existe pas dans ce serveur
+- HUM-0037 Un champ de départ qui n’existe pas : n'a pas de champ
+- HUM-0038 Une valeur de départ du mauvais type : attend un nombre
+- HUM-0039 Une fiche de départ incomplète : cette fiche de départ n'a pas
+- HUM-0040 « seul son auteur » avec une condition : dit déjà quelles fiches
+- HUM-0041 Un nom de style mal écrit : ne peut pas nommer un style
+- HUM-0042 Un style vide : est vide
+- HUM-0043 Une propriété de style inconnue : n'est pas une propriété de style
+- HUM-0044 Une couleur de style inconnue : n'est pas une couleur connue
+- HUM-0045 Une mesure de style sans nombre : attend un nombre
+- HUM-0046 Une valeur de style inconnue : attend douce, forte ou aucune
+- HUM-0047 « desactive » ailleurs que sur un bouton ou un champ : s'applique à un bouton ou à un champ
+- HUM-0048 Un bouton à icône seule sans nom : a besoin d'un nom
+- HUM-0049 Une option sans valeur : une valeur est attendue pour le style
+- HUM-0050 Une comparaison inconnue : comparaison inconnue
+- HUM-0051 Une comparaison incomplète : après « est plus »
+- HUM-0052 Une égalité manquante : après « plus grand ou »
+- HUM-0052 Le mot « que » manque : après « plus grand »
+- HUM-0053 Une action de l’utilisateur inconnue : action utilisateur inconnue
+- HUM-0054 Un événement inconnu : événement inconnu
+- HUM-0055 Une valeur qui manque : une valeur est attendue, mais
+- HUM-0056 Un mot ou un signe qui manque : il manque
+- HUM-0057 Un mot réservé comme nom de variable : est un mot réservé
+- HUM-0058 Un mot réservé à la place d’une valeur : est un mot réservé du langage : il ne peut pas servir de nom de variable
+- HUM-0059 Un petit mot ignoré pris comme nom : est un petit mot ignoré par Humalis
+- HUM-0060 Un petit mot ignoré à la place d’une valeur : une valeur est attendue. « des »
+- HUM-0061 Une variable jamais déclarée : n'est pas déclarée
+- HUM-0062 Une variable utilisée avant d’être déclarée : avant d'être déclarée
+- HUM-0063 Une variable déclarée deux fois : existe déjà
+- HUM-0064 Une variable de boucle utilisée après la boucle : n'existe que dans la boucle
+- HUM-0065 Une variable inconnue dans un texte : n'est pas déclarée
+- HUM-0066 Une valeur d’un autre type : on ne peut pas lui donner
+- HUM-0067 Deux valeurs de types différents : on ne peut pas comparer
+- HUM-0068 Comparer autre chose que des nombres : compare des nombres
+- HUM-0069 « est vide » sur un nombre : « est vide » s'applique
+- HUM-0070 « est vrai » sur autre chose qu’un booléen : attend vrai ou faux
+- HUM-0071 Une valeur seule comme condition, qui n’est pas vrai ou faux : une valeur seule comme condition
+- HUM-0072 Une boucle sur autre chose qu’une liste : attend une liste
+- HUM-0073 Un champ qui n’existe pas : aucun champ
+- HUM-0074 Un élément qui n’existe pas : aucun élément
+- HUM-0075 Deux éléments qui s’appellent pareil : s'appellent
+- HUM-0076 Un nom d’élément calculé : écrivez le nom de l'élément entre guillemets
+- HUM-0077 Une action placée dans la page, hors d’un événement : ne s'utilise que dans un événement
+- HUM-0078 Un élément créé dans un événement : un élément ne peut pas être créé dans un événement
+- HUM-0079 Un événement dans un autre événement : ne se place pas dans un autre événement
+- HUM-0080 Une option ou une valeur de style inconnue : n'est pas une valeur possible
+- HUM-0081 Un calcul avec autre chose que des nombres : calcule avec des nombres
+- HUM-0082 Une division par zéro : division par zéro
+- HUM-0083 Changer une variable qui est un calcul : est un calcul
+- HUM-0084 « nombre de » sur autre chose qu’une liste : compte les éléments d
+- HUM-0085 Ajouter ou retirer dans autre chose qu’une liste : on ne peut ajouter ou retirer que dans une liste
+- HUM-0086 Ajouter une valeur d’un autre type : on ne peut pas y ajouter
+- HUM-0087 Un événement qui vise un élément hors de sa boucle : n’est pas dans cette boucle
+- HUM-0088 Un événement sur un formulaire qui n’existe pas : Formulaires de la page : message
+- HUM-0089 Un événement de formulaire dans une page sans formulaire : créez-le avec formulaire
+- HUM-0090 Un événement de formulaire qui vise un formulaire hors de sa boucle : vise un formulaire de la même boucle
+- HUM-0091 Deux événements pour le même formulaire : a déjà son événement « est soumis »
+- HUM-0092 Deux formulaires du même nom : existe déjà dans cette page
+- HUM-0093 Un formulaire créé dans un événement : un formulaire ne peut pas être créé dans un événement
+- HUM-0094 Un bloc créé dans un événement : un bloc ne peut pas être créé dans un événement
+- HUM-0095 Un champ qui n’existe pas dans une fiche : n'existe pas dans cette fiche
+- HUM-0096 Un champ donné deux fois dans une fiche : est donné deux fois dans cette fiche
+- HUM-0097 Une fonction qui n’existe pas : n'existe pas. Fonctions
+- HUM-0098 Une fonction appelée avec trop ou trop peu de valeurs : attend 2 valeurs
+- HUM-0099 « rendre » en dehors d’une fonction : ne s'écrit que dans une fonction
+- HUM-0100 Une action dans une fonction : pas dans une fonction
+- HUM-0101 Une boucle ou un choix écrit dans la page : s'écrit dans un événement ou une fonction
+- HUM-0102 Une boucle qui risque de ne jamais s’arrêter : risque de ne jamais s'arrêter
+- HUM-0103 « repeter » sans nombre : attend un nombre de fois
+- HUM-0104 « arreter » ou « passer au suivant » hors d’une boucle : s'écrit dans une boucle
+- HUM-0105 « repeter » sans « fois » : il manque « fois »
+- HUM-0106 Une ligne inattendue dans « selon » : chaque ligne commence par « cas
+- HUM-0107 Une moyenne ou une somme sur autre chose qu’une liste de nombres : calcule sur une liste de nombres
+- HUM-0108 « arrondi de » ou « hasard entre » sans nombre : attend un nombre
+- HUM-0069 « contient » sur autre chose qu’un texte ou une liste : s'applique à un texte ou à une liste
+- HUM-0109 Trier, filtrer ou couper autre chose qu’une liste : s'applique à une liste
+- HUM-0110 Un champ que les éléments de la liste n’ont pas : n'est pas un champ des éléments
+- HUM-0111 « dont » sur une liste simple : filtre une liste de fiches
+- HUM-0112 Une devise inconnue : n'est pas une devise connue
+- HUM-0113 Un montant ou un pluriel sur autre chose qu’un nombre : s'écrit après un nombre
+- HUM-0114 Une opération sur le texte avec autre chose qu’un texte : attend un texte
+- HUM-0115 Un réglage sur un élément qui ne le comprend pas : se règle seulement sur
+- HUM-0116 Un thème qui n’existe pas : prend clair, sombre ou automatique
+- HUM-0117 Deux blocs theme : un seul bloc « theme » par application
+- HUM-0118 Deux en-têtes (ou deux pieds de page) : un seul « entete » par application
+- HUM-0113 « en lettres » ou « en date longue » sur la mauvaise valeur : s'écrit après un nombre
+- HUM-0119 La taille d’un dessin sans « par » : après la largeur, il faut « par »
+- HUM-0120 Une page sans en-tête, dans une application qui n’en a pas : se passe d'un en-tête, mais l'application n'en a pas
+- HUM-0121 Un texte de couleur trop pâle : se voit mal sur le fond de la page
+- HUM-0122 Un formulaire dans un formulaire : un formulaire ne peut pas contenir un autre formulaire
+- HUM-0123 Un choix sans ses valeurs : il manque « parmi »
+- HUM-0124 Des valeurs qui ne sont pas des textes : il faut une liste de textes
+- HUM-0125 Une option de champ sur un autre élément : pas à un bouton
+- HUM-0126 Un minimum sur un champ qui n’est pas un nombre : s’applique à un champ nombre
+- HUM-0127 Un minimum plus grand que le maximum : est plus grand que le maximum
+- HUM-0128 Un indice sur une case à cocher ou un choix : ne s’applique pas à une case à cocher
+- HUM-0129 Une variable qui porte le nom d’un mot du langage : porte le nom d'un mot du langage
+- HUM-0130 Un formulaire qui n’envoie rien : n’envoie rien
+- HUM-0131 Un champ obligatoire hors d’un formulaire : sont vérifiés à l’envoi d’un formulaire
+- HUM-0132 Un nom de classe CSS sans guillemets : il manque le nom de la classe CSS entre guillemets
+- HUM-0133 « utiliser » sans « style » : il manque « style » après « utiliser »
+- HUM-0134 Un chemin de fichier CSS sans guillemets : il manque le chemin du fichier CSS entre guillemets
+- HUM-0135 Un style CSS introuvable : n'est défini dans aucun CSS du projet
+- HUM-0136 Une règle CSS écrase un style Humalis : le CSS écrase « humalis-page »
+- HUM-0137 Une option de variable inconnue : n'est pas une option de variable
+- HUM-0138 Un mot après « memorisee en » qui n’est pas « secret » : est attendu après « memorisee en »
+- HUM-0139 Une variable en haut du fichier sans « avec partagee » : ajoutez « avec partagee »
+- HUM-0140 Une variable partagée déclarée dans une page : se déclare en haut du fichier
+- HUM-0141 Un composant qui n’est déclaré nulle part : n'est pas déclaré. Ajoutez en haut du fichier
+- HUM-0142 Un composant créé dans un événement : un composant ne peut pas être créé dans un événement
+- HUM-0143 Une propriété qui n’est pas un paramètre du composant : n'est pas un paramètre du composant
+- HUM-0144 « parametre » en dehors d’un composant : ne s'utilise qu'au début d'un composant
+- HUM-0145 Un paramètre de composant oublié : n'est pas donné
+- HUM-0146 Une ligne inconnue dans un serveur : dans un serveur, on écrit
+- HUM-0147 Une connexion sans fournisseur : écrivez le fournisseur : connexion google
+- HUM-0148 Se connecter avec Google sans le permettre au serveur : demande la ligne « connexion google »
+- HUM-0148 Se connecter avec Apple sans le permettre au serveur : demande la ligne « connexion apple »
+- HUM-0077 Changer le mot de passe en dehors d’un événement : « changer le mot de passe » ne s'utilise que dans un événement
+- HUM-0149 Un champ image qui reçoit autre chose qu’une image : doit accepter seulement des images
+- HUM-0150 Deux cartes de fidélité : un serveur n'a qu'une seule « fidelite »
+- HUM-0151 Une carte sans récompense écrite : écrivez la récompense
+- HUM-0152 Une ligne inconnue dans une carte de fidélité : dans « fidelite », on écrit
+- HUM-0153 Un nombre sans le mot « tampon » : écrivez « tampon » ou « tampons »
+- HUM-0154 Une route qui prend l’adresse de la carte : le bloc « fidelite » sert déjà
+- HUM-0155 Une carte sur une donnée qui n’existe pas : la donnée « vente » n
+- HUM-0156 Une carte sur un champ absent : doit avoir un champ « numero » de type texte
+- HUM-0157 Une carte sans ligne de tampons : il manque la ligne qui donne les tampons
+- HUM-0158 Un nombre de tampons qui n’est pas un entier positif : le nombre de tampons doit être un entier positif
+- HUM-0159 Des tampons comptés sur une autre donnée : les tampons se comptent sur la donnée de l'en-tête
+- HUM-0160 Des tampons sans champ « statut » : doit avoir un champ « statut » de type texte
+- HUM-0161 Une carte sans ligne de récompense : il manque la ligne de la récompense
+- HUM-0158 Un objectif qui n’est pas un entier positif : « apres 2.5 tampons » : le nombre de tampons doit être un entier positif
+- HUM-0162 Lire une carte sans bloc fidelite : la route « fidelite » n'existe pas
+- HUM-0163 Lire la carte sans dire de quel client : on ne lit qu'une carte à la fois
+- HUM-0164 « avec id » sans « dans » : lit un seul élément : dites où le ranger
+- HUM-0165 « avec id » qui n’est pas un texte : « avec id » attend un texte
+- HUM-0166 Un bon téléchargé hors d’un événement : telecharger bon
+- HUM-0167 Un bon sans serveur : « telecharger bon » demande un serveur
+- HUM-0168 Un bon d’une donnée qu’aucune route ne lit : aucune route ne permet de lire la donnée « client »
+- HUM-0169 Un bon d’autre chose qu’une fiche de cette donnée : attend un « commande » lu sur sa route
+- HUM-0170 Un type de champ inconnu : n'est pas un type de champ
+- HUM-0171 Une règle qui ne dit pas qui peut agir : qui peut agir
+- HUM-0172 Une action inconnue dans une règle : n'est pas une action
+- HUM-0173 Une donnée déclarée deux fois : est déjà déclarée (ligne
+- HUM-0174 Un champ déclaré deux fois : le champ « nom » est déjà déclaré
+- HUM-0175 Deux routes à la même adresse : la route « produits » est déjà déclarée
+- HUM-0155 Une règle sur une donnée qui n’existe pas : n'existe pas dans le serveur
+- HUM-0176 Une route qui sert deux données : une route ne sert qu'une donnée
+- HUM-0177 Une action que personne ne peut faire : ces actions seront refusées
+- HUM-0178 Une donnée sans route : aucune route ne donne accès
+- HUM-0179 Un champ qui n’existe pas dans la donnée : n'existe pas dans la donnée
+- HUM-0180 Lire un champ sur autre chose qu’une donnée : on ne lit un champ
+- HUM-0181 Une requête vers une route qui n’existe pas : aucune route
+- HUM-0037 Un champ envoyé que la donnée ne connaît pas : n'a pas de champ
+- HUM-0182 Un champ envoyé du mauvais type : attend un nombre
+- HUM-0183 Une requête réservée aux utilisateurs connectés : il faut être connecté
+- HUM-0184 Une requête réservée à l’admin : seul un admin peut
+- HUM-0185 Une page cible qui n’existe pas : n'existe pas dans ce fichier
+- HUM-0186 Se connecter sans serveur : demande un serveur dans le même fichier
+- HUM-0187 Se connecter sans deux champs : attend deux champs de la page
+- HUM-0188 Le même champ deux fois : attend deux champs différents
+- HUM-0077 Se connecter en dehors d’un événement : ne s'utilise que dans un événement
+- HUM-0189 Une variable qui s’appelle « utilisateur » : le nom « utilisateur » est pris par la session
+- HUM-0190 Supprimer sans serveur : demande un serveur dans le même fichier : ajoutez
+- HUM-0191 Supprimer autre chose qu’une donnée : attend un « produit » lu sur cette route
+- HUM-0077 Supprimer en dehors d’un événement : « supprimer » ne s'utilise que dans un événement
+- HUM-0192 Un lien qui oublie le paramètre de la page : attend le paramètre
+- HUM-0193 Un paramètre que la page ne connaît pas : n'a pas de paramètre
+- HUM-0194 Un paramètre de page qui porte le nom d’une option : ne peut pas nommer un paramètre de page
+- HUM-0195 Des paramètres vers une page calculée : demande le nom de la page entre guillemets
+- HUM-0196 Une ligne qui n’existe pas dans une source : n'est pas une ligne d'une source
+- HUM-0197 Une session qui n’est pas celle des packs Astratra : « session » est suivi de « astratra »
+- HUM-0198 Une durée sans unité, ou un nombre qui n’en est pas un : une durée s'écrit avec un nombre entier et une unité
+- HUM-0199 Un jeton secret écrit dans le fichier : ne s'écrit jamais dans le fichier
+- HUM-0200 Un jeton ni public ni secret : après « jeton », écrivez
+- HUM-0172 Une règle de route qui n’en est pas une : n'est pas une action
+- HUM-0201 Une source sans adresse : n'a pas d'adresse
+- HUM-0202 Un nom pris deux fois dans les sources : est déjà déclarée
+- HUM-0203 Un en-tête d’identification écrit dans le fichier : voyagerait jusqu'au navigateur
+- HUM-0204 Une valeur qui ressemble à un secret : ressemble à un secret
+- HUM-0205 Un jeton secret sans serveur pour le garder : ne peut pas partir dans le navigateur
+- HUM-0206 Une route qui parle d’une donnée absente : n'existe pas dans la source
+- HUM-0207 « Qui peut » dans une source qui n’en a pas besoin : n'a de sens que pour une source à jeton secret
+- HUM-0208 Deux sources, ou une source et un serveur, qui donnent la session : une seule source peut donner la session
+- HUM-0209 Un jeton envoyé sans chiffrement : envoie un jeton en clair
+- HUM-0210 « filtrant par » sans source : demande la source visée
+- HUM-0211 Une source qui n’existe pas : aucune source « boutik »
+- HUM-0212 Lire et envoyer dans la même requête : ne lit et n'envoie pas à la fois
+- HUM-0213 Une route que la source ne connaît pas : dans la source « boutique ». Routes
+- HUM-0214 Une action que la route ne permet pas : ne dit pas
+- HUM-0215 Supprimer ou modifier autre chose qu’une donnée de la route : attend un « membre » lu sur cette route
+- HUM-0077 Recharger en dehors d’un événement : « recharger » ne s'utilise que dans un événement
+- HUM-0216 L’état d’une variable qui ne reçoit pas de requête : ne reçoit aucune requête vers une source
+- HUM-0217 Un champ qui parle d’une donnée absente : n'est ni un type (texte, nombre, booleen, date) ni une donnée de la source
+- HUM-0218 Une page réservée à personne : n'est pas déclaré
+- HUM-0219 Une adresse de page qui ne commence pas par / : doit commencer par /
+- HUM-0220 Deux pages à la même adresse : est déjà celle de la page
+- HUM-0221 Une page 404 avec une adresse, un paramètre ou une réservation : est la page 404
+- HUM-0222 Une page réservée sans session : demande une session
+- HUM-0223 Une page réservée qui ne sait pas où renvoyer les visiteurs : dites où envoyer les visiteurs
+- HUM-0224 Un en-tête de page dans le désordre : n'est pas à sa place
+- HUM-0225 Une sous-page dans une page qui n’existe pas : qui n'existe pas. Pages : commandes
+- HUM-0226 Une page dans elle-même : dans elle-même
+- HUM-0227 Des sous-pages qui tournent en rond : tournent pas en rond
+- HUM-0228 La page 404 comme sous-page : ne peut pas être une sous-page
+- HUM-0229 Un parent qui a un paramètre : le parent d'une sous-page n'a pas de paramètre
+- HUM-0230 Une adresse qui sort de celle du parent : ne commence pas par celle de son parent
+- HUM-0231 Une sous-page moins protégée que son parent : jamais moins
+- HUM-0232 Un parent sans « sous page » : pas d'endroit pour les montrer
+- HUM-0233 Un « sous page » dans une page sans sous-page : qui n'a aucune sous-page
+- HUM-0234 Deux « sous page » dans une page : fois dans la page
+- HUM-0235 Deux sous-pages d’index : sous-page d'index
+- HUM-0236 « sous page » dans un événement : est un endroit de la page, pas une action
+- HUM-0237 Un nom d’ancre qui n’est pas valable : n'est pas valable
+- HUM-0238 Deux ancres de même nom : est déjà utilisée dans la page
+- HUM-0239 Un lien vers une ancre qui n’existe pas : n'existe pas dans la page « carte »
+- HUM-0240 Un lien de l’en-tête ou du pied vers une ancre qui n’existe nulle part : n'existe dans aucune page
+- HUM-0241 Une page et un composant qui auraient le même nom : auraient le même nom dans le code produit
+- HUM-0242 Une adresse qui peut exécuter du code : est refusée
+- HUM-0243 Des paramètres de page sur une adresse externe : n'a pas de paramètres de page
+- HUM-0244 Des {…} dans le lien vers une page : ne s'écrivent que dans une adresse externe
+- HUM-0245 « nouvel onglet » sur autre chose qu’un lien : s'applique à un lien
+- HUM-0246 Une adresse lue dans une variable, ailleurs que sur un lien : (une adresse lue dans une variable) s'applique à un lien
+- HUM-0247 Un lien vers une variable qui n’est pas une adresse : un lien vers une variable attend une adresse en texte
+- HUM-0248 « avec valeur » sur un champ répété par « pour chaque » : ne s’écrit pas pour un champ placé dans « pour chaque »
+- HUM-0249 Une case à cocher qui part d’un texte : la valeur de départ d’une case à cocher est vrai ou faux
+- HUM-0250 Un champ qui part d’une liste ou d’une fiche : la valeur de départ d’un champ est un texte ou un nombre
+- HUM-0251 Des paramètres donnés à une adresse externe : demande une page
+- HUM-0252 « revenir vers » une page calculée : demande le nom de la page entre guillemets : revenir vers
+- HUM-0253 « revenir vers » une page qui n’existe pas : la page n'existe pas. Pages
+- HUM-0254 Un filtre qui porte le nom d’une option : ne peut pas nommer un filtre
+- HUM-0255 Un nom à la fois paramètre et filtre : à la fois un paramètre et un filtre
+- HUM-0256 « changer » sur un paramètre de page : un paramètre vient du chemin
+- HUM-0257 Un champ lu sur un filtre : il n'a pas de champs
+- HUM-0258 Une valeur du mauvais type pour un filtre : le filtre « tri » est un nombre
+- HUM-0259 Deux blocs site : un seul bloc « site »
+- HUM-0260 Le bloc site écrit après une page : avant les pages
+- HUM-0261 Deux blocs apercu dans une page : un seul bloc « apercu » par page
+- HUM-0262 Un bloc apercu dans un bloc ou un événement : « apercu » décrit toute la page
+- HUM-0263 Une ligne de site ou d’apercu qui ne commence pas par un mot : une ligne de ce bloc commence par
+- HUM-0264 « indexation » sans « non » ni « oui » : est suivi de « non »
+- HUM-0265 Une ligne inconnue dans le bloc site : n'est pas une ligne du bloc « site »
+- HUM-0266 Une ligne donnée deux fois dans le bloc site : est déjà donné dans le bloc « site »
+- HUM-0267 Une ligne inconnue dans le bloc apercu : n'est pas une ligne du bloc « apercu »
+- HUM-0268 Une ligne donnée deux fois dans le bloc apercu : est déjà donné dans le bloc « apercu »
+- HUM-0269 Une adresse de site sans https:// : doit commencer par https://
+- HUM-0270 « erreurs » sans sa durée dans le bloc site : « erreurs » est suivi de sa durée
+- HUM-0266 « erreurs » donné deux fois dans le bloc site : « erreurs » est déjà donné
+- HUM-0271 Une durée d’erreur hors de 1 à 60 secondes : une erreur reste affichée de 1 à 60 secondes
+- HUM-0272 Un site sans icône : le site n'a pas d'icône
+- HUM-0273 Une image de partage prise sur un autre site : est sur un autre site
+- HUM-0274 Un titre de page trop long : fait plus de 60 caractères
+- HUM-0275 Une description de page trop courte : fait moins de 50 caractères
+- HUM-0276 Une description de page trop longue : fait plus de 160 caractères
+- HUM-0277 Une page sans description : n'a pas de description
+- HUM-0278 Un aperçu de partage calculé : dépend de données
+- HUM-0279 Deux pages avec le même titre : ont le même titre
+- HUM-0280 Une animation sans nom : il manque le nom de l’animation
+- HUM-0281 « duree » ou « delai » sans animation : donne l’attente d’une animation
+- HUM-0282 « au defilement » sans animation : « au defilement » suit le nom d’une animation
+- HUM-0283 « en cascade » sur un simple élément : il s’écrit sur un bloc
+- HUM-0284 Un texte traduit et « sans traduction » : gardez l’un ou l’autre
+- HUM-0285 Une animation sur un champ : pas d’animation sur un champ
+- HUM-0286 Trop d’éléments animés au défilement : trop de mouvement
+- HUM-0287 Une image sans description : décrivez l’image pour les personnes
+- HUM-0288 Une image à la fois décrite et décorative : soit une description, soit « decoratif »
+- HUM-0289 Une description d’image vide : la description de l’image est vide
+- HUM-0290 Des proportions mal écrites : les proportions s’écrivent « largeur sur hauteur »
+- HUM-0291 Des proportions nulles : sont deux nombres entiers positifs
+- HUM-0292 Un format d’image que les navigateurs n’affichent pas : n’est pas une image que les navigateurs savent afficher
+- HUM-0293 Trop d’images prioritaires : au-delà de 2
+- HUM-0294 Une vidéo sans description : décrivez la vidéo pour les personnes qui ne la voient pas
+- HUM-0295 Une vidéo sans commandes : ajoutez « avec commandes »
+- HUM-0296 Un fichier vidéo d’un format inconnu : n’est pas une vidéo que les navigateurs savent jouer
+- HUM-0297 Un son sans description : décrivez le son pour les personnes qui ne le voient pas
+- HUM-0298 Une description de son vide : la description du son est vide
+- HUM-0299 Un son qui démarre tout seul : Humalis ne lance jamais un son tout seul
+- HUM-0300 Un fichier son d’un format inconnu : n’est pas un son que les navigateurs savent jouer
+- HUM-0301 De la parole sans transcription : ce son ressemble à de la parole
+- HUM-0302 Un choix de fichier sans type après « accepte » : il manque ce que le fichier peut être
+- HUM-0303 Une taille maximale sans unité : la taille maximale a une unité
+- HUM-0304 Un réglage qui n’existe pas pour un choix de fichier : ne se règle pas sur un choix de fichier
+- HUM-0305 Un choix de fichier sans libellé : le libellé du choix de fichier est vide
+- HUM-0306 Accepter un fichier SVG : le SVG n'est pas accepté
+- HUM-0307 Un type de fichier inconnu : n'est pas un type de fichier connu
+- HUM-0308 Une taille maximale nulle : la taille maximale est positive
+- HUM-0309 Un choix de fichier sans type : sans « accepte », tout fichier peut être choisi
+- HUM-0310 Un fichier choisi qu’on voudrait garder : un fichier choisi ne se garde pas
+- HUM-0311 Une variable qui ne peut pas recevoir un fichier : elle reçoit un fichier choisi
+- HUM-0312 L’aperçu d’un PDF : n'a pas d'aperçu
+- HUM-0313 Envoyer un fichier sans action de la personne : ne s'utilise que dans un événement
+- HUM-0314 Envoyer ce qui n’est pas un fichier choisi : n'est pas un fichier choisi
+- HUM-0315 Un corps brut avec un nom de champ : envoie le fichier seul, sans formulaire
+- HUM-0316 Envoyer un fichier au serveur du même fichier : ne reçoit pas de fichier
+- HUM-0211 Envoyer un fichier vers une source qui n’existe pas : aucune source « boutik »
+- HUM-0317 Envoyer un fichier vers une source à jeton secret : a un jeton secret
+- HUM-0318 Une route d’envoi qui n’est pas vérifiée : ne décrit pas ses routes
+- HUM-0213 Envoyer un fichier vers une route qui n’existe pas : aucune route « images »
+- HUM-0319 Envoyer un fichier vers une route qui ne l’accepte pas : ne dit pas « creer … »
+- HUM-0320 Une progression qui n’est pas un nombre : la progression est un nombre
+- HUM-0321 Un réglage inconnu sur une carte : ne se règle pas sur une carte
+- HUM-0322 Un réglage de carte sans valeur : il manque la valeur après « latitude »
+- HUM-0323 Un réglage inconnu sur un marqueur : ne se règle pas sur un marqueur
+- HUM-0324 Un réglage de marqueur sans valeur : il manque la valeur après « latitude »
+- HUM-0325 Une carte sans nom : le nom de la carte est vide
+- HUM-0326 Un marqueur sans nom : le nom du marqueur est vide
+- HUM-0327 Une position avec la latitude ou la longitude seule : une position s’écrit avec latitude et longitude ensemble
+- HUM-0328 Une latitude hors des bornes : la latitude 95 est hors des bornes
+- HUM-0329 Une longitude hors des bornes : la longitude 190 est hors des bornes
+- HUM-0330 Un zoom hors des bornes : le zoom 25 est hors des bornes
+- HUM-0331 Un zoom qui n’est pas un entier : le zoom est un nombre entier
+- HUM-0332 Une coordonnée qui n’est pas un nombre : la latitude est un nombre
+- HUM-0333 Une adresse de tuiles mal écrite : l’adresse des tuiles commence par https:// et contient {z}, {x} et {y}
+- HUM-0334 Des tuiles sans attribution : demandent son attribution
+- HUM-0335 Une attribution sans tuiles : l’attribution accompagne des tuiles
+- HUM-0336 Autre chose qu’un marqueur dans une carte : une carte ne contient que des marqueurs
+- HUM-0337 Une carte sans position ni marqueur : une carte sans position ni marqueur n’affiche rien
+- HUM-0338 Trop de marqueurs écrits à la main : marqueurs écrits dans cette carte
+- HUM-0339 Un marqueur hors d’une carte : un marqueur se place dans une carte
+- HUM-0340 Un marqueur sans position : le marqueur a besoin de sa position
+- HUM-0341 Les tuiles d’une carte viennent d’un fournisseur : cette carte appelle un fournisseur de tuiles
+- HUM-0342 Un graphique sans genre : il manque le genre du graphique
+- HUM-0343 Une série hors d’un graphique : « serie » se place dans un graphique en bloc
+- HUM-0344 Une option de graphique inconnue : n’est pas une option de graphique
+- HUM-0345 Autre chose qu’une série dans un graphique : chaque ligne est une série
+- HUM-0346 Un réglage de série inconnu : ne se règle pas sur une série
+- HUM-0347 Un graphique dans un événement : un graphique se place dans la page, pas dans un événement
+- HUM-0348 Un graphique sans liste : un graphique se fait à partir d’une liste
+- HUM-0349 Un graphique sans description : décrivez ce que montre le graphique
+- HUM-0350 Une description de graphique vide : la description du graphique est vide
+- HUM-0351 Une valeur sur la ligne et des séries : pas les deux
+- HUM-0352 Un camembert de plusieurs séries : un camembert montre une seule série
+- HUM-0353 Une couleur sur un camembert : les parts d’un camembert prennent chacune leur couleur
+- HUM-0354 Une couleur de série qui se voit mal : se voit mal sur le fond de la page
+- HUM-0355 Une devise inconnue : n’est pas une devise connue
+- HUM-0356 Des séries dans des unités différentes : dans la même unité
+- HUM-0357 Des proportions de graphique impossibles : deux nombres entiers positifs : « proportions 2 sur 1 »
+- HUM-0358 Des champs dans une liste de nombres : la liste ne contient que des nombres
+- HUM-0359 Des étiquettes qui ne sont pas des textes : « etiquettes » attend une liste de textes
+- HUM-0360 Pas autant d’étiquettes que de nombres : il en faut autant
+- HUM-0361 Un champ inconnu dans un graphique : n’est pas un champ des éléments de la liste
+- HUM-0362 « etiquettes » sur une liste de fiches : « etiquettes » sert à une liste de nombres
+- HUM-0363 Un graphique sans libellés : il manque le champ des libellés
+- HUM-0364 Un graphique sans valeurs : il manque le champ des valeurs
+- HUM-0365 Une série sans valeur : n’a pas de valeur
+- HUM-0366 Une valeur qui n’est pas un nombre : un graphique dessine des nombres
+- HUM-0367 Une part négative dans un camembert : un camembert ne montre pas de valeur négative
+- HUM-0368 Un camembert de trop de parts : au-delà de 8
+- HUM-0369 Trop de barres : au-delà de 40
+- HUM-0370 Une courbe d’un seul point : une courbe d’un seul point
+- HUM-0371 Des champs de graphique non vérifiés : ne sont connus qu’à l’exécution
+- HUM-0372 Une capture doit remplir une variable de fichier : elle reçoit un fichier
+- HUM-0373 Un service d’e-mails nommé dans le programme : « emails » s’écrit seul
+- HUM-0374 Une invitation ou un mot de passe oublié sans sa page : est suivi de la page qu'ouvre le lien
+- HUM-0375 Un lien par e-mail sans service d’e-mails : envoie un lien par e-mail
+- HUM-0376 Le lien ouvre une page qui n’existe pas : cette page n'existe pas
+- HUM-0377 Le lien ouvre une page qui attend une valeur : attend une valeur dans son adresse
+- HUM-0378 Les comptes ouverts à tout le monde : les comptes se réservent à un rôle
+- HUM-0378 Inviter ou modifier des comptes sans rôle : les comptes se réservent à un rôle
+- HUM-0379 « changer compte » sans « avec » : on écrit : changer compte de c avec telephone
+- HUM-0077 « changer compte » dans la page : « changer compte » ne s'utilise que dans un événement
+- HUM-0380 Un champ qui n’est pas sur le compte : n'est pas un champ du compte
+- HUM-0381 Un champ du compte qui existe déjà : existe déjà sur un compte
+- HUM-0382 Une valeur que l’action n’attend pas : n'attend pas « raison »
+- HUM-0383 Une valeur que l’action attend : il manque « montant »
+- HUM-0384 Un calcul qui n’en est pas un : un calcul est une somme, une moyenne
+- HUM-0385 Un calcul sans champ : quel champ ?
+- HUM-0386 Un calcul sur un champ qui n’est pas un nombre : doit être un champ nombre
+- HUM-0387 Une ligne de résumé mal écrite : dans un résumé, on écrit
+- HUM-0388 Un résumé sans calcul : est vide
+- HUM-0037 Un résumé regroupé par un champ inconnu : n'a pas de champ « oups »
+- HUM-0389 Un résumé sur une donnée inconnue : n'existe pas. Données
+- HUM-0390 Un résumé sur la donnée d’une autre route : ne peut pas lire « produit »
+- HUM-0391 Un résumé public sur une donnée séparée par groupe : est séparée par groupe : réservez ce résumé
+- HUM-0392 Un tableau de document mal écrit : on écrit : tableau de ligne
+- HUM-0393 Un tableau de document sur une donnée inconnue : n'existe pas. Données
+- HUM-0037 Une colonne qui n’existe pas : n'a pas de champ « oups »
+- HUM-0394 Un tableau entre fiches séparées différemment : Les deux doivent l'être de la même façon
+- HUM-0395 Deux « quand … est cree » dans une route : une route n'a qu'un seul « quand
+- HUM-0396 Un « quand » de route mal écrit : dans une route, on écrit
+- HUM-0397 La création d’une autre donnée : elle ne voit pas la création de
+- HUM-0148 « envoyer email » sans service d’e-mails : « envoyer email » demande la ligne
+- HUM-0398 Autre chose qu’un e-mail sous « quand … est cree » : sous « quand … est cree : », on écrit
+- HUM-0399 Un e-mail sans destinataire : à qui part cet e-mail
+- HUM-0400 Un e-mail sans sujet ou sans texte : dans cet e-mail
+- HUM-0401 Une adresse e-mail mal écrite : n'est pas une adresse e-mail
+- HUM-0402 Un destinataire qui n’est pas un champ de la fiche : le destinataire est un champ de
+- HUM-0403 Un visiteur choisit où part l’e-mail : vers l'adresse de son choix
+- HUM-0404 Un e-mail qui montre autre chose que la fiche : un e-mail montre les champs de la fiche créée
+- HUM-0405 Un rôle inconnu après « comme » : n'est pas déclaré
+- HUM-0406 Une demande de lien mal écrite : on écrit : demander un lien de mot de passe
+- HUM-0148 Une phrase des comptes sans sa ligne dans le serveur : demande la ligne « invitations vers
+- HUM-0407 Une règle de champ mal écrite : on écrit par exemple :
+- HUM-0408 « au depart » sans valeur : est suivi de la valeur que le serveur donne
+- HUM-0409 « par identifiant » sur autre chose que la lecture : ne vaut que pour la lecture
+- HUM-0410 « son compte » sur autre chose que la lecture ou la suppression : se lit ou se supprime
+- HUM-0411 « son compte » pour un visiteur : un visiteur n’a pas de compte
+- HUM-0412 La suppression de son compte réservée à un rôle : chaque personne connectée peut supprimer son propre compte
+- HUM-0413 « a la suppression du compte » suivi d’un autre mot : écrivez effacer, anonymiser ou garder
+- HUM-0414 « a la suppression du compte » écrite deux fois : est déjà écrite pour
+- HUM-0415 « a la suppression du compte » sur une donnée sans auteur : ne garde pas qui l’a écrite
+- HUM-0416 « supprimer mon compte » sans la route qui le permet : demande une route du serveur avec : connecte peut supprimer son compte
+- HUM-0077 « supprimer mon compte » hors d’un événement : « supprimer mon compte » ne s'utilise que dans un événement
+- HUM-0417 « inscription libre » mal écrite : on écrit : inscription libre comme client vers
+- HUM-0418 « inscription libre » écrite deux fois : « inscription libre » est déjà écrite
+- HUM-0419 L’inscription libre qui donnerait le rôle admin : ne donne jamais le rôle admin
+- HUM-0420 L’inscription libre sans service d’e-mails : envoie un lien de confirmation
+- HUM-0421 « creer mon compte » mal écrit : on écrit : creer mon compte avec
+- HUM-0148 « creer mon compte » ou « confirmer mon adresse » sans l’inscription libre : demande la ligne « inscription libre
+- HUM-0077 « creer mon compte » ou « confirmer mon adresse » hors d’un événement : ne s'utilise que dans un événement
+- HUM-0422 Un calcul qui lit une donnée inconnue : qui n'existe pas. Données
+- HUM-0423 Un calcul qui lit autre chose qu’un nombre : ce doit être un champ nombre.
+- HUM-0424 Une valeur « au depart » du mauvais type : ne convient pas à son type
+- HUM-0425 « du site » sur un champ sans adresse : vaut pour un texte, une image
+- HUM-0426 Un calcul dans un champ qui n’est pas un nombre : le champ doit être de type nombre
+- HUM-0427 Un plafond sans champ commun : doivent toutes deux avoir ce champ
+- HUM-0428 Un calcul sur autre chose qu’une liste : ce doit être un champ « liste de … »
+- HUM-0429 Une somme qui ajoute un champ impossible : qui n'est pas lui-même une somme
+- HUM-0430 Une fiche liée d’une donnée inconnue : cette donnée n'existe pas
+- HUM-0431 Une fiche liée avec un champ inconnu : n'a pas de champ
+- HUM-0432 Une fiche liée qui impose une valeur déjà décidée : le serveur donne déjà
+- HUM-0433 Une fiche liée qui lit une autre fiche : une fiche liée lit les champs de la fiche créée
+- HUM-0434 Une fiche liée incomplète : il manque
+- HUM-0435 L’identifiant va dans un mauvais champ : l'identifiant va dans un champ texte
+- HUM-0436 Une page envoie ce que le serveur décide : le serveur décide lui-même du champ
+- HUM-0437 Lire toute la liste d’une donnée lue par identifiant : ne se lit que par identifiant
+- HUM-0438 « non vide » sur un champ qui ne peut pas l’être : vaut pour un texte ou une liste
+- HUM-0439 « non vide » sur une valeur du serveur : non vide » ne sert à rien ici
+- HUM-0440 Ajouter à une liste une variable qui peut être rien : peut encore être rien ici
+- HUM-0441 Une condition sans « est » : après la première valeur
+- HUM-0442 Une condition mal écrite : on écrit par exemple : si facture.compte
+- HUM-0443 Un changement de rôle mal écrit : on écrit : changer role de c en
+- HUM-0077 Un changement de rôle dans la page : changer role
+- HUM-0444 Un visiteur qui écrirait dans une donnée séparée : un visiteur n'y appartient pas
+- HUM-0445 Une donnée séparée que tout le monde lit : sont publiques
+- HUM-0446 Une condition sur une autre donnée : cette règle parle de
+- HUM-0037 Une condition sur un champ inconnu : n'a pas de champ
+- HUM-0447 « est dans » sur autre chose qu’une liste : liste de
+- HUM-0448 Une fiche liée séparée autrement : Les deux doivent
+- HUM-0449 Un « faire » sans sa fiche : on écrit : faire
+- HUM-0077 Un « faire » dans la page : faire
+- HUM-0450 Une action qui n’existe pas : aucune action « oups »
+- HUM-0451 Deux actions du même nom : est déjà écrite
+- HUM-0452 Une action sur la donnée d’une autre route : ne peut pas agir sur
+- HUM-0453 Une action ouverte à tout le monde : réservez-la à des comptes connectés
+- HUM-0454 Une condition sur un champ de compte que rien n’écrit : restera fausse
+- HUM-0455 Une notification sans destinataire : à qui part cette notification
+- HUM-0456 Une notification sans titre ou sans texte : dans cette notification
+- HUM-0457 Deux documents du même nom : est déjà écrit
+- HUM-0458 Un document vide : est vide
+- HUM-0077 Un téléchargement de document dans la page : telecharger document
+- HUM-0459 Un document qui n’existe pas : aucun document « oups »
+- HUM-0460 Un « faire » sur autre chose qu’une fiche : attend une fiche
+- HUM-0077 Activer les notifications dans la page : activer notifications
+- HUM-0461 Un service d’IA nommé dans le programme : « ia » s’écrit seul
+- HUM-0462 Une ancienne forme qui nomme un service : s'écrit maintenant « ia »
+- HUM-0463 Le droit de l’IA écrit dans une route : directement dans le serveur
+- HUM-0464 Un droit mal écrit après « demander » : on écrit : connecte peut demander a ia
+- HUM-0465 Une question sans sa variable : on écrit : demander a ia
+- HUM-0466 Une IA que personne n’a le droit d’interroger : dites qui peut la poser
+- HUM-0148 Un droit sur une IA non réglée : demande la ligne « ia »
+- HUM-0467 Une IA ouverte à tout le monde : réservez-la à des comptes connectés
+- HUM-0077 Une question à l’IA dans la page : demander a ia
+- HUM-0148 Une question sans IA dans le serveur : demande la ligne « ia »
+- HUM-0468 Un service de paiement nommé dans le programme : « paiements » s’écrit seul
+- HUM-0395 Deux « quand … est payee » dans une route : qu'un seul « quand … est payee »
+- HUM-0148 Un paiement sans service : demande la ligne « paiements »
+- HUM-0469 Un paiement sur la donnée d’une autre route : elle ne voit pas le paiement
+- HUM-0077 Un paiement lancé dans la page : payer
+- HUM-0470 « payer » sur autre chose qu’une fiche payable : attend une fiche
+- HUM-0471 « payer » un champ qui n’est pas un nombre : ce doit être un champ nombre
+- HUM-0472 Une action mal écrite : on écrit : seul gerant peut faire
+- HUM-0473 Une tâche planifiée mal écrite : on écrit : tous les jours a 7 h
+- HUM-0474 Une tâche sans heure : à quelle heure ?
+- HUM-0475 Une heure qui n’existe pas : n'est pas une heure
+- HUM-0476 Une heure sans « h » : écrivez « h »
+- HUM-0477 Des minutes qui n’existent pas : n'est pas un nombre de minutes
+- HUM-0478 Un compte dans une tâche planifiée : une tâche planifiée tourne sans personne connectée
+- HUM-0479 Une ligne de document mal écrite : dans un document, on écrit
+- HUM-0480 Un « pour chaque » mal écrit sur le serveur : on écrit : pour chaque c dans commande
+- HUM-0481 Un « changer » mal écrit : on écrit : changer commande.statut par
+- HUM-0482 Une instruction inconnue sur le serveur : sur le serveur, on écrit « si »
+- HUM-0483 Un nom inconnu dans une valeur du serveur : « oups » n'existe pas ici
+- HUM-0037 Un champ inconnu dans une valeur du serveur : n'a pas de champ « oups »
+- HUM-0484 Une accolade sans champ sur le serveur : on montre le champ d'une fiche
+- HUM-0485 Une valeur que le serveur ne comprend pas : une valeur est un texte, un nombre
+- HUM-0486 Une notification pour un rôle non déclaré : n'est pas déclaré
+- HUM-0393 Un « pour chaque » sur une donnée inconnue : n'existe pas. Données
+- HUM-0037 Un filtre sur un champ inconnu : n'a pas de champ « oups »
+- HUM-0483 Une fiche que l’action ne connaît pas : « oups » n'existe pas ici
+- HUM-0487 Changer le groupe d’une fiche : on ne le change pas
+- HUM-0430 Créer une fiche d’une donnée inconnue : cette donnée n'existe pas
+- HUM-0488 Créer une fiche avec un champ inconnu : la donnée n'a pas de champ « oups »
+- HUM-0434 Créer une fiche sans tous ses champs : il manque « total »
+- HUM-0489 Créer une fiche séparée sans savoir pour quel groupe : aucune fiche ici n'indique lequel
+- HUM-0148 Un e-mail sans service d’e-mails : demande la ligne « emails »
+- HUM-0490 Une action sur une donnée inconnue : n'existe pas dans le serveur
+- HUM-0393 Un document sur une donnée inconnue : n'existe pas. Données
+- HUM-0491 Un « refuser » après un paiement : le paiement est déjà fait
+- HUM-0492 Un champ « auteur » écrit à la main : est rempli par le serveur avec le compte qui crée la fiche
+- HUM-0493 Un nom de champ réservé : ce nom est réservé par le serveur
+- HUM-0494 Une route dont le nom n’est pas une adresse : ne peut pas servir d’adresse à une route
+- HUM-0495 Un serveur dont le nom contient un signe interdit : ne peut pas nommer un serveur
+- HUM-0496 Deux règles pour la même action : seule la dernière compte
+- HUM-0497 Tout le monde peut modifier ou supprimer : un visiteur sans compte peut
+- HUM-0498 Deux services qui gardent chacun leurs comptes : gardent chacun leurs comptes
+- HUM-0499 Une limite à moitié écrite : cette limite n’est pas complète
+- HUM-0500 Une limite qui ne va pas avec le type du champ : limitent un nombre ; ce champ est
+- HUM-0501 Une longueur qui n’est pas un nombre entier : est un entier, 1 ou plus
+- HUM-0502 Une limite basse plus grande que la haute : dépasse la limite haute
+- HUM-0503 La même valeur deux fois après « parmi » : cite deux fois
+- HUM-0504 Une valeur de départ que la limite refuse : ne respecte pas sa limite
+- HUM-0505 Une fiche de départ que la limite refuse : donnees de depart pour produit : « nom » doit avoir
+- HUM-0506 Une durée oubliée : il manque une durée
+- HUM-0507 Une durée sans unité : il manque l’unité de la durée
+- HUM-0508 Une durée qui n’est pas un nombre : une durée est un nombre suivi de son unité
+- HUM-0509 Une durée de zéro : une durée doit être plus grande que zéro
+- HUM-0510 Un message de réussite dans la page : s’affiche dans un événement (quand …)
+- HUM-0511 Un message trop court ou trop long : un message reste affiché de 1 à 60 secondes
+- HUM-0512 Une erreur trop vite effacée : c’est trop court pour lire une erreur
+- HUM-0513 « pendant » et « sans disparaitre » ensemble : se contredisent
+- HUM-0514 Le bouton d’un message qui ne fait rien : du message ne fait rien
+- HUM-0515 Le bouton d’un message sans texte : le bouton d’un message a besoin d’un texte
+- HUM-0516 Un message à bouton dans une minuterie : un message avec un bouton, dans une minuterie
+- HUM-0517 Une minuterie de page cachée dans un bloc : une minuterie de la page s’écrit au premier niveau
+- HUM-0518 Une minuterie trop rapide : plus de quatre fois par seconde
+- HUM-0519 Une minuterie de moins d’une seconde : moins d’une seconde
+- HUM-0520 « tant que » après « apres » : ne passe qu’une fois
+- HUM-0521 Une minuterie qui ne fait rien : cette minuterie ne fait rien
+- HUM-0522 Une minuterie au survol : repart à chaque passage du pointeur
+- HUM-0523 Une page qui change toute seule, sans pause : cette page se met à jour toute seule
+- HUM-0524 « copier » ou « partager » dans la page : demande un geste de la personne
+- HUM-0525 « copier » ou « partager » sans geste : personne n’a rien demandé, et le navigateur le refuserait
+- HUM-0526 « copier » après une attente : après une attente
+- HUM-0527 « noter » directement dans la page : s’écrit dans un événement, une fonction ou une action
+- HUM-0528 Copier une liste : « copier » attend un texte ou un nombre
+- HUM-0529 Un message de copie vide : le message de « copier » est vide
+- HUM-0530 Une option inconnue de « partager » : après « partager … avec », on écrit
+- HUM-0077 Une fonction de l’appareil dans la page : « vibrer » ne s'utilise que dans un événement
+- HUM-0531 Un début d’adresse réservé : « https » ne peut pas servir de début d’adresse
+- HUM-0532 Deux fois les liens profonds : « liens profonds » ne s’écrit qu’une fois
+- HUM-0533 « vrai » ou « faux » à la place d’une condition : seul n’est pas une condition
+- HUM-0534 Une boucle dont la condition ne change jamais : compare deux valeurs écrites
+- HUM-0535 Une répétition démesurée : fige la page pendant la boucle
+- HUM-0536 Un nombre entier trop grand : trop grand pour être gardé au chiffre près
+- HUM-0537 Une liste qui mélange des genres de valeurs : cette liste mélange
+- HUM-0538 Des mises à jour sans « depuis » : après « mises a jour », « depuis » puis l’adresse
+- HUM-0539 Des mises à jour sans adresse : il manque l’adresse entre guillemets
+- HUM-0540 Une adresse de mises à jour qui n’est pas sûre : ne convient pas pour des mises à jour
+- HUM-0532 Deux adresses de mises à jour : « mises a jour depuis » ne s’écrit qu’une fois
+- HUM-0541 Des onglets sans onglet : attend au moins un onglet
+- HUM-0542 Une ligne inattendue sous un composant : on écrit ici
+- HUM-0543 Un menu sans page : demande au moins une page
+- HUM-0544 Une table sans colonne lisible : attend des colonnes
+- HUM-0545 Un domaine mal écrit : n’est pas un domaine
+- HUM-0546 La position dans une tâche en arrière-plan : demande la personne devant l’écran
+- HUM-0547 Une tâche en arrière-plan dans une boucle : s’écrit directement dans la page
+- HUM-0548 Une position rangée dans un nombre : elle reçoit une position
+- HUM-0549 « hors ligne » sur une lecture : « hors ligne » se met sur un envoi
+- HUM-0550 « hors ligne » vers une API externe : ne marche qu’avec une route du serveur
+- HUM-0551 Une photo rangée dans un nombre : elle reçoit une photo
+- HUM-0552 Un code ou une signature rangés dans un nombre : qui est un texte
+- HUM-0553 « confirmer » dans la page : pose une question à la personne
+- HUM-0554 « confirmer » sans geste : personne n’a rien demandé à ce moment-là
+- HUM-0555 Une question dans le bouton d’un message : pas de « confirmer » dans le bouton d’un message
+- HUM-0556 Un bouton de question sans texte : de la question n’a pas de texte
+- HUM-0557 Deux boutons pareils : les deux boutons de la question s’appellent
+- HUM-0558 Une question sans suite : sans rien à faire si la personne répond oui
+- HUM-0559 Trois questions de suite : trois questions de suite
+- HUM-0560 Une option inconnue de « confirmer » : après « confirmer … avec », on nomme les boutons
+- HUM-0561 Une fenêtre créée dans un événement : une fenêtre ne se crée pas dans un événement
+- HUM-0562 Une fenêtre dans une fenêtre : une fenêtre dans une fenêtre
+- HUM-0563 Une fenêtre sans titre : une fenêtre a besoin d’un titre
+- HUM-0564 Une fenêtre qui ne s’ouvre jamais : ne s’ouvre jamais
+- HUM-0565 Une fenêtre obligatoire sans issue : est obligatoire, et rien ne la ferme
+- HUM-0566 Deux fenêtres du même nom : deux fenêtres s’appellent
+- HUM-0567 Une option inconnue de fenêtre : n’est pas une option de fenêtre
+- HUM-0568 Une touche qui n’existe pas : n’existe pas dans « ctrl+k »
+- HUM-0569 Une touche gardée par le navigateur : est souvent gardé par le navigateur
+- HUM-0570 Un raccourci d’une seule lettre : un raccourci d’une seule lettre
+- HUM-0571 Un raccourci déjà pris : est déjà pris dans cette page
+- HUM-0572 Un raccourci sur un texte : s’applique à un bouton, un lien ou un champ
+- HUM-0573 Suivre la frappe d’un champ répété : suit un seul champ
+- HUM-0574 Suivre la frappe d’une case à cocher : on ne tape pas dans
+- HUM-0575 Une pause de frappe dans une variable : la pause d’une frappe s’écrit en chiffres
+- HUM-0576 Une pause de frappe trop courte ou trop longue : la pause d’une frappe va de 100 millisecondes à 5 secondes
+- HUM-0577 Un mot de passe envoyé à chaque touche : ne doit pas partir sur le réseau à chaque touche
+- HUM-0578 Une requête à chaque touche : envoie une requête à chaque touche
+- HUM-0579 Suivre un champ qui n’existe pas : aucun champ « rechercher »
+- HUM-0580 Le bas atteint, mais rien ne grandit : rien ne grandit quand le bas est atteint
+- HUM-0581 Une condition que rien ne change : il ne s’arrêtera pas tout seul
+- HUM-0582 Un défilement infini sans bouton : sans bouton « Voir plus »
+- HUM-0583 Deux blocs du même nom : est déjà donné à un bloc
+- HUM-0584 Le bas d’un bloc qui n’existe pas : aucun bloc nommé « catalogue »
+- HUM-0585 Deux « arrive en bas de » pour un bloc : a déjà son « arrive en bas de »
+- HUM-0586 « avec deplacement » dans un événement : pas dans un événement
+- HUM-0587 Déplacer les éléments d’un calcul : on ne peut déplacer que les éléments d’une liste écrite dans une variable
+- HUM-0588 Deux boucles déplaçables pour une liste : a déjà une boucle avec deplacement
+- HUM-0589 Un champ dans une liste déplaçable : un champ dans une liste qu’on déplace
+- HUM-0590 Un ordre que personne ne change : personne ne déplace rien dans
+- HUM-0591 Une vue écrite à la main pour une plateforme inconnue : une vue écrite à la main se donne pour
+- HUM-0592 Le fichier natif n’est pas dans la bonne langue : la vue s'écrit en
+- HUM-0593 La même plateforme donnée deux fois : est donné deux fois
+- HUM-0594 Un paquet Android mal nommé : n'est pas un paquet Gradle
+- HUM-0595 Un paquet Windows mal nommé : n'est pas un nom de paquet NuGet
+- HUM-0596 Un numéro de version illisible : n'est pas un numéro de version
+- HUM-0597 Un style natif sans sa plateforme : est un style écrit en
+- HUM-0259 Deux blocs « langues » : un seul bloc « langues »
+- HUM-0260 Le bloc « langues » après les pages : le bloc « langues » s'écrit en haut du fichier
+- HUM-0598 Une langue entre guillemets : une ligne du bloc « langues » est le nom d'une langue
+- HUM-0599 Une langue entre guillemets sur la ligne « langues : » : après « langues : », on attend le nom d'une langue
+- HUM-0600 Deux langues sans virgule : séparez les langues par des virgules
+- HUM-0601 Une virgule en fin de ligne des langues : après la virgule, il manque le nom d'une langue
+- HUM-0602 Des langues sur la ligne et en dessous : soit sur la ligne, soit en dessous
+- HUM-0603 Une langue que Humalis ne connaît pas : n'est pas une langue connue de Humalis
+- HUM-0604 Une langue pas encore disponible : n'est pas encore disponible
+- HUM-0605 Une adresse par langue mal écrite : avec adresse par langue
+- HUM-0606 Une langue écrite deux fois : est déjà dans le bloc « langues »
+- HUM-0607 Un bloc « langues » vide : le bloc « langues » est vide
+- HUM-0608 Une version sans bloc « langues » : mais le fichier ne déclare pas ses langues
+- HUM-0609 Une version dans une langue non déclarée : n'est pas dans le bloc « langues »
+- HUM-0610 Une version dans la langue des textes : la version à ajouter est celle d'une autre langue
+- HUM-0611 Deux versions de la même langue : pour le même texte
+- HUM-0612 Une version qui oublie une valeur : n'utilise pas {total}
+- HUM-0613 Une version dans les valeurs d’un choix : la valeur d'un choix est envoyée au serveur
+- HUM-0614 Un texte sans version : n'a pas de version anglaise
+- HUM-0615 Un bloc « traductions » sans bloc « langues » : le bloc « traductions » demande d'abord un bloc « langues : »
+- HUM-0616 Une traduction donnée deux fois : a déjà une version anglaise dans ce bloc
+- HUM-0617 Une traduction qui ne sert à rien : cette traduction ne sert à rien
+- HUM-0618 « selecteur de langue » sans bloc « langues » : « selecteur de langue » demande un bloc « langues : »
+- HUM-0619 « changer langue par » une langue non déclarée : attend une langue du bloc « langues »
+- HUM-0620 Une variable qui s’appelle « langue » : « langue » est la langue choisie par la personne (« si langue est anglais »
+- HUM-0621 « langue » sans bloc « langues » : déclarez d'abord les langues en haut du fichier
+- HUM-0622 Une variable dans un texte qui n’en accepte pas : n'accepte pas de « {variable} »
+- HUM-0623 Une extension sans son point : n’est pas une extension de fichier
+- HUM-0624 Une liste sans son titre : il manque « titre » et le champ à montrer
+- HUM-0625 Un widget actualisé en secondes : un widget s’actualise en minutes ou en heures
+- HUM-0626 Un widget actualisé trop souvent : au plus toutes les 15 minutes
+- HUM-0627 Une taille de widget inconnue : n’est pas une taille de widget
+- HUM-0628 Une ligne qui n’est pas un raccourci : chaque ligne est un raccourci
+- HUM-0629 Un raccourci qui n’ouvre rien : un raccourci ouvre une page
+- HUM-0630 Le lancement au démarrage mal écrit : lancer au demarrage de l’ordinateur
+- HUM-0631 Un résultat de recherche qui n’ouvre rien : un résultat de recherche ouvre une page
+- HUM-0632 Une mini-application à deux pages : une mini-application montre une seule page
+- HUM-0633 Une mini-application vide : une mini-application montre une page
+- HUM-0634 Une voiture sans sa liste : l’écran de voiture montre une liste :
+- HUM-0635 Une voiture vide : liste livraisons avec titre adresse et texte client
+- HUM-0636 Un menu clic droit sans ses fichiers : il manque « les fichiers »
+- HUM-0637 Une ligne qui n’est pas une touche : chaque ligne est une touche
+- HUM-0638 Une touche qui n’écrit rien : il manque « ecrit "…" »
+- HUM-0639 Un clavier sans touche : un clavier a au moins une touche
+- HUM-0640 Le partage reçu mal écrit : on écrit : quand on partage vers l’application
+- HUM-0641 Le partage reçu écrit deux fois : est déjà écrit ligne
+- HUM-0642 Le fichier ouvert mal écrit : on écrit : quand on ouvre un fichier
+- HUM-0643 Le bouton de notification mal écrit : dans une notification :
+- HUM-0644 Une forme qui ouvre une page inconnue : la page « compte » n'existe pas
+- HUM-0645 Deux formes du même nom : est déjà écrit ligne 1 : donnez-lui un autre nom
+- HUM-0646 Une liste qui n’existe pas hors d’une page : n'est ni une variable partagée ni une source
+- HUM-0647 Trop de raccourcis sur l’icône : au plus quatre raccourcis
+- HUM-0648 Une activité en direct non déclarée : n'est pas déclarée : écrivez en haut du fichier « activite en direct
+- HUM-0649 Un bouton de notification que personne n’envoie : aucune notification du serveur n'a de bouton
+- HUM-0077 Une activité commencée hors d’un événement : « commencer activite » ne s'utilise que dans un événement
+- HUM-0077 « dire » hors d’un événement : « dire » ne s'utilise que dans un événement
+- HUM-0650 Trop de boutons sur une notification : une notification a au plus trois boutons
+- HUM-0651 Une donnée locale sans champ : une donnée locale a au moins un champ
+- HUM-0652 Une synchronisation vers une route inconnue : n'existe pas dans le serveur : une donnée locale se synchronise
+- HUM-0653 Un champ local absent du serveur : la synchronisation l'y enverrait pour rien
+- HUM-0654 Un champ local d’un autre type : n'a pas le même type que dans la donnée
+- HUM-0655 Un champ du serveur absent de la donnée locale : le serveur refuserait chaque nouvelle fiche
+- HUM-0148 Une clé d’accès que le serveur n’ouvre pas : demande la ligne « connexion par cle d'acces »
+- HUM-0077 Une clé d’accès hors d’un événement : « se connecter par cle d'acces » ne s'utilise que dans un événement
+- HUM-0656 Une discussion sans ses rôles : il manque « entre » et les rôles
+- HUM-0657 Un rôle oublié : il manque le nom d’un rôle
+- HUM-0658 Trop de rôles dans une discussion : une discussion se fait entre un rôle ou deux
+- HUM-0659 Deux discussions du même nom : est déjà écrite : donnez-lui un autre nom
+- HUM-0660 Une salle sans ses rôles : il manque « pour » et les rôles
+- HUM-0661 « animee » sans « par » : il manque « par »
+- HUM-0662 Deux salles du même nom : est déjà écrite : donnez-lui un autre nom
+- HUM-0663 Une discussion dans un composant : s’écrit dans une page, pas dans un composant
+- HUM-0664 Ouvrir une discussion sans dire avec qui : il manque « avec » et la personne
+- HUM-0665 Une discussion non déclarée : n’est pas déclarée : écrivez dans le serveur discussion
+- HUM-0666 Une salle non déclarée : n’est pas déclarée : écrivez dans le serveur salle
+- HUM-0667 Un appel sans serveur : passent par le serveur
+- HUM-0668 Ouvrir une discussion qu’aucune page ne montre : aucune page ne montre la discussion
+- HUM-0077 Un geste de réunion hors d’un événement : ne s'utilise que dans un événement
+- HUM-0669 Un rôle non déclaré : qui n'est pas déclaré
+- HUM-0670 « par » sans le groupe : il manque le nom du groupe après « par »
+- HUM-0671 Un groupe qu’aucune donnée n’utilise : mais aucune donnée n'est rangée par
+- HUM-0672 Une discussion « par compte » : ne se sépare pas « par compte »
+- HUM-0673 Un « par » sans la taille du morceau : après « par », le nombre de fiches
+- HUM-0674 Un morceau trop petit, trop grand, ou pas entier : un morceau compte de 1 à 500 fiches
+- HUM-0675 « par 20 » sur une source : Une source se lit page par page
+- HUM-0676 Une lecture par morceaux qui envoie : une lecture par morceaux lit une liste
+- HUM-0677 Une lecture par morceaux sans liste pour la recevoir : il manque « dans » et la liste
+- HUM-0678 « par 20 » avec « en direct » : il ne va pas avec « par
+- HUM-0679 La même liste lue par morceaux de deux façons : de deux façons dans cette page
+- HUM-0680 Une suite demandée pour une liste lue d’un coup : demande une liste lue par morceaux dans cette page
+- HUM-0681 « charger la suite » sans dire de quelle liste : il manque le nom de la liste
+- HUM-0682 Une lecture par morceaux hors d’une page : s’écrit dans une page, pas dans un composant
+- HUM-0683 « par 20 » vers une adresse qui n’est pas une route du serveur : lit une route du serveur de ce fichier
+- HUM-0641 Une capture déjà écrite dans l’application : est déjà écrit ligne
+- HUM-0641 Une capture déjà écrite dans le serveur : est déjà écrit ligne
+- HUM-0684 La destination de la requête manque : on écrit : envoyer requete vers
+- HUM-0685 La requête exige HTTPS : adresse HTTPS complète
+- HUM-0686 Les champs de la requête manquent : demande des champs
+- HUM-0687 Un champ d’erreur inconnu : la capture ne connaît pas
+- HUM-0688 Un champ envoyé deux fois : est envoyé deux fois
+- HUM-0689 Un champ sensible envoyé : ne peut pas être envoyé
+- HUM-0690 Une valeur non sûre dans le rapport : n’envoie que erreur.message
+- HUM-0691 Une requête hors capture : s’écrit seulement dans
+- HUM-0692 Une action non disponible dans la capture : seules les requêtes HTTP
+- HUM-0641 « comptes du serveur » écrit deux fois : « comptes du serveur » est déjà écrit
+- HUM-0693 Un message reçu sans « signale » : on écrit : quand le serveur
+- HUM-0694 Un message reçu sans le nom de sa fiche : « avec » et le nom de la fiche reçue
+- HUM-0695 Un droit de service sans « peut » : on écrit : le serveur "commandes" peut lire produit
+- HUM-0696 Un droit d’action sans « sur » : peut faire "reserver" sur produit
+- HUM-0697 Un droit d’action avec un corps : sans deux-points ni corps
+- HUM-0698 Un droit de service sur une action qui n’existe pas : n'est pas une action. Actions possibles
+- HUM-0699 Une fiche d’un autre service lue sans identifiant : par son identifiant
+- HUM-0700 Une fiche d’un autre service lue sans nom : « dans » et le nom de la fiche lue
+- HUM-0701 Une action d’un autre service sans « sur » : on écrit : faire "reserver" sur produit du serveur
+- HUM-0702 Une action sans le service qui la fait : vise une action d'un autre service
+- HUM-0703 Un message sans fiche : « avec » et la fiche envoyée
+- HUM-0704 Un service qui n’existe pas dans le projet : n'existe pas dans le projet
+- HUM-0705 Un service qui s’appelle lui-même : vise un autre service
+- HUM-0706 Une route qu’un autre service n’a pas : n'a pas de route « articles »
+- HUM-0707 Une lecture sans personne et sans droit : personne n'est connecté : le serveur « commandes » lit
+- HUM-0483 Une action sur une fiche inconnue : « article » n'existe pas ici
+- HUM-0708 Une action sur une fiche d’un autre service : qui n'est pas au serveur « catalogue »
+- HUM-0709 Une action qu’un autre service n’a pas : n'a pas d'action « vendre »
+- HUM-0710 Une valeur que l’action n’attend pas : n'attend pas « remise »
+- HUM-0711 Une valeur attendue qui manque : attend « quantite »
+- HUM-0712 Une action sans personne et sans droit : personne n'est connecté : le serveur « commandes » fait
+- HUM-0713 Un message avec une fiche inconnue : on signale une fiche
+- HUM-0714 Un message dans un projet à un seul serveur : il n'y a qu'un serveur
+- HUM-0715 Une fiche d’un autre service changée ici : elle ne se change pas ici
+- HUM-0716 Un service qui s’écoute lui-même : ne s'écoute pas lui-même
+- HUM-0717 Un message que l’autre service ne signale jamais : ne signale jamais « commande-payee »
+- HUM-0718 Une route nommée avec le mauvais service : est celle du serveur « catalogue »
+- HUM-0719 « comptes du serveur » avec un seul serveur : le projet n'a qu'un serveur, qui garde lui-même ses comptes
+- HUM-0720 Un message reçu avec un seul serveur : signale … » : le projet n'a qu'un serveur
+- HUM-0720 Un droit de service avec un seul serveur : peut … » : le projet n'a qu'un serveur
+- HUM-0721 Deux services du même nom : est déjà déclaré (ligne
+- HUM-0722 Une route dans deux services : est déjà celle du serveur « comptes »
+- HUM-0723 Une donnée dans deux services : est déjà celle du serveur « comptes » : une donnée appartient
+- HUM-0724 Aucun service ne garde les comptes : l'un d'eux doit garder les comptes
+- HUM-0725 Deux services qui gardent leurs comptes : gardent chacun leurs comptes : un seul service
+- HUM-0726 Un service qui prend ses comptes chez lui-même : ne prend pas ses comptes chez lui-même
+- HUM-0727 Des comptes pris chez un service qui ne les garde pas : ne garde pas de comptes : il les prend chez
+- HUM-0728 Des comptes pris chez un autre que le gardien : les comptes sont gardés par
+- HUM-0729 Un réglage des comptes hors du service des comptes : s'écrit dans le serveur qui garde les comptes
+- HUM-0730 L’IA, les paiements ou la fidélité dans deux services : il est déjà dans « comptes »
+- HUM-0731 Un service qui se donne un droit à lui-même : a déjà tous les droits sur ses propres données
+- HUM-0732 Un droit de service sur une autre donnée : sert « produit », pas « commande »
+- HUM-0733 Un droit sur une action que la route n’a pas : n'a pas d'action « vendre ». Actions
+- HUM-0734 Un message que personne n’écoute : personne n'écoute « commande-validee »
+- HUM-0735 Écrire le bloc optimiste : en supposant que ça marche
+- HUM-0736 Fermer la phrase du bloc optimiste : deux-points après
+- HUM-0737 Placer le bloc dans un événement : ne sert que dans un événement
+- HUM-0738 Modifier seulement des variables locales : un élément ne se défait pas
+- HUM-0739 Faire suivre le bloc par une requête : demande une requête juste après
+- HUM-0740 Changer une donnée issue d’un fichier : vient d'un fichier
+- HUM-0740 Ajouter ou retirer dans un fichier lu : vient d'un fichier
+- HUM-0741 « est dans » sans liste : « est dans » cherche dans une liste
+- HUM-0742 « est dans » avec une liste d’un autre type : on ne peut pas chercher
+- HUM-0743 Une constante qu’on essaie de changer : est une constante
+- HUM-0744 « grouper » sur une liste simple : range une liste de fiches
+- HUM-0745 Une fonction d’actions qui s’appelle elle-même : s'appelle elle-même
+- HUM-0746 Une fonction d’actions appelée avec trop ou trop peu de valeurs : attend 1 valeur
+- HUM-0747 Une fonction de calcul écrite dans une page : s'écrit en haut du fichier
+- HUM-0748 Une fonction d’actions employée comme une valeur : fait des actions sans rendre de valeur
+- HUM-0749 Une fonction de calcul appelée seule sur une ligne : rend une valeur : emploie-la
+- HUM-0750 « essayer » écrit dans la page : « essayer » s'écrit dans un événement
+- HUM-0751 Une date attendue : une date s'écrit comme
+- HUM-0752 Un décalage de date sans nombre : attend un nombre ;
+- HUM-0753 « depuis » après autre chose qu’une date : « depuis » s'écrit après une date
+- HUM-0754 Un calcul partagé écrit après les pages : un calcul partagé s'écrit en haut du fichier
+- HUM-0755 Un calcul illisible entre accolades : que Humalis ne sait pas lire
+- HUM-0756 « en csv » sur autre chose qu’une liste : « telecharger … en csv » attend une liste
+- HUM-0166 « en csv » directement dans la page : telecharger … en csv
+- HUM-0757 « en direct » sur autre chose qu’une lecture : « en direct » se met sur une lecture
+- HUM-0758 Une lecture réservée à un rôle, depuis une page ouverte : seuls certains rôles peuvent

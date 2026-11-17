@@ -5803,6 +5803,7 @@ page "documentation_32" dans "documentation" adresse "/documentation/commandes" 
             rangee "`humalis verifier <file>`", "shows errors and warnings"
             rangee "`humalis verifier <file> --exigeant`", "also treats warnings as errors"
             rangee "`humalis verifier <file> --cible statique`", "also says what this target would refuse or ignore, without writing anything"
+            rangee "`humalis verifier <file> --json`", "the same messages as JSON, with a stable code, for AI agents"
             rangee "`humalis formater <file>`", "reformats the file"
             rangee "`humalis tester`", "runs the `*.test.humalis` tests"
             rangee "`humalis packs`", "says whether the Astratra packs have updates"
@@ -5818,6 +5819,31 @@ page "documentation_32" dans "documentation" adresse "/documentation/commandes" 
             Erreur, ligne 3 : le texte utilise {totl}, mais la variable « totl » n'est pas déclarée. Peut-être « total » ?
         texte "(Error, line 3: the text uses `{`totl`}`, but the variable \"totl\" is not declared. Perhaps \"total\"?)"
         texte "The \"Humalis\" VS Code extension shows them as you type, with highlighting, completion and hover help."
+        soustitre "For AI agents: --json"
+        texte "`humalis verifier boutique.humalis --json` (and `humalis compile … --json`) writes the messages as JSON on standard output, and nothing else; the exit code does not change, and without `--json` nothing changes."
+        code json :
+            {
+              "version": 1,
+              "fichier": "boutique.humalis",
+              "ok": false,
+              "diagnostics": [
+                {
+                  "fichier": "boutique.humalis",
+                  "ligne": 3,
+                  "colonne": null,
+                  "gravite": "erreur",
+                  "code": "HUM-0065",
+                  "message": "le texte utilise {totl}, mais la variable « totl » n'est pas déclarée. Peut-être « total » ?",
+                  "correction": { "remplace": "totl", "par": "total" }
+                }
+              ]
+            }
+        liste :
+            texte "`code`: a stable code per message (`HUM-0065`), the same from one version to the next. Two different messages never share a code; a retired code is never given again."
+            texte "`colonne` (column) is `null` when Humalis does not know it."
+            texte "`correction` is there only when Humalis knows it for certain: a misspelt name close to a known one, indentation, or an old form (`ia par anthropic` → `ia`). Elsewhere, no correction."
+            texte "`ok` is true when there is no error; it follows the exit code."
+        texte "The language server (`humalis editeur --stdio`) gives the same code to each diagnostic."
         soustitre "In your editor"
         texte "Humalis works in almost every editor. Each one shows errors as you type, hover help, completion, go to declaration, the file outline and formatting. They all rely on `humalis editeur --stdio`, the language server installed with Humalis (`npm install -g humalis`)."
         tableau "Editor, What you need" :
@@ -5839,6 +5865,7 @@ page "documentation_32" dans "documentation" adresse "/documentation/commandes" 
             rangee "`humalis verifier <fichier>`", "affiche les erreurs et les avertissements"
             rangee "`humalis verifier <fichier> --exigeant`", "traite aussi les avertissements comme des erreurs"
             rangee "`humalis verifier <fichier> --cible statique`", "dit aussi ce que cette cible refuserait ou ignorerait, sans rien écrire"
+            rangee "`humalis verifier <fichier> --json`", "les mêmes messages en JSON, avec un code stable, pour les agents d'IA"
             rangee "`humalis formater <fichier>`", "remet le fichier en forme"
             rangee "`humalis tester`", "lance les tests `*.test.humalis`"
             rangee "`humalis packs`", "dit si les packs Astratra ont des mises à jour"
@@ -5854,6 +5881,31 @@ page "documentation_32" dans "documentation" adresse "/documentation/commandes" 
             Erreur, ligne 3 : le texte utilise {totl}, mais la variable « totl » n'est pas déclarée. Peut-être « total » ?
         texte "Une erreur montre aussi la ligne de code en cause, avec un trait sous le mot fautif."
         texte "L'extension VS Code « Humalis » les affiche pendant que tu écris, avec la coloration, la complétion et le survol des mots."
+        soustitre "Pour les agents d'IA : --json"
+        texte "`humalis verifier boutique.humalis --json` (et `humalis compile … --json`) écrit les messages en JSON sur la sortie standard, et rien d'autre ; le code de sortie ne change pas, et sans `--json` rien ne change."
+        code json :
+            {
+              "version": 1,
+              "fichier": "boutique.humalis",
+              "ok": false,
+              "diagnostics": [
+                {
+                  "fichier": "boutique.humalis",
+                  "ligne": 3,
+                  "colonne": null,
+                  "gravite": "erreur",
+                  "code": "HUM-0065",
+                  "message": "le texte utilise {totl}, mais la variable « totl » n'est pas déclarée. Peut-être « total » ?",
+                  "correction": { "remplace": "totl", "par": "total" }
+                }
+              ]
+            }
+        liste :
+            texte "`code` : un code stable par message (`HUM-0065`), le même d'une version à l'autre. Deux messages différents n'ont jamais le même code ; un code retiré n'est jamais redonné."
+            texte "`colonne` vaut `null` quand Humalis ne la connaît pas."
+            texte "`correction` n'est là que quand Humalis la connaît avec certitude : un nom mal écrit proche d'un nom connu, l'indentation, ou une ancienne forme (`ia par anthropic` → `ia`). Ailleurs, pas de correction."
+            texte "`ok` est vrai quand il n'y a aucune erreur ; il suit le code de sortie."
+        texte "Le serveur de langage (`humalis editeur --stdio`) donne le même code à chaque diagnostic."
         soustitre "Dans ton éditeur"
         texte "Humalis s'écrit dans presque tous les éditeurs. Chacun montre les erreurs pendant que tu écris, le survol des mots, la complétion et le saut à la déclaration, le plan du fichier et la mise en forme. Tous s'appuient sur `humalis editeur --stdio`, le serveur de langage installé avec Humalis (`npm install -g humalis`)."
         tableau "Éditeur, Ce qu'il faut" :

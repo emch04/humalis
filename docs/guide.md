@@ -4304,6 +4304,7 @@ Les autres étapes : `remplir champ "email" avec "…"`, `aller vers "panier"`,
 | `humalis verifier <fichier>` | affiche les erreurs et les avertissements |
 | `humalis verifier <fichier> --exigeant` | traite aussi les avertissements comme des erreurs |
 | `humalis verifier <fichier> --cible statique` | dit aussi ce que cette cible refuserait ou ignorerait, sans rien écrire |
+| `humalis verifier <fichier> --json` | les mêmes messages en JSON, avec un code stable, pour les agents d'IA |
 | `humalis formater <fichier>` | remet le fichier en forme |
 | `humalis tester` | lance les tests `*.test.humalis` |
 | `humalis packs` | dit si les packs Astratra ont des mises à jour |
@@ -4349,6 +4350,41 @@ Une erreur montre aussi la ligne de code en cause, avec un trait sous le mot fau
 
 L'extension VS Code « Humalis » les affiche pendant que tu écris, avec la
 coloration, la complétion et le survol des mots.
+
+### Pour les agents d'IA : `--json`
+
+`humalis verifier boutique.humalis --json` (et `humalis compile … --json`) écrit les messages en JSON sur la
+sortie standard, et rien d'autre ; le code de sortie ne change pas, et sans `--json` rien ne change.
+
+```json
+{
+  "version": 1,
+  "fichier": "boutique.humalis",
+  "ok": false,
+  "diagnostics": [
+    {
+      "fichier": "boutique.humalis",
+      "ligne": 3,
+      "colonne": null,
+      "gravite": "erreur",
+      "code": "HUM-0065",
+      "message": "le texte utilise {totl}, mais la variable « totl » n'est pas déclarée. Peut-être « total » ?",
+      "correction": { "remplace": "totl", "par": "total" }
+    }
+  ]
+}
+```
+
+- `code` : un code stable par message (`HUM-0065`), le même d'une version à l'autre. Deux messages différents
+  n'ont jamais le même code ; un code retiré n'est jamais redonné.
+- `colonne` vaut `null` quand Humalis ne la connaît pas.
+- `correction` n'est là que quand Humalis la connaît avec certitude : remplacer `remplace` par `par`, la première
+  fois qu'il paraît sur la ligne. Seulement pour un nom mal écrit proche d'un nom connu, l'indentation (une
+  tabulation, ou un espace de trop ou de moins) et une ancienne forme (`ia par anthropic` → `ia`). Ailleurs,
+  pas de correction.
+- `ok` est vrai quand il n'y a aucune erreur ; il suit le code de sortie.
+
+Le serveur de langage (`humalis editeur --stdio`) donne le même code à chaque diagnostic.
 
 ### Dans ton éditeur
 
