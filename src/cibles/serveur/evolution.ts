@@ -111,7 +111,7 @@ const DONNEES = ${JSON.stringify(donnees)};
 const url = process.env.DATABASE_URL;
 const fichierSqlite = process.env.HUMALIS_BASE?.trim();
 if (!url && !fichierSqlite) {
-  console.error('Ni DATABASE_URL (PostgreSQL) ni HUMALIS_BASE (SQLite) : les données sont en mémoire et il n\\'y a rien à vérifier.');
+  console.error('Ni DATABASE_URL ni HUMALIS_BASE : les données sont en mémoire et il n\\'y a rien à vérifier.');
   process.exit(1);
 }
 if (!existsSync(fileURLToPath(new URL('../dist/src/humalis/verifier.js', import.meta.url)))) {
@@ -214,6 +214,19 @@ if (fichierSqlite) {
         ecriture.close();
       }
     }
+    conclure();
+  } catch (erreur) {
+    console.error('La vérification a échoué : ' + (erreur instanceof Error ? erreur.message : String(erreur)));
+    process.exit(1);
+  }
+  process.exit(fautes > 0 ? 1 : 0);
+}
+
+// MySQL ou MariaDB : la même lecture, par le module de cette base.
+if (/^(mysql|mariadb):\\/\\//i.test(url)) {
+  const { verifier } = await import('./bases/mysql.mjs');
+  try {
+    await verifier({ url, donnees: DONNEES, ouvrirCompte, pasDeTable, direEfface, retires, nettoyer });
     conclure();
   } catch (erreur) {
     console.error('La vérification a échoué : ' + (erreur instanceof Error ? erreur.message : String(erreur)));

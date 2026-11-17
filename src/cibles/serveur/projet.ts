@@ -1,5 +1,6 @@
 import { SQLITE, SYNCHRO_SQLITE } from './sqlite.js';
 import { MYSQL, SYNCHRO_MYSQL } from './mysql.js';
+import { EXPLOITATION_MYSQL } from './exploitation-bases.js';
 import { champsRendus, DEFAUTS_TS, LISEZMOI_EVOLUTION, verifierDonneesMjs } from './evolution.js';
 import { CODE_SANTE, CODE_SANTE_DEMARRAGE, codeArret, fichiersDeploiement, lisezmoiExploitation, restaurerMjs, sauvegarderMjs } from './exploitation.js';
 import { BORNES_TS, exempleDansLesBornes } from './bornes.js';
@@ -85,6 +86,7 @@ export function genererProjetServeur(complet: ServeurRI, options: OptionsServeur
   fichiers.set('scripts/sauvegarder.mjs', sauvegarderMjs(serveur));
   fichiers.set('scripts/verifier-donnees.mjs', verifierDonneesMjs(serveur, { camel, table: nomTable, schema: (donnee) => `SCHEMA_${simplifier(donnee).toUpperCase()}` }));
   fichiers.set('scripts/restaurer.mjs', restaurerMjs(serveur));
+  fichiers.set('scripts/bases/mysql.mjs', EXPLOITATION_MYSQL);
   for (const [chemin, contenu] of fichiersDeploiement(serveur)) fichiers.set(chemin, contenu);
   fichiers.set('.env.exemple', envExemple(serveur));
   fichiers.set('LISEZMOI.md', lisezmoi(serveur, options));
