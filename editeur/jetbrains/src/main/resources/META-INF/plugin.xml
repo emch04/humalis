@@ -1,5 +1,5 @@
 <idea-plugin>
-    <id>dev.humalis.intellij</id>
+    <id>dev.humalis</id>
     <name>Humalis</name>
     <vendor url="https://humalis.dev">emch04</vendor>
     <description><![CDATA[

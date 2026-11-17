@@ -43,7 +43,7 @@ sourceSets.main { resources.srcDir(copierMots) }
 
 intellijPlatform {
     pluginConfiguration {
-        id = "dev.humalis.intellij"
+        id = "dev.humalis"
         name = "Humalis"
         version = project.version.toString()
         ideaVersion {
@@ -53,6 +53,10 @@ intellijPlatform {
     }
     pluginVerification { ides { recommended() } }
 }
+
+// L'outil de vérification télécharge des extensions pour chaque IDE : dans le cache de Gradle (GRADLE_USER_HOME),
+// jamais dans le dossier personnel (~/.pluginVerifier).
+tasks.verifyPlugin { jvmArgs("-Dplugin.verifier.home.dir=${gradle.gradleUserHomeDir}/pluginVerifier") }
 
 tasks.test {
     // L'essai lance le vrai serveur : « humalis » doit être dans le PATH de Gradle.

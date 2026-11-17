@@ -21,7 +21,8 @@ class HumalisConnexion(project: Project) : OSProcessStreamConnectionProvider() {
         val ligne = GeneralCommandLine(commande?.path ?: "humalis", "editeur", "--stdio")
             .withEnvironment(EnvironmentUtil.getEnvironmentMap())
             .withCharset(Charsets.UTF_8)
-        project.basePath?.let { ligne.withWorkDirectory(it) }
+        // Un projet sans dossier sur le disque (projet par défaut, essai) : le serveur part du dossier courant.
+        project.basePath?.takeIf { File(it).isDirectory }?.let { ligne.withWorkDirectory(it) }
         commandLine = ligne
     }
 
