@@ -43,7 +43,7 @@ export const ENTREES_INTERACTIONS: EntreeVocabulaire[] = [
     cibles: ecran('fetch HTTPS borné', 'fetch HTTPS borné'),
     couvre: [],
     description: 'Dans « quand une erreur arrive », envoie des champs sûrs vers une adresse HTTPS.',
-    exemple: 'quand une erreur arrive :\n    envoyer requete vers "https://centrale.exemple.fr/v1/envoi" avec message = erreur.message\n' + PAGE('    titre "Accueil"'),
+    exemple: 'quand une erreur arrive :\n    envoyer requete vers "https://erreurs.exemple.fr/v1/envoi" avec message = erreur.message\n' + PAGE('    titre "Accueil"'),
   }),
   mot({
     mot: 'enregistrer', categorie: 'action', concept: 'action.enregistrerMedia',

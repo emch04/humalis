@@ -1241,7 +1241,7 @@ page "antiseche" a l'adresse "/antiseche" :
                     texte "Capturer une erreur" en anglais "Capture an error" avec style "aide-besoin"
                     code humalis :
                         quand une erreur arrive :
-                            envoyer requete vers "https://centrale.exemple.fr/v1/envoi" avec message = erreur.message et pile = erreur.pile
+                            envoyer requete vers "https://erreurs.exemple.fr/v1/envoi" avec message = erreur.message et pile = erreur.pile
         bloc avec ancre "medias" et style "aide-section" :
             soustitre "Médias" en anglais "Media"
             bloc avec style "aide-entrees" :
@@ -1283,7 +1283,7 @@ page "antiseche" a l'adresse "/antiseche" :
                     texte "La ligne Humalis d'une erreur" en anglais "The Humalis line of an error" avec style "aide-besoin"
                     code humalis :
                         quand une erreur arrive :
-                            envoyer requete vers "https://centrale.exemple.fr/v1/envoi" avec message = erreur.message et ligne = erreur.ligne et pile = erreur.pile
+                            envoyer requete vers "https://erreurs.exemple.fr/v1/envoi" avec message = erreur.message et ligne = erreur.ligne et pile = erreur.pile
                 bloc avec style "aide-entree" :
                     texte "L'inspecteur : variables, requêtes, droits refusés" en anglais "The inspector: variables, requests, denied permissions" avec style "aide-besoin"
                     code terminal :

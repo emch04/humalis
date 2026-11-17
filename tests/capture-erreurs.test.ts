@@ -7,7 +7,7 @@ import { verifierFormesPourLaCible } from '../src/cibles/formes.js';
 import { codeCaptureNavigateur, requetesCapture } from '../src/cibles/capture-erreurs.js';
 
 const SOURCE = `quand une erreur arrive :
-    envoyer requete vers "https://centrale.exemple.fr/v1/envoi" avec message = erreur.message et pile = erreur.pile
+    envoyer requete vers "https://erreurs.exemple.fr/v1/envoi" avec message = erreur.message et pile = erreur.pile
 page "accueil" :
     titre "Accueil"
 `;
@@ -22,7 +22,7 @@ describe('capture des erreurs', () => {
   it('lit la capture du serveur et sa requête HTTP', () => {
     const resultat = compiler(`serveur "api" :
     quand une erreur arrive :
-        envoyer requete vers "https://centrale.exemple.fr/v1/envoi" avec message = erreur.message et pile = erreur.pile
+        envoyer requete vers "https://erreurs.exemple.fr/v1/envoi" avec message = erreur.message et pile = erreur.pile
 page "accueil" :
     titre "Accueil"
 `);
@@ -93,7 +93,7 @@ describe('capture navigateur en exécution', () => {
 describe('serveur produit', () => {
   it('branche le processus, Express et une requête HTTPS bornée', async () => {
     const { genererProjetServeur } = await import('../src/cibles/serveur/projet.js');
-    const source = `serveur "api" :\n    quand une erreur arrive :\n        envoyer requete vers "https://centrale.exemple.fr/v1/envoi" avec message = erreur.message et pile = erreur.pile\npage "accueil" :\n    titre "Accueil"`;
+    const source = `serveur "api" :\n    quand une erreur arrive :\n        envoyer requete vers "https://erreurs.exemple.fr/v1/envoi" avec message = erreur.message et pile = erreur.pile\npage "accueil" :\n    titre "Accueil"`;
     const serveur = compiler(source).application!.serveurs[0]!;
     const fichiers = genererProjetServeur(serveur, { nom: 'Essai', source: 'essai.humalis' });
     const capture = fichiers.get('src/humalis/capture-erreurs.ts')!;
@@ -107,7 +107,7 @@ describe('serveur produit', () => {
 
 describe('les champs de la variable erreur', () => {
   it('« erreur.page » se lit, et « page » peut nommer un champ envoyé, dans une page comme sur le serveur', () => {
-    const envoi = 'envoyer requete vers "https://centrale.exemple.fr/v1/envoi" avec page = erreur.page et version = erreur.version';
+    const envoi = 'envoyer requete vers "https://erreurs.exemple.fr/v1/envoi" avec page = erreur.page et version = erreur.version';
     const source = `serveur "s" :\n    quand une erreur arrive :\n        ${envoi}\n    donnee note :\n        titre : texte\n    route "notes" :\n        connecte peut lire note\n        connecte peut creer note\n        connecte peut modifier note\n        connecte peut supprimer note\n\nquand une erreur arrive :\n    ${envoi}\n\npage "accueil" :\n    titre "Essai"\n`;
     const { diagnostics } = compiler(source);
     expect(diagnostics.filter((d) => d.gravite === 'erreur')).toEqual([]);

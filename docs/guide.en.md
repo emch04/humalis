@@ -4718,7 +4718,7 @@ Place this form at the top of the file. Its body receives `erreur.message`, `err
 
 ```humalis
 quand une erreur arrive :
-    envoyer requete vers "https://centrale.exemple.fr/v1/envoi" avec message = erreur.message et pile = erreur.pile
+    envoyer requete vers "https://erreurs.exemple.fr/v1/envoi" avec message = erreur.message et pile = erreur.pile
 ```
 
 The capture uses each target's native error hooks. Fatal Apple and Android errors are saved and sent on the next launch. The same form can appear inside `serveur "api" :`. HTTPS requests time out after three seconds; sending failures are swallowed, and the same error is limited to three reports per minute. Passwords, secrets, URL parameters, and form contents are not sent.

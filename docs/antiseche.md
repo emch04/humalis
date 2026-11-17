@@ -1362,7 +1362,7 @@ afficher "Prêt" pendant 3 secondes
 
 ```humalis
 quand une erreur arrive :
-    envoyer requete vers "https://centrale.exemple.fr/v1/envoi" avec message = erreur.message et pile = erreur.pile
+    envoyer requete vers "https://erreurs.exemple.fr/v1/envoi" avec message = erreur.message et pile = erreur.pile
 ```
 
 ## Médias | Media | medias
@@ -1408,7 +1408,7 @@ page "panier" :
 
 ```humalis
 quand une erreur arrive :
-    envoyer requete vers "https://centrale.exemple.fr/v1/envoi" avec message = erreur.message et ligne = erreur.ligne et pile = erreur.pile
+    envoyer requete vers "https://erreurs.exemple.fr/v1/envoi" avec message = erreur.message et ligne = erreur.ligne et pile = erreur.pile
 ```
 
 ### L'inspecteur : variables, requêtes, droits refusés | The inspector: variables, requests, denied permissions

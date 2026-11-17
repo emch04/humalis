@@ -6141,13 +6141,13 @@ page "documentation_34" dans "documentation" adresse "/documentation/capturer-le
         texte "Place this form at the top of the file. Its body receives `erreur.message`, `erreur.pile`, `erreur.ligne` (the Humalis line, `boutique.humalis:12`), `erreur.page`, and `erreur.version`."
         code humalis :
             quand une erreur arrive :
-                envoyer requete vers "https://centrale.exemple.fr/v1/envoi" avec message = erreur.message et pile = erreur.pile
+                envoyer requete vers "https://erreurs.exemple.fr/v1/envoi" avec message = erreur.message et pile = erreur.pile
         texte "The capture uses each target's native error hooks. Fatal Apple and Android errors are saved and sent on the next launch. The same form can appear inside `serveur "api" :`. HTTPS requests time out after three seconds; sending failures are swallowed, and the same error is limited to three reports per minute. Passwords, secrets, URL parameters, and form contents are not sent."
     sinon :
         texte "Placez cette forme en haut du fichier. Le bloc reçoit `erreur.message`, `erreur.pile`, `erreur.ligne` (la ligne Humalis, `boutique.humalis:12`), `erreur.page` et `erreur.version`."
         code humalis :
             quand une erreur arrive :
-                envoyer requete vers "https://centrale.exemple.fr/v1/envoi" avec message = erreur.message et pile = erreur.pile
+                envoyer requete vers "https://erreurs.exemple.fr/v1/envoi" avec message = erreur.message et pile = erreur.pile
         texte "La capture écoute les erreurs natives de chaque cible. Les erreurs fatales Apple et Android sont enregistrées puis envoyées au lancement suivant. Le serveur accepte la même forme dans `serveur "api" :`. Les envois HTTPS expirent après trois secondes, leurs échecs sont absorbés et une même erreur est limitée à trois rapports par minute. Les mots de passe, les secrets, les paramètres d’URL et le contenu des formulaires ne sont pas envoyés."
     ligne avec style "doc-suite" :
         lien "← 33. Ce que chaque cible sait faire" en anglais "← 33. What each target can do" vers "documentation_33"

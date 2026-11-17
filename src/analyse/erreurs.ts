@@ -1,7 +1,7 @@
 export interface Diagnostic {
   gravite: 'erreur' | 'avertissement';
   /** Famille facultative des vérifications de qualité et de publication. */
-  categorie?: 'accessibilite' | 'publication' | 'traduction' | 'surveillance';
+  categorie?: 'accessibilite' | 'publication' | 'traduction';
   /** Le message seul, sans le préfixe « Ligne n : ». */
   message: string;
   ligne: number;

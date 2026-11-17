@@ -4,7 +4,6 @@ const NOMS: Record<NonNullable<Diagnostic['categorie']>, string> = {
   accessibilite: 'd’accessibilité',
   publication: 'de publication',
   traduction: 'de traduction',
-  surveillance: 'de surveillance',
 };
 
 /** L'option exigeante ne concerne que les diagnostics des nouvelles familles. */

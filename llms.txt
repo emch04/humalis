@@ -167,7 +167,7 @@ En haut du fichier : reçoit chaque erreur non rattrapée de l’application, av
 
 ```humalis
 quand une erreur arrive :
-    envoyer requete vers "https://centrale.exemple.fr/v1/envoi" avec message = erreur.message et pile = erreur.pile
+    envoyer requete vers "https://erreurs.exemple.fr/v1/envoi" avec message = erreur.message et pile = erreur.pile
 
 page "accueil" :
     titre "Accueil"
