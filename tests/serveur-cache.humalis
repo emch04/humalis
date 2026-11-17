@@ -5,6 +5,8 @@ serveur "librairie" :
         prix : nombre
     donnee note par compte :
         texte : texte
+    donnee avis :
+        texte : texte
     route "livres" :
         tout le monde peut lire livre
         seul gerant peut modifier livre
@@ -17,6 +19,13 @@ serveur "librairie" :
         connecte peut lire note
         connecte peut creer note
         en cache pendant 2 ans
+    route "avis" :
+        tout le monde peut lire avis
+        connecte peut creer avis
+        seul son auteur peut modifier avis
+        en cache pendant 1 heure
+    route "moi" :
+        connecte peut lire et supprimer son compte
     tous les jours a 7 h :
         vider le cache de "livres"
         vider le cache de "meteo"

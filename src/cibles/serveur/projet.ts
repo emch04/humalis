@@ -1541,14 +1541,17 @@ function serveurTs(serveur: ServeurRI, chemins?: Map<string, string>, montageTem
       const cache = route.droits.lire === 'tout_le_monde' ? 'lecturePublique' : 'lecturePrivee';
       // « en cache pendant … » : après la garde des droits ; une copie par compte quand la réponse dépend de la personne.
       const parPersonne = separee || conditionsDe(route, 'lire').length > 0 || route.droits.lire === null;
-      const enCache = route.cache !== undefined ? `, cacheHumalis.lecture(${JSON.stringify(route.donnee)}, ${route.cache}${parPersonne ? ', personneDuCache' : ''})` : '';
+      const enCache = route.cache !== undefined ? `, cacheHumalis.lecture(${JSON.stringify(route.donnee)}, ${route.cache}, ${parPersonne ? 'personneDuCache' : 'undefined'})` : '';
+      // Une liste ne garde que les paramètres qu'elle comprend : ses champs, « limite » et « depuis ».
+      const parametresListe = [...donneeRoute.champs.map((c) => camel(c.nom)), 'limite', 'depuis'];
+      const enCacheListe = route.cache !== undefined ? `, cacheHumalis.lecture(${JSON.stringify(route.donnee)}, ${route.cache}, ${parPersonne ? 'personneDuCache' : 'undefined'}, ${JSON.stringify(parametresListe)})` : '';
       // Une écriture réussie vide, avant de répondre, les copies des données qu'elle change.
       const videes = [...new Set([route.donnee, ...(route.creations ?? []).map((c) => c.donnee)])].filter((d) => donneesEnCache(serveur).has(d));
       return `      // « ${route.adresse} » (ligne ${ligneLocale(route.ligne)}) — ${decrireDroits(route.droits)}.
       const ${variable} = express.Router();
 ${clesAnnoncees(serveur, route).length ? `      ${variable}.use(direct.apres(${JSON.stringify(clesAnnoncees(serveur, route))}));
 ` : ''}${videes.length ? `      ${variable}.use(cacheHumalis.ecriture(${JSON.stringify(videes)}));
-` : ''}${separee ? constantesSeparation(variable, donneeRoute, route) : ''}${route.synchronisee ? codeSynchroRoute(route, donneeRoute, variable, garde, separee ? codePortee(variable, 'lire') : '') : ''}${codeResumes(route, variable, separee, enCache)}${route.direct ? routeDirect(variable, garde('lire'), route.donnee, separee ? { separation: `separation${variable}`, regles: `regles${variable}.lire` } : undefined) : ''}      ${variable}.get('/', ${cache}, ${garde('lire')}${enCache}, async (req, res, next) => {
+` : ''}${separee ? constantesSeparation(variable, donneeRoute, route) : ''}${route.synchronisee ? codeSynchroRoute(route, donneeRoute, variable, garde, separee ? codePortee(variable, 'lire') : '') : ''}${codeResumes(route, variable, separee, enCache)}${route.direct ? routeDirect(variable, garde('lire'), route.donnee, separee ? { separation: `separation${variable}`, regles: `regles${variable}.lire` } : undefined) : ''}      ${variable}.get('/', ${cache}, ${garde('lire')}${enCacheListe}, async (req, res, next) => {
         try {
 ${separee ? codePortee(variable, 'lire') : ''}          // « ?produit=… » : seulement ce qui est demandé, pas toute la liste.
           const filtres = lireFiltres(${schema}, req.query as Record<string, unknown>);
@@ -1619,8 +1622,16 @@ ${avecAnnonces(serveur) ? "import { direct } from './humalis/direct.js';\n" : ''
 
 // Le cache suit les annonces : une écriture faite ici (action, tâche) le vide partout, une annonce reçue le vide ici.
 direct.suivre(cacheHumalis.annonceLocale, cacheHumalis.annonceDistante);
+cacheHumalis.relierAnnonces(direct.annonce);
 /** Ce qui sépare les copies d'une lecture qui dépend de la personne : son compte, ou le service qui appelle. */
-const personneDuCache = (req: unknown): string => String((req as { user?: { id?: unknown } }).user?.id ?? (req as { humalisService?: unknown }).humalisService ?? '');` : ''}
+const personneDuCache = (req: unknown): string => {
+  const moi = (req as { user?: Record<string, unknown> }).user;
+  const service = (req as { humalisService?: unknown }).humalisService;
+  if (!moi) return service === undefined ? '' : 'service:' + String(service);
+  // Son compte, son rôle et ses groupes : un changement de rôle ou de boutique donne une autre copie.
+  const stable = Object.entries(moi).filter(([nom]) => !['iat', 'exp', 'nbf', 'jti', 'sid'].includes(nom)).sort(([a], [b]) => (a < b ? -1 : 1));
+  return JSON.stringify(stable);
+};` : ''}
 import type { Coffre } from './humalis/coffre.js';
 ${comptes ? "import { creerComptes, refuserMotDePasseFaible, sansLesRetires } from './humalis/comptes.js';\n" : ''}${avecEmails(serveur) ? `import { creerEmails, ${envoisDansRoutes ? 'enTexte, ' : ''}type Emails } from './humalis/emails.js';\n` : ''}import { compresser } from './humalis/compresser.js';
 import { creerEnvoisMemoire, creerUnSeulEnvoi, type MagasinEnvois } from './humalis/envois.js';${avecSynchro(serveur) ? "\nimport { creerJournalMemoire, creerSynchro, type JournalSynchro } from './humalis/synchro.js';" : ''}${avecSecurite(serveur) ? "\nimport { creerMagasinSecuriteMemoire, creerSecurite, oublierCompte, type MagasinSecurite } from './humalis/securite.js';" : ''}${avecPaiements(serveur) ? "\nimport { creerPaiements, type SurPaiement } from './humalis/paiements.js';" : ''}${avecIa(serveur) ? "\nimport { compterMemoire, creerIa, type Compter } from './humalis/ia.js';" : ''}${avecNotifications(serveur) ? "\nimport { creerNotifications } from './humalis/notifications.js';" : ''}${serveur.documents?.length ? "\nimport { creerDocument } from './humalis/document.js';" : ''}${avecBon ? "\nimport { creerBon } from './humalis/bon.js';" : ''}${serveur.fidelite ? "\nimport { carteDeFidelite } from './humalis/fidelite.js';" : ''}
@@ -1884,7 +1895,7 @@ ${google}${avecSecurite(serveur) ? codeRoutesSecurite(serveur) : ''}
       };
       app.use('/auth/cles', authMiddleware, authorizeAdmin, csrfMiddleware, coffre ? coffre.routes(authorizeAdmin) : coffreFerme);
 
-${avecIa(serveur) ? routeIa(serveur) : ''}${avecNotifications(serveur) ? ROUTES_APPAREILS : ''}${codeCompleter(serveur)}${comptes ? codeRoutesComptes(serveur, adresseApi, (a) => `route${pascal(a)}`) : ''}${routes}${codePasserelles(serveur)}
+${avecCache(serveur) ? "      // Une écriture (action, paiement, message d'un autre service) attend, avant de répondre, les vidages du cache qu'elle a lancés.\n      app.use(cacheHumalis.ecriture());\n" : ''}${avecIa(serveur) ? routeIa(serveur) : ''}${avecNotifications(serveur) ? ROUTES_APPAREILS : ''}${codeCompleter(serveur)}${comptes ? codeRoutesComptes(serveur, adresseApi, (a) => `route${pascal(a)}`) : ''}${routes}${codePasserelles(serveur)}
 ${fidelite}${avecPaiements(serveur) ? codeSurPaiement(serveur) : ''}${codeTaches(serveur)}${montageTempsReel}      // Une erreur venue d'une ligne Humalis est écrite avec cette ligne dans le journal.
       app.use((erreur: unknown, req: express.Request, _res: express.Response, next: express.NextFunction) => { journaliserErreur(erreur, \`\${req.method} \${req.path}\`); next(erreur); });
 ${serveur.captureErreurs ? "      app.use((erreur: unknown, req: express.Request, _res: express.Response, next: express.NextFunction) => { void rapporterErreur(erreur, req.path); next(erreur); });\n" : ''}      // Le dernier avant la réponse d'erreur.
@@ -1961,7 +1972,7 @@ if (adresseBase !== null && genreBase === null) {
 let reglagesBase: ReturnType<typeof reglagesPostgres> | null = null;
 if (genreBase === 'postgres') {
   try {
-    reglagesBase = reglagesPostgres(adresseBase!);
+    reglagesBase = reglagesPostgres(adresseBase!, pg as never);
   } catch (erreur) {
     arreter('DATABASE_URL : ' + (erreur instanceof Error ? erreur.message : String(erreur)));
   }
@@ -1969,7 +1980,7 @@ if (genreBase === 'postgres') {
     console.warn("DATABASE_URL passe par un relais de connexions (« -pooler » ou port 6543) : en mode transaction, il coupe les annonces en direct entre exemplaires et les verrous. Donnez l'adresse directe de la base.");
   }
 }
-const pool = reglagesBase ? new pg.Pool(reglagesBase) : null;
+const pool = reglagesBase ? new pg.Pool(reglagesBase as pg.PoolConfig) : null;
 // Quand la base redémarre, elle coupe les connexions au repos : sans cette écoute, l'erreur ferait tomber le serveur.
 // Le pool en rouvre une à la requête suivante ; pendant la coupure, /sante répond 503 et les requêtes, 500.
 pool?.on('error', (erreur) => console.error('La base a coupé une connexion au repos : le serveur continue.', erreur.message));
@@ -3304,10 +3315,15 @@ ${lignes.join('\n')}
             const avecCorps = !['GET', 'HEAD', 'DELETE'].includes(req.method);
             if (avecCorps) entetes.set('content-type', 'application/json');
             const reponse = await fetch(url, { method: req.method, headers: entetes, body: avecCorps ? JSON.stringify(req.body ?? {}) : undefined, redirect: 'follow', signal: AbortSignal.timeout(15000) });
-            const texte = await reponse.text();${passerelles.some((p) => p.cache !== undefined) ? `
+            const texte = await reponse.text();
+            // Une API qui renvoie sa clé dans sa réponse : la réponse ne part pas, et ne se garde pas.
+            if (secret.length >= 8 && texte.includes(secret)) {
+              res.status(502).json({ erreur: "La réponse de l'API contenait sa clé : elle n'est pas transmise." });
+              return;
+            }${passerelles.some((p) => p.cache !== undefined) ? `
             if (config.cache && lecture?.lue && reponse.status === 200) void cacheHumalis.garder(config.cache.espace, req.originalUrl, JSON.stringify({ type: reponse.headers.get('content-type') ?? 'application/json', corps: texte }), config.cache.secondes, lecture.lue);
-            // Une écriture réussie par la passerelle : les lectures gardées de la source ne servent plus.
-            if (config.cache && req.method !== 'GET' && reponse.ok) await cacheHumalis.vider(config.cache.espace);` : ''}
+            // Une écriture par la passerelle : les lectures gardées de la source ne servent plus, ici et ailleurs.
+            if (config.cache && req.method !== 'GET') await cacheHumalis.viderPartout(config.cache.espace);` : ''}
             res.status(reponse.status).type(reponse.headers.get('content-type') ?? 'application/json').send(texte);
           } catch (erreur) {
             next(erreur);

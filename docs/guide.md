@@ -2750,13 +2750,17 @@ Quand les données changent ailleurs (une autre application écrit dans la base)
 une tâche vide le cache à la main : `vider le cache de "livres"` (une route) ou
 `vider le cache de "meteo"` (une source).
 
-Sans réglage, le cache vit dans la mémoire de chaque serveur (5 000 réponses au plus,
-`HUMALIS_CACHE_MAX` le change). `HUMALIS_CACHE_ADRESSE=redis://hote:6379` (ou `rediss://…`,
+Sans réglage, le cache vit dans la mémoire de chaque serveur (5 000 réponses et 64 Mo au plus :
+`HUMALIS_CACHE_MAX` et `HUMALIS_CACHE_OCTETS` ; une réponse de plus de 512 Ko ne se garde pas,
+`HUMALIS_CACHE_TAILLE`). Une liste ne garde que les paramètres qu'elle comprend : `?x=1` ne fait
+pas une nouvelle copie. `HUMALIS_CACHE_ADRESSE=redis://hote:6379` (ou `rediss://…`,
 chiffré) le range dans Redis, Valkey ou un serveur compatible : partagé par tous les exemplaires,
 il porte aussi les annonces `en direct` et les limites de requêtes. Pour l'autorité d'un
-hébergeur, `NODE_EXTRA_CA_CERTS=/chemin/ca.pem`. Redis ne garde que des copies : s'il tombe, le
-serveur continue et relit la base, puis le reprend dès qu'il revient. Chaque démarrage du
-serveur abandonne les copies d'avant.
+hébergeur, `NODE_EXTRA_CA_CERTS=/chemin/ca.pem`. Redis ne garde que des copies : s'il tombe ou
+tarde (plus de 500 ms, `HUMALIS_CACHE_DELAI`), le serveur continue et relit la base, puis le
+reprend dès qu'il revient. Un vidage qui n'a pas pu se faire arrête le cache jusqu'à ce que toutes
+les copies d'avant soient abandonnées, comme à chaque démarrage. Configure Redis avec une mémoire
+bornée (`maxmemory` et `allkeys-lru`).
 
 #### Beaucoup de monde derrière une même adresse
 
@@ -2804,7 +2808,9 @@ Pour MySQL et MariaDB, `VERIFY_CA` vérifie le certificat sans vérifier le nom 
 `DISABLED` se connecte en clair (une base sur la même machine). `PREFERRED`, qui se connecterait en
 clair sans le dire si la base ne chiffre pas, est refusé au démarrage, comme une valeur inconnue.
 
-Pour PostgreSQL, `&channel_binding=require` lie en plus la connexion au canal chiffré. Un PostgreSQL
+Pour PostgreSQL, `&channel_binding=require` lie en plus la connexion au canal chiffré, et le
+serveur refuse toute base qui ne le fait pas (`prefer` le préfère seulement). Un réglage du
+chiffrement donné deux fois, même sous deux écritures, arrête le serveur au démarrage. Un PostgreSQL
 hébergé propose souvent deux adresses : l'adresse directe, et celle d'un relais de connexions (un nom
 en `-pooler`, ou le port 6543). En mode transaction, ce relais coupe les annonces en direct entre
 exemplaires du serveur et les verrous : donne l'adresse directe. Le serveur le vérifie au démarrage,

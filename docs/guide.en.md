@@ -2826,13 +2826,16 @@ When the data changes elsewhere (another application writes to the database), an
 task empties the cache by hand: `vider le cache de "livres"` (a route) or
 `vider le cache de "meteo"` (a source).
 
-With no setting, the cache lives in each server's memory (5,000 answers at most,
-`HUMALIS_CACHE_MAX` changes it). `HUMALIS_CACHE_ADRESSE=redis://host:6379` (or `rediss://…`,
+With no setting, the cache lives in each server's memory (5,000 answers and 64 MB at most:
+`HUMALIS_CACHE_MAX` and `HUMALIS_CACHE_OCTETS`; an answer over 512 KB is not kept,
+`HUMALIS_CACHE_TAILLE`). A list only keeps the parameters it understands: `?x=1` does not make a
+new copy. `HUMALIS_CACHE_ADRESSE=redis://host:6379` (or `rediss://…`,
 encrypted) keeps it in Redis, Valkey or a compatible server: shared by every instance, it also
 carries the `en direct` announcements and the request limits. For a host's own authority,
-`NODE_EXTRA_CA_CERTS=/path/ca.pem`. Redis only keeps copies: if it goes down, the server carries
-on reading the database, then uses it again as soon as it is back. Each server start drops the
-earlier copies.
+`NODE_EXTRA_CA_CERTS=/path/ca.pem`. Redis only keeps copies: if it goes down or is slow (over
+500 ms, `HUMALIS_CACHE_DELAI`), the server carries on reading the database, then uses it again as
+soon as it is back. An emptying that could not be done stops the cache until every earlier copy is
+dropped, as at each start. Give Redis bounded memory (`maxmemory` and `allkeys-lru`).
 
 #### Many people behind one address
 
@@ -2880,7 +2883,9 @@ For MySQL and MariaDB, `VERIFY_CA` checks the certificate without checking the s
 in clear text without saying so if the database does not encrypt, is refused at startup, like an
 unknown value.
 
-For PostgreSQL, `&channel_binding=require` also binds the connection to the encrypted channel. A hosted
+For PostgreSQL, `&channel_binding=require` also binds the connection to the encrypted channel, and
+the server refuses any database that does not (`prefer` only prefers it). An encryption setting
+given twice, even under two spellings, stops the server at startup. A hosted
 PostgreSQL often offers two addresses: the direct address, and a connection pooler's (a name ending in
 `-pooler`, or port 6543). In transaction mode, that pooler cuts live announcements between server
 instances and locks: give the direct address. The server checks it at startup, and warns if it goes

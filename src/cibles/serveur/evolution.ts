@@ -238,7 +238,7 @@ if (/^(mysql|mariadb|mongodb(\\+srv)?):\\/\\//i.test(url)) {
   process.exit(fautes > 0 ? 1 : 0);
 }
 
-const client = new pg.Client(reglagesPostgres(url));
+const client = nouveauClientPostgres(url, pg);
 await client.connect();
 try {
   // Toutes les tables au même instant, en lecture seule : le serveur peut continuer de tourner.

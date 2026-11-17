@@ -56,6 +56,8 @@ export function codeEffacerLesDonnees(serveur: ServeurRI): string {
     ];
   });
   const lignes = [...lignesDiscussions, ...lignesTempsReel, ...lignesDonnees];
+  // Les données en cache : la suppression les vide (« en cache pendant … »).
+  const enCache = [...new Set(serveur.routes.filter((r) => r.cache !== undefined).map((r) => r.donnee))];
   const fin = tableDe('appel_humalis') ? "\n/** Un appel qui sonne ou en cours, dont la personne a supprimé son compte : il s'arrête. */\nconst appelFini = (fiche: Record<string, unknown>) => (fiche.etat === 'sonne' || fiche.etat === 'en_cours' ? { etat: 'fini' } : {});\n" : '';
   if (lignes.length === 0) {
     return `
@@ -71,7 +73,9 @@ async function effacerLesDonnees(_id: string, _transaction: Transaction<OptionsD
 async function effacerLesDonnees(id: string, transaction: Transaction<OptionsDuServeur['stockages']>): Promise<void> {
   await transaction(async (s) => {
 ${lignes.join('\n')}
-  });
+  });${enCache.length ? `
+  // Ses fiches effacées ou rendues anonymes ne se relisent plus dans le cache, ici ni ailleurs.
+  await Promise.all(${JSON.stringify(enCache)}.map((espace) => cacheHumalis.viderPartout(espace)));` : ''}
 }
 
 /**

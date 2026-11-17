@@ -493,7 +493,7 @@ class Ecriture {
           : `${r}for (const vers of ${JSON.stringify(i.vers)}) await s.humalisBoite!.creer({ vers, message: ${chaine(i.message)}, corps: JSON.parse(JSON.stringify(${fiche(i.fiche)})), essais: 0, prochain: 0, cree: Date.now() });\n${r}travail.apres.push(async () => services?.reveiller());`;
       // « vider le cache de "livres" » : après la transaction, sur tous les exemplaires.
       case 'viderCache':
-        return `${r}travail.apres.push(async () => cacheHumalis.vider(${chaine(i.espace)}));`;
+        return `${r}travail.apres.push(async () => cacheHumalis.viderPartout(${chaine(i.espace)}));`;
     }
   }
 
@@ -567,7 +567,7 @@ ${new Ecriture(serveur, groupe, true).lignes(action.corps, '            ')}
 
 /** Les résumés d'une route : GET /<nom>, avant « /:id ». */
 /** Une page lit « en direct », ou une route est « en cache » : les écritures s'annoncent (et vident le cache partout). */
-export const avecAnnonces = (serveur: ServeurRI): boolean => serveur.routes.some((r) => r.direct || r.cache !== undefined);
+export const avecAnnonces = (serveur: ServeurRI): boolean => serveur.routes.some((r) => r.direct || r.cache !== undefined) || (serveur.passerelles ?? []).some((p) => p.cache !== undefined);
 
 export function codeResumes(route: Route, variable: string, separee: boolean, enCache = ''): string {
   return (route.resumes ?? [])

@@ -37,7 +37,10 @@ describe('cible serveur — projet produit', () => {
     for (const [chemin, contenu] of fichiers) {
       // envois.ts raccourcit un identifiant d'envoi et compare deux corps : ni mot de passe, ni secret.
       if (!chemin.endsWith('.ts') || chemin.startsWith('tests/') || chemin === 'src/humalis/envois.ts') continue;
-      expect(contenu, chemin).not.toMatch(/createHash|bcrypt|jsonwebtoken|md5|sha1|sha256/i);
+      // postgres.ts nomme les messages d'authentification du protocole (MD5, SCRAM-SHA-256-PLUS) pour refuser ceux
+      // qui ne lient pas la connexion au canal : il ne calcule rien. Le reste de la règle vaut aussi pour lui.
+      const regle = chemin === 'src/humalis/postgres.ts' ? /createHash|bcrypt|jsonwebtoken|sha1|digest\(|crypto/i : /createHash|bcrypt|jsonwebtoken|md5|sha1|sha256/i;
+      expect(contenu, chemin).not.toMatch(regle);
     }
     const demarrer = fichiers.get('src/demarrer.ts')!;
     expect(demarrer).toContain("import { hashPassword, isStrongPassword } from '@astratra/security';");

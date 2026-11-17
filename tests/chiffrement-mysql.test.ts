@@ -55,6 +55,10 @@ describe('le chiffrement de MySQL et MariaDB, lu dans DATABASE_URL', () => {
     expect(() => connexionMysql(BASE + '?ssl-mode=OUI')).toThrow('« ssl-mode=OUI » est inconnu : écrivez REQUIRED, VERIFY_CA, VERIFY_IDENTITY ou DISABLED.');
     expect(() => connexionMysql(BASE + '?ssl-mode=REQUIRED&ssl=true')).toThrow('gardez-en un seul');
     expect(() => connexionMysql(BASE + '?ssl={pas du json')).toThrow('n’est pas un objet JSON valide');
+    // Deux écritures du même réglage, même contradictoires (revue Codex) : refusées, jamais la première prise en silence.
+    expect(() => connexionMysql(BASE + '?ssl-mode=DISABLED&sslmode=REQUIRED')).toThrow('un seul réglage du chiffrement, une seule fois');
+    expect(() => connexionMysql(BASE + '?ssl=false&SSL=true')).toThrow('une seule fois');
+    expect(() => connexionMysql(BASE + '?ssl-mode=REQUIRED&ssl-ca=/a.pem&sslrootcert=/b.pem')).toThrow('une seule fois');
   });
 
   it('ssl-ca (ou sslrootcert) donne l’autorité de l’hébergeur, lue dans son fichier', () => {

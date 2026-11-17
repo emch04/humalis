@@ -23,9 +23,11 @@ export function codeConnexionMysql(ts: boolean): string {
 export function connexionMysql(adresse${t(': string')})${t(': { uri: string; ssl?: string | Record<string, unknown> }')} {
   const url = new URL(adresse.replace(/^mariadb:/i, 'mysql:'));
   const NOMS = { mode: ['ssl-mode', 'sslmode', 'ssl_mode'], ssl: ['ssl'], autorite: ['ssl-ca', 'sslca', 'ssl_ca', 'sslrootcert'] };
+  // Chaque réglage une seule fois, quelle que soit son écriture : deux valeurs (« ssl-mode=DISABLED&sslmode=REQUIRED ») sont refusées.
   const lire = (noms${t(': string[]')})${t(': string | null')} => {
-    for (const [cle, valeur] of url.searchParams) if (noms.includes(cle.toLowerCase())) return valeur;
-    return null;
+    const vues = [...url.searchParams].filter(([cle]) => noms.includes(cle.toLowerCase()));
+    if (vues.length > 1) throw new Error('DATABASE_URL donne ' + vues.map(([cle]) => cle).join(' et ') + ' : un seul réglage du chiffrement, une seule fois.');
+    return vues.length ? vues[0]${t('!')}[1] : null;
   };
   const mode = lire(NOMS.mode);
   const ssl = lire(NOMS.ssl);
