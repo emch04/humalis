@@ -2,7 +2,8 @@
  * Le serveur du temps réel : discussions, présence, appels et salles. Ces routes ne sont pas des routes
  * de données ordinaires : les droits dépendent de la conversation, et une lecture marque les messages lus.
  * Elles lisent et écrivent dans les tables ordinaires (mémoire ou PostgreSQL) et annoncent leurs changements
- * par le canal « en direct ». Une réunion passe par LiveKit : seuls les jetons et la modération passent ici.
+ * par le canal « en direct ». Le son et l'image d'une réunion passent par votre serveur de réunions (le logiciel
+ * libre LiveKit, hébergé par vous) : seuls les jetons et la modération passent ici.
  */
 import type { ServeurRI } from '../../ri/types.js';
 import { slugTempsReel } from '../../parser/temps-reel.js';
@@ -55,11 +56,12 @@ export function codeMontageTempsReel(serveur: ServeurRI): string {
 
 export const IMPORT_TEMPS_REEL = "import { monterTempsReel } from './humalis/temps-reel.js';\n";
 
-export const ENV_TEMPS_REEL = `# Les réunions et les appels (LiveKit, hébergé par vous ou chez LiveKit Cloud).
-# Sans ces trois variables, rejoindre une réunion répond que le service n'est pas réglé.
-LIVEKIT_URL=
-LIVEKIT_API_KEY=
-LIVEKIT_API_SECRET=
+export const ENV_TEMPS_REEL = `# Les réunions et les appels : votre serveur de réunions (le logiciel libre LiveKit, que vous hébergez).
+# Son adresse (wss://…), sa clé et son secret. Rien par défaut : sans les trois, rejoindre une réunion répond
+# que les réunions ne sont pas réglées.
+HUMALIS_REUNIONS_ADRESSE=
+HUMALIS_REUNIONS_CLE=
+HUMALIS_REUNIONS_SECRET=
 # Ce qu'un compte peut envoyer en pièces jointes par heure, en Mo (50 par défaut).
 HUMALIS_PIECES_MO_PAR_HEURE=
 # L'adresse publique de ce serveur, pour les liens des pièces jointes (sinon, celle de la requête).
@@ -79,10 +81,14 @@ const LIVEKIT = String.raw`
 /** Une salle du programme ou celle d'un appel, et ce que cette personne peut y faire. */
 function monterSalles(app: Application, o: Options, voir: (req: Request) => Moi, appels: Stockage | undefined): void {
   const { acces, reglages, csrf } = o;
-  const adresse = () => process.env.LIVEKIT_URL ?? '';
-  const service = () => new RoomServiceClient(adresse().replace(/^ws/, 'http'), process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET);
-  const regle = () => Boolean(process.env.LIVEKIT_URL && process.env.LIVEKIT_API_KEY && process.env.LIVEKIT_API_SECRET);
-  const FERME = "Les réunions ne sont pas réglées sur ce serveur : renseignez LIVEKIT_URL, LIVEKIT_API_KEY et LIVEKIT_API_SECRET.";
+  // Les noms d'avant (LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET) servent encore, pour ne casser aucun serveur déjà réglé.
+  const lire = (nom: string, ancien: string) => (process.env[nom] || process.env[ancien] || '').trim();
+  const adresse = () => lire('HUMALIS_REUNIONS_ADRESSE', 'LIVEKIT_URL');
+  const cle = () => lire('HUMALIS_REUNIONS_CLE', 'LIVEKIT_API_KEY');
+  const secret = () => lire('HUMALIS_REUNIONS_SECRET', 'LIVEKIT_API_SECRET');
+  const service = () => new RoomServiceClient(adresse().replace(/^ws/, 'http'), cle(), secret());
+  const regle = () => Boolean(adresse() && cle() && secret());
+  const FERME = "Les réunions ne sont pas réglées sur ce serveur : renseignez HUMALIS_REUNIONS_ADRESSE, HUMALIS_REUNIONS_CLE et HUMALIS_REUNIONS_SECRET.";
   const salleDe = (nom: string) => reglages.salles.find((s) => s.nom === nom);
   const nomLiveKit = (nom: string) => (nom.startsWith('appel-') ? nom : 'salle-' + createHash('sha256').update(nom).digest('hex').slice(0, 32));
   const annoncer = () => direct.annonce('tr:salles');
@@ -163,11 +169,11 @@ function monterSalles(app: Application, o: Options, voir: (req: Request) => Moi,
         res.status(503).json({ erreur: FERME });
         return;
       }
-      const jeton = new AccessToken(process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET, {
+      const jeton = new AccessToken(cle(), secret(), {
         identity: moi.id,
         name: nomDe(moi),
         metadata: JSON.stringify({ animateur: permis.animateur }),
-        // Un jeton court : LiveKit le renouvelle de lui-même pour qui reste dans la salle ; une personne exclue ne
+        // Un jeton court : le serveur de réunions le renouvelle de lui-même pour qui reste dans la salle ; une personne exclue ne
         // peut donc pas revenir avec l'ancien.
         ttl: '10m',
       });
@@ -272,7 +278,7 @@ function monterSalles(app: Application, o: Options, voir: (req: Request) => Moi,
         }
       }
       annoncer();
-      // LiveKit peut prendre un instant pour refléter le geste : une seconde annonce rattrape l'état.
+      // Le serveur de réunions peut prendre un instant pour refléter le geste : une seconde annonce rattrape l'état.
       if (geste !== 'etat') setTimeout(annoncer, 1500).unref();
       res.status(201).json({ id: nom, salle: nom, participant: '', geste });
     } catch (erreur) {

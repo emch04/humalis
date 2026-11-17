@@ -26,8 +26,8 @@ import { hashPassword } from '@astratra/security';
 import { creerServeur } from './dist/src/serveur.js';
 import { creerStockageMemoire } from './dist/src/humalis/stockage.js';
 
-process.env.STRIPE_CLE_SECRETE ??= 'sk_test_essai';
-process.env.STRIPE_SECRET_WEBHOOK ??= 'whsec_essai';
+process.env.HUMALIS_PAIEMENT_ADRESSE ??= 'http://127.0.0.1:9/relais';
+process.env.HUMALIS_PAIEMENT_SECRET ??= 'secret-du-relais-de-paiement-essai-0123456789';
 process.env.HUMALIS_ADRESSE_SITE ??= 'https://essai.test';
 const secret = 'Essai-Solide-2026!';
 const usersStore = createMemoryUsersStore();

@@ -1,6 +1,6 @@
 # Essai du moteur : les comptes, le bon en PDF, le déplacement.
 serveur "club" :
-    emails par brevo
+    emails
     invitations vers "bienvenue"
     mot de passe oublie vers "bienvenue"
     donnee commande :

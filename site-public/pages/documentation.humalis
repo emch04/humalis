@@ -3028,7 +3028,7 @@ page "documentation_21" dans "documentation" adresse "/documentation/serveur" :
             serveur "commerce" :
                 roles gerant et vendeur
                 invitations vers "bienvenue"
-                emails par brevo
+                emails
                 compte :
                     telephone : texte
                 donnee commande par boutique :
@@ -3070,6 +3070,54 @@ page "documentation_21" dans "documentation" adresse "/documentation/serveur" :
             page "login" :
                 titre "Log in"
         texte "A condition in the page protects nothing: the route's rule is what protects."
+        texte "#### Deleting your own account"
+        texte "`connecte peut supprimer son compte` lets the logged-in person delete their own account, and no other. In the page, `supprimer mon compte avec champ "Mot de passe"` does it; `supprimer mon compte` alone is for accounts without a password (Google, Apple). The session then ends, as with `se deconnecter`."
+        code humalis :
+            serveur "notebook" :
+                compte :
+                    name : texte
+                donnee note par compte :
+                    text : texte
+                donnee review :
+                    text : texte
+                donnee draft :
+                    text : texte
+                    a la suppression du compte : effacer
+                route "notes" :
+                    connecte peut lire et creer note
+                    connecte peut modifier et supprimer note
+                route "reviews" :
+                    tout le monde peut lire review
+                    connecte peut creer review
+                    seul son auteur peut modifier review
+                route "drafts" :
+                    connecte peut creer draft
+                    seul son auteur peut lire et modifier draft
+                route "me" :
+                    connecte peut lire et supprimer son compte
+
+            page "settings" reservee a connecte sinon vers "home" :
+                titre "Settings"
+                formulaire "closing" :
+                    champ mot de passe "Password" avec obligatoire
+                    bouton "Delete my account"
+                quand le formulaire "closing" est soumis :
+                    essayer :
+                        supprimer mon compte avec champ "Password"
+                        rediriger vers "home"
+                    si erreur :
+                        afficher erreur "{raison}"
+
+            page "home" :
+                titre "Home"
+        texte "The server asks for the password again: without the right one, nothing changes. The last admin cannot delete their account."
+        texte "Each piece of data says what becomes of the person's records, with `a la suppression du compte : effacer` (erase), `anonymiser` (anonymize) or `garder` (keep). `anonymiser` empties the fields that point to the person and keeps the record. Without this line:"
+        liste :
+            texte "data `par compte` is erased (the notes above);"
+            texte "data that remembers its author (`seul son auteur peut …`) becomes anonymous (the reviews), like the messages of discussions;"
+            texte "other data does not change."
+        texte "A paid record is never erased: it becomes anonymous. An image goes with an erased record; an anonymous record keeps its own, like its text. In discussions, the person's attachments are erased, and their conversations are called « Compte supprimé ». In a call, the other person keeps their record of it, with « Compte supprimé » instead; an ongoing call stops. Their online presence, their meeting exclusions and their devices registered for notifications disappear."
+        texte "The records all change together, then the account is emptied: no more address, password or fields, and all its sessions end. Other devices receive these changes at their next synchronization; the person's device forgets its local data. The address can then be used by a new account, which inherits no records."
         texte "#### Changing an account's role"
         texte "`changer role de c en "vendeur"`, after a gesture in a page, takes effect at once: as soon as the program uses this sentence, the server re-reads the account on every request. Only an admin can do it, and never on their own account."
         texte "#### An action written on the server"
@@ -3204,7 +3252,7 @@ page "documentation_21" dans "documentation" adresse "/documentation/serveur" :
         texte "#### Asking an AI"
         code humalis :
             serveur "commerce" :
-                ia par anthropic
+                ia
                 connecte peut demander a ia
 
             page "aide" :
@@ -3214,11 +3262,17 @@ page "documentation_21" dans "documentation" adresse "/documentation/serveur" :
                 bouton "Demander"
                 quand l'utilisateur clique sur "Demander" :
                     demander a ia "Donne une idée de slogan" dans reponse
-        texte "The answer appears as it is written. The `ANTHROPIC_API_KEY` key stays on the server. Each account has a cap shared by all servers: 30 questions an hour, changed by `HUMALIS_IA_PAR_HEURE`. `HUMALIS_IA_MODELE` picks the model (`claude-opus-5-5` by default)."
+        texte "The answer appears as it is written. The program only says it needs an AI: the service is chosen at deployment, in the `.env`, with nothing by default. It must speak the OpenAI-compatible chat format, which most services and models running on your own machine follow:"
+        code :
+            HUMALIS_IA_ADRESSE=https://…/v1
+            HUMALIS_IA_MODELE=…
+            HUMALIS_IA_CLE=…
+        texte "Humalis adds `/chat/completions` to the address. The key is optional (a model on your machine does not ask for one) and stays on the server. `HUMALIS_IA_ADRESSE_2`, `HUMALIS_IA_MODELE_2` and `HUMALIS_IA_CLE_2` set an optional second service, which takes the question over if the first one refuses before writing a word. Without an address or a model, the server refuses every question and says what is missing."
+        texte "Each account has a cap shared by all servers: 30 questions an hour, changed by `HUMALIS_IA_PAR_HEURE`. `HUMALIS_IA_JETONS` limits the length of an answer."
         texte "#### Taking a payment"
         code humalis :
             serveur "commerce" :
-                paiements par stripe
+                paiements
                 donnee reservation :
                     nom : texte
                     total : nombre
@@ -3233,8 +3287,19 @@ page "documentation_21" dans "documentation" adresse "/documentation/serveur" :
                 route "journaux" :
                     seul admin peut lire journal
                     seul admin peut modifier journal
-        texte "`payer total pour r`, in a page, opens Stripe's payment page. The amount is re-read by the server, never sent by the page. The record gets a `paye` field, written only when Stripe confirms it through a signed webhook: send it to `/paiements/webhook`. It needs `STRIPE_CLE_SECRETE`, `STRIPE_SECRET_WEBHOOK` and `HUMALIS_ADRESSE_SITE`."
-        texte "Nobody can write `paye` through a request, not even an admin. If the amount Stripe confirms is no longer the record's amount (it changed during the payment), or if the record is gone, nothing is marked as paid: the server answers Stripe with an error, writes the cause to its log and reports it to monitoring when it is set up (`CENTRALE_ADRESSE`, `CENTRALE_CLE`). Stripe then retries this payment for about three days and shows it in its dashboard. Fix the record's amount and the next attempt records it; otherwise, refund the person from Stripe."
+        texte "`payer total pour r`, in a page, opens the payment page. The amount is re-read by the server, never sent by the page. The record gets a `paye` field, written only when the payment is confirmed by a signed call."
+        texte "The program names no payment service. The server talks to a {accent "relay"}, your own, placed between it and the service of your choice. It is set in the `.env`:"
+        code :
+            HUMALIS_PAIEMENT_ADRESSE=https://payments.example.com/humalis
+            HUMALIS_PAIEMENT_SECRET=…
+            HUMALIS_PAIEMENT_DEVISE=eur
+            HUMALIS_ADRESSE_SITE=https://my-shop.com
+        texte "The secret, shared with the relay, is at least 32 characters long. Without a relay or a secret, `payer` answers that payments are not set up."
+        texte "{accent "The relay contract."} Both ways, a JSON body and the header `X-Humalis-Signature: t=<seconds>,v1=<signature>`, where the signature is the HMAC-SHA256, in hexadecimal, of `<seconds>.<body>` with the secret. A signature older than five minutes is refused."
+        liste :
+            texte "To start a payment, the server sends `POST` to the relay's address: `{ "reference": "…", "montant": 4500, "devise": "eur", "libelle": "reservation", "retour": "https://my-shop.com/…" }`. The amount is in cents. The relay answers `{ "url": "https://…" }`, the payment page, which sends the person back to `retour` once done."
+            texte "When the money arrives, the relay sends `POST /paiements/webhook` to the server: `{ "evenement": "paye", "reference": "…", "montant": 4500, "devise": "eur" }`, with the reference it received, unchanged. `"echoue"` reports a deferred payment that failed. The server answers 200 once it is recorded; any other answer means: call again later."
+        texte "Nobody can write `paye` through a request, not even an admin. If the confirmed amount is no longer the record's amount (it changed during the payment), or if the record is gone, nothing is marked as paid: the server answers the relay with 500, writes the cause to its log and reports it to monitoring when it is set up (`CENTRALE_ADRESSE`, `CENTRALE_CLE`). Fix the record's amount and the next call records it; otherwise, refund the person."
         texte "#### Resending without duplicates"
         texte "If the connection drops during a send, a program can safely try again: it sends the `X-Humalis-Envoi` header with a random id, the same one on every attempt. The server does the work once, even across several copies, then returns the same answer. It answers 409 while the first attempt is still running. The id is kept for 30 days, as long as a request can wait on the device."
         texte "#### Many people behind one address"
@@ -3452,7 +3517,7 @@ page "documentation_21" dans "documentation" adresse "/documentation/serveur" :
             serveur "commerce" :
                 roles gerant et vendeur
                 invitations vers "bienvenue"
-                emails par brevo
+                emails
                 compte :
                     telephone : texte
                 donnee commande par boutique :
@@ -3494,6 +3559,54 @@ page "documentation_21" dans "documentation" adresse "/documentation/serveur" :
             page "connexion" :
                 titre "Connexion"
         texte "Une condition dans la page ne protège rien : c'est la règle de la route qui protège."
+        texte "#### Supprimer son compte"
+        texte "`connecte peut supprimer son compte` permet à la personne connectée de supprimer son propre compte, et aucun autre. Dans la page, `supprimer mon compte avec champ "Mot de passe"` le fait ; `supprimer mon compte` seul sert aux comptes sans mot de passe (Google, Apple). La session se ferme ensuite, comme avec `se deconnecter`."
+        code humalis :
+            serveur "carnet" :
+                compte :
+                    nom : texte
+                donnee note par compte :
+                    texte : texte
+                donnee avis :
+                    texte : texte
+                donnee brouillon :
+                    texte : texte
+                    a la suppression du compte : effacer
+                route "notes" :
+                    connecte peut lire et creer note
+                    connecte peut modifier et supprimer note
+                route "avis" :
+                    tout le monde peut lire avis
+                    connecte peut creer avis
+                    seul son auteur peut modifier avis
+                route "brouillons" :
+                    connecte peut creer brouillon
+                    seul son auteur peut lire et modifier brouillon
+                route "moi" :
+                    connecte peut lire et supprimer son compte
+
+            page "reglages" reservee a connecte sinon vers "accueil" :
+                titre "Réglages"
+                formulaire "fermeture" :
+                    champ mot de passe "Mot de passe" avec obligatoire
+                    bouton "Supprimer mon compte"
+                quand le formulaire "fermeture" est soumis :
+                    essayer :
+                        supprimer mon compte avec champ "Mot de passe"
+                        rediriger vers "accueil"
+                    si erreur :
+                        afficher erreur "{raison}"
+
+            page "accueil" :
+                titre "Accueil"
+        texte "Le serveur redemande le mot de passe : sans le bon, rien ne change. Le dernier admin ne peut pas supprimer son compte."
+        texte "Chaque donnée dit ce que deviennent les fiches de la personne, avec `a la suppression du compte : effacer`, `anonymiser` ou `garder`. `anonymiser` vide les champs qui la désignent et garde la fiche. Sans cette ligne :"
+        liste :
+            texte "une donnée `par compte` est effacée (les notes ci-dessus) ;"
+            texte "une donnée qui retient son auteur (`seul son auteur peut …`) devient anonyme (les avis), comme les messages des discussions ;"
+            texte "les autres données ne changent pas."
+        texte "Une fiche payée n'est jamais effacée : elle devient anonyme. Une image part avec la fiche effacée ; une fiche anonyme garde la sienne, comme son texte. Dans les discussions, les pièces jointes de la personne sont effacées, et ses conversations s'appellent « Compte supprimé ». Dans un appel, l'autre personne garde sa trace, avec « Compte supprimé » à la place ; un appel en cours s'arrête. Sa présence en ligne, ses exclusions de réunion et ses appareils inscrits aux notifications disparaissent."
+        texte "Les fiches changent toutes ensemble, puis le compte est vidé : plus d'adresse, de mot de passe ni de champ, et toutes ses sessions se ferment. Les autres appareils reçoivent ces changements à leur prochaine synchronisation ; celui de la personne oublie ses données locales. L'adresse peut ensuite servir à un nouveau compte, qui n'hérite d'aucune fiche."
         texte "#### Changer le rôle d'un compte"
         texte "`changer role de c en "vendeur"`, après un geste dans une page, compte tout de suite : dès que cette phrase existe dans le programme, le serveur relit le compte à chaque requête. Seul un admin peut le faire, et jamais sur son propre compte."
         texte "#### Une action écrite sur le serveur"
@@ -3628,7 +3741,7 @@ page "documentation_21" dans "documentation" adresse "/documentation/serveur" :
         texte "#### Interroger une IA"
         code humalis :
             serveur "commerce" :
-                ia par anthropic
+                ia
                 connecte peut demander a ia
 
             page "aide" :
@@ -3638,11 +3751,17 @@ page "documentation_21" dans "documentation" adresse "/documentation/serveur" :
                 bouton "Demander"
                 quand l'utilisateur clique sur "Demander" :
                     demander a ia "Donne une idée de slogan" dans reponse
-        texte "La réponse s'affiche au fil de l'eau. La clé `ANTHROPIC_API_KEY` reste sur le serveur. Chaque compte a un plafond, commun à tous les serveurs : 30 questions par heure, `HUMALIS_IA_PAR_HEURE` le change. `HUMALIS_IA_MODELE` choisit le modèle (`claude-opus-5-5` par défaut)."
+        texte "La réponse s'affiche au fil de l'eau. Le programme dit seulement qu'il a besoin d'une IA : le service se choisit au déploiement, dans le `.env`, sans rien par défaut. Il doit parler le format de discussion compatible OpenAI, que suivent la plupart des services et des modèles qui tournent sur ta propre machine :"
+        code :
+            HUMALIS_IA_ADRESSE=https://…/v1
+            HUMALIS_IA_MODELE=…
+            HUMALIS_IA_CLE=…
+        texte "Humalis ajoute `/chat/completions` à l'adresse. La clé est facultative (un modèle sur ta machine n'en demande pas) et reste sur le serveur. `HUMALIS_IA_ADRESSE_2`, `HUMALIS_IA_MODELE_2` et `HUMALIS_IA_CLE_2` règlent un second service, facultatif, qui reprend la question si le premier refuse avant d'avoir écrit un mot. Sans adresse ou sans modèle, le serveur refuse chaque question en disant ce qui manque."
+        texte "Chaque compte a un plafond, commun à tous les serveurs : 30 questions par heure, `HUMALIS_IA_PAR_HEURE` le change. `HUMALIS_IA_JETONS` limite la longueur d'une réponse."
         texte "#### Encaisser un paiement"
         code humalis :
             serveur "commerce" :
-                paiements par stripe
+                paiements
                 donnee reservation :
                     nom : texte
                     total : nombre
@@ -3657,8 +3776,19 @@ page "documentation_21" dans "documentation" adresse "/documentation/serveur" :
                 route "journaux" :
                     seul admin peut lire journal
                     seul admin peut modifier journal
-        texte "`payer total pour r`, dans une page, ouvre la page de paiement de Stripe. Le montant est relu par le serveur, jamais envoyé par la page. La fiche reçoit un champ `paye`, écrit seulement quand Stripe le confirme par un webhook signé : envoie-le vers `/paiements/webhook`. Il faut `STRIPE_CLE_SECRETE`, `STRIPE_SECRET_WEBHOOK` et `HUMALIS_ADRESSE_SITE`."
-        texte "Personne ne peut écrire `paye` par une requête, pas même un admin. Si le montant que Stripe confirme n'est plus celui de la fiche (elle a changé pendant le paiement), ou si la fiche a disparu, rien n'est marqué payé : le serveur répond une erreur à Stripe, écrit la cause dans son journal et la signale à la surveillance si elle est réglée (`CENTRALE_ADRESSE`, `CENTRALE_CLE`). Stripe représente alors ce paiement pendant trois jours environ et le montre dans son tableau de bord. Corrige le montant de la fiche et l'essai suivant l'enregistre ; sinon, rembourse la personne depuis Stripe."
+        texte "`payer total pour r`, dans une page, ouvre la page de paiement. Le montant est relu par le serveur, jamais envoyé par la page. La fiche reçoit un champ `paye`, écrit seulement quand le paiement est confirmé par un appel signé."
+        texte "Le programme ne nomme aucun service de paiement. Le serveur parle à un {accent "relais"}, le tien, placé entre lui et le service de ton choix. Il se règle dans le `.env` :"
+        code :
+            HUMALIS_PAIEMENT_ADRESSE=https://paiement.exemple.fr/humalis
+            HUMALIS_PAIEMENT_SECRET=…
+            HUMALIS_PAIEMENT_DEVISE=eur
+            HUMALIS_ADRESSE_SITE=https://ma-boutique.com
+        texte "Le secret, partagé avec le relais, fait 32 caractères au moins. Sans relais ou sans secret, `payer` répond que les paiements ne sont pas réglés."
+        texte "{accent "Le contrat du relais."} Dans les deux sens, un corps JSON et l'en-tête `X-Humalis-Signature: t=<secondes>,v1=<signature>`, où la signature est le HMAC-SHA256, en hexadécimal, de `<secondes>.<corps>` avec le secret. Une signature de plus de cinq minutes est refusée."
+        liste :
+            texte "Pour commencer un paiement, le serveur envoie `POST` à l'adresse du relais : `{ "reference": "…", "montant": 4500, "devise": "eur", "libelle": "reservation", "retour": "https://ma-boutique.com/…" }`. Le montant est en centimes. Le relais répond `{ "url": "https://…" }`, la page de paiement, qui renvoie la personne vers `retour` une fois fini."
+            texte "Quand l'argent est reçu, le relais envoie `POST /paiements/webhook` au serveur : `{ "evenement": "paye", "reference": "…", "montant": 4500, "devise": "eur" }`, avec la référence reçue, telle quelle. `"echoue"` signale un paiement différé qui a échoué. Le serveur répond 200 quand c'est enregistré ; toute autre réponse veut dire : rappelle plus tard."
+        texte "Personne ne peut écrire `paye` par une requête, pas même un admin. Si le montant confirmé n'est plus celui de la fiche (elle a changé pendant le paiement), ou si la fiche a disparu, rien n'est marqué payé : le serveur répond 500 au relais, écrit la cause dans son journal et la signale à la surveillance si elle est réglée (`CENTRALE_ADRESSE`, `CENTRALE_CLE`). Corrige le montant de la fiche et le rappel suivant l'enregistre ; sinon, rembourse la personne."
         texte "#### Renvoyer sans créer de doublon"
         texte "Si la connexion coupe en plein envoi, un programme peut recommencer sans risque : il envoie l'en-tête `X-Humalis-Envoi` avec un identifiant au hasard, le même à chaque essai. Le serveur fait le travail une fois, même avec plusieurs exemplaires, puis redonne la même réponse. Il répond 409 tant que le premier essai tourne. L'identifiant est gardé 30 jours, aussi longtemps qu'un envoi peut attendre sur l'appareil."
         texte "#### Beaucoup de monde derrière une même adresse"
@@ -3852,11 +3982,11 @@ page "documentation_22" dans "documentation" adresse "/documentation/relier-les-
                         afficher erreur "Login refused: {raison}"
         texte "You need a Google OAuth client ID (\"Web application\"), in the server's `GOOGLE_CLIENT_ID` variable, with the redirect address `https://your-site/auth-google.html`. On Android, the Google account is chosen in the system window: also create an \"Android\" client ID (the application's name and the SHA-1 fingerprint of its certificate); the server keeps the Web client ID."
         soustitre "Inviting people and recovering a password"
-        texte "The first account comes from the environment. The next ones arrive by invitation: an admin gives an address, the person receives a link, then chooses a password. With `connexion google`, they can also come in with Google, since their account is now known."
+        texte "The first account comes from the environment. The next ones arrive by invitation, or through open sign-up (next section). By invitation: an admin gives an address, the person receives a link, then chooses a password. With `connexion google`, they can also come in with Google, since their account is now known."
         code humalis :
             serveur "shop" :
                 connexion google
-                emails par brevo
+                emails
                 invitations vers "welcome"
                 mot de passe oublie vers "welcome"
                 route "team" :
@@ -3914,12 +4044,53 @@ page "documentation_22" dans "documentation" adresse "/documentation/relier-les-
             texte "A link works once. It lasts 7 days for an invitation, one hour for a forgotten password. The server keeps only its fingerprint."
             texte "`demander un lien…` answers the same whether the address has an account or not, and one address gets at most one link every ten minutes. Inviting an address that already has an account leaves that account unchanged."
             texte "`comptes` is a ready-made data type, with `email`, `role` (`admin` or `membre`) and `statut` (`invite` or `actif`). Only an admin can read it or delete from it. Deleting cancels an invitation or removes a member: no more password, no more link, and their session is cut. You cannot remove yourself. A new invitation can bring them back."
-        texte "The server needs `BREVO_API_KEY` and `BREVO_EXPEDITEUR` (an address on a domain verified with Brevo), in its environment or key vault, and `HUMALIS_ADRESSE_SITE` (`https://my-shop.com`) in its environment to write the links. Without them, `inviter` shows an error that says so. Web and desktop targets; the mobile app shows a message pointing to the site, and the static target refuses these phrases."
+        texte "E-mails leave through SMTP, to the sending server of your choice. The server needs, in its environment or key vault, `HUMALIS_EMAILS_HOTE`, `HUMALIS_EMAILS_PORT` and `HUMALIS_EMAILS_EXPEDITEUR`, with `HUMALIS_EMAILS_UTILISATEUR` and `HUMALIS_EMAILS_MOT_DE_PASSE` when the sending server asks for them. Port 465 is encrypted from the start; on another port, STARTTLS is required, except towards your own machine. It also needs `HUMALIS_ADRESSE_SITE` (`https://my-shop.com`) in its environment to write the links. Without them, `inviter` shows an error that says so. Web and desktop targets; the mobile app shows a message pointing to the site, and the static target refuses these phrases."
+        soustitre "Letting anyone create an account"
+        texte "A public shop lets a customer create their own account. In the server, `inscription libre comme client vers "confirmation"` opens sign-up: each account created gets the `client` role, and the confirmation link opens the `confirmation` page."
+        code humalis :
+            serveur "boutique" :
+                roles client
+                emails
+                compte :
+                    nom : texte
+                inscription libre comme client vers "confirmation"
+
+            page "inscription" :
+                titre "Créer un compte"
+                formulaire "compte" :
+                    champ "Nom" avec obligatoire
+                    champ email "Email" avec obligatoire
+                    champ mot de passe "Mot de passe" avec obligatoire
+                    bouton "Créer mon compte"
+                quand le formulaire "compte" est soumis :
+                    essayer :
+                        creer mon compte avec champ "Email" et champ "Mot de passe" avec nom = champ "Nom"
+                        afficher "Un lien de confirmation vous a été envoyé."
+                    si erreur :
+                        afficher erreur "{raison}"
+
+            page "confirmation" :
+                titre "Confirmation"
+                quand la page se charge :
+                    essayer :
+                        confirmer mon adresse
+                        afficher "Votre adresse est confirmée : vous pouvez vous connecter."
+                    si erreur :
+                        afficher erreur "{raison}"
+        liste :
+            texte "`creer mon compte avec … et …` gives the address, then the password. `avec nom = champ "Nom"` fills the fields declared in `compte :`, and no others."
+            texte "The person receives a link by e-mail. Until they open it, the account cannot sign in. On the link's page, `confirmer mon adresse` reads the token from the address and opens the account; they then sign in with their password."
+            texte "The link lasts 24 hours and works once. The server keeps only its fingerprint. A sign-up never confirmed is erased after seven days."
+            texte "The answer is the same whether the address is new or already has an account: nobody can guess who is registered. An address that already has an account receives an e-mail saying so, and that account does not change."
+            texte "The password must be strong: at least 8 characters, with an uppercase letter, a lowercase letter, a digit and a symbol. One IP address creates at most ten accounts per hour; one e-mail address receives at most one link every ten minutes."
+            texte "The role always comes from the sentence, never from the page, and `admin` is refused. The person joins no group."
+            texte "With `connexion google` or `connexion apple`, an unknown address that Google or Apple confirms also creates an account with this role, already confirmed."
+        texte "It needs the same settings as invitations: the sending server (`HUMALIS_EMAILS_HOTE`, `HUMALIS_EMAILS_PORT`, `HUMALIS_EMAILS_EXPEDITEUR`) and `HUMALIS_ADRESSE_SITE`. In `humalis lancer`, the e-mail is kept in the panel's mailbox, with its link. On Apple and Android, the link opens the app when it has `liens profonds "…" et domaine "…"`; on Windows, it opens in the browser."
         soustitre "Sending an email from the server"
         texte "Under a route, `quand … est cree :` sends emails once a record has been saved."
         code humalis :
             serveur "shop" :
-                emails par brevo
+                emails
                 donnee message :
                     nom : texte
                     texte : texte
@@ -4103,11 +4274,11 @@ page "documentation_22" dans "documentation" adresse "/documentation/relier-les-
             rangee "`si micro est coupe`, `si camera est coupee`, `si main est levee`", "the bar's state"
             rangee "`pour chaque p dans participants de reunion "…"`", "`p.nom`, `p.micro`, `p.camera`, `p.main`"
             rangee "`couper micro de p`, `exclure p`", "(hosts) moderation"
-        texte "{accent "Sound and video go through LiveKit"}, an open-source meeting server you host yourself or rent from LiveKit Cloud. The Humalis server reads its address and keys from the environment, never from the code:"
+        texte "{accent "Sound and video go through your meeting server"}: the open-source LiveKit software, which you host. The Humalis server reads its address and keys from the environment, never from the code:"
         code :
-            LIVEKIT_URL=wss://meetings.example.com
-            LIVEKIT_API_KEY=…
-            LIVEKIT_API_SECRET=…
+            HUMALIS_REUNIONS_ADRESSE=wss://meetings.example.com
+            HUMALIS_REUNIONS_CLE=…
+            HUMALIS_REUNIONS_SECRET=…
         texte "Without these three variables, chats still work and joining a meeting answers that the service is not set up. To try it at home: `livekit-server --dev` gives `ws://localhost:7880`, `devkey` and `secret`."
         texte "{accent "On each target."} The web (Humalis engine), desktop, Apple (iPhone, iPad, Mac), Android and Windows (x64 and ARM64) have everything: chats, calls, meetings and screen sharing. On Windows, sharing shows the whole main screen; on iPhone, it shows the app. Static pages and `--moteur react` refuse these phrases at compile time and name the target to use."
     sinon :
@@ -4206,11 +4377,11 @@ page "documentation_22" dans "documentation" adresse "/documentation/relier-les-
                         afficher erreur "Connexion refusée : {raison}"
         texte "Il faut un ID client OAuth de Google (type « application Web »), dans la variable `GOOGLE_CLIENT_ID` du serveur, avec l'adresse de redirection `https://ton-site/auth-google.html`. Sur Android, le compte Google se choisit dans la fenêtre du système : crée aussi un ID client de type « Android » (le nom de l'application et l'empreinte SHA-1 de son certificat) ; le serveur garde l'ID client Web."
         soustitre "Inviter des personnes et retrouver un mot de passe"
-        texte "Le premier compte vient de l'environnement. Les suivants arrivent sur invitation : un admin donne une adresse, la personne reçoit un lien, puis choisit son mot de passe. Avec `connexion google`, elle peut aussi entrer avec Google, puisque son compte est maintenant connu."
+        texte "Le premier compte vient de l'environnement. Les suivants arrivent sur invitation, ou par l'inscription libre (section suivante). Sur invitation : un admin donne une adresse, la personne reçoit un lien, puis choisit son mot de passe. Avec `connexion google`, elle peut aussi entrer avec Google, puisque son compte est maintenant connu."
         code humalis :
             serveur "boutique" :
                 connexion google
-                emails par brevo
+                emails
                 invitations vers "bienvenue"
                 mot de passe oublie vers "bienvenue"
                 route "equipe" :
@@ -4268,12 +4439,53 @@ page "documentation_22" dans "documentation" adresse "/documentation/relier-les-
             texte "Le lien ne sert qu'une fois. Il vaut 7 jours pour une invitation, une heure pour un mot de passe oublié. Le serveur garde seulement son empreinte."
             texte "`demander un lien…` répond pareil que l'adresse ait un compte ou non, et une même adresse ne reçoit qu'un lien toutes les dix minutes. Inviter une adresse qui a déjà un compte ne change rien à ce compte."
             texte "`comptes` est une donnée déjà prête, avec `email`, `role` (`admin` ou `membre`) et `statut` (`invite` ou `actif`). Seul un admin peut la lire ou en supprimer une fiche. Supprimer annule une invitation ou retire un membre : il n'a plus de mot de passe, plus de lien, et sa session est coupée. On ne peut pas se retirer soi-même. Une nouvelle invitation peut le faire revenir."
-        texte "Il faut, dans l'environnement du serveur ou son coffre de clés, `BREVO_API_KEY` et `BREVO_EXPEDITEUR` (une adresse d'un domaine vérifié chez Brevo), et, dans l'environnement, `HUMALIS_ADRESSE_SITE` (`https://ma-boutique.com`) pour écrire les liens. Sans elles, `inviter` affiche une erreur qui le dit. Cible web et bureau ; l'application mobile affiche un message qui renvoie vers le site, et le site statique refuse ces phrases."
+        texte "Les e-mails partent par SMTP, vers le serveur d'envoi de ton choix. Il faut, dans l'environnement du serveur ou son coffre de clés, `HUMALIS_EMAILS_HOTE`, `HUMALIS_EMAILS_PORT` et `HUMALIS_EMAILS_EXPEDITEUR`, avec `HUMALIS_EMAILS_UTILISATEUR` et `HUMALIS_EMAILS_MOT_DE_PASSE` si le serveur d'envoi en demande. Le port 465 est chiffré dès la connexion ; sur un autre port, STARTTLS est exigé, sauf vers ta propre machine. Il faut aussi, dans l'environnement, `HUMALIS_ADRESSE_SITE` (`https://ma-boutique.com`) pour écrire les liens. Sans eux, `inviter` affiche une erreur qui le dit. Cible web et bureau ; l'application mobile affiche un message qui renvoie vers le site, et le site statique refuse ces phrases."
+        soustitre "Laisser chacun créer son compte"
+        texte "Une boutique publique laisse un client créer son compte lui-même. Dans le serveur, `inscription libre comme client vers "confirmation"` ouvre l'inscription : chaque compte créé reçoit le rôle `client`, et le lien de confirmation ouvre la page `confirmation`."
+        code humalis :
+            serveur "boutique" :
+                roles client
+                emails
+                compte :
+                    nom : texte
+                inscription libre comme client vers "confirmation"
+
+            page "inscription" :
+                titre "Créer un compte"
+                formulaire "compte" :
+                    champ "Nom" avec obligatoire
+                    champ email "Email" avec obligatoire
+                    champ mot de passe "Mot de passe" avec obligatoire
+                    bouton "Créer mon compte"
+                quand le formulaire "compte" est soumis :
+                    essayer :
+                        creer mon compte avec champ "Email" et champ "Mot de passe" avec nom = champ "Nom"
+                        afficher "Un lien de confirmation vous a été envoyé."
+                    si erreur :
+                        afficher erreur "{raison}"
+
+            page "confirmation" :
+                titre "Confirmation"
+                quand la page se charge :
+                    essayer :
+                        confirmer mon adresse
+                        afficher "Votre adresse est confirmée : vous pouvez vous connecter."
+                    si erreur :
+                        afficher erreur "{raison}"
+        liste :
+            texte "`creer mon compte avec … et …` donne l'adresse, puis le mot de passe. `avec nom = champ "Nom"` remplit les champs déclarés dans `compte :`, et aucun autre."
+            texte "La personne reçoit un lien par e-mail. Tant qu'elle ne l'a pas ouvert, son compte ne se connecte pas. Sur la page du lien, `confirmer mon adresse` lit le jeton dans l'adresse et ouvre le compte ; elle se connecte ensuite avec son mot de passe."
+            texte "Le lien vaut 24 heures et ne sert qu'une fois. Le serveur garde seulement son empreinte. Une inscription jamais confirmée est effacée au bout de sept jours."
+            texte "La réponse est la même que l'adresse soit nouvelle ou ait déjà un compte : personne ne devine qui est inscrit. Une adresse déjà inscrite reçoit un e-mail qui le dit, et son compte ne change pas."
+            texte "Le mot de passe doit être solide : au moins 8 caractères, avec une majuscule, une minuscule, un chiffre et un signe. Une même adresse IP crée dix comptes par heure au plus ; une même adresse e-mail reçoit un lien toutes les dix minutes au plus."
+            texte "Le rôle vient toujours de la phrase, jamais de la page, et `admin` est refusé. La personne n'entre dans aucun groupe."
+            texte "Avec `connexion google` ou `connexion apple`, une adresse inconnue que Google ou Apple confirme crée aussi un compte de ce rôle, déjà confirmé."
+        texte "Il faut les mêmes réglages que pour les invitations : le serveur d'envoi (`HUMALIS_EMAILS_HOTE`, `HUMALIS_EMAILS_PORT`, `HUMALIS_EMAILS_EXPEDITEUR`) et `HUMALIS_ADRESSE_SITE`. Dans `humalis lancer`, l'e-mail est gardé dans la boîte du panneau, avec son lien. Sur Apple et Android, le lien ouvre l'application quand elle a `liens profonds "…" et domaine "…"` ; sur Windows, il s'ouvre dans le navigateur."
         soustitre "Envoyer un e-mail depuis le serveur"
         texte "Sous une route, `quand … est cree :` fait partir des e-mails quand une fiche vient d'être enregistrée."
         code humalis :
             serveur "boutique" :
-                emails par brevo
+                emails
                 donnee message :
                     nom : texte
                     texte : texte
@@ -4457,11 +4669,11 @@ page "documentation_22" dans "documentation" adresse "/documentation/relier-les-
             rangee "`si micro est coupe`, `si camera est coupee`, `si main est levee`", "l'état de la barre"
             rangee "`pour chaque p dans participants de reunion "…"`", "`p.nom`, `p.micro`, `p.camera`, `p.main`"
             rangee "`couper micro de p`, `exclure p`", "(animateurs) la modération"
-        texte "{accent "Le son et l'image passent par LiveKit"}, un serveur de réunions libre que tu héberges toi-même ou que tu prends chez LiveKit Cloud. Le serveur Humalis lit son adresse et ses clés dans l'environnement, jamais dans le code :"
+        texte "{accent "Le son et l'image passent par ton serveur de réunions"} : le logiciel libre LiveKit, que tu héberges. Le serveur Humalis lit son adresse et ses clés dans l'environnement, jamais dans le code :"
         code :
-            LIVEKIT_URL=wss://reunions.exemple.fr
-            LIVEKIT_API_KEY=…
-            LIVEKIT_API_SECRET=…
+            HUMALIS_REUNIONS_ADRESSE=wss://reunions.exemple.fr
+            HUMALIS_REUNIONS_CLE=…
+            HUMALIS_REUNIONS_SECRET=…
         texte "Sans ces trois variables, les discussions marchent et rejoindre une réunion répond que le service n'est pas réglé. Pour essayer chez toi : `livekit-server --dev` donne `ws://localhost:7880`, `devkey` et `secret`."
         texte "{accent "Sur chaque cible."} Le web (moteur Humalis), le bureau, Apple (iPhone, iPad, Mac), Android et Windows (x64 et ARM64) ont tout : discussions, appels, réunions et partage d'écran. Sur Windows, le partage montre l'écran principal en entier ; sur iPhone, il montre l'application. Les pages statiques et `--moteur react` refusent ces phrases à la compilation, avec la cible à prendre."
     ligne avec style "doc-suite" :
@@ -5568,7 +5780,7 @@ page "documentation_33" dans "documentation" adresse "/documentation/ce-que-chaq
             texte "{accent "Device"}: `photo dans …`, `scanner code dans …`, `position dans …`, `verifier identite` (fingerprint, face or the device code), `vibrer` and `signature dans …`. Each permission is requested the first time it is needed."
             texte "{accent "Files"}: `fichier "…" dans …` opens the system picker, `envoyer fichier …` follows its progress, `telecharger bon de …` and `telecharger … en csv` open or share the file."
             texte "{accent "Media"}: charts keep the web's colors, scales and “Voir les données” table; maps show OpenStreetMap tiles and their attribution; audio and video go through Android's player and never start on their own."
-            texte "{accent "Account"}: invitations, account roles and fields, choosing a password from the link received, Google or Apple login, payment (Stripe's page opens in the browser), `demander a ia`, whose answer appears as it comes, and `activer notifications`, through Firebase Cloud Messaging (see “Notifications”)."
+            texte "{accent "Account"}: invitations, account roles and fields, choosing a password from the link received, Google or Apple login, payment (the payment page opens in the browser), `demander a ia`, whose answer appears as it comes, and `activer notifications`, through Firebase Cloud Messaging (see “Notifications”)."
             texte "{accent "Real time and offline"}: `en direct`, `avec hors ligne`, `… hors ligne` sends (kept on the device, sent in order when the network returns) and `en arriere plan :` (run by the system about every quarter of an hour, when the network is there)."
             texte "{accent "Motion and keyboard"}: entrance animations and `effet leve` follow the device's “remove animations” setting. A list `avec deplacement` is reordered with a long press, then a drag; TalkBack offers “Move up” and “Move down” (named « Monter » and « Descendre »). With a keyboard attached, the page's shortcuts work. `menu de l'application` becomes the “⋮” menu at the top of the app, with its shortcuts."
             texte "{accent "Native components"}: `actualiser en tirant` becomes pulling the page down, `action en glissant` slides the row to the left, `menu d'options` opens on a long press (TalkBack offers these actions too) and `etat vide` shows its icon in the middle."
@@ -5592,7 +5804,7 @@ page "documentation_33" dans "documentation" adresse "/documentation/ce-que-chaq
             texte "`en direct`: the list is read again when the server announces a change, as long as the page is open."
             texte "Animations and hover effects are not drawn yet; the compiler says so."
             texte "What Humalis cannot do yet is written in C#: `utiliser composant "Carte" sur windows "./natif/Carte.cs"`, with its NuGet libraries (`paquet windows "…" version "…"`); see \"A hand-written native view\"."
-            texte "`payer total pour r` opens the Stripe payment page in the browser; back in the app, the page reads its data again, and the paid record shows up."
+            texte "`payer total pour r` opens the payment page in the browser; back in the app, the page reads its data again, and the paid record shows up."
             texte "Not on Windows yet: AI, signing in with Google or Apple, invitations, notifications sent by the server. Compilation stops and says which line needs them."
         texte "The app-specific forms work without an MSIX package: the app registers itself with Windows at each launch, for the signed-in person, without administrator rights. It only runs once: an opened file, a right-click or a notification button is passed to the window already open."
         liste :
@@ -5671,7 +5883,7 @@ page "documentation_33" dans "documentation" adresse "/documentation/ce-que-chaq
             texte "{accent "Appareil"} : `photo dans …`, `scanner code dans …`, `position dans …`, `verifier identite` (l'empreinte, le visage ou le code de l'appareil), `vibrer` et `signature dans …`. Chaque permission est demandée la première fois qu'elle sert."
             texte "{accent "Fichiers"} : `fichier "…" dans …` ouvre le sélecteur du système, `envoyer fichier …` suit sa progression, `telecharger bon de …` et `telecharger … en csv` ouvrent ou partagent le fichier."
             texte "{accent "Médias"} : les graphiques gardent les couleurs, les graduations et la table « Voir les données » du web ; les cartes montrent les tuiles d'OpenStreetMap et leur attribution ; le son et la vidéo passent par le lecteur d'Android, sans démarrer seuls."
-            texte "{accent "Compte"} : invitations, rôles et champs du compte, choix du mot de passe par le lien reçu, connexion avec Google ou Apple, paiement (la page de Stripe s'ouvre dans le navigateur), `demander a ia`, dont la réponse s'écrit au fil de l'eau, et `activer notifications`, par Firebase Cloud Messaging (voir « Les notifications »)."
+            texte "{accent "Compte"} : invitations, rôles et champs du compte, choix du mot de passe par le lien reçu, connexion avec Google ou Apple, paiement (la page de paiement s'ouvre dans le navigateur), `demander a ia`, dont la réponse s'écrit au fil de l'eau, et `activer notifications`, par Firebase Cloud Messaging (voir « Les notifications »)."
             texte "{accent "Temps réel et hors-ligne"} : `en direct`, `avec hors ligne`, les envois `… hors ligne` (gardés sur l'appareil, envoyés dans l'ordre au retour du réseau) et `en arriere plan :` (lancé par le système environ tous les quarts d'heure, quand le réseau est là)."
             texte "{accent "Mouvement et clavier"} : les animations d'entrée et `effet leve` suivent le réglage « supprimer les animations » de l'appareil. Une liste `avec deplacement` se réordonne par un appui long puis en glissant ; TalkBack propose « Monter » et « Descendre ». Avec un clavier branché, les raccourcis de la page marchent. `menu de l'application` devient le menu « ⋮ » en haut de l'application, avec ses raccourcis."
             texte "{accent "Composants natifs"} : `actualiser en tirant` devient le geste de tirer la page vers le bas, `action en glissant` fait glisser la ligne vers la gauche, `menu d'options` s'ouvre au toucher prolongé (TalkBack propose aussi ces actions) et `etat vide` montre son icône au milieu."
@@ -5695,7 +5907,7 @@ page "documentation_33" dans "documentation" adresse "/documentation/ce-que-chaq
             texte "`en direct` : la liste se relit quand le serveur annonce un changement, tant que la page est ouverte."
             texte "Les animations et les effets de survol ne se dessinent pas encore ; la compilation le dit."
             texte "Ce que Humalis ne sait pas encore faire s'écrit en C# : `utiliser composant "Carte" sur windows "./natif/Carte.cs"`, avec ses bibliothèques NuGet (`paquet windows "…" version "…"`) ; voir « Une vue native écrite à la main »."
-            texte "`payer total pour r` ouvre la page de paiement de Stripe dans le navigateur ; de retour dans l'application, la page relit ses données, et la fiche payée apparaît."
+            texte "`payer total pour r` ouvre la page de paiement dans le navigateur ; de retour dans l'application, la page relit ses données, et la fiche payée apparaît."
             texte "Pas encore sur Windows : IA, connexion avec Google ou Apple, invitations, notifications envoyées par le serveur. La compilation s'arrête et dit quelle ligne en a besoin."
         texte "Les formes propres aux applications marchent sans paquet MSIX : l'application s'inscrit dans Windows à chaque lancement, pour la personne connectée, sans droits d'administrateur. Elle ne se lance qu'une fois : un fichier ouvert, un clic droit ou un bouton de notification est passé à la fenêtre déjà ouverte."
         liste :
@@ -5956,7 +6168,7 @@ page "documentation_37" dans "documentation" adresse "/documentation/mettre-en-p
         code terminal :
             npm run restauration -- sauvegardes/2026-11-12-03-15-00.jsonl.gz
             npm run restauration -- sauvegardes/2026-11-12-03-15-00.jsonl.gz --remplacer
-        texte "Stop the server first. On a fresh database, start it once to create the tables, then stop it. The restore refuses a table that already holds rows; `--remplacer` empties them first. It is all or nothing: a cut file, a missing table or a refused row, and nothing is changed."
+        texte "Stop the server first. On a fresh database, the tables are created from the backup: nothing to prepare. The restore refuses a table that already holds rows; `--remplacer` empties them first. It is all or nothing: a cut file, a missing table or a refused row, and nothing is changed."
         soustitre "Changing the program without losing data"
         texte "Records are kept as they were written. When the data changes in the program:"
         liste :
@@ -5991,12 +6203,12 @@ page "documentation_37" dans "documentation" adresse "/documentation/mettre-en-p
         liste :
             texte "Changing `JWT_SECRET` signs everyone out: each person signs in again, nothing is lost."
             texte "`ENCRYPTION_KEY` encrypts the key vault and the six-digit code secrets: losing it makes them unreadable. Keep it out of the database, and do not change it without emptying those secrets."
-            texte "Service keys (Stripe, Brevo, LiveKit) are changed in the `.env`, then a restart."
+            texte "Service settings (AI, e-mails, payments, meetings) are changed in the `.env`, then a restart."
         soustitre "The site and the apps"
         liste :
             texte "The site (`--cible web` or `statique`) is dropped on a file host. Its `_headers` file carries the content policy: Cloudflare Pages and Netlify read it on their own; elsewhere, copy its lines into the response headers."
             texte "Apple, Android and Windows apps go through their stores: see `docs/publier-sur-les-stores.md`."
-            texte "The desktop app (Electron) does not update itself yet: a new version is reinstalled."
+            texte "The desktop app (Electron) updates itself from the address of the `site` block or of `mises a jour depuis "…"`: put what `npm run paquet` prepares in its `mises-a-jour/` folder. On a Mac, the application must be signed."
         soustitre "What Humalis does not do for you"
         texte "Renting the machine, opening the domain, watching disk space, keeping backups elsewhere, and checking from time to time that they can be read back."
     sinon :
@@ -6030,7 +6242,7 @@ page "documentation_37" dans "documentation" adresse "/documentation/mettre-en-p
         code terminal :
             npm run restauration -- sauvegardes/2026-11-12-03-15-00.jsonl.gz
             npm run restauration -- sauvegardes/2026-11-12-03-15-00.jsonl.gz --remplacer
-        texte "Arrête le serveur avant. Sur une base neuve, démarre-le une fois pour créer les tables, puis arrête-le. La restauration refuse une table qui contient déjà des lignes ; `--remplacer` les vide d'abord. Elle est tout ou rien : un fichier coupé, une table manquante ou une ligne refusée, et rien n'est changé."
+        texte "Arrête le serveur avant. Sur une base neuve, les tables sont créées d'après la sauvegarde : rien à préparer. La restauration refuse une table qui contient déjà des lignes ; `--remplacer` les vide d'abord. Elle est tout ou rien : un fichier coupé, une table manquante ou une ligne refusée, et rien n'est changé."
         soustitre "Changer le programme sans perdre de données"
         texte "Les fiches sont gardées telles qu'elles ont été écrites. Quand la donnée change dans le programme :"
         liste :
@@ -6065,12 +6277,12 @@ page "documentation_37" dans "documentation" adresse "/documentation/mettre-en-p
         liste :
             texte "Changer `JWT_SECRET` déconnecte tout le monde : chacun se reconnecte, rien n'est perdu."
             texte "`ENCRYPTION_KEY` chiffre le coffre des clés et les secrets du code à six chiffres : la perdre les rend illisibles. Garde-la hors de la base, et ne la change pas sans vider ces secrets."
-            texte "Les clés des services (Stripe, Brevo, LiveKit) se changent dans le `.env`, puis un redémarrage."
+            texte "Les réglages des services (IA, e-mails, paiements, réunions) se changent dans le `.env`, puis un redémarrage."
         soustitre "Le site et les applications"
         liste :
             texte "Le site (`--cible web` ou `statique`) se dépose chez un hébergeur de fichiers. Son fichier `_headers` porte la politique de contenu : Cloudflare Pages et Netlify le lisent seuls ; ailleurs, recopie ses lignes dans les en-têtes de réponse."
             texte "Les applications Apple, Android et Windows passent par leurs magasins : voir `docs/publier-sur-les-stores.md`."
-            texte "L'application de bureau (Electron) ne se met pas encore à jour seule : une nouvelle version se réinstalle."
+            texte "L'application de bureau (Electron) se met à jour seule depuis l'adresse du bloc `site` ou de `mises a jour depuis "…"` : dépose dans son dossier `mises-a-jour/` ce que `npm run paquet` prépare. Sur Mac, il faut une application signée."
         soustitre "Ce que Humalis ne fait pas à ta place"
         texte "Louer la machine, ouvrir le domaine, surveiller l'espace disque, garder les sauvegardes ailleurs et vérifier de temps en temps qu'elles se relisent."
     ligne avec style "doc-suite" :

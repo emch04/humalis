@@ -281,12 +281,12 @@ page "accueil" :
 
 ### inscription libre comme client vers "confirmation"
 
-Dans le serveur : chacun crée son compte, au rôle donné (jamais admin), et le lien de confirmation envoyé par e-mail ouvre la page donnée. Dans les pages : « creer mon compte avec … et … » (adresse, puis mot de passe ; « avec nom = … » pour les champs de « compte : ») et « confirmer mon adresse » sur la page du lien. Demande « emails par brevo ».
+Dans le serveur : chacun crée son compte, au rôle donné (jamais admin), et le lien de confirmation envoyé par e-mail ouvre la page donnée. Dans les pages : « creer mon compte avec … et … » (adresse, puis mot de passe ; « avec nom = … » pour les champs de « compte : ») et « confirmer mon adresse » sur la page du lien. Demande « emails ».
 
 ```humalis
 serveur "boutique" :
     roles client
-    emails par brevo
+    emails
     compte :
         nom : texte
     inscription libre comme client vers "confirmation"
@@ -835,8 +835,7 @@ serveur "boutique" :
 - Une courbe d’un seul point : une courbe d’un seul point
 - Des champs de graphique non vérifiés : ne sont connus qu’à l’exécution
 - Une capture doit remplir une variable de fichier : elle reçoit un fichier
-- « emails » sans son service : écrivez le service qui les envoie
-- Un service d’e-mails inconnu : le seul service d’e-mails est Brevo
+- Un service d’e-mails nommé dans le programme : « emails » s’écrit seul
 - Une invitation ou un mot de passe oublié sans sa page : est suivi de la page qu'ouvre le lien
 - Un lien par e-mail sans service d’e-mails : envoie un lien par e-mail
 - Le lien ouvre une page qui n’existe pas : cette page n'existe pas
@@ -938,18 +937,19 @@ serveur "boutique" :
 - Un document qui n’existe pas : aucun document « oups »
 - Un « faire » sur autre chose qu’une fiche : attend une fiche
 - Activer les notifications dans la page : activer notifications
-- Un service d’IA inconnu : le seul service d’IA
+- Un service d’IA nommé dans le programme : « ia » s’écrit seul
+- Une ancienne forme qui nomme un service : s'écrit maintenant « ia »
 - Le droit de l’IA écrit dans une route : directement dans le serveur
 - Un droit mal écrit après « demander » : on écrit : connecte peut demander a ia
 - Une question sans sa variable : on écrit : demander a ia
 - Une IA que personne n’a le droit d’interroger : dites qui peut la poser
-- Un droit sur une IA non réglée : demande la ligne « ia par anthropic »
+- Un droit sur une IA non réglée : demande la ligne « ia »
 - Une IA ouverte à tout le monde : réservez-la à des comptes connectés
 - Une question à l’IA dans la page : demander a ia
-- Une question sans IA dans le serveur : demande la ligne « ia par anthropic »
-- Un service de paiement inconnu : le seul service de paiement
+- Une question sans IA dans le serveur : demande la ligne « ia »
+- Un service de paiement nommé dans le programme : « paiements » s’écrit seul
 - Deux « quand … est payee » dans une route : qu'un seul « quand … est payee »
-- Un paiement sans service : demande la ligne « paiements par stripe »
+- Un paiement sans service : demande la ligne « paiements »
 - Un paiement sur la donnée d’une autre route : elle ne voit pas le paiement
 - Un paiement lancé dans la page : payer
 - « payer » sur autre chose qu’une fiche payable : attend une fiche
@@ -978,7 +978,7 @@ serveur "boutique" :
 - Créer une fiche avec un champ inconnu : la donnée n'a pas de champ « oups »
 - Créer une fiche sans tous ses champs : il manque « total »
 - Créer une fiche séparée sans savoir pour quel groupe : aucune fiche ici n'indique lequel
-- Un e-mail sans service d’e-mails : demande la ligne « emails par brevo »
+- Un e-mail sans service d’e-mails : demande la ligne « emails »
 - Une action sur une donnée inconnue : n'existe pas dans le serveur
 - Un document sur une donnée inconnue : n'existe pas. Données
 - Un « refuser » après un paiement : le paiement est déjà fait

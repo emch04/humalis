@@ -15,7 +15,7 @@ const decaler = (code: string, marge: number) =>
 const programme = (o: { racine?: string; page?: string; action?: string; route?: string; commande?: string; donnee?: string }) => `
 serveur "essai" :
     connexion google
-    emails par brevo
+    emails
     invitations vers "contact"
     mot de passe oublie vers "contact"
     donnee produit :

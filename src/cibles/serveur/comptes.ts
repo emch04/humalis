@@ -1,5 +1,5 @@
 /**
- * Les e-mails et les comptes invités du serveur produit (« emails par brevo »,
+ * Les e-mails et les comptes invités du serveur produit (« emails »,
  * « invitations vers … », « mot de passe oublie vers … », « … peut lire comptes »).
  * La sécurité reste aux packs : le lien du mot de passe oublié et sa consommation
  * viennent de @astratra/saas-kit, l'envoi et le nettoyage des en-têtes de
@@ -133,10 +133,15 @@ ${serveur.changeDeRole ? "      routeRoles.post('/:id/role', ...acces.seulAdmin,
 }
 
 /** .env.exemple : les réglages des e-mails et des liens. */
-export const ENV_EMAILS = `# Les e-mails (« emails par brevo ») : la clé API de Brevo et une adresse d'un domaine vérifié chez Brevo.
-# Sans elles, rien ne part et le serveur le dit dans son journal.
-BREVO_API_KEY=
-BREVO_EXPEDITEUR=
+export const ENV_EMAILS = `# Les e-mails (« emails ») : le serveur d'envoi SMTP de votre choix. Rien par défaut :
+# sans hôte, port et adresse d'envoi, rien ne part et le serveur le dit.
+# Port 465 : chiffré dès la connexion ; tout autre port : STARTTLS exigé (sauf sur cette machine, localhost).
+HUMALIS_EMAILS_HOTE=
+HUMALIS_EMAILS_PORT=
+HUMALIS_EMAILS_EXPEDITEUR=
+# L'identifiant et le mot de passe SMTP, si le serveur d'envoi en demande (les deux ensemble).
+HUMALIS_EMAILS_UTILISATEUR=
+HUMALIS_EMAILS_MOT_DE_PASSE=
 # Combien d'e-mails ce serveur envoie par heure au plus (100 par défaut).
 HUMALIS_EMAILS_PAR_HEURE=
 `;
@@ -146,31 +151,52 @@ export const ENV_LIENS = `# L'adresse publique du site, pour les liens envoyés 
 HUMALIS_ADRESSE_SITE=
 `;
 
-/** Le coffre des clés : les deux clés de Brevo. */
-export const CLES_BREVO = `      {
-        key: 'BREVO_API_KEY',
-        label: 'Clé API de Brevo',
-        help: "Pour envoyer les e-mails du serveur. Sans elle, rien ne part.",
-        where: 'Brevo, SMTP et API, Clés API',
+/** Le coffre des clés : les réglages du serveur d'envoi. */
+export const CLES_EMAILS = `      {
+        key: 'HUMALIS_EMAILS_HOTE',
+        label: "Serveur d'envoi des e-mails (SMTP)",
+        help: "L'hôte SMTP de votre service d'envoi. Sans lui, rien ne part.",
+        where: "Les réglages SMTP de votre service d'envoi",
       },
       {
-        key: 'BREVO_EXPEDITEUR',
+        key: 'HUMALIS_EMAILS_PORT',
+        label: 'Port SMTP',
+        help: '465 (chiffré dès la connexion) ou 587 (STARTTLS), selon votre service.',
+        where: "Les réglages SMTP de votre service d'envoi",
+      },
+      {
+        key: 'HUMALIS_EMAILS_UTILISATEUR',
+        label: 'Identifiant SMTP',
+        help: "Si votre service d'envoi en demande un.",
+        where: "Les réglages SMTP de votre service d'envoi",
+      },
+      {
+        key: 'HUMALIS_EMAILS_MOT_DE_PASSE',
+        label: 'Mot de passe SMTP',
+        help: "Si votre service d'envoi en demande un.",
+        where: "Les réglages SMTP de votre service d'envoi",
+      },
+      {
+        key: 'HUMALIS_EMAILS_EXPEDITEUR',
         label: "Adresse d'envoi",
-        help: "Une adresse d'un domaine vérifié chez Brevo.",
-        where: 'Brevo, Expéditeurs et domaines',
+        help: "Une adresse que votre service d'envoi accepte comme expéditeur.",
+        where: "Les réglages de votre service d'envoi",
       },
 `;
 
+/** Les réglages qui manquent, dans les messages du serveur produit. */
+export const REGLAGES_EMAILS = 'HUMALIS_EMAILS_HOTE, HUMALIS_EMAILS_PORT, HUMALIS_EMAILS_EXPEDITEUR';
+
 /** src/humalis/emails.ts */
-export const EMAILS = `import { createMailer } from '@astratra/notify';
+export const EMAILS = String.raw`import { createMailer } from '@astratra/notify';
+import nodemailer from 'nodemailer';
 
 /**
- * Produit par Humalis : les e-mails du serveur, par @astratra/notify et l'API de Brevo.
- * Les clés sont relues à chaque envoi, pour qu'un changement dans le coffre serve aussitôt.
- * Rien ici ne montre une clé, ni dans un journal, ni dans une erreur.
+ * Produit par Humalis : les e-mails du serveur, par @astratra/notify et SMTP, vers le serveur d'envoi choisi dans le .env.
+ * Les réglages sont relus à chaque envoi, pour qu'un changement dans le coffre serve aussitôt.
+ * Rien ici ne montre un mot de passe, ni dans un journal, ni dans une erreur.
  */
-const URL_BREVO = 'https://api.brevo.com/v3/smtp/email';
-const ADRESSE = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
+const ADRESSE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const HEURE = 60 * 60 * 1000;
 
 export interface MessageEmail {
@@ -181,73 +207,128 @@ export interface MessageEmail {
 }
 
 export interface Emails {
-  /** Vrai si la clé et l'adresse d'envoi sont réglées. */
+  /** Vrai si le serveur d'envoi et l'adresse d'envoi sont réglés. */
   pret(): boolean;
-  /** Ne lève jamais : vrai si le service a pris l'e-mail. */
+  /** Ne lève jamais : vrai si le serveur d'envoi a pris l'e-mail. */
   envoyer(message: MessageEmail): Promise<boolean>;
 }
+
+export interface ReglagesSmtp {
+  hote: string;
+  port: number;
+  utilisateur: string;
+  motDePasse: string;
+  expediteur: string;
+}
+
+/** Un e-mail prêt à partir, tel que le transport le reçoit. */
+export interface EnvoiSmtp {
+  de: { nom: string; adresse: string };
+  a: string[];
+  sujet: string;
+  texte?: string;
+  html?: string;
+}
+
+/** Envoie un e-mail ; lève si le serveur d'envoi le refuse. Les tests en donnent un faux. */
+export type TransportEmails = (reglages: ReglagesSmtp, envoi: EnvoiSmtp) => Promise<void>;
+
+const LOCAL = new Set(['localhost', '127.0.0.1', '::1']);
+
+/** Le transport par défaut : SMTP, chiffré (465 d'emblée, sinon STARTTLS exigé), sauf vers cette machine. */
+export const transportSmtp: TransportEmails = async (reglages, envoi) => {
+  const chiffre = reglages.port === 465;
+  const transporteur = nodemailer.createTransport({
+    host: reglages.hote,
+    port: reglages.port,
+    secure: chiffre,
+    requireTLS: !chiffre && !LOCAL.has(reglages.hote),
+    ...(reglages.utilisateur ? { auth: { user: reglages.utilisateur, pass: reglages.motDePasse } } : {}),
+    connectionTimeout: 15_000,
+    greetingTimeout: 15_000,
+    socketTimeout: 30_000,
+  });
+  try {
+    await transporteur.sendMail({
+      from: { name: envoi.de.nom, address: envoi.de.adresse },
+      to: envoi.a,
+      subject: envoi.sujet,
+      ...(envoi.texte !== undefined ? { text: envoi.texte } : {}),
+      ...(envoi.html ? { html: envoi.html } : {}),
+    });
+  } finally {
+    transporteur.close();
+  }
+};
 
 /** Une valeur d'une fiche dans un texte : une valeur absente ne s'écrit pas. */
 export const enTexte = (valeur: unknown) => (valeur === null || valeur === undefined ? '' : String(valeur));
 
+/** Les réglages du .env, ou ce qui manque. */
+export function reglagesSmtp(env: Record<string, string | undefined> = process.env): ReglagesSmtp | { manque: string } {
+  const lire = (cle: string) => (env[cle] ?? '').trim();
+  const hote = lire('HUMALIS_EMAILS_HOTE');
+  const port = Number(lire('HUMALIS_EMAILS_PORT'));
+  const expediteur = lire('HUMALIS_EMAILS_EXPEDITEUR');
+  const utilisateur = lire('HUMALIS_EMAILS_UTILISATEUR');
+  const motDePasse = lire('HUMALIS_EMAILS_MOT_DE_PASSE');
+  const manque = [
+    !hote && 'HUMALIS_EMAILS_HOTE',
+    !(Number.isInteger(port) && port > 0 && port < 65536) && 'HUMALIS_EMAILS_PORT',
+    !ADRESSE.test(expediteur) && 'HUMALIS_EMAILS_EXPEDITEUR',
+  ].filter(Boolean);
+  if (manque.length) return { manque: 'les e-mails ne sont pas réglés : renseignez ' + manque.join(', ') + ' dans le .env' };
+  if (Boolean(utilisateur) !== Boolean(motDePasse)) return { manque: 'les e-mails ne sont pas réglés : HUMALIS_EMAILS_UTILISATEUR et HUMALIS_EMAILS_MOT_DE_PASSE vont ensemble' };
+  return { hote, port, utilisateur, motDePasse, expediteur };
+}
+
 export function creerEmails({
   nom,
   env = process.env,
-  transport = globalThis.fetch,
+  transport = transportSmtp,
   horloge = Date.now,
 }: {
   nom: string;
   env?: Record<string, string | undefined>;
-  transport?: typeof globalThis.fetch;
+  transport?: TransportEmails;
   horloge?: () => number;
 }): Emails {
-  const cles = () => {
-    const cle = (env.BREVO_API_KEY ?? '').trim();
-    const expediteur = (env.BREVO_EXPEDITEUR ?? '').trim();
-    return cle && ADRESSE.test(expediteur) ? { cle, expediteur } : null;
-  };
   const envois: number[] = [];
   return {
-    pret: () => cles() !== null,
+    pret: () => !('manque' in reglagesSmtp(env)),
     async envoyer({ a, sujet, texte, html }) {
-      const reglees = cles();
-      if (!reglees) {
-        console.warn("E-mail non envoyé : BREVO_API_KEY et BREVO_EXPEDITEUR ne sont pas réglées.");
+      const reglages = reglagesSmtp(env);
+      if ('manque' in reglages) {
+        console.warn('E-mail non envoyé : ' + reglages.manque + '.');
         return false;
       }
       const limite = Number(env.HUMALIS_EMAILS_PAR_HEURE) || 100;
       while (envois.length > 0 && envois[0] <= horloge() - HEURE) envois.shift();
       if (envois.length >= limite) {
-        console.warn(\`E-mail non envoyé : la limite de \${limite} par heure est atteinte (HUMALIS_EMAILS_PAR_HEURE).\`);
+        console.warn('E-mail non envoyé : la limite de ' + limite + ' par heure est atteinte (HUMALIS_EMAILS_PAR_HEURE).');
         return false;
       }
       envois.push(horloge());
       const mailer = createMailer({
         channels: {
           transactional: {
-            from: reglees.expediteur,
+            from: reglages.expediteur,
             fromName: nom,
             async send(message: { to: string[]; subject: string; text?: string; html?: string }) {
-              const reponse = await transport(URL_BREVO, {
-                method: 'POST',
-                headers: { 'api-key': reglees.cle, 'content-type': 'application/json', accept: 'application/json' },
-                body: JSON.stringify({
-                  sender: { name: nom, email: reglees.expediteur },
-                  to: message.to.map((email) => ({ email })),
-                  subject: message.subject,
-                  textContent: message.text,
-                  ...(message.html ? { htmlContent: message.html } : {}),
-                }),
-                signal: AbortSignal.timeout(15_000),
-              });
-              if (!reponse.ok) throw new Error(\`Brevo a refusé l'envoi (HTTP \${reponse.status})\`);
-              return reponse.json().catch(() => ({}));
+              try {
+                await transport(reglages, { de: { nom, adresse: reglages.expediteur }, a: message.to, sujet: message.subject, texte: message.text, ...(message.html ? { html: message.html } : {}) });
+              } catch (erreur) {
+                // Le code de la réponse SMTP seulement : jamais l'identifiant ni le mot de passe.
+                const code = (erreur as { responseCode?: unknown; code?: unknown }).responseCode ?? (erreur as { code?: unknown }).code;
+                throw new Error("le serveur d'envoi a refusé l'e-mail" + (code ? ' (' + String(code) + ')' : ''));
+              }
+              return {};
             },
           },
         },
       });
       const { sent, reason } = await mailer.send({ to: a, subject: sujet, text: texte, ...(html ? { html } : {}) });
-      if (!sent) console.error(\`E-mail non envoyé : \${reason ?? 'raison inconnue'}.\`);
+      if (!sent) console.error('E-mail non envoyé : ' + (reason ?? 'raison inconnue') + '.');
       return sent;
     },
   };
@@ -550,7 +631,7 @@ export function creerComptes({
           return;
         }
         if (pageInvitation === null || !emails.pret() || !adresseDuSite()) {
-          res.status(503).json({ erreur: "les e-mails ne sont pas réglés sur ce serveur (BREVO_API_KEY, BREVO_EXPEDITEUR, HUMALIS_ADRESSE_SITE) : l'invitation n'est pas partie" });
+          res.status(503).json({ erreur: "les e-mails ne sont pas réglés sur ce serveur (HUMALIS_EMAILS_HOTE, HUMALIS_EMAILS_PORT, HUMALIS_EMAILS_EXPEDITEUR, HUMALIS_ADRESSE_SITE) : l'invitation n'est pas partie" });
           return;
         }
         const existant = (await usersStore.findByEmail(adresse)) as Compte | null;
@@ -613,7 +694,7 @@ export function creerComptes({
           return;
         }
         if (!emails.pret() || !adresseDuSite()) {
-          res.status(503).json({ erreur: "les e-mails ne sont pas réglés sur ce serveur (BREVO_API_KEY, BREVO_EXPEDITEUR, HUMALIS_ADRESSE_SITE) : l'inscription n'est pas partie" });
+          res.status(503).json({ erreur: "les e-mails ne sont pas réglés sur ce serveur (HUMALIS_EMAILS_HOTE, HUMALIS_EMAILS_PORT, HUMALIS_EMAILS_EXPEDITEUR, HUMALIS_ADRESSE_SITE) : l'inscription n'est pas partie" });
           return;
         }
         await menageInscriptions();
@@ -858,7 +939,7 @@ export function creerComptes({
 }
 `;
 
-/** tests/comptes.test.ts : le parcours complet, avec un faux Brevo. */
+/** tests/comptes.test.ts : le parcours complet, avec un faux serveur d'envoi. */
 export function testsComptes(serveur: ServeurRI, stockages: string): string {
   const route = serveur.routeComptes ? adresseDeRoute(serveur.routeComptes.adresse) : null;
   const blocs: string[] = [];
@@ -896,7 +977,7 @@ export function testsComptes(serveur: ServeurRI, stockages: string): string {
   it('sans les réglages des e-mails, l\\'invitation le dit au lieu de faire semblant', async () => {
     const { app, entreeAdmin } = await preparer({ cles: false });
     const reponse = await request(app).post('/auth/invitations').set(entreeAdmin).send({ email: 'neuf@exemple.cd' }).expect(503);
-    expect(reponse.body.erreur).toContain('BREVO_API_KEY');
+    expect(reponse.body.erreur).toContain('HUMALIS_EMAILS_HOTE');
   });`);
   }
   if (serveur.inscriptionLibre) {
@@ -919,7 +1000,7 @@ export function testsComptes(serveur: ServeurRI, stockages: string): string {
     const connue = await request(app).post('/auth/inscription').set(entree).send({ email: 'awa@exemple.cd', motDePasse: 'Autre-Solide-2026!' });
     expect([connue.status, connue.body]).toEqual([neuve.status, neuve.body]);
     expect(boite).toHaveLength(2);
-    expect(/#jeton=/.test(boite[1].textContent)).toBe(false);
+    expect(/#jeton=/.test(boite[1].texte)).toBe(false);
     await request(app).post('/auth/login').send({ email: 'awa@exemple.cd', password: MOT_DE_PASSE }).expect(200);
     await request(app).post('/auth/login').send({ email: 'awa@exemple.cd', password: 'Autre-Solide-2026!' }).expect(401);
   });
@@ -1000,7 +1081,7 @@ export function testsComptes(serveur: ServeurRI, stockages: string): string {
   });`);
     }
   }
-  return `// Produit par Humalis : les invitations, le mot de passe oublié et la liste des comptes, avec un faux Brevo.
+  return `// Produit par Humalis : les invitations, le mot de passe oublié et la liste des comptes, avec un faux serveur d'envoi.
 ${serveur.inscriptionLibre ? "import { createHash } from 'node:crypto';\n" : ''}import { describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { createMemoryPasswordResetStore, createMemoryUsersStore, type UsersStore } from '@astratra/saas-kit';
@@ -1012,7 +1093,7 @@ import { creerStockageMemoire } from '../src/humalis/stockage.js';
 const MOT_DE_PASSE = 'Essai-Solide-2026!';
 process.env.HUMALIS_ADRESSE_SITE = 'https://site.exemple.cd';
 
-const jetonDuLien = (corps: { textContent: string }) => /#jeton=([0-9a-f]{64})/.exec(corps.textContent)![1];
+const jetonDuLien = (corps: { texte: string }) => /#jeton=([0-9a-f]{64})/.exec(corps.texte)![1];
 ${serveur.inscriptionLibre ? `
 /** Un visiteur, comme un navigateur : le cookie CSRF reçu à la première visite, renvoyé dans l'en-tête. */
 async function visiteur(app: never) {
@@ -1026,12 +1107,11 @@ async function preparer({ cles = true } = {}) {
   const passwordHash = await hashPassword(MOT_DE_PASSE);
   await usersStore.create({ email: 'admin@exemple.cd', role: 'admin', passwordHash });
   await usersStore.create({ email: 'awa@exemple.cd', role: 'user', passwordHash });
-  const boite: { textContent: string; to: { email: string }[] }[] = [];
-  const transport = (async (_url: unknown, options: { body: string }) => {
-    boite.push(JSON.parse(options.body));
-    return new Response('{}', { status: 201 });
-  }) as unknown as typeof fetch;
-  const emails = creerEmails({ nom: 'Essai', env: cles ? { BREVO_API_KEY: 'cle-de-test', BREVO_EXPEDITEUR: 'envoi@exemple.cd' } : {}, transport });
+  const boite: { texte: string; a: string[]; sujet: string; html?: string }[] = [];
+  const transport = async (_reglages: unknown, envoi: { a: string[]; sujet: string; texte?: string; html?: string }) => {
+    boite.push({ a: envoi.a, sujet: envoi.sujet, texte: envoi.texte ?? '', ...(envoi.html ? { html: envoi.html } : {}) });
+  };
+  const emails = creerEmails({ nom: 'Essai', env: cles ? { HUMALIS_EMAILS_HOTE: 'localhost', HUMALIS_EMAILS_PORT: '2525', HUMALIS_EMAILS_EXPEDITEUR: 'envoi@exemple.cd' } : {}, transport });
   const jetons = createMemoryPasswordResetStore();
   const stockages = {
 ${stockages}

@@ -11,7 +11,7 @@ const serveurDe = (source: string) => genererProjetServeur(compiler(source).appl
 const programme = `serveur "s" :
     roles gerant et client
     invitations vers "p"
-    emails par brevo
+    emails
     donnee commande par boutique :
         total : nombre
     route "commandes" :

@@ -1,7 +1,7 @@
 # Des réservations payées en ligne : chacun voit les siennes, l'administration voit tout,
-# et le serveur n'enregistre le paiement que lorsque Stripe le confirme.
+# et le serveur n'enregistre le paiement que lorsqu'il est confirmé.
 serveur "salon" :
-    paiements par stripe
+    paiements
     donnee reservation :
         nom : texte
         total : nombre

@@ -25,7 +25,7 @@ export function champsDuServeur(donnee: Donnee, route?: Route): string[] {
  * Les champs que seul le serveur écrit, et que la requête ne peut changer ni à la création ni à la modification :
  * « auteur », le champ de séparation (« par compte », « par boutique »), les calculs (« calcule … », qu'un admin
  * peut corriger) et « paye »,
- * écrit seulement quand Stripe confirme le paiement. Sinon un compte pourrait déplacer sa fiche chez un autre, se
+ * écrit seulement quand le webhook signé confirme le paiement. Sinon un compte pourrait déplacer sa fiche chez un autre, se
  * dire auteur à la place d'un autre, changer un total calculé ou marquer une fiche payée sans payer.
  */
 export function champsFiges(donnee: Donnee, admin = false): string[] {

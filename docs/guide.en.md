@@ -2343,7 +2343,7 @@ added with `au depart` also gives its value to the older records.
 serveur "commerce" :
     roles gerant et vendeur
     invitations vers "bienvenue"
-    emails par brevo
+    emails
     compte :
         telephone : texte
     donnee commande par boutique :
@@ -2699,7 +2699,7 @@ On other targets, the compiler says these phrases are not available yet.
 
 ```humalis
 serveur "commerce" :
-    ia par anthropic
+    ia
     connecte peut demander a ia
 
 page "aide" :
@@ -2711,15 +2711,31 @@ page "aide" :
         demander a ia "Donne une idée de slogan" dans reponse
 ```
 
-The answer appears as it is written. The `ANTHROPIC_API_KEY` key stays on the server. Each
-account has a cap shared by all servers: 30 questions an hour, changed by
-`HUMALIS_IA_PAR_HEURE`. `HUMALIS_IA_MODELE` picks the model (`claude-opus-5-5` by default).
+The answer appears as it is written. The program only says it needs an AI: the service
+is chosen at deployment, in the `.env`, with nothing by default. It must speak the
+OpenAI-compatible chat format, which most services and models running on your own
+machine follow:
+
+```
+HUMALIS_IA_ADRESSE=https://…/v1
+HUMALIS_IA_MODELE=…
+HUMALIS_IA_CLE=…
+```
+
+Humalis adds `/chat/completions` to the address. The key is optional (a model on your
+machine does not ask for one) and stays on the server. `HUMALIS_IA_ADRESSE_2`,
+`HUMALIS_IA_MODELE_2` and `HUMALIS_IA_CLE_2` set an optional second service, which takes
+the question over if the first one refuses before writing a word. Without an address or a
+model, the server refuses every question and says what is missing.
+
+Each account has a cap shared by all servers: 30 questions an hour, changed by
+`HUMALIS_IA_PAR_HEURE`. `HUMALIS_IA_JETONS` limits the length of an answer.
 
 #### Taking a payment
 
 ```humalis
 serveur "commerce" :
-    paiements par stripe
+    paiements
     donnee reservation :
         nom : texte
         total : nombre
@@ -2736,17 +2752,42 @@ serveur "commerce" :
         seul admin peut modifier journal
 ```
 
-`payer total pour r`, in a page, opens Stripe's payment page. The amount is re-read by the
-server, never sent by the page. The record gets a `paye` field, written only when Stripe
-confirms it through a signed webhook: send it to `/paiements/webhook`. It needs
-`STRIPE_CLE_SECRETE`, `STRIPE_SECRET_WEBHOOK` and `HUMALIS_ADRESSE_SITE`.
+`payer total pour r`, in a page, opens the payment page. The amount is re-read by the
+server, never sent by the page. The record gets a `paye` field, written only when the
+payment is confirmed by a signed call.
 
-Nobody can write `paye` through a request, not even an admin. If the amount Stripe confirms
-is no longer the record's amount (it changed during the payment), or if the record is gone,
-nothing is marked as paid: the server answers Stripe with an error, writes the cause to its
-log and reports it to monitoring when it is set up (`CENTRALE_ADRESSE`, `CENTRALE_CLE`).
-Stripe then retries this payment for about three days and shows it in its dashboard. Fix the
-record's amount and the next attempt records it; otherwise, refund the person from Stripe.
+The program names no payment service. The server talks to a **relay**, your own, placed
+between it and the service of your choice. It is set in the `.env`:
+
+```
+HUMALIS_PAIEMENT_ADRESSE=https://payments.example.com/humalis
+HUMALIS_PAIEMENT_SECRET=…
+HUMALIS_PAIEMENT_DEVISE=eur
+HUMALIS_ADRESSE_SITE=https://my-shop.com
+```
+
+The secret, shared with the relay, is at least 32 characters long. Without a relay or a
+secret, `payer` answers that payments are not set up.
+
+**The relay contract.** Both ways, a JSON body and the header
+`X-Humalis-Signature: t=<seconds>,v1=<signature>`, where the signature is the HMAC-SHA256,
+in hexadecimal, of `<seconds>.<body>` with the secret. A signature older than five minutes
+is refused.
+
+- To start a payment, the server sends `POST` to the relay's address:
+  `{ "reference": "…", "montant": 4500, "devise": "eur", "libelle": "reservation", "retour": "https://my-shop.com/…" }`.
+  The amount is in cents. The relay answers `{ "url": "https://…" }`, the payment page,
+  which sends the person back to `retour` once done.
+- When the money arrives, the relay sends `POST /paiements/webhook` to the server:
+  `{ "evenement": "paye", "reference": "…", "montant": 4500, "devise": "eur" }`, with the
+  reference it received, unchanged. `"echoue"` reports a deferred payment that failed. The
+  server answers 200 once it is recorded; any other answer means: call again later.
+
+Nobody can write `paye` through a request, not even an admin. If the confirmed amount is no
+longer the record's amount (it changed during the payment), or if the record is gone,
+nothing is marked as paid: the server answers the relay with 500, writes the cause to its
+log and reports it to monitoring when it is set up (`CENTRALE_ADRESSE`, `CENTRALE_CLE`). Fix
+the record's amount and the next call records it; otherwise, refund the person.
 
 #### Resending without duplicates
 
@@ -3047,7 +3088,7 @@ is now known.
 ```humalis
 serveur "shop" :
     connexion google
-    emails par brevo
+    emails
     invitations vers "welcome"
     mot de passe oublie vers "welcome"
     route "team" :
@@ -3115,9 +3156,13 @@ page "welcome" :
   link, and their session is cut. You cannot remove yourself. A new invitation can
   bring them back.
 
-The server needs `BREVO_API_KEY` and `BREVO_EXPEDITEUR` (an address on a domain
-verified with Brevo), in its environment or key vault, and `HUMALIS_ADRESSE_SITE`
-(`https://my-shop.com`) in its environment to write the links. Without them,
+E-mails leave through SMTP, to the sending server of your choice. The server needs, in
+its environment or key vault, `HUMALIS_EMAILS_HOTE`, `HUMALIS_EMAILS_PORT` and
+`HUMALIS_EMAILS_EXPEDITEUR`, with `HUMALIS_EMAILS_UTILISATEUR` and
+`HUMALIS_EMAILS_MOT_DE_PASSE` when the sending server asks for them. Port 465 is
+encrypted from the start; on another port, STARTTLS is required, except towards your own
+machine. It also needs `HUMALIS_ADRESSE_SITE` (`https://my-shop.com`) in its environment
+to write the links. Without them,
 `inviter` shows an error that says so. Web and desktop targets; the mobile app
 shows a message pointing to the site, and the static target refuses these phrases.
 
@@ -3131,7 +3176,7 @@ created gets the `client` role, and the confirmation link opens the
 ```humalis
 serveur "boutique" :
     roles client
-    emails par brevo
+    emails
     compte :
         nom : texte
     inscription libre comme client vers "confirmation"
@@ -3179,8 +3224,8 @@ page "confirmation" :
 - With `connexion google` or `connexion apple`, an unknown address that Google or
   Apple confirms also creates an account with this role, already confirmed.
 
-It needs the same settings as invitations: `BREVO_API_KEY`, `BREVO_EXPEDITEUR` and
-`HUMALIS_ADRESSE_SITE`. In `humalis lancer`, the e-mail is kept in the panel's
+It needs the same settings as invitations: the sending server (`HUMALIS_EMAILS_HOTE`,
+`HUMALIS_EMAILS_PORT`, `HUMALIS_EMAILS_EXPEDITEUR`) and `HUMALIS_ADRESSE_SITE`. In `humalis lancer`, the e-mail is kept in the panel's
 mailbox, with its link. On Apple and Android, the link opens the app when it has
 `liens profonds "…" et domaine "…"`; on Windows, it opens in the browser.
 
@@ -3190,7 +3235,7 @@ Under a route, `quand … est cree :` sends emails once a record has been saved.
 
 ```humalis
 serveur "shop" :
-    emails par brevo
+    emails
     donnee message :
         nom : texte
         texte : texte
@@ -3453,14 +3498,14 @@ connection drops disappears from it.
 | `pour chaque p dans participants de reunion "…"` | `p.nom`, `p.micro`, `p.camera`, `p.main` |
 | `couper micro de p`, `exclure p` | (hosts) moderation |
 
-**Sound and video go through LiveKit**, an open-source meeting server you host
-yourself or rent from LiveKit Cloud. The Humalis server reads its address and keys
-from the environment, never from the code:
+**Sound and video go through your meeting server**: the open-source LiveKit software,
+which you host. The Humalis server reads its address and keys from the environment,
+never from the code:
 
 ```
-LIVEKIT_URL=wss://meetings.example.com
-LIVEKIT_API_KEY=…
-LIVEKIT_API_SECRET=…
+HUMALIS_REUNIONS_ADRESSE=wss://meetings.example.com
+HUMALIS_REUNIONS_CLE=…
+HUMALIS_REUNIONS_SECRET=…
 ```
 
 Without these three variables, chats still work and joining a meeting answers that
@@ -4342,7 +4387,7 @@ The whole language works on Android, as on Apple:
   OpenStreetMap tiles and their attribution; audio and video go through Android's player and
   never start on their own.
 - **Account**: invitations, account roles and fields, choosing a password from the link
-  received, Google or Apple login, payment (Stripe's page opens in the browser),
+  received, Google or Apple login, payment (the payment page opens in the browser),
   `demander a ia`, whose answer appears as it comes, and `activer notifications`, through
   Firebase Cloud Messaging (see “Notifications”).
 - **Real time and offline**: `en direct`, `avec hors ligne`, `… hors ligne` sends (kept on
@@ -4406,7 +4451,7 @@ Mac or on Linux; only running it needs Windows 10 or 11.
 - What Humalis cannot do yet is written in C#: `utiliser composant "Carte" sur windows
   "./natif/Carte.cs"`, with its NuGet libraries (`paquet windows "…" version "…"`); see
   "A hand-written native view".
-- `payer total pour r` opens the Stripe payment page in the browser; back in the app,
+- `payer total pour r` opens the payment page in the browser; back in the app,
   the page reads its data again, and the paid record shows up.
 - Not on Windows yet: AI, signing in with Google or Apple, invitations,
   notifications sent by the server. Compilation stops and says which line needs them.
@@ -4751,7 +4796,7 @@ instance: rate limits, and the attachment volume per hour.
 - Changing `JWT_SECRET` signs everyone out: each person signs in again, nothing is lost.
 - `ENCRYPTION_KEY` encrypts the key vault and the six-digit code secrets: losing it makes them
   unreadable. Keep it out of the database, and do not change it without emptying those secrets.
-- Service keys (Stripe, Brevo, LiveKit) are changed in the `.env`, then a restart.
+- Service settings (AI, e-mails, payments, meetings) are changed in the `.env`, then a restart.
 
 ### The site and the apps
 

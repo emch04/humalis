@@ -9,7 +9,7 @@ source "meteo" :
 serveur "tout" :
     connexion par cle d'acces
     double authentification
-    emails par brevo
+    emails
     invitations vers "a"
     donnee note :
         texte : texte

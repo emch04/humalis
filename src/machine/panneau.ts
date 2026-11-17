@@ -97,7 +97,7 @@ export const PANNEAU_HTML = String.raw`<!doctype html>
     });
     etat.paiements.forEach(function (pa) {
       var f = el('form'); var i = el('input', undefined, { placeholder: 'identifiant de la fiche', required: 'required' });
-      var bt = el('button', 'Marquer « ' + pa.donnee + ' » payé (à la main, sans Stripe)', { type: 'submit' });
+      var bt = el('button', 'Marquer « ' + pa.donnee + ' » payé (à la main, sans service de paiement)', { type: 'submit' });
       f.appendChild(i); f.appendChild(bt);
       f.onsubmit = function (e) { e.preventDefault(); envoyer('/__machine/paye', { route: pa.route, id: i.value }).then(function (r) { alert(r.ok ? 'La fiche est payée : ce que le programme fait après le paiement a été lancé.' : 'Échec : ' + r.erreur); }); };
       act.appendChild(f);

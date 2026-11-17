@@ -42,13 +42,12 @@ const jetonGoogle = (email, sub) => {
   return corps + '.' + sign('sha256', Buffer.from(corps), privateKey).toString('base64url');
 };
 
-// Le faux Brevo.
+// Le faux serveur d'envoi.
 const boite = [];
-const transport = async (_url, options) => {
-  boite.push(JSON.parse(options.body));
-  return new Response('{}', { status: 201 });
+const transport = async (_reglages, envoi) => {
+  boite.push(envoi);
 };
-const emails = creerEmails({ nom: 'Boutique', env: { BREVO_API_KEY: 'cle-de-test', BREVO_EXPEDITEUR: 'envoi@essai.test' }, transport });
+const emails = creerEmails({ nom: 'Boutique', env: { HUMALIS_EMAILS_HOTE: 'localhost', HUMALIS_EMAILS_PORT: '2525', HUMALIS_EMAILS_EXPEDITEUR: 'envoi@essai.test' }, transport });
 const jetons = creerMagasinJetons(null);
 
 const usersStore = createMemoryUsersStore();
@@ -89,8 +88,8 @@ const inscrire = async (corps) => {
   inscriptions.push(reponse.statut);
   return reponse;
 };
-const jetonDe = (email) => /#jeton=([0-9a-f]{64})/.exec(email.textContent)?.[1] ?? null;
-const dernierPour = (adresse) => [...boite].reverse().find((e) => e.to.some((t) => t.email === adresse));
+const jetonDe = (email) => /#jeton=([0-9a-f]{64})/.exec(email.texte)?.[1] ?? null;
+const dernierPour = (adresse) => [...boite].reverse().find((e) => e.a.includes(adresse));
 
 r.faible = await inscrire({ email: 'neuf@essai.test', motDePasse: 'faible' });
 r.mauvaiseAdresse = await inscrire({ email: 'pas une adresse', motDePasse: secret });
@@ -101,7 +100,7 @@ r.rienAvant = { statut: 0, corps: { boite: boite.length } };
 r.neuf = await inscrire({ email: ' Neuf@Essai.test ', motDePasse: secret, role: 'admin', champs: { nom: 'Neuf' }, groupes: { boutique: 'b1' } });
 const lienNeuf = dernierPour('neuf@essai.test');
 const jetonNeuf = jetonDe(lienNeuf);
-r.lienNeuf = { statut: 0, corps: { sujet: lienNeuf?.subject, texte: lienNeuf?.textContent, html: lienNeuf?.htmlContent, jeton: jetonNeuf } };
+r.lienNeuf = { statut: 0, corps: { sujet: lienNeuf?.sujet, texte: lienNeuf?.texte, html: lienNeuf?.html, jeton: jetonNeuf } };
 const compteNeuf = await usersStore.findByEmail('neuf@essai.test');
 r.compteNeuf = { statut: 0, corps: { ...compteNeuf, passwordHash: typeof compteNeuf.passwordHash } };
 r.connexionAvant = await connexion('neuf@essai.test');
@@ -110,7 +109,7 @@ r.empreinteSeule = { statut: 0, corps: { trouve: await jetons.find(jetonNeuf), p
 // Une adresse déjà inscrite et confirmée : la même réponse, un e-mail qui le dit, aucun changement.
 r.existant = await inscrire({ email: 'awa@essai.test', motDePasse: 'Autre-Solide-2026!', champs: { nom: 'Pirate' } });
 const lienAwa = dernierPour('awa@essai.test');
-r.lienAwa = { statut: 0, corps: { sujet: lienAwa?.subject, texte: lienAwa?.textContent, jeton: lienAwa ? jetonDe(lienAwa) : null } };
+r.lienAwa = { statut: 0, corps: { sujet: lienAwa?.sujet, texte: lienAwa?.texte, jeton: lienAwa ? jetonDe(lienAwa) : null } };
 r.awaApres = { statut: 0, corps: { ancien: (await connexion('awa@essai.test')).statut, nouveau: (await connexion('awa@essai.test', 'Autre-Solide-2026!')).statut, nom: (await usersStore.findByEmail('awa@essai.test')).nom } };
 // Une invitation d'un admin en attente : la même réponse, l'invitation ne change pas.
 r.invite = await inscrire({ email: 'invite@essai.test', motDePasse: 'Autre-Solide-2026!' });

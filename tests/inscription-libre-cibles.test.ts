@@ -18,7 +18,7 @@ const source = (avecChamps = true) =>
   programme(
     'serveur "boutique" :',
     '>roles client',
-    '>emails par brevo',
+    '>emails',
     '>compte :',
     '>>nom : texte',
     '>inscription libre comme client vers "confirmation"',

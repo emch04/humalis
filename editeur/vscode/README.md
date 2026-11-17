@@ -42,7 +42,7 @@ L'extension connaît le langage de Humalis 2.0.0, y compris les constructions le
 - **Le serveur :** `seul son auteur peut modifier et supprimer avis`, `donnees de depart pour produit :`, `telephone : texte (avant "tel")`.
 - **Les langues :** `langues : francais, anglais avec adresse par langue`, et l'espagnol, le portugais, le swahili et le lingala.
 - **Les messages d'un site :** `erreurs pendant 5 secondes`.
-- **Les comptes :** `emails par brevo`, `invitations vers "bienvenue"`, `mot de passe oublie vers "bienvenue"`, `seul admin peut lire comptes`, et dans les pages `inviter champ "Adresse" comme admin`, `demander un lien de mot de passe pour champ "Email"`, `choisir le mot de passe avec champ "Nouveau"`.
+- **Les comptes :** `emails`, `invitations vers "bienvenue"`, `mot de passe oublie vers "bienvenue"`, `seul admin peut lire comptes`, et dans les pages `inviter champ "Adresse" comme admin`, `demander un lien de mot de passe pour champ "Email"`, `choisir le mot de passe avec champ "Nouveau"`.
 - **Ce que le serveur décide :** `au depart "en_attente"`, `calcule somme prix de produit par refs`, `au plus prix de zone par commune`, `liste de texte du site`, `non vide`.
 - **Les routes :** `tout le monde peut lire suivi par identifiant`, et `quand commande est cree :` suivi de `envoyer email …` ou `creer … avec … dans …`.
 

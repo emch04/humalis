@@ -6,12 +6,12 @@ import { testsAttaques } from './attaques.js';
 import { LIGNES_SERVEUR_TS } from './lignes.js';
 import { COMPOSER_CARTES_JS } from '../lignes-humalis.js';
 import { codeEffacerLesDonnees } from './suppression.js';
-import { avecComptes, avecEmails, CLES_BREVO, codeCreationComptes, codeEnvois, codeRoutesComptes, COMPTES, EMAILS, ENV_EMAILS, ENV_LIENS, testsComptes } from './comptes.js';
+import { avecComptes, avecEmails, CLES_EMAILS, codeCreationComptes, codeEnvois, codeRoutesComptes, COMPTES, EMAILS, ENV_EMAILS, ENV_LIENS, testsComptes } from './comptes.js';
 import { codeFicheVisible, codePortee, compteRelu, conditionsDe, constantesSeparation, estSeparee, SEPARATION, testsSeparee } from './separation.js';
 import { avecIa, ENV_IA, IA, routeIa } from './ia.js';
 import { ENVOIS } from './envois.js';
 import { MOTIF_SQL_DU_PACK, MOTIFS_SQL_CODE } from './pare-feu.js';
-import { codeResumes, avecPaiements, codePaiements, codeSurPaiement, PAIEMENTS, avecLogique, avecNotifications, codeActions, codeDocuments, codeNotificationsCreation, codeTaches, DOCUMENT, employe, LOGIQUE, NOTIFICATIONS, ROUTES_APPAREILS } from './logique.js';
+import { codeResumes, avecPaiements, codePaiements, codeSurPaiement, ENV_PAIEMENTS, PAIEMENTS, avecLogique, avecNotifications, codeActions, codeDocuments, codeNotificationsCreation, codeTaches, DOCUMENT, employe, LOGIQUE, NOTIFICATIONS, ROUTES_APPAREILS } from './logique.js';
 import { champsDuServeur, codeCompleter, codeEcritureModification, codeCreation, codePlafondsModification, noms as nomsVerifier, reglesEnvoi } from './regles.js';
 import { avecSynchro, codeAvantSynchro, codeCreationSynchro, codeSynchroRoute, ENV_SYNCHRO, SYNCHRO, tablesSynchro, testsSynchro } from './synchro.js';
 import { avecSecurite, codeAvantSecurite, codeCreationSecurite, codeRoutesSecurite, envSecurite, SECURITE, testsSecurite } from './securite.js';
@@ -221,7 +221,7 @@ function packageJson(nom: string, serveur: ServeurRI, livekit = false): string {
         '@astratra/centrale': v.centrale,
         '@astratra/credentials': v.credentials,
         ...(serveur.fidelite ? { '@astratra/loyalty': v.loyalty } : {}),
-        ...(avecEmails(serveur) ? { '@astratra/notify': v.notify } : {}),
+        ...(avecEmails(serveur) ? { '@astratra/notify': v.notify, nodemailer: '10.3.1' } : {}),
         ...(bon ? { '@astratra/pdf': v.pdf } : {}),
         '@astratra/saas-kit': v.saasKit,
         '@astratra/security': v.security,
@@ -229,8 +229,6 @@ function packageJson(nom: string, serveur: ServeurRI, livekit = false): string {
         express: v.express,
         ...(bon ? { pdfkit: v.pdfkit } : {}),
         ...(avecNotifications(serveur) ? { 'web-push': '3.6.7' } : {}),
-        ...(avecIa(serveur) ? { '@anthropic-ai/sdk': '1.6.0' } : {}),
-        ...(avecPaiements(serveur) ? { stripe: '23.1.0' } : {}),
         ...(livekit ? { 'livekit-server-sdk': VERSION_LIVEKIT_SERVEUR } : {}),
         pg: v.pg,
       },
@@ -239,6 +237,7 @@ function packageJson(nom: string, serveur: ServeurRI, livekit = false): string {
         '@types/express': v.typesExpress,
         '@types/node': v.typesNode,
         ...(bon ? { '@types/pdfkit': v.typesPdfkit } : {}),
+        ...(avecEmails(serveur) ? { '@types/nodemailer': '8.0.2' } : {}),
         ...(avecNotifications(serveur) ? { '@types/web-push': '3.6.4' } : {}),
         '@types/pg': v.typesPg,
         '@types/supertest': v.typesSupertest,
@@ -346,7 +345,7 @@ function envExemple(serveur: ServeurRI): string {
     `# Requêtes par adresse et par 15 minutes (300 par défaut), tentatives de connexion (10 par défaut). À monter si beaucoup de personnes partagent une même adresse.\nHUMALIS_LIMITE_API=\nHUMALIS_LIMITE_CONNEXION=\n`,
     ...(avecIa(serveur) ? [ENV_IA] : []),
     ...((serveur as { tempsReel?: boolean }).tempsReel ? [ENV_TEMPS_REEL] : []),
-    ...(avecPaiements(serveur) ? [`# Les paiements (« paiements par stripe ») : une clé de test d'abord (sk_test_…), et le secret du webhook vers /paiements/webhook.\nSTRIPE_CLE_SECRETE=\nSTRIPE_SECRET_WEBHOOK=\nHUMALIS_PAIEMENT_DEVISE=eur\n`] : []),
+    ...(avecPaiements(serveur) ? [ENV_PAIEMENTS] : []),
     ...(serveur.invitations || serveur.inscriptionLibre || serveur.motDePasseOublie || serveur.donnees.some((d) => d.champs.some((c) => c.regle?.genre === 'site')) ? [ENV_LIENS] : []),
     // Les secrets des sources : seulement leur nom ; la valeur se met ici, sur le serveur, jamais dans le fichier Humalis.
     ...(serveur.passerelles ?? []).map((p) => `# Le secret de la source « ${p.source} » (jeton secret depuis l'environnement).\n${p.variable}=\n`),
@@ -765,7 +764,7 @@ function coffreTs(serveur: ServeurRI): string {
       },
 `
     : '';
-  const cles = clesGoogle + clesApple + (serveur.emails ? CLES_BREVO : '');
+  const cles = clesGoogle + clesApple + (serveur.emails ? CLES_EMAILS : '');
   return `import type { RequestHandler, Router } from 'express';
 import type { PoolPostgres } from './stockage.js';
 
@@ -1480,7 +1479,7 @@ ${avecLogique(serveur) ? `  /** Comment écrire tout ou rien ; par défaut, en m
   revocations?: RevocationStore;
   /** Ce que GET /sante vérifie (la base répond, le serveur ne s'arrête pas) ; par défaut, toujours prêt. */
   sante?: () => Promise<boolean>;${avecEmails(serveur) ? `
-  /** Les e-mails ; par défaut, Brevo avec BREVO_API_KEY et BREVO_EXPEDITEUR. */
+  /** Les e-mails ; par défaut, SMTP vers le serveur d'envoi du .env (HUMALIS_EMAILS_HOTE, HUMALIS_EMAILS_PORT, HUMALIS_EMAILS_EXPEDITEUR). */
   emails?: Emails;` : ''}${comptes ? `
   /** Les empreintes des liens envoyés par e-mail ; par défaut, en mémoire. */
   jetons?: PasswordResetStore;` : ''}
@@ -2278,9 +2277,9 @@ function lisezmoiEnPlus(serveur: ServeurRI): string {
     lignes.push(`\nL'inscription libre : \`POST /auth/inscription\` (\`{ email, motDePasse, champs }\`, dix par heure et par adresse IP) crée un compte au rôle « ${serveur.inscriptionLibre.role} », qui ne se connecte qu'après \`POST /auth/confirmation\` (\`{ jeton }\`, le jeton du lien, valable 24 heures). La réponse est la même que l'adresse ait déjà un compte ou non ; une inscription jamais confirmée est vidée au bout de sept jours.`);
   }
   if (serveur.invitations || serveur.inscriptionLibre || serveur.motDePasseOublie) {
-    lignes.push(`\nLes liens envoyés par e-mail ont besoin de \`BREVO_API_KEY\`, \`BREVO_EXPEDITEUR\` et \`HUMALIS_ADRESSE_SITE\`. Le jeton est dans le fragment de l'adresse, le serveur n'en garde que l'empreinte, et il ne sert qu'une fois (\`src/humalis/comptes.ts\`).`);
+    lignes.push(`\nLes liens envoyés par e-mail ont besoin du serveur d'envoi (\`HUMALIS_EMAILS_HOTE\`, \`HUMALIS_EMAILS_PORT\`, \`HUMALIS_EMAILS_EXPEDITEUR\`) et de \`HUMALIS_ADRESSE_SITE\`. Le jeton est dans le fragment de l'adresse, le serveur n'en garde que l'empreinte, et il ne sert qu'une fois (\`src/humalis/comptes.ts\`).`);
   } else if (serveur.emails) {
-    lignes.push(`\nLes e-mails partent par Brevo, avec \`BREVO_API_KEY\` et \`BREVO_EXPEDITEUR\` (\`src/humalis/emails.ts\`).`);
+    lignes.push(`\nLes e-mails partent par SMTP, vers le serveur d'envoi choisi dans le \`.env\` : \`HUMALIS_EMAILS_HOTE\`, \`HUMALIS_EMAILS_PORT\`, \`HUMALIS_EMAILS_EXPEDITEUR\`, et si besoin \`HUMALIS_EMAILS_UTILISATEUR\` et \`HUMALIS_EMAILS_MOT_DE_PASSE\` (\`src/humalis/emails.ts\`).`);
   }
   return lignes.length > 0 ? lignes.join('\n') + '\n' : '';
 }

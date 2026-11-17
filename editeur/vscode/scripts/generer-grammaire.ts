@@ -88,7 +88,7 @@ const TOURNURES: string[] = [
   // Le serveur et le bloc site, en tête de ligne.
   `(?<=^[ ]*)${suite('erreurs', 'pendant')}`,
   `(?<=^[ ]*)${suite('connexion', 'google')}`,
-  `(?<=^[ ]*)${suite('emails', 'par', 'brevo')}`,
+  `(?<=^[ ]*)${motversRegex('emails')}(?=[ ]*(?:#.*)?$)`,
   `(?<=^[ ]*)${motversRegex('invitations')}(?=[ ]+${motversRegex('vers')}\\b)`,
   `(?<=^[ ]*)${suite('mot', 'de', 'passe', 'oublie')}`,
   // Après le type d'un champ.

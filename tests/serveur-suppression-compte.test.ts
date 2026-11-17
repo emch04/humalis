@@ -17,12 +17,12 @@ import { hashPassword } from '@astratra/security';
 import { creerServeur } from './dist/src/serveur.js';
 import { creerStockageMemoire } from './dist/src/humalis/stockage.js';
 
-process.env.STRIPE_CLE_SECRETE ??= 'sk_test_essai';
-process.env.STRIPE_SECRET_WEBHOOK ??= 'whsec_essai';
+process.env.HUMALIS_PAIEMENT_ADRESSE ??= 'http://127.0.0.1:9/relais';
+process.env.HUMALIS_PAIEMENT_SECRET ??= 'secret-du-relais-de-paiement-essai-0123456789';
 process.env.HUMALIS_LIMITE_CONNEXION = '1000';
-process.env.LIVEKIT_URL ??= 'wss://livekit.essai.test';
-process.env.LIVEKIT_API_KEY ??= 'cle-essai';
-process.env.LIVEKIT_API_SECRET ??= 'secret-essai-assez-long-pour-livekit-0123456789';
+process.env.HUMALIS_REUNIONS_ADRESSE ??= 'wss://livekit.essai.test';
+process.env.HUMALIS_REUNIONS_CLE ??= 'cle-essai';
+process.env.HUMALIS_REUNIONS_SECRET ??= 'secret-essai-assez-long-pour-livekit-0123456789';
 const secret = 'Essai-Solide-2026!';
 const usersStore = createMemoryUsersStore();
 const passwordHash = await hashPassword(secret);

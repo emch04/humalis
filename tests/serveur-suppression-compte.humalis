@@ -1,6 +1,6 @@
 serveur "carnet" :
     roles client et vendeur
-    paiements par stripe
+    paiements
     compte :
         nom : texte
     discussion "aide" entre client et vendeur

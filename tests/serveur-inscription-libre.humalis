@@ -1,6 +1,6 @@
 serveur "boutique" :
     roles client et vendeur
-    emails par brevo
+    emails
     connexion google
     compte :
         nom : texte

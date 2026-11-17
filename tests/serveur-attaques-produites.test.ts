@@ -42,8 +42,8 @@ describe('les tests d’attaque écrits dans chaque serveur produit', () => {
     expect(tests).toContain('ce que seul le serveur écrit ne se modifie pas, même par un admin : boutique');
   });
 
-  it('une donnée payée par Stripe reçoit l’essai de « paye » ; une règle avec « si » ne reçoit pas l’essai du rôle voisin', () => {
-    const paye = produit('serveur "b" :\n    paiements par stripe\n    donnee resa :\n        total : nombre\n    donnee journal :\n        nom : texte\n    route "resas" :\n        connecte peut lire resa\n        connecte peut creer resa\n        seul admin peut modifier resa\n        quand resa est payee :\n            creer journal avec nom "x"\n    route "journaux" :\n        seul admin peut lire journal\n' + PAGE)!;
+  it('une donnée payable reçoit l’essai de « paye » ; une règle avec « si » ne reçoit pas l’essai du rôle voisin', () => {
+    const paye = produit('serveur "b" :\n    paiements\n    donnee resa :\n        total : nombre\n    donnee journal :\n        nom : texte\n    route "resas" :\n        connecte peut lire resa\n        connecte peut creer resa\n        seul admin peut modifier resa\n        quand resa est payee :\n            creer journal avec nom "x"\n    route "journaux" :\n        seul admin peut lire journal\n' + PAGE)!;
     expect(paye).toContain('même par un admin : paye');
     const si = produit('serveur "b" :\n    roles gerant et client\n    donnee facture :\n        montant : nombre\n        clients : liste de texte\n    route "factures" :\n        seul gerant peut lire facture\n        client peut lire facture si utilisateur.id est dans facture.clients\n        seul gerant peut modifier facture\n' + PAGE)!;
     const bloc = si.slice(si.indexOf("describe('route « factures »'"));

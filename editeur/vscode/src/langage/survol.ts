@@ -81,7 +81,7 @@ export function ficheDuMot(mot: string, contexte: Contexte): string | undefined 
 const PHRASES: readonly { blocs: readonly GenreBloc[]; ligne: RegExp; mots: readonly string[]; entree: string }[] = [
   { blocs: ['site'], ligne: /^\s*erreurs\s+pendant\b/, mots: ['erreurs', 'pendant'], entree: 'erreurs pendant' },
   { blocs: ['serveur'], ligne: /^\s*connexion\s+google\b/, mots: ['connexion', 'google'], entree: 'connexion google' },
-  { blocs: ['serveur'], ligne: /^\s*emails\b/, mots: ['emails', 'par', 'brevo'], entree: 'emails par brevo' },
+  { blocs: ['serveur'], ligne: /^\s*emails\b/, mots: ['emails'], entree: 'emails' },
   { blocs: ['serveur'], ligne: /^\s*invitations\b/, mots: ['invitations', 'vers'], entree: 'invitations vers' },
   { blocs: ['serveur'], ligne: /^\s*mot\s+de\s+passe\b/, mots: ['mot', 'de', 'passe', 'oublie', 'vers'], entree: 'mot de passe oublie vers' },
   { blocs: ['donnee'], ligne: /\bau\s+d[eé]part\b/, mots: ['au', 'depart'], entree: 'au depart' },

@@ -48,7 +48,7 @@ export const APPLICATIONS = [
   {
     fichier: 'reservations',
     titre: ['Des réservations payées en ligne', 'Bookings paid online'],
-    texte: ['Chacun voit ses réservations et les paie par Stripe. Le serveur n’enregistre le paiement que lorsque Stripe le confirme.', 'Everyone sees their bookings and pays with Stripe. The server records the payment only once Stripe confirms it.'],
+    texte: ['Chacun voit ses réservations et les paie en ligne. Le serveur n’enregistre le paiement que lorsqu’il est confirmé.', 'Everyone sees their bookings and pays online. The server records the payment only once it is confirmed.'],
     themes: [['Comptes', 'Accounts'], ['Droits', 'Permissions'], ['Paiement', 'Payment']],
     cibles: ['web', 'desktop', 'apple', 'android'],
   },

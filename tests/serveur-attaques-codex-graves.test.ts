@@ -25,8 +25,8 @@ import { createHmac } from 'node:crypto';
 import { creerServeur } from './dist/src/serveur.js';
 import { creerStockageMemoire } from './dist/src/humalis/stockage.js';
 
-process.env.STRIPE_CLE_SECRETE ??= 'sk_test_essai';
-process.env.STRIPE_SECRET_WEBHOOK ??= 'whsec_essai';
+process.env.HUMALIS_PAIEMENT_ADRESSE ??= 'http://127.0.0.1:9/relais';
+process.env.HUMALIS_PAIEMENT_SECRET ??= 'secret-du-relais-de-paiement-essai-0123456789';
 process.env.HUMALIS_ADRESSE_SITE ??= 'https://essai.test';
 const secret = 'Essai-Solide-2026!';
 const usersStore = createMemoryUsersStore();
@@ -59,9 +59,9 @@ const commande = (await appel('POST', '/api/commandes', cA, { refs: [unEuro.id] 
 lent = true;
 const modification = appel('PATCH', '/api/commandes/' + commande.id, cA, { refs: [centEuros.id] });
 await new Promise((p) => setTimeout(p, 100));
-const corps = JSON.stringify({ id: 'evt_1', object: 'event', type: 'checkout.session.completed', data: { object: { id: 'cs_1', object: 'checkout.session', payment_status: 'paid', amount_total: 100, metadata: { donnee: 'commande', id: commande.id, champ: 'total' } } } });
+const corps = JSON.stringify({ evenement: 'paye', reference: Buffer.from(JSON.stringify(['commande', String(commande.id), 'total'])).toString('base64url'), montant: 100, devise: 'eur' });
 const t = Math.floor(Date.now() / 1000);
-const webhook = await fetch(base + '/paiements/webhook', { method: 'POST', headers: { ...json, 'stripe-signature': 't=' + t + ',v1=' + createHmac('sha256', process.env.STRIPE_SECRET_WEBHOOK).update(t + '.' + corps).digest('hex') }, body: corps });
+const webhook = await fetch(base + '/paiements/webhook', { method: 'POST', headers: { ...json, 'x-humalis-signature': 't=' + t + ',v1=' + createHmac('sha256', process.env.HUMALIS_PAIEMENT_SECRET).update(t + '.' + corps).digest('hex') }, body: corps });
 r.webhook = { statut: webhook.status, corps: null };
 r.modification = await modification;
 lent = false;
@@ -100,7 +100,7 @@ describe('les défauts graves de la revue Codex, sur un vrai serveur produit', (
   it('1) une modification pendant le paiement ne gonfle pas une commande payée', () => {
     // La modification et le paiement se suivent, jamais mêlés. Depuis la quatrième revue, la modification prend le
     // verrou la première (elle relit la fiche dans sa transaction) : le panier passe à 100 €, puis le paiement de
-    // 1 € est refusé (500, Stripe le renverra, le journal dit de rembourser) sans marquer la commande payée.
+    // 1 € est refusé (500, le relais rappellera, le journal dit de rembourser) sans marquer la commande payée.
     // Dans l'autre ordre, le paiement passerait et la modification recevrait 409. Jamais une commande payée à 1 €
     // avec 100 € de produits.
     const finale = r.commandeFinale!.corps;

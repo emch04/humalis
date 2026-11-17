@@ -31,7 +31,7 @@ execFileSync('node', [cli, 'compile', programme, '--cible', 'serveur', '--sortie
 execFileSync('npx', ['-y', 'npm@11', 'install', '--no-audit', '--no-fund'], { cwd: serveur, stdio: 'ignore' });
 execFileSync('npm', ['run', 'build'], { cwd: serveur, stdio: 'ignore' });
 execFileSync('node', [cli, 'compile', programme, '--cible', 'apple', '--sortie', apple, '--serveur', 'http://localhost:4977', '--essais-ui', join(racine, 'scripts/essais-apple/Capacites.swift')], { stdio: 'ignore' });
-writeFileSync(join(serveur, '.env'), [`JWT_SECRET=${randomBytes(32).toString('hex')}`, 'HUMALIS_ADMIN_EMAIL=admin@essai.test', 'HUMALIS_ADMIN_MOT_DE_PASSE=Admin-Essai-2026!', 'PORT=4977', 'STRIPE_CLE_SECRETE=sk_test_essai', 'STRIPE_SECRET_WEBHOOK=whsec_essai', 'HUMALIS_ADRESSE_SITE=http://localhost:4977'].join('\n') + '\n');
+writeFileSync(join(serveur, '.env'), [`JWT_SECRET=${randomBytes(32).toString('hex')}`, 'HUMALIS_ADMIN_EMAIL=admin@essai.test', 'HUMALIS_ADMIN_MOT_DE_PASSE=Admin-Essai-2026!', 'PORT=4977', 'HUMALIS_PAIEMENT_ADRESSE=http://127.0.0.1:9/relais', 'HUMALIS_PAIEMENT_SECRET=secret-du-relais-de-paiement-essai-0123456789', 'HUMALIS_ADRESSE_SITE=http://localhost:4977'].join('\n') + '\n');
 
 const { publicKey, privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
 const jwks = join(travail, 'jwks.json');

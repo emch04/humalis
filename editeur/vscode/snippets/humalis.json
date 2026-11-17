@@ -218,7 +218,7 @@
       "        quand l'utilisateur clique sur \"Appeler\" :",
       "            appeler en ${4|video,audio|} contact.compte$0"
     ],
-    "description": "Appeler un contact en vidéo ou en audio, avec sa présence en ligne (LiveKit)"
+    "description": "Appeler un contact en vidéo ou en audio, avec sa présence en ligne"
   },
   "Réunion": {
     "prefix": [
@@ -239,7 +239,7 @@
       "        quand l'utilisateur clique sur \"Couper\" :",
       "            couper micro de p$0"
     ],
-    "description": "Une réunion vidéo avec une personne qui l'anime et peut couper le micro des autres (LiveKit)"
+    "description": "Une réunion vidéo avec une personne qui l'anime et peut couper le micro des autres"
   },
   "Widget": {
     "prefix": [

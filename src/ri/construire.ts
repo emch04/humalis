@@ -314,7 +314,7 @@ function serveurRI(serveur: Serveur, analyse: ResultatAnalyse): ServeurRI {
       }),
     ...(routeComptes ? { routeComptes: { adresse: routeComptes.adresse, droits: droitsDeRoute(routeComptes), ligne: routeComptes.ligne } } : {}),
     ...(routeMonCompte ? { routeMonCompte: { adresse: routeMonCompte.adresse, ligne: routeMonCompte.ligne, lire: actionsSurSoi.has('lire'), supprimer: actionsSurSoi.has('supprimer') } } : {}),
-    ...(serveur.emails ? { emails: { service: serveur.emails.service } } : {}),
+    ...(serveur.emails ? { emails: true } : {}),
     ...(serveur.invitations ? { invitations: serveur.invitations.page } : {}),
     ...(serveur.inscriptionLibre ? { inscriptionLibre: serveur.inscriptionLibre } : {}),
     ...(serveur.motDePasseOublie ? { motDePasseOublie: serveur.motDePasseOublie.page } : {}),

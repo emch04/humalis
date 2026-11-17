@@ -597,13 +597,13 @@ peut creer avis` du serveur qui refuse un visiteur.
 
 ## Inviter, retrouver un mot de passe, envoyer un e-mail
 
-Le serveur envoie des e-mails avec `emails par brevo`. `invitations vers …` et
+Le serveur envoie des e-mails avec `emails`. `invitations vers …` et
 `mot de passe oublie vers …` disent quelle page ouvre le lien reçu ; `comptes` est
 la liste des comptes de la connexion.
 
 ```humalis
 serveur "boutique" :
-    emails par brevo
+    emails
     invitations vers "bienvenue"
     mot de passe oublie vers "bienvenue"
     donnee message :

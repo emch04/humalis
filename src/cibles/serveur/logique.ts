@@ -668,8 +668,8 @@ export function codeSurPaiement(serveur: ServeurRI): string {
     return `        ${chaine(route.donnee)}: async (travail, s, id, champ, montant) => {
           const ${repereNom(route.donnee, route.ligneApresPaiement)}${nom} = await s.${camel(route.donnee)}.trouver(id, true);
           // De l'argent est arrivé mais la fiche ne peut pas être marquée payée : ce n'est jamais passé sous silence.
-          // L'erreur annule tout, le webhook répond 500, et Stripe représente le paiement (et le montre dans son
-          // tableau de bord) : corriger la fiche suffit pour que le prochain essai l'enregistre.
+          // L'erreur annule tout, le webhook répond 500, et le relais de paiement doit rappeler (et le garder dans son
+          // journal) : corriger la fiche suffit pour que le prochain essai l'enregistre.
           if (!${nom}) throw new Error('paiement de ' + montant / 100 + ' reçu pour « ${route.donnee} » ' + id + ', mais cette fiche a disparu : à rembourser ou à traiter à la main');
           if (${nom}.paye === true) return;
           const attendu = Math.round(Number(${nom}[champ]) * 100);
@@ -685,94 +685,152 @@ ${lignes.join('\n')}
 `;
 }
 
+/** .env.exemple : le relais de paiement. */
+export const ENV_PAIEMENTS = `# Les paiements (« paiements ») : un relais de paiement, le vôtre, qui parle à votre service de paiement.
+# Rien par défaut. Le serveur lui demande une page de paiement (POST, JSON signé) et attend sa confirmation,
+# signée de la même façon, sur /paiements/webhook. Le contrat est décrit dans le guide (« Les paiements »).
+HUMALIS_PAIEMENT_ADRESSE=
+# Le secret partagé avec le relais, 32 caractères au moins : il signe les deux sens.
+HUMALIS_PAIEMENT_SECRET=
+# La devise des montants, en trois lettres (eur par défaut).
+HUMALIS_PAIEMENT_DEVISE=
+`;
+
 /** src/humalis/paiements.ts */
-export const PAIEMENTS = String.raw`import express, { type RequestHandler } from 'express';
-import Stripe from 'stripe';
+export const PAIEMENTS = String.raw`import { createHmac, timingSafeEqual } from 'node:crypto';
+import express, { type RequestHandler } from 'express';
 
 /**
- * Produit par Humalis : les paiements par Stripe Checkout. La page ne donne jamais de montant, et
- * rien n'est marqué payé sans un webhook dont la signature est vérifiée.
+ * Produit par Humalis : les paiements, par un relais choisi dans le .env. La page ne donne jamais de montant, et
+ * rien n'est marqué payé sans une confirmation dont la signature est vérifiée.
+ *
+ * Le contrat, dans les deux sens : un corps JSON et l'en-tête « X-Humalis-Signature: t=<secondes>,v1=<signature> »,
+ * où la signature est le HMAC-SHA256, en hexadécimal, de « <secondes>.<corps> » avec HUMALIS_PAIEMENT_SECRET.
+ *   - le serveur demande : POST HUMALIS_PAIEMENT_ADRESSE { reference, montant, devise, libelle, retour } ;
+ *     le relais répond { url } : la page de paiement, en https ;
+ *   - le relais confirme : POST /paiements/webhook { evenement: "paye" | "echoue", reference, montant, devise }.
+ * Le montant est en centimes ; la référence est à rendre telle quelle.
  */
 export type SurPaiement<T, S> = Record<string, (travail: T, s: S, id: string, champ: string, montant: number) => Promise<void>>;
 
-const client = () => {
-  const cle = process.env.STRIPE_CLE_SECRETE;
-  if (!cle) return null;
-  const hote = process.env.HUMALIS_STRIPE_HOTE;
-  return new Stripe(cle, hote ? { host: hote.split(':')[0], port: Number(hote.split(':')[1]), protocol: 'http' } : {});
+const TOLERANCE_SECONDES = 5 * 60;
+
+const reglages = (env: Record<string, string | undefined>) => {
+  const adresse = (env.HUMALIS_PAIEMENT_ADRESSE ?? '').trim();
+  const secret = (env.HUMALIS_PAIEMENT_SECRET ?? '').trim();
+  const manque = [!/^https:\/\/[^/\s]|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/.test(adresse) && 'HUMALIS_PAIEMENT_ADRESSE', secret.length < 32 && 'HUMALIS_PAIEMENT_SECRET (32 caractères au moins)'].filter(Boolean);
+  return { adresse, secret, devise: (env.HUMALIS_PAIEMENT_DEVISE ?? 'eur').trim().toLowerCase(), manque };
 };
+
+export const signer = (secret: string, corps: string, secondes = Math.floor(Date.now() / 1000)) =>
+  't=' + secondes + ',v1=' + createHmac('sha256', secret).update(secondes + '.' + corps).digest('hex');
+
+/** Vrai si l'en-tête signe ce corps, avec ce secret, il y a moins de cinq minutes. */
+export function signatureValable(secret: string, corps: string, entete: unknown, maintenant = Math.floor(Date.now() / 1000)): boolean {
+  if (typeof entete !== 'string') return false;
+  const parties = new Map(entete.split(',').map((p) => [p.slice(0, p.indexOf('=')).trim(), p.slice(p.indexOf('=') + 1).trim()] as const));
+  const secondes = Number(parties.get('t'));
+  const recue = parties.get('v1') ?? '';
+  if (!Number.isInteger(secondes) || Math.abs(maintenant - secondes) > TOLERANCE_SECONDES || !/^[0-9a-f]{64}$/.test(recue)) return false;
+  const attendue = createHmac('sha256', secret).update(secondes + '.' + corps).digest();
+  return timingSafeEqual(attendue, Buffer.from(recue, 'hex'));
+}
 
 const adresseDuSite = () => {
   const adresse = (process.env.HUMALIS_ADRESSE_SITE ?? '').trim().replace(/\/+$/, '');
   return /^https:\/\/[^/]|^http:\/\/localhost(:\d+)?$/.test(adresse) ? adresse : null;
 };
 
-export function creerPaiements<T, S>({ surConfirme, surErreur }: { surConfirme: (donnee: string, id: string, champ: string, montant: number) => Promise<void>; surErreur?: (erreur: unknown) => void }) {
+/** La référence rendue par le relais : opaque pour lui, relue seulement après une signature vérifiée. */
+const enReference = (donnee: string, id: string, champ: string) => Buffer.from(JSON.stringify([donnee, id, champ])).toString('base64url');
+const deReference = (reference: unknown): { donnee: string; id: string; champ: string } | null => {
+  if (typeof reference !== 'string') return null;
+  try {
+    const [donnee, id, champ] = JSON.parse(Buffer.from(reference, 'base64url').toString()) as unknown[];
+    return typeof donnee === 'string' && typeof id === 'string' && typeof champ === 'string' ? { donnee, id, champ } : null;
+  } catch {
+    return null;
+  }
+};
+
+export function creerPaiements<T, S>({ surConfirme, surErreur, env = process.env, transport = globalThis.fetch }: { surConfirme: (donnee: string, id: string, champ: string, montant: number) => Promise<void>; surErreur?: (erreur: unknown) => void; env?: Record<string, string | undefined>; transport?: typeof globalThis.fetch }) {
   return {
     async creer({ donnee, champ, id, centimes, retour }: { donnee: string; champ: string; id: string; centimes: number; retour: unknown }): Promise<{ url: string } | { erreur: string; statut: number }> {
-      const stripe = client();
+      const r = reglages(env);
       const site = adresseDuSite();
-      if (!stripe || !site) return { erreur: "les paiements ne sont pas réglés sur ce serveur (STRIPE_CLE_SECRETE, HUMALIS_ADRESSE_SITE)", statut: 503 };
+      if (r.manque.length || !site) return { erreur: 'les paiements ne sont pas réglés sur ce serveur : renseignez ' + [...r.manque, ...(site ? [] : ['HUMALIS_ADRESSE_SITE'])].join(', ') + ' dans le .env', statut: 503 };
       if (!Number.isInteger(centimes) || centimes <= 0) return { erreur: 'ce montant ne peut pas être payé', statut: 400 };
       // Seulement un chemin de ce site : un lien de retour ne doit jamais mener ailleurs.
       const chemin = typeof retour === 'string' && /^\/(?!\/)/.test(retour) ? retour : '/';
-      // Un refus de Stripe (clé fausse, compte fermé) n'est pas un refus de la personne : il reste dans le journal,
-      // et la page reçoit 502, jamais le 401 de Stripe qui lui ferait croire sa session finie.
+      const corps = JSON.stringify({ reference: enReference(donnee, String(id), champ), montant: centimes, devise: r.devise, libelle: donnee, retour: site + chemin });
+      // Un refus du relais (secret faux, service fermé) n'est pas un refus de la personne : il reste dans le journal,
+      // et la page reçoit 502, jamais un 401 qui lui ferait croire sa session finie.
       try {
-        const session = await stripe.checkout.sessions.create({
-          mode: 'payment',
-          line_items: [{ quantity: 1, price_data: { currency: process.env.HUMALIS_PAIEMENT_DEVISE ?? 'eur', unit_amount: centimes, product_data: { name: donnee } } }],
-          success_url: site + chemin,
-          cancel_url: site + chemin,
-          metadata: { donnee, id, champ },
+        const reponse = await transport(r.adresse, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', accept: 'application/json', 'x-humalis-signature': signer(r.secret, corps) },
+          body: corps,
+          signal: AbortSignal.timeout(15_000),
         });
-        return session.url ? { url: session.url } : { erreur: "le paiement n'a pas pu commencer", statut: 502 };
+        if (!reponse.ok) throw new Error('le relais a répondu ' + reponse.status);
+        const { url } = (await reponse.json()) as { url?: unknown };
+        if (typeof url !== 'string' || !/^https:\/\/[^/\s]|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//.test(url)) throw new Error("le relais n'a pas rendu d'adresse https");
+        return { url };
       } catch (erreur) {
-        console.error('Stripe a refusé de commencer un paiement :', erreur instanceof Error ? erreur.message : erreur);
+        console.error('Le relais de paiement a refusé de commencer un paiement :', erreur instanceof Error ? erreur.message : erreur);
         return { erreur: "le paiement n'a pas pu commencer : le service de paiement a refusé la demande", statut: 502 };
       }
     },
 
-    /** Stripe rappelle ici. Le corps brut est nécessaire pour vérifier la signature. */
+    /** Le relais confirme ici. Le corps brut est nécessaire pour vérifier la signature. */
     webhook: [
       express.raw({ type: '*/*', limit: '1mb' }),
       (async (req, res) => {
-        const stripe = client();
-        const secret = process.env.STRIPE_SECRET_WEBHOOK;
-        if (!stripe || !secret) {
-          res.status(503).end();
+        const r = reglages(env);
+        if (r.manque.length) {
+          res.status(503).json({ erreur: 'les paiements ne sont pas réglés sur ce serveur' });
           return;
         }
-        let evenement: Stripe.Event;
-        try {
-          evenement = stripe.webhooks.constructEvent(req.body as Buffer, String(req.headers['stripe-signature']), secret);
-        } catch {
+        const brut = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : '';
+        if (!signatureValable(r.secret, brut, req.headers['x-humalis-signature'])) {
           res.status(400).json({ erreur: 'signature invalide' });
           return;
         }
-        // Un moyen de paiement différé (virement, prélèvement) : la session se termine impayée, puis Stripe annonce
-        // le succès par « async_payment_succeeded ». Les deux passent par le même enregistrement, qui ne paie qu'une fois.
-        if (evenement.type === 'checkout.session.async_payment_failed') {
-          const { donnee, id } = evenement.data.object.metadata ?? {};
-          console.error('Un paiement différé a échoué pour « ' + String(donnee) + ' » ' + String(id) + ' : la fiche reste impayée.');
+        let evenement: { evenement?: unknown; reference?: unknown; montant?: unknown; devise?: unknown };
+        try {
+          evenement = JSON.parse(brut) as typeof evenement;
+        } catch {
+          res.status(400).json({ erreur: 'corps illisible' });
+          return;
         }
-        if (evenement.type === 'checkout.session.completed' || evenement.type === 'checkout.session.async_payment_succeeded') {
-          const session = evenement.data.object;
-          const { donnee, id, champ } = session.metadata ?? {};
-          if (session.payment_status === 'paid' && donnee && id && champ && typeof session.amount_total === 'number') {
-            try {
-              await surConfirme(donnee, id, champ, session.amount_total);
-            } catch (erreur) {
-              // Une erreur ici : Stripe rappellera, et rien n'a été écrit.
-              console.error('Un paiement n\'a pas été enregistré :', erreur instanceof Error ? erreur.message : erreur);
-              // La surveillance, si elle est réglée : le journal seul ne prévient personne.
-              try {
-                surErreur?.(erreur);
-              } catch { /* La surveillance ne doit jamais empêcher de répondre à Stripe. */ }
-              res.status(500).end();
-              return;
-            }
+        const cible = deReference(evenement.reference);
+        if (!cible) {
+          res.status(400).json({ erreur: 'référence inconnue' });
+          return;
+        }
+        // Un moyen de paiement différé (virement, prélèvement) peut échouer après coup : la fiche reste impayée.
+        if (evenement.evenement === 'echoue') {
+          console.error('Un paiement a échoué pour « ' + cible.donnee + ' » ' + cible.id + ' : la fiche reste impayée.');
+        } else if (evenement.evenement === 'paye') {
+          if (typeof evenement.montant !== 'number' || !Number.isInteger(evenement.montant) || String(evenement.devise ?? '').toLowerCase() !== r.devise) {
+            res.status(400).json({ erreur: 'montant ou devise illisible' });
+            return;
           }
+          try {
+            await surConfirme(cible.donnee, cible.id, cible.champ, evenement.montant);
+          } catch (erreur) {
+            // Une erreur ici : rien n'a été écrit, et le relais doit rappeler.
+            console.error('Un paiement n\'a pas été enregistré :', erreur instanceof Error ? erreur.message : erreur);
+            // La surveillance, si elle est réglée : le journal seul ne prévient personne.
+            try {
+              surErreur?.(erreur);
+            } catch { /* La surveillance ne doit jamais empêcher de répondre au relais. */ }
+            res.status(500).end();
+            return;
+          }
+        } else {
+          res.status(400).json({ erreur: 'événement inconnu' });
+          return;
         }
         res.json({ recu: true });
       }) as RequestHandler,

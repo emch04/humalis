@@ -119,10 +119,11 @@ describe('le temps réel : le serveur', () => {
     expect(demarrer).not.toContain('vueSupport');
   });
 
-  it('les clés de LiveKit viennent de l\'environnement', () => {
-    expect(code).toContain('process.env.LIVEKIT_API_SECRET');
+  it('les clés du serveur de réunions viennent de l\'environnement, sans offre hébergée nommée', () => {
+    expect(code).toContain("lire('HUMALIS_REUNIONS_SECRET', 'LIVEKIT_API_SECRET')");
     expect(JSON.parse(fichiers.get('package.json')!).dependencies['livekit-server-sdk']).toBeTruthy();
-    expect(fichiers.get('.env.exemple')).toContain('LIVEKIT_URL=');
+    expect(fichiers.get('.env.exemple')).toContain('HUMALIS_REUNIONS_ADRESSE=');
+    expect(fichiers.get('.env.exemple')).not.toMatch(/cloud/i);
   });
 
   it('une pièce jointe se télécharge, jamais ne s\'exécute, et son lien est signé', () => {

@@ -229,7 +229,7 @@ page "exemples" a l'adresse "/exemples" :
                 colonne avec style "appli-tete" :
                     texte "reservations.humalis" sans traduction avec style "vignette-fichier"
                     soustitre "Des réservations payées en ligne" en anglais "Bookings paid online" avec niveau 3
-                    texte "Chacun voit ses réservations et les paie par Stripe. Le serveur n’enregistre le paiement que lorsque Stripe le confirme." en anglais "Everyone sees their bookings and pays with Stripe. The server records the payment only once Stripe confirms it."
+                    texte "Chacun voit ses réservations et les paie en ligne. Le serveur n’enregistre le paiement que lorsqu’il est confirmé." en anglais "Everyone sees their bookings and pays online. The server records the payment only once it is confirmed."
                     ligne avec style "exemple-tags" :
                         texte "Comptes" en anglais "Accounts" avec style "tag"
                         texte "Droits" en anglais "Permissions" avec style "tag"
@@ -241,9 +241,9 @@ page "exemples" a l'adresse "/exemples" :
                         texte "Android" sans traduction avec style "tag tag-cible"
                 code humalis :
                     # Des réservations payées en ligne : chacun voit les siennes, l'administration voit tout,
-                    # et le serveur n'enregistre le paiement que lorsque Stripe le confirme.
+                    # et le serveur n'enregistre le paiement que lorsqu'il est confirmé.
                     serveur "salon" :
-                        paiements par stripe
+                        paiements
                         donnee reservation :
                             nom : texte
                             total : nombre

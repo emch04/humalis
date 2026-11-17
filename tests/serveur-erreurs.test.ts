@@ -29,11 +29,14 @@ describe('la réponse d’une erreur du serveur', () => {
 });
 
 describe('un refus du service de paiement', () => {
-  const source = 'serveur "b" :\n    paiements par stripe\n    donnee resa :\n        total : nombre\n    donnee journal :\n        nom : texte\n    route "resas" :\n        connecte peut lire resa\n        connecte peut creer resa\n        quand resa est payee :\n            creer journal avec nom "x"\n    route "journaux" :\n        seul admin peut lire journal\n\npage "a" :\n    titre "A"\n';
+  const source = 'serveur "b" :\n    paiements\n    donnee resa :\n        total : nombre\n    donnee journal :\n        nom : texte\n    route "resas" :\n        connecte peut lire resa\n        connecte peut creer resa\n        quand resa est payee :\n            creer journal avec nom "x"\n    route "journaux" :\n        seul admin peut lire journal\n\npage "a" :\n    titre "A"\n';
   const fichiers = genererProjetServeur(compiler(source).application!.serveurs[0]!, { nom: 'b', source: 'b.humalis' });
 
-  it('est rattrapé là où Stripe est appelé : 502, jamais le 401 de Stripe', () => {
+  it('est rattrapé là où le relais est appelé : 502, jamais un 401 du relais', () => {
     const paiements = fichiers.get('src/humalis/paiements.ts')!;
+    expect(paiements).not.toMatch(/stripe/i);
+    expect(JSON.parse(fichiers.get('package.json')!).dependencies.stripe).toBeUndefined();
+    for (const variable of ['HUMALIS_PAIEMENT_ADRESSE=', 'HUMALIS_PAIEMENT_SECRET=']) expect(fichiers.get('.env.exemple')).toContain(variable);
     expect(paiements).toContain("return { erreur: \"le paiement n'a pas pu commencer : le service de paiement a refusé la demande\", statut: 502 };");
   });
 

@@ -174,17 +174,17 @@ export interface Serveur {
   roles?: string[];
   /** « compte : » puis ses champs. */
   champsCompte?: { nom: string; type: TypeChamp; ligne: number }[];
-  /** « paiements par stripe ». */
-  paiements?: { service: string; ligne: number };
-  /** « ia par anthropic » et « connecte peut demander a ia ». */
-  ia?: { service: string; ligne: number };
+  /** « paiements » : le service se branche dans le .env. `ancien` : la forme d'avant (« paiements par stripe »), encore acceptée. */
+  paiements?: { ligne: number; ancien?: string };
+  /** « ia » et « connecte peut demander a ia » : le service se choisit dans le .env. */
+  ia?: { ligne: number; ancien?: string };
   droitIa?: DroitIa;
   /** « document "facture" de commande : ». */
   documents?: DocumentServeur[];
   /** « tous les jours a 7 h : » : le travail que le serveur fait seul. */
   taches?: TachePlanifiee[];
-  /** « emails par brevo » : le service qui envoie les e-mails du serveur. */
-  emails?: { service: string; ligne: number };
+  /** « emails » : le serveur d'envoi (SMTP) se choisit dans le .env. */
+  emails?: { ligne: number; ancien?: string };
   /** « invitations vers "bienvenue" » : un admin invite une adresse ; le lien ouvre cette page. */
   invitations?: { page: string; ligne: number };
   /** « mot de passe oublie vers "bienvenue" » : le lien reçu par e-mail ouvre cette page. */

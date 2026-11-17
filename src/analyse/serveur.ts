@@ -87,8 +87,17 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[], pag
 
   for (const tache of serveur.taches ?? []) traduireTache(tache, serveur, erreur);
   if (serveur.captureErreurs) traduireCaptureErreurs(serveur.captureErreurs, serveur, erreur);
+  // Les anciennes formes (« ia par … ») compilent encore, pour ne casser aucun projet ; le service se choisit maintenant dans le .env.
+  const besoins = [
+    { mot: 'ia', besoin: serveur.ia, reglages: 'le service se choisit dans le .env (HUMALIS_IA_ADRESSE, HUMALIS_IA_MODELE)' },
+    { mot: 'emails', besoin: serveur.emails, reglages: "le serveur d'envoi (SMTP) se choisit dans le .env (HUMALIS_EMAILS_HOTE, HUMALIS_EMAILS_PORT, HUMALIS_EMAILS_EXPEDITEUR)" },
+    { mot: 'paiements', besoin: serveur.paiements, reglages: 'le service de paiement se branche dans le .env (HUMALIS_PAIEMENT_ADRESSE, HUMALIS_PAIEMENT_SECRET)' },
+  ];
+  for (const { mot, besoin, reglages } of besoins) {
+    if (besoin?.ancien) avertissement(`« ${besoin.ancien} » s'écrit maintenant « ${mot} » : ${reglages}.`, besoin.ligne);
+  }
   if (serveur.ia && !serveur.droitIa) erreur(`chaque question à l'IA coûte : dites qui peut la poser, par exemple « connecte peut demander a ia ».`, serveur.ia.ligne);
-  if (serveur.droitIa && !serveur.ia) erreur(`« peut demander a ia » demande la ligne « ia par anthropic » dans le serveur "${serveur.nom}".`, serveur.droitIa.ligne);
+  if (serveur.droitIa && !serveur.ia) erreur(`« peut demander a ia » demande la ligne « ia » dans le serveur "${serveur.nom}".`, serveur.droitIa.ligne);
   if (serveur.droitIa?.qui === 'tout_le_monde') erreur(`chaque question à l'IA coûte : réservez-la à des comptes connectés, par exemple « connecte peut demander a ia ».`, serveur.droitIa.ligne);
   // Comparés une fois écrits comme dans le serveur produit (« password_hash » devient passwordHash) : jamais un nom interne du compte.
   const interne = (nom: string) => simplifier(nom).replace(/_/g, '');
@@ -179,7 +188,7 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[], pag
     if (route.apresPaiement) {
       const { donnee, ligne } = route.apresPaiement;
       const payee = serveur.donnees.find((d) => d.nom === donnee);
-      if (!serveur.paiements) erreur(`« quand ${donnee} est payee » demande la ligne « paiements par stripe » dans le serveur "${serveur.nom}".`, ligne);
+      if (!serveur.paiements) erreur(`« quand ${donnee} est payee » demande la ligne « paiements » dans le serveur "${serveur.nom}".`, ligne);
       if (donnee !== (servie ?? route.regles[0]?.donnee) || !payee) erreur(`la route « ${route.adresse} » sert « ${servie ?? 'aucune donnée'} » : elle ne voit pas le paiement de « ${donnee} ».`, ligne);
       else traduireApresPaiement(route.apresPaiement, payee, serveur, erreur);
     }
@@ -201,7 +210,7 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[], pag
 
     if (route.apresCreation) {
       const { donnee, envois, creations, ligne } = route.apresCreation;
-      if (!serveur.emails && envois.length > 0) erreur(`« envoyer email » demande la ligne « emails par brevo » dans le serveur "${serveur.nom}".`, ligne);
+      if (!serveur.emails && envois.length > 0) erreur(`« envoyer email » demande la ligne « emails » dans le serveur "${serveur.nom}".`, ligne);
       if (donnee !== servie) erreur(`la route « ${route.adresse} » sert « ${servie ?? 'aucune donnée'} » : elle ne voit pas la création de « ${donnee} ».`, ligne);
       else {
         for (const envoi of envois) verifierEnvoiEmail(envoi, donnee, serveur, droitsDeRoute(route).creer ?? droitsDeRoute(route).modifier, erreur, avertissement);
@@ -233,8 +242,8 @@ export function analyserServeur(serveur: Serveur, diagnostics: Diagnostic[], pag
     if (lien.page === undefined || lien.ligne === undefined) continue;
     if (lien.nom === 'inscription libre') {
       if (serveur.inscriptionLibre?.role === 'admin') erreur(`l’inscription libre ne donne jamais le rôle admin : écrivez un rôle déclaré dans « roles », par exemple « inscription libre comme client vers "${lien.page}" ».`, lien.ligne);
-      if (!serveur.emails) erreur(`l’inscription libre envoie un lien de confirmation : ajoutez « emails par brevo » dans le serveur "${serveur.nom}".`, lien.ligne);
-    } else if (!serveur.emails) erreur(`« ${lien.nom} » envoie un lien par e-mail : ajoutez la ligne « emails par brevo » dans le serveur "${serveur.nom}".`, lien.ligne);
+      if (!serveur.emails) erreur(`l’inscription libre envoie un lien de confirmation : ajoutez « emails » dans le serveur "${serveur.nom}".`, lien.ligne);
+    } else if (!serveur.emails) erreur(`« ${lien.nom} » envoie un lien par e-mail : ajoutez la ligne « emails » dans le serveur "${serveur.nom}".`, lien.ligne);
     const page = pages.find((p) => p.nom === lien.page);
     if (!page) {
       erreur(`« ${lien.nom} vers "${lien.page}" » : cette page n'existe pas.${proposerNom(lien.page, pages.map((p) => p.nom))}`, lien.ligne);

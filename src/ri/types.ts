@@ -291,8 +291,8 @@ export interface ServeurRI {
    * « connecte peut supprimer son compte » : la personne supprime son propre compte (`supprimer`).
    */
   routeMonCompte?: { adresse: string; ligne: number; lire: boolean; supprimer: boolean };
-  /** « emails par brevo ». */
-  emails?: { service: string };
+  /** « emails ». */
+  emails?: boolean;
   /** « invitations vers "bienvenue" » : la page qu'ouvre le lien. */
   invitations?: string;
   /**
@@ -312,7 +312,7 @@ export interface ServeurRI {
   doubleAuthentification?: boolean;
   /** « roles directeur, enseignant et parent ». */
   roles?: string[];
-  /** « paiements par stripe ». */
+  /** « paiements ». */
   paiements?: boolean;
   /** « connecte peut demander a ia ». */
   droitIa?: QuiPeut;

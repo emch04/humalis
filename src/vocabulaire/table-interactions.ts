@@ -687,8 +687,8 @@ export const ENTREES_INTERACTIONS: EntreeVocabulaire[] = [
     contextes: ['option'],
     cibles: { ...ecran('utilisateur.demanderIa(…)', null) },
     couvre: [],
-    description: '« ia par anthropic », « connecte peut demander a ia », « demander a ia "…" dans reponse » : une question à l’IA, la réponse au fil de l’eau.',
-    exemple: 'serveur "s" :\n    ia par anthropic\n    connecte peut demander a ia\n\npage "p" :\n    variable reponse = ""\n    titre "P"\n    texte reponse\n    bouton "Go"\n    quand l\'utilisateur clique sur "Go" :\n        demander a ia "Bonjour" dans reponse\n',
+    description: '« ia », « connecte peut demander a ia », « demander a ia "…" dans reponse » : une question à l’IA, la réponse au fil de l’eau. Le service se choisit dans le .env (HUMALIS_IA_ADRESSE, HUMALIS_IA_MODELE).',
+    exemple: 'serveur "s" :\n    ia\n    connecte peut demander a ia\n\npage "p" :\n    variable reponse = ""\n    titre "P"\n    texte reponse\n    bouton "Go"\n    quand l\'utilisateur clique sur "Go" :\n        demander a ia "Bonjour" dans reponse\n',
   }),
   mot({
     mot: 'payer',
@@ -698,8 +698,8 @@ export const ENTREES_INTERACTIONS: EntreeVocabulaire[] = [
     contextes: ['option'],
     cibles: { ...ecran('utilisateur.payer(…)', null) },
     couvre: [],
-    description: '« paiements par stripe », « payer total pour commande », « quand commande est payee : » : le montant est relu par le serveur, et seul un webhook signé marque la fiche payée.',
-    exemple: 'serveur "s" :\n    paiements par stripe\n    donnee r :\n        total : nombre\n    route "rs" :\n        seul admin peut lire r\n        seul admin peut modifier r\n        quand r est payee :\n            supprimer r\n',
+    description: '« paiements », « payer total pour commande », « quand commande est payee : » : le montant est relu par le serveur, et seul un webhook signé marque la fiche payée.',
+    exemple: 'serveur "s" :\n    paiements\n    donnee r :\n        total : nombre\n    route "rs" :\n        seul admin peut lire r\n        seul admin peut modifier r\n        quand r est payee :\n            supprimer r\n',
   }),
   mot({
     mot: 'regroupe',

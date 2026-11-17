@@ -1,6 +1,6 @@
 serveur "atelier" :
     roles gerant
-    paiements par stripe
+    paiements
     donnee produit :
         nom : texte
         prix : nombre

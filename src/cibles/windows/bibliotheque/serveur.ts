@@ -254,15 +254,15 @@ public static class Serveur
     private static bool paiementOuvert;
 
     /// <summary>
-    /// « payer total pour r » : le serveur prépare le paiement Stripe (le montant est relu chez lui),
-    /// sa page s'ouvre dans le navigateur. Au retour dans l'application, la page relit ses données
-    /// (voir RetourDePaiement) : la fiche payée apparaît quand le webhook de Stripe l'a confirmée.
+    /// « payer total pour r » : le serveur prépare le paiement (le montant est relu chez lui), la page
+    /// du service de paiement s'ouvre dans le navigateur. Au retour dans l'application, la page relit ses
+    /// données (voir RetourDePaiement) : la fiche payée apparaît quand le webhook signé l'a confirmée.
     /// </summary>
     public static async Task PayerOuEchouer(string adresse, string id)
     {
         var reponse = await Appel(adresse, "POST", V.FicheDe(("retour", "/")), id);
         var url = V.T(V.Champ(reponse, "url"));
-        // Seulement la page de Stripe en https (ou un serveur de cette machine pendant le développement).
+        // Seulement une page de paiement en https (ou un serveur de cette machine pendant le développement).
         if (!url.StartsWith("https://", StringComparison.Ordinal) && !url.StartsWith("http://localhost", StringComparison.Ordinal) && !url.StartsWith("http://127.0.0.1", StringComparison.Ordinal))
             throw new ErreurHumalis("Le paiement n'a pas pu s'ouvrir.");
         paiementOuvert = true;

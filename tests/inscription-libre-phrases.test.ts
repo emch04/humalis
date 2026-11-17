@@ -10,7 +10,7 @@ const source = ({ ligne = '>inscription libre comme client vers "confirmation"',
   programme(
     'serveur "boutique" :',
     ...(roles ? [roles] : []),
-    ...(emails ? ['>emails par brevo'] : []),
+    ...(emails ? ['>emails'] : []),
     ...compte,
     ...(ligne ? [ligne] : []),
     '',
@@ -79,8 +79,8 @@ describe('« inscription libre comme client vers "confirmation" »', () => {
     expect(erreurs(source({ ligne: '>inscription libre comme admin vers "confirmation"' }))).toEqual(['l’inscription libre ne donne jamais le rôle admin : écrivez un rôle déclaré dans « roles », par exemple « inscription libre comme client vers "confirmation" ».']);
   });
 
-  it('demande « emails par brevo »', () => {
-    expect(erreurs(source({ emails: false }))).toEqual(['l’inscription libre envoie un lien de confirmation : ajoutez « emails par brevo » dans le serveur "boutique".']);
+  it('demande « emails »', () => {
+    expect(erreurs(source({ emails: false }))).toEqual(['l’inscription libre envoie un lien de confirmation : ajoutez « emails » dans le serveur "boutique".']);
   });
 
   it('la page du lien doit exister, sans valeur dans son adresse', () => {

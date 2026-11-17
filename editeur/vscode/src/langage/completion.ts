@@ -305,7 +305,7 @@ export function completer(index: Index, ligne: number, colonne: number): Complet
         return resultat([
           ...mots(['donnee', 'route'], 'serveur'),
           ...tournure('connexion google', 'connexion google', 'connexion google'),
-          ...tournure('emails par brevo', 'emails par brevo', 'emails par brevo'),
+          ...tournure('emails', 'emails', 'emails'),
           ...tournure('invitations vers', 'invitations vers "…"', 'invitations vers "$1"'),
           ...tournure('mot de passe oublie vers', 'mot de passe oublié vers "…"', 'mot de passe oublie vers "$1"'),
         ]);

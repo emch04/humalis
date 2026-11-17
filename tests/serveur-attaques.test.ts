@@ -21,8 +21,8 @@ import { hashPassword } from '@astratra/security';
 import { creerServeur } from './dist/src/serveur.js';
 import { creerStockageMemoire } from './dist/src/humalis/stockage.js';
 
-process.env.STRIPE_CLE_SECRETE ??= 'sk_test_essai';
-process.env.STRIPE_SECRET_WEBHOOK ??= 'whsec_essai';
+process.env.HUMALIS_PAIEMENT_ADRESSE ??= 'http://127.0.0.1:9/relais';
+process.env.HUMALIS_PAIEMENT_SECRET ??= 'secret-du-relais-de-paiement-essai-0123456789';
 process.env.HUMALIS_ADRESSE_SITE ??= 'https://essai.test';
 const secret = 'Essai-Solide-2026!';
 const usersStore = createMemoryUsersStore();
@@ -105,12 +105,12 @@ r.limitesALaModification = { statut: 0, corps: {
   noteImmense: await envoyer('PATCH', '/api/articles/' + article.corps.id, a, { note: 'n'.repeat(10001) }),
   permis: await envoyer('PATCH', '/api/articles/' + article.corps.id, a, { prix: 4, statut: 'en_vente' }),
 } };
-// Un paiement confirmé par Stripe dont le montant n'est pas celui de la fiche : jamais passé sous silence.
+// Un paiement confirmé par le relais dont le montant n'est pas celui de la fiche : jamais passé sous silence.
 const { createHmac } = await import('node:crypto');
 const webhook = async (montant) => {
-  const corps = JSON.stringify({ id: 'evt_1', object: 'event', type: 'checkout.session.completed', data: { object: { id: 'cs_1', object: 'checkout.session', payment_status: 'paid', amount_total: montant, metadata: { donnee: 'reservation', id: resa.corps.id, champ: 'total' } } } });
+  const corps = JSON.stringify({ evenement: 'paye', reference: Buffer.from(JSON.stringify(['reservation', String(resa.corps.id), 'total'])).toString('base64url'), montant: montant, devise: 'eur' });
   const t = Math.floor(Date.now() / 1000);
-  const reponse = await fetch(base + '/paiements/webhook', { method: 'POST', headers: { ...json, 'stripe-signature': 't=' + t + ',v1=' + createHmac('sha256', process.env.STRIPE_SECRET_WEBHOOK).update(t + '.' + corps).digest('hex') }, body: corps });
+  const reponse = await fetch(base + '/paiements/webhook', { method: 'POST', headers: { ...json, 'x-humalis-signature': 't=' + t + ',v1=' + createHmac('sha256', process.env.HUMALIS_PAIEMENT_SECRET).update(t + '.' + corps).digest('hex') }, body: corps });
   return { statut: reponse.status, corps: { ...(await stockages.reservation.trouver(resa.corps.id)) } };
 };
 const silence = console.error; console.error = () => {};
@@ -184,7 +184,7 @@ describe.each(BASES)('des attaques sur un vrai serveur produit, %s', (_nom, base
     expect(r.deplacerSecret!.statut).toBe(400);
     expect(JSON.stringify(r.secretsDeBob!.corps)).not.toContain('à Awa');
   });
-  it('personne ne marque une fiche payée par Stripe sans payer, pas même un admin', () => {
+  it('personne ne marque une fiche payée sans payer, pas même un admin', () => {
     expect([r.payerSansPayer!.statut, r.adminPayerSansPayer!.statut]).toEqual([400, 400]);
   });
   it('un total calculé ne change que par un admin', () => {
@@ -203,7 +203,7 @@ describe.each(BASES)('des attaques sur un vrai serveur produit, %s', (_nom, base
   it('un corps illisible reste une erreur 400', () => {
     expect(r.jsonCasse!.statut).toBe(400);
   });
-  it('un paiement confirmé au mauvais montant : 500, fiche impayée ; Stripe le représente, et le bon montant l’enregistre une seule fois', () => {
+  it('un paiement confirmé au mauvais montant : 500, fiche impayée ; le relais rappelle, et le bon montant l’enregistre une seule fois', () => {
     expect(r.paiementMauvaisMontant!.statut).toBe(500);
     expect(r.paiementMauvaisMontant!.corps.paye).toBe(false);
     expect(r.paiementBonMontant!.statut).toBe(200);
@@ -242,7 +242,7 @@ describe.each(BASES)('des attaques sur un vrai serveur produit, %s', (_nom, base
     expect([essais.prixNegatif!.statut, essais.statutInconnu!.statut, essais.noteImmense!.statut, essais.permis!.statut]).toEqual([400, 400, 400, 200]);
     expect(essais.permis!.corps).toMatchObject({ prix: 4, statut: 'en_vente', nom: 'Stylo' });
   });
-  it('un « paye » ordinaire, sans Stripe, s’encaisse à la main', () => {
+  it('un « paye » ordinaire, sans « paiements », s’encaisse à la main', () => {
     expect(r.factureEncaissee!.statut).toBe(200);
     expect(r.factureEncaissee!.corps.paye).toBe(true);
   });

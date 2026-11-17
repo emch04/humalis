@@ -3,10 +3,10 @@ serveur "commerce" :
     roles gerant, vendeur et client
     compte :
         telephone : texte
-    emails par brevo
+    emails
     invitations vers "bienvenue"
-    paiements par stripe
-    ia par anthropic
+    paiements
+    ia
     seuls gerant et client peuvent demander a ia
     document "recu" de commande :
         titre "Reçu {commande.id}"

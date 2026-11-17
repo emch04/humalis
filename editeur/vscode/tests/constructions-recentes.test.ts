@@ -13,7 +13,7 @@ const PROGRAMME = `site :
 
 serveur "boutique" :
     connexion google
-    emails par brevo
+    emails
     invitations vers "bienvenue"
     mot de passe oublié vers "bienvenue"
     donnee produit :
@@ -94,8 +94,7 @@ describe('les constructions depuis la 1.5.2', () => {
     };
     it.each([
       ['erreurs pendant', 'erreurs', 'erreurs pendant'],
-      ['emails par brevo', 'emails', 'emails par brevo'],
-      ['emails par brevo', 'brevo', 'emails par brevo'],
+      ['emails', 'emails', 'emails'],
       ['invitations vers', 'invitations', 'invitations vers'],
       ['mot de passe oublié vers', 'oublié', 'mot de passe oublié vers'],
       ['connexion google', 'connexion', 'connexion google'],
@@ -134,7 +133,7 @@ describe('les constructions depuis la 1.5.2', () => {
       expect(libelles('site :\n    ‸\n')).not.toContain('bouton');
     });
     it('le bloc serveur', () => {
-      expect(libelles(serveur('    ‸'))).toEqual(expect.arrayContaining(['donnée', 'route', 'connexion google', 'emails par brevo', 'invitations vers "…"', 'mot de passe oublié vers "…"']));
+      expect(libelles(serveur('    ‸'))).toEqual(expect.arrayContaining(['donnée', 'route', 'connexion google', 'emails', 'invitations vers "…"', 'mot de passe oublié vers "…"']));
     });
     it('une route', () => {
       const route = (ligne: string) => serveur(`    donnee suivi :\n        etape : texte\n    route "r" :\n        ${ligne}`);
@@ -167,7 +166,7 @@ describe('les constructions depuis la 1.5.2', () => {
   describe('la coloration', () => {
     it.each([
       ['    erreurs pendant 5 secondes', 'erreurs'],
-      ['    emails par brevo', 'brevo'],
+      ['    emails', 'emails'],
       ['    invitations vers "b"', 'invitations'],
       ['    mot de passe oublié vers "b"', 'oublié'],
       ['    connexion google', 'google'],

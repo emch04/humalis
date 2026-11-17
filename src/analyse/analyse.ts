@@ -230,7 +230,7 @@ interface Liens {
   actions?: Map<string, string>;
   /** Chaque donnée payable, et l'adresse de sa route. */
   payees?: Map<string, string>;
-  /** « ia par anthropic » dans le serveur du fichier. */
+  /** « ia » dans le serveur du fichier. */
   ia?: boolean;
   actionsDonnees?: Map<string, string>;
   actionsParametres?: Map<string, string[]>;
@@ -1071,7 +1071,7 @@ class AnalysePage {
         if (contexte === 'vue') this.horsEvenement('demander a ia', instruction.ligne);
         this.demandeUnServeur('demander a ia', instruction.ligne);
         this.typeDe(instruction.question);
-        if (!this.liens.ia && this.liens.serveur !== undefined) this.erreur(`« demander a ia » demande la ligne « ia par anthropic » dans le serveur "${this.liens.serveur}".`, instruction.ligne);
+        if (!this.liens.ia && this.liens.serveur !== undefined) this.erreur(`« demander a ia » demande la ligne « ia » dans le serveur "${this.liens.serveur}".`, instruction.ligne);
         this.typeDe({ type: 'Reference', nom: instruction.variable, ligne: instruction.ligne });
         return;
       }

@@ -37,9 +37,9 @@ describe('les magasins du serveur sur une vraie base SQLite', () => {
     try {
       execFileSync('npx', ['tsc'], { cwd: dossier, stdio: 'pipe', encoding: 'utf8' });
     } catch (erreur) {
-      // Seul le pack des e-mails peut manquer aux modules empruntés : toute autre faute de types arrête l'essai.
+      // Seuls les modules des e-mails (le pack et SMTP) peuvent manquer aux modules empruntés : toute autre faute de types arrête l'essai.
       const fautes = String((erreur as { stdout?: unknown }).stdout ?? erreur).split('\n').filter((l) => l.includes('error TS'));
-      expect(fautes.filter((l) => !l.includes("'@astratra/notify'"))).toEqual([]);
+      expect(fautes.filter((l) => !l.includes("'@astratra/notify'") && !l.includes("'nodemailer'"))).toEqual([]);
     }
     try {
       sortie = execFileSync('node', ['magasins.mjs'], { cwd: dossier, encoding: 'utf8', stdio: 'pipe' });

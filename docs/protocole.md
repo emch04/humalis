@@ -176,7 +176,7 @@ garde CSRF, erreurs `{ "erreur": … }`) :
 
 | Phrase du programme | Adresse |
 |---|---|
-| `payer total pour c` | `POST /api/<route>/payer/<champ>/<id>`, et `POST /paiements/webhook` pour Stripe |
+| `payer total pour c` | `POST /api/<route>/payer/<champ>/<id>`, et `POST /paiements/webhook` pour le relais de paiement |
 | `seul gerant peut faire "rembourser" sur commande :` | sous `/api/<route>/faire/<action>` |
 | `seul gerant peut lire "resume" de commande :` | `GET /api/<route>/<resume>` |
 | `telecharger bon` | `GET /api/<route>/<id>/bon` |

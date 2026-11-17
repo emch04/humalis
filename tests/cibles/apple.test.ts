@@ -280,7 +280,7 @@ describe('cible Apple — iPad, Mac et porte de sortie', () => {
 });
 
 describe('cible Apple — rôles, temps réel, IA, paiements, notifications', () => {
-  const SERVEUR = `serveur "s" :\n    roles gerant et vendeur\n    ia par anthropic\n    connecte peut demander a ia\n    paiements par stripe\n    donnee produit :\n        nom : texte\n        prix : nombre\n    route "produits" :\n        tout le monde peut lire produit\n        seul gerant peut creer produit\n`;
+  const SERVEUR = `serveur "s" :\n    roles gerant et vendeur\n    ia\n    connecte peut demander a ia\n    paiements\n    donnee produit :\n        nom : texte\n        prix : nombre\n    route "produits" :\n        tout le monde peut lire produit\n        seul gerant peut creer produit\n`;
 
   it('« si utilisateur est gerant » lit le rôle, une page se réserve à un rôle', () => {
     const f = projet(`${SERVEUR}\npage "accueil" :\n    titre "a"\n    si utilisateur est gerant :\n        texte "g"\npage "connexion" :\n    titre "c"\npage "espace" reservee a gerant et vendeur sinon vers "connexion" :\n    titre "e"\n`);

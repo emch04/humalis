@@ -8,9 +8,9 @@ serveur "commerce" :
     connexion apple
     invitations vers "bienvenue"
     mot de passe oublie vers "bienvenue"
-    emails par brevo
-    paiements par stripe
-    ia par anthropic
+    emails
+    paiements
+    ia
     connecte peut demander a ia
     compte :
         telephone : texte

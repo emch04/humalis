@@ -69,45 +69,42 @@ const portPoussee = faussePoussee.address().port;
 const vapid = JSON.parse(execFileSync('node', ['-e', "console.log(JSON.stringify(require('web-push').generateVAPIDKeys()))"], { cwd: serveur, encoding: 'utf8' }));
 const cleApple = generateKeyPairSync('ec', { namedCurve: 'P-256' }).privateKey.export({ type: 'pkcs8', format: 'pem' });
 const envNotifications = { HUMALIS_LIMITE_API: '100000', HUMALIS_LIMITE_CONNEXION: '1000', HUMALIS_VAPID_PUBLIQUE: vapid.publicKey, HUMALIS_VAPID_PRIVEE: vapid.privateKey, HUMALIS_VAPID_SUJET: 'mailto:essai@exemple.cd', HUMALIS_PUSH_HOTES: '127.0.0.1', NODE_TLS_REJECT_UNAUTHORIZED: '0', HUMALIS_APNS_CLE: cleApple, HUMALIS_APNS_CLE_ID: 'ABC123', HUMALIS_APNS_EQUIPE: 'EQUIPE1', HUMALIS_APNS_SUJET: 'dev.humalis.essai', HUMALIS_APNS_HOTE: `127.0.0.1:${fauxApns.address().port}` };
-// Un faux service Anthropic : le même format d'événements, sans dépense.
+// Un faux service d'IA, au format de discussion compatible OpenAI : le même flux d'événements, sans dépense.
 const appelsIa = [];
-const fauxAnthropic = createHttp((req, res) => {
+const fauxServiceIa = createHttp((req, res) => {
   const m = [];
   req.on('data', (d) => m.push(d));
   req.on('end', async () => {
-    appelsIa.push({ cle: req.headers['x-api-key'] ?? req.headers.authorization?.replace('Bearer ', ''), beta: req.headers['anthropic-beta'], corps: JSON.parse(Buffer.concat(m).toString()) });
+    appelsIa.push({ chemin: req.url, cle: req.headers.authorization?.replace('Bearer ', ''), corps: JSON.parse(Buffer.concat(m).toString()) });
     res.writeHead(200, { 'content-type': 'text/event-stream' });
-    const envoi = (type, corps) => res.write(`event: ${type}\ndata: ${JSON.stringify({ type, ...corps })}\n\n`);
-    envoi('message_start', { message: { id: 'msg_1', type: 'message', role: 'assistant', model: 'claude-opus-5-5', content: [], stop_reason: null, usage: { input_tokens: 1, output_tokens: 0 } } });
-    envoi('content_block_start', { index: 0, content_block: { type: 'text', text: '' } });
     for (const t of ['Bon', 'jour ', 'à ', 'vous']) {
-      envoi('content_block_delta', { index: 0, delta: { type: 'text_delta', text: t } });
+      res.write(`data: ${JSON.stringify({ choices: [{ index: 0, delta: { content: t }, finish_reason: null }] })}\n\n`);
       await new Promise((ok) => setTimeout(ok, 120));
     }
-    envoi('content_block_stop', { index: 0 });
-    envoi('message_delta', { delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 4 } });
-    envoi('message_stop', {});
-    res.end();
+    res.write(`data: ${JSON.stringify({ choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] })}\n\n`);
+    res.end('data: [DONE]\n\n');
   });
 });
-await new Promise((ok) => fauxAnthropic.listen(0, ok));
-envNotifications.ANTHROPIC_API_KEY = 'cle-d-essai';
-envNotifications.ANTHROPIC_BASE_URL = `http://127.0.0.1:${fauxAnthropic.address().port}`;
+await new Promise((ok) => fauxServiceIa.listen(0, ok));
+envNotifications.HUMALIS_IA_ADRESSE = `http://127.0.0.1:${fauxServiceIa.address().port}/v1`;
+envNotifications.HUMALIS_IA_MODELE = 'modele-d-essai';
+envNotifications.HUMALIS_IA_CLE = 'cle-d-essai';
 envNotifications.HUMALIS_IA_PAR_HEURE = '3';
 
-// Un faux Stripe : il répond à la création d'une page de paiement ; le webhook est signé comme le vrai.
-const appelsStripe = [];
-const fauxStripe = createHttp((req, res) => {
+// Un faux relais de paiement : il répond à la demande signée par une page de paiement ; la confirmation est signée de même.
+const SECRET_RELAIS = 'secret-du-relais-de-paiement-essai-0123456789';
+const appelsRelais = [];
+const fauxRelais = createHttp((req, res) => {
   const m = [];
   req.on('data', (d) => m.push(d));
   req.on('end', () => {
-    appelsStripe.push({ chemin: req.url, autorisation: req.headers.authorization, corps: new URLSearchParams(Buffer.concat(m).toString()) });
+    appelsRelais.push({ chemin: req.url, signature: req.headers['x-humalis-signature'], brut: Buffer.concat(m).toString() });
     res.setHeader('content-type', 'application/json');
-    res.end(JSON.stringify({ id: 'cs_test_1', object: 'checkout.session', url: 'https://checkout.stripe.com/c/pay/cs_test_1' }));
+    res.end(JSON.stringify({ url: 'https://paiement.essai.test/p/1' }));
   });
 });
-await new Promise((ok) => fauxStripe.listen(0, ok));
-Object.assign(envNotifications, { STRIPE_CLE_SECRETE: 'sk_test_essai', STRIPE_SECRET_WEBHOOK: 'whsec_essai', HUMALIS_STRIPE_HOTE: `127.0.0.1:${fauxStripe.address().port}`, HUMALIS_ADRESSE_SITE: 'https://site.exemple.cd' });
+await new Promise((ok) => fauxRelais.listen(0, ok));
+Object.assign(envNotifications, { HUMALIS_PAIEMENT_ADRESSE: `http://127.0.0.1:${fauxRelais.address().port}/relais`, HUMALIS_PAIEMENT_SECRET: SECRET_RELAIS, HUMALIS_ADRESSE_SITE: 'https://site.exemple.cd' });
 
 const demarrer = (port) => new Promise((ok, echec) => {
   const p = spawn('node', ['dist/src/demarrer.js'], { cwd: serveur, env: { ...process.env, ...envNotifications, DATABASE_URL: URL_BASE, JWT_SECRET: SECRET, HUMALIS_ADMIN_EMAIL: EMAIL, HUMALIS_ADMIN_MOT_DE_PASSE: MOT, PORT: String(port), NODE_ENV: 'development' } });
@@ -305,7 +302,7 @@ try {
   const q = await questionner(A, u1.jeton);
   const texte = q.morceaux.join('').split('\n\n').filter(Boolean).map((b) => JSON.parse(b.replace('data: ', '')).t).join('');
   verifier(q.statut === 200 && q.morceaux.length >= 3 && texte === 'Bonjour à vous', 'la réponse arrive au fil de l’eau, en plusieurs morceaux');
-  verifier(appelsIa.at(-1)?.corps.model === 'claude-opus-5-5' && appelsIa.at(-1)?.corps.fallbacks === 'default' && appelsIa.at(-1)?.cle === 'cle-d-essai' && appelsIa.at(-1)?.beta?.includes('server-side-fallback-2026-07-01'), 'le bon modèle, le secours et la clé sont envoyés');
+  verifier(appelsIa.at(-1)?.chemin === '/v1/chat/completions' && appelsIa.at(-1)?.corps.model === 'modele-d-essai' && appelsIa.at(-1)?.corps.stream === true && appelsIa.at(-1)?.cle === 'cle-d-essai', 'le modèle et la clé du .env sont envoyés');
   await questionner(B, u1.jeton);
   await questionner(A, u1.jeton);
   verifier((await questionner(B, u1.jeton)).statut === 429, 'le plafond vaut pour tous les serveurs (429)');
@@ -314,18 +311,21 @@ try {
   const reservation = await appeler(A, 'POST', '/api/reservations', u1.jeton, { nom: 'Salle', total: 12.5 });
   verifier((await appeler(A, 'POST', '/api/reservations', u1.jeton, { nom: 'Salle', total: 1, paye: true })).statut === 400, 'on ne se déclare pas payé en l’envoyant (400)');
   const payer = await appeler(A, 'POST', `/api/reservations/payer/total/${reservation.valeur.id}`, u1.jeton, { retour: '//ailleurs.example', montant: 1 });
-  const creation = appelsStripe.at(-1);
-  verifier(payer.statut === 200 && payer.valeur.url.startsWith('https://checkout.stripe.com/'), 'la page de paiement est créée');
-  verifier(creation?.corps.get('line_items[0][price_data][unit_amount]') === '1250', 'le montant vient de la fiche, pas de la page');
-  verifier(creation?.corps.get('success_url') === 'https://site.exemple.cd/', 'un lien de retour vers un autre site est ignoré');
-  const signer = (corps, secret = 'whsec_essai') => { const t = Math.floor(Date.now() / 1000); return `t=${t},v1=${createHmac('sha256', secret).update(`${t}.${corps}`).digest('hex')}`; };
-  const evenement = (montant, id = reservation.valeur.id) => JSON.stringify({ id: 'evt_1', object: 'event', type: 'checkout.session.completed', data: { object: { id: 'cs_test_1', object: 'checkout.session', payment_status: 'paid', amount_total: montant, metadata: { donnee: 'reservation', id, champ: 'total' } } } });
-  const webhook = (base, corps, signature) => fetch(`${base}/paiements/webhook`, { method: 'POST', headers: { 'content-type': 'application/json', 'stripe-signature': signature }, body: corps });
+  const creation = appelsRelais.at(-1);
+  const demande = creation ? JSON.parse(creation.brut) : {};
+  const signer = (corps, secret = SECRET_RELAIS) => { const t = Math.floor(Date.now() / 1000); return `t=${t},v1=${createHmac('sha256', secret).update(`${t}.${corps}`).digest('hex')}`; };
+  const [tDemande] = /t=(\d+)/.exec(creation?.signature ?? '')?.slice(1) ?? [];
+  verifier(payer.statut === 200 && payer.valeur.url === 'https://paiement.essai.test/p/1', 'la page de paiement est créée par le relais');
+  verifier(creation?.signature === `t=${tDemande},v1=${createHmac('sha256', SECRET_RELAIS).update(`${tDemande}.${creation?.brut}`).digest('hex')}`, 'la demande au relais est signée');
+  verifier(demande.montant === 1250 && demande.devise === 'eur', 'le montant vient de la fiche, pas de la page');
+  verifier(demande.retour === 'https://site.exemple.cd/', 'un lien de retour vers un autre site est ignoré');
+  const evenement = (montant) => JSON.stringify({ evenement: 'paye', reference: demande.reference, montant, devise: 'eur' });
+  const webhook = (base, corps, signature) => fetch(`${base}/paiements/webhook`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-humalis-signature': signature }, body: corps });
   const combienJournal = async () => (await appeler(A, 'GET', '/api/journaux', jetonAdmin)).valeur.filter((j) => j.nom === 'Salle').length;
   const lueR = async () => (await appeler(A, 'GET', `/api/reservations/${reservation.valeur.id}`, u1.jeton)).valeur;
-  verifier((await webhook(A, evenement(1250), signer(evenement(1250), 'whsec_autre'))).status === 400, 'un webhook mal signé est refusé (400)');
+  verifier((await webhook(A, evenement(1250), signer(evenement(1250), 'un-autre-secret-de-relais-0123456789'))).status === 400, 'un webhook mal signé est refusé (400)');
   verifier((await lueR()).paye === false, 'la fiche n’est pas payée pour autant');
-  verifier((await webhook(A, evenement(99), signer(evenement(99)))).status === 200 && (await lueR()).paye === false, 'un montant qui ne correspond pas est ignoré');
+  verifier((await webhook(A, evenement(99), signer(evenement(99)))).status === 500 && (await lueR()).paye === false, 'un montant qui ne correspond pas : 500, la fiche reste impayée');
   verifier((await webhook(A, evenement(1250), signer(evenement(1250)))).status === 200 && (await lueR()).paye === true, 'un webhook signé marque la fiche payée');
   verifier(await combienJournal() === 1, '« quand … est payee » s’exécute');
   await Promise.all([webhook(A, evenement(1250), signer(evenement(1250))), webhook(B, evenement(1250), signer(evenement(1250)))]);
@@ -435,7 +435,7 @@ try {
       const page = await contexte.newPage();
       const erreursPage = [];
       page.on('pageerror', (e) => erreursPage.push(e.message));
-      await page.route('https://checkout.stripe.com/**', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '<title>Stripe</title>' }));
+      await page.route('https://paiement.essai.test/**', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '<title>Paiement</title>' }));
       await page.goto(`${adresse}/bienvenue`);
       await page.getByLabel('Email').fill(gerantA.email);
       await page.getByLabel('Mot de passe').first().fill(MOT);
@@ -461,7 +461,7 @@ try {
       await page.getByRole('button', { name: 'Activer' }).click();
       await reponseActiver.then(() => verifier(true, `${nom} : « activer notifications » répond à la personne`), () => verifier(false, `${nom} : « activer notifications » répond à la personne`));
       await page.getByRole('button', { name: 'Payer' }).last().click();
-      await page.waitForURL('https://checkout.stripe.com/**', { timeout: 8000 }).then(() => verifier(true, `${nom} : « payer » ouvre la page de paiement`), () => verifier(false, `${nom} : « payer » ouvre la page de paiement`));
+      await page.waitForURL('https://paiement.essai.test/**', { timeout: 8000 }).then(() => verifier(true, `${nom} : « payer » ouvre la page de paiement`), () => verifier(false, `${nom} : « payer » ouvre la page de paiement`));
       verifier(erreursPage.length === 0, `${nom} : aucune erreur dans la page ${erreursPage.join(' ; ')}`);
       void aPayer;
       await contexte.close();
@@ -474,8 +474,8 @@ try {
 } finally {
   for (const p of processus) p.kill();
   faussePoussee.close();
-  fauxAnthropic.close();
-  fauxStripe.close();
+  fauxServiceIa.close();
+  fauxRelais.close();
   fauxApns.close();
   execFileSync('pg_ctl', ['-D', donnees, '-m', 'fast', 'stop'], { stdio: 'ignore', env: envBase });
 }

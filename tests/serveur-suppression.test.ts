@@ -69,7 +69,7 @@ describe('codeEffacerLesDonnees', () => {
 
   it('une fiche payée : jamais effacée', () => {
     const texte = code(
-      '>paiements par stripe',
+      '>paiements',
       '>donnee commande :',
       '>>total : nombre',
       '>>a la suppression du compte : effacer',

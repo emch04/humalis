@@ -7,7 +7,7 @@ import { programme } from './analyse/aide.js';
 
 const SOURCE = programme(
   'serveur "Le Comptoir" :',
-  '>emails par brevo',
+  '>emails',
   '>invitations vers "bienvenue"',
   '>mot de passe oublie vers "bienvenue"',
   '>donnee message :',
@@ -70,7 +70,7 @@ describe('les e-mails et les comptes — la RI', () => {
     expect(ri.donnees.map((d) => d.nom)).toEqual(['message']);
     expect(ri.routes.map((r) => r.adresse)).toEqual(['messages']);
     expect(ri.routeComptes).toMatchObject({ adresse: 'equipe', droits: { lire: 'admin', supprimer: 'admin', creer: null } });
-    expect(ri).toMatchObject({ emails: { service: 'brevo' }, invitations: 'bienvenue', motDePasseOublie: 'bienvenue' });
+    expect(ri).toMatchObject({ emails: true, invitations: 'bienvenue', motDePasseOublie: 'bienvenue' });
     expect(ri.routes[0].envois).toEqual([
       { destinataire: { genre: 'admins' }, sujet: [{ texte: 'Nouveau message de ' }, { champ: 'nom' }], texte: [{ texte: 'Bonjour' }] },
       { destinataire: { genre: 'adresse', adresse: 'contact@exemple.cd' }, sujet: [{ texte: 'Copie' }], texte: [{ champ: 'nom' }] },
@@ -98,9 +98,13 @@ describe('les e-mails et les comptes — le serveur produit', () => {
     expect(fichiers.has('src/humalis/emails.ts')).toBe(true);
     expect(fichiers.has('src/humalis/comptes.ts')).toBe(true);
     expect(fichiers.has('tests/comptes.test.ts')).toBe(true);
-    expect(JSON.parse(fichiers.get('package.json')!).dependencies['@astratra/notify']).toBeDefined();
-    for (const variable of ['BREVO_API_KEY=', 'BREVO_EXPEDITEUR=', 'HUMALIS_ADRESSE_SITE=', 'HUMALIS_EMAILS_PAR_HEURE=']) expect(fichiers.get('.env.exemple')).toContain(variable);
-    expect(fichiers.get('src/humalis/coffre.ts')).toContain("key: 'BREVO_API_KEY'");
+    const paquet = JSON.parse(fichiers.get('package.json')!);
+    expect(paquet.dependencies['@astratra/notify']).toBeDefined();
+    expect(paquet.dependencies.nodemailer).toBeDefined();
+    for (const variable of ['HUMALIS_EMAILS_HOTE=', 'HUMALIS_EMAILS_PORT=', 'HUMALIS_EMAILS_EXPEDITEUR=', 'HUMALIS_EMAILS_UTILISATEUR=', 'HUMALIS_EMAILS_MOT_DE_PASSE=', 'HUMALIS_ADRESSE_SITE=', 'HUMALIS_EMAILS_PAR_HEURE=']) expect(fichiers.get('.env.exemple')).toContain(variable);
+    expect(fichiers.get('src/humalis/coffre.ts')).toContain("key: 'HUMALIS_EMAILS_HOTE'");
+    // Aucun service nommé, ni hôte ni port par défaut.
+    expect(fichiers.get('.env.exemple')).not.toMatch(/HUMALIS_EMAILS_(HOTE|PORT)=\S/);
   });
 
   it('les routes sont gardées, et le pack sert le mot de passe oublié', () => {
@@ -133,10 +137,12 @@ describe('les e-mails et les comptes — le serveur produit', () => {
     expect(code).toContain('})().catch(');
   });
 
-  it('une clé ne se retrouve jamais dans un message d’erreur', () => {
+  it('un mot de passe ne se retrouve jamais dans un message d’erreur', () => {
     const emails = serveur().get('src/humalis/emails.ts')!;
-    expect(emails).toContain('Brevo a refusé l\'envoi (HTTP ${reponse.status})');
-    expect(emails).not.toMatch(/console\.\w+\([^)]*\bcle\b/);
+    expect(emails).toContain("throw new Error(\"le serveur d'envoi a refusé l'e-mail\" + (code ? ' (' + String(code) + ')' : ''));");
+    expect(emails).not.toMatch(/console\.\w+\([^)]*(motDePasse|utilisateur)/);
+    // SMTP chiffré : 465 d'emblée, sinon STARTTLS exigé hors de cette machine.
+    expect(emails).toContain('requireTLS: !chiffre && !LOCAL.has(reglages.hote)');
   });
 
   it('sans ces lignes, le serveur ne change pas', () => {
@@ -146,7 +152,7 @@ describe('les e-mails et les comptes — le serveur produit', () => {
     expect(fichiers.has('src/humalis/comptes.ts')).toBe(false);
     expect(JSON.parse(fichiers.get('package.json')!).dependencies['@astratra/notify']).toBeUndefined();
     expect(fichiers.get('src/serveur.ts')).not.toContain('passwordReset');
-    expect(fichiers.get('.env.exemple')).not.toContain('BREVO');
+    expect(fichiers.get('.env.exemple')).not.toContain('HUMALIS_EMAILS_HOTE');
   });
 });
 

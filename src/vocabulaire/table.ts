@@ -2327,7 +2327,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     couvre: [],
     description:
       '« creer mon compte avec champ "Email" et champ "Mot de passe" » crée le compte de la personne, qui reçoit un lien pour confirmer son adresse. « avec nom = champ "Nom" » remplit les champs déclarés dans « compte : ». La réponse est la même que l’adresse ait déjà un compte ou non.',
-    exemple: 'serveur "boutique" :\n    roles client\n    emails par brevo\n    compte :\n        nom : texte\n    inscription libre comme client vers "confirmation"\n\npage "inscription" :\n    titre "Créer un compte"\n    formulaire "compte" :\n        champ "Nom" avec obligatoire\n        champ email "Email" avec obligatoire\n        champ mot de passe "Mot de passe" avec obligatoire\n        bouton "Créer mon compte"\n    quand le formulaire "compte" est soumis :\n        essayer :\n            creer mon compte avec champ "Email" et champ "Mot de passe" avec nom = champ "Nom"\n            afficher "Un lien de confirmation vous a été envoyé."\n        si erreur :\n            afficher erreur "{raison}"\n\npage "confirmation" :\n    titre "Confirmation"\n    quand la page se charge :\n        essayer :\n            confirmer mon adresse\n            afficher "Votre adresse est confirmée : vous pouvez vous connecter."\n        si erreur :\n            afficher erreur "{raison}"',
+    exemple: 'serveur "boutique" :\n    roles client\n    emails\n    compte :\n        nom : texte\n    inscription libre comme client vers "confirmation"\n\npage "inscription" :\n    titre "Créer un compte"\n    formulaire "compte" :\n        champ "Nom" avec obligatoire\n        champ email "Email" avec obligatoire\n        champ mot de passe "Mot de passe" avec obligatoire\n        bouton "Créer mon compte"\n    quand le formulaire "compte" est soumis :\n        essayer :\n            creer mon compte avec champ "Email" et champ "Mot de passe" avec nom = champ "Nom"\n            afficher "Un lien de confirmation vous a été envoyé."\n        si erreur :\n            afficher erreur "{raison}"\n\npage "confirmation" :\n    titre "Confirmation"\n    quand la page se charge :\n        essayer :\n            confirmer mon adresse\n            afficher "Votre adresse est confirmée : vous pouvez vous connecter."\n        si erreur :\n            afficher erreur "{raison}"',
     statut: 'supporte',
     etape: 9,
     note: 'Demande « inscription libre comme … vers "…" » dans le serveur. Le compte ne se connecte qu’après la confirmation.',
@@ -2345,7 +2345,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     couvre: [],
     description:
       '« confirmer mon adresse », sur la page ouverte par le lien de confirmation, confirme l’adresse du compte créé : la personne peut ensuite se connecter. Un lien déjà servi ou de plus de 24 heures est refusé, et le refus se lit dans « si erreur : ».',
-    exemple: 'serveur "boutique" :\n    roles client\n    emails par brevo\n    compte :\n        nom : texte\n    inscription libre comme client vers "confirmation"\n\npage "inscription" :\n    titre "Créer un compte"\n    formulaire "compte" :\n        champ "Nom" avec obligatoire\n        champ email "Email" avec obligatoire\n        champ mot de passe "Mot de passe" avec obligatoire\n        bouton "Créer mon compte"\n    quand le formulaire "compte" est soumis :\n        essayer :\n            creer mon compte avec champ "Email" et champ "Mot de passe" avec nom = champ "Nom"\n            afficher "Un lien de confirmation vous a été envoyé."\n        si erreur :\n            afficher erreur "{raison}"\n\npage "confirmation" :\n    titre "Confirmation"\n    quand la page se charge :\n        essayer :\n            confirmer mon adresse\n            afficher "Votre adresse est confirmée : vous pouvez vous connecter."\n        si erreur :\n            afficher erreur "{raison}"',
+    exemple: 'serveur "boutique" :\n    roles client\n    emails\n    compte :\n        nom : texte\n    inscription libre comme client vers "confirmation"\n\npage "inscription" :\n    titre "Créer un compte"\n    formulaire "compte" :\n        champ "Nom" avec obligatoire\n        champ email "Email" avec obligatoire\n        champ mot de passe "Mot de passe" avec obligatoire\n        bouton "Créer mon compte"\n    quand le formulaire "compte" est soumis :\n        essayer :\n            creer mon compte avec champ "Email" et champ "Mot de passe" avec nom = champ "Nom"\n            afficher "Un lien de confirmation vous a été envoyé."\n        si erreur :\n            afficher erreur "{raison}"\n\npage "confirmation" :\n    titre "Confirmation"\n    quand la page se charge :\n        essayer :\n            confirmer mon adresse\n            afficher "Votre adresse est confirmée : vous pouvez vous connecter."\n        si erreur :\n            afficher erreur "{raison}"',
     statut: 'supporte',
     etape: 9,
     note: 'Le jeton est lu dans l’adresse de la page, comme pour « choisir le mot de passe ».',
@@ -2452,19 +2452,19 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     note: 'Web et bureau seulement pour l’instant : le téléphone affiche un message, le site statique refuse la phrase. Même forme que « se connecter avec champ … et champ … », avec « google » à la place des deux champs.',
   },
   {
-    mot: 'emails par brevo',
+    mot: 'emails',
     variantes: [],
     categorie: 'structure',
     concept: 'serveur.emails',
     contextes: ['serveur'],
-    cibles: serveurSeul('src/humalis/emails.ts : @astratra/notify et l’API de Brevo'),
+    cibles: serveurSeul('src/humalis/emails.ts : @astratra/notify et SMTP'),
     couvre: [],
     description:
-      'Dans le serveur, « emails par brevo » lui donne de quoi envoyer des e-mails. Les clés restent côté serveur : BREVO_API_KEY et BREVO_EXPEDITEUR.',
-    exemple: 'serveur "boutique" :\n    emails par brevo\n    invitations vers "bienvenue"\n    mot de passe oublie vers "bienvenue"\n    route "equipe" :\n        seul admin peut lire comptes\n        seul admin peut supprimer comptes\n\npage "accueil" :\n    titre "Accueil"\n    champ email "Adresse"\n    bouton "Go"\n    quand l\'utilisateur clique sur "Go" :\n        inviter champ "Adresse"\n\npage "bienvenue" :\n    titre "Bienvenue"\n    champ mot de passe "Nouveau"\n    bouton "Valider"\n    quand l\'utilisateur clique sur "Valider" :\n        choisir le mot de passe avec champ "Nouveau"',
+      'Dans le serveur, « emails » lui donne de quoi envoyer des e-mails. Le serveur d’envoi (SMTP) se choisit dans le .env : HUMALIS_EMAILS_HOTE, HUMALIS_EMAILS_PORT et HUMALIS_EMAILS_EXPEDITEUR, avec HUMALIS_EMAILS_UTILISATEUR et HUMALIS_EMAILS_MOT_DE_PASSE s’il en demande.',
+    exemple: 'serveur "boutique" :\n    emails\n    invitations vers "bienvenue"\n    mot de passe oublie vers "bienvenue"\n    route "equipe" :\n        seul admin peut lire comptes\n        seul admin peut supprimer comptes\n\npage "accueil" :\n    titre "Accueil"\n    champ email "Adresse"\n    bouton "Go"\n    quand l\'utilisateur clique sur "Go" :\n        inviter champ "Adresse"\n\npage "bienvenue" :\n    titre "Bienvenue"\n    champ mot de passe "Nouveau"\n    bouton "Valider"\n    quand l\'utilisateur clique sur "Valider" :\n        choisir le mot de passe avec champ "Nouveau"',
     statut: 'supporte',
     etape: 9,
-    note: 'En tête de ligne dans un bloc « serveur » seulement. Brevo est le seul service pour l’instant.',
+    note: 'En tête de ligne dans un bloc « serveur » seulement, et seule sur sa ligne : le programme ne nomme jamais de service.',
   },
   {
     mot: 'invitations vers',
@@ -2476,7 +2476,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     couvre: [],
     description:
       'Dans le serveur, « invitations vers "bienvenue" » permet à un admin d’inviter une adresse. Le lien reçu ouvre cette page et reste valable sept jours.',
-    exemple: 'serveur "boutique" :\n    emails par brevo\n    invitations vers "bienvenue"\n    mot de passe oublie vers "bienvenue"\n    route "equipe" :\n        seul admin peut lire comptes\n        seul admin peut supprimer comptes\n\npage "accueil" :\n    titre "Accueil"\n    champ email "Adresse"\n    bouton "Go"\n    quand l\'utilisateur clique sur "Go" :\n        inviter champ "Adresse"\n\npage "bienvenue" :\n    titre "Bienvenue"\n    champ mot de passe "Nouveau"\n    bouton "Valider"\n    quand l\'utilisateur clique sur "Valider" :\n        choisir le mot de passe avec champ "Nouveau"',
+    exemple: 'serveur "boutique" :\n    emails\n    invitations vers "bienvenue"\n    mot de passe oublie vers "bienvenue"\n    route "equipe" :\n        seul admin peut lire comptes\n        seul admin peut supprimer comptes\n\npage "accueil" :\n    titre "Accueil"\n    champ email "Adresse"\n    bouton "Go"\n    quand l\'utilisateur clique sur "Go" :\n        inviter champ "Adresse"\n\npage "bienvenue" :\n    titre "Bienvenue"\n    champ mot de passe "Nouveau"\n    bouton "Valider"\n    quand l\'utilisateur clique sur "Valider" :\n        choisir le mot de passe avec champ "Nouveau"',
     statut: 'supporte',
     etape: 9,
     note: 'Se lit avec « inviter … » et « choisir le mot de passe … » dans les pages. Le lien vient de HUMALIS_ADRESSE_SITE.',
@@ -2492,10 +2492,10 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     couvre: [],
     description:
       'Dans le serveur, « inscription libre comme client vers "confirmation" » permet à chacun de créer son compte, au rôle « client ». Le lien envoyé par e-mail ouvre la page « confirmation » ; avant, le compte ne se connecte pas. Une inscription jamais confirmée est effacée au bout de sept jours. Avec « connexion google » ou « connexion apple », une adresse inconnue crée aussi un compte de ce rôle.',
-    exemple: 'serveur "boutique" :\n    roles client\n    emails par brevo\n    compte :\n        nom : texte\n    inscription libre comme client vers "confirmation"\n\npage "inscription" :\n    titre "Créer un compte"\n    formulaire "compte" :\n        champ "Nom" avec obligatoire\n        champ email "Email" avec obligatoire\n        champ mot de passe "Mot de passe" avec obligatoire\n        bouton "Créer mon compte"\n    quand le formulaire "compte" est soumis :\n        essayer :\n            creer mon compte avec champ "Email" et champ "Mot de passe" avec nom = champ "Nom"\n            afficher "Un lien de confirmation vous a été envoyé."\n        si erreur :\n            afficher erreur "{raison}"\n\npage "confirmation" :\n    titre "Confirmation"\n    quand la page se charge :\n        essayer :\n            confirmer mon adresse\n            afficher "Votre adresse est confirmée : vous pouvez vous connecter."\n        si erreur :\n            afficher erreur "{raison}"',
+    exemple: 'serveur "boutique" :\n    roles client\n    emails\n    compte :\n        nom : texte\n    inscription libre comme client vers "confirmation"\n\npage "inscription" :\n    titre "Créer un compte"\n    formulaire "compte" :\n        champ "Nom" avec obligatoire\n        champ email "Email" avec obligatoire\n        champ mot de passe "Mot de passe" avec obligatoire\n        bouton "Créer mon compte"\n    quand le formulaire "compte" est soumis :\n        essayer :\n            creer mon compte avec champ "Email" et champ "Mot de passe" avec nom = champ "Nom"\n            afficher "Un lien de confirmation vous a été envoyé."\n        si erreur :\n            afficher erreur "{raison}"\n\npage "confirmation" :\n    titre "Confirmation"\n    quand la page se charge :\n        essayer :\n            confirmer mon adresse\n            afficher "Votre adresse est confirmée : vous pouvez vous connecter."\n        si erreur :\n            afficher erreur "{raison}"',
     statut: 'supporte',
     etape: 9,
-    note: 'Jamais le rôle admin. Demande « emails par brevo ».',
+    note: 'Jamais le rôle admin. Demande « emails ».',
   },
   {
     mot: 'mot de passe oublie vers',
@@ -2508,7 +2508,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     couvre: [],
     description:
       'Dans le serveur, « mot de passe oublie vers "bienvenue" » envoie un lien valable une heure. La réponse est la même que l’adresse ait un compte ou non.',
-    exemple: 'serveur "boutique" :\n    emails par brevo\n    invitations vers "bienvenue"\n    mot de passe oublie vers "bienvenue"\n    route "equipe" :\n        seul admin peut lire comptes\n        seul admin peut supprimer comptes\n\npage "accueil" :\n    titre "Accueil"\n    champ email "Adresse"\n    bouton "Go"\n    quand l\'utilisateur clique sur "Go" :\n        demander un lien de mot de passe pour champ "Adresse"\n\npage "bienvenue" :\n    titre "Bienvenue"\n    champ mot de passe "Nouveau"\n    bouton "Valider"\n    quand l\'utilisateur clique sur "Valider" :\n        choisir le mot de passe avec champ "Nouveau"',
+    exemple: 'serveur "boutique" :\n    emails\n    invitations vers "bienvenue"\n    mot de passe oublie vers "bienvenue"\n    route "equipe" :\n        seul admin peut lire comptes\n        seul admin peut supprimer comptes\n\npage "accueil" :\n    titre "Accueil"\n    champ email "Adresse"\n    bouton "Go"\n    quand l\'utilisateur clique sur "Go" :\n        demander un lien de mot de passe pour champ "Adresse"\n\npage "bienvenue" :\n    titre "Bienvenue"\n    champ mot de passe "Nouveau"\n    bouton "Valider"\n    quand l\'utilisateur clique sur "Valider" :\n        choisir le mot de passe avec champ "Nouveau"',
     statut: 'supporte',
     etape: 9,
     note: 'Se lit avec « demander un lien de mot de passe … » et « choisir le mot de passe … ».',
@@ -2524,7 +2524,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     couvre: [],
     description:
       'Sous une route, « quand message est cree : » puis « envoyer email aux admins avec sujet "…" et texte "…" ». Le destinataire est « aux admins », une adresse entre guillemets, ou un champ de la fiche (a commande.email).',
-    exemple: 'serveur "boutique" :\n    emails par brevo\n    donnee message :\n        nom : texte\n    route "messages" :\n        seul admin peut lire message\n        tout le monde peut creer message\n        quand message est cree :\n            envoyer email aux admins avec sujet "Nouveau message" et texte "De {message.nom}"',
+    exemple: 'serveur "boutique" :\n    emails\n    donnee message :\n        nom : texte\n    route "messages" :\n        seul admin peut lire message\n        tout le monde peut creer message\n        quand message est cree :\n            envoyer email aux admins avec sujet "Nouveau message" et texte "De {message.nom}"',
     statut: 'supporte',
     etape: 9,
     note: 'En texte simple, avec au plus HUMALIS_EMAILS_PAR_HEURE envois par heure (100 par défaut).',
@@ -2543,7 +2543,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     couvre: [],
     description:
       '« inviter champ "Adresse" » envoie un lien à cette adresse pour rejoindre l’application ; « comme admin » en fait un administrateur. Sans « comme », c’est un simple compte connecté.',
-    exemple: 'serveur "boutique" :\n    emails par brevo\n    invitations vers "bienvenue"\n    mot de passe oublie vers "bienvenue"\n    route "equipe" :\n        seul admin peut lire comptes\n        seul admin peut supprimer comptes\n\npage "accueil" :\n    titre "Accueil"\n    champ email "Adresse"\n    bouton "Go"\n    quand l\'utilisateur clique sur "Go" :\n        inviter champ "Adresse" comme admin\n\npage "bienvenue" :\n    titre "Bienvenue"\n    champ mot de passe "Nouveau"\n    bouton "Valider"\n    quand l\'utilisateur clique sur "Valider" :\n        choisir le mot de passe avec champ "Nouveau"',
+    exemple: 'serveur "boutique" :\n    emails\n    invitations vers "bienvenue"\n    mot de passe oublie vers "bienvenue"\n    route "equipe" :\n        seul admin peut lire comptes\n        seul admin peut supprimer comptes\n\npage "accueil" :\n    titre "Accueil"\n    champ email "Adresse"\n    bouton "Go"\n    quand l\'utilisateur clique sur "Go" :\n        inviter champ "Adresse" comme admin\n\npage "bienvenue" :\n    titre "Bienvenue"\n    champ mot de passe "Nouveau"\n    bouton "Valider"\n    quand l\'utilisateur clique sur "Valider" :\n        choisir le mot de passe avec champ "Nouveau"',
     statut: 'supporte',
     etape: 9,
     note: 'Réservé à l’admin, côté serveur. Web et bureau ; le site statique refuse la phrase.',
@@ -2562,7 +2562,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     couvre: [],
     description:
       '« demander un lien de mot de passe pour champ "Email" » : le lien part si l’adresse a un compte, et la page ne le sait jamais.',
-    exemple: 'serveur "boutique" :\n    emails par brevo\n    invitations vers "bienvenue"\n    mot de passe oublie vers "bienvenue"\n    route "equipe" :\n        seul admin peut lire comptes\n        seul admin peut supprimer comptes\n\npage "accueil" :\n    titre "Accueil"\n    champ email "Adresse"\n    bouton "Go"\n    quand l\'utilisateur clique sur "Go" :\n        demander un lien de mot de passe pour champ "Adresse"\n\npage "bienvenue" :\n    titre "Bienvenue"\n    champ mot de passe "Nouveau"\n    bouton "Valider"\n    quand l\'utilisateur clique sur "Valider" :\n        choisir le mot de passe avec champ "Nouveau"',
+    exemple: 'serveur "boutique" :\n    emails\n    invitations vers "bienvenue"\n    mot de passe oublie vers "bienvenue"\n    route "equipe" :\n        seul admin peut lire comptes\n        seul admin peut supprimer comptes\n\npage "accueil" :\n    titre "Accueil"\n    champ email "Adresse"\n    bouton "Go"\n    quand l\'utilisateur clique sur "Go" :\n        demander un lien de mot de passe pour champ "Adresse"\n\npage "bienvenue" :\n    titre "Bienvenue"\n    champ mot de passe "Nouveau"\n    bouton "Valider"\n    quand l\'utilisateur clique sur "Valider" :\n        choisir le mot de passe avec champ "Nouveau"',
     statut: 'supporte',
     etape: 9,
     note: 'Web et bureau ; le site statique refuse la phrase.',
@@ -2581,7 +2581,7 @@ export const VOCABULAIRE: readonly EntreeVocabulaire[] = [
     couvre: [],
     description:
       '« choisir le mot de passe avec champ "Nouveau" » sur la page ouverte par le lien reçu. Un mot de passe trop faible est refusé sans consommer le lien.',
-    exemple: 'serveur "boutique" :\n    emails par brevo\n    invitations vers "bienvenue"\n    mot de passe oublie vers "bienvenue"\n    route "equipe" :\n        seul admin peut lire comptes\n        seul admin peut supprimer comptes\n\npage "accueil" :\n    titre "Accueil"\n    champ email "Adresse"\n    bouton "Go"\n    quand l\'utilisateur clique sur "Go" :\n        inviter champ "Adresse"\n\npage "bienvenue" :\n    titre "Bienvenue"\n    champ mot de passe "Nouveau"\n    bouton "Valider"\n    quand l\'utilisateur clique sur "Valider" :\n        choisir le mot de passe avec champ "Nouveau"',
+    exemple: 'serveur "boutique" :\n    emails\n    invitations vers "bienvenue"\n    mot de passe oublie vers "bienvenue"\n    route "equipe" :\n        seul admin peut lire comptes\n        seul admin peut supprimer comptes\n\npage "accueil" :\n    titre "Accueil"\n    champ email "Adresse"\n    bouton "Go"\n    quand l\'utilisateur clique sur "Go" :\n        inviter champ "Adresse"\n\npage "bienvenue" :\n    titre "Bienvenue"\n    champ mot de passe "Nouveau"\n    bouton "Valider"\n    quand l\'utilisateur clique sur "Valider" :\n        choisir le mot de passe avec champ "Nouveau"',
     statut: 'supporte',
     etape: 9,
     note: 'Web et bureau ; le site statique refuse la phrase.',

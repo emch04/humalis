@@ -1,6 +1,6 @@
 serveur "ecole" :
     roles eleve et professeur
-    paiements par stripe
+    paiements
     donnee inscription :
         nom : texte
         total : nombre

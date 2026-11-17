@@ -728,18 +728,10 @@ function analyserServeur(flux: FluxTokens): Serveur {
     } else if (estDroitIa(flux)) {
       const droit = analyserRegle(flux, roles !== undefined);
       if (droit.type === 'DroitIa') droitIa = droit;
-    } else if (estLeMot(token, 'paiements') && estLeMot(flux.regarder(1), 'par')) {
-      flux.avancer();
-      flux.avancer();
-      if (motDe(flux.actuel()) !== 'stripe') throw new ErreurSyntaxique('le seul service de paiement est Stripe pour l’instant : paiements par stripe', token.ligne);
-      flux.avancer();
-      paiements = { service: 'stripe', ligne: token.ligne };
-    } else if (estLeMot(token, 'ia') && estLeMot(flux.regarder(1), 'par')) {
-      flux.avancer();
-      flux.avancer();
-      if (motDe(flux.actuel()) !== 'anthropic') throw new ErreurSyntaxique('le seul service d’IA est Anthropic pour l’instant : ia par anthropic', token.ligne);
-      flux.avancer();
-      ia = { service: 'anthropic', ligne: token.ligne };
+    } else if (estLeMot(token, 'paiements')) {
+      paiements = analyserBesoin(flux, 'paiements', 'stripe', 'le service de paiement se branche dans le .env');
+    } else if (estLeMot(token, 'ia')) {
+      ia = analyserBesoin(flux, 'ia', 'anthropic', 'le service d’IA se choisit dans le .env');
     } else if (estTache(flux)) {
       taches.push(analyserTache(flux));
     } else if (estLeMot(token, 'document') && flux.regarder(1).type === 'CHAINE') {
@@ -776,14 +768,7 @@ function analyserServeur(flux: FluxTokens): Serveur {
         if (motDe(mot) !== 'et' && mot.valeur !== ',') roles.push(motDe(mot));
       }
     } else if (estLeMot(token, 'emails')) {
-      // « emails par brevo » : un seul service pour l'instant.
-      flux.avancer();
-      if (!estLeMot(flux.actuel(), 'par')) throw new ErreurSyntaxique('après « emails », écrivez le service qui les envoie : emails par brevo', token.ligne);
-      flux.avancer();
-      const service = flux.actuel();
-      if (motDe(service) !== 'brevo') throw new ErreurSyntaxique('le seul service d’e-mails est Brevo pour l’instant : emails par brevo', token.ligne);
-      flux.avancer();
-      emails = { service: 'brevo', ligne: token.ligne };
+      emails = analyserBesoin(flux, 'emails', 'brevo', 'le serveur d’envoi (SMTP) se choisit dans le .env');
     } else if (estLeMot(token, 'invitations')) {
       flux.avancer();
       invitations = { page: pageDuLien(flux, 'invitations'), ligne: token.ligne };
@@ -800,7 +785,7 @@ function analyserServeur(flux: FluxTokens): Serveur {
       fidelite = analyserFidelite(flux);
     } else {
       throw new ErreurSyntaxique(
-        `dans un serveur, on écrit « donnee … : », « route "…" : », « fidelite par … de … : », « connexion google », « emails par brevo », « invitations vers "…" » ou « mot de passe oublie vers "…" », mais « ${token.original ?? token.valeur} » a été trouvé`,
+        `dans un serveur, on écrit « donnee … : », « route "…" : », « fidelite par … de … : », « connexion google », « emails », « invitations vers "…" » ou « mot de passe oublie vers "…" », mais « ${token.original ?? token.valeur} » a été trouvé`,
         token.ligne,
       );
     }
@@ -1270,6 +1255,21 @@ function lireAvec(flux: FluxTokens): { champ: string; valeur: Expression }[] {
     liste.push({ champ, valeur: analyserOperande(flux) });
   } while (flux.accepter('MOT_CLE', 'et'));
   return liste;
+}
+
+/**
+ * « ia », « emails », « paiements » : le programme dit seulement ce dont il a besoin ; le service se choisit dans le .env.
+ * L'ancienne forme (« ia par anthropic »…) reste acceptée pour ne casser aucun projet : l'analyse dit alors quoi écrire.
+ */
+function analyserBesoin(flux: FluxTokens, mot: string, ancien: string, ou: string): { ligne: number; ancien?: string } {
+  const debut = flux.avancer();
+  if (flux.verifier('FIN_LIGNE') || flux.estFini()) return { ligne: debut.ligne };
+  if (estLeMot(flux.actuel(), 'par') && motDe(flux.regarder(1)) === ancien && (flux.regarder(2).type === 'FIN_LIGNE' || flux.regarder(2).type === 'FIN_FICHIER')) {
+    flux.avancer();
+    flux.avancer();
+    return { ligne: debut.ligne, ancien: `${mot} par ${ancien}` };
+  }
+  throw new ErreurSyntaxique(`« ${mot} » s’écrit seul : ${ou}, pas dans le programme.`, debut.ligne);
 }
 
 function estDroitIa(flux: FluxTokens): boolean {

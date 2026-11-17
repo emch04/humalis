@@ -2262,7 +2262,7 @@ Un champ ajouté avec `au depart` donne aussi sa valeur aux anciennes fiches.
 serveur "commerce" :
     roles gerant et vendeur
     invitations vers "bienvenue"
-    emails par brevo
+    emails
     compte :
         telephone : texte
     donnee commande par boutique :
@@ -2622,7 +2622,7 @@ Ailleurs que sur Apple, le compilateur dit que ces phrases ne sont pas encore di
 
 ```humalis
 serveur "commerce" :
-    ia par anthropic
+    ia
     connecte peut demander a ia
 
 page "aide" :
@@ -2634,16 +2634,31 @@ page "aide" :
         demander a ia "Donne une idée de slogan" dans reponse
 ```
 
-La réponse s'affiche au fil de l'eau. La clé `ANTHROPIC_API_KEY` reste sur le serveur.
+La réponse s'affiche au fil de l'eau. Le programme dit seulement qu'il a besoin d'une
+IA : le service se choisit au déploiement, dans le `.env`, sans rien par défaut. Il doit
+parler le format de discussion compatible OpenAI, que suivent la plupart des services et
+des modèles qui tournent sur ta propre machine :
+
+```
+HUMALIS_IA_ADRESSE=https://…/v1
+HUMALIS_IA_MODELE=…
+HUMALIS_IA_CLE=…
+```
+
+Humalis ajoute `/chat/completions` à l'adresse. La clé est facultative (un modèle sur ta
+machine n'en demande pas) et reste sur le serveur. `HUMALIS_IA_ADRESSE_2`,
+`HUMALIS_IA_MODELE_2` et `HUMALIS_IA_CLE_2` règlent un second service, facultatif, qui
+reprend la question si le premier refuse avant d'avoir écrit un mot. Sans adresse ou sans
+modèle, le serveur refuse chaque question en disant ce qui manque.
+
 Chaque compte a un plafond, commun à tous les serveurs : 30 questions par heure,
-`HUMALIS_IA_PAR_HEURE` le change. `HUMALIS_IA_MODELE` choisit le modèle
-(`claude-opus-5-5` par défaut).
+`HUMALIS_IA_PAR_HEURE` le change. `HUMALIS_IA_JETONS` limite la longueur d'une réponse.
 
 #### Encaisser un paiement
 
 ```humalis
 serveur "commerce" :
-    paiements par stripe
+    paiements
     donnee reservation :
         nom : texte
         total : nombre
@@ -2660,19 +2675,42 @@ serveur "commerce" :
         seul admin peut modifier journal
 ```
 
-`payer total pour r`, dans une page, ouvre la page de paiement de Stripe. Le montant est
-relu par le serveur, jamais envoyé par la page. La fiche reçoit un champ `paye`, écrit
-seulement quand Stripe le confirme par un webhook signé : envoie-le vers
-`/paiements/webhook`. Il faut `STRIPE_CLE_SECRETE`, `STRIPE_SECRET_WEBHOOK` et
-`HUMALIS_ADRESSE_SITE`.
+`payer total pour r`, dans une page, ouvre la page de paiement. Le montant est relu par le
+serveur, jamais envoyé par la page. La fiche reçoit un champ `paye`, écrit seulement quand le
+paiement est confirmé par un appel signé.
 
-Personne ne peut écrire `paye` par une requête, pas même un admin. Si le montant que Stripe
-confirme n'est plus celui de la fiche (elle a changé pendant le paiement), ou si la fiche a
-disparu, rien n'est marqué payé : le serveur répond une erreur à Stripe, écrit la cause dans
-son journal et la signale à la surveillance si elle est réglée (`CENTRALE_ADRESSE`,
-`CENTRALE_CLE`). Stripe représente alors ce paiement pendant trois jours environ et le montre
-dans son tableau de bord. Corrige le montant de la fiche et l'essai suivant l'enregistre ;
-sinon, rembourse la personne depuis Stripe.
+Le programme ne nomme aucun service de paiement. Le serveur parle à un **relais**, le tien,
+placé entre lui et le service de ton choix. Il se règle dans le `.env` :
+
+```
+HUMALIS_PAIEMENT_ADRESSE=https://paiement.exemple.fr/humalis
+HUMALIS_PAIEMENT_SECRET=…
+HUMALIS_PAIEMENT_DEVISE=eur
+HUMALIS_ADRESSE_SITE=https://ma-boutique.com
+```
+
+Le secret, partagé avec le relais, fait 32 caractères au moins. Sans relais ou sans secret,
+`payer` répond que les paiements ne sont pas réglés.
+
+**Le contrat du relais.** Dans les deux sens, un corps JSON et l'en-tête
+`X-Humalis-Signature: t=<secondes>,v1=<signature>`, où la signature est le HMAC-SHA256, en
+hexadécimal, de `<secondes>.<corps>` avec le secret. Une signature de plus de cinq minutes
+est refusée.
+
+- Pour commencer un paiement, le serveur envoie `POST` à l'adresse du relais :
+  `{ "reference": "…", "montant": 4500, "devise": "eur", "libelle": "reservation", "retour": "https://ma-boutique.com/…" }`.
+  Le montant est en centimes. Le relais répond `{ "url": "https://…" }`, la page de paiement,
+  qui renvoie la personne vers `retour` une fois fini.
+- Quand l'argent est reçu, le relais envoie `POST /paiements/webhook` au serveur :
+  `{ "evenement": "paye", "reference": "…", "montant": 4500, "devise": "eur" }`, avec la
+  référence reçue, telle quelle. `"echoue"` signale un paiement différé qui a échoué. Le
+  serveur répond 200 quand c'est enregistré ; toute autre réponse veut dire : rappelle plus tard.
+
+Personne ne peut écrire `paye` par une requête, pas même un admin. Si le montant confirmé
+n'est plus celui de la fiche (elle a changé pendant le paiement), ou si la fiche a disparu,
+rien n'est marqué payé : le serveur répond 500 au relais, écrit la cause dans son journal et
+la signale à la surveillance si elle est réglée (`CENTRALE_ADRESSE`, `CENTRALE_CLE`). Corrige
+le montant de la fiche et le rappel suivant l'enregistre ; sinon, rembourse la personne.
 
 #### Renvoyer sans créer de doublon
 
@@ -2974,7 +3012,7 @@ compte est maintenant connu.
 ```humalis
 serveur "boutique" :
     connexion google
-    emails par brevo
+    emails
     invitations vers "bienvenue"
     mot de passe oublie vers "bienvenue"
     route "equipe" :
@@ -3042,10 +3080,13 @@ page "bienvenue" :
   mot de passe, plus de lien, et sa session est coupée. On ne peut pas se retirer
   soi-même. Une nouvelle invitation peut le faire revenir.
 
-Il faut, dans l'environnement du serveur ou son coffre de clés, `BREVO_API_KEY` et
-`BREVO_EXPEDITEUR` (une adresse d'un domaine vérifié chez Brevo), et, dans
-l'environnement, `HUMALIS_ADRESSE_SITE` (`https://ma-boutique.com`) pour écrire
-les liens. Sans elles, `inviter` affiche une erreur qui le dit. Cible web et
+Les e-mails partent par SMTP, vers le serveur d'envoi de ton choix. Il faut, dans
+l'environnement du serveur ou son coffre de clés, `HUMALIS_EMAILS_HOTE`,
+`HUMALIS_EMAILS_PORT` et `HUMALIS_EMAILS_EXPEDITEUR`, avec `HUMALIS_EMAILS_UTILISATEUR`
+et `HUMALIS_EMAILS_MOT_DE_PASSE` si le serveur d'envoi en demande. Le port 465 est
+chiffré dès la connexion ; sur un autre port, STARTTLS est exigé, sauf vers ta propre
+machine. Il faut aussi, dans l'environnement, `HUMALIS_ADRESSE_SITE`
+(`https://ma-boutique.com`) pour écrire les liens. Sans eux, `inviter` affiche une erreur qui le dit. Cible web et
 bureau ; l'application mobile affiche un message qui renvoie vers le site, et le
 site statique refuse ces phrases.
 
@@ -3059,7 +3100,7 @@ compte créé reçoit le rôle `client`, et le lien de confirmation ouvre la pag
 ```humalis
 serveur "boutique" :
     roles client
-    emails par brevo
+    emails
     compte :
         nom : texte
     inscription libre comme client vers "confirmation"
@@ -3106,8 +3147,9 @@ page "confirmation" :
 - Avec `connexion google` ou `connexion apple`, une adresse inconnue que Google ou
   Apple confirme crée aussi un compte de ce rôle, déjà confirmé.
 
-Il faut les mêmes réglages que pour les invitations : `BREVO_API_KEY`,
-`BREVO_EXPEDITEUR` et `HUMALIS_ADRESSE_SITE`. Dans `humalis lancer`, l'e-mail est
+Il faut les mêmes réglages que pour les invitations : le serveur d'envoi
+(`HUMALIS_EMAILS_HOTE`, `HUMALIS_EMAILS_PORT`, `HUMALIS_EMAILS_EXPEDITEUR`) et
+`HUMALIS_ADRESSE_SITE`. Dans `humalis lancer`, l'e-mail est
 gardé dans la boîte du panneau, avec son lien. Sur Apple et Android, le lien ouvre
 l'application quand elle a `liens profonds "…" et domaine "…"` ; sur Windows, il
 s'ouvre dans le navigateur.
@@ -3119,7 +3161,7 @@ d'être enregistrée.
 
 ```humalis
 serveur "boutique" :
-    emails par brevo
+    emails
     donnee message :
         nom : texte
         texte : texte
@@ -3385,14 +3427,14 @@ n'est pas entré ; une personne dont la connexion tombe en disparaît.
 | `pour chaque p dans participants de reunion "…"` | `p.nom`, `p.micro`, `p.camera`, `p.main` |
 | `couper micro de p`, `exclure p` | (animateurs) la modération |
 
-**Le son et l'image passent par LiveKit**, un serveur de réunions libre que tu
-héberges toi-même ou que tu prends chez LiveKit Cloud. Le serveur Humalis lit son
-adresse et ses clés dans l'environnement, jamais dans le code :
+**Le son et l'image passent par ton serveur de réunions** : le logiciel libre LiveKit,
+que tu héberges. Le serveur Humalis lit son adresse et ses clés dans l'environnement,
+jamais dans le code :
 
 ```
-LIVEKIT_URL=wss://reunions.exemple.fr
-LIVEKIT_API_KEY=…
-LIVEKIT_API_SECRET=…
+HUMALIS_REUNIONS_ADRESSE=wss://reunions.exemple.fr
+HUMALIS_REUNIONS_CLE=…
+HUMALIS_REUNIONS_SECRET=…
 ```
 
 Sans ces trois variables, les discussions marchent et rejoindre une réunion répond
@@ -4274,7 +4316,7 @@ Tout le langage passe sur Android, comme sur Apple :
   données » du web ; les cartes montrent les tuiles d'OpenStreetMap et leur attribution ;
   le son et la vidéo passent par le lecteur d'Android, sans démarrer seuls.
 - **Compte** : invitations, rôles et champs du compte, choix du mot de passe par le lien
-  reçu, connexion avec Google ou Apple, paiement (la page de Stripe s'ouvre dans le
+  reçu, connexion avec Google ou Apple, paiement (la page de paiement s'ouvre dans le
   navigateur), `demander a ia`, dont la réponse s'écrit au fil de l'eau, et
   `activer notifications`, par Firebase Cloud Messaging (voir « Les notifications »).
 - **Temps réel et hors-ligne** : `en direct`, `avec hors ligne`, les envois `… hors ligne`
@@ -4341,7 +4383,7 @@ marche aussi sur un Mac ou sous Linux ; seul le lancement demande Windows 10 ou 
 - Ce que Humalis ne sait pas encore faire s'écrit en C# : `utiliser composant "Carte" sur
   windows "./natif/Carte.cs"`, avec ses bibliothèques NuGet (`paquet windows "…" version
   "…"`) ; voir « Une vue native écrite à la main ».
-- `payer total pour r` ouvre la page de paiement de Stripe dans le navigateur ; de retour
+- `payer total pour r` ouvre la page de paiement dans le navigateur ; de retour
   dans l'application, la page relit ses données, et la fiche payée apparaît.
 - Pas encore sur Windows : IA, connexion avec Google ou Apple, invitations,
   notifications envoyées par le serveur. La compilation s'arrête et dit quelle ligne en a besoin.
@@ -4711,7 +4753,7 @@ heure.
 - Changer `JWT_SECRET` déconnecte tout le monde : chacun se reconnecte, rien n'est perdu.
 - `ENCRYPTION_KEY` chiffre le coffre des clés et les secrets du code à six chiffres : la perdre
   les rend illisibles. Garde-la hors de la base, et ne la change pas sans vider ces secrets.
-- Les clés des services (Stripe, Brevo, LiveKit) se changent dans le `.env`, puis un redémarrage.
+- Les réglages des services (IA, e-mails, paiements, réunions) se changent dans le `.env`, puis un redémarrage.
 
 ### Le site et les applications
 

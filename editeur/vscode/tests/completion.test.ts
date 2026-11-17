@@ -80,7 +80,7 @@ describe('completer : en début de ligne', () => {
   });
 
   it('dans le serveur, une donnée et une route', () => {
-    expect(libelles(completerA('serveur "s" :\n    ‸'))).toEqual(['donnée', 'route', 'connexion google', 'emails par brevo', 'invitations vers "…"', 'mot de passe oublié vers "…"']);
+    expect(libelles(completerA('serveur "s" :\n    ‸'))).toEqual(['donnée', 'route', 'connexion google', 'emails', 'invitations vers "…"', 'mot de passe oublié vers "…"']);
     expect(libelles(completerA('serveur "s" :\n    donnee produit :\n        stock : ‸'))).toEqual(
       expect.arrayContaining(['texte', 'nombre', 'booléen', 'date']),
     );

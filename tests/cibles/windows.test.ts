@@ -340,9 +340,9 @@ page "espace" reservee a connecte sinon vers "connexion" :
     expect(fichiers.get('Humalis/Systeme.cs')).toContain('CryptProtectData');
   });
 
-  it('« payer total pour r » : le serveur prépare Stripe, la page s\'ouvre, la page relit ses lectures au retour', () => {
+  it('« payer total pour r » : le serveur prépare le paiement, la page s\'ouvre, la page relit ses lectures au retour', () => {
     const f = projet(`serveur "commerce" :
-    paiements par stripe
+    paiements
     donnee reservation :
         nom : texte
         total : nombre

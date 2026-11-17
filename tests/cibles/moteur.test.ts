@@ -384,7 +384,7 @@ page "accueil" :
 describe('les rôles', () => {
   const programme = (route: string, page = '') => `serveur "ecole" :
     roles directeur, enseignant et parent
-    emails par brevo
+    emails
     invitations vers "bienvenue"
     donnee note :
         valeur : nombre

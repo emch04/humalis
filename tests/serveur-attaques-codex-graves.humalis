@@ -1,6 +1,6 @@
 serveur "marche" :
     roles client
-    paiements par stripe
+    paiements
     donnee produit :
         nom : texte
         prix : nombre

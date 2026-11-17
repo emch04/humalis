@@ -247,7 +247,7 @@ class Traduction {
         return { type: 'creer', donnee: liee.nom, valeurs, ...(groupe !== undefined ? { groupeDe: groupe } : {}) };
       }
       case 'EmailServeur': {
-        if (!this.serveur.emails) this.erreur(`« envoyer email » demande la ligne « emails par brevo » dans le serveur "${this.serveur.nom}".`, i.ligne);
+        if (!this.serveur.emails) this.erreur(`« envoyer email » demande la ligne « emails » dans le serveur "${this.serveur.nom}".`, i.ligne);
         const { destinataire: d } = i.envoi;
         const texte = (morceaux: typeof i.envoi.sujet) => this.valeur({ type: 'Chaine', parties: morceaux, ligne: i.ligne }, portee);
         return {

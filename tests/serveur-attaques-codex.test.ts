@@ -23,8 +23,8 @@ import { createHmac } from 'node:crypto';
 import { creerServeur } from './dist/src/serveur.js';
 import { creerStockageMemoire } from './dist/src/humalis/stockage.js';
 
-process.env.STRIPE_CLE_SECRETE ??= 'sk_test_essai';
-process.env.STRIPE_SECRET_WEBHOOK ??= 'whsec_essai';
+process.env.HUMALIS_PAIEMENT_ADRESSE ??= 'http://127.0.0.1:9/relais';
+process.env.HUMALIS_PAIEMENT_SECRET ??= 'secret-du-relais-de-paiement-essai-0123456789';
 process.env.HUMALIS_ADRESSE_SITE ??= 'https://essai.test';
 const secret = 'Essai-Solide-2026!';
 const usersStore = createMemoryUsersStore();
@@ -56,9 +56,9 @@ const r = {};
 const produitA = (await appel('POST', '/api/produits', vA, { nom: 'a', prix: 5, vendus: 0 })).corps;
 const produitB = (await appel('POST', '/api/produits', vB, { nom: 'b', prix: 5, vendus: 0 })).corps;
 const commande = (await appel('POST', '/api/commandes', cA, { refs: [produitA.id] })).corps;
-const corps = JSON.stringify({ id: 'evt_1', object: 'event', type: 'checkout.session.completed', data: { object: { id: 'cs_1', object: 'checkout.session', payment_status: 'paid', amount_total: 500, metadata: { donnee: 'commande', id: commande.id, champ: 'total' } } } });
+const corps = JSON.stringify({ evenement: 'paye', reference: Buffer.from(JSON.stringify(['commande', String(commande.id), 'total'])).toString('base64url'), montant: 500, devise: 'eur' });
 const t = Math.floor(Date.now() / 1000);
-const webhook = await fetch(base + '/paiements/webhook', { method: 'POST', headers: { ...json, 'stripe-signature': 't=' + t + ',v1=' + createHmac('sha256', process.env.STRIPE_SECRET_WEBHOOK).update(t + '.' + corps).digest('hex') }, body: corps });
+const webhook = await fetch(base + '/paiements/webhook', { method: 'POST', headers: { ...json, 'x-humalis-signature': 't=' + t + ',v1=' + createHmac('sha256', process.env.HUMALIS_PAIEMENT_SECRET).update(t + '.' + corps).digest('hex') }, body: corps });
 r.paiement = { statut: webhook.status, corps: { a: (await stockages.produit.trouver(produitA.id)).vendus, b: (await stockages.produit.trouver(produitB.id)).vendus } };
 
 // 2) Une note que seul son auteur lit : un autre compte ne la cite pas dans un panier.

@@ -21,9 +21,9 @@ import { hashPassword } from '@astratra/security';
 import { creerServeur } from './dist/src/serveur.js';
 import { creerStockageMemoire } from './dist/src/humalis/stockage.js';
 
-process.env.LIVEKIT_URL = 'ws://127.0.0.1:9';
-process.env.LIVEKIT_API_KEY = 'cle-essai';
-process.env.LIVEKIT_API_SECRET = 'secret-essai-assez-long-pour-livekit-0123456789';
+process.env.HUMALIS_REUNIONS_ADRESSE = 'ws://127.0.0.1:9';
+process.env.HUMALIS_REUNIONS_CLE = 'cle-essai';
+process.env.HUMALIS_REUNIONS_SECRET = 'secret-essai-assez-long-pour-livekit-0123456789';
 const secret = 'Essai-Solide-2026!';
 const usersStore = createMemoryUsersStore();
 const passwordHash = await hashPassword(secret);

@@ -26,12 +26,12 @@ import { creerStockageMemoire } from './dist/src/humalis/stockage.js';
 import { transactionMemoire } from './dist/src/humalis/logique.js';
 import { ouvrirSqlite, creerStockageSqlite, transactionSqlite } from './dist/src/humalis/sqlite.js';
 
-process.env.STRIPE_CLE_SECRETE ??= 'sk_test_essai';
-process.env.STRIPE_SECRET_WEBHOOK ??= 'whsec_essai';
+process.env.HUMALIS_PAIEMENT_ADRESSE ??= 'http://127.0.0.1:9/relais';
+process.env.HUMALIS_PAIEMENT_SECRET ??= 'secret-du-relais-de-paiement-essai-0123456789';
 process.env.HUMALIS_ADRESSE_SITE ??= 'https://essai.test';
-process.env.LIVEKIT_URL = 'ws://127.0.0.1:9';
-process.env.LIVEKIT_API_KEY = 'cle-essai';
-process.env.LIVEKIT_API_SECRET = 'secret-essai-assez-long-pour-livekit-0123456789';
+process.env.HUMALIS_REUNIONS_ADRESSE = 'ws://127.0.0.1:9';
+process.env.HUMALIS_REUNIONS_CLE = 'cle-essai';
+process.env.HUMALIS_REUNIONS_SECRET = 'secret-essai-assez-long-pour-livekit-0123456789';
 const secret = 'Essai-Solide-2026!';
 const usersStore = createMemoryUsersStore();
 const passwordHash = await hashPassword(secret);
@@ -61,15 +61,15 @@ const appel = async (base, methode, chemin, entetes, corps) => {
 const r = {};
 const [profA, eleveA, eleveB] = [await qui(baseA, 'prof@essai.test'), await qui(baseA, 'eleve@essai.test'), await qui(baseB, 'eleve@essai.test')];
 
-// Paiement différé : la session se termine impayée, puis Stripe annonce le succès.
+// Paiement différé : le relais annonce d'abord un échec, puis le succès.
 const inscription = await commun.inscription.creer({ nom: 'Awa', total: 30, paye: false });
-const webhook = async (type, statut) => {
-  const corps = JSON.stringify({ id: 'evt_' + type, object: 'event', type, data: { object: { id: 'cs_1', object: 'checkout.session', payment_status: statut, amount_total: 3000, metadata: { donnee: 'inscription', id: inscription.id, champ: 'total' } } } });
+const webhook = async (statut) => {
+  const corps = JSON.stringify({ evenement: statut === 'paid' ? 'paye' : 'echoue', reference: Buffer.from(JSON.stringify(['inscription', String(inscription.id), 'total'])).toString('base64url'), montant: 3000, devise: 'eur' });
   const t = Math.floor(Date.now() / 1000);
-  return (await fetch(baseA + '/paiements/webhook', { method: 'POST', headers: { ...json, 'stripe-signature': 't=' + t + ',v1=' + createHmac('sha256', process.env.STRIPE_SECRET_WEBHOOK).update(t + '.' + corps).digest('hex') }, body: corps })).status;
+  return (await fetch(baseA + '/paiements/webhook', { method: 'POST', headers: { ...json, 'x-humalis-signature': 't=' + t + ',v1=' + createHmac('sha256', process.env.HUMALIS_PAIEMENT_SECRET).update(t + '.' + corps).digest('hex') }, body: corps })).status;
 };
-r.termineeImpayee = { statut: await webhook('checkout.session.completed', 'unpaid'), corps: { paye: (await commun.inscription.trouver(inscription.id)).paye } };
-r.differeReussi = { statut: await webhook('checkout.session.async_payment_succeeded', 'paid'), corps: { paye: (await commun.inscription.trouver(inscription.id)).paye, journal: (await commun.journal.lister({ egal: {} })).length } };
+r.termineeImpayee = { statut: await webhook('unpaid'), corps: { paye: (await commun.inscription.trouver(inscription.id)).paye } };
+r.differeReussi = { statut: await webhook('paid'), corps: { paye: (await commun.inscription.trouver(inscription.id)).paye, journal: (await commun.journal.lister({ egal: {} })).length } };
 
 // Exclusion : sur A, puis jeton demandé à B.
 r.exclusion = await appel(baseA, 'POST', '/api/salles_geste', profA, { salle: 'classe', participant: String(eleve.id), geste: 'exclure' });
@@ -124,7 +124,7 @@ describe('les défauts moyens de la revue Codex, sur un vrai serveur produit', (
     r = JSON.parse(execFileSync('node', ['scenario.mjs'], { cwd: dossier, encoding: 'utf8' }).trim().split('\n').at(-1)!);
   }, 300_000);
 
-  it('un paiement différé est enregistré quand Stripe annonce son succès', () => {
+  it('un paiement différé est enregistré quand le relais annonce son succès', () => {
     expect(r.termineeImpayee!.corps.paye).toBe(false);
     expect(r.differeReussi!.statut).toBe(200);
     expect(r.differeReussi!.corps).toEqual({ paye: true, journal: 1 });

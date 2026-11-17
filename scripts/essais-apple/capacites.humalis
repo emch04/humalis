@@ -5,14 +5,14 @@ serveur "boutique" :
     roles gerant et vendeur
     connexion apple
     connexion google
-    emails par brevo
+    emails
     invitations vers "bienvenue"
     mot de passe oublie vers "bienvenue"
     compte :
         telephone : texte
-    ia par anthropic
+    ia
     connecte peut demander a ia
-    paiements par stripe
+    paiements
     donnee produit :
         nom : texte
         total : nombre

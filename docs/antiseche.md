@@ -973,7 +973,7 @@ quand commande est cree :
 ```humalis complet
 serveur "boutique" :
     connexion google
-    emails par brevo
+    emails
     invitations vers "bienvenue"
     mot de passe oublie vers "bienvenue"
 
