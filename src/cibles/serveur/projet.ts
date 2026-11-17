@@ -1,4 +1,5 @@
 import { SQLITE, SYNCHRO_SQLITE } from './sqlite.js';
+import { MYSQL, SYNCHRO_MYSQL } from './mysql.js';
 import { champsRendus, DEFAUTS_TS, LISEZMOI_EVOLUTION, verifierDonneesMjs } from './evolution.js';
 import { CODE_SANTE, CODE_SANTE_DEMARRAGE, codeArret, fichiersDeploiement, lisezmoiExploitation, restaurerMjs, sauvegarderMjs } from './exploitation.js';
 import { BORNES_TS, exempleDansLesBornes } from './bornes.js';
@@ -46,6 +47,8 @@ export const VERSIONS_SERVEUR = {
   loyalty: '1.1.0',
   express: '5.3.0',
   pg: '8.23.1',
+  mysql2: '3.24.6',
+  mongodb: '7.8.0',
   typescript: '7.0.2',
   typesNode: '26.2.0',
   typesExpress: '5.0.6',
@@ -88,6 +91,7 @@ export function genererProjetServeur(complet: ServeurRI, options: OptionsServeur
   fichiers.set('src/humalis/verifier.ts', VERIFIER);
   fichiers.set('src/humalis/stockage.ts', STOCKAGE);
   fichiers.set('src/humalis/sqlite.ts', SQLITE);
+  fichiers.set('src/humalis/mysql.ts', MYSQL);
   fichiers.set('src/humalis/envois.ts', ENVOIS);
   fichiers.set('src/humalis/compresser.ts', COMPRESSER);
   fichiers.set('src/humalis/renouvellements.ts', RENOUVELLEMENTS);
@@ -102,6 +106,7 @@ export function genererProjetServeur(complet: ServeurRI, options: OptionsServeur
   if (avecSynchro(serveur)) {
     fichiers.set('src/humalis/synchro.ts', SYNCHRO);
     fichiers.set('src/humalis/synchro-sqlite.ts', SYNCHRO_SQLITE);
+    fichiers.set('src/humalis/synchro-mysql.ts', SYNCHRO_MYSQL);
     const route = serveur.routes.find((r) => r.synchronisee)!;
     const exemple = serveur.donnees.find((d) => d.nom === route.donnee)!.champs.filter((c) => !champsDuServeur(serveur.donnees.find((d) => d.nom === route.donnee)!, route).includes(camel(c.nom))).map((c) => `${camel(c.nom)}: ${exempleChamp(c.type)}`).join(', ');
     fichiers.set('tests/synchro.test.ts', testsSynchro(serveur, serveur.donnees.map((d) => `    ${camel(d.nom)}: creerStockageMemoire(),`).join('\n'), route, `{ ${exemple} }`));
@@ -230,6 +235,8 @@ function packageJson(nom: string, serveur: ServeurRI, livekit = false): string {
         ...(bon ? { pdfkit: v.pdfkit } : {}),
         ...(avecNotifications(serveur) ? { 'web-push': '3.6.7' } : {}),
         ...(livekit ? { 'livekit-server-sdk': VERSION_LIVEKIT_SERVEUR } : {}),
+        mongodb: v.mongodb,
+        mysql2: v.mysql2,
         pg: v.pg,
       },
       devDependencies: {
@@ -1712,7 +1719,7 @@ function listeDesChamps(serveur: ServeurRI, donnee: ServeurRI['donnees'][number]
 function demarrerTs(serveur: ServeurRI): string {
   const comptes = avecComptes(serveur);
   const stockages = serveur.donnees
-    .map((d) => `  ${camel(d.nom)}: pool ? creerStockagePostgres(pool, '${nomTable(d.nom)}'${listeDesChamps(serveur, d)}) : sqlite ? creerStockageSqlite(sqlite, '${nomTable(d.nom)}'${listeDesChamps(serveur, d)}) : creerStockageMemoire(),`)
+    .map((d) => `  ${camel(d.nom)}: pool ? creerStockagePostgres(pool, '${nomTable(d.nom)}'${listeDesChamps(serveur, d)}) : sqlite ? creerStockageSqlite(sqlite, '${nomTable(d.nom)}'${listeDesChamps(serveur, d)}) : mysql ? creerStockageMysql(mysql, '${nomTable(d.nom)}'${listeDesChamps(serveur, d)}) : creerStockageMemoire(),`)
     .join('\n');
   const premiere = serveur.routes[0] ? adresseApi(serveur.routes[0].adresse) : '/auth/me';
   return `// Produit par Humalis : lit l'environnement, crée le premier admin, démarre le serveur « ${serveur.nom} ».
@@ -1728,7 +1735,8 @@ import { ouvrirCoffre } from './humalis/coffre.js';${avecSynchro(serveur) ? "\ni
 import { creerMagasinMemoire, creerMagasinPostgres, creerRevocationsPostgres } from './humalis/renouvellements.js';
 import { reglagesDeSession, type ReglagesSession } from './humalis/sessions.js';
 import { creerStockageMemoire, creerStockagePostgres } from './humalis/stockage.js';
-import { creerStockageSqlite, ouvrirSqlite, preparerTableSqlite, transactionSqlite, type BaseSqlite } from './humalis/sqlite.js';${avecSynchro(serveur) ? "\nimport { creerJournalSqlite } from './humalis/synchro-sqlite.js';" : ''}
+import { creerStockageSqlite, ouvrirSqlite, preparerTableSqlite, transactionSqlite, type BaseSqlite } from './humalis/sqlite.js';${avecSynchro(serveur) ? "\nimport { creerJournalSqlite } from './humalis/synchro-sqlite.js';\nimport { creerJournalMysql } from './humalis/synchro-mysql.js';" : ''}
+import { canalMysql, cheminJson, creerStockageMysql, ouvrirMysql, preparerTableMysql, transactionMysql, type BaseMysql } from './humalis/mysql.js';
 
 function arreter(message: string): never {
   console.error(message);
@@ -1743,14 +1751,29 @@ if (jwtSecret.length < 32) {
   arreter('JWT_SECRET doit contenir au moins 32 caractères au hasard (voir .env.exemple).');
 }
 
-const pool = process.env.DATABASE_URL ? new pg.Pool({ connectionString: process.env.DATABASE_URL }) : null;
+// DATABASE_URL : la base choisie par celui qui déploie, d'après le début de l'adresse. Le programme n'en nomme aucune.
+const adresseBase = process.env.DATABASE_URL?.trim() || null;
+const genreBase = adresseBase === null ? null : /^postgres(ql)?:\\/\\//i.test(adresseBase) ? 'postgres' : /^(mysql|mariadb):\\/\\//i.test(adresseBase) ? 'mysql' : null;
+if (adresseBase !== null && genreBase === null) {
+  arreter('DATABASE_URL doit commencer par postgres://, mysql:// ou mariadb:// (ici : « ' + adresseBase.split(':')[0] + ' »).');
+}
+const pool = genreBase === 'postgres' ? new pg.Pool({ connectionString: adresseBase! }) : null;
 // Quand la base redémarre, elle coupe les connexions au repos : sans cette écoute, l'erreur ferait tomber le serveur.
 // Le pool en rouvre une à la requête suivante ; pendant la coupure, /sante répond 503 et les requêtes, 500.
 pool?.on('error', (erreur) => console.error('La base a coupé une connexion au repos : le serveur continue.', erreur.message));
 // HUMALIS_BASE : un fichier SQLite, pour un serveur seul (un fichier ne se partage pas entre plusieurs exemplaires).
 const fichierSqlite = process.env.HUMALIS_BASE?.trim() || null;
-if (pool && fichierSqlite) {
-  arreter('DATABASE_URL (PostgreSQL) et HUMALIS_BASE (SQLite) sont réglées toutes les deux : gardez-en une seule.');
+if (adresseBase && fichierSqlite) {
+  arreter('DATABASE_URL et HUMALIS_BASE (SQLite) sont réglées toutes les deux : gardez-en une seule.');
+}
+let mysql: BaseMysql | null = null;
+if (genreBase === 'mysql') {
+  try {
+    mysql = await ouvrirMysql(adresseBase!);
+  } catch (erreur) {
+    arreter('La base MySQL ou MariaDB ne répond pas : ' + (erreur instanceof Error ? erreur.message : String(erreur)));
+  }
+  console.log('Base ' + (mysql.mariadb ? 'MariaDB' : 'MySQL') + ' : plusieurs exemplaires du serveur peuvent la partager.');
 }
 let sqlite: BaseSqlite | null = null;
 try {
@@ -1759,14 +1782,14 @@ try {
   arreter('La base SQLite « ' + fichierSqlite + ' » ne s\\'ouvre pas : ' + (erreur instanceof Error ? erreur.message : String(erreur)));
 }
 if (sqlite) console.log('Base SQLite : ' + fichierSqlite + ' (un seul exemplaire du serveur par fichier).');
-if (!pool && !sqlite) {
+if (!pool && !sqlite && !mysql) {
   console.warn('Sans DATABASE_URL ni HUMALIS_BASE, les données restent en mémoire et sont perdues à l\\'arrêt : développement seulement.');
 }
 // Les magasins du serveur (comptes, sessions, envois, coffre…) écrivent leurs requêtes une fois ; SQLite les
 // reçoit par la même porte, et traduit les quelques tournures qui lui manquent (versSqlite).
-const sql = (pool ?? sqlite) as unknown as pg.Pool | null;
+const sql = (pool ?? sqlite ?? mysql) as unknown as pg.Pool | null;
 
-${avecDirect(serveur) ? "if (pool) await direct.brancher(pool);\n" : ''}const usersStore = (sql ? createPostgresUsersStore({ pool: sql }) : createMemoryUsersStore()) as UsersStore;
+${avecDirect(serveur) ? "if (pool) await direct.brancher(pool);\nelse if (mysql) direct.sonder(canalMysql(mysql));\n" : ''}const usersStore = (sql ? createPostgresUsersStore({ pool: sql }) : createMemoryUsersStore()) as UsersStore;
 const stockages = {
 ${stockages}
 };
@@ -1805,7 +1828,7 @@ const coffre = await ouvrirCoffre(sql);
 
 ${CODE_SANTE_DEMARRAGE}
 const port = Number(process.env.PORT ?? 3000);
-const app = creerServeur({ sante, ...(sql ? { envois: creerEnvoisPostgres(sql), revocations: creerRevocationsPostgres(sql)${avecSecurite(serveur) ? ', magasinSecurite: creerMagasinSecuritePostgres(sql)' : ''} } : {})${avecSynchro(serveur) ? `, ...(pool ? { journalSynchro: creerJournalPostgres(pool, ${tablesSynchro(serveur, nomTable)}) } : sqlite ? { journalSynchro: creerJournalSqlite(sqlite, ${tablesSynchro(serveur, nomTable)}) } : {})` : ''}, jwtSecret, usersStore, stockages${avecLogique(serveur) ? `, ...(pool ? { transaction: transactionPostgres(pool, (client) => ({ ${serveur.donnees.map((d) => `${camel(d.nom)}: creerStockagePostgres(client, '${nomTable(d.nom)}'${listeDesChamps(serveur, d)})`).join(', ')} })) } : sqlite ? { transaction: transactionSqlite(sqlite, stockages) } : {})` : ''}${serveur.taches?.length ? ', reclamerTache: sql ? reclamerPostgres(sql) : reclamerMemoire()' : ''}${avecNotifications(serveur) ? ", ...(pool ? { appareils: creerStockagePostgres(pool, 'humalis_appareils') } : sqlite ? { appareils: creerStockageSqlite(sqlite, 'humalis_appareils') } : {})" : ''}${avecIa(serveur) ? ', ...(sql ? { compterIa: compterPostgres(sql) } : {})' : ''}${serveur.connexionGoogle ? ', googleClientId: () => process.env.GOOGLE_CLIENT_ID || undefined, googleClientIdApple: () => process.env.GOOGLE_CLIENT_ID_APPLE || undefined' : ''}${serveur.connexionApple ? ', identifiantsApple: () => ({ application: process.env.APPLE_APP_ID || undefined, site: process.env.APPLE_SERVICE_ID || undefined })' : ''}${comptes ? ', jetons: creerMagasinJetons(sql)' : ''}, session, surveillance, coffre }) as unknown as { listen(port: number, pret: () => void): unknown };
+const app = creerServeur({ sante, ...(sql ? { envois: creerEnvoisPostgres(sql), revocations: creerRevocationsPostgres(sql)${avecSecurite(serveur) ? ', magasinSecurite: creerMagasinSecuritePostgres(sql)' : ''} } : {})${avecSynchro(serveur) ? `, ...(pool ? { journalSynchro: creerJournalPostgres(pool, ${tablesSynchro(serveur, nomTable)}) } : sqlite ? { journalSynchro: creerJournalSqlite(sqlite, ${tablesSynchro(serveur, nomTable)}) } : mysql ? { journalSynchro: creerJournalMysql(mysql, ${tablesSynchro(serveur, nomTable)}) } : {})` : ''}, jwtSecret, usersStore, stockages${avecLogique(serveur) ? `, ...(pool ? { transaction: transactionPostgres(pool, (client) => ({ ${serveur.donnees.map((d) => `${camel(d.nom)}: creerStockagePostgres(client, '${nomTable(d.nom)}'${listeDesChamps(serveur, d)})`).join(', ')} })) } : sqlite ? { transaction: transactionSqlite(sqlite, stockages) } : mysql ? { transaction: transactionMysql(mysql, stockages) } : {})` : ''}${serveur.taches?.length ? ', reclamerTache: sql ? reclamerPostgres(sql) : reclamerMemoire()' : ''}${avecNotifications(serveur) ? ", ...(pool ? { appareils: creerStockagePostgres(pool, 'humalis_appareils') } : sqlite ? { appareils: creerStockageSqlite(sqlite, 'humalis_appareils') } : mysql ? { appareils: creerStockageMysql(mysql, 'humalis_appareils') } : {})" : ''}${avecIa(serveur) ? ', ...(sql ? { compterIa: compterPostgres(sql) } : {})' : ''}${serveur.connexionGoogle ? ', googleClientId: () => process.env.GOOGLE_CLIENT_ID || undefined, googleClientIdApple: () => process.env.GOOGLE_CLIENT_ID_APPLE || undefined' : ''}${serveur.connexionApple ? ', identifiantsApple: () => ({ application: process.env.APPLE_APP_ID || undefined, site: process.env.APPLE_SERVICE_ID || undefined })' : ''}${comptes ? ', jetons: creerMagasinJetons(sql)' : ''}, session, surveillance, coffre }) as unknown as { listen(port: number, pret: () => void): unknown };
 // HUMALIS_ECOUTE : l'adresse d'écoute (127.0.0.1 derrière un relais) ; sans elle, toutes les adresses.
 const pret = () => console.log(\`Serveur « ${serveur.nom} » prêt : http://localhost:\${port}${premiere}\`);
 const ecoute = process.env.HUMALIS_ECOUTE?.trim();
@@ -2475,9 +2498,21 @@ function publier(): void {
   enAttente.clear();
   for (const cle of cles) {
     if (pool) pool.query('SELECT pg_notify($1, $2)', [CANAL, cle]).catch(() => diffuser(cle));
-    else diffuser(cle);
+    else if (sonde) {
+      // Ici tout de suite ; les autres exemplaires l'apprennent par la base, à leur prochain coup d'œil.
+      diffuser(cle);
+      sonde.publier(cle).catch(() => undefined);
+    } else diffuser(cle);
   }
 }
+
+/** Une base sans écoute (MySQL, MariaDB, documents) : les annonces y sont écrites, et chacun les relit chaque seconde. */
+export interface CanalSonde {
+  publier(cle: string): Promise<void>;
+  /** Les annonces des dernières secondes, chacune avec un numéro unique. */
+  recentes(): Promise<{ numero: string; cle: string }[]>;
+}
+let sonde: CanalSonde | null = null;
 
 /** Plusieurs envois rapprochés ne font qu'une annonce. */
 function annoncer(cle: string): void {
@@ -2550,6 +2585,31 @@ export const direct = {
       }
     };
     await ecouterBase();
+  },
+
+  /** Plusieurs exemplaires sur une base sans écoute : chaque seconde, les annonces récentes sont relues. */
+  sonder(canal: CanalSonde): void {
+    sonde = canal;
+    const vues = new Map<string, number>();
+    const regarder = async (): Promise<void> => {
+      try {
+        const maintenant = Date.now();
+        for (const { numero, cle } of await canal.recentes()) {
+          if (vues.has(numero)) continue;
+          vues.set(numero, maintenant);
+          // Les annonces d'avant le démarrage ne concernent personne ici.
+          if (premier) continue;
+          diffuser(cle);
+        }
+        for (const [numero, quand] of vues) if (maintenant - quand > 60_000) vues.delete(numero);
+        premier = false;
+      } catch {
+        // La base revient : on regardera au prochain coup.
+      }
+    };
+    let premier = true;
+    setInterval(() => void regarder(), 1000).unref();
+    void regarder();
   },
 };
 `;
@@ -3042,12 +3102,20 @@ function codeEvolutionEtDeparts(serveur: ServeurRI): string {
       ...renommes.map(([nouveau, ancien]) => `  await sqlite.query(${JSON.stringify(`UPDATE ${table} SET data = json_remove(json_set(data, ${chemin(nouveau)}, json(data -> ${chemin(ancien)})), ${chemin(ancien)}) WHERE json_type(data, ${chemin(ancien)}) IS NOT NULL AND json_type(data, ${chemin(nouveau)}) IS NULL`)});`),
       ...defauts.map(([champ, valeur]) => `  await sqlite.query(${JSON.stringify(`UPDATE ${table} SET data = json_set(data, ${chemin(champ)}, json($1)) WHERE json_type(data, ${chemin(champ)}) IS NULL`)}, [${JSON.stringify(JSON.stringify(valeur))}]);`),
     ];
+    // MySQL et MariaDB : JSON_SET reçoit la valeur lue (ou donnée) en JSON, jamais en texte.
+    const pourMysql = [
+      ...renommes.map(([nouveau, ancien]) => `  await mysql.natif(${JSON.stringify(`UPDATE ${table} SET data = JSON_REMOVE(JSON_SET(data, ?, JSON_EXTRACT(data, ?)), ?) WHERE JSON_CONTAINS_PATH(data, 'one', ?) AND NOT JSON_CONTAINS_PATH(data, 'one', ?)`)}, [cheminJson(${JSON.stringify(nouveau)}), cheminJson(${JSON.stringify(ancien)}), cheminJson(${JSON.stringify(ancien)}), cheminJson(${JSON.stringify(ancien)}), cheminJson(${JSON.stringify(nouveau)})]);`),
+      ...defauts.map(([champ, valeur]) => `  await mysql.natif(${JSON.stringify(`UPDATE ${table} SET data = JSON_SET(data, ?, JSON_EXTRACT(?, '$')) WHERE NOT JSON_CONTAINS_PATH(data, 'one', ?)`)}, [cheminJson(${JSON.stringify(champ)}), ${JSON.stringify(JSON.stringify(valeur))}, cheminJson(${JSON.stringify(champ)})]);`),
+    ];
     lignes.push(`// « ${d.nom} » : les fiches déjà écrites suivent la donnée d'aujourd'hui (champ renommé, champ ajouté).
 if (pool) {
 ${requetes.map((r) => `  await pool.query(${JSON.stringify(r)});`).join('\n')}
 } else if (sqlite) {
   await preparerTableSqlite(sqlite, '${table}');
 ${pourSqlite.join('\n')}
+} else if (mysql) {
+  await preparerTableMysql(mysql, '${table}');
+${pourMysql.join('\n')}
 }`);
   }
   for (const depart of serveur.departs ?? []) {

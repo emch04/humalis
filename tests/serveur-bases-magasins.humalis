@@ -1,0 +1,31 @@
+serveur "tout" :
+    connexion par cle d'acces
+    double authentification
+    emails
+    invitations vers "a"
+    ia
+    connecte peut demander a ia
+    donnee note :
+        texte : texte
+        lu : booleen
+    route "notes" :
+        connecte peut lire note
+        connecte peut creer note
+        connecte peut modifier note
+        connecte peut supprimer note
+    toutes les heures :
+        creer note avec texte "tic" et lu faux
+
+donnee locale notes :
+    texte : texte
+    lu : booleen
+    synchronisee avec "notes"
+
+page "a" :
+    titre "A"
+    champ "Email"
+    bouton "Inviter"
+    quand l'utilisateur clique sur "Inviter" :
+        inviter champ "Email" comme admin
+    pour chaque n dans notes :
+        texte n.texte

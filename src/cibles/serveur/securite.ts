@@ -235,8 +235,8 @@ export function creerMagasinSecuritePostgres(pool: PoolPostgres): MagasinSecurit
     await preparerTables();
     return pool.query(texte, valeurs);
   };
-  // SQLite n'a ni « unnest » ni suppression dans un « WITH » : les mêmes gestes, dans une transaction de la base.
-  const sqlite = 'sqlite' in pool ? (pool as unknown as { transaction<T>(faire: () => Promise<T>): Promise<T> }) : null;
+  // SQLite et MySQL n'ont ni « unnest » ni suppression dans un « WITH » : les mêmes gestes, dans une transaction de la base.
+  const sqlite = 'transaction' in pool ? (pool as unknown as { transaction<T>(faire: () => Promise<T>): Promise<T> }) : null;
   const remplacerCodes = async (compte: string, empreintes: string[]) => {
     if (sqlite) {
       await preparerTables();
