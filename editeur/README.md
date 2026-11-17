@@ -39,16 +39,24 @@ node editeur/sublime/generer.mjs
 
 ## Installer
 
+### VS Code, Cursor, VSCodium, Windsurf
+
+Depuis la boutique d'extensions de l'éditeur, « Humalis » : la Marketplace de
+VS Code pour VS Code, Open VSX pour Cursor, VSCodium et Windsurf.
+
 ### IntelliJ IDEA, Android Studio, WebStorm, Rider…
 
-Depuis la marketplace JetBrains : *Settings › Plugins › Marketplace › Humalis*.
-LSP4IJ (le client LSP de Red Hat) s'installe avec elle. Sans la marketplace :
-*Settings › Plugins › ⚙ › Install Plugin from Disk…* avec
-`jetbrains/build/distributions/humalis-jetbrains-1.0.0.zip`.
+Depuis la marketplace JetBrains : *Settings › Plugins › Marketplace › Humalis*
+(2025.3 et plus récent). LSP4IJ (le client LSP de Red Hat) s'installe avec
+elle. Depuis ce dossier : `cd jetbrains && ./gradlew buildPlugin` écrit
+`jetbrains/build/distributions/humalis-jetbrains-<version>.zip`, à installer
+par *Settings › Plugins › ⚙ › Install Plugin from Disk…*.
 
 ### Zed
 
-Depuis les extensions de Zed (*zed: extensions*, « Humalis »). L'extension
+Les extensions de Zed n'acceptent que des licences libres reconnues : on
+installe celle de ce dossier avec *zed: install dev extension* sur le dossier
+`zed` (Rust doit être installé : Zed construit l'extension). L'extension
 utilise la commande `humalis` du PATH, sinon installe elle-même le paquet npm.
 Pour un autre chemin, dans les réglages de Zed :
 
@@ -73,7 +81,7 @@ Pour voir ce qu'un éditeur demande au serveur : `HUMALIS_JOURNAL_LSP=<fichier>`
 avant de lancer l'éditeur ; chaque message reçu (←) et envoyé (→) y est ajouté.
 
 Signature : le `.vsix` n'est pas signé (Visual Studio l'indique à
-l'installation, la marketplace l'accepte tel quel). Le signer demanderait un
+l'installation, la Marketplace de Visual Studio l'accepte tel quel). Le signer demanderait un
 certificat de signature de code Authenticode acheté à une autorité (OV ou
 EV), puis `dotnet sign` ou VsixSignTool sur le `.vsix`.
 
@@ -130,24 +138,26 @@ au lieu d'en télécharger un.
 
 ## Publier
 
-Rien n'est publié automatiquement. Dans l'ordre :
+Rien n'est publié automatiquement. Le paquet npm `humalis`, qui contient
+`humalis editeur --stdio`, passe d'abord : toutes les extensions en dépendent.
 
-1. **Le paquet npm** `humalis`, qui contient `humalis editeur --stdio` : toutes
-   les extensions en dépendent. Avant cette publication, elles ne trouvent pas
-   la commande.
-2. **JetBrains** : créer un compte sur <https://plugins.jetbrains.com>, puis
-   *Upload plugin* avec `humalis-jetbrains-1.0.0.zip` (ou `./gradlew publishPlugin`
-   avec un jeton `PUBLISH_TOKEN`). Avant, `./gradlew verifyPlugin` vérifie la
-   compatibilité avec les IDE récents.
-3. **Zed** : pousser le dépôt, remplacer `REMPLACER_PAR_LE_COMMIT` dans
+1. **VS Code** : `cd vscode && npm run paquet`, puis le `.vsix` sur
+   <https://marketplace.visualstudio.com/manage> (éditeur `emch04`).
+2. **Open VSX** (Cursor, VSCodium, Windsurf) : le même `.vsix`, avec
+   `npx ovsx publish humalis-<version>.vsix -p <jeton>` (espace de noms `emch04`).
+3. **JetBrains** : *Upload Update* sur <https://plugins.jetbrains.com> avec
+   `humalis-jetbrains-<version>.zip` (ou `./gradlew publishPlugin` avec un jeton
+   `PUBLISH_TOKEN`). Avant, `./gradlew verifyPlugin` vérifie la compatibilité
+   avec les IDE récents ; JetBrains relit chaque version avant de la montrer.
+4. **Zed** : pousser le dépôt, remplacer `REMPLACER_PAR_LE_COMMIT` dans
    `zed/extension.toml` par le commit poussé (`git rev-parse HEAD`), puis
    proposer une demande de fusion à <https://github.com/zed-industries/extensions>
    (sous-module `extensions/humalis` + entrée dans `extensions.toml`). Zed
    n'accepte que des extensions sous une licence libre reconnue (MIT,
    Apache-2.0…) : la licence Humalis devra être acceptée ou l'extension
    publiée sous une autre licence.
-4. **Visual Studio** : construire le `.vsix` sous Windows, puis le déposer sur
+5. **Visual Studio** : construire le `.vsix` sous Windows, puis le déposer sur
    <https://marketplace.visualstudio.com/manage> (même éditeur `emch04` que
    l'extension VS Code).
-5. **Neovim, Helix, Emacs, Sublime Text** : rien à publier, les réglages sont
+6. **Neovim, Helix, Emacs, Sublime Text** : rien à publier, les réglages sont
    lus dans ce dossier. Helix lit la grammaire sur la branche `main` de GitHub.

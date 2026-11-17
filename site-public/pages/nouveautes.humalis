@@ -42,7 +42,7 @@ page "nouveautes" a l'adresse "/nouveautes" :
                         texte "Les avertissements du bloc `site` forment la famille « publication », que `--exigeant` durcit ; deux pages avec la même description avertissent." en anglais "Warnings of the `site` block form the “publication” family, which `--exigeant` hardens; two pages with the same description give a warning."
                     soustitre "Humalis dans tes éditeurs" en anglais "Humalis in your editors"
                     liste :
-                        texte "L’extension pour les IDE JetBrains demande 2025.3 ou plus récent." en anglais "The JetBrains IDE extension needs 2025.3 or newer."
+                        texte "L’extension « Humalis » est sur la marketplace JetBrains, pour IntelliJ IDEA, Android Studio, WebStorm, Rider et PyCharm 2025.3 ou plus récents ; Cursor, VSCodium et Windsurf la trouvent sur Open VSX." en anglais "The “Humalis” extension is on the JetBrains Marketplace, for IntelliJ IDEA, Android Studio, WebStorm, Rider and PyCharm 2025.3 or newer; Cursor, VSCodium and Windsurf find it on Open VSX."
                 bloc avec style "version" :
                     ligne avec style "version-tete" :
                         texte "2.0.0" sans traduction avec style "version-numero"

@@ -4399,9 +4399,9 @@ déclaration, le plan du fichier et la mise en forme. Tous s'appuient sur
 
 | Éditeur | Ce qu'il faut |
 |---|---|
-| VS Code, Cursor, VSCodium, Windsurf | l'extension « Humalis » de la boutique d'extensions |
-| IntelliJ IDEA, Android Studio, WebStorm, Rider, PyCharm | l'extension « Humalis » de la marketplace JetBrains |
-| Zed | l'extension « Humalis » de Zed |
+| VS Code, Cursor, VSCodium, Windsurf | l'extension « Humalis » de la boutique d'extensions (Marketplace de VS Code, ou Open VSX) |
+| IntelliJ IDEA, Android Studio, WebStorm, Rider, PyCharm (2025.3 et plus récent) | l'extension « Humalis » de la marketplace JetBrains |
+| Zed | l'extension du dossier `editeur/zed` du dépôt GitHub de Humalis, avec *zed: install dev extension* |
 | Visual Studio 2022 et 2026 | l'extension « Humalis » de la marketplace Visual Studio |
 | Neovim, Helix, Emacs, Sublime Text | les réglages du dossier `editeur` du dépôt GitHub de Humalis |
 

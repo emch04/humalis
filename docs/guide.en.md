@@ -4468,9 +4468,9 @@ with Humalis (`npm install -g humalis`).
 
 | Editor | What you need |
 |---|---|
-| VS Code, Cursor, VSCodium, Windsurf | the "Humalis" extension from the extension store |
-| IntelliJ IDEA, Android Studio, WebStorm, Rider, PyCharm | the "Humalis" plugin from the JetBrains Marketplace |
-| Zed | the "Humalis" Zed extension |
+| VS Code, Cursor, VSCodium, Windsurf | the "Humalis" extension from the extension store (VS Code Marketplace, or Open VSX) |
+| IntelliJ IDEA, Android Studio, WebStorm, Rider, PyCharm (2025.3 and newer) | the "Humalis" plugin from the JetBrains Marketplace |
+| Zed | the extension in the `editeur/zed` folder of the Humalis GitHub repository, with *zed: install dev extension* |
 | Visual Studio 2022 and 2026 | the "Humalis" extension from the Visual Studio Marketplace |
 | Neovim, Helix, Emacs, Sublime Text | the settings in the `editeur` folder of the Humalis GitHub repository |
 
