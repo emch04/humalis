@@ -15,7 +15,6 @@
 
 /** src/humalis/mysql.ts */
 export const MYSQL = String.raw`import { AsyncLocalStorage } from 'node:async_hooks';
-import { createHash } from 'node:crypto';
 import type { Pool, PoolConnection } from 'mysql2/promise';
 import { nouvelId, sansSeparateurs, type Enregistrement, type Stockage } from './stockage.js';
 
@@ -390,8 +389,8 @@ export async function ouvrirMysql(adresse: string): Promise<BaseMysql> {
       }
     },
     async verrou(cle, travail) {
-      // Un nom de verrou a 64 caractères au plus : la clé est condensée.
-      const nom = 'humalis_' + createHash('sha256').update(cle).digest('hex').slice(0, 48);
+      // Un nom de verrou a 64 caractères au plus.
+      const nom = cle.slice(0, 64);
       const connexion = await pool.getConnection();
       try {
         const [lignes] = (await connexion.query('SELECT GET_LOCK(?, 60) AS pris', [nom])) as unknown as [Ligne[]];

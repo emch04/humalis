@@ -1,6 +1,7 @@
 import { SQLITE, SYNCHRO_SQLITE } from './sqlite.js';
 import { MYSQL, SYNCHRO_MYSQL } from './mysql.js';
-import { EXPLOITATION_MYSQL } from './exploitation-bases.js';
+import { EXPLOITATION_DOCUMENTS, EXPLOITATION_MYSQL } from './exploitation-bases.js';
+import { documentsTs, SYNCHRO_DOCUMENTS } from './documents.js';
 import { champsRendus, DEFAUTS_TS, LISEZMOI_EVOLUTION, verifierDonneesMjs } from './evolution.js';
 import { CODE_SANTE, CODE_SANTE_DEMARRAGE, codeArret, fichiersDeploiement, lisezmoiExploitation, restaurerMjs, sauvegarderMjs } from './exploitation.js';
 import { BORNES_TS, exempleDansLesBornes } from './bornes.js';
@@ -87,6 +88,7 @@ export function genererProjetServeur(complet: ServeurRI, options: OptionsServeur
   fichiers.set('scripts/verifier-donnees.mjs', verifierDonneesMjs(serveur, { camel, table: nomTable, schema: (donnee) => `SCHEMA_${simplifier(donnee).toUpperCase()}` }));
   fichiers.set('scripts/restaurer.mjs', restaurerMjs(serveur));
   fichiers.set('scripts/bases/mysql.mjs', EXPLOITATION_MYSQL);
+  fichiers.set('scripts/bases/documents.mjs', EXPLOITATION_DOCUMENTS);
   for (const [chemin, contenu] of fichiersDeploiement(serveur)) fichiers.set(chemin, contenu);
   fichiers.set('.env.exemple', envExemple(serveur));
   fichiers.set('LISEZMOI.md', lisezmoi(serveur, options));
@@ -94,6 +96,7 @@ export function genererProjetServeur(complet: ServeurRI, options: OptionsServeur
   fichiers.set('src/humalis/stockage.ts', STOCKAGE);
   fichiers.set('src/humalis/sqlite.ts', SQLITE);
   fichiers.set('src/humalis/mysql.ts', MYSQL);
+  fichiers.set('src/humalis/documents.ts', documentsTs({ securite: avecSecurite(serveur), comptes: avecComptes(serveur), taches: Boolean(serveur.taches?.length), ia: avecIa(serveur) }));
   fichiers.set('src/humalis/envois.ts', ENVOIS);
   fichiers.set('src/humalis/compresser.ts', COMPRESSER);
   fichiers.set('src/humalis/renouvellements.ts', RENOUVELLEMENTS);
@@ -109,6 +112,7 @@ export function genererProjetServeur(complet: ServeurRI, options: OptionsServeur
     fichiers.set('src/humalis/synchro.ts', SYNCHRO);
     fichiers.set('src/humalis/synchro-sqlite.ts', SYNCHRO_SQLITE);
     fichiers.set('src/humalis/synchro-mysql.ts', SYNCHRO_MYSQL);
+    fichiers.set('src/humalis/synchro-documents.ts', SYNCHRO_DOCUMENTS);
     const route = serveur.routes.find((r) => r.synchronisee)!;
     const exemple = serveur.donnees.find((d) => d.nom === route.donnee)!.champs.filter((c) => !champsDuServeur(serveur.donnees.find((d) => d.nom === route.donnee)!, route).includes(camel(c.nom))).map((c) => `${camel(c.nom)}: ${exempleChamp(c.type)}`).join(', ');
     fichiers.set('tests/synchro.test.ts', testsSynchro(serveur, serveur.donnees.map((d) => `    ${camel(d.nom)}: creerStockageMemoire(),`).join('\n'), route, `{ ${exemple} }`));
@@ -830,7 +834,7 @@ export interface Coffre {
 }
 
 /** Sans ENCRYPTION_KEY : le coffre reste fermé, rien n'est chargé, et le .env sert seul. */
-export async function ouvrirCoffre(pool: PoolPostgres | null, env: NodeJS.ProcessEnv = process.env): Promise<Coffre | null> {
+export async function ouvrirCoffre(pool: PoolPostgres | null, env: NodeJS.ProcessEnv = process.env, magasin?: ReturnType<typeof creerMagasinCles>): Promise<Coffre | null> {
   const noms = ESPACES.flatMap((espace) => espace.keys.map((cle) => cle.key));
   if (noms.length === 0) return null;
   const cle = env.ENCRYPTION_KEY?.trim();
@@ -852,7 +856,7 @@ export async function ouvrirCoffre(pool: PoolPostgres | null, env: NodeJS.Proces
     // La serrure ne se range pas dans le coffre qu'elle ferme.
     reservedKeys: ['ENCRYPTION_KEY', 'JWT_SECRET', 'DATABASE_URL', 'HUMALIS_ADMIN_MOT_DE_PASSE'],
   });
-  const store = pool ? creerMagasinCles(pool) : createMemoryCredentialStore();
+  const store = magasin ?? (pool ? creerMagasinCles(pool) : createMemoryCredentialStore());
   const vault = createCredentialVault({
     store: store as Parameters<typeof createCredentialVault>[0]['store'],
     catalog,
@@ -1721,7 +1725,7 @@ function listeDesChamps(serveur: ServeurRI, donnee: ServeurRI['donnees'][number]
 function demarrerTs(serveur: ServeurRI): string {
   const comptes = avecComptes(serveur);
   const stockages = serveur.donnees
-    .map((d) => `  ${camel(d.nom)}: pool ? creerStockagePostgres(pool, '${nomTable(d.nom)}'${listeDesChamps(serveur, d)}) : sqlite ? creerStockageSqlite(sqlite, '${nomTable(d.nom)}'${listeDesChamps(serveur, d)}) : mysql ? creerStockageMysql(mysql, '${nomTable(d.nom)}'${listeDesChamps(serveur, d)}) : creerStockageMemoire(),`)
+    .map((d) => `  ${camel(d.nom)}: pool ? creerStockagePostgres(pool, '${nomTable(d.nom)}'${listeDesChamps(serveur, d)}) : sqlite ? creerStockageSqlite(sqlite, '${nomTable(d.nom)}'${listeDesChamps(serveur, d)}) : mysql ? creerStockageMysql(mysql, '${nomTable(d.nom)}'${listeDesChamps(serveur, d)}) : documents ? creerStockageDocuments(documents, '${nomTable(d.nom)}'${listeDesChamps(serveur, d)}) : creerStockageMemoire(),`)
     .join('\n');
   const premiere = serveur.routes[0] ? adresseApi(serveur.routes[0].adresse) : '/auth/me';
   return `// Produit par Humalis : lit l'environnement, crée le premier admin, démarre le serveur « ${serveur.nom} ».
@@ -1739,6 +1743,7 @@ import { reglagesDeSession, type ReglagesSession } from './humalis/sessions.js';
 import { creerStockageMemoire, creerStockagePostgres } from './humalis/stockage.js';
 import { creerStockageSqlite, ouvrirSqlite, preparerTableSqlite, transactionSqlite, type BaseSqlite } from './humalis/sqlite.js';${avecSynchro(serveur) ? "\nimport { creerJournalSqlite } from './humalis/synchro-sqlite.js';\nimport { creerJournalMysql } from './humalis/synchro-mysql.js';" : ''}
 import { canalMysql, cheminJson, creerStockageMysql, ouvrirMysql, preparerTableMysql, transactionMysql, type BaseMysql } from './humalis/mysql.js';
+import { canalDocuments, creerClesDocuments, creerComptesDocuments, creerEnvoisDocuments, creerRevocationsDocuments, creerSessionsDocuments, creerStockageDocuments, ouvrirDocuments, preparerCollection, transactionDocuments, type BaseDocuments${avecSecurite(serveur) ? ', creerSecuriteDocuments' : ''}${comptes ? ', creerJetonsDocuments' : ''}${serveur.taches?.length ? ', reclamerDocuments' : ''}${avecIa(serveur) ? ', compterDocuments' : ''} } from './humalis/documents.js';${avecSynchro(serveur) ? "\nimport { creerJournalDocuments } from './humalis/synchro-documents.js';" : ''}
 
 function arreter(message: string): never {
   console.error(message);
@@ -1755,9 +1760,9 @@ if (jwtSecret.length < 32) {
 
 // DATABASE_URL : la base choisie par celui qui déploie, d'après le début de l'adresse. Le programme n'en nomme aucune.
 const adresseBase = process.env.DATABASE_URL?.trim() || null;
-const genreBase = adresseBase === null ? null : /^postgres(ql)?:\\/\\//i.test(adresseBase) ? 'postgres' : /^(mysql|mariadb):\\/\\//i.test(adresseBase) ? 'mysql' : null;
+const genreBase = adresseBase === null ? null : /^postgres(ql)?:\\/\\//i.test(adresseBase) ? 'postgres' : /^(mysql|mariadb):\\/\\//i.test(adresseBase) ? 'mysql' : /^mongodb(\\+srv)?:\\/\\//i.test(adresseBase) ? 'documents' : null;
 if (adresseBase !== null && genreBase === null) {
-  arreter('DATABASE_URL doit commencer par postgres://, mysql:// ou mariadb:// (ici : « ' + adresseBase.split(':')[0] + ' »).');
+  arreter('DATABASE_URL doit commencer par postgres://, mysql://, mariadb:// ou mongodb:// (ici : « ' + adresseBase.split(':')[0] + ' »).');
 }
 const pool = genreBase === 'postgres' ? new pg.Pool({ connectionString: adresseBase! }) : null;
 // Quand la base redémarre, elle coupe les connexions au repos : sans cette écoute, l'erreur ferait tomber le serveur.
@@ -1777,6 +1782,15 @@ if (genreBase === 'mysql') {
   }
   console.log('Base ' + (mysql.mariadb ? 'MariaDB' : 'MySQL') + ' : plusieurs exemplaires du serveur peuvent la partager.');
 }
+let documents: BaseDocuments | null = null;
+if (genreBase === 'documents') {
+  try {
+    documents = await ouvrirDocuments(adresseBase!);
+  } catch (erreur) {
+    arreter('La base de documents ne convient pas : ' + (erreur instanceof Error ? erreur.message : String(erreur)));
+  }
+  console.log('Base de documents : « ' + documents.db.databaseName + ' », avec transactions.');
+}
 let sqlite: BaseSqlite | null = null;
 try {
   sqlite = fichierSqlite ? ouvrirSqlite(fichierSqlite) : null;
@@ -1784,14 +1798,14 @@ try {
   arreter('La base SQLite « ' + fichierSqlite + ' » ne s\\'ouvre pas : ' + (erreur instanceof Error ? erreur.message : String(erreur)));
 }
 if (sqlite) console.log('Base SQLite : ' + fichierSqlite + ' (un seul exemplaire du serveur par fichier).');
-if (!pool && !sqlite && !mysql) {
+if (!pool && !sqlite && !mysql && !documents) {
   console.warn('Sans DATABASE_URL ni HUMALIS_BASE, les données restent en mémoire et sont perdues à l\\'arrêt : développement seulement.');
 }
 // Les magasins du serveur (comptes, sessions, envois, coffre…) écrivent leurs requêtes une fois ; SQLite les
 // reçoit par la même porte, et traduit les quelques tournures qui lui manquent (versSqlite).
 const sql = (pool ?? sqlite ?? mysql) as unknown as pg.Pool | null;
 
-${avecDirect(serveur) ? "if (pool) await direct.brancher(pool);\nelse if (mysql) direct.sonder(canalMysql(mysql));\n" : ''}const usersStore = (sql ? createPostgresUsersStore({ pool: sql }) : createMemoryUsersStore()) as UsersStore;
+${avecDirect(serveur) ? "if (pool) await direct.brancher(pool);\nelse if (mysql) direct.sonder(canalMysql(mysql));\nelse if (documents) direct.sonder(canalDocuments(documents));\n" : ''}const usersStore = (documents ? creerComptesDocuments(documents) : sql ? createPostgresUsersStore({ pool: sql }) : createMemoryUsersStore()) as UsersStore;
 const stockages = {
 ${stockages}
 };
@@ -1820,17 +1834,17 @@ if (email && motDePasse && !(await usersStore.findByEmail(email))) {
 let session: ReglagesSession;
 try {
   // Dans PostgreSQL, un redémarrage ne déconnecte personne.
-  session = reglagesDeSession(process.env, sql ? creerMagasinPostgres(sql) : creerMagasinMemoire());
+  session = reglagesDeSession(process.env, documents ? creerSessionsDocuments(documents) : sql ? creerMagasinPostgres(sql) : creerMagasinMemoire());
 } catch (erreur) {
   arreter(erreur instanceof Error ? erreur.message : String(erreur));
 }
 
 // Le coffre garde process.env à jour : les clés qu'il gère y sont relues à chaud.
-const coffre = await ouvrirCoffre(sql);
+const coffre = await ouvrirCoffre(sql, process.env, documents ? creerClesDocuments(documents) : undefined);
 
 ${CODE_SANTE_DEMARRAGE}
 const port = Number(process.env.PORT ?? 3000);
-const app = creerServeur({ sante, ...(sql ? { envois: creerEnvoisPostgres(sql), revocations: creerRevocationsPostgres(sql)${avecSecurite(serveur) ? ', magasinSecurite: creerMagasinSecuritePostgres(sql)' : ''} } : {})${avecSynchro(serveur) ? `, ...(pool ? { journalSynchro: creerJournalPostgres(pool, ${tablesSynchro(serveur, nomTable)}) } : sqlite ? { journalSynchro: creerJournalSqlite(sqlite, ${tablesSynchro(serveur, nomTable)}) } : mysql ? { journalSynchro: creerJournalMysql(mysql, ${tablesSynchro(serveur, nomTable)}) } : {})` : ''}, jwtSecret, usersStore, stockages${avecLogique(serveur) ? `, ...(pool ? { transaction: transactionPostgres(pool, (client) => ({ ${serveur.donnees.map((d) => `${camel(d.nom)}: creerStockagePostgres(client, '${nomTable(d.nom)}'${listeDesChamps(serveur, d)})`).join(', ')} })) } : sqlite ? { transaction: transactionSqlite(sqlite, stockages) } : mysql ? { transaction: transactionMysql(mysql, stockages) } : {})` : ''}${serveur.taches?.length ? ', reclamerTache: sql ? reclamerPostgres(sql) : reclamerMemoire()' : ''}${avecNotifications(serveur) ? ", ...(pool ? { appareils: creerStockagePostgres(pool, 'humalis_appareils') } : sqlite ? { appareils: creerStockageSqlite(sqlite, 'humalis_appareils') } : mysql ? { appareils: creerStockageMysql(mysql, 'humalis_appareils') } : {})" : ''}${avecIa(serveur) ? ', ...(sql ? { compterIa: compterPostgres(sql) } : {})' : ''}${serveur.connexionGoogle ? ', googleClientId: () => process.env.GOOGLE_CLIENT_ID || undefined, googleClientIdApple: () => process.env.GOOGLE_CLIENT_ID_APPLE || undefined' : ''}${serveur.connexionApple ? ', identifiantsApple: () => ({ application: process.env.APPLE_APP_ID || undefined, site: process.env.APPLE_SERVICE_ID || undefined })' : ''}${comptes ? ', jetons: creerMagasinJetons(sql)' : ''}, session, surveillance, coffre }) as unknown as { listen(port: number, pret: () => void): unknown };
+const app = creerServeur({ sante, ...(documents ? { envois: creerEnvoisDocuments(documents), revocations: creerRevocationsDocuments(documents)${avecSecurite(serveur) ? ', magasinSecurite: creerSecuriteDocuments(documents)' : ''} } : sql ? { envois: creerEnvoisPostgres(sql), revocations: creerRevocationsPostgres(sql)${avecSecurite(serveur) ? ', magasinSecurite: creerMagasinSecuritePostgres(sql)' : ''} } : {})${avecSynchro(serveur) ? `, ...(pool ? { journalSynchro: creerJournalPostgres(pool, ${tablesSynchro(serveur, nomTable)}) } : sqlite ? { journalSynchro: creerJournalSqlite(sqlite, ${tablesSynchro(serveur, nomTable)}) } : mysql ? { journalSynchro: creerJournalMysql(mysql, ${tablesSynchro(serveur, nomTable)}) } : documents ? { journalSynchro: creerJournalDocuments(documents, ${tablesSynchro(serveur, nomTable)}) } : {})` : ''}, jwtSecret, usersStore, stockages${avecLogique(serveur) ? `, ...(pool ? { transaction: transactionPostgres(pool, (client) => ({ ${serveur.donnees.map((d) => `${camel(d.nom)}: creerStockagePostgres(client, '${nomTable(d.nom)}'${listeDesChamps(serveur, d)})`).join(', ')} })) } : sqlite ? { transaction: transactionSqlite(sqlite, stockages) } : mysql ? { transaction: transactionMysql(mysql, stockages) } : documents ? { transaction: transactionDocuments(documents, stockages) } : {})` : ''}${serveur.taches?.length ? ', reclamerTache: documents ? reclamerDocuments(documents) : sql ? reclamerPostgres(sql) : reclamerMemoire()' : ''}${avecNotifications(serveur) ? ", ...(pool ? { appareils: creerStockagePostgres(pool, 'humalis_appareils') } : sqlite ? { appareils: creerStockageSqlite(sqlite, 'humalis_appareils') } : mysql ? { appareils: creerStockageMysql(mysql, 'humalis_appareils') } : documents ? { appareils: creerStockageDocuments(documents, 'humalis_appareils') } : {})" : ''}${avecIa(serveur) ? ', ...(documents ? { compterIa: compterDocuments(documents) } : sql ? { compterIa: compterPostgres(sql) } : {})' : ''}${serveur.connexionGoogle ? ', googleClientId: () => process.env.GOOGLE_CLIENT_ID || undefined, googleClientIdApple: () => process.env.GOOGLE_CLIENT_ID_APPLE || undefined' : ''}${serveur.connexionApple ? ', identifiantsApple: () => ({ application: process.env.APPLE_APP_ID || undefined, site: process.env.APPLE_SERVICE_ID || undefined })' : ''}${comptes ? ', jetons: documents ? creerJetonsDocuments(documents) : creerMagasinJetons(sql)' : ''}, session, surveillance, coffre }) as unknown as { listen(port: number, pret: () => void): unknown };
 // HUMALIS_ECOUTE : l'adresse d'écoute (127.0.0.1 derrière un relais) ; sans elle, toutes les adresses.
 const pret = () => console.log(\`Serveur « ${serveur.nom} » prêt : http://localhost:\${port}${premiere}\`);
 const ecoute = process.env.HUMALIS_ECOUTE?.trim();
@@ -3109,6 +3123,11 @@ function codeEvolutionEtDeparts(serveur: ServeurRI): string {
       ...renommes.map(([nouveau, ancien]) => `  await mysql.natif(${JSON.stringify(`UPDATE ${table} SET data = JSON_REMOVE(JSON_SET(data, ?, JSON_EXTRACT(data, ?)), ?) WHERE JSON_CONTAINS_PATH(data, 'one', ?) AND NOT JSON_CONTAINS_PATH(data, 'one', ?)`)}, [cheminJson(${JSON.stringify(nouveau)}), cheminJson(${JSON.stringify(ancien)}), cheminJson(${JSON.stringify(ancien)}), cheminJson(${JSON.stringify(ancien)}), cheminJson(${JSON.stringify(nouveau)})]);`),
       ...defauts.map(([champ, valeur]) => `  await mysql.natif(${JSON.stringify(`UPDATE ${table} SET data = JSON_SET(data, ?, JSON_EXTRACT(?, '$')) WHERE NOT JSON_CONTAINS_PATH(data, 'one', ?)`)}, [cheminJson(${JSON.stringify(champ)}), ${JSON.stringify(JSON.stringify(valeur))}, cheminJson(${JSON.stringify(champ)})]);`),
     ];
+    // Une base de documents : $rename garde la valeur telle quelle, $set donne la valeur de départ aux fiches qui n'ont pas le champ.
+    const pourDocuments = [
+      ...renommes.map(([nouveau, ancien]) => `  await documents.collection('${table}').updateMany(${JSON.stringify({ [`data.${ancien}`]: { $exists: true }, [`data.${nouveau}`]: { $exists: false } })}, ${JSON.stringify({ $rename: { [`data.${ancien}`]: `data.${nouveau}` } })});`),
+      ...defauts.map(([champ, valeur]) => `  await documents.collection('${table}').updateMany(${JSON.stringify({ [`data.${champ}`]: { $exists: false } })}, ${JSON.stringify({ $set: { [`data.${champ}`]: valeur } })});`),
+    ];
     lignes.push(`// « ${d.nom} » : les fiches déjà écrites suivent la donnée d'aujourd'hui (champ renommé, champ ajouté).
 if (pool) {
 ${requetes.map((r) => `  await pool.query(${JSON.stringify(r)});`).join('\n')}
@@ -3118,6 +3137,9 @@ ${pourSqlite.join('\n')}
 } else if (mysql) {
   await preparerTableMysql(mysql, '${table}');
 ${pourMysql.join('\n')}
+} else if (documents) {
+  await preparerCollection(documents, '${table}')();
+${pourDocuments.join('\n')}
 }`);
   }
   for (const depart of serveur.departs ?? []) {

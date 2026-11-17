@@ -222,9 +222,9 @@ if (fichierSqlite) {
   process.exit(fautes > 0 ? 1 : 0);
 }
 
-// MySQL ou MariaDB : la même lecture, par le module de cette base.
-if (/^(mysql|mariadb):\\/\\//i.test(url)) {
-  const { verifier } = await import('./bases/mysql.mjs');
+// MySQL, MariaDB ou une base de documents : la même lecture, par le module de cette base.
+if (/^(mysql|mariadb|mongodb(\\+srv)?):\\/\\//i.test(url)) {
+  const { verifier } = await import(/^mongodb/i.test(url) ? './bases/documents.mjs' : './bases/mysql.mjs');
   try {
     await verifier({ url, donnees: DONNEES, ouvrirCompte, pasDeTable, direEfface, retires, nettoyer });
     conclure();
