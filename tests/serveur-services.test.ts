@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { stripVTControlCharacters } from 'node:util';
 import { compiler } from '../src/compilateur.js';
 import { genererProjetServeur } from '../src/cibles/serveur/projet.js';
 import { fichiersEntree } from '../src/cibles/serveur/entree.js';
@@ -79,7 +80,10 @@ describe('trois services qui se parlent, pour de vrai', () => {
 
   it('les essais produits passent dans chaque service', () => {
     for (const s of ['comptes', 'catalogue', 'commandes']) {
-      const sortie = execFileSync('npx', ['vitest', 'run', '--dir', 'tests'], { cwd: join(dossier, s), encoding: 'utf8', stdio: 'pipe' });
+      // Sans couleurs : lancé depuis un terminal, vitest colorerait son résumé (« Tests  23 passed »).
+      const sortie = stripVTControlCharacters(execFileSync('npx', ['vitest', 'run', '--dir', 'tests'], {
+        cwd: join(dossier, s), encoding: 'utf8', stdio: 'pipe', env: { ...process.env, NO_COLOR: '1', FORCE_COLOR: '0' },
+      }));
       expect(sortie, s).toMatch(/Tests\s+\d+ passed/);
     }
   }, 300_000);
