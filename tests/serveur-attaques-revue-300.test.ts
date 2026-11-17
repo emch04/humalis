@@ -167,6 +167,14 @@ describe('la revue de sécurité de la 3.0.0, sur un serveur seul', () => {
     expect(documents!.courses).toEqual([1, 1, 1]);
   });
 
+  it.skipIf(!DOCUMENTS)('une sauvegarde modifiée pour ajouter un index à expiration sur une donnée est refusée', () => {
+    // La sauvegarde de trois événements, restaurée dans une base neuve : avec l'index ajouté à la main, la base
+    // efface d'elle-même toutes les fiches en une minute, et toutes celles qui suivront.
+    const releve = JSON.parse(execFileSync('node', [new URL('./serveur-attaques-revue-300-sauvegarde.mjs', import.meta.url).pathname, dossier, DOCUMENTS!], { encoding: 'utf8', stdio: 'pipe' }).trim().split('\n').at(-1)!) as Releve;
+    expect(releve.restauration).not.toBe('acceptée');
+    expect(releve.fichesPlusTard).toBe(releve.fichesApresRestauration);
+  }, 300_000);
+
   it('le témoin : un serveur seul limite les requêtes venues de sa machine', () => {
     expect(r.limiteLocaleServeurSeul).toBeGreaterThan(0);
   });

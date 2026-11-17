@@ -1,0 +1,30 @@
+serveur "atelier" :
+    roles vendeur
+    emails
+    donnee note par boutique :
+        texte : texte
+    donnee compteur :
+        n : nombre
+    donnee billet :
+        nom : texte
+    route "notes" :
+        seul vendeur peut lire note
+        seul vendeur peut creer note
+        seul vendeur peut modifier note
+        seul vendeur peut supprimer note
+    route "compteurs" :
+        connecte peut lire compteur
+    route "billets" :
+        connecte peut lire billet
+        connecte peut creer billet
+        connecte peut faire "confirmer" sur billet :
+            envoyer email aux admins avec sujet "Billet confirmé" et texte "{billet.nom}"
+            pour chaque c dans compteur :
+                changer c.n par c.n + 1
+
+donnee locale notes_locales :
+    texte : texte
+    synchronisee avec "notes"
+
+page "a" :
+    titre "A"
