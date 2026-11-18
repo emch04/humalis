@@ -141,7 +141,7 @@ export const NOTIFICATIONS = String.raw`import { createPrivateKey, sign } from '
 import { connect } from 'node:http2';
 import type { UsersStore } from '@astratra/saas-kit';
 import type { RequestHandler } from 'express';
-import webpush from 'web-push';
+import { sendWebPush, type WebPushSubscription } from '@astratra/notify';
 import type { Enregistrement, Stockage } from './stockage.js';
 
 /**
@@ -303,7 +303,9 @@ export function creerNotifications({ usersStore, appareils }: { usersStore: User
         console.warn('Notification web non envoyée : HUMALIS_VAPID_PUBLIQUE, HUMALIS_VAPID_PRIVEE et HUMALIS_VAPID_SUJET ne sont pas réglées.');
         return;
       }
-      await webpush.sendNotification(appareil.abonnement as webpush.PushSubscription, JSON.stringify(n), { vapidDetails: { subject: sujet, publicKey: publique, privateKey: privee }, TTL: 86400 });
+      // Web Push de @astratra/notify : délai de 30 s, réponse plafonnée, aucune redirection suivie, et seulement vers un
+      // service de notification connu (plus HUMALIS_PUSH_HOTES).
+      await sendWebPush(appareil.abonnement as WebPushSubscription, JSON.stringify(n), { vapid: { subject: sujet, publicKey: publique, privateKey: privee }, ttl: 86400, extraHosts: (process.env.HUMALIS_PUSH_HOTES ?? '').split(',').filter(Boolean) });
     } catch (erreur) {
       // L'appareil s'est désabonné : on l'oublie.
       const statut = (erreur as { statusCode?: number }).statusCode;

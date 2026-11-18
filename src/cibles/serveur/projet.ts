@@ -39,12 +39,12 @@ export interface OptionsServeur {
 
 /** Versions épinglées des dépendances du serveur produit. */
 export const VERSIONS_SERVEUR = {
-  notify: '1.2.0',
-  saasKit: '2.1.0',
-  security: '1.15.0',
+  notify: '1.3.0',
+  saasKit: '2.1.1',
+  security: '1.15.1',
   storePostgres: '1.2.0',
-  credentials: '1.2.0',
-  tooling: '1.7.0',
+  credentials: '1.2.1',
+  tooling: '1.7.1',
   pdf: '1.1.0',
   pdfkit: '0.18.0',
   typesPdfkit: '0.17.7',
@@ -287,14 +287,15 @@ function packageJson(nom: string, serveur: ServeurRI, livekit = false): string {
       dependencies: {
         '@astratra/credentials': v.credentials,
         ...(serveur.fidelite ? { '@astratra/loyalty': v.loyalty } : {}),
-        ...(avecEmails(serveur) ? { '@astratra/notify': v.notify, nodemailer: '10.3.1' } : {}),
+        // @astratra/notify : les e-mails, et les notifications web (Web Push écrit dans le paquet, sans web-push).
+        ...(avecEmails(serveur) || avecNotifications(serveur) ? { '@astratra/notify': v.notify } : {}),
+        ...(avecEmails(serveur) ? { nodemailer: '10.3.1' } : {}),
         ...(bon ? { '@astratra/pdf': v.pdf } : {}),
         '@astratra/saas-kit': v.saasKit,
         '@astratra/security': v.security,
         '@astratra/store-postgres': v.storePostgres,
         express: v.express,
         ...(bon ? { pdfkit: v.pdfkit } : {}),
-        ...(avecNotifications(serveur) ? { 'web-push': '3.6.7' } : {}),
         ...(livekit ? { 'livekit-server-sdk': VERSION_LIVEKIT_SERVEUR } : {}),
         mongodb: v.mongodb,
         mysql2: v.mysql2,
@@ -308,7 +309,6 @@ function packageJson(nom: string, serveur: ServeurRI, livekit = false): string {
         '@types/node': v.typesNode,
         ...(bon ? { '@types/pdfkit': v.typesPdfkit } : {}),
         ...(avecEmails(serveur) ? { '@types/nodemailer': '8.0.2' } : {}),
-        ...(avecNotifications(serveur) ? { '@types/web-push': '3.6.4' } : {}),
         '@types/pg': v.typesPg,
         '@types/supertest': v.typesSupertest,
         supertest: v.supertest,

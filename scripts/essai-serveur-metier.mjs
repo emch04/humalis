@@ -66,7 +66,7 @@ const fauxApns = createSecureServer({ ...tls, allowHTTP1: false }, (req, res) =>
 await new Promise((ok) => faussePoussee.listen(0, ok));
 await new Promise((ok) => fauxApns.listen(0, ok));
 const portPoussee = faussePoussee.address().port;
-const vapid = JSON.parse(execFileSync('node', ['-e', "console.log(JSON.stringify(require('web-push').generateVAPIDKeys()))"], { cwd: serveur, encoding: 'utf8' }));
+const vapid = JSON.parse(execFileSync('node', ['-e', "console.log(JSON.stringify(require('@astratra/notify').generateVapidKeys()))"], { cwd: serveur, encoding: 'utf8' }));
 const cleApple = generateKeyPairSync('ec', { namedCurve: 'P-256' }).privateKey.export({ type: 'pkcs8', format: 'pem' });
 const envNotifications = { HUMALIS_LIMITE_API: '100000', HUMALIS_LIMITE_CONNEXION: '1000', HUMALIS_VAPID_PUBLIQUE: vapid.publicKey, HUMALIS_VAPID_PRIVEE: vapid.privateKey, HUMALIS_VAPID_SUJET: 'mailto:essai@exemple.cd', HUMALIS_PUSH_HOTES: '127.0.0.1', NODE_TLS_REJECT_UNAUTHORIZED: '0', HUMALIS_APNS_CLE: cleApple, HUMALIS_APNS_CLE_ID: 'ABC123', HUMALIS_APNS_EQUIPE: 'EQUIPE1', HUMALIS_APNS_SUJET: 'dev.humalis.essai', HUMALIS_APNS_HOTE: `127.0.0.1:${fauxApns.address().port}` };
 // Un faux service d'IA, au format de discussion compatible OpenAI : le même flux d'événements, sans dépense.
