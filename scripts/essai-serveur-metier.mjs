@@ -130,13 +130,32 @@ try {
     return { statut: reponse.status, valeur };
   };
   const entrer = async (email) => (await appeler(A, 'POST', '/auth/login', null, { email, password: MOT })).valeur.data.token;
+  // La session d'un compte : son jeton d'accès et le cookie de renouvellement reçu à la connexion.
+  const cookiesDe = (reponse) => reponse.headers.getSetCookie().map((c) => c.split(';')[0]).join('; ');
+  const seConnecter = async (email) => {
+    const reponse = await fetch(`${A}/auth/login`, { method: 'POST', headers: json, body: JSON.stringify({ email, password: MOT }) });
+    return { jeton: (await reponse.json()).data.token, cookie: cookiesDe(reponse) };
+  };
+  // Ce que fait l'application quand un jeton est refusé : la même session donne un jeton neuf (POST /auth/refresh,
+  // sans corps ni Content-Type, comme fetch('/auth/refresh', { method: 'POST', credentials: 'same-origin' })).
+  const renouveler = async (base, session) => {
+    const reponse = await fetch(`${base}/auth/refresh`, { method: 'POST', headers: { cookie: session.cookie } });
+    const corps = await reponse.json().catch(() => ({}));
+    const neuf = cookiesDe(reponse);
+    if (neuf) session.cookie = neuf;
+    session.jeton = corps?.data?.token;
+    return reponse.status;
+  };
+  // La date d'émission d'un jeton est à la seconde près : un jeton émis dans la seconde même d'une révocation est
+  // refusé (aucun jeton émis juste avant ne survit). L'application renouvelle donc à la seconde suivante.
+  const secondeSuivante = () => new Promise((ok) => setTimeout(ok, 1020 - (Date.now() % 1000)));
   const jetonAdmin = await entrer(EMAIL);
   let numero = 0;
   const compte = async (role, champs = {}) => {
     const email = `c${++numero}@commerce.cd`;
     const id = crypto.randomUUID();
     sql(`insert into astratra_users (id, email, role, data) select '${id}', '${email}', '${role}', data || '${JSON.stringify({ id, email, role, ...champs })}'::jsonb from astratra_users where email='${EMAIL}'`);
-    return { id, email, jeton: await entrer(email) };
+    return { id, email, ...(await seConnecter(email)) };
   };
 
   // ─── Les groupes ──────────────────────────────────────────────────
@@ -187,8 +206,14 @@ try {
   verifier(avant.statut === 403, 'avant : refusé');
   const change = await appeler(A, 'POST', `/auth/comptes/${vendeur.id}/role`, jetonAdmin, { role: 'gerant' });
   verifier(change.statut === 200, 'un admin change un rôle');
+  // Le jeton déjà émis porte l'ancien rôle : le serveur le ferme, sur l'autre serveur aussi ; la session, elle, reste.
+  verifier((await appeler(B, 'GET', '/api/factures', vendeur.jeton)).statut === 401, 'le jeton déjà émis est fermé au changement de rôle, sur l’autre serveur aussi (401)');
+  await secondeSuivante();
+  verifier(await renouveler(A, vendeur) === 200 && Boolean(vendeur.jeton), 'la même session donne un jeton neuf');
   verifier((await appeler(B, 'GET', '/api/factures', vendeur.jeton)).statut === 200, 'avec la même session, cela compte tout de suite, sur l’autre serveur aussi');
   await appeler(A, 'POST', `/auth/comptes/${vendeur.id}/role`, jetonAdmin, { role: 'client' });
+  await secondeSuivante();
+  verifier(await renouveler(A, vendeur) === 200, 'après un droit retiré, la session se renouvelle');
   verifier((await appeler(B, 'GET', '/api/commandes', vendeur.jeton)).statut === 403, 'un droit retiré cesse tout de suite');
   verifier((await appeler(A, 'POST', `/auth/comptes/${vendeur.id}/role`, gerantA.jeton, { role: 'gerant' })).statut === 403, 'seul un admin change un rôle');
   verifier((await appeler(A, 'POST', `/auth/comptes/${vendeur.id}/role`, jetonAdmin, { role: 'inconnu' })).statut === 400, 'un rôle inconnu est refusé');
