@@ -87,6 +87,9 @@ ecouteLibre.close();
 // La santé : sans session, sans cache, et rien d'autre que l'état.
 const sante = await fetch(base + '/sante');
 r.sante = { statut: sante.status, corps: { ...(await sante.json()), cache: sante.headers.get('cache-control') } };
+// Les en-têtes communs (analyse ZAP de la 3.1.0) : sur /sante, montée en tête, comme sur une route de l'API.
+const enTetes = (reponse) => [reponse.headers.get('x-content-type-options'), reponse.headers.get('cross-origin-resource-policy')];
+r.entetesCommuns = { statut: 0, corps: { sante: enTetes(sante), api: enTetes(await fetch(base + '/api/articles')), inconnue: enTetes(await fetch(base + '/rien-ici')) } };
 // Les limites sur les valeurs (S7) : à la création, à la modification, et celles par défaut.
 const bon = { nom: 'Stylo', prix: 3, stock: 10, contact: 'a@essai.test', statut: 'brouillon', photos: ['/a.png'], note: 'ok' };
 const article = await envoyer('POST', '/api/articles', a, bon);
@@ -219,6 +222,11 @@ describe.each(BASES)('des attaques sur un vrai serveur produit, %s', (_nom, base
   it('GET /sante répond 200 sans session, sans cache, et ne dit rien d’autre que l’état', () => {
     expect(r.sante!.statut).toBe(200);
     expect(r.sante!.corps).toEqual({ etat: 'pret', cache: 'no-store' });
+  });
+
+  it('toute réponse dit nosniff et Cross-Origin-Resource-Policy same-origin, /sante et routes inconnues comprises', () => {
+    const attendu = ['nosniff', 'same-origin'];
+    expect(r.entetesCommuns!.corps).toEqual({ sante: attendu, api: attendu, inconnue: attendu });
   });
   it('une valeur hors de ses limites est refusée à la création, avec une phrase qui dit pourquoi (S7)', () => {
     const essais = r.limitesALaCreation!.corps as Record<string, Reponse>;

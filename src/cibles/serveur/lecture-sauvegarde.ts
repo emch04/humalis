@@ -10,17 +10,22 @@ const PLAFOND_LIGNE = Number(process.env.HUMALIS_SAUVEGARDE_LIGNE_MAX) > 0 ? Mat
 
 /** Le fichier décompressé, prêt pour createInterface ; une ligne trop longue arrête la lecture avec une erreur. */
 function sauvegardeLue(fichier) {
+  // La ligne en cours peut avoir commencé dans un morceau précédent : chaque segment jusqu'au saut de ligne s'ajoute
+  // à sa longueur, comparée au plafond avant de passer à la ligne suivante (revue Codex de la 3.1.0).
   let courante = 0;
+  const trop = () => new Error('une ligne de la sauvegarde dépasse ' + PLAFOND_LIGNE + ' octets : le fichier est refusé (HUMALIS_SAUVEGARDE_LIGNE_MAX pour un plafond plus haut)');
   const plafond = new Transform({
     transform(morceau, _codage, suite) {
       let debut = 0;
       for (let fin = morceau.indexOf(10); fin >= 0; fin = morceau.indexOf(10, debut)) {
+        courante += fin - debut;
+        if (courante > PLAFOND_LIGNE) return suite(trop());
         courante = 0;
         debut = fin + 1;
       }
       courante += morceau.length - debut;
-      if (courante > PLAFOND_LIGNE) suite(new Error('une ligne de la sauvegarde dépasse ' + PLAFOND_LIGNE + ' octets : le fichier est refusé (HUMALIS_SAUVEGARDE_LIGNE_MAX pour un plafond plus haut)'));
-      else suite(null, morceau);
+      if (courante > PLAFOND_LIGNE) return suite(trop());
+      suite(null, morceau);
     },
   });
   return enChaine(createReadStream(fichier), createGunzip(), plafond, () => undefined);

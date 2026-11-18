@@ -1964,6 +1964,13 @@ ${serveur.captureErreurs ? "      app.use((erreur: unknown, req: express.Request
   const avant = express().disable('x-powered-by');
   // Derrière un relais, ce qui est monté ici (le relais des rapports d'erreur) compte aussi chaque visiteur, pas le relais.
   if (process.env.HUMALIS_RELAIS) avant.set('trust proxy', Number(process.env.HUMALIS_RELAIS));
+  // Toute réponse, routes de tête comprises (/sante, paiements, relais) : le navigateur ne devine pas le type, et une
+  // page d'une autre origine ne charge pas une réponse sans passer par CORS (fetch, téléchargements restent permis).
+  avant.use((_req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+    next();
+  });
 ${CODE_SANTE}${avecPaiements(serveur) ? "  avant.post('/paiements/webhook', ...paiements.webhook);\n" : ''}${serveur.relaisErreurs?.length ? "  // Les rapports d'erreur des pages et des applications : ce serveur y ajoute la clé et l'adresse du .env.\n  avant.post('/humalis/erreurs', ...relaisErreurs);\n" : ''}${serveur.projet ? codeAvantServices(serveur) : ''}${codeAvantSecurite(serveur)}${codeAvantSynchro(serveur, adresseApi)}${comptes ? "\n  avant.post('/auth/reset-password', express.json({ limit: '16kb' }), refuserMotDePasseFaible);" : ''}
   return avant.use(renouvellementEnCookie(session.dureeMs)).use(serveur as unknown as express.Application);
 }
