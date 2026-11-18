@@ -739,6 +739,10 @@ export function renouvellementEnCookie(dureeMs: number): RequestHandler {
     if (renouveler && recu) {
       req.body = { refreshToken: recu };
       (req as unknown as { _body: boolean })._body = true;
+      // Le corps envoyé ne compte pas : sans Content-Type, le lecteur JSON d'Express passe son chemin. Sinon il
+      // remplaçait ce corps (« Content-Type: application/json » et rien dedans, ou un autre jeton) et la session
+      // se perdait ; le jeton du cookie l'emporte toujours.
+      delete req.headers['content-type'];
     }
     const parCookie = renouveler ? Boolean(recu) : req.headers['x-humalis-mobile'] !== '1';
     const repondre = res.json.bind(res);
@@ -2424,6 +2428,15 @@ describe('la session', () => {
     // Le jeton d'accès neuf ouvre bien /auth/me.
     const jeton = (await renouveler(app, cookie).expect(200)).body.data.token;
     await request(app).get('/auth/me').set('authorization', 'Bearer ' + jeton).expect(200);
+  });
+
+  it('se renouvelle aussi quand le client annonce du JSON, et le jeton du cookie l’emporte sur celui du corps', async () => {
+    const app = leServeur();
+    const cookie = cookieDe(await connecter(app))!;
+    const vide = await renouveler(app, cookie).set('content-type', 'application/json').send('').expect(200);
+    expect(vide.body.data.token).toBeTruthy();
+    const glisse = await renouveler(app, cookieDe(vide)!).set('content-type', 'application/json').send({ refreshToken: 'jeton-glisse' }).expect(200);
+    expect(glisse.body.data.token).toBeTruthy();
   });
 
   it('refuse après 3 jours sans venir, et efface le cookie', async () => {
