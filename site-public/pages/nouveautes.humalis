@@ -14,10 +14,10 @@ page "nouveautes" a l'adresse "/nouveautes" :
             colonne avec style "frise" et animation montee au defilement et en cascade :
                 bloc avec style "version version-recente" :
                     ligne avec style "version-tete" :
-                        texte "3.0.1" sans traduction avec style "version-numero"
+                        texte "3.1.0" sans traduction avec style "version-numero"
                         texte "Dernière version" en anglais "Latest" avec style "pastille pastille-vive"
                         texte "18 novembre 2026" en anglais "November 18, 2026" avec style "version-date"
-                    deroulant "Détails de la version 3.0.1" en anglais "Version 3.0.1 details" avec ouvert et style "version-detail" :
+                    deroulant "Détails de la version 3.1.0" en anglais "Version 3.1.0 details" avec ouvert et style "version-detail" :
                         soustitre "Ce qui change pour toi" en anglais "What changes for you"
                         liste :
                             texte "Dans un projet en services, chaque service signe ses appels et ses messages avec sa propre clé : `npm run cle-service` écrit sa clé privée (`HUMALIS_SERVICE_CLE_PRIVEE`, dans son `.env`) et sa clé publique (`HUMALIS_SERVICE_<NOM>_CLE`, dans le `.env` des autres). `HUMALIS_SERVICES_SECRET` n’est plus lu : un service ne peut plus signer au nom d’un autre." en anglais "In a services project, each service signs its calls and messages with its own key: `npm run cle-service` writes its private key (`HUMALIS_SERVICE_CLE_PRIVEE`, in its `.env`) and its public key (`HUMALIS_SERVICE_<NAME>_CLE`, in the others’ `.env`). `HUMALIS_SERVICES_SECRET` is no longer read: a service can no longer sign on behalf of another."
