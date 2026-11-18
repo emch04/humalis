@@ -363,7 +363,7 @@ page "nouveautes" a l'adresse "/nouveautes" :
         colonne avec style "nouveautes-aside" et animation montee au defilement et en cascade :
             bloc avec style "aside-carte aside-vive" :
                 texte "Version actuelle" en anglais "Current version" avec style "aside-etiquette"
-                texte "3.0.0" sans traduction avec style "aside-version"
+                texte "3.1.0" sans traduction avec style "aside-version"
                 texte "Pour mettre à jour Humalis sur ta machine :" en anglais "To update Humalis on your machine:"
                 ligne avec style "install-command" :
                     texte "npm install -g humalis" sans traduction avec style "install-code"
@@ -374,7 +374,7 @@ page "nouveautes" a l'adresse "/nouveautes" :
                 texte "En bref" en anglais "At a glance" avec style "aside-etiquette"
                 ligne avec style "aside-chiffres" :
                     colonne avec style "aside-chiffre" :
-                        texte "22" sans traduction avec style "aside-nombre"
+                        texte "24" sans traduction avec style "aside-nombre"
                         texte "versions" sans traduction
                     colonne avec style "aside-chiffre" :
                         texte "6" sans traduction avec style "aside-nombre"
