@@ -5,7 +5,7 @@
  */
 import { camel } from '../web/noms.js';
 import { codeAvantEnvoi, limitesDesRoutes } from '../serveur/bornes.js';
-import { entetesDuSite, noteEntetes } from '../commun/entetes-site.js';
+import { entetesDuSite, noteEntetes, peutEcrireLesEntetes } from '../commun/entetes-site.js';
 import { adresseDuLienJs } from '../commun/liens-et-champs.js';
 import { copiesDesMedias } from '../../ri/medias.js';
 import { titreComplet, adresseImage, sansBarreFinale, robotsTxt, manifeste, fichiersDuSite, balisesIcone, estExterne, echapper } from '../publication.js';
@@ -203,7 +203,8 @@ ${fonctions.join('\n')}`,
   if (application.langues) messagesDuSiteStatique(fichiers, application.langues.map((l) => l.code));
   // Les en-têtes de sécurité, pour Cloudflare Pages et Netlify ; ailleurs, le LISEZMOI dit de les recopier.
   fichiers.set('LISEZMOI.md', `${fichiers.get('LISEZMOI.md') ?? ''}${noteEntetes('_headers')}`);
-  fichiers.set('_headers', entetesDuSite(fichiers));
+  // Dans le compilateur pour navigateur (le bac à sable), pas de « _headers » : l'aperçu n'en a pas besoin.
+  if (peutEcrireLesEntetes()) fichiers.set('_headers', entetesDuSite(fichiers));
   return fichiers;
 }
 

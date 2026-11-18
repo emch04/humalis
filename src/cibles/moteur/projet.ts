@@ -2,7 +2,7 @@
  * Le projet produit par le moteur : une page HTML par adresse, écrite par le
  * compilateur, un petit script par couche, et Vite pour assembler le tout.
  */
-import { entetesDuSite, noteEntetes } from '../commun/entetes-site.js';
+import { entetesDuSite, noteEntetes, peutEcrireLesEntetes } from '../commun/entetes-site.js';
 import { avecLangueDeRendu } from '../statique/valeurs.js';
 import { TRAVAILLEUR_NOTIFICATIONS } from '../serveur/logique.js';
 import type { Application, ComposantHumalis, DispositionRI, Ecran, NoeudVue } from '../../ri/types.js';
@@ -456,7 +456,7 @@ document.title = ${traduit('Page introuvable')};
   }
   // Les en-têtes de sécurité, pour Cloudflare Pages et Netlify ; ailleurs, le LISEZMOI dit de les recopier.
   fichiers.set('LISEZMOI.md', `${fichiers.get('LISEZMOI.md') ?? ''}${noteEntetes('public/_headers')}`);
-  fichiers.set('public/_headers', entetesDuSite(fichiers, { apple: application.serveurs.some((x) => x.connexionApple) }));
+  if (peutEcrireLesEntetes()) fichiers.set('public/_headers', entetesDuSite(fichiers, { apple: application.serveurs.some((x) => x.connexionApple) }));
   return fichiers;
 }
 

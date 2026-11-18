@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<title>Aperçu</title>
+</head>
+<body>
+<!-- L'aperçu du bac à sable : le document arrive de la page qui contient ce cadre, une seule fois. Servi avec sa propre
+     politique de contenu (scripts écrits dans la page permis, ni réseau ni formulaire), dans un cadre isolé. -->
+<script>
+addEventListener('message', function recevoir(evenement) {
+  if (evenement.source !== parent || typeof evenement.data !== 'string') return;
+  removeEventListener('message', recevoir);
+  document.open();
+  document.write(evenement.data);
+  document.close();
+});
+</script>
+</body>
+</html>

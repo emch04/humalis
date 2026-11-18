@@ -3,12 +3,16 @@
  * produit apparaît à droite, les messages du compilateur dessous.
  *
  * Le compilateur tourne dans le navigateur. Il n'alourdit pas le site : il
- * n'est chargé qu'à l'ouverture de cette page, depuis le paquet npm publié
- * (`dist/navigateur.js`, servi par jsDelivr). En local (localhost), il est
- * pris à côté du site, pour essayer une version pas encore publiée.
+ * n'est chargé qu'à l'ouverture de cette page, depuis le site lui-même
+ * (`/navigateur.js`, le `dist/navigateur.js` du dépôt, copié à la
+ * publication). La politique de contenu du site n'exécute que ses propres
+ * scripts : un compilateur pris sur un autre site serait refusé.
  *
  * L'aperçu est le site statique produit par Humalis, dans un cadre isolé :
  * scripts permis, mais ni réseau, ni formulaire envoyé, ni accès à la page.
+ * Un cadre « srcdoc » hériterait de la politique du site, qui refuse les
+ * scripts écrits dans la page : en ligne, le cadre ouvre donc `/apercu`, une
+ * page à la politique propre, et lui envoie le document par un message.
  */
 import { useEffect, useState } from 'react';
 
@@ -21,7 +25,23 @@ interface Compilateur {
 }
 
 const EN_LOCAL = typeof location !== 'undefined' && ['localhost', '127.0.0.1'].includes(location.hostname);
-const ADRESSE_COMPILATEUR = EN_LOCAL ? '/navigateur.js' : 'https://cdn.jsdelivr.net/npm/humalis@1/dist/navigateur.js';
+const ADRESSE_COMPILATEUR = '/navigateur.js';
+
+/** L'aperçu : en ligne, la page /apercu reçoit le document par un message ; en local (sans politique), un srcdoc suffit. */
+function Cadre({ document: html, titre }: { document: string; titre: string }) {
+  if (EN_LOCAL) return <iframe className="bac-cadre" title={titre} sandbox="allow-scripts" srcDoc={html} />;
+  // Une nouvelle page à chaque document : /apercu ne l'écrit qu'une fois.
+  return (
+    <iframe
+      key={html}
+      className="bac-cadre"
+      title={titre}
+      sandbox="allow-scripts"
+      src="/apercu"
+      onLoad={(evenement) => evenement.currentTarget.contentWindow?.postMessage(html, '*')}
+    />
+  );
+}
 
 const EXEMPLES = [
   {
@@ -323,7 +343,7 @@ export default function EditeurHumalis({ exemple }: { exemple?: string | null })
         <div className="bac-panneau bac-resultat">
           <span className="bac-etiquette">{t.apercu}</span>
           {apercu ? (
-            <iframe className="bac-cadre" title={t.cadre} sandbox="allow-scripts" srcDoc={apercu} />
+            <Cadre document={apercu} titre={t.cadre} />
           ) : (
             <p className="bac-vide">{humalis === null ? t.chargement : humalis === 'erreur' ? t.indisponible : t.corriger}</p>
           )}

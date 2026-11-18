@@ -1,4 +1,14 @@
-import { createHash } from 'node:crypto';
+/**
+ * Le module crypto de Node, pris à l'appel (Node 24 : process.getBuiltinModule) et non importé : le même code est
+ * regroupé dans le compilateur pour navigateur (dist/navigateur.js, le bac à sable du site), où aucun module de Node
+ * ne se charge. Là, il n'y a pas de module crypto, et le site produit n'a pas de fichier « _headers ».
+ */
+function cryptoDeNode(): typeof import('node:crypto') | undefined {
+  return (globalThis as { process?: { getBuiltinModule?: (nom: string) => unknown } }).process?.getBuiltinModule?.('node:crypto') as typeof import('node:crypto') | undefined;
+}
+
+/** Les empreintes des scripts se calculent ici : « _headers » peut être écrit. */
+export const peutEcrireLesEntetes = (): boolean => cryptoDeNode() !== undefined;
 
 /**
  * Les en-têtes de sécurité du site produit, dans un fichier « _headers » : Cloudflare Pages et Netlify le
@@ -12,11 +22,13 @@ const SCRIPT_EN_LIGNE = /<script(?![^>]*\bsrc=)(?![^>]*type="application\/(?:ld\
 
 /** Les empreintes des scripts écrits dans les pages, chacune une fois, dans un ordre stable. */
 function empreintes(fichiers: Map<string, unknown>): string[] {
+  const crypto = cryptoDeNode();
+  if (!crypto) throw new Error('les empreintes des scripts demandent le module crypto de Node');
   const trouvees = new Set<string>();
   for (const [nom, contenu] of fichiers) {
     if (!nom.endsWith('.html') || typeof contenu !== 'string') continue;
     for (const [, code] of contenu.matchAll(SCRIPT_EN_LIGNE)) {
-      if (code.trim() !== '') trouvees.add(`'sha256-${createHash('sha256').update(code).digest('base64')}'`);
+      if (code.trim() !== '') trouvees.add(`'sha256-${crypto.createHash('sha256').update(code).digest('base64')}'`);
     }
   }
   return [...trouvees].sort();
