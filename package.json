@@ -1,6 +1,6 @@
 {
   "name": "humalis",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Un seul langage, en français, pour créer une application complète : site web, applications Apple, Android, Windows et Linux, et leur serveur",
   "type": "module",
   "bin": {
